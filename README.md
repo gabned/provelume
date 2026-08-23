@@ -19,7 +19,8 @@ Version `0.1.0` implements a small local Instance that can:
 - create a new version only when file content changes;
 - extract text locally and build a disposable SQLite FTS5 search index;
 - expose a read-only versioned Knowledge API with FastAPI;
-- provide a minimal EN/IT Knowledge Browser for browse, search, document detail, versions, provenance and knowledge health;
+- provide a minimal EN/IT Knowledge Browser for browse, search, document detail, versions, provenance, knowledge health and build transparency;
+- report its embedded version/tag/commit/source identity offline through CLI, API and browser;
 - restart without losing canonical state;
 - run without Git, GitHub, Provelume Cloud or an external AI provider.
 
@@ -44,6 +45,12 @@ The bootstrap command creates `.venv` and installs Provelume plus developer chec
 ```
 
 On Windows, use `.venv\\Scripts\\provelume.exe` for the same commands. Open `http://127.0.0.1:8000/` after starting the server.
+
+Inspect the package's embedded source identity without creating an Instance or making a network request:
+
+```bash
+.venv/bin/provelume build-info
+```
 
 Run all tests with:
 
@@ -84,6 +91,7 @@ See `docs/architecture/portable-instance.md` and `docs/architecture/canonical-de
 The browser and external clients use the same application layer. The first read-only API is under `/api/v1`, including:
 
 - `GET /health`
+- `GET /api/v1/build-info`
 - `GET /api/v1/instance`
 - `GET /api/v1/sources`
 - `GET /api/v1/sources/{id}`
@@ -111,7 +119,17 @@ A release publishes Python wheel/source artifacts together with SHA-256 checksum
 
 The Python wheel and source distribution also pass a measured deterministic-component gate. The build backend is pinned exactly, `SOURCE_DATE_EPOCH` comes from the public commit, and two independent clean source copies must produce byte-identical wheel and source-distribution hashes before release assembly continues. The evidence is published as `build-determinism.json`.
 
-To run the same comparison locally after installing `requirements-release.txt`:
+The deterministic builder also embeds validated package identity before each copy is built. Official packages carry their matching version, tag, full public commit, release channel and source timestamp. Development builds carry a development state and may identify the source commit without claiming to be a release.
+
+The same offline result is available from:
+
+- `provelume build-info`;
+- `GET /api/v1/build-info`;
+- the Knowledge Browser's **Security** page at `/security`.
+
+These surfaces distinguish official metadata, development builds and unavailable identity. They intentionally report local integrity, platform signature and external provenance as **not verified**: embedded metadata describes the package but is not yet a complete installation-verification engine.
+
+To run the deterministic comparison locally after installing `requirements-release.txt`:
 
 ```bash
 SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)" \
@@ -122,9 +140,9 @@ python scripts/deterministic_build.py \
   --commit "$(git rev-parse HEAD)"
 ```
 
-This supports a **traceable build** guarantee and a **same-source/same-environment byte-identical** guarantee for the Python distributions. It is not yet a claim that the complete release is independently reproducible on every platform.
+This supports a **traceable build** guarantee and a **same-source/same-environment byte-identical** guarantee for the Python distributions. It is not yet a claim that the complete release is independently reproducible on every platform or that the current installation has been cryptographically verified.
 
-See `docs/architecture/verifiable-builds.md`, `docs/release-verification.md` and ADR 0004.
+See `docs/architecture/verifiable-builds.md`, `docs/release-verification.md`, ADR 0004 and ADR 0005.
 
 ## Product boundaries
 
