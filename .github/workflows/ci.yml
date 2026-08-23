@@ -109,7 +109,10 @@ jobs:
 
       - name: Derive reproducible source timestamp
         shell: bash
-        run: echo "SOURCE_DATE_EPOCH=$(git show -s --format=%ct "$GITHUB_SHA")" >> "$GITHUB_ENV"
+        run: |
+          set -euo pipefail
+          epoch="$(git show -s --format=%ct "$GITHUB_SHA")"
+          echo "SOURCE_DATE_EPOCH=$epoch" >> "$GITHUB_ENV"
 
       - name: Install release tooling
         run: python -m pip install -e ".[dev]" -r requirements-release.txt
