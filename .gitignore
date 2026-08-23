@@ -1,0 +1,49 @@
+# Runtime configuration and secrets
+.env
+.env.*
+!.env.example
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+
+# Runtime data
+storage/
+data/
+state/
+cache/
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# PHP / Composer
+vendor/
+composer.lock
+
+# Node
+node_modules/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local containers / overrides
+compose.override.yml
+docker-compose.override.yml
+
+# Private reference-instance material must never be copied here
+.nexus-analysis/
+Nexus-private/
+private-reference/
