@@ -19,7 +19,7 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 - derived text materialization is shared by ingestion and index rebuild so extractor identity, artifact identity and derived provenance remain stable when rebuildable state is deleted;
 - search-index rebuild selects the extractor from the canonical document locator instead of assuming every non-PDF original is plain text;
-- CI uses a pinned Node-24-capable `setup-python` action revision and exact Python 3.12.14 for current release certification.
+- CI uses a pinned Node-24-capable `setup-python` action revision; cross-platform tests track Python 3.12 while the current official Linux release build is pinned to Python 3.12.14.
 
 ## 0.1.0 - 2026-08-23
 
