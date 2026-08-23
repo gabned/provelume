@@ -7,6 +7,15 @@ from pypdf import PdfWriter
 
 from provelume.service import ProvelumeInstance
 
+CANONICAL_KINDS = (
+    "sources",
+    "acquisitions",
+    "originals",
+    "documents",
+    "versions",
+    "provenance",
+)
+
 
 def test_init_ingest_duplicate_version_restart_and_rebuild(tmp_path: Path) -> None:
     instance_dir = tmp_path / "instance"
@@ -32,23 +41,24 @@ def test_init_ingest_duplicate_version_restart_and_rebuild(tmp_path: Path) -> No
     assert second[0]["version_id"] == version_id
     assert len(instance.store.versions_for_document(document_id)) == 1
 
-    note.write_text("# Alpha\n\nDurable provenance and versions matter.\n", encoding="utf-8")
+    note.write_text(
+        "# Alpha\n\nDurable provenance and versions matter.\n",
+        encoding="utf-8",
+    )
     third = instance.ingest(source_dir)
     assert third[0]["outcome"] == "version_created"
     assert third[0]["version_id"] != version_id
     assert len(instance.store.versions_for_document(document_id)) == 2
 
     canonical_before = {
-        kind: instance.store.list_canonical(kind)
-        for kind in ("sources", "acquisitions", "originals", "documents", "versions", "provenance")
+        kind: instance.store.list_canonical(kind) for kind in CANONICAL_KINDS
     }
     shutil.rmtree(instance_dir / "indexes")
     restarted = ProvelumeInstance(instance_dir)
     assert restarted.rebuild_index() == 1
     assert restarted.search("versions")[0]["document_id"] == document_id
     canonical_after = {
-        kind: restarted.store.list_canonical(kind)
-        for kind in canonical_before
+        kind: restarted.store.list_canonical(kind) for kind in CANONICAL_KINDS
     }
     assert canonical_after == canonical_before
 
@@ -95,4 +105,5 @@ def test_pdf_ingestion_is_supported(tmp_path: Path) -> None:
     instance = ProvelumeInstance.initialise(tmp_path / "instance")
     acquisitions = instance.ingest(source_dir)
     assert acquisitions[0]["outcome"] == "created"
-    assert instance.store.list_canonical("documents")[0]["media_type"] == "application/pdf"
+    document = instance.store.list_canonical("documents")[0]
+    assert document["media_type"] == "application/pdf"
