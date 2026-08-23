@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import csv
+import stat
+import zlib
 from dataclasses import dataclass
 from email import policy
 from email.parser import BytesParser
 from html.parser import HTMLParser
 from io import BytesIO, StringIO
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Protocol
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
@@ -24,6 +26,10 @@ XLSX_MAX_SHEETS = 100
 XLSX_MAX_XML_BYTES = 20 * 1024 * 1024
 XLSX_MAX_ROWS = 20_000
 XLSX_MAX_CELLS = 100_000
+ZIP_MAX_MEMBERS = 1_000
+ZIP_MAX_TOTAL_UNCOMPRESSED = 50 * 1024 * 1024
+ZIP_MAX_MEMBER_BYTES = 10 * 1024 * 1024
+ZIP_MAX_COMPRESSION_RATIO = 200
 
 
 class ExtractionError(RuntimeError):
@@ -495,6 +501,86 @@ class ImageMetadataExtractor:
         )
 
 
+class ZipArchiveExtractor:
+    extensions = {".zip"}
+
+    def supports(self, suffix: str) -> bool:
+        return suffix.lower() in self.extensions
+
+    @staticmethod
+    def _safe_member_name(name: str) -> str:
+        if not name or "\x00" in name:
+            raise ExtractionError("ZIP contains an invalid member name")
+        normalized = name.replace("\\", "/")
+        path = PurePosixPath(normalized)
+        if path.is_absolute() or ".." in path.parts:
+            raise ExtractionError(f"ZIP member path is unsafe: {name}")
+        if len(normalized) >= 2 and normalized[0].isalpha() and normalized[1] == ":":
+            raise ExtractionError(f"ZIP member path uses a drive prefix: {name}")
+        return path.as_posix()
+
+    @staticmethod
+    def _is_symlink(external_attr: int) -> bool:
+        mode = (external_attr >> 16) & 0xFFFF
+        return bool(mode) and stat.S_ISLNK(mode)
+
+    def extract(self, data: bytes) -> ExtractionResult:
+        try:
+            with ZipFile(BytesIO(data)) as archive:
+                infos = archive.infolist()
+                if len(infos) > ZIP_MAX_MEMBERS:
+                    raise ExtractionError(
+                        f"ZIP exceeds the {ZIP_MAX_MEMBERS}-member safety limit"
+                    )
+                total_uncompressed = sum(info.file_size for info in infos if not info.is_dir())
+                if total_uncompressed > ZIP_MAX_TOTAL_UNCOMPRESSED:
+                    raise ExtractionError(
+                        "ZIP exceeds the total uncompressed-size safety limit"
+                    )
+                output: list[str] = []
+                for info in infos:
+                    name = self._safe_member_name(info.filename)
+                    if self._is_symlink(info.external_attr):
+                        raise ExtractionError(f"ZIP symlink members are not allowed: {name}")
+                    if info.is_dir():
+                        continue
+                    if info.flag_bits & 0x1:
+                        raise ExtractionError(f"ZIP encrypted member cannot be inspected: {name}")
+                    if info.file_size > ZIP_MAX_MEMBER_BYTES:
+                        raise ExtractionError(
+                            "ZIP member exceeds the "
+                            f"{ZIP_MAX_MEMBER_BYTES}-byte safety limit: {name}"
+                        )
+                    if (
+                        info.file_size > 1024 * 1024
+                        and info.file_size / max(info.compress_size, 1)
+                        > ZIP_MAX_COMPRESSION_RATIO
+                    ):
+                        raise ExtractionError(
+                            f"ZIP member compression ratio is unsafe: {name}"
+                        )
+                    output.append(f"Member: {name} ({info.file_size} bytes)")
+                    if PurePosixPath(name).suffix.casefold() == ".zip":
+                        output.append("Nested ZIP content is not expanded.")
+                        continue
+                    extractor = extractor_for(Path(name))
+                    if extractor is None:
+                        continue
+                    member_result = extractor.extract(archive.read(info))
+                    if member_result.text.strip():
+                        output.append(member_result.text.strip())
+        except ExtractionError:
+            raise
+        except (BadZipFile, OSError, RuntimeError, NotImplementedError, zlib.error) as exc:
+            raise ExtractionError(f"ZIP extraction failed: {exc}") from exc
+
+        return ExtractionResult(
+            text=_bounded_text("\n\n".join(output), "ZIP"),
+            generator="provelume.zip-inspection",
+            generator_version="1",
+        )
+
+
 EXTRACTORS: tuple[Extractor, ...] = (
     PlainTextExtractor(),
     PdfTextExtractor(),
@@ -503,6 +589,7 @@ EXTRACTORS: tuple[Extractor, ...] = (
     EmlTextExtractor(),
     XlsxTextExtractor(),
     ImageMetadataExtractor(),
+    ZipArchiveExtractor(),
 )
 
 

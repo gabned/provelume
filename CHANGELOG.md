@@ -9,7 +9,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - deterministic local DOCX, CSV and EML text extraction using Python standard-library facilities only;
 - deterministic local XLSX cell extraction from bounded OOXML worksheet/shared-string data;
 - local PNG/JPEG metadata extraction for format and dimensions without image decoding or OCR;
-- bounded extractor safeguards for extracted text, OOXML package structure, CSV rows/columns, EML MIME parts and XLSX sheets/rows/cells.
+- bounded ZIP archive inspection with member listing and supported nested-member text extraction in memory;
+- bounded extractor safeguards for extracted text, OOXML package structure, CSV rows/columns, EML MIME parts, XLSX sheets/rows/cells, ZIP traversal, symlinks, encryption, member sizes and compression ratios.
 
 ### Changed
 
