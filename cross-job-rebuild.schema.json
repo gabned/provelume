@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/cross-job-rebuild-v1.json",
+  "title": "Provelume pinned-container cross-job rebuild evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "assurance",
+    "result",
+    "source_repository",
+    "source_commit",
+    "environment_lock",
+    "build_input_lock",
+    "comparison_host",
+    "jobs",
+    "artifacts",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "assurance": {"const": "pinned-oci-cross-job-rebuild"},
+    "result": {"enum": ["match", "mismatch"]},
+    "source_repository": {"const": "gabned/provelume"},
+    "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "environment_lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "filename",
+        "sha256",
+        "image_reference",
+        "image_digest",
+        "target"
+      ],
+      "properties": {
+        "filename": {"const": "build-environment.lock.json"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "image_reference": {
+          "type": "string",
+          "pattern": "^docker\\.io/library/python@sha256:[0-9a-f]{64}$"
+        },
+        "image_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operating_system", "architecture", "python"],
+          "properties": {
+            "operating_system": {"const": "linux"},
+            "architecture": {"const": "amd64"},
+            "python": {"type": "string", "pattern": "^CPython \\d+\\.\\d+\\.\\d+$"}
+          }
+        }
+      }
+    },
+    "build_input_lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filename", "sha256"],
+      "properties": {
+        "filename": {"const": "requirements-build.lock"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "comparison_host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operating_system", "machine", "python_version"],
+      "properties": {
+        "operating_system": {"type": "string", "minLength": 1},
+        "machine": {"type": "string", "minLength": 1},
+        "python_version": {"type": "string", "minLength": 1}
+      }
+    },
+    "jobs": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "evidence_sha256", "artifacts"],
+        "properties": {
+          "label": {"enum": ["A", "B"]},
+          "evidence_sha256": {"$ref": "#/$defs/sha256"},
+          "artifacts": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {"$ref": "#/$defs/fileIdentity"}
+          }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "size_bytes",
+          "sha256",
+          "second_size_bytes",
+          "second_sha256",
+          "matches"
+        ],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "size_bytes": {"type": "integer", "minimum": 0},
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "second_size_bytes": {"type": "integer", "minimum": 0},
+          "second_sha256": {"$ref": "#/$defs/sha256"},
+          "matches": {"type": "boolean"}
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "fileIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "size_bytes", "sha256"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "size_bytes": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}
