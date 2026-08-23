@@ -6,7 +6,8 @@ from dataclasses import replace
 from pathlib import Path
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
-from .domain import Acquisition, DerivedArtifact, Document, DocumentVersion, ProvenanceEdge, Source
+from .derived import materialize_extracted_text, provenance_edge
+from .domain import Acquisition, Document, DocumentVersion, Source
 from .extractors import ExtractionError, extractor_for
 from .paths import UnsafePathError, normalise_locator
 from .storage import InstanceStore, utc_now
@@ -21,25 +22,6 @@ class IngestionLimitError(RuntimeError):
 
 def _stable_version_id(document_id: str, digest: str) -> str:
     return f"ver_{uuid5(NAMESPACE_URL, f'provelume:{document_id}:{digest}').hex}"
-
-
-def _edge(
-    from_kind: str,
-    from_id: str,
-    relation: str,
-    to_kind: str,
-    to_id: str,
-) -> ProvenanceEdge:
-    value = f"{from_kind}:{from_id}:{relation}:{to_kind}:{to_id}"
-    return ProvenanceEdge(
-        id=f"edge_{uuid5(NAMESPACE_URL, value).hex}",
-        from_kind=from_kind,
-        from_id=from_id,
-        relation=relation,
-        to_kind=to_kind,
-        to_id=to_id,
-        created_at=utc_now(),
-    )
 
 
 def _iter_files(source: Path, max_files: int) -> list[tuple[str, Path]]:
@@ -134,10 +116,22 @@ def _ingest_one(
             )
             store.write_acquisition(acquisition)
             store.write_provenance(
-                _edge("source", source_id, "observed", "acquisition", acquisition.id)
+                provenance_edge(
+                    "source",
+                    source_id,
+                    "observed",
+                    "acquisition",
+                    acquisition.id,
+                )
             )
             store.write_provenance(
-                _edge("acquisition", acquisition.id, "matched", "version", current["id"])
+                provenance_edge(
+                    "acquisition",
+                    acquisition.id,
+                    "matched",
+                    "version",
+                    current["id"],
+                )
             )
             return acquisition
         sequence = max(int(item["sequence"]) for item in versions) + 1
@@ -187,23 +181,7 @@ def _ingest_one(
     try:
         assert extractor is not None
         extraction = extractor.extract(data)
-        artifact_key = f"{version_id}:extracted_text:{extraction.generator}:1"
-        artifact_id = f"derived_{uuid5(NAMESPACE_URL, artifact_key).hex}"
-        relative, checksum = store.write_derived_text(artifact_id, extraction.text)
-        artifact = DerivedArtifact(
-            id=artifact_id,
-            version_id=version_id,
-            kind="extracted_text",
-            generator=extraction.generator,
-            generator_version=extraction.generator_version,
-            storage_ref=relative,
-            checksum=checksum,
-            created_at=utc_now(),
-        )
-        store.write_derived_artifact(artifact)
-        store.write_derived_provenance(
-            _edge("version", version_id, "extracted_to", "derived_artifact", artifact.id)
-        )
+        materialize_extracted_text(store, version_id, extraction)
     except ExtractionError as exc:
         extraction_error = str(exc)
 
@@ -211,15 +189,39 @@ def _ingest_one(
         acquisition = replace(acquisition, outcome="extraction_failed", error=extraction_error)
     store.write_acquisition(acquisition)
     store.write_provenance(
-        _edge("source", source_id, "observed", "acquisition", acquisition.id)
+        provenance_edge(
+            "source",
+            source_id,
+            "observed",
+            "acquisition",
+            acquisition.id,
+        )
     )
     store.write_provenance(
-        _edge("acquisition", acquisition.id, "captured", "original", original.id)
+        provenance_edge(
+            "acquisition",
+            acquisition.id,
+            "captured",
+            "original",
+            original.id,
+        )
     )
     store.write_provenance(
-        _edge("original", original.id, "materialized_as", "version", version_id)
+        provenance_edge(
+            "original",
+            original.id,
+            "materialized_as",
+            "version",
+            version_id,
+        )
     )
     store.write_provenance(
-        _edge("version", version_id, "version_of", "document", document_id)
+        provenance_edge(
+            "version",
+            version_id,
+            "version_of",
+            "document",
+            document_id,
+        )
     )
     return acquisition
