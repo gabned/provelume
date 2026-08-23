@@ -1,0 +1,358 @@
+name: One-shot generate build-input lock
+
+on:
+  push:
+    branches:
+      - feat/hash-locked-build-inputs
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: feat/hash-locked-build-inputs
+          fetch-depth: 0
+
+      - name: Set up certified release Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12.14"
+
+      - name: Add bootstrap pip to direct build inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("requirements-build.txt")
+          text = path.read_text(encoding="utf-8")
+          if "pip==26.2.1" not in text:
+              text = text.rstrip() + "\npip==26.2.1\n"
+          path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Resolve approved wheelhouse and generate lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .build-wheelhouse-lock .build-wheelhouse-verify
+          python -m pip download \
+            --only-binary=:all: \
+            --dest .build-wheelhouse-lock \
+            --requirement requirements-build.txt
+          python scripts/build_input_lock.py generate \
+            --wheelhouse .build-wheelhouse-lock \
+            --direct requirements-build.txt \
+            --target-python "CPython 3.12.14" \
+            --target-platform "Linux x86_64" \
+            --output requirements-build.lock
+          python scripts/build_input_lock.py check \
+            --lock requirements-build.lock \
+            --direct requirements-build.txt \
+            --json
+          python -m pip download \
+            --require-hashes \
+            --only-binary=:all: \
+            --dest .build-wheelhouse-verify \
+            --requirement requirements-build.lock
+
+      - name: Integrate lock into build evidence and workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          script = Path("scripts/deterministic_build.py")
+          text = script.read_text(encoding="utf-8")
+          install_needle = (
+              "            \"--find-links\",\n"
+              "            wheelhouse,\n"
+              "            \"--requirement\",\n"
+              "            requirements,\n"
+          )
+          install_replacement = (
+              "            \"--find-links\",\n"
+              "            wheelhouse,\n"
+              "            \"--require-hashes\",\n"
+              "            \"--requirement\",\n"
+              "            requirements,\n"
+          )
+          if install_needle not in text:
+              raise SystemExit("deterministic builder install target not found")
+          text = text.replace(install_needle, install_replacement, 1)
+          evidence_needle = (
+              "            \"build_input_artifacts\": [asdict(item) for item in wheelhouse_files],\n"
+              "            \"resolved_build_packages\": first[\"packages\"],\n"
+          )
+          evidence_replacement = (
+              "            \"build_input_artifacts\": [asdict(item) for item in wheelhouse_files],\n"
+              "            \"build_input_lock\": {\n"
+              "                \"filename\": requirements.name,\n"
+              "                \"sha256\": sha256_file(requirements),\n"
+              "            },\n"
+              "            \"resolved_build_packages\": first[\"packages\"],\n"
+          )
+          if evidence_needle not in text:
+              raise SystemExit("deterministic builder evidence target not found")
+          text = text.replace(evidence_needle, evidence_replacement, 1)
+          text = text.replace(
+              "                \"Transitive build inputs are recorded but not yet locked "
+              "across future runs.\",\n",
+              "",
+              1,
+          )
+          script.write_text(text, encoding="utf-8")
+
+          schema_path = Path("build-comparison.schema.json")
+          schema = json.loads(schema_path.read_text(encoding="utf-8"))
+          required = schema["required"]
+          if "build_input_lock" not in required:
+              required.insert(required.index("build_input_artifacts") + 1, "build_input_lock")
+          schema["properties"]["build_input_lock"] = {
+              "type": "object",
+              "additionalProperties": False,
+              "required": ["filename", "sha256"],
+              "properties": {
+                  "filename": {"const": "requirements-build.lock"},
+                  "sha256": {"$ref": "#/$defs/sha256"},
+              },
+          }
+          schema_path.write_text(
+              json.dumps(schema, indent=2, sort_keys=False) + "\n",
+              encoding="utf-8",
+          )
+
+          deterministic = Path(".github/workflows/deterministic-build.yml")
+          text = deterministic.read_text(encoding="utf-8")
+          text = text.replace(
+              "          cache-dependency-path: requirements-build.txt\n",
+              "          cache-dependency-path: |\n"
+              "            requirements-build.txt\n"
+              "            requirements-build.lock\n",
+              1,
+          )
+          marker = "      - name: Resolve and record build-input artifacts\n"
+          validation = (
+              "      - name: Validate committed build-input lock\n"
+              "        run: python scripts/build_input_lock.py check "
+              "--lock requirements-build.lock --direct requirements-build.txt --json\n\n"
+          )
+          if marker not in text:
+              raise SystemExit("deterministic workflow insertion target not found")
+          text = text.replace(marker, validation + marker, 1)
+          text = text.replace(
+              "          python -m pip download \\\n"
+              "            --only-binary=:all: \\\n",
+              "          python -m pip download \\\n"
+              "            --require-hashes \\\n"
+              "            --only-binary=:all: \\\n",
+              1,
+          )
+          text = text.replace(
+              "            --requirement requirements-build.txt\n",
+              "            --requirement requirements-build.lock\n",
+              1,
+          )
+          text = text.replace(
+              "            --requirements requirements-build.txt \\\n",
+              "            --requirements requirements-build.lock \\\n",
+              1,
+          )
+          text = text.replace(
+              "            build-comparison.schema.json\n",
+              "            build-comparison.schema.json\n"
+              "            requirements-build.lock\n",
+              1,
+          )
+          deterministic.write_text(text, encoding="utf-8")
+
+          release = Path(".github/workflows/release.yml")
+          text = release.read_text(encoding="utf-8")
+          text = text.replace(
+              "            requirements-build.txt\n"
+              "            requirements-release.txt\n",
+              "            requirements-build.txt\n"
+              "            requirements-build.lock\n"
+              "            requirements-release.txt\n",
+              1,
+          )
+          marker = "      - name: Resolve and record build-input artifacts\n"
+          validation = (
+              "      - name: Validate committed build-input lock\n"
+              "        run: python scripts/build_input_lock.py check "
+              "--lock requirements-build.lock --direct requirements-build.txt --json\n\n"
+          )
+          if marker not in text:
+              raise SystemExit("release workflow insertion target not found")
+          text = text.replace(marker, validation + marker, 1)
+          text = text.replace(
+              "          python -m pip download \\\n"
+              "            --only-binary=:all: \\\n",
+              "          python -m pip download \\\n"
+              "            --require-hashes \\\n"
+              "            --only-binary=:all: \\\n",
+              1,
+          )
+          text = text.replace(
+              "            --requirement requirements-build.txt\n",
+              "            --requirement requirements-build.lock\n",
+              1,
+          )
+          text = text.replace(
+              "            --requirements requirements-build.txt \\\n",
+              "            --requirements requirements-build.lock \\\n",
+              1,
+          )
+          text = text.replace(
+              "          cp build-comparison.schema.json release/\n",
+              "          cp build-comparison.schema.json release/\n"
+              "          cp requirements-build.lock release/\n",
+              1,
+          )
+          text = text.replace(
+              "            --artifact release/build-comparison.schema.json \\\n",
+              "            --artifact release/build-comparison.schema.json \\\n"
+              "            --artifact release/requirements-build.lock \\\n",
+              1,
+          )
+          attestation_marker = "      - name: Attest deterministic-build evidence\n"
+          attestation = (
+              "      - name: Attest build-input lock\n"
+              "        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 "
+              "# v4.2.2\n"
+              "        with:\n"
+              "          subject-path: \"release/requirements-build.lock\"\n\n"
+          )
+          if attestation_marker not in text:
+              raise SystemExit("release attestation target not found")
+          text = text.replace(attestation_marker, attestation + attestation_marker, 1)
+          release.write_text(text, encoding="utf-8")
+
+          ci = Path(".github/workflows/ci.yml")
+          text = ci.read_text(encoding="utf-8")
+          text = text.replace(
+              "            requirements-release.txt\n",
+              "            requirements-release.txt\n"
+              "            requirements-build.lock\n",
+              1,
+          )
+          marker = "      - name: Install release tooling\n"
+          validation = (
+              "      - name: Validate committed build-input lock\n"
+              "        run: python scripts/build_input_lock.py check "
+              "--lock requirements-build.lock --direct requirements-build.txt --json\n\n"
+          )
+          if marker not in text:
+              raise SystemExit("CI release-foundation target not found")
+          text = text.replace(marker, validation + marker, 1)
+          ci.write_text(text, encoding="utf-8")
+
+          docs = Path("docs/deterministic-builds.md")
+          text = docs.read_text(encoding="utf-8")
+          text = text.replace(
+              "- transitive build packages are hashed and recorded for each run, but are not yet\n"
+              "  frozen by a cross-run lockfile with required hashes;\n",
+              "",
+              1,
+          )
+          text = text.replace(
+              "The report records the source snapshot identity, full commit, environment,\n"
+              "wheelhouse file hashes, resolved build package set and both runs' artifact hashes.\n",
+              "The report records the source snapshot identity, full commit, environment,\n"
+              "committed build-input lock identity, wheelhouse file hashes, resolved build package\n"
+              "set and both runs' artifact hashes.\n",
+              1,
+          )
+          docs.write_text(text, encoding="utf-8")
+
+          readme = Path("README.md")
+          text = readme.read_text(encoding="utf-8")
+          text = text.replace(
+              "Both builds use the same hash-recorded wheelhouse, commit-derived "
+              "`SOURCE_DATE_EPOCH` and controlled build environment.",
+              "Both builds use the same committed exact-version/SHA-256-locked wheelhouse, "
+              "commit-derived `SOURCE_DATE_EPOCH` and controlled build environment.",
+              1,
+          )
+          readme.write_text(text, encoding="utf-8")
+
+          changelog = Path("CHANGELOG.md")
+          text = changelog.read_text(encoding="utf-8")
+          needle = (
+              "- machine-readable `build-comparison.json` evidence, public schema, CI artifact "
+              "retention and release attestation for deterministic component verification.\n"
+          )
+          replacement = (
+              needle
+              + "- target-specific `requirements-build.lock` with exact versions and SHA-256 "
+              "hashes for every direct and transitive Python distribution build input.\n"
+          )
+          if needle not in text:
+              raise SystemExit("changelog insertion target not found")
+          text = text.replace(needle, replacement, 1)
+          changelog.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Install checks and normalize changes
+        run: python -m pip install -e ".[dev]"
+
+      - name: Fix and format changed Python files
+        run: |
+          python -m ruff check --fix \
+            scripts/build_input_lock.py \
+            scripts/deterministic_build.py \
+            tests/test_build_input_lock.py
+          python -m ruff format \
+            scripts/build_input_lock.py \
+            scripts/deterministic_build.py \
+            tests/test_build_input_lock.py
+
+      - name: Prove locked deterministic build and repository tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/build_input_lock.py check \
+            --lock requirements-build.lock \
+            --direct requirements-build.txt \
+            --json
+          SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          rm -rf dist-lock-proof build-lock-proof.json
+          python scripts/deterministic_build.py \
+            --repository . \
+            --commit HEAD \
+            --source-date-epoch "$SOURCE_DATE_EPOCH" \
+            --wheelhouse .build-wheelhouse-verify \
+            --requirements requirements-build.lock \
+            --output-dir dist-lock-proof \
+            --report build-lock-proof.json
+          python -m ruff check core tests scripts
+          python -m pytest -q
+          python -m json.tool build-comparison.schema.json >/dev/null
+          python -m json.tool build-lock-proof.json >/dev/null
+
+      - name: Remove temporary material and push lock integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf \
+            .build-wheelhouse-lock \
+            .build-wheelhouse-verify \
+            dist-lock-proof \
+            build-lock-proof.json
+          rm .github/workflows/one-shot-build-input-lock.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Freeze Python distribution build inputs"
+          git push origin HEAD:feat/hash-locked-build-inputs
