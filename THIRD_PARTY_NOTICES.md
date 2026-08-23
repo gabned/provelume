@@ -2,7 +2,7 @@
 
 Provelume's public license does not replace the licenses of third-party dependencies.
 
-Direct runtime dependencies in the 0.1 Python package include:
+Direct runtime dependencies in the current Python package include:
 
 | Component | Purpose | License |
 | --- | --- | --- |
@@ -12,4 +12,12 @@ Direct runtime dependencies in the 0.1 Python package include:
 | PyYAML | Instance configuration | MIT |
 | Uvicorn | local ASGI server | BSD-3-Clause |
 
-These components have their own copyright notices and license terms. Transitive dependencies retain their own terms as well. A release SBOM is the target machine-readable dependency inventory for published artifacts; this file is a human-readable summary, not a substitute for that SBOM.
+Release-build tooling includes:
+
+| Component | Purpose | License |
+| --- | --- | --- |
+| build | Python wheel/source distribution builder | MIT |
+| CycloneDX Python (`cyclonedx-bom`) | release SBOM generation | Apache-2.0 |
+| GitHub Actions checkout/setup/upload/attest actions | public CI and release automation | licenses published by their respective repositories |
+
+These components have their own copyright notices and license terms. Transitive dependencies retain their own terms as well. Published release SBOMs are the machine-readable dependency inventory for the built Python environment; this file is a human-readable summary, not a substitute for that SBOM.
