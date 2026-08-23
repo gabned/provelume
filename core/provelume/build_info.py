@@ -174,8 +174,14 @@ def _loaded_build_info() -> dict[str, Any]:
         path = files("provelume").joinpath("build_info.json")
         raw = json.loads(path.read_text(encoding="utf-8"))
         result = parse_build_info(raw)
-    except (BuildInfoError, OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
-        result = unavailable_build_info(str(exc) or exc.__class__.__name__)
+    except BuildInfoError as exc:
+        result = unavailable_build_info(str(exc))
+    except json.JSONDecodeError:
+        result = unavailable_build_info("embedded build metadata is not valid JSON")
+    except OSError:
+        result = unavailable_build_info("embedded build metadata cannot be read")
+    except (TypeError, ValueError):
+        result = unavailable_build_info("embedded build metadata is invalid")
     if result["identity_status"] not in IDENTITY_STATUSES:
         return unavailable_build_info("invalid computed identity status")
     return result
