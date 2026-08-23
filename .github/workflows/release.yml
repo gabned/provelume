@@ -62,7 +62,8 @@ jobs:
               output.write(f"version={version}\n")
               output.write(f"channel={channel}\n")
           PY
-          echo "SOURCE_DATE_EPOCH=$(git show -s --format=%ct "$GITHUB_SHA")" >> "$GITHUB_ENV"
+          epoch="$(git show -s --format=%ct "$GITHUB_SHA")"
+          echo "SOURCE_DATE_EPOCH=$epoch" >> "$GITHUB_ENV"
 
       - name: Install release tooling and checks
         run: python -m pip install -e ".[dev]" -r requirements-release.txt
@@ -135,10 +136,11 @@ jobs:
           python -m json.tool "release/provelume-${VERSION}.cdx.json" >/dev/null
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
           evidence = json.loads(Path('release/build-determinism.json').read_text())
-          assert evidence['source_commit'] == __import__('os').environ['GITHUB_SHA']
+          assert evidence['source_commit'] == os.environ['GITHUB_SHA']
           assert all(row['byte_identical'] for row in evidence['artifacts'])
           PY
 
