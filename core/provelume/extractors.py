@@ -19,6 +19,11 @@ DOCX_MAX_MEMBERS = 2_000
 CSV_MAX_ROWS = 5_000
 CSV_MAX_COLUMNS = 200
 EML_MAX_PARTS = 500
+XLSX_MAX_MEMBERS = 3_000
+XLSX_MAX_SHEETS = 100
+XLSX_MAX_XML_BYTES = 20 * 1024 * 1024
+XLSX_MAX_ROWS = 20_000
+XLSX_MAX_CELLS = 100_000
 
 
 class ExtractionError(RuntimeError):
@@ -295,12 +300,209 @@ class EmlTextExtractor:
         )
 
 
+class XlsxTextExtractor:
+    extensions = {".xlsx"}
+    spreadsheet_namespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+
+    def supports(self, suffix: str) -> bool:
+        return suffix.lower() in self.extensions
+
+    def _shared_strings(self, archive: ZipFile) -> list[str]:
+        try:
+            info = archive.getinfo("xl/sharedStrings.xml")
+        except KeyError:
+            return []
+        if info.file_size > XLSX_MAX_XML_BYTES:
+            raise ExtractionError(
+                f"XLSX shared strings exceed the {XLSX_MAX_XML_BYTES}-byte safety limit"
+            )
+        root = ElementTree.fromstring(archive.read(info))
+        item_tag = f"{{{self.spreadsheet_namespace}}}si"
+        text_tag = f"{{{self.spreadsheet_namespace}}}t"
+        return [
+            "".join(node.text or "" for node in item.iter(text_tag))
+            for item in root.iter(item_tag)
+        ]
+
+    def extract(self, data: bytes) -> ExtractionResult:
+        try:
+            with ZipFile(BytesIO(data)) as archive:
+                members = archive.infolist()
+                if len(members) > XLSX_MAX_MEMBERS:
+                    raise ExtractionError(
+                        f"XLSX exceeds the {XLSX_MAX_MEMBERS}-member safety limit"
+                    )
+                worksheet_infos = sorted(
+                    (
+                        info
+                        for info in members
+                        if info.filename.startswith("xl/worksheets/")
+                        and info.filename.endswith(".xml")
+                    ),
+                    key=lambda info: info.filename,
+                )
+                if not worksheet_infos:
+                    raise ExtractionError("XLSX contains no worksheets")
+                if len(worksheet_infos) > XLSX_MAX_SHEETS:
+                    raise ExtractionError(
+                        f"XLSX exceeds the {XLSX_MAX_SHEETS}-worksheet safety limit"
+                    )
+                shared_strings = self._shared_strings(archive)
+                output: list[str] = []
+                total_rows = 0
+                total_cells = 0
+                row_tag = f"{{{self.spreadsheet_namespace}}}row"
+                cell_tag = f"{{{self.spreadsheet_namespace}}}c"
+                value_tag = f"{{{self.spreadsheet_namespace}}}v"
+                text_tag = f"{{{self.spreadsheet_namespace}}}t"
+
+                for info in worksheet_infos:
+                    if info.file_size > XLSX_MAX_XML_BYTES:
+                        raise ExtractionError(
+                            f"XLSX worksheet exceeds the {XLSX_MAX_XML_BYTES}-byte safety limit"
+                        )
+                    root = ElementTree.fromstring(archive.read(info))
+                    output.append(f"Sheet: {Path(info.filename).stem}")
+                    for row in root.iter(row_tag):
+                        total_rows += 1
+                        if total_rows > XLSX_MAX_ROWS:
+                            raise ExtractionError(
+                                f"XLSX exceeds the {XLSX_MAX_ROWS}-row safety limit"
+                            )
+                        values: list[str] = []
+                        for cell in row.findall(cell_tag):
+                            total_cells += 1
+                            if total_cells > XLSX_MAX_CELLS:
+                                raise ExtractionError(
+                                    f"XLSX exceeds the {XLSX_MAX_CELLS}-cell safety limit"
+                                )
+                            cell_type = cell.get("t") or ""
+                            if cell_type == "inlineStr":
+                                value = "".join(
+                                    node.text or "" for node in cell.iter(text_tag)
+                                )
+                            else:
+                                value_node = cell.find(value_tag)
+                                value = value_node.text if value_node is not None else ""
+                                if cell_type == "s" and value:
+                                    try:
+                                        value = shared_strings[int(value)]
+                                    except (ValueError, IndexError) as exc:
+                                        raise ExtractionError(
+                                            "XLSX contains an invalid shared-string reference"
+                                        ) from exc
+                                elif cell_type == "b" and value:
+                                    value = "TRUE" if value == "1" else "FALSE"
+                            values.append(value or "")
+                        if any(value for value in values):
+                            output.append(" | ".join(values))
+        except ExtractionError:
+            raise
+        except (BadZipFile, ElementTree.ParseError, OSError, RuntimeError) as exc:
+            raise ExtractionError(f"XLSX extraction failed: {exc}") from exc
+
+        return ExtractionResult(
+            text=_bounded_text("\n".join(output), "XLSX"),
+            generator="provelume.xlsx-ooxml",
+            generator_version="1",
+        )
+
+
+class ImageMetadataExtractor:
+    extensions = {".png", ".jpg", ".jpeg"}
+    jpeg_sof_markers = {
+        0xC0,
+        0xC1,
+        0xC2,
+        0xC3,
+        0xC5,
+        0xC6,
+        0xC7,
+        0xC9,
+        0xCA,
+        0xCB,
+        0xCD,
+        0xCE,
+        0xCF,
+    }
+
+    def supports(self, suffix: str) -> bool:
+        return suffix.lower() in self.extensions
+
+    @staticmethod
+    def _png_dimensions(data: bytes) -> tuple[int, int]:
+        if len(data) < 24 or data[:8] != b"\x89PNG\r\n\x1a\n":
+            raise ExtractionError("PNG signature or header is invalid")
+        if data[12:16] != b"IHDR":
+            raise ExtractionError("PNG is missing the leading IHDR chunk")
+        width = int.from_bytes(data[16:20], "big")
+        height = int.from_bytes(data[20:24], "big")
+        if width <= 0 or height <= 0:
+            raise ExtractionError("PNG dimensions are invalid")
+        return width, height
+
+    @classmethod
+    def _jpeg_dimensions(cls, data: bytes) -> tuple[int, int]:
+        if len(data) < 4 or data[:2] != b"\xff\xd8":
+            raise ExtractionError("JPEG signature is invalid")
+        position = 2
+        while position < len(data):
+            while position < len(data) and data[position] == 0xFF:
+                position += 1
+            if position >= len(data):
+                break
+            marker = data[position]
+            position += 1
+            if marker in {0xD8, 0xD9, 0x01} or 0xD0 <= marker <= 0xD7:
+                continue
+            if position + 2 > len(data):
+                break
+            segment_length = int.from_bytes(data[position : position + 2], "big")
+            if segment_length < 2 or position + segment_length > len(data):
+                raise ExtractionError("JPEG segment length is invalid")
+            if marker in cls.jpeg_sof_markers:
+                if segment_length < 7:
+                    raise ExtractionError("JPEG frame header is invalid")
+                height = int.from_bytes(data[position + 3 : position + 5], "big")
+                width = int.from_bytes(data[position + 5 : position + 7], "big")
+                if width <= 0 or height <= 0:
+                    raise ExtractionError("JPEG dimensions are invalid")
+                return width, height
+            if marker == 0xDA:
+                break
+            position += segment_length
+        raise ExtractionError("JPEG frame dimensions were not found")
+
+    def extract(self, data: bytes) -> ExtractionResult:
+        if data.startswith(b"\x89PNG\r\n\x1a\n"):
+            image_format = "PNG"
+            width, height = self._png_dimensions(data)
+        elif data.startswith(b"\xff\xd8"):
+            image_format = "JPEG"
+            width, height = self._jpeg_dimensions(data)
+        else:
+            raise ExtractionError("image format does not match PNG or JPEG")
+        text = (
+            f"Image format: {image_format}\n"
+            f"Width: {width}\n"
+            f"Height: {height}\n"
+            f"Pixels: {width * height}"
+        )
+        return ExtractionResult(
+            text=text,
+            generator="provelume.image-metadata",
+            generator_version="1",
+        )
+
+
 EXTRACTORS: tuple[Extractor, ...] = (
     PlainTextExtractor(),
     PdfTextExtractor(),
     DocxTextExtractor(),
     CsvTextExtractor(),
     EmlTextExtractor(),
+    XlsxTextExtractor(),
+    ImageMetadataExtractor(),
 )
 
 
