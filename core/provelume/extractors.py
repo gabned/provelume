@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import stat
+import zlib
 from dataclasses import dataclass
 from email import policy
 from email.parser import BytesParser
@@ -514,7 +515,7 @@ class ZipArchiveExtractor:
         path = PurePosixPath(normalized)
         if path.is_absolute() or ".." in path.parts:
             raise ExtractionError(f"ZIP member path is unsafe: {name}")
-        if path.parts and path.parts[0].endswith(":"):
+        if len(normalized) >= 2 and normalized[0].isalpha() and normalized[1] == ":":
             raise ExtractionError(f"ZIP member path uses a drive prefix: {name}")
         return path.as_posix()
 
@@ -570,7 +571,7 @@ class ZipArchiveExtractor:
                         output.append(member_result.text.strip())
         except ExtractionError:
             raise
-        except (BadZipFile, OSError, RuntimeError, NotImplementedError) as exc:
+        except (BadZipFile, OSError, RuntimeError, NotImplementedError, zlib.error) as exc:
             raise ExtractionError(f"ZIP extraction failed: {exc}") from exc
 
         return ExtractionResult(
