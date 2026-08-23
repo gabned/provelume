@@ -73,25 +73,51 @@ jobs:
           python -m ruff check core tests scripts
           python -m pytest -q
 
-      - name: Build and compare independent source copies
+      - name: Build and compare official source copies
         shell: bash
+        env:
+          CHANNEL: ${{ steps.identity.outputs.channel }}
         run: |
           set -euo pipefail
-          rm -rf dist release .release-runtime
+          rm -rf dist release .release-runtime installed-build-info.json
           python scripts/deterministic_build.py \
             --source . \
             --output-dir dist \
             --evidence release/build-determinism.json \
-            --commit "$GITHUB_SHA"
+            --commit "$GITHUB_SHA" \
+            --tag "$GITHUB_REF_NAME" \
+            --channel "$CHANNEL" \
+            --official
 
-      - name: Install release wheel in clean environment
+      - name: Install wheel and verify embedded official identity
         shell: bash
+        env:
+          CHANNEL: ${{ steps.identity.outputs.channel }}
         run: |
           set -euo pipefail
           python -m venv .release-runtime
           .release-runtime/bin/python -m pip install --upgrade pip
           .release-runtime/bin/python -m pip install dist/*.whl
           .release-runtime/bin/provelume --help >/dev/null
+          .release-runtime/bin/provelume build-info > installed-build-info.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          value = json.loads(Path('installed-build-info.json').read_text())
+          assert value['identity_status'] == 'official_metadata_present'
+          assert value['metadata_present'] is True
+          assert value['source_repository'] == 'gabned/provelume'
+          assert value['commit'] == os.environ['GITHUB_SHA']
+          assert value['tag'] == os.environ['GITHUB_REF_NAME']
+          assert value['channel'] == os.environ['CHANNEL']
+          assert value['source_date_epoch'] == int(os.environ['SOURCE_DATE_EPOCH'])
+          assert value['official'] is True
+          assert value['verification']['status'] == 'not_performed'
+          assert value['verification']['network_used'] is False
+          PY
+          rm installed-build-info.json
 
       - name: Generate CycloneDX SBOM
         shell: bash
