@@ -176,25 +176,23 @@ class ProvelumeInstance:
         if document is None:
             return None
         versions = self.store.versions_for_document(document_id)
+        version_ids = {item["id"] for item in versions}
         acquisitions = [
             item
             for item in self.store.list_canonical("acquisitions")
             if item["document_id"] == document_id
         ]
+        derived_artifacts = [
+            item
+            for item in self.store.list_derived_artifacts()
+            if item["version_id"] in version_ids
+        ]
         ids = {document_id, document["source_id"]}
-        ids.update(item["id"] for item in versions)
+        ids.update(version_ids)
         ids.update(item["original_id"] for item in versions)
         ids.update(item["id"] for item in acquisitions)
+        ids.update(item["id"] for item in derived_artifacts)
         edges = self.store.list_canonical("provenance") + self.store.list_derived_provenance()
-        changed = True
-        while changed:
-            changed = False
-            for edge in edges:
-                if edge["from_id"] in ids or edge["to_id"] in ids:
-                    before = len(ids)
-                    ids.add(edge["from_id"])
-                    ids.add(edge["to_id"])
-                    changed = changed or len(ids) > before
         selected = [
             edge
             for edge in edges
