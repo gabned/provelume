@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "provelume"
+version = "0.1.0"
+description = "Provenance-first personal knowledge intelligence"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "PolyForm-Noncommercial-1.0.0" }
+authors = [{ name = "Gabriele Falistocco" }]
+dependencies = [
+  "pypdf>=5,<7",
+  "pyyaml>=6,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<9",
+  "ruff>=0.11,<1",
+]
+
+[project.scripts]
+provelume = "provelume.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["core/provelume"]
+
+[tool.pytest.ini_options]
+pythonpath = ["core"]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
