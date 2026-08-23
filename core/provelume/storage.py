@@ -25,6 +25,14 @@ from .domain import (
 from .paths import portable_config_path, resolve_config_path, safe_instance_path
 
 SCHEMA_VERSION = 1
+CANONICAL_KINDS = (
+    "sources",
+    "acquisitions",
+    "originals",
+    "documents",
+    "versions",
+    "provenance",
+)
 
 
 def utc_now() -> str:
@@ -76,7 +84,12 @@ class InstanceStore:
         self.paths = InstancePaths(Path(root).expanduser().resolve())
 
     @classmethod
-    def initialise(cls, root: Path | str, *, name: str = "Provelume Instance") -> "InstanceStore":
+    def initialise(
+        cls,
+        root: Path | str,
+        *,
+        name: str = "Provelume Instance",
+    ) -> "InstanceStore":
         store = cls(root)
         store.paths.root.mkdir(parents=True, exist_ok=True)
         for path in (
@@ -88,17 +101,24 @@ class InstanceStore:
             store.paths.derived_provenance,
         ):
             path.mkdir(parents=True, exist_ok=True)
-        for kind in ("sources", "acquisitions", "originals", "documents", "versions", "provenance"):
+        for kind in CANONICAL_KINDS:
             store.paths.canonical_dir(kind).mkdir(parents=True, exist_ok=True)
         if not store.paths.config.exists():
             config = {
                 "schema_version": SCHEMA_VERSION,
-                "instance": {"id": f"inst_{uuid4().hex}", "name": name, "created_at": utc_now()},
+                "instance": {
+                    "id": f"inst_{uuid4().hex}",
+                    "name": name,
+                    "created_at": utc_now(),
+                },
                 "ui": {"language": "en"},
                 "network": {"external_access": False, "update_checks": False},
                 "sources": {},
             }
-            store._atomic_text(store.paths.config, yaml.safe_dump(config, sort_keys=False))
+            store._atomic_text(
+                store.paths.config,
+                yaml.safe_dump(config, sort_keys=False),
+            )
         store.validate()
         return store
 
@@ -133,7 +153,9 @@ class InstanceStore:
         target = path.resolve()
         for source_id, item in (self.read_config().get("sources") or {}).items():
             configured = item.get("path")
-            if isinstance(configured, str) and resolve_config_path(self.paths.root, configured) == target:
+            if not isinstance(configured, str):
+                continue
+            if resolve_config_path(self.paths.root, configured) == target:
                 return str(source_id)
         return None
 
@@ -145,7 +167,8 @@ class InstanceStore:
 
     def write_canonical(self, kind: str, record: Any) -> None:
         payload = as_record(record)
-        self._atomic_json(self.paths.canonical_dir(kind) / f"{payload['id']}.json", payload)
+        path = self.paths.canonical_dir(kind) / f"{payload['id']}.json"
+        self._atomic_json(path, payload)
 
     def read_canonical(self, kind: str, record_id: str) -> dict[str, Any] | None:
         path = self.paths.canonical_dir(kind) / f"{record_id}.json"
@@ -178,16 +201,20 @@ class InstanceStore:
         self.write_canonical("provenance", edge)
 
     def write_derived_artifact(self, artifact: DerivedArtifact) -> None:
-        self._atomic_json(self.paths.derived_artifacts / f"{artifact.id}.json", as_record(artifact))
+        path = self.paths.derived_artifacts / f"{artifact.id}.json"
+        self._atomic_json(path, as_record(artifact))
 
     def write_derived_provenance(self, edge: ProvenanceEdge) -> None:
-        self._atomic_json(self.paths.derived_provenance / f"{edge.id}.json", as_record(edge))
+        path = self.paths.derived_provenance / f"{edge.id}.json"
+        self._atomic_json(path, as_record(edge))
 
     def list_derived_artifacts(self) -> list[dict[str, Any]]:
-        return [self._read_json(path) for path in sorted(self.paths.derived_artifacts.glob("*.json"))]
+        paths = sorted(self.paths.derived_artifacts.glob("*.json"))
+        return [self._read_json(path) for path in paths]
 
     def list_derived_provenance(self) -> list[dict[str, Any]]:
-        return [self._read_json(path) for path in sorted(self.paths.derived_provenance.glob("*.json"))]
+        paths = sorted(self.paths.derived_provenance.glob("*.json"))
+        return [self._read_json(path) for path in paths]
 
     def store_original_bytes(self, data: bytes) -> Original:
         digest = hashlib.sha256(data).hexdigest()
@@ -225,11 +252,17 @@ class InstanceStore:
 
     def versions_for_document(self, document_id: str) -> list[dict[str, Any]]:
         versions = [
-            item for item in self.list_canonical("versions") if item["document_id"] == document_id
+            item
+            for item in self.list_canonical("versions")
+            if item["document_id"] == document_id
         ]
         return sorted(versions, key=lambda item: int(item["sequence"]))
 
-    def derived_artifact_for_version(self, version_id: str, kind: str = "extracted_text") -> dict[str, Any] | None:
+    def derived_artifact_for_version(
+        self,
+        version_id: str,
+        kind: str = "extracted_text",
+    ) -> dict[str, Any] | None:
         for artifact in self.list_derived_artifacts():
             if artifact["version_id"] == version_id and artifact["kind"] == kind:
                 path = safe_instance_path(self.paths.root, artifact["storage_ref"])
@@ -287,4 +320,8 @@ class InstanceStore:
     def provenance_for_ids(self, ids: Iterable[str]) -> list[dict[str, Any]]:
         wanted = set(ids)
         edges = self.list_canonical("provenance") + self.list_derived_provenance()
-        return [edge for edge in edges if edge["from_id"] in wanted or edge["to_id"] in wanted]
+        return [
+            edge
+            for edge in edges
+            if edge["from_id"] in wanted or edge["to_id"] in wanted
+        ]
