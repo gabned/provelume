@@ -84,7 +84,8 @@ def test_zip_decompressor_error_becomes_extraction_failure(
 ) -> None:
     source = tmp_path / "source"
     source.mkdir()
-    (source / "corrupt.zip").write_bytes(_zip_bytes({"broken.txt": b"searchable before corruption"}))
+    corrupt = _zip_bytes({"broken.txt": b"searchable before corruption"})
+    (source / "corrupt.zip").write_bytes(corrupt)
 
     original_read = ZipFile.read
 
