@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/build-comparison-v1.json",
+  "title": "Provelume deterministic build comparison",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "assurance",
+    "result",
+    "source_repository",
+    "source_commit",
+    "source_date_epoch",
+    "source_timestamp",
+    "source_snapshot",
+    "builder",
+    "environment_controls",
+    "build_input_artifacts",
+    "resolved_build_packages",
+    "resolved_build_packages_match",
+    "runs",
+    "artifacts",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "assurance": {
+      "const": "same-source-same-inputs-same-platform-double-build"
+    },
+    "result": {"enum": ["match", "mismatch"]},
+    "source_repository": {"const": "gabned/provelume"},
+    "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "source_date_epoch": {"type": "integer", "minimum": 0},
+    "source_timestamp": {"type": "string", "format": "date-time"},
+    "source_snapshot": {"$ref": "#/$defs/fileIdentity"},
+    "builder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "python_implementation",
+        "python_version",
+        "operating_system",
+        "machine"
+      ],
+      "properties": {
+        "python_implementation": {"type": "string", "minLength": 1},
+        "python_version": {"type": "string", "minLength": 1},
+        "operating_system": {"type": "string", "minLength": 1},
+        "machine": {"type": "string", "minLength": 1}
+      }
+    },
+    "environment_controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "python_hash_seed",
+        "timezone",
+        "locale",
+        "network_during_build"
+      ],
+      "properties": {
+        "python_hash_seed": {"const": "0"},
+        "timezone": {"const": "UTC"},
+        "locale": {"const": "C.UTF-8"},
+        "network_during_build": {
+          "const": "disabled-after-wheelhouse-resolution"
+        }
+      }
+    },
+    "build_input_artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/fileIdentity"}
+    },
+    "resolved_build_packages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "resolved_build_packages_match": {"type": "boolean"},
+    "runs": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "artifacts"],
+        "properties": {
+          "label": {"enum": ["A", "B"]},
+          "artifacts": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {"$ref": "#/$defs/fileIdentity"}
+          }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "size_bytes",
+          "sha256",
+          "matches",
+          "second_size_bytes",
+          "second_sha256"
+        ],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "size_bytes": {"type": "integer", "minimum": 0},
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "matches": {"type": "boolean"},
+          "second_size_bytes": {"type": "integer", "minimum": 0},
+          "second_sha256": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "fileIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "size_bytes", "sha256"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "size_bytes": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}
