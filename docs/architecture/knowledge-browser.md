@@ -20,9 +20,12 @@ HTMX is deliberately deferred until a real partial-update interaction needs it. 
 - Document detail: metadata, current extracted-text preview, preserved original and version history.
 - Provenance: explicit Source/Acquisition/Original/Version/Derived relationships.
 - Knowledge health: explainable issues and rebuildable-index status.
+- Security: embedded package version/tag/commit/source identity, explicit official/development/unavailable states and an honest boundary showing which integrity, signature and provenance checks have not yet been performed.
+
+The Security view uses the same build-information service as the CLI and read-only API. It reads packaged metadata only, performs no network request and deliberately avoids a green “verified” state until a future verification engine checks actual installed files and trusted evidence.
 
 The UI is EN/IT ready through local JSON catalogs. Code, technical contracts and API fields remain English.
 
 ## Guardrails
 
-The browser does not require GitHub, an external AI provider or Provelume Cloud. Provenance is a first-class view rather than hidden behind chat. Write-back, destructive actions and advanced editing are outside this slice.
+The browser does not require GitHub, an external AI provider or Provelume Cloud. Provenance is a first-class view rather than hidden behind chat. Build identity is kept separate from cryptographic verification. Write-back, destructive actions and advanced editing are outside this slice.
