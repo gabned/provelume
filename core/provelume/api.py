@@ -6,6 +6,7 @@ from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from . import __version__
+from .build_info import current_build_info
 from .paths import safe_instance_path
 from .service import ProvelumeInstance
 
@@ -16,6 +17,10 @@ def _not_found(kind: str, object_id: str) -> HTTPException:
 
 def build_api(instance: ProvelumeInstance) -> APIRouter:
     router = APIRouter(prefix="/api/v1")
+
+    @router.get("/build-info")
+    def get_build_info() -> dict[str, Any]:
+        return current_build_info()
 
     @router.get("/instance")
     def get_instance() -> dict[str, Any]:
@@ -114,9 +119,12 @@ def attach_api(app: FastAPI, instance: ProvelumeInstance) -> None:
     @app.get("/health")
     def health() -> dict[str, Any]:
         summary = instance.instance_summary()
+        build = current_build_info()
         return {
             "ok": True,
             "version": __version__,
+            "build_identity_status": build["identity_status"],
+            "official_build_metadata": build["official"],
             "instance_id": summary["id"],
             "index_status": summary["index_status"],
         }
