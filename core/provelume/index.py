@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .domain import DerivedArtifact
-from .extractors import ExtractionError, PlainTextExtractor, PdfTextExtractor
+from .extractors import ExtractionError, PdfTextExtractor, PlainTextExtractor
 from .storage import InstanceStore, utc_now
 
 INDEX_SCHEMA = 1
