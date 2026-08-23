@@ -4,7 +4,21 @@ The first Provelume Knowledge API is read-only and served by the same applicatio
 
 ## Health
 
-`GET /health` reports runtime version, Instance identity and derived search-index status.
+`GET /health` reports runtime version, embedded build-identity status, Instance identity and derived search-index status. The build status is descriptive metadata, not a local signature or integrity verification result.
+
+## Build identity
+
+`GET /api/v1/build-info` returns the source identity embedded in the installed package. It reads packaged local metadata and performs no network request.
+
+The response distinguishes:
+
+- `official_metadata_present` — structurally valid official-release metadata is embedded;
+- `development_build` — structurally valid non-release metadata is embedded;
+- `identity_unavailable` — metadata is missing, malformed or inconsistent with the installed package version.
+
+Fields include package version, canonical source repository, release tag, source commit, release channel, source timestamp and the `official` declaration. The nested `verification` object deliberately reports `not_performed` for local file integrity, platform signature and artifact provenance. Embedded identity describes the package; it does not independently prove the installed files or external attestations.
+
+The same application-layer contract is exposed by `provelume build-info` and the local `/security` browser page.
 
 ## Instance and sources
 

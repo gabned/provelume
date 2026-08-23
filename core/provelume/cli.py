@@ -7,6 +7,7 @@ from pathlib import Path
 
 import uvicorn
 
+from .build_info import current_build_info
 from .service import ProvelumeInstance
 from .web import create_app
 
@@ -14,6 +15,11 @@ from .web import create_app
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="provelume", description="Run a local Provelume Instance")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    subparsers.add_parser(
+        "build-info",
+        help="Print embedded build identity without making a network request",
+    )
 
     init = subparsers.add_parser("init", help="Initialize an Instance directory")
     init.add_argument("instance", type=Path)
@@ -40,6 +46,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "build-info":
+        print(json.dumps(current_build_info(), indent=2, sort_keys=True))
+        return 0
     if args.command == "init":
         instance = ProvelumeInstance.initialise(args.instance, name=args.name)
         print(instance.root)

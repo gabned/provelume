@@ -18,6 +18,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+CORE_ROOT = REPOSITORY_ROOT / "core"
+if str(CORE_ROOT) not in sys.path:
+    sys.path.insert(0, str(CORE_ROOT))
+
+from provelume.build_info import BuildInfoError, create_build_info  # noqa: E402
+
 SOURCE_REPOSITORY = "gabned/provelume"
 EVIDENCE_SCHEMA_VERSION = 1
 IGNORED_NAMES = {
@@ -142,10 +149,28 @@ def _build_environment(epoch: int) -> dict[str, str]:
     return environment
 
 
-def build_once(source: Path, workspace: Path, epoch: int) -> dict[str, Path]:
+def write_embedded_build_info(checkout: Path, identity: dict[str, Any]) -> Path:
+    target = checkout / "core" / "provelume" / "build_info.json"
+    if not target.parent.is_dir():
+        raise DeterministicBuildError("copied source is missing core/provelume")
+    target.write_text(
+        json.dumps(identity, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    return target
+
+
+def build_once(
+    source: Path,
+    workspace: Path,
+    epoch: int,
+    identity: dict[str, Any],
+) -> dict[str, Path]:
     checkout = workspace / "source"
     output = workspace / "dist"
     shutil.copytree(source, checkout, ignore=_copy_ignore, copy_function=shutil.copy2)
+    write_embedded_build_info(checkout, identity)
     output.mkdir(parents=True)
     command = [
         sys.executable,
@@ -248,20 +273,32 @@ def run(
     output_dir: Path,
     evidence: Path,
     commit: str | None,
+    tag: str | None = None,
+    channel: str = "development",
+    official: bool = False,
 ) -> dict[str, Any]:
     source = source.expanduser().resolve(strict=True)
-    if commit is not None and (
-        len(commit) != 40 or any(character not in "0123456789abcdef" for character in commit)
-    ):
-        raise DeterministicBuildError("commit must be a lowercase 40-character SHA-1")
     if not (source / "pyproject.toml").is_file():
         raise DeterministicBuildError("source directory does not contain pyproject.toml")
     validate_source_tree(source)
     epoch = source_date_epoch(os.environ.get("SOURCE_DATE_EPOCH"))
+    version, _backend_version = project_configuration(source)
+    try:
+        identity = create_build_info(
+            version=version,
+            commit=commit,
+            tag=tag,
+            channel=channel,
+            source_date_epoch=epoch,
+            official=official,
+        )
+    except BuildInfoError as exc:
+        raise DeterministicBuildError(f"invalid embedded build identity: {exc}") from exc
+
     with tempfile.TemporaryDirectory(prefix="provelume-build-") as temporary:
         root = Path(temporary)
-        first = build_once(source, root / "first", epoch)
-        second = build_once(source, root / "second", epoch)
+        first = build_once(source, root / "first", epoch, identity)
+        second = build_once(source, root / "second", epoch, identity)
         records = compare_builds(first, second)
         payload = evidence_payload(
             source=source,
@@ -294,6 +331,9 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, default=Path("dist"))
     parser.add_argument("--evidence", type=Path, default=Path("build-determinism.json"))
     parser.add_argument("--commit")
+    parser.add_argument("--tag")
+    parser.add_argument("--channel", default="development")
+    parser.add_argument("--official", action="store_true")
     args = parser.parse_args()
     try:
         payload = run(
@@ -301,6 +341,9 @@ def main() -> int:
             output_dir=args.output_dir,
             evidence=args.evidence,
             commit=args.commit,
+            tag=args.tag,
+            channel=args.channel,
+            official=args.official,
         )
     except (DeterministicBuildError, subprocess.CalledProcessError) as exc:
         print(f"deterministic build failed: {exc}", file=sys.stderr)

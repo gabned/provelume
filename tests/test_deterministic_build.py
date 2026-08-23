@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -28,8 +29,9 @@ reproducible = true
         + "\n",
         encoding="utf-8",
     )
-    (root / "core").mkdir()
-    (root / "core" / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
+    package = root / "core" / "provelume"
+    package.mkdir(parents=True)
+    (package / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
     return root
 
 
@@ -40,6 +42,27 @@ def _artifacts(root: Path, suffix: bytes = b"") -> dict[str, Path]:
     wheel.write_bytes(b"wheel" + suffix)
     sdist.write_bytes(b"sdist" + suffix)
     return {"wheel": wheel, "sdist": sdist}
+
+
+def _tool_versions(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        deterministic_build.importlib.metadata,
+        "version",
+        lambda name: {"build": "1.5.0", "hatchling": "1.31.0"}[name],
+    )
+
+
+def _recording_builder(identities: list[dict[str, Any]]):
+    def fake_build_once(
+        _source: Path,
+        workspace: Path,
+        _epoch: int,
+        identity: dict[str, Any],
+    ) -> dict[str, Path]:
+        identities.append(dict(identity))
+        return _artifacts(workspace / "dist")
+
+    return fake_build_once
 
 
 def test_source_date_epoch_fails_closed() -> None:
@@ -60,15 +83,17 @@ def test_source_fingerprint_ignores_generated_outputs(tmp_path: Path) -> None:
     (source / "__pycache__").mkdir()
     (source / "__pycache__" / "module.pyc").write_bytes(b"cache")
     assert deterministic_build.source_fingerprint(source) == before
-    (source / "core" / "module.py").write_text("VALUE = 2\n", encoding="utf-8")
+    (source / "core" / "provelume" / "module.py").write_text(
+        "VALUE = 2\n", encoding="utf-8"
+    )
     assert deterministic_build.source_fingerprint(source) != before
 
 
 def test_source_tree_rejects_symlinks(tmp_path: Path) -> None:
     source = _project(tmp_path / "source")
-    link = source / "core" / "linked.py"
+    link = source / "core" / "provelume" / "linked.py"
     try:
-        os.symlink(source / "core" / "module.py", link)
+        os.symlink(source / "core" / "provelume" / "module.py", link)
     except (OSError, NotImplementedError):
         pytest.skip("symlink creation is not available on this platform")
 
@@ -76,6 +101,24 @@ def test_source_tree_rejects_symlinks(tmp_path: Path) -> None:
         deterministic_build.validate_source_tree(source)
     with pytest.raises(DeterministicBuildError, match="symlinks"):
         deterministic_build.source_fingerprint(source)
+
+
+def test_write_embedded_build_info_is_canonical(tmp_path: Path) -> None:
+    checkout = _project(tmp_path / "checkout")
+    identity = {
+        "schema_version": 1,
+        "version": "0.1.0",
+        "source_repository": "gabned/provelume",
+        "tag": "v0.1.0",
+        "commit": "a" * 40,
+        "channel": "preview",
+        "source_date_epoch": 1787443200,
+        "source_date_utc": "2026-08-23T00:00:00+00:00",
+        "official": True,
+    }
+    path = deterministic_build.write_embedded_build_info(checkout, identity)
+    assert json.loads(path.read_text(encoding="utf-8")) == identity
+    assert path.read_bytes().endswith(b"\n")
 
 
 def test_compare_builds_detects_byte_difference(tmp_path: Path) -> None:
@@ -91,7 +134,7 @@ def test_compare_builds_detects_byte_difference(tmp_path: Path) -> None:
     ] is False
 
 
-def test_run_copies_verified_artifacts_and_writes_evidence(
+def test_run_stamps_same_development_identity_into_both_builds(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -99,16 +142,14 @@ def test_run_copies_verified_artifacts_and_writes_evidence(
     output = tmp_path / "dist"
     evidence = tmp_path / "evidence.json"
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "1787443200")
+    _tool_versions(monkeypatch)
+    identities: list[dict[str, Any]] = []
     monkeypatch.setattr(
-        deterministic_build.importlib.metadata,
-        "version",
-        lambda name: {"build": "1.5.0", "hatchling": "1.31.0"}[name],
+        deterministic_build,
+        "build_once",
+        _recording_builder(identities),
     )
 
-    def fake_build_once(_source: Path, workspace: Path, _epoch: int) -> dict[str, Path]:
-        return _artifacts(workspace / "dist")
-
-    monkeypatch.setattr(deterministic_build, "build_once", fake_build_once)
     payload = deterministic_build.run(
         source=source,
         output_dir=output,
@@ -116,6 +157,18 @@ def test_run_copies_verified_artifacts_and_writes_evidence(
         commit="a" * 40,
     )
 
+    assert identities == [identities[0], identities[0]]
+    assert identities[0] == {
+        "schema_version": 1,
+        "version": "0.1.0",
+        "source_repository": "gabned/provelume",
+        "tag": None,
+        "commit": "a" * 40,
+        "channel": "development",
+        "source_date_epoch": 1787443200,
+        "source_date_utc": "2026-08-23T00:00:00+00:00",
+        "official": False,
+    }
     assert payload["full_release_reproducibility_claimed"] is False
     assert payload["source_repository"] == "gabned/provelume"
     assert all(record["byte_identical"] for record in payload["artifacts"])
@@ -126,6 +179,64 @@ def test_run_copies_verified_artifacts_and_writes_evidence(
     assert json.loads(evidence.read_text(encoding="utf-8"))["source_commit"] == "a" * 40
 
 
+def test_run_stamps_same_official_identity_into_both_builds(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = _project(tmp_path / "source")
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1787443200")
+    _tool_versions(monkeypatch)
+    identities: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        deterministic_build,
+        "build_once",
+        _recording_builder(identities),
+    )
+
+    deterministic_build.run(
+        source=source,
+        output_dir=tmp_path / "dist",
+        evidence=tmp_path / "evidence.json",
+        commit="a" * 40,
+        tag="v0.1.0",
+        channel="preview",
+        official=True,
+    )
+
+    assert identities == [identities[0], identities[0]]
+    assert identities[0] == {
+        "schema_version": 1,
+        "version": "0.1.0",
+        "source_repository": "gabned/provelume",
+        "tag": "v0.1.0",
+        "commit": "a" * 40,
+        "channel": "preview",
+        "source_date_epoch": 1787443200,
+        "source_date_utc": "2026-08-23T00:00:00+00:00",
+        "official": True,
+    }
+
+
+def test_official_identity_must_match_release_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = _project(tmp_path / "source")
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1787443200")
+    _tool_versions(monkeypatch)
+
+    with pytest.raises(DeterministicBuildError, match="tag must match"):
+        deterministic_build.run(
+            source=source,
+            output_dir=tmp_path / "dist",
+            evidence=tmp_path / "evidence.json",
+            commit="a" * 40,
+            tag="v0.2.0",
+            channel="preview",
+            official=True,
+        )
+
+
 def test_run_preserves_mismatch_evidence_and_fails(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -133,14 +244,15 @@ def test_run_preserves_mismatch_evidence_and_fails(
     source = _project(tmp_path / "source")
     evidence = tmp_path / "evidence.json"
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "1787443200")
-    monkeypatch.setattr(
-        deterministic_build.importlib.metadata,
-        "version",
-        lambda name: {"build": "1.5.0", "hatchling": "1.31.0"}[name],
-    )
+    _tool_versions(monkeypatch)
     calls = 0
 
-    def fake_build_once(_source: Path, workspace: Path, _epoch: int) -> dict[str, Path]:
+    def fake_build_once(
+        _source: Path,
+        workspace: Path,
+        _epoch: int,
+        _identity: dict[str, Any],
+    ) -> dict[str, Path]:
         nonlocal calls
         calls += 1
         return _artifacts(workspace / "dist", suffix=str(calls).encode())

@@ -16,7 +16,11 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - public release governance, verification documentation and an ADR that explicitly separates traceable builds from future reproducible-release claims;
 - byte-for-byte comparison of wheel and source distribution built from two independent clean source copies;
 - portable `build-determinism.json` evidence with source fingerprint, timestamp input, toolchain, platform and both artifact hashes;
-- public JSON Schema and ADR for the deterministic Python distribution contract.
+- public JSON Schema and ADR for the deterministic Python distribution contract;
+- schema-versioned build identity embedded before deterministic artifact creation;
+- offline `provelume build-info` CLI and `GET /api/v1/build-info` read-only API;
+- EN/IT Knowledge Browser Security page for version, tag, commit, source channel and explicit verification boundaries;
+- public build-info JSON Schema and ADR separating descriptive identity from local integrity/signature/provenance verification.
 
 ### Changed
 
@@ -25,7 +29,10 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - CI uses a pinned Node-24-capable `setup-python` action revision; cross-platform tests track Python 3.12 while the current official Linux release build is pinned to Python 3.12.14;
 - Hatchling is pinned exactly and reproducible archive mode is explicit;
 - normal CI and official releases share the same fail-closed deterministic distribution builder;
-- deterministic-build evidence is included in release checksums, release manifest assets and provenance attestations.
+- deterministic-build evidence is included in release checksums, release manifest assets and provenance attestations;
+- normal CI installs the built wheel and verifies embedded development identity from the executable package;
+- official tag builds require matching official metadata and validate it from the installed wheel before publication;
+- `/health` reports build-identity status without claiming that installation verification was performed.
 
 ## 0.1.0 - 2026-08-23
 

@@ -33,6 +33,15 @@ def test_read_only_api_contract(tmp_path: Path) -> None:
     health = client.get("/health")
     assert health.status_code == 200
     assert health.json()["ok"] is True
+    assert health.json()["build_identity_status"] == "development_build"
+    assert health.json()["official_build_metadata"] is False
+
+    build = client.get("/api/v1/build-info")
+    assert build.status_code == 200
+    assert build.json()["identity_status"] == "development_build"
+    assert build.json()["source_repository"] == "gabned/provelume"
+    assert build.json()["verification"]["status"] == "not_performed"
+    assert build.json()["verification"]["network_used"] is False
 
     summary = client.get("/api/v1/instance")
     assert summary.status_code == 200
@@ -91,6 +100,7 @@ def test_read_only_api_contract(tmp_path: Path) -> None:
     assert len(inclusive.json()) == 2
 
     assert client.get("/api/v1/knowledge-health").status_code == 200
+    assert client.post("/api/v1/build-info", json={}).status_code == 405
     assert client.post("/api/v1/documents", json={}).status_code == 405
     assert instance.store.read_config()["network"]["external_access"] is False
 
@@ -103,6 +113,7 @@ def test_browser_routes_and_italian_catalog(tmp_path: Path) -> None:
     home = client.get("/")
     assert home.status_code == 200
     assert "Instance overview" in home.text
+    assert "/security?lang=en" in home.text
     assert 'href="http' not in home.text.lower()
     assert 'src="http' not in home.text.lower()
 
@@ -145,6 +156,21 @@ def test_browser_routes_and_italian_catalog(tmp_path: Path) -> None:
     assert health.status_code == 200
     assert "Derived search state can be rebuilt" in health.text
 
+    security = client.get("/security")
+    assert security.status_code == 200
+    assert "Security &amp; build identity" in security.text
+    assert "Development build" in security.text
+    assert "does not by itself verify installed files" in security.text
+    assert "No network request performed" in security.text
+    assert 'href="http' not in security.text.lower()
+    assert 'src="http' not in security.text.lower()
+
+    security_it = client.get("/security", params={"lang": "it"})
+    assert security_it.status_code == 200
+    assert "Sicurezza e identità della build" in security_it.text
+    assert "Build di sviluppo" in security_it.text
+    assert "Nessuna richiesta di rete eseguita" in security_it.text
+
 
 def test_browser_and_api_survive_restart(tmp_path: Path) -> None:
     root, _source, instance = _fixture(tmp_path)
@@ -153,3 +179,4 @@ def test_browser_and_api_survive_restart(tmp_path: Path) -> None:
     assert {item["id"] for item in restarted.list_documents()} == expected_ids
     client = TestClient(create_app(root))
     assert {item["id"] for item in client.get("/api/v1/documents").json()} == expected_ids
+    assert client.get("/api/v1/build-info").json()["verification"]["network_used"] is False

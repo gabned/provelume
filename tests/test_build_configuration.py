@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tomllib
 from pathlib import Path
 
@@ -33,4 +34,31 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
         assert "scripts/deterministic_build.py" in workflow
         assert "SOURCE_DATE_EPOCH" in workflow
         assert "build-determinism.json" in workflow
+        assert "provelume build-info" in workflow
+        assert "network_used" in workflow
         assert "python -m build --sdist --wheel" not in workflow
+
+    assert "identity_status'] == 'development_build'" in ci
+    assert "--tag \"$GITHUB_REF_NAME\"" in release
+    assert "--channel \"$CHANNEL\"" in release
+    assert "--official" in release
+    assert "identity_status'] == 'official_metadata_present'" in release
+
+
+def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:
+    root = Path(__file__).resolve().parents[1]
+    value = json.loads(
+        (root / "core" / "provelume" / "build_info.json").read_text(encoding="utf-8")
+    )
+
+    assert value == {
+        "channel": "development",
+        "commit": None,
+        "official": False,
+        "schema_version": 1,
+        "source_date_epoch": None,
+        "source_date_utc": None,
+        "source_repository": "gabned/provelume",
+        "tag": None,
+        "version": "0.1.0",
+    }

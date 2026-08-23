@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .api import attach_api
+from .build_info import current_build_info
 from .i18n import SUPPORTED_LANGUAGES, translator
 from .service import ProvelumeInstance
 
@@ -160,6 +161,14 @@ def create_app(instance_root: Path | str) -> FastAPI:
             request=request,
             name="knowledge_health.html",
             context=_context(request, instance, health=instance.knowledge_health()),
+        )
+
+    @app.get("/security")
+    def security_page(request: Request):
+        return TEMPLATES.TemplateResponse(
+            request=request,
+            name="security.html",
+            context=_context(request, instance, build=current_build_info()),
         )
 
     return app

@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/build-info-v1.json",
+  "title": "Provelume embedded build identity",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "version",
+    "source_repository",
+    "tag",
+    "commit",
+    "channel",
+    "source_date_epoch",
+    "source_date_utc",
+    "official"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "source_repository": {"const": "gabned/provelume"},
+    "tag": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"}
+      ]
+    },
+    "commit": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      ]
+    },
+    "channel": {"enum": ["development", "preview", "stable"]},
+    "source_date_epoch": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "integer", "minimum": 0}
+      ]
+    },
+    "source_date_utc": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "format": "date-time"}
+      ]
+    },
+    "official": {"type": "boolean"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"official": {"const": true}}},
+      "then": {
+        "properties": {
+          "tag": {"type": "string"},
+          "commit": {"type": "string"},
+          "channel": {"enum": ["preview", "stable"]},
+          "source_date_epoch": {"type": "integer"},
+          "source_date_utc": {"type": "string"}
+        }
+      },
+      "else": {
+        "properties": {
+          "tag": {"type": "null"},
+          "channel": {"const": "development"}
+        }
+      }
+    }
+  ]
+}
