@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -61,6 +62,20 @@ def test_source_fingerprint_ignores_generated_outputs(tmp_path: Path) -> None:
     assert deterministic_build.source_fingerprint(source) == before
     (source / "core" / "module.py").write_text("VALUE = 2\n", encoding="utf-8")
     assert deterministic_build.source_fingerprint(source) != before
+
+
+def test_source_tree_rejects_symlinks(tmp_path: Path) -> None:
+    source = _project(tmp_path / "source")
+    link = source / "core" / "linked.py"
+    try:
+        os.symlink(source / "core" / "module.py", link)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation is not available on this platform")
+
+    with pytest.raises(DeterministicBuildError, match="symlinks"):
+        deterministic_build.validate_source_tree(source)
+    with pytest.raises(DeterministicBuildError, match="symlinks"):
+        deterministic_build.source_fingerprint(source)
 
 
 def test_compare_builds_detects_byte_difference(tmp_path: Path) -> None:
