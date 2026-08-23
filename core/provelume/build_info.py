@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import re
 from datetime import UTC, datetime
@@ -63,10 +64,16 @@ def create_build_info(
     source_date_epoch: int | None,
     official: bool,
 ) -> dict[str, Any]:
-    if not SEMANTIC_VERSION.fullmatch(version):
+    if not isinstance(version, str) or not SEMANTIC_VERSION.fullmatch(version):
         raise BuildInfoError("version must be semantic X.Y.Z")
-    if commit is not None and not COMMIT_SHA.fullmatch(commit):
+    if commit is not None and (
+        not isinstance(commit, str) or not COMMIT_SHA.fullmatch(commit)
+    ):
         raise BuildInfoError("commit must be a lowercase 40-character SHA-1 or null")
+    if tag is not None and not isinstance(tag, str):
+        raise BuildInfoError("tag must be a string or null")
+    if not isinstance(channel, str) or not channel:
+        raise BuildInfoError("channel must be a non-empty string")
     if not isinstance(official, bool):
         raise BuildInfoError("official must be a boolean")
     source_date_utc = _timestamp(source_date_epoch)
@@ -100,6 +107,8 @@ def create_build_info(
 
 
 def parse_build_info(value: Any, *, package_version: str = __version__) -> dict[str, Any]:
+    if not isinstance(package_version, str) or not SEMANTIC_VERSION.fullmatch(package_version):
+        raise BuildInfoError("package version must be semantic X.Y.Z")
     if not isinstance(value, dict):
         raise BuildInfoError("build metadata must be a JSON object")
     fields = set(value)
@@ -141,6 +150,7 @@ def parse_build_info(value: Any, *, package_version: str = __version__) -> dict[
 
 
 def unavailable_build_info(error: str) -> dict[str, Any]:
+    message = str(error).strip() or "embedded build metadata is unavailable"
     return {
         "schema_version": BUILD_INFO_SCHEMA_VERSION,
         "version": __version__,
@@ -153,13 +163,13 @@ def unavailable_build_info(error: str) -> dict[str, Any]:
         "official": False,
         "identity_status": "identity_unavailable",
         "metadata_present": False,
-        "metadata_error": error,
+        "metadata_error": message,
         "verification": _verification_boundary(),
     }
 
 
 @lru_cache(maxsize=1)
-def current_build_info() -> dict[str, Any]:
+def _loaded_build_info() -> dict[str, Any]:
     try:
         path = files("provelume").joinpath("build_info.json")
         raw = json.loads(path.read_text(encoding="utf-8"))
@@ -169,3 +179,9 @@ def current_build_info() -> dict[str, Any]:
     if result["identity_status"] not in IDENTITY_STATUSES:
         return unavailable_build_info("invalid computed identity status")
     return result
+
+
+def current_build_info() -> dict[str, Any]:
+    """Return an isolated copy so callers cannot mutate the cached identity."""
+
+    return copy.deepcopy(_loaded_build_info())
