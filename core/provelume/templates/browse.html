@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ t('browse.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb"><a href="/?lang={{ lang }}">{{ t('nav.home') }}</a><span>/</span><span>{{ t('nav.browse') }}</span>{% if selected_area %}<span>/</span><span>{{ t('browse.root') if selected_area == root_area_filter else selected_area }}</span>{% endif %}</nav>
+<h1>{{ t('browse.title') }}</h1>
+<form class="filters" method="get">
+  <input type="hidden" name="lang" value="{{ lang }}">
+  <label>{{ t('browse.source') }}<select name="source_id"><option value="">{{ t('browse.all') }}</option>{% for source in sources %}<option value="{{ source.id }}" {% if source.id == selected_source %}selected{% endif %}>{{ source.name }}</option>{% endfor %}</select></label>
+  <label>{{ t('browse.area') }}<select name="area"><option value="">{{ t('browse.all') }}</option>{% for value in areas %}{% set option_value = root_area_filter if value == '' else value %}<option value="{{ option_value }}" {% if option_value == selected_area %}selected{% endif %}>{{ value or t('browse.root') }}</option>{% endfor %}</select></label>
+  <label>{{ t('browse.type') }}<select name="media_type"><option value="">{{ t('browse.all') }}</option>{% for value in media_types %}<option value="{{ value }}" {% if value == selected_media_type %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+  <button type="submit">{{ t('common.details') }}</button>
+</form>
+<section class="panel">
+<ul class="document-list">
+{% for document in documents %}
+<li><a href="/documents/{{ document.id }}?lang={{ lang }}"><strong>{{ document.title }}</strong><span>{{ document.source_name }} · {{ document.locator }} · {{ document.current_version.acquired_at[:10] }}</span></a></li>
+{% else %}<li class="empty">{{ t('browse.empty') }}</li>{% endfor %}
+</ul>
+</section>
+{% endblock %}

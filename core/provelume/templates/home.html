@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ t('home.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ instance.name }}</p>
+  <h1>{{ t('home.title') }}</h1>
+  <div class="status-row">
+    <span class="status {{ 'ok' if health.status == 'healthy' else 'warn' }}">{{ health.status }}</span>
+    <span>{{ t('home.index') }}: {{ instance.index_status }}</span>
+  </div>
+</section>
+<section class="metric-grid">
+  <article><strong>{{ instance.sources }}</strong><span>{{ t('home.sources') }}</span></article>
+  <article><strong>{{ instance.documents }}</strong><span>{{ t('home.documents') }}</span></article>
+  <article><strong>{{ instance.versions }}</strong><span>{{ t('home.versions') }}</span></article>
+  <article><strong>{{ instance.index_status }}</strong><span>{{ t('home.index') }}</span></article>
+</section>
+<div class="two-column">
+<section class="panel">
+  <div class="panel-heading"><h2>{{ t('home.latest') }}</h2><a href="/browse?lang={{ lang }}">{{ t('nav.browse') }}</a></div>
+  <ul class="document-list">
+  {% for document in latest %}
+    <li><a href="/documents/{{ document.id }}?lang={{ lang }}"><strong>{{ document.title }}</strong><span>{{ document.source_name }} · {{ document.current_version.acquired_at[:10] }}</span></a></li>
+  {% else %}<li class="empty">{{ t('browse.empty') }}</li>{% endfor %}
+  </ul>
+</section>
+<section class="panel">
+  <h2>{{ t('home.errors') }}</h2>
+  {% if ingestion_errors %}
+    <ul class="issue-list">{% for item in ingestion_errors %}<li><strong>{{ item.locator }}</strong><span>{{ item.error or item.outcome }}</span></li>{% endfor %}</ul>
+  {% else %}<p class="muted">{{ t('home.no_errors') }}</p>{% endif %}
+  <h3>{{ t('home.network') }}</h3>
+  <p class="muted">{{ t('home.network_local') }}</p>
+</section>
+</div>
+{% endblock %}

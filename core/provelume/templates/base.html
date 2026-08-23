@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ t('brand') }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/?lang={{ lang }}">
+      <span>{{ t('brand') }}</span>
+      <small>{{ t('tagline') }}</small>
+    </a>
+    <nav aria-label="Primary">
+      <a href="/?lang={{ lang }}">{{ t('nav.home') }}</a>
+      <a href="/browse?lang={{ lang }}">{{ t('nav.browse') }}</a>
+      <a href="/search?lang={{ lang }}">{{ t('nav.search') }}</a>
+      <a href="/knowledge-health?lang={{ lang }}">{{ t('nav.health') }}</a>
+    </nav>
+    <div class="language" aria-label="{{ t('common.language') }}">
+      <a href="?lang=en">EN</a><span>·</span><a href="?lang=it">IT</a>
+    </div>
+  </header>
+  <main class="page-shell">
+    {% block content %}{% endblock %}
+  </main>
+  <footer>{{ t('footer.local') }}</footer>
+</body>
+</html>

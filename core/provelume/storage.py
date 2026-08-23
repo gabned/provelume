@@ -4,10 +4,11 @@ import hashlib
 import json
 import os
 import tempfile
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 from uuid import uuid4
 
 import yaml
@@ -89,7 +90,7 @@ class InstanceStore:
         root: Path | str,
         *,
         name: str = "Provelume Instance",
-    ) -> "InstanceStore":
+    ) -> InstanceStore:
         store = cls(root)
         store.paths.root.mkdir(parents=True, exist_ok=True)
         for path in (
