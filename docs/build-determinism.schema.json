@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/build-determinism-v1.json",
+  "title": "Provelume deterministic Python distribution evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "assurance",
+    "full_release_reproducibility_claimed",
+    "source_repository",
+    "source_commit",
+    "source_fingerprint_sha256",
+    "source_date_epoch",
+    "source_date_utc",
+    "project_version",
+    "python",
+    "implementation",
+    "platform",
+    "build_frontend",
+    "build_backend",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "assurance": {"const": "same-source-same-environment-byte-identical"},
+    "full_release_reproducibility_claimed": {"const": false},
+    "source_repository": {"const": "gabned/provelume"},
+    "source_commit": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      ]
+    },
+    "source_fingerprint_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "source_date_epoch": {"type": "integer", "minimum": 0},
+    "source_date_utc": {"type": "string", "format": "date-time"},
+    "project_version": {"type": "string", "minLength": 1},
+    "python": {"type": "string", "minLength": 1},
+    "implementation": {"type": "string", "minLength": 1},
+    "platform": {"type": "string", "minLength": 1},
+    "build_frontend": {"$ref": "#/$defs/tool"},
+    "build_backend": {"$ref": "#/$defs/tool"},
+    "artifacts": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"$ref": "#/$defs/artifact"}
+    }
+  },
+  "$defs": {
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "name",
+        "sha256",
+        "second_sha256",
+        "size_bytes",
+        "second_size_bytes",
+        "byte_identical"
+      ],
+      "properties": {
+        "kind": {"enum": ["wheel", "sdist"]},
+        "name": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "second_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "size_bytes": {"type": "integer", "minimum": 1},
+        "second_size_bytes": {"type": "integer", "minimum": 1},
+        "byte_identical": {"type": "boolean"}
+      }
+    }
+  }
+}

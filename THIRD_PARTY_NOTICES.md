@@ -16,7 +16,8 @@ Release-build tooling includes:
 
 | Component | Purpose | License |
 | --- | --- | --- |
-| build | Python wheel/source distribution builder | MIT |
+| build | Python wheel/source distribution build frontend | MIT |
+| Hatchling | pinned Python build backend and reproducible archive support | MIT |
 | CycloneDX Python (`cyclonedx-bom`) | release SBOM generation | Apache-2.0 |
 | GitHub Actions checkout/setup/upload/attest actions | public CI and release automation | licenses published by their respective repositories |
 

@@ -25,6 +25,10 @@ venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+build/
+dist/
+release/
+build-determinism.json
 
 # PHP / Composer
 vendor/

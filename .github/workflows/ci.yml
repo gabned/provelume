@@ -88,9 +88,9 @@ jobs:
         run: python -m pytest -q
 
   release-foundation:
-    name: Traceable release dry run
+    name: Deterministic release dry run
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -107,20 +107,26 @@ jobs:
             pyproject.toml
             requirements-release.txt
 
+      - name: Derive reproducible source timestamp
+        shell: bash
+        run: |
+          set -euo pipefail
+          epoch="$(git show -s --format=%ct "$GITHUB_SHA")"
+          echo "SOURCE_DATE_EPOCH=$epoch" >> "$GITHUB_ENV"
+
       - name: Install release tooling
         run: python -m pip install -e ".[dev]" -r requirements-release.txt
 
-      - name: Build distributions
+      - name: Build and compare independent source copies
         shell: bash
         run: |
           set -euo pipefail
           rm -rf dist release .release-runtime
-          python -m build --sdist --wheel --outdir dist
-          shopt -s nullglob
-          wheels=(dist/*.whl)
-          sdists=(dist/*.tar.gz)
-          test "${#wheels[@]}" -eq 1 || { echo '::error::Expected exactly one wheel.'; exit 1; }
-          test "${#sdists[@]}" -eq 1 || { echo '::error::Expected exactly one sdist.'; exit 1; }
+          python scripts/deterministic_build.py \
+            --source . \
+            --output-dir dist \
+            --evidence release/build-determinism.json \
+            --commit "$GITHUB_SHA"
 
       - name: Install built wheel in clean environment
         shell: bash
@@ -141,7 +147,6 @@ jobs:
               print(tomllib.load(handle)['project']['version'])
           PY
           )"
-          mkdir -p release
           cyclonedx-py environment \
             --output-reproducible \
             --output-format JSON \
@@ -163,6 +168,7 @@ jobs:
             --artifact release/LICENSE \
             --artifact release/COMMERCIAL-LICENSE.md \
             --artifact release/THIRD_PARTY_NOTICES.md \
+            --artifact release/build-determinism.json \
             --sbom "release/provelume-${VERSION}.cdx.json" \
             --manifest release/release-manifest.json \
             --checksums release/SHA256SUMS
@@ -173,8 +179,12 @@ jobs:
           from pathlib import Path
 
           manifest = json.loads(Path('release/release-manifest.json').read_text())
+          evidence = json.loads(Path('release/build-determinism.json').read_text())
           assert manifest['source_repository'] == 'gabned/provelume'
           assert manifest['channel'] == 'development'
-          assert len(manifest['artifacts']) >= 5
+          assert len(manifest['artifacts']) >= 6
+          assert evidence['assurance'] == 'same-source-same-environment-byte-identical'
+          assert evidence['full_release_reproducibility_claimed'] is False
+          assert all(row['byte_identical'] for row in evidence['artifacts'])
           assert Path('release/SHA256SUMS').stat().st_size > 0
           PY
