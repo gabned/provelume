@@ -13,7 +13,7 @@ jobs:
     name: Build, attest and publish
     if: github.repository == 'gabned/provelume'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: write
       id-token: write
@@ -72,27 +72,16 @@ jobs:
           python -m ruff check core tests scripts
           python -m pytest -q
 
-      - name: Build Python distributions
+      - name: Build and compare independent source copies
         shell: bash
-        env:
-          VERSION: ${{ steps.identity.outputs.version }}
         run: |
           set -euo pipefail
           rm -rf dist release .release-runtime
-          python -m build --sdist --wheel --outdir dist
-          shopt -s nullglob
-          wheels=(dist/*.whl)
-          sdists=(dist/*.tar.gz)
-          test "${#wheels[@]}" -eq 1 || { echo '::error::Expected exactly one wheel.'; exit 1; }
-          test "${#sdists[@]}" -eq 1 || { echo '::error::Expected exactly one sdist.'; exit 1; }
-          [[ "$(basename "${wheels[0]}")" == provelume-${VERSION}-* ]] || {
-            echo '::error::Wheel version does not match release version.'
-            exit 1
-          }
-          [[ "$(basename "${sdists[0]}")" == "provelume-${VERSION}.tar.gz" ]] || {
-            echo '::error::Source distribution version does not match release version.'
-            exit 1
-          }
+          python scripts/deterministic_build.py \
+            --source . \
+            --output-dir dist \
+            --evidence release/build-determinism.json \
+            --commit "$GITHUB_SHA"
 
       - name: Install release wheel in clean environment
         shell: bash
@@ -109,7 +98,6 @@ jobs:
           VERSION: ${{ steps.identity.outputs.version }}
         run: |
           set -euo pipefail
-          mkdir -p release
           cyclonedx-py environment \
             --output-reproducible \
             --output-format JSON \
@@ -139,11 +127,20 @@ jobs:
             --artifact release/LICENSE \
             --artifact release/COMMERCIAL-LICENSE.md \
             --artifact release/THIRD_PARTY_NOTICES.md \
+            --artifact release/build-determinism.json \
             --sbom "release/provelume-${VERSION}.cdx.json" \
             --manifest release/release-manifest.json \
             --checksums release/SHA256SUMS
           python -m json.tool release/release-manifest.json >/dev/null
           python -m json.tool "release/provelume-${VERSION}.cdx.json" >/dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          evidence = json.loads(Path('release/build-determinism.json').read_text())
+          assert evidence['source_commit'] == __import__('os').environ['GITHUB_SHA']
+          assert all(row['byte_identical'] for row in evidence['artifacts'])
+          PY
 
       - name: Attest wheel build provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
@@ -154,6 +151,11 @@ jobs:
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: "release/*.tar.gz"
+
+      - name: Attest deterministic build evidence
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: "release/build-determinism.json"
 
       - name: Attest release manifest provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
