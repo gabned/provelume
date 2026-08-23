@@ -14,7 +14,12 @@ class ProvelumeInstance:
         self.store.validate()
 
     @classmethod
-    def initialise(cls, root: Path | str, *, name: str = "Provelume Instance") -> "ProvelumeInstance":
+    def initialise(
+        cls,
+        root: Path | str,
+        *,
+        name: str = "Provelume Instance",
+    ) -> "ProvelumeInstance":
         InstanceStore.initialise(root, name=name)
         return cls(root)
 
@@ -22,7 +27,12 @@ class ProvelumeInstance:
     def root(self) -> Path:
         return self.store.paths.root
 
-    def ingest(self, source_path: Path | str, *, source_name: str | None = None) -> list[dict[str, Any]]:
+    def ingest(
+        self,
+        source_path: Path | str,
+        *,
+        source_name: str | None = None,
+    ) -> list[dict[str, Any]]:
         acquisitions = ingest_filesystem(self.store, source_path, source_name=source_name)
         rebuild_search_index(self.store)
         return [
@@ -67,7 +77,10 @@ class ProvelumeInstance:
                     {
                         "code": "source_missing",
                         "severity": "warning",
-                        "message": f"Source {source['name']} is not currently readable at its configured path.",
+                        "message": (
+                            f"Source {source['name']} is not currently readable at its "
+                            "configured path."
+                        ),
                     }
                 )
         hashes: dict[str, list[str]] = {}
@@ -80,7 +93,10 @@ class ProvelumeInstance:
                         {
                             "code": "derived_missing",
                             "severity": "warning",
-                            "message": f"Derived text is missing for {document['title']} and can be rebuilt.",
+                            "message": (
+                                f"Derived text is missing for {document['title']} and can be "
+                                "rebuilt."
+                            ),
                         }
                     )
         for ids in hashes.values():
@@ -89,7 +105,9 @@ class ProvelumeInstance:
                     {
                         "code": "duplicate_content",
                         "severity": "info",
-                        "message": f"The same current content is referenced by {len(ids)} documents.",
+                        "message": (
+                            f"The same current content is referenced by {len(ids)} documents."
+                        ),
                     }
                 )
         status = index_status(self.store)
@@ -98,7 +116,9 @@ class ProvelumeInstance:
                 {
                     "code": f"index_{status}",
                     "severity": "warning",
-                    "message": "The search index is missing or out of date and can be rebuilt safely.",
+                    "message": (
+                        "The search index is missing or out of date and can be rebuilt safely."
+                    ),
                 }
             )
         return {
