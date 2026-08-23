@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ t('security.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb"><a href="/?lang={{ lang }}">{{ t('nav.home') }}</a><span>/</span><span>{{ t('nav.security') }}</span></nav>
+<section class="hero">
+  <p class="eyebrow">{{ t('security.eyebrow') }}</p>
+  <h1>{{ t('security.title') }}</h1>
+  <p class="lead">{{ t('security.lead') }}</p>
+  <div class="status-row">
+    {% if build.identity_status == 'official_metadata_present' %}
+      <span class="status info">{{ t('security.status_official') }}</span>
+    {% elif build.identity_status == 'development_build' %}
+      <span class="status warn">{{ t('security.status_development') }}</span>
+    {% else %}
+      <span class="status warn">{{ t('security.status_unavailable') }}</span>
+    {% endif %}
+    <span>{{ t('security.offline_summary') }}</span>
+  </div>
+</section>
+
+<section class="two-column security-layout">
+  <article class="panel">
+    <h2>{{ t('security.identity_title') }}</h2>
+    <dl>
+      <dt>{{ t('security.version') }}</dt><dd>{{ build.version }}</dd>
+      <dt>{{ t('security.source') }}</dt><dd>{{ build.source_repository or t('common.unavailable') }}</dd>
+      <dt>{{ t('security.tag') }}</dt><dd>{{ build.tag or t('common.none') }}</dd>
+      <dt>{{ t('security.commit') }}</dt><dd>{% if build.commit %}<code class="hash">{{ build.commit }}</code>{% else %}{{ t('common.unavailable') }}{% endif %}</dd>
+      <dt>{{ t('security.channel') }}</dt><dd>{{ build.channel or t('common.unavailable') }}</dd>
+      <dt>{{ t('security.source_date') }}</dt><dd>{{ build.source_date_utc or t('common.unavailable') }}</dd>
+      <dt>{{ t('security.official') }}</dt><dd>{{ t('common.yes') if build.official else t('common.no') }}</dd>
+      <dt>{{ t('security.metadata') }}</dt><dd>{{ t('security.metadata_present') if build.metadata_present else t('security.metadata_unavailable') }}</dd>
+    </dl>
+    {% if build.metadata_error %}
+      <p class="technical-note"><strong>{{ t('security.metadata_error') }}:</strong> {{ build.metadata_error }}</p>
+    {% endif %}
+  </article>
+
+  <aside>
+    <section class="panel trust-boundary">
+      <h2>{{ t('security.boundary_title') }}</h2>
+      <p>{{ t('security.boundary') }}</p>
+      <dl>
+        <dt>{{ t('security.integrity') }}</dt><dd>{{ t('security.not_verified') }}</dd>
+        <dt>{{ t('security.provenance') }}</dt><dd>{{ t('security.not_verified_locally') }}</dd>
+        <dt>{{ t('security.signature') }}</dt><dd>{{ t('security.not_verified') }}</dd>
+      </dl>
+    </section>
+    <section class="panel">
+      <h2>{{ t('security.network_title') }}</h2>
+      <p>{{ t('security.network_offline') }}</p>
+      <p class="status-row"><span class="status info">{{ t('security.no_network_request') }}</span></p>
+    </section>
+  </aside>
+</section>
+{% endblock %}
