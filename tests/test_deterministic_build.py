@@ -52,6 +52,19 @@ def _tool_versions(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
+def _recording_builder(identities: list[dict[str, Any]]):
+    def fake_build_once(
+        _source: Path,
+        workspace: Path,
+        _epoch: int,
+        identity: dict[str, Any],
+    ) -> dict[str, Path]:
+        identities.append(dict(identity))
+        return _artifacts(workspace / "dist")
+
+    return fake_build_once
+
+
 def test_source_date_epoch_fails_closed() -> None:
     assert deterministic_build.source_date_epoch("0") == 0
     with pytest.raises(DeterministicBuildError, match="required"):
@@ -131,17 +144,12 @@ def test_run_stamps_same_development_identity_into_both_builds(
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "1787443200")
     _tool_versions(monkeypatch)
     identities: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        deterministic_build,
+        "build_once",
+        _recording_builder(identities),
+    )
 
-    def fake_build_once(
-        _source: Path,
-        workspace: Path,
-        _epoch: int,
-        identity: dict[str, Any],
-    ) -> dict[str, Path]:
-        identities.append(dict(identity))
-        return _artifacts(workspace / "dist")
-
-    monkeypatch.setattr(deterministic_build, "build_once", fake_build_once)
     payload = deterministic_build.run(
         source=source,
         output_dir=output,
@@ -169,6 +177,44 @@ def test_run_stamps_same_development_identity_into_both_builds(
         "provelume-0.1.0.tar.gz",
     }
     assert json.loads(evidence.read_text(encoding="utf-8"))["source_commit"] == "a" * 40
+
+
+def test_run_stamps_same_official_identity_into_both_builds(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = _project(tmp_path / "source")
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1787443200")
+    _tool_versions(monkeypatch)
+    identities: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        deterministic_build,
+        "build_once",
+        _recording_builder(identities),
+    )
+
+    deterministic_build.run(
+        source=source,
+        output_dir=tmp_path / "dist",
+        evidence=tmp_path / "evidence.json",
+        commit="a" * 40,
+        tag="v0.1.0",
+        channel="preview",
+        official=True,
+    )
+
+    assert identities == [identities[0], identities[0]]
+    assert identities[0] == {
+        "schema_version": 1,
+        "version": "0.1.0",
+        "source_repository": "gabned/provelume",
+        "tag": "v0.1.0",
+        "commit": "a" * 40,
+        "channel": "preview",
+        "source_date_epoch": 1787443200,
+        "source_date_utc": "2026-08-23T00:00:00+00:00",
+        "official": True,
+    }
 
 
 def test_official_identity_must_match_release_contract(
