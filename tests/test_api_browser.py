@@ -4,7 +4,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi.testclient import TestClient
-
 from provelume.service import ProvelumeInstance
 from provelume.web import create_app
 
@@ -53,13 +52,23 @@ def test_read_only_api_contract(tmp_path: Path) -> None:
     project_documents = client.get("/api/v1/documents", params={"area": "Projects"}).json()
     assert [item["title"] for item in project_documents] == ["alpha.md"]
 
-    document_id = next(item["id"] for item in documents if item["title"] == "alpha.md")
+    document = next(item for item in documents if item["title"] == "alpha.md")
+    other_document = next(item for item in documents if item["title"] == "notes.txt")
+    document_id = document["id"]
     assert client.get(f"/api/v1/documents/{document_id}").status_code == 200
     versions = client.get(f"/api/v1/documents/{document_id}/versions").json()
     assert len(versions) == 1
     provenance = client.get(f"/api/v1/documents/{document_id}/provenance").json()
     assert provenance["document"]["id"] == document_id
     assert any(edge["relation"] == "captured" for edge in provenance["edges"])
+    unrelated_ids = {
+        other_document["id"],
+        other_document["current_version"]["id"],
+    }
+    assert all(
+        edge["from_id"] not in unrelated_ids and edge["to_id"] not in unrelated_ids
+        for edge in provenance["edges"]
+    )
 
     original = client.get(f"/api/v1/documents/{document_id}/original")
     assert original.status_code == 200
@@ -107,6 +116,16 @@ def test_browser_routes_and_italian_catalog(tmp_path: Path) -> None:
     assert browse.status_code == 200
     assert "alpha.md" in browse.text
     assert "notes.txt" not in browse.text
+
+    browse_all = client.get("/browse", params={"area": ""})
+    assert browse_all.status_code == 200
+    assert "alpha.md" in browse_all.text
+    assert "notes.txt" in browse_all.text
+
+    browse_root = client.get("/browse", params={"area": "__root__"})
+    assert browse_root.status_code == 200
+    assert "notes.txt" in browse_root.text
+    assert "alpha.md" not in browse_root.text
 
     search = client.get("/search", params={"q": "traceable"})
     assert search.status_code == 200
