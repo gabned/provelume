@@ -23,7 +23,13 @@ def _stable_version_id(document_id: str, digest: str) -> str:
     return f"ver_{uuid5(NAMESPACE_URL, f'provelume:{document_id}:{digest}').hex}"
 
 
-def _edge(from_kind: str, from_id: str, relation: str, to_kind: str, to_id: str) -> ProvenanceEdge:
+def _edge(
+    from_kind: str,
+    from_id: str,
+    relation: str,
+    to_kind: str,
+    to_id: str,
+) -> ProvenanceEdge:
     value = f"{from_kind}:{from_id}:{relation}:{to_kind}:{to_id}"
     return ProvenanceEdge(
         id=f"edge_{uuid5(NAMESPACE_URL, value).hex}",
@@ -36,7 +42,7 @@ def _edge(from_kind: str, from_id: str, relation: str, to_kind: str, to_id: str)
     )
 
 
-def _iter_files(source: Path, max_files: int) -> tuple[Path, list[tuple[str, Path]]]:
+def _iter_files(source: Path, max_files: int) -> list[tuple[str, Path]]:
     source = source.expanduser().resolve(strict=True)
     if source.is_file():
         root = source.parent
@@ -57,7 +63,7 @@ def _iter_files(source: Path, max_files: int) -> tuple[Path, list[tuple[str, Pat
         accepted.append((locator, resolved))
         if len(accepted) > max_files:
             raise IngestionLimitError(f"source exceeds the {max_files}-file safety limit")
-    return root, accepted
+    return accepted
 
 
 def ingest_filesystem(
@@ -68,9 +74,8 @@ def ingest_filesystem(
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
     max_files: int = DEFAULT_MAX_FILES,
 ) -> list[Acquisition]:
-    supplied = Path(source_path).expanduser()
-    canonical_source_path = supplied.resolve(strict=True)
-    root, files = _iter_files(canonical_source_path, max_files)
+    canonical_source_path = Path(source_path).expanduser().resolve(strict=True)
+    files = _iter_files(canonical_source_path, max_files)
     source_id = store.find_source_for_path(canonical_source_path)
     if source_id is None:
         source_id = f"src_{uuid4().hex}"
@@ -84,7 +89,7 @@ def ingest_filesystem(
         store.register_source_path(source_id, canonical_source_path, name=source.name)
 
     return [
-        _ingest_one(store, source_id, root, locator, path, max_file_bytes)
+        _ingest_one(store, source_id, locator, path, max_file_bytes)
         for locator, path in files
     ]
 
@@ -92,12 +97,10 @@ def ingest_filesystem(
 def _ingest_one(
     store: InstanceStore,
     source_id: str,
-    root: Path,
     locator: str,
     path: Path,
     max_file_bytes: int,
 ) -> Acquisition:
-    del root
     observed_at = utc_now()
     size = path.stat().st_size
     if size > max_file_bytes:
@@ -115,7 +118,9 @@ def _ingest_one(
     else:
         document_id = existing["id"]
         versions = store.versions_for_document(document_id)
-        current = next(item for item in versions if item["id"] == existing["current_version_id"])
+        current = next(
+            item for item in versions if item["id"] == existing["current_version_id"]
+        )
         if current["content_hash"] == digest:
             acquisition = Acquisition(
                 id=f"acq_{uuid4().hex}",
@@ -128,8 +133,12 @@ def _ingest_one(
                 version_id=current["id"],
             )
             store.write_acquisition(acquisition)
-            store.write_provenance(_edge("source", source_id, "observed", "acquisition", acquisition.id))
-            store.write_provenance(_edge("acquisition", acquisition.id, "matched", "version", current["id"]))
+            store.write_provenance(
+                _edge("source", source_id, "observed", "acquisition", acquisition.id)
+            )
+            store.write_provenance(
+                _edge("acquisition", acquisition.id, "matched", "version", current["id"])
+            )
             return acquisition
         sequence = max(int(item["sequence"]) for item in versions) + 1
 
@@ -157,7 +166,9 @@ def _ingest_one(
             current_version_id=version_id,
         )
     else:
-        document = replace(Document(**existing), current_version_id=version_id, media_type=media_type)
+        document = replace(
+            Document(**existing), current_version_id=version_id, media_type=media_type
+        )
     store.write_document(document)
 
     acquisition = Acquisition(
@@ -176,7 +187,8 @@ def _ingest_one(
     try:
         assert extractor is not None
         extraction = extractor.extract(data)
-        artifact_id = f"derived_{uuid5(NAMESPACE_URL, f'{version_id}:extracted_text:{extraction.generator}:1').hex}"
+        artifact_key = f"{version_id}:extracted_text:{extraction.generator}:1"
+        artifact_id = f"derived_{uuid5(NAMESPACE_URL, artifact_key).hex}"
         relative, checksum = store.write_derived_text(artifact_id, extraction.text)
         artifact = DerivedArtifact(
             id=artifact_id,
@@ -198,8 +210,16 @@ def _ingest_one(
     if extraction_error:
         acquisition = replace(acquisition, outcome="extraction_failed", error=extraction_error)
     store.write_acquisition(acquisition)
-    store.write_provenance(_edge("source", source_id, "observed", "acquisition", acquisition.id))
-    store.write_provenance(_edge("acquisition", acquisition.id, "captured", "original", original.id))
-    store.write_provenance(_edge("original", original.id, "materialized_as", "version", version_id))
-    store.write_provenance(_edge("version", version_id, "version_of", "document", document_id))
+    store.write_provenance(
+        _edge("source", source_id, "observed", "acquisition", acquisition.id)
+    )
+    store.write_provenance(
+        _edge("acquisition", acquisition.id, "captured", "original", original.id)
+    )
+    store.write_provenance(
+        _edge("original", original.id, "materialized_as", "version", version_id)
+    )
+    store.write_provenance(
+        _edge("version", version_id, "version_of", "document", document_id)
+    )
     return acquisition
