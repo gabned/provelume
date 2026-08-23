@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+import zlib
 from io import BytesIO
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -69,6 +70,39 @@ def test_zip_traversal_fails_without_writing_member(tmp_path: Path) -> None:
     assert "unsafe" in acquisitions[0]["error"].casefold()
     assert len(instance.store.list_canonical("originals")) == 1
     assert not (tmp_path / "escape.txt").exists()
+
+
+def test_zip_drive_relative_member_fails_closed() -> None:
+    archive = _zip_bytes({"C:notes.txt": b"windows-drive-relative"})
+    with pytest.raises(ExtractionError, match="drive prefix"):
+        ZipArchiveExtractor().extract(archive)
+
+
+def test_zip_decompressor_error_becomes_extraction_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "corrupt.zip").write_bytes(_zip_bytes({"broken.txt": b"searchable before corruption"}))
+
+    original_read = ZipFile.read
+
+    def corrupt_read(self: ZipFile, name, pwd=None):
+        filename = getattr(name, "filename", str(name))
+        if filename == "broken.txt":
+            raise zlib.error("synthetic corrupt DEFLATE stream")
+        return original_read(self, name, pwd=pwd)
+
+    monkeypatch.setattr(ZipFile, "read", corrupt_read)
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    acquisitions = instance.ingest(source)
+
+    assert acquisitions[0]["outcome"] == "extraction_failed"
+    assert "ZIP extraction failed" in acquisitions[0]["error"]
+    assert len(instance.store.list_canonical("originals")) == 1
+    assert len(instance.store.list_canonical("versions")) == 1
+    assert len(instance.store.list_canonical("provenance")) >= 4
 
 
 def test_zip_high_compression_ratio_fails_closed() -> None:
