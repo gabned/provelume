@@ -1,0 +1,103 @@
+name: Refresh reviewed build-input lock
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "lock/**"
+    paths:
+      - requirements-build.txt
+      - scripts/build_input_lock.py
+      - .github/workflows/refresh-build-input-lock.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    name: Resolve, verify and commit target lock
+    if: >-
+      github.repository == 'gabned/provelume' &&
+      startsWith(github.ref, 'refs/heads/lock/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout selected lock branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up target Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12.14"
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+
+      - name: Resolve one binary target wheelhouse
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheelhouse="$RUNNER_TEMP/provelume-lock-resolution"
+          rm -rf "$wheelhouse"
+          mkdir -p "$wheelhouse"
+          python -m pip download \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --dest "$wheelhouse" \
+            -r requirements-build.txt
+          python -m scripts.build_input_lock create \
+            --wheelhouse "$wheelhouse" \
+            --direct-requirements requirements-build.txt \
+            --json-lock build-lock/ubuntu-py312-x86_64.lock.json \
+            --requirements-lock build-lock/ubuntu-py312-x86_64.requirements.txt \
+            --generated-from-commit "$GITHUB_SHA"
+
+      - name: Redownload and verify the generated lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          verification="$RUNNER_TEMP/provelume-lock-verification"
+          rm -rf "$verification"
+          mkdir -p "$verification"
+          python -m pip download \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --no-deps \
+            --require-hashes \
+            --dest "$verification" \
+            -r build-lock/ubuntu-py312-x86_64.requirements.txt
+          python -m scripts.build_input_lock verify \
+            --wheelhouse "$verification" \
+            --direct-requirements requirements-build.txt \
+            --json-lock build-lock/ubuntu-py312-x86_64.lock.json \
+            --requirements-lock build-lock/ubuntu-py312-x86_64.requirements.txt
+
+      - name: Summarize lock delta
+        shell: bash
+        run: |
+          {
+            echo '## Reviewed build-input lock refresh'
+            echo
+            echo '```text'
+            git diff --stat -- build-lock/ || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit lock files to the selected branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            build-lock/ubuntu-py312-x86_64.lock.json \
+            build-lock/ubuntu-py312-x86_64.requirements.txt
+          if git diff --cached --quiet; then
+            echo 'Lock is already current; no commit required.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Refresh reviewed Ubuntu CPython 3.12 build-input lock'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
