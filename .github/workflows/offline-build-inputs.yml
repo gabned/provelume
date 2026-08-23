@@ -1,0 +1,193 @@
+name: Offline verified build-input rebuild
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    name: Resolve immutable inputs and build candidate offline
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout public source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12.14"
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+
+      - name: Resolve source epoch from checked-out commit
+        shell: bash
+        run: echo "SOURCE_DATE_EPOCH=$(git show -s --format=%ct "$GITHUB_SHA")" >> "$GITHUB_ENV"
+
+      - name: Resolve one binary build-input wheelhouse
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/provelume-offline-candidate"
+          rm -rf "$root"
+          mkdir -p "$root/wheelhouse"
+          python -m pip download \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --dest "$root/wheelhouse" \
+            -r requirements-build.txt
+          python -m scripts.build_input_bundle create \
+            --wheelhouse "$root/wheelhouse" \
+            --requirements requirements-build.txt \
+            --output "$root/build-input-manifest.json" \
+            --commit "$GITHUB_SHA"
+
+      - name: Install candidate build environment without an index
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/provelume-offline-candidate"
+          python -m venv "$root/build-env"
+          PIP_NO_INDEX=1 PIP_FIND_LINKS="$root/wheelhouse" \
+            "$root/build-env/bin/python" -m pip install \
+              --disable-pip-version-check \
+              -r requirements-build.txt
+
+      - name: Build candidate from verified offline inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/provelume-offline-candidate"
+          PIP_NO_INDEX=1 PIP_FIND_LINKS="$root/wheelhouse" \
+            "$root/build-env/bin/python" -m scripts.deterministic_build \
+              --commit "$GITHUB_SHA" \
+              --output-dir "$root/dist" \
+              --report "$root/deterministic-build-report.json"
+
+      - name: Upload candidate, wheelhouse and evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: provelume-offline-input-candidate-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/provelume-offline-candidate/wheelhouse/
+            ${{ runner.temp }}/provelume-offline-candidate/build-input-manifest.json
+            ${{ runner.temp }}/provelume-offline-candidate/dist/
+            ${{ runner.temp }}/provelume-offline-candidate/deterministic-build-report.json
+          if-no-files-found: error
+          retention-days: 14
+
+  offline-rebuild:
+    name: Verify inputs and rebuild offline on a second runner
+    needs: candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout the same public source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python independently
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12.14"
+
+      - name: Resolve source epoch from checked-out commit
+        shell: bash
+        run: echo "SOURCE_DATE_EPOCH=$(git show -s --format=%ct "$GITHUB_SHA")" >> "$GITHUB_ENV"
+
+      - name: Download candidate and immutable input bundle
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/provelume-offline-downloaded"
+          rm -rf "$target"
+          mkdir -p "$target"
+          gh run download "$GITHUB_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "provelume-offline-input-candidate-${GITHUB_SHA}" \
+            --dir "$target"
+
+      - name: Verify every build-input byte before installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/provelume-offline-downloaded"
+          python -m scripts.build_input_bundle verify \
+            --wheelhouse "$target/wheelhouse" \
+            --requirements requirements-build.txt \
+            --manifest "$target/build-input-manifest.json" \
+            --commit "$GITHUB_SHA"
+
+      - name: Install rebuild environment without package-index access
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/provelume-offline-downloaded"
+          rebuild="$RUNNER_TEMP/provelume-offline-rebuild"
+          rm -rf "$rebuild"
+          python -m venv "$rebuild/build-env"
+          PIP_NO_INDEX=1 PIP_FIND_LINKS="$target/wheelhouse" \
+            "$rebuild/build-env/bin/python" -m pip install \
+              --disable-pip-version-check \
+              -r requirements-build.txt
+
+      - name: Rebuild from the verified wheelhouse with network indexes disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/provelume-offline-downloaded"
+          rebuild="$RUNNER_TEMP/provelume-offline-rebuild"
+          PIP_NO_INDEX=1 PIP_FIND_LINKS="$target/wheelhouse" \
+            "$rebuild/build-env/bin/python" -m scripts.deterministic_build \
+              --commit "$GITHUB_SHA" \
+              --output-dir "$rebuild/dist" \
+              --report "$rebuild/deterministic-build-report.json"
+
+      - name: Compare candidate and offline rebuild bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/provelume-offline-downloaded"
+          rebuild="$RUNNER_TEMP/provelume-offline-rebuild"
+          python -m scripts.independent_rebuild \
+            --candidate-dir "$target/dist" \
+            --rebuild-dir "$rebuild/dist" \
+            --candidate-report "$target/deterministic-build-report.json" \
+            --rebuild-report "$rebuild/deterministic-build-report.json" \
+            --output-report "$rebuild/independent-rebuild-report.json" \
+            --commit "$GITHUB_SHA"
+          python -m scripts.offline_rebuild_evidence \
+            --wheelhouse "$target/wheelhouse" \
+            --requirements requirements-build.txt \
+            --build-input-manifest "$target/build-input-manifest.json" \
+            --independent-report "$rebuild/independent-rebuild-report.json" \
+            --output "$rebuild/offline-rebuild-evidence.json" \
+            --commit "$GITHUB_SHA"
+
+      - name: Upload offline rebuild evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: provelume-offline-rebuild-evidence-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/provelume-offline-rebuild/independent-rebuild-report.json
+            ${{ runner.temp }}/provelume-offline-rebuild/offline-rebuild-evidence.json
+          if-no-files-found: error
+          retention-days: 14
