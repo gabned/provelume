@@ -19,7 +19,7 @@ class ProvelumeInstance:
         root: Path | str,
         *,
         name: str = "Provelume Instance",
-    ) -> "ProvelumeInstance":
+    ) -> ProvelumeInstance:
         InstanceStore.initialise(root, name=name)
         return cls(root)
 
