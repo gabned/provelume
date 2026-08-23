@@ -52,7 +52,10 @@ def _timestamp(epoch: int | None) -> str | None:
         return None
     if isinstance(epoch, bool) or not isinstance(epoch, int) or epoch < 0:
         raise BuildInfoError("source_date_epoch must be a non-negative integer or null")
-    return datetime.fromtimestamp(epoch, UTC).isoformat()
+    try:
+        return datetime.fromtimestamp(epoch, UTC).isoformat()
+    except (OSError, OverflowError, ValueError) as exc:
+        raise BuildInfoError("source_date_epoch is outside the supported range") from exc
 
 
 def create_build_info(
