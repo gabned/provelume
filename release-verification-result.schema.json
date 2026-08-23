@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/release-verification-result-v1.json",
+  "title": "Provelume release bundle verification result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "verified",
+    "bundle",
+    "source_repository",
+    "version",
+    "tag",
+    "commit",
+    "assurance_level",
+    "deterministic_python_distributions",
+    "checked_files",
+    "findings"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "status": {"enum": ["verified", "modified", "unavailable"]},
+    "verified": {"type": "boolean"},
+    "bundle": {"type": "string"},
+    "source_repository": {
+      "type": ["string", "null"]
+    },
+    "version": {
+      "type": ["string", "null"]
+    },
+    "tag": {
+      "type": ["string", "null"]
+    },
+    "commit": {
+      "type": ["string", "null"]
+    },
+    "assurance_level": {
+      "type": ["string", "null"]
+    },
+    "deterministic_python_distributions": {
+      "enum": ["verified", "not_present", "invalid"]
+    },
+    "checked_files": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "code", "message", "path"],
+        "properties": {
+          "severity": {"enum": ["error", "warning", "info"]},
+          "code": {"type": "string", "minLength": 1},
+          "message": {"type": "string", "minLength": 1},
+          "path": {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}
