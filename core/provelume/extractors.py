@@ -547,7 +547,8 @@ class ZipArchiveExtractor:
                         raise ExtractionError(f"ZIP encrypted member cannot be inspected: {name}")
                     if info.file_size > ZIP_MAX_MEMBER_BYTES:
                         raise ExtractionError(
-                            f"ZIP member exceeds the {ZIP_MAX_MEMBER_BYTES}-byte safety limit: {name}"
+                            "ZIP member exceeds the "
+                            f"{ZIP_MAX_MEMBER_BYTES}-byte safety limit: {name}"
                         )
                     if (
                         info.file_size > 1024 * 1024
