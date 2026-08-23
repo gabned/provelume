@@ -1,0 +1,69 @@
+name: Apply offline verifier execution gate
+
+on:
+  push:
+    branches:
+      - feat/offline-release-verifier
+    paths:
+      - .github/workflows/apply-offline-verifier-execution.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    name: Execute the shipped verifier during release assembly
+    if: github.repository == 'gabned/provelume'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout verifier branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Add the self-contained verifier execution gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/release-pipeline.yml')
+          value = path.read_text(encoding='utf-8')
+          marker = '''          python -m scripts.verify_release_bundle \\
+            --root "$release" \\
+            --version "$VERSION" \\
+            --tag "$TAG" \\
+            --commit "$GITHUB_SHA"
+'''
+          addition = marker + '''          python "$release/verify-provelume-release.py" \\
+            --root "$release" \\
+            --expected-version "$VERSION" \\
+            --expected-tag "$TAG" \\
+            --expected-commit "$GITHUB_SHA" \\
+            --json >/dev/null
+'''
+          if 'python "$release/verify-provelume-release.py"' not in value:
+              if marker not in value:
+                  raise SystemExit('release bundle verification marker not found')
+              value = value.replace(marker, addition, 1)
+              path.write_text(value, encoding='utf-8')
+          PY
+          rm -f .github/workflows/apply-offline-verifier-execution.yml
+
+      - name: Commit the assembly verification gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A .github/workflows
+          if git diff --cached --quiet; then
+            echo 'Shipped verifier execution gate is already current.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Execute the shipped offline verifier during release assembly'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
