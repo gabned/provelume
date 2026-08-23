@@ -103,13 +103,28 @@ The baseline Instance config disables external access and update checks. The run
 
 Future connectors and AI providers must declare network capability explicitly and remain optional. See `docs/architecture/provider-boundaries.md`.
 
-## Verifiable release foundation
+## Verifiable and deterministic release foundation
 
-Official Core/self-hosted release artifacts are designed to be traceable to the public `gabned/provelume` repository. The release workflow is separate from normal CI and activates only for semantic version tags that point to commits already present on `main`.
+Official Core/self-hosted release artifacts are traceable to the public `gabned/provelume` repository. The release workflow is separate from normal CI and activates only for semantic version tags that point to commits already present on `main`.
 
 A release publishes Python wheel/source artifacts together with SHA-256 checksums, a CycloneDX SBOM and a provider-independent `release-manifest.json`, then creates GitHub build-provenance attestations. Pre-1.0 tags are published as preview releases.
 
-This is a **traceable-build** guarantee, not a claim of byte-for-byte reproducibility. See `docs/architecture/verifiable-builds.md` and `docs/release-verification.md`.
+The Python wheel and source distribution also pass a measured deterministic-component gate. The build backend is pinned exactly, `SOURCE_DATE_EPOCH` comes from the public commit, and two independent clean source copies must produce byte-identical wheel and source-distribution hashes before release assembly continues. The evidence is published as `build-determinism.json`.
+
+To run the same comparison locally after installing `requirements-release.txt`:
+
+```bash
+SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)" \
+python scripts/deterministic_build.py \
+  --source . \
+  --output-dir dist \
+  --evidence build-determinism.json \
+  --commit "$(git rev-parse HEAD)"
+```
+
+This supports a **traceable build** guarantee and a **same-source/same-environment byte-identical** guarantee for the Python distributions. It is not yet a claim that the complete release is independently reproducible on every platform.
+
+See `docs/architecture/verifiable-builds.md`, `docs/release-verification.md` and ADR 0004.
 
 ## Product boundaries
 
