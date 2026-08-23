@@ -1,0 +1,1 @@
+Provelume can run without GitHub and without an external AI provider.

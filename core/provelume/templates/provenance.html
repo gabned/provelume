@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ t('provenance.title') }} · {{ provenance.document.title }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb"><a href="/documents/{{ provenance.document.id }}?lang={{ lang }}">{{ provenance.document.title }}</a><span>/</span><span>{{ t('provenance.title') }}</span></nav>
+<h1>{{ t('provenance.title') }}</h1><p class="lead">{{ t('provenance.explainer') }}</p>
+<section class="panel"><div class="trace-chain"><span>Source</span><b>→</b><span>Acquisition</span><b>→</b><span>Original</span><b>→</b><span>Version</span><b>→</b><span>Derived</span></div></section>
+<section class="panel"><h2>{{ t('common.details') }}</h2><ol class="edge-list">{% for edge in provenance.edges %}<li><code>{{ edge.from_kind }}</code><span>{{ edge.from_id }}</span><strong>{{ edge.relation }}</strong><code>{{ edge.to_kind }}</code><span>{{ edge.to_id }}</span></li>{% endfor %}</ol></section>
+<section class="panel"><h2>{{ t('document.version_history') }}</h2><ol class="versions">{% for version in provenance.versions %}<li><strong>v{{ version.sequence }}</strong><span>{{ version.acquired_at }}</span><code>{{ version.content_hash[:12] }}</code></li>{% endfor %}</ol></section>
+{% endblock %}

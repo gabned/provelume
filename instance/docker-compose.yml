@@ -1,0 +1,26 @@
+services:
+  provelume:
+    build:
+      context: ..
+    command:
+      - sh
+      - -c
+      - >-
+        provelume init /instance --name "Local Provelume" &&
+        exec provelume serve /instance --host 0.0.0.0 --port 8000
+    ports:
+      - "127.0.0.1:8042:8000"
+    volumes:
+      - provelume-instance:/instance
+      - ${PROVELUME_SOURCE_DIR:-../examples/demo-source}:/sources/local:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+
+volumes:
+  provelume-instance:

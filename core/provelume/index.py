@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,13 @@ def _connection(path: Path) -> sqlite3.Connection:
     connection = sqlite3.connect(path)
     connection.row_factory = sqlite3.Row
     return connection
+
+
+def _literal_fts_query(query: str) -> str | None:
+    tokens = re.findall(r"\w+", query, flags=re.UNICODE)
+    if not tokens:
+        return None
+    return " ".join(f'"{token.replace(chr(34), chr(34) * 2)}"' for token in tokens)
 
 
 def _ensure_extracted(
@@ -138,10 +146,13 @@ def search_index(
     date_to: str | None = None,
     limit: int = 50,
 ) -> list[dict[str, Any]]:
+    fts_query = _literal_fts_query(query)
+    if fts_query is None:
+        return []
     if index_status(store) != "ready":
         rebuild_search_index(store)
     clauses = ["search MATCH ?"]
-    parameters: list[object] = [query]
+    parameters: list[object] = [fts_query]
     if source_id:
         clauses.append("source_id = ?")
         parameters.append(source_id)
@@ -157,7 +168,7 @@ def search_index(
     parameters.append(max(1, min(limit, 200)))
     sql = (
         "SELECT document_id, version_id, source_id, media_type, acquired_at, title, "
-        "snippet(search, 6, '<mark>', '</mark>', '…', 24) AS snippet "
+        "snippet(search, 6, '«', '»', '…', 24) AS snippet "
         f"FROM search WHERE {' AND '.join(clauses)} ORDER BY rank LIMIT ?"
     )
     connection = _connection(store.paths.indexes / "search.sqlite3")

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ document.title }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb"><a href="/?lang={{ lang }}">{{ t('nav.home') }}</a><span>/</span><a href="/browse?lang={{ lang }}">{{ t('nav.browse') }}</a><span>/</span><span>{{ document.title }}</span></nav>
+<div class="document-header"><div><p class="eyebrow">{{ document.source_name }}</p><h1>{{ document.title }}</h1><p class="muted">{{ document.locator }}</p></div><a class="button secondary" href="/documents/{{ document.id }}/provenance?lang={{ lang }}">{{ t('document.provenance') }}</a></div>
+<div class="two-column document-layout">
+<section class="panel"><h2>{{ t('document.preview') }}</h2>{% if preview is not none %}<pre class="preview">{{ preview }}</pre>{% else %}<p class="muted">{{ t('document.no_preview') }}</p>{% endif %}</section>
+<aside>
+<section class="panel"><h2>{{ t('document.metadata') }}</h2><dl><dt>{{ t('common.source') }}</dt><dd>{{ document.source_name }}</dd><dt>{{ t('document.locator') }}</dt><dd>{{ document.locator }}</dd><dt>{{ t('browse.type') }}</dt><dd>{{ document.media_type }}</dd><dt>{{ t('document.acquired') }}</dt><dd>{{ document.current_version.acquired_at }}</dd><dt>{{ t('document.hash') }}</dt><dd class="hash">{{ document.current_version.content_hash }}</dd></dl><a href="/api/v1/documents/{{ document.id }}/original">{{ t('document.download') }}</a></section>
+<section class="panel"><h2>{{ t('document.version_history') }}</h2><ol class="versions">{% for version in versions %}<li><strong>v{{ version.sequence }}</strong><span>{{ version.acquired_at }}</span><code>{{ version.content_hash[:12] }}</code></li>{% endfor %}</ol></section>
+</aside>
+</div>
+{% endblock %}
