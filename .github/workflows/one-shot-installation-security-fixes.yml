@@ -1,0 +1,118 @@
+name: One-shot installation verifier security fixes
+
+on:
+  push:
+    branches:
+      - feat/installed-core-integrity-verification
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: feat/installed-core-integrity-verification
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Apply narrow security fixes and regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          module = Path("core/provelume/installation_verification.py")
+          text = module.read_text(encoding="utf-8")
+          text = text.replace("import stat\n", "import stat\nimport zlib\n", 1)
+          text = text.replace(
+              "    if not value or \"\\x00\" in value or \"\\\\\" in value "
+              "or DRIVE_PREFIX.match(value):\n",
+              "    if (\n"
+              "        not value\n"
+              "        or value in {\".\", \"..\"}\n"
+              "        or \"\\x00\" in value\n"
+              "        or \"\\\\\" in value\n"
+              "        or DRIVE_PREFIX.match(value)\n"
+              "    ):\n",
+              1,
+          )
+          text = text.replace(
+              "    except BadZipFile as exc:\n"
+              "        raise InstallationModifiedError(\n"
+              "            \"release wheel is not a valid ZIP archive\"\n"
+              "        ) from exc\n"
+              "    except OSError as exc:\n",
+              "    except (InstallationUnavailableError, InstallationModifiedError):\n"
+              "        raise\n"
+              "    except (\n"
+              "        BadZipFile,\n"
+              "        EOFError,\n"
+              "        NotImplementedError,\n"
+              "        RuntimeError,\n"
+              "        ValueError,\n"
+              "        zlib.error,\n"
+              "    ) as exc:\n"
+              "        raise InstallationModifiedError(\n"
+              "            f\"release wheel inspection failed: {exc}\"\n"
+              "        ) from exc\n"
+              "    except OSError as exc:\n",
+              1,
+          )
+          text = text.replace(
+              "        supplied_record = Path(record_path).expanduser()\n"
+              "        record = supplied_record.resolve(strict=False)\n",
+              "        supplied_record = Path(record_path).expanduser()\n"
+              "        if supplied_record.is_symlink():\n"
+              "            raise InstallationModifiedError(\n"
+              "                \"installed RECORD path must not be a symlink\"\n"
+              "            )\n"
+              "        record = supplied_record.resolve(strict=False)\n",
+              1,
+          )
+          module.write_text(text, encoding="utf-8")
+
+          tests = Path("tests/test_installation_verification.py")
+          text = tests.read_text(encoding="utf-8")
+          text = text.replace("import socket\n", "import socket\nimport zlib\n", 1)
+          text += '''\n\ndef test_record_path_symlink_is_rejected(tmp_path: Path) -> None:\n    if not hasattr(os, "symlink"):\n        pytest.skip("symlinks are not supported")\n    files = _installation(tmp_path)\n    target = files["record"].with_name("REAL-RECORD")\n    files["record"].replace(target)\n    try:\n        os.symlink(target, files["record"])\n    except OSError:\n        pytest.skip("symlink creation is not permitted")\n\n    result = verify_record_installation(files["root"], files["record"])\n\n    assert result.status == "modified"\n    assert any(finding.code == "installation.invalid" for finding in result.findings)\n\n\ndef test_wheel_decompressor_error_becomes_a_finding(\n    tmp_path: Path,\n    monkeypatch: pytest.MonkeyPatch,\n) -> None:\n    files = _installation(tmp_path)\n    release = _release_bundle(tmp_path, files)\n    original_read = ZipFile.read\n\n    def corrupt_read(self: ZipFile, name: object, *args: object, **kwargs: object) -> bytes:\n        filename = getattr(name, "filename", name)\n        if filename == "provelume/service.py":\n            raise zlib.error("synthetic corrupt stream")\n        return original_read(self, name, *args, **kwargs)\n\n    monkeypatch.setattr(ZipFile, "read", corrupt_read)\n    result = verify_record_installation(\n        files["root"],\n        files["record"],\n        release_bundle=release,\n    )\n\n    assert result.status == "modified"\n    assert result.release_wheel_status == "modified"\n    assert any(finding.code == "release_wheel.invalid" for finding in result.findings)\n'''
+          tests.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Install checks and normalize files
+        run: python -m pip install -e ".[dev]"
+
+      - name: Fix and format changed Python files
+        run: |
+          python -m ruff check --fix \
+            core/provelume/installation_verification.py \
+            tests/test_installation_verification.py
+          python -m ruff format \
+            core/provelume/installation_verification.py \
+            tests/test_installation_verification.py
+
+      - name: Verify complete repository
+        run: |
+          python -m ruff check core tests scripts
+          python -m pytest -q
+
+      - name: Remove one-shot workflow and push fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/one-shot-installation-security-fixes.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Harden installed Core verification"
+          git push origin HEAD:feat/installed-core-integrity-verification
