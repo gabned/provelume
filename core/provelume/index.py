@@ -6,8 +6,9 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from .domain import DerivedArtifact
-from .extractors import ExtractionError, PdfTextExtractor, PlainTextExtractor
+from .derived import materialize_extracted_text
+from .domain import as_record
+from .extractors import ExtractionError, extractor_for
 from .storage import InstanceStore, utc_now
 
 INDEX_SCHEMA = 1
@@ -29,6 +30,7 @@ def _literal_fts_query(query: str) -> str | None:
 def _ensure_extracted(
     store: InstanceStore,
     version: dict[str, Any],
+    locator: str,
 ) -> dict[str, Any] | None:
     artifact = store.derived_artifact_for_version(version["id"])
     if artifact is not None:
@@ -36,38 +38,15 @@ def _ensure_extracted(
     original = store.read_canonical("originals", version["original_id"])
     if original is None:
         return None
+    extractor = extractor_for(Path(locator))
+    if extractor is None:
+        return None
     data = store.original_bytes(original["id"])
-    if version["media_type"] == "application/pdf":
-        extractor = PdfTextExtractor()
-    else:
-        extractor = PlainTextExtractor()
     try:
         result = extractor.extract(data)
     except ExtractionError:
         return None
-    artifact_id = f"derived_rebuild_{version['id']}"
-    relative, checksum = store.write_derived_text(artifact_id, result.text)
-    artifact_obj = DerivedArtifact(
-        id=artifact_id,
-        version_id=version["id"],
-        kind="extracted_text",
-        generator=result.generator,
-        generator_version=result.generator_version,
-        storage_ref=relative,
-        checksum=checksum,
-        created_at=utc_now(),
-    )
-    store.write_derived_artifact(artifact_obj)
-    return {
-        "id": artifact_obj.id,
-        "version_id": artifact_obj.version_id,
-        "kind": artifact_obj.kind,
-        "generator": artifact_obj.generator,
-        "generator_version": artifact_obj.generator_version,
-        "storage_ref": artifact_obj.storage_ref,
-        "checksum": artifact_obj.checksum,
-        "created_at": artifact_obj.created_at,
-    }
+    return as_record(materialize_extracted_text(store, version["id"], result))
 
 
 def rebuild_search_index(store: InstanceStore) -> int:
@@ -87,7 +66,7 @@ def rebuild_search_index(store: InstanceStore) -> int:
             version = store.read_canonical("versions", document["current_version_id"])
             if version is None:
                 continue
-            artifact = _ensure_extracted(store, version)
+            artifact = _ensure_extracted(store, version, document["locator"])
             if artifact is None:
                 continue
             text = store.read_derived_text(artifact)
