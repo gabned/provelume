@@ -1,0 +1,7 @@
+# Direct build inputs for Provelume Python distributions.
+#
+# Transitive packages are resolved into a wheelhouse, hashed and recorded in
+# build-comparison.json. A future lockfile-with-hashes milestone will freeze
+# those transitive inputs across release runs as well.
+build==1.5.0
+hatchling==1.32.0
