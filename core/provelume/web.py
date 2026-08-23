@@ -13,6 +13,7 @@ from .service import ProvelumeInstance
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 TEMPLATES = Jinja2Templates(directory=str(PACKAGE_ROOT / "templates"))
+ROOT_AREA_FILTER = "__root__"
 
 
 def _language(request: Request, instance: ProvelumeInstance) -> str:
@@ -67,10 +68,11 @@ def create_app(instance_root: Path | str) -> FastAPI:
         media_type: str | None = None,
         area: str | None = None,
     ):
+        area_filter = "" if area == ROOT_AREA_FILTER else (area or None)
         documents = instance.list_documents(
             source_id=source_id,
             media_type=media_type,
-            area=area,
+            area=area_filter,
         )
         return TEMPLATES.TemplateResponse(
             request=request,
@@ -85,6 +87,7 @@ def create_app(instance_root: Path | str) -> FastAPI:
                 selected_source=source_id,
                 selected_media_type=media_type,
                 selected_area=area,
+                root_area_filter=ROOT_AREA_FILTER,
             ),
         )
 
