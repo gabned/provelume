@@ -60,6 +60,7 @@ def test_official_metadata_is_descriptive_not_locally_verified() -> None:
 @pytest.mark.parametrize(
     ("changes", "message"),
     [
+        ({"schema_version": True}, "schema version"),
         ({"tag": "v0.2.0"}, "tag must match"),
         ({"commit": None}, "requires a commit"),
         ({"channel": "development"}, "preview or stable"),
