@@ -23,7 +23,9 @@ Version `0.1.0` implements a small local Instance that can:
 - restart without losing canonical state;
 - run without Git, GitHub, Provelume Cloud or an external AI provider.
 
-OCR, semantic/vector search, cloud connectors and AI enrichment are deliberately outside this first slice.
+The current development tree extends deterministic local extraction to DOCX, CSV and EML without adding new runtime dependencies. Their extracted text remains derived state and can be recreated from preserved originals after deletion.
+
+OCR, semantic/vector search, cloud connectors and AI enrichment remain later milestones.
 
 ## Quick start
 
