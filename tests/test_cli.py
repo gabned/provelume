@@ -1,9 +1,19 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from provelume.cli import main
 from provelume.service import ProvelumeInstance
+
+
+def test_cli_build_info_needs_no_instance(capsys) -> None:
+    assert main(["build-info"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["identity_status"] == "development_build"
+    assert payload["source_repository"] == "gabned/provelume"
+    assert payload["verification"]["status"] == "not_performed"
+    assert payload["verification"]["network_used"] is False
 
 
 def test_cli_init_ingest_health_and_rebuild(tmp_path: Path, capsys) -> None:
