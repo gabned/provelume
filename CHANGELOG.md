@@ -13,13 +13,19 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - bounded extractor safeguards for extracted text, OOXML package structure, CSV rows/columns, EML MIME parts, XLSX sheets/rows/cells, ZIP traversal, symlinks, encryption, member sizes and compression ratios;
 - traceable-release foundation with semantic tag/source validation, Python wheel/source builds, SHA-256 checksums, CycloneDX SBOM, provider-independent release manifest and GitHub artifact attestations;
 - normal-CI dry run of the release packaging/SBOM/manifest path without publishing a release;
-- public release governance, verification documentation and an ADR that explicitly separates traceable builds from future reproducible-release claims.
+- public release governance, verification documentation and an ADR that explicitly separates traceable builds from future reproducible-release claims;
+- byte-for-byte comparison of wheel and source distribution built from two independent clean source copies;
+- portable `build-determinism.json` evidence with source fingerprint, timestamp input, toolchain, platform and both artifact hashes;
+- public JSON Schema and ADR for the deterministic Python distribution contract.
 
 ### Changed
 
 - derived text materialization is shared by ingestion and index rebuild so extractor identity, artifact identity and derived provenance remain stable when rebuildable state is deleted;
 - search-index rebuild selects the extractor from the canonical document locator instead of assuming every non-PDF original is plain text;
-- CI uses a pinned Node-24-capable `setup-python` action revision; cross-platform tests track Python 3.12 while the current official Linux release build is pinned to Python 3.12.14.
+- CI uses a pinned Node-24-capable `setup-python` action revision; cross-platform tests track Python 3.12 while the current official Linux release build is pinned to Python 3.12.14;
+- Hatchling is pinned exactly and reproducible archive mode is explicit;
+- normal CI and official releases share the same fail-closed deterministic distribution builder;
+- deterministic-build evidence is included in release checksums, release manifest assets and provenance attestations.
 
 ## 0.1.0 - 2026-08-23
 
