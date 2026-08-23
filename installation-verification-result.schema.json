@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/installation-verification-result-v1.json",
+  "title": "Provelume installed Core verification result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "verified",
+    "distribution",
+    "installation_root",
+    "record_path",
+    "version",
+    "checked_files",
+    "core_files",
+    "ignored_generated_files",
+    "out_of_scope_entries",
+    "release_wheel_status",
+    "release_version",
+    "release_commit",
+    "matched_release_wheel",
+    "findings"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "status": {"enum": ["verified", "modified", "unavailable"]},
+    "verified": {"type": "boolean"},
+    "distribution": {"type": "string", "minLength": 1},
+    "installation_root": {"type": ["string", "null"]},
+    "record_path": {"type": ["string", "null"]},
+    "version": {"type": ["string", "null"]},
+    "checked_files": {"type": "integer", "minimum": 0},
+    "core_files": {"type": "integer", "minimum": 0},
+    "ignored_generated_files": {"type": "integer", "minimum": 0},
+    "out_of_scope_entries": {"type": "integer", "minimum": 0},
+    "release_wheel_status": {
+      "enum": ["not_checked", "verified", "modified", "unavailable"]
+    },
+    "release_version": {"type": ["string", "null"]},
+    "release_commit": {"type": ["string", "null"]},
+    "matched_release_wheel": {"type": ["string", "null"]},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "code", "message", "path"],
+        "properties": {
+          "severity": {"enum": ["error", "warning", "info"]},
+          "code": {"type": "string", "minLength": 1},
+          "message": {"type": "string", "minLength": 1},
+          "path": {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}
