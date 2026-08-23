@@ -66,6 +66,7 @@ def test_official_metadata_is_descriptive_not_locally_verified() -> None:
         ({"source_date_epoch": None, "source_date_utc": None}, "source timestamp"),
         ({"source_repository": "private/reference"}, "not canonical"),
         ({"version": "0.2.0", "tag": "v0.2.0"}, "does not match package"),
+        ({"source_date_epoch": 10**100}, "supported range"),
     ],
 )
 def test_official_metadata_fails_closed(changes: dict[str, Any], message: str) -> None:
