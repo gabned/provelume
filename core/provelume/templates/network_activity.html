@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ network_t('network.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb">
+  <a href="/?lang={{ lang }}">{{ network_t('back.home') }}</a>
+  <span>/</span>
+  <a href="/security?lang={{ lang }}">{{ network_t('back.security') }}</a>
+  <span>/</span>
+  <span>{{ network_t('network.title') }}</span>
+</nav>
+
+<h1>{{ network_t('network.title') }}</h1>
+<p class="lede">{{ network_t('network.intro') }}</p>
+
+<section class="panel">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">{{ network_t('label.policy') }}</p>
+      <h2>{{ network_t('policy.' ~ network.policy) }}</h2>
+    </div>
+    <span class="status-pill status-{{ network.policy }}">
+      {{ network_t('policy.' ~ network.policy) }}
+    </span>
+  </div>
+  <dl class="metadata-grid">
+    <div><dt>{{ network_t('label.external_allowed') }}</dt><dd>{{ network_t('yes') if network.external_access_allowed else network_t('no') }}</dd></div>
+    <div><dt>{{ network_t('label.components') }}</dt><dd>{{ network.summary.components }}</dd></div>
+    <div><dt>{{ network_t('label.configured_external') }}</dt><dd>{{ network.summary.configured_external_components }}</dd></div>
+    <div><dt>{{ network_t('label.effective_external') }}</dt><dd>{{ network.summary.effective_external_components }}</dd></div>
+    <div><dt>{{ network_t('label.endpoints') }}</dt><dd>{{ network.summary.declared_endpoint_origins }}</dd></div>
+    <div><dt>{{ network_t('label.issues') }}</dt><dd>{{ network.summary.issues }}</dd></div>
+    <div><dt>{{ network_t('label.observed') }}</dt><dd>{{ network_t('observed.' ~ network.observed_activity.status) }}</dd></div>
+  </dl>
+  <p>{{ network.observed_activity.detail }}</p>
+</section>
+
+<section class="panel">
+  <h2>{{ network_t('components.title') }}</h2>
+  {% if network.components %}
+  <ul class="document-list">
+    {% for component in network.components %}
+    <li>
+      <strong>{{ component.name }}</strong>
+      <code>{{ component.id }}</code>
+      <span>{{ component.detail }}</span>
+      <dl class="metadata-grid compact">
+        <div><dt>{{ network_t('component.enabled') }}</dt><dd>{{ network_t('yes') if component.configured_enabled else network_t('no') }}</dd></div>
+        <div><dt>{{ network_t('component.effective') }}</dt><dd>{{ network_t('yes') if component.effective_enabled else network_t('no') }}</dd></div>
+        <div>
+          <dt>{{ network_t('component.network_capable') }}</dt>
+          <dd>
+            {% if component.network_capable is sameas true %}{{ network_t('capability.external') }}
+            {% elif component.network_capable is sameas false %}{{ network_t('capability.local') }}
+            {% else %}{{ network_t('capability.undeclared') }}{% endif %}
+          </dd>
+        </div>
+        <div><dt>{{ network_t('component.implementation') }}</dt><dd>{{ component.implementation_status }}</dd></div>
+        <div><dt>{{ network_t('component.endpoints') }}</dt><dd>{{ component.external_endpoints|join(', ') or network_t('component.none') }}</dd></div>
+        <div><dt>{{ network_t('component.categories') }}</dt><dd>{{ component.data_categories|join(', ') or network_t('component.none') }}</dd></div>
+      </dl>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">{{ network_t('components.empty') }}</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h2>{{ network_t('issues.title') }}</h2>
+  {% if network.issues %}
+  <ul class="document-list">
+    {% for issue in network.issues %}
+    <li>
+      <strong>{{ network_t('issue.' ~ issue.issue) }}</strong>
+      <code>{{ issue.component_id }}</code>
+      <span>{{ issue.detail }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">{{ network_t('issues.none') }}</p>
+  {% endif %}
+</section>
+{% endblock %}
