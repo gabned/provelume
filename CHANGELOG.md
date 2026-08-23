@@ -10,12 +10,16 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - deterministic local XLSX cell extraction from bounded OOXML worksheet/shared-string data;
 - local PNG/JPEG metadata extraction for format and dimensions without image decoding or OCR;
 - bounded ZIP archive inspection with member listing and supported nested-member text extraction in memory;
-- bounded extractor safeguards for extracted text, OOXML package structure, CSV rows/columns, EML MIME parts, XLSX sheets/rows/cells, ZIP traversal, symlinks, encryption, member sizes and compression ratios.
+- bounded extractor safeguards for extracted text, OOXML package structure, CSV rows/columns, EML MIME parts, XLSX sheets/rows/cells, ZIP traversal, symlinks, encryption, member sizes and compression ratios;
+- traceable-release foundation with semantic tag/source validation, Python wheel/source builds, SHA-256 checksums, CycloneDX SBOM, provider-independent release manifest and GitHub artifact attestations;
+- normal-CI dry run of the release packaging/SBOM/manifest path without publishing a release;
+- public release governance, verification documentation and an ADR that explicitly separates traceable builds from future reproducible-release claims.
 
 ### Changed
 
 - derived text materialization is shared by ingestion and index rebuild so extractor identity, artifact identity and derived provenance remain stable when rebuildable state is deleted;
-- search-index rebuild selects the extractor from the canonical document locator instead of assuming every non-PDF original is plain text.
+- search-index rebuild selects the extractor from the canonical document locator instead of assuming every non-PDF original is plain text;
+- CI uses a pinned Node-24-capable `setup-python` action revision and exact Python 3.12.14 for current release certification.
 
 ## 0.1.0 - 2026-08-23
 
