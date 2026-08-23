@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+from typing import Any
 
 from .domain import DerivedArtifact
 from .extractors import ExtractionError, PlainTextExtractor, PdfTextExtractor
@@ -17,7 +18,10 @@ def _connection(path: Path) -> sqlite3.Connection:
     return connection
 
 
-def _ensure_extracted(store: InstanceStore, version: dict) -> dict | None:
+def _ensure_extracted(
+    store: InstanceStore,
+    version: dict[str, Any],
+) -> dict[str, Any] | None:
     artifact = store.derived_artifact_for_version(version["id"])
     if artifact is not None:
         return artifact
@@ -25,7 +29,10 @@ def _ensure_extracted(store: InstanceStore, version: dict) -> dict | None:
     if original is None:
         return None
     data = store.original_bytes(original["id"])
-    extractor = PdfTextExtractor() if version["media_type"] == "application/pdf" else PlainTextExtractor()
+    if version["media_type"] == "application/pdf":
+        extractor = PdfTextExtractor()
+    else:
+        extractor = PlainTextExtractor()
     try:
         result = extractor.extract(data)
     except ExtractionError:
@@ -63,8 +70,9 @@ def rebuild_search_index(store: InstanceStore) -> int:
     connection = _connection(path)
     try:
         connection.execute(
-            "CREATE VIRTUAL TABLE search USING fts5(document_id UNINDEXED, version_id UNINDEXED, "
-            "source_id UNINDEXED, media_type UNINDEXED, acquired_at UNINDEXED, title, content)"
+            "CREATE VIRTUAL TABLE search USING fts5("
+            "document_id UNINDEXED, version_id UNINDEXED, source_id UNINDEXED, "
+            "media_type UNINDEXED, acquired_at UNINDEXED, title, content)"
         )
         count = 0
         for document in store.list_canonical("documents"):
@@ -76,8 +84,9 @@ def rebuild_search_index(store: InstanceStore) -> int:
                 continue
             text = store.read_derived_text(artifact)
             connection.execute(
-                "INSERT INTO search(document_id, version_id, source_id, media_type, acquired_at, title, content) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO search("
+                "document_id, version_id, source_id, media_type, acquired_at, title, content"
+                ") VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     document["id"],
                     version["id"],
@@ -99,7 +108,8 @@ def rebuild_search_index(store: InstanceStore) -> int:
         "documents_indexed": count,
     }
     (store.paths.indexes / "search.meta.json").write_text(
-        json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
     )
     return count
 
@@ -127,7 +137,7 @@ def search_index(
     date_from: str | None = None,
     date_to: str | None = None,
     limit: int = 50,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     if index_status(store) != "ready":
         rebuild_search_index(store)
     clauses = ["search MATCH ?"]
