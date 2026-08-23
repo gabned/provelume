@@ -1,0 +1,128 @@
+name: Apply offline verifier release integration
+
+on:
+  push:
+    branches:
+      - feat/offline-release-verifier
+    paths:
+      - .github/workflows/apply-offline-verifier.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    name: Integrate verifier into release assets and checks
+    if: github.repository == 'gabned/provelume'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout verifier branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Apply bounded source/documentation updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          pipeline = Path('.github/workflows/release-pipeline.yml')
+          value = pipeline.read_text(encoding='utf-8')
+          copy_marker = '          cp LICENSE COMMERCIAL-LICENSE.md THIRD_PARTY_NOTICES.md "$release"/\n'
+          copy_line = '          cp tools/verify_provelume_release.py "$release/verify-provelume-release.py"\n'
+          if copy_line not in value:
+              if copy_marker not in value:
+                  raise SystemExit('release pipeline copy marker not found')
+              value = value.replace(copy_marker, copy_marker + copy_line, 1)
+          artifact_marker = '            --artifact "$release/THIRD_PARTY_NOTICES.md" \\\n'
+          artifact_line = '            --artifact "$release/verify-provelume-release.py" \\\n'
+          if artifact_line not in value:
+              if artifact_marker not in value:
+                  raise SystemExit('release pipeline artifact marker not found')
+              value = value.replace(artifact_marker, artifact_marker + artifact_line, 1)
+          lint_marker = '          python -m ruff check core tests scripts\n'
+          if lint_marker in value:
+              value = value.replace(
+                  lint_marker,
+                  '          python -m ruff check core tests scripts tools\n',
+              )
+          pipeline.write_text(value, encoding='utf-8')
+
+          ci = Path('.github/workflows/ci.yml')
+          value = ci.read_text(encoding='utf-8')
+          value = value.replace(
+              'python -m ruff check core tests scripts',
+              'python -m ruff check core tests scripts tools',
+          )
+          ci.write_text(value, encoding='utf-8')
+
+          dry_run = Path('.github/workflows/release-dry-run.yml')
+          value = dry_run.read_text(encoding='utf-8')
+          script_marker = '      - "scripts/verify_release_bundle.py"\n'
+          tool_line = '      - "tools/verify_provelume_release.py"\n'
+          if value.count(tool_line) < 2:
+              if value.count(script_marker) != 2:
+                  raise SystemExit('release dry-run script markers not found')
+              value = value.replace(script_marker, script_marker + tool_line)
+          test_marker = '      - "tests/test_verify_release_bundle.py"\n'
+          test_line = '      - "tests/test_offline_release_verifier.py"\n'
+          if value.count(test_line) < 2:
+              if value.count(test_marker) != 2:
+                  raise SystemExit('release dry-run test markers not found')
+              value = value.replace(test_marker, test_marker + test_line)
+          dry_run.write_text(value, encoding='utf-8')
+
+          readme = Path('README.md')
+          value = readme.read_text(encoding='utf-8')
+          paragraph = (
+              "Official release bundles also include a standard-library-only offline "
+              "verifier. It recomputes checksums, manifest, lock and rebuild evidence "
+              "without network access, while explicitly distinguishing internal bundle "
+              "consistency from official-origin authentication. An independently trusted "
+              "manifest SHA-256 can be supplied as a cryptographic anchor. See "
+              "`docs/release/offline-verification.md`.\n\n"
+          )
+          marker = '## Product boundaries\n'
+          if paragraph not in value:
+              if marker not in value:
+                  raise SystemExit('README product-boundary marker not found')
+              value = value.replace(marker, paragraph + marker, 1)
+              readme.write_text(value, encoding='utf-8')
+
+          changelog = Path('CHANGELOG.md')
+          value = changelog.read_text(encoding='utf-8')
+          additions_marker = '## Unreleased\n\n### Added\n\n'
+          addition = (
+              "- provider-independent standard-library offline release verifier with "
+              "bounded path/checksum/evidence validation, JSON output and optional "
+              "externally trusted manifest SHA-256 anchor;\n"
+          )
+          if addition not in value:
+              if additions_marker not in value:
+                  raise SystemExit('CHANGELOG Unreleased/Added marker not found')
+              value = value.replace(additions_marker, additions_marker + addition, 1)
+              changelog.write_text(value, encoding='utf-8')
+          PY
+          rm -f .github/workflows/apply-offline-verifier.yml
+
+      - name: Commit verifier integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A \
+            .github/workflows \
+            README.md \
+            CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo 'Offline verifier integration is already current.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Ship the provider-independent offline release verifier'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
