@@ -121,7 +121,8 @@ def parse_build_info(value: Any, *, package_version: str = __version__) -> dict[
         raise BuildInfoError(f"build metadata is missing fields: {', '.join(sorted(missing))}")
     if unknown:
         raise BuildInfoError(f"build metadata has unknown fields: {', '.join(sorted(unknown))}")
-    if value["schema_version"] != BUILD_INFO_SCHEMA_VERSION:
+    schema_version = value["schema_version"]
+    if type(schema_version) is not int or schema_version != BUILD_INFO_SCHEMA_VERSION:
         raise BuildInfoError("unsupported build metadata schema version")
     if value["source_repository"] != SOURCE_REPOSITORY:
         raise BuildInfoError("build metadata source repository is not canonical")
