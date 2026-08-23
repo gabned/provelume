@@ -96,10 +96,22 @@ def _ignored(path: Path, root: Path) -> bool:
     return path.suffix in IGNORED_SUFFIXES
 
 
-def source_fingerprint(source: Path) -> str:
-    digest = hashlib.sha256()
-    for path in sorted(item for item in source.rglob("*") if item.is_file()):
+def validate_source_tree(source: Path) -> None:
+    for path in source.rglob("*"):
         if _ignored(path, source):
+            continue
+        if path.is_symlink():
+            relative = path.relative_to(source).as_posix()
+            raise DeterministicBuildError(
+                f"source symlinks are not accepted by the release builder: {relative}"
+            )
+
+
+def source_fingerprint(source: Path) -> str:
+    validate_source_tree(source)
+    digest = hashlib.sha256()
+    for path in sorted(source.rglob("*")):
+        if _ignored(path, source) or not path.is_file():
             continue
         relative = path.relative_to(source).as_posix().encode("utf-8")
         digest.update(relative)
@@ -244,6 +256,7 @@ def run(
         raise DeterministicBuildError("commit must be a lowercase 40-character SHA-1")
     if not (source / "pyproject.toml").is_file():
         raise DeterministicBuildError("source directory does not contain pyproject.toml")
+    validate_source_tree(source)
     epoch = source_date_epoch(os.environ.get("SOURCE_DATE_EPOCH"))
     with tempfile.TemporaryDirectory(prefix="provelume-build-") as temporary:
         root = Path(temporary)
