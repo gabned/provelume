@@ -106,7 +106,7 @@ def test_cached_identity_cannot_be_mutated_by_a_caller() -> None:
     assert second["verification"]["network_used"] is False
 
 
-def test_missing_embedded_metadata_reports_unavailable(
+def test_missing_embedded_metadata_reports_sanitized_unavailable_state(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class MissingResource:
@@ -114,7 +114,7 @@ def test_missing_embedded_metadata_reports_unavailable(
             return self
 
         def read_text(self, **_kwargs: Any) -> str:
-            raise OSError("embedded build metadata is missing")
+            raise OSError("/private/local/site-packages/provelume/build_info.json")
 
     monkeypatch.setattr(build_info, "files", lambda _package: MissingResource())
     result = build_info.current_build_info()
@@ -122,5 +122,6 @@ def test_missing_embedded_metadata_reports_unavailable(
     assert result["identity_status"] == "identity_unavailable"
     assert result["metadata_present"] is False
     assert result["source_repository"] is None
-    assert "missing" in result["metadata_error"]
+    assert result["metadata_error"] == "embedded build metadata cannot be read"
+    assert "/private/" not in result["metadata_error"]
     assert result["verification"]["network_used"] is False
