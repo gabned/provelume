@@ -87,6 +87,21 @@ jobs:
             --expected-tag "$TAG" \
             --expected-commit "$SOURCE_COMMIT" \
             --json >/dev/null
+          export SBOM_PATH="$RUNNER_TEMP/provelume-verified-release/provelume-${VERSION}.cdx.json"
+          python - <<'PY'
+          import json
+          import os
+          import uuid
+          from pathlib import Path
+
+          sbom = json.loads(Path(os.environ["SBOM_PATH"]).read_text(encoding="utf-8"))
+          serial = sbom.get("serialNumber")
+          if sbom.get("bomFormat") != "CycloneDX" or not sbom.get("specVersion"):
+              raise SystemExit("unsupported SBOM format for actions/attest")
+          if not isinstance(serial, str) or not serial.startswith("urn:uuid:"):
+              raise SystemExit("CycloneDX serialNumber is missing or invalid")
+          uuid.UUID(serial.removeprefix("urn:uuid:"))
+          PY
 
       - name: Attest wheel build provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2

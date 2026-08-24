@@ -486,6 +486,34 @@ jobs:
             --mc-type application \
             --output-file "$assembly/provelume-${VERSION}.cdx.json" \
             "$runtime/bin/python"
+          export SBOM_PATH="$assembly/provelume-${VERSION}.cdx.json"
+          export SBOM_IDENTITY="https://github.com/gabned/provelume/tree/${SOURCE_COMMIT}#v${VERSION}"
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import uuid
+          from pathlib import Path
+
+          path = Path(os.environ["SBOM_PATH"])
+          sbom = json.loads(path.read_text(encoding="utf-8"))
+          if sbom.get("bomFormat") != "CycloneDX" or not sbom.get("specVersion"):
+              raise SystemExit("cyclonedx-py did not produce a CycloneDX JSON BOM")
+          sbom.pop("serialNumber", None)
+          canonical = json.dumps(
+              sbom, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+          ).encode("utf-8")
+          fingerprint = hashlib.sha256(canonical).hexdigest()
+          serial = uuid.uuid5(
+              uuid.NAMESPACE_URL,
+              f'{os.environ["SBOM_IDENTITY"]}:{fingerprint}',
+          )
+          sbom["serialNumber"] = f"urn:uuid:{serial}"
+          path.write_text(
+              json.dumps(sbom, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
 
       - name: Assemble provider-independent manifest and checksums
         shell: bash
