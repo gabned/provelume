@@ -57,6 +57,26 @@ jobs:
             exit 1
           fi
 
+      - name: Validate Agent Protocol v1.2 contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e AGENT_STATUS.md || {
+            echo '::error::Core ownership must remain pull-request-local.'
+            exit 1
+          }
+          mode="$(git ls-files -s -- tools/agent_protocol.py | awk '{print $1}')"
+          if [ "$mode" != '100755' ]; then
+            echo "::error file=tools/agent_protocol.py::Expected Git mode 100755, observed ${mode:-missing}."
+            exit 1
+          fi
+          git check-ignore -q .agent/effect-report.json
+          python tools/agent_protocol.py self-test
+          if grep -Eq '^(import|from) (requests|httpx|urllib|subprocess|socket)([ .]|$)' tools/agent_protocol.py; then
+            echo '::error::Agent Protocol validation must remain offline and connector-input-only.'
+            exit 1
+          fi
+
   core-tests:
     name: Core tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
