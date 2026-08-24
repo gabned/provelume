@@ -22,7 +22,7 @@ def _wheelhouse(root: Path) -> Path:
     wheelhouse = root / "wheelhouse"
     wheelhouse.mkdir()
     (wheelhouse / "build-1.5.0-py3-none-any.whl").write_bytes(b"build-wheel")
-    (wheelhouse / "hatchling-1.32.0-py3-none-any.whl").write_bytes(
+    (wheelhouse / "hatchling-1.31.0-py3-none-any.whl").write_bytes(
         b"hatchling-wheel"
     )
     (wheelhouse / "packaging-26.3-py3-none-any.whl").write_bytes(
@@ -33,7 +33,7 @@ def _wheelhouse(root: Path) -> Path:
 
 def _requirements(root: Path) -> Path:
     path = root / "requirements-build.txt"
-    path.write_text("build==1.5.0\nhatchling==1.32.0\n", encoding="utf-8")
+    path.write_text("build==1.5.0\nhatchling==1.31.0\n", encoding="utf-8")
     return path
 
 
