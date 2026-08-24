@@ -3,7 +3,7 @@
 # Lock ID: sha256:2ee7c5cc1d4b12cd65e7ca0c45bf05adaed2c1aa8f30f03e526f9d806fc52546
 # Target: linux-x86_64 CPython 3.12.14
 # Direct requirements SHA-256: f013a9eb4e6720c4cafd993a8a8faed088778d6f44efd77ad05b602e4a95c9cb
-# Generated from public commit: 0b2bddbbab10e97be831d3869ad0816acaf837b8
+# Generated from public commit: f4946a8d5163d9e1581cbe6631c2c8caacbc0882
 # Do not edit individual hashes manually; refresh and review the complete lock.
 
 build==1.5.0 --hash=sha256:13f3eecb844759ab66efec90ca17639bbf14dc06cb2fdf37a9010322d9c50a6f

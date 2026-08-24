@@ -1,7 +1,7 @@
 {
   "assurance_level": "reviewed_target_build_input_lock",
   "direct_requirements_sha256": "f013a9eb4e6720c4cafd993a8a8faed088778d6f44efd77ad05b602e4a95c9cb",
-  "generated_from_commit": "0b2bddbbab10e97be831d3869ad0816acaf837b8",
+  "generated_from_commit": "f4946a8d5163d9e1581cbe6631c2c8caacbc0882",
   "limitations": [
     "the lock targets the declared Ubuntu x86_64 / CPython 3.12.14 package builder",
     "base Python, pip and operating-system runner image identity are declared outside this wheel lock",
