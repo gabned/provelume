@@ -32,7 +32,7 @@ The rebuild job downloads the candidate bundle from the current workflow run and
 - every wheel SHA-256;
 - source repository and commit identity.
 
-Only after those checks succeed does it create a new environment from the wheelhouse with `PIP_NO_INDEX=1`. It performs its own deterministic double build and compares candidate/rebuild wheel and sdist bytes.
+Only after those checks succeed does it create a new environment from the wheelhouse with `PIP_NO_INDEX=1`. It performs its own deterministic double build and compares candidate/rebuild wheel and sdist bytes through the shared independent-rebuild verifier.
 
 ## Evidence files
 
@@ -46,6 +46,8 @@ The workflow retains:
 The final offline report links the verified wheelhouse manifest hash and identities to the matching package artifact hashes.
 
 ## Manual manifest commands
+
+Run the module commands from the repository root so the public `scripts` package is the one being verified.
 
 Create a manifest:
 
