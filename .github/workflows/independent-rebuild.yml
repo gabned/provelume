@@ -52,7 +52,7 @@ jobs:
           python scripts/deterministic_build.py \
             --commit "$GITHUB_SHA" \
             --output-dir "$root/dist" \
-            --report "$root/deterministic-build-report.json"
+            --evidence "$root/deterministic-build-report.json"
 
       - name: Upload candidate evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -109,7 +109,7 @@ jobs:
           python scripts/deterministic_build.py \
             --commit "$GITHUB_SHA" \
             --output-dir "$root/dist" \
-            --report "$root/deterministic-build-report.json"
+            --evidence "$root/deterministic-build-report.json"
 
       - name: Download candidate from this workflow run
         shell: bash
