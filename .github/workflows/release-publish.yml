@@ -15,6 +15,10 @@ on:
         description: Verified release channel.
         required: true
         type: string
+      commit:
+        description: Exact public source commit verified by the assurance pipeline.
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -35,6 +39,7 @@ jobs:
       - name: Checkout public source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          ref: ${{ inputs.commit }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -62,18 +67,25 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
           TAG: ${{ inputs.tag }}
+          SOURCE_COMMIT: ${{ inputs.commit }}
         run: |
           set -euo pipefail
+          git fetch --force origin "refs/tags/${TAG}:refs/tags/${TAG}"
+          tag_commit="$(git rev-parse "${TAG}^{commit}")"
+          if [ "$tag_commit" != "$SOURCE_COMMIT" ]; then
+            echo '::error::Release tag does not resolve to the assured source commit.'
+            exit 1
+          fi
           python -m scripts.verify_release_bundle \
             --root "$RUNNER_TEMP/provelume-verified-release" \
             --version "$VERSION" \
             --tag "$TAG" \
-            --commit "$GITHUB_SHA"
+            --commit "$SOURCE_COMMIT"
           python "$RUNNER_TEMP/provelume-verified-release/verify-provelume-release.py" \
             --root "$RUNNER_TEMP/provelume-verified-release" \
             --expected-version "$VERSION" \
             --expected-tag "$TAG" \
-            --expected-commit "$GITHUB_SHA" \
+            --expected-commit "$SOURCE_COMMIT" \
             --json >/dev/null
 
       - name: Attest wheel build provenance

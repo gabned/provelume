@@ -2,19 +2,158 @@ name: Official release
 
 on:
   push:
+    branches:
+      - "release-request/v*.*.*/*"
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Semantic release tag to create, for example v0.1.0.
+        required: true
+        type: string
+      commit:
+        description: Full 40-character main commit to tag and release.
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
+  prepare-tag:
+    name: Validate and create requested release tag
+    if: github.ref_type != 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.request.outputs.tag }}
+      commit: ${{ steps.request.outputs.commit }}
+
+    steps:
+      - name: Checkout trusted release control plane
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate request and create lightweight tag
+        id: request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_COMMIT: ${{ inputs.commit }}
+        run: |
+          set -euo pipefail
+
+          request_branch=""
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+              echo '::error::Run the release request only from the main branch.'
+              exit 1
+            fi
+            tag="$INPUT_TAG"
+            target_commit="$INPUT_COMMIT"
+          elif [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF_TYPE" = "branch" ]; then
+            request_branch="$GITHUB_REF_NAME"
+            if [[ "$request_branch" =~ ^release-request/(v[0-9]+\.[0-9]+\.[0-9]+)/([0-9a-f]{40})$ ]]; then
+              tag="${BASH_REMATCH[1]}"
+              target_commit="${BASH_REMATCH[2]}"
+            else
+              echo '::error::Invalid release-request branch identity.'
+              exit 1
+            fi
+          else
+            echo '::error::Unsupported release request event.'
+            exit 1
+          fi
+
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo '::error::Release tag must use exact vX.Y.Z syntax.'
+            exit 1
+          fi
+          if [[ ! "$target_commit" =~ ^[0-9a-f]{40}$ ]]; then
+            echo '::error::Release commit must be a full lowercase SHA-1.'
+            exit 1
+          fi
+
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          main_commit="$(git rev-parse origin/main)"
+          if [ -z "$request_branch" ]; then
+            if [ "$GITHUB_SHA" != "$main_commit" ]; then
+              echo '::error::The selected workflow revision is not current main.'
+              exit 1
+            fi
+          else
+            request_parent="$(git rev-parse "${GITHUB_SHA}^")"
+            request_tree="$(git rev-parse "${GITHUB_SHA}^{tree}")"
+            main_tree="$(git rev-parse "${main_commit}^{tree}")"
+            if [ "$request_parent" != "$main_commit" ] || [ "$request_tree" != "$main_tree" ]; then
+              echo '::error::Release-request signal must be one empty commit directly above current main.'
+              exit 1
+            fi
+          fi
+
+          git cat-file -e "${target_commit}^{commit}"
+          git merge-base --is-ancestor "$target_commit" origin/main || {
+            echo '::error::Release target is not reachable from public main.'
+            exit 1
+          }
+          for path in \
+            pyproject.toml \
+            .github/workflows/release.yml \
+            .github/workflows/release-pipeline.yml \
+            .github/workflows/release-publish.yml; do
+            git cat-file -e "${target_commit}:${path}" || {
+              echo "::error::Release target is missing ${path}."
+              exit 1
+            }
+          done
+          version="$(
+            git show "${target_commit}:pyproject.toml" |
+              python -c 'import sys, tomllib; print(tomllib.load(sys.stdin.buffer)["project"]["version"])'
+          )"
+          if [ "$tag" != "v${version}" ]; then
+            echo "::error::Tag ${tag} does not match target package version ${version}."
+            exit 1
+          fi
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo '::error::A GitHub Release already exists for the requested tag.'
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            git fetch --force origin "refs/tags/${tag}:refs/tags/${tag}"
+            existing_commit="$(git rev-parse "${tag}^{commit}")"
+            if [ "$existing_commit" != "$target_commit" ]; then
+              echo '::error::Requested tag already exists on another commit.'
+              exit 1
+            fi
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              --raw-field "ref=refs/tags/${tag}" \
+              --raw-field "sha=${target_commit}" >/dev/null
+          fi
+
+          printf 'tag=%s\ncommit=%s\n' "$tag" "$target_commit" >> "$GITHUB_OUTPUT"
+          if [ -n "$request_branch" ]; then
+            gh api --method DELETE \
+              "repos/${GITHUB_REPOSITORY}/git/refs/heads/${request_branch}" ||
+              echo '::warning::The transient release-request branch could not be removed.'
+          fi
+
   assure:
     name: Build, rebuild and verify official release
+    needs: prepare-tag
+    if: ${{ always() && (github.ref_type == 'tag' || needs.prepare-tag.result == 'success') }}
     uses: ./.github/workflows/release-pipeline.yml
     with:
       publish: true
-      expected_tag: ${{ github.ref_name }}
+      expected_tag: ${{ github.ref_type == 'tag' && github.ref_name || needs.prepare-tag.outputs.tag }}
+      source_commit: ${{ github.ref_type == 'tag' && github.sha || needs.prepare-tag.outputs.commit }}
     permissions:
       contents: read
       actions: read
@@ -27,6 +166,7 @@ jobs:
       version: ${{ needs.assure.outputs.version }}
       tag: ${{ needs.assure.outputs.tag }}
       channel: ${{ needs.assure.outputs.channel }}
+      commit: ${{ needs.assure.outputs.commit }}
     permissions:
       contents: write
       actions: read
