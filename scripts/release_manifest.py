@@ -50,8 +50,8 @@ def build_manifest(
     if not artifacts:
         raise ValueError("at least one release artifact is required")
     for path in [*artifacts, sbom]:
-        if not path.is_file() or path.stat().st_size <= 0:
-            raise ValueError(f"release input is missing or empty: {path}")
+        if path.is_symlink() or not path.is_file() or path.stat().st_size <= 0:
+            raise ValueError(f"release input is missing, unsafe or empty: {path}")
 
     timestamp = built_at or datetime.now(UTC).replace(microsecond=0).isoformat()
     return {
@@ -66,6 +66,7 @@ def build_manifest(
         "sbom": {
             "name": sbom.name,
             "sha256": sha256_file(sbom),
+            "size_bytes": sbom.stat().st_size,
             "format": "cyclonedx-json",
         },
     }

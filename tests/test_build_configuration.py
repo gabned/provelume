@@ -28,21 +28,29 @@ def test_repository_pins_deterministic_build_inputs() -> None:
 def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     root = Path(__file__).resolve().parents[1]
     ci = (root / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    release = (root / ".github/workflows/release.yml").read_text(encoding="utf-8")
+    release_caller = (root / ".github/workflows/release.yml").read_text(encoding="utf-8")
+    release = (root / ".github/workflows/release-pipeline.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "scripts/deterministic_build.py" in ci
+    assert "scripts.deterministic_build" in release
+    assert "build-determinism.json" in ci
+    assert "deterministic-build-report.json" in release
 
     for workflow in (ci, release):
-        assert "scripts/deterministic_build.py" in workflow
         assert "SOURCE_DATE_EPOCH" in workflow
-        assert "build-determinism.json" in workflow
-        assert "provelume build-info" in workflow
+        assert "build-info" in workflow
         assert "network_used" in workflow
         assert "python -m build --sdist --wheel" not in workflow
 
     assert "identity_status'] == 'development_build'" in ci
-    assert "--tag \"$GITHUB_REF_NAME\"" in release
+    assert "--tag \"$TAG\"" in release
     assert "--channel \"$CHANNEL\"" in release
     assert "--official" in release
-    assert "identity_status'] == 'official_metadata_present'" in release
+    assert 'value["identity_status"] == "official_metadata_present"' in release
+    assert "uses: ./.github/workflows/release-pipeline.yml" in release_caller
+    assert "uses: ./.github/workflows/release-publish.yml" in release_caller
 
 
 def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:

@@ -1,0 +1,61 @@
+name: Verified release pipeline dry run
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/release*.yml"
+      - "build-lock/**"
+      - "requirements-build.txt"
+      - "requirements-release.txt"
+      - "pyproject.toml"
+      - "scripts/build_input_*.py"
+      - "scripts/deterministic_build.py"
+      - "scripts/independent_rebuild.py"
+      - "scripts/offline_rebuild_evidence.py"
+      - "scripts/release_*.py"
+      - "scripts/verify_release_bundle.py"
+      - "tools/verify_provelume_release.py"
+      - "tests/test_build_input_*.py"
+      - "tests/test_deterministic_build.py"
+      - "tests/test_independent_rebuild.py"
+      - "tests/test_release_*.py"
+      - "tests/test_verify_release_bundle.py"
+      - "tests/test_offline_release_verifier.py"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/release*.yml"
+      - "build-lock/**"
+      - "requirements-build.txt"
+      - "requirements-release.txt"
+      - "pyproject.toml"
+      - "scripts/build_input_*.py"
+      - "scripts/deterministic_build.py"
+      - "scripts/independent_rebuild.py"
+      - "scripts/offline_rebuild_evidence.py"
+      - "scripts/release_*.py"
+      - "scripts/verify_release_bundle.py"
+      - "tools/verify_provelume_release.py"
+      - "tests/test_build_input_*.py"
+      - "tests/test_deterministic_build.py"
+      - "tests/test_independent_rebuild.py"
+      - "tests/test_release_*.py"
+      - "tests/test_verify_release_bundle.py"
+      - "tests/test_offline_release_verifier.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  dry-run:
+    name: Build, rebuild and assemble without publishing
+    uses: ./.github/workflows/release-pipeline.yml
+    with:
+      publish: false
+      expected_tag: ""
+    permissions:
+      contents: read
+      actions: read
