@@ -9,219 +9,26 @@ permissions:
   contents: read
 
 jobs:
-  release:
-    name: Build, attest and publish
-    if: github.repository == 'gabned/provelume'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+  assure:
+    name: Build, rebuild and verify official release
+    uses: ./.github/workflows/release-pipeline.yml
+    with:
+      publish: true
+      expected_tag: ${{ github.ref_name }}
+    permissions:
+      contents: read
+      actions: read
+
+  publish:
+    name: Publish only the verified bundle
+    needs: assure
+    uses: ./.github/workflows/release-publish.yml
+    with:
+      version: ${{ needs.assure.outputs.version }}
+      tag: ${{ needs.assure.outputs.tag }}
+      channel: ${{ needs.assure.outputs.channel }}
     permissions:
       contents: write
+      actions: read
       id-token: write
       attestations: write
-
-    steps:
-      - name: Checkout public source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: "3.12.14"
-          cache: pip
-          cache-dependency-path: |
-            pyproject.toml
-            requirements-release.txt
-
-      - name: Verify public tag and package identity
-        id: identity
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch --no-tags origin main:refs/remotes/origin/main
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
-            echo '::error::Release tag must point to a commit already present on main.'
-            exit 1
-          }
-          python - <<'PY'
-          import os
-          import re
-          import tomllib
-
-          with open("pyproject.toml", "rb") as handle:
-              version = tomllib.load(handle)["project"]["version"]
-          tag = os.environ["GITHUB_REF_NAME"]
-          if not re.fullmatch(r"v\d+\.\d+\.\d+", tag):
-              raise SystemExit(f"invalid semantic release tag: {tag}")
-          if tag != f"v{version}":
-              raise SystemExit(f"tag {tag} does not match package version {version}")
-          channel = "preview" if version.startswith("0.") else "stable"
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"version={version}\n")
-              output.write(f"channel={channel}\n")
-          PY
-          epoch="$(git show -s --format=%ct "$GITHUB_SHA")"
-          echo "SOURCE_DATE_EPOCH=$epoch" >> "$GITHUB_ENV"
-
-      - name: Install release tooling and checks
-        run: python -m pip install -e ".[dev]" -r requirements-release.txt
-
-      - name: Re-run release gates
-        run: |
-          python -m ruff check core tests scripts
-          python -m pytest -q
-
-      - name: Build and compare official source copies
-        shell: bash
-        env:
-          CHANNEL: ${{ steps.identity.outputs.channel }}
-        run: |
-          set -euo pipefail
-          rm -rf dist release .release-runtime installed-build-info.json
-          python scripts/deterministic_build.py \
-            --source . \
-            --output-dir dist \
-            --evidence release/build-determinism.json \
-            --commit "$GITHUB_SHA" \
-            --tag "$GITHUB_REF_NAME" \
-            --channel "$CHANNEL" \
-            --official
-
-      - name: Install wheel and verify embedded official identity
-        shell: bash
-        env:
-          CHANNEL: ${{ steps.identity.outputs.channel }}
-        run: |
-          set -euo pipefail
-          python -m venv .release-runtime
-          .release-runtime/bin/python -m pip install --upgrade pip
-          .release-runtime/bin/python -m pip install dist/*.whl
-          .release-runtime/bin/provelume --help >/dev/null
-          .release-runtime/bin/provelume build-info > installed-build-info.json
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          value = json.loads(Path('installed-build-info.json').read_text())
-          assert value['identity_status'] == 'official_metadata_present'
-          assert value['metadata_present'] is True
-          assert value['source_repository'] == 'gabned/provelume'
-          assert value['commit'] == os.environ['GITHUB_SHA']
-          assert value['tag'] == os.environ['GITHUB_REF_NAME']
-          assert value['channel'] == os.environ['CHANNEL']
-          assert value['source_date_epoch'] == int(os.environ['SOURCE_DATE_EPOCH'])
-          assert value['official'] is True
-          assert value['verification']['status'] == 'not_performed'
-          assert value['verification']['network_used'] is False
-          PY
-          rm installed-build-info.json
-
-      - name: Generate CycloneDX SBOM
-        shell: bash
-        env:
-          VERSION: ${{ steps.identity.outputs.version }}
-        run: |
-          set -euo pipefail
-          cyclonedx-py environment \
-            --output-reproducible \
-            --output-format JSON \
-            --spec-version 1.6 \
-            --pyproject pyproject.toml \
-            --mc-type application \
-            --output-file "release/provelume-${VERSION}.cdx.json" \
-            .release-runtime/bin/python
-
-      - name: Assemble release manifest and checksums
-        shell: bash
-        env:
-          VERSION: ${{ steps.identity.outputs.version }}
-          CHANNEL: ${{ steps.identity.outputs.channel }}
-        run: |
-          set -euo pipefail
-          cp dist/*.whl dist/*.tar.gz release/
-          cp LICENSE COMMERCIAL-LICENSE.md THIRD_PARTY_NOTICES.md release/
-          export PROVELUME_BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          python scripts/release_manifest.py \
-            --version "$VERSION" \
-            --tag "$GITHUB_REF_NAME" \
-            --commit "$GITHUB_SHA" \
-            --channel "$CHANNEL" \
-            --artifact release/*.whl \
-            --artifact release/*.tar.gz \
-            --artifact release/LICENSE \
-            --artifact release/COMMERCIAL-LICENSE.md \
-            --artifact release/THIRD_PARTY_NOTICES.md \
-            --artifact release/build-determinism.json \
-            --sbom "release/provelume-${VERSION}.cdx.json" \
-            --manifest release/release-manifest.json \
-            --checksums release/SHA256SUMS
-          python -m json.tool release/release-manifest.json >/dev/null
-          python -m json.tool "release/provelume-${VERSION}.cdx.json" >/dev/null
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          evidence = json.loads(Path('release/build-determinism.json').read_text())
-          assert evidence['source_commit'] == os.environ['GITHUB_SHA']
-          assert all(row['byte_identical'] for row in evidence['artifacts'])
-          PY
-
-      - name: Attest wheel build provenance
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: "release/*.whl"
-
-      - name: Attest source distribution provenance
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: "release/*.tar.gz"
-
-      - name: Attest deterministic build evidence
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: "release/build-determinism.json"
-
-      - name: Attest release manifest provenance
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: "release/release-manifest.json"
-
-      - name: Attest wheel SBOM
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: "release/*.whl"
-          sbom-path: "release/provelume-${{ steps.identity.outputs.version }}.cdx.json"
-
-      - name: Preserve release bundle in Actions
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: provelume-${{ steps.identity.outputs.version }}-release
-          path: release/
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Publish GitHub Release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.identity.outputs.version }}
-          CHANNEL: ${{ steps.identity.outputs.channel }}
-        run: |
-          set -euo pipefail
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            echo '::error::A GitHub Release already exists for this tag; refusing to overwrite it.'
-            exit 1
-          fi
-          flags=()
-          if [ "$CHANNEL" = "preview" ]; then
-            flags+=(--prerelease)
-          fi
-          gh release create "$GITHUB_REF_NAME" release/* \
-            --verify-tag \
-            --title "Provelume ${VERSION}" \
-            --generate-notes \
-            "${flags[@]}"

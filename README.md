@@ -144,6 +144,10 @@ This supports a **traceable build** guarantee and a **same-source/same-environme
 
 See `docs/architecture/verifiable-builds.md`, `docs/release-verification.md`, ADR 0004 and ADR 0005.
 
+The official publication path is additionally gated by the reviewed Ubuntu/CPython build-input lock and an offline rebuild on a separately provisioned runner. Candidate construction, rebuild and final bundle assembly remain read-only; release and attestation permissions exist only in the final tag-only job after `release-assurance.json` reports a passed publication gate.
+
+Official release bundles also include a standard-library-only offline verifier. It recomputes checksums, manifest, lock and rebuild evidence without network access, while explicitly distinguishing internal bundle consistency from official-origin authentication. An independently trusted manifest SHA-256 can be supplied as a cryptographic anchor. See `docs/release/offline-verification.md`.
+
 ## Product boundaries
 
 | Area | Repository | Purpose |
