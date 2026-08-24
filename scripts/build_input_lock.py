@@ -9,10 +9,11 @@ import json
 import platform
 import re
 import sys
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from email.parser import Parser
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 from zipfile import BadZipFile, ZipFile
 
 from scripts.deterministic_build import sha256_file
@@ -54,8 +55,12 @@ def normalize_distribution(value: str) -> str:
 
 
 def _validate_full_commit(commit: str) -> None:
-    if len(commit) != 40 or any(character not in "0123456789abcdef" for character in commit):
-        raise BuildInputLockError("generated-from commit must be a full lowercase Git SHA-1")
+    if len(commit) != 40 or any(
+        character not in "0123456789abcdef" for character in commit
+    ):
+        raise BuildInputLockError(
+            "generated-from commit must be a full lowercase Git SHA-1"
+        )
 
 
 def _machine() -> str:
@@ -91,7 +96,10 @@ def parse_direct_requirements(path: Path) -> dict[str, DirectRequirement]:
     if not path.is_file():
         raise BuildInputLockError(f"direct requirements file does not exist: {path}")
     requirements: dict[str, DirectRequirement] = {}
-    for line_number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    for line_number, raw in enumerate(
+        path.read_text(encoding="utf-8").splitlines(),
+        start=1,
+    ):
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
@@ -102,7 +110,10 @@ def parse_direct_requirements(path: Path) -> dict[str, DirectRequirement]:
             )
         distribution = match.group(1)
         normalized = normalize_distribution(distribution)
-        requirement = DirectRequirement(distribution=distribution, version=match.group(2))
+        requirement = DirectRequirement(
+            distribution=distribution,
+            version=match.group(2),
+        )
         if normalized in requirements:
             raise BuildInputLockError(
                 f"duplicate direct requirement: {requirement.distribution}"
@@ -121,7 +132,9 @@ def _wheel_metadata(path: Path) -> LockedWheel:
     try:
         with ZipFile(path) as archive:
             metadata_names = sorted(
-                name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
+                name
+                for name in archive.namelist()
+                if name.endswith(".dist-info/METADATA")
             )
             if len(metadata_names) != 1:
                 raise BuildInputLockError(
@@ -322,7 +335,9 @@ def _declared_wheels(payload: dict[str, Any]) -> dict[str, LockedWheel]:
             raise BuildInputLockError(
                 "JSON lock contains an invalid wheel identity"
             ) from exc
-        if wheel.normalized_distribution != normalize_distribution(wheel.distribution):
+        if wheel.normalized_distribution != normalize_distribution(
+            wheel.distribution
+        ):
             raise BuildInputLockError(
                 f"JSON lock has invalid normalized name: {wheel.distribution}"
             )
@@ -349,7 +364,8 @@ def verify_lock(
     actual_wheels = inspect_wheelhouse(wheelhouse)
     _validate_direct_requirements(direct, actual_wheels)
     payload = _load_json(json_lock_path)
-    if payload.get("schema_version") != LOCK_SCHEMA_VERSION:
+    schema_version = payload.get("schema_version")
+    if isinstance(schema_version, bool) or schema_version != LOCK_SCHEMA_VERSION:
         raise BuildInputLockError("unsupported JSON lock schema")
     if payload.get("source_repository") != SOURCE_REPOSITORY:
         raise BuildInputLockError("unexpected source repository in JSON lock")
