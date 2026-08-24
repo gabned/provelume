@@ -1,13 +1,13 @@
 {
   "assurance_level": "reviewed_target_build_input_lock",
-  "direct_requirements_sha256": "605dffbc49e20a1c035ed54e513d810c5987a3ca33b1b5736a08b880d0d890da",
-  "generated_from_commit": "ebb492507977c0e2cb42aa758bc389bb1f2f7752",
+  "direct_requirements_sha256": "f013a9eb4e6720c4cafd993a8a8faed088778d6f44efd77ad05b602e4a95c9cb",
+  "generated_from_commit": "0b2bddbbab10e97be831d3869ad0816acaf837b8",
   "limitations": [
     "the lock targets the declared Ubuntu x86_64 / CPython 3.12.14 package builder",
     "base Python, pip and operating-system runner image identity are declared outside this wheel lock",
     "platform installers and other package targets require separate locks and evidence"
   ],
-  "lock_id": "sha256:d8d5e32bb6e3da25586e0cac0b2e7b0a4700b70a41306dfa46926155a5b2e34b",
+  "lock_id": "sha256:2ee7c5cc1d4b12cd65e7ca0c45bf05adaed2c1aa8f30f03e526f9d806fc52546",
   "schema_version": 1,
   "source_repository": "gabned/provelume",
   "target": {
