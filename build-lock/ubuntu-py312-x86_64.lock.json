@@ -1,0 +1,110 @@
+{
+  "assurance_level": "reviewed_target_build_input_lock",
+  "direct_requirements_sha256": "f013a9eb4e6720c4cafd993a8a8faed088778d6f44efd77ad05b602e4a95c9cb",
+  "generated_from_commit": "f4946a8d5163d9e1581cbe6631c2c8caacbc0882",
+  "limitations": [
+    "the lock targets the declared Ubuntu x86_64 / CPython 3.12.14 package builder",
+    "base Python, pip and operating-system runner image identity are declared outside this wheel lock",
+    "platform installers and other package targets require separate locks and evidence"
+  ],
+  "lock_id": "sha256:2ee7c5cc1d4b12cd65e7ca0c45bf05adaed2c1aa8f30f03e526f9d806fc52546",
+  "schema_version": 1,
+  "source_repository": "gabned/provelume",
+  "target": {
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "python": "3.12.14",
+    "system": "linux"
+  },
+  "wheels": [
+    {
+      "distribution": "build",
+      "filename": "build-1.5.0-py3-none-any.whl",
+      "normalized_distribution": "build",
+      "requires_dist": [
+        "colorama; os_name == \"nt\"",
+        "importlib-metadata >= 4.6; python_full_version < \"3.10.2\"",
+        "keyring ; extra == \"keyring\"",
+        "packaging >= 24.0",
+        "pyproject_hooks",
+        "tomli >= 1.1.0; python_version < \"3.11\"",
+        "uv >= 0.1.18 ; extra == \"uv\"",
+        "virtualenv >= 20.17 ; extra == \"virtualenv\" and ( python_version >= '3.10' and python_version < '3.14')",
+        "virtualenv >= 20.31 ; extra == \"virtualenv\" and ( python_version >= '3.14')"
+      ],
+      "sha256": "13f3eecb844759ab66efec90ca17639bbf14dc06cb2fdf37a9010322d9c50a6f",
+      "size_bytes": 26018,
+      "version": "1.5.0"
+    },
+    {
+      "distribution": "hatchling",
+      "filename": "hatchling-1.31.0-py3-none-any.whl",
+      "normalized_distribution": "hatchling",
+      "requires_dist": [
+        "packaging>=24.2",
+        "pathspec>=0.10.1",
+        "pluggy>=1.0.0",
+        "tomli>=1.2.2; python_version < '3.11'",
+        "trove-classifiers"
+      ],
+      "sha256": "aac80bec8b6fe35e8480f1c335be8910fa210a0e6f735a139be205dadcacb544",
+      "size_bytes": 77747,
+      "version": "1.31.0"
+    },
+    {
+      "distribution": "packaging",
+      "filename": "packaging-26.3-py3-none-any.whl",
+      "normalized_distribution": "packaging",
+      "requires_dist": [],
+      "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c",
+      "size_bytes": 129956,
+      "version": "26.3"
+    },
+    {
+      "distribution": "pathspec",
+      "filename": "pathspec-1.1.1-py3-none-any.whl",
+      "normalized_distribution": "pathspec",
+      "requires_dist": [
+        "google-re2 >=1.1 ; extra == \"re2\"",
+        "hyperscan >=0.7 ; extra == \"hyperscan\"",
+        "typing-extensions >=4 ; extra == \"optional\""
+      ],
+      "sha256": "a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189",
+      "size_bytes": 57328,
+      "version": "1.1.1"
+    },
+    {
+      "distribution": "pluggy",
+      "filename": "pluggy-1.6.0-py3-none-any.whl",
+      "normalized_distribution": "pluggy",
+      "requires_dist": [
+        "coverage; extra == \"testing\"",
+        "pre-commit; extra == \"dev\"",
+        "pytest-benchmark; extra == \"testing\"",
+        "pytest; extra == \"testing\"",
+        "tox; extra == \"dev\""
+      ],
+      "sha256": "e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746",
+      "size_bytes": 20538,
+      "version": "1.6.0"
+    },
+    {
+      "distribution": "pyproject_hooks",
+      "filename": "pyproject_hooks-1.2.0-py3-none-any.whl",
+      "normalized_distribution": "pyproject-hooks",
+      "requires_dist": [],
+      "sha256": "9e5c6bfa8dcc30091c74b0cf803c81fdd29d94f01992a7707bc97babb1141913",
+      "size_bytes": 10216,
+      "version": "1.2.0"
+    },
+    {
+      "distribution": "trove-classifiers",
+      "filename": "trove_classifiers-2026.6.1.19-py3-none-any.whl",
+      "normalized_distribution": "trove-classifiers",
+      "requires_dist": [],
+      "sha256": "ab4c4ec93cc4a4e7815fa759906e05e6bb3f2fbd92ea0f897288c6a43efd15b3",
+      "size_bytes": 14211,
+      "version": "2026.6.1.19"
+    }
+  ]
+}
