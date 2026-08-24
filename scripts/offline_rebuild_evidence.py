@@ -6,8 +6,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from scripts.build_input_bundle import BuildInputBundleError, verify_manifest
 from scripts.deterministic_build import sha256_file
@@ -55,7 +56,8 @@ def create_offline_rebuild_evidence(
         expected_commit=expected_commit,
     )
     independent = _load_json(independent_report_path)
-    if independent.get("schema_version") != 1:
+    schema_version = independent.get("schema_version")
+    if isinstance(schema_version, bool) or schema_version != 1:
         raise OfflineRebuildEvidenceError("unsupported independent rebuild report schema")
     if independent.get("byte_identical") is not True:
         raise OfflineRebuildEvidenceError("independent rebuild report is not green")
