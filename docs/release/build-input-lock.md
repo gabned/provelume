@@ -15,7 +15,7 @@ The lock is deliberately narrower than a universal dependency lock. Future Windo
 
 `build-lock/ubuntu-py312-x86_64.requirements.txt` is the corresponding pip input. Every line is an exact version and one reviewed target-wheel hash.
 
-Both files must describe the same wheel set. `scripts/build_input_lock.py verify` reconstructs the expected requirements lock from the JSON and downloaded bytes; manually changing one file cannot produce a green gate.
+Both files must describe the same wheel set. `scripts/build_input_lock.py verify` reconstructs the expected requirements lock from the JSON and downloaded bytes; manually changing one file cannot produce a green gate. Schema identifiers are validated as integers rather than truthy values, so malformed boolean schema versions fail closed.
 
 ## CI verification
 
@@ -37,8 +37,9 @@ A lock refresh is reviewed like source code.
 2. Change `requirements-build.txt` when the direct toolchain changes, or manually dispatch `Refresh reviewed build-input lock` against that branch.
 3. The branch-only workflow resolves binary wheels for the declared target, generates both lock files, redownloads them through the pip hash gate and verifies the JSON policy.
 4. The workflow commits changed lock files to the same `lock/` branch.
-5. Open or update a pull request and review the complete dependency/version/wheel/hash delta.
-6. Merge only after ordinary read-only CI, deterministic builds and independent/offline rebuild gates are green.
+5. Add a normal human-authored review commit when needed so repository checks evaluate the final bot-generated lock pair.
+6. Open or update a pull request and review the complete dependency/version/wheel/hash delta.
+7. Merge only after ordinary read-only CI, deterministic builds and independent/offline rebuild gates are green.
 
 The refresh workflow intentionally does not write to `main`. Its job guard accepts only `refs/heads/lock/**`. A lock-only generated commit does not recursively trigger another refresh.
 
