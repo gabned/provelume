@@ -72,7 +72,7 @@ jobs:
             "$root/build-env/bin/python" -m scripts.deterministic_build \
               --commit "$GITHUB_SHA" \
               --output-dir "$root/dist" \
-              --report "$root/deterministic-build-report.json"
+              --evidence "$root/deterministic-build-report.json"
 
       - name: Upload candidate, wheelhouse and evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -159,7 +159,7 @@ jobs:
             "$rebuild/build-env/bin/python" -m scripts.deterministic_build \
               --commit "$GITHUB_SHA" \
               --output-dir "$rebuild/dist" \
-              --report "$rebuild/deterministic-build-report.json"
+              --evidence "$rebuild/deterministic-build-report.json"
 
       - name: Compare candidate and offline rebuild bytes
         shell: bash
