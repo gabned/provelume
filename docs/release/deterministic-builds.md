@@ -26,7 +26,7 @@ The compared artifacts from the first build become the candidate release artifac
 
 ## Machine-readable evidence
 
-A successful gate emits `deterministic-build-report.json` with:
+A successful gate emits `build-determinism.json` with:
 
 - assurance schema and level;
 - canonical public source repository;
@@ -62,7 +62,7 @@ export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
 python scripts/deterministic_build.py \
   --commit "$(git rev-parse HEAD)" \
   --output-dir dist \
-  --report release/deterministic-build-report.json
+  --evidence release/build-determinism.json
 ```
 
 On PowerShell:
@@ -72,7 +72,7 @@ $env:SOURCE_DATE_EPOCH = git show -s --format=%ct HEAD
 python scripts/deterministic_build.py `
   --commit (git rev-parse HEAD) `
   --output-dir dist `
-  --report release/deterministic-build-report.json
+  --evidence release/build-determinism.json
 ```
 
 The script is intentionally fail-closed. A different tool version, invalid source identity, missing artifact or byte mismatch is an error rather than an inconclusive green result.
