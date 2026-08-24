@@ -12,18 +12,20 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Iterable
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
-from scripts.deterministic_build import (
+from scripts.artifact_identity import (
     ArtifactIdentity,
-    DeterministicBuildError,
+    ArtifactIdentityError,
     compare_artifact_sets,
     discover_artifacts,
 )
 
 SOURCE_REPOSITORY = "gabned/provelume"
+EXPECTED_ASSURANCE = "same-source-same-environment-byte-identical"
 
 
 class IndependentRebuildError(RuntimeError):
@@ -42,12 +44,14 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 def _reported_artifacts(report: dict[str, Any], path: Path) -> dict[str, ArtifactIdentity]:
     rows = report.get("artifacts")
-    if not isinstance(rows, list):
+    if not isinstance(rows, list) or not rows:
         raise IndependentRebuildError(f"evidence report has no artifact list: {path}")
     artifacts: dict[str, ArtifactIdentity] = {}
     for row in rows:
         if not isinstance(row, dict):
             raise IndependentRebuildError(f"invalid artifact entry in {path}")
+        if row.get("byte_identical") is not True:
+            raise IndependentRebuildError(f"deterministic artifact is not byte-identical: {path}")
         try:
             identity = ArtifactIdentity(
                 name=str(row["name"]),
@@ -64,16 +68,37 @@ def _reported_artifacts(report: dict[str, Any], path: Path) -> dict[str, Artifac
     return artifacts
 
 
+def _required_string(report: dict[str, Any], key: str, path: Path) -> str:
+    value = report.get(key)
+    if not isinstance(value, str) or not value:
+        raise IndependentRebuildError(f"missing {key} in {path}")
+    return value
+
+
+def _tool_identity(report: dict[str, Any], key: str, path: Path) -> tuple[str, str]:
+    value = report.get(key)
+    if not isinstance(value, dict):
+        raise IndependentRebuildError(f"missing {key} in {path}")
+    name = value.get("name")
+    version = value.get("version")
+    if not isinstance(name, str) or not name or not isinstance(version, str) or not version:
+        raise IndependentRebuildError(f"invalid {key} in {path}")
+    return name, version
+
+
 def _validate_deterministic_report(
     report: dict[str, Any],
     path: Path,
     actual: dict[str, ArtifactIdentity],
     expected_commit: str,
 ) -> tuple[int, dict[str, Any]]:
-    if report.get("schema_version") != 1:
+    schema_version = report.get("schema_version")
+    if isinstance(schema_version, bool) or schema_version != 1:
         raise IndependentRebuildError(f"unsupported deterministic report schema: {path}")
-    if report.get("byte_identical") is not True:
-        raise IndependentRebuildError(f"deterministic report is not green: {path}")
+    if report.get("assurance") != EXPECTED_ASSURANCE:
+        raise IndependentRebuildError(f"unexpected deterministic assurance in {path}")
+    if report.get("full_release_reproducibility_claimed") is not False:
+        raise IndependentRebuildError(f"invalid reproducibility claim in {path}")
     if report.get("source_repository") != SOURCE_REPOSITORY:
         raise IndependentRebuildError(f"unexpected source repository in {path}")
     if report.get("source_commit") != expected_commit:
@@ -90,17 +115,22 @@ def _validate_deterministic_report(
     reported = _reported_artifacts(report, path)
     try:
         compare_artifact_sets(actual, reported)
-    except DeterministicBuildError as exc:
+    except ArtifactIdentityError as exc:
         raise IndependentRebuildError(
             f"report does not match artifact bytes for {path}: {exc}"
         ) from exc
 
-    environment = report.get("environment")
-    if not isinstance(environment, dict):
-        raise IndependentRebuildError(f"missing build environment in {path}")
-    tools = environment.get("tools")
-    if not isinstance(tools, dict) or not tools:
-        raise IndependentRebuildError(f"missing direct build tool identity in {path}")
+    frontend_name, frontend_version = _tool_identity(report, "build_frontend", path)
+    backend_name, backend_version = _tool_identity(report, "build_backend", path)
+    environment: dict[str, Any] = {
+        "python": _required_string(report, "python", path),
+        "implementation": _required_string(report, "implementation", path),
+        "platform": _required_string(report, "platform", path),
+        "tools": {
+            frontend_name: frontend_version,
+            backend_name: backend_version,
+        },
+    }
     return source_date_epoch, environment
 
 
@@ -123,8 +153,6 @@ def compare_independent_rebuild(
     *,
     expected_commit: str,
 ) -> dict[str, object]:
-    candidate_directory = candidate_directory.resolve()
-    rebuild_directory = rebuild_directory.resolve()
     candidate = discover_artifacts(candidate_directory)
     rebuild = discover_artifacts(rebuild_directory)
 
@@ -146,14 +174,14 @@ def compare_independent_rebuild(
         raise IndependentRebuildError(
             "candidate and rebuild use different SOURCE_DATE_EPOCH values"
         )
-    if candidate_environment.get("tools") != rebuild_environment.get("tools"):
+    if candidate_environment["tools"] != rebuild_environment["tools"]:
         raise IndependentRebuildError(
             "candidate and rebuild use different direct build tool versions"
         )
 
     try:
         identities = compare_artifact_sets(candidate, rebuild)
-    except DeterministicBuildError as exc:
+    except ArtifactIdentityError as exc:
         raise IndependentRebuildError(
             f"independent rebuild differs from candidate: {exc}"
         ) from exc
@@ -201,7 +229,7 @@ def main(arguments: Iterable[str] | None = None) -> int:
             options.output_report,
             expected_commit=options.commit,
         )
-    except (IndependentRebuildError, DeterministicBuildError, OSError) as exc:
+    except (ArtifactIdentityError, IndependentRebuildError, OSError) as exc:
         print(f"independent rebuild verification failed: {exc}", file=sys.stderr)
         return 1
     for artifact in report["artifacts"]:
