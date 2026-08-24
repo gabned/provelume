@@ -6,6 +6,7 @@ The official Provelume release workflow is a small caller around `.github/workfl
 
 | Stage | Purpose | Repository permissions |
 | --- | --- | --- |
+| Tag request (web only) | validate a semantic tag/full-main-SHA pair and create that exact lightweight tag | contents write |
 | Candidate | test source, verify reviewed lock, build deterministic wheel/sdist offline | contents read |
 | Offline rebuild | separately provisioned rebuild and byte comparison | contents read, actions read |
 | Assembly | verify full evidence chain, smoke-test wheel, generate SBOM/manifest/checksums | contents read, actions read |
@@ -27,6 +28,20 @@ For a `vX.Y.Z` tag, the candidate stage rejects the run unless:
 The second stage must then reproduce those package hashes from the transferred verified wheelhouse. The assembly stage validates all reports with `scripts/release_assurance.py` before creating the final bundle.
 
 The publication stage refuses to overwrite an existing release for the tag.
+
+## Creating a tag from GitHub.com
+
+Maintainers can start an official release without creating a blank GitHub Release:
+
+1. open **Actions → Official release → Run workflow**;
+2. select `main`;
+3. enter an exact semantic tag such as `v0.1.0`;
+4. enter the full 40-character commit already present on `main`;
+5. run the workflow.
+
+The tag-request job is fail-closed. It requires the workflow revision to be current `main`, verifies that the selected commit is reachable from public `main`, reads the package version from that commit, rejects an existing Release or a tag on another commit, and creates only the exact lightweight tag requested. The same run then passes that tagged source commit through the reusable candidate, offline-rebuild, assembly and publication jobs. Before privilege use, both the assurance and publication stages fetch the tag and require it to resolve to the selected commit.
+
+Direct `vX.Y.Z` tag pushes remain supported and enter the read-only assurance pipeline without running the tag-request job. A tightly validated `release-request/vX.Y.Z/<full-sha>` branch carrying one empty commit above current `main` is an automation transport for clients that can create branches but cannot invoke `workflow_dispatch`; it is removed after the request is accepted and does not become release source.
 
 ## Release assets
 

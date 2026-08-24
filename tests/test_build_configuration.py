@@ -32,6 +32,9 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     release = (root / ".github/workflows/release-pipeline.yml").read_text(
         encoding="utf-8"
     )
+    publication = (root / ".github/workflows/release-publish.yml").read_text(
+        encoding="utf-8"
+    )
 
     assert "scripts/deterministic_build.py" in ci
     assert "scripts.deterministic_build" in release
@@ -51,6 +54,36 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert 'value["identity_status"] == "official_metadata_present"' in release
     assert "uses: ./.github/workflows/release-pipeline.yml" in release_caller
     assert "uses: ./.github/workflows/release-publish.yml" in release_caller
+    assert "source_commit:" in release
+    assert "--commit \"$SOURCE_COMMIT\"" in release
+    assert "ref: ${{ inputs.commit }}" in publication
+
+
+def test_official_release_web_request_is_fail_closed() -> None:
+    root = Path(__file__).resolve().parents[1]
+    caller = (root / ".github/workflows/release.yml").read_text(encoding="utf-8")
+    pipeline = (root / ".github/workflows/release-pipeline.yml").read_text(
+        encoding="utf-8"
+    )
+    publication = (root / ".github/workflows/release-publish.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "workflow_dispatch:" in caller
+    assert '"release-request/v*.*.*/*"' in caller
+    assert "Release commit must be a full lowercase SHA-1" in caller
+    assert "git merge-base --is-ancestor" in caller
+    assert "Release target is not reachable from public main" in caller
+    assert "git/refs/heads/${request_branch}" in caller
+    assert caller.count("contents: write") == 2
+    assert "actions: write" not in caller
+
+    assert "Official release tag does not resolve" in pipeline
+    assert "Release tag does not resolve to the assured source commit" in publication
+    assert "contents: write" not in pipeline
+
+    workflow_names = {path.name for path in (root / ".github/workflows").glob("*.yml")}
+    assert not any(name.startswith(("apply-", "one-shot")) for name in workflow_names)
 
 
 def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:
