@@ -17,6 +17,6 @@ Files:
 
 The two files are generated and verified together by `scripts/build_input_lock.py`. CI redownloads exactly these wheel hashes, verifies the JSON policy, installs with package-index access disabled and runs the deterministic package build gate.
 
-Do not edit individual versions or hashes manually. Follow `docs/release/build-input-lock.md` and use a reviewed `lock/**` branch refresh.
+Do not edit individual versions or hashes manually. Follow `docs/release/build-input-lock.md` and use a reviewed `lock/**` branch refresh. The bot-generated pair must remain part of the same pull request and receive normal human review and CI before merge.
 
 A target lock is not a universal lock. Additional Python versions, operating systems, machine architectures, Windows installers or container builders require separate files and evidence.
