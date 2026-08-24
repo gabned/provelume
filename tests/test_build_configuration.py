@@ -57,6 +57,11 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "source_commit:" in release
     assert "--commit \"$SOURCE_COMMIT\"" in release
     assert "ref: ${{ inputs.commit }}" in publication
+    for workflow in (ci, release):
+        assert 'sbom["serialNumber"] = f"urn:uuid:{serial}"' in workflow
+        assert "uuid.uuid5(" in workflow
+        assert "--output-reproducible" in workflow
+    assert "CycloneDX serialNumber is missing or invalid" in publication
 
 
 def test_official_release_web_request_is_fail_closed() -> None:
