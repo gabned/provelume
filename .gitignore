@@ -30,6 +30,9 @@ dist/
 release/
 build-determinism.json
 
+# Agent Protocol local evidence
+.agent/
+
 # PHP / Composer
 vendor/
 composer.lock
