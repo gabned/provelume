@@ -7,16 +7,17 @@ import argparse
 import json
 import platform
 import sys
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from scripts.deterministic_build import sha256_file
 
 SOURCE_REPOSITORY = "gabned/provelume"
 REQUIRED_DIRECT_WHEELS = {
     "build": "1.5.0",
-    "hatchling": "1.32.0",
+    "hatchling": "1.31.0",
 }
 
 
@@ -168,7 +169,8 @@ def verify_manifest(
     _validate_commit(expected_commit)
     requirements = requirements.resolve()
     manifest = _load_manifest(manifest_path)
-    if manifest.get("schema_version") != 1:
+    schema_version = manifest.get("schema_version")
+    if isinstance(schema_version, bool) or schema_version != 1:
         raise BuildInputBundleError("unsupported build-input manifest schema")
     if manifest.get("source_repository") != SOURCE_REPOSITORY:
         raise BuildInputBundleError("unexpected source repository in build-input manifest")
