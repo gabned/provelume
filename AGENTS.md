@@ -39,9 +39,9 @@ Do not rely on a prompt's cached SHA when GitHub has advanced. If the verified b
 ## Delivery and release discipline
 
 - Start from the verified default-branch SHA and keep the pull-request delta minimal.
-- Use the repository's permanent workflows. Remove `one-shot`, `apply-*`, bootstrap, patching, or other transitional workflows and helper mechanisms before merge.
+- Use the repository's permanent workflows. Remove `one-shot`, `apply-*`, temporary bootstrap/patching workflows, and other branch-mutating transitional mechanisms before merge. Do not remove supported local setup helpers such as `scripts/bootstrap.py`.
 - A pull request must not create an official release.
-- Create a semantic release tag only from the reviewed merge commit already present on `main`; the tag, package version, changelog, and embedded identity must agree.
+- Create a semantic release tag only from the reviewed pull-request result commit already present on `main`, including an approved squash-merge commit; the tag, package version, changelog, and embedded identity must agree.
 - Candidate construction, rebuild, verification, and assembly remain read-only. Publication privileges belong only to the final trusted tag path.
 - Do not weaken clean-room, least-privilege, offline verification, deterministic-build, or cross-platform gates to make a check pass.
 - Check GitHub at preflight, after a real change, or immediately before an irreversible action. Do not poll CI, pull requests, or Actions continuously.
