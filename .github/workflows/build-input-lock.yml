@@ -78,6 +78,6 @@ jobs:
           PIP_NO_INDEX=1 "$environment/bin/python" -m scripts.deterministic_build \
             --commit "$GITHUB_SHA" \
             --output-dir "$output/dist" \
-            --report "$output/deterministic-build-report.json"
+            --evidence "$output/deterministic-build-report.json"
           "$environment/bin/python" -m json.tool \
             "$output/deterministic-build-report.json" >/dev/null
