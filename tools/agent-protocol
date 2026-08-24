@@ -1,0 +1,644 @@
+#!/usr/bin/env python3
+"""Stateless PR-local Agent Development Protocol v1.2 contract for Provelume Core."""
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import subprocess
+import sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path, PurePosixPath
+from typing import Any
+
+PROTOCOL_VERSION = "1.2"
+SCHEMA_VERSION = 2
+REPOSITORY = "gabned/provelume"
+DEFAULT_BRANCH = "main"
+MAX_AGE = timedelta(minutes=5)
+CLOCK_SKEW = timedelta(seconds=30)
+SHA_RE = re.compile(r"[0-9a-f]{40}")
+PR_RE = re.compile(r"#[1-9][0-9]*")
+POLICIES = {"NO_PRODUCTION", "REPOSITORY_POLICY"}
+SOURCES = {"LOCAL_GIT", "GITHUB_CONNECTOR"}
+SAFE_FILES = {
+    "AGENTS.md",
+    "tools/agent-protocol",
+    "tests/test_agent_protocol_v1_2.py",
+}
+SAFE_PREFIXES = ("docs/",)
+SAFE_WORKFLOWS = {"ci.yml"}
+PROTECTED_FILES = {"pyproject.toml", "requirements-release.txt"}
+PROTECTED_PREFIXES = ("core/", "scripts/", "release/")
+
+
+class ContractError(ValueError):
+    """Raised when a report uses open or inconsistent coordinates."""
+
+
+def now_text() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def parse_time(value: object) -> datetime:
+    text = str(value or "")
+    try:
+        parsed = datetime.fromisoformat(
+            text[:-1] + "+00:00" if text.endswith("Z") else text
+        )
+    except ValueError as exc:
+        raise ContractError("timestamp must be RFC3339 with timezone") from exc
+    if parsed.tzinfo is None:
+        raise ContractError("timestamp must include timezone")
+    return parsed.astimezone(timezone.utc)
+
+
+def require_fresh(value: object) -> None:
+    observed = parse_time(value)
+    current = datetime.now(timezone.utc)
+    if observed > current + CLOCK_SKEW or current - observed > MAX_AGE:
+        raise ContractError("observation is outside the five-minute replay window")
+
+
+def load_json(path: Path) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ContractError(f"cannot read JSON from {path}: {exc}") from exc
+
+
+def emit(payload: dict[str, Any], output: Path | None) -> None:
+    text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(text, encoding="utf-8")
+    sys.stdout.write(text)
+
+
+def normalize_path(value: str) -> str:
+    candidate = value.strip().replace("\\", "/")
+    if not candidate or candidate == "UNKNOWN" or candidate.startswith("/"):
+        raise ContractError("changed path is empty, absolute or UNKNOWN")
+    normalized = PurePosixPath(candidate).as_posix()
+    if normalized in {".", ".."} or normalized.startswith("../"):
+        raise ContractError("changed path escapes the repository")
+    if "/../" in normalized:
+        raise ContractError("changed path escapes the repository")
+    return normalized
+
+
+def classify_path(path: str) -> tuple[bool, str]:
+    if path.startswith(".github/workflows/"):
+        workflow = path.rsplit("/", 1)[-1]
+        if workflow in SAFE_WORKFLOWS:
+            return False, ""
+        return True, "WORKFLOW_OR_RELEASE_SURFACE"
+    if path in PROTECTED_FILES:
+        return True, "RELEASE_IDENTITY_OR_DEPENDENCY"
+    if any(path.startswith(prefix) for prefix in PROTECTED_PREFIXES):
+        return True, "CORE_OR_RELEASE_PATH"
+    if path in SAFE_FILES or any(path.startswith(prefix) for prefix in SAFE_PREFIXES):
+        return False, ""
+    return True, "UNCLASSIFIED_OR_PRODUCTION_PATH"
+
+
+def effect_report(
+    paths: list[str],
+    *,
+    source: str,
+    base_sha: str,
+    head_sha: str,
+    policy: str,
+    observed_at: str | None = None,
+) -> dict[str, Any]:
+    stamp = observed_at or now_text()
+    errors: list[str] = []
+    if source not in SOURCES:
+        errors.append("source uses an unsupported identifier")
+    if policy not in POLICIES:
+        errors.append("policy uses an unsupported identifier")
+    if SHA_RE.fullmatch(base_sha) is None:
+        errors.append("base_sha must be a closed lowercase SHA")
+    if SHA_RE.fullmatch(head_sha) is None:
+        errors.append("head_sha must be a closed lowercase SHA")
+    try:
+        parse_time(stamp)
+        changed = sorted({normalize_path(path) for path in paths})
+    except ContractError as exc:
+        changed = []
+        errors.append(str(exc))
+    if not changed:
+        errors.append("changed_files must be a non-empty closed list")
+
+    matches: list[dict[str, str]] = []
+    if not errors:
+        for path in changed:
+            protected, identifier = classify_path(path)
+            if protected:
+                matches.append({"identifier": identifier, "path": path})
+    effect = "UNKNOWN" if errors else ("PRODUCTION" if matches else "NO_PRODUCTION")
+    bind_allowed = not errors and (
+        policy == "REPOSITORY_POLICY" or effect == "NO_PRODUCTION"
+    )
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "protocol_version": PROTOCOL_VERSION,
+        "mode": "PREDICT",
+        "repository": REPOSITORY,
+        "source": source,
+        "policy": policy,
+        "observed_at": stamp,
+        "base_sha": base_sha,
+        "head_sha": head_sha,
+        "effect": effect,
+        "changed_files": changed,
+        "matches": matches,
+        "bind_allowed": bind_allowed,
+        "errors": errors,
+    }
+
+
+def parse_name_status(raw: bytes) -> list[str]:
+    fields = raw.decode("utf-8", errors="strict").split("\0")
+    if fields and fields[-1] == "":
+        fields.pop()
+    result: list[str] = []
+    index = 0
+    while index < len(fields):
+        status = fields[index]
+        index += 1
+        if not status or status[0] not in {"A", "C", "D", "M", "R", "T"}:
+            raise ContractError("invalid git name-status record")
+        count = 2 if status[0] in {"C", "R"} else 1
+        if index + count > len(fields):
+            raise ContractError("truncated git name-status record")
+        values = fields[index : index + count]
+        if any(not value for value in values):
+            raise ContractError("empty path in git name-status record")
+        result.extend(values)
+        index += count
+    return result
+
+
+def git_commit(ref: str) -> str:
+    completed = subprocess.run(
+        ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return completed.stdout.strip()
+
+
+def git_effects(base: str, head: str, policy: str) -> dict[str, Any]:
+    base_sha = git_commit(base)
+    head_sha = git_commit(head)
+    completed = subprocess.run(
+        [
+            "git",
+            "diff",
+            "--name-status",
+            "-z",
+            "--find-renames",
+            "--diff-filter=ACMRTD",
+            base_sha,
+            head_sha,
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return effect_report(
+        parse_name_status(completed.stdout),
+        source="LOCAL_GIT",
+        base_sha=base_sha,
+        head_sha=head_sha,
+        policy=policy,
+    )
+
+
+def connector_paths(payload: Any) -> list[str]:
+    values = payload if isinstance(payload, list) else None
+    if isinstance(payload, dict):
+        values = payload.get("changed_files")
+    if not isinstance(values, list):
+        raise ContractError("connector input must contain changed_files")
+    result: list[str] = []
+    for value in values:
+        if isinstance(value, str):
+            result.append(value)
+            continue
+        if not isinstance(value, dict):
+            raise ContractError("invalid connector file entry")
+        found = False
+        for key in ("previous_path", "path", "filename"):
+            candidate = value.get(key)
+            if isinstance(candidate, str) and candidate:
+                result.append(candidate)
+                found = True
+        if not found:
+            raise ContractError("connector file entry contains no closed path")
+    return result
+
+
+def bind_report(
+    report: dict[str, Any],
+    *,
+    base_sha: str,
+    head_sha: str,
+    active_pr: str,
+) -> dict[str, Any]:
+    errors: list[str] = []
+    expected = {
+        "schema_version": SCHEMA_VERSION,
+        "protocol_version": PROTOCOL_VERSION,
+        "mode": "PREDICT",
+        "repository": REPOSITORY,
+        "base_sha": base_sha,
+        "head_sha": head_sha,
+    }
+    for field, value in expected.items():
+        if report.get(field) != value:
+            errors.append(f"effect report {field} mismatch")
+    if report.get("effect") not in {"NO_PRODUCTION", "PRODUCTION"}:
+        errors.append("effect report is UNKNOWN")
+    if report.get("bind_allowed") is not True or report.get("errors") != []:
+        errors.append("effect report is not bindable")
+    if PR_RE.fullmatch(active_pr) is None:
+        errors.append("active_pr must use closed #123 form")
+    try:
+        require_fresh(report.get("observed_at"))
+    except ContractError as exc:
+        errors.append(str(exc))
+    if errors:
+        raise ContractError("; ".join(errors))
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "protocol_version": PROTOCOL_VERSION,
+        "mode": "BIND",
+        "repository": REPOSITORY,
+        "observed_at": now_text(),
+        "active_pr": active_pr,
+        "base_sha": base_sha,
+        "binding_basis_sha": head_sha,
+        "effect_policy": report["policy"],
+        "effect_prediction": report["effect"],
+        "state": "BOUND",
+        "errors": [],
+    }
+
+
+def preflight_report(
+    snapshot: dict[str, Any], binding: dict[str, Any]
+) -> dict[str, Any]:
+    errors: list[str] = []
+    warnings: list[str] = []
+    for payload, mode in ((snapshot, "SNAPSHOT"), (binding, "BIND")):
+        if payload.get("schema_version") != SCHEMA_VERSION:
+            errors.append(f"{mode.lower()} schema_version mismatch")
+        if payload.get("protocol_version") != PROTOCOL_VERSION:
+            errors.append(f"{mode.lower()} protocol_version mismatch")
+        if payload.get("mode") != mode or payload.get("repository") != REPOSITORY:
+            errors.append(f"{mode.lower()} identity mismatch")
+        try:
+            require_fresh(payload.get("observed_at"))
+        except ContractError as exc:
+            errors.append(f"{mode.lower()}: {exc}")
+
+    closed = {
+        "source": SOURCES,
+        "pr_state": {"OPEN", "UNKNOWN"},
+        "draft": {"TRUE", "FALSE", "UNKNOWN"},
+        "checks": {"SUCCESS", "PENDING", "FAILURE", "NONE", "UNKNOWN"},
+        "review": {
+            "APPROVED",
+            "CHANGES_REQUESTED",
+            "REVIEW_REQUIRED",
+            "NONE",
+            "UNKNOWN",
+        },
+        "requires_approval": {"TRUE", "FALSE", "UNKNOWN"},
+        "mergeable": {"MERGEABLE", "CONFLICTING", "UNKNOWN"},
+        "merge_state": {
+            "CLEAN",
+            "HAS_HOOKS",
+            "BLOCKED",
+            "BEHIND",
+            "DIRTY",
+            "UNKNOWN",
+        },
+        "binding_basis_ancestor": {"TRUE", "FALSE", "UNKNOWN"},
+    }
+    for field, allowed in closed.items():
+        if snapshot.get(field) not in allowed:
+            errors.append(f"snapshot {field} uses an unsupported identifier")
+
+    exact = {
+        "default_branch": DEFAULT_BRANCH,
+        "owner_pr": binding.get("active_pr"),
+        "base_sha": binding.get("base_sha"),
+        "head_sha": binding.get("binding_basis_sha"),
+    }
+    for field, value in exact.items():
+        if snapshot.get(field) != value:
+            errors.append(f"snapshot {field} does not match the exact binding")
+    if snapshot.get("pr_state") != "OPEN":
+        errors.append("owner PR is not OPEN")
+    if snapshot.get("draft") != "FALSE":
+        errors.append("owner PR is draft or UNKNOWN")
+    if snapshot.get("checks") != "SUCCESS":
+        errors.append("owner PR checks are not SUCCESS")
+    if snapshot.get("mergeable") != "MERGEABLE":
+        errors.append("owner PR is not MERGEABLE")
+    if snapshot.get("merge_state") not in {"CLEAN", "HAS_HOOKS"}:
+        errors.append("owner PR merge state is not clean")
+    if snapshot.get("binding_basis_ancestor") != "TRUE":
+        errors.append("binding basis ancestry is not proven")
+
+    unresolved = snapshot.get("unresolved_threads")
+    if not isinstance(unresolved, int) or unresolved < 0:
+        errors.append("unresolved thread count is invalid or UNKNOWN")
+    elif unresolved:
+        errors.append("owner PR has unresolved threads")
+
+    requires = snapshot.get("requires_approval")
+    review = snapshot.get("review")
+    if requires == "UNKNOWN":
+        errors.append("approval requirement is UNKNOWN")
+    if review == "CHANGES_REQUESTED":
+        errors.append("owner PR has CHANGES_REQUESTED")
+    if requires == "TRUE" and review != "APPROVED":
+        errors.append("required approval is missing")
+    if requires == "FALSE" and review == "UNKNOWN":
+        warnings.append("advisory review verdict remains UNKNOWN")
+
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "protocol_version": PROTOCOL_VERSION,
+        "mode": "PREFLIGHT",
+        "repository": REPOSITORY,
+        "observed_at": now_text(),
+        "result": "READY" if not errors else "BLOCKED",
+        "merge_ready": not errors,
+        "errors": errors,
+        "warnings": warnings,
+    }
+
+
+def reconcile_report(evidence: dict[str, Any]) -> dict[str, Any]:
+    identity_errors: list[str] = []
+    observation_errors: list[str] = []
+    expected = {
+        "schema_version": SCHEMA_VERSION,
+        "protocol_version": PROTOCOL_VERSION,
+        "mode": "RECONCILE_EVIDENCE",
+        "repository": REPOSITORY,
+        "default_branch": DEFAULT_BRANCH,
+        "pr_state": "MERGED",
+        "binding_basis_ancestor": "TRUE",
+        "merge_sha_on_default": "TRUE",
+    }
+    for field, value in expected.items():
+        if evidence.get(field) != value:
+            identity_errors.append(f"evidence {field} mismatch")
+    for field in ("default_sha", "merge_sha", "binding_basis_sha"):
+        if SHA_RE.fullmatch(str(evidence.get(field, ""))) is None:
+            identity_errors.append(f"evidence {field} is not a closed SHA")
+    if PR_RE.fullmatch(str(evidence.get("active_pr", ""))) is None:
+        identity_errors.append("evidence active_pr is not closed")
+    try:
+        require_fresh(evidence.get("observed_at"))
+    except ContractError as exc:
+        identity_errors.append(str(exc))
+
+    workflow = evidence.get("workflow_status")
+    production = evidence.get("production_status")
+    if workflow not in {
+        "NOT_TRIGGERED",
+        "PENDING",
+        "SUCCEEDED",
+        "FAILED",
+        "UNKNOWN",
+    }:
+        observation_errors.append("workflow_status identifier is invalid")
+    if production not in {
+        "NOT_APPLICABLE",
+        "NOT_TRIGGERED",
+        "SUCCEEDED",
+        "FAILED",
+        "UNKNOWN",
+    }:
+        observation_errors.append("production_status identifier is invalid")
+
+    if identity_errors or observation_errors or "UNKNOWN" in {workflow, production}:
+        result = "UNKNOWN"
+    elif "FAILED" in {workflow, production}:
+        result = "FAILED"
+    elif workflow == "PENDING":
+        result = "PENDING"
+    elif production == "SUCCEEDED":
+        result = "SUCCEEDED"
+    else:
+        result = "NOT_TRIGGERED"
+    release_allowed = not identity_errors and result in {
+        "NOT_TRIGGERED",
+        "SUCCEEDED",
+        "FAILED",
+        "UNKNOWN",
+    }
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "protocol_version": PROTOCOL_VERSION,
+        "mode": "RECONCILE",
+        "repository": REPOSITORY,
+        "observed_at": evidence.get("observed_at"),
+        "result": result,
+        "release_allowed": release_allowed,
+        "observational_only": True,
+        "production_action_performed": False,
+        "identity_errors": identity_errors,
+        "observation_errors": observation_errors,
+        "evidence": evidence,
+    }
+
+
+def self_test() -> None:
+    base_sha = "a" * 40
+    head_sha = "b" * 40
+    stamp = now_text()
+    safe = effect_report(
+        ["docs/agent-development-protocol-v1.2.md"],
+        source="GITHUB_CONNECTOR",
+        base_sha=base_sha,
+        head_sha=head_sha,
+        policy="NO_PRODUCTION",
+        observed_at=stamp,
+    )
+    assert safe["effect"] == "NO_PRODUCTION" and safe["bind_allowed"] is True
+    risky = effect_report(
+        ["core/runtime.py"],
+        source="GITHUB_CONNECTOR",
+        base_sha=base_sha,
+        head_sha=head_sha,
+        policy="REPOSITORY_POLICY",
+        observed_at=stamp,
+    )
+    assert risky["effect"] == "PRODUCTION"
+    unknown = effect_report(
+        ["UNKNOWN"],
+        source="GITHUB_CONNECTOR",
+        base_sha=base_sha,
+        head_sha=head_sha,
+        policy="NO_PRODUCTION",
+        observed_at=stamp,
+    )
+    assert unknown["effect"] == "UNKNOWN" and unknown["bind_allowed"] is False
+    assert parse_name_status(b"R100\0core/x.py\0docs/x.py\0") == [
+        "core/x.py",
+        "docs/x.py",
+    ]
+
+    binding = {
+        "schema_version": SCHEMA_VERSION,
+        "protocol_version": PROTOCOL_VERSION,
+        "mode": "BIND",
+        "repository": REPOSITORY,
+        "observed_at": stamp,
+        "active_pr": "#1",
+        "base_sha": base_sha,
+        "binding_basis_sha": head_sha,
+    }
+    snapshot = {
+        "schema_version": SCHEMA_VERSION,
+        "protocol_version": PROTOCOL_VERSION,
+        "mode": "SNAPSHOT",
+        "repository": REPOSITORY,
+        "source": "GITHUB_CONNECTOR",
+        "observed_at": stamp,
+        "default_branch": DEFAULT_BRANCH,
+        "owner_pr": "#1",
+        "base_sha": base_sha,
+        "head_sha": head_sha,
+        "pr_state": "OPEN",
+        "draft": "FALSE",
+        "checks": "SUCCESS",
+        "review": "UNKNOWN",
+        "requires_approval": "FALSE",
+        "mergeable": "MERGEABLE",
+        "merge_state": "CLEAN",
+        "binding_basis_ancestor": "TRUE",
+        "unresolved_threads": 0,
+    }
+    preflight = preflight_report(snapshot, binding)
+    assert preflight["merge_ready"] is True
+    snapshot["requires_approval"] = "UNKNOWN"
+    assert preflight_report(snapshot, binding)["merge_ready"] is False
+
+    evidence = {
+        "schema_version": SCHEMA_VERSION,
+        "protocol_version": PROTOCOL_VERSION,
+        "mode": "RECONCILE_EVIDENCE",
+        "repository": REPOSITORY,
+        "observed_at": stamp,
+        "default_branch": DEFAULT_BRANCH,
+        "default_sha": head_sha,
+        "active_pr": "#1",
+        "pr_state": "MERGED",
+        "binding_basis_sha": base_sha,
+        "binding_basis_ancestor": "TRUE",
+        "merge_sha": head_sha,
+        "merge_sha_on_default": "TRUE",
+        "workflow_status": "UNKNOWN",
+        "production_status": "UNKNOWN",
+    }
+    reconciliation = reconcile_report(evidence)
+    assert reconciliation["result"] == "UNKNOWN"
+    assert reconciliation["release_allowed"] is True
+    assert reconciliation["observational_only"] is True
+    print("Provelume Core Agent Development Protocol v1.2 contracts passed.")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    effects = commands.add_parser("effects")
+    source = effects.add_mutually_exclusive_group(required=True)
+    source.add_argument("--range", nargs=2, metavar=("BASE", "HEAD"))
+    source.add_argument("--connector-files", type=Path)
+    effects.add_argument("--base-sha")
+    effects.add_argument("--head-sha")
+    effects.add_argument(
+        "--policy", choices=sorted(POLICIES), default="REPOSITORY_POLICY"
+    )
+    effects.add_argument("--output", type=Path)
+
+    bind = commands.add_parser("bind")
+    bind.add_argument("--effect-report", type=Path, required=True)
+    bind.add_argument("--base-sha", required=True)
+    bind.add_argument("--head-sha", required=True)
+    bind.add_argument("--pr", required=True)
+    bind.add_argument("--output", type=Path)
+
+    preflight = commands.add_parser("preflight")
+    preflight.add_argument("--snapshot", type=Path, required=True)
+    preflight.add_argument("--binding", type=Path, required=True)
+    preflight.add_argument("--output", type=Path)
+
+    reconcile = commands.add_parser("reconcile")
+    reconcile.add_argument("--evidence", type=Path, required=True)
+    reconcile.add_argument("--output", type=Path)
+
+    commands.add_parser("self-test")
+    return parser
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    if args.command == "self-test":
+        self_test()
+        return 0
+    if args.command == "effects":
+        if args.range:
+            if args.base_sha or args.head_sha:
+                raise ContractError("base/head options are connector-only")
+            report = git_effects(args.range[0], args.range[1], args.policy)
+        else:
+            if not args.base_sha or not args.head_sha:
+                raise ContractError("connector effects require exact base/head SHAs")
+            report = effect_report(
+                connector_paths(load_json(args.connector_files)),
+                source="GITHUB_CONNECTOR",
+                base_sha=args.base_sha,
+                head_sha=args.head_sha,
+                policy=args.policy,
+            )
+        emit(report, args.output)
+        return 0 if report["bind_allowed"] else 1
+    if args.command == "bind":
+        report = bind_report(
+            load_json(args.effect_report),
+            base_sha=args.base_sha,
+            head_sha=args.head_sha,
+            active_pr=args.pr,
+        )
+    elif args.command == "preflight":
+        snapshot = load_json(args.snapshot)
+        binding = load_json(args.binding)
+        if not isinstance(snapshot, dict) or not isinstance(binding, dict):
+            raise ContractError("snapshot and binding must be JSON objects")
+        report = preflight_report(snapshot, binding)
+    else:
+        evidence = load_json(args.evidence)
+        if not isinstance(evidence, dict):
+            raise ContractError("reconciliation evidence must be a JSON object")
+        report = reconcile_report(evidence)
+    emit(report, args.output)
+    return 0 if report.get("merge_ready", report.get("release_allowed", True)) else 1
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except (ContractError, subprocess.CalledProcessError, UnicodeDecodeError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(1)
