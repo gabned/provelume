@@ -104,8 +104,9 @@ true:
   `EMERGENCY_WAIVER`, source `GITHUB_CONNECTOR`;
 - repository, owner PR and current 40-character head SHA match exactly;
 - `static`, `active` and `human_only` are true;
-- the connector event proves a non-bot repository owner/member/collaborator
-  matching `approver_login`;
+- the connector event proves `approver_login`, `sender.login` and the pull
+  request author's login are the same non-bot identity, and the author's
+  association is owner/member/collaborator;
 - reason and waived blocker codes belong to their closed registries;
 - every waived blocker is both active and explicitly waivable;
 - credentials and production environments were not accessed.

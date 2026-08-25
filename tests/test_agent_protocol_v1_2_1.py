@@ -16,7 +16,9 @@ def make_event(
     escalation: str = "NONE",
     head_sha: str = HEAD,
     extra_body: str = "",
+    sender_login: str = "gabned",
     sender_type: str = "User",
+    author_login: str = "gabned",
 ) -> dict[str, object]:
     marker = (
         f"WORKSTREAM_CLASS: {workstream_class}\n"
@@ -26,7 +28,7 @@ def make_event(
     return {
         "number": 46,
         "repository": {"full_name": protocol.REPOSITORY},
-        "sender": {"login": "gabned", "type": sender_type},
+        "sender": {"login": sender_login, "type": sender_type},
         "pull_request": {
             "body": (
                 marker
@@ -34,6 +36,7 @@ def make_event(
                 + extra_body
             ),
             "author_association": "OWNER",
+            "user": {"login": author_login, "type": "User"},
             "base": {"sha": BASE},
             "head": {"sha": head_sha},
         },
@@ -59,10 +62,10 @@ def make_report(
     )
 
 
-def waiver_body(*, head_sha: str = HEAD) -> str:
+def waiver_body(*, head_sha: str = HEAD, approver_login: str = "gabned") -> str:
     waiver = {
         "active": True,
-        "approver_login": "gabned",
+        "approver_login": approver_login,
         "approver_type": "User",
         "change_control_version": protocol.CHANGE_CONTROL_VERSION,
         "credentials_accessed": False,
@@ -193,6 +196,18 @@ def test_moved_head_invalidates_static_waiver() -> None:
 
 def test_non_human_sender_cannot_activate_waiver() -> None:
     event = make_event(extra_body=waiver_body(), sender_type="Bot")
+    report = make_report(event, ["AGENTS.md", "core/provelume/cli.py"])
+    assert report["waiver_status"] == "INVALID"
+    assert "WAIVER_NOT_HUMAN" in report["blocker_codes"]
+    assert report["merge_allowed"] is False
+
+
+def test_sender_cannot_inherit_the_pr_authors_trusted_association() -> None:
+    event = make_event(
+        extra_body=waiver_body(approver_login="outsider"),
+        sender_login="outsider",
+        author_login="gabned",
+    )
     report = make_report(event, ["AGENTS.md", "core/provelume/cli.py"])
     assert report["waiver_status"] == "INVALID"
     assert "WAIVER_NOT_HUMAN" in report["blocker_codes"]

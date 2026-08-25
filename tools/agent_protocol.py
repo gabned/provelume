@@ -788,6 +788,14 @@ def validate_emergency_waiver(
     pull_request = event.get("pull_request")
     sender_login = sender.get("login") if isinstance(sender, dict) else None
     sender_type = sender.get("type") if isinstance(sender, dict) else None
+    pull_request_user = (
+        pull_request.get("user") if isinstance(pull_request, dict) else None
+    )
+    author_login = (
+        pull_request_user.get("login")
+        if isinstance(pull_request_user, dict)
+        else None
+    )
     association = (
         pull_request.get("author_association")
         if isinstance(pull_request, dict)
@@ -800,6 +808,7 @@ def validate_emergency_waiver(
         and waiver.get("approver_type") == "User"
         and sender_type == "User"
         and sender_login == approver_login
+        and author_login == approver_login
         and association in {"OWNER", "MEMBER", "COLLABORATOR"}
     )
     if not human_approver:
