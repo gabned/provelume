@@ -38,6 +38,7 @@ The executable profile is the closed registry in
 - `.github/pull_request_template.md`;
 - `.github/workflows/ci.yml`;
 - `.github/agent-protocol/**`;
+- `.gitignore`;
 - `docs/agent-development-v*`;
 - `tests/test_agent_protocol_*`;
 - `tools/agent_protocol*`.

@@ -53,6 +53,7 @@ PROTECTED_PROTOCOL_EXACT = {
     ".github/CODEOWNERS",
     ".github/pull_request_template.md",
     ".github/workflows/ci.yml",
+    ".gitignore",
     "AGENTS.md",
     "docs/agent-development-v1.2.md",
     "docs/agent-development-v1.2.1.md",
