@@ -55,7 +55,9 @@ silently reclassified.
 ## Connector-only guard
 
 The permanent `Public repository CI` workflow keeps its existing job names.
-For a pull-request event, its clean-room job:
+It observes opened, synchronized, reopened, edited and ready-for-review pull
+requests, so a classification or waiver body edit cannot reuse an older green
+result. For each event, its clean-room job:
 
 1. uses the event's exact base and head SHAs;
 2. produces complete NUL-delimited Git name-status evidence with rename
