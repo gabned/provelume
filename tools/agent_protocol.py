@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stateless, repository-local Agent Development Protocol v1.2 contracts."""
+"""Stateless Agent Protocol v1.2 contracts plus the v1.2.1 change-control overlay."""
 from __future__ import annotations
 
 import argparse
@@ -13,6 +13,8 @@ from typing import Any
 
 PROTOCOL_VERSION = "1.2"
 SCHEMA_VERSION = 2
+CHANGE_CONTROL_VERSION = "1.2.1"
+CHANGE_CONTROL_SCHEMA_VERSION = 1
 REPOSITORY = "gabned/provelume"
 DEFAULT_BRANCH = "main"
 MAX_EVIDENCE_AGE = timedelta(minutes=15)
@@ -21,15 +23,107 @@ SHA_PATTERN = re.compile(r"[0-9a-f]{40}")
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 PR_PATTERN = re.compile(r"#[1-9][0-9]*")
 WORKSTREAM_PATTERN = re.compile(r"[a-z0-9]+(?:[._-][a-z0-9]+)*")
+LOGIN_PATTERN = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})")
+WORKSTREAM_CLASS_PATTERN = re.compile(
+    r"(?m)^WORKSTREAM_CLASS:[ \t]*([^\r\n]+?)[ \t]*$"
+)
+PROTOCOL_ESCALATION_PATTERN = re.compile(
+    r"(?m)^PROTOCOL_ESCALATION:[ \t]*([^\r\n]+?)[ \t]*$"
+)
+WAIVER_PATTERN = re.compile(
+    r"<!--\s*PROTOCOL_EMERGENCY_WAIVER\s*\n(.*?)\n"
+    r"PROTOCOL_EMERGENCY_WAIVER\s*-->",
+    re.DOTALL,
+)
 POLICIES = {"NO_PRODUCTION", "REPOSITORY_POLICY"}
 SOURCES = {"LOCAL_GIT", "GITHUB_CONNECTOR"}
 SAFE_PROTOCOL_PATHS = {
     ".github/workflows/ci.yml",
+    ".github/pull_request_template.md",
     ".gitignore",
     "AGENTS.md",
     "docs/agent-development-v1.2.md",
+    "docs/agent-development-v1.2.1.md",
     "tests/test_agent_protocol_v1_2.py",
+    "tests/test_agent_protocol_v1_2_1.py",
     "tools/agent_protocol.py",
+}
+WORKSTREAM_CLASSES = {"PRODUCT", "PROTOCOL"}
+PROTECTED_PROTOCOL_EXACT = {
+    ".github/CODEOWNERS",
+    ".github/pull_request_template.md",
+    ".github/workflows/ci.yml",
+    "AGENTS.md",
+    "docs/agent-development-v1.2.md",
+    "docs/agent-development-v1.2.1.md",
+    "tests/test_agent_protocol_v1_2.py",
+    "tests/test_agent_protocol_v1_2_1.py",
+    "tools/agent_protocol.py",
+}
+PROTECTED_PROTOCOL_PREFIXES = (
+    ".github/agent-protocol/",
+    "docs/agent-development-v",
+    "tests/test_agent_protocol_",
+    "tools/agent_protocol",
+)
+PATH_CATEGORIES = {
+    "FORBIDDEN_GLOBAL_STATE",
+    "PRODUCT_SURFACE",
+    "PROTOCOL_SURFACE",
+}
+FINDING_CODES = {
+    "MIXED_SCOPE_DETECTED",
+    "PRODUCT_SURFACE_CHANGED",
+    "PROTOCOL_DEFECT_SUSPECTED",
+    "PROTOCOL_SURFACE_CHANGED",
+    "WAIVER_REQUESTED",
+}
+ESCALATION_VALUES = {"NONE", *FINDING_CODES}
+BLOCKER_CODES = {
+    "CHANGESET_UNKNOWN",
+    "CONNECTOR_EVIDENCE_INVALID",
+    "GLOBAL_STATE_FORBIDDEN",
+    "MIXED_SCOPE",
+    "PR_CLASS_AMBIGUOUS",
+    "PR_CLASS_INVALID",
+    "PR_CLASS_MISSING",
+    "PRODUCT_TOUCHES_PROTOCOL",
+    "PROTOCOL_ESCALATION_INVALID",
+    "PROTOCOL_ESCALATION_REQUIRED",
+    "PROTOCOL_TOUCHES_PRODUCT",
+    "WAIVER_BLOCKER_NOT_WAIVABLE",
+    "WAIVER_HEAD_MISMATCH",
+    "WAIVER_INVALID",
+    "WAIVER_NOT_HUMAN",
+}
+WAIVABLE_BLOCKER_CODES = {
+    "MIXED_SCOPE",
+    "PRODUCT_TOUCHES_PROTOCOL",
+    "PROTOCOL_ESCALATION_REQUIRED",
+    "PROTOCOL_TOUCHES_PRODUCT",
+}
+WAIVER_REASON_CODES = {
+    "EMERGENCY_COMPLIANCE",
+    "EMERGENCY_PRODUCTION_RESTORE",
+    "EMERGENCY_SECURITY_RESPONSE",
+}
+WAIVER_FIELDS = {
+    "active",
+    "approver_login",
+    "approver_type",
+    "change_control_version",
+    "credentials_accessed",
+    "head_sha",
+    "human_only",
+    "mode",
+    "owner_pr",
+    "production_environment_accessed",
+    "reason_code",
+    "repository",
+    "schema_version",
+    "source",
+    "static",
+    "waived_blocker_codes",
 }
 PRODUCTION_EXACT = {
     "CHANGELOG.md",
@@ -200,6 +294,108 @@ def read_changed_paths(path: Path) -> list[str]:
     except OSError as exc:
         raise ContractError(f"unable to read changed paths: {exc}") from exc
     return [value for value in values if value.strip()]
+
+
+def read_name_status(path: Path) -> list[str]:
+    try:
+        tokens = path.read_bytes().split(b"\0")
+    except OSError as exc:
+        raise ContractError(f"unable to read name-status evidence: {exc}") from exc
+    if tokens and tokens[-1] == b"":
+        tokens.pop()
+    result: list[str] = []
+    index = 0
+    while index < len(tokens):
+        try:
+            status = tokens[index].decode("ascii")
+        except UnicodeDecodeError as exc:
+            raise ContractError("name-status code must be ASCII") from exc
+        index += 1
+        if not status or status[0] not in {"A", "C", "D", "M", "R", "T", "U", "X", "B"}:
+            fail("name-status evidence contains an unsupported status")
+        path_count = 2 if status[0] in {"C", "R"} else 1
+        if index + path_count > len(tokens):
+            fail("name-status evidence is truncated")
+        for raw in tokens[index : index + path_count]:
+            try:
+                result.append(raw.decode("utf-8"))
+            except UnicodeDecodeError as exc:
+                raise ContractError("changed path must be UTF-8") from exc
+        index += path_count
+    return result
+
+
+def change_control_path_category(path: str) -> str:
+    normalized = normalize_path(path)
+    if (
+        PurePosixPath(normalized).name == "AGENT_STATUS.md"
+        or normalized == ".agent"
+        or normalized.startswith(".agent/")
+    ):
+        return "FORBIDDEN_GLOBAL_STATE"
+    if normalized in PROTECTED_PROTOCOL_EXACT or any(
+        normalized.startswith(prefix) for prefix in PROTECTED_PROTOCOL_PREFIXES
+    ):
+        return "PROTOCOL_SURFACE"
+    return "PRODUCT_SURFACE"
+
+
+def parse_workstream_class(body: str) -> tuple[str, list[str]]:
+    matches = [value.strip() for value in WORKSTREAM_CLASS_PATTERN.findall(body)]
+    if not matches:
+        return "UNKNOWN", ["PR_CLASS_MISSING"]
+    if len(matches) != 1:
+        return "UNKNOWN", ["PR_CLASS_AMBIGUOUS"]
+    if matches[0] not in WORKSTREAM_CLASSES:
+        return "UNKNOWN", ["PR_CLASS_INVALID"]
+    return matches[0], []
+
+
+def parse_escalation_marker(body: str) -> tuple[str, list[str]]:
+    matches = [value.strip() for value in PROTOCOL_ESCALATION_PATTERN.findall(body)]
+    if not matches:
+        return "NONE", []
+    if len(matches) != 1 or matches[0] not in ESCALATION_VALUES:
+        return "UNKNOWN", ["PROTOCOL_ESCALATION_INVALID"]
+    return matches[0], []
+
+
+def extract_emergency_waiver(body: str) -> tuple[dict[str, Any] | None, list[str]]:
+    matches = WAIVER_PATTERN.findall(body)
+    if not matches:
+        if "PROTOCOL_EMERGENCY_WAIVER" in body:
+            return None, ["WAIVER_INVALID"]
+        return None, []
+    if len(matches) != 1:
+        return None, ["WAIVER_INVALID"]
+    try:
+        value = json.loads(matches[0])
+    except json.JSONDecodeError:
+        return None, ["WAIVER_INVALID"]
+    if not isinstance(value, dict):
+        return None, ["WAIVER_INVALID"]
+    return value, []
+
+
+def event_pr_identity(event: dict[str, Any]) -> dict[str, str]:
+    pull_request = event.get("pull_request")
+    repository = event.get("repository")
+    if not isinstance(pull_request, dict) or not isinstance(repository, dict):
+        fail("connector event must contain pull_request and repository objects")
+    number = event.get("number")
+    if not isinstance(number, int) or isinstance(number, bool) or number < 1:
+        fail("connector event PR number is invalid")
+    base = pull_request.get("base")
+    head = pull_request.get("head")
+    if not isinstance(base, dict) or not isinstance(head, dict):
+        fail("connector event must contain base and head objects")
+    return {
+        "repository": str(repository.get("full_name", "")),
+        "owner_pr": f"#{number}",
+        "base_sha": require_sha(base.get("sha"), "event base_sha"),
+        "head_sha": require_sha(head.get("sha"), "event head_sha"),
+        "body": str(pull_request.get("body") or ""),
+    }
 
 
 def build_effect_report(
@@ -555,6 +751,295 @@ def reconcile(evidence: dict[str, Any], binding: dict[str, Any]) -> dict[str, An
     )
 
 
+def validate_emergency_waiver(
+    waiver: dict[str, Any],
+    *,
+    event: dict[str, Any],
+    owner_pr: str,
+    head_sha: str,
+    active_blockers: set[str],
+) -> tuple[set[str], set[str]]:
+    failures: set[str] = set()
+    if set(waiver) != WAIVER_FIELDS:
+        failures.add("WAIVER_INVALID")
+    expected = {
+        "active": True,
+        "change_control_version": CHANGE_CONTROL_VERSION,
+        "credentials_accessed": False,
+        "head_sha": head_sha,
+        "human_only": True,
+        "mode": "EMERGENCY_WAIVER",
+        "owner_pr": owner_pr,
+        "production_environment_accessed": False,
+        "repository": REPOSITORY,
+        "schema_version": CHANGE_CONTROL_SCHEMA_VERSION,
+        "source": "GITHUB_CONNECTOR",
+        "static": True,
+    }
+    for key, value in expected.items():
+        if waiver.get(key) != value:
+            if key == "head_sha":
+                failures.add("WAIVER_HEAD_MISMATCH")
+            else:
+                failures.add("WAIVER_INVALID")
+
+    sender = event.get("sender")
+    pull_request = event.get("pull_request")
+    sender_login = sender.get("login") if isinstance(sender, dict) else None
+    sender_type = sender.get("type") if isinstance(sender, dict) else None
+    association = (
+        pull_request.get("author_association")
+        if isinstance(pull_request, dict)
+        else None
+    )
+    approver_login = waiver.get("approver_login")
+    human_approver = (
+        isinstance(approver_login, str)
+        and LOGIN_PATTERN.fullmatch(approver_login) is not None
+        and waiver.get("approver_type") == "User"
+        and sender_type == "User"
+        and sender_login == approver_login
+        and association in {"OWNER", "MEMBER", "COLLABORATOR"}
+    )
+    if not human_approver:
+        failures.add("WAIVER_NOT_HUMAN")
+
+    if waiver.get("reason_code") not in WAIVER_REASON_CODES:
+        failures.add("WAIVER_INVALID")
+    raw_codes = waiver.get("waived_blocker_codes")
+    if (
+        not isinstance(raw_codes, list)
+        or not raw_codes
+        or any(not isinstance(code, str) for code in raw_codes)
+    ):
+        waived: set[str] = set()
+        failures.add("WAIVER_BLOCKER_NOT_WAIVABLE")
+    else:
+        waived = set(raw_codes)
+        if raw_codes != sorted(waived):
+            failures.add("WAIVER_INVALID")
+        if not waived <= WAIVABLE_BLOCKER_CODES or not waived <= active_blockers:
+            failures.add("WAIVER_BLOCKER_NOT_WAIVABLE")
+    if failures:
+        return set(), failures
+    return waived, set()
+
+
+def build_change_control_report(
+    *,
+    event: dict[str, Any],
+    changed_paths: list[str],
+    expected_base_sha: str,
+    expected_head_sha: str,
+    complete: bool,
+    credentials_accessed: bool | None,
+    production_environment_accessed: bool | None,
+    observed_at: str | None = None,
+) -> dict[str, Any]:
+    stamp = observed_at or now_utc()
+    parse_time(stamp)
+    blockers: set[str] = set()
+    findings: set[str] = set()
+    identity = {
+        "repository": "UNKNOWN",
+        "owner_pr": "UNKNOWN",
+        "base_sha": "UNKNOWN",
+        "head_sha": "UNKNOWN",
+        "body": "",
+    }
+    try:
+        identity = event_pr_identity(event)
+    except ContractError:
+        blockers.add("CONNECTOR_EVIDENCE_INVALID")
+    if identity["repository"] != REPOSITORY:
+        blockers.add("CONNECTOR_EVIDENCE_INVALID")
+    try:
+        expected_base = require_sha(expected_base_sha, "expected_base_sha")
+        expected_head = require_sha(expected_head_sha, "expected_head_sha")
+    except ContractError:
+        expected_base = expected_base_sha
+        expected_head = expected_head_sha
+        blockers.add("CONNECTOR_EVIDENCE_INVALID")
+    if identity["base_sha"] != expected_base or identity["head_sha"] != expected_head:
+        blockers.add("CONNECTOR_EVIDENCE_INVALID")
+    if credentials_accessed is not False or production_environment_accessed is not False:
+        blockers.add("CONNECTOR_EVIDENCE_INVALID")
+
+    workstream_class, class_blockers = parse_workstream_class(identity["body"])
+    blockers.update(class_blockers)
+    escalation, escalation_blockers = parse_escalation_marker(identity["body"])
+    blockers.update(escalation_blockers)
+
+    normalized: list[str] = []
+    if not isinstance(complete, bool) or not complete:
+        blockers.add("CHANGESET_UNKNOWN")
+    try:
+        normalized = sorted({normalize_path(path) for path in changed_paths})
+    except ContractError:
+        blockers.add("CHANGESET_UNKNOWN")
+    if not normalized:
+        blockers.add("CHANGESET_UNKNOWN")
+
+    rows = [
+        {"category": change_control_path_category(path), "path": path}
+        for path in normalized
+    ]
+    categories = {row["category"] for row in rows}
+    if "PROTOCOL_SURFACE" in categories:
+        findings.add("PROTOCOL_SURFACE_CHANGED")
+    if "PRODUCT_SURFACE" in categories:
+        findings.add("PRODUCT_SURFACE_CHANGED")
+    if "FORBIDDEN_GLOBAL_STATE" in categories:
+        blockers.add("GLOBAL_STATE_FORBIDDEN")
+    if {"PROTOCOL_SURFACE", "PRODUCT_SURFACE"} <= categories:
+        findings.add("MIXED_SCOPE_DETECTED")
+        blockers.add("MIXED_SCOPE")
+
+    if workstream_class == "PRODUCT" and "PROTOCOL_SURFACE" in categories:
+        blockers.update({"PRODUCT_TOUCHES_PROTOCOL", "PROTOCOL_ESCALATION_REQUIRED"})
+    if workstream_class == "PROTOCOL" and "PRODUCT_SURFACE" in categories:
+        blockers.add("PROTOCOL_TOUCHES_PRODUCT")
+    if escalation != "NONE" and escalation != "UNKNOWN":
+        findings.add(escalation)
+        if workstream_class != "PROTOCOL":
+            blockers.add("PROTOCOL_ESCALATION_REQUIRED")
+
+    waiver, waiver_parse_blockers = extract_emergency_waiver(identity["body"])
+    blockers.update(waiver_parse_blockers)
+    active_before_waiver = set(blockers)
+    waived: set[str] = set()
+    waiver_status = "NONE"
+    if waiver is not None:
+        waiver_status = "INVALID"
+        waived, waiver_blockers = validate_emergency_waiver(
+            waiver,
+            event=event,
+            owner_pr=identity["owner_pr"],
+            head_sha=identity["head_sha"],
+            active_blockers=active_before_waiver,
+        )
+        blockers.update(waiver_blockers)
+        if not waiver_blockers:
+            blockers.difference_update(waived)
+            waiver_status = "VALID"
+
+    if not blockers:
+        result = "PASS"
+        required_action = "NONE"
+    elif blockers & {
+        "MIXED_SCOPE",
+        "PRODUCT_TOUCHES_PROTOCOL",
+        "PROTOCOL_ESCALATION_REQUIRED",
+        "PROTOCOL_TOUCHES_PRODUCT",
+    }:
+        result = "STOP"
+        required_action = "PROTOCOL_ESCALATION"
+    else:
+        result = "STOP"
+        required_action = "STOP"
+
+    if not findings <= FINDING_CODES or not blockers <= BLOCKER_CODES:
+        fail("change-control codes escaped their closed registries")
+    return seal(
+        {
+            "schema_version": CHANGE_CONTROL_SCHEMA_VERSION,
+            "change_control_version": CHANGE_CONTROL_VERSION,
+            "mode": "CHANGE_CONTROL",
+            "source": "GITHUB_CONNECTOR",
+            "repository": REPOSITORY,
+            "observed_at": stamp,
+            "owner_pr": identity["owner_pr"],
+            "base_sha": identity["base_sha"],
+            "head_sha": identity["head_sha"],
+            "expected_base_sha": expected_base,
+            "expected_head_sha": expected_head,
+            "complete": complete,
+            "workstream_class": workstream_class,
+            "protocol_escalation": escalation,
+            "changed_paths": normalized,
+            "path_categories": rows,
+            "observed_path_categories": sorted(categories),
+            "finding_codes": sorted(findings),
+            "active_blocker_codes": sorted(active_before_waiver),
+            "waived_blocker_codes": sorted(waived),
+            "blocker_codes": sorted(blockers),
+            "waiver_status": waiver_status,
+            "connector_only": True,
+            "credentials_accessed": credentials_accessed,
+            "production_environment_accessed": production_environment_accessed,
+            "result": result,
+            "required_action": required_action,
+            "merge_allowed": not blockers,
+        }
+    )
+
+
+def verify_change_control_report(
+    report: dict[str, Any],
+    *,
+    event: dict[str, Any],
+    changed_paths: list[str],
+    expected_base_sha: str,
+    expected_head_sha: str,
+    complete: bool,
+    credentials_accessed: bool | None,
+    production_environment_accessed: bool | None,
+) -> None:
+    verify_seal(report)
+    recomputed = build_change_control_report(
+        event=event,
+        changed_paths=changed_paths,
+        expected_base_sha=expected_base_sha,
+        expected_head_sha=expected_head_sha,
+        complete=complete,
+        credentials_accessed=credentials_accessed,
+        production_environment_accessed=production_environment_accessed,
+        observed_at=str(report.get("observed_at", "")),
+    )
+    if report != recomputed:
+        fail("change-control report does not match its exact event, head and path set")
+
+
+def build_protocol_escalation(
+    *,
+    event: dict[str, Any],
+    finding_code: str,
+    expected_head_sha: str,
+    credentials_accessed: bool | None,
+    production_environment_accessed: bool | None,
+) -> dict[str, Any]:
+    identity = event_pr_identity(event)
+    if identity["repository"] != REPOSITORY:
+        fail("protocol escalation repository mismatch")
+    head_sha = require_sha(expected_head_sha, "expected_head_sha")
+    if identity["head_sha"] != head_sha:
+        fail("protocol escalation head mismatch")
+    finding = require_choice(finding_code, "finding_code", FINDING_CODES)
+    if credentials_accessed is not False or production_environment_accessed is not False:
+        fail("protocol escalation must remain connector-only")
+    return seal(
+        {
+            "schema_version": CHANGE_CONTROL_SCHEMA_VERSION,
+            "change_control_version": CHANGE_CONTROL_VERSION,
+            "mode": "PROTOCOL_ESCALATION",
+            "source": "GITHUB_CONNECTOR",
+            "repository": REPOSITORY,
+            "observed_at": now_utc(),
+            "owner_pr": identity["owner_pr"],
+            "head_sha": head_sha,
+            "finding_code": finding,
+            "blocker_code": "PROTOCOL_ESCALATION_REQUIRED",
+            "result": "STOPPED",
+            "required_action": "OPEN_SEPARATE_PROTOCOL_PR",
+            "agents_may_modify_protocol_in_current_pr": False,
+            "connector_only": True,
+            "credentials_accessed": False,
+            "production_environment_accessed": False,
+            "production_action_performed": False,
+        }
+    )
+
+
 def self_test() -> None:
     base_sha = "a" * 40
     head_sha = "b" * 40
@@ -666,7 +1151,45 @@ def self_test() -> None:
     assert report["release_allowed"] is True
     assert report["result"] == "UNKNOWN"
     assert evidence["default_sha"] != evidence["merge_sha"]
-    print(f"{REPOSITORY} Agent Development Protocol v{PROTOCOL_VERSION} contracts passed.")
+
+    event = {
+        "number": 46,
+        "repository": {"full_name": REPOSITORY},
+        "sender": {"login": "gabned", "type": "User"},
+        "pull_request": {
+            "body": "WORKSTREAM_CLASS: PROTOCOL\nPROTOCOL_ESCALATION: NONE\n",
+            "author_association": "OWNER",
+            "base": {"sha": base_sha},
+            "head": {"sha": head_sha},
+        },
+    }
+    change_control = build_change_control_report(
+        event=event,
+        changed_paths=["AGENTS.md", "tools/agent_protocol.py"],
+        expected_base_sha=base_sha,
+        expected_head_sha=head_sha,
+        complete=True,
+        credentials_accessed=False,
+        production_environment_accessed=False,
+        observed_at=stamp,
+    )
+    assert change_control["merge_allowed"] is True
+    mixed = build_change_control_report(
+        event=event,
+        changed_paths=["AGENTS.md", "core/provelume/cli.py"],
+        expected_base_sha=base_sha,
+        expected_head_sha=head_sha,
+        complete=True,
+        credentials_accessed=False,
+        production_environment_accessed=False,
+        observed_at=stamp,
+    )
+    assert mixed["merge_allowed"] is False
+    assert "MIXED_SCOPE" in mixed["blocker_codes"]
+    print(
+        f"{REPOSITORY} Agent Development Protocol v{PROTOCOL_VERSION} contracts "
+        f"and v{CHANGE_CONTROL_VERSION} change control passed."
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -705,6 +1228,20 @@ def build_parser() -> argparse.ArgumentParser:
     observed.add_argument("--evidence", type=Path, required=True)
     observed.add_argument("--binding", type=Path, required=True)
     observed.add_argument("--output", type=Path)
+
+    change_control = commands.add_parser("change-control")
+    change_control.add_argument("--event", type=Path, required=True)
+    change_control.add_argument("--name-status", type=Path, required=True)
+    change_control.add_argument("--expected-base-sha", required=True)
+    change_control.add_argument("--expected-head-sha", required=True)
+    change_control.add_argument("--complete", action="store_true")
+    change_control.add_argument("--output", type=Path)
+
+    escalation = commands.add_parser("escalate")
+    escalation.add_argument("--event", type=Path, required=True)
+    escalation.add_argument("--finding-code", choices=sorted(FINDING_CODES), required=True)
+    escalation.add_argument("--expected-head-sha", required=True)
+    escalation.add_argument("--output", type=Path)
 
     commands.add_parser("self-test")
     return parser
@@ -762,6 +1299,30 @@ def main() -> int:
             report = reconcile(load_object(args.evidence), load_object(args.binding))
             emit(report, args.output)
             return 0 if report["release_allowed"] else 1
+        if args.command == "change-control":
+            report = build_change_control_report(
+                event=load_object(args.event),
+                changed_paths=read_name_status(args.name_status),
+                expected_base_sha=args.expected_base_sha,
+                expected_head_sha=args.expected_head_sha,
+                complete=args.complete,
+                credentials_accessed=False,
+                production_environment_accessed=False,
+            )
+            emit(report, args.output)
+            return 0 if report["merge_allowed"] else 1
+        if args.command == "escalate":
+            emit(
+                build_protocol_escalation(
+                    event=load_object(args.event),
+                    finding_code=args.finding_code,
+                    expected_head_sha=args.expected_head_sha,
+                    credentials_accessed=False,
+                    production_environment_accessed=False,
+                ),
+                args.output,
+            )
+            return 1
         self_test()
         return 0
     except ContractError as exc:

@@ -57,7 +57,7 @@ jobs:
             exit 1
           fi
 
-      - name: Validate Agent Protocol v1.2 contract
+      - name: Validate Agent Protocol v1.2 and v1.2.1 contracts
         shell: bash
         run: |
           set -euo pipefail
@@ -76,6 +76,26 @@ jobs:
             echo '::error::Agent Protocol validation must remain offline and connector-input-only.'
             exit 1
           fi
+
+      - name: Enforce PR-local change control
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git cat-file -e "${BASE_SHA}^{commit}"
+          git cat-file -e "${HEAD_SHA}^{commit}"
+          mkdir -p .agent
+          git diff --name-status -M -z "$BASE_SHA" "$HEAD_SHA" > .agent/name-status.z
+          python tools/agent_protocol.py change-control \
+            --event "$GITHUB_EVENT_PATH" \
+            --name-status .agent/name-status.z \
+            --expected-base-sha "$BASE_SHA" \
+            --expected-head-sha "$HEAD_SHA" \
+            --complete \
+            --output .agent/change-control.json
 
   core-tests:
     name: Core tests (${{ matrix.os }})
