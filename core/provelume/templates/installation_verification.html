@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ security_t('title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb">
+  <a href="/?lang={{ lang }}">{{ security_t('back.home') }}</a>
+  <span>/</span>
+  <span>{{ security_t('nav.security') }}</span>
+  <span>/</span>
+  <span>{{ security_t('title') }}</span>
+</nav>
+
+<h1>{{ security_t('title') }}</h1>
+<p class="lede">{{ security_t('intro') }}</p>
+
+<section class="panel">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">{{ security_t('nav.security') }}</p>
+      <h2>{{ security_t('status.' ~ verification.status) }}</h2>
+    </div>
+    <span class="status-pill status-{{ verification.status }}">
+      {{ security_t('status.' ~ verification.status) }}
+    </span>
+  </div>
+  <p>{{ security_t('reason.' ~ verification.status) }}</p>
+
+  <dl class="metadata-grid">
+    <div><dt>{{ security_t('label.package') }}</dt><dd>{{ verification.package.distribution }}</dd></div>
+    <div><dt>{{ security_t('label.version') }}</dt><dd>{{ verification.package.version or '—' }}</dd></div>
+    <div><dt>{{ security_t('label.checked') }}</dt><dd>{{ verification.integrity.checked_files }}</dd></div>
+    <div><dt>{{ security_t('label.tracked') }}</dt><dd>{{ verification.integrity.tracked_files }}</dd></div>
+    <div><dt>{{ security_t('label.unhashed') }}</dt><dd>{{ verification.integrity.unhashed_files }}</dd></div>
+    <div><dt>{{ security_t('label.unexpected') }}</dt><dd>{{ verification.integrity.unexpected_files }}</dd></div>
+    <div><dt>{{ security_t('label.network') }}</dt><dd>{{ security_t('network.none') }}</dd></div>
+    <div><dt>{{ security_t('label.origin') }}</dt><dd>{{ security_t('origin.not_established') }}</dd></div>
+  </dl>
+</section>
+
+<section class="panel">
+  <h2>{{ security_t('findings.title') }}</h2>
+  {% if verification.findings %}
+  <ul class="document-list">
+    {% for finding in verification.findings %}
+    <li>
+      <strong>{{ security_t('issue.' ~ finding.issue) }}</strong>
+      <code>{{ finding.path }}</code>
+      <span>{{ security_t('detail.' ~ finding.issue) }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  {% if verification.status == 'package_integrity_verified' %}
+  <p class="empty">{{ security_t('findings.none') }}</p>
+  {% else %}
+  <p class="empty">{{ security_t('findings.unavailable') }}</p>
+  {% endif %}
+  {% endif %}
+  {% if verification.findings_truncated %}
+  <p class="technical-note">{{ security_t('findings.truncated') }}</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h2>{{ security_t('label.origin') }}</h2>
+  <p>{{ security_t('explain.integrity') }}</p>
+  <p>{{ security_t('explain.origin') }}</p>
+</section>
+{% endblock %}

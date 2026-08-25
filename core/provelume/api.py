@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 
 from . import __version__
 from .build_info import current_build_info
+from .installation import verify_current_installation
 from .paths import safe_instance_path
 from .service import ProvelumeInstance
 
@@ -130,3 +131,7 @@ def attach_api(app: FastAPI, instance: ProvelumeInstance) -> None:
         }
 
     app.include_router(build_api(instance))
+
+    @app.get("/api/v1/security/installation")
+    def installation_verification():
+        return verify_current_installation()

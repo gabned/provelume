@@ -8,6 +8,7 @@ from pathlib import Path
 import uvicorn
 
 from .build_info import current_build_info
+from .installation import verify_current_installation
 from .service import ProvelumeInstance
 from .web import create_app
 
@@ -41,11 +42,25 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", default=8000, type=int)
 
+    subparsers.add_parser(
+        "verify-installation",
+        help="verify installed Provelume package files without network access",
+    )
+
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "verify-installation":
+        result = verify_current_installation()
+        print(json.dumps(result, indent=2, sort_keys=True))
+        if result.get("status") == "package_integrity_verified":
+            return 0
+        if result.get("status") == "modified_installation":
+            return 2
+        return 3
+
     if args.command == "build-info":
         print(json.dumps(current_build_info(), indent=2, sort_keys=True))
         return 0

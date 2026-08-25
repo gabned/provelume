@@ -4,6 +4,10 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Added
+
+- local read-only `Verify installation` capability across CLI, API and EN/IT browser, with PEP 376 RECORD hashing, unexpected-file/path safety checks and explicit separation between package integrity and official origin;
+
 ## 0.1.0 - 2026-08-24
 
 ### Added
