@@ -242,6 +242,21 @@ def test_name_status_rename_preserves_source_and_destination(tmp_path: Path) -> 
     ]
 
 
+def test_authoritative_workflow_uses_the_trusted_base_guard() -> None:
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+    assert "pull_request_target:" in workflow
+    target = workflow.split("  agent-change-control:", 1)[1].split(
+        "  core-tests:", 1
+    )[0]
+    assert "permissions: {}" in target
+    assert "actions/checkout@" not in target
+    assert 'git checkout --detach "$BASE_SHA"' in target
+    assert "refs/pull/${PR_NUMBER}/head" in target
+    assert 'test "$observed_head" = "$HEAD_SHA"' in target
+    assert "python tools/agent_protocol.py change-control" in target
+    assert workflow.count("python tools/agent_protocol.py change-control") == 1
+
+
 def test_global_checkpoint_path_is_never_waivable() -> None:
     report = make_report(make_event(), ["AGENT_STATUS.md"])
     assert report["observed_path_categories"] == ["FORBIDDEN_GLOBAL_STATE"]

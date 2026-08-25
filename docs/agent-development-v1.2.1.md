@@ -54,20 +54,35 @@ silently reclassified.
 
 ## Connector-only guard
 
-The permanent `Public repository CI` workflow keeps its existing job names.
-It observes opened, synchronized, reopened, edited and ready-for-review pull
-requests, so a classification or waiver body edit cannot reuse an older green
-result. For each event, its clean-room job:
+The permanent `Public repository CI` workflow keeps every existing job name
+and adds `Agent change control (trusted base)`. It observes opened,
+synchronized, reopened, edited and ready-for-review pull requests, so a
+classification or waiver body edit cannot reuse an older green result.
 
-1. uses the event's exact base and head SHAs;
-2. produces complete NUL-delimited Git name-status evidence with rename
+The authoritative guard runs only on `pull_request_target`, with empty job
+permissions. It checks out neither the pull-request tree nor a PR-controlled
+validator. Instead it:
+
+1. initializes an empty Git repository and fetches the exact public base SHA
+   without credentials;
+2. checks out the base so workflow logic and `tools/agent_protocol.py` come
+   from the immutable trusted revision;
+3. fetches the public pull-request ref, proves it equals the event head SHA and
+   never checks it out or executes its code;
+4. produces complete NUL-delimited Git name-status evidence with rename
    detection;
-3. invokes `tools/agent_protocol.py change-control` offline;
-4. cross-binds repository, owner PR, base, head, body class and path set;
-5. records that credentials and protected environments were not accessed.
+5. invokes the trusted-base `change-control` command offline and cross-binds
+   repository, owner PR, base, head, body class and path set.
 
 The tool makes no network request, dispatches no workflow, writes only ignored
 `.agent/**` evidence and exits non-zero on every blocker.
+
+The v1.2.1 rollout PR is the one-time bootstrap: its base contains v1.2 but
+cannot retroactively contain the new `pull_request_target` job. Its exact
+connector path report, review and existing Core gates authorize only this
+protocol-only installation. After merge, every later PR is evaluated by the
+trusted-base job; candidate CI is self-consistency evidence, never the
+change-control authority.
 
 ## Stop and `PROTOCOL_ESCALATION`
 

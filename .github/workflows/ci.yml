@@ -2,6 +2,8 @@ name: Public repository CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_target:
     types: [opened, synchronize, reopened, edited, ready_for_review]
   push:
     branches:
@@ -13,6 +15,7 @@ permissions:
 jobs:
   clean-room:
     name: Clean-room and repository hygiene
+    if: github.event_name != 'pull_request_target'
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -78,16 +81,37 @@ jobs:
             exit 1
           fi
 
-      - name: Enforce PR-local change control
-        if: github.event_name == 'pull_request'
+  agent-change-control:
+    name: Agent change control (trusted base)
+    if: github.event_name == 'pull_request_target'
+    permissions: {}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      REPOSITORY: ${{ github.repository }}
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Evaluate the untrusted head with the trusted base guard
         shell: bash
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          git cat-file -e "${BASE_SHA}^{commit}"
-          git cat-file -e "${HEAD_SHA}^{commit}"
+          test "$REPOSITORY" = 'gabned/provelume'
+          git init .
+          git remote add origin "https://github.com/${REPOSITORY}.git"
+          git -c http.extraheader= fetch --no-tags --depth=1 origin "$BASE_SHA"
+          git checkout --detach "$BASE_SHA"
+          git -c http.extraheader= fetch --no-tags --depth=1 origin \
+            "+refs/pull/${PR_NUMBER}/head:refs/remotes/origin/pr-head"
+          observed_head="$(git rev-parse refs/remotes/origin/pr-head)"
+          test "$observed_head" = "$HEAD_SHA"
           mkdir -p .agent
           git diff --name-status -M -z "$BASE_SHA" "$HEAD_SHA" > .agent/name-status.z
           python tools/agent_protocol.py change-control \
@@ -100,6 +124,7 @@ jobs:
 
   core-tests:
     name: Core tests (${{ matrix.os }})
+    if: github.event_name != 'pull_request_target'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -130,6 +155,7 @@ jobs:
 
   release-foundation:
     name: Deterministic release dry run
+    if: github.event_name != 'pull_request_target'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
