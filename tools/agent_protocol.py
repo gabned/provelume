@@ -26,9 +26,10 @@ PR_PATTERN = re.compile(r"#[1-9][0-9]*")
 WORKSTREAM_PATTERN = re.compile(r"[a-z0-9]+(?:[._-][a-z0-9]+)*")
 LOGIN_PATTERN = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})")
 WITHDRAWAL_REFERENCE_PATTERN = re.compile(
-    r"(?:https://github[.]com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/"
-    r"(?:pull|issues)/[1-9][0-9]*#issuecomment-[1-9][0-9]*|"
-    r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[1-9][0-9]*@comment-[1-9][0-9]*)"
+    r"(?:https://github[.]com/(?P<url_repository>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/"
+    r"(?:pull|issues)/(?P<url_pr>[1-9][0-9]*)#issuecomment-[1-9][0-9]*|"
+    r"(?P<compact_repository>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)"
+    r"#(?P<compact_pr>[1-9][0-9]*)@comment-[1-9][0-9]*)"
 )
 WORKSTREAM_CLASS_PATTERN = re.compile(
     r"(?m)^WORKSTREAM_CLASS:[ \t]*([^\r\n]+?)[ \t]*$"
@@ -293,11 +294,19 @@ def validate_review_withdrawal(
     ):
         raise ContractError("verified human maintainer withdrawal required")
     reference = record["comment_reference"]
-    if (
-        not isinstance(reference, str)
-        or WITHDRAWAL_REFERENCE_PATTERN.fullmatch(reference) is None
-    ):
+    match = (
+        WITHDRAWAL_REFERENCE_PATTERN.fullmatch(reference)
+        if isinstance(reference, str)
+        else None
+    )
+    if match is None:
         raise ContractError("immutable withdrawal comment reference required")
+    reference_repository = (
+        match.group("url_repository") or match.group("compact_repository")
+    )
+    reference_pr = match.group("url_pr") or match.group("compact_pr")
+    if reference_repository != repository or f"#{reference_pr}" != owner_pr:
+        raise ContractError("withdrawal comment reference does not match the owner PR")
     return True
 
 
@@ -350,6 +359,8 @@ def evaluate_review_gate(
             codex_gate = "NOT_APPLICABLE"
         elif repository_review != "SATISFIED":
             errors.append("GitHub-required review is not satisfied")
+        else:
+            errors.append("Codex state is inconsistent with a repository review")
     elif source == "EXPLICIT_MAINTAINER":
         if codex_state == "CLEAN":
             if reviewed_head == current_head:
@@ -371,10 +382,12 @@ def evaluate_review_gate(
         elif codex_state not in {"FINDINGS", "UNKNOWN"}:
             errors.append("explicit Codex review has no terminal clean or withdrawal state")
 
-    if source != "REPOSITORY" and repository_review == "UNKNOWN":
-        errors.append("repository review policy is UNKNOWN")
+    if source != "REPOSITORY" and repository_review in {"BLOCKED", "UNKNOWN"}:
+        errors.append("repository review is blocked or UNKNOWN")
     if source == "REPOSITORY" and repository_review == "NOT_APPLICABLE":
         errors.append("repository review requirement cannot be not applicable")
+    if source == "NONE" and repository_review != "NOT_APPLICABLE":
+        errors.append("unrequested review must have no repository review gate")
     allowed = not errors
     return {
         "governance_release": GOVERNANCE_RELEASE,
@@ -783,6 +796,59 @@ def validate_snapshot_identity(snapshot: dict[str, Any]) -> list[str]:
     return errors
 
 
+def normalize_review_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Normalize an unambiguous lifecycle-v1.2 connector into v1.3 governance."""
+
+    v13_keys = {
+        "review_requirement_source",
+        "codex_review_state",
+        "repository_review",
+        "technical_finding",
+        "codex_reviewed_head",
+        "codex_review_withdrawal",
+    }
+    if any(key in snapshot for key in v13_keys):
+        return {
+            "source": snapshot.get("review_requirement_source", "UNKNOWN"),
+            "codex_state": snapshot.get("codex_review_state", "UNKNOWN"),
+            "repository_review": snapshot.get("repository_review", "UNKNOWN"),
+            "technical_finding": snapshot.get("technical_finding", "UNKNOWN"),
+            "reviewed_head": snapshot.get("codex_reviewed_head"),
+            "withdrawal": snapshot.get("codex_review_withdrawal"),
+            "adapter": "V1_3_NATIVE",
+        }
+
+    requires_approval = snapshot.get("requires_approval", "UNKNOWN")
+    review = snapshot.get("review", "UNKNOWN")
+    if requires_approval not in {"TRUE", "FALSE", "UNKNOWN"} or review not in {
+        "APPROVED",
+        "CHANGES_REQUESTED",
+        "NONE",
+        "UNKNOWN",
+    }:
+        requires_approval = "UNKNOWN"
+    technical_finding = "CURRENT" if review == "CHANGES_REQUESTED" else "NONE"
+    if requires_approval == "FALSE":
+        source = "NONE"
+        repository_review = "NOT_APPLICABLE"
+    elif requires_approval == "TRUE":
+        source = "REPOSITORY"
+        repository_review = "SATISFIED" if review == "APPROVED" else "BLOCKED"
+    else:
+        source = "UNKNOWN"
+        repository_review = "UNKNOWN"
+        technical_finding = "UNKNOWN"
+    return {
+        "source": source,
+        "codex_state": "NOT_REQUESTED" if source != "UNKNOWN" else "UNKNOWN",
+        "repository_review": repository_review,
+        "technical_finding": technical_finding,
+        "reviewed_head": None,
+        "withdrawal": None,
+        "adapter": "LIFECYCLE_V1_2_COMPATIBILITY",
+    }
+
+
 def preflight(snapshot: dict[str, Any], binding: dict[str, Any]) -> dict[str, Any]:
     errors = validate_snapshot_identity(snapshot)
     try:
@@ -814,10 +880,6 @@ def preflight(snapshot: dict[str, Any], binding: dict[str, Any]) -> dict[str, An
         "pr_state": {"OPEN", "UNKNOWN"},
         "draft": {"TRUE", "FALSE", "UNKNOWN"},
         "checks": {"SUCCESS", "PENDING", "FAILURE", "NONE", "UNKNOWN"},
-        "review_requirement_source": REVIEW_REQUIREMENT_SOURCES,
-        "codex_review_state": CODEX_REVIEW_STATES,
-        "repository_review": REPOSITORY_REVIEW_STATES,
-        "technical_finding": TECHNICAL_FINDING_STATES,
         "mergeability": {"MERGEABLE", "CONFLICTING", "UNKNOWN"},
         "base_ancestry": {"TRUE", "FALSE", "UNKNOWN"},
         "binding_basis_ancestor": {"TRUE", "FALSE", "UNKNOWN"},
@@ -843,25 +905,27 @@ def preflight(snapshot: dict[str, Any], binding: dict[str, Any]) -> dict[str, An
     if not isinstance(unresolved, int) or isinstance(unresolved, bool) or unresolved != 0:
         errors.append("unresolved thread count blocks or is UNKNOWN")
 
+    review_input = normalize_review_snapshot(snapshot)
     review_result = evaluate_review_gate(
-        source=str(snapshot.get("review_requirement_source", "UNKNOWN")),
-        codex_state=str(snapshot.get("codex_review_state", "UNKNOWN")),
+        source=str(review_input["source"]),
+        codex_state=str(review_input["codex_state"]),
         repository=REPOSITORY,
         owner_pr=str(snapshot.get("owner_pr", "UNKNOWN")),
         current_head=str(snapshot.get("head_sha", "UNKNOWN")),
         reviewed_head=(
-            snapshot.get("codex_reviewed_head")
-            if isinstance(snapshot.get("codex_reviewed_head"), str)
+            review_input["reviewed_head"]
+            if isinstance(review_input["reviewed_head"], str)
             else None
         ),
-        repository_review=str(snapshot.get("repository_review", "UNKNOWN")),
-        technical_finding=str(snapshot.get("technical_finding", "UNKNOWN")),
+        repository_review=str(review_input["repository_review"]),
+        technical_finding=str(review_input["technical_finding"]),
         withdrawal=(
-            snapshot.get("codex_review_withdrawal")
-            if isinstance(snapshot.get("codex_review_withdrawal"), dict)
+            review_input["withdrawal"]
+            if isinstance(review_input["withdrawal"], dict)
             else None
         ),
     )
+    review_result["adapter"] = review_input["adapter"]
     errors.extend(review_result["errors"])
 
     if snapshot.get("credentials_accessed") is not False:

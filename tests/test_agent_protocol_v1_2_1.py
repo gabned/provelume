@@ -344,6 +344,14 @@ def test_v1_3_withdrawal_has_no_clean_signal_and_is_not_a_waiver() -> None:
     assert result["merge_allowed"] is True
     assert result["clean_review_signal"] is False
     assert result["waiver_applied"] is False
+    unrelated = dict(withdrawal)
+    unrelated["comment_reference"] = "other/repository#9@comment-1"
+    assert protocol.evaluate_review_gate(
+        source="EXPLICIT_MAINTAINER",
+        codex_state="WITHDRAWN",
+        withdrawal=unrelated,
+        **review_common(),
+    )["merge_allowed"] is False
 
 
 def test_v1_3_advisory_signals_and_availability_are_normalized() -> None:
@@ -380,6 +388,12 @@ def test_v1_3_repository_review_and_unknown_fields_fail_closed() -> None:
     assert protocol.evaluate_review_gate(
         source="REPOSITORY",
         codex_state="NOT_REQUESTED",
+        **repository_required,
+    )["merge_allowed"] is False
+    assert protocol.evaluate_review_gate(
+        source="EXPLICIT_MAINTAINER",
+        codex_state="CLEAN",
+        reviewed_head=HEAD,
         **repository_required,
     )["merge_allowed"] is False
     assert protocol.evaluate_review_gate(
