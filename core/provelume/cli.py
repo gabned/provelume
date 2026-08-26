@@ -37,6 +37,12 @@ def build_parser() -> argparse.ArgumentParser:
     health = subparsers.add_parser("health", help="Print knowledge health")
     health.add_argument("instance", type=Path)
 
+    network_status = subparsers.add_parser(
+        "network-status",
+        help="Describe configured network capability without making a network request",
+    )
+    network_status.add_argument("instance", type=Path)
+
     serve = subparsers.add_parser("serve", help="Run Knowledge API and browser")
     serve.add_argument("instance", type=Path)
     serve.add_argument("--host", default="127.0.0.1")
@@ -79,6 +85,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "health":
         instance = ProvelumeInstance(args.instance)
         print(json.dumps(instance.knowledge_health(), indent=2))
+        return 0
+    if args.command == "network-status":
+        instance = ProvelumeInstance(args.instance)
+        print(json.dumps(instance.network_status(), indent=2, sort_keys=True))
         return 0
     if args.command == "serve":
         uvicorn.run(create_app(args.instance), host=args.host, port=args.port)

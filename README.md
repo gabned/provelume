@@ -21,6 +21,7 @@ Version `0.1.0` implements a small local Instance that can:
 - expose a read-only versioned Knowledge API with FastAPI;
 - provide a minimal EN/IT Knowledge Browser for browse, search, document detail, versions, provenance, knowledge health and build transparency;
 - report its embedded version/tag/commit/source identity offline through CLI, API and browser;
+- report configured network capability, safe endpoint origins and policy conflicts without making a network request or claiming to observe traffic;
 - restart without losing canonical state;
 - run without Git, GitHub, Provelume Cloud or an external AI provider.
 
@@ -50,6 +51,12 @@ Inspect the package's embedded source identity without creating an Instance or m
 
 ```bash
 .venv/bin/provelume build-info
+```
+
+Inspect one Instance's declared network policy and components, also without making a network request:
+
+```bash
+.venv/bin/provelume network-status .local/demo
 ```
 
 Run all tests with:
@@ -102,6 +109,7 @@ The browser and external clients use the same application layer. The first read-
 - `GET /api/v1/documents/{id}/original`
 - `GET /api/v1/search`
 - `GET /api/v1/knowledge-health`
+- `GET /api/v1/security/network`
 
 See `docs/api.md` for the contract and filtering behavior.
 
@@ -109,7 +117,7 @@ See `docs/api.md` for the contract and filtering behavior.
 
 The baseline Instance config disables external access and update checks. The runtime contains no analytics, telemetry, CDN assets or external AI calls. Its core ingestion, provenance, full-text search, API and browser remain useful offline.
 
-Future connectors and AI providers must declare network capability explicitly and remain optional. See `docs/architecture/provider-boundaries.md`.
+`provelume network-status`, `GET /api/v1/security/network` and `/security/network` expose the effective policy and configured capability inventory. Physical Source paths are redacted, configured HTTP(S) endpoints are reduced to origins, unknown component types fail visibly, and observed traffic remains explicitly `not_instrumented`. Future connectors and AI providers must declare network capability explicitly and remain optional. See `docs/privacy-network.md` and `docs/architecture/provider-boundaries.md`.
 
 ## Verifiable and deterministic release foundation
 

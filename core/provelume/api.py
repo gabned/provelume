@@ -113,6 +113,10 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
     def get_knowledge_health() -> dict[str, Any]:
         return instance.knowledge_health()
 
+    @router.get("/security/network")
+    def get_network_status() -> dict[str, Any]:
+        return instance.network_status()
+
     return router
 
 
