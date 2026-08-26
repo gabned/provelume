@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
+from ipaddress import ip_address
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -21,10 +22,31 @@ def _boolean(value: Any, *, default: bool) -> tuple[bool, bool]:
     return default, False
 
 
+def _valid_hostname(host: str) -> bool:
+    try:
+        ip_address(host)
+        return True
+    except ValueError:
+        pass
+
+    if not host.isascii() or len(host) > 253 or host.endswith("."):
+        return False
+    if re.fullmatch(r"[0-9.]+", host):
+        return False
+    labels = host.split(".")
+    return all(
+        1 <= len(label) <= 63
+        and re.fullmatch(r"[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?", label)
+        for label in labels
+    )
+
+
 def _endpoint_origin(value: Any) -> tuple[str | None, bool]:
     if value in (None, ""):
         return None, True
     if not isinstance(value, str):
+        return None, False
+    if value != value.strip() or "\\" in value or any(character.isspace() for character in value):
         return None, False
     try:
         parsed = urlsplit(value)
@@ -36,6 +58,7 @@ def _endpoint_origin(value: Any) -> tuple[str | None, bool]:
         or not parsed.hostname
         or parsed.username is not None
         or parsed.password is not None
+        or not _valid_hostname(parsed.hostname)
     ):
         return None, False
     host = parsed.hostname
@@ -91,7 +114,15 @@ def declared_network_status(config: Mapping[str, Any]) -> dict[str, Any]:
     def finding(code: str, component_id: str, message: str) -> None:
         conflicts.append({"code": code, "component_id": component_id, "message": message})
 
-    network = _mapping(config.get("network"))
+    raw_network = config.get("network")
+    if raw_network is not None and not isinstance(raw_network, Mapping):
+        finding(
+            "invalid_component_registry",
+            "registry.network",
+            "The configured network policy registry is not a mapping.",
+        )
+        raw_network = {}
+    network = _mapping(raw_network)
     external_access, external_access_valid = _boolean(
         network.get("external_access"), default=False
     )

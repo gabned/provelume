@@ -3,6 +3,8 @@ from __future__ import annotations
 import copy
 import json
 
+import pytest
+
 from provelume.network_status import declared_network_status
 
 
@@ -114,3 +116,45 @@ def test_invalid_or_credential_bearing_endpoint_is_not_exposed() -> None:
         "invalid_external_endpoint",
         "missing_external_endpoint",
     }
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "https://updates.example.test\\private",
+        "https://updates.example.test private/releases",
+        "https://updates.example.test\n/releases",
+        "https://updates_example.test/releases",
+        "https://127.0.0.01/releases",
+    ],
+)
+def test_malformed_endpoint_authority_fails_closed(endpoint: str) -> None:
+    result = declared_network_status(
+        {
+            "network": {
+                "external_access": True,
+                "update_checks": True,
+                "update_endpoint": endpoint,
+            }
+        }
+    )
+
+    assert result["components"][0]["endpoint"] is None
+    assert {item["code"] for item in result["conflicts"]} == {
+        "invalid_external_endpoint",
+        "missing_external_endpoint",
+    }
+
+
+def test_non_mapping_network_registry_is_reported() -> None:
+    result = declared_network_status({"network": []})
+
+    assert result["status"] == "attention"
+    assert result["policy"]["external_access"] is False
+    assert result["conflicts"] == [
+        {
+            "code": "invalid_component_registry",
+            "component_id": "registry.network",
+            "message": "The configured network policy registry is not a mapping.",
+        }
+    ]

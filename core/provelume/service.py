@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -231,6 +232,9 @@ class ProvelumeInstance:
 
     def instance_summary(self) -> dict[str, Any]:
         config = self.store.read_config()
+        network = config.get("network")
+        if not isinstance(network, Mapping):
+            network = {}
         documents = self.store.list_canonical("documents")
         health = self.knowledge_health()
         return {
@@ -244,8 +248,8 @@ class ProvelumeInstance:
             "index_status": health["index_status"],
             "knowledge_status": health["status"],
             "network": {
-                "external_access": bool(config.get("network", {}).get("external_access", False)),
-                "update_checks": bool(config.get("network", {}).get("update_checks", False)),
+                "external_access": bool(network.get("external_access", False)),
+                "update_checks": bool(network.get("update_checks", False)),
                 "configured_external_providers": 0,
             },
         }
