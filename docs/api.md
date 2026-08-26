@@ -53,3 +53,9 @@ User input is converted to literal FTS terms rather than accepted as raw SQLite 
 ## Read-only boundary
 
 The v1 routes in this slice do not expose mutation endpoints. Ingestion and index rebuild are operator actions through the application service/CLI. Future write APIs require separate scope and permission design rather than being added implicitly to this read-only surface.
+
+## Installation security
+
+`GET /api/v1/security/installation` verifies the locally installed Provelume package against wheel `RECORD` SHA-256 identities. It performs no network I/O and does not read Instance knowledge or configuration.
+
+The result separates package-byte integrity (`package_integrity_verified`, `modified_installation`, or `verification_unavailable`) from official origin, which remains `not_established` until a trusted release manifest/signature is supplied. The endpoint is read-only.

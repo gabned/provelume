@@ -10,6 +10,8 @@ from fastapi.templating import Jinja2Templates
 from .api import attach_api
 from .build_info import current_build_info
 from .i18n import SUPPORTED_LANGUAGES, translator
+from .installation import verify_current_installation
+from .installation_i18n import installation_translator
 from .service import ProvelumeInstance
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -32,6 +34,19 @@ def _context(request: Request, instance: ProvelumeInstance, **values: Any) -> di
         "instance": instance.instance_summary(),
         "lang": language,
         "t": translator(language),
+        "security_t": installation_translator(language),
+        **values,
+    }
+
+
+def _installation_context(request: Request, **values: Any) -> dict[str, Any]:
+    requested = request.query_params.get("lang")
+    language = requested if requested in SUPPORTED_LANGUAGES else "en"
+    return {
+        "request": request,
+        "lang": language,
+        "t": translator(language),
+        "security_t": installation_translator(language),
         **values,
     }
 
@@ -169,6 +184,17 @@ def create_app(instance_root: Path | str) -> FastAPI:
             request=request,
             name="security.html",
             context=_context(request, instance, build=current_build_info()),
+        )
+
+    @app.get("/security/installation")
+    def installation_page(request: Request):
+        return TEMPLATES.TemplateResponse(
+            request=request,
+            name="installation_verification.html",
+            context=_installation_context(
+                request,
+                verification=verify_current_installation(),
+            ),
         )
 
     return app

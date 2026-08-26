@@ -16,6 +16,10 @@
     {% endif %}
     <span>{{ t('security.offline_summary') }}</span>
   </div>
+  <p class="status-row">
+    <a href="/security/installation?lang={{ lang }}">{{ security_t('nav.verify_installation') }}</a>
+    <span>{{ security_t('nav.verify_description') }}</span>
+  </p>
 </section>
 
 <section class="two-column security-layout">

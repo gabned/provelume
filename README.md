@@ -148,6 +148,8 @@ The official publication path is additionally gated by the reviewed Ubuntu/CPyth
 
 Official release bundles also include a standard-library-only offline verifier. It recomputes checksums, manifest, lock and rebuild evidence without network access, while explicitly distinguishing internal bundle consistency from official-origin authentication. An independently trusted manifest SHA-256 can be supplied as a cryptographic anchor. See `docs/release/offline-verification.md`.
 
+The local Security surface also provides **Verify installation** through the CLI, read-only API and browser. It checks installed package bytes against wheel `RECORD` without network access, while keeping package integrity distinct from official-origin authentication. See `docs/security/verify-installation.md`.
+
 ## Product boundaries
 
 | Area | Repository | Purpose |

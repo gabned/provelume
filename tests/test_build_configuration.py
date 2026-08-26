@@ -52,6 +52,10 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "--channel \"$CHANNEL\"" in release
     assert "--official" in release
     assert 'value["identity_status"] == "official_metadata_present"' in release
+    assert '"$runtime/bin/provelume" verify-installation' in release
+    assert 'installation["status"] == "package_integrity_verified"' in release
+    assert 'installation["network_used"] is False' in release
+    assert 'installation["origin"]["status"] == "not_established"' in release
     assert "uses: ./.github/workflows/release-pipeline.yml" in release_caller
     assert "uses: ./.github/workflows/release-publish.yml" in release_caller
     assert "source_commit:" in release

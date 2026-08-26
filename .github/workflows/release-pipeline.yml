@@ -452,6 +452,8 @@ jobs:
           python -m venv "$runtime"
           "$runtime/bin/python" -m pip install "$candidate"/dist/*.whl
           "$runtime/bin/provelume" --help >/dev/null
+          "$runtime/bin/provelume" verify-installation \
+            > "$assembly/installed-package-verification.json"
           "$runtime/bin/provelume" build-info > "$assembly/installed-build-info.json"
           export VERSION TAG CHANNEL PUBLISH
           python - <<'PY'
@@ -460,6 +462,12 @@ jobs:
           from pathlib import Path
 
           root = Path(os.environ["RUNNER_TEMP"]) / "provelume-release-assembly"
+          installation = json.loads(
+              (root / "installed-package-verification.json").read_text()
+          )
+          assert installation["status"] == "package_integrity_verified", installation
+          assert installation["network_used"] is False
+          assert installation["origin"]["status"] == "not_established"
           value = json.loads((root / "installed-build-info.json").read_text())
           assert value["source_repository"] == "gabned/provelume"
           assert value["commit"] == os.environ["SOURCE_COMMIT"]
@@ -477,7 +485,9 @@ jobs:
               assert value["tag"] is None
               assert value["channel"] == "development"
           PY
-          rm "$assembly/installed-build-info.json"
+          rm \
+            "$assembly/installed-build-info.json" \
+            "$assembly/installed-package-verification.json"
           cyclonedx-py environment \
             --output-reproducible \
             --output-format JSON \
