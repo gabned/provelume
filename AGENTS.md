@@ -53,6 +53,18 @@ Do not rely on a prompt's cached SHA when GitHub has advanced. If the verified b
 - Before removing or consolidating workflows, record one classification: `KEEP`, `KEEP_AND_HARDEN`, `REPLACE`, or `REMOVE_AS_OBSOLETE`, and preserve all stronger repository-local checks and names.
 - See `docs/agent-development-v1.2.md` for the base contract and `docs/agent-development-v1.2.1.md` for its change-control overlay.
 
+## Agent Development Protocol v1.3.0 review governance
+
+`AGENT_DEVELOPMENT_PROTOCOL: 1.3.0`
+
+`LIFECYCLE_SCHEMA: 1.2`
+
+The v1.3.0 governance overlay preserves PR-local ownership, the absence of `AGENT_STATUS.md`, lifecycle/effect/reconciliation schema v1.2, clean-room boundaries and trusted-base change control. Codex review is opt-in only. Unless the exact current maintainer instruction contains `CODEX_REVIEW_REQUESTED: TRUE`, record `REVIEW_REQUIREMENT_SOURCE: NONE` and `CODEX_REVIEW_STATE: NOT_REQUESTED`; do not publish a Codex review trigger, search for an external reviewer or wait on Codex availability.
+
+GitHub-required reviews remain mandatory as `REVIEW_REQUIREMENT_SOURCE: REPOSITORY`. An explicit maintainer request is `EXPLICIT_MAINTAINER`: `PENDING`, `UNAVAILABLE`, `UNKNOWN` and `FINDINGS` block, and `CLEAN` is valid only on the unchanged exact head. A verified exact-head maintainer withdrawal is `WITHDRAWN`, not clean, approval or waiver. 👀 and `COMMENTED` without a verdict are not clean.
+
+Any current technical finding blocks regardless of origin. Exact base/head/path binding, final-head CI, ancestry, mergeability, zero current threads, repository-required reviews, clean-room/deterministic-build/publication gates and post-merge reconciliation remain mandatory. Review governance cannot create, extend or reuse a waiver. See `docs/agent-development-v1.3.0.md`.
+
 ## Delivery and release discipline
 
 - Start from the verified default-branch SHA and keep the pull-request delta minimal.

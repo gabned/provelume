@@ -15,6 +15,7 @@ PROTOCOL_VERSION = "1.2"
 SCHEMA_VERSION = 2
 CHANGE_CONTROL_VERSION = "1.2.1"
 CHANGE_CONTROL_SCHEMA_VERSION = 1
+GOVERNANCE_RELEASE = "1.3.0"
 REPOSITORY = "gabned/provelume"
 DEFAULT_BRANCH = "main"
 MAX_EVIDENCE_AGE = timedelta(minutes=15)
@@ -24,6 +25,12 @@ SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 PR_PATTERN = re.compile(r"#[1-9][0-9]*")
 WORKSTREAM_PATTERN = re.compile(r"[a-z0-9]+(?:[._-][a-z0-9]+)*")
 LOGIN_PATTERN = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})")
+WITHDRAWAL_REFERENCE_PATTERN = re.compile(
+    r"(?:https://github[.]com/(?P<url_repository>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/"
+    r"(?:pull|issues)/(?P<url_pr>[1-9][0-9]*)#issuecomment-[1-9][0-9]*|"
+    r"(?P<compact_repository>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)"
+    r"#(?P<compact_pr>[1-9][0-9]*)@comment-[1-9][0-9]*)"
+)
 WORKSTREAM_CLASS_PATTERN = re.compile(
     r"(?m)^WORKSTREAM_CLASS:[ \t]*([^\r\n]+?)[ \t]*$"
 )
@@ -44,6 +51,7 @@ SAFE_PROTOCOL_PATHS = {
     "AGENTS.md",
     "docs/agent-development-v1.2.md",
     "docs/agent-development-v1.2.1.md",
+    "docs/agent-development-v1.3.0.md",
     "tests/test_agent_protocol_v1_2.py",
     "tests/test_agent_protocol_v1_2_1.py",
     "tools/agent_protocol.py",
@@ -57,6 +65,7 @@ PROTECTED_PROTOCOL_EXACT = {
     "AGENTS.md",
     "docs/agent-development-v1.2.md",
     "docs/agent-development-v1.2.1.md",
+    "docs/agent-development-v1.3.0.md",
     "tests/test_agent_protocol_v1_2.py",
     "tests/test_agent_protocol_v1_2_1.py",
     "tools/agent_protocol.py",
@@ -108,6 +117,36 @@ WAIVER_REASON_CODES = {
     "EMERGENCY_PRODUCTION_RESTORE",
     "EMERGENCY_SECURITY_RESPONSE",
 }
+REVIEW_REQUIREMENT_SOURCES = {
+    "REPOSITORY",
+    "EXPLICIT_MAINTAINER",
+    "NONE",
+    "UNKNOWN",
+}
+CODEX_REVIEW_STATES = {
+    "NOT_REQUESTED",
+    "PENDING",
+    "CLEAN",
+    "FINDINGS",
+    "WITHDRAWN",
+    "UNAVAILABLE",
+    "UNKNOWN",
+}
+CODEX_REVIEW_SIGNALS = {
+    "NONE",
+    "EYES",
+    "COMMENTED",
+    "CLEAN",
+    "FINDINGS",
+    "UNKNOWN",
+}
+REPOSITORY_REVIEW_STATES = {
+    "NOT_APPLICABLE",
+    "SATISFIED",
+    "BLOCKED",
+    "UNKNOWN",
+}
+TECHNICAL_FINDING_STATES = {"NONE", "CURRENT", "UNKNOWN"}
 WAIVER_FIELDS = {
     "active",
     "approver_login",
@@ -182,6 +221,185 @@ def require_pr(value: Any, label: str = "owner_pr") -> str:
     if not isinstance(value, str) or PR_PATTERN.fullmatch(value) is None:
         fail(f"{label} must use exact #123 form")
     return value
+
+
+def derive_codex_review_state(
+    *,
+    requested: bool,
+    available: bool,
+    signal: str,
+    current_head: str,
+    reviewed_head: str | None = None,
+    withdrawn: bool = False,
+    current_technical_finding: bool = False,
+) -> str:
+    for value, label in (
+        (requested, "requested"),
+        (available, "available"),
+        (withdrawn, "withdrawn"),
+        (current_technical_finding, "current technical finding"),
+    ):
+        if type(value) is not bool:
+            raise ContractError(f"{label} must be boolean")
+    require_choice(signal, "Codex review signal", CODEX_REVIEW_SIGNALS)
+    require_sha(current_head, "current_head")
+    if current_technical_finding or signal == "FINDINGS":
+        return "FINDINGS"
+    if withdrawn:
+        if not requested:
+            raise ContractError("an unrequested review cannot be withdrawn")
+        return "WITHDRAWN"
+    if not requested:
+        return "NOT_REQUESTED"
+    if not available:
+        return "UNAVAILABLE"
+    if signal == "CLEAN":
+        return "CLEAN" if reviewed_head == current_head else "UNKNOWN"
+    if signal in {"NONE", "EYES", "COMMENTED"}:
+        return "PENDING"
+    return "UNKNOWN"
+
+
+def validate_review_withdrawal(
+    record: Any,
+    *,
+    repository: str,
+    owner_pr: str,
+    owner_head: str,
+) -> bool:
+    required = {
+        "repository",
+        "owner_pr",
+        "owner_head_sha",
+        "withdrawn_by",
+        "comment_reference",
+        "maintainer_verified",
+    }
+    if not isinstance(record, dict) or set(record) != required:
+        raise ContractError("exact review-withdrawal record required")
+    if (
+        record["repository"] != repository
+        or record["owner_pr"] != owner_pr
+        or record["owner_head_sha"] != owner_head
+    ):
+        raise ContractError("review withdrawal scope mismatch")
+    require_pr(record["owner_pr"])
+    require_sha(record["owner_head_sha"], "owner_head_sha")
+    login = record["withdrawn_by"]
+    if (
+        not isinstance(login, str)
+        or LOGIN_PATTERN.fullmatch(login) is None
+        or login.endswith("[bot]")
+        or record["maintainer_verified"] is not True
+    ):
+        raise ContractError("verified human maintainer withdrawal required")
+    reference = record["comment_reference"]
+    match = (
+        WITHDRAWAL_REFERENCE_PATTERN.fullmatch(reference)
+        if isinstance(reference, str)
+        else None
+    )
+    if match is None:
+        raise ContractError("immutable withdrawal comment reference required")
+    reference_repository = (
+        match.group("url_repository") or match.group("compact_repository")
+    )
+    reference_pr = match.group("url_pr") or match.group("compact_pr")
+    if reference_repository != repository or f"#{reference_pr}" != owner_pr:
+        raise ContractError("withdrawal comment reference does not match the owner PR")
+    return True
+
+
+def evaluate_review_gate(
+    *,
+    source: str,
+    codex_state: str,
+    repository: str,
+    owner_pr: str,
+    current_head: str,
+    reviewed_head: str | None = None,
+    repository_review: str = "NOT_APPLICABLE",
+    technical_finding: str = "NONE",
+    withdrawal: dict[str, Any] | None = None,
+    waiver: Any = None,
+) -> dict[str, Any]:
+    errors: list[str] = []
+    for value, allowed, label in (
+        (source, REVIEW_REQUIREMENT_SOURCES, "review requirement source"),
+        (codex_state, CODEX_REVIEW_STATES, "Codex review state"),
+        (repository_review, REPOSITORY_REVIEW_STATES, "repository review"),
+        (technical_finding, TECHNICAL_FINDING_STATES, "technical finding"),
+    ):
+        try:
+            require_choice(value, label, allowed)
+        except ContractError as exc:
+            errors.append(str(exc))
+    try:
+        require_pr(owner_pr)
+        require_sha(current_head, "current_head")
+    except ContractError as exc:
+        errors.append(str(exc))
+
+    clean_signal = False
+    if waiver is not None:
+        errors.append("review policy cannot create, extend or reuse a waiver")
+    if source == "UNKNOWN" or codex_state == "UNKNOWN":
+        errors.append("review decision evidence is UNKNOWN")
+    if technical_finding != "NONE" or codex_state == "FINDINGS":
+        errors.append("current technical finding blocks")
+
+    codex_gate = "BLOCKED"
+    if source == "NONE":
+        if codex_state == "NOT_REQUESTED":
+            codex_gate = "NOT_APPLICABLE"
+        elif codex_state not in {"FINDINGS", "UNKNOWN"}:
+            errors.append("Codex state is inconsistent with an unrequested review")
+    elif source == "REPOSITORY":
+        if repository_review == "SATISFIED" and codex_state == "NOT_REQUESTED":
+            codex_gate = "NOT_APPLICABLE"
+        elif repository_review != "SATISFIED":
+            errors.append("GitHub-required review is not satisfied")
+        else:
+            errors.append("Codex state is inconsistent with a repository review")
+    elif source == "EXPLICIT_MAINTAINER":
+        if codex_state == "CLEAN":
+            if reviewed_head == current_head:
+                codex_gate = "SATISFIED"
+                clean_signal = True
+            else:
+                errors.append("clean review is not bound to the current exact head")
+        elif codex_state == "WITHDRAWN":
+            try:
+                validate_review_withdrawal(
+                    withdrawal,
+                    repository=repository,
+                    owner_pr=owner_pr,
+                    owner_head=current_head,
+                )
+                codex_gate = "WITHDRAWN"
+            except ContractError as exc:
+                errors.append(str(exc))
+        elif codex_state not in {"FINDINGS", "UNKNOWN"}:
+            errors.append("explicit Codex review has no terminal clean or withdrawal state")
+
+    if source != "REPOSITORY" and repository_review in {"BLOCKED", "UNKNOWN"}:
+        errors.append("repository review is blocked or UNKNOWN")
+    if source == "REPOSITORY" and repository_review == "NOT_APPLICABLE":
+        errors.append("repository review requirement cannot be not applicable")
+    if source == "NONE" and repository_review != "NOT_APPLICABLE":
+        errors.append("unrequested review must have no repository review gate")
+    allowed = not errors
+    return {
+        "governance_release": GOVERNANCE_RELEASE,
+        "lifecycle_schema": PROTOCOL_VERSION,
+        "review_requirement_source": source,
+        "codex_review_state": codex_state,
+        "codex_gate": codex_gate if allowed else "BLOCKED",
+        "clean_review_signal": clean_signal and allowed,
+        "waiver_applied": False,
+        "merge_allowed": allowed,
+        "errors": errors,
+    }
 
 
 def require_workstream(value: Any) -> str:
@@ -578,6 +796,59 @@ def validate_snapshot_identity(snapshot: dict[str, Any]) -> list[str]:
     return errors
 
 
+def normalize_review_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Normalize an unambiguous lifecycle-v1.2 connector into v1.3 governance."""
+
+    v13_keys = {
+        "review_requirement_source",
+        "codex_review_state",
+        "repository_review",
+        "technical_finding",
+        "codex_reviewed_head",
+        "codex_review_withdrawal",
+    }
+    if any(key in snapshot for key in v13_keys):
+        return {
+            "source": snapshot.get("review_requirement_source", "UNKNOWN"),
+            "codex_state": snapshot.get("codex_review_state", "UNKNOWN"),
+            "repository_review": snapshot.get("repository_review", "UNKNOWN"),
+            "technical_finding": snapshot.get("technical_finding", "UNKNOWN"),
+            "reviewed_head": snapshot.get("codex_reviewed_head"),
+            "withdrawal": snapshot.get("codex_review_withdrawal"),
+            "adapter": "V1_3_NATIVE",
+        }
+
+    requires_approval = snapshot.get("requires_approval", "UNKNOWN")
+    review = snapshot.get("review", "UNKNOWN")
+    if requires_approval not in {"TRUE", "FALSE", "UNKNOWN"} or review not in {
+        "APPROVED",
+        "CHANGES_REQUESTED",
+        "NONE",
+        "UNKNOWN",
+    }:
+        requires_approval = "UNKNOWN"
+    technical_finding = "CURRENT" if review == "CHANGES_REQUESTED" else "NONE"
+    if requires_approval == "FALSE":
+        source = "NONE"
+        repository_review = "NOT_APPLICABLE"
+    elif requires_approval == "TRUE":
+        source = "REPOSITORY"
+        repository_review = "SATISFIED" if review == "APPROVED" else "BLOCKED"
+    else:
+        source = "UNKNOWN"
+        repository_review = "UNKNOWN"
+        technical_finding = "UNKNOWN"
+    return {
+        "source": source,
+        "codex_state": "NOT_REQUESTED" if source != "UNKNOWN" else "UNKNOWN",
+        "repository_review": repository_review,
+        "technical_finding": technical_finding,
+        "reviewed_head": None,
+        "withdrawal": None,
+        "adapter": "LIFECYCLE_V1_2_COMPATIBILITY",
+    }
+
+
 def preflight(snapshot: dict[str, Any], binding: dict[str, Any]) -> dict[str, Any]:
     errors = validate_snapshot_identity(snapshot)
     try:
@@ -609,8 +880,6 @@ def preflight(snapshot: dict[str, Any], binding: dict[str, Any]) -> dict[str, An
         "pr_state": {"OPEN", "UNKNOWN"},
         "draft": {"TRUE", "FALSE", "UNKNOWN"},
         "checks": {"SUCCESS", "PENDING", "FAILURE", "NONE", "UNKNOWN"},
-        "review": {"APPROVED", "CHANGES_REQUESTED", "NONE", "UNKNOWN"},
-        "requires_approval": {"TRUE", "FALSE", "UNKNOWN"},
         "mergeability": {"MERGEABLE", "CONFLICTING", "UNKNOWN"},
         "base_ancestry": {"TRUE", "FALSE", "UNKNOWN"},
         "binding_basis_ancestor": {"TRUE", "FALSE", "UNKNOWN"},
@@ -636,14 +905,28 @@ def preflight(snapshot: dict[str, Any], binding: dict[str, Any]) -> dict[str, An
     if not isinstance(unresolved, int) or isinstance(unresolved, bool) or unresolved != 0:
         errors.append("unresolved thread count blocks or is UNKNOWN")
 
-    requires_approval = snapshot.get("requires_approval")
-    review = snapshot.get("review")
-    if requires_approval == "UNKNOWN":
-        errors.append("required-review policy is UNKNOWN")
-    elif requires_approval == "TRUE" and review != "APPROVED":
-        errors.append("required approval is missing")
-    if review == "CHANGES_REQUESTED":
-        errors.append("review requests changes")
+    review_input = normalize_review_snapshot(snapshot)
+    review_result = evaluate_review_gate(
+        source=str(review_input["source"]),
+        codex_state=str(review_input["codex_state"]),
+        repository=REPOSITORY,
+        owner_pr=str(snapshot.get("owner_pr", "UNKNOWN")),
+        current_head=str(snapshot.get("head_sha", "UNKNOWN")),
+        reviewed_head=(
+            review_input["reviewed_head"]
+            if isinstance(review_input["reviewed_head"], str)
+            else None
+        ),
+        repository_review=str(review_input["repository_review"]),
+        technical_finding=str(review_input["technical_finding"]),
+        withdrawal=(
+            review_input["withdrawal"]
+            if isinstance(review_input["withdrawal"], dict)
+            else None
+        ),
+    )
+    review_result["adapter"] = review_input["adapter"]
+    errors.extend(review_result["errors"])
 
     if snapshot.get("credentials_accessed") is not False:
         errors.append("connector snapshot accessed credentials or is UNKNOWN")
@@ -660,6 +943,7 @@ def preflight(snapshot: dict[str, Any], binding: dict[str, Any]) -> dict[str, An
             "observed_at": now_utc(),
             "result": result,
             "merge_ready": result == "READY",
+            "review_governance": review_result,
             "errors": errors,
         }
     )
@@ -1106,8 +1390,11 @@ def self_test() -> None:
             "pr_state": "OPEN",
             "draft": "FALSE",
             "checks": "SUCCESS",
-            "review": "UNKNOWN",
-            "requires_approval": "FALSE",
+            "review_requirement_source": "NONE",
+            "codex_review_state": "NOT_REQUESTED",
+            "repository_review": "NOT_APPLICABLE",
+            "technical_finding": "NONE",
+            "codex_reviewed_head": "NOT_APPLICABLE",
             "unresolved_threads": 0,
             "mergeability": "MERGEABLE",
             "base_ancestry": "TRUE",
@@ -1197,8 +1484,9 @@ def self_test() -> None:
     assert mixed["merge_allowed"] is False
     assert "MIXED_SCOPE" in mixed["blocker_codes"]
     print(
-        f"{REPOSITORY} Agent Development Protocol v{PROTOCOL_VERSION} contracts "
-        f"and v{CHANGE_CONTROL_VERSION} change control passed."
+        f"{REPOSITORY} Agent Development Protocol lifecycle v{PROTOCOL_VERSION}, "
+        f"change control v{CHANGE_CONTROL_VERSION} and review governance "
+        f"v{GOVERNANCE_RELEASE} passed."
     )
 
 

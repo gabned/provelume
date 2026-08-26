@@ -262,3 +262,158 @@ def test_global_checkpoint_path_is_never_waivable() -> None:
     assert report["observed_path_categories"] == ["FORBIDDEN_GLOBAL_STATE"]
     assert report["blocker_codes"] == ["GLOBAL_STATE_FORBIDDEN"]
     assert report["merge_allowed"] is False
+
+
+def review_common() -> dict[str, object]:
+    return {
+        "repository": protocol.REPOSITORY,
+        "owner_pr": "#48",
+        "current_head": HEAD,
+        "repository_review": "NOT_APPLICABLE",
+        "technical_finding": "NONE",
+    }
+
+
+def test_v1_3_unrequested_codex_review_is_not_a_gate() -> None:
+    assert protocol.GOVERNANCE_RELEASE == "1.3.0"
+    assert protocol.PROTOCOL_VERSION == "1.2"
+    result = protocol.evaluate_review_gate(
+        source="NONE",
+        codex_state="NOT_REQUESTED",
+        **review_common(),
+    )
+    assert result["merge_allowed"] is True
+    assert result["codex_gate"] == "NOT_APPLICABLE"
+
+
+def test_v1_3_explicit_review_pending_clean_and_findings() -> None:
+    pending = protocol.evaluate_review_gate(
+        source="EXPLICIT_MAINTAINER",
+        codex_state="PENDING",
+        **review_common(),
+    )
+    assert pending["merge_allowed"] is False
+    clean = protocol.evaluate_review_gate(
+        source="EXPLICIT_MAINTAINER",
+        codex_state="CLEAN",
+        reviewed_head=HEAD,
+        **review_common(),
+    )
+    assert clean["merge_allowed"] is True
+    assert clean["clean_review_signal"] is True
+    findings = protocol.evaluate_review_gate(
+        source="EXPLICIT_MAINTAINER",
+        codex_state="FINDINGS",
+        **review_common(),
+    )
+    assert findings["merge_allowed"] is False
+
+
+def test_v1_3_moved_head_invalidates_clean_review() -> None:
+    state = protocol.derive_codex_review_state(
+        requested=True,
+        available=True,
+        signal="CLEAN",
+        reviewed_head=HEAD,
+        current_head=MOVED_HEAD,
+    )
+    assert state == "UNKNOWN"
+    assert protocol.evaluate_review_gate(
+        source="EXPLICIT_MAINTAINER",
+        codex_state=state,
+        reviewed_head=HEAD,
+        **(review_common() | {"current_head": MOVED_HEAD}),
+    )["merge_allowed"] is False
+
+
+def test_v1_3_withdrawal_has_no_clean_signal_and_is_not_a_waiver() -> None:
+    withdrawal = {
+        "repository": protocol.REPOSITORY,
+        "owner_pr": "#48",
+        "owner_head_sha": HEAD,
+        "withdrawn_by": "gabned",
+        "comment_reference": f"{protocol.REPOSITORY}#48@comment-1",
+        "maintainer_verified": True,
+    }
+    result = protocol.evaluate_review_gate(
+        source="EXPLICIT_MAINTAINER",
+        codex_state="WITHDRAWN",
+        withdrawal=withdrawal,
+        **review_common(),
+    )
+    assert result["merge_allowed"] is True
+    assert result["clean_review_signal"] is False
+    assert result["waiver_applied"] is False
+    unrelated = dict(withdrawal)
+    unrelated["comment_reference"] = "other/repository#9@comment-1"
+    assert protocol.evaluate_review_gate(
+        source="EXPLICIT_MAINTAINER",
+        codex_state="WITHDRAWN",
+        withdrawal=unrelated,
+        **review_common(),
+    )["merge_allowed"] is False
+
+
+def test_v1_3_advisory_signals_and_availability_are_normalized() -> None:
+    for signal in ("EYES", "COMMENTED"):
+        assert protocol.derive_codex_review_state(
+            requested=True,
+            available=True,
+            signal=signal,
+            current_head=HEAD,
+        ) == "PENDING"
+    assert protocol.derive_codex_review_state(
+        requested=False,
+        available=False,
+        signal="NONE",
+        current_head=HEAD,
+    ) == "NOT_REQUESTED"
+    assert protocol.derive_codex_review_state(
+        requested=True,
+        available=False,
+        signal="NONE",
+        current_head=HEAD,
+    ) == "UNAVAILABLE"
+
+
+def test_v1_3_repository_review_and_unknown_fields_fail_closed() -> None:
+    repository_required = review_common()
+    repository_required["repository_review"] = "SATISFIED"
+    assert protocol.evaluate_review_gate(
+        source="REPOSITORY",
+        codex_state="NOT_REQUESTED",
+        **repository_required,
+    )["merge_allowed"] is True
+    repository_required["repository_review"] = "BLOCKED"
+    assert protocol.evaluate_review_gate(
+        source="REPOSITORY",
+        codex_state="NOT_REQUESTED",
+        **repository_required,
+    )["merge_allowed"] is False
+    assert protocol.evaluate_review_gate(
+        source="EXPLICIT_MAINTAINER",
+        codex_state="CLEAN",
+        reviewed_head=HEAD,
+        **repository_required,
+    )["merge_allowed"] is False
+    assert protocol.evaluate_review_gate(
+        source="UNKNOWN",
+        codex_state="UNKNOWN",
+        **review_common(),
+    )["merge_allowed"] is False
+
+
+def test_v1_3_current_finding_blocks_and_review_cannot_reuse_waiver() -> None:
+    finding = review_common()
+    finding["technical_finding"] = "CURRENT"
+    assert protocol.evaluate_review_gate(
+        source="NONE",
+        codex_state="NOT_REQUESTED",
+        **finding,
+    )["merge_allowed"] is False
+    assert protocol.evaluate_review_gate(
+        source="NONE",
+        codex_state="NOT_REQUESTED",
+        waiver={"reuse": True},
+        **review_common(),
+    )["merge_allowed"] is False
