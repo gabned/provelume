@@ -14,7 +14,9 @@ network:
   update_checks: false
 ```
 
-This is a declared baseline, not a claim that the operating system prevents every process from opening a socket. Future network-capable components must declare their capability and surface it in Privacy & Network Activity.
+This is a declared baseline, not a claim that the operating system prevents every process from opening a socket. `provelume network-status`, `GET /api/v1/security/network` and `/security/network` expose the configuration-derived policy and component inventory without performing a network request. Filesystem Sources are the only registered Source type in this baseline. Unknown Source, connector or provider types remain visibly `undeclared` until their public capability contract is implemented.
+
+Configured endpoints are transparency metadata, not connection instructions for this read-only surface. Only safe HTTP(S) origins are returned; credentials, paths, query strings and fragments are never surfaced. Runtime traffic observation is explicitly `not_instrumented` and remains separate from declared capability.
 
 ## Future AI Gateway boundary
 

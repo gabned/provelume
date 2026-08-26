@@ -5,6 +5,7 @@ from typing import Any
 
 from .index import index_status, rebuild_search_index, search_index
 from .ingest import ingest_filesystem
+from .network_status import declared_network_status
 from .storage import InstanceStore
 
 
@@ -248,6 +249,9 @@ class ProvelumeInstance:
                 "configured_external_providers": 0,
             },
         }
+
+    def network_status(self) -> dict[str, Any]:
+        return declared_network_status(self.store.read_config())
 
     def knowledge_health(self) -> dict[str, Any]:
         documents = self.store.list_canonical("documents")

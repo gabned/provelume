@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ t('network.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb">
+  <a href="/?lang={{ lang }}">{{ t('nav.home') }}</a>
+  <span>/</span>
+  <a href="/security?lang={{ lang }}">{{ t('nav.security') }}</a>
+  <span>/</span>
+  <span>{{ t('nav.network') }}</span>
+</nav>
+<section class="hero">
+  <p class="eyebrow">{{ t('network.eyebrow') }}</p>
+  <h1>{{ t('network.title') }}</h1>
+  <p class="lead">{{ t('network.lead') }}</p>
+  <div class="status-row">
+    <span class="status {{ 'ok' if network.status == 'local_only' else 'info' if network.status == 'external_access_allowed' else 'warn' }}">{{ t('network.status.' ~ network.status) }}</span>
+    <span>{{ t('network.read_only') }}</span>
+  </div>
+</section>
+
+<section class="metric-grid">
+  <article><strong>{{ network.summary.configured_components }}</strong><span>{{ t('network.metric.components') }}</span></article>
+  <article><strong>{{ network.summary.enabled_external_components }}</strong><span>{{ t('network.metric.external') }}</span></article>
+  <article><strong>{{ network.summary.enabled_unknown_components }}</strong><span>{{ t('network.metric.unknown') }}</span></article>
+  <article><strong>{{ network.summary.conflicts }}</strong><span>{{ t('network.metric.conflicts') }}</span></article>
+</section>
+
+<section class="two-column security-layout">
+  <article class="panel">
+    <h2>{{ t('network.components') }}</h2>
+    <ul class="issue-list">
+      {% for component in network.components %}
+      <li>
+        <div class="panel-heading">
+          <strong><code>{{ component.id }}</code></strong>
+          <span class="status {{ 'warn' if component.declaration_state == 'undeclared' else 'info' }}">{{ t('network.declaration.' ~ component.declaration_state) }}</span>
+        </div>
+        <span>{{ t('network.type') }}: {{ component.type }} · {{ t('network.capability') }}: {{ t('network.capability.' ~ component.network_capability) }} · {{ t('network.enabled') }}: {{ t('common.yes') if component.enabled else t('common.no') }}</span>
+        {% if component.endpoint %}<span>{{ t('network.endpoint') }}: <code>{{ component.endpoint }}</code></span>{% endif %}
+        {% if component.data_categories %}<span>{{ t('network.data_categories') }}: {{ component.data_categories | join(', ') }}</span>{% endif %}
+        <span>{{ t('network.observed') }}: {{ t('network.observed.not_instrumented') }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </article>
+
+  <aside>
+    <section class="panel {{ 'trust-boundary' if network.conflicts else '' }}">
+      <h2>{{ t('network.conflicts') }}</h2>
+      {% if network.conflicts %}
+      <ul class="issue-list">
+        {% for conflict in network.conflicts %}
+        <li><strong>{{ conflict.code }}</strong><span><code>{{ conflict.component_id }}</code></span></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="empty">{{ t('network.conflicts.none') }}</p>
+      {% endif %}
+    </section>
+    <section class="panel trust-boundary">
+      <h2>{{ t('network.observed_title') }}</h2>
+      <p>{{ t('network.observed_boundary') }}</p>
+      <p class="status-row"><span class="status warn">{{ t('network.observed.not_instrumented') }}</span></p>
+      <p class="technical-note">{{ t('network.no_network') }}</p>
+    </section>
+  </aside>
+</section>
+{% endblock %}

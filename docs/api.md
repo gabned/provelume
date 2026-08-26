@@ -50,6 +50,21 @@ User input is converted to literal FTS terms rather than accepted as raw SQLite 
 
 `GET /api/v1/knowledge-health` reports issues detectable by the first slice, including extraction failures, missing Sources, duplicate current content and missing/out-of-date derived search state.
 
+## Privacy and network activity
+
+`GET /api/v1/security/network` derives an effective network policy and component inventory from the local Instance configuration. The same contract is available through `provelume network-status <instance>` and the EN/IT `/security/network` browser page.
+
+The result is observationally honest:
+
+- `network_used` is `false` because reading the result performs no network request;
+- `observed_activity.status` is `not_instrumented`, which is not a claim that zero traffic occurred;
+- filesystem Sources are classified as `local_only`, but their physical paths are never returned;
+- configured HTTP(S) endpoints are reduced to their origin, excluding paths, query strings, fragments and credentials;
+- unknown Source, connector or provider types are `undeclared` with `network_capability: unknown` rather than silently treated as local;
+- conflicts include enabled external components under `external_access: false`, enabled update checks without an endpoint and malformed declarations.
+
+The endpoint is read-only and does not mutate canonical, derived or configuration state.
+
 ## Read-only boundary
 
 The v1 routes in this slice do not expose mutation endpoints. Ingestion and index rebuild are operator actions through the application service/CLI. Future write APIs require separate scope and permission design rather than being added implicitly to this read-only surface.

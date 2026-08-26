@@ -197,4 +197,16 @@ def create_app(instance_root: Path | str) -> FastAPI:
             ),
         )
 
+    @app.get("/security/network")
+    def network_status_page(request: Request):
+        return TEMPLATES.TemplateResponse(
+            request=request,
+            name="network_status.html",
+            context=_context(
+                request,
+                instance,
+                network=instance.network_status(),
+            ),
+        )
+
     return app
