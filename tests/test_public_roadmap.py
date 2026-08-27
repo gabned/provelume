@@ -136,7 +136,8 @@ def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
 
     assert "Every later unreleased\nforecast moves forward atomically by one" in roadmap
     assert "`0.22.0` release candidate" in roadmap
-    assert "stable `1.0.0` remain unchanged" in roadmap
+    assert "stable `1.0.0` now depends on `0.22.0`" in roadmap
+    assert "scope expansions in `0.7.0`–`0.11.0` are explicit above" in roadmap
 
 
 def test_mobile_capture_is_bounded_and_review_first() -> None:
