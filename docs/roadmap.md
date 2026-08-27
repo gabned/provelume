@@ -30,7 +30,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Forecast | `0.7.0` | Connector framework and safe web intake | issue just in time |
 | Forecast | `0.8.0` | Refresh engine and Source lifecycle | issue just in time |
 | Forecast | `0.9.0` | Email, Google file and transcript intake | issue just in time |
-| Forecast | `0.10.0` | Inbox and review queue | issue just in time |
+| Forecast | `0.10.0` | Mobile Capture Inbox and review queue | issue just in time |
 | Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time |
 | Forecast | `0.12.0` | Productivity connectors and guarded sync preview | issue just in time |
 | Forecast | `0.13.0` | Relations, knowledge health and deterministic discovery | issue just in time |
@@ -171,6 +171,13 @@ web acquisition with canonical URL and provenance; SSRF, reserved-address, DNS-r
 redirect controls; response/resource limits; conditional metadata; preserved acquired original
 plus derived readable text.
 
+Every connector type is multi-instance by contract. A ConnectorDefinition describes reusable
+adapter code and capabilities; each ConnectorInstance binds one endpoint, provider identity,
+authorization, scope set and policy; each instance may expose any number of independently selected
+Sources such as mailboxes, folders, calendars, workspaces, projects or feeds. Connector instances
+have stable identities, isolated credentials, cursors, schedules and health. No adapter may rely on
+a process-wide singleton account.
+
 **Exit gate:** synthetic hostile-network fixtures fail closed, every acquisition is attributable,
 and disabling network capability prevents access without a silent fallback.
 
@@ -184,8 +191,8 @@ and disabling network capability prevents access without a silent fallback.
 document version.
 
 **Includes:** bounded persistent jobs; manual/periodic/scheduled/conditional policies;
-per-account and per-Source cursors/checkpoints; conditional requests; rate-limit handling;
-retry/backoff/cancellation; Source locking and idempotency; explicit
+per-ConnectorInstance, per-account and per-Source cursors/checkpoints; conditional requests;
+rate-limit handling; retry/backoff/cancellation; instance/Source locking and idempotency; explicit
 active/paused/error/missing/superseded/reauthorization-required states; redacted network events
 distinct from declared capability; last-attempt, last-success, next-run and bounded resync status.
 
@@ -213,20 +220,42 @@ replacement does not migrate canonical knowledge.
 **Not in this release:** Google Calendar, task-provider sync, email sending, or automatic claims,
 decisions and tasks derived from communications or transcripts.
 
-### 0.10.0 — Inbox and Review Queue
+### 0.10.0 — Mobile Capture Inbox and Review Queue
 
-**Depends on:** durable ingestion and Sources.
+**Depends on:** durable ingestion, Sources and the `0.8.0` refresh/job foundation.
 
-**Outcome:** add the first write-safe curation flow without turning the browser into a generic
-editor.
+**Outcome:** make intentional capture from a phone fast while keeping every submitted item in a
+write-safe review flow rather than silently turning it into durable knowledge.
 
-**Includes:** closed review states and transitions; inbox for items requiring classification;
-proposal-before-mutation; separately scoped write API with idempotency and audit journal;
-CSRF/session protection; user-managed area/tag classification; duplicate decisions and links;
-undo or compensation where technically possible.
+**Includes:** closed review states and transitions; a mobile-responsive Capture Inbox; a bounded,
+append-only capture endpoint for files, photos/scans, screenshots, PDFs, URLs, text and audio/voice
+notes; exact-original preservation with capture time, submitting device/channel and optional
+user note/area; short-lived QR pairing and revocable per-device credentials; upload limits,
+content-type verification, malware-safe handling boundary, offline outbox/retry and idempotent
+submission.
+
+Reference mobile paths include an iOS Shortcut exposed in the Share Sheet, an Android share-target
+companion/reference client and direct camera/file-picker capture. A watched Google Drive drop
+folder from `0.9.0` provides the first no-app fallback. A provider-neutral capture-relay contract
+may be proven with one optional Telegram bot adapter that accepts only items explicitly sent or
+forwarded to the configured bot/chat and declares that content traverses Telegram. Each device,
+drop folder, bot and chat is a separate ConnectorInstance or Source.
+
+The same Inbox provides proposal-before-mutation, separately scoped write API with idempotency and
+audit journal, CSRF/session protection, user-managed area/tag classification, duplicate decisions
+and links, and undo or compensation where technically possible. LAN use is supported first;
+capture from outside the LAN requires an explicitly configured trusted network, VPN or hardened
+HTTPS exposure rather than a mandatory Provelume cloud relay.
 
 **Exit gate:** accepted, rejected and superseded transitions preserve originals and evidence;
-unauthorized, duplicate and replayed writes fail safely.
+duplicate, replayed, oversized, malformed and unauthorized submissions fail safely; device or bot
+revocation stops future capture; queued mobile submissions retry without duplication; and capture
+creates no automatic Claim, Decision, Task or CalendarEvent before review.
+
+**Not in this release:** reading arbitrary private chats; automatic audio transcription; mandatory
+cloud relay; WhatsApp Cloud API integration; or autonomous classification and durable writes.
+WhatsApp remains a later candidate only through a dedicated Business number/API flow, never by
+scraping or impersonating a personal WhatsApp account.
 
 ### 0.11.0 — Knowledge Objects v1
 
@@ -251,14 +280,18 @@ queue and `0.11.0` provider-independent Task and CalendarEvent objects.
 **Outcome:** connect common personal productivity systems without making Google, iCalendar,
 Asana or Tududi part of canonical knowledge or granting background write authority by default.
 
-**Includes:** multiple independently configurable provider accounts and Sources; Google Calendar
-read intake alongside the independently scoped Gmail and Drive capabilities introduced in
-`0.9.0`; multiple local or HTTPS iCalendar/ICS feeds with per-feed provenance; timezone,
-all-day, recurrence, exception and cancellation handling; Asana and Tududi adapters for projects,
-tasks, subtasks, assignees, due dates, completion state, comments and durable links; normalized
-Task/Outcome and CalendarEvent/Commitment mappings; adapter-isolated provider extensions;
-least-privilege consent, external credential references, reauthorization, connector health,
-cursor reset and bounded full resync.
+**Includes:** multiple independently configurable instances for every provider. Google supports
+multiple identities, with independently scoped Gmail, Drive and Calendar capabilities and
+separately selected mailboxes, folders and calendars. iCalendar supports multiple local or HTTPS
+ICS feeds with per-feed provenance, timezone, all-day, recurrence, exception and cancellation
+handling. Asana supports multiple OAuth identities and, within each identity, multiple
+organizations/workspaces, teams and projects as separate Sources. Tududi supports multiple server
+endpoints, accounts and project/task scopes.
+
+The adapters cover projects, tasks, subtasks, assignees, due dates, completion state, comments and
+durable links; normalized Task/Outcome and CalendarEvent/Commitment mappings; adapter-isolated
+provider extensions; per-instance read/write policy; least-privilege consent, external credential
+references, reauthorization, connector health, cursor reset and bounded full resync.
 
 Read intake is the default. A guarded task write-back preview is limited to a closed field set,
 such as completion state and due date, and requires an explicit diff, human confirmation,
@@ -266,10 +299,11 @@ idempotency key, optimistic-concurrency check and privacy-minimizing audit recei
 Tududi or provider capabilities fail visibly instead of being emulated through private or
 unstable interfaces.
 
-**Exit gate:** multiple Google accounts and multiple iCalendar feeds remain distinguishable;
-refresh and full resync are idempotent; recurrence and cross-provider duplicates are explainable;
-revoked credentials stop access without damaging imported knowledge; and a stale or replayed
-task write cannot overwrite newer provider state. Local-only mode performs no connector access.
+**Exit gate:** multiple Google accounts, Asana identities/workspaces/projects, Tududi endpoints
+and iCalendar feeds remain distinguishable; refresh and full resync are idempotent; recurrence and
+cross-provider duplicates are explainable; revoked credentials stop access without damaging
+imported knowledge; and a stale or replayed task write cannot overwrite newer provider state.
+Local-only mode performs no connector access.
 
 **Not in this release:** email sending; calendar create/update/delete; autonomous task creation or
 deletion; generic two-way multi-master synchronization; or a mandatory 1.0 commitment for
@@ -301,7 +335,8 @@ exclusive business logic.
 
 **Includes:** paginated and bounded Knowledge API v1 contracts; schemas and compatibility policy
 for documents, objects, provenance, search, related and health; read/write scope separation;
-read-only MCP tools for search and retrieval; aligned CLI/browser services; reference client;
+a versioned capture-submission contract and mobile-client conformance fixtures distinct from
+read-only MCP tools for search and retrieval; aligned CLI/browser services; reference clients;
 version negotiation and pre-1.0 deprecation policy.
 
 **Exit gate:** at least two clients pass the same conformance fixtures and no interface exposes
