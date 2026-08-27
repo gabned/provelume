@@ -8,15 +8,11 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.2.0 preview
+## Current status: 0.3.0 preview
 
-The latest published preview is `v0.2.0`.
-
-The unreleased `0.3.0` product scope is Anchored Local Installation Trust through issues #20
-and #52. Its implementation is complete pending a separate release-preparation change. The
-package identity remains `0.2.0`; this does not authorize a tag or publication. See the
-[public roadmap](docs/roadmap.md) and bounded
-[0.3.0 release plan](docs/releases/0.3.0.md).
+The latest published preview is `v0.3.0`. Its bounded product scope is Anchored Local
+Installation Trust through completed issues #20 and #52. See the
+[public roadmap](docs/roadmap.md) and [0.3.0 release plan](docs/releases/0.3.0.md).
 
 The published `v0.1.0` baseline implements a small local Instance that can:
 
@@ -39,7 +35,7 @@ The `v0.2.0` preview adds:
 - declared Privacy & Network Activity transparency, including safe endpoint origins,
   policy-conflict reporting and an explicit `not_instrumented` traffic-observation state.
 
-The unreleased `0.3.0` implementation optionally links that local installation check to an
+The `v0.3.0` preview optionally links that local installation check to an
 operator-supplied release bundle. It verifies the bundle offline, validates the candidate
 wheel and its internal `RECORD` without extraction, and compares installed Core files with
 wheel bytes independently from the mutable local `RECORD`. Bundle self-consistency does not
