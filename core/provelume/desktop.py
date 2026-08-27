@@ -1052,7 +1052,14 @@ def main(arguments: list[str] | None = None) -> int:
         if not 1 <= options.port <= 65535:
             raise SystemExit("port must be between 1 and 65535")
         app = create_app(options.serve)
-        uvicorn.run(app, host="127.0.0.1", port=options.port, log_level="warning")
+        uvicorn.run(
+            app,
+            host="127.0.0.1",
+            port=options.port,
+            log_level="warning",
+            log_config=None,
+            access_log=False,
+        )
         return 0
     return run_ui()
 

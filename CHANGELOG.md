@@ -44,6 +44,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   was moved or removed, and made missing/non-writable Instance failures explicit in EN/IT;
 - prevented a repeated Open action from launching the browser while the backend is still starting,
   preserved the real startup-failure state and reported an unexpected backend exit;
+- allowed the console-free frozen launcher to start its loopback backend without requiring
+  Uvicorn console streams;
 - bound Windows update-manifest commit identity to the commit resolved by the release tag instead
   of accepting any syntactically valid commit;
 - made the launcher fit reduced work areas through a vertically scrollable layout, requested modern

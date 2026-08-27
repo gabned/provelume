@@ -167,6 +167,36 @@ def test_desktop_diagnostics_and_headless_instance_bootstrap(tmp_path: Path) -> 
     assert json.loads(output.read_text())["settings_schema_version"] == 1
 
 
+def test_windowed_backend_does_not_require_console_logging(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "Instance with Unicode – 日本"
+    ProvelumeInstance.initialise(root)
+    app = object()
+    observed: list[tuple[object, dict[str, object]]] = []
+
+    monkeypatch.setattr("provelume.desktop.create_app", lambda _root: app)
+    monkeypatch.setattr(
+        "provelume.desktop.uvicorn.run",
+        lambda selected, **kwargs: observed.append((selected, kwargs)),
+    )
+
+    assert main(["--serve", str(root), "--port", "8123"]) == 0
+    assert observed == [
+        (
+            app,
+            {
+                "host": "127.0.0.1",
+                "port": 8123,
+                "log_level": "warning",
+                "log_config": None,
+                "access_log": False,
+            },
+        )
+    ]
+
+
 def test_startup_update_opt_in_is_visible_in_instance_network_status(tmp_path: Path) -> None:
     root = tmp_path / "instance"
     instance = ProvelumeInstance.initialise(root)

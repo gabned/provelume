@@ -336,7 +336,13 @@ try {
             }
         }
         if (-not $Ready) {
-            throw "The candidate backend did not become ready on loopback."
+            $BackendState = if ($Backend.HasExited) {
+                "exit code $($Backend.ExitCode)"
+            }
+            else {
+                "still running after the bounded readiness window"
+            }
+            throw "The candidate backend did not become ready on loopback ($BackendState)."
         }
         $Build = Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/build-info" -TimeoutSec 2
         $Instance = Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/instance" -TimeoutSec 2
