@@ -24,7 +24,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.1.0` | Local provenance-first Instance and verified release foundation | #40 (completed) |
 | Published preview | `0.2.0` | Local Installation Trust and Privacy & Network Activity transparency | #50 (merged) |
 | Published preview | `0.3.0` | Anchored Local Installation Trust | #52 (completed) |
-| Active implementation | `0.4.0` | Windows product shell preview | #57; one owner product PR |
+| Published preview | `0.4.0` | Windows product shell preview | #57 (completed) |
 | Next forecast | `0.5.0` | Durable ingestion and extractor completion | issue just in time; #5 is an input |
 | Forecast | `0.6.0` | Portable Instance lifecycle | issue just in time |
 | Forecast | `0.7.0` | Connector framework and safe web intake | issue just in time |
@@ -44,9 +44,9 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Release candidate | `0.21.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time |
 | Stable | `1.0.0` | Stable provenance-first platform | issue just in time |
 
-The package and embedded identity are `0.3.0`. Only an activated release may add work under
-`Unreleased`, and only a separate reviewed release-preparation change may align package
-identity, dated changelog history and tag intent.
+The package and embedded identity are `0.4.0`. The `0.5.0` forecast is not active: only a
+canonical issue and one owner product pull request may activate it and add product work under
+`Unreleased`.
 
 ## Planning and delivery contract
 
@@ -99,33 +99,29 @@ Delivered the remaining release-bundle portion of #20 through #52:
 Bundle self-consistency and byte agreement strengthen release linkage but do not by themselves
 authenticate the publisher. See [`releases/0.3.0.md`](releases/0.3.0.md).
 
-## Forecast release-by-release
-
 ### 0.4.0 — Windows Product Shell Preview
 
-**Outcome:** deliver the first product-shaped Windows installation before deeper capabilities,
-so a non-technical user can install Provelume, open a local Instance and inspect the real
+Delivered the first product-shaped Windows installation before deeper capabilities, so a
+non-technical user can install Provelume, open a local Instance and inspect the real
 version/update lifecycle without installing Git or Python.
 
-**Includes:** per-user Windows x64 preview installer with a bundled runtime; launcher/runtime and
+The preview includes a per-user Windows x64 installer with a bundled runtime; launcher/runtime and
 Instance-data separation; default Instance creation and existing-Instance selection; local
 start/stop/status/browser controls; EN/IT About identity; manual and opt-in startup update checks;
 provider-independent Windows update metadata with an explicit initial GitHub Releases transport;
 installer size/SHA-256 verification; user-confirmed installer handoff; uninstall that preserves
 Instance data; release-bundle publication and Windows install/use/uninstall CI evidence.
 
-**Exit gate:** issue #57 acceptance criteria pass on the supported Windows runner, every update
-network action is explicit, the frozen executable reports the exact reviewed build identity, and
-the published preview contains the version-aligned installer and update manifest.
-
-**Not in this release:** Authenticode, independent publisher authentication, unattended update
+It does not include Authenticode, independent publisher authentication, unattended update
 application, runtime slots, automatic rollback, interrupted-update recovery, Instance migrations,
 32-bit/ARM Windows or non-Windows desktop installers.
 
 This independently releasable product shell displaces the former `0.4.0` forecast. Every later
 unreleased `0.x` slot moves forward atomically through `0.21.0`; stable `1.0.0` remains the stable
-lane and now depends on the shifted `0.21.0` release candidate. Published `0.1.0`–`0.3.0` history
-and package identity remain unchanged until separate release preparation.
+lane and now depends on the shifted `0.21.0` release candidate. Earlier published history remains
+unchanged. See [`releases/0.4.0.md`](releases/0.4.0.md).
+
+## Forecast release-by-release
 
 ### 0.5.0 — Durable Ingestion and Extractor Completion
 
@@ -416,4 +412,4 @@ public Core contracts.
 - Observed runtime network-activity instrumentation and egress enforcement only after a separate
   privacy, platform and support decision.
 
-This work is not part of `0.3.0` and receives a version only through an atomic planning change.
+This work is not part of `0.4.0` and receives a version only through an atomic planning change.

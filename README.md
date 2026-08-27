@@ -8,20 +8,16 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.3.0 preview
+## Current status: 0.4.0 preview
 
-The latest published preview is `v0.3.0`. Its bounded product scope is Anchored Local
-Installation Trust through completed issues #20 and #52. See the
-[public roadmap](docs/roadmap.md) and [0.3.0 release plan](docs/releases/0.3.0.md).
+The latest published preview is `v0.4.0`. It is the first Windows Product Shell Preview: a
+per-user x64 installer with a bundled runtime, local launcher, About/version identity and an
+explicit update-check lifecycle. Issue #57 and the [0.4.0 release plan](docs/releases/0.4.0.md)
+define its bounded scope. See the [public roadmap](docs/roadmap.md) and the
+[Windows preview guide](docs/windows-preview.md) for installation and trust boundaries.
 
-The roadmap also records the non-activated release forecast from `0.5.0` through `1.0.0`.
-Forecast entries are sequencing coordinates, not availability claims or release authorization.
-
-The active `0.4.0` workstream is the first Windows Product Shell Preview. Issue #57 and the
-[release plan](docs/releases/0.4.0.md) define a per-user x64 installer with a bundled runtime,
-local launcher, About/version identity and an explicit update-check lifecycle. Until the separate
-release-preparation change and official tag are complete, the latest published preview remains
-`v0.3.0`.
+The roadmap records the non-activated release forecast from `0.5.0` through `1.0.0`. Forecast
+entries are sequencing coordinates, not availability claims or release authorization.
 
 The published `v0.1.0` baseline implements a small local Instance that can:
 
