@@ -489,10 +489,10 @@ def test_windows_missing_persisted_instance_renders_recovery_shell(
         )
         root.update()
         assert shell.instance_available is False
-        assert shell.open_button.cget("state") == "disabled"
-        assert shell.stop_button.cget("state") == "disabled"
-        assert shell.choose_button.cget("state") == "normal"
-        assert shell.create_button.cget("state") == "normal"
+        assert str(shell.open_button.cget("state")) == "disabled"
+        assert str(shell.stop_button.cget("state")) == "disabled"
+        assert str(shell.choose_button.cget("state")) == "normal"
+        assert str(shell.create_button.cget("state")) == "normal"
         assert "could not be found" in shell.status.get()
     finally:
         if shell is not None:
