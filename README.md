@@ -14,6 +14,9 @@ The latest published preview is `v0.3.0`. Its bounded product scope is Anchored 
 Installation Trust through completed issues #20 and #52. See the
 [public roadmap](docs/roadmap.md) and [0.3.0 release plan](docs/releases/0.3.0.md).
 
+The roadmap also records the non-activated release forecast from `0.4.0` through `1.0.0`.
+Forecast entries are sequencing coordinates, not availability claims or release authorization.
+
 The published `v0.1.0` baseline implements a small local Instance that can:
 
 - initialize in an ordinary directory;
