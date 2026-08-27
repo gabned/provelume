@@ -336,8 +336,9 @@ def create_release_assurance(
             "candidate and rebuild jobs use separately provisioned runners from the "
             "same CI provider",
             "the reviewed lock targets Ubuntu x86_64 / CPython 3.12.14 package builds",
-            "runtime dependency resolution, future installers and container images need "
-            "their own retained locks and reproducibility evidence",
+            "the Windows preview runtime has a retained hash lock, but installer "
+            "reproducibility, independent rebuild and code signing are not established; "
+            "container images still need their own retained locks and evidence",
         ],
     }
     _atomic_json(output, payload)

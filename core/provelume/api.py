@@ -6,6 +6,7 @@ from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
 from . import __version__
+from .about import current_about
 from .build_info import current_build_info
 from .paths import safe_instance_path
 from .service import ProvelumeInstance
@@ -36,6 +37,10 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
     @router.get("/build-info")
     def get_build_info() -> dict[str, Any]:
         return current_build_info()
+
+    @router.get("/about")
+    def get_about() -> dict[str, Any]:
+        return current_about()
 
     @router.get("/instance")
     def get_instance() -> dict[str, Any]:

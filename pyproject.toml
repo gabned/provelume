@@ -27,6 +27,7 @@ dev = [
 
 [project.scripts]
 provelume = "provelume.cli:main"
+provelume-desktop = "provelume.desktop:main"
 
 [tool.hatch.build]
 reproducible = true

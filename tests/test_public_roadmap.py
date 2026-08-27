@@ -22,7 +22,7 @@ EXPECTED_CONTRACT = {
     "RELEASE_STATUS": "PUBLISHED_PREVIEW",
 }
 
-FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(4, 21)) + ("1.0.0",)
+FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(4, 22)) + ("1.0.0",)
 
 
 def _read(path: Path) -> str:
@@ -105,7 +105,9 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
         assert f"## {version} -" not in changelog
 
     assert heading_positions == sorted(heading_positions)
-    assert "| Next forecast | `0.4.0` |" in roadmap
+    assert "| Active implementation | `0.4.0` |" in roadmap
+    assert "| Next forecast | `0.5.0` |" in roadmap
+    assert "#57" in roadmap
     assert "issue just in time" in roadmap
     assert "Forecast entries describe intended sequencing" in roadmap
 
@@ -116,3 +118,24 @@ def test_readme_links_canonical_planning_surfaces() -> None:
     assert "[public roadmap](docs/roadmap.md)" in readme
     assert "[0.3.0 release plan](docs/releases/0.3.0.md)" in readme
     assert "latest published preview is `v0.3.0`" in readme
+    assert "[release plan](docs/releases/0.4.0.md)" in readme
+
+
+def test_active_0_4_release_plan_preserves_deferred_package_identity() -> None:
+    plan = _read(ROOT / "docs" / "releases" / "0.4.0.md")
+    expected = {
+        "RELEASE_PLAN_SCHEMA": "1",
+        "PLANNED_VERSION": "0.4.0",
+        "MILESTONE_TITLE": "0.4.0",
+        "CURRENT_PACKAGE_VERSION": "0.3.0",
+        "PACKAGE_VERSION_UPDATE": "DEFERRED",
+        "EXECUTION_ISSUE": "57",
+        "PRODUCT_THEME": "WINDOWS_PRODUCT_SHELL_PREVIEW",
+        "RELEASE_STATUS": "ACTIVE_IMPLEMENTATION",
+        "WINDOWS_SIGNING": "NOT_INCLUDED",
+        "UPDATE_APPLY_MODE": "USER_CONFIRMED_INSTALLER",
+    }
+    block = re.findall(r"^```text\n(.*?)\n```$", plan, re.MULTILINE | re.DOTALL)
+    assert len(block) == 1
+    fields = dict(line.split(": ", 1) for line in block[0].splitlines())
+    assert fields == expected

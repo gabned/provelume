@@ -139,6 +139,15 @@ jobs:
           subject-path: ${{ runner.temp }}/provelume-verified-release/*.whl
           sbom-path: ${{ runner.temp }}/provelume-verified-release/provelume-${{ inputs.version }}.cdx.json
 
+      - name: Attest unsigned Windows preview and update metadata
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            ${{ runner.temp }}/provelume-verified-release/Provelume-Setup-${{ inputs.version }}-x64.exe
+            ${{ runner.temp }}/provelume-verified-release/provelume-windows-update.json
+            ${{ runner.temp }}/provelume-verified-release/windows-py312-x86_64.in
+            ${{ runner.temp }}/provelume-verified-release/windows-py312-x86_64.requirements.txt
+
       - name: Publish GitHub Release without overwriting
         shell: bash
         env:

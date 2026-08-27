@@ -7,9 +7,12 @@ from pathlib import Path
 
 import uvicorn
 
+from . import __version__
+from .about import current_about
 from .build_info import current_build_info
 from .installation import verify_current_installation
 from .service import ProvelumeInstance
+from .updates import UpdateError, check_for_updates
 from .web import create_app
 
 
@@ -20,6 +23,20 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "build-info",
         help="Print embedded build identity without making a network request",
+    )
+    subparsers.add_parser(
+        "about",
+        help="Print installed product, runtime and update capability information offline",
+    )
+
+    check_updates = subparsers.add_parser(
+        "check-updates",
+        help="Explicitly contact GitHub Releases and check for a newer version",
+    )
+    check_updates.add_argument(
+        "--channel",
+        choices=("stable", "preview"),
+        default="preview",
     )
 
     init = subparsers.add_parser("init", help="Initialize an Instance directory")
@@ -97,6 +114,34 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "build-info":
         print(json.dumps(current_build_info(), indent=2, sort_keys=True))
+        return 0
+    if args.command == "about":
+        print(json.dumps(current_about(), indent=2, sort_keys=True))
+        return 0
+    if args.command == "check-updates":
+        try:
+            result = check_for_updates(
+                current_version=__version__,
+                channel=args.channel,
+            )
+        except UpdateError as exc:
+            print(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "status": "error",
+                        "current_version": __version__,
+                        "channel": args.channel,
+                        "network_attempted": True,
+                        "instance_content_sent": False,
+                        "error": str(exc),
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+            return 4
+        print(json.dumps(result, indent=2, sort_keys=True))
         return 0
     if args.command == "init":
         instance = ProvelumeInstance.initialise(args.instance, name=args.name)
