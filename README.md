@@ -12,6 +12,11 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 The latest published preview is `v0.2.0`.
 
+The next planned product release is `0.3.0`, scoped only to Anchored Local Installation
+Trust through issues #20 and #52. Planning does not change the current package identity or
+authorize a release. See the [public roadmap](docs/roadmap.md) and the bounded
+[0.3.0 release plan](docs/releases/0.3.0.md).
+
 The published `v0.1.0` baseline implements a small local Instance that can:
 
 - initialize in an ordinary directory;
