@@ -235,6 +235,10 @@ user note/area; short-lived QR pairing and revocable per-device credentials; upl
 content-type verification, malware-safe handling boundary, offline outbox/retry and idempotent
 submission.
 
+A minimal mobile retrieval view provides recent captures, bounded full-text search, provenance
+and version preview, and explicit authenticated original download without persistent device
+caching by default.
+
 Reference mobile paths include an iOS Shortcut exposed in the Share Sheet, an Android share-target
 companion/reference client and direct camera/file-picker capture. A watched Google Drive drop
 folder from `0.9.0` provides the first no-app fallback. A provider-neutral capture-relay contract
@@ -337,8 +341,9 @@ exclusive business logic.
 
 **Includes:** paginated and bounded Knowledge API v1 contracts; schemas and compatibility policy
 for documents, objects, provenance, search, related and health; read/write scope separation;
-a versioned capture-submission contract and mobile-client conformance fixtures distinct from
-read-only MCP tools for search and retrieval; aligned CLI/browser services; reference clients;
+a versioned capture-submission contract, a mobile read profile for recent/search/detail/
+provenance/original-download and mobile-client conformance fixtures, all distinct from read-only
+MCP tools for search and retrieval; aligned CLI/browser services; reference clients;
 version negotiation and pre-1.0 deprecation policy.
 
 **Exit gate:** at least two clients pass the same conformance fixtures and no interface exposes
