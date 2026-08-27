@@ -17,10 +17,12 @@ from typing import Any
 
 SOURCE_REPOSITORY = "gabned/provelume"
 RELEASES_API = "https://api.github.com/repos/gabned/provelume/releases?per_page=30"
+TAG_COMMIT_API = "https://api.github.com/repos/gabned/provelume/commits"
 UPDATE_MANIFEST_NAME = "provelume-windows-update.json"
 UPDATE_SCHEMA_VERSION = 1
 MAX_CATALOG_BYTES = 2 * 1024 * 1024
 MAX_MANIFEST_BYTES = 256 * 1024
+MAX_TAG_COMMIT_BYTES = 512 * 1024
 MAX_INSTALLER_BYTES = 512 * 1024 * 1024
 ALLOWED_UPDATE_HOSTS = frozenset(
     {
@@ -322,12 +324,22 @@ def _windows_manifest(
     return value
 
 
+def _resolved_tag_commit(value: object) -> str:
+    if not isinstance(value, dict):
+        raise UpdateError("release tag did not resolve to a commit object")
+    commit = str(value.get("sha") or "")
+    if FULL_COMMIT.fullmatch(commit) is None:
+        raise UpdateError("release tag commit is invalid")
+    return commit
+
+
 def select_update_candidate(
     releases: object,
     *,
     current_version: str,
     channel: str,
     fetch_manifest: Callable[[str], Any],
+    resolve_tag_commit: Callable[[str], str],
 ) -> UpdateCandidate | None:
     current = SemanticVersion.parse(current_version)
     if channel not in {"stable", "preview"}:
@@ -369,6 +381,11 @@ def select_update_candidate(
             tag=tag,
             channel=release_channel,
         )
+        tag_commit = resolve_tag_commit(tag)
+        if FULL_COMMIT.fullmatch(tag_commit) is None:
+            raise UpdateError("release tag commit is invalid")
+        if manifest["commit"] != tag_commit:
+            raise UpdateError("Windows update manifest commit differs from the release tag commit")
         artifact = manifest["artifact"]
         installer = assets.get(artifact["name"])
         if installer is None:
@@ -411,6 +428,12 @@ def check_for_updates(
         fetch_manifest=lambda url: selected_client.get_json(
             url,
             maximum_bytes=MAX_MANIFEST_BYTES,
+        ),
+        resolve_tag_commit=lambda tag: _resolved_tag_commit(
+            selected_client.get_json(
+                f"{TAG_COMMIT_API}/{tag}",
+                maximum_bytes=MAX_TAG_COMMIT_BYTES,
+            )
         ),
     )
     return {

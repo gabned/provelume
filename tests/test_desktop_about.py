@@ -1,18 +1,25 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+
+import pytest
 
 from provelume.about import current_about
 from provelume.desktop import (
+    STRINGS,
     DesktopShell,
     LauncherSettings,
+    _acquire_windows_mutex,
+    _window_dimensions,
     declare_startup_update_policy,
     diagnostics_payload,
     load_settings,
     main,
     save_settings,
     startup_update_policy_enabled,
+    write_ui_diagnostics,
 )
 from provelume.service import ProvelumeInstance
 from provelume.updates import UpdateCandidate
@@ -40,9 +47,22 @@ class _Button:
 class _Process:
     def __init__(self, exit_code: int | None = None):
         self.exit_code = exit_code
+        self.terminated = False
+        self.killed = False
 
     def poll(self) -> int | None:
         return self.exit_code
+
+    def terminate(self) -> None:
+        self.terminated = True
+        self.exit_code = 0
+
+    def wait(self, timeout: float | None = None) -> int:
+        return self.exit_code or 0
+
+    def kill(self) -> None:
+        self.killed = True
+        self.exit_code = -9
 
 
 def _candidate(*, channel: str) -> UpdateCandidate:
@@ -102,6 +122,33 @@ def test_launcher_settings_round_trip_and_malformed_fallback(tmp_path: Path) -> 
     assert fallback.schema_version == 1
     assert fallback.update_channel == "preview"
     assert fallback.check_on_start is False
+
+
+def test_missing_persisted_instance_is_not_silently_recreated(tmp_path: Path) -> None:
+    missing = tmp_path / "Moved Instance"
+    shell = DesktopShell.__new__(DesktopShell)
+    shell.settings = LauncherSettings(instance_path=str(missing), language="en")
+    shell.text = STRINGS["en"]
+
+    with pytest.raises(RuntimeError, match="could not be found"):
+        shell._ensure_instance(missing, create_if_missing=False)
+    assert not missing.exists()
+
+    shell._ensure_instance(missing, create_if_missing=True)
+    assert ProvelumeInstance(missing).instance_summary()["name"] == "My Provelume"
+
+
+def test_unwritable_default_instance_fails_visibly(tmp_path: Path, monkeypatch) -> None:
+    shell = DesktopShell.__new__(DesktopShell)
+    shell.settings = LauncherSettings(instance_path=str(tmp_path), language="it")
+    shell.text = STRINGS["it"]
+
+    def reject_initialise(*_args, **_kwargs):
+        raise PermissionError("synthetic access denied")
+
+    monkeypatch.setattr(ProvelumeInstance, "initialise", reject_initialise)
+    with pytest.raises(RuntimeError, match="Impossibile aprire"):
+        shell._ensure_instance(tmp_path / "non scrivibile", create_if_missing=True)
 
 
 def test_desktop_diagnostics_and_headless_instance_bootstrap(tmp_path: Path) -> None:
@@ -173,6 +220,7 @@ def test_background_update_check_fails_closed_without_both_policy_flags(
     shell.candidate = None
     shell.update_status = _Value("current")
     shell.download_button = _Button()
+    shell.check_button = _Button()
     shell.channel = _Value("preview")
     shell.text = {"network_notice": "network", "checking": "checking"}
 
@@ -197,6 +245,7 @@ def test_stale_update_results_cannot_replace_the_current_channel() -> None:
     shell.candidate = None
     shell.update_status = _Value("checking stable")
     shell.download_button = _Button()
+    shell.check_button = _Button()
     shell.text = {
         "current": "current",
         "failed": "failed: {error}",
@@ -223,8 +272,11 @@ def test_stale_server_readiness_cannot_stop_a_replacement(monkeypatch) -> None:
     shell.closed = False
     shell.server = current_process
     shell.server_port = 8041
+    shell.server_ready = False
     shell.status = _Value("starting")
     shell.text = {"running": "running", "server_failed": "failed"}
+    shell.open_button = _Button()
+    shell.stop_button = _Button()
     stopped: list[bool] = []
     shell.stop_server = lambda: stopped.append(True)
     opened: list[str] = []
@@ -237,3 +289,128 @@ def test_stale_server_readiness_cannot_stop_a_replacement(monkeypatch) -> None:
     shell._server_ready(current_process, 8041, True)
     assert shell.status.get() == "running"
     assert opened == ["http://127.0.0.1:8041/"]
+    assert shell.server_ready is True
+    assert shell.open_button.state == "normal"
+
+
+def test_repeated_open_during_startup_never_opens_browser(monkeypatch) -> None:
+    shell = DesktopShell.__new__(DesktopShell)
+    shell.server = _Process()
+    shell.server_port = 8040
+    shell.server_ready = False
+    opened: list[str] = []
+    monkeypatch.setattr("provelume.desktop.webbrowser.open", opened.append)
+
+    shell.open_product()
+
+    assert opened == []
+
+
+def test_failed_or_terminated_backend_keeps_an_actionable_state(monkeypatch) -> None:
+    shell = DesktopShell.__new__(DesktopShell)
+    process = _Process(exit_code=1)
+    shell.closed = False
+    shell.server = process
+    shell.server_port = 8040
+    shell.server_ready = False
+    shell.status = _Value("starting")
+    shell.text = {
+        "server_failed": "failed visibly",
+        "server_exited": "exited visibly",
+        "stopped": "stopped",
+        "stopping": "stopping",
+    }
+    shell.open_button = _Button()
+    shell.stop_button = _Button()
+    monkeypatch.setattr("provelume.desktop.webbrowser.open", pytest.fail)
+
+    shell._server_ready(process, 8040, False)
+    assert shell.status.get() == "failed visibly"
+    assert shell.server is None
+    assert shell.open_button.state == "normal"
+    assert shell.stop_button.state == "disabled"
+
+    replacement = _Process()
+    shell.server = replacement
+    shell.server_port = 8041
+    shell.server_ready = True
+    shell._server_exited(replacement, 8041, 7)
+    assert shell.status.get() == "exited visibly"
+    assert shell.server is None
+    assert shell.server_port is None
+    assert shell.server_ready is False
+
+
+@pytest.mark.parametrize(
+    ("screen", "expected"),
+    (
+        ((1920, 1080), (680, 520)),
+        ((800, 600), (680, 504)),
+        ((640, 480), (592, 384)),
+    ),
+)
+def test_window_dimensions_fit_reduced_work_areas(screen, expected) -> None:
+    assert _window_dimensions(*screen) == expected
+
+
+def test_en_it_launcher_copy_covers_every_transient_state() -> None:
+    required = {
+        "starting",
+        "running",
+        "stopping",
+        "stopped",
+        "server_failed",
+        "server_exited",
+        "checking",
+        "current",
+        "available",
+        "downloading",
+        "download_ready",
+        "network_notice",
+        "unsigned_notice",
+        "install_notice",
+        "missing_instance",
+    }
+    for language in ("en", "it"):
+        assert required <= STRINGS[language].keys()
+        assert all(STRINGS[language][key].strip() for key in required)
+        assert STRINGS[language]["network_notice"] != STRINGS[language]["install_notice"]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="named Windows mutex")
+def test_windows_mutex_rejects_a_second_launcher() -> None:
+    import ctypes
+
+    first = _acquire_windows_mutex()
+    try:
+        assert first is not None
+        assert _acquire_windows_mutex() is None
+    finally:
+        ctypes.windll.kernel32.CloseHandle(first)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="real Tk layout probe")
+def test_windows_tk_layout_probe_is_offline_and_scrollable(tmp_path: Path) -> None:
+    output = tmp_path / "layout.json"
+    write_ui_diagnostics(
+        output,
+        language="it",
+        dpi_percent=200,
+        viewport_width=640,
+        viewport_height=480,
+    )
+    value = json.loads(output.read_text(encoding="utf-8"))
+    assert value["language"] == "it"
+    assert value["dpi_percent"] == 200
+    assert value["network_used"] is False
+    assert value["instance_content_sent"] is False
+    assert value["all_action_labels_present"] is True
+    assert value["window"]["width"] <= 640
+    assert value["window"]["height"] <= 480
+    assert value["scroll_surface"]["content_height"] > 0
+    assert value["controls"] == {
+        "check": "normal",
+        "download": "disabled",
+        "open": "normal",
+        "stop": "disabled",
+    }

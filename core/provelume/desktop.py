@@ -187,6 +187,98 @@ def write_diagnostics(path: Path) -> Path:
     return destination
 
 
+def write_ui_diagnostics(
+    path: Path,
+    *,
+    language: str,
+    dpi_percent: int,
+    viewport_width: int,
+    viewport_height: int,
+) -> Path:
+    """Build the real Tk launcher off-loop and record bounded layout evidence."""
+
+    if language not in STRINGS:
+        raise ValueError("UI diagnostics language must be en or it")
+    if dpi_percent not in {100, 125, 150, 200}:
+        raise ValueError("UI diagnostics DPI must be 100, 125, 150 or 200 percent")
+    if viewport_width < 640 or viewport_height < 480:
+        raise ValueError("UI diagnostics viewport is below the supported probe boundary")
+
+    dpi_awareness = _configure_windows_dpi_awareness()
+    import tkinter as tk
+
+    destination = path.expanduser().resolve()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="provelume-ui-diagnostics-") as temporary:
+        root = tk.Tk()
+        try:
+            root.tk.call("tk", "scaling", (96 * dpi_percent / 100) / 72)
+            instance = Path(temporary) / f"Synthetic Instance {language}"
+            shell = DesktopShell(
+                root,
+                initial_settings=LauncherSettings(
+                    instance_path=str(instance),
+                    language=language,
+                ),
+            )
+            target_width, target_height = _window_dimensions(
+                viewport_width,
+                viewport_height,
+            )
+            root.geometry(f"{target_width}x{target_height}")
+            root.update_idletasks()
+            canvas = shell.scroll_canvas
+            bounds = canvas.bbox("all") or (0, 0, 0, 0)
+            controls = {
+                "open": str(shell.open_button.cget("state")),
+                "stop": str(shell.stop_button.cget("state")),
+                "check": str(shell.check_button.cget("state")),
+                "download": str(shell.download_button.cget("state")),
+            }
+            action_labels = [
+                str(shell.open_button.cget("text")),
+                str(shell.stop_button.cget("text")),
+                str(shell.check_button.cget("text")),
+                str(shell.download_button.cget("text")),
+            ]
+            payload = {
+                "schema_version": 1,
+                "language": language,
+                "dpi_percent": dpi_percent,
+                "dpi_awareness": dpi_awareness,
+                "modeled_viewport": {
+                    "width": viewport_width,
+                    "height": viewport_height,
+                },
+                "window": {
+                    "width": root.winfo_width(),
+                    "height": root.winfo_height(),
+                    "target_width": target_width,
+                    "target_height": target_height,
+                },
+                "scroll_surface": {
+                    "viewport_width": canvas.winfo_width(),
+                    "viewport_height": canvas.winfo_height(),
+                    "content_width": max(0, int(bounds[2] - bounds[0])),
+                    "content_height": max(0, int(bounds[3] - bounds[1])),
+                },
+                "controls": controls,
+                "action_labels": action_labels,
+                "all_action_labels_present": all(label.strip() for label in action_labels),
+                "network_used": False,
+                "instance_content_sent": False,
+            }
+            destination.write_text(
+                json.dumps(payload, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            shell.close()
+        finally:
+            with suppress(Exception):
+                root.destroy()
+    return destination
+
+
 def _acquire_windows_mutex():
     if os.name != "nt":
         return object()
@@ -222,6 +314,37 @@ def _available_port() -> int:
         return int(listener.getsockname()[1])
 
 
+def _window_dimensions(screen_width: int, screen_height: int) -> tuple[int, int]:
+    """Fit the launcher inside reduced work areas while keeping its preferred size."""
+
+    width = min(680, max(320, screen_width - 48))
+    height = min(520, max(320, screen_height - 96))
+    return width, height
+
+
+def _configure_windows_dpi_awareness() -> str:
+    """Request modern DPI handling before Tk creates a window, with safe fallbacks."""
+
+    if os.name != "nt":
+        return "not_applicable"
+    try:
+        import ctypes
+
+        if ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4)):
+            return "per_monitor_v2"
+    except (AttributeError, OSError, ValueError):
+        pass
+    try:
+        import ctypes
+
+        result = ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        if result in {0, -2147024891}:
+            return "system_aware"
+    except (AttributeError, OSError, ValueError):
+        pass
+    return "platform_default"
+
+
 STRINGS = {
     "en": {
         "title": "Provelume Preview",
@@ -242,7 +365,9 @@ STRINGS = {
         "offline": "Local-first. No cloud or external AI is required.",
         "starting": "Starting the local service…",
         "running": "Running locally",
+        "stopping": "Stopping the local service…",
         "stopped": "Stopped",
+        "server_exited": "The local service stopped unexpectedly. You can start it again.",
         "checking": "Checking GitHub Releases…",
         "current": "This installation is up to date.",
         "available": "Version {version} is available.",
@@ -260,6 +385,11 @@ STRINGS = {
         ),
         "install_notice": "Start the installer now? Provelume will close first.",
         "invalid_instance": "The selected folder is not a valid Provelume Instance.",
+        "missing_instance": (
+            "The saved Provelume Instance could not be found. Choose its new location or create "
+            "another Instance; no replacement was created automatically."
+        ),
+        "instance_open_failed": "The local Instance could not be opened: {error}",
         "server_failed": "The local service could not start.",
         "about_text": (
             "Provelume {version}\nChannel: {channel}\nTag: {tag}\nCommit: {commit}\n"
@@ -286,7 +416,11 @@ STRINGS = {
         "offline": "Local-first. Non richiede cloud né AI esterna.",
         "starting": "Avvio del servizio locale…",
         "running": "In esecuzione in locale",
+        "stopping": "Arresto del servizio locale…",
         "stopped": "Fermato",
+        "server_exited": (
+            "Il servizio locale si è arrestato in modo imprevisto. Puoi avviarlo di nuovo."
+        ),
         "checking": "Controllo GitHub Releases…",
         "current": "Questa installazione è aggiornata.",
         "available": "È disponibile la versione {version}.",
@@ -304,6 +438,11 @@ STRINGS = {
         ),
         "install_notice": "Avviare ora l'installer? Provelume verrà prima chiuso.",
         "invalid_instance": "La cartella scelta non è un'istanza Provelume valida.",
+        "missing_instance": (
+            "L'istanza Provelume salvata non è stata trovata. Scegli la nuova posizione o crea "
+            "un'altra istanza; non ne è stata creata automaticamente una sostitutiva."
+        ),
+        "instance_open_failed": "Impossibile aprire l'istanza locale: {error}",
         "server_failed": "Non è stato possibile avviare il servizio locale.",
         "about_text": (
             "Provelume {version}\nCanale: {channel}\nTag: {tag}\nCommit: {commit}\n"
@@ -315,7 +454,13 @@ STRINGS = {
 
 
 class DesktopShell:
-    def __init__(self, root, *, initial_settings: LauncherSettings):
+    def __init__(
+        self,
+        root,
+        *,
+        initial_settings: LauncherSettings,
+        create_instance_if_missing: bool = True,
+    ):
         import tkinter as tk
         from tkinter import ttk
 
@@ -327,6 +472,7 @@ class DesktopShell:
         self.instance = Path(self.settings.instance_path).expanduser()
         self.server: subprocess.Popen[bytes] | None = None
         self.server_port: int | None = None
+        self.server_ready = False
         self.candidate: UpdateCandidate | None = None
         self.update_generation = 0
         self.closed = False
@@ -337,7 +483,10 @@ class DesktopShell:
         self.check_on_start = tk.BooleanVar(value=self.settings.check_on_start)
         self.channel = tk.StringVar(value=self.settings.update_channel)
 
-        self._ensure_instance(self.instance)
+        self._ensure_instance(
+            self.instance,
+            create_if_missing=create_instance_if_missing,
+        )
         declare_startup_update_policy(
             self.instance,
             enabled=self.settings.check_on_start,
@@ -351,10 +500,28 @@ class DesktopShell:
         ttk = self.ttk
         root = self.root
         root.title(self.text["title"])
-        root.geometry("680x520")
-        root.minsize(620, 480)
-        outer = ttk.Frame(root, padding=24)
-        outer.pack(fill="both", expand=True)
+        width, height = _window_dimensions(root.winfo_screenwidth(), root.winfo_screenheight())
+        root.geometry(f"{width}x{height}")
+        root.minsize(min(520, width), min(360, height))
+
+        viewport = ttk.Frame(root)
+        viewport.pack(fill="both", expand=True)
+        canvas = self.tk.Canvas(viewport, highlightthickness=0, borderwidth=0)
+        scrollbar = ttk.Scrollbar(viewport, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        outer = ttk.Frame(canvas, padding=24)
+        content_window = canvas.create_window((0, 0), window=outer, anchor="nw")
+        outer.bind(
+            "<Configure>",
+            lambda _event: canvas.configure(scrollregion=canvas.bbox("all")),
+        )
+        canvas.bind(
+            "<Configure>",
+            lambda event: canvas.itemconfigure(content_window, width=event.width),
+        )
+        self.scroll_canvas = canvas
 
         title = ttk.Label(outer, text="Provelume", font=("Segoe UI", 24, "bold"))
         title.pack(anchor="w")
@@ -375,9 +542,20 @@ class DesktopShell:
         ttk.Label(instance, textvariable=self.status).pack(anchor="w", pady=(4, 10))
         row = ttk.Frame(instance)
         row.pack(fill="x")
-        self.open_button = ttk.Button(row, text=self.text["open"], command=self.open_product)
+        self.open_button = ttk.Button(
+            row,
+            text=self.text["open"],
+            command=self.open_product,
+            state="normal",
+        )
         self.open_button.pack(side="left")
-        ttk.Button(row, text=self.text["stop"], command=self.stop_server).pack(side="left", padx=8)
+        self.stop_button = ttk.Button(
+            row,
+            text=self.text["stop"],
+            command=self.stop_server,
+            state="disabled",
+        )
+        self.stop_button.pack(side="left", padx=8)
         ttk.Button(row, text=self.text["choose"], command=self.choose_instance).pack(side="right")
         ttk.Button(row, text=self.text["create"], command=self.create_instance).pack(
             side="right", padx=8
@@ -408,9 +586,13 @@ class DesktopShell:
         )
         actions = ttk.Frame(updates)
         actions.pack(fill="x")
-        ttk.Button(actions, text=self.text["check_now"], command=self.check_updates).pack(
-            side="left"
+        self.check_button = ttk.Button(
+            actions,
+            text=self.text["check_now"],
+            command=self.check_updates,
+            state="normal",
         )
+        self.check_button.pack(side="left")
         self.download_button = ttk.Button(
             actions,
             text=self.text["download"],
@@ -421,19 +603,25 @@ class DesktopShell:
 
         ttk.Label(outer, text=self.text["offline"]).pack(anchor="w", pady=(6, 0))
 
-    def _ensure_instance(self, path: Path) -> None:
+    def _ensure_instance(self, path: Path, *, create_if_missing: bool) -> None:
         try:
             created = not (path / "provelume.yml").is_file()
             if (path / "provelume.yml").is_file():
                 instance = ProvelumeInstance(path)
+            elif not create_if_missing:
+                raise RuntimeError(self.text["missing_instance"])
             else:
                 instance = ProvelumeInstance.initialise(path, name="My Provelume")
             if created:
                 config = instance.store.read_config()
                 config.setdefault("ui", {})["language"] = self.settings.language
                 instance.store.write_config(config)
+        except RuntimeError:
+            raise
         except (OSError, ValueError) as exc:
-            raise RuntimeError(f"cannot initialise local Instance: {exc}") from exc
+            raise RuntimeError(
+                self.text["instance_open_failed"].format(error=exc)
+            ) from exc
 
     def _replace_settings(self, **changes: object) -> None:
         values = asdict(self.settings)
@@ -504,7 +692,8 @@ class DesktopShell:
 
     def open_product(self) -> None:
         if self.server is not None and self.server.poll() is None and self.server_port is not None:
-            webbrowser.open(f"http://127.0.0.1:{self.server_port}/")
+            if self.server_ready:
+                webbrowser.open(f"http://127.0.0.1:{self.server_port}/")
             return
         try:
             ProvelumeInstance(self.instance)
@@ -525,7 +714,10 @@ class DesktopShell:
         )
         self.server = process
         self.server_port = port
+        self.server_ready = False
         self.status.set(self.text["starting"])
+        self.open_button.configure(state="disabled")
+        self.stop_button.configure(state="normal")
         threading.Thread(
             target=self._wait_for_server,
             args=(process, port),
@@ -548,6 +740,13 @@ class DesktopShell:
         if self.closed:
             return
         self.root.after(0, lambda: self._server_ready(process, port, ready))
+        if ready:
+            exit_code = process.wait()
+            if not self.closed:
+                self.root.after(
+                    0,
+                    lambda: self._server_exited(process, port, exit_code),
+                )
 
     def _server_ready(
         self,
@@ -558,24 +757,46 @@ class DesktopShell:
         if self.closed or self.server is not process or self.server_port != port:
             return
         if ready and process.poll() is None:
+            self.server_ready = True
             self.status.set(self.text["running"])
+            self.open_button.configure(state="normal")
+            self.stop_button.configure(state="normal")
             webbrowser.open(f"http://127.0.0.1:{port}/")
         else:
-            self.status.set(self.text["server_failed"])
-            self.stop_server()
+            self.stop_server(final_status="server_failed")
 
-    def stop_server(self) -> None:
+    def _server_exited(
+        self,
+        process: subprocess.Popen[bytes],
+        port: int,
+        _exit_code: int,
+    ) -> None:
+        if self.closed or self.server is not process or self.server_port != port:
+            return
+        self.server = None
+        self.server_port = None
+        self.server_ready = False
+        self.status.set(self.text["server_exited"])
+        self.open_button.configure(state="normal")
+        self.stop_button.configure(state="disabled")
+
+    def stop_server(self, *, final_status: str = "stopped") -> None:
         process = self.server
         self.server = None
         self.server_port = None
+        self.server_ready = False
         if process is not None and process.poll() is None:
+            if not self.closed:
+                self.status.set(self.text["stopping"])
             process.terminate()
             try:
                 process.wait(timeout=4)
             except subprocess.TimeoutExpired:
                 process.kill()
         if not self.closed:
-            self.status.set(self.text["stopped"])
+            self.status.set(self.text[final_status])
+            self.open_button.configure(state="normal")
+            self.stop_button.configure(state="disabled")
 
     def check_updates(self, interactive: bool = True) -> None:
         if not interactive and not startup_update_policy_enabled(self.instance):
@@ -590,6 +811,7 @@ class DesktopShell:
         self.candidate = None
         self.update_status.set(self.text["checking"])
         self.download_button.configure(state="disabled")
+        self.check_button.configure(state="disabled")
         channel = self.channel.get()
         threading.Thread(
             target=self._check_updates_worker,
@@ -634,6 +856,7 @@ class DesktopShell:
         self.candidate = None
         self.update_status.set(self.text["current"])
         self.download_button.configure(state="disabled")
+        self.check_button.configure(state="normal")
 
     def _update_failed(self, error: str, generation: int, channel: str) -> None:
         if not self._is_current_update_request(generation, channel):
@@ -641,6 +864,7 @@ class DesktopShell:
         self.candidate = None
         self.update_status.set(self.text["failed"].format(error=error))
         self.download_button.configure(state="disabled")
+        self.check_button.configure(state="normal")
 
     def _update_checked(
         self,
@@ -651,6 +875,7 @@ class DesktopShell:
         if not self._is_current_update_request(generation, channel):
             return
         self.candidate = candidate
+        self.check_button.configure(state="normal")
         if candidate is None:
             self.update_status.set(self.text["current"])
             self.download_button.configure(state="disabled")
@@ -744,6 +969,7 @@ class DesktopShell:
 
 
 def run_ui() -> int:
+    _configure_windows_dpi_awareness()
     import tkinter as tk
     from tkinter import messagebox
 
@@ -756,7 +982,12 @@ def run_ui() -> int:
         return 0
     root = tk.Tk()
     try:
-        DesktopShell(root, initial_settings=load_settings())
+        persisted_settings = settings_path().is_file()
+        DesktopShell(
+            root,
+            initial_settings=load_settings(),
+            create_instance_if_missing=not persisted_settings,
+        )
     except RuntimeError as exc:
         root.withdraw()
         messagebox.showerror("Provelume", str(exc))
@@ -771,6 +1002,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--serve", type=Path)
     parser.add_argument("--port", type=int, default=8040)
     parser.add_argument("--diagnostics-file", type=Path)
+    parser.add_argument("--ui-diagnostics-file", type=Path)
+    parser.add_argument("--ui-diagnostics-language", choices=("en", "it"), default="en")
+    parser.add_argument(
+        "--ui-diagnostics-dpi",
+        type=int,
+        choices=(100, 125, 150, 200),
+        default=100,
+    )
+    parser.add_argument("--ui-diagnostics-width", type=int, default=800)
+    parser.add_argument("--ui-diagnostics-height", type=int, default=600)
     parser.add_argument("--bootstrap-instance", type=Path)
     parser.add_argument("--instance-name", default="My Provelume")
     return parser
@@ -783,6 +1024,7 @@ def main(arguments: list[str] | None = None) -> int:
         for value in (
             options.serve,
             options.diagnostics_file,
+            options.ui_diagnostics_file,
             options.bootstrap_instance,
         )
     )
@@ -790,6 +1032,15 @@ def main(arguments: list[str] | None = None) -> int:
         raise SystemExit("select only one desktop execution mode")
     if options.diagnostics_file is not None:
         write_diagnostics(options.diagnostics_file)
+        return 0
+    if options.ui_diagnostics_file is not None:
+        write_ui_diagnostics(
+            options.ui_diagnostics_file,
+            language=options.ui_diagnostics_language,
+            dpi_percent=options.ui_diagnostics_dpi,
+            viewport_width=options.ui_diagnostics_width,
+            viewport_height=options.ui_diagnostics_height,
+        )
         return 0
     if options.bootstrap_instance is not None:
         ProvelumeInstance.initialise(
