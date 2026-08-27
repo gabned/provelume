@@ -38,6 +38,29 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   without changing published history, package identity, the `0.5.0`–`0.11.0` sequence or
   stable `1.0.0`.
 
+### Fixed
+
+- stopped the launcher from silently creating a replacement when a previously selected Instance
+  was moved or removed, kept Choose/Create recovery controls available, and made
+  missing/non-writable Instance failures explicit in EN/IT;
+- prevented a repeated Open action from launching the browser while the backend is still starting,
+  preserved the real startup-failure state and reported an unexpected backend exit;
+- allowed the console-free frozen launcher to start its loopback backend without requiring
+  Uvicorn console streams;
+- bound Windows update-manifest commit identity to the commit resolved by the release tag instead
+  of accepting any syntactically valid commit;
+- made the launcher fit reduced work areas through a vertically scrollable layout, requested modern
+  Windows DPI awareness and aligned enabled/disabled controls with backend and update state.
+
+### Verification
+
+- expanded synthetic update regressions for malformed, oversized, unknown, incompatible, timed-out
+  and interrupted responses, including partial-file cleanup and stale-result protection;
+- expanded Windows packaging evidence to cover the public `0.4.0` installer, default and Unicode
+  paths, shortcuts, unsigned status, one stable AppId, launcher settings and Instance preservation,
+  bundled-runtime isolation, loopback readiness, reinstall/uninstall and EN/IT layout probes at
+  100%, 125%, 150% and 200% DPI.
+
 ## 0.4.0 - 2026-08-27
 
 ### Added
