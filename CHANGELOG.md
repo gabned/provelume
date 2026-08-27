@@ -4,6 +4,10 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Changed
+
+- expanded the canonical public roadmap into an ordered release-by-release forecast from `0.4.0` through `1.0.0`, with explicit dependencies, exit gates and activation boundaries, without changing package identity or activating a future release;
+
 ## 0.3.0 - 2026-08-27
 
 ### Added
