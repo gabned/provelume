@@ -372,7 +372,8 @@ try {
     if (-not (Test-Path $InstanceConfig) -or -not (Test-Path $SettingsPath)) {
         throw "Uninstall removed the separate Instance or launcher settings."
     }
-    python -c "from pathlib import Path; from provelume.service import ProvelumeInstance; root=Path(r'''$InstanceRoot'''); assert ProvelumeInstance(root).instance_summary()['name'] == 'Windows CI Instance – sintética 日本'"
+    $CoreSource = (Resolve-Path (Join-Path $PSScriptRoot "..\core")).Path
+    python -c "import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); from provelume.service import ProvelumeInstance; assert ProvelumeInstance(Path(sys.argv[2])).instance_summary()['name'] == 'Windows CI Instance – sintética 日本'" $CoreSource $InstanceRoot
     if ($LASTEXITCODE -ne 0) {
         throw "The preserved Instance was not readable after uninstall."
     }

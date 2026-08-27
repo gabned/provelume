@@ -107,6 +107,7 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert '"{E41A426B-F5FC-473F-A096-875017656A31}_is1"' in windows_exercise
     assert 'DisplayName -eq "Provelume"' not in windows_exercise
     assert "Z:\\synthetic-missing-python" in windows_exercise
+    assert "sys.path.insert(0, sys.argv[1])" in windows_exercise
     assert "Provelume-Setup-0.4.0-public.exe" in windows_exercise
     assert (
         "0d13b8940184befed42b6e96d3789b06c0cc6842bcd3473d8e26738d6df35749"
