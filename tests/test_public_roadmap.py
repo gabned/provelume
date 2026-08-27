@@ -23,7 +23,7 @@ EXPECTED_CONTRACT = {
     "UPDATE_APPLY_MODE": "USER_CONFIRMED_INSTALLER",
 }
 
-FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(5, 22)) + ("1.0.0",)
+FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(5, 23)) + ("1.0.0",)
 
 
 def _read(path: Path) -> str:
@@ -111,6 +111,29 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
     assert "#57" in roadmap
     assert "issue just in time" in roadmap
     assert "Forecast entries describe intended sequencing" in roadmap
+
+
+def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    assert roadmap.count(
+        "| Forecast | `0.12.0` | Productivity connectors and guarded sync preview |"
+    ) == 1
+    for required_contract in (
+        "Google connector preview",
+        "Google Calendar",
+        "multiple local or HTTPS iCalendar/ICS feeds",
+        "Asana and Tududi adapters",
+        "multiple independently configurable provider accounts and Sources",
+        "guarded task write-back preview",
+        "explicit diff, human confirmation",
+        "Local-only mode performs no connector access",
+    ):
+        assert required_contract in roadmap
+
+    assert "Every later unreleased\nforecast moves forward atomically by one" in roadmap
+    assert "`0.22.0` release candidate" in roadmap
+    assert "stable `1.0.0` remain unchanged" in roadmap
 
 
 def test_readme_links_canonical_planning_surfaces() -> None:
