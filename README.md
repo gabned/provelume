@@ -8,10 +8,9 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.2.0 development baseline
+## Current status: 0.2.0 preview
 
-The latest published preview is `v0.1.0`. The current source tree declares package version
-`0.2.0`; no `v0.2.0` tag or official release has been created.
+The latest published preview is `v0.2.0`.
 
 The published `v0.1.0` baseline implements a small local Instance that can:
 
@@ -27,7 +26,7 @@ The published `v0.1.0` baseline implements a small local Instance that can:
 - restart without losing canonical state;
 - run without Git, GitHub, Provelume Cloud or an external AI provider.
 
-The consolidated `0.2.0` development baseline adds:
+The `v0.2.0` preview adds:
 
 - local installation verification against wheel `RECORD`, with package integrity kept
   separate from official-origin authentication;

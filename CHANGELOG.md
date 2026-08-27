@@ -4,8 +4,7 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
-The current development package version is `0.2.0`. No `v0.2.0` tag or official release
-has been created.
+## 0.2.0 - 2026-08-27
 
 ### Added
 

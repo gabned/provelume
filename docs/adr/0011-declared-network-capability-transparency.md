@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted for the 0.2.0 development line. No 0.2.0 release is implied by this status.
+Accepted for release 0.2.0.
 
 ## Context
 
