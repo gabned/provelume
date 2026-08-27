@@ -29,19 +29,20 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Forecast | `0.6.0` | Portable Instance lifecycle | issue just in time |
 | Forecast | `0.7.0` | Connector framework and safe web intake | issue just in time |
 | Forecast | `0.8.0` | Refresh engine and Source lifecycle | issue just in time |
-| Forecast | `0.9.0` | Email and transcript intake | issue just in time |
+| Forecast | `0.9.0` | Email, Google file and transcript intake | issue just in time |
 | Forecast | `0.10.0` | Inbox and review queue | issue just in time |
 | Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time |
-| Forecast | `0.12.0` | Relations, knowledge health and deterministic discovery | issue just in time |
-| Forecast | `0.13.0` | Knowledge API v1 and read-only MCP | issue just in time |
-| Forecast | `0.14.0` | AI gateway and privacy routing | issue just in time |
-| Forecast | `0.15.0` | AI receipts, provider adapters and evaluation | issue just in time |
-| Forecast | `0.16.0` | Semantic and hybrid search | issue just in time |
-| Forecast | `0.17.0` | Self-hosted operations | issue just in time |
-| Forecast | `0.18.0` | Windows bootstrap completion | issue just in time |
-| Forecast | `0.19.0` | Signed Windows release and safe updater | issue just in time |
-| Forecast | `0.20.0` | Business and Cloud contracts preview | issue just in time |
-| Release candidate | `0.21.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time |
+| Forecast | `0.12.0` | Productivity connectors and guarded sync preview | issue just in time |
+| Forecast | `0.13.0` | Relations, knowledge health and deterministic discovery | issue just in time |
+| Forecast | `0.14.0` | Knowledge API v1 and read-only MCP | issue just in time |
+| Forecast | `0.15.0` | AI gateway and privacy routing | issue just in time |
+| Forecast | `0.16.0` | AI receipts, provider adapters and evaluation | issue just in time |
+| Forecast | `0.17.0` | Semantic and hybrid search | issue just in time |
+| Forecast | `0.18.0` | Self-hosted operations | issue just in time |
+| Forecast | `0.19.0` | Windows bootstrap completion | issue just in time |
+| Forecast | `0.20.0` | Signed Windows release and safe updater | issue just in time |
+| Forecast | `0.21.0` | Business and Cloud contracts preview | issue just in time |
+| Release candidate | `0.22.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time |
 | Stable | `1.0.0` | Stable provenance-first platform | issue just in time |
 
 The package and embedded identity are `0.4.0`. The `0.5.0` forecast is not active: only a
@@ -163,10 +164,12 @@ originals, versions and provenance.
 **Outcome:** introduce the first network Source without coupling the Core to one vendor or
 hiding external access.
 
-**Includes:** provider-independent Source adapter and capability manifest; explicit network
-policy and secret references; manual web acquisition with canonical URL and provenance; SSRF,
-reserved-address, DNS-rebinding and redirect controls; response/resource limits; conditional
-metadata; preserved acquired original plus derived readable text.
+**Includes:** provider-independent Source adapter and versioned capability/conformance manifest;
+explicit network policy and external secret references; OAuth 2.0/PKCE authorization boundary for
+installed apps; least-privilege scopes; separate provider, account and Source identities; manual
+web acquisition with canonical URL and provenance; SSRF, reserved-address, DNS-rebinding and
+redirect controls; response/resource limits; conditional metadata; preserved acquired original
+plus derived readable text.
 
 **Exit gate:** synthetic hostile-network fixtures fail closed, every acquisition is attributable,
 and disabling network capability prevents access without a silent fallback.
@@ -181,29 +184,34 @@ and disabling network capability prevents access without a silent fallback.
 document version.
 
 **Includes:** bounded persistent jobs; manual/periodic/scheduled/conditional policies;
-conditional requests; retry/backoff/cancellation; Source locking and idempotency; explicit
-active/paused/error/missing/superseded states; redacted network events distinct from declared
-capability; last-attempt, last-success and next-run status.
+per-account and per-Source cursors/checkpoints; conditional requests; rate-limit handling;
+retry/backoff/cancellation; Source locking and idempotency; explicit
+active/paused/error/missing/superseded/reauthorization-required states; redacted network events
+distinct from declared capability; last-attempt, last-success, next-run and bounded resync status.
 
 **Exit gate:** unchanged bytes create no new version, retries are safe, and interrupted jobs
 resume or fail visibly with bounded evidence.
 
-### 0.9.0 — Email and Transcript Intake
+### 0.9.0 — Email, Google File and Transcript Intake
 
 **Depends on:** `0.8.0` refresh engine.
 
-**Outcome:** validate the connector framework with communications and transcripts while keeping
-Gmail, Plaud and any other provider outside the domain model.
+**Outcome:** validate the connector framework with communications, cloud files and transcripts
+while keeping Gmail, Google Drive, Plaud and every other provider outside the domain model.
 
-**Includes:** provider-neutral email Source; local EML/mailbox adapter and one optional remote
-adapter; thread/message/attachment identity and deduplication; attachment extraction; external
-secret references; transcript profile mapping into canonical documents; provider cursor state
-kept inside the adapter.
+**Includes:** provider-neutral email, file and transcript Sources; local EML/mailbox adapter; a
+Google connector preview with independently consented read-only Gmail and Drive capabilities;
+thread/message/attachment and file/revision identity with deduplication; attachment extraction;
+bounded export of supported Google-native files with export format and provenance preserved;
+external secret references; transcript profile mapping into canonical documents; provider cursor
+state kept inside each adapter.
 
-**Exit gate:** re-import and refresh are idempotent, attachments retain provenance, and provider
+**Exit gate:** re-import and refresh are idempotent, attachments and Drive revisions retain
+provenance, revoked authorization fails visibly without corrupting canonical state, and provider
 replacement does not migrate canonical knowledge.
 
-**Not in this release:** automatic claims, decisions or tasks derived from transcripts.
+**Not in this release:** Google Calendar, task-provider sync, email sending, or automatic claims,
+decisions and tasks derived from communications or transcripts.
 
 ### 0.10.0 — Inbox and Review Queue
 
@@ -227,14 +235,51 @@ unauthorized, duplicate and replayed writes fail safely.
 **Outcome:** move beyond document-only knowledge with explicit canonical objects and evidence.
 
 **Includes:** Entity/KnowledgeObject identities and aliases; Claims with Evidence references;
-Decisions with state and rationale; provider-independent Task/Outcome; typed versioned Relations;
+Decisions with state and rationale; provider-independent Task/Outcome and
+CalendarEvent/Commitment; typed versioned Relations;
 stable references independent of paths or GitHub; portable schema migration; minimal service/write
 API and review workflow.
 
 **Exit gate:** objects round-trip through export/import, retain provenance through document
 version changes and never replace the authoritative original.
 
-### 0.12.0 — Relations, Knowledge Health and Deterministic Discovery
+### 0.12.0 — Productivity Connectors and Guarded Sync Preview
+
+**Depends on:** the `0.7.0` connector contract, `0.8.0` refresh engine, `0.10.0` review
+queue and `0.11.0` provider-independent Task and CalendarEvent objects.
+
+**Outcome:** connect common personal productivity systems without making Google, iCalendar,
+Asana or Tududi part of canonical knowledge or granting background write authority by default.
+
+**Includes:** multiple independently configurable provider accounts and Sources; Google Calendar
+read intake alongside the independently scoped Gmail and Drive capabilities introduced in
+`0.9.0`; multiple local or HTTPS iCalendar/ICS feeds with per-feed provenance; timezone,
+all-day, recurrence, exception and cancellation handling; Asana and Tududi adapters for projects,
+tasks, subtasks, assignees, due dates, completion state, comments and durable links; normalized
+Task/Outcome and CalendarEvent/Commitment mappings; adapter-isolated provider extensions;
+least-privilege consent, external credential references, reauthorization, connector health,
+cursor reset and bounded full resync.
+
+Read intake is the default. A guarded task write-back preview is limited to a closed field set,
+such as completion state and due date, and requires an explicit diff, human confirmation,
+idempotency key, optimistic-concurrency check and privacy-minimizing audit receipt. Unsupported
+Tududi or provider capabilities fail visibly instead of being emulated through private or
+unstable interfaces.
+
+**Exit gate:** multiple Google accounts and multiple iCalendar feeds remain distinguishable;
+refresh and full resync are idempotent; recurrence and cross-provider duplicates are explainable;
+revoked credentials stop access without damaging imported knowledge; and a stale or replayed
+task write cannot overwrite newer provider state. Local-only mode performs no connector access.
+
+**Not in this release:** email sending; calendar create/update/delete; autonomous task creation or
+deletion; generic two-way multi-master synchronization; or a mandatory 1.0 commitment for
+additional adapters such as CalDAV, Microsoft 365, IMAP, Notion or Todoist.
+
+This independently releasable outcome takes the former `0.12.0` slot. Every later unreleased
+forecast moves forward atomically by one through the `0.22.0` release candidate. Published
+history, the `0.5.0`–`0.11.0` scope and relative order, and stable `1.0.0` remain unchanged.
+
+### 0.13.0 — Relations, Knowledge Health and Deterministic Discovery
 
 **Depends on:** `0.11.0` objects.
 
@@ -247,7 +292,7 @@ filters; documented ranking; portable references and complete relation-index reb
 **Exit gate:** every health finding identifies its evidence and rule, deterministic rebuilds
 agree, and discovery remains fully useful without AI or a vector store.
 
-### 0.13.0 — Knowledge API v1 and Read-only MCP
+### 0.14.0 — Knowledge API v1 and Read-only MCP
 
 **Depends on:** stable object and discovery contracts.
 
@@ -262,9 +307,9 @@ version negotiation and pre-1.0 deprecation policy.
 **Exit gate:** at least two clients pass the same conformance fixtures and no interface exposes
 unauthorized local paths, secrets or writes.
 
-### 0.14.0 — AI Gateway and Privacy Routing
+### 0.15.0 — AI Gateway and Privacy Routing
 
-**Depends on:** `0.13.0` contracts and `0.2.0` network transparency.
+**Depends on:** `0.14.0` contracts and `0.2.0` network transparency.
 
 **Outcome:** introduce inference as a replaceable adapter, never as the foundation of canonical
 knowledge.
@@ -277,9 +322,9 @@ network disclosure before execution.
 **Exit gate:** local-only fails closed, provider substitution leaves canonical knowledge intact,
 and denied data never reaches a provider in policy tests.
 
-### 0.15.0 — AI Receipts, Provider Adapters and Evaluation
+### 0.16.0 — AI Receipts, Provider Adapters and Evaluation
 
-**Depends on:** `0.14.0` gateway.
+**Depends on:** `0.15.0` gateway.
 
 **Outcome:** make AI-assisted proposals attributable, reviewable and replaceable.
 
@@ -291,9 +336,9 @@ fixtures; provider replacement tests; configurable receipt retention with minimu
 **Exit gate:** the same fixture can be evaluated across adapters, every durable proposal is
 traceable to source and policy, and logs contain neither secrets nor raw private content.
 
-### 0.16.0 — Semantic and Hybrid Search
+### 0.17.0 — Semantic and Hybrid Search
 
-**Depends on:** `0.15.0` gateway and receipts.
+**Depends on:** `0.16.0` gateway and receipts.
 
 **Outcome:** add semantic retrieval while keeping embeddings entirely derived and replaceable.
 
@@ -305,7 +350,7 @@ incompatible and missing-index health.
 **Exit gate:** delete-and-rebuild and provider-replacement tests preserve canonical objects,
 privacy routing and deterministic fallback search.
 
-### 0.17.0 — Self-hosted Operations
+### 0.18.0 — Self-hosted Operations
 
 **Depends on:** `0.6.0` lifecycle and mature application contracts.
 
@@ -320,9 +365,9 @@ authentication for non-loopback exposure; provider-neutral reverse-proxy/TLS gui
 **Exit gate:** a clean supported host can install, operate, upgrade, roll back and recover an
 Instance using only published artifacts and documentation.
 
-### 0.18.0 — Windows Bootstrap Completion
+### 0.19.0 — Windows Bootstrap Completion
 
-**Depends on:** the `0.4.0` product shell preview and `0.17.0` operations.
+**Depends on:** the `0.4.0` product shell preview and `0.18.0` operations.
 
 **Outcome:** converge the early Windows product shell with mature self-hosted lifecycle and
 operations, completing the supported non-technical bootstrap rather than replacing the preview
@@ -337,9 +382,9 @@ preview installation.
 **Exit gate:** install/use/uninstall and failure-recovery fixtures pass on supported Windows
 targets without deleting user knowledge.
 
-### 0.19.0 — Signed Windows Release and Safe Updater
+### 0.20.0 — Signed Windows Release and Safe Updater
 
-**Depends on:** `0.18.0` bootstrap and the verified release chain.
+**Depends on:** `0.19.0` bootstrap and the verified release chain.
 
 **Outcome:** complete the Windows lifecycle with authenticated artifacts, backup, health and
 rollback.
@@ -352,7 +397,7 @@ Stable/Preview/Dev channels; pin/defer/disable policy; offline update bundle.
 **Exit gate:** tampered, revoked, incompatible and interrupted updates fail safely, while the
 previous healthy runtime and Instance remain recoverable.
 
-### 0.20.0 — Business and Cloud Contracts Preview
+### 0.21.0 — Business and Cloud Contracts Preview
 
 **Depends on:** stable API, packaging and enforceable privacy boundaries.
 
@@ -367,7 +412,7 @@ provider-neutral encryption/KMS boundary; isolation and authorization conformanc
 **Exit gate:** personal self-hosted behavior remains intact and the same public contracts pass
 cross-tenant isolation tests without vendor-specific domain logic.
 
-### 0.21.0 — 1.0 Release Candidate
+### 0.22.0 — 1.0 Release Candidate
 
 **Depends on:** every release required by the approved 1.0 support perimeter.
 
@@ -384,7 +429,7 @@ support and deprecation documentation.
 
 ### 1.0.0 — Stable Provenance-first Platform
 
-**Depends on:** successful `0.21.0` qualification.
+**Depends on:** successful `0.22.0` qualification.
 
 **Outcome:** declare the proven support perimeter stable; do not add new functionality during
 release preparation.
