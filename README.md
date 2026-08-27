@@ -8,13 +8,14 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.4.0 preview
+## Current status: 0.4.1 preview
 
-The latest published preview is `v0.4.0`. It is the first Windows Product Shell Preview: a
-per-user x64 installer with a bundled runtime, local launcher, About/version identity and an
-explicit update-check lifecycle. Issue #57 and the [0.4.0 release plan](docs/releases/0.4.0.md)
-define its bounded scope. See the [public roadmap](docs/roadmap.md) and the
-[Windows preview guide](docs/windows-preview.md) for installation and trust boundaries.
+The latest published preview is `v0.4.1`. It hardens the Windows Product Shell introduced in
+`0.4.0`: the per-user x64 installer, bundled runtime, local launcher, About/version identity and
+explicit update-check lifecycle now have deeper upgrade, recovery, packaging and layout evidence.
+Issue #62 and the [0.4.1 release plan](docs/releases/0.4.1.md) define this patch-only scope. See
+the [public roadmap](docs/roadmap.md) and the [Windows preview guide](docs/windows-preview.md) for
+installation and trust boundaries.
 
 The roadmap records the non-activated release forecast from `0.5.0` through `1.0.0`. Forecast
 entries are sequencing coordinates, not availability claims or release authorization.
@@ -91,7 +92,7 @@ Instance content and is never enabled in the background by the Core:
 .venv/bin/provelume check-updates --channel preview
 ```
 
-The Windows `0.4.0` preview packages the same behavior behind a per-user installer and EN/IT
+The Windows `0.4.1` preview packages the same behavior behind a per-user installer and EN/IT
 launcher; see the [Windows preview guide](docs/windows-preview.md).
 
 Inspect one Instance's declared network policy and components, also without making a network request:

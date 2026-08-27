@@ -38,6 +38,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   without changing published history, package identity, the `0.5.0`–`0.11.0` sequence or
   stable `1.0.0`.
 
+## 0.4.1 - 2026-08-27
+
 ### Fixed
 
 - stopped the launcher from silently creating a replacement when a previously selected Instance

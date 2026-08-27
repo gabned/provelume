@@ -164,7 +164,7 @@ def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:
         (root / "core" / "provelume" / "build_info.json").read_text(encoding="utf-8")
     )
 
-    assert package_version == "0.4.0"
+    assert package_version == "0.4.1"
     assert init_match is not None
     assert init_match.group(1) == package_version
     assert value == {
