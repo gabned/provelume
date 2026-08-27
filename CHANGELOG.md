@@ -4,6 +4,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+## 0.4.0 - 2026-08-27
+
 ### Added
 
 - activated the `0.4.0` Windows Product Shell Preview through issue #57, with a per-user x64
@@ -17,10 +19,11 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
-- expanded the canonical public roadmap into an ordered release-by-release forecast from `0.4.0` through `1.0.0`, with explicit dependencies, exit gates and activation boundaries, without changing package identity or activating a future release;
+- expanded the canonical public roadmap into an ordered release-by-release forecast through
+  `1.0.0`, with explicit dependencies, exit gates and activation boundaries;
 - atomically inserted the Windows product shell at `0.4.0`, shifted every later unreleased `0.x`
-  forecast through the release candidate forward by one slot, and kept published history and
-  stable `1.0.0` unchanged;
+  forecast through the release candidate forward by one slot, and kept earlier published history
+  and stable `1.0.0` unchanged.
 
 ## 0.3.0 - 2026-08-27
 
