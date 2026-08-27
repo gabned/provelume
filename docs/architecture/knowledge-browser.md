@@ -50,6 +50,32 @@ Deterministic navigation remains complete without AI, embeddings or a vector sto
 retrieval may add suggestions, but cannot replace stable links, filters, provenance or full-text
 fallbacks.
 
+## Filesystem library
+
+The planned `library/` projection is a supported offline navigation surface. It contains a root
+README, hierarchical Area/Subarea and Project paths, per-folder README indexes, Archive and
+generated Collection/tag/person/Source/date/type views. Each document has one primary projected
+path; secondary associations are links and indexes rather than duplicate knowledge. Stable
+parent-linked identifiers survive user-visible folder rename and movement, and Windows/Linux path
+rules produce deterministic portable slugs.
+
+The Browser mirrors this hierarchy instead of maintaining a private tree. Deleting and rebuilding
+the complete library from canonical JSON and Originals yields equivalent navigation. External
+edits to a generated Markdown projection are not silently accepted as canonical changes; they
+enter the normal acquisition/review path.
+
+## Inbox and Action Center
+
+The local Drop Inbox first exposes stabilizing, acquired, duplicate, error and processed states.
+The later unified `Needs attention` Action Center adds typed intake, hierarchical classification,
+exact/probable duplicate, version-conflict, extraction-error, Source-change, retention and AI-
+proposal queues for local, connector and mobile capture.
+
+Every decision card shows preview, provenance/hash, proposed action, reason/confidence, impact and
+reversibility. Confirmed rules automate bounded non-destructive routing only. Destructive or
+identity-changing actions always require a human decision; rejecting, ignoring or timing out a
+queue item never deletes an acquired Original.
+
 ## Guardrails
 
-The browser does not require GitHub, an external AI provider or Provelume Cloud. Provenance is a first-class view rather than hidden behind chat. Build identity is kept separate from cryptographic verification. When rendered Markdown is introduced, raw HTML, active content and unsafe local or remote resource loading remain disabled by default. Write-back, destructive actions and advanced editing are outside this slice.
+The browser does not require GitHub, an external AI provider or Provelume Cloud. Provenance is a first-class view rather than hidden behind chat. Build identity is kept separate from cryptographic verification. When rendered Markdown is introduced, raw HTML, active content and unsafe local or remote resource loading remain disabled by default. Generic `Delete` is not a valid knowledge action: archive, projection removal, recoverable trash and permanent purge remain visibly distinct. Write-back, destructive actions and advanced editing are outside the initial slice.

@@ -24,6 +24,30 @@ they may be deleted and rebuilt, and changes to them never silently mutate an Or
 canonical record. A changed projection becomes knowledge only if it is deliberately submitted
 through the normal acquisition and review path as a new Original.
 
+For PDF input, the human/agent-facing derivative is a versioned document bundle rather than an
+unqualified text dump. It may contain normalized `content.md`, a page map, referenced images and
+tables, extraction confidence and an optional separately hashed viewing/mobile-optimized PDF. The
+bundle records the generator and recipe and remains rebuildable. Optimization never replaces an
+acquired PDF, especially when signatures, encryption or embedded content make byte preservation
+material.
+
+## Original assurance and retention
+
+The hash-verified acquisition commit is the assurance boundary. After it succeeds, routine
+classification, deduplication, refresh, source disappearance, indexing and library rebuilds do not
+overwrite or delete an Original. Exact duplicates reuse the same content-addressed bytes while
+retaining each Acquisition, Source and routing observation. A missing or deleted provider item is
+a Source state change, not an instruction to erase imported knowledge.
+
+Staging files, generated Markdown libraries, optimized PDFs, previews, indexes and other derived
+artifacts have explicit retention policies independent from Originals. A staging input may move
+only after exact bytes and canonical provenance commit successfully.
+
+User-directed erasure uses separate archive, remove-projection, recoverable-trash and permanent-
+purge operations. Permanent purge requires explicit authorization, an impact summary and honest
+backup/replica boundaries. Rejecting an Inbox item, finding a duplicate, removing a connector or
+changing classification never implies purge.
+
 ## Identity and versioning
 
 - Sources and Documents receive stable opaque IDs when first registered.
