@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)][string]$Installer,
-    [Parameter(Mandatory = $true)][string]$PreviousInstaller,
+    [string]$PreviousInstaller,
     [Parameter(Mandatory = $true)][string]$InstallDirectory,
     [Parameter(Mandatory = $true)][string]$InstanceDirectory,
     [Parameter(Mandatory = $true)][string]$ExpectedVersion,
@@ -13,9 +13,30 @@ param(
 
 $ErrorActionPreference = "Stop"
 $InstallerPath = (Resolve-Path $Installer).Path
+$PreviousInstallerSize = 18051429
+$PreviousInstallerSha256 = "0d13b8940184befed42b6e96d3789b06c0cc6842bcd3473d8e26738d6df35749"
+if ([string]::IsNullOrWhiteSpace($PreviousInstaller)) {
+    $PreviousInstaller = Join-Path (
+        Split-Path $InstallerPath -Parent
+    ) "Provelume-Setup-0.4.0-public.exe"
+    Invoke-WebRequest `
+        -Uri "https://github.com/gabned/provelume/releases/download/v0.4.0/Provelume-Setup-0.4.0-x64.exe" `
+        -OutFile $PreviousInstaller
+}
 $PreviousInstallerPath = (Resolve-Path $PreviousInstaller).Path
-$InstallRoot = [System.IO.Path]::GetFullPath($InstallDirectory)
-$InstanceRoot = [System.IO.Path]::GetFullPath($InstanceDirectory)
+if ((Get-Item $PreviousInstallerPath).Length -ne $PreviousInstallerSize) {
+    throw "Published 0.4.0 installer size differs from the reviewed baseline."
+}
+$PreviousHash = (Get-FileHash $PreviousInstallerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($PreviousHash -ne $PreviousInstallerSha256) {
+    throw "Published 0.4.0 installer SHA-256 differs from the reviewed baseline."
+}
+$InstallRoot = [System.IO.Path]::GetFullPath(
+    (Join-Path $InstallDirectory "Próvelume 日本")
+)
+$InstanceRoot = [System.IO.Path]::GetFullPath(
+    (Join-Path $InstanceDirectory "Sintética 日本")
+)
 $EvidenceRoot = Join-Path (Split-Path $InstallerPath -Parent) "windows-hardening-evidence"
 $OriginalLocalAppData = $env:LOCALAPPDATA
 $OriginalPath = $env:PATH

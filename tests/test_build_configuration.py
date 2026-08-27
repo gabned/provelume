@@ -105,10 +105,13 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "--ui-diagnostics-dpi" in windows_exercise
     assert "Assert-SingleProductRegistration" in windows_exercise
     assert "Z:\\synthetic-missing-python" in windows_exercise
-    for workflow in (ci, release):
-        assert "Provelume-Setup-0.4.0-public.exe" in workflow
-        assert "0d13b8940184befed42b6e96d3789b06c0cc6842bcd3473d8e26738d6df35749" in workflow
-        assert "-PreviousInstaller" in workflow
+    assert "Provelume-Setup-0.4.0-public.exe" in windows_exercise
+    assert (
+        "0d13b8940184befed42b6e96d3789b06c0cc6842bcd3473d8e26738d6df35749"
+        in windows_exercise
+    )
+    assert "-PreviousInstaller" not in ci
+    assert "-PreviousInstaller" in release
     windows_spec = (root / "packaging/windows/provelume.spec").read_text(
         encoding="utf-8"
     )
