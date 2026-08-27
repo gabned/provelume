@@ -72,9 +72,15 @@ try {
     if (-not (Test-Path $Executable)) {
         throw "PyInstaller did not produce Provelume.exe."
     }
-    & $Executable --diagnostics-file $Diagnostics
-    if ($LASTEXITCODE -ne 0) {
-        throw "Frozen desktop diagnostics failed with exit code $LASTEXITCODE."
+    $DiagnosticsProcess = Start-Process -FilePath $Executable -ArgumentList @(
+        "--diagnostics-file",
+        "`"$Diagnostics`""
+    ) -Wait -PassThru
+    if ($DiagnosticsProcess.ExitCode -ne 0) {
+        throw "Frozen desktop diagnostics failed with exit code $($DiagnosticsProcess.ExitCode)."
+    }
+    if (-not (Test-Path $Diagnostics)) {
+        throw "Frozen desktop diagnostics did not create the expected evidence file."
     }
     $Identity = Get-Content $Diagnostics -Raw | ConvertFrom-Json
     if (

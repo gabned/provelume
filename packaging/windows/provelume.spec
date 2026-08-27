@@ -1,12 +1,18 @@
+from importlib.util import find_spec
+
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 datas = collect_data_files("provelume")
-hiddenimports = collect_submodules("uvicorn") + collect_submodules("pydantic_core")
+hiddenimports = collect_submodules("uvicorn")
+pydantic_core_spec = find_spec("pydantic_core._pydantic_core")
+if pydantic_core_spec is None or pydantic_core_spec.origin is None:
+    raise RuntimeError("The pydantic_core native extension could not be resolved.")
+binaries = [(pydantic_core_spec.origin, "pydantic_core")]
 
 analysis = Analysis(
     ["entry.py"],
     pathex=[],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],

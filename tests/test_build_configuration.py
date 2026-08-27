@@ -97,9 +97,11 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "Installing the reviewed Windows dependency lock failed" in windows_builder
     assert "PyInstaller failed with exit code" in windows_builder
     assert "Inno Setup failed with exit code" in windows_builder
-    assert 'collect_submodules("pydantic_core")' in (
-        root / "packaging/windows/provelume.spec"
-    ).read_text(encoding="utf-8")
+    windows_spec = (root / "packaging/windows/provelume.spec").read_text(
+        encoding="utf-8"
+    )
+    assert 'find_spec("pydantic_core._pydantic_core")' in windows_spec
+    assert 'binaries = [(pydantic_core_spec.origin, "pydantic_core")]' in windows_spec
 
 
 def test_official_release_web_request_is_fail_closed() -> None:
