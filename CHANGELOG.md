@@ -7,6 +7,7 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 ### Changed
 
 - defined an atomic forward-shift contract for unplanned release insertions: later unreleased planned versions move forward while released history and the current package identity remain unchanged until release preparation;
+- established the public `0.3.0` roadmap and bounded Anchored Local Installation Trust release plan without changing the current `0.2.0` package identity;
 
 ## 0.2.0 - 2026-08-27
 
