@@ -227,6 +227,7 @@ def write_ui_diagnostics(
             )
             root.geometry(f"{target_width}x{target_height}")
             root.update_idletasks()
+            root.update()
             canvas = shell.scroll_canvas
             bounds = canvas.bbox("all") or (0, 0, 0, 0)
             controls = {

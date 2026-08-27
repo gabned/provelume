@@ -437,6 +437,8 @@ def test_windows_tk_layout_probe_is_offline_and_scrollable(tmp_path: Path) -> No
     assert value["all_action_labels_present"] is True
     assert value["window"]["width"] <= 640
     assert value["window"]["height"] <= 480
+    assert value["scroll_surface"]["viewport_width"] > 1
+    assert value["scroll_surface"]["viewport_height"] > 1
     assert value["scroll_surface"]["content_height"] > 0
     assert value["controls"] == {
         "check": "normal",

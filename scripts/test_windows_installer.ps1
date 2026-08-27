@@ -301,6 +301,8 @@ try {
                 -not $Layout.all_action_labels_present -or
                 $Layout.window.width -gt $Layout.modeled_viewport.width -or
                 $Layout.window.height -gt $Layout.modeled_viewport.height -or
+                $Layout.scroll_surface.viewport_width -le 1 -or
+                $Layout.scroll_surface.viewport_height -le 1 -or
                 $Layout.scroll_surface.content_width -le 0 -or
                 $Layout.scroll_surface.content_height -le 0 -or
                 $Layout.controls.open -ne "normal" -or
