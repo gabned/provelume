@@ -26,6 +26,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.2.0` | Local Installation Trust and Privacy & Network Activity transparency | #50 (merged) |
 | Published preview | `0.3.0` | Anchored Local Installation Trust | #52 (completed) |
 | Published preview | `0.4.0` | Windows product shell preview | #57 (completed) |
+| Published preview | `0.4.1` | Windows product shell hardening | #62 (completed) |
 | Next forecast | `0.5.0` | Durable ingestion, local Inbox and document bundles | issue just in time; #5 is an input |
 | Forecast | `0.6.0` | Portable Instance and hierarchical Markdown library | issue just in time |
 | Forecast | `0.7.0` | Connector framework and safe web intake | issue just in time |
@@ -46,7 +47,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Release candidate | `0.22.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time |
 | Stable | `1.0.0` | Stable provenance-first platform | issue just in time |
 
-The package and embedded identity are `0.4.0`. The `0.5.0` forecast is not active: only a
+The package and embedded identity are `0.4.1`. The `0.5.0` forecast is not active: only a
 canonical issue and one owner product pull request may activate it and add product work under
 `Unreleased`.
 
@@ -198,6 +199,19 @@ publication, every later unreleased `0.x` slot moved forward atomically through 
 `0.21.0` release candidate. The later productivity-connector insertion documented below moves the
 current release candidate to `0.22.0`; stable `1.0.0` now depends on `0.22.0`. Earlier published
 history remains unchanged. See [`releases/0.4.0.md`](releases/0.4.0.md).
+
+### 0.4.1 — Windows Product Shell Hardening
+
+Hardened the published `0.4.0` Windows shell without adding a new product capability. The patch
+keeps one per-user x64 product identity and the existing Instance format while correcting moved-
+Instance recovery, backend readiness and failure reporting, console-free frozen startup, release-
+tag/commit validation and reduced-window/DPI behavior.
+
+Release evidence installs the immutable public `0.4.0` executable before the candidate, preserves
+a synthetic Instance and launcher settings through upgrade and uninstall, and exercises the
+bundled runtime, shortcuts, Unicode paths, EN/IT layout probes and update safety boundaries. The
+preview remains unsigned, user-confirmed and non-automatic. See
+[`releases/0.4.1.md`](releases/0.4.1.md).
 
 ## Forecast release-by-release
 

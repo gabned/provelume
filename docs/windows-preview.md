@@ -1,8 +1,8 @@
 # Windows product shell preview
 
-Provelume `0.4.0` is the first release intended to be installed as an ordinary Windows product.
-Download `Provelume-Setup-0.4.0-x64.exe` from the official GitHub Release and run it as the current
-user. Git and a separately installed Python are not required.
+Provelume `0.4.1` is the hardened patch of the first release intended to be installed as an
+ordinary Windows product. Download `Provelume-Setup-0.4.1-x64.exe` from the official GitHub
+Release and run it as the current user. Git and a separately installed Python are not required.
 
 ## What is installed
 
@@ -19,7 +19,9 @@ Three locations remain intentionally separate:
 | portable Instance and preserved originals | `%USERPROFILE%\\Documents\\Provelume` | no |
 
 An upgrade replaces only launcher/runtime files. The portable Instance is opened by the new
-runtime after installation; `0.4.0` introduces no Instance schema migration.
+runtime after installation; `0.4.1` introduces no Instance schema migration. The release pipeline
+installs the public `0.4.0` executable, creates a synthetic Instance and launcher settings, then
+installs `0.4.1` in place and verifies that the same AppId, data and settings are preserved.
 
 ## Version and About
 
@@ -40,12 +42,14 @@ integrity or signature verdict.
 6. Provelume requires another confirmation before starting the normal installer and closing the
    local server.
 
-No background check is enabled by default. `0.4.0` never applies an update silently.
+No background check is enabled by default. `0.4.1` never applies an update silently.
 
 ## Recovery and limitations
 
-If a check or download fails, the installed runtime and Instance are unchanged. A partial file is
-not promoted to the final installer name. The user can retry or download a release asset manually.
+If a selected Instance was moved or removed, the launcher reports the problem and keeps Choose and
+Create available instead of silently creating a replacement. If a check or download fails, the
+installed runtime and Instance are unchanged. A partial file is not promoted to the final installer
+name. The user can retry or download a release asset manually.
 
 The preview installer is not Authenticode-signed. Windows may show SmartScreen. SHA-256 agreement
 with metadata fetched through the same release transport is consistency evidence, not independent
