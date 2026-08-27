@@ -113,6 +113,31 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
     assert "Forecast entries describe intended sequencing" in roadmap
 
 
+def test_development_slices_do_not_create_ambiguous_package_versions() -> None:
+    roadmap = _read(ROADMAP_PATH)
+    policy = _read(ROOT / "docs" / "changelog-policy.md")
+
+    for required_contract in (
+        "one homogeneous slice per agent turn",
+        "at most one owner slice open at a time",
+        "`0.N/S01/F01`",
+        "micro-adjustment may append `-a`",
+        "These IDs create no tag",
+        "package versions such\nas `0.5.0a1`, `0.5.0b1` or `0.5.0rc1`",
+        "matching SemVer tags",
+        "Collapsed forms such as `0.51` or `0.511`",
+        "`0.5/S01` persistent run ledger and retry",
+        "`0.6/S01` schema migration, backup and recovery",
+        "`0.10/S01` Action Center state model and local queues",
+    ):
+        assert required_contract in roadmap
+
+    assert "## Development slices and installable checkpoints" in policy
+    assert "one canonical parent issue and at most one open owner slice pull request" in policy
+    assert "never versions, tags or published changelog headings" in policy
+    assert "letter-suffixed package versions, are not used" in policy
+
+
 def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
     roadmap = _read(ROADMAP_PATH)
 
@@ -137,14 +162,14 @@ def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
     assert "Every later unreleased\nforecast moves forward atomically by one" in roadmap
     assert "`0.22.0` release candidate" in roadmap
     assert "stable `1.0.0` now depends on `0.22.0`" in roadmap
-    assert "scope expansions in `0.7.0`–`0.11.0` are explicit above" in roadmap
+    assert "connector-related scope expansions in `0.7.0`–`0.11.0`, are explicit above" in roadmap
 
 
 def test_mobile_capture_is_bounded_and_review_first() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.10.0` | Mobile Capture Inbox and review queue |"
+        "| Forecast | `0.10.0` | Unified Capture and Action Center |"
     ) == 1
     for required_contract in (
         "short-lived QR pairing",
@@ -158,7 +183,85 @@ def test_mobile_capture_is_bounded_and_review_first() -> None:
         "outside the LAN requires",
         "WhatsApp Cloud API integration",
         "dedicated Business number/API flow",
-        "creates no automatic Claim, Decision, Task or CalendarEvent",
+        "capture creates no automatic Claim, Decision, Task or\nCalendarEvent",
+    ):
+        assert required_contract in roadmap
+
+
+def test_local_inbox_pdf_bundle_and_duplicate_contract_is_explicit() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    assert roadmap.count(
+        "| Next forecast | `0.5.0` | Durable ingestion, local Inbox and document bundles |"
+    ) == 1
+    for required_contract in (
+        "filesystem Drop Inbox",
+        "move-after-commit only after exact-byte preservation and hash verification",
+        "normalized Markdown, page map",
+        "optional separately hashed viewing/mobile optimization",
+        "every drop or Source observation\nretains its own Acquisition",
+        "Probable duplicates are not silently merged",
+        "no input is moved before a committed hash-verified acquisition",
+    ):
+        assert required_contract in roadmap
+
+
+def test_hierarchical_filesystem_library_contract_is_explicit() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    assert roadmap.count(
+        "| Forecast | `0.6.0` | Portable Instance and hierarchical Markdown library |"
+    ) == 1
+    for required_contract in (
+        "The filesystem is a supported navigation surface",
+        "hierarchical Area/Subarea and Project paths",
+        "one\nprimary library path",
+        "stable and parent-linked",
+        "library remains understandable with Provelume stopped",
+        "Area/Subarea, Project and Collection\nclassification identities",
+        "root\nand per-folder README indexes",
+        "generated tag/person/Source/\ndate/type views without duplicate originals",
+        "Area/Project rename or movement preserves stable references",
+    ):
+        assert required_contract in roadmap
+
+
+def test_original_assurance_and_action_center_contract_is_explicit() -> None:
+    roadmap = _read(ROADMAP_PATH)
+    browser_architecture = _read(ROOT / "docs" / "architecture" / "knowledge-browser.md")
+    state_architecture = _read(
+        ROOT / "docs" / "architecture" / "canonical-derived-state.md"
+    )
+
+    for required_contract in (
+        "routine ingestion, classification,\ndeduplication, refresh, source disappearance",
+        "Exact duplicate bytes are stored once by content identity",
+        "Archive,\nremove-from-library, recoverable trash and permanent purge",
+        "it is never inferred from rejecting an Inbox item",
+        "Needs attention` Action Center",
+        "reason/confidence,\nimpact and reversibility",
+        "destructive or identity-changing decisions always require a human action",
+        "reusable non-destructive routing rule",
+        "ignored queue items\ncause no destructive action",
+    ):
+        assert required_contract in roadmap
+
+    assert "## Original assurance and retention" in state_architecture
+    assert "A missing or deleted provider item" in state_architecture
+    assert "## Filesystem library" in browser_architecture
+    assert "## Inbox and Action Center" in browser_architecture
+    assert "Generic `Delete` is not a valid knowledge action" in browser_architecture
+
+
+def test_ai_uses_bounded_document_context_and_reviewable_proposals() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    for required_contract in (
+        "bounded agent document-context contract",
+        "normalized Markdown, page map and minimum required assets",
+        "source pages or\nthe Original only when permitted and needed",
+        "classification proposals delivered through the same Action Center",
+        "immutable separation\nbetween extracted Markdown and AI-authored output",
     ):
         assert required_contract in roadmap
 

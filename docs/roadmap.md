@@ -9,8 +9,9 @@ request, tag, release or delivery commitment. Planned-version movement follows
 ## Status vocabulary
 
 - **Published preview** — immutable tag and public preview release exist.
-- **Active implementation** — a canonical issue and one owner product pull request activate the
-  bounded release scope; package identity and publication remain separate later steps.
+- **Active implementation** — a canonical parent issue and exactly one current owner product pull
+  request activate one bounded release slice; package identity and publication remain separate
+  later steps.
 - **Next forecast** — first intended product increment after the published baseline, not yet
   activated until a canonical issue and one owner pull request exist.
 - **Forecast** — ordered portfolio slot whose scope may still be refined before activation.
@@ -25,12 +26,12 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.2.0` | Local Installation Trust and Privacy & Network Activity transparency | #50 (merged) |
 | Published preview | `0.3.0` | Anchored Local Installation Trust | #52 (completed) |
 | Published preview | `0.4.0` | Windows product shell preview | #57 (completed) |
-| Next forecast | `0.5.0` | Durable ingestion and extractor completion | issue just in time; #5 is an input |
-| Forecast | `0.6.0` | Portable Instance lifecycle | issue just in time |
+| Next forecast | `0.5.0` | Durable ingestion, local Inbox and document bundles | issue just in time; #5 is an input |
+| Forecast | `0.6.0` | Portable Instance and hierarchical Markdown library | issue just in time |
 | Forecast | `0.7.0` | Connector framework and safe web intake | issue just in time |
 | Forecast | `0.8.0` | Refresh engine and Source lifecycle | issue just in time |
 | Forecast | `0.9.0` | Email, Google file and transcript intake | issue just in time |
-| Forecast | `0.10.0` | Mobile Capture Inbox and review queue | issue just in time |
+| Forecast | `0.10.0` | Unified Capture and Action Center | issue just in time |
 | Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time |
 | Forecast | `0.12.0` | Productivity connectors and guarded sync preview | issue just in time |
 | Forecast | `0.13.0` | Knowledge navigation, relations and deterministic discovery | issue just in time |
@@ -51,8 +52,9 @@ canonical issue and one owner product pull request may activate it and add produ
 
 ## Planning and delivery contract
 
-- Activate and deliver one homogeneous release at a time through one canonical issue and one
-  owner product pull request.
+- Activate one release at a time through one canonical parent issue and keep exactly one current
+  owner product pull request for one homogeneous slice. Merge and close one slice's ownership
+  before opening the next.
 - Keep implementation separate from version alignment, tag and publication unless a future
   repository-local plan explicitly proves that a combined change remains homogeneous.
 - Treat the release table as a forecast, not as a promise that every listed capability or exact
@@ -69,6 +71,21 @@ canonical issue and one owner product pull request may activate it and add produ
 - Preserve clean-room, provider independence, no-GitHub runtime, explicit network behavior and
   evidence claims no stronger than the verification actually performed.
 
+### Bounded development slices
+
+Complex forecast releases are implemented through one homogeneous slice per agent turn and owner
+pull request, with at most one owner slice open at a time. Planning IDs use `0.N/S01`, `0.N/S02`,
+and so on; fine-tuning uses
+`0.N/S01/F01`; a micro-adjustment may append `-a`, `-b`, and so on. These IDs create no tag,
+package version or dated changelog heading.
+
+Only a separately authorized installable checkpoint changes identity, using package versions such
+as `0.5.0a1`, `0.5.0b1` or `0.5.0rc1` and matching SemVer tags such as
+`v0.5.0-alpha.1`. Final publication remains `0.5.0`; later released corrections use `0.5.1`,
+`0.5.2`, and so on. Collapsed forms such as `0.51` or `0.511` and letter-suffixed package versions
+remain human shorthand only because they do not sort consistently across the Python package,
+Windows updater and release tooling. See [`changelog-policy.md`](changelog-policy.md).
+
 ## Knowledge representation and navigation contract
 
 Markdown is the first-class portable, human-facing format for classic knowledge reading and
@@ -78,6 +95,13 @@ versions, objects, relations and provenance remain readable JSON under `knowledg
 build deterministic Markdown library projections with stable links and portable metadata, but
 those projections are derived, rebuildable and never silently overwrite an original or canonical
 record.
+
+For a PDF, the exact acquired bytes remain the authoritative Original. A versioned document bundle
+provides normalized Markdown, a page map, referenced images/tables and other bounded assets. An
+optional viewing/mobile-optimized PDF is a separately hashed derived artifact with a recorded
+recipe and quality policy; it never replaces a signed, encrypted or otherwise authoritative
+original. Agents later use the Markdown bundle by default and may retrieve a source page or the
+Original when extraction is incomplete or ambiguous.
 
 The published Knowledge Browser already provides browse, search, document detail, raw extracted-
 text preview, version history, provenance, original download and knowledge health. It is also the
@@ -91,6 +115,35 @@ saved views. Links and backlinks, version/provenance timelines, related items an
 health findings add connected navigation. A graph is an optional secondary overview rather than
 the only way to find knowledge; later semantic discovery augments rather than replaces these
 deterministic paths.
+
+The filesystem is a supported navigation surface, not only an implementation detail. The durable
+`library/` projection has a root README, hierarchical Area/Subarea and Project paths, per-folder
+README indexes, Archive and generated tag/person/Source/date/type views. Every document has one
+primary library path and may have multiple secondary classifications without duplicate knowledge.
+Area, Project and Collection identities are stable and parent-linked, so renaming or moving a
+folder changes neither document identity nor provenance. The built-in Viewer mirrors the same
+hierarchy; the library remains understandable with Provelume stopped.
+
+## Original assurance and decision contract
+
+After a successful hash-verified acquisition commits, routine ingestion, classification,
+deduplication, refresh, source disappearance and library rebuild workflows do not overwrite or
+delete the acquired Original. Exact duplicate bytes are stored once by content identity, while
+each Source observation remains a separate Acquisition. Moving a document between Areas or
+Projects changes only canonical classification and rebuildable projections. Staging copies and
+derived artifacts have separate, explicit retention policies.
+
+User-directed erasure remains possible without a misleading absolute retention promise. Archive,
+remove-from-library, recoverable trash and permanent purge are distinct actions. Purge requires an
+impact preview, explicit confirmation, disclosure of known backup/replica boundaries and a
+privacy-minimizing receipt; it is never inferred from rejecting an Inbox item, removing a Source
+or finding a duplicate. Connector reads do not delete or move provider content by default.
+
+A single `Needs attention` Action Center exposes typed queues for intake, classification,
+exact/probable duplicates, version conflicts, extraction errors, Source changes, retention and
+later AI proposals. Each item shows preview, provenance/hash, proposed action, reason/confidence,
+impact and reversibility. Confirmed rules may automate only bounded non-destructive routing;
+destructive or identity-changing decisions always require a human action.
 
 ## Published foundation
 
@@ -148,40 +201,67 @@ history remains unchanged. See [`releases/0.4.0.md`](releases/0.4.0.md).
 
 ## Forecast release-by-release
 
-### 0.5.0 — Durable Ingestion and Extractor Completion
+### 0.5.0 — Durable Ingestion, Local Inbox and Document Bundles
 
 **Outcome:** turn filesystem ingestion from a vertical slice into a durable, observable and
-recoverable subsystem.
+recoverable local intake subsystem with agent-ready document bundles.
 
-**Includes:** persistent ingestion runs and per-item results; bounded per-item failure and retry;
-versioned extractor capabilities; optional local OCR only after licensing/packaging review;
-rename/removal/supersession provenance; incremental indexing with full rebuild recovery; Source
-locking and synthetic scale limits.
+**Includes:** persistent ingestion runs and per-item results; a filesystem Drop Inbox with
+stabilizing/acquired/duplicate/error/processed states; safe copy by default and optional
+move-after-commit only after exact-byte preservation and hash verification; bounded per-item
+failure and retry; versioned extractor capabilities; optional local OCR only after
+licensing/packaging review; PDF document bundles containing normalized Markdown, page map,
+referenced assets and optional separately hashed viewing/mobile optimization; rename/removal/
+supersession provenance; incremental indexing with full rebuild recovery; Source locking and
+synthetic scale limits.
+
+Exact duplicate bytes share one content-addressed Original, but every drop or Source observation
+retains its own Acquisition and routing evidence. Probable duplicates are not silently merged.
+
+**Suggested slices:** `0.5/S01` persistent run ledger and retry; `0.5/S02` local Drop Inbox and
+safe move-after-commit; `0.5/S03` PDF/Markdown/page-map/asset bundle plus optional OCR and viewing
+optimization; `0.5/S04` exact/probable duplicate and original-assurance behavior; `0.5/S05`
+incremental/full rebuild agreement, scale limits and release integration.
 
 **Exit gate:** interrupted and repeated ingestion is idempotent, malformed items do not discard
-valid work, incremental and full-rebuild indexes agree, and OCR remains optional with no cloud
-dependency.
+valid work, no input is moved before a committed hash-verified acquisition, exact duplicates lose
+no occurrence or provenance, Markdown/page-map/assets rebuild from the preserved Original,
+incremental and full-rebuild indexes agree, and OCR remains optional with no cloud dependency.
 
-**Not in this release:** network Sources or generic scheduling.
+**Not in this release:** network Sources, generic scheduling, AI classification or destructive
+cleanup of acquired Originals.
 
-### 0.6.0 — Portable Instance Lifecycle
+### 0.6.0 — Portable Instance and Hierarchical Markdown Library
 
 **Depends on:** `0.5.0` ingestion runs.
 
-**Outcome:** make an Instance safely upgradeable, exportable and recoverable before network
-Sources or end-user installers are introduced.
+**Outcome:** make an Instance safely upgradeable, exportable, recoverable and directly navigable
+on its filesystem before network Sources or end-user installers are introduced.
 
 **Includes:** versioned schema and forward-only migrations with preflight; automatic backup;
 failure restore/rollback; readable export with a deterministic Markdown library projection and
-hash-validated import; Instance manifest; safe Markdown rendering in the built-in Viewer with
-raw/original/download access; `validate`, `backup`, `restore`, `export` and `import`; crash
-recovery; Windows/Linux path compatibility; explicit inclusion or rebuild of derived state.
+hash-validated import; Instance manifest; stable parent-linked Area/Subarea, Project and Collection
+classification identities; one primary library path plus multiple secondary associations; root
+and per-folder README indexes; `areas/`, `projects/`, `archive/` and generated tag/person/Source/
+date/type views without duplicate originals; Windows-safe deterministic slugs and moves; safe
+Markdown rendering in the built-in Viewer with raw/original/download access; distinct archive,
+remove-projection, recoverable-trash and explicit-purge semantics; `validate`, `backup`, `restore`,
+`export` and `import`; crash recovery; Windows/Linux path compatibility; explicit inclusion or
+rebuild of derived state.
 
 **Exit gate:** N-1 to N migration, failure recovery and cross-platform export/import preserve
 originals, versions and provenance; the Markdown projection and Viewer can be regenerated from
-canonical state without mutating it.
+canonical state without mutating it; Area/Project rename or movement preserves stable references;
+and no classification or library operation deletes an Original. Permanent purge proves explicit
+authorization and reports known backup/replica limits instead of claiming broader erasure.
 
-**Not in this release:** multi-master synchronization or proprietary cloud storage.
+**Not in this release:** autonomous classification, multi-master synchronization or proprietary
+cloud storage.
+
+**Suggested slices:** `0.6/S01` schema migration, backup and recovery; `0.6/S02` stable
+Area/Subarea/Project/Collection hierarchy; `0.6/S03` filesystem library, README indexes and
+Viewer parity; `0.6/S04` archive/trash/purge and retention boundaries; `0.6/S05` portable
+export/import and cross-platform qualification.
 
 ### 0.7.0 — Connector Framework and Safe Web Intake
 
@@ -196,6 +276,10 @@ installed apps; least-privilege scopes; separate provider, account and Source id
 web acquisition with canonical URL and provenance; SSRF, reserved-address, DNS-rebinding and
 redirect controls; response/resource limits; conditional metadata; preserved acquired original
 plus derived readable text.
+
+The initial connector capability is read intake. Provider deletion or movement is a separate
+future write capability and Source disappearance never cascades into deletion of an acquired
+Original.
 
 Every connector type is multi-instance by contract. A ConnectorDefinition describes reusable
 adapter code and capabilities; each ConnectorInstance binds one endpoint, provider identity,
@@ -246,19 +330,23 @@ replacement does not migrate canonical knowledge.
 **Not in this release:** Google Calendar, task-provider sync, email sending, or automatic claims,
 decisions and tasks derived from communications or transcripts.
 
-### 0.10.0 — Mobile Capture Inbox and Review Queue
+### 0.10.0 — Unified Capture and Action Center
 
-**Depends on:** durable ingestion, Sources and the `0.8.0` refresh/job foundation.
+**Depends on:** durable ingestion, hierarchical classification, Sources and the `0.8.0`
+refresh/job foundation.
 
-**Outcome:** make intentional capture from a phone fast while keeping every submitted item in a
-write-safe review flow rather than silently turning it into durable knowledge.
+**Outcome:** unify local, connector and mobile capture decisions in one evidence-backed Action
+Center rather than silently turning submitted items into durable or destructively changed
+knowledge.
 
-**Includes:** closed review states and transitions; a mobile-responsive Capture Inbox; a bounded,
+**Includes:** closed review states and transitions; a mobile-responsive Capture Inbox and
+`Needs attention` Action Center; typed intake/classification/exact-duplicate/probable-duplicate/
+version-conflict/extraction-error/Source-change/retention queues; a bounded,
 append-only capture endpoint for files, photos/scans, screenshots, PDFs, URLs, text and audio/voice
 notes; exact-original preservation with capture time, submitting device/channel and optional
-user note/area; short-lived QR pairing and revocable per-device credentials; upload limits,
-content-type verification, malware-safe handling boundary, offline outbox/retry and idempotent
-submission.
+user note/Area/Project; short-lived QR pairing and revocable per-device credentials; upload
+limits, content-type verification, malware-safe handling boundary, offline outbox/retry and
+idempotent submission.
 
 A minimal mobile retrieval view provides recent captures, bounded full-text search, provenance
 and version preview, and explicit authenticated original download without persistent device
@@ -271,21 +359,35 @@ may be proven with one optional Telegram bot adapter that accepts only items exp
 forwarded to the configured bot/chat and declares that content traverses Telegram. Each device,
 drop folder, bot and chat is a separate ConnectorInstance or Source.
 
-The same Inbox provides proposal-before-mutation, separately scoped write API with idempotency and
-audit journal, CSRF/session protection, user-managed area/tag classification, duplicate decisions
-and links, and undo or compensation where technically possible. LAN use is supported first;
+Each Action Center item provides proposal-before-mutation, preview, provenance/hash, reason and
+confidence, impact, reversibility and a bounded choice set. Users can confirm or correct
+hierarchical Area/Project placement, create a reusable non-destructive routing rule, link an exact
+duplicate occurrence, or choose new-version/separate/related handling for probable duplicates.
+Destructive and identity-changing decisions never become automatic rules.
+
+The same Inbox provides a separately scoped write API with idempotency and audit journal,
+CSRF/session protection, distinct archive/remove-projection/trash/purge decisions and undo or
+compensation where technically possible. Rejection quarantines an acquisition according to an
+explicit retention policy; it does not imply purge. LAN use is supported first;
 capture from outside the LAN requires an explicitly configured trusted network, VPN or hardened
 HTTPS exposure rather than a mandatory Provelume cloud relay.
 
 **Exit gate:** accepted, rejected and superseded transitions preserve originals and evidence;
 duplicate, replayed, oversized, malformed and unauthorized submissions fail safely; device or bot
-revocation stops future capture; queued mobile submissions retry without duplication; and capture
-creates no automatic Claim, Decision, Task or CalendarEvent before review.
+revocation stops future capture; queued submissions retry without duplication; exact duplicates
+retain every Acquisition; probable duplicates remain separate until decided; ignored queue items
+cause no destructive action; and capture creates no automatic Claim, Decision, Task or
+CalendarEvent before review.
 
 **Not in this release:** reading arbitrary private chats; automatic audio transcription; mandatory
 cloud relay; WhatsApp Cloud API integration; or autonomous classification and durable writes.
 WhatsApp remains a later candidate only through a dedicated Business number/API flow, never by
 scraping or impersonating a personal WhatsApp account.
+
+**Suggested slices:** `0.10/S01` Action Center state model and local queues; `0.10/S02`
+classification/duplicate/version-conflict decisions and reusable safe routing; `0.10/S03` mobile
+capture, device pairing and offline retry; `0.10/S04` iOS, Android, Drive-drop and Telegram
+reference paths; `0.10/S05` mobile retrieval, authorization and end-to-end assurance fixtures.
 
 ### 0.11.0 — Knowledge Objects v1
 
@@ -294,8 +396,9 @@ scraping or impersonating a personal WhatsApp account.
 **Outcome:** move beyond document-only knowledge with explicit canonical objects and evidence.
 
 **Includes:** Entity/KnowledgeObject identities and aliases; Claims with Evidence references;
-Decisions with state and rationale; provider-independent Task/Outcome and
-CalendarEvent/Commitment; typed versioned Relations;
+Decisions with state and rationale; the stable Project/Collection identities introduced for the
+filesystem library promoted without replacement into the object model; provider-independent
+Task/Outcome and CalendarEvent/Commitment; typed versioned Relations;
 stable references independent of paths or GitHub; portable schema migration; minimal service/write
 API and review workflow.
 
@@ -329,6 +432,10 @@ idempotency key, optimistic-concurrency check and privacy-minimizing audit recei
 Tududi or provider capabilities fail visibly instead of being emulated through private or
 unstable interfaces.
 
+Connector items can propose routing into existing Areas and Projects, but only confirmed
+non-destructive rules may apply that routing automatically. No connector deletion is inferred from
+local archive, deduplication, Source removal or permanent purge.
+
 **Exit gate:** multiple Google accounts, Asana identities/workspaces/projects, Tududi endpoints
 and iCalendar feeds remain distinguishable; refresh and full resync are idempotent; recurrence and
 cross-provider duplicates are explainable; revoked credentials stop access without damaging
@@ -342,7 +449,8 @@ additional adapters such as CalDAV, Microsoft 365, IMAP, Notion or Todoist.
 This independently releasable outcome takes the former `0.12.0` slot. Every later unreleased
 forecast moves forward atomically by one through the `0.22.0` release candidate. Published
 history, the numbering and relative order of `0.5.0`–`0.11.0`, and stable `1.0.0` remain
-unchanged; the connector-related scope expansions in `0.7.0`–`0.11.0` are explicit above.
+unchanged; the Inbox/library/assurance expansions in `0.5.0`, `0.6.0` and `0.10.0`, and the
+connector-related scope expansions in `0.7.0`–`0.11.0`, are explicit above.
 
 ### 0.13.0 — Knowledge Navigation, Relations and Deterministic Discovery
 
@@ -351,8 +459,9 @@ unchanged; the connector-related scope expansions in `0.7.0`–`0.11.0` are expl
 **Outcome:** make documents and objects coherently navigable and diagnosable before introducing
 embeddings.
 
-**Includes:** a mature Knowledge Browser/Viewer with classic Markdown-library and structured
-navigation; area/Source/tag/type trees and breadcrumbs; recent, pinned and saved views; safe
+**Includes:** a mature Knowledge Browser/Viewer over the existing filesystem library and
+structured objects; Area/Subarea/Project/Collection and Source/tag/type trees with breadcrumbs;
+per-folder outlines and ordered/pinned sections; recent and saved views; safe
 rendered/raw/original document modes; outgoing links and backlinks; version/provenance timelines;
 related document/object views with a visible reason for each suggestion; an optional secondary
 relation graph; explainable stale/conflict/missing-evidence/superseded/orphaned health states;
@@ -371,7 +480,9 @@ the same knowledge, and discovery remains fully useful without AI or a vector st
 exclusive business logic.
 
 **Includes:** paginated and bounded Knowledge API v1 contracts; schemas and compatibility policy
-for documents, objects, provenance, search, related and health; read/write scope separation;
+for documents, hierarchical classification, Action Center queues, objects, provenance, search,
+related, retention and health; read/write scope separation with permanent purge excluded from
+read-only clients and MCP;
 a versioned capture-submission contract, a mobile read profile for recent/search/detail/
 provenance/original-download and mobile-client conformance fixtures, all distinct from read-only
 MCP tools for search and retrieval; aligned CLI/browser services; reference clients;
@@ -388,9 +499,11 @@ unauthorized local paths, secrets or writes.
 knowledge.
 
 **Includes:** capability-based provider registry; deterministic fake adapter and at least one
-optional OpenAI-compatible adapter; external secret references; source/data-category/local-only
-policy; no silent cloud fallback; bounded budget, retry and cancellation; explicit provider and
-network disclosure before execution.
+optional OpenAI-compatible adapter; a bounded agent document-context contract that selects
+normalized Markdown, page map and minimum required assets by default and retrieves source pages or
+the Original only when permitted and needed; external secret references; source/data-category/
+local-only policy; no silent cloud fallback; bounded budget, retry and cancellation; explicit
+provider and network disclosure before execution.
 
 **Exit gate:** local-only fails closed, provider substitution leaves canonical knowledge intact,
 and denied data never reaches a provider in policy tests.
@@ -403,8 +516,10 @@ and denied data never reaches a provider in policy tests.
 
 **Includes:** privacy-aware receipts with capability/model/policy/template/source/output identity;
 versioned templates; additional optional adapters behind the same capability contract; structured
-object proposals; mandatory review for initial durable writes; sanitized conformance/evaluation
-fixtures; provider replacement tests; configurable receipt retention with minimum provenance.
+object and classification proposals delivered through the same Action Center; immutable separation
+between extracted Markdown and AI-authored output; mandatory review for initial durable writes;
+sanitized conformance/evaluation fixtures; provider replacement tests; configurable receipt
+retention with minimum provenance.
 
 **Exit gate:** the same fixture can be evaluated across adapters, every durable proposal is
 traceable to source and policy, and logs contain neither secrets nor raw private content.
@@ -433,7 +548,8 @@ runtime.
 **Includes:** immutable packages/containers with build identity; supported runtime profile;
 configuration separated from data; secret references; health/readiness and redacted logs;
 documented init/start/stop/status/backup/restore/upgrade/rollback; N-1 to N migration; local
-authentication for non-loopback exposure; provider-neutral reverse-proxy/TLS guidance.
+authentication for non-loopback exposure; provider-neutral reverse-proxy/TLS guidance; retention
+and purge reporting that distinguishes the live Instance from backups and external replicas.
 
 **Exit gate:** a clean supported host can install, operate, upgrade, roll back and recover an
 Instance using only published artifacts and documentation.

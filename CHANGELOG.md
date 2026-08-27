@@ -19,6 +19,20 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - established Markdown as the first-class portable classic-navigation format while retaining
   canonical JSON and exact originals, and planned a safe rendered/raw/original Viewer plus tree,
   search, backlinks, timelines, saved views and a secondary relation graph;
+- assigned the local filesystem Drop Inbox, PDF-to-Markdown document bundles, page maps, assets,
+  optional derived PDF optimization and exact-duplicate handling to `0.5.0`, followed in `0.6.0`
+  by a persistent hierarchical Markdown library with stable Areas, Projects, Collections,
+  per-folder README indexes and filesystem/Viewer parity;
+- defined original-retention assurance and a unified Action Center: routine classification,
+  deduplication, source refresh and library moves do not delete acquired originals; ambiguous or
+  destructive outcomes enter evidence-backed queues, while archive, projection removal, trash and
+  explicit permanent purge remain distinct user actions;
+- made normalized Markdown plus page maps and selected assets the default later AI working
+  context, with source-page/original fallback and separately reviewable, attributable proposals
+  that cannot overwrite an acquired original or extracted document bundle;
+- adopted bounded development-slice identifiers (`0.5/S01`, fine-tuning `0.5/S01/F01` and
+  micro-adjustment `0.5/S01/F01-a`) so one homogeneous agent turn need not become a package
+  release; optional installable checkpoints retain standards-compliant alpha/beta/RC identities;
 - atomically inserted the productivity-connector outcome at `0.12.0` and shifted every later
   unreleased `0.x` forecast through the release candidate forward by one slot to `0.22.0`,
   without changing published history, package identity, the `0.5.0`–`0.11.0` sequence or
