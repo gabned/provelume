@@ -1,7 +1,7 @@
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 datas = collect_data_files("provelume")
-hiddenimports = collect_submodules("uvicorn")
+hiddenimports = collect_submodules("uvicorn") + collect_submodules("pydantic_core")
 
 analysis = Analysis(
     ["entry.py"],

@@ -120,6 +120,19 @@ try {
 }
 finally {
     if (Test-Path $BuildRoot) {
-        Remove-Item -Recurse -Force $BuildRoot
+        for ($Attempt = 1; $Attempt -le 5; $Attempt++) {
+            try {
+                Remove-Item -Recurse -Force $BuildRoot -ErrorAction Stop
+                break
+            }
+            catch {
+                if ($Attempt -eq 5) {
+                    Write-Warning "Could not completely remove the temporary Windows build directory: $_"
+                }
+                else {
+                    Start-Sleep -Milliseconds 750
+                }
+            }
+        }
     }
 }
