@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-23
+- Development line: 0.2.0 (not yet released)
 
 ## Context
 

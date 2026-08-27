@@ -54,7 +54,7 @@ Example shape:
   "status": "package_integrity_verified",
   "package": {
     "distribution": "provelume",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "editable": false
   },
   "integrity": {

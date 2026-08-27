@@ -1,6 +1,8 @@
 # Privacy and network baseline
 
-Provelume 0.1 can perform its implemented functions without an external network connection after its runtime dependencies are installed.
+The Provelume 0.2.0 development baseline can perform its implemented functions without an
+external network connection after its runtime dependencies are installed. This describes the
+checked-in development line, not a published 0.2.0 release.
 
 The first slice includes no analytics, telemetry, CDN resources, remote fonts, external AI calls or hidden update checks. Source files are read locally and preserved into the selected Instance.
 
