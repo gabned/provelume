@@ -16,7 +16,10 @@ transport contacts GitHub Releases over HTTPS, sends no Instance content, and is
 ordinary Core use. Startup checking is disabled by default. Downloaded installers are bounded and
 checked by size/SHA-256, but the unsigned preview does not independently authenticate its publisher.
 When startup checking is enabled, the launcher records the `https://api.github.com` origin in the
-selected Instance's declared capability inventory so `/security/network` does not hide that policy.
+selected Instance's declared capability inventory and sets both `network.external_access` and
+`network.update_checks` to `true`, so `/security/network` does not hide or contradict that policy.
+Disabling startup checking sets both flags back to `false`. A startup worker also rechecks both
+flags locally and fails closed before making a request if they are not enabled.
 
 The Instance-aware Privacy & Network Activity surfaces—`provelume network-status <instance>`, `GET /api/v1/security/network` and `/security/network`—read local configuration only. They enumerate the built-in update-check capability, configured Sources, and any connector/provider declarations. Filesystem Source paths are never returned. External HTTP(S) endpoints are shown only as safe origins, and declared data-category identifiers are shown only when configured.
 

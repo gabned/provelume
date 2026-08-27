@@ -144,10 +144,26 @@ def declare_startup_update_policy(instance_path: Path, *, enabled: bool) -> None
     network = config.setdefault("network", {})
     if not isinstance(network, dict):
         raise ValueError("Instance network configuration must be an object")
+    network["external_access"] = bool(enabled)
     network["update_checks"] = bool(enabled)
     network["update_endpoint"] = "https://api.github.com"
     network["update_data_categories"] = []
     instance.store.write_config(config)
+
+
+def startup_update_policy_enabled(instance_path: Path) -> bool:
+    """Fail closed unless both the global and component policies allow startup checks."""
+
+    try:
+        config = ProvelumeInstance(instance_path).store.read_config()
+    except (OSError, ValueError):
+        return False
+    network = config.get("network")
+    return bool(
+        isinstance(network, dict)
+        and network.get("external_access") is True
+        and network.get("update_checks") is True
+    )
 
 
 def diagnostics_payload() -> dict[str, Any]:
@@ -312,6 +328,7 @@ class DesktopShell:
         self.server: subprocess.Popen[bytes] | None = None
         self.server_port: int | None = None
         self.candidate: UpdateCandidate | None = None
+        self.update_generation = 0
         self.closed = False
 
         self.status = tk.StringVar(value=self.text["instance_ready"])
@@ -425,6 +442,7 @@ class DesktopShell:
         save_settings(self.settings)
 
     def _save_policy(self) -> None:
+        previous_channel = self.settings.update_channel
         self._replace_settings(
             update_channel=self.channel.get(),
             check_on_start=self.check_on_start.get(),
@@ -433,6 +451,8 @@ class DesktopShell:
             self.instance,
             enabled=self.settings.check_on_start,
         )
+        if self.settings.update_channel != previous_channel:
+            self._invalidate_update_result()
 
     def _select_instance(self, path: Path) -> None:
         ProvelumeInstance(path)
@@ -493,25 +513,30 @@ class DesktopShell:
 
             messagebox.showerror("Provelume", self.text["invalid_instance"])
             return
-        self.server_port = _available_port()
-        command = _command_for_backend(self.instance, self.server_port)
+        port = _available_port()
+        command = _command_for_backend(self.instance, port)
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
-        self.server = subprocess.Popen(
+        process = subprocess.Popen(
             command,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             creationflags=creationflags,
         )
+        self.server = process
+        self.server_port = port
         self.status.set(self.text["starting"])
-        threading.Thread(target=self._wait_for_server, daemon=True).start()
+        threading.Thread(
+            target=self._wait_for_server,
+            args=(process, port),
+            daemon=True,
+        ).start()
 
-    def _wait_for_server(self) -> None:
-        assert self.server_port is not None
-        url = f"http://127.0.0.1:{self.server_port}/health"
+    def _wait_for_server(self, process: subprocess.Popen[bytes], port: int) -> None:
+        url = f"http://127.0.0.1:{port}/health"
         ready = False
         for _attempt in range(60):
-            if self.server is None or self.server.poll() is not None:
+            if process.poll() is not None:
                 break
             try:
                 with urllib.request.urlopen(url, timeout=0.5) as response:
@@ -522,12 +547,19 @@ class DesktopShell:
                 time.sleep(0.15)
         if self.closed:
             return
-        self.root.after(0, lambda: self._server_ready(ready))
+        self.root.after(0, lambda: self._server_ready(process, port, ready))
 
-    def _server_ready(self, ready: bool) -> None:
-        if ready and self.server_port is not None:
+    def _server_ready(
+        self,
+        process: subprocess.Popen[bytes],
+        port: int,
+        ready: bool,
+    ) -> None:
+        if self.closed or self.server is not process or self.server_port != port:
+            return
+        if ready and process.poll() is None:
             self.status.set(self.text["running"])
-            webbrowser.open(f"http://127.0.0.1:{self.server_port}/")
+            webbrowser.open(f"http://127.0.0.1:{port}/")
         else:
             self.status.set(self.text["server_failed"])
             self.stop_server()
@@ -546,20 +578,26 @@ class DesktopShell:
             self.status.set(self.text["stopped"])
 
     def check_updates(self, interactive: bool = True) -> None:
-        from tkinter import messagebox
-
-        if interactive and not messagebox.askyesno("Provelume", self.text["network_notice"]):
+        if not interactive and not startup_update_policy_enabled(self.instance):
             return
+        if interactive:
+            from tkinter import messagebox
+
+            if not messagebox.askyesno("Provelume", self.text["network_notice"]):
+                return
+        self.update_generation += 1
+        generation = self.update_generation
+        self.candidate = None
         self.update_status.set(self.text["checking"])
         self.download_button.configure(state="disabled")
         channel = self.channel.get()
         threading.Thread(
             target=self._check_updates_worker,
-            args=(channel,),
+            args=(channel, generation),
             daemon=True,
         ).start()
 
-    def _check_updates_worker(self, channel: str) -> None:
+    def _check_updates_worker(self, channel: str, generation: int) -> None:
         try:
             result = check_for_updates(
                 current_version=__version__,
@@ -573,17 +611,45 @@ class DesktopShell:
         except (OSError, UpdateError, TypeError, ValueError) as exc:
             message = str(exc)
             if not self.closed:
-                self.root.after(0, lambda: self._update_failed(message))
+                self.root.after(
+                    0,
+                    lambda: self._update_failed(message, generation, channel),
+                )
             return
         if not self.closed:
-            self.root.after(0, lambda: self._update_checked(candidate))
+            self.root.after(
+                0,
+                lambda: self._update_checked(candidate, generation, channel),
+            )
 
-    def _update_failed(self, error: str) -> None:
+    def _is_current_update_request(self, generation: int, channel: str) -> bool:
+        return (
+            not self.closed
+            and generation == self.update_generation
+            and channel == self.channel.get()
+        )
+
+    def _invalidate_update_result(self) -> None:
+        self.update_generation += 1
+        self.candidate = None
+        self.update_status.set(self.text["current"])
+        self.download_button.configure(state="disabled")
+
+    def _update_failed(self, error: str, generation: int, channel: str) -> None:
+        if not self._is_current_update_request(generation, channel):
+            return
         self.candidate = None
         self.update_status.set(self.text["failed"].format(error=error))
         self.download_button.configure(state="disabled")
 
-    def _update_checked(self, candidate: UpdateCandidate | None) -> None:
+    def _update_checked(
+        self,
+        candidate: UpdateCandidate | None,
+        generation: int,
+        channel: str,
+    ) -> None:
+        if not self._is_current_update_request(generation, channel):
+            return
         self.candidate = candidate
         if candidate is None:
             self.update_status.set(self.text["current"])
@@ -604,25 +670,47 @@ class DesktopShell:
         self.download_button.configure(state="disabled")
         threading.Thread(
             target=self._download_worker,
-            args=(candidate,),
+            args=(candidate, self.update_generation, self.channel.get()),
             daemon=True,
         ).start()
 
-    def _download_worker(self, candidate: UpdateCandidate) -> None:
+    def _download_worker(
+        self,
+        candidate: UpdateCandidate,
+        generation: int,
+        channel: str,
+    ) -> None:
         try:
             destination = state_directory() / "updates" / candidate.version
             path = download_update(candidate, destination)
         except (OSError, UpdateError) as exc:
             message = str(exc)
             if not self.closed:
-                self.root.after(0, lambda: self._update_failed(message))
+                self.root.after(
+                    0,
+                    lambda: self._update_failed(message, generation, channel),
+                )
             return
         if not self.closed:
-            self.root.after(0, lambda: self._installer_ready(path))
+            self.root.after(
+                0,
+                lambda: self._installer_ready(path, candidate, generation, channel),
+            )
 
-    def _installer_ready(self, path: Path) -> None:
+    def _installer_ready(
+        self,
+        path: Path,
+        candidate: UpdateCandidate,
+        generation: int,
+        channel: str,
+    ) -> None:
         from tkinter import messagebox
 
+        if (
+            not self._is_current_update_request(generation, channel)
+            or self.candidate != candidate
+        ):
+            return
         self.update_status.set(self.text["download_ready"])
         if not messagebox.askyesno("Provelume", self.text["install_notice"]):
             self.download_button.configure(state="normal")
