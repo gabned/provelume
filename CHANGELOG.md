@@ -41,7 +41,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 ### Fixed
 
 - stopped the launcher from silently creating a replacement when a previously selected Instance
-  was moved or removed, and made missing/non-writable Instance failures explicit in EN/IT;
+  was moved or removed, kept Choose/Create recovery controls available, and made
+  missing/non-writable Instance failures explicit in EN/IT;
 - prevented a repeated Open action from launching the browser while the backend is still starting,
   preserved the real startup-failure state and reported an unexpected backend exit;
 - allowed the console-free frozen launcher to start its loopback backend without requiring

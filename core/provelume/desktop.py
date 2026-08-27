@@ -233,6 +233,8 @@ def write_ui_diagnostics(
             controls = {
                 "open": str(shell.open_button.cget("state")),
                 "stop": str(shell.stop_button.cget("state")),
+                "choose": str(shell.choose_button.cget("state")),
+                "create": str(shell.create_button.cget("state")),
                 "check": str(shell.check_button.cget("state")),
                 "download": str(shell.download_button.cget("state")),
             }
@@ -474,6 +476,7 @@ class DesktopShell:
         self.server: subprocess.Popen[bytes] | None = None
         self.server_port: int | None = None
         self.server_ready = False
+        self.instance_available = False
         self.candidate: UpdateCandidate | None = None
         self.update_generation = 0
         self.closed = False
@@ -484,17 +487,25 @@ class DesktopShell:
         self.check_on_start = tk.BooleanVar(value=self.settings.check_on_start)
         self.channel = tk.StringVar(value=self.settings.update_channel)
 
-        self._ensure_instance(
-            self.instance,
-            create_if_missing=create_instance_if_missing,
-        )
-        declare_startup_update_policy(
-            self.instance,
-            enabled=self.settings.check_on_start,
-        )
+        instance_error: str | None = None
+        try:
+            self._ensure_instance(
+                self.instance,
+                create_if_missing=create_instance_if_missing,
+            )
+        except RuntimeError as exc:
+            instance_error = str(exc)
+        else:
+            self.instance_available = True
+            declare_startup_update_policy(
+                self.instance,
+                enabled=self.settings.check_on_start,
+            )
         self._build()
+        if instance_error is not None:
+            self._show_instance_error(instance_error)
         self.root.protocol("WM_DELETE_WINDOW", self.close)
-        if self.settings.check_on_start:
+        if self.settings.check_on_start and self.instance_available:
             self.root.after(400, lambda: self.check_updates(interactive=False))
 
     def _build(self) -> None:
@@ -540,7 +551,12 @@ class DesktopShell:
         instance = ttk.LabelFrame(outer, text=self.text["instance"], padding=14)
         instance.pack(fill="x", pady=(0, 14))
         ttk.Label(instance, textvariable=self.instance_text).pack(anchor="w")
-        ttk.Label(instance, textvariable=self.status).pack(anchor="w", pady=(4, 10))
+        ttk.Label(
+            instance,
+            textvariable=self.status,
+            wraplength=560,
+            justify="left",
+        ).pack(anchor="w", pady=(4, 10))
         row = ttk.Frame(instance)
         row.pack(fill="x")
         self.open_button = ttk.Button(
@@ -557,10 +573,18 @@ class DesktopShell:
             state="disabled",
         )
         self.stop_button.pack(side="left", padx=8)
-        ttk.Button(row, text=self.text["choose"], command=self.choose_instance).pack(side="right")
-        ttk.Button(row, text=self.text["create"], command=self.create_instance).pack(
-            side="right", padx=8
+        self.choose_button = ttk.Button(
+            row,
+            text=self.text["choose"],
+            command=self.choose_instance,
         )
+        self.choose_button.pack(side="right")
+        self.create_button = ttk.Button(
+            row,
+            text=self.text["create"],
+            command=self.create_instance,
+        )
+        self.create_button.pack(side="right", padx=8)
 
         updates = ttk.LabelFrame(outer, text=self.text["updates"], padding=14)
         updates.pack(fill="x", pady=(0, 14))
@@ -604,6 +628,14 @@ class DesktopShell:
 
         ttk.Label(outer, text=self.text["offline"]).pack(anchor="w", pady=(6, 0))
 
+    def _show_instance_error(self, message: str) -> None:
+        self.instance_available = False
+        self.status.set(message)
+        self.open_button.configure(state="disabled")
+        self.stop_button.configure(state="disabled")
+        self.choose_button.configure(state="normal")
+        self.create_button.configure(state="normal")
+
     def _ensure_instance(self, path: Path, *, create_if_missing: bool) -> None:
         try:
             created = not (path / "provelume.yml").is_file()
@@ -636,10 +668,11 @@ class DesktopShell:
             update_channel=self.channel.get(),
             check_on_start=self.check_on_start.get(),
         )
-        declare_startup_update_policy(
-            self.instance,
-            enabled=self.settings.check_on_start,
-        )
+        if self.instance_available:
+            declare_startup_update_policy(
+                self.instance,
+                enabled=self.settings.check_on_start,
+            )
         if self.settings.update_channel != previous_channel:
             self._invalidate_update_result()
 
@@ -647,8 +680,12 @@ class DesktopShell:
         ProvelumeInstance(path)
         self.stop_server()
         self.instance = path.expanduser().resolve()
+        self.instance_available = True
         self.instance_text.set(str(self.instance))
         self.status.set(self.text["instance_ready"])
+        self.open_button.configure(state="normal")
+        self.choose_button.configure(state="normal")
+        self.create_button.configure(state="normal")
         self._replace_settings(instance_path=str(self.instance))
         declare_startup_update_policy(
             self.instance,
@@ -701,6 +738,7 @@ class DesktopShell:
         except (OSError, ValueError):
             from tkinter import messagebox
 
+            self._show_instance_error(self.text["invalid_instance"])
             messagebox.showerror("Provelume", self.text["invalid_instance"])
             return
         port = _available_port()
@@ -796,7 +834,9 @@ class DesktopShell:
                 process.kill()
         if not self.closed:
             self.status.set(self.text[final_status])
-            self.open_button.configure(state="normal")
+            self.open_button.configure(
+                state="normal" if self.instance_available else "disabled"
+            )
             self.stop_button.configure(state="disabled")
 
     def check_updates(self, interactive: bool = True) -> None:

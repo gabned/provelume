@@ -151,6 +151,25 @@ def test_unwritable_default_instance_fails_visibly(tmp_path: Path, monkeypatch) 
         shell._ensure_instance(tmp_path / "non scrivibile", create_if_missing=True)
 
 
+def test_missing_instance_keeps_recovery_controls_available() -> None:
+    shell = DesktopShell.__new__(DesktopShell)
+    shell.instance_available = True
+    shell.status = _Value("ready")
+    shell.open_button = _Button()
+    shell.stop_button = _Button()
+    shell.choose_button = _Button()
+    shell.create_button = _Button()
+
+    shell._show_instance_error("synthetic missing Instance")
+
+    assert shell.instance_available is False
+    assert shell.status.get() == "synthetic missing Instance"
+    assert shell.open_button.state == "disabled"
+    assert shell.stop_button.state == "disabled"
+    assert shell.choose_button.state == "normal"
+    assert shell.create_button.state == "normal"
+
+
 def test_desktop_diagnostics_and_headless_instance_bootstrap(tmp_path: Path) -> None:
     diagnostics = diagnostics_payload()
     assert diagnostics["desktop_shell"] is True
@@ -343,6 +362,7 @@ def test_failed_or_terminated_backend_keeps_an_actionable_state(monkeypatch) -> 
     shell.server = process
     shell.server_port = 8040
     shell.server_ready = False
+    shell.instance_available = True
     shell.status = _Value("starting")
     shell.text = {
         "server_failed": "failed visibly",
@@ -442,7 +462,40 @@ def test_windows_tk_layout_probe_is_offline_and_scrollable(tmp_path: Path) -> No
     assert value["scroll_surface"]["content_height"] > 0
     assert value["controls"] == {
         "check": "normal",
+        "choose": "normal",
+        "create": "normal",
         "download": "disabled",
         "open": "normal",
         "stop": "disabled",
     }
+
+
+@pytest.mark.skipif(os.name != "nt", reason="real Tk recovery probe")
+def test_windows_missing_persisted_instance_renders_recovery_shell(
+    tmp_path: Path,
+) -> None:
+    import tkinter as tk
+
+    root = tk.Tk()
+    shell = None
+    try:
+        shell = DesktopShell(
+            root,
+            initial_settings=LauncherSettings(
+                instance_path=str(tmp_path / "Moved Instance – 日本"),
+                language="en",
+            ),
+            create_instance_if_missing=False,
+        )
+        root.update()
+        assert shell.instance_available is False
+        assert shell.open_button.cget("state") == "disabled"
+        assert shell.stop_button.cget("state") == "disabled"
+        assert shell.choose_button.cget("state") == "normal"
+        assert shell.create_button.cget("state") == "normal"
+        assert "could not be found" in shell.status.get()
+    finally:
+        if shell is not None:
+            shell.close()
+        else:
+            root.destroy()

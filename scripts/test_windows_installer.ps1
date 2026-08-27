@@ -317,6 +317,8 @@ try {
                 $Layout.scroll_surface.content_height -le 0 -or
                 $Layout.controls.open -ne "normal" -or
                 $Layout.controls.stop -ne "disabled" -or
+                $Layout.controls.choose -ne "normal" -or
+                $Layout.controls.create -ne "normal" -or
                 $Layout.controls.check -ne "normal" -or
                 $Layout.controls.download -ne "disabled"
             ) {
