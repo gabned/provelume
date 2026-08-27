@@ -33,7 +33,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Forecast | `0.10.0` | Mobile Capture Inbox and review queue | issue just in time |
 | Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time |
 | Forecast | `0.12.0` | Productivity connectors and guarded sync preview | issue just in time |
-| Forecast | `0.13.0` | Relations, knowledge health and deterministic discovery | issue just in time |
+| Forecast | `0.13.0` | Knowledge navigation, relations and deterministic discovery | issue just in time |
 | Forecast | `0.14.0` | Knowledge API v1 and read-only MCP | issue just in time |
 | Forecast | `0.15.0` | AI gateway and privacy routing | issue just in time |
 | Forecast | `0.16.0` | AI receipts, provider adapters and evaluation | issue just in time |
@@ -68,6 +68,29 @@ canonical issue and one owner product pull request may activate it and add produ
   and summaries remain rebuildable derived state.
 - Preserve clean-room, provider independence, no-GitHub runtime, explicit network behavior and
   evidence claims no stronger than the verification actually performed.
+
+## Knowledge representation and navigation contract
+
+Markdown is the first-class portable, human-facing format for classic knowledge reading and
+navigation; it is not the sole canonical storage model or a second database. Exact acquired files,
+including user-authored Markdown, remain preserved under `originals/`. Canonical identities,
+versions, objects, relations and provenance remain readable JSON under `knowledge/`. Provelume may
+build deterministic Markdown library projections with stable links and portable metadata, but
+those projections are derived, rebuildable and never silently overwrite an original or canonical
+record.
+
+The published Knowledge Browser already provides browse, search, document detail, raw extracted-
+text preview, version history, provenance, original download and knowledge health. It is also the
+built-in Viewer and uses the same application services as the API and CLI. The forecast extends it
+with safe rendered Markdown, raw/rendered/original modes and bounded previews for other supported
+formats; no view owns exclusive business logic.
+
+Navigation must remain useful offline without AI, embeddings or a vector store. The classic path
+is an area/Source/tag/type tree with breadcrumbs, recent and pinned items, full-text search and
+saved views. Links and backlinks, version/provenance timelines, related items and explainable
+health findings add connected navigation. A graph is an optional secondary overview rather than
+the only way to find knowledge; later semantic discovery augments rather than replaces these
+deterministic paths.
 
 ## Published foundation
 
@@ -149,12 +172,14 @@ dependency.
 Sources or end-user installers are introduced.
 
 **Includes:** versioned schema and forward-only migrations with preflight; automatic backup;
-failure restore/rollback; readable export and hash-validated import; Instance manifest;
-`validate`, `backup`, `restore`, `export` and `import`; crash recovery; Windows/Linux path
-compatibility; explicit inclusion or rebuild of derived state.
+failure restore/rollback; readable export with a deterministic Markdown library projection and
+hash-validated import; Instance manifest; safe Markdown rendering in the built-in Viewer with
+raw/original/download access; `validate`, `backup`, `restore`, `export` and `import`; crash
+recovery; Windows/Linux path compatibility; explicit inclusion or rebuild of derived state.
 
 **Exit gate:** N-1 to N migration, failure recovery and cross-platform export/import preserve
-originals, versions and provenance.
+originals, versions and provenance; the Markdown projection and Viewer can be regenerated from
+canonical state without mutating it.
 
 **Not in this release:** multi-master synchronization or proprietary cloud storage.
 
@@ -319,18 +344,24 @@ forecast moves forward atomically by one through the `0.22.0` release candidate.
 history, the numbering and relative order of `0.5.0`–`0.11.0`, and stable `1.0.0` remain
 unchanged; the connector-related scope expansions in `0.7.0`–`0.11.0` are explicit above.
 
-### 0.13.0 — Relations, Knowledge Health and Deterministic Discovery
+### 0.13.0 — Knowledge Navigation, Relations and Deterministic Discovery
 
 **Depends on:** `0.11.0` objects.
 
-**Outcome:** make objects navigable and diagnosable before introducing embeddings.
+**Outcome:** make documents and objects coherently navigable and diagnosable before introducing
+embeddings.
 
-**Includes:** related document/object views; explainable stale/conflict/missing-evidence/
-superseded/orphaned health states; deterministic detectors; full-text object/relation search;
-filters; documented ranking; portable references and complete relation-index rebuild.
+**Includes:** a mature Knowledge Browser/Viewer with classic Markdown-library and structured
+navigation; area/Source/tag/type trees and breadcrumbs; recent, pinned and saved views; safe
+rendered/raw/original document modes; outgoing links and backlinks; version/provenance timelines;
+related document/object views with a visible reason for each suggestion; an optional secondary
+relation graph; explainable stale/conflict/missing-evidence/superseded/orphaned health states;
+deterministic detectors; full-text object/relation search; filters; documented ranking; portable
+references and complete navigation/relation-index rebuild.
 
 **Exit gate:** every health finding identifies its evidence and rule, deterministic rebuilds
-agree, and discovery remains fully useful without AI or a vector store.
+agree, every related result explains its deterministic path, keyboard and mobile navigation reach
+the same knowledge, and discovery remains fully useful without AI or a vector store.
 
 ### 0.14.0 — Knowledge API v1 and Read-only MCP
 

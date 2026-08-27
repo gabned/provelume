@@ -163,6 +163,38 @@ def test_mobile_capture_is_bounded_and_review_first() -> None:
         assert required_contract in roadmap
 
 
+def test_markdown_navigation_and_viewer_contract_is_explicit() -> None:
+    roadmap = _read(ROADMAP_PATH)
+    browser_architecture = _read(ROOT / "docs" / "architecture" / "knowledge-browser.md")
+    state_architecture = _read(
+        ROOT / "docs" / "architecture" / "canonical-derived-state.md"
+    )
+
+    assert roadmap.count(
+        "| Forecast | `0.13.0` | Knowledge navigation, relations and deterministic discovery |"
+    ) == 1
+    for required_contract in (
+        "Markdown is the first-class portable, human-facing format",
+        "it is not the sole canonical storage model or a second database",
+        "The published Knowledge Browser already provides",
+        "It is also the\nbuilt-in Viewer",
+        "safe rendered Markdown, raw/rendered/original modes",
+        "A graph is an optional secondary overview",
+        "deterministic Markdown library projection",
+        "outgoing links and backlinks",
+        "visible reason for each suggestion",
+        "without AI or a vector store",
+    ):
+        assert required_contract in roadmap
+
+    assert "# Knowledge Browser/Viewer architecture" in browser_architecture
+    assert "The initial Viewer shows bounded extracted text" in browser_architecture
+    assert "raw HTML, active content" in browser_architecture
+    assert "## Human-facing Markdown" in state_architecture
+    assert "derived projections" in state_architecture
+    assert "never silently mutate an Original" in state_architecture
+
+
 def test_readme_links_canonical_planning_surfaces() -> None:
     readme = _read(ROOT / "README.md")
 
