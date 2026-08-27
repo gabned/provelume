@@ -15,6 +15,7 @@ $ErrorActionPreference = "Stop"
 $InstallerPath = (Resolve-Path $Installer).Path
 $PreviousInstallerSize = 18051429
 $PreviousInstallerSha256 = "0d13b8940184befed42b6e96d3789b06c0cc6842bcd3473d8e26738d6df35749"
+$ExpectedAppIdKey = "{E41A426B-F5FC-473F-A096-875017656A31}_is1"
 if ([string]::IsNullOrWhiteSpace($PreviousInstaller)) {
     $PreviousInstaller = Join-Path (
         Split-Path $InstallerPath -Parent
@@ -136,8 +137,9 @@ function Get-ProvelumeUninstallEntries {
     return @(
         foreach ($Root in $RegistryRoots) {
             if (Test-Path $Root) {
-                Get-ChildItem $Root | ForEach-Object { Get-ItemProperty $_.PSPath } |
-                    Where-Object { $_.DisplayName -eq "Provelume" }
+                Get-ChildItem $Root |
+                    Where-Object { $_.PSChildName -eq $ExpectedAppIdKey } |
+                    ForEach-Object { Get-ItemProperty $_.PSPath }
             }
         }
     )

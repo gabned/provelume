@@ -104,6 +104,8 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "Get-AuthenticodeSignature" in windows_exercise
     assert "--ui-diagnostics-dpi" in windows_exercise
     assert "Assert-SingleProductRegistration" in windows_exercise
+    assert '"{E41A426B-F5FC-473F-A096-875017656A31}_is1"' in windows_exercise
+    assert 'DisplayName -eq "Provelume"' not in windows_exercise
     assert "Z:\\synthetic-missing-python" in windows_exercise
     assert "Provelume-Setup-0.4.0-public.exe" in windows_exercise
     assert (
