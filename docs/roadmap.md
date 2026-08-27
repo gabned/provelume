@@ -117,10 +117,11 @@ It does not include Authenticode, independent publisher authentication, unattend
 application, runtime slots, automatic rollback, interrupted-update recovery, Instance migrations,
 32-bit/ARM Windows or non-Windows desktop installers.
 
-This independently releasable product shell displaces the former `0.4.0` forecast. Every later
-unreleased `0.x` slot moves forward atomically through `0.21.0`; stable `1.0.0` remains the stable
-lane and now depends on the shifted `0.21.0` release candidate. Earlier published history remains
-unchanged. See [`releases/0.4.0.md`](releases/0.4.0.md).
+This independently releasable product shell displaced the former `0.4.0` forecast. At its
+publication, every later unreleased `0.x` slot moved forward atomically through the then-current
+`0.21.0` release candidate. The later productivity-connector insertion documented below moves the
+current release candidate to `0.22.0`; stable `1.0.0` now depends on `0.22.0`. Earlier published
+history remains unchanged. See [`releases/0.4.0.md`](releases/0.4.0.md).
 
 ## Forecast release-by-release
 
@@ -311,7 +312,8 @@ additional adapters such as CalDAV, Microsoft 365, IMAP, Notion or Todoist.
 
 This independently releasable outcome takes the former `0.12.0` slot. Every later unreleased
 forecast moves forward atomically by one through the `0.22.0` release candidate. Published
-history, the `0.5.0`–`0.11.0` scope and relative order, and stable `1.0.0` remain unchanged.
+history, the numbering and relative order of `0.5.0`–`0.11.0`, and stable `1.0.0` remain
+unchanged; the connector-related scope expansions in `0.7.0`–`0.11.0` are explicit above.
 
 ### 0.13.0 — Relations, Knowledge Health and Deterministic Discovery
 
