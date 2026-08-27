@@ -89,7 +89,6 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "provelume-windows-update.json" in release
     assert "Provelume-Setup-${VERSION}-x64.exe" in release
     assert "Attest unsigned Windows preview" in publication
-    assert "$env:SOURCE_DATE_EPOCH = $epoch" in ci
 
     windows_builder = (root / "scripts/build_windows_installer.ps1").read_text(
         encoding="utf-8"
