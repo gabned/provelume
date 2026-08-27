@@ -67,7 +67,7 @@ Invoke-WindowsProcess -FilePath $Executable -Arguments @(
     "--bootstrap-instance",
     "`"$InstanceRoot`"",
     "--instance-name",
-    "Windows CI Instance"
+    "`"Windows CI Instance`""
 )
 $InstanceConfig = Join-Path $InstanceRoot "provelume.yml"
 if (-not (Test-Path $InstanceConfig)) {

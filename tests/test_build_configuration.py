@@ -97,6 +97,10 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "Installing the reviewed Windows dependency lock failed" in windows_builder
     assert "PyInstaller failed with exit code" in windows_builder
     assert "Inno Setup failed with exit code" in windows_builder
+    windows_exercise = (root / "scripts/test_windows_installer.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert '"`"Windows CI Instance`""' in windows_exercise
     windows_spec = (root / "packaging/windows/provelume.spec").read_text(
         encoding="utf-8"
     )
