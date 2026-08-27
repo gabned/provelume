@@ -186,6 +186,7 @@ jobs:
         shell: pwsh
         run: |
           $epoch = git show -s --format=%ct $env:GITHUB_SHA
+          $env:SOURCE_DATE_EPOCH = $epoch
           "SOURCE_DATE_EPOCH=$epoch" | Out-File -FilePath $env:GITHUB_ENV -Append
           python scripts/deterministic_build.py `
             --commit $env:GITHUB_SHA `

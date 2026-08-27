@@ -38,16 +38,31 @@ try {
     }
     New-Item -ItemType Directory -Force -Path $BuildRoot | Out-Null
     python -m venv $BuildEnvironment
+    if ($LASTEXITCODE -ne 0) {
+        throw "Creating the isolated Windows build environment failed with exit code $LASTEXITCODE."
+    }
     $BuildPython = Join-Path $BuildEnvironment "Scripts\python.exe"
     & $BuildPython -m pip install --disable-pip-version-check --require-hashes `
         -r (Join-Path $SourceRoot "build-lock\windows-py312-x86_64.requirements.txt")
+    if ($LASTEXITCODE -ne 0) {
+        throw "Installing the reviewed Windows dependency lock failed with exit code $LASTEXITCODE."
+    }
     & $BuildPython -m pip install --disable-pip-version-check --no-deps $Wheel
+    if ($LASTEXITCODE -ne 0) {
+        throw "Installing the candidate wheel failed with exit code $LASTEXITCODE."
+    }
     & $BuildPython -m pip check
+    if ($LASTEXITCODE -ne 0) {
+        throw "The isolated Windows build environment failed pip check."
+    }
 
     Push-Location (Join-Path $SourceRoot "packaging\windows")
     try {
         & $BuildPython -m PyInstaller --noconfirm --clean `
             --distpath $Dist --workpath $Work provelume.spec
+        if ($LASTEXITCODE -ne 0) {
+            throw "PyInstaller failed with exit code $LASTEXITCODE."
+        }
     }
     finally {
         Pop-Location
@@ -58,6 +73,9 @@ try {
         throw "PyInstaller did not produce Provelume.exe."
     }
     & $Executable --diagnostics-file $Diagnostics
+    if ($LASTEXITCODE -ne 0) {
+        throw "Frozen desktop diagnostics failed with exit code $LASTEXITCODE."
+    }
     $Identity = Get-Content $Diagnostics -Raw | ConvertFrom-Json
     if (
         $Identity.about.version -ne $Version -or
@@ -85,6 +103,9 @@ try {
     $InstallerScript = Join-Path $SourceRoot "packaging\windows\provelume.iss"
     & $Iscc "/DMyAppVersion=$Version" "/DMyStageDir=$Stage" `
         "/DMyOutputDir=$Output" $InstallerScript
+    if ($LASTEXITCODE -ne 0) {
+        throw "Inno Setup failed with exit code $LASTEXITCODE."
+    }
     $Installer = Join-Path $Output "Provelume-Setup-$Version-x64.exe"
     if (-not (Test-Path $Installer)) {
         throw "Inno Setup did not produce the expected installer."
@@ -93,6 +114,9 @@ try {
     & $BuildPython (Join-Path $SourceRoot "scripts\windows_package_manifest.py") `
         --installer $Installer --version $Version --tag $Tag --channel $Channel `
         --commit $Commit --output (Join-Path $Output "provelume-windows-update.json")
+    if ($LASTEXITCODE -ne 0) {
+        throw "Writing the Windows update manifest failed with exit code $LASTEXITCODE."
+    }
 }
 finally {
     if (Test-Path $BuildRoot) {

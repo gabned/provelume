@@ -29,6 +29,8 @@ def test_repository_pins_deterministic_build_inputs() -> None:
         encoding="utf-8"
     )
     assert "pyinstaller==6.16.0" in windows_lock
+    assert "pefile==2023.2.7" in windows_lock
+    assert "pefile==2024.8.26" not in windows_lock
     assert "pywin32-ctypes==0.2.3" in windows_lock
     assert "setuptools==" in windows_lock
     assert "--hash=sha256:" in windows_lock
@@ -87,6 +89,14 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "provelume-windows-update.json" in release
     assert "Provelume-Setup-${VERSION}-x64.exe" in release
     assert "Attest unsigned Windows preview" in publication
+    assert "$env:SOURCE_DATE_EPOCH = $epoch" in ci
+
+    windows_builder = (root / "scripts/build_windows_installer.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert "Installing the reviewed Windows dependency lock failed" in windows_builder
+    assert "PyInstaller failed with exit code" in windows_builder
+    assert "Inno Setup failed with exit code" in windows_builder
 
 
 def test_official_release_web_request_is_fail_closed() -> None:
