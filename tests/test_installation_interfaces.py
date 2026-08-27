@@ -44,8 +44,14 @@ def test_read_only_installation_security_api_and_browser(
     root = tmp_path / "instance"
     ProvelumeInstance.initialise(root, name="Security Demo")
     result = _result()
-    monkeypatch.setattr("provelume.api.verify_current_installation", lambda: result)
-    monkeypatch.setattr("provelume.web.verify_current_installation", lambda: result)
+    calls = 0
+
+    def verify_stub():
+        nonlocal calls
+        calls += 1
+        return result
+
+    monkeypatch.setattr("provelume.web.verify_current_installation", verify_stub)
 
     client = TestClient(create_app(root))
     response = client.get("/api/v1/security/installation")
@@ -108,6 +114,7 @@ def test_read_only_installation_security_api_and_browser(
     assert "Controlla localmente i file installati senza usare la rete" in (
         italian_security.text
     )
+    assert calls == 1
 
 
 def test_installation_page_does_not_read_instance_context(
@@ -116,6 +123,10 @@ def test_installation_page_does_not_read_instance_context(
 ) -> None:
     root = tmp_path / "instance"
     ProvelumeInstance.initialise(root, name="Security Isolation")
+    monkeypatch.setattr(
+        "provelume.web.verify_current_installation",
+        lambda **_kwargs: _result(),
+    )
     app = create_app(root)
     instance = app.state.provelume
 
@@ -125,18 +136,9 @@ def test_installation_page_does_not_read_instance_context(
     monkeypatch.setattr(instance.store, "read_config", forbidden_instance_read)
     monkeypatch.setattr(instance, "instance_summary", forbidden_instance_read)
     monkeypatch.setattr(instance, "knowledge_health", forbidden_instance_read)
-    monkeypatch.setattr(
-        "provelume.web.verify_current_installation",
-        lambda **_kwargs: _result(),
-    )
-
     response = TestClient(app).get(
         "/security/installation",
-        params={
-            "lang": "it",
-            "release_bundle": str(tmp_path / "release"),
-            "expected_manifest_sha256": "a" * 64,
-        },
+        params={"lang": "it"},
     )
 
     assert response.status_code == 200
@@ -212,28 +214,56 @@ def test_installation_interfaces_forward_explicit_release_evidence(
         calls.append(kwargs)
         return result
 
-    monkeypatch.setattr("provelume.api.verify_current_installation", verify_stub)
     monkeypatch.setattr("provelume.web.verify_current_installation", verify_stub)
     monkeypatch.setattr("provelume.cli.verify_current_installation", verify_stub)
-    client = TestClient(create_app(root))
-    query = {
-        "release_bundle": str(bundle),
+    expected = {
+        "release_bundle": bundle,
         "expected_manifest_sha256": "b" * 64,
     }
+    client = TestClient(
+        create_app(
+            root,
+            release_bundle=bundle,
+            expected_manifest_sha256="b" * 64,
+        )
+    )
 
-    api_response = client.get("/api/v1/security/installation", params=query)
+    api_response = client.get("/api/v1/security/installation")
     assert api_response.status_code == 200
     assert api_response.json() == result
 
     italian = client.get(
         "/security/installation",
-        params={"lang": "it", **query},
+        params={"lang": "it"},
     )
     assert italian.status_code == 200
     assert "I file installati corrispondono al wheel di release" in italian.text
     assert "Corrisponde allo SHA-256 del manifest fornito" in italian.text
-    assert str(bundle) in italian.text
+    assert "processo server. Questa pagina mostra il risultato" in italian.text
+    assert str(bundle) not in italian.text
     assert "Synthetic linked result." not in italian.text
+
+    assert client.get("/api/v1/security/installation").status_code == 200
+    assert client.get("/security/installation").status_code == 200
+    assert calls == [expected]
+
+    forbidden_query = {
+        "release_bundle": str(bundle),
+        "expected_manifest_sha256": "b" * 64,
+    }
+    forbidden_api = client.get(
+        "/api/v1/security/installation",
+        params=forbidden_query,
+    )
+    assert forbidden_api.status_code == 400
+    assert str(bundle) not in forbidden_api.text
+    forbidden_browser = client.get(
+        "/security/installation",
+        params={"lang": "it", **forbidden_query},
+    )
+    assert forbidden_browser.status_code == 400
+    assert str(bundle) not in forbidden_browser.text
+    assert calls == [expected]
 
     assert (
         cli.main(
@@ -248,4 +278,4 @@ def test_installation_interfaces_forward_explicit_release_evidence(
         == 0
     )
     assert json.loads(capsys.readouterr().out) == result
-    assert calls == [query, query, {"release_bundle": bundle, "expected_manifest_sha256": "b" * 64}]
+    assert calls == [expected, expected]

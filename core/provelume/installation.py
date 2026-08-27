@@ -1417,7 +1417,14 @@ def verify_current_installation(
                 expected_version=version,
                 expected_tag=f"v{version}",
             )
-        except (OSError, VerificationError) as exc:
+        except OSError:
+            return _release_linkage_failure(
+                result,
+                status="bundle_invalid",
+                issue="bundle_invalid",
+                reason="Release bundle verification failed because it could not be read safely.",
+            )
+        except VerificationError as exc:
             return _release_linkage_failure(
                 result,
                 status="bundle_invalid",

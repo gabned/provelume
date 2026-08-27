@@ -93,6 +93,18 @@ bundle and separately obtained manifest hash:
   --expected-manifest-sha256 <64-hex-digest>
 ```
 
+To expose the same release-linked result through the read-only API and EN/IT browser, a local
+operator configures it when starting the server:
+
+```bash
+.venv/bin/provelume serve .local/demo \
+  --release-bundle /path/to/provelume-release-bundle \
+  --expected-manifest-sha256 <64-hex-digest>
+```
+
+The server verifies once at startup and serves the cached result. HTTP clients cannot supply
+or change server-local evidence paths.
+
 Run all tests with:
 
 ```bash

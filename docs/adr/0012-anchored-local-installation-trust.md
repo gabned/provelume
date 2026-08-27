@@ -17,8 +17,12 @@ previously compare a bundle with a running installation.
 
 ## Decision
 
-The shared installation-verification service accepts an optional server-local release-bundle
-directory and manifest SHA-256. It preserves RECORD-only behavior when neither is supplied.
+The shared installation-verification service accepts an optional operator-controlled local
+release-bundle directory and manifest SHA-256. The CLI accepts them directly. A server accepts
+them only as trusted process-start configuration, computes one verification snapshot at
+startup and serves that cached result. Browser and API requests cannot select or change a
+server-local path or hash. The service preserves RECORD-only behavior when neither is
+supplied.
 
 For a release-linked request, Core:
 
@@ -34,8 +38,10 @@ For a release-linked request, Core:
 - scans the installed package for files absent from the wheel;
 - preserves every existing local RECORD finding rather than replacing it with bundle evidence.
 
-CLI, read-only API and EN/IT browser routes call this one service. No route reads Instance
-knowledge or configuration, and no verification path performs a network request.
+CLI, read-only API and EN/IT browser routes use this one service contract. The HTTP routes
+reject client-supplied release-evidence query parameters, do not disclose the configured
+local path and never trigger repeated bundle processing. No route reads Instance knowledge
+or configuration, and no verification path performs a network request.
 
 ## Evidence semantics
 
@@ -69,6 +75,11 @@ metadata/RECORD bytes and lines, findings and installed hashing.
 An installed `RECORD` rewritten to match changed local bytes cannot conceal a mismatch with a
 verified release wheel. Enterprise mirrors can preserve the same provider-independent bundle
 format, and the original RECORD-only check remains useful when no bundle is available.
+
+The browser/API view remains stable for the lifetime of a server process. Operators restart
+the process to verify changed release evidence. This is an intentional tradeoff that prevents
+unauthenticated HTTP callers from turning local verification into filesystem path probing or
+repeated bounded-but-expensive hashing.
 
 This decision does not add signatures or key management, perform online attestation lookup,
 verify runtime dependencies/plugins/containers/Windows installers, or observe/enforce network

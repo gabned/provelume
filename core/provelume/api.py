@@ -2,18 +2,32 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, FastAPI, HTTPException, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
 from . import __version__
 from .build_info import current_build_info
-from .installation import verify_current_installation
 from .paths import safe_instance_path
 from .service import ProvelumeInstance
+
+CLIENT_INSTALLATION_EVIDENCE_PARAMETERS = frozenset(
+    {"release_bundle", "expected_manifest_sha256"}
+)
 
 
 def _not_found(kind: str, object_id: str) -> HTTPException:
     return HTTPException(status_code=404, detail=f"{kind} not found: {object_id}")
+
+
+def reject_client_installation_evidence(request: Request) -> None:
+    if CLIENT_INSTALLATION_EVIDENCE_PARAMETERS.intersection(request.query_params):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Release evidence is configured only by the local operator when the "
+                "server starts. HTTP clients cannot supply server-local paths or hashes."
+            ),
+        )
 
 
 def build_api(instance: ProvelumeInstance) -> APIRouter:
@@ -120,7 +134,12 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
     return router
 
 
-def attach_api(app: FastAPI, instance: ProvelumeInstance) -> None:
+def attach_api(
+    app: FastAPI,
+    instance: ProvelumeInstance,
+    *,
+    installation_verification: dict[str, Any],
+) -> None:
     @app.get("/health")
     def health() -> dict[str, Any]:
         summary = instance.instance_summary()
@@ -137,13 +156,6 @@ def attach_api(app: FastAPI, instance: ProvelumeInstance) -> None:
     app.include_router(build_api(instance))
 
     @app.get("/api/v1/security/installation")
-    def installation_verification(
-        release_bundle: str | None = Query(default=None, max_length=4096),
-        expected_manifest_sha256: str | None = Query(default=None, max_length=128),
-    ):
-        if not release_bundle and not expected_manifest_sha256:
-            return verify_current_installation()
-        return verify_current_installation(
-            release_bundle=release_bundle or None,
-            expected_manifest_sha256=expected_manifest_sha256 or None,
-        )
+    def get_installation_verification(request: Request) -> dict[str, Any]:
+        reject_client_installation_evidence(request)
+        return installation_verification

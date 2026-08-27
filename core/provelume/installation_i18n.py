@@ -11,18 +11,21 @@ MESSAGES: dict[str, dict[str, str]] = {
         "intro": (
             "Check the installed Provelume package files locally. This verification uses "
             "no network and never reads Instance knowledge or personal configuration. "
-            "Optionally supply a local release bundle to compare installed Core bytes "
-            "with its verified wheel."
+            "A local operator can configure release evidence when the server starts to "
+            "compare installed Core bytes with a verified wheel."
         ),
-        "bundle_form.title": "Optional release evidence",
-        "bundle_form.path": "Local release bundle directory",
-        "bundle_form.path_hint": "Example: /media/releases/provelume-v0.3.0",
-        "bundle_form.anchor": "Expected release-manifest SHA-256",
-        "bundle_form.anchor_hint": "Optional hash obtained through a separate trusted channel",
-        "bundle_form.submit": "Verify",
-        "bundle_form.note": (
-            "The directory and optional hash are read only for this request. No files are "
-            "uploaded and no network request is made."
+        "bundle_config.title": "Release evidence",
+        "bundle_config.configured": (
+            "A local operator configured release evidence when this server process started. "
+            "This page displays that cached verification result."
+        ),
+        "bundle_config.not_configured": (
+            "No release bundle was configured when this server process started. This page "
+            "displays the cached RECORD-only result."
+        ),
+        "bundle_config.note": (
+            "Browser and API clients cannot choose or change server-local paths. Restart "
+            "the server with trusted operator options, or use the local verification CLI."
         ),
         "status.package_integrity_verified": "Package integrity verified",
         "status.modified_installation": "Modified installation",
@@ -155,20 +158,22 @@ MESSAGES: dict[str, dict[str, str]] = {
         "intro": (
             "Controlla localmente i file del pacchetto Provelume installato. La verifica non "
             "usa la rete e non legge la conoscenza della Instance né configurazioni personali. "
-            "Puoi fornire un bundle di release locale per confrontare i file Core installati "
-            "con il wheel verificato."
+            "Un operatore locale può configurare l'evidenza di release all'avvio del server "
+            "per confrontare i file Core installati con un wheel verificato."
         ),
-        "bundle_form.title": "Evidenza di release facoltativa",
-        "bundle_form.path": "Directory locale del bundle di release",
-        "bundle_form.path_hint": "Esempio: /media/releases/provelume-v0.3.0",
-        "bundle_form.anchor": "SHA-256 atteso di release-manifest",
-        "bundle_form.anchor_hint": (
-            "Hash facoltativo ottenuto tramite un canale affidabile separato"
+        "bundle_config.title": "Evidenza di release",
+        "bundle_config.configured": (
+            "Un operatore locale ha configurato l'evidenza di release all'avvio di questo "
+            "processo server. Questa pagina mostra il risultato della verifica memorizzato."
         ),
-        "bundle_form.submit": "Verifica",
-        "bundle_form.note": (
-            "La directory e l'eventuale hash sono letti solo per questa richiesta. Nessun "
-            "file viene caricato e non viene effettuata alcuna richiesta di rete."
+        "bundle_config.not_configured": (
+            "All'avvio di questo processo server non è stato configurato alcun bundle di "
+            "release. Questa pagina mostra il risultato RECORD-only memorizzato."
+        ),
+        "bundle_config.note": (
+            "I client browser e API non possono scegliere o modificare percorsi locali del "
+            "server. Riavvia il server con opzioni operatore affidabili oppure usa la CLI "
+            "di verifica locale."
         ),
         "status.package_integrity_verified": "Integrità del pacchetto verificata",
         "status.modified_installation": "Installazione modificata",

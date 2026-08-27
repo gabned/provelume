@@ -3,11 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from .api import attach_api
+from .api import attach_api, reject_client_installation_evidence
 from .build_info import current_build_info
 from .i18n import SUPPORTED_LANGUAGES, translator
 from .installation import verify_current_installation
@@ -51,7 +51,27 @@ def _installation_context(request: Request, **values: Any) -> dict[str, Any]:
     }
 
 
-def create_app(instance_root: Path | str) -> FastAPI:
+def create_app(
+    instance_root: Path | str,
+    *,
+    release_bundle: Path | str | None = None,
+    expected_manifest_sha256: str | None = None,
+) -> FastAPI:
+    if isinstance(release_bundle, str) and not release_bundle.strip():
+        release_bundle = None
+    if isinstance(expected_manifest_sha256, str):
+        expected_manifest_sha256 = expected_manifest_sha256.strip() or None
+    release_evidence_configured = (
+        release_bundle is not None or expected_manifest_sha256 is not None
+    )
+    if release_evidence_configured:
+        installation_verification = verify_current_installation(
+            release_bundle=release_bundle,
+            expected_manifest_sha256=expected_manifest_sha256,
+        )
+    else:
+        installation_verification = verify_current_installation()
+
     instance = ProvelumeInstance(instance_root)
     app = FastAPI(
         title="Provelume Knowledge API",
@@ -60,8 +80,14 @@ def create_app(instance_root: Path | str) -> FastAPI:
         redoc_url=None,
     )
     app.state.provelume = instance
+    app.state.installation_verification = installation_verification
+    app.state.release_evidence_configured = release_evidence_configured
     app.mount("/static", StaticFiles(directory=str(PACKAGE_ROOT / "static")), name="static")
-    attach_api(app, instance)
+    attach_api(
+        app,
+        instance,
+        installation_verification=installation_verification,
+    )
 
     @app.get("/")
     def home(request: Request):
@@ -187,26 +213,15 @@ def create_app(instance_root: Path | str) -> FastAPI:
         )
 
     @app.get("/security/installation")
-    def installation_page(
-        request: Request,
-        release_bundle: str | None = Query(default=None, max_length=4096),
-        expected_manifest_sha256: str | None = Query(default=None, max_length=128),
-    ):
-        if not release_bundle and not expected_manifest_sha256:
-            verification = verify_current_installation()
-        else:
-            verification = verify_current_installation(
-                release_bundle=release_bundle or None,
-                expected_manifest_sha256=expected_manifest_sha256 or None,
-            )
+    def installation_page(request: Request):
+        reject_client_installation_evidence(request)
         return TEMPLATES.TemplateResponse(
             request=request,
             name="installation_verification.html",
             context=_installation_context(
                 request,
-                verification=verification,
-                release_bundle_input=release_bundle or "",
-                expected_manifest_sha256_input=expected_manifest_sha256 or "",
+                verification=installation_verification,
+                release_evidence_configured=release_evidence_configured,
             ),
         )
 

@@ -109,7 +109,9 @@ def _load_json(root: Path, name: str) -> dict[str, Any]:
     path = _safe_file(root, name, metadata=True)
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+    except OSError as exc:
+        raise VerificationError(f"cannot read {name}") from exc
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise VerificationError(f"cannot parse {name}: {exc}") from exc
     if not isinstance(value, dict):
         raise VerificationError(f"{name} must contain one JSON object")
@@ -354,9 +356,7 @@ def verify_bundle(
 ) -> dict[str, object]:
     root_input = root.expanduser()
     if _is_link_like(root_input) or not root_input.is_dir():
-        raise VerificationError(
-            f"release root is not a safe regular directory: {root_input}"
-        )
+        raise VerificationError("release root is not a safe regular directory")
     root = root_input.resolve()
     entries = sorted(root.iterdir(), key=lambda item: item.name)
     if len(entries) > MAX_BUNDLE_FILES:

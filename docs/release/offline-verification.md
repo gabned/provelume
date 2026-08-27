@@ -99,7 +99,9 @@ The standalone tool verifies a downloaded release bundle but does not inspect an
 The installed `provelume verify-installation --release-bundle <directory>` service reuses the
 same verifier contract, validates the candidate wheel and internal `RECORD` in memory, and
 compares installed Core package files with wheel bytes. An optional independently obtained
-manifest SHA-256 can anchor that comparison.
+manifest SHA-256 can anchor that comparison. A server operator may configure the same evidence
+through `provelume serve --release-bundle`; the server computes it once at startup. Remote API
+or browser clients cannot submit server-local paths.
 
 Neither path verifies runtime dependencies, local configuration/plugins, containers or future
 Windows code signing.

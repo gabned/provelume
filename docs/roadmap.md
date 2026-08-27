@@ -21,12 +21,14 @@ exit gates pass.
 
 The only product scope assigned to `0.3.0` is the release-bundle portion of #20:
 
-- accept an explicit operator-supplied local release bundle;
+- accept an explicit operator-supplied local release bundle through the CLI or trusted
+  server-start configuration;
 - verify the existing bounded bundle contract without network access;
 - validate the released wheel and its internal `RECORD`;
 - compare installed Core package bytes with the released wheel bytes;
 - preserve RECORD-only verification when no bundle is supplied;
-- expose the same evidence layers through read-only CLI, API and EN/IT browser surfaces.
+- expose the same evidence layers through CLI and a startup-cached read-only API/EN/IT browser
+  surface without accepting local paths from HTTP clients.
 
 Evidence must remain layered. Local RECORD agreement proves consistency with installed
 metadata. Bundle self-consistency plus installed/released byte agreement strengthens release

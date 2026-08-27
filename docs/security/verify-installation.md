@@ -107,11 +107,21 @@ Exit codes:
 
 ```http
 GET /api/v1/security/installation
-GET /api/v1/security/installation?release_bundle=/path/to/bundle
-GET /api/v1/security/installation?release_bundle=/path/to/bundle&expected_manifest_sha256=<digest>
 ```
 
-Both query parameters refer to server-local operator input. The endpoint is read-only.
+The endpoint returns a read-only snapshot computed once when the server process starts. To
+include release evidence, the local operator starts the server with trusted process options:
+
+```bash
+provelume serve INSTANCE \
+  --release-bundle /path/to/provelume-release-bundle \
+  --expected-manifest-sha256 <64-hex-digest>
+```
+
+Python embeddings can pass the same keyword arguments to `create_app`. Browser and API
+clients cannot supply a server-local path or hash: requests containing `release_bundle` or
+`expected_manifest_sha256` query parameters are rejected with `400`. The configured bundle
+is processed only at startup, and its local path is not included in the result.
 
 Example release-linked fields:
 
@@ -151,9 +161,10 @@ Example release-linked fields:
 
 ## Browser
 
-Open `/security/installation`. The EN/IT page accepts the same optional local directory and
-manifest hash, presents release linkage separately from publisher authentication, and does
-not render raw verifier errors supplied by backend metadata.
+Open `/security/installation`. The EN/IT page presents the same cached startup snapshot,
+states whether the local operator configured release evidence, and keeps release linkage
+separate from publisher authentication. It neither accepts nor displays a server-local path
+and does not render raw verifier errors supplied by backend metadata.
 
 ## Scope exclusions
 

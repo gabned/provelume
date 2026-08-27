@@ -47,6 +47,19 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("instance", type=Path)
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", default=8000, type=int)
+    serve.add_argument(
+        "--release-bundle",
+        type=Path,
+        help=(
+            "optional trusted local release bundle verified once when the server starts"
+        ),
+    )
+    serve.add_argument(
+        "--expected-manifest-sha256",
+        help=(
+            "optional release-manifest SHA-256 obtained through a separate channel"
+        ),
+    )
 
     verify_installation = subparsers.add_parser(
         "verify-installation",
@@ -106,6 +119,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(instance.network_status(), indent=2, sort_keys=True))
         return 0
     if args.command == "serve":
-        uvicorn.run(create_app(args.instance), host=args.host, port=args.port)
+        app = create_app(
+            args.instance,
+            release_bundle=args.release_bundle,
+            expected_manifest_sha256=args.expected_manifest_sha256,
+        )
+        uvicorn.run(app, host=args.host, port=args.port)
         return 0
     raise RuntimeError(f"unsupported command: {args.command}")

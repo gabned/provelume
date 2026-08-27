@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import os
 import stat
 import zipfile
@@ -526,6 +527,31 @@ def test_release_linkage_fails_closed_on_invalid_bundle(
     assert result["status"] == "verification_unavailable"
     assert result["release_linkage"]["status"] == "bundle_invalid"
     assert any(finding["issue"] == "bundle_invalid" for finding in result["findings"])
+
+
+def test_release_linkage_does_not_disclose_bundle_path_on_io_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_root, package, dist_info = _installation(tmp_path)
+    release_root = tmp_path / "operator-secret" / "release"
+    _bind_installation(
+        monkeypatch,
+        root=install_root,
+        package=package,
+        dist_info=dist_info,
+    )
+
+    def unreadable_bundle(*_args, **_kwargs):
+        raise OSError(f"cannot read {release_root}")
+
+    monkeypatch.setattr("provelume.installation.verify_bundle", unreadable_bundle)
+
+    result = verify_current_installation(release_bundle=release_root)
+
+    assert result["status"] == "verification_unavailable"
+    assert result["release_linkage"]["status"] == "bundle_invalid"
+    assert str(release_root) not in json.dumps(result)
 
 
 def test_release_linkage_fails_closed_on_invalid_wheel(

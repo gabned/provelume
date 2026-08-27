@@ -13,20 +13,13 @@
 <p class="lede">{{ security_t('intro') }}</p>
 
 <section class="panel">
-  <h2>{{ security_t('bundle_form.title') }}</h2>
-  <form class="search-form" method="get">
-    <input type="hidden" name="lang" value="{{ lang }}">
-    <label class="wide">
-      {{ security_t('bundle_form.path') }}
-      <input name="release_bundle" value="{{ release_bundle_input }}" maxlength="4096" placeholder="{{ security_t('bundle_form.path_hint') }}">
-    </label>
-    <label class="wide">
-      {{ security_t('bundle_form.anchor') }}
-      <input name="expected_manifest_sha256" value="{{ expected_manifest_sha256_input }}" maxlength="128" placeholder="{{ security_t('bundle_form.anchor_hint') }}">
-    </label>
-    <button type="submit">{{ security_t('bundle_form.submit') }}</button>
-  </form>
-  <p class="technical-note">{{ security_t('bundle_form.note') }}</p>
+  <h2>{{ security_t('bundle_config.title') }}</h2>
+  {% if release_evidence_configured %}
+  <p>{{ security_t('bundle_config.configured') }}</p>
+  {% else %}
+  <p>{{ security_t('bundle_config.not_configured') }}</p>
+  {% endif %}
+  <p class="technical-note">{{ security_t('bundle_config.note') }}</p>
 </section>
 
 <section class="panel">
