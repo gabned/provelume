@@ -4,6 +4,26 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Changed
+
+- made the connector forecast explicit: read-only Gmail and Google Drive intake in `0.9.0`,
+  followed by multiple Google Calendar and iCalendar Sources, Asana and Tududi adapters, and
+  narrowly guarded task write-back in `0.12.0`;
+- made every connector type multi-instance by contract, including isolated accounts, credentials,
+  policies, cursors and independently selected Sources such as multiple Asana identities,
+  workspaces and projects or multiple Tududi endpoints;
+- expanded `0.10.0` into a review-first Mobile Capture and Retrieval Inbox with QR-paired
+  uploads, authenticated recent/search/provenance/original-download access, iOS and Android
+  sharing paths, a watched Drive drop folder and an optional privacy-declared Telegram relay,
+  while deferring personal-chat access and WhatsApp Business integration;
+- established Markdown as the first-class portable classic-navigation format while retaining
+  canonical JSON and exact originals, and planned a safe rendered/raw/original Viewer plus tree,
+  search, backlinks, timelines, saved views and a secondary relation graph;
+- atomically inserted the productivity-connector outcome at `0.12.0` and shifted every later
+  unreleased `0.x` forecast through the release candidate forward by one slot to `0.22.0`,
+  without changing published history, package identity, the `0.5.0`–`0.11.0` sequence or
+  stable `1.0.0`.
+
 ## 0.4.0 - 2026-08-27
 
 ### Added

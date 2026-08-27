@@ -23,7 +23,7 @@ EXPECTED_CONTRACT = {
     "UPDATE_APPLY_MODE": "USER_CONFIRMED_INSTALLER",
 }
 
-FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(5, 22)) + ("1.0.0",)
+FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(5, 23)) + ("1.0.0",)
 
 
 def _read(path: Path) -> str:
@@ -111,6 +111,88 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
     assert "#57" in roadmap
     assert "issue just in time" in roadmap
     assert "Forecast entries describe intended sequencing" in roadmap
+
+
+def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    assert roadmap.count(
+        "| Forecast | `0.12.0` | Productivity connectors and guarded sync preview |"
+    ) == 1
+    for required_contract in (
+        "Every connector type is multi-instance by contract",
+        "No adapter may rely on",
+        "Google connector preview",
+        "Google Calendar",
+        "Asana supports multiple OAuth identities",
+        "organizations/workspaces, teams and projects",
+        "Tududi supports multiple server",
+        "per-instance read/write policy",
+        "guarded task write-back preview",
+        "explicit diff, human confirmation",
+        "Local-only mode performs no connector access",
+    ):
+        assert required_contract in roadmap
+
+    assert "Every later unreleased\nforecast moves forward atomically by one" in roadmap
+    assert "`0.22.0` release candidate" in roadmap
+    assert "stable `1.0.0` now depends on `0.22.0`" in roadmap
+    assert "scope expansions in `0.7.0`–`0.11.0` are explicit above" in roadmap
+
+
+def test_mobile_capture_is_bounded_and_review_first() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    assert roadmap.count(
+        "| Forecast | `0.10.0` | Mobile Capture Inbox and review queue |"
+    ) == 1
+    for required_contract in (
+        "short-lived QR pairing",
+        "minimal mobile retrieval view",
+        "explicit authenticated original download",
+        "iOS Shortcut exposed in the Share Sheet",
+        "Android share-target",
+        "watched Google Drive drop",
+        "optional Telegram bot adapter",
+        "content traverses Telegram",
+        "outside the LAN requires",
+        "WhatsApp Cloud API integration",
+        "dedicated Business number/API flow",
+        "creates no automatic Claim, Decision, Task or CalendarEvent",
+    ):
+        assert required_contract in roadmap
+
+
+def test_markdown_navigation_and_viewer_contract_is_explicit() -> None:
+    roadmap = _read(ROADMAP_PATH)
+    browser_architecture = _read(ROOT / "docs" / "architecture" / "knowledge-browser.md")
+    state_architecture = _read(
+        ROOT / "docs" / "architecture" / "canonical-derived-state.md"
+    )
+
+    assert roadmap.count(
+        "| Forecast | `0.13.0` | Knowledge navigation, relations and deterministic discovery |"
+    ) == 1
+    for required_contract in (
+        "Markdown is the first-class portable, human-facing format",
+        "it is not the sole canonical storage model or a second database",
+        "The published Knowledge Browser already provides",
+        "It is also the\nbuilt-in Viewer",
+        "safe rendered Markdown, raw/rendered/original modes",
+        "A graph is an optional secondary overview",
+        "deterministic Markdown library projection",
+        "outgoing links and backlinks",
+        "visible reason for each suggestion",
+        "without AI or a vector store",
+    ):
+        assert required_contract in roadmap
+
+    assert "# Knowledge Browser/Viewer architecture" in browser_architecture
+    assert "The initial Viewer shows bounded extracted text" in browser_architecture
+    assert "raw HTML, active content" in browser_architecture
+    assert "## Human-facing Markdown" in state_architecture
+    assert "derived projections" in state_architecture
+    assert "never silently mutate an Original" in state_architecture
 
 
 def test_readme_links_canonical_planning_surfaces() -> None:
