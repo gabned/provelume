@@ -148,6 +148,8 @@ def test_mobile_capture_is_bounded_and_review_first() -> None:
     ) == 1
     for required_contract in (
         "short-lived QR pairing",
+        "minimal mobile retrieval view",
+        "explicit authenticated original download",
         "iOS Shortcut exposed in the Share Sheet",
         "Android share-target",
         "watched Google Drive drop",
