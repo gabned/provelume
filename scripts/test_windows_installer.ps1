@@ -246,6 +246,16 @@ try {
         (($Settings | ConvertTo-Json) + "`n"),
         [System.Text.UTF8Encoding]::new($false)
     )
+    $ExpectedInstanceConfigSha256 = (
+        Get-FileHash $InstanceConfig -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $ExpectedMarkerSha256 = (
+        Get-FileHash (Join-Path $InstanceRoot "upgrade-preservation-marker.txt") `
+            -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $ExpectedSettingsSha256 = (
+        Get-FileHash $SettingsPath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
     Assert-SingleProductRegistration -ExpectedInstallRoot $InstallRoot
 
     # Install the candidate over the public baseline. The stable AppId must replace one product.
@@ -374,9 +384,27 @@ try {
     if (-not (Test-Path $InstanceConfig) -or -not (Test-Path $SettingsPath)) {
         throw "Uninstall removed the separate Instance or launcher settings."
     }
-    $CoreSource = (Resolve-Path (Join-Path $PSScriptRoot "..\core")).Path
-    python -c "import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); from provelume.service import ProvelumeInstance; assert ProvelumeInstance(Path(sys.argv[2])).instance_summary()['name'] == 'Windows CI Instance – sintética 日本'" $CoreSource $InstanceRoot
-    if ($LASTEXITCODE -ne 0) {
+    $ConfigText = [System.IO.File]::ReadAllText(
+        $InstanceConfig,
+        [System.Text.Encoding]::UTF8
+    )
+    $MarkerText = [System.IO.File]::ReadAllText(
+        (Join-Path $InstanceRoot "upgrade-preservation-marker.txt"),
+        [System.Text.Encoding]::UTF8
+    )
+    $SettingsAfterUninstall = Get-Content $SettingsPath -Raw | ConvertFrom-Json
+    if (
+        $ConfigText -notmatch '(?m)^schema_version:\s+1\s*$' -or
+        $ConfigText -notmatch '(?m)^instance:\s*$' -or
+        $MarkerText -ne "synthetic upgrade preservation evidence`n" -or
+        $SettingsAfterUninstall.instance_path -ne $InstanceRoot -or
+        (Get-FileHash $InstanceConfig -Algorithm SHA256).Hash.ToLowerInvariant() -ne
+            $ExpectedInstanceConfigSha256 -or
+        (Get-FileHash (Join-Path $InstanceRoot "upgrade-preservation-marker.txt") `
+            -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedMarkerSha256 -or
+        (Get-FileHash $SettingsPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne
+            $ExpectedSettingsSha256
+    ) {
         throw "The preserved Instance was not readable after uninstall."
     }
     $Summary = @{
