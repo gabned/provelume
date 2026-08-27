@@ -1,8 +1,12 @@
 # Changelog
 
-All notable public product changes are recorded here. Provelume is pre-1.0 and contracts may still evolve with documented migration paths.
+All notable public product changes are recorded here. Provelume is pre-1.0 and contracts may still evolve with documented migration paths. Release planning follows [`docs/changelog-policy.md`](docs/changelog-policy.md).
 
 ## Unreleased
+
+### Changed
+
+- defined an atomic forward-shift contract for unplanned release insertions: later unreleased planned versions move forward while released history and the current package identity remain unchanged until release preparation;
 
 ## 0.2.0 - 2026-08-27
 
