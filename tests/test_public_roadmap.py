@@ -4,6 +4,8 @@ import re
 import tomllib
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 ROADMAP_PATH = ROOT / "docs" / "roadmap.md"
 RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.3.0.md"
@@ -26,10 +28,20 @@ def _read(path: Path) -> str:
 
 
 def _contract_fields(plan: str) -> dict[str, str]:
+    blocks = re.findall(r"^```text\n(.*?)\n```$", plan, re.MULTILINE | re.DOTALL)
+    if len(blocks) != 1:
+        raise AssertionError("release plan must contain exactly one text contract block")
+
     fields: dict[str, str] = {}
-    for key, value in re.findall(
-        r"^([A-Z][A-Z0-9_]+): ([A-Z0-9_.]+)$", plan, re.MULTILINE
-    ):
+    for line in blocks[0].splitlines():
+        if not line:
+            continue
+        match = re.fullmatch(r"([A-Z][A-Z0-9_]+): ([A-Z0-9_.]+)", line)
+        if match is None:
+            raise AssertionError(f"invalid release-plan field: {line!r}")
+        key, value = match.groups()
+        if key not in EXPECTED_CONTRACT:
+            raise AssertionError(f"unknown release-plan field: {key}")
         if key in fields:
             raise AssertionError(f"duplicate release-plan field: {key}")
         fields[key] = value
@@ -38,6 +50,23 @@ def _contract_fields(plan: str) -> dict[str, str]:
 
 def test_release_plan_contract_is_complete_and_closed() -> None:
     assert _contract_fields(_read(RELEASE_PLAN_PATH)) == EXPECTED_CONTRACT
+
+
+@pytest.mark.parametrize(
+    "extra_field",
+    (
+        "RELEASE_STATUS: planned",
+        "UNKNOWN-FIELD: VALUE",
+        "UNKNOWN_FIELD: VALUE",
+    ),
+)
+def test_release_plan_contract_rejects_unsupported_lines(extra_field: str) -> None:
+    plan = _read(RELEASE_PLAN_PATH)
+    contract_end = plan.index("\n```", plan.index("```text"))
+    malformed = f"{plan[:contract_end]}\n{extra_field}{plan[contract_end:]}"
+
+    with pytest.raises(AssertionError):
+        _contract_fields(malformed)
 
 
 def test_planning_does_not_change_package_identity() -> None:
