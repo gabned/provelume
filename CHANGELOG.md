@@ -4,6 +4,16 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Changed
+
+- made the connector forecast explicit: read-only Gmail and Google Drive intake in `0.9.0`,
+  followed by multiple Google Calendar and iCalendar Sources, Asana and Tududi adapters, and
+  narrowly guarded task write-back in `0.12.0`;
+- atomically inserted the productivity-connector outcome at `0.12.0` and shifted every later
+  unreleased `0.x` forecast through the release candidate forward by one slot to `0.22.0`,
+  without changing published history, package identity, the `0.5.0`–`0.11.0` sequence or
+  stable `1.0.0`.
+
 ## 0.4.0 - 2026-08-27
 
 ### Added
