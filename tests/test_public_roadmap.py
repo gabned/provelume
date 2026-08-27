@@ -120,11 +120,14 @@ def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
         "| Forecast | `0.12.0` | Productivity connectors and guarded sync preview |"
     ) == 1
     for required_contract in (
+        "Every connector type is multi-instance by contract",
+        "No adapter may rely on",
         "Google connector preview",
         "Google Calendar",
-        "multiple local or HTTPS iCalendar/ICS feeds",
-        "Asana and Tududi adapters",
-        "multiple independently configurable provider accounts and Sources",
+        "Asana supports multiple OAuth identities",
+        "organizations/workspaces, teams and projects",
+        "Tududi supports multiple server",
+        "per-instance read/write policy",
         "guarded task write-back preview",
         "explicit diff, human confirmation",
         "Local-only mode performs no connector access",
@@ -134,6 +137,27 @@ def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
     assert "Every later unreleased\nforecast moves forward atomically by one" in roadmap
     assert "`0.22.0` release candidate" in roadmap
     assert "stable `1.0.0` remain unchanged" in roadmap
+
+
+def test_mobile_capture_is_bounded_and_review_first() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    assert roadmap.count(
+        "| Forecast | `0.10.0` | Mobile Capture Inbox and review queue |"
+    ) == 1
+    for required_contract in (
+        "short-lived QR pairing",
+        "iOS Shortcut exposed in the Share Sheet",
+        "Android share-target",
+        "watched Google Drive drop",
+        "optional Telegram bot adapter",
+        "content traverses Telegram",
+        "outside the LAN requires",
+        "WhatsApp Cloud API integration",
+        "dedicated Business number/API flow",
+        "creates no automatic Claim, Decision, Task or CalendarEvent",
+    ):
+        assert required_contract in roadmap
 
 
 def test_readme_links_canonical_planning_surfaces() -> None:
