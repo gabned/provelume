@@ -10,12 +10,10 @@ by [`changelog-policy.md`](changelog-policy.md).
 | --- | --- | --- | --- |
 | Published preview | `0.1.0` | Local provenance-first Instance and verified release foundation | #40 (completed) |
 | Published preview | `0.2.0` | Local Installation Trust and Privacy & Network Activity transparency | #50 (merged) |
-| Implemented; release preparation pending | `0.3.0` | Anchored Local Installation Trust | #52 |
+| Published preview | `0.3.0` | Anchored Local Installation Trust | #52 (completed) |
 
-The package, embedded identity and latest tag remain `0.2.0`. Completing the `0.3.0` product
-implementation does not authorize a version bump, tag, release or publication. Those
-identities change only in a separate reviewed release-preparation change after the product
-exit gates pass.
+The package and embedded identity are `0.3.0`. The official `v0.3.0` tag and preview release
+are created only by the permanent release workflow from the reviewed result on `main`.
 
 ## 0.3.0 — Anchored Local Installation Trust
 

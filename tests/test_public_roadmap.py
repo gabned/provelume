@@ -14,12 +14,12 @@ EXPECTED_CONTRACT = {
     "RELEASE_PLAN_SCHEMA": "1",
     "PLANNED_VERSION": "0.3.0",
     "MILESTONE_TITLE": "0.3.0",
-    "CURRENT_PACKAGE_VERSION": "0.2.0",
-    "PACKAGE_VERSION_UPDATE": "RELEASE_PREPARATION_ONLY",
+    "CURRENT_PACKAGE_VERSION": "0.3.0",
+    "PACKAGE_VERSION_UPDATE": "APPLIED",
     "EXECUTION_ISSUE": "52",
     "SOURCE_SCOPE_ISSUE": "20",
     "PRODUCT_THEME": "ANCHORED_LOCAL_INSTALLATION_TRUST",
-    "RELEASE_STATUS": "IMPLEMENTED_PENDING_RELEASE_PREPARATION",
+    "RELEASE_STATUS": "PUBLISHED_PREVIEW",
 }
 
 
@@ -69,19 +69,19 @@ def test_release_plan_contract_rejects_unsupported_lines(extra_field: str) -> No
         _contract_fields(malformed)
 
 
-def test_planning_does_not_change_package_identity() -> None:
+def test_release_preparation_aligns_package_identity() -> None:
     with (ROOT / "pyproject.toml").open("rb") as handle:
         package_version = tomllib.load(handle)["project"]["version"]
 
     assert package_version == EXPECTED_CONTRACT["CURRENT_PACKAGE_VERSION"]
-    assert package_version != EXPECTED_CONTRACT["PLANNED_VERSION"]
+    assert package_version == EXPECTED_CONTRACT["PLANNED_VERSION"]
 
 
-def test_roadmap_has_one_next_release_and_closed_scope() -> None:
+def test_roadmap_records_release_and_closed_scope() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Implemented; release preparation pending | `0.3.0` |"
+        "| Published preview | `0.3.0` |"
     ) == 1
     assert "#52" in roadmap
     assert "#20" in roadmap
@@ -95,4 +95,4 @@ def test_readme_links_canonical_planning_surfaces() -> None:
 
     assert "[public roadmap](docs/roadmap.md)" in readme
     assert "[0.3.0 release plan](docs/releases/0.3.0.md)" in readme
-    assert "package identity remains `0.2.0`" in readme
+    assert "latest published preview is `v0.3.0`" in readme
