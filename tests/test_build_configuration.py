@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import tomllib
 from pathlib import Path
 
@@ -97,10 +98,19 @@ def test_official_release_web_request_is_fail_closed() -> None:
 
 def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:
     root = Path(__file__).resolve().parents[1]
+    with (root / "pyproject.toml").open("rb") as handle:
+        package_version = tomllib.load(handle)["project"]["version"]
+    init_source = (root / "core" / "provelume" / "__init__.py").read_text(
+        encoding="utf-8"
+    )
+    init_match = re.search(r'^__version__ = "([^"]+)"$', init_source, re.MULTILINE)
     value = json.loads(
         (root / "core" / "provelume" / "build_info.json").read_text(encoding="utf-8")
     )
 
+    assert package_version == "0.2.0"
+    assert init_match is not None
+    assert init_match.group(1) == package_version
     assert value == {
         "channel": "development",
         "commit": None,
@@ -110,5 +120,5 @@ def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:
         "source_date_utc": None,
         "source_repository": "gabned/provelume",
         "tag": None,
-        "version": "0.1.0",
+        "version": package_version,
     }

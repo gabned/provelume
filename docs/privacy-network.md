@@ -1,6 +1,7 @@
 # Privacy and network baseline
 
-Provelume 0.1 can perform its implemented functions without an external network connection after its runtime dependencies are installed.
+The Provelume 0.2.0 local runtime can perform its implemented functions without an external
+network connection after its runtime dependencies are installed.
 
 The first slice includes no analytics, telemetry, CDN resources, remote fonts, external AI calls or hidden update checks. Source files are read locally and preserved into the selected Instance.
 

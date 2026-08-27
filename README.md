@@ -8,9 +8,11 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: first local vertical slice
+## Current status: 0.2.0 preview
 
-Version `0.1.0` implements a small local Instance that can:
+The latest published preview is `v0.2.0`.
+
+The published `v0.1.0` baseline implements a small local Instance that can:
 
 - initialize in an ordinary directory;
 - ingest local TXT, Markdown and PDF files;
@@ -21,11 +23,20 @@ Version `0.1.0` implements a small local Instance that can:
 - expose a read-only versioned Knowledge API with FastAPI;
 - provide a minimal EN/IT Knowledge Browser for browse, search, document detail, versions, provenance, knowledge health and build transparency;
 - report its embedded version/tag/commit/source identity offline through CLI, API and browser;
-- report configured network capability, safe endpoint origins and policy conflicts without making a network request or claiming to observe traffic;
 - restart without losing canonical state;
 - run without Git, GitHub, Provelume Cloud or an external AI provider.
 
-The current development tree extends deterministic local extraction to DOCX, CSV, EML and XLSX, local PNG/JPEG format-and-dimension metadata, and bounded ZIP inspection, without adding new runtime dependencies. All extracted/searchable representations remain derived state and can be recreated from preserved originals after deletion.
+The `v0.2.0` preview adds:
+
+- local installation verification against wheel `RECORD`, with package integrity kept
+  separate from official-origin authentication;
+- declared Privacy & Network Activity transparency, including safe endpoint origins,
+  policy-conflict reporting and an explicit `not_instrumented` traffic-observation state.
+
+These checks are read-only and perform no network request. They do not prove official origin,
+operating-system egress enforcement or zero runtime traffic. All extracted/searchable
+representations remain derived state and can be recreated from preserved originals after
+deletion.
 
 OCR, semantic/vector search, cloud connectors and AI enrichment remain later milestones.
 

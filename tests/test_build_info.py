@@ -18,9 +18,9 @@ def clear_build_info_cache():
 def _official_payload(**changes: Any) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "schema_version": 1,
-        "version": "0.1.0",
+        "version": "0.2.0",
         "source_repository": "gabned/provelume",
-        "tag": "v0.1.0",
+        "tag": "v0.2.0",
         "commit": "a" * 40,
         "channel": "preview",
         "source_date_epoch": 1787443200,
@@ -51,7 +51,7 @@ def test_official_metadata_is_descriptive_not_locally_verified() -> None:
     assert result["identity_status"] == "official_metadata_present"
     assert result["metadata_present"] is True
     assert result["official"] is True
-    assert result["tag"] == "v0.1.0"
+    assert result["tag"] == "v0.2.0"
     assert result["commit"] == "a" * 40
     assert result["verification"]["status"] == "not_performed"
     assert result["verification"]["network_used"] is False
@@ -61,12 +61,12 @@ def test_official_metadata_is_descriptive_not_locally_verified() -> None:
     ("changes", "message"),
     [
         ({"schema_version": True}, "schema version"),
-        ({"tag": "v0.2.0"}, "tag must match"),
+        ({"tag": "v0.1.0"}, "tag must match"),
         ({"commit": None}, "requires a commit"),
         ({"channel": "development"}, "preview or stable"),
         ({"source_date_epoch": None, "source_date_utc": None}, "source timestamp"),
         ({"source_repository": "private/reference"}, "not canonical"),
-        ({"version": "0.2.0", "tag": "v0.2.0"}, "does not match package"),
+        ({"version": "0.1.0", "tag": "v0.1.0"}, "does not match package"),
         ({"source_date_epoch": 10**100}, "supported range"),
     ],
 )

@@ -4,10 +4,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+## 0.2.0 - 2026-08-27
+
 ### Added
 
-- read-only Privacy & Network Activity inventory across CLI, API and EN/IT browser, with fail-visible capability declarations, endpoint-origin redaction, policy-conflict reporting and an explicit `not_instrumented` traffic boundary;
 - local read-only `Verify installation` capability across CLI, API and EN/IT browser, with PEP 376 RECORD hashing, unexpected-file/path safety checks and explicit separation between package integrity and official origin;
+- read-only Privacy & Network Activity inventory across CLI, API and EN/IT browser, with fail-visible capability declarations, endpoint-origin redaction, policy-conflict reporting and an explicit `not_instrumented` traffic boundary;
 
 ## 0.1.0 - 2026-08-24
 
