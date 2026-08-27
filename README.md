@@ -12,9 +12,10 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 The latest published preview is `v0.2.0`.
 
-The next planned product release is `0.3.0`, scoped only to Anchored Local Installation
-Trust through issues #20 and #52. Planning does not change the current package identity or
-authorize a release. See the [public roadmap](docs/roadmap.md) and the bounded
+The unreleased `0.3.0` product scope is Anchored Local Installation Trust through issues #20
+and #52. Its implementation is complete pending a separate release-preparation change. The
+package identity remains `0.2.0`; this does not authorize a tag or publication. See the
+[public roadmap](docs/roadmap.md) and bounded
 [0.3.0 release plan](docs/releases/0.3.0.md).
 
 The published `v0.1.0` baseline implements a small local Instance that can:
@@ -37,6 +38,13 @@ The `v0.2.0` preview adds:
   separate from official-origin authentication;
 - declared Privacy & Network Activity transparency, including safe endpoint origins,
   policy-conflict reporting and an explicit `not_instrumented` traffic-observation state.
+
+The unreleased `0.3.0` implementation optionally links that local installation check to an
+operator-supplied release bundle. It verifies the bundle offline, validates the candidate
+wheel and its internal `RECORD` without extraction, and compares installed Core files with
+wheel bytes independently from the mutable local `RECORD`. Bundle self-consistency does not
+authenticate the publisher; a supplied manifest SHA-256 establishes only a match to the
+independently obtained hash.
 
 These checks are read-only and perform no network request. They do not prove official origin,
 operating-system egress enforcement or zero runtime traffic. All extracted/searchable
@@ -73,6 +81,16 @@ Inspect one Instance's declared network policy and components, also without maki
 
 ```bash
 .venv/bin/provelume network-status .local/demo
+```
+
+Verify the installed package against local metadata, or optionally against a local release
+bundle and separately obtained manifest hash:
+
+```bash
+.venv/bin/provelume verify-installation
+.venv/bin/provelume verify-installation \
+  --release-bundle /path/to/provelume-release-bundle \
+  --expected-manifest-sha256 <64-hex-digest>
 ```
 
 Run all tests with:
@@ -126,6 +144,7 @@ The browser and external clients use the same application layer. The first read-
 - `GET /api/v1/search`
 - `GET /api/v1/knowledge-health`
 - `GET /api/v1/security/network`
+- `GET /api/v1/security/installation`
 
 See `docs/api.md` for the contract and filtering behavior.
 
@@ -172,7 +191,11 @@ The official publication path is additionally gated by the reviewed Ubuntu/CPyth
 
 Official release bundles also include a standard-library-only offline verifier. It recomputes checksums, manifest, lock and rebuild evidence without network access, while explicitly distinguishing internal bundle consistency from official-origin authentication. An independently trusted manifest SHA-256 can be supplied as a cryptographic anchor. See `docs/release/offline-verification.md`.
 
-The local Security surface also provides **Verify installation** through the CLI, read-only API and browser. It checks installed package bytes against wheel `RECORD` without network access, while keeping package integrity distinct from official-origin authentication. See `docs/security/verify-installation.md`.
+The local Security surface also provides **Verify installation** through the CLI, read-only
+API and browser. Its backward-compatible default checks installed package bytes against wheel
+`RECORD`. An explicit local release bundle adds bounded bundle/wheel validation and direct
+installed-to-released byte comparison without network access. Self-consistency remains
+separate from publisher authentication. See `docs/security/verify-installation.md`.
 
 ## Product boundaries
 

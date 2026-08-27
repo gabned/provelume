@@ -4,8 +4,13 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Added
+
+- optional Anchored Local Installation Trust across CLI, read-only API and EN/IT browser: an operator-supplied local release bundle is verified offline, its candidate wheel and internal `RECORD` are validated in memory, and installed Core bytes are compared directly with released wheel bytes;
+
 ### Changed
 
+- the provider-independent offline release verifier is now also packaged as the shared application-service implementation while remaining a self-contained standard-library script in release bundles;
 - defined an atomic forward-shift contract for unplanned release insertions: later unreleased planned versions move forward while released history and the current package identity remain unchanged until release preparation;
 - established the public `0.3.0` roadmap and bounded Anchored Local Installation Trust release plan without changing the current `0.2.0` package identity;
 

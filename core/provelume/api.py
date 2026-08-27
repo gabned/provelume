@@ -137,5 +137,13 @@ def attach_api(app: FastAPI, instance: ProvelumeInstance) -> None:
     app.include_router(build_api(instance))
 
     @app.get("/api/v1/security/installation")
-    def installation_verification():
-        return verify_current_installation()
+    def installation_verification(
+        release_bundle: str | None = Query(default=None, max_length=4096),
+        expected_manifest_sha256: str | None = Query(default=None, max_length=128),
+    ):
+        if not release_bundle and not expected_manifest_sha256:
+            return verify_current_installation()
+        return verify_current_installation(
+            release_bundle=release_bundle or None,
+            expected_manifest_sha256=expected_manifest_sha256 or None,
+        )

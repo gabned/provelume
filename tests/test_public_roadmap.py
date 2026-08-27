@@ -19,7 +19,7 @@ EXPECTED_CONTRACT = {
     "EXECUTION_ISSUE": "52",
     "SOURCE_SCOPE_ISSUE": "20",
     "PRODUCT_THEME": "ANCHORED_LOCAL_INSTALLATION_TRUST",
-    "RELEASE_STATUS": "PLANNED",
+    "RELEASE_STATUS": "IMPLEMENTED_PENDING_RELEASE_PREPARATION",
 }
 
 
@@ -80,7 +80,9 @@ def test_planning_does_not_change_package_identity() -> None:
 def test_roadmap_has_one_next_release_and_closed_scope() -> None:
     roadmap = _read(ROADMAP_PATH)
 
-    assert roadmap.count("| Next planned | `0.3.0` |") == 1
+    assert roadmap.count(
+        "| Implemented; release preparation pending | `0.3.0` |"
+    ) == 1
     assert "#52" in roadmap
     assert "#20" in roadmap
     assert "#5 — optional local OCR" in roadmap
@@ -93,4 +95,4 @@ def test_readme_links_canonical_planning_surfaces() -> None:
 
     assert "[public roadmap](docs/roadmap.md)" in readme
     assert "[0.3.0 release plan](docs/releases/0.3.0.md)" in readme
-    assert "Planning does not change the current package identity" in readme
+    assert "package identity remains `0.2.0`" in readme

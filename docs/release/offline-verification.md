@@ -76,7 +76,7 @@ Failures return exit code 1. With `--json`, failures are emitted as a JSON objec
 The verifier rejects:
 
 - missing required assurance files;
-- nested directories, symlinks or unsafe filenames;
+- nested directories, symlinks, junctions, reparse points or unsafe filenames;
 - oversized metadata/artifacts or excessive bundle cardinality;
 - malformed or duplicate checksum entries;
 - checksum, manifest or SBOM mismatches;
@@ -93,6 +93,13 @@ The verifier rejects:
 
 GitHub/Sigstore attestations remain an additional origin/provenance check for the initial distribution provider. Use them when network access and the GitHub CLI are acceptable. The offline verifier intentionally contains no GitHub-specific business logic and remains usable with release mirrors or another future hosting provider.
 
-## Installation verification is a later layer
+## Link the bundle to an installed Core package
 
-This tool verifies a downloaded release bundle. It does not yet compare an installed Provelume Core file inventory, distinguish local configuration/plugins or validate future Windows code signing. Those checks belong to the planned `Settings -> Security -> Verify installation` capability and will consume the same manifest/assurance concepts.
+The standalone tool verifies a downloaded release bundle but does not inspect an installation.
+The installed `provelume verify-installation --release-bundle <directory>` service reuses the
+same verifier contract, validates the candidate wheel and internal `RECORD` in memory, and
+compares installed Core package files with wheel bytes. An optional independently obtained
+manifest SHA-256 can anchor that comparison.
+
+Neither path verifies runtime dependencies, local configuration/plugins, containers or future
+Windows code signing.

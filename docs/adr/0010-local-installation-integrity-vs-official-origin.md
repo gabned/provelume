@@ -76,7 +76,8 @@ Every local result includes a separate origin state:
 
 The browser and API explain that official origin requires a trusted release manifest, signature or attestation. The current capability does not perform a hidden network lookup and does not equate package integrity with a verified official build.
 
-Future work may allow an operator to supply a trusted local release bundle or signed manifest. That evidence should extend the origin result without weakening the local integrity checks.
+ADR 0012 adds the optional local release-bundle and manifest-hash layer without weakening
+these local integrity states.
 
 ## Interfaces
 
@@ -107,4 +108,5 @@ Limitations:
 
 ## Follow-up
 
-Add an optional trusted local release-manifest/signature anchor and compare installed package identity with the official release bundle. Later extend the same Security surface to runtime dependency inventory, plugin distinction and Privacy & Network Activity.
+The release-bundle linkage follow-up is implemented by ADR 0012. Runtime dependency, plugin,
+container and platform-package verification remain later work.

@@ -13,6 +13,23 @@
 <p class="lede">{{ security_t('intro') }}</p>
 
 <section class="panel">
+  <h2>{{ security_t('bundle_form.title') }}</h2>
+  <form class="search-form" method="get">
+    <input type="hidden" name="lang" value="{{ lang }}">
+    <label class="wide">
+      {{ security_t('bundle_form.path') }}
+      <input name="release_bundle" value="{{ release_bundle_input }}" maxlength="4096" placeholder="{{ security_t('bundle_form.path_hint') }}">
+    </label>
+    <label class="wide">
+      {{ security_t('bundle_form.anchor') }}
+      <input name="expected_manifest_sha256" value="{{ expected_manifest_sha256_input }}" maxlength="128" placeholder="{{ security_t('bundle_form.anchor_hint') }}">
+    </label>
+    <button type="submit">{{ security_t('bundle_form.submit') }}</button>
+  </form>
+  <p class="technical-note">{{ security_t('bundle_form.note') }}</p>
+</section>
+
+<section class="panel">
   <div class="section-heading">
     <div>
       <p class="eyebrow">{{ security_t('nav.security') }}</p>
@@ -32,9 +49,34 @@
     <div><dt>{{ security_t('label.unhashed') }}</dt><dd>{{ verification.integrity.unhashed_files }}</dd></div>
     <div><dt>{{ security_t('label.unexpected') }}</dt><dd>{{ verification.integrity.unexpected_files }}</dd></div>
     <div><dt>{{ security_t('label.network') }}</dt><dd>{{ security_t('network.none') }}</dd></div>
-    <div><dt>{{ security_t('label.origin') }}</dt><dd>{{ security_t('origin.not_established') }}</dd></div>
+    <div><dt>{{ security_t('label.origin') }}</dt><dd>{{ security_t('origin.' ~ verification.origin.status) }}</dd></div>
   </dl>
 </section>
+
+{% if verification.release_linkage is defined %}
+<section class="panel">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">{{ security_t('label.release_linkage') }}</p>
+      <h2>{{ security_t('linkage.status.' ~ verification.release_linkage.status) }}</h2>
+    </div>
+  </div>
+  <p>{{ security_t('linkage.reason.' ~ verification.release_linkage.status) }}</p>
+  <dl class="metadata-grid">
+    <div><dt>{{ security_t('label.linkage_checked') }}</dt><dd>{{ verification.release_linkage.checked_files }}</dd></div>
+    {% if verification.release_linkage.bundle %}
+    <div><dt>{{ security_t('label.bundle_version') }}</dt><dd>{{ verification.release_linkage.bundle.version }}</dd></div>
+    <div><dt>{{ security_t('label.bundle_tag') }}</dt><dd>{{ verification.release_linkage.bundle.tag }}</dd></div>
+    <div><dt>{{ security_t('label.bundle_commit') }}</dt><dd><code>{{ verification.release_linkage.bundle.source_commit }}</code></dd></div>
+    <div><dt>{{ security_t('label.manifest_sha256') }}</dt><dd><code>{{ verification.release_linkage.bundle.release_manifest_sha256 }}</code></dd></div>
+    {% endif %}
+    {% if verification.release_linkage.wheel %}
+    <div><dt>{{ security_t('label.wheel') }}</dt><dd><code>{{ verification.release_linkage.wheel.name }}</code></dd></div>
+    <div><dt>{{ security_t('label.wheel_files') }}</dt><dd>{{ verification.release_linkage.wheel.package_files }}</dd></div>
+    {% endif %}
+  </dl>
+</section>
+{% endif %}
 
 <section class="panel">
   <h2>{{ security_t('findings.title') }}</h2>

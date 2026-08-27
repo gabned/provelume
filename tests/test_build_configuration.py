@@ -57,6 +57,10 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert 'installation["status"] == "package_integrity_verified"' in release
     assert 'installation["network_used"] is False' in release
     assert 'installation["origin"]["status"] == "not_established"' in release
+    assert (
+        'cp core/provelume/release_bundle.py "$release/verify-provelume-release.py"'
+        in release
+    )
     assert "uses: ./.github/workflows/release-pipeline.yml" in release_caller
     assert "uses: ./.github/workflows/release-publish.yml" in release_caller
     assert "source_commit:" in release

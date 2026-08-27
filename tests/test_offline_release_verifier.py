@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -292,3 +294,59 @@ def test_offline_verifier_rejects_symlinked_bundle_file(tmp_path: Path) -> None:
         pytest.skip("symlink creation is unavailable")
     with pytest.raises(VerificationError, match="symlinked|symlink"):
         verify_bundle(root)
+
+
+def test_offline_verifier_rejects_symlinked_bundle_root(tmp_path: Path) -> None:
+    root = _bundle(tmp_path)
+    linked = tmp_path / "linked-release"
+    try:
+        os.symlink(root, linked, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("directory symlink creation is unavailable")
+
+    with pytest.raises(VerificationError, match="safe regular directory"):
+        verify_bundle(linked)
+
+
+def test_packaged_bundle_verifier_remains_standalone(tmp_path: Path) -> None:
+    root = _bundle(tmp_path)
+    source = (
+        Path(__file__).resolve().parents[1]
+        / "core"
+        / "provelume"
+        / "release_bundle.py"
+    )
+    verifier = root / "verify-provelume-release.py"
+    verifier.write_bytes(source.read_bytes())
+
+    manifest_path = root / "release-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    verifier_identity = _identity(verifier)
+    for row in manifest["artifacts"]:
+        if row["name"] == verifier.name:
+            row.update(verifier_identity)
+            break
+    else:
+        raise AssertionError("fixture manifest has no verifier identity")
+    _write_json(manifest_path, manifest)
+
+    checksums_path = root / "SHA256SUMS"
+    checksums = []
+    for line in checksums_path.read_text(encoding="utf-8").splitlines():
+        if line.endswith(f"  {verifier.name}"):
+            checksums.append(f"{_sha(verifier)}  {verifier.name}")
+        else:
+            checksums.append(line)
+    checksums_path.write_text("\n".join(checksums) + "\n", encoding="utf-8")
+
+    completed = subprocess.run(
+        [sys.executable, str(verifier), "--root", str(root), "--json"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    result = json.loads(completed.stdout)
+    assert result["result"] == "self_consistency_verified"
+    assert result["network_used"] is False

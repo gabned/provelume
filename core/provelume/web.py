@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -187,13 +187,26 @@ def create_app(instance_root: Path | str) -> FastAPI:
         )
 
     @app.get("/security/installation")
-    def installation_page(request: Request):
+    def installation_page(
+        request: Request,
+        release_bundle: str | None = Query(default=None, max_length=4096),
+        expected_manifest_sha256: str | None = Query(default=None, max_length=128),
+    ):
+        if not release_bundle and not expected_manifest_sha256:
+            verification = verify_current_installation()
+        else:
+            verification = verify_current_installation(
+                release_bundle=release_bundle or None,
+                expected_manifest_sha256=expected_manifest_sha256 or None,
+            )
         return TEMPLATES.TemplateResponse(
             request=request,
             name="installation_verification.html",
             context=_installation_context(
                 request,
-                verification=verify_current_installation(),
+                verification=verification,
+                release_bundle_input=release_bundle or "",
+                expected_manifest_sha256_input=expected_manifest_sha256 or "",
             ),
         )
 

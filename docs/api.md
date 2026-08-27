@@ -71,6 +71,20 @@ The v1 routes in this slice do not expose mutation endpoints. Ingestion and inde
 
 ## Installation security
 
-`GET /api/v1/security/installation` verifies the locally installed Provelume package against wheel `RECORD` SHA-256 identities. It performs no network I/O and does not read Instance knowledge or configuration.
+`GET /api/v1/security/installation` verifies the locally installed Provelume package against
+wheel `RECORD` SHA-256 identities. It performs no network I/O and does not read Instance
+knowledge or configuration.
 
-The result separates package-byte integrity (`package_integrity_verified`, `modified_installation`, or `verification_unavailable`) from official origin, which remains `not_established` until a trusted release manifest/signature is supplied. The endpoint is read-only.
+Optional query parameters extend the same read-only request:
+
+- `release_bundle` — server-local directory containing one complete release bundle;
+- `expected_manifest_sha256` — optional 64-hex manifest digest obtained independently from
+  that directory; it is invalid without `release_bundle`.
+
+When supplied, Core verifies the bounded bundle contract, candidate wheel identity and
+internal wheel `RECORD`, then compares installed package bytes directly with wheel members.
+The result adds `release_linkage` while preserving the original top-level installation states
+(`package_integrity_verified`, `modified_installation`, or `verification_unavailable`). A
+self-consistent bundle leaves publisher authentication `not_established`. A matching supplied
+hash reports `trusted_manifest_sha256_matched`, meaning only that the checked bundle matches
+the independently obtained hash. The endpoint is read-only.

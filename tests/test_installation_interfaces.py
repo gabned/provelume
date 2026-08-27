@@ -127,10 +127,17 @@ def test_installation_page_does_not_read_instance_context(
     monkeypatch.setattr(instance, "knowledge_health", forbidden_instance_read)
     monkeypatch.setattr(
         "provelume.web.verify_current_installation",
-        lambda: _result(),
+        lambda **_kwargs: _result(),
     )
 
-    response = TestClient(app).get("/security/installation", params={"lang": "it"})
+    response = TestClient(app).get(
+        "/security/installation",
+        params={
+            "lang": "it",
+            "release_bundle": str(tmp_path / "release"),
+            "expected_manifest_sha256": "a" * 64,
+        },
+    )
 
     assert response.status_code == 200
     assert "Verifica installazione" in response.text
@@ -162,3 +169,83 @@ def test_verify_installation_cli_has_distinct_failure_codes(
         lambda: _result("verification_unavailable"),
     )
     assert cli.main(["verify-installation"]) == 3
+
+
+def test_installation_interfaces_forward_explicit_release_evidence(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    root = tmp_path / "instance"
+    bundle = tmp_path / "release-bundle"
+    ProvelumeInstance.initialise(root, name="Anchored Security Demo")
+    result = _result()
+    result["release_linkage"] = {
+        "status": "verified",
+        "verified": True,
+        "bundle": {
+            "verification": "externally_anchored_bundle_verified",
+            "version": "0.1.0",
+            "tag": "v0.1.0",
+            "source_commit": "a" * 40,
+            "release_manifest_sha256": "b" * 64,
+            "externally_anchored": True,
+        },
+        "wheel": {
+            "name": "provelume-0.1.0-py3-none-any.whl",
+            "sha256": "c" * 64,
+            "size_bytes": 123,
+            "checked_members": 20,
+            "package_files": 12,
+        },
+        "checked_files": 12,
+        "unexpected_files": 0,
+        "reason": "Synthetic linked result.",
+    }
+    result["origin"] = {
+        "status": "trusted_manifest_sha256_matched",
+        "detail": "Synthetic anchored boundary.",
+    }
+    calls: list[dict[str, object]] = []
+
+    def verify_stub(**kwargs):
+        calls.append(kwargs)
+        return result
+
+    monkeypatch.setattr("provelume.api.verify_current_installation", verify_stub)
+    monkeypatch.setattr("provelume.web.verify_current_installation", verify_stub)
+    monkeypatch.setattr("provelume.cli.verify_current_installation", verify_stub)
+    client = TestClient(create_app(root))
+    query = {
+        "release_bundle": str(bundle),
+        "expected_manifest_sha256": "b" * 64,
+    }
+
+    api_response = client.get("/api/v1/security/installation", params=query)
+    assert api_response.status_code == 200
+    assert api_response.json() == result
+
+    italian = client.get(
+        "/security/installation",
+        params={"lang": "it", **query},
+    )
+    assert italian.status_code == 200
+    assert "I file installati corrispondono al wheel di release" in italian.text
+    assert "Corrisponde allo SHA-256 del manifest fornito" in italian.text
+    assert str(bundle) in italian.text
+    assert "Synthetic linked result." not in italian.text
+
+    assert (
+        cli.main(
+            [
+                "verify-installation",
+                "--release-bundle",
+                str(bundle),
+                "--expected-manifest-sha256",
+                "b" * 64,
+            ]
+        )
+        == 0
+    )
+    assert json.loads(capsys.readouterr().out) == result
+    assert calls == [query, query, {"release_bundle": bundle, "expected_manifest_sha256": "b" * 64}]
