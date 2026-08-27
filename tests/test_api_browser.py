@@ -43,6 +43,13 @@ def test_read_only_api_contract(tmp_path: Path) -> None:
     assert build.json()["verification"]["status"] == "not_performed"
     assert build.json()["verification"]["network_used"] is False
 
+    about = client.get("/api/v1/about")
+    assert about.status_code == 200
+    assert about.json()["version"] == "0.3.0"
+    assert about.json()["runtime"]["packaging"] == "python_package"
+    assert about.json()["updates"]["check_on_start_default"] is False
+    assert about.json()["updates"]["instance_content_sent"] is False
+
     summary = client.get("/api/v1/instance")
     assert summary.status_code == 200
     assert summary.json()["documents"] == 2
@@ -114,6 +121,7 @@ def test_browser_routes_and_italian_catalog(tmp_path: Path) -> None:
     assert home.status_code == 200
     assert "Instance overview" in home.text
     assert "/security?lang=en" in home.text
+    assert "/about?lang=en" in home.text
     assert 'href="http' not in home.text.lower()
     assert 'src="http' not in home.text.lower()
 
@@ -170,6 +178,17 @@ def test_browser_routes_and_italian_catalog(tmp_path: Path) -> None:
     assert "Sicurezza e identità della build" in security_it.text
     assert "Build di sviluppo" in security_it.text
     assert "Nessuna richiesta di rete eseguita" in security_it.text
+
+    about = client.get("/about")
+    assert about.status_code == 200
+    assert "About Provelume" in about.text
+    assert "Opening this page performs no network request" in about.text
+    assert "github_releases" in about.text
+
+    about_it = client.get("/about", params={"lang": "it"})
+    assert about_it.status_code == 200
+    assert "Informazioni su Provelume" in about_it.text
+    assert "non esegue richieste di rete" in about_it.text
 
 
 def test_browser_and_api_survive_restart(tmp_path: Path) -> None:

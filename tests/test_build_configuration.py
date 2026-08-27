@@ -25,6 +25,16 @@ def test_repository_pins_deterministic_build_inputs() -> None:
     assert "hatchling==1.31.0" in release_requirements
     assert all("==" in requirement for requirement in release_requirements)
 
+    windows_lock = (root / "build-lock" / "windows-py312-x86_64.requirements.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "pyinstaller==6.16.0" in windows_lock
+    assert "pywin32-ctypes==0.2.3" in windows_lock
+    assert "setuptools==" in windows_lock
+    assert "--hash=sha256:" in windows_lock
+    assert "http://" not in windows_lock
+    assert "https://" not in windows_lock
+
 
 def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     root = Path(__file__).resolve().parents[1]
@@ -71,6 +81,12 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
         assert "uuid.uuid5(" in workflow
         assert "--output-reproducible" in workflow
     assert "CycloneDX serialNumber is missing or invalid" in publication
+    assert "windows-package:" in release
+    assert "scripts/build_windows_installer.ps1" in release
+    assert "scripts/test_windows_installer.ps1" in release
+    assert "provelume-windows-update.json" in release
+    assert "Provelume-Setup-${VERSION}-x64.exe" in release
+    assert "Attest unsigned Windows preview" in publication
 
 
 def test_official_release_web_request_is_fail_closed() -> None:

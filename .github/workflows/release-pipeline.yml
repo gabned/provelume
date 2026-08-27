@@ -355,9 +355,76 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  windows-package:
+    name: Build and exercise unsigned Windows preview
+    needs: candidate
+    runs-on: windows-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout the assured public source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.source_commit || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Windows target Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12.14"
+          cache: pip
+          cache-dependency-path: build-lock/windows-py312-x86_64.requirements.txt
+
+      - name: Download the assured candidate wheel
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $target = "$env:RUNNER_TEMP\provelume-windows-candidate"
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+          gh run download $env:GITHUB_RUN_ID `
+            --repo $env:GITHUB_REPOSITORY `
+            --name "provelume-release-candidate-$env:GITHUB_RUN_ID" `
+            --dir $target
+
+      - name: Build installer and provider-independent update metadata
+        shell: pwsh
+        run: |
+          $wheel = Get-ChildItem "$env:RUNNER_TEMP\provelume-windows-candidate\dist\*.whl" | Select-Object -First 1
+          ./scripts/build_windows_installer.ps1 `
+            -CandidateWheel $wheel.FullName `
+            -OutputDirectory "$env:RUNNER_TEMP\provelume-windows-output" `
+            -Version "${{ needs.candidate.outputs.version }}" `
+            -Tag "${{ needs.candidate.outputs.tag }}" `
+            -Channel "${{ needs.candidate.outputs.channel }}" `
+            -Commit "${{ needs.candidate.outputs.commit }}"
+
+      - name: Exercise installed identity and preservation boundary
+        shell: pwsh
+        run: |
+          ./scripts/test_windows_installer.ps1 `
+            -Installer "$env:RUNNER_TEMP\provelume-windows-output\Provelume-Setup-${{ needs.candidate.outputs.version }}-x64.exe" `
+            -InstallDirectory "$env:RUNNER_TEMP\Installed Provelume" `
+            -InstanceDirectory "$env:RUNNER_TEMP\Portable Provelume Instance" `
+            -ExpectedVersion "${{ needs.candidate.outputs.version }}" `
+            -ExpectedCommit "${{ needs.candidate.outputs.commit }}" `
+            -ExpectedChannel "${{ needs.candidate.outputs.channel }}"
+
+      - name: Upload Windows package evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: provelume-windows-package-${{ github.run_id }}
+          path: ${{ runner.temp }}/provelume-windows-output/
+          if-no-files-found: error
+          retention-days: 30
+
   assemble:
     name: Assemble and verify release bundle
-    needs: [candidate, offline-rebuild]
+    needs: [candidate, offline-rebuild, windows-package]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -405,6 +472,13 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --name "provelume-release-rebuild-${GITHUB_RUN_ID}" \
             --dir "$evidence"
+          windows="$RUNNER_TEMP/provelume-release-windows"
+          rm -rf "$windows"
+          mkdir -p "$windows"
+          gh run download "$GITHUB_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "provelume-windows-package-${GITHUB_RUN_ID}" \
+            --dir "$windows"
 
       - name: Verify complete assurance chain
         shell: bash
@@ -536,6 +610,7 @@ jobs:
           set -euo pipefail
           candidate="$RUNNER_TEMP/provelume-release-assembly-candidate"
           evidence="$RUNNER_TEMP/provelume-release-assembly-evidence"
+          windows="$RUNNER_TEMP/provelume-release-windows"
           assembly="$RUNNER_TEMP/provelume-release-assembly"
           release="$RUNNER_TEMP/provelume-release-bundle"
           rm -rf "$release"
@@ -553,6 +628,10 @@ jobs:
           cp "$evidence/offline-rebuild-evidence.json" "$release"/
           cp "$assembly/release-assurance.json" "$release"/
           cp "$assembly/provelume-${VERSION}.cdx.json" "$release"/
+          cp "$windows"/Provelume-Setup-"${VERSION}"-x64.exe "$release"/
+          cp "$windows"/provelume-windows-update.json "$release"/
+          cp build-lock/windows-py312-x86_64.in "$release"/
+          cp build-lock/windows-py312-x86_64.requirements.txt "$release"/
           if [ "$PUBLISH" = "true" ]; then
             export PROVELUME_BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           else
@@ -578,6 +657,10 @@ jobs:
             --artifact "$release/independent-rebuild-report.json" \
             --artifact "$release/offline-rebuild-evidence.json" \
             --artifact "$release/release-assurance.json" \
+            --artifact "$release/Provelume-Setup-${VERSION}-x64.exe" \
+            --artifact "$release/provelume-windows-update.json" \
+            --artifact "$release/windows-py312-x86_64.in" \
+            --artifact "$release/windows-py312-x86_64.requirements.txt" \
             --sbom "$release/provelume-${VERSION}.cdx.json" \
             --manifest "$release/release-manifest.json" \
             --checksums "$release/SHA256SUMS"

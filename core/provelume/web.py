@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from .about import current_about
 from .api import attach_api, reject_client_installation_evidence
 from .build_info import current_build_info
 from .i18n import SUPPORTED_LANGUAGES, translator
@@ -210,6 +211,14 @@ def create_app(
             request=request,
             name="security.html",
             context=_context(request, instance, build=current_build_info()),
+        )
+
+    @app.get("/about")
+    def about_page(request: Request):
+        return TEMPLATES.TemplateResponse(
+            request=request,
+            name="about.html",
+            context=_context(request, instance, about=current_about()),
         )
 
     @app.get("/security/installation")

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ t('about.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb"><a href="/?lang={{ lang }}">{{ t('nav.home') }}</a><span>/</span><span>{{ t('nav.about') }}</span></nav>
+<section class="hero">
+  <p class="eyebrow">{{ t('about.eyebrow') }}</p>
+  <h1>{{ t('about.title') }}</h1>
+  <p class="lead">{{ t('about.lead') }}</p>
+  <div class="status-row">
+    <span class="status info">{{ t('about.local') }}</span>
+    <span>{{ t('about.no_network') }}</span>
+  </div>
+</section>
+
+<section class="two-column security-layout">
+  <article class="panel">
+    <h2>{{ t('about.installation') }}</h2>
+    <dl>
+      <dt>{{ t('common.version') }}</dt><dd>{{ about.version }}</dd>
+      <dt>{{ t('about.channel') }}</dt><dd>{{ about.channel }}</dd>
+      <dt>{{ t('about.packaging') }}</dt><dd>{{ about.runtime.packaging }}</dd>
+      <dt>{{ t('about.platform') }}</dt><dd>{{ about.runtime.platform }} · {{ about.runtime.architecture }}</dd>
+      <dt>{{ t('security.tag') }}</dt><dd>{{ about.tag or t('common.none') }}</dd>
+      <dt>{{ t('security.commit') }}</dt><dd>{% if about.commit %}<code class="hash">{{ about.commit }}</code>{% else %}{{ t('common.unavailable') }}{% endif %}</dd>
+      <dt>{{ t('security.official') }}</dt><dd>{{ t('common.yes') if about.official_build_metadata else t('common.no') }}</dd>
+    </dl>
+  </article>
+  <aside>
+    <section class="panel">
+      <h2>{{ t('about.updates') }}</h2>
+      <p>{{ t('about.update_policy') }}</p>
+      <dl>
+        <dt>{{ t('about.transport') }}</dt><dd>{{ about.updates.initial_transport }}</dd>
+        <dt>{{ t('about.start_default') }}</dt><dd>{{ t('common.no') }}</dd>
+        <dt>{{ t('about.auto_apply') }}</dt><dd>{{ t('common.no') }}</dd>
+        <dt>{{ t('about.instance_content') }}</dt><dd>{{ t('common.no') }}</dd>
+      </dl>
+    </section>
+    <section class="panel trust-boundary">
+      <h2>{{ t('about.trust') }}</h2>
+      <p>{{ t('about.trust_boundary') }}</p>
+    </section>
+  </aside>
+</section>
+{% endblock %}

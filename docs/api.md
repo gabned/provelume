@@ -20,6 +20,14 @@ Fields include package version, canonical source repository, release tag, source
 
 The same application-layer contract is exposed by `provelume build-info` and the local `/security` browser page.
 
+## About and installed product
+
+`GET /api/v1/about` reports the installed product version, packaging mode, platform and declared
+update lifecycle. It reads only local runtime identity. It never performs an update check;
+network access remains a separate explicit Windows-launcher or `provelume check-updates` action.
+
+The same contract is exposed by `provelume about` and the local `/about` browser page.
+
 ## Instance and sources
 
 - `GET /api/v1/instance` — Instance identity, canonical object counts, knowledge/index status and explicit network baseline.

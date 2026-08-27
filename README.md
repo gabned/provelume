@@ -14,8 +14,14 @@ The latest published preview is `v0.3.0`. Its bounded product scope is Anchored 
 Installation Trust through completed issues #20 and #52. See the
 [public roadmap](docs/roadmap.md) and [0.3.0 release plan](docs/releases/0.3.0.md).
 
-The roadmap also records the non-activated release forecast from `0.4.0` through `1.0.0`.
+The roadmap also records the non-activated release forecast from `0.5.0` through `1.0.0`.
 Forecast entries are sequencing coordinates, not availability claims or release authorization.
+
+The active `0.4.0` workstream is the first Windows Product Shell Preview. Issue #57 and the
+[release plan](docs/releases/0.4.0.md) define a per-user x64 installer with a bundled runtime,
+local launcher, About/version identity and an explicit update-check lifecycle. Until the separate
+release-preparation change and official tag are complete, the latest published preview remains
+`v0.3.0`.
 
 The published `v0.1.0` baseline implements a small local Instance that can:
 
@@ -75,6 +81,22 @@ Inspect the package's embedded source identity without creating an Instance or m
 ```bash
 .venv/bin/provelume build-info
 ```
+
+Inspect the installed product, packaging and update policy, also without a network request:
+
+```bash
+.venv/bin/provelume about
+```
+
+An update check is a separate explicit network action. It contacts GitHub Releases, sends no
+Instance content and is never enabled in the background by the Core:
+
+```bash
+.venv/bin/provelume check-updates --channel preview
+```
+
+The Windows `0.4.0` preview packages the same behavior behind a per-user installer and EN/IT
+launcher; see the [Windows preview guide](docs/windows-preview.md).
 
 Inspect one Instance's declared network policy and components, also without making a network request:
 
