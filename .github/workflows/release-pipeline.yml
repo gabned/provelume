@@ -542,7 +542,7 @@ jobs:
           mkdir -p "$release"
           cp "$candidate"/dist/*.whl "$candidate"/dist/*.tar.gz "$release"/
           cp LICENSE COMMERCIAL-LICENSE.md THIRD_PARTY_NOTICES.md "$release"/
-          cp tools/verify_provelume_release.py "$release/verify-provelume-release.py"
+          cp core/provelume/release_bundle.py "$release/verify-provelume-release.py"
           cp build-lock/ubuntu-py312-x86_64.lock.json "$release"/
           cp build-lock/ubuntu-py312-x86_64.requirements.txt "$release"/
           cp "$candidate/build-input-manifest.json" "$release"/

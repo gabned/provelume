@@ -71,6 +71,28 @@ The v1 routes in this slice do not expose mutation endpoints. Ingestion and inde
 
 ## Installation security
 
-`GET /api/v1/security/installation` verifies the locally installed Provelume package against wheel `RECORD` SHA-256 identities. It performs no network I/O and does not read Instance knowledge or configuration.
+`GET /api/v1/security/installation` verifies the locally installed Provelume package against
+wheel `RECORD` SHA-256 identities. It performs no network I/O and does not read Instance
+knowledge or configuration. The response is a verification snapshot computed once when the
+server process starts.
 
-The result separates package-byte integrity (`package_integrity_verified`, `modified_installation`, or `verification_unavailable`) from official origin, which remains `not_established` until a trusted release manifest/signature is supplied. The endpoint is read-only.
+An operator can add release evidence only through trusted process-start configuration:
+
+```bash
+provelume serve INSTANCE \
+  --release-bundle /path/to/provelume-release-bundle \
+  --expected-manifest-sha256 <64-hex-digest>
+```
+
+Core verifies the bounded bundle contract, candidate wheel identity and
+internal wheel `RECORD`, then compares installed package bytes directly with wheel members.
+The result adds `release_linkage` while preserving the original top-level installation states
+(`package_integrity_verified`, `modified_installation`, or `verification_unavailable`). A
+self-consistent bundle leaves publisher authentication `not_established`. A matching supplied
+hash reports `trusted_manifest_sha256_matched`, meaning only that the checked bundle matches
+the independently obtained hash.
+
+HTTP clients cannot select or change a server-local release directory or expected hash. The
+endpoint rejects `release_bundle` and `expected_manifest_sha256` query parameters with `400`
+and only returns the cached startup result. This keeps the unauthenticated read-only surface
+from becoming a path-probing or repeated bundle-processing interface.

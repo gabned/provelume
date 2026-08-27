@@ -10,22 +10,25 @@ by [`changelog-policy.md`](changelog-policy.md).
 | --- | --- | --- | --- |
 | Published preview | `0.1.0` | Local provenance-first Instance and verified release foundation | #40 (completed) |
 | Published preview | `0.2.0` | Local Installation Trust and Privacy & Network Activity transparency | #50 (merged) |
-| Next planned | `0.3.0` | Anchored Local Installation Trust | #52 |
+| Implemented; release preparation pending | `0.3.0` | Anchored Local Installation Trust | #52 |
 
-The package, embedded identity and latest tag remain `0.2.0`. Planning `0.3.0` does not
-authorize a version bump, tag, release or publication. Those identities change only in a
-separate reviewed release-preparation change after the product exit gates pass.
+The package, embedded identity and latest tag remain `0.2.0`. Completing the `0.3.0` product
+implementation does not authorize a version bump, tag, release or publication. Those
+identities change only in a separate reviewed release-preparation change after the product
+exit gates pass.
 
 ## 0.3.0 — Anchored Local Installation Trust
 
-The only product scope assigned to `0.3.0` is the unfinished release-bundle portion of #20:
+The only product scope assigned to `0.3.0` is the release-bundle portion of #20:
 
-- accept an explicit operator-supplied local release bundle;
+- accept an explicit operator-supplied local release bundle through the CLI or trusted
+  server-start configuration;
 - verify the existing bounded bundle contract without network access;
 - validate the released wheel and its internal `RECORD`;
 - compare installed Core package bytes with the released wheel bytes;
 - preserve RECORD-only verification when no bundle is supplied;
-- expose the same evidence layers through read-only CLI, API and EN/IT browser surfaces.
+- expose the same evidence layers through CLI and a startup-cached read-only API/EN/IT browser
+  surface without accepting local paths from HTTP clients.
 
 Evidence must remain layered. Local RECORD agreement proves consistency with installed
 metadata. Bundle self-consistency plus installed/released byte agreement strengthens release

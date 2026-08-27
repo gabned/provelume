@@ -37,3 +37,52 @@ def test_cli_init_ingest_health_and_rebuild(tmp_path: Path, capsys) -> None:
 
     restarted = ProvelumeInstance(instance_root)
     assert restarted.search("portable")[0]["title"] == "hello.txt"
+
+
+def test_cli_serve_configures_release_evidence_at_startup(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    instance_root = tmp_path / "instance"
+    release_bundle = tmp_path / "release-bundle"
+    app = object()
+    created: list[tuple[Path, dict[str, object]]] = []
+    served: list[tuple[object, dict[str, object]]] = []
+
+    def create_app_stub(instance: Path, **kwargs):
+        created.append((instance, kwargs))
+        return app
+
+    def run_stub(selected_app, **kwargs):
+        served.append((selected_app, kwargs))
+
+    monkeypatch.setattr("provelume.cli.create_app", create_app_stub)
+    monkeypatch.setattr("provelume.cli.uvicorn.run", run_stub)
+
+    assert (
+        main(
+            [
+                "serve",
+                str(instance_root),
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8042",
+                "--release-bundle",
+                str(release_bundle),
+                "--expected-manifest-sha256",
+                "a" * 64,
+            ]
+        )
+        == 0
+    )
+    assert created == [
+        (
+            instance_root,
+            {
+                "release_bundle": release_bundle,
+                "expected_manifest_sha256": "a" * 64,
+            },
+        )
+    ]
+    assert served == [(app, {"host": "0.0.0.0", "port": 8042})]

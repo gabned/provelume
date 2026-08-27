@@ -16,6 +16,14 @@ from importlib import metadata
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from .release_bundle import VerificationError, verify_bundle
+from .release_wheel import (
+    WINDOWS_RESERVED_NAMES,
+    ReleaseWheelEvidence,
+    WheelVerificationError,
+    verify_release_wheel,
+)
+
 DISTRIBUTION_NAME = "provelume"
 PACKAGE_NAME = "provelume"
 MAX_FINDINGS = 200
@@ -68,6 +76,11 @@ HARD_FINDING_ISSUES = frozenset(
         "unsafe_path",
         "unreadable_path",
         "scan_limit",
+        "release_file_missing",
+        "release_file_modified",
+        "release_unexpected_file",
+        "bundle_invalid",
+        "wheel_invalid",
     }
 )
 METADATA_FINDING_ISSUES = frozenset(
@@ -170,8 +183,13 @@ def _safe_record_parts(path_value: str) -> tuple[str, ...]:
     path = PurePosixPath(normalized)
     if path.is_absolute() or not path.parts or ".." in path.parts:
         raise ValueError("absolute or traversal path")
-    if ":" in path.parts[0]:
-        raise ValueError("drive-prefixed path")
+    if any(
+        ":" in part
+        or part.endswith((" ", "."))
+        or part.split(".", 1)[0].upper() in WINDOWS_RESERVED_NAMES
+        for part in path.parts
+    ):
+        raise ValueError("Windows-unsafe or drive-prefixed path")
     return tuple(path.parts)
 
 
@@ -439,6 +457,10 @@ def _unexpected_package_files(
     findings: _FindingLog,
     *,
     record_complete: bool,
+    unexpected_issue: str = "unexpected_file",
+    unexpected_detail: str = (
+        "A package file is present but is not declared by wheel RECORD."
+    ),
 ) -> int:
     package_root = site_root / package_name
     if _is_link_like(package_root):
@@ -560,8 +582,8 @@ def _unexpected_package_files(
                 _finding(
                     findings,
                     path=relative,
-                    issue="unexpected_file",
-                    detail="A package file is present but is not declared by wheel RECORD.",
+                    issue=unexpected_issue,
+                    detail=unexpected_detail,
                 )
         pending_directories.extend(reversed(child_directories))
     return unexpected
@@ -923,20 +945,395 @@ def _editable_installation(direct_url_path: Path, site_root: Path) -> bool:
     return editable
 
 
-def verify_current_installation() -> dict[str, Any]:
-    """Verify the currently imported Provelume distribution without network I/O."""
+def _finding_log_from_result(result: dict[str, Any]) -> _FindingLog:
+    findings = _FindingLog()
+    for row in result.get("findings", []):
+        if not isinstance(row, dict):
+            continue
+        findings.add(
+            InstallationFinding(
+                path=str(row.get("path", "<unknown>")),
+                issue=str(row.get("issue", "invalid_record")),
+                detail=str(row.get("detail", "Verification finding.")),
+                expected_sha256=(
+                    str(row["expected_sha256"])
+                    if row.get("expected_sha256") is not None
+                    else None
+                ),
+                actual_sha256=(
+                    str(row["actual_sha256"])
+                    if row.get("actual_sha256") is not None
+                    else None
+                ),
+            )
+        )
+    findings.truncated = bool(result.get("findings_truncated")) or findings.truncated
+    return findings
+
+
+def _release_linkage_stub(*, status: str, reason: str) -> dict[str, Any]:
+    return {
+        "status": status,
+        "verified": False,
+        "bundle": None,
+        "wheel": None,
+        "checked_files": 0,
+        "unexpected_files": 0,
+        "reason": _presentation_text(reason),
+    }
+
+
+def _release_linkage_not_run(
+    result: dict[str, Any],
+    *,
+    reason: str,
+) -> dict[str, Any]:
+    linked = dict(result)
+    linked["release_linkage"] = _release_linkage_stub(
+        status="verification_unavailable",
+        reason=reason,
+    )
+    return linked
+
+
+def _release_linkage_failure(
+    result: dict[str, Any],
+    *,
+    status: str,
+    issue: str,
+    reason: str,
+) -> dict[str, Any]:
+    linked = dict(result)
+    linked["integrity"] = dict(result["integrity"])
+    findings = _finding_log_from_result(result)
+    _finding(
+        findings,
+        path="<RELEASE_BUNDLE>",
+        issue=issue,
+        detail=reason,
+    )
+    if linked["status"] != "modified_installation":
+        linked["status"] = "verification_unavailable"
+        linked["integrity"]["verified"] = False
+        linked["reason"] = _presentation_text(reason)
+    linked["origin"] = {
+        "status": "not_established",
+        "detail": (
+            "The supplied release evidence could not be linked safely to the installed "
+            "package bytes."
+        ),
+    }
+    linked["findings"] = [asdict(finding) for finding in findings.items]
+    linked["findings_truncated"] = findings.truncated
+    linked["release_linkage"] = _release_linkage_stub(status=status, reason=reason)
+    return linked
+
+
+def _bundle_summary(bundle_result: dict[str, object]) -> dict[str, Any]:
+    anchored = (
+        bundle_result.get("origin_authentication")
+        == "trusted_release_manifest_sha256"
+    )
+    return {
+        "verification": bundle_result.get("result"),
+        "version": bundle_result.get("version"),
+        "tag": bundle_result.get("tag"),
+        "source_commit": bundle_result.get("source_commit"),
+        "release_manifest_sha256": bundle_result.get("release_manifest_sha256"),
+        "externally_anchored": anchored,
+    }
+
+
+def _wheel_summary(evidence: ReleaseWheelEvidence) -> dict[str, Any]:
+    return {
+        "name": evidence.name,
+        "sha256": evidence.sha256,
+        "size_bytes": evidence.size_bytes,
+        "checked_members": evidence.checked_members,
+        "package_files": len(evidence.package_files),
+    }
+
+
+def _compare_installed_package_to_release_wheel(
+    site_root: Path,
+    evidence: ReleaseWheelEvidence,
+) -> tuple[_FindingLog, int, int, str]:
+    findings = _FindingLog()
+    checked_files = 0
+    hashed_bytes_reserved = 0
+    tracked_paths = {item.path for item in evidence.package_files}
+    for item in evidence.package_files:
+        parts = _safe_record_parts(item.path)
+        target = site_root.joinpath(*parts)
+        if _has_link_like_component(site_root, target):
+            _finding(
+                findings,
+                path=item.path,
+                issue="unsafe_path",
+                detail=(
+                    "The installed path contains a link/reparse point while comparing "
+                    "it with the release wheel."
+                ),
+                expected_sha256=item.sha256,
+            )
+            continue
+        try:
+            resolved_target = target.resolve(strict=False)
+        except (OSError, RuntimeError) as exc:
+            _finding(
+                findings,
+                path=item.path,
+                issue="unsafe_path",
+                detail=f"The installed path could not be resolved safely: {exc}.",
+                expected_sha256=item.sha256,
+            )
+            continue
+        if not _inside(site_root, resolved_target):
+            _finding(
+                findings,
+                path=item.path,
+                issue="unsafe_path",
+                detail="The installed path escapes the distribution root.",
+                expected_sha256=item.sha256,
+            )
+            continue
+        if not target.is_file():
+            _finding(
+                findings,
+                path=item.path,
+                issue="release_file_missing",
+                detail="A Core package file declared by the release wheel is missing.",
+                expected_sha256=item.sha256,
+            )
+            continue
+        try:
+            actual_size = target.stat().st_size
+        except OSError as exc:
+            _finding(
+                findings,
+                path=item.path,
+                issue="unreadable_file",
+                detail=f"The installed file metadata could not be read: {exc}.",
+                expected_sha256=item.sha256,
+            )
+            continue
+        if actual_size != item.size_bytes:
+            _finding(
+                findings,
+                path=item.path,
+                issue="release_file_modified",
+                detail="The installed file size differs from the release wheel.",
+                expected_sha256=item.sha256,
+            )
+            continue
+        remaining_hash_bytes = MAX_HASH_BYTES - hashed_bytes_reserved
+        if actual_size > remaining_hash_bytes:
+            _finding(
+                findings,
+                path=item.path,
+                issue="scan_limit",
+                detail=(
+                    "Comparing installed files with the release wheel would exceed the "
+                    f"cumulative {MAX_HASH_BYTES}-byte safety limit."
+                ),
+                expected_sha256=item.sha256,
+            )
+            continue
+        hashed_bytes_reserved += actual_size
+        try:
+            actual_sha256 = _sha256_file(target, max_bytes=actual_size)
+        except _HashBudgetExceeded:
+            hashed_bytes_reserved = MAX_HASH_BYTES
+            _finding(
+                findings,
+                path=item.path,
+                issue="scan_limit",
+                detail="The installed file grew while it was compared with the release wheel.",
+                expected_sha256=item.sha256,
+            )
+            continue
+        except OSError as exc:
+            _finding(
+                findings,
+                path=item.path,
+                issue="unreadable_file",
+                detail=f"The installed file could not be read: {exc}.",
+                expected_sha256=item.sha256,
+            )
+            continue
+        checked_files += 1
+        if actual_sha256 != item.sha256:
+            _finding(
+                findings,
+                path=item.path,
+                issue="release_file_modified",
+                detail="The installed file SHA-256 differs from the release wheel.",
+                expected_sha256=item.sha256,
+                actual_sha256=actual_sha256,
+            )
+
+    unexpected_files = _unexpected_package_files(
+        site_root,
+        PACKAGE_NAME,
+        tracked_paths,
+        findings,
+        record_complete=True,
+        unexpected_issue="release_unexpected_file",
+        unexpected_detail=(
+            "A Core package file is installed but is not present in the release wheel."
+        ),
+    )
+    definite_difference = bool(
+        findings.observed_issues
+        & {
+            "release_file_missing",
+            "release_file_modified",
+            "release_unexpected_file",
+        }
+    )
+    if definite_difference:
+        status = "installed_bytes_differ"
+    elif findings.observed_issues:
+        status = "verification_unavailable"
+    else:
+        status = "verified"
+    return findings, checked_files, unexpected_files, status
+
+
+def _apply_release_linkage(
+    result: dict[str, Any],
+    *,
+    site_root: Path,
+    bundle_result: dict[str, object],
+    wheel_evidence: ReleaseWheelEvidence,
+) -> dict[str, Any]:
+    release_findings, checked_files, unexpected_files, linkage_status = (
+        _compare_installed_package_to_release_wheel(site_root, wheel_evidence)
+    )
+    linked = dict(result)
+    linked["integrity"] = dict(result["integrity"])
+    findings = _finding_log_from_result(result)
+    for finding in release_findings.items:
+        findings.add(finding)
+    findings.truncated = (
+        findings.truncated
+        or release_findings.truncated
+        or bool(result.get("findings_truncated"))
+    )
+    linked["findings"] = [asdict(finding) for finding in findings.items]
+    linked["findings_truncated"] = findings.truncated
+    linked["release_linkage"] = {
+        "status": linkage_status,
+        "verified": linkage_status == "verified",
+        "bundle": _bundle_summary(bundle_result),
+        "wheel": _wheel_summary(wheel_evidence),
+        "checked_files": checked_files,
+        "unexpected_files": unexpected_files,
+        "reason": (
+            "Installed Core package bytes match the verified release wheel."
+            if linkage_status == "verified"
+            else (
+                "Installed Core package bytes differ from the verified release wheel."
+                if linkage_status == "installed_bytes_differ"
+                else (
+                    "Installed Core package bytes could not be compared completely and "
+                    "safely with the verified release wheel."
+                )
+            )
+        ),
+    }
+    if linkage_status == "installed_bytes_differ":
+        linked["status"] = "modified_installation"
+        linked["integrity"]["verified"] = False
+        linked["reason"] = (
+            "Installed package files differ from the verified release wheel."
+        )
+    elif linkage_status == "verification_unavailable":
+        if linked["status"] != "modified_installation":
+            linked["status"] = "verification_unavailable"
+            linked["integrity"]["verified"] = False
+            linked["reason"] = (
+                "Release-wheel linkage could not be verified completely and safely."
+            )
+
+    anchored = bool(linked["release_linkage"]["bundle"]["externally_anchored"])
+    if linkage_status == "verified" and linked["status"] == "package_integrity_verified":
+        if anchored:
+            linked["origin"] = {
+                "status": "trusted_manifest_sha256_matched",
+                "detail": (
+                    "The verified release bundle matches the operator-supplied manifest "
+                    "SHA-256, and installed Core package bytes match that bundle's wheel. "
+                    "This result depends on the trust placed in the independent source of "
+                    "that hash."
+                ),
+            }
+        else:
+            linked["origin"] = {
+                "status": "not_established",
+                "detail": (
+                    "Installed Core package bytes match a self-consistent release bundle, "
+                    "but the bundle alone cannot authenticate its publisher."
+                ),
+            }
+        linked["reason"] = (
+            "Installed package bytes match wheel RECORD and the verified release wheel."
+        )
+    else:
+        linked["origin"] = {
+            "status": "not_established",
+            "detail": (
+                "Release evidence did not establish a complete trusted link to the "
+                "installed Core package bytes."
+            ),
+        }
+    return linked
+
+
+def verify_current_installation(
+    *,
+    release_bundle: Path | str | None = None,
+    expected_manifest_sha256: str | None = None,
+) -> dict[str, Any]:
+    """Verify the imported distribution and optional local release evidence offline."""
+
+    if isinstance(release_bundle, str) and not release_bundle.strip():
+        release_bundle = None
+    if isinstance(expected_manifest_sha256, str):
+        expected_manifest_sha256 = expected_manifest_sha256.strip() or None
+    linkage_requested = (
+        release_bundle is not None or expected_manifest_sha256 is not None
+    )
+
+    def unavailable(result: dict[str, Any]) -> dict[str, Any]:
+        if not linkage_requested:
+            return result
+        return _release_linkage_not_run(
+            result,
+            reason=(
+                "Release linkage was not attempted because the installed distribution "
+                "could not be inspected safely."
+            ),
+        )
 
     try:
         distribution = metadata.distribution(DISTRIBUTION_NAME)
     except metadata.PackageNotFoundError:
-        return _unavailable_result(
-            version=None,
-            reason="The Provelume distribution is not installed in this Python environment.",
+        return unavailable(
+            _unavailable_result(
+                version=None,
+                reason=(
+                    "The Provelume distribution is not installed in this Python "
+                    "environment."
+                ),
+            )
         )
     except (AttributeError, OSError, ValueError, TypeError, RuntimeError) as exc:
-        return _unavailable_result(
-            version=None,
-            reason=f"Installation metadata could not be verified safely: {exc}.",
+        return unavailable(
+            _unavailable_result(
+                version=None,
+                reason=f"Installation metadata could not be verified safely: {exc}.",
+            )
         )
     version: str | None = None
     try:
@@ -944,12 +1341,14 @@ def verify_current_installation() -> dict[str, Any]:
         imported_package_root = Path(__file__).resolve().parent
         distribution_package_root = (site_root / PACKAGE_NAME).resolve()
         if imported_package_root != distribution_package_root:
-            return _unavailable_result(
-                version=version,
-                reason=(
-                    "The imported Provelume package tree does not match the "
-                    "installed distribution selected for verification."
-                ),
+            return unavailable(
+                _unavailable_result(
+                    version=version,
+                    reason=(
+                        "The imported Provelume package tree does not match the "
+                        "installed distribution selected for verification."
+                    ),
+                )
             )
         metadata_root = _distribution_metadata_root(distribution, site_root)
         metadata_path = _distribution_metadata_path(
@@ -967,13 +1366,15 @@ def verify_current_installation() -> dict[str, Any]:
         version = _distribution_version(metadata_path, site_root)
         editable = _editable_installation(direct_url_path, site_root)
         if editable:
-            return _unavailable_result(
-                version=version,
-                editable=True,
-                reason=(
-                    "Editable installations reference a working tree rather than immutable "
-                    "wheel payload bytes."
-                ),
+            return unavailable(
+                _unavailable_result(
+                    version=version,
+                    editable=True,
+                    reason=(
+                        "Editable installations reference a working tree rather than "
+                        "immutable wheel payload bytes."
+                    ),
+                )
             )
         if not _is_relevant_component(metadata_root.name, PACKAGE_NAME):
             raise ValueError("distribution metadata directory is not a Provelume dist-info")
@@ -983,13 +1384,76 @@ def verify_current_installation() -> dict[str, Any]:
             "RECORD",
             required=True,
         )
-        return verify_recorded_installation(
+        result = verify_recorded_installation(
             site_root,
             _raw_record_entries(record_path),
             version=version,
         )
+        if not linkage_requested:
+            return result
+        if release_bundle is None:
+            return _release_linkage_failure(
+                result,
+                status="bundle_invalid",
+                issue="bundle_invalid",
+                reason=(
+                    "An expected manifest SHA-256 can be used only with an explicit local "
+                    "release bundle."
+                ),
+            )
+        if expected_manifest_sha256 is not None and re.fullmatch(
+            r"[0-9a-fA-F]{64}", expected_manifest_sha256
+        ) is None:
+            return _release_linkage_failure(
+                result,
+                status="bundle_invalid",
+                issue="bundle_invalid",
+                reason="The expected release-manifest SHA-256 is invalid.",
+            )
+        try:
+            bundle_result = verify_bundle(
+                Path(release_bundle),
+                expected_manifest_sha256=expected_manifest_sha256,
+                expected_version=version,
+                expected_tag=f"v{version}",
+            )
+        except OSError:
+            return _release_linkage_failure(
+                result,
+                status="bundle_invalid",
+                issue="bundle_invalid",
+                reason="Release bundle verification failed because it could not be read safely.",
+            )
+        except VerificationError as exc:
+            return _release_linkage_failure(
+                result,
+                status="bundle_invalid",
+                issue="bundle_invalid",
+                reason=f"Release bundle verification failed: {exc}.",
+            )
+        try:
+            wheel_evidence = verify_release_wheel(
+                release_bundle,
+                bundle_result,
+                expected_version=version,
+            )
+        except (OSError, WheelVerificationError) as exc:
+            return _release_linkage_failure(
+                result,
+                status="wheel_invalid",
+                issue="wheel_invalid",
+                reason=f"Release wheel verification failed: {exc}.",
+            )
+        return _apply_release_linkage(
+            result,
+            site_root=site_root,
+            bundle_result=bundle_result,
+            wheel_evidence=wheel_evidence,
+        )
     except (AttributeError, OSError, ValueError, TypeError, RuntimeError) as exc:
-        return _unavailable_result(
-            version=version,
-            reason=f"Installation metadata could not be verified safely: {exc}.",
+        return unavailable(
+            _unavailable_result(
+                version=version,
+                reason=f"Installation metadata could not be verified safely: {exc}.",
+            )
         )

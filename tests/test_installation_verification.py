@@ -1230,6 +1230,9 @@ def test_current_verifier_does_not_compare_untracked_files_after_record_error(
         "./provelume/../escape.py",
         "unrelated/../provelume/module.py",
         "/provelume/module.py",
+        "provelume/module.py:stream",
+        "provelume/CON.py",
+        "provelume/trailing.",
     ],
 )
 def test_invalid_record_path_inside_package_scope_fails_closed(

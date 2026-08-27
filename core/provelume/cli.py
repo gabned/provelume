@@ -47,10 +47,32 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("instance", type=Path)
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", default=8000, type=int)
+    serve.add_argument(
+        "--release-bundle",
+        type=Path,
+        help=(
+            "optional trusted local release bundle verified once when the server starts"
+        ),
+    )
+    serve.add_argument(
+        "--expected-manifest-sha256",
+        help=(
+            "optional release-manifest SHA-256 obtained through a separate channel"
+        ),
+    )
 
-    subparsers.add_parser(
+    verify_installation = subparsers.add_parser(
         "verify-installation",
         help="verify installed Provelume package files without network access",
+    )
+    verify_installation.add_argument(
+        "--release-bundle",
+        type=Path,
+        help="optional path to a local Provelume release bundle",
+    )
+    verify_installation.add_argument(
+        "--expected-manifest-sha256",
+        help="optional release-manifest SHA-256 obtained through a separate channel",
     )
 
     return parser
@@ -59,7 +81,13 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "verify-installation":
-        result = verify_current_installation()
+        if args.release_bundle is None and args.expected_manifest_sha256 is None:
+            result = verify_current_installation()
+        else:
+            result = verify_current_installation(
+                release_bundle=args.release_bundle,
+                expected_manifest_sha256=args.expected_manifest_sha256,
+            )
         print(json.dumps(result, indent=2, sort_keys=True))
         if result.get("status") == "package_integrity_verified":
             return 0
@@ -91,6 +119,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(instance.network_status(), indent=2, sort_keys=True))
         return 0
     if args.command == "serve":
-        uvicorn.run(create_app(args.instance), host=args.host, port=args.port)
+        app = create_app(
+            args.instance,
+            release_bundle=args.release_bundle,
+            expected_manifest_sha256=args.expected_manifest_sha256,
+        )
+        uvicorn.run(app, host=args.host, port=args.port)
         return 0
     raise RuntimeError(f"unsupported command: {args.command}")
