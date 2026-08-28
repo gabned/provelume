@@ -298,7 +298,15 @@ def test_explicit_document_limit_above_the_default_is_honored(
         for number, document in enumerate(documents)
     }
     files = {
-        path: b"# Synthetic bounded projection\n" for path in paths.values()
+        paths[str(document["id"])]: (
+            "---\n"
+            "provelume_projection_schema: 1\n"
+            "provelume_projection_is_canonical: false\n"
+            f"provelume_document_id: {json.dumps(document['id'])}\n"
+            "---\n\n"
+            "# Synthetic bounded projection\n"
+        ).encode()
+        for document in documents
     }
     files[PurePosixPath("README.md")] = b"# Synthetic root\n"
     real_list_canonical = instance.store.list_canonical
@@ -460,6 +468,24 @@ def test_projection_manifest_paths_are_portable(tmp_path: Path) -> None:
             for part in pure.parts
         )
 
+    first_document_id, second_document_id = list(manifest["primary_paths"])[:2]
+    first_path = manifest["primary_paths"][first_document_id]
+    manifest["primary_paths"][first_document_id] = manifest["primary_paths"][
+        second_document_id
+    ]
+    manifest["primary_paths"][second_document_id] = first_path
+    (instance.store.paths.library / LIBRARY_MANIFEST).write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    status = instance.library_status()
+    assert status["status"] == "invalid"
+    assert status["reason"] == "primary_content_identity_invalid"
+
+    instance.rebuild_library()
+    manifest = json.loads(
+        (instance.store.paths.library / LIBRARY_MANIFEST).read_text(encoding="utf-8")
+    )
     first_document_id = next(iter(manifest["primary_paths"]))
     manifest["primary_paths"][first_document_id] = "README.md"
     (instance.store.paths.library / LIBRARY_MANIFEST).write_text(

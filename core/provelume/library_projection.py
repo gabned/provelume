@@ -538,6 +538,25 @@ class LibraryProjectionManager:
                 or relative in primary_values
             ):
                 return self._manifest_status(value, "invalid", "primary_path_invalid")
+            primary_path = root.joinpath(*PurePosixPath(relative).parts)
+            try:
+                with primary_path.open("rb") as handle:
+                    header_lines = handle.read(1_024).splitlines()
+            except OSError:
+                return self._manifest_status(value, "modified", "file_missing")
+            expected_identity = (
+                f"provelume_document_id: {json.dumps(document_id)}".encode()
+            )
+            if (
+                len(header_lines) < 4
+                or header_lines[0] != b"---"
+                or header_lines[3] != expected_identity
+            ):
+                return self._manifest_status(
+                    value,
+                    "invalid",
+                    "primary_content_identity_invalid",
+                )
             primary_values.add(relative)
         if actual_paths != expected_paths:
             return self._manifest_status(value, "modified", "unexpected_files")
