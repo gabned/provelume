@@ -22,6 +22,18 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - added a keyboard-visible skip link, stable main landmark, translated navigation label,
   current-page state, visible focus treatment and wrapping primary navigation.
 
+### Performance
+
+- replaced the complete FTS rebuild after every ingestion or Inbox submission with a
+  transactional refresh of only Documents whose searchable current Version changed;
+- added schema-2 search metadata that records the current Document-to-Version map and uses a
+  safe complete rebuild for legacy, missing, malformed or inconsistent derived state.
+
+### Reliability
+
+- made complete search-index rebuilds construct and flush a temporary SQLite database before
+  atomically replacing the previous valid index; failed rebuilds now preserve prior search.
+
 ## 0.5.0 - 2026-08-28
 
 ### Added

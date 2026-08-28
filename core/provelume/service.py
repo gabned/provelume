@@ -4,7 +4,12 @@ from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from .index import index_status, rebuild_search_index, search_index
+from .index import (
+    index_status,
+    rebuild_search_index,
+    refresh_search_index,
+    search_index,
+)
 from .ingest import (
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_FILES,
@@ -75,12 +80,28 @@ class ProvelumeInstance:
             max_file_bytes=max_file_bytes,
             max_files=max_files,
         )
-        rebuild_search_index(self.store, recover_missing_derived=False)
+        refresh_search_index(
+            self.store,
+            (
+                acquisition.document_id
+                for acquisition in result.acquisitions
+                if acquisition.outcome != "unchanged"
+            ),
+            recover_missing_derived=False,
+        )
         return result.as_dict()
 
     def retry_ingestion(self, run_id: str) -> dict[str, Any]:
         result = retry_ingestion_run(self.store, run_id)
-        rebuild_search_index(self.store, recover_missing_derived=False)
+        refresh_search_index(
+            self.store,
+            (
+                acquisition.document_id
+                for acquisition in result.acquisitions
+                if acquisition.outcome != "unchanged"
+            ),
+            recover_missing_derived=False,
+        )
         return result.as_dict()
 
     def list_ingestion_runs(self, *, limit: int = 50) -> list[dict[str, Any]]:
