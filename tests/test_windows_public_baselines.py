@@ -21,4 +21,11 @@ def test_windows_upgrade_uses_immutable_public_installer_baselines() -> None:
         'sha256 = "ea2093cd63860e2575715617f3bde363646213841f60be1db97433b19052b46b"'
         in text
     )
-    assert 'releases/download/v0.4.1/Provelume-Setup-0.4.1-x64.exe' in text
+    assert 'version = "0.5.0"' in text
+    assert 'commit = "89c6b7c783e385c4e978cc2ae6bf602012aab77e"' in text
+    assert "size = 18193123" in text
+    assert (
+        'sha256 = "c604de1006c6f86a52bf61ca54fe6371e0889f728eb89f25e38776165254ecab"'
+        in text
+    )
+    assert 'releases/download/v0.5.0/Provelume-Setup-0.5.0-x64.exe' in text
