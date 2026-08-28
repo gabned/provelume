@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from dataclasses import asdict
 from itertools import combinations
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,8 @@ from .storage import InstanceStore, utc_now
 DUPLICATE_SCHEMA_VERSION = 1
 MAX_DUPLICATE_DOCUMENTS = 2_000
 MAX_CANDIDATE_PAIRS = 50_000
+MAX_CURRENT_CASES = 5_000
+MAX_STORED_CASES = 10_000
 MAX_TEXT_CHARS_PER_DOCUMENT = 100_000
 MAX_TEXT_TOKENS_PER_DOCUMENT = 2_000
 MAX_CASE_DOCUMENTS = 500
@@ -55,7 +58,7 @@ def _jaccard(left: tuple[str, ...], right: tuple[str, ...]) -> float:
 
 
 class DuplicateCaseManager:
-    """Detect exact and probable duplicates without merging or deleting knowledge."""
+    """Detect exact and probable duplicates without mutating canonical knowledge."""
 
     def __init__(self, store: InstanceStore):
         self.store = store
@@ -75,9 +78,11 @@ class DuplicateCaseManager:
             and _CASE_ID.fullmatch(str(value.get("id", ""))) is not None
             and value.get("kind") in {"exact", "probable"}
             and value.get("status") in {"open", "not_current"}
+            and isinstance(value.get("current"), bool)
             and isinstance(value.get("documents"), list)
             and isinstance(value.get("evidence"), dict)
             and isinstance(value.get("recommended_actions"), list)
+            and value.get("automatic_action") == "none"
         )
 
     def _read_case(self, path: Path) -> dict[str, Any] | None:
@@ -90,6 +95,16 @@ class DuplicateCaseManager:
             return None
         return value
 
+    def _all_cases(self) -> list[dict[str, Any]]:
+        if not self.cases.exists():
+            return []
+        paths = sorted(self.cases.glob("dup_*.json"), key=lambda item: item.name)
+        if len(paths) > MAX_STORED_CASES:
+            raise DuplicateScanLimitError(
+                f"duplicate case history exceeds the {MAX_STORED_CASES}-record limit"
+            )
+        return [record for path in paths if (record := self._read_case(path)) is not None]
+
     def list_cases(
         self,
         *,
@@ -97,21 +112,18 @@ class DuplicateCaseManager:
         current: bool | None = None,
         limit: int = 500,
     ) -> list[dict[str, Any]]:
-        if limit < 1 or not self.cases.exists():
+        if limit < 1:
             return []
         records = []
-        for path in self.cases.glob("dup_*.json"):
-            record = self._read_case(path)
-            if record is None:
-                continue
+        for record in self._all_cases():
             if kind and record["kind"] != kind:
                 continue
-            if current is not None and bool(record.get("current")) is not current:
+            if current is not None and bool(record["current"]) is not current:
                 continue
             records.append(record)
         records.sort(
             key=lambda item: (
-                bool(item.get("current")),
+                bool(item["current"]),
                 str(item.get("last_seen_at", "")),
                 str(item["id"]),
             ),
@@ -124,9 +136,6 @@ class DuplicateCaseManager:
             return None
         path = self.cases / f"{case_id}.json"
         return self._read_case(path) if path.is_file() else None
-
-    def _existing_map(self) -> dict[str, dict[str, Any]]:
-        return {record["id"]: record for record in self.list_cases(limit=500)}
 
     @staticmethod
     def _safe_extracted_text(
@@ -205,6 +214,7 @@ class DuplicateCaseManager:
         operation_id: str,
         now: str,
     ) -> dict[str, Any]:
+        selected_documents = documents[:MAX_CASE_DOCUMENTS]
         return {
             "schema_version": DUPLICATE_SCHEMA_VERSION,
             "id": case_id,
@@ -221,8 +231,12 @@ class DuplicateCaseManager:
             "last_seen_at": now,
             "last_scanned_at": now,
             "scan_operation_id": operation_id,
-            "documents": documents[:MAX_CASE_DOCUMENTS],
-            "evidence": evidence,
+            "documents": selected_documents,
+            "evidence": {
+                **evidence,
+                "documents_total": len(documents),
+                "documents_retained": len(selected_documents),
+            },
             "recommended_actions": (
                 ["keep_separate", "link_occurrences", "review_as_version"]
                 if kind == "exact"
@@ -230,6 +244,15 @@ class DuplicateCaseManager:
             ),
             "automatic_action": "none",
         }
+
+    @staticmethod
+    def _append_warning(
+        warnings: list[dict[str, str]],
+        code: str,
+        message: str,
+    ) -> None:
+        if len(warnings) < MAX_SCAN_WARNINGS:
+            warnings.append({"code": code[:120], "message": message[:2000]})
 
     def scan(self) -> dict[str, Any]:
         operation = self.operations.start(
@@ -254,15 +277,13 @@ class DuplicateCaseManager:
                 self.store,
                 "acquisitions",
             )
-            warnings.extend(
-                {
-                    "code": str(item["code"]),
-                    "message": str(item["message"]),
-                }
-                for item in (
-                    document_findings + version_findings + acquisition_findings
+            all_findings = document_findings + version_findings + acquisition_findings
+            for item in all_findings:
+                self._append_warning(
+                    warnings,
+                    str(item["code"]),
+                    str(item["message"]),
                 )
-            )
             if len(documents) > MAX_DUPLICATE_DOCUMENTS:
                 raise DuplicateScanLimitError(
                     f"Instance exceeds the {MAX_DUPLICATE_DOCUMENTS}-document scan limit"
@@ -279,13 +300,10 @@ class DuplicateCaseManager:
             for document in sorted(documents, key=lambda item: str(item["id"])):
                 version = version_map.get(str(document.get("current_version_id", "")))
                 if version is None or version.get("document_id") != document.get("id"):
-                    warnings.append(
-                        {
-                            "code": "document_current_version_invalid",
-                            "message": (
-                                f"Skipped Document with invalid current Version: {document['id']}"
-                            ),
-                        }
+                    self._append_warning(
+                        warnings,
+                        "document_current_version_invalid",
+                        f"Skipped Document with invalid current Version: {document['id']}",
                     )
                     continue
                 snapshot = self._document_snapshot(
@@ -300,14 +318,13 @@ class DuplicateCaseManager:
                     snapshot["version_id"],
                 )
                 if text_warning:
-                    warnings.append(
-                        {
-                            "code": text_warning,
-                            "message": (
-                                f"Probable-duplicate text was unavailable for "
-                                f"Document {snapshot['document_id']}."
-                            ),
-                        }
+                    self._append_warning(
+                        warnings,
+                        text_warning,
+                        (
+                            "Probable-duplicate text was unavailable for Document "
+                            f"{snapshot['document_id']}."
+                        ),
                     )
                 current.append(
                     {
@@ -330,7 +347,7 @@ class DuplicateCaseManager:
                 },
             )
 
-            existing = self._existing_map()
+            existing = {record["id"]: record for record in self._all_cases()}
             seen: set[str] = set()
             exact_cases: list[dict[str, Any]] = []
             groups: dict[str, list[dict[str, Any]]] = {}
@@ -349,7 +366,6 @@ class DuplicateCaseManager:
                     documents=documents_for_case,
                     evidence={
                         "content_hash": content_hash,
-                        "document_count": len(documents_for_case),
                         "distinct_sources": len(
                             {item["source_id"] for item in documents_for_case}
                         ),
@@ -370,6 +386,7 @@ class DuplicateCaseManager:
             seen_pairs: set[tuple[int, int]] = set()
             candidate_pairs = 0
             pair_limit_reached = False
+            case_limit_reached = False
             probable_cases: list[dict[str, Any]] = []
             for token in sorted(token_buckets):
                 indexes = sorted(set(token_buckets[token]))
@@ -379,6 +396,9 @@ class DuplicateCaseManager:
                         continue
                     if candidate_pairs >= MAX_CANDIDATE_PAIRS:
                         pair_limit_reached = True
+                        break
+                    if len(exact_cases) + len(probable_cases) >= MAX_CURRENT_CASES:
+                        case_limit_reached = True
                         break
                     seen_pairs.add(pair)
                     candidate_pairs += 1
@@ -409,8 +429,7 @@ class DuplicateCaseManager:
                             right["snapshot"]["document_id"],
                         ]
                     )
-                    identity = ":".join(document_ids)
-                    case_id = self._case_id("probable", identity)
+                    case_id = self._case_id("probable", ":".join(document_ids))
                     ordered = sorted(
                         [left["snapshot"], right["snapshot"]],
                         key=lambda item: item["document_id"],
@@ -445,17 +464,25 @@ class DuplicateCaseManager:
                     self._write_case(case)
                     seen.add(case_id)
                     probable_cases.append(case)
-                if pair_limit_reached:
+                if pair_limit_reached or case_limit_reached:
                     break
             if pair_limit_reached:
-                warnings.append(
-                    {
-                        "code": "candidate_pair_limit_reached",
-                        "message": (
-                            f"Probable-duplicate comparison stopped at "
-                            f"{MAX_CANDIDATE_PAIRS} candidate pairs."
-                        ),
-                    }
+                self._append_warning(
+                    warnings,
+                    "candidate_pair_limit_reached",
+                    (
+                        "Probable-duplicate comparison stopped at "
+                        f"{MAX_CANDIDATE_PAIRS} candidate pairs."
+                    ),
+                )
+            if case_limit_reached:
+                self._append_warning(
+                    warnings,
+                    "duplicate_case_limit_reached",
+                    (
+                        "Duplicate case creation stopped at "
+                        f"{MAX_CURRENT_CASES} current cases."
+                    ),
                 )
 
             stale_cases = 0
@@ -473,7 +500,6 @@ class DuplicateCaseManager:
                 self._write_case(stale)
                 stale_cases += 1
 
-            warnings = warnings[:MAX_SCAN_WARNINGS]
             status = "completed_with_errors" if warnings else "completed"
             self.operations.append(
                 operation.id,
@@ -504,21 +530,13 @@ class DuplicateCaseManager:
                 },
             )
             return {
-                "operation": {
-                    **closed.__dict__
-                } if hasattr(closed, "__dict__") else {
-                    "id": closed.id,
-                    "kind": closed.kind,
-                    "status": closed.status,
-                    "summary": closed.summary,
-                    "metrics": dict(closed.metrics),
-                },
+                "operation": asdict(closed),
                 "exact": exact_cases,
                 "probable": probable_cases,
                 "stale_cases": stale_cases,
                 "warnings": warnings,
             }
-        except (AssuranceLimitError, DuplicateScanLimitError):
+        except (AssuranceLimitError, DuplicateScanLimitError) as exc:
             current_operation = self.operations.get_record(operation.id)
             if current_operation is not None and current_operation.status == "running":
                 self.operations.close(
@@ -526,7 +544,7 @@ class DuplicateCaseManager:
                     status="failed",
                     summary="Duplicate scan exceeded a safety limit.",
                     error_code="duplicate_scan_limit",
-                    error="DuplicateScanLimitError",
+                    error=exc.__class__.__name__,
                 )
             raise
         except Exception as exc:
