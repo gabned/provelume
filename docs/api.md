@@ -83,10 +83,28 @@ operator mutation; no HTTP ingestion or retry route is introduced. See
 - `GET /api/v1/documents/{id}/versions`
 - `GET /api/v1/documents/{id}/provenance`
 - `GET /api/v1/documents/{id}/original`
+- `GET /api/v1/documents/{id}/classification`
 
-`/documents` supports `source_id`, `media_type`, `area`, `date_from` and `date_to`. Date-only values are inclusive for their entire UTC day. An area is the first logical path component below a Source; it is not a physical absolute path.
+`/documents` supports `source_id`, `media_type`, `area`, `hierarchy_id`,
+`include_descendants`, `date_from` and `date_to`. Date-only values are inclusive for their entire
+UTC day. An `area` is the first logical path component below a Source; it is not a physical
+absolute path or a canonical Area identity. `hierarchy_id` selects Documents whose primary or
+secondary classification is the selected node or, by default, one of its descendants.
 
 The original endpoint returns the preserved bytes of the current DocumentVersion. It resolves only the content-addressed Instance reference recorded in canonical state.
+
+## Hierarchy and classification
+
+- `GET /api/v1/hierarchy` — deterministic flat nodes plus the equivalent nested tree;
+- `GET /api/v1/hierarchy/{id}` — one node with stable ID, portable path, breadcrumbs and direct/
+  subtree Document counts;
+- `GET /api/v1/documents/{id}/classification` — the current primary node and ordered secondary
+  associations, or `null` for an unclassified Document.
+
+Hierarchy nodes and classification records are canonical JSON. Rename and movement preserve node
+IDs; no API response is generated from a browser-private model. Mutation remains local service/CLI
+authority and is not exposed through HTTP. See
+[`architecture/hierarchical-classification.md`](architecture/hierarchical-classification.md).
 
 ## Search
 

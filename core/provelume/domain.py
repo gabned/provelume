@@ -80,5 +80,28 @@ class ProvenanceEdge:
     created_at: str
 
 
+@dataclass(frozen=True, slots=True)
+class HierarchyNode:
+    schema_version: int
+    id: str
+    kind: str
+    name: str
+    slug: str
+    parent_id: str | None
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentClassification:
+    schema_version: int
+    id: str
+    document_id: str
+    primary_node_id: str
+    secondary_node_ids: tuple[str, ...]
+    created_at: str
+    updated_at: str
+
+
 def as_record(value: Any) -> dict[str, Any]:
     return asdict(value)

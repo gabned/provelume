@@ -15,6 +15,8 @@ A Provelume Instance is an ordinary directory. Schema 2 uses:
     documents/
     versions/
     provenance/
+    hierarchy/
+    classifications/
   state/
     lifecycle/
     migrations/
@@ -42,6 +44,12 @@ objects never require a Git remote.
 ingestion/operation evidence, document bundles, migration receipts and recovery receipts, are
 included in a local backup. `indexes/` and the future `library/` projection are excluded and rebuilt
 from retained state. Secrets must not be stored in versionable configuration.
+
+`knowledge/hierarchy/` and `knowledge/classifications/` are additive schema-2 canonical
+containers. An Instance created by an earlier schema-2 Core may omit them while empty; the first
+hierarchy/classification mutation creates the required container without changing the Instance
+schema. Present records are validated, fingerprinted and backed up like every other canonical
+record. See [`hierarchical-classification.md`](hierarchical-classification.md).
 
 Path locators use `/` as the logical separator even on Windows. Absolute locators and `..` traversal are rejected before they are used as Instance-relative references.
 

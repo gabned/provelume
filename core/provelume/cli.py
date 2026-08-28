@@ -10,6 +10,7 @@ import uvicorn
 from . import __version__
 from .about import current_about
 from .build_info import current_build_info
+from .hierarchy_cli import add_hierarchy_commands, handle_hierarchy_command
 from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES, IngestionRetryError
 from .installation import verify_current_installation
 from .instance_cli import (
@@ -142,6 +143,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     add_operational_commands(subparsers)
     add_instance_lifecycle_commands(subparsers)
+    add_hierarchy_commands(subparsers)
     return parser
 
 
@@ -153,6 +155,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     operational_result = handle_operational_command(args)
     if operational_result is not None:
         return operational_result
+    hierarchy_result = handle_hierarchy_command(args)
+    if hierarchy_result is not None:
+        return hierarchy_result
 
     if args.command == "verify-installation":
         if args.release_bundle is None and args.expected_manifest_sha256 is None:

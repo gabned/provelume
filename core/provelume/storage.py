@@ -17,7 +17,9 @@ from .domain import (
     Acquisition,
     DerivedArtifact,
     Document,
+    DocumentClassification,
     DocumentVersion,
+    HierarchyNode,
     Original,
     ProvenanceEdge,
     Source,
@@ -31,7 +33,7 @@ from .instance_schema import (
 from .paths import portable_config_path, resolve_config_path, safe_instance_path
 
 SCHEMA_VERSION = CURRENT_INSTANCE_SCHEMA_VERSION
-CANONICAL_KINDS = (
+REQUIRED_CANONICAL_KINDS = (
     "sources",
     "acquisitions",
     "originals",
@@ -39,6 +41,11 @@ CANONICAL_KINDS = (
     "versions",
     "provenance",
 )
+ADDITIVE_CANONICAL_KINDS = (
+    "hierarchy",
+    "classifications",
+)
+CANONICAL_KINDS = REQUIRED_CANONICAL_KINDS + ADDITIVE_CANONICAL_KINDS
 
 
 def utc_now() -> str:
@@ -256,6 +263,12 @@ class InstanceStore:
 
     def write_provenance(self, edge: ProvenanceEdge) -> None:
         self.write_canonical("provenance", edge)
+
+    def write_hierarchy_node(self, node: HierarchyNode) -> None:
+        self.write_canonical("hierarchy", node)
+
+    def write_classification(self, classification: DocumentClassification) -> None:
+        self.write_canonical("classifications", classification)
 
     def write_derived_artifact(self, artifact: DerivedArtifact) -> None:
         path = self.paths.derived_artifacts / f"{artifact.id}.json"

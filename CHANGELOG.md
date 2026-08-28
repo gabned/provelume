@@ -16,6 +16,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   invalidates an in-progress backup instead of being silently omitted;
 - added ordered schema-1 to schema-2 migration receipts, verified automatic pre-migration and
   pre-restore backups, external pending-operation evidence and durable recovery receipts.
+- added canonical record-schema-1 Area/Subarea, Project and Collection objects with stable opaque
+  IDs, bounded acyclic parent links and collision-safe Windows-portable slugs;
+- added one deterministic classification record per classified Document, with one primary node,
+  sorted unique secondary associations and deterministic retained provenance edges;
+- added local hierarchy/classification service and CLI mutations plus aligned read-only API and
+  EN/IT Browser hierarchy navigation, breadcrumbs, counts and subtree filtering.
 
 ### Changed
 
@@ -27,6 +33,10 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   same filesystem and restore the verified pre-operation backup if any step fails;
 - excluded disposable `indexes/`, the future `library/` projection and transient locks from local
   backups while retaining canonical JSON, exact Originals and Instance state artifacts.
+- made hierarchy rename and movement preserve node identity, Document references and provenance;
+  classification remains idempotent and does not copy knowledge or mutate an Original;
+- treated empty hierarchy/classification containers as additive schema-2 state so Instances made
+  before this slice remain valid without a second lifecycle migration.
 
 ### Reliability and security
 
@@ -34,6 +44,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   as success, plus hostile/archive regressions for cross-Instance restore and tampered Originals;
 - kept external Source, Drop and managed-copy folders outside backup claims so an Instance archive
   does not imply preservation of files that were never acquired.
+- added deep validation for hierarchy identities, parent kinds/cycles/depth, deterministic slugs,
+  classification references and required association-provenance bindings.
 
 ## 0.5.1 - 2026-08-28
 

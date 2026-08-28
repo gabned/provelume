@@ -220,12 +220,19 @@ def create_app(
         source_id: str | None = None,
         media_type: str | None = None,
         area: str | None = None,
+        hierarchy_id: str | None = None,
     ):
+        selected_hierarchy_node = None
+        if hierarchy_id:
+            selected_hierarchy_node = instance.get_hierarchy_node(hierarchy_id)
+            if selected_hierarchy_node is None:
+                raise HTTPException(status_code=404, detail="hierarchy node not found")
         area_filter = "" if area == ROOT_AREA_FILTER else (area or None)
         documents = instance.list_documents(
             source_id=source_id,
             media_type=media_type,
             area=area_filter,
+            hierarchy_id=hierarchy_id,
         )
         return TEMPLATES.TemplateResponse(
             request=request,
@@ -236,10 +243,13 @@ def create_app(
                 documents=documents,
                 sources=instance.list_sources(),
                 areas=instance.areas(),
+                hierarchy_nodes=instance.list_hierarchy_nodes(),
                 media_types=instance.media_types(),
                 selected_source=source_id,
                 selected_media_type=media_type,
                 selected_area=area,
+                selected_hierarchy=hierarchy_id,
+                selected_hierarchy_node=selected_hierarchy_node,
                 root_area_filter=ROOT_AREA_FILTER,
             ),
         )

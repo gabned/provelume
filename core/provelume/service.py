@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from .hierarchy import HierarchyManager
 from .index import (
     index_status,
     rebuild_search_index,
@@ -28,6 +29,7 @@ from .storage import InstanceStore
 class ProvelumeInstance:
     def __init__(self, root: Path | str):
         self.store = InstanceStore.open(root)
+        self.hierarchy = HierarchyManager(self.store)
 
     @classmethod
     def initialise(
@@ -179,7 +181,12 @@ class ProvelumeInstance:
         parts = PurePosixPath(locator).parts
         return parts[0] if len(parts) > 1 else ""
 
-    def _document_view(self, document: dict[str, Any]) -> dict[str, Any]:
+    def _document_view(
+        self,
+        document: dict[str, Any],
+        *,
+        classification: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         version = self.store.read_canonical("versions", document["current_version_id"])
         source = self.store.read_canonical("sources", document["source_id"])
         return {
@@ -187,6 +194,7 @@ class ProvelumeInstance:
             "area": self._area(document["locator"]),
             "source_name": source["name"] if source else document["source_id"],
             "current_version": version,
+            "classification": classification,
         }
 
     def list_documents(
@@ -195,18 +203,37 @@ class ProvelumeInstance:
         source_id: str | None = None,
         media_type: str | None = None,
         area: str | None = None,
+        hierarchy_id: str | None = None,
+        include_descendants: bool = True,
         date_from: str | None = None,
         date_to: str | None = None,
     ) -> list[dict[str, Any]]:
         date_from = self._date_floor(date_from)
         date_to = self._date_ceiling(date_to)
+        classified_document_ids = (
+            self.hierarchy.document_ids_for_node(
+                hierarchy_id,
+                include_descendants=include_descendants,
+            )
+            if hierarchy_id
+            else None
+        )
+        classification_views = self.hierarchy.classification_views()
         result = []
         for document in self.store.list_canonical("documents"):
             if source_id and document["source_id"] != source_id:
                 continue
             if media_type and document["media_type"] != media_type:
                 continue
-            view = self._document_view(document)
+            if (
+                classified_document_ids is not None
+                and document["id"] not in classified_document_ids
+            ):
+                continue
+            view = self._document_view(
+                document,
+                classification=classification_views.get(document["id"]),
+            )
             if area is not None and view["area"] != area:
                 continue
             acquired_at = (view["current_version"] or {}).get("acquired_at", "")
@@ -217,13 +244,67 @@ class ProvelumeInstance:
             result.append(view)
         return sorted(
             result,
-            key=lambda item: (item["current_version"] or {}).get("acquired_at", ""),
+            key=lambda item: (
+                (item["current_version"] or {}).get("acquired_at", ""),
+                item["id"],
+            ),
             reverse=True,
         )
 
     def get_document(self, document_id: str) -> dict[str, Any] | None:
         document = self.store.read_canonical("documents", document_id)
-        return self._document_view(document) if document else None
+        return (
+            self._document_view(
+                document,
+                classification=self.hierarchy.get_classification(document_id),
+            )
+            if document
+            else None
+        )
+
+    def hierarchy_tree(self) -> dict[str, Any]:
+        return self.hierarchy.tree()
+
+    def list_hierarchy_nodes(self) -> list[dict[str, Any]]:
+        return self.hierarchy.list_nodes()
+
+    def get_hierarchy_node(self, node_id: str) -> dict[str, Any] | None:
+        return self.hierarchy.get_node(node_id)
+
+    def create_hierarchy_node(
+        self,
+        kind: str,
+        name: str,
+        *,
+        parent_id: str | None = None,
+    ) -> dict[str, Any]:
+        return self.hierarchy.create_node(kind, name, parent_id=parent_id)
+
+    def rename_hierarchy_node(self, node_id: str, name: str) -> dict[str, Any]:
+        return self.hierarchy.rename_node(node_id, name)
+
+    def move_hierarchy_node(
+        self,
+        node_id: str,
+        parent_id: str | None,
+    ) -> dict[str, Any]:
+        return self.hierarchy.move_node(node_id, parent_id)
+
+    def classify_document(
+        self,
+        document_id: str,
+        primary_node_id: str,
+        *,
+        secondary_node_ids: Iterable[str] = (),
+    ) -> dict[str, Any]:
+        return self.hierarchy.classify_document(
+            document_id,
+            primary_node_id,
+            secondary_node_ids=secondary_node_ids,
+        )
+
+    def document_classification(self, document_id: str) -> dict[str, Any] | None:
+        return self.hierarchy.get_classification(document_id)
 
     def current_version(self, document_id: str) -> dict[str, Any] | None:
         document = self.store.read_canonical("documents", document_id)
@@ -271,6 +352,16 @@ class ProvelumeInstance:
             for edge in edges
             if edge["from_id"] in ids and edge["to_id"] in ids
         ]
+        selected.extend(
+            edge
+            for edge in edges
+            if edge.get("from_kind") == "document"
+            and edge.get("from_id") == document_id
+            and edge.get("to_kind") == "hierarchy_node"
+            and edge.get("relation")
+            in {"classified_primary_as", "classified_secondary_as"}
+            and edge not in selected
+        )
         return {
             "document": document,
             "versions": list(reversed(versions)),
@@ -279,7 +370,10 @@ class ProvelumeInstance:
                 key=lambda item: item["observed_at"],
                 reverse=True,
             ),
-            "edges": sorted(selected, key=lambda item: item["created_at"]),
+            "edges": sorted(
+                selected,
+                key=lambda item: (item["created_at"], item["id"]),
+            ),
         }
 
     def recent_documents(self, *, limit: int = 10) -> list[dict[str, Any]]:
@@ -308,6 +402,8 @@ class ProvelumeInstance:
         if not isinstance(network, Mapping):
             network = {}
         documents = self.store.list_canonical("documents")
+        hierarchy_nodes = self.store.list_canonical("hierarchy")
+        classifications = self.store.list_canonical("classifications")
         health = self.knowledge_health()
         return {
             "id": config["instance"]["id"],
@@ -323,6 +419,8 @@ class ProvelumeInstance:
             "sources": len(self.store.list_canonical("sources")),
             "documents": len(documents),
             "versions": len(self.store.list_canonical("versions")),
+            "hierarchy_nodes": len(hierarchy_nodes),
+            "classifications": len(classifications),
             "index_status": health["index_status"],
             "knowledge_status": health["status"],
             "network": {

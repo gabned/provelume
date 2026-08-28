@@ -15,7 +15,8 @@ HTMX is deliberately deferred until a real partial-update interaction needs it. 
 ## Initial views
 
 - Home: Instance status, counts, latest documents, ingestion errors and network baseline.
-- Browse: Sources, logical areas, media-type filters and breadcrumb navigation.
+- Browse: canonical Area/Project/Collection hierarchy, Sources, logical Source areas, media-type
+  filters and breadcrumb navigation.
 - Search: local text search with Source/type/date filters.
 - Document detail: metadata, current raw extracted-text preview, preserved original and version history.
 - Provenance: explicit Source/Acquisition/Original/Version/Derived relationships.
@@ -39,12 +40,18 @@ sanitized rendered mode beside raw text and explicit original download. Renderin
 over application-service data and cannot mutate an Original or become an alternate source of
 truth.
 
-## Planned navigation modes
+## Navigation modes
 
 - Classic library: area, Source, tag and media-type trees with breadcrumbs.
 - Direct retrieval: recent and pinned items, saved views and bounded full-text search.
 - Connected context: outgoing links, backlinks, related items and an optional secondary graph.
 - Evidence navigation: version and provenance timelines plus explainable knowledge-health states.
+
+The canonical `0.6/S02` hierarchy now drives Browser breadcrumbs, subtree counts and Document
+filtering. One primary classification and multiple secondary associations are shown from the same
+application-service result returned to the read-only API; the template maintains no private tree.
+Source-locator areas remain a distinct compatibility filter. Filesystem projection and safe
+rendered Markdown remain the next slice.
 
 Deterministic navigation remains complete without AI, embeddings or a vector store. Later semantic
 retrieval may add suggestions, but cannot replace stable links, filters, provenance or full-text
@@ -52,7 +59,9 @@ fallbacks.
 
 ## Filesystem library
 
-The planned `library/` projection is a supported offline navigation surface. It contains a root
+The planned `library/` projection is a supported offline navigation surface. Its canonical input
+is the stable hierarchy and classification model described in
+[`hierarchical-classification.md`](hierarchical-classification.md). It contains a root
 README, hierarchical Area/Subarea and Project paths, per-folder README indexes, Archive and
 generated Collection/tag/person/Source/date/type views. Each document has one primary projected
 path; secondary associations are links and indexes rather than duplicate knowledge. Stable

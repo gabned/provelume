@@ -9,6 +9,10 @@ from typing import Any
 
 import yaml
 
+from .hierarchy_model import (
+    canonical_hierarchy_errors,
+    classification_provenance_errors,
+)
 from .instance_schema import (
     CURRENT_INSTANCE_SCHEMA_VERSION,
     DERIVED_STATE_POLICY,
@@ -16,7 +20,7 @@ from .instance_schema import (
     manifest_validation_errors,
 )
 from .paths import UnsafePathError, safe_instance_path
-from .storage import CANONICAL_KINDS, InstanceStore
+from .storage import CANONICAL_KINDS, REQUIRED_CANONICAL_KINDS, InstanceStore
 
 VALIDATION_REPORT_SCHEMA_VERSION = 1
 _INSTANCE_ID = re.compile(r"inst_[0-9a-f]{32}\Z")
@@ -61,7 +65,18 @@ def _canonical_records(
         directory = store.paths.canonical_dir(kind)
         selected: dict[str, dict[str, Any]] = {}
         records[kind] = selected
-        if not directory.is_dir():
+        if not directory.is_dir() and (
+            directory.exists() or directory.is_symlink()
+        ):
+            errors.append(
+                _finding(
+                    "canonical_directory_invalid",
+                    f"canonical path is not a directory: knowledge/{kind}",
+                    path=f"knowledge/{kind}",
+                )
+            )
+            continue
+        if not directory.is_dir() and kind in REQUIRED_CANONICAL_KINDS:
             errors.append(
                 _finding(
                     "canonical_directory_missing",
@@ -69,6 +84,8 @@ def _canonical_records(
                     path=f"knowledge/{kind}",
                 )
             )
+            continue
+        if not directory.is_dir():
             continue
         for path in sorted(directory.glob("*.json")):
             relative = path.relative_to(store.paths.root).as_posix()
@@ -190,6 +207,18 @@ def _validate_references(
                         path=path,
                     )
                 )
+
+    for code, message, path in canonical_hierarchy_errors(
+        records["hierarchy"],
+        records["classifications"],
+        documents,
+    ):
+        errors.append(_finding(code, message, path=path))
+    for code, message, path in classification_provenance_errors(
+        records["classifications"],
+        records["provenance"],
+    ):
+        errors.append(_finding(code, message, path=path))
 
 
 def _validate_originals(
