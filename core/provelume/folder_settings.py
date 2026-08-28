@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -74,6 +75,7 @@ class FolderSettingsManager:
             self.store.paths.knowledge,
             self.store.paths.state,
             self.store.paths.indexes,
+            self.store.paths.root / "inbox" / "submissions",
         )
 
     @staticmethod
@@ -148,8 +150,17 @@ class FolderSettingsManager:
             )
 
     @staticmethod
-    def _ensure_writable_directory(path: Path) -> None:
-        path.mkdir(parents=True, exist_ok=True)
+    def _ensure_writable_directory(
+        path: Path,
+        *,
+        create_missing: bool,
+    ) -> None:
+        if not path.exists():
+            if not create_missing:
+                raise FolderSettingsError(
+                    f"configured external folder is unavailable: {path}"
+                )
+            path.mkdir(parents=True, exist_ok=True)
         if not path.is_dir():
             raise FolderSettingsError(f"configured folder is not a directory: {path}")
         temporary_name: str | None = None
@@ -170,10 +181,8 @@ class FolderSettingsManager:
             ) from exc
         finally:
             if temporary_name is not None:
-                try:
+                with suppress(OSError):
                     Path(temporary_name).unlink()
-                except OSError:
-                    pass
 
     def read(self) -> InboxFolderSettings:
         config = self.store.read_config()
@@ -301,8 +310,14 @@ class FolderSettingsManager:
 
     def ensure_paths(self) -> InboxFolderSettings:
         settings = self.read()
-        self._ensure_writable_directory(settings.drop_path)
-        self._ensure_writable_directory(settings.managed_path)
+        self._ensure_writable_directory(
+            settings.drop_path,
+            create_missing=self._scope(settings.drop_path) == "instance",
+        )
+        self._ensure_writable_directory(
+            settings.managed_path,
+            create_missing=self._scope(settings.managed_path) == "instance",
+        )
         return settings
 
     def configure(
@@ -338,8 +353,14 @@ class FolderSettingsManager:
             related={"source_id": inbox_source_id(self.store)},
         )
         try:
-            self._ensure_writable_directory(selected_drop)
-            self._ensure_writable_directory(selected_managed)
+            self._ensure_writable_directory(
+                selected_drop,
+                create_missing=True,
+            )
+            self._ensure_writable_directory(
+                selected_managed,
+                create_missing=True,
+            )
             old_config = self.store.read_config()
             config = self.store.read_config()
             folders = config.setdefault("folders", {})
