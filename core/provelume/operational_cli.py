@@ -9,6 +9,7 @@ from .bundle_cli import add_bundle_commands, handle_bundle_command
 from .inbox import InboxManager
 from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES
 from .operations import OperationLedger
+from .rebuild_cli import add_rebuild_commands, handle_rebuild_command
 from .review_cli import add_review_commands, handle_review_command
 from .storage import InstanceStore
 
@@ -82,6 +83,7 @@ def add_operational_commands(subparsers: Any) -> None:
 
     add_bundle_commands(subparsers)
     add_review_commands(subparsers)
+    add_rebuild_commands(subparsers)
 
 
 def handle_operational_command(args: argparse.Namespace) -> int | None:
@@ -91,6 +93,9 @@ def handle_operational_command(args: argparse.Namespace) -> int | None:
     review_result = handle_review_command(args)
     if review_result is not None:
         return review_result
+    rebuild_result = handle_rebuild_command(args)
+    if rebuild_result is not None:
+        return rebuild_result
 
     if args.command not in {
         "inbox-submit",
