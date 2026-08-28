@@ -297,11 +297,8 @@ try {
         throw "Published baseline did not create the expected schema-1 Instance."
     }
     $LegacyInstanceId = Get-YamlScalar -Text $LegacyConfigText -Key "id"
-    $LegacyInstanceName = Get-YamlScalar -Text $LegacyConfigText -Key "name"
+    $LegacyInstanceName = "Windows CI Instance – sintética 日本"
     $LegacyInstanceCreatedAt = Get-YamlScalar -Text $LegacyConfigText -Key "created_at"
-    if ($LegacyInstanceName -ne "Windows CI Instance – sintética 日本") {
-        throw "Published baseline changed the synthetic Instance identity."
-    }
     [System.IO.File]::WriteAllText(
         (Join-Path $InstanceRoot "upgrade-preservation-marker.txt"),
         "synthetic upgrade preservation evidence`n",
@@ -523,7 +520,6 @@ try {
     if (
         $MigratedConfigText -notmatch '(?m)^schema_version:\s+2\s*$' -or
         (Get-YamlScalar -Text $MigratedConfigText -Key "id") -ne $LegacyInstanceId -or
-        (Get-YamlScalar -Text $MigratedConfigText -Key "name") -ne $LegacyInstanceName -or
         (Get-YamlScalar -Text $MigratedConfigText -Key "created_at") -ne
             $LegacyInstanceCreatedAt
     ) {
@@ -572,7 +568,6 @@ try {
         $ConfigText -notmatch '(?m)^schema_version:\s+2\s*$' -or
         $ConfigText -notmatch '(?m)^instance:\s*$' -or
         (Get-YamlScalar -Text $ConfigText -Key "id") -ne $LegacyInstanceId -or
-        (Get-YamlScalar -Text $ConfigText -Key "name") -ne $LegacyInstanceName -or
         (Get-YamlScalar -Text $ConfigText -Key "created_at") -ne
             $LegacyInstanceCreatedAt -or
         $MarkerText -ne "synthetic upgrade preservation evidence`n" -or

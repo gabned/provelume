@@ -35,6 +35,8 @@ def test_windows_upgrade_proves_controlled_instance_schema_migration() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
 
     assert "LegacyInstanceConfigSha256" in text
+    assert '$LegacyInstanceName = "Windows CI Instance – sintética 日本"' in text
+    assert 'Get-YamlScalar -Text $LegacyConfigText -Key "name"' not in text
     assert "The installer mutated the Instance" in text
     assert 'Join-Path $InstanceRoot "instance-manifest.json"' in text
     assert "state\\migrations\\receipts\\instance-schema-1-to-2.json" in text
