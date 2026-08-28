@@ -119,7 +119,7 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "sys.path.insert" not in windows_exercise
     assert "Provelume-Setup-0.4.1-public.exe" in windows_exercise
     assert (
-        "d1ce3f855cb999f0063a4b08f826910c610891c6ba6c15254b16f2b42dabc4db"
+        "ea2093cd63860e2575715617f3bde363646213841f60be1db97433b19052b46b"
         in windows_exercise
     )
     assert (
