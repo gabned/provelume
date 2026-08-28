@@ -6,31 +6,31 @@ param(
     [Parameter(Mandatory = $true)][string]$ExpectedVersion,
     [Parameter(Mandatory = $true)][string]$ExpectedCommit,
     [Parameter(Mandatory = $true)][ValidateSet("development", "preview", "stable")][string]$ExpectedChannel,
-    [string]$PreviousVersion = "0.4.0",
-    [string]$PreviousCommit = "a54ea64db7c3452d2be4dfdf761cdb6b6962c09b",
+    [string]$PreviousVersion = "0.4.1",
+    [string]$PreviousCommit = "6e34498e98a315baaef00314fd59772a3af008df",
     [ValidateSet("preview", "stable")][string]$PreviousChannel = "preview"
 )
 
 $ErrorActionPreference = "Stop"
 $InstallerPath = (Resolve-Path $Installer).Path
-$PreviousInstallerSize = 18051429
-$PreviousInstallerSha256 = "0d13b8940184befed42b6e96d3789b06c0cc6842bcd3473d8e26738d6df35749"
+$PreviousInstallerSize = 18067909
+$PreviousInstallerSha256 = "d1ce3f855cb999f0063a4b08f826910c610891c6ba6c15254b16f2b42dabc4db"
 $ExpectedAppIdKey = "{E41A426B-F5FC-473F-A096-875017656A31}_is1"
 if ([string]::IsNullOrWhiteSpace($PreviousInstaller)) {
     $PreviousInstaller = Join-Path (
         Split-Path $InstallerPath -Parent
-    ) "Provelume-Setup-0.4.0-public.exe"
+    ) "Provelume-Setup-0.4.1-public.exe"
     Invoke-WebRequest `
-        -Uri "https://github.com/gabned/provelume/releases/download/v0.4.0/Provelume-Setup-0.4.0-x64.exe" `
+        -Uri "https://github.com/gabned/provelume/releases/download/v0.4.1/Provelume-Setup-0.4.1-x64.exe" `
         -OutFile $PreviousInstaller
 }
 $PreviousInstallerPath = (Resolve-Path $PreviousInstaller).Path
 if ((Get-Item $PreviousInstallerPath).Length -ne $PreviousInstallerSize) {
-    throw "Published 0.4.0 installer size differs from the reviewed baseline."
+    throw "Published 0.4.1 installer size differs from the reviewed baseline."
 }
 $PreviousHash = (Get-FileHash $PreviousInstallerPath -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($PreviousHash -ne $PreviousInstallerSha256) {
-    throw "Published 0.4.0 installer SHA-256 differs from the reviewed baseline."
+    throw "Published 0.4.1 installer SHA-256 differs from the reviewed baseline."
 }
 $InstallRoot = [System.IO.Path]::GetFullPath(
     (Join-Path $InstallDirectory "Próvelume 日本")
@@ -416,8 +416,8 @@ try {
             version = $PreviousVersion
             commit = $PreviousCommit
             channel = $PreviousChannel
-            installer_sha256 = "0d13b8940184befed42b6e96d3789b06c0cc6842bcd3473d8e26738d6df35749"
-            installer_size_bytes = 18051429
+            installer_sha256 = "d1ce3f855cb999f0063a4b08f826910c610891c6ba6c15254b16f2b42dabc4db"
+            installer_size_bytes = 18067909
         }
         candidate = @{
             version = $ExpectedVersion
