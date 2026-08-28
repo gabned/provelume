@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ report.id }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="/rebuild?lang={{ lang }}">{{ t('rebuild.title') }}</a>
+  <span>/</span><span>{{ report.id }}</span>
+</div>
+<section class="document-header">
+  <div>
+    <p class="eyebrow">{{ t('rebuild.eyebrow') }}</p>
+    <h1>{{ report.id }}</h1>
+    <div class="status-row">
+      <span class="status {{ 'ok' if report.status == 'completed' else 'warn' }}">{{ report.status }}</span>
+      <span>{{ t('rebuild.mode') }}: {{ report.mode }}</span>
+      <span>{{ report.completed_at }}</span>
+    </div>
+    <p>{{ report.summary }}</p>
+  </div>
+</section>
+<div class="two-column">
+  <section class="panel">
+    <h2>{{ t('rebuild.passes') }}</h2>
+    <ol class="event-list">
+    {% for step in report.passes %}
+      <li>
+        <div class="event-heading">
+          <strong>{{ step.mode }}</strong>
+          <span>{{ step.documents }} {{ t('rebuild.documents') }}</span>
+        </div>
+        <pre class="technical-note">{{ step | tojson(indent=2) }}</pre>
+      </li>
+    {% endfor %}
+    </ol>
+    <h2>{{ t('rebuild.snapshot') }}</h2>
+    <pre class="technical-note">{{ report.final_snapshot | tojson(indent=2) }}</pre>
+  </section>
+  <aside class="panel operation-meta">
+    <h2>{{ t('rebuild.agreement') }}</h2>
+    <p>
+      {% if report.agreement is sameas true %}{{ t('rebuild.agreed') }}
+      {% elif report.agreement is sameas false %}{{ t('rebuild.not_agreed') }}
+      {% else %}{{ t('rebuild.not_checked') }}{% endif %}
+    </p>
+    <h2>{{ t('rebuild.canonical') }}</h2>
+    <dl>
+      <dt>Before</dt><dd class="hash">{{ report.canonical_before }}</dd>
+      <dt>After</dt><dd class="hash">{{ report.canonical_after }}</dd>
+    </dl>
+    <p class="technical-note">{{ t('rebuild.no_mutation') }}</p>
+    <h2>{{ t('rebuild.metrics') }}</h2>
+    <pre class="technical-note">{{ report.metrics | tojson(indent=2) }}</pre>
+    <a href="/operations/{{ report.operation_id }}?lang={{ lang }}">{{ t('rebuild.operations') }}</a>
+  </aside>
+</div>
+{% endblock %}
