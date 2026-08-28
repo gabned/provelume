@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{{ t('settings.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('settings.eyebrow') }}</p>
+  <h1>{{ t('settings.title') }}</h1>
+  <p class="lead">{{ t('settings.lead') }}</p>
+  <p class="technical-note">{{ t('settings.canonical_inside') }}</p>
+</section>
+{% if saved %}
+<section class="panel"><p class="status ok">{{ t('settings.saved') }}</p></section>
+{% endif %}
+{% if error %}
+<section class="panel">
+  <p class="status warn">{{ t('settings.error') }}</p>
+  <p>{{ error }}</p>
+</section>
+{% endif %}
+{% if editable %}
+<section class="panel">
+  <h2>{{ t('settings.title') }}</h2>
+  <form method="post" action="/settings/folders" class="settings-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="lang" value="{{ lang }}">
+    <label>
+      <span>{{ t('settings.inbox_name') }}</span>
+      <input name="name" type="text" maxlength="120" required value="{{ settings.name }}">
+    </label>
+    <label>
+      <span>{{ t('settings.drop_path') }}</span>
+      <input name="drop_path" type="text" required value="{{ settings.drop.path }}">
+      <small>{{ t('settings.drop_help') }}</small>
+    </label>
+    <label>
+      <span>{{ t('settings.managed_path') }}</span>
+      <input name="managed_path" type="text" required value="{{ settings.managed.path }}">
+      <small>{{ t('settings.managed_help') }}</small>
+    </label>
+    <button type="submit">{{ t('settings.save') }}</button>
+  </form>
+  <p class="technical-note">{{ t('settings.local_only') }}</p>
+  {% if settings.managed_relocation_allowed %}
+  <p class="status info">{{ t('settings.relocation_allowed') }}</p>
+  {% else %}
+  <p class="status warn">{{ t('settings.relocation_blocked') }}</p>
+  {% endif %}
+</section>
+{% else %}
+<section class="panel"><p class="technical-note">{{ t('settings.remote_readonly') }}</p></section>
+{% endif %}
+<div class="two-column">
+  <section class="panel operation-meta">
+    <h2>{{ t('settings.drop_path') }}</h2>
+    <dl>
+      <dt>{{ t('settings.scope') }}</dt>
+      <dd>{{ t('settings.internal') if settings.drop.scope == 'instance' else t('settings.external') }}</dd>
+      <dt>{{ t('common.path') }}</dt><dd class="hash">{{ settings.drop.path if editable else settings.drop.display }}</dd>
+      <dt>{{ t('settings.available') }}</dt>
+      <dd>{{ t('settings.available') if settings.drop.available else t('settings.unavailable') }}</dd>
+      <dt>{{ t('settings.writable') }}</dt>
+      <dd>{{ t('settings.writable') if settings.drop.writable else t('settings.not_writable') }}</dd>
+    </dl>
+  </section>
+  <section class="panel operation-meta">
+    <h2>{{ t('settings.managed_path') }}</h2>
+    <dl>
+      <dt>{{ t('settings.scope') }}</dt>
+      <dd>{{ t('settings.internal') if settings.managed.scope == 'instance' else t('settings.external') }}</dd>
+      <dt>{{ t('common.path') }}</dt><dd class="hash">{{ settings.managed.path if editable else settings.managed.display }}</dd>
+      <dt>{{ t('settings.available') }}</dt>
+      <dd>{{ t('settings.available') if settings.managed.available else t('settings.unavailable') }}</dd>
+      <dt>{{ t('settings.writable') }}</dt>
+      <dd>{{ t('settings.writable') if settings.managed.writable else t('settings.not_writable') }}</dd>
+    </dl>
+  </section>
+</div>
+<section class="panel">
+  <p>{{ t('settings.cli') }} <code>provelume configure-inbox INSTANCE --name NAME --drop PATH --managed PATH</code>.</p>
+</section>
+{% endblock %}
