@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ report.id }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="/assurance?lang={{ lang }}">{{ t('assurance.title') }}</a>
+  <span>/</span><span>{{ report.id }}</span>
+</div>
+<section class="document-header">
+  <div>
+    <p class="eyebrow">{{ t('assurance.eyebrow') }}</p>
+    <h1>{{ report.id }}</h1>
+    <div class="status-row">
+      <span class="status {{ 'ok' if report.status == 'healthy' else 'warn' }}">{{ t('assurance.healthy') if report.status == 'healthy' else t('assurance.attention') }}</span>
+      <span>{{ report.completed_at }}</span>
+    </div>
+    <p>{{ report.summary }}</p>
+  </div>
+</section>
+<div class="two-column">
+  <section class="panel">
+    <h2>{{ t('assurance.findings') }}</h2>
+    <ul class="event-list">
+    {% for finding in report.findings %}
+      <li>
+        <div class="event-heading">
+          <strong>{{ finding.code }}</strong>
+          <span class="status {{ 'warn' if finding.severity in ['warning', 'error'] else 'info' }}">{{ finding.severity }}</span>
+        </div>
+        <p>{{ finding.message }}</p>
+        {% if finding.related %}<pre class="technical-note">{{ finding.related | tojson(indent=2) }}</pre>{% endif %}
+      </li>
+    {% else %}
+      <li class="empty">{{ t('assurance.no_findings') }}</li>
+    {% endfor %}
+    </ul>
+  </section>
+  <aside class="panel operation-meta">
+    <h2>{{ t('assurance.metrics') }}</h2>
+    <pre class="technical-note">{{ report.metrics | tojson(indent=2) }}</pre>
+    <p class="technical-note">{{ t('assurance.no_repair') }}</p>
+    <a href="/operations/{{ report.operation_id }}?lang={{ lang }}">{{ t('operations.title') }}</a>
+  </aside>
+</div>
+{% endblock %}

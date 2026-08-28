@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ duplicate.id }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="/duplicates?lang={{ lang }}">{{ t('duplicates.title') }}</a>
+  <span>/</span><span>{{ duplicate.id }}</span>
+</div>
+<section class="document-header">
+  <div>
+    <p class="eyebrow">{{ t('duplicates.exact') if duplicate.kind == 'exact' else t('duplicates.probable') }}</p>
+    <h1>{{ duplicate.id }}</h1>
+    <div class="status-row">
+      <span class="status {{ 'ok' if duplicate.current else 'info' }}">{{ duplicate.status }}</span>
+      <span>{{ t('duplicates.confidence') }} {{ '%.0f' | format(duplicate.confidence * 100) }}%</span>
+      <span>{{ duplicate.rule }}</span>
+    </div>
+  </div>
+</section>
+<div class="two-column">
+  <section class="panel">
+    <h2>{{ t('duplicates.documents') }}</h2>
+    <ul class="document-list">
+    {% for document in duplicate.documents %}
+      <li>
+        <a href="/documents/{{ document.document_id }}?lang={{ lang }}">
+          <strong>{{ document.title }}</strong>
+          <span>{{ document.locator }}</span>
+          <span>{{ document.media_type }} · {{ document.size_bytes }} bytes · {{ document.acquisition_count }} acquisitions</span>
+        </a>
+      </li>
+    {% endfor %}
+    </ul>
+  </section>
+  <aside class="panel operation-meta">
+    <h2>{{ t('duplicates.evidence') }}</h2>
+    <dl>
+      <dt>ID</dt><dd class="hash">{{ duplicate.id }}</dd>
+      <dt>{{ t('duplicates.kind') }}</dt><dd>{{ duplicate.kind }}</dd>
+      <dt>{{ t('duplicates.rule') }}</dt><dd>{{ duplicate.rule }}</dd>
+      <dt>{{ t('duplicates.first_seen') }}</dt><dd>{{ duplicate.first_seen_at }}</dd>
+      <dt>{{ t('duplicates.last_seen') }}</dt><dd>{{ duplicate.last_seen_at }}</dd>
+    </dl>
+    <pre class="technical-note">{{ duplicate.evidence | tojson(indent=2) }}</pre>
+    <h2>{{ t('duplicates.actions') }}</h2>
+    <ul>
+    {% for action in duplicate.recommended_actions %}<li>{{ action }}</li>{% endfor %}
+    </ul>
+    <p class="technical-note">{{ t('duplicates.no_action') }}</p>
+    <a href="/operations/{{ duplicate.scan_operation_id }}?lang={{ lang }}">{{ t('operations.title') }}</a>
+  </aside>
+</div>
+{% endblock %}
