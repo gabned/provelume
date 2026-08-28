@@ -17,6 +17,7 @@ DEFAULT_INBOX_NAME = "Local Inbox"
 DEFAULT_DROP_PATH = "inbox/drop"
 DEFAULT_MANAGED_PATH = "inbox/items"
 MAX_INBOX_NAME_CHARS = 120
+MAX_FOLDER_PATH_CHARS = 4096
 
 
 class FolderSettingsError(ValueError):
@@ -75,11 +76,31 @@ class FolderSettingsManager:
             self.store.paths.indexes,
         )
 
-    def _configured_path(self, value: str) -> Path:
+    @staticmethod
+    def _validated_path_text(value: str) -> str:
         selected = value.strip()
         if not selected:
             raise FolderSettingsError("folder path cannot be empty")
+        if len(selected) > MAX_FOLDER_PATH_CHARS:
+            raise FolderSettingsError(
+                f"folder path exceeds {MAX_FOLDER_PATH_CHARS} characters"
+            )
+        if "\x00" in selected:
+            raise FolderSettingsError("folder path contains a null character")
+        return selected
+
+    def _configured_path(self, value: str) -> Path:
+        selected = self._validated_path_text(value)
         return resolve_config_path(self.store.paths.root, selected)
+
+    def _selected_path(self, value: Path | str | None, fallback: Path) -> Path:
+        if value is None:
+            return fallback.resolve()
+        selected = self._validated_path_text(str(value))
+        candidate = Path(selected).expanduser()
+        if not candidate.is_absolute():
+            candidate = self.store.paths.root / candidate
+        return candidate.resolve()
 
     def _portable_path(self, path: Path) -> str:
         root = self.store.paths.root.resolve()
@@ -113,8 +134,7 @@ class FolderSettingsManager:
                     f"{label} folder cannot be the Instance root or contain it"
                 )
             for reserved in self._reserved_directories:
-                reserved = reserved.resolve()
-                if _paths_overlap(candidate, reserved):
+                if _paths_overlap(candidate, reserved.resolve()):
                     raise FolderOverlapError(
                         f"{label} folder overlaps reserved Instance storage"
                     )
@@ -170,7 +190,10 @@ class FolderSettingsManager:
                 raise FolderSettingsError("Inbox folder settings must be an object")
             else:
                 inbox = value
-        schema_version = inbox.get("schema_version", FOLDER_SETTINGS_SCHEMA_VERSION)
+        schema_version = inbox.get(
+            "schema_version",
+            FOLDER_SETTINGS_SCHEMA_VERSION,
+        )
         if (
             type(schema_version) is not int
             or schema_version != FOLDER_SETTINGS_SCHEMA_VERSION
@@ -178,7 +201,9 @@ class FolderSettingsManager:
             raise FolderSettingsError("unsupported Inbox folder-settings schema")
         name = self._validated_name(str(inbox.get("name", DEFAULT_INBOX_NAME)))
         drop_configured = str(inbox.get("drop_path", DEFAULT_DROP_PATH))
-        managed_configured = str(inbox.get("managed_path", DEFAULT_MANAGED_PATH))
+        managed_configured = str(
+            inbox.get("managed_path", DEFAULT_MANAGED_PATH)
+        )
         drop = self._configured_path(drop_configured)
         managed = self._configured_path(managed_configured)
         self._validate_pair(drop, managed)
@@ -208,7 +233,13 @@ class FolderSettingsManager:
             return "external"
         return "instance"
 
-    def _path_view(self, path: Path, configured: str, *, redact_external: bool) -> dict[str, Any]:
+    def _path_view(
+        self,
+        path: Path,
+        configured: str,
+        *,
+        redact_external: bool,
+    ) -> dict[str, Any]:
         selected = path.resolve()
         scope = self._scope(selected)
         if scope == "instance":
@@ -282,16 +313,13 @@ class FolderSettingsManager:
         managed_path: Path | str | None = None,
     ) -> dict[str, Any]:
         current = self.read()
-        selected_name = self._validated_name(name if name is not None else current.name)
-        selected_drop = (
-            Path(drop_path).expanduser().resolve()
-            if drop_path is not None
-            else current.drop_path
+        selected_name = self._validated_name(
+            name if name is not None else current.name
         )
-        selected_managed = (
-            Path(managed_path).expanduser().resolve()
-            if managed_path is not None
-            else current.managed_path
+        selected_drop = self._selected_path(drop_path, current.drop_path)
+        selected_managed = self._selected_path(
+            managed_path,
+            current.managed_path,
         )
         self._validate_pair(selected_drop, selected_managed)
         if (
@@ -312,11 +340,13 @@ class FolderSettingsManager:
         try:
             self._ensure_writable_directory(selected_drop)
             self._ensure_writable_directory(selected_managed)
-            config = self.store.read_config()
             old_config = self.store.read_config()
+            config = self.store.read_config()
             folders = config.setdefault("folders", {})
             if not isinstance(folders, dict):
-                raise FolderSettingsError("Instance folder settings must be an object")
+                raise FolderSettingsError(
+                    "Instance folder settings must be an object"
+                )
             folders["inbox"] = {
                 "schema_version": FOLDER_SETTINGS_SCHEMA_VERSION,
                 "name": selected_name,
@@ -327,7 +357,9 @@ class FolderSettingsManager:
             source_record = self.store.read_canonical("sources", source_id)
             sources = config.setdefault("sources", {})
             if not isinstance(sources, dict):
-                raise FolderSettingsError("Instance Sources configuration must be an object")
+                raise FolderSettingsError(
+                    "Instance Sources configuration must be an object"
+                )
             if source_record is not None or source_id in sources:
                 sources[source_id] = {
                     "kind": "filesystem",
@@ -367,7 +399,9 @@ class FolderSettingsManager:
                 metrics={
                     "name_changed": int(selected_name != current.name),
                     "drop_changed": int(selected_drop != current.drop_path),
-                    "managed_changed": int(selected_managed != current.managed_path),
+                    "managed_changed": int(
+                        selected_managed != current.managed_path
+                    ),
                     "external_folders": sum(
                         self._scope(path) == "external"
                         for path in (selected_drop, selected_managed)
@@ -384,7 +418,10 @@ class FolderSettingsManager:
             }
         except Exception as exc:
             current_operation = self.operations.get_record(operation.id)
-            if current_operation is not None and current_operation.status == "running":
+            if (
+                current_operation is not None
+                and current_operation.status == "running"
+            ):
                 self.operations.append(
                     operation.id,
                     "settings.folders_failed",
