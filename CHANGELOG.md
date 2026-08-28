@@ -10,12 +10,18 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   arbitrary hostnames until a separately authenticated network-serving contract exists;
 - rejected non-local HTTP Host headers and added restrictive CSP, clickjacking, MIME-sniffing,
   referrer, browser-permission, cross-origin and private-cache response headers.
+- documented latest-preview security handling, the unsupported LAN/Internet serving boundary,
+  unsigned Windows status and private reporting path without claiming repository settings active.
 
 ### Changed
 
 - disabled the interactive `/api/docs` surface while keeping the read-only versioned API directly
   available inside the packaged local application;
 - preserved the current path, search text, dates and filters when switching between EN and IT.
+- added weekly Dependabot proposals for Python and GitHub Actions dependencies; every proposal
+  remains an ordinary review/CI input and receives no tag or release authority;
+- centralized identical post-ingestion index-refresh orchestration and documented the current
+  large-module pressure map with separately owned follow-up work.
 
 ### Accessibility
 
