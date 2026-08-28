@@ -8,11 +8,13 @@ from .index import index_status, rebuild_search_index, search_index
 from .ingest import (
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_FILES,
+    IngestionLimitError,
     retry_ingestion_run,
     run_ingestion_filesystem,
 )
 from .ingestion_runs import IngestionLedger
 from .network_status import declared_network_status
+from .paths import UnsafePathError
 from .storage import InstanceStore
 
 
@@ -49,6 +51,13 @@ class ProvelumeInstance:
             max_file_bytes=max_file_bytes,
             max_files=max_files,
         )
+        run = result["run"]
+        if run["status"] == "failed" and not result["items"]:
+            error = str(run.get("error") or "filesystem Source ingestion failed")
+            if run.get("error_code") == "unsafe_path":
+                raise UnsafePathError(error)
+            if run.get("error_code") == "ingestion_limit":
+                raise IngestionLimitError(error)
         return list(result["acquisitions"])
 
     def ingest_run(
