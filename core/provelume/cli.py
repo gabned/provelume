@@ -10,10 +10,18 @@ import uvicorn
 from . import __version__
 from .about import current_about
 from .build_info import current_build_info
+from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES, IngestionRetryError
 from .installation import verify_current_installation
 from .service import ProvelumeInstance
 from .updates import UpdateError, check_for_updates
 from .web import create_app
+
+
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("value must be a positive integer")
+    return parsed
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -47,6 +55,33 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("instance", type=Path)
     ingest.add_argument("source", type=Path)
     ingest.add_argument("--name", dest="source_name")
+    ingest.add_argument(
+        "--max-file-bytes",
+        type=_positive_int,
+        default=DEFAULT_MAX_FILE_BYTES,
+    )
+    ingest.add_argument("--max-files", type=_positive_int, default=DEFAULT_MAX_FILES)
+
+    runs = subparsers.add_parser(
+        "ingestion-runs",
+        help="List durable local ingestion runs without reading source files",
+    )
+    runs.add_argument("instance", type=Path)
+    runs.add_argument("--limit", type=_positive_int, default=50)
+
+    run = subparsers.add_parser(
+        "ingestion-run",
+        help="Show one durable ingestion run and its item results",
+    )
+    run.add_argument("instance", type=Path)
+    run.add_argument("run_id")
+
+    retry = subparsers.add_parser(
+        "retry-ingestion",
+        help="Retry only failed or interrupted items from one ingestion run",
+    )
+    retry.add_argument("instance", type=Path)
+    retry.add_argument("run_id")
 
     rebuild = subparsers.add_parser("rebuild-index", help="Rebuild derived local search state")
     rebuild.add_argument("instance", type=Path)
@@ -149,8 +184,44 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "ingest":
         instance = ProvelumeInstance(args.instance)
-        print(json.dumps(instance.ingest(args.source, source_name=args.source_name), indent=2))
+        try:
+            result = instance.ingest_run(
+                args.source,
+                source_name=args.source_name,
+                max_file_bytes=args.max_file_bytes,
+                max_files=args.max_files,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "error", "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, indent=2))
+        return 0 if result["run"]["status"] == "completed" else 2
+    if args.command == "ingestion-runs":
+        instance = ProvelumeInstance(args.instance)
+        print(json.dumps(instance.list_ingestion_runs(limit=args.limit), indent=2))
         return 0
+    if args.command == "ingestion-run":
+        instance = ProvelumeInstance(args.instance)
+        result = instance.get_ingestion_run(args.run_id)
+        if result is None:
+            print(
+                json.dumps(
+                    {"status": "not_found", "run_id": args.run_id},
+                    indent=2,
+                )
+            )
+            return 3
+        print(json.dumps(result, indent=2))
+        return 0
+    if args.command == "retry-ingestion":
+        instance = ProvelumeInstance(args.instance)
+        try:
+            result = instance.retry_ingestion(args.run_id)
+        except IngestionRetryError as exc:
+            print(json.dumps({"status": "error", "error": str(exc)}, indent=2))
+            return 3
+        print(json.dumps(result, indent=2))
+        return 0 if result["run"]["status"] == "completed" else 2
     if args.command == "rebuild-index":
         instance = ProvelumeInstance(args.instance)
         print(json.dumps({"documents_indexed": instance.rebuild_index()}))
