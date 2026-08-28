@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import json
 import socket
+import threading
 import zipfile
 from pathlib import Path
 
 import pytest
 import yaml
 
+from provelume import instance_backup
 from provelume.cli import main
 from provelume.instance_backup import BackupError, create_backup, verify_backup
 from provelume.instance_lifecycle import (
+    InstanceLifecycleBusy,
     InstanceLifecycleError,
     InstanceLifecycleManager,
 )
@@ -95,6 +98,31 @@ def test_validation_is_read_only_and_detects_tampered_original(tmp_path: Path) -
     assert instance.store.paths.manifest.read_bytes() == manifest_before
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (("content_hash", "0" * 64), ("size_bytes", 999_999)),
+)
+def test_deep_validation_binds_version_metadata_to_original(
+    tmp_path: Path,
+    field: str,
+    value: str | int,
+) -> None:
+    instance, _note = _seed(tmp_path)
+    version = instance.store.list_canonical("versions")[0]
+    version[field] = value
+    instance.store._atomic_json(
+        instance.store.paths.canonical_dir("versions") / f"{version['id']}.json",
+        version,
+    )
+
+    report = inspect_instance(instance.root, deep=True)
+
+    assert report["status"] == "invalid"
+    assert "version_original_integrity_mismatch" in {
+        error["code"] for error in report["errors"]
+    }
+
+
 def test_opening_current_schema_does_not_hash_every_original(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -147,7 +175,7 @@ def test_open_migrates_schema_1_after_verified_backup(tmp_path: Path) -> None:
     ]
     assert _canonical_snapshot(reopened) == before
     assert not InstanceLifecycleManager(reopened).pending_path.exists()
-    assert not InstanceLifecycleManager(reopened).lock_path.exists()
+    assert InstanceLifecycleManager(reopened).lock_path.is_file()
 
 
 def test_unknown_future_schema_fails_before_backup_or_mutation(tmp_path: Path) -> None:
@@ -200,7 +228,7 @@ def test_failed_migration_restores_schema_1_and_canonical_bytes(
     assert not restored.paths.manifest.exists()
     assert _canonical_snapshot(restored) == canonical_before
     assert not manager.pending_path.exists()
-    assert not manager.lock_path.exists()
+    assert manager.lock_path.is_file()
     archives = sorted((manager.control_root / "backups").glob("*.zip"))
     assert len(archives) == 1
     assert verify_backup(archives[0])["status"] == "valid"
@@ -286,6 +314,40 @@ def test_backup_refuses_to_overwrite_existing_archive(tmp_path: Path) -> None:
     assert destination.read_bytes() == b"operator-owned"
 
 
+def test_backup_rejects_a_committed_write_after_payload_enumeration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance, _note = _seed(tmp_path)
+    original_payload_files = instance_backup._payload_files
+    calls = 0
+
+    def commit_after_snapshot(store):
+        nonlocal calls
+        calls += 1
+        files = original_payload_files(store)
+        if calls == 1:
+            acquisition = dict(store.list_canonical("acquisitions")[0])
+            acquisition["id"] = "acq_" + "f" * 32
+            acquisition["observed_at"] = "2099-01-01T00:00:00+00:00"
+            store._atomic_json(
+                store.paths.canonical_dir("acquisitions")
+                / f"{acquisition['id']}.json",
+                acquisition,
+            )
+        return files
+
+    monkeypatch.setattr(instance_backup, "_payload_files", commit_after_snapshot)
+    destination = tmp_path / "unstable.zip"
+
+    with pytest.raises(BackupError, match="changed while the backup snapshot"):
+        instance.backup(destination=destination)
+
+    assert calls == 2
+    assert not destination.exists()
+    assert inspect_instance(instance.root, deep=True)["status"] == "valid"
+
+
 def test_restore_rejects_backup_from_another_instance_without_mutation(
     tmp_path: Path,
 ) -> None:
@@ -364,7 +426,65 @@ def test_failed_restore_reinstalls_verified_pre_restore_state(
     assert len(instance.versions(document_id)) == 2
     assert inspect_instance(instance.root)["status"] == "valid"
     assert not manager.pending_path.exists()
-    assert not manager.lock_path.exists()
+    assert manager.lock_path.is_file()
+
+
+def test_lifecycle_os_lock_serializes_stale_metadata_contenders(
+    tmp_path: Path,
+) -> None:
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    first = InstanceLifecycleManager(instance.store)
+    first.control_root.mkdir(parents=True, exist_ok=True)
+    first.lock_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "token": "lifecycle_" + "0" * 32,
+                "purpose": "stale synthetic owner",
+                "pid": 2_000_000_000,
+                "hostname": socket.gethostname(),
+                "acquired_at": "2000-01-01T00:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+    barrier = threading.Barrier(3)
+    acquired = threading.Event()
+    busy = threading.Event()
+    release = threading.Event()
+    results: list[str] = []
+
+    def contend(label: str) -> None:
+        manager = InstanceLifecycleManager(InstanceStore(instance.root))
+        barrier.wait()
+        try:
+            with manager._hold(purpose=f"synthetic contender {label}"):
+                results.append("acquired")
+                acquired.set()
+                release.wait(timeout=5)
+        except InstanceLifecycleBusy:
+            results.append("busy")
+            busy.set()
+
+    threads = [
+        threading.Thread(target=contend, args=(label,)) for label in ("a", "b")
+    ]
+    for thread in threads:
+        thread.start()
+    barrier.wait()
+    assert acquired.wait(timeout=5)
+    assert busy.wait(timeout=5)
+    release.set()
+    for thread in threads:
+        thread.join(timeout=5)
+
+    assert sorted(results) == ["acquired", "busy"]
+    assert all(not thread.is_alive() for thread in threads)
+    with InstanceLifecycleManager(InstanceStore(instance.root))._hold(
+        purpose="post-contention proof"
+    ):
+        pass
+    assert first.lock_path.is_file()
 
 
 def test_lifecycle_cli_validate_migrate_backup_and_restore(

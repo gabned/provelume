@@ -77,7 +77,10 @@ forward; there is no in-place downgrade path.
 `backup-manifest.json` binds the stable Instance ID, source schema, content fingerprint, explicit
 include/rebuild policy and a sorted path/size/SHA-256 entry for every payload file. Verification
 rejects undeclared/duplicate entries, encryption, symlinks, traversal, case-insensitive collisions,
-hash/size mismatches and bounded expansion violations.
+hash/size mismatches and bounded expansion violations. Before success is reported, Provelume repeats
+deep validation and the complete payload inventory; any retained canonical, Original, configuration
+or state change during construction invalidates and removes the archive. This gives the backup a
+write-consistent snapshot boundary without silently omitting a concurrently committed acquisition.
 
 The default location is a sibling control directory:
 
@@ -99,8 +102,11 @@ replaces the live directory on the same filesystem. Failure restores the verifie
 backup. A schema-1 backup is migrated to schema 2 inside the same restore transaction.
 
 The sibling control directory keeps the pending marker and lifecycle lock outside the directory
-being replaced. After an interrupted migration or restore, the next open verifies and restores the
-recorded pre-operation backup before retrying normal preparation. Recovery is persisted under
+being replaced. The persistent lock metadata file is guarded by an OS advisory lock, so process
+termination releases ownership in the kernel and contenders never delete/reclaim a pathname that a
+new owner may already hold. Pending recovery acquires that same lock before changing the Instance.
+After an interrupted migration or restore, the next open verifies and restores the recorded
+pre-operation backup before retrying normal preparation. Recovery is persisted under
 `state/lifecycle/recovery-receipts/`; it is not silently treated as an ordinary successful open.
 Abandoned staging/previous directories are removed only after the rollback archive has been
 verified and installed.

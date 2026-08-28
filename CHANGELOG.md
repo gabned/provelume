@@ -12,6 +12,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   `restore` CLI/application-service contracts;
 - added hash-manifested same-Instance ZIP backups with bounded entry, path, symlink, collision,
   size and digest verification;
+- added a final deep fingerprint and retained-payload revalidation so a concurrent committed write
+  invalidates an in-progress backup instead of being silently omitted;
 - added ordered schema-1 to schema-2 migration receipts, verified automatic pre-migration and
   pre-restore backups, external pending-operation evidence and durable recovery receipts.
 
@@ -19,6 +21,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 - made supported schema-1 Instances migrate forward only after deep canonical/Original preflight,
   while unknown future schemas fail before any backup or mutation;
+- made deep validation bind each Version hash and size to its retained Original, and replaced stale
+  lifecycle-lock deletion with a kernel-released cross-platform OS lock;
 - made restore extract and validate off to the side, atomically replace the live Instance on the
   same filesystem and restore the verified pre-operation backup if any step fails;
 - excluded disposable `indexes/`, the future `library/` projection and transient locks from local

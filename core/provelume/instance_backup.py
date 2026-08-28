@@ -124,6 +124,19 @@ def _payload_files(store: InstanceStore) -> list[tuple[str, Path, int, str]]:
     return result
 
 
+def _entry_manifest(
+    files: list[tuple[str, Path, int, str]],
+) -> list[dict[str, str | int]]:
+    return [
+        {
+            "path": relative,
+            "sha256": digest,
+            "size_bytes": size,
+        }
+        for relative, _path, size, digest in files
+    ]
+
+
 def _zip_info(name: str) -> zipfile.ZipInfo:
     info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
     info.compress_type = zipfile.ZIP_DEFLATED
@@ -147,14 +160,7 @@ def create_backup(
     backup_id, archive = _backup_destination(store, destination)
     archive.parent.mkdir(parents=True, exist_ok=True)
     files = _payload_files(store)
-    entries = [
-        {
-            "path": relative,
-            "sha256": digest,
-            "size_bytes": size,
-        }
-        for relative, _path, size, digest in files
-    ]
+    entries = _entry_manifest(files)
     manifest = {
         "schema_version": BACKUP_SCHEMA_VERSION,
         "kind": BACKUP_KIND,
@@ -198,10 +204,24 @@ def create_backup(
     finally:
         temporary.unlink(missing_ok=True)
 
-    verified = verify_backup(archive)
-    if verified["status"] != "valid":
+    try:
+        verified = verify_backup(archive)
+        final_validation = inspect_instance(store.paths.root, deep=True)
+        final_entries = _entry_manifest(_payload_files(store))
+        if (
+            verified["status"] != "valid"
+            or final_validation["status"] != "valid"
+            or final_validation["instance_id"] != validation["instance_id"]
+            or final_validation["instance_schema_version"]
+            != validation["instance_schema_version"]
+            or final_validation["content_fingerprint"]
+            != validation["content_fingerprint"]
+            or final_entries != entries
+        ):
+            raise BackupError("Instance changed while the backup snapshot was built")
+    except Exception:
         archive.unlink(missing_ok=True)
-        raise BackupError("new backup archive failed independent verification")
+        raise
     return {
         "schema_version": BACKUP_SCHEMA_VERSION,
         "status": "completed",

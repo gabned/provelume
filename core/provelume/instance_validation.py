@@ -153,11 +153,23 @@ def _validate_references(
                     path=path,
                 )
             )
-        if version.get("original_id") not in originals:
+        original = originals.get(str(version.get("original_id")))
+        if original is None:
             errors.append(
                 _finding(
                     "version_original_missing",
                     "Version references a missing Original",
+                    path=path,
+                )
+            )
+        elif (
+            version.get("content_hash") != original.get("sha256")
+            or version.get("size_bytes") != original.get("size_bytes")
+        ):
+            errors.append(
+                _finding(
+                    "version_original_integrity_mismatch",
+                    "Version hash or size does not match its retained Original",
                     path=path,
                 )
             )

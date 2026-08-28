@@ -37,18 +37,40 @@ class InstanceLifecycleBusy(InstanceLifecycleError):
     pass
 
 
-def _pid_is_alive(pid: int) -> bool:
-    if pid < 1:
-        return False
+def _acquire_os_lock(descriptor: int) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        try:
+            msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+        except OSError as exc:
+            raise InstanceLifecycleBusy(
+                "another Instance lifecycle operation is active"
+            ) from exc
+        return
+
+    import fcntl
+
     try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    except OSError:
-        return False
-    return True
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except (BlockingIOError, PermissionError) as exc:
+        raise InstanceLifecycleBusy(
+            "another Instance lifecycle operation is active"
+        ) from exc
+
+
+def _release_os_lock(descriptor: int) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
+        return
+
+    import fcntl
+
+    fcntl.flock(descriptor, fcntl.LOCK_UN)
 
 
 class InstanceLifecycleManager:
@@ -74,33 +96,12 @@ class InstanceLifecycleManager:
             return None
         return value if isinstance(value, dict) else None
 
-    @staticmethod
-    def _owner_is_active(value: dict[str, Any] | None) -> bool:
-        if not isinstance(value, dict):
-            return False
-        pid = value.get("pid")
-        hostname = value.get("hostname")
-        return (
-            type(pid) is int
-            and hostname == socket.gethostname()
-            and _pid_is_alive(pid)
-        )
-
-    def _clear_stale_lock(self) -> None:
-        if not self.lock_path.exists():
-            return
-        owner = self._read_json(self.lock_path)
-        if self._owner_is_active(owner):
-            raise InstanceLifecycleBusy("another Instance lifecycle operation is active")
-        self.lock_path.unlink(missing_ok=True)
-
     @contextmanager
     def _hold(self, *, purpose: str) -> Iterator[dict[str, Any]]:
         selected_purpose = purpose.strip()[:120]
         if not selected_purpose:
             raise ValueError("lifecycle purpose is required")
         self.control_root.mkdir(parents=True, exist_ok=True)
-        self._clear_stale_lock()
         token = f"lifecycle_{uuid4().hex}"
         owner = {
             "schema_version": LIFECYCLE_STATE_SCHEMA_VERSION,
@@ -110,24 +111,35 @@ class InstanceLifecycleManager:
             "hostname": socket.gethostname(),
             "acquired_at": utc_now(),
         }
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+        flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0)
         try:
             descriptor = os.open(self.lock_path, flags, 0o600)
-        except FileExistsError as exc:
-            raise InstanceLifecycleBusy(
-                "another Instance lifecycle operation is active"
-            ) from exc
+        except OSError as exc:
+            raise InstanceLifecycleError("lifecycle lock file cannot be opened") from exc
+        locked = False
         try:
-            with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
+            _acquire_os_lock(descriptor)
+            locked = True
+            with os.fdopen(
+                descriptor,
+                "r+",
+                encoding="utf-8",
+                newline="\n",
+                closefd=False,
+            ) as handle:
+                handle.seek(0)
                 json.dump(owner, handle, indent=2, sort_keys=True)
                 handle.write("\n")
+                handle.truncate()
                 handle.flush()
                 os.fsync(handle.fileno())
             yield owner
         finally:
-            current = self._read_json(self.lock_path)
-            if isinstance(current, dict) and current.get("token") == token:
-                self.lock_path.unlink(missing_ok=True)
+            try:
+                if locked:
+                    _release_os_lock(descriptor)
+            finally:
+                os.close(descriptor)
 
     def _write_pending(
         self,
@@ -207,8 +219,6 @@ class InstanceLifecycleManager:
         pending = self._read_json(self.pending_path)
         if pending is None or pending.get("schema_version") != LIFECYCLE_STATE_SCHEMA_VERSION:
             raise InstanceLifecycleError("pending lifecycle recovery record is invalid")
-        if self._owner_is_active(pending):
-            raise InstanceLifecycleBusy("another Instance lifecycle operation is active")
         operation = pending.get("operation")
         if operation not in {"backup", "migration", "restore"}:
             raise InstanceLifecycleError("pending lifecycle operation is unsupported")
@@ -221,7 +231,6 @@ class InstanceLifecycleManager:
                 rollback_archive_sha256=None,
             )
             self._clear_pending()
-            self.lock_path.unlink(missing_ok=True)
             return result
         archive = pending.get("rollback_archive")
         digest = pending.get("rollback_archive_sha256")
@@ -239,7 +248,6 @@ class InstanceLifecycleManager:
             rollback_archive_sha256=str(digest),
         )
         self._clear_pending()
-        self.lock_path.unlink(missing_ok=True)
         return result
 
     def _replace_from_archive(
@@ -353,7 +361,10 @@ class InstanceLifecycleManager:
         return receipt
 
     def prepare(self) -> dict[str, Any]:
-        recovery = self._recover_pending()
+        recovery = None
+        if self.pending_path.exists():
+            with self._hold(purpose="instance-lifecycle-recovery"):
+                recovery = self._recover_pending()
         report = self.validate(deep=False)
         if report["status"] != "valid":
             raise InstanceLifecycleError("Instance validation failed before open")
