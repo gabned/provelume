@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ t('rebuild.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('rebuild.eyebrow') }}</p>
+  <h1>{{ t('rebuild.title') }}</h1>
+  <p class="lead">{{ t('rebuild.lead') }}</p>
+  <p class="technical-note">{{ t('rebuild.no_mutation') }}</p>
+</section>
+<section class="metric-grid">
+  <article>
+    <strong>{{ t('rebuild.lock_held') if summary.lock.held else t('rebuild.lock_available') }}</strong>
+    <span>{{ t('rebuild.lock') }}</span>
+  </article>
+  <article><strong>{{ summary.reports }}</strong><span>{{ t('rebuild.history') }}</span></article>
+  <article><strong>{{ summary.agreement_reports }}</strong><span>{{ t('rebuild.agreement') }}</span></article>
+  <article><strong>{{ summary.successful_agreements }}</strong><span>{{ t('rebuild.agreed') }}</span></article>
+</section>
+{% if summary.latest %}
+<section class="panel">
+  <div class="panel-heading">
+    <h2>{{ t('rebuild.latest') }}</h2>
+    <a href="/rebuild/{{ summary.latest.id }}?lang={{ lang }}">{{ summary.latest.id }}</a>
+  </div>
+  <div class="status-row">
+    <span class="status {{ 'ok' if summary.latest.status == 'completed' else 'warn' }}">{{ summary.latest.status }}</span>
+    <span>{{ summary.latest.mode }}</span>
+    <span>{{ summary.latest.completed_at }}</span>
+  </div>
+  <p>{{ summary.latest.summary }}</p>
+</section>
+{% else %}
+<section class="panel"><p class="empty">{{ t('rebuild.not_run') }}</p></section>
+{% endif %}
+<section class="panel">
+  <h2>{{ t('rebuild.history') }}</h2>
+  <ul class="document-list">
+  {% for report in reports %}
+    <li>
+      <a href="/rebuild/{{ report.id }}?lang={{ lang }}">
+        <strong>{{ report.mode }} · {{ report.status }}</strong>
+        <span>{{ report.completed_at }}</span>
+        <span>{{ report.summary }}</span>
+      </a>
+    </li>
+  {% else %}
+    <li class="empty">{{ t('rebuild.not_run') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}
