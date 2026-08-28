@@ -336,7 +336,7 @@ def test_viewer_blocks_active_html_links_and_resource_loading(tmp_path: Path) ->
         "![remote](https://example.invalid/tracker.png)\n\n"
         "[local](file:///etc/passwd) [run](javascript:alert(1))\n"
     )
-    source.write_text(original, encoding="utf-8")
+    source.write_bytes(original.encode("utf-8"))
     instance = ProvelumeInstance.initialise(tmp_path / "instance")
     instance.ingest(source)
     document = instance.list_documents()[0]
