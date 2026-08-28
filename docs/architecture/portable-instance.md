@@ -22,6 +22,7 @@ A Provelume Instance is an ordinary directory. Schema 2 uses:
     migrations/
     derived/
   indexes/
+  library/
 ```
 
 `provelume.yml` contains stable Instance identity, the current Instance schema, local UI/network
@@ -42,14 +43,20 @@ objects never require a Git remote.
 
 `originals/` and `knowledge/` are authoritative. Retained artifacts under `state/`, including
 ingestion/operation evidence, document bundles, migration receipts and recovery receipts, are
-included in a local backup. `indexes/` and the future `library/` projection are excluded and rebuilt
-from retained state. Secrets must not be stored in versionable configuration.
+included in a local backup. `indexes/` and the implemented `library/` projection are excluded and
+rebuilt from canonical state, verified Originals and retained deterministic bundles. Secrets must
+not be stored in versionable configuration.
 
 `knowledge/hierarchy/` and `knowledge/classifications/` are additive schema-2 canonical
 containers. An Instance created by an earlier schema-2 Core may omit them while empty; the first
 hierarchy/classification mutation creates the required container without changing the Instance
 schema. Present records are validated, fingerprinted and backed up like every other canonical
 record. See [`hierarchical-classification.md`](hierarchical-classification.md).
+
+`library/` has its own deterministic hash manifest, one primary Markdown path per Document and
+relative README/view indexes. Its manifest binds the deep canonical/Original fingerprint but does
+not promote generated files to canonical knowledge. See
+[`markdown-library-viewer.md`](markdown-library-viewer.md).
 
 Path locators use `/` as the logical separator even on Windows. Absolute locators and `..` traversal are rejected before they are used as Instance-relative references.
 

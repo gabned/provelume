@@ -67,6 +67,15 @@ button, .button { display: inline-flex; align-items: center; justify-content: ce
 .document-header h1 { margin-bottom: 6px; }
 .document-layout { grid-template-columns: minmax(0,1.7fr) minmax(300px,.8fr); }
 .preview { margin: 0; max-height: 70vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.58; font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size: .84rem; }
+.viewer-panel { min-width: 0; }
+.viewer-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 20px; }
+.markdown-view { line-height: 1.65; overflow-wrap: anywhere; }
+.markdown-view h1, .markdown-view h2, .markdown-view h3, .markdown-view h4, .markdown-view h5, .markdown-view h6 { margin-top: 1.35em; }
+.markdown-view pre { overflow: auto; background: #0f1720; color: #d8e6e2; padding: 16px; border-radius: 10px; }
+.markdown-view code { background: #edf3f1; border-radius: 4px; padding: .08em .3em; }
+.markdown-view pre code { background: transparent; padding: 0; }
+.markdown-view blockquote { margin-left: 0; border-left: 4px solid var(--accent); padding-left: 14px; color: var(--muted); }
+.blocked-link, .blocked-resource { color: var(--muted); text-decoration: line-through; }
 dl { display: grid; grid-template-columns: 110px minmax(0,1fr); gap: 10px 14px; }
 dt { color: var(--muted); font-size: .78rem; }
 dd { margin: 0; min-width: 0; overflow-wrap: anywhere; font-size: .84rem; }

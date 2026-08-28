@@ -51,7 +51,7 @@ The canonical `0.6/S02` hierarchy now drives Browser breadcrumbs, subtree counts
 filtering. One primary classification and multiple secondary associations are shown from the same
 application-service result returned to the read-only API; the template maintains no private tree.
 Source-locator areas remain a distinct compatibility filter. Filesystem projection and safe
-rendered Markdown remain the next slice.
+rendered Markdown are now implemented by `0.6/S03` from the same application-service state.
 
 Deterministic navigation remains complete without AI, embeddings or a vector store. Later semantic
 retrieval may add suggestions, but cannot replace stable links, filters, provenance or full-text
@@ -59,7 +59,7 @@ fallbacks.
 
 ## Filesystem library
 
-The planned `library/` projection is a supported offline navigation surface. Its canonical input
+The `library/` projection is a supported offline navigation surface. Its canonical input
 is the stable hierarchy and classification model described in
 [`hierarchical-classification.md`](hierarchical-classification.md). It contains a root
 README, hierarchical Area/Subarea and Project paths, per-folder README indexes, Archive and
@@ -72,6 +72,12 @@ The Browser mirrors this hierarchy instead of maintaining a private tree. Deleti
 the complete library from canonical JSON and Originals yields equivalent navigation. External
 edits to a generated Markdown projection are not silently accepted as canonical changes; they
 enter the normal acquisition/review path.
+
+The Document detail page now offers explicit rendered, raw Markdown, Original-text and download
+modes. Rendered mode escapes raw HTML and turns authored links/images into inert labels, so the
+document cannot emit navigable resources or active elements. Binary Originals remain download-only.
+The complete contract is in
+[`markdown-library-viewer.md`](markdown-library-viewer.md).
 
 ## Inbox and Action Center
 
@@ -87,4 +93,4 @@ queue item never deletes an acquired Original.
 
 ## Guardrails
 
-The browser does not require GitHub, an external AI provider or Provelume Cloud. Provenance is a first-class view rather than hidden behind chat. Build identity is kept separate from cryptographic verification. When rendered Markdown is introduced, raw HTML, active content and unsafe local or remote resource loading remain disabled by default. Generic `Delete` is not a valid knowledge action: archive, projection removal, recoverable trash and permanent purge remain visibly distinct. Write-back, destructive actions and advanced editing are outside the initial slice.
+The browser does not require GitHub, an external AI provider or Provelume Cloud. Provenance is a first-class view rather than hidden behind chat. Build identity is kept separate from cryptographic verification. Rendered Markdown disables raw HTML, active content and unsafe local or remote resource loading. Generic `Delete` is not a valid knowledge action: archive, projection removal, recoverable trash and permanent purge remain visibly distinct. Write-back, destructive actions and advanced editing are outside the initial slice.

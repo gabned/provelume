@@ -16,6 +16,7 @@ from .build_info import current_build_info
 from .i18n import SUPPORTED_LANGUAGES, translator
 from .installation import verify_current_installation
 from .installation_i18n import installation_translator
+from .markdown_viewer import DocumentContentError, safe_markdown_html
 from .service import ProvelumeInstance
 from .web_security import LocalWebSecurityMiddleware
 
@@ -290,10 +291,30 @@ def create_app(
         )
 
     @app.get("/documents/{document_id}")
-    def document_page(request: Request, document_id: str):
+    def document_page(
+        request: Request,
+        document_id: str,
+        mode: str = "rendered",
+    ):
+        if mode not in {"rendered", "raw", "original"}:
+            raise HTTPException(status_code=400, detail="unsupported Viewer mode")
         document = instance.get_document(document_id)
         if document is None:
             raise HTTPException(status_code=404, detail="document not found")
+        try:
+            content = instance.document_content(document_id)
+        except DocumentContentError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        viewer_text = None
+        rendered = None
+        if content is not None:
+            viewer_text = (
+                content["original_text"]
+                if mode == "original"
+                else content["markdown"]
+            )
+            if mode == "rendered" and content["markdown"] is not None:
+                rendered = safe_markdown_html(content["markdown"])
         return TEMPLATES.TemplateResponse(
             request=request,
             name="document.html",
@@ -302,7 +323,10 @@ def create_app(
                 instance,
                 document=document,
                 versions=instance.versions(document_id),
-                preview=instance.extracted_text(document_id),
+                content=content,
+                viewer_mode=mode,
+                viewer_text=viewer_text,
+                rendered=rendered,
             ),
         )
 

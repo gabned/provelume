@@ -30,9 +30,10 @@ The roadmap records `0.6.0` as the active Portable Instance and hierarchical Mar
 workstream and retains the later forecast through `1.0.0`. Forecast entries are sequencing
 coordinates, not availability claims or release authorization.
 
-The active source tree now includes the `0.6/S01` lifecycle foundation and `0.6/S02` canonical
-Area/Subarea, Project and Collection hierarchy. These Unreleased capabilities do not change the
-published `0.5.1` package identity and do not create a release.
+The active source tree now includes the `0.6/S01` lifecycle foundation, `0.6/S02` canonical
+Area/Subarea, Project and Collection hierarchy, and the `0.6/S03` deterministic Markdown library
+and safe Viewer. These Unreleased capabilities do not change the published `0.5.1` package
+identity and do not create a release.
 
 The published foundation can:
 
@@ -42,6 +43,8 @@ The published foundation can:
 - record Sources, Acquisitions, Documents, DocumentVersions and provenance;
 - retain stable parent-linked Area/Subarea, Project and Collection identities plus one primary and
   multiple secondary Document classifications;
+- rebuild a deterministic `library/` with one primary Markdown path per Document, README indexes
+  and relative secondary/Source/date/type links without copying acquired Originals;
 - keep durable ingestion runs and retry only failed or interrupted items;
 - process an Instance-local or external Drop Inbox with move-after-verified-commit semantics;
 - configure the Inbox display name, Drop folder and managed-copy folder locally;
@@ -52,8 +55,9 @@ The published foundation can:
 - browse ordered, bounded and path-redacted operation evidence;
 - extract text locally and build a disposable SQLite FTS5 search index;
 - expose a read-only versioned Knowledge API with FastAPI;
-- provide an EN/IT Knowledge Browser for browse, search, document detail, versions, provenance,
-  Inbox, bundles, duplicates, assurance, rebuild reports, operations, settings and health;
+- provide an EN/IT Knowledge Browser for browse, search, safe rendered/raw/Original document
+  viewing, versions, provenance, Inbox, bundles, duplicates, assurance, rebuild reports,
+  operations, settings and health;
 - report its embedded version/tag/commit/source identity offline through CLI, API and browser;
 - restart without losing canonical state;
 - run without Git, GitHub, Provelume Cloud or an external AI provider.
@@ -111,6 +115,19 @@ Inspect the navigable operation log or run a consistency rebuild:
 .venv/bin/provelume rebuild-derived .local/demo --mode agreement
 ```
 
+Rebuild or validate only the portable Markdown filesystem projection:
+
+```bash
+.venv/bin/provelume library-rebuild .local/demo
+.venv/bin/provelume library-status .local/demo
+```
+
+The projection contains `areas/`, `projects/`, `archive/`, `unclassified/` and generated
+Collection/tag/person/Source/date/type indexes. Generated links are relative, secondary
+classifications never duplicate a Document file, and projection edits never mutate canonical
+knowledge. See the
+[Markdown library and Viewer contract](docs/architecture/markdown-library-viewer.md).
+
 Validate the Instance without changing it, or create a hash-verified backup outside the Instance:
 
 ```bash
@@ -129,7 +146,7 @@ rollback:
 ```
 
 Backup ZIPs include canonical JSON, acquired Originals and retained Instance state. Rebuildable
-`indexes/`, the future `library/` projection and transient locks are excluded by the manifest
+`indexes/`, the generated `library/` projection and transient locks are excluded by the manifest
 policy. External Inbox/Source working folders are not part of the Instance backup. See the
 [Portable Instance contract](docs/architecture/portable-instance.md).
 
@@ -226,13 +243,14 @@ Schema 2 uses an ordinary filesystem directory with a closed manifest:
   knowledge/
   state/
   indexes/
+  library/
 ```
 
 `instance-manifest.json` binds stable Instance identity, current schema and the explicit derived-
 state policy. `originals/` and `knowledge/` are durable canonical state. Retained artifacts under
-`state/` are included in local backups; `indexes/` and the future `library/` projection are
-rebuildable. SQLite is used only for search acceleration; it is not the authoritative knowledge
-format.
+`state/` are included in local backups; `indexes/` and `library/` are rebuildable. SQLite is used
+only for search acceleration; neither it nor the Markdown projection is the authoritative
+knowledge format.
 
 Drop and managed-copy folders may optionally be elsewhere on the local filesystem. They remain
 working locations rather than alternate canonical stores. A Provelume backup preserves acquired
@@ -256,8 +274,10 @@ The browser and external clients use the same application layer. The read-only A
 - `GET /api/v1/ingestion/runs/{id}`
 - `GET /api/v1/hierarchy`
 - `GET /api/v1/hierarchy/{id}`
+- `GET /api/v1/library`
 - `GET /api/v1/documents`
 - `GET /api/v1/documents/{id}`
+- `GET /api/v1/documents/{id}/content`
 - `GET /api/v1/documents/{id}/classification`
 - `GET /api/v1/documents/{id}/versions`
 - `GET /api/v1/documents/{id}/provenance`

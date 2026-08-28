@@ -94,7 +94,9 @@ def test_incremental_and_full_rebuilds_agree_without_canonical_mutation(
     assert codes[0] == "rebuild.lock_acquired"
     assert "rebuild.index_committed" in codes
     assert "rebuild.duplicates_refreshed" in codes
+    assert "rebuild.library_committed" in codes
     assert "rebuild.agreement_checked" in codes
+    assert report["final_snapshot"]["counts"]["library_ready"] is True
     assert DerivedRebuildManager(instance.store).lock_status()["held"] is False
 
 

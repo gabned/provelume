@@ -7,7 +7,7 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 ### Added
 
 - added a versioned schema-2 `instance-manifest.json` that binds stable Instance identity and an
-  explicit include/rebuild policy for retained state, indexes and the future Markdown library;
+  explicit include/rebuild policy for retained state, indexes and the Markdown library;
 - added read-only deep/fast Instance validation plus local `validate`, `migrate`, `backup` and
   `restore` CLI/application-service contracts;
 - added hash-manifested same-Instance ZIP backups with bounded entry, path, symlink, collision,
@@ -22,6 +22,13 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   sorted unique secondary associations and deterministic retained provenance edges;
 - added local hierarchy/classification service and CLI mutations plus aligned read-only API and
   EN/IT Browser hierarchy navigation, breadcrumbs, counts and subtree filtering.
+- added a deterministic staged `library/` projection with root/per-folder README indexes,
+  Area/Project primary paths, Collection associations, unclassified/archive roots and generated
+  Source/date/type views without copying acquired Originals;
+- added hash-manifested library status plus local `library-rebuild` and `library-status`
+  service/CLI contracts and a read-only status API;
+- added safe EN/IT Document Viewer modes for rendered Markdown, raw Markdown, escaped Original
+  text and exact Original download.
 
 ### Changed
 
@@ -31,12 +38,16 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   lifecycle-lock deletion with a kernel-released cross-platform OS lock;
 - made restore extract and validate off to the side, atomically replace the live Instance on the
   same filesystem and restore the verified pre-operation backup if any step fails;
-- excluded disposable `indexes/`, the future `library/` projection and transient locks from local
+- excluded disposable `indexes/`, the generated `library/` projection and transient locks from local
   backups while retaining canonical JSON, exact Originals and Instance state artifacts.
 - made hierarchy rename and movement preserve node identity, Document references and provenance;
   classification remains idempotent and does not copy knowledge or mutate an Original;
 - treated empty hierarchy/classification containers as additive schema-2 state so Instances made
   before this slice remain valid without a second lifecycle migration.
+- made coordinated incremental/full/agreement rebuilds include the Markdown library fingerprint
+  while preserving the same exclusive derived-state lock and canonical-mutation check;
+- kept the implemented Markdown library explicitly disposable under the schema-2 derived-state
+  policy and excluded it from local backups.
 
 ### Reliability and security
 
@@ -46,6 +57,13 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   does not imply preservation of files that were never acquired.
 - added deep validation for hierarchy identities, parent kinds/cycles/depth, deterministic slugs,
   classification references and required association-provenance bindings.
+- made a complete library rebuild bind deep canonical/Original fingerprints before and after
+  staging, restore the previous projection on swap failure and reject modified, stale, symlinked,
+  oversized or path-invalid projection state;
+- escaped raw HTML in rendered Markdown and made authored links/images inert so Viewer content
+  cannot emit document-controlled navigation, resource loading or active elements;
+- made Original downloads verify current Version/Original hash and size bindings before returning
+  attachment bytes.
 
 ## 0.5.1 - 2026-08-28
 

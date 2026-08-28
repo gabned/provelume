@@ -21,6 +21,11 @@ from .ingest import (
 )
 from .ingestion_runs import IngestionLedger
 from .instance_lifecycle import InstanceLifecycleManager
+from .library_projection import (
+    DEFAULT_MAX_LIBRARY_DOCUMENTS,
+    LibraryProjectionManager,
+)
+from .markdown_viewer import MAX_VIEWER_MARKDOWN_CHARS, DocumentContentReader
 from .network_status import declared_network_status
 from .paths import UnsafePathError
 from .storage import InstanceStore
@@ -30,6 +35,8 @@ class ProvelumeInstance:
     def __init__(self, root: Path | str):
         self.store = InstanceStore.open(root)
         self.hierarchy = HierarchyManager(self.store)
+        self.library = LibraryProjectionManager(self.store)
+        self.content = DocumentContentReader(self.store)
 
     @classmethod
     def initialise(
@@ -127,6 +134,16 @@ class ProvelumeInstance:
 
     def restore(self, archive: Path | str) -> dict[str, Any]:
         return InstanceLifecycleManager(self.store).restore(archive)
+
+    def rebuild_library(
+        self,
+        *,
+        max_documents: int = DEFAULT_MAX_LIBRARY_DOCUMENTS,
+    ) -> dict[str, Any]:
+        return self.library.rebuild(max_documents=max_documents)
+
+    def library_status(self) -> dict[str, Any]:
+        return self.library.status()
 
     @staticmethod
     def _date_floor(value: str | None) -> str | None:
@@ -324,6 +341,17 @@ class ProvelumeInstance:
             return None
         text = self.store.read_derived_text(artifact)
         return text[:max_chars]
+
+    def document_content(
+        self,
+        document_id: str,
+        *,
+        max_chars: int = MAX_VIEWER_MARKDOWN_CHARS,
+    ) -> dict[str, Any] | None:
+        return self.content.get(document_id, max_chars=max_chars)
+
+    def document_original(self, document_id: str) -> dict[str, Any] | None:
+        return self.content.verified_original(document_id)
 
     def provenance(self, document_id: str) -> dict[str, Any] | None:
         document = self.get_document(document_id)

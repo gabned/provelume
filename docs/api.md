@@ -84,6 +84,7 @@ operator mutation; no HTTP ingestion or retry route is introduced. See
 - `GET /api/v1/documents/{id}/provenance`
 - `GET /api/v1/documents/{id}/original`
 - `GET /api/v1/documents/{id}/classification`
+- `GET /api/v1/documents/{id}/content?mode=raw|original`
 
 `/documents` supports `source_id`, `media_type`, `area`, `hierarchy_id`,
 `include_descendants`, `date_from` and `date_to`. Date-only values are inclusive for their entire
@@ -91,7 +92,12 @@ UTC day. An `area` is the first logical path component below a Source; it is not
 absolute path or a canonical Area identity. `hierarchy_id` selects Documents whose primary or
 secondary classification is the selected node or, by default, one of its descendants.
 
-The original endpoint returns the preserved bytes of the current DocumentVersion. It resolves only the content-addressed Instance reference recorded in canonical state.
+The original endpoint returns the preserved bytes of the current DocumentVersion as an attachment.
+It resolves only the content-addressed Instance reference recorded in canonical state and verifies
+the current Version/Original hash and size bindings before returning bytes. A mismatch returns
+`409`. The content endpoint is `text/plain`, verifies the same binding and exposes either the raw
+Markdown representation or decoded Original text. Binary/non-UTF-8 Originals return `415` for
+`mode=original`; they are never inlined as active content.
 
 ## Hierarchy and classification
 
@@ -105,6 +111,23 @@ Hierarchy nodes and classification records are canonical JSON. Rename and moveme
 IDs; no API response is generated from a browser-private model. Mutation remains local service/CLI
 authority and is not exposed through HTTP. See
 [`architecture/hierarchical-classification.md`](architecture/hierarchical-classification.md).
+
+## Markdown library and Viewer
+
+- `GET /api/v1/library` — read-only manifest/inventory validation for the generated `library/`;
+- `GET /api/v1/documents/{id}/content?mode=raw|original` — verified plain-text Viewer input;
+- `/documents/{id}?mode=rendered|raw|original` — EN/IT loopback Viewer modes;
+- `GET /api/v1/documents/{id}/original` — exact preserved bytes as a download attachment.
+
+Library status is `missing`, `invalid`, `modified`, `stale` or `ready`. A read never creates or
+repairs the projection. Rebuild remains a local service/CLI mutation through `library-rebuild` or
+the coordinated `rebuild-derived` command; HTTP `POST /api/v1/library` is not defined.
+
+Rendered mode uses a bounded structural Markdown subset. Raw HTML is escaped, while Markdown links
+and images become inert labels with no document-controlled `href` or `src`. Raw and Original text
+are HTML-escaped by the template. The Viewer does not build missing bundles, load local/remote
+document resources, contact a provider or treat projection edits as canonical input. See
+[`architecture/markdown-library-viewer.md`](architecture/markdown-library-viewer.md).
 
 ## Search
 
@@ -133,11 +156,11 @@ The endpoint is read-only and does not mutate canonical, derived or configuratio
 
 ## Read-only boundary
 
-The v1 routes in this slice do not expose mutation endpoints. Ingestion, retry and index rebuild
-are operator actions through the application service/CLI. Instance validation, migration, backup
-and restore are also local service/CLI operations; physical backup paths and restore authority are
-not exposed through HTTP. Future write APIs require separate scope and permission design rather
-than being added implicitly to this read-only surface.
+The v1 routes in this slice do not expose mutation endpoints. Ingestion, retry, index rebuild and
+Markdown-library rebuild are operator actions through the application service/CLI. Instance
+validation, migration, backup and restore are also local service/CLI operations; physical backup
+paths and restore authority are not exposed through HTTP. Future write APIs require separate scope
+and permission design rather than being added implicitly to this read-only surface.
 
 ## Installation security
 

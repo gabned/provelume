@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import PlainTextResponse, Response
 
 from . import __version__
 from .about import current_about
 from .build_info import current_build_info
-from .paths import safe_instance_path
+from .markdown_viewer import DocumentContentError
 from .service import ProvelumeInstance
 
 CLIENT_INSTALLATION_EVIDENCE_PARAMETERS = frozenset(
@@ -81,6 +82,10 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             raise _not_found("hierarchy node", node_id)
         return node
 
+    @router.get("/library")
+    def get_library_status() -> dict[str, Any]:
+        return instance.library_status()
+
     @router.get("/documents")
     def get_documents(
         source_id: str | None = None,
@@ -119,6 +124,31 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             "classification": instance.document_classification(document_id),
         }
 
+    @router.get("/documents/{document_id}/content")
+    def get_document_content(
+        document_id: str,
+        mode: str = Query(default="raw", pattern="^(raw|original)$"),
+    ) -> PlainTextResponse:
+        try:
+            content = instance.document_content(document_id)
+        except DocumentContentError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        if content is None:
+            raise _not_found("document", document_id)
+        value = content["markdown"] if mode == "raw" else content["original_text"]
+        if value is None:
+            raise HTTPException(
+                status_code=415,
+                detail=f"{mode} text representation is unavailable",
+            )
+        return PlainTextResponse(
+            value,
+            headers={
+                "Content-Disposition": "inline",
+                "X-Provelume-Content-Source": str(content["source"]),
+            },
+        )
+
     @router.get("/documents/{document_id}/versions")
     def get_versions(document_id: str) -> list[dict[str, Any]]:
         if instance.get_document(document_id) is None:
@@ -133,18 +163,25 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
         return result
 
     @router.get("/documents/{document_id}/original")
-    def get_original(document_id: str) -> FileResponse:
-        document = instance.get_document(document_id)
-        if document is None:
+    def get_original(document_id: str) -> Response:
+        try:
+            verified = instance.document_original(document_id)
+        except DocumentContentError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        if verified is None:
             raise _not_found("document", document_id)
-        version = instance.current_version(document_id)
-        if version is None:
-            raise _not_found("version", document["current_version_id"])
-        original = instance.store.read_canonical("originals", version["original_id"])
-        if original is None:
-            raise _not_found("original", version["original_id"])
-        path = safe_instance_path(instance.root, original["storage_ref"])
-        return FileResponse(path, media_type=document["media_type"], filename=document["title"])
+        document = verified["document"]
+        version = verified["version"]
+        original = verified["original"]
+        filename = quote(str(document["title"]), safe="") or "original"
+        return Response(
+            content=verified["data"],
+            media_type=str(version["media_type"]),
+            headers={
+                "Content-Disposition": f"attachment; filename*=UTF-8''{filename}",
+                "X-Provelume-Original-SHA256": str(original["sha256"]),
+            },
+        )
 
     @router.get("/search")
     def search(

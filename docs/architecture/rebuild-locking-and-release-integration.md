@@ -18,17 +18,20 @@ lock is stale. Release succeeds only when the on-disk token still belongs to the
 Inspection is read-only, exposes neither token nor physical path, and does not create the lock
 directory.
 
-The lock protects the combined bundle, full-text index and duplicate-evidence rebuild boundary. It
-is not a general scheduler, lease service or distributed lock.
+The lock protects the combined bundle, full-text index, duplicate-evidence and deterministic
+Markdown-library rebuild boundary. It is not a general scheduler, lease service or distributed
+lock.
 
 ## Rebuild modes
 
 `provelume rebuild-derived INSTANCE --mode incremental` validates every current document bundle,
 reconstructs only missing or invalid bundles, rebuilds the index when missing/out-of-date or when a
-current extracted-text artifact is absent, and refreshes duplicate evidence.
+current extracted-text artifact is absent, refreshes duplicate evidence and atomically regenerates
+the Markdown library.
 
 `--mode full` recomputes every current document bundle from the preserved Original, rebuilds the
-full-text index and refreshes duplicate evidence. Existing byte-identical deterministic bundle
+full-text index, refreshes duplicate evidence and regenerates the complete Markdown library.
+Existing byte-identical deterministic bundle
 outputs may remain at their content-addressed path; invalid bundle directories are discarded only
 from rebuildable derived state before reconstruction.
 
@@ -41,6 +44,7 @@ snapshots after each pass and requires their fingerprints to agree. Snapshot com
 - current derived-artifact identities and checksums;
 - normalized index metadata without build time;
 - current exact/probable duplicate identities, rules and document membership.
+- validated library canonical/content fingerprints, primary paths and file counts.
 
 The canonical fingerprint is captured before and after every mode. Any change fails the rebuild;
 reports explicitly state `canonical_mutation: none`.
@@ -61,7 +65,8 @@ merge Documents or remove occurrences.
 
 Every coordinated attempt creates one `rebuild.derived` operation in the navigable operation log.
 Its timeline includes lock acquisition, bundle recovery, child bundle operations, index commit,
-duplicate refresh and optional incremental/full agreement. Reports are retained under:
+duplicate refresh, library commit and optional incremental/full agreement. Reports are retained
+under:
 
 ```text
 state/rebuild/reports/rebuild_<uuid>.json
@@ -74,6 +79,8 @@ provelume rebuild-derived INSTANCE --mode incremental|full|agreement
 provelume rebuild-reports INSTANCE
 provelume rebuild-report INSTANCE REBUILD_ID
 provelume rebuild-lock INSTANCE
+provelume library-rebuild INSTANCE
+provelume library-status INSTANCE
 ```
 
 Read-only API and browser surfaces are:
