@@ -80,7 +80,7 @@ def trusted_request_host(value: str) -> bool:
         return True
     try:
         return ipaddress.ip_address(host).is_loopback
-    except ValueError*
+    except ValueError:
         return False
 
 
