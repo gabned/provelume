@@ -8,7 +8,7 @@ from pathlib import Path
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from .derived import materialize_extracted_text, provenance_edge
-from .domain import Acquisition, Document, DocumentVersion, Source
+from .domain import Acquisition, Document, DocumentVersion, Original, Source
 from .extractors import ExtractionError, extractor_for
 from .ingestion_runs import (
     INGESTION_RUN_SCHEMA_VERSION,
@@ -48,6 +48,11 @@ class IngestionRunResult:
             "items": [asdict(item) for item in self.items],
             "acquisitions": [asdict(item) for item in self.acquisitions],
         }
+
+
+def _stable_document_id(source_id: str, locator: str) -> str:
+    value = f"provelume:document:{source_id}:{normalise_locator(locator)}"
+    return f"doc_{uuid5(NAMESPACE_URL, value).hex}"
 
 
 def _stable_version_id(document_id: str, digest: str) -> str:
@@ -96,6 +101,19 @@ def _ensure_source(
     store.write_source(source)
     store.register_source_path(source_id, canonical_source_path, name=source.name)
     return source_id
+
+
+def _source_for_run(
+    store: InstanceStore,
+    source_path: Path | str,
+    source_name: str | None,
+) -> tuple[str, Path]:
+    requested = Path(source_path).expanduser()
+    source_id = store.find_source_for_path(requested)
+    if source_id is not None:
+        return source_id, store.source_path(source_id) or requested
+    canonical = requested.resolve(strict=True)
+    return _ensure_source(store, canonical, source_name), canonical
 
 
 def _new_run(
@@ -285,8 +303,7 @@ def run_ingestion_filesystem(
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
     max_files: int = DEFAULT_MAX_FILES,
 ) -> IngestionRunResult:
-    canonical_source_path = Path(source_path).expanduser().resolve(strict=True)
-    source_id = _ensure_source(store, canonical_source_path, source_name)
+    source_id, configured_source_path = _source_for_run(store, source_path, source_name)
     ledger = IngestionLedger(store)
     run = _new_run(
         ledger,
@@ -297,6 +314,7 @@ def run_ingestion_filesystem(
     ledger.write_run(run)
 
     try:
+        canonical_source_path = configured_source_path.expanduser().resolve(strict=True)
         files = _iter_files(canonical_source_path, max_files)
     except (IngestionLimitError, OSError, UnsafePathError) as exc:
         closed = _close_run(
@@ -403,14 +421,14 @@ def retry_ingestion_run(store: InstanceStore, run_id: str) -> IngestionRunResult
 
     finished_items: list[IngestionItemRecord] = []
     acquisitions: list[Acquisition] = []
-    for item, previous_item in zip(items, retryable, strict=True):
+    for item in items:
         finished, acquisition = _process_item(
             store,
             ledger,
             item,
             lambda locator=item.locator: _safe_retry_path(source_path, locator),
             max_file_bytes=max_file_bytes,
-            retry_extraction=previous_item.get("outcome") == "extraction_failed",
+            retry_extraction=True,
         )
         finished_items.append(finished)
         if acquisition is not None:
@@ -443,116 +461,41 @@ def ingest_filesystem(
     )
 
 
-def _ingest_one(
+def _extract_version(
     store: InstanceStore,
+    version_id: str,
+    path: Path,
+    data: bytes,
+) -> str | None:
+    extractor = extractor_for(path)
+    if extractor is None:
+        raise IngestionInputError(f"no extractor is available for {path.name}")
+    try:
+        extraction = extractor.extract(data)
+        materialize_extracted_text(store, version_id, extraction)
+    except ExtractionError as exc:
+        return str(exc)
+    return None
+
+
+def _record_matching_acquisition(
+    store: InstanceStore,
+    *,
     source_id: str,
     locator: str,
+    observed_at: str,
+    digest: str,
+    document_id: str,
+    version_id: str,
     path: Path,
-    max_file_bytes: int,
-    *,
-    retry_extraction: bool = False,
+    data: bytes,
+    retry_extraction: bool,
 ) -> Acquisition:
-    observed_at = utc_now()
-    size = path.stat().st_size
-    if size > max_file_bytes:
-        raise IngestionLimitError(f"{locator} exceeds the {max_file_bytes}-byte safety limit")
-
-    data = path.read_bytes()
-    digest = hashlib.sha256(data).hexdigest()
-    original = store.store_original_bytes(data)
-    existing = store.find_document(source_id, locator)
-    media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-
-    if existing is None:
-        document_id = f"doc_{uuid4().hex}"
-        sequence = 1
-    else:
-        document_id = existing["id"]
-        versions = store.versions_for_document(document_id)
-        current = next(
-            item for item in versions if item["id"] == existing["current_version_id"]
-        )
-        if current["content_hash"] == digest:
-            outcome = "unchanged"
-            extraction_error: str | None = None
-            if retry_extraction:
-                artifact = store.derived_artifact_for_version(current["id"])
-                if artifact is not None:
-                    outcome = "extraction_already_recovered"
-                else:
-                    extractor = extractor_for(path)
-                    if extractor is None:
-                        raise IngestionInputError(
-                            f"retry item is no longer a supported file: {locator}"
-                        )
-                    try:
-                        extraction = extractor.extract(data)
-                        materialize_extracted_text(store, current["id"], extraction)
-                        outcome = "extraction_recovered"
-                    except ExtractionError as exc:
-                        outcome = "extraction_failed"
-                        extraction_error = str(exc)
-            acquisition = Acquisition(
-                id=f"acq_{uuid4().hex}",
-                source_id=source_id,
-                locator=locator,
-                observed_at=observed_at,
-                content_hash=digest,
-                outcome=outcome,
-                document_id=document_id,
-                version_id=current["id"],
-                error=extraction_error,
-            )
-            store.write_acquisition(acquisition)
-            store.write_provenance(
-                provenance_edge(
-                    "source",
-                    source_id,
-                    "observed",
-                    "acquisition",
-                    acquisition.id,
-                )
-            )
-            store.write_provenance(
-                provenance_edge(
-                    "acquisition",
-                    acquisition.id,
-                    "matched",
-                    "version",
-                    current["id"],
-                )
-            )
-            return acquisition
-        sequence = max(int(item["sequence"]) for item in versions) + 1
-
-    version_id = _stable_version_id(document_id, digest)
-    version = DocumentVersion(
-        id=version_id,
-        document_id=document_id,
-        sequence=sequence,
-        content_hash=digest,
-        original_id=original.id,
-        media_type=media_type,
-        size_bytes=len(data),
-        acquired_at=observed_at,
-    )
-    store.write_version(version)
-
-    if existing is None:
-        document = Document(
-            id=document_id,
-            source_id=source_id,
-            locator=locator,
-            title=path.name,
-            media_type=media_type,
-            created_at=observed_at,
-            current_version_id=version_id,
-        )
-    else:
-        document = replace(
-            Document(**existing), current_version_id=version_id, media_type=media_type
-        )
-    store.write_document(document)
+    outcome = "unchanged"
+    extraction_error: str | None = None
+    if retry_extraction and store.derived_artifact_for_version(version_id) is None:
+        extraction_error = _extract_version(store, version_id, path, data)
+        outcome = "extraction_failed" if extraction_error else "extraction_recovered"
 
     acquisition = Acquisition(
         id=f"acq_{uuid4().hex}",
@@ -560,22 +503,62 @@ def _ingest_one(
         locator=locator,
         observed_at=observed_at,
         content_hash=digest,
-        outcome="created" if sequence == 1 else "version_created",
+        outcome=outcome,
         document_id=document_id,
         version_id=version_id,
+        error=extraction_error,
     )
+    store.write_acquisition(acquisition)
+    store.write_provenance(
+        provenance_edge(
+            "source",
+            source_id,
+            "observed",
+            "acquisition",
+            acquisition.id,
+        )
+    )
+    store.write_provenance(
+        provenance_edge(
+            "acquisition",
+            acquisition.id,
+            "matched",
+            "version",
+            version_id,
+        )
+    )
+    return acquisition
 
-    extractor = extractor_for(path)
+
+def _record_version_acquisition(
+    store: InstanceStore,
+    *,
+    source_id: str,
+    locator: str,
+    observed_at: str,
+    digest: str,
+    document_id: str,
+    version_id: str,
+    original: Original,
+    path: Path,
+    data: bytes,
+    base_outcome: str,
+) -> Acquisition:
     extraction_error: str | None = None
-    try:
-        assert extractor is not None
-        extraction = extractor.extract(data)
-        materialize_extracted_text(store, version_id, extraction)
-    except ExtractionError as exc:
-        extraction_error = str(exc)
-
-    if extraction_error:
-        acquisition = replace(acquisition, outcome="extraction_failed", error=extraction_error)
+    if store.derived_artifact_for_version(version_id) is None:
+        extraction_error = _extract_version(store, version_id, path, data)
+    outcome = "extraction_failed" if extraction_error else base_outcome
+    acquisition = Acquisition(
+        id=f"acq_{uuid4().hex}",
+        source_id=source_id,
+        locator=locator,
+        observed_at=observed_at,
+        content_hash=digest,
+        outcome=outcome,
+        document_id=document_id,
+        version_id=version_id,
+        error=extraction_error,
+    )
     store.write_acquisition(acquisition)
     store.write_provenance(
         provenance_edge(
@@ -614,3 +597,119 @@ def _ingest_one(
         )
     )
     return acquisition
+
+
+def _ingest_one(
+    store: InstanceStore,
+    source_id: str,
+    locator: str,
+    path: Path,
+    max_file_bytes: int,
+    *,
+    retry_extraction: bool = False,
+) -> Acquisition:
+    observed_at = utc_now()
+    size = path.stat().st_size
+    if size > max_file_bytes:
+        raise IngestionLimitError(f"{locator} exceeds the {max_file_bytes}-byte safety limit")
+
+    data = path.read_bytes()
+    digest = hashlib.sha256(data).hexdigest()
+    original = store.store_original_bytes(data)
+    existing = store.find_document(source_id, locator)
+    media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+
+    if existing is None:
+        document_id = _stable_document_id(source_id, locator)
+        versions = store.versions_for_document(document_id)
+    else:
+        document_id = existing["id"]
+        versions = store.versions_for_document(document_id)
+        current = next(
+            item for item in versions if item["id"] == existing["current_version_id"]
+        )
+        if current["content_hash"] == digest:
+            return _record_matching_acquisition(
+                store,
+                source_id=source_id,
+                locator=locator,
+                observed_at=observed_at,
+                digest=digest,
+                document_id=document_id,
+                version_id=current["id"],
+                path=path,
+                data=data,
+                retry_extraction=retry_extraction,
+            )
+
+    matching = next(
+        (item for item in versions if item["content_hash"] == digest),
+        None,
+    )
+    if matching is None:
+        sequence = max((int(item["sequence"]) for item in versions), default=0) + 1
+        version_id = _stable_version_id(document_id, digest)
+        version = DocumentVersion(
+            id=version_id,
+            document_id=document_id,
+            sequence=sequence,
+            content_hash=digest,
+            original_id=original.id,
+            media_type=media_type,
+            size_bytes=len(data),
+            acquired_at=observed_at,
+        )
+        store.write_version(version)
+        version_created = True
+    else:
+        if matching["original_id"] != original.id:
+            raise IngestionInputError(
+                f"stored Version identity does not match current bytes for {locator}"
+            )
+        version_id = str(matching["id"])
+        version_created = False
+
+    if existing is None:
+        created_at = min(
+            (str(item["acquired_at"]) for item in versions),
+            default=observed_at,
+        )
+        document = Document(
+            id=document_id,
+            source_id=source_id,
+            locator=locator,
+            title=path.name,
+            media_type=media_type,
+            created_at=created_at,
+            current_version_id=version_id,
+        )
+        base_outcome = "created"
+    else:
+        document = replace(
+            Document(**existing),
+            current_version_id=version_id,
+            media_type=media_type,
+        )
+        if version_created:
+            base_outcome = "version_created"
+        else:
+            was_observed = any(
+                acquisition["version_id"] == version_id
+                for acquisition in store.list_canonical("acquisitions")
+            )
+            base_outcome = "version_reused" if was_observed else "version_created"
+    store.write_document(document)
+
+    return _record_version_acquisition(
+        store,
+        source_id=source_id,
+        locator=locator,
+        observed_at=observed_at,
+        digest=digest,
+        document_id=document_id,
+        version_id=version_id,
+        original=original,
+        path=path,
+        data=data,
+        base_outcome=base_outcome,
+    )
