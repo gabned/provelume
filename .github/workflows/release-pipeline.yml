@@ -403,19 +403,19 @@ jobs:
             -Channel "${{ needs.candidate.outputs.channel }}" `
             -Commit "${{ needs.candidate.outputs.commit }}"
 
-      - name: Download and verify the published 0.5.0 upgrade baseline
+      - name: Download and verify the published 0.5.1 upgrade baseline
         shell: pwsh
         run: |
-          $baseline = "$env:RUNNER_TEMP\Provelume-Setup-0.5.0-public.exe"
+          $baseline = "$env:RUNNER_TEMP\Provelume-Setup-0.5.1-public.exe"
           Invoke-WebRequest `
-            -Uri "https://github.com/gabned/provelume/releases/download/v0.5.0/Provelume-Setup-0.5.0-x64.exe" `
+            -Uri "https://github.com/gabned/provelume/releases/download/v0.5.1/Provelume-Setup-0.5.1-x64.exe" `
             -OutFile $baseline
-          if ((Get-Item $baseline).Length -ne 18193123) {
-            throw "Published 0.5.0 installer size differs from the reviewed baseline."
+          if ((Get-Item $baseline).Length -ne 18206254) {
+            throw "Published 0.5.1 installer size differs from the reviewed baseline."
           }
           $hash = (Get-FileHash $baseline -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($hash -ne "c604de1006c6f86a52bf61ca54fe6371e0889f728eb89f25e38776165254ecab") {
-            throw "Published 0.5.0 installer SHA-256 differs from the reviewed baseline."
+          if ($hash -ne "642de2931dc6fbc7f1a58fd490b73c45cef72719bc75c690713076f9bddf268b") {
+            throw "Published 0.5.1 installer SHA-256 differs from the reviewed baseline."
           }
           "PROVELUME_PREVIOUS_INSTALLER=$baseline" | Out-File `
             -FilePath $env:GITHUB_ENV -Append
