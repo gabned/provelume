@@ -9,6 +9,7 @@ from .bundle_cli import add_bundle_commands, handle_bundle_command
 from .inbox import InboxManager
 from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES
 from .operations import OperationLedger
+from .review_cli import add_review_commands, handle_review_command
 from .storage import InstanceStore
 
 
@@ -80,12 +81,16 @@ def add_operational_commands(subparsers: Any) -> None:
     operation.add_argument("operation_id")
 
     add_bundle_commands(subparsers)
+    add_review_commands(subparsers)
 
 
 def handle_operational_command(args: argparse.Namespace) -> int | None:
     bundle_result = handle_bundle_command(args)
     if bundle_result is not None:
         return bundle_result
+    review_result = handle_review_command(args)
+    if review_result is not None:
+        return review_result
 
     if args.command not in {
         "inbox-submit",
