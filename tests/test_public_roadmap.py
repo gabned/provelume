@@ -8,16 +8,17 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 ROADMAP_PATH = ROOT / "docs" / "roadmap.md"
-RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.5.0.md"
+RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.5.1.md"
+BASE_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.5.0.md"
 
 EXPECTED_CONTRACT = {
     "RELEASE_PLAN_SCHEMA": "1",
-    "PLANNED_VERSION": "0.5.0",
-    "MILESTONE_TITLE": "0.5.0",
-    "CURRENT_PACKAGE_VERSION": "0.5.0",
+    "PLANNED_VERSION": "0.5.1",
+    "MILESTONE_TITLE": "0.5.1",
+    "CURRENT_PACKAGE_VERSION": "0.5.1",
     "PACKAGE_VERSION_UPDATE": "APPLIED",
-    "EXECUTION_ISSUE": "72",
-    "PRODUCT_THEME": "DURABLE_INGESTION_INBOX_BUNDLES_ASSURANCE",
+    "EXECUTION_ISSUE": "80",
+    "PRODUCT_THEME": "STABILITY_SECURITY_PERFORMANCE_ACCESSIBILITY",
     "RELEASE_STATUS": "PUBLISHED_PREVIEW",
     "WINDOWS_SIGNING": "NOT_INCLUDED",
     "UPDATE_APPLY_MODE": "USER_CONFIRMED_INSTALLER",
@@ -85,12 +86,20 @@ def test_release_preparation_aligns_package_identity() -> None:
 def test_roadmap_records_published_history_and_next_forecast() -> None:
     roadmap = _read(ROADMAP_PATH)
 
-    for version in ("0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.4.1", "0.5.0"):
+    for version in (
+        "0.1.0",
+        "0.2.0",
+        "0.3.0",
+        "0.4.0",
+        "0.4.1",
+        "0.5.0",
+        "0.5.1",
+    ):
         assert roadmap.count(f"| Published preview | `{version}` |") == 1
     assert "| Next forecast | `0.6.0` |" in roadmap
     assert roadmap.count("| Active implementation |") == 0
-    assert "#66 and #72 (completed)" in roadmap
-    assert "The package and embedded identity are `0.5.0`" in roadmap
+    assert "#80 (completed)" in roadmap
+    assert "The package and embedded identity are `0.5.1`" in roadmap
     assert "`0.6.0` forecast is not active" in roadmap
 
 
@@ -107,6 +116,7 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
         assert f"## {version} -" not in changelog
 
     assert heading_positions == sorted(heading_positions)
+    assert "## 0.5.1 - 2026-08-28" in changelog
     assert "## 0.5.0 - 2026-08-28" in changelog
     assert "Forecast entries describe intended sequencing" in roadmap
     assert "issue just in time" in roadmap
@@ -136,7 +146,7 @@ def test_development_slices_do_not_create_ambiguous_package_versions() -> None:
 
 def test_published_0_5_contract_is_explicit() -> None:
     roadmap = _read(ROADMAP_PATH)
-    release_plan = _read(RELEASE_PLAN_PATH)
+    release_plan = _read(BASE_RELEASE_PLAN_PATH)
 
     for required_contract in (
         "persistent ingestion run/item records",
@@ -326,14 +336,14 @@ def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
     readme = _read(ROOT / "README.md")
 
     assert "[public roadmap](docs/roadmap.md)" in readme
-    assert "[0.5.0 release plan](docs/releases/0.5.0.md)" in readme
-    assert "latest published preview is `v0.5.0`" in readme
+    assert "[0.5.1 release plan](docs/releases/0.5.1.md)" in readme
+    assert "latest published preview is `v0.5.1`" in readme
     assert "[Windows preview guide](docs/windows-preview.md)" in readme
     assert "configure-inbox" in readme
     assert "external Drop folder" in readme
 
 
-@pytest.mark.parametrize("version", ("0.3.0", "0.4.0", "0.4.1"))
+@pytest.mark.parametrize("version", ("0.3.0", "0.4.0", "0.4.1", "0.5.0"))
 def test_previous_release_plans_remain_published(version: str) -> None:
     plan = _read(ROOT / "docs" / "releases" / f"{version}.md")
     block = re.findall(r"^```text\n(.*?)\n```$", plan, re.MULTILINE | re.DOTALL)

@@ -1,8 +1,8 @@
 # Windows product shell preview
 
-Provelume `0.5.0` is the first Windows preview with the durable local-intake product surface.
-Download `Provelume-Setup-0.5.0-x64.exe` from the official GitHub Release and run it as the current
-user. Git and a separately installed Python are not required.
+Provelume `0.5.1` is the current correction preview for the durable local-intake product surface
+introduced by `0.5.0`. Download `Provelume-Setup-0.5.1-x64.exe` from the official GitHub Release
+and run it as the current user. Git and a separately installed Python are not required.
 
 ## What is installed
 
@@ -19,15 +19,15 @@ Three locations remain intentionally separate:
 | portable Instance and preserved originals | `%USERPROFILE%\\Documents\\Provelume` | no |
 
 An upgrade replaces only launcher/runtime files. The portable Instance is opened by the new
-runtime after installation; `0.5.0` introduces no mandatory Instance schema migration. Candidate
-CI installs the immutable public `0.4.1` executable, while the permanent publication pipeline also
-retains the approved `0.4.0` baseline. The upgrade exercise creates a synthetic Instance and
-launcher settings, installs `0.5.0` in place and verifies that the stable AppId, Instance bytes and
+runtime after installation; `0.5.1` introduces no mandatory canonical Instance schema migration.
+Legacy search-index metadata is derived state and is rebuilt transparently. Candidate and official
+release evidence installs the immutable public `0.5.0` executable, creates a synthetic Instance and
+launcher settings, installs `0.5.1` in place and verifies that the stable AppId, Instance bytes and
 launcher settings survive upgrade and uninstall.
 
 ## Local Inbox folders
 
-The `0.5.0` browser adds **Settings** for:
+The `0.5.0` browser introduced, and `0.5.1` retains, **Settings** for:
 
 - the Inbox display name;
 - the Drop folder;
@@ -61,7 +61,7 @@ integrity or signature verdict.
 6. Provelume requires another confirmation before starting the normal installer and closing the
    local server.
 
-No background check is enabled by default. `0.5.0` never applies an update silently.
+No background check is enabled by default. `0.5.1` never applies an update silently.
 
 ## Recovery and limitations
 

@@ -28,6 +28,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.4.0` | Windows product shell preview | #57 (completed) |
 | Published preview | `0.4.1` | Windows product shell hardening | #62 (completed) |
 | Published preview | `0.5.0` | Durable ingestion, configurable local Inbox, document bundles and assurance | #66 and #72 (completed) |
+| Published preview | `0.5.1` | Stability, security, incremental indexing and accessibility hardening | #80 (completed) |
 | Next forecast | `0.6.0` | Portable Instance and hierarchical Markdown library | issue just in time |
 | Forecast | `0.7.0` | Connector framework and safe web intake | issue just in time |
 | Forecast | `0.8.0` | Refresh engine and Source lifecycle | issue just in time |
@@ -47,7 +48,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Release candidate | `0.22.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time |
 | Stable | `1.0.0` | Stable provenance-first platform | issue just in time |
 
-The package and embedded identity are `0.5.0`. The `0.6.0` forecast is not active: only a
+The package and embedded identity are `0.5.1`. The `0.6.0` forecast is not active: only a
 canonical issue and one owner product pull request may activate it and add product work under
 `Unreleased`.
 
@@ -237,6 +238,21 @@ Exact duplicate bytes may share one content-addressed Original, but every drop o
 retains its own Acquisition and routing evidence. Probable duplicates are not silently merged. No
 input is moved before a committed hash-verified acquisition, and a missing external mount is not
 silently recreated. See [`releases/0.5.0.md`](releases/0.5.0.md).
+
+### 0.5.1 — Stability, Security, Performance and Accessibility Baseline
+
+Consolidated the rapid `0.5.0` product growth without changing canonical Instance schema or adding
+a new product capability. The correction restricts local serving to explicit loopback targets,
+rejects hostile Host values, adds private-response security headers, disables the unbounded
+interactive API documentation surface and preserves EN/IT navigation state with keyboard-visible
+accessibility improvements.
+
+Post-ingestion full-text indexing now refreshes only Documents whose searchable current Version
+changed when schema-2 derived metadata and the physical database agree. Missing, legacy, malformed
+or inconsistent derived state falls back to a complete rebuild, and a failed complete replacement
+restores the previous database/metadata pair. Dependency-update proposals remain ordinary PR/CI
+inputs with no release authority; the preview security/support and maintainability boundaries are
+explicit. See [`releases/0.5.1.md`](releases/0.5.1.md).
 
 ## Forecast release-by-release
 
