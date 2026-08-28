@@ -27,7 +27,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.3.0` | Anchored Local Installation Trust | #52 (completed) |
 | Published preview | `0.4.0` | Windows product shell preview | #57 (completed) |
 | Published preview | `0.4.1` | Windows product shell hardening | #62 (completed) |
-| Next forecast | `0.5.0` | Durable ingestion, local Inbox and document bundles | issue just in time; #5 is an input |
+| Active implementation | `0.5.0` | Durable ingestion, local Inbox and document bundles | #66; owner PR #67 (`0.5/S01`); #5 is an input |
 | Forecast | `0.6.0` | Portable Instance and hierarchical Markdown library | issue just in time |
 | Forecast | `0.7.0` | Connector framework and safe web intake | issue just in time |
 | Forecast | `0.8.0` | Refresh engine and Source lifecycle | issue just in time |
@@ -47,9 +47,8 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Release candidate | `0.22.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time |
 | Stable | `1.0.0` | Stable provenance-first platform | issue just in time |
 
-The package and embedded identity are `0.4.1`. The `0.5.0` forecast is not active: only a
-canonical issue and one owner product pull request may activate it and add product work under
-`Unreleased`.
+The package and embedded identity are `0.4.1`. Canonical issue #66 and owner PR #67 activate only
+bounded slice `0.5/S01`; package alignment, tag and publication remain separate later steps.
 
 ## Planning and delivery contract
 
@@ -169,7 +168,7 @@ Delivered the remaining release-bundle portion of #20 through #52:
   configuration;
 - verify the existing bounded bundle contract without network access;
 - validate the released wheel and its internal `RECORD` in memory;
-- compare installed Core package bytes with the released wheel bytes;
+- compare installed Core package bytes with released wheel bytes;
 - preserve RECORD-only verification when no bundle is supplied;
 - expose the same layered evidence through CLI, read-only API and EN/IT browser without
   accepting local paths from HTTP clients.
@@ -219,6 +218,10 @@ preview remains unsigned, user-confirmed and non-automatic. See
 
 **Outcome:** turn filesystem ingestion from a vertical slice into a durable, observable and
 recoverable local intake subsystem with agent-ready document bundles.
+
+**Active slice:** `0.5/S01` implements persistent run/item records, per-item failure isolation,
+explicit retry and read-only observability through issue #66 and owner PR #67. The Drop Inbox,
+document bundles, duplicate behavior and release integration remain later bounded slices.
 
 **Includes:** persistent ingestion runs and per-item results; a filesystem Drop Inbox with
 stabilizing/acquired/duplicate/error/processed states; safe copy by default and optional
