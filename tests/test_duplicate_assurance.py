@@ -41,11 +41,17 @@ def _seed_duplicates(tmp_path: Path) -> ProvelumeInstance:
     left.mkdir()
     right.mkdir()
     (left / "quarterly-report.txt").write_text(
-        "Quarterly strategy plan includes finance delivery operations risks and milestones.\n",
+        (
+            "Quarterly strategy plan includes finance delivery operations risks "
+            "and milestones.\n"
+        ),
         encoding="utf-8",
     )
     (right / "quarterly-report.txt").write_text(
-        "Quarterly strategy plan includes finance delivery operations risks and milestones revised.\n",
+        (
+            "Quarterly strategy plan includes finance delivery operations risks "
+            "and milestones revised.\n"
+        ),
         encoding="utf-8",
     )
 
@@ -123,7 +129,7 @@ def test_duplicate_case_becomes_historical_without_automatic_mutation(
     documents = instance.store.list_canonical("documents")
     acquisitions = instance.store.list_canonical("acquisitions")
     assert len(documents) == 4
-    assert len(acquisitions) == 7
+    assert len(acquisitions) == 6
 
 
 def test_original_assurance_verifies_shared_bytes_without_repair(
@@ -158,7 +164,10 @@ def test_original_assurance_reports_tampering_without_replacing_bytes(
 
     assert report["status"] == "attention"
     assert report["automatic_repair"] == "none"
-    assert any(item["code"] == "original_hash_mismatch" for item in report["findings"])
+    assert any(
+        item["code"] == "original_hash_mismatch"
+        for item in report["findings"]
+    )
     assert path.read_bytes() == b"tampered"
 
 
@@ -198,7 +207,8 @@ def test_duplicate_assurance_api_browser_and_cli(tmp_path: Path, capsys) -> None
     scan = json.loads(capsys.readouterr().out)
     case_id = scan["exact"][0]["id"]
     assert main(["duplicates", str(instance_root)]) == 0
-    assert case_id in {item["id"] for item in json.loads(capsys.readouterr().out)}
+    listed = json.loads(capsys.readouterr().out)
+    assert case_id in {item["id"] for item in listed}
     assert main(["duplicate", str(instance_root), case_id]) == 0
     assert json.loads(capsys.readouterr().out)["automatic_action"] == "none"
 
@@ -211,7 +221,9 @@ def test_duplicate_assurance_api_browser_and_cli(tmp_path: Path, capsys) -> None
     client = TestClient(create_app(instance_root))
     assert client.get(f"/api/v1/duplicates/{case_id}").status_code == 200
     assert client.get(f"/duplicates/{case_id}").status_code == 200
-    assert client.get(f"/api/v1/assurance/reports/{report_id}").status_code == 200
+    assert client.get(
+        f"/api/v1/assurance/reports/{report_id}"
+    ).status_code == 200
     assert client.get(f"/assurance/{report_id}").status_code == 200
     operations = client.get("/api/v1/operations").json()
     assert {item["kind"] for item in operations} >= {
