@@ -131,6 +131,7 @@ def test_bundle_build_all_isolates_document_failure(tmp_path: Path) -> None:
     assert parent["metrics"] == {
         "documents_total": 2,
         "bundles_completed": 1,
+        "bundles_with_warnings": 0,
         "bundles_failed": 1,
     }
     assert {event["code"] for event in parent["events"]} == {
