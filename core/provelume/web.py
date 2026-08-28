@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .about import current_about
+from .activity import attach_activity_routes
 from .api import attach_api, reject_client_installation_evidence
 from .build_info import current_build_info
 from .i18n import SUPPORTED_LANGUAGES, translator
@@ -89,6 +90,7 @@ def create_app(
         instance,
         installation_verification=installation_verification,
     )
+    attach_activity_routes(app, instance, TEMPLATES, _context)
 
     @app.get("/")
     def home(request: Request):

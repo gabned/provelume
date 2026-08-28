@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ t('inbox.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('inbox.eyebrow') }}</p>
+  <h1>{{ t('inbox.title') }}</h1>
+  <p class="lead">{{ t('inbox.lead') }}</p>
+  <p class="technical-note">
+    {{ t('inbox.drop_help') }} <strong>{{ inbox.drop_locator }}</strong>
+  </p>
+</section>
+<section class="metric-grid">
+  <article><strong>{{ inbox.drop_files }}</strong><span>{{ t('inbox.waiting') }}</span></article>
+  <article><strong>{{ inbox.submissions }}</strong><span>{{ t('inbox.submissions') }}</span></article>
+  <article><strong>{{ inbox.completed }}</strong><span>{{ t('inbox.completed') }}</span></article>
+  <article><strong>{{ inbox.attention }}</strong><span>{{ t('inbox.attention') }}</span></article>
+</section>
+<section class="panel">
+  <div class="panel-heading">
+    <h2>{{ t('inbox.recent') }}</h2>
+    <a href="/operations?kind=inbox.submit&lang={{ lang }}">{{ t('operations.title') }}</a>
+  </div>
+  <ul class="document-list">
+  {% for submission in submissions %}
+    <li>
+      <a href="/operations/{{ submission.operation_id }}?lang={{ lang }}">
+        <strong>{{ submission.input_name }}</strong>
+        <span>{{ submission.status }} · {{ submission.mode }} · {{ submission.created_at[:19] }}</span>
+        <span>{{ submission.completed_items }}/{{ submission.total_items }} {{ t('inbox.items_completed') }}</span>
+      </a>
+    </li>
+  {% else %}
+    <li class="empty">{{ t('inbox.empty') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}

@@ -5,6 +5,8 @@ from functools import lru_cache
 from importlib.resources import files
 from typing import Any
 
+from .activity_i18n import ACTIVITY_TRANSLATIONS
+
 SUPPORTED_LANGUAGES = {"en", "it"}
 
 
@@ -15,7 +17,9 @@ def catalog(language: str) -> dict[str, str]:
     value: Any = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise ValueError(f"invalid UI catalog: {selected}")
-    return {str(key): str(text) for key, text in value.items()}
+    result = {str(key): str(text) for key, text in value.items()}
+    result.update(ACTIVITY_TRANSLATIONS.get(selected, {}))
+    return result
 
 
 def translator(language: str):

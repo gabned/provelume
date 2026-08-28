@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ operation.title }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="/operations?lang={{ lang }}">{{ t('operations.title') }}</a>
+  <span>/</span><span>{{ operation.id }}</span>
+</div>
+<section class="document-header">
+  <div>
+    <p class="eyebrow">{{ operation.kind }}</p>
+    <h1>{{ operation.title }}</h1>
+    <div class="status-row">
+      <span class="status {{ 'ok' if operation.status == 'completed' else ('warn' if operation.status in ['completed_with_errors', 'failed'] else 'info') }}">{{ operation.status }}</span>
+      <span>{{ operation.started_at }}</span>
+    </div>
+  </div>
+</section>
+<div class="two-column">
+  <section class="panel">
+    <h2>{{ t('operations.events') }}</h2>
+    <ol class="event-list">
+    {% for event in operation.events %}
+      <li>
+        <div class="event-heading">
+          <strong>{{ event.code }}</strong>
+          <span class="status {{ 'warn' if event.level in ['warning', 'error'] else 'info' }}">{{ event.level }}</span>
+        </div>
+        <p>{{ event.message }}</p>
+        <span>{{ event.at }}</span>
+        {% if event.details %}
+        <pre class="technical-note">{{ event.details | tojson(indent=2) }}</pre>
+        {% endif %}
+      </li>
+    {% else %}
+      <li class="empty">{{ t('operations.no_events') }}</li>
+    {% endfor %}
+    </ol>
+  </section>
+  <aside class="panel">
+    <h2>{{ t('operations.summary') }}</h2>
+    <p>{{ operation.summary or t('common.none') }}</p>
+    <dl>
+      <dt>ID</dt><dd class="hash">{{ operation.id }}</dd>
+      <dt>{{ t('operations.status') }}</dt><dd>{{ operation.status }}</dd>
+      <dt>{{ t('operations.started') }}</dt><dd>{{ operation.started_at }}</dd>
+      <dt>{{ t('operations.completed') }}</dt>
+      <dd>{{ operation.completed_at or t('common.none') }}</dd>
+      {% if operation.related %}
+      <dt>{{ t('operations.related') }}</dt>
+      <dd><pre class="technical-note">{{ operation.related | tojson(indent=2) }}</pre></dd>
+      {% endif %}
+      {% if operation.metrics %}
+      <dt>{{ t('operations.metrics') }}</dt>
+      <dd><pre class="technical-note">{{ operation.metrics | tojson(indent=2) }}</pre></dd>
+      {% endif %}
+      {% if operation.error %}
+      <dt>{{ t('operations.error') }}</dt>
+      <dd>{{ operation.error_code }} · {{ operation.error }}</dd>
+      {% endif %}
+    </dl>
+  </aside>
+</div>
+{% endblock %}
