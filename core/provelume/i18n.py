@@ -6,6 +6,7 @@ from importlib.resources import files
 from typing import Any
 
 from .activity_i18n import ACTIVITY_TRANSLATIONS
+from .rebuild_i18n import REBUILD_TRANSLATIONS
 
 SUPPORTED_LANGUAGES = {"en", "it"}
 
@@ -19,6 +20,7 @@ def catalog(language: str) -> dict[str, str]:
         raise ValueError(f"invalid UI catalog: {selected}")
     result = {str(key): str(text) for key, text in value.items()}
     result.update(ACTIVITY_TRANSLATIONS.get(selected, {}))
+    result.update(REBUILD_TRANSLATIONS.get(selected, {}))
     return result
 
 
