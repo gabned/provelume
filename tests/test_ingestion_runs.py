@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import shutil
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
+import provelume.ingest as ingest_module
 from provelume.cli import main
 from provelume.extractors import ExtractionError, ExtractionResult
 from provelume.ingestion_runs import (
@@ -139,6 +142,115 @@ def test_interrupted_item_retry_is_idempotent(tmp_path: Path) -> None:
     assert len(instance.store.list_canonical("originals")) == 1
     assert len(instance.store.list_canonical("versions")) == 1
     assert len(instance.store.list_canonical("acquisitions")) == 2
+
+
+def test_interrupted_after_document_write_recovers_missing_extraction(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "note.txt").write_text("recover after interruption\n", encoding="utf-8")
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    original_materialize = ingest_module.materialize_extracted_text
+
+    def interrupt_materialization(*_args, **_kwargs):
+        raise RuntimeError("synthetic interruption before derived commit")
+
+    monkeypatch.setattr(
+        ingest_module,
+        "materialize_extracted_text",
+        interrupt_materialization,
+    )
+
+    with pytest.raises(RuntimeError, match="synthetic interruption"):
+        instance.ingest_run(source)
+
+    interrupted = instance.list_ingestion_runs()[0]
+    detail = instance.get_ingestion_run(interrupted["id"])
+    assert interrupted["status"] == "running"
+    assert detail is not None
+    assert detail["items"][0]["status"] == "running"
+    document = instance.store.list_canonical("documents")[0]
+    version_id = document["current_version_id"]
+    assert instance.store.derived_artifact_for_version(version_id) is None
+
+    monkeypatch.setattr(
+        ingest_module,
+        "materialize_extracted_text",
+        original_materialize,
+    )
+    retried = instance.retry_ingestion(interrupted["id"])
+
+    assert retried["run"]["status"] == "completed"
+    assert retried["items"][0]["outcome"] == "extraction_recovered"
+    assert instance.store.derived_artifact_for_version(version_id) is not None
+    assert instance.search("interruption")[0]["document_id"] == document["id"]
+
+
+def test_partial_version_is_reconciled_without_orphan(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "note.txt").write_text("reconcile partial version\n", encoding="utf-8")
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    original_write_document = instance.store.write_document
+
+    def interrupt_document_write(_document) -> None:
+        raise RuntimeError("synthetic interruption after Version commit")
+
+    monkeypatch.setattr(
+        instance.store,
+        "write_document",
+        interrupt_document_write,
+    )
+
+    with pytest.raises(RuntimeError, match="after Version commit"):
+        instance.ingest_run(source)
+
+    interrupted = instance.list_ingestion_runs()[0]
+    partial_versions = instance.store.list_canonical("versions")
+    assert interrupted["status"] == "running"
+    assert instance.store.list_canonical("documents") == []
+    assert len(partial_versions) == 1
+
+    monkeypatch.setattr(
+        instance.store,
+        "write_document",
+        original_write_document,
+    )
+    retried = instance.retry_ingestion(interrupted["id"])
+
+    documents = instance.store.list_canonical("documents")
+    versions = instance.store.list_canonical("versions")
+    assert retried["run"]["status"] == "completed"
+    assert retried["items"][0]["outcome"] == "created"
+    assert len(documents) == 1
+    assert len(versions) == 1
+    assert versions[0]["id"] == partial_versions[0]["id"]
+    assert versions[0]["document_id"] == documents[0]["id"]
+    assert documents[0]["current_version_id"] == versions[0]["id"]
+
+
+def test_missing_configured_source_creates_failed_run(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "note.txt").write_text("configured source\n", encoding="utf-8")
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    completed = instance.ingest_run(source)
+    shutil.rmtree(source)
+
+    failed = instance.ingest_run(source)
+
+    assert completed["run"]["status"] == "completed"
+    assert failed["run"]["status"] == "failed"
+    assert failed["run"]["source_id"] == completed["run"]["source_id"]
+    assert failed["run"]["error_code"] == "input_missing"
+    assert failed["run"]["item_count"] == 0
+    assert failed["items"] == []
+    assert instance.list_ingestion_runs()[0]["id"] == failed["run"]["id"]
 
 
 def test_missing_retry_input_fails_without_mutating_knowledge(tmp_path: Path) -> None:
