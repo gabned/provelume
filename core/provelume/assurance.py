@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from .operations import OperationLedger
 from .paths import safe_instance_path
-from .storage import InstanceStore, utc_now
+from .storage import InstanceStore
 
 ASSURANCE_SCHEMA_VERSION = 1
 MAX_ASSURANCE_RECORDS_PER_KIND = 10_000
@@ -26,7 +26,7 @@ def safe_canonical_records(
     store: InstanceStore,
     kind: str,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Read bounded canonical records without letting one malformed file abort a check."""
+    """Read bounded canonical records without one malformed file aborting a check."""
 
     directory = store.paths.canonical_dir(kind)
     if not directory.exists():
@@ -81,7 +81,7 @@ def safe_canonical_records(
 
 
 class OriginalAssuranceManager:
-    """Verify canonical object and Original integrity without repairing or deleting state."""
+    """Verify canonical references and Original bytes without repairing state."""
 
     def __init__(self, store: InstanceStore):
         self.store = store
@@ -93,7 +93,7 @@ class OriginalAssuranceManager:
         return hashlib.sha256(data).hexdigest()
 
     @staticmethod
-    def _bounded_finding(
+    def _finding(
         severity: str,
         code: str,
         message: str,
@@ -110,20 +110,87 @@ class OriginalAssuranceManager:
         }
 
     @staticmethod
-    def _record_map(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    def _map(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
         return {str(record["id"]): record for record in records}
 
     def _load_all(
         self,
     ) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]]]:
         kinds = ("sources", "originals", "documents", "versions", "acquisitions")
-        result: dict[str, list[dict[str, Any]]] = {}
+        records: dict[str, list[dict[str, Any]]] = {}
         findings: list[dict[str, Any]] = []
         for kind in kinds:
-            records, issues = safe_canonical_records(self.store, kind)
-            result[kind] = records
+            selected, issues = safe_canonical_records(self.store, kind)
+            records[kind] = selected
             findings.extend(issues)
-        return result, findings
+        return records, findings
+
+    def _verify_original(
+        self,
+        original_id: str,
+        original: dict[str, Any],
+        findings: list[dict[str, Any]],
+    ) -> bool:
+        expected_digest = original_id.removeprefix("sha256_")
+        expected_ref = (
+            f"originals/sha256/{expected_digest[:2]}/{expected_digest}"
+            if _SHA256.fullmatch(expected_digest)
+            else ""
+        )
+        storage_ref = original.get("storage_ref")
+        if (
+            not original_id.startswith("sha256_")
+            or _SHA256.fullmatch(expected_digest) is None
+            or original.get("sha256") != expected_digest
+            or storage_ref != expected_ref
+        ):
+            findings.append(
+                self._finding(
+                    "error",
+                    "original_identity_invalid",
+                    f"Original identity or storage reference is invalid: {original_id}",
+                    {"original_id": original_id},
+                )
+            )
+            return False
+        try:
+            path = safe_instance_path(self.store.paths.root, expected_ref)
+            data = path.read_bytes()
+        except (OSError, ValueError):
+            findings.append(
+                self._finding(
+                    "error",
+                    "original_bytes_unavailable",
+                    f"Original bytes are unavailable: {original_id}",
+                    {"original_id": original_id},
+                )
+            )
+            return False
+        try:
+            declared_size = int(original.get("size_bytes"))
+        except (TypeError, ValueError):
+            declared_size = -1
+        if self._sha256(data) != expected_digest:
+            findings.append(
+                self._finding(
+                    "error",
+                    "original_hash_mismatch",
+                    f"Original SHA-256 does not match its identity: {original_id}",
+                    {"original_id": original_id},
+                )
+            )
+            return False
+        if len(data) != declared_size:
+            findings.append(
+                self._finding(
+                    "error",
+                    "original_size_mismatch",
+                    f"Original size does not match its record: {original_id}",
+                    {"original_id": original_id},
+                )
+            )
+            return False
+        return True
 
     def check(self) -> dict[str, Any]:
         operation = self.operations.start(
@@ -134,18 +201,17 @@ class OriginalAssuranceManager:
             ),
         )
         report_id = f"assurance_{uuid4().hex}"
-        started_at = operation.started_at
         findings: list[dict[str, Any]] = []
         try:
             records, parse_findings = self._load_all()
             findings.extend(parse_findings)
-            sources = self._record_map(records["sources"])
-            originals = self._record_map(records["originals"])
-            documents = self._record_map(records["documents"])
-            versions = self._record_map(records["versions"])
-            acquisitions = self._record_map(records["acquisitions"])
-            original_reference_counts = {key: 0 for key in originals}
-            version_reference_counts = {key: 0 for key in versions}
+            sources = self._map(records["sources"])
+            originals = self._map(records["originals"])
+            documents = self._map(records["documents"])
+            versions = self._map(records["versions"])
+            acquisitions = self._map(records["acquisitions"])
+            original_references = {key: 0 for key in originals}
+            version_acquisitions = {key: 0 for key in versions}
 
             self.operations.append(
                 operation.id,
@@ -161,64 +227,10 @@ class OriginalAssuranceManager:
                 },
             )
 
-            verified_originals = 0
-            for original_id, original in sorted(originals.items()):
-                expected_digest = original_id.removeprefix("sha256_")
-                storage_ref = original.get("storage_ref")
-                if (
-                    not original_id.startswith("sha256_")
-                    or _SHA256.fullmatch(expected_digest) is None
-                    or original.get("sha256") != expected_digest
-                    or not isinstance(storage_ref, str)
-                ):
-                    findings.append(
-                        self._bounded_finding(
-                            "error",
-                            "original_identity_invalid",
-                            f"Original identity is invalid: {original_id}",
-                            {"original_id": original_id},
-                        )
-                    )
-                    continue
-                try:
-                    path = safe_instance_path(self.store.paths.root, storage_ref)
-                    data = path.read_bytes()
-                except (OSError, ValueError):
-                    findings.append(
-                        self._bounded_finding(
-                            "error",
-                            "original_bytes_unavailable",
-                            f"Original bytes are unavailable: {original_id}",
-                            {"original_id": original_id},
-                        )
-                    )
-                    continue
-                digest = self._sha256(data)
-                size = len(data)
-                try:
-                    declared_size = int(original.get("size_bytes"))
-                except (TypeError, ValueError):
-                    declared_size = -1
-                if digest != expected_digest:
-                    findings.append(
-                        self._bounded_finding(
-                            "error",
-                            "original_hash_mismatch",
-                            f"Original SHA-256 does not match its identity: {original_id}",
-                            {"original_id": original_id},
-                        )
-                    )
-                elif size != declared_size:
-                    findings.append(
-                        self._bounded_finding(
-                            "error",
-                            "original_size_mismatch",
-                            f"Original size does not match its record: {original_id}",
-                            {"original_id": original_id},
-                        )
-                    )
-                else:
-                    verified_originals += 1
+            verified_originals = sum(
+                self._verify_original(original_id, original, findings)
+                for original_id, original in sorted(originals.items())
+            )
 
             for version_id, version in sorted(versions.items()):
                 document_id = str(version.get("document_id", ""))
@@ -226,7 +238,7 @@ class OriginalAssuranceManager:
                 original = originals.get(original_id)
                 if document_id not in documents:
                     findings.append(
-                        self._bounded_finding(
+                        self._finding(
                             "error",
                             "version_document_missing",
                             f"DocumentVersion has no Document: {version_id}",
@@ -235,7 +247,7 @@ class OriginalAssuranceManager:
                     )
                 if original is None:
                     findings.append(
-                        self._bounded_finding(
+                        self._finding(
                             "error",
                             "version_original_missing",
                             f"DocumentVersion has no Original: {version_id}",
@@ -243,7 +255,7 @@ class OriginalAssuranceManager:
                         )
                     )
                     continue
-                original_reference_counts[original_id] += 1
+                original_references[original_id] += 1
                 try:
                     version_size = int(version.get("size_bytes"))
                     original_size = int(original.get("size_bytes"))
@@ -255,7 +267,7 @@ class OriginalAssuranceManager:
                     or version_size != original_size
                 ):
                     findings.append(
-                        self._bounded_finding(
+                        self._finding(
                             "error",
                             "version_original_mismatch",
                             f"DocumentVersion and Original identities disagree: {version_id}",
@@ -269,7 +281,7 @@ class OriginalAssuranceManager:
                 current = versions.get(current_version_id)
                 if source_id not in sources:
                     findings.append(
-                        self._bounded_finding(
+                        self._finding(
                             "error",
                             "document_source_missing",
                             f"Document has no Source: {document_id}",
@@ -278,18 +290,19 @@ class OriginalAssuranceManager:
                     )
                 if current is None or current.get("document_id") != document_id:
                     findings.append(
-                        self._bounded_finding(
+                        self._finding(
                             "error",
                             "document_current_version_invalid",
-                            f"Document current Version is missing or belongs elsewhere: {document_id}",
+                            (
+                                "Document current Version is missing or belongs elsewhere: "
+                                f"{document_id}"
+                            ),
                             {
                                 "document_id": document_id,
                                 "version_id": current_version_id,
                             },
                         )
                     )
-                else:
-                    version_reference_counts[current_version_id] += 1
 
             for acquisition_id, acquisition in sorted(acquisitions.items()):
                 source_id = str(acquisition.get("source_id", ""))
@@ -298,7 +311,7 @@ class OriginalAssuranceManager:
                 version = versions.get(version_id)
                 if source_id not in sources:
                     findings.append(
-                        self._bounded_finding(
+                        self._finding(
                             "error",
                             "acquisition_source_missing",
                             f"Acquisition has no Source: {acquisition_id}",
@@ -307,7 +320,7 @@ class OriginalAssuranceManager:
                     )
                 if document_id not in documents:
                     findings.append(
-                        self._bounded_finding(
+                        self._finding(
                             "error",
                             "acquisition_document_missing",
                             f"Acquisition has no Document: {acquisition_id}",
@@ -319,16 +332,21 @@ class OriginalAssuranceManager:
                     )
                 if version is None or version.get("document_id") != document_id:
                     findings.append(
-                        self._bounded_finding(
+                        self._finding(
                             "error",
                             "acquisition_version_invalid",
-                            f"Acquisition Version is missing or belongs elsewhere: {acquisition_id}",
+                            (
+                                "Acquisition Version is missing or belongs elsewhere: "
+                                f"{acquisition_id}"
+                            ),
                             {"acquisition_id": acquisition_id, "version_id": version_id},
                         )
                     )
-                elif acquisition.get("content_hash") != version.get("content_hash"):
+                    continue
+                version_acquisitions[version_id] += 1
+                if acquisition.get("content_hash") != version.get("content_hash"):
                     findings.append(
-                        self._bounded_finding(
+                        self._finding(
                             "error",
                             "acquisition_hash_mismatch",
                             f"Acquisition and Version hashes disagree: {acquisition_id}",
@@ -336,46 +354,54 @@ class OriginalAssuranceManager:
                         )
                     )
 
-            for original_id, count in sorted(original_reference_counts.items()):
+            for original_id, count in sorted(original_references.items()):
                 if count == 0:
                     findings.append(
-                        self._bounded_finding(
+                        self._finding(
                             "warning",
                             "original_unreferenced",
                             f"Original is not referenced by any DocumentVersion: {original_id}",
                             {"original_id": original_id},
                         )
                     )
-            for version_id, version in sorted(versions.items()):
-                if version.get("document_id") not in documents:
-                    continue
-                if not any(
-                    item.get("id") == version_id
-                    for item in self.store.versions_for_document(str(version["document_id"]))
-                ):
+            for version_id, count in sorted(version_acquisitions.items()):
+                if count == 0 and versions[version_id].get("document_id") in documents:
                     findings.append(
-                        self._bounded_finding(
+                        self._finding(
                             "warning",
-                            "version_unindexed",
-                            f"DocumentVersion is not discoverable from its Document: {version_id}",
+                            "version_without_acquisition",
+                            f"DocumentVersion has no Acquisition evidence: {version_id}",
                             {"version_id": version_id},
                         )
                     )
 
-            findings = findings[:MAX_ASSURANCE_FINDINGS]
+            total_findings = len(findings)
+            findings_truncated = max(0, total_findings - MAX_ASSURANCE_FINDINGS)
+            if findings_truncated:
+                omitted = total_findings - (MAX_ASSURANCE_FINDINGS - 1)
+                findings = findings[: MAX_ASSURANCE_FINDINGS - 1]
+                findings.append(
+                    self._finding(
+                        "warning",
+                        "findings_truncated",
+                        (
+                            f"Assurance retained {MAX_ASSURANCE_FINDINGS - 1} findings "
+                            f"and omitted {omitted}."
+                        ),
+                    )
+                )
             attention = sum(
                 item["severity"] in {"error", "warning"} for item in findings
             )
-            shared_originals = sum(
-                count > 1 for count in original_reference_counts.values()
-            )
+            shared_originals = sum(count > 1 for count in original_references.values())
             report_status = "healthy" if attention == 0 else "attention"
             operation_status = "completed" if attention == 0 else "completed_with_errors"
             closed = self.operations.close(
                 operation.id,
                 status=operation_status,
                 summary=(
-                    f"Verified {verified_originals} Originals with {attention} attention findings."
+                    f"Verified {verified_originals} Originals with {attention} retained "
+                    "attention findings; no repair was attempted."
                 ),
                 metrics={
                     "sources": len(sources),
@@ -387,6 +413,7 @@ class OriginalAssuranceManager:
                     "acquisitions": len(acquisitions),
                     "findings": len(findings),
                     "attention_findings": attention,
+                    "findings_truncated": findings_truncated,
                 },
             )
             report = {
@@ -394,11 +421,12 @@ class OriginalAssuranceManager:
                 "id": report_id,
                 "operation_id": operation.id,
                 "status": report_status,
-                "started_at": started_at,
+                "started_at": operation.started_at,
                 "completed_at": closed.completed_at,
                 "summary": closed.summary,
                 "metrics": dict(closed.metrics),
                 "findings": findings,
+                "automatic_repair": "none",
             }
             self.reports.mkdir(parents=True, exist_ok=True)
             self.store._atomic_json(self.reports / f"{report_id}.json", report)
@@ -431,6 +459,7 @@ class OriginalAssuranceManager:
             and value.get("status") in {"healthy", "attention"}
             and isinstance(value.get("findings"), list)
             and isinstance(value.get("metrics"), dict)
+            and value.get("automatic_repair") == "none"
         )
 
     def list_reports(self, *, limit: int = 100) -> list[dict[str, Any]]:
