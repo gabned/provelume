@@ -29,3 +29,22 @@ def test_windows_upgrade_uses_immutable_public_installer_baselines() -> None:
         in text
     )
     assert 'releases/download/v0.5.0/Provelume-Setup-0.5.0-x64.exe' in text
+
+
+def test_windows_upgrade_proves_controlled_instance_schema_migration() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+
+    assert "LegacyInstanceConfigSha256" in text
+    assert "The installer mutated the Instance" in text
+    assert 'Join-Path $InstanceRoot "instance-manifest.json"' in text
+    assert "state\\migrations\\receipts\\instance-schema-1-to-2.json" in text
+    assert '$Instance.schema_version -ne 2' in text
+    assert '$Instance.manifest_schema_version -ne 1' in text
+    assert '$Instance.migrations_applied -ne 1' in text
+    assert '$Manifest.derived_state.indexes -ne "rebuild"' in text
+    assert '$Manifest.derived_state.library -ne "rebuild"' in text
+    assert '$Manifest.derived_state.state_artifacts -ne "include"' in text
+    assert '$Receipt.preflight_content_fingerprint -notmatch' in text
+    assert '$Receipt.backup.sha256 -notmatch' in text
+    assert "ExpectedMigrationBackupSha256" in text
+    assert 'instance_schema_migration_and_backup = "PASS"' in text

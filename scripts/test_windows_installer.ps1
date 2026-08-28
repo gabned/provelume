@@ -209,6 +209,29 @@ function Get-FreeLoopbackPort {
     }
 }
 
+function Get-YamlScalar {
+    param(
+        [Parameter(Mandatory = $true)][string]$Text,
+        [Parameter(Mandatory = $true)][string]$Key
+    )
+    $Match = [regex]::Match(
+        $Text,
+        "(?m)^\s{2}$([regex]::Escape($Key)):\s*(?<value>[^\r\n]+?)\s*$"
+    )
+    if (-not $Match.Success) {
+        throw "Instance configuration is missing the expected $Key value."
+    }
+    $Value = $Match.Groups["value"].Value.Trim()
+    if (
+        $Value.Length -ge 2 -and
+        (($Value.StartsWith("'") -and $Value.EndsWith("'")) -or
+        ($Value.StartsWith('"') -and $Value.EndsWith('"')))
+    ) {
+        return $Value.Substring(1, $Value.Length - 2)
+    }
+    return $Value
+}
+
 New-Item -ItemType Directory -Force -Path $EvidenceRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $SyntheticLocalAppData | Out-Null
 
@@ -266,6 +289,19 @@ try {
     if (-not (Test-Path $InstanceConfig)) {
         throw "Published baseline could not bootstrap the synthetic Instance."
     }
+    $LegacyConfigText = [System.IO.File]::ReadAllText(
+        $InstanceConfig,
+        [System.Text.Encoding]::UTF8
+    )
+    if ($LegacyConfigText -notmatch '(?m)^schema_version:\s+1\s*$') {
+        throw "Published baseline did not create the expected schema-1 Instance."
+    }
+    $LegacyInstanceId = Get-YamlScalar -Text $LegacyConfigText -Key "id"
+    $LegacyInstanceName = Get-YamlScalar -Text $LegacyConfigText -Key "name"
+    $LegacyInstanceCreatedAt = Get-YamlScalar -Text $LegacyConfigText -Key "created_at"
+    if ($LegacyInstanceName -ne "Windows CI Instance – sintética 日本") {
+        throw "Published baseline changed the synthetic Instance identity."
+    }
     [System.IO.File]::WriteAllText(
         (Join-Path $InstanceRoot "upgrade-preservation-marker.txt"),
         "synthetic upgrade preservation evidence`n",
@@ -284,7 +320,7 @@ try {
         (($Settings | ConvertTo-Json) + "`n"),
         [System.Text.UTF8Encoding]::new($false)
     )
-    $ExpectedInstanceConfigSha256 = (
+    $LegacyInstanceConfigSha256 = (
         Get-FileHash $InstanceConfig -Algorithm SHA256
     ).Hash.ToLowerInvariant()
     $ExpectedMarkerSha256 = (
@@ -299,6 +335,14 @@ try {
     # Install the candidate over the public baseline. The stable AppId must replace one product.
     Install-Provelume -Setup $InstallerPath -Directory $InstallRoot
     Assert-SingleProductRegistration -ExpectedInstallRoot $InstallRoot
+    $InstanceManifest = Join-Path $InstanceRoot "instance-manifest.json"
+    if (
+        (Get-FileHash $InstanceConfig -Algorithm SHA256).Hash.ToLowerInvariant() -ne
+            $LegacyInstanceConfigSha256 -or
+        (Test-Path $InstanceManifest)
+    ) {
+        throw "The installer mutated the Instance instead of leaving migration to the Core."
+    }
 
     # The frozen product must run without Git or Python on PATH and ignore hostile Python env vars.
     try {
@@ -402,7 +446,15 @@ try {
             $Build.version -ne $ExpectedVersion -or
             $Build.commit -ne $ExpectedCommit -or
             $Build.channel -ne $ExpectedChannel -or
-            $Instance.name -ne "Windows CI Instance – sintética 日本"
+            $Instance.id -ne $LegacyInstanceId -or
+            $Instance.name -ne $LegacyInstanceName -or
+            $Instance.schema_version -ne 2 -or
+            $Instance.manifest_schema_version -ne 1 -or
+            $Instance.derived_state.indexes -ne "rebuild" -or
+            $Instance.derived_state.library -ne "rebuild" -or
+            $Instance.derived_state.state_artifacts -ne "include" -or
+            $Instance.migrations_applied -ne 1 -or
+            $Instance.lifecycle_recoveries -ne 0
         ) {
             throw "Candidate backend identity or preserved Instance is inconsistent."
         }
@@ -414,6 +466,82 @@ try {
         }
     }
 
+    # Verify the controlled migration receipt and its independently hashed rollback backup.
+    $MigrationReceiptPath = Join-Path $InstanceRoot (
+        "state\migrations\receipts\instance-schema-1-to-2.json"
+    )
+    if (
+        -not (Test-Path $InstanceManifest) -or
+        -not (Test-Path $MigrationReceiptPath)
+    ) {
+        throw "Schema migration did not leave its manifest and durable receipt."
+    }
+    $Manifest = Get-Content $InstanceManifest -Raw | ConvertFrom-Json
+    $Receipt = Get-Content $MigrationReceiptPath -Raw | ConvertFrom-Json
+    if (
+        $Manifest.schema_version -ne 1 -or
+        $Manifest.instance_schema_version -ne 2 -or
+        $Manifest.instance.id -ne $LegacyInstanceId -or
+        $Manifest.instance.created_at -ne $LegacyInstanceCreatedAt -or
+        $Manifest.derived_state.indexes -ne "rebuild" -or
+        $Manifest.derived_state.library -ne "rebuild" -or
+        $Manifest.derived_state.state_artifacts -ne "include" -or
+        @($Manifest.migrations).Count -ne 1 -or
+        $Manifest.migrations[0].id -ne "instance-schema-1-to-2" -or
+        $Manifest.migrations[0].receipt -ne (
+            "state/migrations/receipts/instance-schema-1-to-2.json"
+        ) -or
+        $Receipt.schema_version -ne 1 -or
+        $Receipt.migration_id -ne "instance-schema-1-to-2" -or
+        $Receipt.status -ne "completed" -or
+        $Receipt.from_instance_schema_version -ne 1 -or
+        $Receipt.to_instance_schema_version -ne 2 -or
+        $Receipt.instance_id -ne $LegacyInstanceId -or
+        $Receipt.preflight_content_fingerprint -notmatch '^[0-9a-f]{64}$' -or
+        $Receipt.backup.archive_name -notmatch '^backup_[^\\/]+\.zip$' -or
+        $Receipt.backup.sha256 -notmatch '^[0-9a-f]{64}$' -or
+        $Receipt.backup.size_bytes -le 0
+    ) {
+        throw "Schema migration manifest or receipt is inconsistent."
+    }
+    $BackupDirectory = Join-Path (Split-Path $InstanceRoot -Parent) (
+        ".$(Split-Path $InstanceRoot -Leaf).provelume\backups"
+    )
+    $MigrationBackupPath = Join-Path $BackupDirectory $Receipt.backup.archive_name
+    if (
+        -not (Test-Path $MigrationBackupPath) -or
+        (Get-Item $MigrationBackupPath).Length -ne $Receipt.backup.size_bytes -or
+        (Get-FileHash $MigrationBackupPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne
+            $Receipt.backup.sha256
+    ) {
+        throw "Schema migration rollback backup is missing or does not match its receipt."
+    }
+    $MigratedConfigText = [System.IO.File]::ReadAllText(
+        $InstanceConfig,
+        [System.Text.Encoding]::UTF8
+    )
+    if (
+        $MigratedConfigText -notmatch '(?m)^schema_version:\s+2\s*$' -or
+        (Get-YamlScalar -Text $MigratedConfigText -Key "id") -ne $LegacyInstanceId -or
+        (Get-YamlScalar -Text $MigratedConfigText -Key "name") -ne $LegacyInstanceName -or
+        (Get-YamlScalar -Text $MigratedConfigText -Key "created_at") -ne
+            $LegacyInstanceCreatedAt
+    ) {
+        throw "Schema migration changed the stable Instance identity."
+    }
+    $ExpectedMigratedConfigSha256 = (
+        Get-FileHash $InstanceConfig -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $ExpectedInstanceManifestSha256 = (
+        Get-FileHash $InstanceManifest -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $ExpectedMigrationReceiptSha256 = (
+        Get-FileHash $MigrationReceiptPath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $ExpectedMigrationBackupSha256 = (
+        Get-FileHash $MigrationBackupPath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+
     # Reinstall once more, then uninstall the candidate while retaining state and the Instance.
     Install-Provelume -Setup $InstallerPath -Directory $InstallRoot
     Assert-SingleProductRegistration -ExpectedInstallRoot $InstallRoot
@@ -421,7 +549,14 @@ try {
     if (Test-Path $Executable) {
         throw "Uninstall left the installed executable behind."
     }
-    if (-not (Test-Path $InstanceConfig) -or -not (Test-Path $SettingsPath)) {
+    if (
+        -not (Test-Path $InstanceConfig) -or
+        -not (Test-Path $InstanceManifest) -or
+        -not (Test-Path $MigrationReceiptPath) -or
+        -not (Test-Path $MigrationBackupPath) -or
+        -not (Test-Path (Join-Path $InstanceRoot "upgrade-preservation-marker.txt")) -or
+        -not (Test-Path $SettingsPath)
+    ) {
         throw "Uninstall removed the separate Instance or launcher settings."
     }
     $ConfigText = [System.IO.File]::ReadAllText(
@@ -434,12 +569,22 @@ try {
     )
     $SettingsAfterUninstall = Get-Content $SettingsPath -Raw | ConvertFrom-Json
     if (
-        $ConfigText -notmatch '(?m)^schema_version:\s+1\s*$' -or
+        $ConfigText -notmatch '(?m)^schema_version:\s+2\s*$' -or
         $ConfigText -notmatch '(?m)^instance:\s*$' -or
+        (Get-YamlScalar -Text $ConfigText -Key "id") -ne $LegacyInstanceId -or
+        (Get-YamlScalar -Text $ConfigText -Key "name") -ne $LegacyInstanceName -or
+        (Get-YamlScalar -Text $ConfigText -Key "created_at") -ne
+            $LegacyInstanceCreatedAt -or
         $MarkerText -ne "synthetic upgrade preservation evidence`n" -or
         $SettingsAfterUninstall.instance_path -ne $InstanceRoot -or
         (Get-FileHash $InstanceConfig -Algorithm SHA256).Hash.ToLowerInvariant() -ne
-            $ExpectedInstanceConfigSha256 -or
+            $ExpectedMigratedConfigSha256 -or
+        (Get-FileHash $InstanceManifest -Algorithm SHA256).Hash.ToLowerInvariant() -ne
+            $ExpectedInstanceManifestSha256 -or
+        (Get-FileHash $MigrationReceiptPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne
+            $ExpectedMigrationReceiptSha256 -or
+        (Get-FileHash $MigrationBackupPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne
+            $ExpectedMigrationBackupSha256 -or
         (Get-FileHash (Join-Path $InstanceRoot "upgrade-preservation-marker.txt") `
             -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedMarkerSha256 -or
         (Get-FileHash $SettingsPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne
@@ -470,6 +615,7 @@ try {
             in_place_upgrade_and_single_app_id = "PASS"
             launcher_settings_preserved = "PASS"
             instance_preserved_and_readable = "PASS"
+            instance_schema_migration_and_backup = "PASS"
             bundled_runtime_without_python_or_git = "PASS"
             loopback_backend_identity_and_readiness = "PASS"
             reinstall_and_uninstall = "PASS"
