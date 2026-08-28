@@ -1,0 +1,427 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+from .instance_schema import (
+    CURRENT_INSTANCE_SCHEMA_VERSION,
+    DERIVED_STATE_POLICY,
+    LEGACY_INSTANCE_SCHEMA_VERSION,
+    manifest_validation_errors,
+)
+from .paths import UnsafePathError, safe_instance_path
+from .storage import CANONICAL_KINDS, InstanceStore
+
+VALIDATION_REPORT_SCHEMA_VERSION = 1
+_INSTANCE_ID = re.compile(r"inst_[0-9a-f]{32}\Z")
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+
+
+def _finding(code: str, message: str, *, path: str | None = None) -> dict[str, str]:
+    value = {"code": code, "message": message}
+    if path is not None:
+        value["path"] = path
+    return value
+
+
+def _load_config(path: Path) -> tuple[dict[str, Any] | None, str | None]:
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            value = yaml.safe_load(handle) or {}
+    except (OSError, UnicodeError, yaml.YAMLError) as exc:
+        return None, str(exc)
+    if not isinstance(value, dict):
+        return None, "provelume.yml must contain a mapping"
+    return value, None
+
+
+def _load_json(path: Path) -> tuple[dict[str, Any] | None, str | None]:
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            value = json.load(handle)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        return None, str(exc)
+    if not isinstance(value, dict):
+        return None, "expected a JSON object"
+    return value, None
+
+
+def _canonical_records(
+    store: InstanceStore,
+    errors: list[dict[str, str]],
+) -> dict[str, dict[str, dict[str, Any]]]:
+    records: dict[str, dict[str, dict[str, Any]]] = {}
+    for kind in CANONICAL_KINDS:
+        directory = store.paths.canonical_dir(kind)
+        selected: dict[str, dict[str, Any]] = {}
+        records[kind] = selected
+        if not directory.is_dir():
+            errors.append(
+                _finding(
+                    "canonical_directory_missing",
+                    f"canonical directory is missing: knowledge/{kind}",
+                    path=f"knowledge/{kind}",
+                )
+            )
+            continue
+        for path in sorted(directory.glob("*.json")):
+            relative = path.relative_to(store.paths.root).as_posix()
+            value, problem = _load_json(path)
+            if problem is not None or value is None:
+                errors.append(
+                    _finding(
+                        "canonical_record_invalid",
+                        f"canonical record cannot be read: {problem}",
+                        path=relative,
+                    )
+                )
+                continue
+            record_id = value.get("id")
+            if not isinstance(record_id, str) or not record_id:
+                errors.append(
+                    _finding(
+                        "canonical_id_invalid",
+                        "canonical record has no valid ID",
+                        path=relative,
+                    )
+                )
+                continue
+            if path.stem != record_id:
+                errors.append(
+                    _finding(
+                        "canonical_filename_mismatch",
+                        "canonical filename does not match its record ID",
+                        path=relative,
+                    )
+                )
+            if record_id in selected:
+                errors.append(
+                    _finding(
+                        "canonical_id_duplicate",
+                        "canonical record ID is duplicated",
+                        path=relative,
+                    )
+                )
+                continue
+            selected[record_id] = value
+    return records
+
+
+def _validate_references(
+    records: Mapping[str, Mapping[str, Mapping[str, Any]]],
+    errors: list[dict[str, str]],
+) -> None:
+    sources = records["sources"]
+    documents = records["documents"]
+    versions = records["versions"]
+    originals = records["originals"]
+
+    for record_id, document in documents.items():
+        path = f"knowledge/documents/{record_id}.json"
+        if document.get("source_id") not in sources:
+            errors.append(
+                _finding(
+                    "document_source_missing",
+                    "Document references a missing Source",
+                    path=path,
+                )
+            )
+        current = document.get("current_version_id")
+        version = versions.get(str(current))
+        if version is None or version.get("document_id") != record_id:
+            errors.append(
+                _finding(
+                    "document_current_version_missing",
+                    "Document current Version is missing or belongs to another Document",
+                    path=path,
+                )
+            )
+
+    for record_id, version in versions.items():
+        path = f"knowledge/versions/{record_id}.json"
+        if version.get("document_id") not in documents:
+            errors.append(
+                _finding(
+                    "version_document_missing",
+                    "Version references a missing Document",
+                    path=path,
+                )
+            )
+        if version.get("original_id") not in originals:
+            errors.append(
+                _finding(
+                    "version_original_missing",
+                    "Version references a missing Original",
+                    path=path,
+                )
+            )
+
+    for record_id, acquisition in records["acquisitions"].items():
+        path = f"knowledge/acquisitions/{record_id}.json"
+        for key, selected, code in (
+            ("source_id", sources, "acquisition_source_missing"),
+            ("document_id", documents, "acquisition_document_missing"),
+            ("version_id", versions, "acquisition_version_missing"),
+        ):
+            value = acquisition.get(key)
+            if not isinstance(value, str) or value not in selected:
+                errors.append(
+                    _finding(
+                        code,
+                        f"Acquisition references a missing {key.removesuffix('_id')}",
+                        path=path,
+                    )
+                )
+
+
+def _validate_originals(
+    store: InstanceStore,
+    originals: Mapping[str, Mapping[str, Any]],
+    errors: list[dict[str, str]],
+    fingerprint_rows: list[str],
+) -> int:
+    valid_files = 0
+    for record_id, original in originals.items():
+        record_path = f"knowledge/originals/{record_id}.json"
+        digest = original.get("sha256")
+        size = original.get("size_bytes")
+        reference = original.get("storage_ref")
+        if (
+            not isinstance(digest, str)
+            or _SHA256.fullmatch(digest) is None
+            or record_id != f"sha256_{digest}"
+            or type(size) is not int
+            or size < 0
+            or not isinstance(reference, str)
+        ):
+            errors.append(
+                _finding(
+                    "original_record_invalid",
+                    "Original identity, hash, size or storage reference is invalid",
+                    path=record_path,
+                )
+            )
+            continue
+        try:
+            target = safe_instance_path(store.paths.root, reference)
+        except UnsafePathError as exc:
+            errors.append(
+                _finding(
+                    "original_path_unsafe",
+                    str(exc),
+                    path=record_path,
+                )
+            )
+            continue
+        if not target.is_file() or target.is_symlink():
+            errors.append(
+                _finding(
+                    "original_file_missing",
+                    "Original bytes are missing or are not a regular file",
+                    path=reference,
+                )
+            )
+            continue
+        actual_digest = hashlib.sha256()
+        actual_size = 0
+        try:
+            with target.open("rb") as handle:
+                while chunk := handle.read(1024 * 1024):
+                    actual_digest.update(chunk)
+                    actual_size += len(chunk)
+        except OSError as exc:
+            errors.append(
+                _finding(
+                    "original_file_unreadable",
+                    str(exc),
+                    path=reference,
+                )
+            )
+            continue
+        actual = actual_digest.hexdigest()
+        if actual != digest or actual_size != size:
+            errors.append(
+                _finding(
+                    "original_integrity_mismatch",
+                    "Original bytes do not match their canonical hash and size",
+                    path=reference,
+                )
+            )
+            continue
+        valid_files += 1
+        fingerprint_rows.append(f"{reference}:{actual}:{actual_size}")
+    return valid_files
+
+
+def inspect_instance(root: Path | str, *, deep: bool = True) -> dict[str, Any]:
+    """Validate one Instance without migrating, repairing or rebuilding it."""
+
+    store = InstanceStore(root)
+    errors: list[dict[str, str]] = []
+    warnings: list[dict[str, str]] = []
+    config, config_problem = _load_config(store.paths.config)
+    if config_problem is not None or config is None:
+        errors.append(
+            _finding(
+                "configuration_invalid",
+                f"provelume.yml cannot be read: {config_problem}",
+                path="provelume.yml",
+            )
+        )
+        return {
+            "schema_version": VALIDATION_REPORT_SCHEMA_VERSION,
+            "status": "invalid",
+            "instance_id": None,
+            "instance_schema_version": None,
+            "current_instance_schema_version": CURRENT_INSTANCE_SCHEMA_VERSION,
+            "migration_required": False,
+            "deep": deep,
+            "derived_state": dict(DERIVED_STATE_POLICY),
+            "content_fingerprint": None,
+            "counts": {"canonical_records": 0, "original_files": 0},
+            "errors": errors,
+            "warnings": warnings,
+        }
+
+    schema = config.get("schema_version")
+    instance = config.get("instance")
+    instance_id = instance.get("id") if isinstance(instance, Mapping) else None
+    if type(schema) is not int:
+        errors.append(
+            _finding(
+                "instance_schema_invalid",
+                "Instance schema version must be an integer",
+                path="provelume.yml",
+            )
+        )
+    elif schema > CURRENT_INSTANCE_SCHEMA_VERSION:
+        errors.append(
+            _finding(
+                "unsupported_future_schema",
+                "Instance was created by a newer unsupported Provelume Core",
+                path="provelume.yml",
+            )
+        )
+    elif schema not in {
+        LEGACY_INSTANCE_SCHEMA_VERSION,
+        CURRENT_INSTANCE_SCHEMA_VERSION,
+    }:
+        errors.append(
+            _finding(
+                "unsupported_legacy_schema",
+                "Instance schema has no supported forward migration path",
+                path="provelume.yml",
+            )
+        )
+
+    if (
+        not isinstance(instance, Mapping)
+        or not isinstance(instance_id, str)
+        or _INSTANCE_ID.fullmatch(instance_id) is None
+        or not isinstance(instance.get("name"), str)
+        or not str(instance["name"]).strip()
+        or not isinstance(instance.get("created_at"), str)
+        or not str(instance["created_at"]).strip()
+    ):
+        errors.append(
+            _finding(
+                "instance_identity_invalid",
+                "Instance ID, name or creation time is invalid",
+                path="provelume.yml",
+            )
+        )
+
+    migration_required = schema == LEGACY_INSTANCE_SCHEMA_VERSION
+    if migration_required:
+        warnings.append(
+            _finding(
+                "migration_required",
+                "Instance schema 1 requires the supported forward migration to schema 2",
+                path="provelume.yml",
+            )
+        )
+    elif schema == CURRENT_INSTANCE_SCHEMA_VERSION:
+        manifest, manifest_problem = _load_json(store.paths.manifest)
+        if manifest_problem is not None or manifest is None:
+            errors.append(
+                _finding(
+                    "instance_manifest_invalid",
+                    f"Instance manifest cannot be read: {manifest_problem}",
+                    path="instance-manifest.json",
+                )
+            )
+        else:
+            for problem in manifest_validation_errors(manifest, config=config):
+                errors.append(
+                    _finding(
+                        "instance_manifest_invalid",
+                        problem,
+                        path="instance-manifest.json",
+                    )
+                )
+
+    records = {kind: {} for kind in CANONICAL_KINDS}
+    fingerprint_rows = []
+    original_files = 0
+    if deep and schema in {
+        LEGACY_INSTANCE_SCHEMA_VERSION,
+        CURRENT_INSTANCE_SCHEMA_VERSION,
+    }:
+        for path in sorted(store.paths.root.rglob("*")):
+            if path.is_symlink():
+                errors.append(
+                    _finding(
+                        "instance_symlink_unsupported",
+                        "Instance-internal symbolic links are not supported",
+                        path=path.relative_to(store.paths.root).as_posix(),
+                    )
+                )
+        records = _canonical_records(store, errors)
+        _validate_references(records, errors)
+        original_files = _validate_originals(
+            store,
+            records["originals"],
+            errors,
+            fingerprint_rows,
+        )
+        for kind in CANONICAL_KINDS:
+            for record_id, value in sorted(records[kind].items()):
+                encoded = json.dumps(
+                    value,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                ).encode("utf-8")
+                fingerprint_rows.append(
+                    f"knowledge/{kind}/{record_id}.json:"
+                    f"{hashlib.sha256(encoded).hexdigest()}"
+                )
+
+    fingerprint = None
+    if deep and not errors:
+        fingerprint = hashlib.sha256(
+            "\n".join(sorted(fingerprint_rows)).encode("utf-8")
+        ).hexdigest()
+    return {
+        "schema_version": VALIDATION_REPORT_SCHEMA_VERSION,
+        "status": "valid" if not errors else "invalid",
+        "instance_id": instance_id if isinstance(instance_id, str) else None,
+        "instance_schema_version": schema if type(schema) is int else None,
+        "current_instance_schema_version": CURRENT_INSTANCE_SCHEMA_VERSION,
+        "migration_required": migration_required,
+        "deep": deep,
+        "derived_state": dict(DERIVED_STATE_POLICY),
+        "content_fingerprint": fingerprint,
+        "counts": {
+            "canonical_records": sum(len(values) for values in records.values()),
+            "original_files": original_files,
+        },
+        "errors": errors,
+        "warnings": warnings,
+    }

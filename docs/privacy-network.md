@@ -23,7 +23,10 @@ flags locally and fails closed before making a request if they are not enabled.
 
 The Instance-aware Privacy & Network Activity surfaces—`provelume network-status <instance>`, `GET /api/v1/security/network` and `/security/network`—read local configuration only. They enumerate the built-in update-check capability, configured Sources, and any connector/provider declarations. Filesystem Source paths are never returned. External HTTP(S) endpoints are shown only as safe origins, and declared data-category identifiers are shown only when configured.
 
-The effective state is `local_only`, `external_access_allowed` or `attention`. The default schema-1 Instance is `local_only` with zero enabled external components. Enabled update checks without an endpoint, enabled external components while external access is disabled, malformed declarations and unknown component types are reported explicitly as conflicts.
+The effective state is `local_only`, `external_access_allowed` or `attention`. The default schema-2
+Instance is `local_only` with zero enabled external components. Enabled update checks without an
+endpoint, enabled external components while external access is disabled, malformed declarations
+and unknown component types are reported explicitly as conflicts.
 
 This is configured-capability transparency, not traffic monitoring. `observed_activity.status: not_instrumented` means runtime traffic has not been measured. It must never be presented as a zero-traffic verdict. Reading any of these surfaces performs no network request and mutates no Instance state.
 

@@ -14,6 +14,11 @@ Extracted text, derived-artifact manifests and search indexes live under `state/
 
 The first search implementation uses local SQLite FTS5 only as a rebuildable index. SQLite is not the authoritative knowledge format.
 
+Instance schema 2 makes backup treatment explicit without promoting derived data to canonical
+authority: retained `state/` artifacts are included for operational continuity, while `indexes/`
+and the filesystem `library/` projection are excluded and rebuilt. Inclusion in a backup is a
+retention/continuity choice, not a claim that the artifact becomes authoritative.
+
 ## Human-facing Markdown
 
 Markdown is the first-class portable reading and classic-navigation format, but it is not a

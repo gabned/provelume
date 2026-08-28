@@ -57,6 +57,13 @@ def test_read_only_api_contract(tmp_path: Path) -> None:
     summary = client.get("/api/v1/instance")
     assert summary.status_code == 200
     assert summary.json()["documents"] == 2
+    assert summary.json()["schema_version"] == 2
+    assert summary.json()["manifest_schema_version"] == 1
+    assert summary.json()["derived_state"] == {
+        "indexes": "rebuild",
+        "library": "rebuild",
+        "state_artifacts": "include",
+    }
     assert summary.json()["network"] == {
         "external_access": False,
         "update_checks": False,

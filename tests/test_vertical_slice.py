@@ -26,6 +26,7 @@ def test_init_ingest_duplicate_version_restart_and_rebuild(tmp_path: Path) -> No
 
     instance = ProvelumeInstance.initialise(instance_dir, name="Synthetic Demo")
     assert (instance_dir / "provelume.yml").is_file()
+    assert (instance_dir / "instance-manifest.json").is_file()
     assert (instance_dir / "knowledge").is_dir()
     assert (instance_dir / "originals").is_dir()
     assert (instance_dir / "indexes").is_dir()

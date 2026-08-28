@@ -23,9 +23,14 @@ from .domain import (
     Source,
     as_record,
 )
+from .instance_schema import (
+    CURRENT_INSTANCE_SCHEMA_VERSION,
+    build_instance_manifest,
+    manifest_validation_errors,
+)
 from .paths import portable_config_path, resolve_config_path, safe_instance_path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = CURRENT_INSTANCE_SCHEMA_VERSION
 CANONICAL_KINDS = (
     "sources",
     "acquisitions",
@@ -49,6 +54,10 @@ class InstancePaths:
         return self.root / "provelume.yml"
 
     @property
+    def manifest(self) -> Path:
+        return self.root / "instance-manifest.json"
+
+    @property
     def originals(self) -> Path:
         return self.root / "originals"
 
@@ -63,6 +72,14 @@ class InstancePaths:
     @property
     def indexes(self) -> Path:
         return self.root / "indexes"
+
+    @property
+    def migration_receipts(self) -> Path:
+        return self.state / "migrations" / "receipts"
+
+    @property
+    def lifecycle_recovery_receipts(self) -> Path:
+        return self.state / "lifecycle" / "recovery-receipts"
 
     def canonical_dir(self, kind: str) -> Path:
         return self.knowledge / kind
@@ -92,6 +109,7 @@ class InstanceStore:
         name: str = "Provelume Instance",
     ) -> InstanceStore:
         store = cls(root)
+        existing = store.paths.config.exists()
         store.paths.root.mkdir(parents=True, exist_ok=True)
         for path in (
             store.paths.originals,
@@ -104,13 +122,14 @@ class InstanceStore:
             path.mkdir(parents=True, exist_ok=True)
         for kind in CANONICAL_KINDS:
             store.paths.canonical_dir(kind).mkdir(parents=True, exist_ok=True)
-        if not store.paths.config.exists():
+        if not existing:
+            created_at = utc_now()
             config = {
                 "schema_version": SCHEMA_VERSION,
                 "instance": {
                     "id": f"inst_{uuid4().hex}",
                     "name": name,
-                    "created_at": utc_now(),
+                    "created_at": created_at,
                 },
                 "ui": {"language": "en"},
                 "network": {"external_access": False, "update_checks": False},
@@ -120,6 +139,21 @@ class InstanceStore:
                 store.paths.config,
                 yaml.safe_dump(config, sort_keys=False),
             )
+            store._atomic_json(
+                store.paths.manifest,
+                build_instance_manifest(config),
+            )
+        if existing:
+            return cls.open(root)
+        store.validate()
+        return store
+
+    @classmethod
+    def open(cls, root: Path | str) -> InstanceStore:
+        store = cls(root)
+        from .instance_lifecycle import InstanceLifecycleManager
+
+        InstanceLifecycleManager(store).prepare()
         store.validate()
         return store
 
@@ -129,6 +163,21 @@ class InstanceStore:
         config = self.read_config()
         if config.get("schema_version") != SCHEMA_VERSION:
             raise ValueError("unsupported Provelume Instance schema version")
+        instance = config.get("instance")
+        if (
+            not isinstance(instance, dict)
+            or not isinstance(instance.get("id"), str)
+            or not instance["id"].startswith("inst_")
+            or not isinstance(instance.get("name"), str)
+            or not instance["name"].strip()
+            or not isinstance(instance.get("created_at"), str)
+            or not instance["created_at"].strip()
+        ):
+            raise ValueError("invalid Provelume Instance identity")
+        manifest = self.read_manifest()
+        errors = manifest_validation_errors(manifest, config=config)
+        if errors:
+            raise ValueError(errors[0])
 
     def read_config(self) -> dict[str, Any]:
         with self.paths.config.open("r", encoding="utf-8") as handle:
@@ -136,6 +185,13 @@ class InstanceStore:
         if not isinstance(value, dict):
             raise ValueError("invalid provelume.yml")
         return value
+
+    def read_manifest(self) -> dict[str, Any]:
+        if not self.paths.manifest.is_file():
+            raise FileNotFoundError(
+                f"missing Provelume Instance manifest: {self.paths.manifest}"
+            )
+        return self._read_json(self.paths.manifest)
 
     def write_config(self, config: dict[str, Any]) -> None:
         self._atomic_text(self.paths.config, yaml.safe_dump(config, sort_keys=False))

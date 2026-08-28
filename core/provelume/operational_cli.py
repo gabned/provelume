@@ -114,8 +114,7 @@ def handle_operational_command(args: argparse.Namespace) -> int | None:
     }:
         return None
 
-    store = InstanceStore(args.instance)
-    store.validate()
+    store = InstanceStore.open(args.instance)
 
     if args.command == "inbox-submit":
         try:

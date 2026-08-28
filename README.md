@@ -18,14 +18,17 @@ and managed-copy folder remain configurable; the two working folders may be rela
 Instance or absolute locations elsewhere on the local filesystem. Canonical Originals, knowledge,
 indexes, operations and reports remain inside the Instance.
 
-Issue #80 and the [0.5.1 release plan](docs/releases/0.5.1.md) define the correction release; the
-[0.5.0 release plan](docs/releases/0.5.0.md) remains the durable-intake capability baseline.
+Issue #80 and the [0.5.1 release plan](docs/releases/0.5.1.md) define the published correction
+release; the [0.5.0 release plan](docs/releases/0.5.0.md) remains the durable-intake capability
+baseline. Issue #95 owns the active `0.6.0` implementation while package and embedded release
+identity remain `0.5.1` until a separate release-preparation change.
 See the [public roadmap](docs/roadmap.md), the
 [configurable-folder contract](docs/architecture/configurable-folder-settings.md) and the
 [Windows preview guide](docs/windows-preview.md) for portability and trust boundaries.
 
-The roadmap records the non-activated release forecast from `0.6.0` through `1.0.0`. Forecast
-entries are sequencing coordinates, not availability claims or release authorization.
+The roadmap records `0.6.0` as the active Portable Instance and hierarchical Markdown library
+workstream and retains the later forecast through `1.0.0`. Forecast entries are sequencing
+coordinates, not availability claims or release authorization.
 
 The published foundation can:
 
@@ -102,6 +105,28 @@ Inspect the navigable operation log or run a consistency rebuild:
 .venv/bin/provelume rebuild-derived .local/demo --mode agreement
 ```
 
+Validate the Instance without changing it, or create a hash-verified backup outside the Instance:
+
+```bash
+.venv/bin/provelume validate .local/demo
+.venv/bin/provelume backup .local/demo --output /path/to/demo-backup.zip
+```
+
+Opening a supported schema-1 Instance runs the forward-only schema-2 migration only after deep
+preflight and a verified automatic backup. `validate` never migrates. An operator can make the
+transition explicit, or restore a same-Instance backup through staged validation and automatic
+rollback:
+
+```bash
+.venv/bin/provelume migrate .local/demo
+.venv/bin/provelume restore .local/demo /path/to/demo-backup.zip
+```
+
+Backup ZIPs include canonical JSON, acquired Originals and retained Instance state. Rebuildable
+`indexes/`, the future `library/` projection and transient locks are excluded by the manifest
+policy. External Inbox/Source working folders are not part of the Instance backup. See the
+[Portable Instance contract](docs/architecture/portable-instance.md).
+
 Inspect the package's embedded source identity without creating an Instance or making a network request:
 
 ```bash
@@ -171,22 +196,27 @@ It starts a local Instance on `http://127.0.0.1:8042/` and mounts the synthetic 
 
 ## Portable Instance layout
 
-Schema 1 uses an ordinary filesystem directory:
+Schema 2 uses an ordinary filesystem directory with a closed manifest:
 
 ```text
 <instance>/
   provelume.yml
+  instance-manifest.json
   originals/
   knowledge/
   state/
   indexes/
 ```
 
-`originals/` and `knowledge/` are durable canonical state. `state/derived/` and `indexes/` are rebuildable derived state. SQLite is used only for search acceleration; it is not the authoritative knowledge format.
+`instance-manifest.json` binds stable Instance identity, current schema and the explicit derived-
+state policy. `originals/` and `knowledge/` are durable canonical state. Retained artifacts under
+`state/` are included in local backups; `indexes/` and the future `library/` projection are
+rebuildable. SQLite is used only for search acceleration; it is not the authoritative knowledge
+format.
 
 Drop and managed-copy folders may optionally be elsewhere on the local filesystem. They remain
-working locations rather than alternate canonical stores. Backing up only the Instance preserves
-acquired knowledge but not unacquired files waiting in an external Drop folder.
+working locations rather than alternate canonical stores. A Provelume backup preserves acquired
+knowledge but not unacquired files waiting in an external Drop folder.
 
 See `docs/architecture/portable-instance.md`,
 `docs/architecture/canonical-derived-state.md` and

@@ -76,8 +76,7 @@ def handle_review_command(args: argparse.Namespace) -> int | None:
     }:
         return None
 
-    store = InstanceStore(args.instance)
-    store.validate()
+    store = InstanceStore.open(args.instance)
 
     if args.command == "duplicate-scan":
         try:

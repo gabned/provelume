@@ -19,6 +19,7 @@ from .ingest import (
     run_ingestion_filesystem,
 )
 from .ingestion_runs import IngestionLedger
+from .instance_lifecycle import InstanceLifecycleManager
 from .network_status import declared_network_status
 from .paths import UnsafePathError
 from .storage import InstanceStore
@@ -26,8 +27,7 @@ from .storage import InstanceStore
 
 class ProvelumeInstance:
     def __init__(self, root: Path | str):
-        self.store = InstanceStore(root)
-        self.store.validate()
+        self.store = InstanceStore.open(root)
 
     @classmethod
     def initialise(
@@ -108,6 +108,23 @@ class ProvelumeInstance:
 
     def rebuild_index(self) -> int:
         return rebuild_search_index(self.store)
+
+    def validate_instance(self, *, deep: bool = True) -> dict[str, Any]:
+        return InstanceLifecycleManager(self.store).validate(deep=deep)
+
+    def backup(
+        self,
+        *,
+        destination: Path | str | None = None,
+        reason: str = "manual",
+    ) -> dict[str, Any]:
+        return InstanceLifecycleManager(self.store).backup(
+            destination=destination,
+            reason=reason,
+        )
+
+    def restore(self, archive: Path | str) -> dict[str, Any]:
+        return InstanceLifecycleManager(self.store).restore(archive)
 
     @staticmethod
     def _date_floor(value: str | None) -> str | None:
@@ -286,6 +303,7 @@ class ProvelumeInstance:
 
     def instance_summary(self) -> dict[str, Any]:
         config = self.store.read_config()
+        manifest = self.store.read_manifest()
         network = config.get("network")
         if not isinstance(network, Mapping):
             network = {}
@@ -295,7 +313,13 @@ class ProvelumeInstance:
             "id": config["instance"]["id"],
             "name": config["instance"]["name"],
             "schema_version": config["schema_version"],
+            "manifest_schema_version": manifest["schema_version"],
             "created_at": config["instance"]["created_at"],
+            "derived_state": dict(manifest["derived_state"]),
+            "migrations_applied": len(manifest["migrations"]),
+            "lifecycle_recoveries": len(
+                list(self.store.paths.lifecycle_recovery_receipts.glob("*.json"))
+            ),
             "sources": len(self.store.list_canonical("sources")),
             "documents": len(documents),
             "versions": len(self.store.list_canonical("versions")),
