@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,8 @@ from .folder_settings import FolderSettingsManager, inbox_source_id
 from .inbox import InboxManager as BaseInboxManager
 from .operations import OperationLedger
 from .storage import InstanceStore, utc_now
+
+_SUBMISSION_ID = re.compile(r"inbox_[0-9a-f]{32}\Z")
 
 
 class InboxManager(BaseInboxManager):
@@ -41,10 +44,7 @@ class InboxManager(BaseInboxManager):
         settings = self.folder_settings.read()
         source_id = inbox_source_id(self.store)
         existing = self.store.read_canonical("sources", source_id)
-        if existing is None:
-            created_at = utc_now()
-        else:
-            created_at = str(existing["created_at"])
+        created_at = utc_now() if existing is None else str(existing["created_at"])
         if existing is None or existing.get("name") != settings.name:
             self.store.write_source(
                 Source(
@@ -54,11 +54,16 @@ class InboxManager(BaseInboxManager):
                     created_at=created_at,
                 )
             )
-        self.store.register_source_path(
-            source_id,
-            settings.managed_path,
-            name=settings.name,
-        )
+        config = self.store.read_config()
+        sources = config.setdefault("sources", {})
+        if not isinstance(sources, dict):
+            raise ValueError("Instance Sources configuration must be an object")
+        sources[source_id] = {
+            "kind": "filesystem",
+            "name": settings.name,
+            "path": settings.managed_configured,
+        }
+        self.store.write_config(config)
         return source_id
 
     def _submission_directories(self) -> tuple[Path, ...]:
@@ -79,12 +84,14 @@ class InboxManager(BaseInboxManager):
                         value = json.load(handle)
                 except (OSError, json.JSONDecodeError):
                     continue
+                record_id = str(value.get("id", "")) if isinstance(value, dict) else ""
                 if (
                     isinstance(value, dict)
-                    and isinstance(value.get("id"), str)
+                    and _SUBMISSION_ID.fullmatch(record_id) is not None
+                    and path.stem == record_id
                     and isinstance(value.get("created_at"), str)
                 ):
-                    records.setdefault(str(value["id"]), value)
+                    records.setdefault(record_id, value)
         result = list(records.values())
         result.sort(
             key=lambda item: (
@@ -96,7 +103,7 @@ class InboxManager(BaseInboxManager):
         return result[: min(limit, 500)]
 
     def get_submission(self, submission_id: str) -> dict[str, Any] | None:
-        if not submission_id.startswith("inbox_"):
+        if _SUBMISSION_ID.fullmatch(submission_id) is None:
             return None
         for directory in self._submission_directories():
             path = directory / f"{submission_id}.json"
