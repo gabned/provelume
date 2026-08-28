@@ -6,15 +6,13 @@ param(
     [Parameter(Mandatory = $true)][string]$ExpectedVersion,
     [Parameter(Mandatory = $true)][string]$ExpectedCommit,
     [Parameter(Mandatory = $true)][ValidateSet("development", "preview", "stable")][string]$ExpectedChannel,
-    [string]$PreviousVersion = "0.4.1",
-    [string]$PreviousCommit = "6e34498e98a315baaef00314fd59772a3af008df",
+    [string]$PreviousVersion = "",
+    [string]$PreviousCommit = "",
     [ValidateSet("preview", "stable")][string]$PreviousChannel = "preview"
 )
 
 $ErrorActionPreference = "Stop"
 $InstallerPath = (Resolve-Path $Installer).Path
-$PreviousInstallerSize = 18067909
-$PreviousInstallerSha256 = "d1ce3f855cb999f0063a4b08f826910c610891c6ba6c15254b16f2b42dabc4db"
 $ExpectedAppIdKey = "{E41A426B-F5FC-473F-A096-875017656A31}_is1"
 if ([string]::IsNullOrWhiteSpace($PreviousInstaller)) {
     $PreviousInstaller = Join-Path (
@@ -25,13 +23,47 @@ if ([string]::IsNullOrWhiteSpace($PreviousInstaller)) {
         -OutFile $PreviousInstaller
 }
 $PreviousInstallerPath = (Resolve-Path $PreviousInstaller).Path
-if ((Get-Item $PreviousInstallerPath).Length -ne $PreviousInstallerSize) {
-    throw "Published 0.4.1 installer size differs from the reviewed baseline."
+$PreviousInstallerSize = (Get-Item $PreviousInstallerPath).Length
+$PreviousInstallerSha256 = (
+    Get-FileHash $PreviousInstallerPath -Algorithm SHA256
+).Hash.ToLowerInvariant()
+$ApprovedPreviousBaselines = @(
+    @{
+        version = "0.4.0"
+        commit = "a54ea64db7c3452d2be4dfdf761cdb6b6962c09b"
+        size = 18051429
+        sha256 = "0d13b8940184befed42b6e96d3789b06c0cc6842bcd3473d8e26738d6df35749"
+    },
+    @{
+        version = "0.4.1"
+        commit = "6e34498e98a315baaef00314fd59772a3af008df"
+        size = 18067909
+        sha256 = "d1ce3f855cb999f0063a4b08f826910c610891c6ba6c15254b16f2b42dabc4db"
+    }
+)
+$IdentifiedBaseline = $ApprovedPreviousBaselines |
+    Where-Object {
+        $_.size -eq $PreviousInstallerSize -and
+        $_.sha256 -eq $PreviousInstallerSha256
+    } |
+    Select-Object -First 1
+if ($null -eq $IdentifiedBaseline) {
+    throw "Previous installer does not match an approved public Provelume baseline."
 }
-$PreviousHash = (Get-FileHash $PreviousInstallerPath -Algorithm SHA256).Hash.ToLowerInvariant()
-if ($PreviousHash -ne $PreviousInstallerSha256) {
-    throw "Published 0.4.1 installer SHA-256 differs from the reviewed baseline."
+if (
+    -not [string]::IsNullOrWhiteSpace($PreviousVersion) -and
+    $PreviousVersion -ne $IdentifiedBaseline.version
+) {
+    throw "Supplied previous version does not match the verified installer bytes."
 }
+if (
+    -not [string]::IsNullOrWhiteSpace($PreviousCommit) -and
+    $PreviousCommit -ne $IdentifiedBaseline.commit
+) {
+    throw "Supplied previous commit does not match the verified installer bytes."
+}
+$PreviousVersion = $IdentifiedBaseline.version
+$PreviousCommit = $IdentifiedBaseline.commit
 $InstallRoot = [System.IO.Path]::GetFullPath(
     (Join-Path $InstallDirectory "Próvelume 日本")
 )
@@ -207,7 +239,7 @@ try {
         throw "Default uninstall left runtime files or product shortcuts behind."
     }
 
-    # Redirect launcher state to a synthetic Unicode path and install the real public baseline.
+    # Redirect launcher state to a synthetic Unicode path and install a verified public baseline.
     $env:LOCALAPPDATA = $SyntheticLocalAppData
     Install-Provelume -Setup $PreviousInstallerPath -Directory $InstallRoot
     $Executable = Join-Path $InstallRoot "Provelume.exe"
@@ -416,8 +448,8 @@ try {
             version = $PreviousVersion
             commit = $PreviousCommit
             channel = $PreviousChannel
-            installer_sha256 = "d1ce3f855cb999f0063a4b08f826910c610891c6ba6c15254b16f2b42dabc4db"
-            installer_size_bytes = 18067909
+            installer_sha256 = $PreviousInstallerSha256
+            installer_size_bytes = $PreviousInstallerSize
         }
         candidate = @{
             version = $ExpectedVersion
