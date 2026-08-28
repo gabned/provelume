@@ -48,6 +48,11 @@ Other supported formats produce one logical page using their deterministic local
 normalization standardizes line endings, removes trailing whitespace and collapses repeated blank
 lines. Empty source pages remain visible as `_No extractable text._` rather than disappearing.
 
+The normalized text budget is two million characters for the complete bundle, not for each page.
+Each page consumes the remaining aggregate budget in source order. The page map records
+`truncated` or `text_limit` when the budget is reached, and later pages remain represented rather
+than silently disappearing.
+
 The browser deliberately displays raw Markdown as escaped text in this slice. It does not execute
 HTML, scripts, embedded active content or remote resources.
 
@@ -58,22 +63,27 @@ accepted asset has a deterministic safe filename, media type, byte count and SHA
 bounded by:
 
 - 500 PDF pages;
-- 200 assets;
+- 400 lazily inspected asset candidates, including rejected candidates;
+- 200 accepted assets;
 - 10 MiB per asset;
-- 50 MiB total assets;
-- bounded normalized text and warning counts.
+- 50 MiB total accepted assets;
+- two million normalized text characters across the complete bundle;
+- 200 retained warnings.
 
-An unsupported image filter, oversized asset or inspection error is recorded as a bundle warning.
-The Markdown/page map still commit when safe. The operation closes as `completed_with_errors` so
-the omission remains visible. No OCR, rasterization, external converter or optimized replacement
-PDF is added in this slice.
+Asset candidates are iterated lazily. An oversized, unsupported or undecodable candidate still
+consumes the inspection budget, so rejection cannot turn the scan into unbounded CPU or memory
+work. An unsupported image filter, oversized asset or inspection error is recorded as a bundle
+warning. The Markdown/page map still commit when safe. The operation closes as
+`completed_with_errors` so the omission remains visible. No OCR, rasterization, external converter
+or optimized replacement PDF is added in this slice.
 
 ## Failure isolation and operations
 
 `bundle-build` creates one `bundle.build` operation. `bundle-build-all` creates a parent
 `bundle.build_all` operation and one child operation per current DocumentVersion. A malformed PDF
-or missing/corrupt Original fails only that child; valid documents continue and the parent closes
-with exact completed/failed metrics.
+or missing/corrupt Original fails only that child; valid documents continue. Child warnings are
+propagated to the parent status and metrics instead of being hidden by an otherwise successful
+bulk run.
 
 Operation events record Original verification, deterministic commit, page/asset/warning counts and
 bounded failure type without physical Source paths or document content.
@@ -87,7 +97,7 @@ provelume bundles INSTANCE
 provelume bundle INSTANCE VERSION_ID [--include-markdown]
 ```
 
-## Read-only navigation
+## Read-only navigation and validation
 
 ```text
 GET /api/v1/bundles
@@ -100,8 +110,11 @@ GET /api/v1/documents/{document_id}/bundle
 /bundles/{version_id}
 ```
 
-These routes do not build, rebuild, edit or delete a bundle. A missing bundle is reported as not
-found and a read against a fresh Instance creates no bundle directory.
+These routes do not build, rebuild, edit or delete a bundle. Before exposure, Provelume verifies
+the DerivedArtifact record, manifest checksum, output fingerprint, Version/source hash, expected
+bundle-relative paths and the checksum/size of Markdown, page map and every asset. A malformed or
+manually altered derived bundle is omitted or reported as not found; the authoritative Original is
+not changed. A read against a fresh Instance creates no bundle directory.
 
 ## Explicit exclusions
 
