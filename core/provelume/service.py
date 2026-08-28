@@ -5,7 +5,13 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .index import index_status, rebuild_search_index, search_index
-from .ingest import ingest_filesystem
+from .ingest import (
+    DEFAULT_MAX_FILE_BYTES,
+    DEFAULT_MAX_FILES,
+    retry_ingestion_run,
+    run_ingestion_filesystem,
+)
+from .ingestion_runs import IngestionLedger
 from .network_status import declared_network_status
 from .storage import InstanceStore
 
@@ -34,23 +40,45 @@ class ProvelumeInstance:
         source_path: Path | str,
         *,
         source_name: str | None = None,
+        max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
+        max_files: int = DEFAULT_MAX_FILES,
     ) -> list[dict[str, Any]]:
-        acquisitions = ingest_filesystem(self.store, source_path, source_name=source_name)
-        rebuild_search_index(self.store)
-        return [
-            {
-                "id": item.id,
-                "source_id": item.source_id,
-                "locator": item.locator,
-                "observed_at": item.observed_at,
-                "content_hash": item.content_hash,
-                "outcome": item.outcome,
-                "document_id": item.document_id,
-                "version_id": item.version_id,
-                "error": item.error,
-            }
-            for item in acquisitions
-        ]
+        result = self.ingest_run(
+            source_path,
+            source_name=source_name,
+            max_file_bytes=max_file_bytes,
+            max_files=max_files,
+        )
+        return list(result["acquisitions"])
+
+    def ingest_run(
+        self,
+        source_path: Path | str,
+        *,
+        source_name: str | None = None,
+        max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
+        max_files: int = DEFAULT_MAX_FILES,
+    ) -> dict[str, Any]:
+        result = run_ingestion_filesystem(
+            self.store,
+            source_path,
+            source_name=source_name,
+            max_file_bytes=max_file_bytes,
+            max_files=max_files,
+        )
+        rebuild_search_index(self.store, recover_missing_derived=False)
+        return result.as_dict()
+
+    def retry_ingestion(self, run_id: str) -> dict[str, Any]:
+        result = retry_ingestion_run(self.store, run_id)
+        rebuild_search_index(self.store, recover_missing_derived=False)
+        return result.as_dict()
+
+    def list_ingestion_runs(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        return IngestionLedger(self.store).list_runs(limit=limit)
+
+    def get_ingestion_run(self, run_id: str) -> dict[str, Any] | None:
+        return IngestionLedger(self.store).run_detail(run_id)
 
     def rebuild_index(self) -> int:
         return rebuild_search_index(self.store)
