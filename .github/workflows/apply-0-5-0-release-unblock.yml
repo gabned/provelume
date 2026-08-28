@@ -1,0 +1,99 @@
+name: Apply 0.5.0 release unblock
+
+on:
+  push:
+    branches:
+      - product/0.5.0-release-unblock
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-0-5-0-release-unblock
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout owner branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: product/0.5.0-release-unblock
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Apply exact public-baseline correction and regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          script_path = Path('scripts/test_windows_installer.ps1')
+          text = script_path.read_text(encoding='utf-8')
+          old = '''    @{
+                  version = "0.4.1"
+                  commit = "6e34498e98a315baaef00314fd59772a3af008df"
+                  size = 18067909
+                  sha256 = "d1ce3f855cb999f0063a4b08f826910c610891c6ba6c15254b16f2b42dabc4db"
+              }'''
+          new = '''    @{
+                  version = "0.4.1"
+                  commit = "6e34498e98a315baaef00314fd59772a3af008df"
+                  size = 18056957
+                  sha256 = "ea2093cd63860e2575715617f3bde363646213841f60be1db97433b19052b46b"
+              }'''
+          if text.count(old) != 1:
+              raise SystemExit('expected exactly one stale 0.4.1 public baseline block')
+          script_path.write_text(text.replace(old, new), encoding='utf-8')
+
+          test_path = Path('tests/test_windows_public_baselines.py')
+          test_path.write_text(
+              '''from pathlib import Path
+
+
+SCRIPT = Path("scripts/test_windows_installer.ps1")
+
+
+def test_windows_upgrade_uses_immutable_public_installer_baselines() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+
+    assert 'version = "0.4.0"' in text
+    assert 'commit = "a54ea64db7c3452d2be4dfdf761cdb6b6962c09b"' in text
+    assert "size = 18051429" in text
+    assert (
+        'sha256 = "0d13b8940184befed42b6e96d3789b06c0cc6842bcd3473d8e26738d6df35749"'
+        in text
+    )
+
+    assert 'version = "0.4.1"' in text
+    assert 'commit = "6e34498e98a315baaef00314fd59772a3af008df"' in text
+    assert "size = 18056957" in text
+    assert (
+        'sha256 = "ea2093cd63860e2575715617f3bde363646213841f60be1db97433b19052b46b"'
+        in text
+    )
+    assert (
+        'releases/download/v0.4.1/Provelume-Setup-0.4.1-x64.exe' in text
+    )
+''',
+              encoding='utf-8',
+          )
+
+          Path('.github/workflows/apply-0-5-0-release-unblock.yml').unlink()
+          PY
+
+      - name: Commit final product delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/test_windows_installer.ps1 tests/test_windows_public_baselines.py \
+            .github/workflows/apply-0-5-0-release-unblock.yml
+          git diff --cached --check
+          git commit -m 'Correct published 0.4.1 installer baseline'
+          git push origin HEAD:product/0.5.0-release-unblock
