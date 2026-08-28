@@ -41,15 +41,25 @@ then Version, Document, Acquisition and provenance records are committed. The op
 closed only after that processing returns. A process interruption can therefore leave an item
 `pending` or `running` even when some canonical writes already committed.
 
-Retry is idempotent across that boundary. Re-reading the same Source-relative item and exact bytes
-creates an `unchanged` Acquisition rather than a second DocumentVersion or Original. An extraction
-failure still preserves the Original, DocumentVersion and Acquisition; an explicit retry may
-materialize the missing derived text against the same current bytes and records
-`extraction_recovered`.
+New Documents use an identity derived from Source identity and normalized locator; existing
+pre-`0.5` Document identities remain unchanged. DocumentVersion identity remains derived from the
+Document and exact content hash. A retry therefore detects and reuses a matching Version that was
+committed before an interrupted Document write, instead of creating an orphan or advancing the
+sequence again. It also reconnects deterministic provenance edges.
+
+Retry is idempotent across the remaining boundaries. Re-reading the same Source-relative item and
+exact bytes creates an `unchanged` Acquisition rather than a second DocumentVersion or Original.
+Every failed or interrupted retry checks whether the current Version lacks derived text, even when
+the prior item stopped before recording an extraction outcome. It reconstructs that derived text
+against the same current bytes and records `extraction_recovered`; an extractor failure still
+preserves the Original, DocumentVersion and Acquisition.
 
 Item-level input failures are isolated. The remaining items continue and the run closes with exact
-completed/failed counts. Source-level enumeration failures close the run with a bounded run error.
-No `0.5/S01` path moves, deletes or rewrites a Source input.
+completed/failed counts. A previously configured Source is identified before strict filesystem
+resolution, so a missing or inaccessible Source closes a durable run with a bounded error instead
+of producing only a transient process error. A never-registered invalid path has no Source identity
+to own a run and fails before Source creation. No `0.5/S01` path moves, deletes or rewrites a Source
+input.
 
 ## Retry contract
 
