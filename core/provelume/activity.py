@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
 
+from .bundle_activity import attach_bundle_routes
 from .inbox import InboxManager
 from .operations import OperationLedger
 from .service import ProvelumeInstance
@@ -93,3 +94,5 @@ def attach_activity_routes(
                 submissions=inbox.list_submissions(limit=100),
             ),
         )
+
+    attach_bundle_routes(app, instance, templates, context_factory)
