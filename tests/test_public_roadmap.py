@@ -162,6 +162,39 @@ def test_published_0_5_contract_is_explicit() -> None:
         assert required_release_boundary in release_plan
 
 
+def test_update_policy_forecast_is_explicit_and_user_controlled() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    for published_baseline in (
+        "update checks disabled by default",
+        "manual `Check now` action",
+        "optional check at startup",
+        "comparison of the embedded local\nversion",
+        "leaves download and installation to the user",
+    ):
+        assert published_baseline in roadmap
+
+    assert roadmap.count(
+        "| Forecast | `0.20.0` | Signed Windows release and safe updater |"
+    ) == 1
+    for future_policy in (
+        "**Disabled/offline:**",
+        "**Manual check only:**",
+        "**Notify only:**",
+        "**Download and ask:**",
+        "**Controlled automatic install:**",
+        "version pinning, skip-this-version, defer-until",
+        "metered-network and battery-aware controls",
+        "security-update prominence",
+        "update/rollback history",
+        "one-click return to manual-only mode",
+        "no Instance content is transmitted",
+        "Disabled/offline\nperforms no update network access",
+        "automatic install cannot run outside its opt-in policy",
+    ):
+        assert future_policy in roadmap
+
+
 def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
     roadmap = _read(ROADMAP_PATH)
 
