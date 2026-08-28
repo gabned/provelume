@@ -61,7 +61,14 @@ class OperationLedger:
 
     @staticmethod
     def _record_from_payload(payload: dict[str, Any]) -> OperationRecord:
-        events = tuple(OperationEvent(**event) for event in payload.get("events", []))
+        raw_events = payload.get("events", [])
+        if not isinstance(raw_events, list):
+            raise ValueError("operation events must be a list")
+        events = tuple(OperationEvent(**event) for event in raw_events)
+        related = payload.get("related", {})
+        metrics = payload.get("metrics", {})
+        if not isinstance(related, dict) or not isinstance(metrics, dict):
+            raise ValueError("operation related records and metrics must be objects")
         return OperationRecord(
             schema_version=int(payload["schema_version"]),
             id=str(payload["id"]),
@@ -72,18 +79,38 @@ class OperationLedger:
             completed_at=payload.get("completed_at"),
             summary=payload.get("summary"),
             parent_operation_id=payload.get("parent_operation_id"),
-            related={
-                str(key): str(value)
-                for key, value in payload.get("related", {}).items()
-            },
-            metrics={
-                str(key): int(value)
-                for key, value in payload.get("metrics", {}).items()
-            },
+            related={str(key): str(value) for key, value in related.items()},
+            metrics={str(key): int(value) for key, value in metrics.items()},
             error_code=payload.get("error_code"),
             error=payload.get("error"),
             events=events,
         )
+
+    @staticmethod
+    def _validate_record(record: OperationRecord) -> None:
+        if (
+            record.schema_version != OPERATION_SCHEMA_VERSION
+            or _OPERATION_ID.fullmatch(record.id) is None
+            or record.status not in OPERATION_STATUSES
+            or not record.kind.strip()
+            or not record.title.strip()
+            or not record.started_at.strip()
+        ):
+            raise ValueError("invalid operation record")
+        if (
+            record.parent_operation_id is not None
+            and _OPERATION_ID.fullmatch(record.parent_operation_id) is None
+        ):
+            raise ValueError("invalid parent operation ID")
+        for event in record.events:
+            if (
+                event.level not in OPERATION_LEVELS
+                or not event.at.strip()
+                or not event.code.strip()
+                or not event.message.strip()
+                or not isinstance(event.details, dict)
+            ):
+                raise ValueError("invalid operation event")
 
     @staticmethod
     def _payload(record: OperationRecord) -> dict[str, Any]:
@@ -92,12 +119,7 @@ class OperationLedger:
         return value
 
     def _write(self, record: OperationRecord) -> None:
-        if (
-            record.schema_version != OPERATION_SCHEMA_VERSION
-            or _OPERATION_ID.fullmatch(record.id) is None
-            or record.status not in OPERATION_STATUSES
-        ):
-            raise ValueError("invalid operation record")
+        self._validate_record(record)
         self.records.mkdir(parents=True, exist_ok=True)
         self.store._atomic_json(
             self.records / f"{record.id}.json",
@@ -217,11 +239,16 @@ class OperationLedger:
         path = self.records / f"{operation_id}.json"
         if not path.is_file():
             return None
-        with path.open("r", encoding="utf-8") as handle:
-            value = json.load(handle)
-        if not isinstance(value, dict):
-            raise ValueError(f"expected JSON object in {path}")
-        return self._record_from_payload(value)
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                value = json.load(handle)
+            if not isinstance(value, dict):
+                return None
+            record = self._record_from_payload(value)
+            self._validate_record(record)
+        except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError):
+            return None
+        return record
 
     def get(self, operation_id: str) -> dict[str, Any] | None:
         record = self.get_record(operation_id)
@@ -241,15 +268,17 @@ class OperationLedger:
             try:
                 with path.open("r", encoding="utf-8") as handle:
                     value = json.load(handle)
-            except (OSError, json.JSONDecodeError):
+                if not isinstance(value, dict):
+                    continue
+                record = self._record_from_payload(value)
+                self._validate_record(record)
+            except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError):
                 continue
-            if not isinstance(value, dict):
+            if kind and record.kind != kind:
                 continue
-            if kind and value.get("kind") != kind:
+            if status and record.status != status:
                 continue
-            if status and value.get("status") != status:
-                continue
-            records.append(value)
+            records.append(self._payload(record))
         records.sort(
             key=lambda item: (
                 str(item.get("started_at", "")),
