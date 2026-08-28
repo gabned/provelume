@@ -28,6 +28,7 @@ BUNDLE_GENERATOR_VERSION = "1"
 DEFAULT_MAX_BUNDLE_DOCUMENTS = 1000
 MAX_BUNDLE_PAGES = 500
 MAX_BUNDLE_ASSETS = 200
+MAX_INSPECTED_ASSET_CANDIDATES = 400
 MAX_ASSET_BYTES = 10 * 1024 * 1024
 MAX_TOTAL_ASSET_BYTES = 50 * 1024 * 1024
 MAX_BUNDLE_TEXT_CHARS = 2_000_000
@@ -113,6 +114,7 @@ class DocumentBundleManager:
         if (
             digest != version["content_hash"]
             or digest != original["sha256"]
+            or len(data) != int(version["size_bytes"])
             or len(data) != int(original["size_bytes"])
         ):
             raise BundleBuildError(
@@ -124,6 +126,37 @@ class DocumentBundleManager:
     def _asset_suffix(name: str) -> str:
         suffix = Path(name).suffix.lower()
         return suffix if _SAFE_SUFFIX.fullmatch(suffix) else ".bin"
+
+    @staticmethod
+    def _bounded_page_text(
+        page: Any,
+        page_number: int,
+        remaining_text_chars: int,
+        warnings: list[str],
+    ) -> tuple[str, str, int]:
+        if remaining_text_chars <= 0:
+            warnings.append(
+                f"Page {page_number} text was omitted because the bundle text "
+                "safety limit was already reached."
+            )
+            return "", "text_limit", 0
+        try:
+            text = _normalise_text(page.extract_text() or "")
+        except Exception as exc:
+            warnings.append(
+                f"Page {page_number} text extraction failed "
+                f"({exc.__class__.__name__})."
+            )
+            return "", "error", remaining_text_chars
+        if len(text) > remaining_text_chars:
+            text = text[:remaining_text_chars]
+            warnings.append(
+                f"Page {page_number} text was truncated when the aggregate bundle "
+                "text safety limit was reached."
+            )
+            return text, "truncated", 0
+        status = "text" if text else "no_text"
+        return text, status, remaining_text_chars - len(text)
 
     def _pdf_pages(
         self,
@@ -148,37 +181,49 @@ class DocumentBundleManager:
         assets: list[dict[str, Any]] = []
         warnings: list[str] = []
         total_asset_bytes = 0
+        inspected_asset_candidates = 0
+        remaining_text_chars = MAX_BUNDLE_TEXT_CHARS
+        asset_candidate_limit_reported = False
         for page_number, page in enumerate(reader.pages, start=1):
-            try:
-                text = _normalise_text(page.extract_text() or "")
-            except Exception as exc:
-                text = ""
-                warnings.append(
-                    f"Page {page_number} text extraction failed "
-                    f"({exc.__class__.__name__})."
-                )
-            if len(text) > MAX_BUNDLE_TEXT_CHARS:
-                text = text[:MAX_BUNDLE_TEXT_CHARS]
-                warnings.append(
-                    f"Page {page_number} text was truncated at the bundle safety limit."
-                )
+            text, extraction_status, remaining_text_chars = self._bounded_page_text(
+                page,
+                page_number,
+                remaining_text_chars,
+                warnings,
+            )
 
             page_assets: list[str] = []
-            if len(assets) < MAX_BUNDLE_ASSETS:
+            if (
+                len(assets) < MAX_BUNDLE_ASSETS
+                and inspected_asset_candidates < MAX_INSPECTED_ASSET_CANDIDATES
+                and total_asset_bytes < MAX_TOTAL_ASSET_BYTES
+            ):
                 try:
-                    images = list(page.images)
+                    image_iterator = iter(page.images)
                 except Exception as exc:
-                    images = []
+                    image_iterator = iter(())
                     warnings.append(
                         f"Page {page_number} assets could not be inspected "
                         f"({exc.__class__.__name__})."
                     )
-                for image_number, image in enumerate(images, start=1):
-                    if len(assets) >= MAX_BUNDLE_ASSETS:
+                image_number = 0
+                while (
+                    len(assets) < MAX_BUNDLE_ASSETS
+                    and inspected_asset_candidates < MAX_INSPECTED_ASSET_CANDIDATES
+                    and total_asset_bytes < MAX_TOTAL_ASSET_BYTES
+                ):
+                    try:
+                        image = next(image_iterator)
+                    except StopIteration:
+                        break
+                    except Exception as exc:
                         warnings.append(
-                            f"Asset extraction stopped at {MAX_BUNDLE_ASSETS} files."
+                            f"Page {page_number} asset iteration stopped "
+                            f"({exc.__class__.__name__})."
                         )
                         break
+                    image_number += 1
+                    inspected_asset_candidates += 1
                     try:
                         image_data = bytes(image.data)
                     except Exception as exc:
@@ -197,6 +242,7 @@ class DocumentBundleManager:
                         warnings.append(
                             "Asset extraction stopped at the total byte safety limit."
                         )
+                        total_asset_bytes = MAX_TOTAL_ASSET_BYTES
                         break
                     digest = _sha256(image_data)
                     suffix = self._asset_suffix(getattr(image, "name", "asset.bin"))
@@ -221,13 +267,21 @@ class DocumentBundleManager:
                     assets.append(asset)
                     page_assets.append(asset["id"])
                     total_asset_bytes += len(image_data)
+            if (
+                inspected_asset_candidates >= MAX_INSPECTED_ASSET_CANDIDATES
+                and not asset_candidate_limit_reported
+            ):
+                warnings.append(
+                    "Asset inspection stopped at the candidate-count safety limit."
+                )
+                asset_candidate_limit_reported = True
             pages.append(
                 {
                     "number": page_number,
                     "label": str(page_number),
                     "text": text,
                     "asset_ids": page_assets,
-                    "extraction_status": "text" if text else "no_text",
+                    "extraction_status": extraction_status,
                 }
             )
         return pages, assets, warnings[:MAX_WARNINGS]
@@ -250,8 +304,10 @@ class DocumentBundleManager:
         if len(text) > MAX_BUNDLE_TEXT_CHARS:
             text = text[:MAX_BUNDLE_TEXT_CHARS]
             warnings = ["Extracted text was truncated at the bundle safety limit."]
+            extraction_status = "truncated"
         else:
             warnings = []
+            extraction_status = "text" if text else "no_text"
         return (
             [
                 {
@@ -259,7 +315,7 @@ class DocumentBundleManager:
                     "label": "document",
                     "text": text,
                     "asset_ids": [],
-                    "extraction_status": "text" if text else "no_text",
+                    "extraction_status": extraction_status,
                 }
             ],
             [],
@@ -344,9 +400,7 @@ class DocumentBundleManager:
             "warnings": warnings,
         }
         fingerprint = _sha256(_json_bytes(fingerprint_source))
-        relative_root = (
-            f"state/derived/bundles/{version['id']}/{fingerprint}"
-        )
+        relative_root = f"state/derived/bundles/{version['id']}/{fingerprint}"
         relative_markdown = f"{relative_root}/document.md"
         relative_page_map = f"{relative_root}/page-map.json"
         for asset in public_assets:
@@ -378,9 +432,10 @@ class DocumentBundleManager:
             "limits": {
                 "max_pages": MAX_BUNDLE_PAGES,
                 "max_assets": MAX_BUNDLE_ASSETS,
+                "max_inspected_asset_candidates": MAX_INSPECTED_ASSET_CANDIDATES,
                 "max_asset_bytes": MAX_ASSET_BYTES,
                 "max_total_asset_bytes": MAX_TOTAL_ASSET_BYTES,
-                "max_text_chars": MAX_BUNDLE_TEXT_CHARS,
+                "max_total_text_chars": MAX_BUNDLE_TEXT_CHARS,
             },
         }
         manifest_bytes = _json_bytes(manifest)
@@ -459,7 +514,7 @@ class DocumentBundleManager:
             self.operations.append(
                 operation.id,
                 "bundle.original_verified",
-                "Verified the exact Original against the DocumentVersion hash.",
+                "Verified the exact Original against the DocumentVersion hash and size.",
                 details={
                     "version_id": version_id,
                     "sha256": version["content_hash"],
@@ -581,6 +636,7 @@ class DocumentBundleManager:
         )
         results = []
         failures = []
+        warnings_count = 0
         for document in sorted(documents, key=lambda item: item["id"]):
             try:
                 result = self.build_document(
@@ -588,13 +644,26 @@ class DocumentBundleManager:
                     parent_operation_id=operation.id,
                 )
                 results.append(result)
+                child_status = result["operation"]["status"]
+                if child_status == "completed_with_errors":
+                    warnings_count += 1
                 self.operations.append(
                     operation.id,
-                    "bundle.child_completed",
+                    (
+                        "bundle.child_completed_with_warnings"
+                        if child_status == "completed_with_errors"
+                        else "bundle.child_completed"
+                    ),
                     f"Built a bundle for {document['title']}.",
+                    level=(
+                        "warning"
+                        if child_status == "completed_with_errors"
+                        else "info"
+                    ),
                     details={
                         "document_id": document["id"],
                         "version_id": document["current_version_id"],
+                        "status": child_status,
                     },
                 )
             except BundleBuildError as exc:
@@ -619,6 +688,8 @@ class DocumentBundleManager:
             status = "completed_with_errors"
         elif failures:
             status = "failed"
+        elif warnings_count:
+            status = "completed_with_errors"
         else:
             status = "completed"
         closed = self.operations.close(
@@ -630,6 +701,7 @@ class DocumentBundleManager:
             metrics={
                 "documents_total": len(documents),
                 "bundles_completed": len(results),
+                "bundles_with_warnings": warnings_count,
                 "bundles_failed": len(failures),
             },
         )
