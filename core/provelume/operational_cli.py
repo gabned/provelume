@@ -6,7 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from .bundle_cli import add_bundle_commands, handle_bundle_command
-from .inbox import InboxManager
+from .configured_inbox import InboxManager
+from .folder_settings_cli import (
+    add_folder_settings_commands,
+    handle_folder_settings_command,
+)
 from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES
 from .operations import OperationLedger
 from .rebuild_cli import add_rebuild_commands, handle_rebuild_command
@@ -45,7 +49,7 @@ def add_operational_commands(subparsers: Any) -> None:
 
     process = subparsers.add_parser(
         "inbox-process",
-        help="Process files placed in the Instance inbox/drop directory",
+        help="Process files placed in the configured Inbox Drop folder",
     )
     process.add_argument("instance", type=Path)
     process.add_argument(
@@ -81,12 +85,16 @@ def add_operational_commands(subparsers: Any) -> None:
     operation.add_argument("instance", type=Path)
     operation.add_argument("operation_id")
 
+    add_folder_settings_commands(subparsers)
     add_bundle_commands(subparsers)
     add_review_commands(subparsers)
     add_rebuild_commands(subparsers)
 
 
 def handle_operational_command(args: argparse.Namespace) -> int | None:
+    folder_result = handle_folder_settings_command(args)
+    if folder_result is not None:
+        return folder_result
     bundle_result = handle_bundle_command(args)
     if bundle_result is not None:
         return bundle_result

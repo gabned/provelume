@@ -32,3 +32,16 @@
   display: grid;
   gap: 10px;
 }
+.settings-form {
+  display: grid;
+  gap: 18px;
+  max-width: 820px;
+}
+.settings-form small {
+  color: var(--muted);
+  font-weight: 400;
+  line-height: 1.45;
+}
+.settings-form button {
+  justify-self: start;
+}
