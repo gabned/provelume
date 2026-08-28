@@ -213,7 +213,7 @@ def rebuild_search_index(
         connection.commit()
         connection.close()
         connection = None
-        with temporary_path.open("rb") as handle:
+        with temporary_path.open("r+b") as handle:
             os.fsync(handle.fileno())
         os.replace(temporary_path, final_path)
         _write_metadata(store, current, count)
