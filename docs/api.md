@@ -36,6 +36,30 @@ The same contract is exposed by `provelume about` and the local `/about` browser
 
 Physical source paths remain operator configuration and are not returned by these endpoints.
 
+## Durable ingestion runs
+
+- `GET /api/v1/ingestion/runs?limit=50` — newest durable run summaries, bounded to 200.
+- `GET /api/v1/ingestion/runs/{run_id}` — one run and its ordered per-item results.
+
+Run and item records are schema-versioned operational state under `state/ingestion/`. Responses
+contain Source identity and normalized Source-relative locators, never configured absolute paths.
+They expose closed status, counts, safety limits, attempt/retry lineage, Acquisition linkage and
+bounded error codes/messages.
+
+The same service contract is available locally through:
+
+```bash
+provelume ingest INSTANCE SOURCE
+provelume ingestion-runs INSTANCE
+provelume ingestion-run INSTANCE RUN_ID
+provelume retry-ingestion INSTANCE RUN_ID
+```
+
+`ingest` prints the complete run result. It exits non-zero when one or more items fail while still
+committing and indexing valid work. Retry selects only failed or interrupted items and is a local
+operator mutation; no HTTP ingestion or retry route is introduced. See
+[`architecture/durable-ingestion-runs.md`](architecture/durable-ingestion-runs.md).
+
 ## Documents
 
 - `GET /api/v1/documents`
@@ -75,7 +99,9 @@ The endpoint is read-only and does not mutate canonical, derived or configuratio
 
 ## Read-only boundary
 
-The v1 routes in this slice do not expose mutation endpoints. Ingestion and index rebuild are operator actions through the application service/CLI. Future write APIs require separate scope and permission design rather than being added implicitly to this read-only surface.
+The v1 routes in this slice do not expose mutation endpoints. Ingestion, retry and index rebuild
+are operator actions through the application service/CLI. Future write APIs require separate scope
+and permission design rather than being added implicitly to this read-only surface.
 
 ## Installation security
 
