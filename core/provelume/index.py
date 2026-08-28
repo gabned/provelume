@@ -7,6 +7,7 @@ import re
 import sqlite3
 import tempfile
 from collections.abc import Iterable
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -117,16 +118,86 @@ def _write_metadata(
     documents: dict[str, str],
     documents_indexed: int,
 ) -> None:
-    store._atomic_json(
-        _metadata_path(store),
-        {
-            "schema_version": INDEX_SCHEMA,
-            "knowledge_fingerprint": _knowledge_fingerprint(documents),
-            "built_at": utc_now(),
-            "documents_indexed": documents_indexed,
-            "documents": documents,
-        },
+    store._atomic_json(_metadata_path(store), _metadata(documents, documents_indexed))
+
+
+def _metadata(
+    documents: dict[str, str],
+    documents_indexed: int,
+) -> dict[str, Any]:
+    return {
+        "schema_version": INDEX_SCHEMA,
+        "knowledge_fingerprint": _knowledge_fingerprint(documents),
+        "built_at": utc_now(),
+        "documents_indexed": documents_indexed,
+        "documents": documents,
+    }
+
+
+def _unused_temporary_path(directory: Path, *, prefix: str, suffix: str) -> Path:
+    descriptor, name = tempfile.mkstemp(prefix=prefix, suffix=suffix, dir=directory)
+    os.close(descriptor)
+    path = Path(name)
+    path.unlink()
+    return path
+
+
+def _install_rebuilt_index(
+    store: InstanceStore,
+    database_candidate: Path,
+    metadata_candidate: Path,
+) -> None:
+    database = _database_path(store)
+    metadata = _metadata_path(store)
+    database_backup = _unused_temporary_path(
+        store.paths.indexes,
+        prefix=".search-previous-",
+        suffix=".sqlite3",
     )
+    metadata_backup = _unused_temporary_path(
+        store.paths.indexes,
+        prefix=".search-metadata-previous-",
+        suffix=".json",
+    )
+    database_backed_up = False
+    metadata_backed_up = False
+    database_installed = False
+    metadata_installed = False
+    committed = False
+    try:
+        if database.exists():
+            os.replace(database, database_backup)
+            database_backed_up = True
+        if metadata.exists():
+            os.replace(metadata, metadata_backup)
+            metadata_backed_up = True
+        os.replace(database_candidate, database)
+        database_installed = True
+        os.replace(metadata_candidate, metadata)
+        metadata_installed = True
+        committed = True
+    except BaseException:
+        if metadata_installed:
+            metadata.unlink(missing_ok=True)
+        if database_installed:
+            database.unlink(missing_ok=True)
+        if metadata_backed_up:
+            os.replace(metadata_backup, metadata)
+            metadata_backed_up = False
+        if database_backed_up:
+            os.replace(database_backup, database)
+            database_backed_up = False
+        raise
+    finally:
+        cleanup = (
+            (database_backup, committed or not database_backed_up),
+            (metadata_backup, committed or not metadata_backed_up),
+        )
+        for obsolete, safe_to_remove in cleanup:
+            if not safe_to_remove:
+                continue
+            with suppress(OSError):
+                obsolete.unlink(missing_ok=True)
 
 
 def _create_search_table(connection: sqlite3.Connection) -> None:
@@ -187,7 +258,6 @@ def rebuild_search_index(
     recover_missing_derived: bool = True,
 ) -> int:
     store.paths.indexes.mkdir(parents=True, exist_ok=True)
-    final_path = _database_path(store)
     descriptor, temporary_name = tempfile.mkstemp(
         prefix=".search-building-",
         suffix=".sqlite3",
@@ -195,6 +265,11 @@ def rebuild_search_index(
     )
     os.close(descriptor)
     temporary_path = Path(temporary_name)
+    temporary_metadata_path = _unused_temporary_path(
+        store.paths.indexes,
+        prefix=".search-metadata-building-",
+        suffix=".json",
+    )
     documents, current = _documents_and_versions(store)
     connection: sqlite3.Connection | None = None
     try:
@@ -215,13 +290,14 @@ def rebuild_search_index(
         connection = None
         with temporary_path.open("r+b") as handle:
             os.fsync(handle.fileno())
-        os.replace(temporary_path, final_path)
-        _write_metadata(store, current, count)
+        store._atomic_json(temporary_metadata_path, _metadata(current, count))
+        _install_rebuilt_index(store, temporary_path, temporary_metadata_path)
         return count
     finally:
         if connection is not None:
             connection.close()
         temporary_path.unlink(missing_ok=True)
+        temporary_metadata_path.unlink(missing_ok=True)
 
 
 def refresh_search_index(

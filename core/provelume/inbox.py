@@ -369,6 +369,7 @@ class InboxManager:
 
             finished = []
             acquisitions = []
+            refresh_document_ids = []
             for item, (_locator, target, removal_source, expected_digest) in zip(
                 ingestion_items,
                 staged,
@@ -407,6 +408,8 @@ class InboxManager:
                                 details={"locator": item.locator},
                             )
                     acquisitions.append(acquisition)
+                if acquisition is not None and acquisition.outcome != "unchanged":
+                    refresh_document_ids.append(acquisition.document_id)
                 finished.append(result_item)
                 submission_items.append(
                     {
@@ -440,11 +443,7 @@ class InboxManager:
             closed_run = _close_run(ledger, run, finished)
             indexed = refresh_search_index(
                 self.store,
-                (
-                    acquisition.document_id
-                    for acquisition in acquisitions
-                    if acquisition.outcome != "unchanged"
-                ),
+                refresh_document_ids,
                 recover_missing_derived=False,
             )
             completed_count = sum(

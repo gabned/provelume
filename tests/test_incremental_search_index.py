@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from provelume import index as index_module
+from provelume.inbox import InboxManager
 from provelume.index import INDEX_SCHEMA, index_status, rebuild_search_index
 from provelume.service import ProvelumeInstance
 
@@ -145,3 +147,68 @@ def test_failed_full_rebuild_preserves_previous_database(
     assert database_path.read_bytes() == database_before
     assert metadata_path.read_bytes() == metadata_before
     assert not list(instance.store.paths.indexes.glob(".search-building-*.sqlite3"))
+
+
+def test_failed_metadata_install_restores_previous_index_pair(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance, _source = _instance_with_two_documents(tmp_path)
+    database_path = instance.store.paths.indexes / "search.sqlite3"
+    metadata_path = instance.store.paths.indexes / "search.meta.json"
+    database_before = database_path.read_bytes()
+    metadata_before = metadata_path.read_bytes()
+    replace = index_module.os.replace
+
+    def fail_metadata_install(source: str | Path, destination: str | Path) -> None:
+        source_path = Path(source)
+        destination_path = Path(destination)
+        if (
+            source_path.name.startswith(".search-metadata-building-")
+            and destination_path == metadata_path
+        ):
+            raise OSError("synthetic metadata install failure")
+        replace(source, destination)
+
+    monkeypatch.setattr(index_module.os, "replace", fail_metadata_install)
+    with pytest.raises(OSError, match="synthetic metadata install failure"):
+        rebuild_search_index(instance.store)
+
+    assert database_path.read_bytes() == database_before
+    assert metadata_path.read_bytes() == metadata_before
+    assert index_status(instance.store) == "ready"
+    assert instance.search("durable traceability")[0]["title"] == "alpha.txt"
+    assert not list(instance.store.paths.indexes.glob(".search-*-building-*"))
+    assert not list(instance.store.paths.indexes.glob(".search-previous-*"))
+    assert not list(instance.store.paths.indexes.glob(".search-metadata-previous-*"))
+
+
+def test_failed_inbox_extraction_refreshes_only_its_document(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance, _source = _instance_with_two_documents(tmp_path)
+    reads: list[str] = []
+    read_derived_text = instance.store.read_derived_text
+
+    def tracked_read(artifact: dict[str, object]) -> str:
+        reads.append(str(artifact["version_id"]))
+        return read_derived_text(artifact)
+
+    monkeypatch.setattr(instance.store, "read_derived_text", tracked_read)
+    broken = tmp_path / "broken.txt"
+    broken.write_bytes(b"\xff\xfe")
+
+    result = InboxManager(instance.store).submit(broken)
+
+    assert result["submission"]["status"] == "failed"
+    assert result["acquisitions"] == []
+    failed = next(
+        acquisition
+        for acquisition in instance.store.list_canonical("acquisitions")
+        if acquisition["outcome"] == "extraction_failed"
+    )
+    assert failed["outcome"] == "extraction_failed"
+    assert reads == []
+    assert index_status(instance.store) == "ready"
+    assert instance.search("portable knowledge")[0]["title"] == "beta.txt"

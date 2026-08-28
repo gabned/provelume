@@ -8,9 +8,10 @@ provenance JSON records remain authoritative.
 
 An explicit rebuild constructs a replacement SQLite FTS database in a temporary
 file inside the Instance indexes directory. Provelume closes and flushes the
-complete candidate before atomically replacing the previous database. Metadata is
-then committed atomically. A failed build therefore leaves the previous complete
-database and metadata untouched.
+complete candidate and stages matching metadata before installing the pair. The
+previous database and metadata are retained until both replacements succeed and
+are restored if either install fails. A failed build therefore leaves the previous
+complete database and metadata available together.
 
 The rebuild may recover missing extracted text from preserved Originals when the
 caller explicitly allows recovery. The normal post-ingestion path never retries a
