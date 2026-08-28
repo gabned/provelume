@@ -4,6 +4,7 @@ ACTIVITY_TRANSLATIONS: dict[str, dict[str, str]] = {
     "en": {
         "nav.inbox": "Inbox",
         "nav.operations": "Operations",
+        "nav.bundles": "Bundles",
         "operations.eyebrow": "Local operational evidence",
         "operations.title": "Operations log",
         "operations.lead": (
@@ -37,10 +38,25 @@ ACTIVITY_TRANSLATIONS: dict[str, dict[str, str]] = {
         "inbox.recent": "Recent submissions",
         "inbox.items_completed": "items completed",
         "inbox.empty": "No Inbox submissions have been recorded.",
+        "bundles.eyebrow": "Rebuildable document context",
+        "bundles.title": "Document bundles",
+        "bundles.lead": (
+            "Browse versioned Markdown, page maps and bounded assets derived from exact "
+            "preserved Originals."
+        ),
+        "bundles.empty": "No document bundle has been built yet.",
+        "bundles.pages": "Pages",
+        "bundles.assets": "Assets",
+        "bundles.warnings": "Warnings",
+        "bundles.markdown": "Normalized Markdown",
+        "bundles.page_map": "Page map",
+        "bundles.manifest": "Bundle manifest",
+        "bundles.source_original": "The exact Original remains authoritative.",
     },
     "it": {
         "nav.inbox": "Inbox",
         "nav.operations": "Operazioni",
+        "nav.bundles": "Bundle",
         "operations.eyebrow": "Evidenza operativa locale",
         "operations.title": "Registro operazioni",
         "operations.lead": (
@@ -75,5 +91,19 @@ ACTIVITY_TRANSLATIONS: dict[str, dict[str, str]] = {
         "inbox.recent": "Invii recenti",
         "inbox.items_completed": "elementi completati",
         "inbox.empty": "Nessun invio Inbox è stato registrato.",
+        "bundles.eyebrow": "Contesto documentale ricostruibile",
+        "bundles.title": "Bundle documentali",
+        "bundles.lead": (
+            "Consulta Markdown versionato, mappa delle pagine e asset limitati derivati "
+            "dagli Original esatti conservati."
+        ),
+        "bundles.empty": "Non è ancora stato costruito alcun bundle documentale.",
+        "bundles.pages": "Pagine",
+        "bundles.assets": "Asset",
+        "bundles.warnings": "Avvisi",
+        "bundles.markdown": "Markdown normalizzato",
+        "bundles.page_map": "Mappa pagine",
+        "bundles.manifest": "Manifest del bundle",
+        "bundles.source_original": "L'Original esatto rimane l'autorità.",
     },
 }
