@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .bundle_reader import DocumentBundleReader
 from .bundles import (
     DEFAULT_MAX_BUNDLE_DOCUMENTS,
     BundleBuildError,
@@ -68,6 +69,7 @@ def handle_bundle_command(args: argparse.Namespace) -> int | None:
     store = InstanceStore(args.instance)
     store.validate()
     manager = DocumentBundleManager(store)
+    reader = DocumentBundleReader(store)
 
     if args.command == "bundle-build":
         try:
@@ -109,10 +111,10 @@ def handle_bundle_command(args: argparse.Namespace) -> int | None:
         return 0 if result["operation"]["status"] == "completed" else 2
 
     if args.command == "bundles":
-        print(json.dumps(manager.list(limit=args.limit), indent=2))
+        print(json.dumps(reader.list(limit=args.limit), indent=2))
         return 0
 
-    record = manager.get(args.version_id)
+    record = reader.get(args.version_id)
     if record is None:
         print(
             json.dumps(
@@ -123,9 +125,9 @@ def handle_bundle_command(args: argparse.Namespace) -> int | None:
         return 3
     result = {
         **record,
-        "page_map": manager.read_page_map(args.version_id),
+        "page_map": reader.read_page_map(args.version_id),
     }
     if args.include_markdown:
-        result["markdown"] = manager.read_markdown(args.version_id)
+        result["markdown"] = reader.read_markdown(args.version_id)
     print(json.dumps(result, indent=2))
     return 0
