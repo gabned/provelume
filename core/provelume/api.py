@@ -70,18 +70,35 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             raise _not_found("ingestion run", run_id)
         return result
 
+    @router.get("/hierarchy")
+    def get_hierarchy() -> dict[str, Any]:
+        return instance.hierarchy_tree()
+
+    @router.get("/hierarchy/{node_id}")
+    def get_hierarchy_node(node_id: str) -> dict[str, Any]:
+        node = instance.get_hierarchy_node(node_id)
+        if node is None:
+            raise _not_found("hierarchy node", node_id)
+        return node
+
     @router.get("/documents")
     def get_documents(
         source_id: str | None = None,
         media_type: str | None = None,
         area: str | None = None,
+        hierarchy_id: str | None = None,
+        include_descendants: bool = True,
         date_from: str | None = None,
         date_to: str | None = None,
     ) -> list[dict[str, Any]]:
+        if hierarchy_id and instance.get_hierarchy_node(hierarchy_id) is None:
+            raise _not_found("hierarchy node", hierarchy_id)
         return instance.list_documents(
             source_id=source_id,
             media_type=media_type,
             area=area,
+            hierarchy_id=hierarchy_id,
+            include_descendants=include_descendants,
             date_from=date_from,
             date_to=date_to,
         )
@@ -92,6 +109,15 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
         if document is None:
             raise _not_found("document", document_id)
         return document
+
+    @router.get("/documents/{document_id}/classification")
+    def get_document_classification(document_id: str) -> dict[str, Any]:
+        if instance.get_document(document_id) is None:
+            raise _not_found("document", document_id)
+        return {
+            "document_id": document_id,
+            "classification": instance.document_classification(document_id),
+        }
 
     @router.get("/documents/{document_id}/versions")
     def get_versions(document_id: str) -> list[dict[str, Any]]:

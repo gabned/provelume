@@ -30,12 +30,18 @@ The roadmap records `0.6.0` as the active Portable Instance and hierarchical Mar
 workstream and retains the later forecast through `1.0.0`. Forecast entries are sequencing
 coordinates, not availability claims or release authorization.
 
+The active source tree now includes the `0.6/S01` lifecycle foundation and `0.6/S02` canonical
+Area/Subarea, Project and Collection hierarchy. These Unreleased capabilities do not change the
+published `0.5.1` package identity and do not create a release.
+
 The published foundation can:
 
 - initialize a portable Instance in an ordinary directory;
 - ingest local TXT, Markdown, PDF and other bounded supported formats;
 - preserve exact originals with SHA-256 content identity;
 - record Sources, Acquisitions, Documents, DocumentVersions and provenance;
+- retain stable parent-linked Area/Subarea, Project and Collection identities plus one primary and
+  multiple secondary Document classifications;
 - keep durable ingestion runs and retry only failed or interrupted items;
 - process an Instance-local or external Drop Inbox with move-after-verified-commit semantics;
 - configure the Inbox display name, Drop folder and managed-copy folder locally;
@@ -126,6 +132,20 @@ Backup ZIPs include canonical JSON, acquired Originals and retained Instance sta
 `indexes/`, the future `library/` projection and transient locks are excluded by the manifest
 policy. External Inbox/Source working folders are not part of the Instance backup. See the
 [Portable Instance contract](docs/architecture/portable-instance.md).
+
+Create and navigate canonical hierarchy locally, then classify a Document without copying or
+rewriting its knowledge:
+
+```bash
+.venv/bin/provelume hierarchy-create .local/demo area "Work"
+.venv/bin/provelume hierarchy-create .local/demo project "Atlas" --parent-id <area-id>
+.venv/bin/provelume classify .local/demo <document-id> --primary <project-id> \
+  --secondary <collection-id>
+.venv/bin/provelume hierarchy-list .local/demo
+```
+
+Rename keeps the same node identity; `hierarchy-move` changes only its stable parent link. See the
+[hierarchical classification contract](docs/architecture/hierarchical-classification.md).
 
 Inspect the package's embedded source identity without creating an Instance or making a network request:
 
@@ -234,8 +254,11 @@ The browser and external clients use the same application layer. The read-only A
 - `GET /api/v1/sources/{id}`
 - `GET /api/v1/ingestion/runs`
 - `GET /api/v1/ingestion/runs/{id}`
+- `GET /api/v1/hierarchy`
+- `GET /api/v1/hierarchy/{id}`
 - `GET /api/v1/documents`
 - `GET /api/v1/documents/{id}`
+- `GET /api/v1/documents/{id}/classification`
 - `GET /api/v1/documents/{id}/versions`
 - `GET /api/v1/documents/{id}/provenance`
 - `GET /api/v1/documents/{id}/original`

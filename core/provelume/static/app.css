@@ -43,15 +43,20 @@ h3 { font-size: .95rem; margin: 26px 0 8px; }
 .two-column { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(300px,1fr); gap: 22px; align-items: start; }
 .panel { margin-bottom: 22px; overflow: hidden; }
 .panel-heading, .document-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
-.document-list, .issue-list, .versions, .edge-list { list-style: none; margin: 0; padding: 0; }
-.document-list li + li, .issue-list li + li, .versions li + li, .edge-list li + li { border-top: 1px solid var(--line); }
+.document-list, .hierarchy-list, .issue-list, .versions, .edge-list { list-style: none; margin: 0; padding: 0; }
+.document-list li + li, .hierarchy-list li + li, .issue-list li + li, .versions li + li, .edge-list li + li { border-top: 1px solid var(--line); }
 .document-list a { display: flex; flex-direction: column; gap: 5px; padding: 13px 0; text-decoration: none; color: var(--text); }
-.document-list span, .issue-list span, .versions span { color: var(--muted); font-size: .8rem; }
+.document-list span, .hierarchy-list span, .issue-list span, .versions span { color: var(--muted); font-size: .8rem; }
+.hierarchy-panel { padding-bottom: 10px; }
+.hierarchy-list a { display: flex; justify-content: space-between; gap: 16px; padding: 11px 0; text-decoration: none; color: var(--text); }
+.hierarchy-list a[aria-current="page"] { color: var(--accent); }
 .empty { color: var(--muted); padding: 12px 0; }
 .issue-list li { display: flex; flex-direction: column; gap: 5px; padding: 12px 0; }
 .breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; color: var(--muted); font-size: .8rem; }
 .breadcrumb a { color: var(--muted); }
-.filters, .search-form { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; align-items: end; margin-bottom: 22px; }
+.filters, .search-form { display: grid; gap: 12px; align-items: end; margin-bottom: 22px; }
+.filters { grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); }
+.search-form { grid-template-columns: repeat(4,minmax(0,1fr)); }
 .search-form .wide { grid-column: span 2; }
 label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: .78rem; font-weight: 650; }
 input, select, button, .button { min-height: 42px; border-radius: 10px; border: 1px solid var(--line); font: inherit; }

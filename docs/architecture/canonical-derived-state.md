@@ -4,7 +4,7 @@ Provelume treats durable knowledge and provenance as distinct from acceleration 
 
 ## Canonical state
 
-The first public Instance format stores canonical records as readable JSON under `knowledge/` and exact acquired bytes under `originals/`. Canonical records include Sources, Acquisitions, Originals, Documents, DocumentVersions and provenance edges. These records are sufficient to retain identity, version history and where each version came from.
+The first public Instance format stores canonical records as readable JSON under `knowledge/` and exact acquired bytes under `originals/`. Canonical records include Sources, Acquisitions, Originals, Documents, DocumentVersions, stable Area/Project/Collection nodes, Document classifications and provenance edges. These records are sufficient to retain identity, version history, current primary/secondary placement and where each version or association came from.
 
 Canonical state is not an SQLite database and does not depend on Git, GitHub or an AI provider.
 
@@ -58,6 +58,10 @@ changing classification never implies purge.
 - Sources and Documents receive stable opaque IDs when first registered.
 - Original identity is content-addressed by SHA-256 and identical bytes are stored once.
 - DocumentVersion identity is deterministic from Document identity plus content hash.
+- Area, Project and Collection identities are stable opaque IDs independent from display names,
+  portable slugs and parent paths.
+- Each classified Document has one deterministic classification-record ID, one primary hierarchy
+  node and a unique ordered set of secondary associations.
 - A new Acquisition is recorded on each observation; a new DocumentVersion is created only when content changes.
 - Physical source paths are operator configuration. Canonical document locators are normalized relative locators inside a Source.
 
@@ -72,3 +76,10 @@ Derived provenance extends it with:
 `DocumentVersion -> DerivedArtifact`
 
 Derived edges disappear safely with derived state and can be regenerated.
+
+Canonical classification provenance extends the retained graph with:
+
+`Document -> Area/Project/Collection`
+
+These association edges use stable node IDs, remain valid after rename or movement and are not
+part of the disposable derived-provenance directory.
