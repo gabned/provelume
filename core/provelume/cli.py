@@ -12,6 +12,7 @@ from .about import current_about
 from .build_info import current_build_info
 from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES, IngestionRetryError
 from .installation import verify_current_installation
+from .operational_cli import add_operational_commands, handle_operational_command
 from .service import ProvelumeInstance
 from .updates import UpdateError, check_for_updates
 from .web import create_app
@@ -127,11 +128,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional release-manifest SHA-256 obtained through a separate channel",
     )
 
+    add_operational_commands(subparsers)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    operational_result = handle_operational_command(args)
+    if operational_result is not None:
+        return operational_result
+
     if args.command == "verify-installation":
         if args.release_bundle is None and args.expected_manifest_sha256 is None:
             result = verify_current_installation()
