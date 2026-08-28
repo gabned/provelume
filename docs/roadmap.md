@@ -27,8 +27,8 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.3.0` | Anchored Local Installation Trust | #52 (completed) |
 | Published preview | `0.4.0` | Windows product shell preview | #57 (completed) |
 | Published preview | `0.4.1` | Windows product shell hardening | #62 (completed) |
-| Active implementation | `0.5.0` | Durable ingestion, local Inbox and document bundles | #66; owner PR #67 (`0.5/S01`); #5 is an input |
-| Forecast | `0.6.0` | Portable Instance and hierarchical Markdown library | issue just in time |
+| Published preview | `0.5.0` | Durable ingestion, configurable local Inbox, document bundles and assurance | #66 and #72 (completed) |
+| Next forecast | `0.6.0` | Portable Instance and hierarchical Markdown library | issue just in time |
 | Forecast | `0.7.0` | Connector framework and safe web intake | issue just in time |
 | Forecast | `0.8.0` | Refresh engine and Source lifecycle | issue just in time |
 | Forecast | `0.9.0` | Email, Google file and transcript intake | issue just in time |
@@ -47,8 +47,9 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Release candidate | `0.22.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time |
 | Stable | `1.0.0` | Stable provenance-first platform | issue just in time |
 
-The package and embedded identity are `0.4.1`. Canonical issue #66 and owner PR #67 activate only
-bounded slice `0.5/S01`; package alignment, tag and publication remain separate later steps.
+The package and embedded identity are `0.5.0`. The `0.6.0` forecast is not active: only a
+canonical issue and one owner product pull request may activate it and add product work under
+`Unreleased`.
 
 ## Planning and delivery contract
 
@@ -212,41 +213,29 @@ bundled runtime, shortcuts, Unicode paths, EN/IT layout probes and update safety
 preview remains unsigned, user-confirmed and non-automatic. See
 [`releases/0.4.1.md`](releases/0.4.1.md).
 
+### 0.5.0 — Durable Ingestion, Configurable Local Inbox and Document Bundles
+
+Delivered the five bounded implementation slices from issue #66 and the final configurable-folder
+workstream from issue #72:
+
+- persistent ingestion run/item records, per-item failure isolation and explicit crash-safe retry;
+- a filesystem Drop Inbox with copy by default and move-after-commit only after exact-byte
+  preservation, hash verification and committed Acquisition evidence;
+- a navigable, path-redacted operation log for Inbox, bundle, duplicate, assurance, settings and
+  rebuild activities;
+- deterministic document bundles containing normalized Markdown, page map and bounded assets;
+- exact duplicate occurrence preservation plus conservative probable-duplicate review evidence;
+- read-only Original assurance with no automatic repair;
+- exclusive rebuild locking and normalized incremental/full agreement evidence;
+- configurable Inbox display name, Drop folder and managed-copy folder, including external local
+  filesystem locations while canonical storage remains inside the Instance.
+
+Exact duplicate bytes may share one content-addressed Original, but every drop or Source observation
+retains its own Acquisition and routing evidence. Probable duplicates are not silently merged. No
+input is moved before a committed hash-verified acquisition, and a missing external mount is not
+silently recreated. See [`releases/0.5.0.md`](releases/0.5.0.md).
+
 ## Forecast release-by-release
-
-### 0.5.0 — Durable Ingestion, Local Inbox and Document Bundles
-
-**Outcome:** turn filesystem ingestion from a vertical slice into a durable, observable and
-recoverable local intake subsystem with agent-ready document bundles.
-
-**Active slice:** `0.5/S01` implements persistent run/item records, per-item failure isolation,
-explicit retry and read-only observability through issue #66 and owner PR #67. The Drop Inbox,
-document bundles, duplicate behavior and release integration remain later bounded slices.
-
-**Includes:** persistent ingestion runs and per-item results; a filesystem Drop Inbox with
-stabilizing/acquired/duplicate/error/processed states; safe copy by default and optional
-move-after-commit only after exact-byte preservation and hash verification; bounded per-item
-failure and retry; versioned extractor capabilities; optional local OCR only after
-licensing/packaging review; PDF document bundles containing normalized Markdown, page map,
-referenced assets and optional separately hashed viewing/mobile optimization; rename/removal/
-supersession provenance; incremental indexing with full rebuild recovery; Source locking and
-synthetic scale limits.
-
-Exact duplicate bytes share one content-addressed Original, but every drop or Source observation
-retains its own Acquisition and routing evidence. Probable duplicates are not silently merged.
-
-**Suggested slices:** `0.5/S01` persistent run ledger and retry; `0.5/S02` local Drop Inbox and
-safe move-after-commit; `0.5/S03` PDF/Markdown/page-map/asset bundle plus optional OCR and viewing
-optimization; `0.5/S04` exact/probable duplicate and original-assurance behavior; `0.5/S05`
-incremental/full rebuild agreement, scale limits and release integration.
-
-**Exit gate:** interrupted and repeated ingestion is idempotent, malformed items do not discard
-valid work, no input is moved before a committed hash-verified acquisition, exact duplicates lose
-no occurrence or provenance, Markdown/page-map/assets rebuild from the preserved Original,
-incremental and full-rebuild indexes agree, and OCR remains optional with no cloud dependency.
-
-**Not in this release:** network Sources, generic scheduling, AI classification or destructive
-cleanup of acquired Originals.
 
 ### 0.6.0 — Portable Instance and Hierarchical Markdown Library
 
@@ -654,8 +643,8 @@ public Core contracts.
 
 - #1 — repository protection and security settings audit; this is a repository-setting outcome,
   not product runtime scope.
-- #5 — optional local OCR and remaining ingestion inputs; the compatible subset is a candidate
-  input to `0.5.0`, subject to clean-room, licensing and packaging review.
+- #5 — optional local OCR and remaining ingestion inputs; OCR was not included in `0.5.0` and
+  requires a future clean-room, licensing, packaging and support decision.
 - #24 — immutable OCI builder lock and pinned-container cross-job rebuild evidence; this remains
   independent release-assurance hardening until an atomic planning change places it.
 - Detached provider-independent signing, key rotation and revocation before any release that
@@ -663,4 +652,4 @@ public Core contracts.
 - Observed runtime network-activity instrumentation and egress enforcement only after a separate
   privacy, platform and support decision.
 
-This work is not part of `0.4.0` and receives a version only through an atomic planning change.
+This work is not part of `0.5.0` and receives a version only through an atomic planning change.

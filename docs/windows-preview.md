@@ -1,8 +1,8 @@
 # Windows product shell preview
 
-Provelume `0.4.1` is the hardened patch of the first release intended to be installed as an
-ordinary Windows product. Download `Provelume-Setup-0.4.1-x64.exe` from the official GitHub
-Release and run it as the current user. Git and a separately installed Python are not required.
+Provelume `0.5.0` is the first Windows preview with the durable local-intake product surface.
+Download `Provelume-Setup-0.5.0-x64.exe` from the official GitHub Release and run it as the current
+user. Git and a separately installed Python are not required.
 
 ## What is installed
 
@@ -19,9 +19,28 @@ Three locations remain intentionally separate:
 | portable Instance and preserved originals | `%USERPROFILE%\\Documents\\Provelume` | no |
 
 An upgrade replaces only launcher/runtime files. The portable Instance is opened by the new
-runtime after installation; `0.4.1` introduces no Instance schema migration. The release pipeline
-installs the public `0.4.0` executable, creates a synthetic Instance and launcher settings, then
-installs `0.4.1` in place and verifies that the same AppId, data and settings are preserved.
+runtime after installation; `0.5.0` introduces no mandatory Instance schema migration. Candidate
+CI installs the immutable public `0.4.1` executable, while the permanent publication pipeline also
+retains the approved `0.4.0` baseline. The upgrade exercise creates a synthetic Instance and
+launcher settings, installs `0.5.0` in place and verifies that the stable AppId, Instance bytes and
+launcher settings survive upgrade and uninstall.
+
+## Local Inbox folders
+
+The `0.5.0` browser adds **Settings** for:
+
+- the Inbox display name;
+- the Drop folder;
+- the managed-copy folder.
+
+The two folders may remain inside the Instance or use absolute locations elsewhere on the local
+filesystem, including another local disk or an available mounted location. Canonical Originals,
+knowledge, derived state, indexes, operation logs and reports remain inside the Instance.
+
+A missing external location fails visibly and is not silently recreated. Backing up only the
+Instance does not back up unacquired files waiting in an external Drop folder. After Inbox
+acquisitions exist, moving the managed-copy folder is blocked until a separately designed verified
+relocation workflow is available; the Inbox name and Drop folder may still change.
 
 ## Version and About
 
@@ -42,14 +61,15 @@ integrity or signature verdict.
 6. Provelume requires another confirmation before starting the normal installer and closing the
    local server.
 
-No background check is enabled by default. `0.4.1` never applies an update silently.
+No background check is enabled by default. `0.5.0` never applies an update silently.
 
 ## Recovery and limitations
 
 If a selected Instance was moved or removed, the launcher reports the problem and keeps Choose and
-Create available instead of silently creating a replacement. If a check or download fails, the
-installed runtime and Instance are unchanged. A partial file is not promoted to the final installer
-name. The user can retry or download a release asset manually.
+Create available instead of silently creating a replacement. If a configured external Inbox
+folder disappears, Inbox processing fails without creating a replacement directory. If an update
+check or download fails, the installed runtime and Instance are unchanged. A partial file is not
+promoted to the final installer name. The user can retry or download a release asset manually.
 
 The preview installer is not Authenticode-signed. Windows may show SmartScreen. SHA-256 agreement
 with metadata fetched through the same release transport is consistency evidence, not independent

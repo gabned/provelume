@@ -8,22 +8,22 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 ROADMAP_PATH = ROOT / "docs" / "roadmap.md"
-RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.4.1.md"
+RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.5.0.md"
 
 EXPECTED_CONTRACT = {
     "RELEASE_PLAN_SCHEMA": "1",
-    "PLANNED_VERSION": "0.4.1",
-    "MILESTONE_TITLE": "0.4.1",
-    "CURRENT_PACKAGE_VERSION": "0.4.1",
+    "PLANNED_VERSION": "0.5.0",
+    "MILESTONE_TITLE": "0.5.0",
+    "CURRENT_PACKAGE_VERSION": "0.5.0",
     "PACKAGE_VERSION_UPDATE": "APPLIED",
-    "EXECUTION_ISSUE": "62",
-    "PRODUCT_THEME": "WINDOWS_PRODUCT_SHELL_HARDENING",
+    "EXECUTION_ISSUE": "72",
+    "PRODUCT_THEME": "DURABLE_INGESTION_INBOX_BUNDLES_ASSURANCE",
     "RELEASE_STATUS": "PUBLISHED_PREVIEW",
     "WINDOWS_SIGNING": "NOT_INCLUDED",
     "UPDATE_APPLY_MODE": "USER_CONFIRMED_INSTALLER",
 }
 
-FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(5, 23)) + ("1.0.0",)
+FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(6, 23)) + ("1.0.0",)
 
 
 def _read(path: Path) -> str:
@@ -51,7 +51,7 @@ def _contract_fields(plan: str) -> dict[str, str]:
     return fields
 
 
-def test_release_plan_contract_is_complete_and_closed() -> None:
+def test_release_plan_contract_is_complete_and_published() -> None:
     assert _contract_fields(_read(RELEASE_PLAN_PATH)) == EXPECTED_CONTRACT
 
 
@@ -75,21 +75,23 @@ def test_release_plan_contract_rejects_unsupported_lines(extra_field: str) -> No
 def test_release_preparation_aligns_package_identity() -> None:
     with (ROOT / "pyproject.toml").open("rb") as handle:
         package_version = tomllib.load(handle)["project"]["version"]
+    init_source = _read(ROOT / "core" / "provelume" / "__init__.py")
 
     assert package_version == EXPECTED_CONTRACT["CURRENT_PACKAGE_VERSION"]
     assert package_version == EXPECTED_CONTRACT["PLANNED_VERSION"]
+    assert f'__version__ = "{package_version}"' in init_source
 
 
-def test_roadmap_records_release_and_closed_scope() -> None:
+def test_roadmap_records_published_history_and_next_forecast() -> None:
     roadmap = _read(ROADMAP_PATH)
 
-    assert roadmap.count("| Published preview | `0.4.0` |") == 1
-    assert roadmap.count("| Published preview | `0.4.1` |") == 1
-    assert "#57" in roadmap
-    assert "#62" in roadmap
-    assert "#5 — optional local OCR" in roadmap
-    assert "#24 — immutable OCI builder" in roadmap
-    assert "not part of `0.4.0`" in roadmap
+    for version in ("0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.4.1", "0.5.0"):
+        assert roadmap.count(f"| Published preview | `{version}` |") == 1
+    assert "| Next forecast | `0.6.0` |" in roadmap
+    assert roadmap.count("| Active implementation |") == 0
+    assert "#66 and #72 (completed)" in roadmap
+    assert "The package and embedded identity are `0.5.0`" in roadmap
+    assert "`0.6.0` forecast is not active" in roadmap
 
 
 def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> None:
@@ -105,17 +107,9 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
         assert f"## {version} -" not in changelog
 
     assert heading_positions == sorted(heading_positions)
-    assert "| Published preview | `0.4.0` |" in roadmap
-    assert "| Published preview | `0.4.1` |" in roadmap
-    assert "| Active implementation | `0.5.0` |" in roadmap
-    assert "| Next forecast | `0.5.0` |" not in roadmap
-    assert roadmap.count("| Active implementation |") == 1
-    assert "#66" in roadmap
-    assert "#67" in roadmap
-    assert "#57" in roadmap
-    assert "#62" in roadmap
-    assert "issue just in time" in roadmap
+    assert "## 0.5.0 - 2026-08-28" in changelog
     assert "Forecast entries describe intended sequencing" in roadmap
+    assert "issue just in time" in roadmap
 
 
 def test_development_slices_do_not_create_ambiguous_package_versions() -> None:
@@ -131,9 +125,6 @@ def test_development_slices_do_not_create_ambiguous_package_versions() -> None:
         "package versions such\nas `0.5.0a1`, `0.5.0b1` or `0.5.0rc1`",
         "matching SemVer tags",
         "Collapsed forms such as `0.51` or `0.511`",
-        "`0.5/S01` persistent run ledger and retry",
-        "`0.6/S01` schema migration, backup and recovery",
-        "`0.10/S01` Action Center state model and local queues",
     ):
         assert required_contract in roadmap
 
@@ -141,6 +132,34 @@ def test_development_slices_do_not_create_ambiguous_package_versions() -> None:
     assert "one canonical parent issue and at most one open owner slice pull request" in policy
     assert "never versions, tags or published changelog headings" in policy
     assert "letter-suffixed package versions, are not used" in policy
+
+
+def test_published_0_5_contract_is_explicit() -> None:
+    roadmap = _read(ROADMAP_PATH)
+    release_plan = _read(RELEASE_PLAN_PATH)
+
+    for required_contract in (
+        "persistent ingestion run/item records",
+        "move-after-commit only after exact-byte",
+        "navigable, path-redacted operation log",
+        "normalized Markdown, page map and bounded assets",
+        "Probable duplicates are not silently merged",
+        "read-only Original assurance",
+        "exclusive rebuild locking",
+        "configurable Inbox display name, Drop folder and managed-copy folder",
+        "external local\n  filesystem locations",
+        "missing external mount is not\nsilently recreated",
+    ):
+        assert required_contract in roadmap
+
+    for required_release_boundary in (
+        "relative Instance-local paths or absolute folders elsewhere",
+        "Canonical Originals, readable knowledge JSON, derived state, indexes",
+        "managed-copy\nfolder is blocked",
+        "no automatic merge or deletion",
+        "loopback-only, CSRF-protected folder-settings form",
+    ):
+        assert required_release_boundary in release_plan
 
 
 def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
@@ -164,10 +183,8 @@ def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
     ):
         assert required_contract in roadmap
 
-    assert "Every later unreleased\nforecast moves forward atomically by one" in roadmap
     assert "`0.22.0` release candidate" in roadmap
     assert "stable `1.0.0` now depends on `0.22.0`" in roadmap
-    assert "connector-related scope expansions in `0.7.0`–`0.11.0`, are explicit above" in roadmap
 
 
 def test_mobile_capture_is_bounded_and_review_first() -> None:
@@ -193,31 +210,11 @@ def test_mobile_capture_is_bounded_and_review_first() -> None:
         assert required_contract in roadmap
 
 
-def test_local_inbox_pdf_bundle_and_duplicate_contract_is_explicit() -> None:
-    roadmap = _read(ROADMAP_PATH)
-
-    assert roadmap.count(
-        "| Active implementation | `0.5.0` | Durable ingestion, local Inbox and document bundles |"
-    ) == 1
-    assert "Canonical issue #66 and owner PR #67 activate only" in roadmap
-    assert "**Active slice:** `0.5/S01`" in roadmap
-    for required_contract in (
-        "filesystem Drop Inbox",
-        "move-after-commit only after exact-byte preservation and hash verification",
-        "normalized Markdown, page map",
-        "optional separately hashed viewing/mobile optimization",
-        "every drop or Source observation\nretains its own Acquisition",
-        "Probable duplicates are not silently merged",
-        "no input is moved before a committed hash-verified acquisition",
-    ):
-        assert required_contract in roadmap
-
-
 def test_hierarchical_filesystem_library_contract_is_explicit() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.6.0` | Portable Instance and hierarchical Markdown library |"
+        "| Next forecast | `0.6.0` | Portable Instance and hierarchical Markdown library |"
     ) == 1
     for required_contract in (
         "The filesystem is a supported navigation surface",
@@ -260,19 +257,6 @@ def test_original_assurance_and_action_center_contract_is_explicit() -> None:
     assert "Generic `Delete` is not a valid knowledge action" in browser_architecture
 
 
-def test_ai_uses_bounded_document_context_and_reviewable_proposals() -> None:
-    roadmap = _read(ROADMAP_PATH)
-
-    for required_contract in (
-        "bounded agent document-context contract",
-        "normalized Markdown, page map and minimum required assets",
-        "source pages or\nthe Original only when permitted and needed",
-        "classification proposals delivered through the same Action Center",
-        "immutable separation\nbetween extracted Markdown and AI-authored output",
-    ):
-        assert required_contract in roadmap
-
-
 def test_markdown_navigation_and_viewer_contract_is_explicit() -> None:
     roadmap = _read(ROADMAP_PATH)
     browser_architecture = _read(ROOT / "docs" / "architecture" / "knowledge-browser.md")
@@ -305,16 +289,18 @@ def test_markdown_navigation_and_viewer_contract_is_explicit() -> None:
     assert "never silently mutate an Original" in state_architecture
 
 
-def test_readme_links_canonical_planning_surfaces() -> None:
+def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
     readme = _read(ROOT / "README.md")
 
     assert "[public roadmap](docs/roadmap.md)" in readme
-    assert "[0.4.1 release plan](docs/releases/0.4.1.md)" in readme
-    assert "latest published preview is `v0.4.1`" in readme
+    assert "[0.5.0 release plan](docs/releases/0.5.0.md)" in readme
+    assert "latest published preview is `v0.5.0`" in readme
     assert "[Windows preview guide](docs/windows-preview.md)" in readme
+    assert "configure-inbox" in readme
+    assert "external Drop folder" in readme
 
 
-@pytest.mark.parametrize("version", ("0.3.0", "0.4.0"))
+@pytest.mark.parametrize("version", ("0.3.0", "0.4.0", "0.4.1"))
 def test_previous_release_plans_remain_published(version: str) -> None:
     plan = _read(ROOT / "docs" / "releases" / f"{version}.md")
     block = re.findall(r"^```text\n(.*?)\n```$", plan, re.MULTILINE | re.DOTALL)
