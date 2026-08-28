@@ -73,8 +73,7 @@ def handle_rebuild_command(args: argparse.Namespace) -> int | None:
     }:
         return None
 
-    store = InstanceStore(args.instance)
-    store.validate()
+    store = InstanceStore.open(args.instance)
     manager = DerivedRebuildManager(store)
 
     if args.command == "rebuild-derived":

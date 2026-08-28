@@ -44,7 +44,9 @@ The same contract is exposed by `provelume about` and the local `/about` browser
 
 ## Instance and sources
 
-- `GET /api/v1/instance` — Instance identity, canonical object counts, knowledge/index status and explicit network baseline.
+- `GET /api/v1/instance` — Instance identity, schema/manifest versions, derived-state policy,
+  migration/recovery counts, canonical object counts, knowledge/index status and explicit network
+  baseline.
 - `GET /api/v1/sources` — registered Sources with document counts and current local availability.
 - `GET /api/v1/sources/{id}` — one Source.
 
@@ -114,8 +116,10 @@ The endpoint is read-only and does not mutate canonical, derived or configuratio
 ## Read-only boundary
 
 The v1 routes in this slice do not expose mutation endpoints. Ingestion, retry and index rebuild
-are operator actions through the application service/CLI. Future write APIs require separate scope
-and permission design rather than being added implicitly to this read-only surface.
+are operator actions through the application service/CLI. Instance validation, migration, backup
+and restore are also local service/CLI operations; physical backup paths and restore authority are
+not exposed through HTTP. Future write APIs require separate scope and permission design rather
+than being added implicitly to this read-only surface.
 
 ## Installation security
 

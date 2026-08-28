@@ -115,7 +115,11 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "Z:\\synthetic-missing-python" in windows_exercise
     assert "ReadAllText(" in windows_exercise
     assert "SettingsAfterUninstall" in windows_exercise
-    assert "ExpectedInstanceConfigSha256" in windows_exercise
+    assert "LegacyInstanceConfigSha256" in windows_exercise
+    assert "ExpectedMigratedConfigSha256" in windows_exercise
+    assert "ExpectedInstanceManifestSha256" in windows_exercise
+    assert "ExpectedMigrationReceiptSha256" in windows_exercise
+    assert "ExpectedMigrationBackupSha256" in windows_exercise
     assert "sys.path.insert" not in windows_exercise
     assert "Provelume-Setup-0.5.0-public.exe" in windows_exercise
     assert (

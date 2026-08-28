@@ -66,8 +66,7 @@ def handle_bundle_command(args: argparse.Namespace) -> int | None:
     }:
         return None
 
-    store = InstanceStore(args.instance)
-    store.validate()
+    store = InstanceStore.open(args.instance)
     manager = DocumentBundleManager(store)
     reader = DocumentBundleReader(store)
 

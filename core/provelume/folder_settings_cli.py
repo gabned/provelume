@@ -32,8 +32,7 @@ def add_folder_settings_commands(subparsers: Any) -> None:
 def handle_folder_settings_command(args: argparse.Namespace) -> int | None:
     if args.command not in {"folder-settings", "configure-inbox"}:
         return None
-    store = InstanceStore(args.instance)
-    store.validate()
+    store = InstanceStore.open(args.instance)
     manager = FolderSettingsManager(store)
 
     if args.command == "folder-settings":

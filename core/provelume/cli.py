@@ -12,6 +12,10 @@ from .about import current_about
 from .build_info import current_build_info
 from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES, IngestionRetryError
 from .installation import verify_current_installation
+from .instance_cli import (
+    add_instance_lifecycle_commands,
+    handle_instance_lifecycle_command,
+)
 from .operational_cli import add_operational_commands, handle_operational_command
 from .service import ProvelumeInstance
 from .updates import UpdateError, check_for_updates
@@ -137,11 +141,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     add_operational_commands(subparsers)
+    add_instance_lifecycle_commands(subparsers)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    lifecycle_result = handle_instance_lifecycle_command(args)
+    if lifecycle_result is not None:
+        return lifecycle_result
     operational_result = handle_operational_command(args)
     if operational_result is not None:
         return operational_result

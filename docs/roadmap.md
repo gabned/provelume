@@ -29,7 +29,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.4.1` | Windows product shell hardening | #62 (completed) |
 | Published preview | `0.5.0` | Durable ingestion, configurable local Inbox, document bundles and assurance | #66 and #72 (completed) |
 | Published preview | `0.5.1` | Stability, security, incremental indexing and accessibility hardening | #80 (completed) |
-| Next forecast | `0.6.0` | Portable Instance and hierarchical Markdown library | issue just in time |
+| Active implementation | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (active) |
 | Forecast | `0.7.0` | Connector framework and safe web intake | issue just in time |
 | Forecast | `0.8.0` | Refresh engine and Source lifecycle | issue just in time |
 | Forecast | `0.9.0` | Email, Google file and transcript intake | issue just in time |
@@ -48,9 +48,9 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Release candidate | `0.22.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time |
 | Stable | `1.0.0` | Stable provenance-first platform | issue just in time |
 
-The package and embedded identity are `0.5.1`. The `0.6.0` forecast is not active: only a
-canonical issue and one owner product pull request may activate it and add product work under
-`Unreleased`.
+The package and embedded identity remain `0.5.1`. Issue #95 and one sequential owner product pull
+request at a time activate `0.6.0`; implementation work is recorded under `Unreleased` until a
+separate reviewed release-preparation change aligns identity and publication metadata.
 
 ## Planning and delivery contract
 

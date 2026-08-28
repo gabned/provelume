@@ -83,7 +83,7 @@ def test_release_preparation_aligns_package_identity() -> None:
     assert f'__version__ = "{package_version}"' in init_source
 
 
-def test_roadmap_records_published_history_and_next_forecast() -> None:
+def test_roadmap_records_published_history_and_active_release() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     for version in (
@@ -96,11 +96,14 @@ def test_roadmap_records_published_history_and_next_forecast() -> None:
         "0.5.1",
     ):
         assert roadmap.count(f"| Published preview | `{version}` |") == 1
-    assert "| Next forecast | `0.6.0` |" in roadmap
-    assert roadmap.count("| Active implementation |") == 0
+    assert (
+        "| Active implementation | `0.6.0` | Portable Instance and hierarchical Markdown "
+        "library | #95 (active) |"
+    ) in roadmap
+    assert roadmap.count("| Active implementation |") == 1
     assert "#80 (completed)" in roadmap
-    assert "The package and embedded identity are `0.5.1`" in roadmap
-    assert "`0.6.0` forecast is not active" in roadmap
+    assert "The package and embedded identity remain `0.5.1`" in roadmap
+    assert "Issue #95" in roadmap
 
 
 def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> None:
@@ -257,7 +260,8 @@ def test_hierarchical_filesystem_library_contract_is_explicit() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Next forecast | `0.6.0` | Portable Instance and hierarchical Markdown library |"
+        "| Active implementation | `0.6.0` | Portable Instance and hierarchical Markdown "
+        "library |"
     ) == 1
     for required_contract in (
         "The filesystem is a supported navigation surface",
