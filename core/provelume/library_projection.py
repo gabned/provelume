@@ -19,6 +19,7 @@ from .library_projection_model import (
     LIBRARY_MANIFEST,
     LIBRARY_PROJECTION_SCHEMA_VERSION,
     LIBRARY_REBUILD_LOCK,
+    MAX_LIBRARY_DOCUMENTS,
     MAX_LIBRARY_FILE_BYTES,
     MAX_LIBRARY_FILES,
     MAX_LIBRARY_MANIFEST_BYTES,
@@ -260,6 +261,11 @@ class LibraryProjectionManager:
     ) -> dict[str, Any]:
         if max_documents < 1:
             raise ValueError("max_documents must be positive")
+        if max_documents > MAX_LIBRARY_DOCUMENTS:
+            raise ValueError(
+                f"max_documents cannot exceed the {MAX_LIBRARY_DOCUMENTS}-document "
+                "absolute safety limit"
+            )
         documents = self.store.list_canonical("documents")
         if len(documents) > max_documents:
             raise LibraryProjectionLimitError(
@@ -435,7 +441,7 @@ class LibraryProjectionManager:
             or not isinstance(value.get("documents"), int)
             or isinstance(value.get("documents"), bool)
             or value["documents"] < 0
-            or value["documents"] > DEFAULT_MAX_LIBRARY_DOCUMENTS
+            or value["documents"] > MAX_LIBRARY_DOCUMENTS
             or len(value["primary_paths"]) != value["documents"]
             or _SHA256.fullmatch(str(value.get("canonical_fingerprint", ""))) is None
             or _SHA256.fullmatch(str(value.get("content_fingerprint", ""))) is None

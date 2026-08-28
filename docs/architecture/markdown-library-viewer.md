@@ -96,6 +96,8 @@ lock/staging area on the same filesystem. Only a complete validated tree is swap
 failed staged or post-commit validation restores it before the operation returns an error. The
 exclusive `derived-rebuild` lock serializes standalone and coordinated projection rebuilds. File,
 Document, character and manifest bounds fail visibly rather than publishing a partial tree.
+The operational default is 1,000 Documents; an explicit local override is honored up to the
+50,000-Document absolute guardrail, with the independent file-count limit still enforced.
 
 Local commands and application-service methods are:
 

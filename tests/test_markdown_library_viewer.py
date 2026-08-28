@@ -13,6 +13,7 @@ import provelume.library_projection as library_projection
 from provelume.cli import main
 from provelume.library_projection import (
     LIBRARY_MANIFEST,
+    MAX_LIBRARY_DOCUMENTS,
     LibraryProjectionError,
     LibraryProjectionManager,
 )
@@ -281,6 +282,41 @@ def test_empty_projection_and_symlink_status_are_bounded(tmp_path: Path) -> None
     )
     assert linked.library_status()["status"] == "invalid"
     assert linked.library_status()["reason"] == "library_path_invalid"
+
+
+def test_explicit_document_limit_above_the_default_is_honored(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance = ProvelumeInstance.initialise(tmp_path / "large-limit")
+    manager = LibraryProjectionManager(instance.store)
+    documents = [{"id": f"doc_{number:032x}"} for number in range(1_001)]
+    paths = {
+        str(document["id"]): PurePosixPath(
+            f"unclassified/document--{number:032x}.md"
+        )
+        for number, document in enumerate(documents)
+    }
+    files = {
+        path: b"# Synthetic bounded projection\n" for path in paths.values()
+    }
+    files[PurePosixPath("README.md")] = b"# Synthetic root\n"
+    real_list_canonical = instance.store.list_canonical
+
+    def list_canonical(kind: str) -> list[dict[str, object]]:
+        if kind == "documents":
+            return documents
+        return real_list_canonical(kind)
+
+    monkeypatch.setattr(instance.store, "list_canonical", list_canonical)
+    monkeypatch.setattr(manager, "_build_files", lambda: (files, paths))
+
+    rebuilt = manager.rebuild(max_documents=1_001)
+
+    assert rebuilt["documents"] == 1_001
+    assert manager.status()["status"] == "ready"
+    with pytest.raises(ValueError, match="absolute safety limit"):
+        manager.rebuild(max_documents=MAX_LIBRARY_DOCUMENTS + 1)
 
 
 def test_viewer_blocks_active_html_links_and_resource_loading(tmp_path: Path) -> None:
