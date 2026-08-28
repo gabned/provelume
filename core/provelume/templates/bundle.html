@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}{{ document.title if document else bundle.manifest.document_id }} · {{ t('bundles.title') }}{% endblock %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="/bundles?lang={{ lang }}">{{ t('bundles.title') }}</a>
+  <span>/</span>
+  <span>{{ bundle.manifest.version_id }}</span>
+</div>
+<section class="document-header">
+  <div>
+    <p class="eyebrow">{{ bundle.manifest.media_type }}</p>
+    <h1>{{ document.title if document else bundle.manifest.document_id }}</h1>
+    <p class="muted">{{ bundle.manifest.output_fingerprint }}</p>
+  </div>
+  {% if document %}
+  <div class="actions">
+    <a class="button secondary" href="/documents/{{ document.id }}?lang={{ lang }}">{{ t('nav.browse') }}</a>
+    <a class="button secondary" href="/api/v1/documents/{{ document.id }}/original">Original</a>
+  </div>
+  {% endif %}
+</section>
+<p class="technical-note">{{ t('bundles.source_original') }}</p>
+<div class="two-column document-layout">
+  <section class="panel">
+    <h2>{{ t('bundles.markdown') }}</h2>
+    <pre class="preview">{{ markdown }}</pre>
+  </section>
+  <aside>
+    <section class="panel">
+      <h2>{{ t('bundles.page_map') }}</h2>
+      <ol class="versions">
+      {% for page in page_map.pages %}
+        <li>
+          <strong>{{ t('bundles.pages') }} {{ page.label }}</strong>
+          <span>lines {{ page.markdown_start_line }}–{{ page.markdown_end_line }}</span>
+          <code>{{ page.text_sha256[:12] }}</code>
+        </li>
+      {% endfor %}
+      </ol>
+    </section>
+    {% if bundle.manifest.assets %}
+    <section class="panel">
+      <h2>{{ t('bundles.assets') }}</h2>
+      <ul class="document-list">
+      {% for asset in bundle.manifest.assets %}
+        <li>
+          <a href="/api/v1/bundles/{{ bundle.manifest.version_id }}/assets/{{ asset.id }}">
+            <strong>{{ asset.filename }}</strong>
+            <span>{{ asset.media_type }} · {{ asset.size_bytes }} bytes · page {{ asset.page }}</span>
+          </a>
+        </li>
+      {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+    {% if bundle.manifest.warnings %}
+    <section class="panel">
+      <h2>{{ t('bundles.warnings') }}</h2>
+      <ul>
+      {% for warning in bundle.manifest.warnings %}<li>{{ warning }}</li>{% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+    <section class="panel">
+      <h2>{{ t('bundles.manifest') }}</h2>
+      <pre class="technical-note">{{ bundle.manifest | tojson(indent=2) }}</pre>
+    </section>
+  </aside>
+</div>
+{% endblock %}
