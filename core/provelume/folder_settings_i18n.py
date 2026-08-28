@@ -23,6 +23,7 @@ FOLDER_SETTINGS_TRANSLATIONS: dict[str, dict[str, str]] = {
         "settings.inbox_name": "Inbox display name",
         "settings.drop_path": "Drop folder",
         "settings.managed_path": "Managed-copy folder",
+        "settings.path": "Path",
         "settings.drop_help": (
             "Files placed here can be processed with move-after-verified-commit semantics."
         ),
@@ -71,6 +72,7 @@ FOLDER_SETTINGS_TRANSLATIONS: dict[str, dict[str, str]] = {
         "settings.inbox_name": "Nome visualizzato dell'Inbox",
         "settings.drop_path": "Cartella Drop",
         "settings.managed_path": "Cartella delle copie gestite",
+        "settings.path": "Percorso",
         "settings.drop_help": (
             "I file inseriti qui possono essere lavorati con spostamento solo dopo un "
             "commit verificato."
