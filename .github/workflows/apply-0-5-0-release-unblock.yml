@@ -27,63 +27,33 @@ jobs:
 
       - name: Apply exact public-baseline correction and regression
         shell: bash
+        env:
+          TEST_FILE_BASE64: ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgoKU0NSSVBUID0gUGF0aCgic2NyaXB0cy90ZXN0X3dpbmRvd3NfaW5zdGFsbGVyLnBzMSIpCgoKZGVmIHRlc3Rfd2luZG93c191cGdyYWRlX3VzZXNfaW1tdXRhYmxlX3B1YmxpY19pbnN0YWxsZXJfYmFzZWxpbmVzKCkgLT4gTm9uZToKICAgIHRleHQgPSBTQ1JJUFQucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpCgogICAgYXNzZXJ0ICd2ZXJzaW9uID0gIjAuNC4wIicgaW4gdGV4dAogICAgYXNzZXJ0ICdjb21taXQgPSAiYTU0ZWE2NGRiN2MzNDUyZDJiZTRkZmRmNzYxY2RiNmI2OTYyYzA5YiInIGluIHRleHQKICAgIGFzc2VydCAic2l6ZSA9IDE4MDUxNDI5IiBpbiB0ZXh0CiAgICBhc3NlcnQgKAogICAgICAgICdzaGEyNTYgPSAiMGQxM2I4OTQwMTg0YmVmZWQ0MmI2ZTk2ZDM3ODliMDZjMGNjNjg0MmJjZDM0NzNkOGUyNjczOGQ2ZGYzNTc0OSInCiAgICAgICAgaW4gdGV4dAogICAgKQoKICAgIGFzc2VydCAndmVyc2lvbiA9ICIwLjQuMSInIGluIHRleHQKICAgIGFzc2VydCAnY29tbWl0ID0gIjZlMzQ0OThlOThhMzE1YmFhZWYwMDMxNGZkNTk3NzJhM2FmMDA4ZGYiJyBpbiB0ZXh0CiAgICBhc3NlcnQgInNpemUgPSAxODA1Njk1NyIgaW4gdGV4dAogICAgYXNzZXJ0ICgKICAgICAgICAnc2hhMjU2ID0gImVhMjA5M2NkNjM4NjBlMjU3NTcxNTYxN2YzYmRlMzYzNjQ2MjEzODQxZjYwYmUxZGI5NzQzM2IxOTA1MmI0NmIiJwogICAgICAgIGluIHRleHQKICAgICkKICAgIGFzc2VydCAncmVsZWFzZXMvZG93bmxvYWQvdjAuNC4xL1Byb3ZlbHVtZS1TZXR1cC0wLjQuMS14NjQuZXhlJyBpbiB0ZXh0Cg==
         run: |
           set -euo pipefail
           python - <<'PY'
+          import base64
+          import os
           from pathlib import Path
 
-          script_path = Path('scripts/test_windows_installer.ps1')
-          text = script_path.read_text(encoding='utf-8')
-          old = '''    @{
-                  version = "0.4.1"
-                  commit = "6e34498e98a315baaef00314fd59772a3af008df"
-                  size = 18067909
-                  sha256 = "d1ce3f855cb999f0063a4b08f826910c610891c6ba6c15254b16f2b42dabc4db"
-              }'''
-          new = '''    @{
-                  version = "0.4.1"
-                  commit = "6e34498e98a315baaef00314fd59772a3af008df"
-                  size = 18056957
-                  sha256 = "ea2093cd63860e2575715617f3bde363646213841f60be1db97433b19052b46b"
-              }'''
-          if text.count(old) != 1:
-              raise SystemExit('expected exactly one stale 0.4.1 public baseline block')
-          script_path.write_text(text.replace(old, new), encoding='utf-8')
+          script_path = Path("scripts/test_windows_installer.ps1")
+          text = script_path.read_text(encoding="utf-8")
+          replacements = {
+              "size = 18067909": "size = 18056957",
+              "sha256 = \"d1ce3f855cb999f0063a4b08f826910c610891c6ba6c15254b16f2b42dabc4db\"": "sha256 = \"ea2093cd63860e2575715617f3bde363646213841f60be1db97433b19052b46b\"",
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f"expected exactly one stale baseline token: {old}")
+              text = text.replace(old, new)
+          script_path.write_text(text, encoding="utf-8")
 
-          test_path = Path('tests/test_windows_public_baselines.py')
-          test_path.write_text(
-              '''from pathlib import Path
-
-
-SCRIPT = Path("scripts/test_windows_installer.ps1")
-
-
-def test_windows_upgrade_uses_immutable_public_installer_baselines() -> None:
-    text = SCRIPT.read_text(encoding="utf-8")
-
-    assert 'version = "0.4.0"' in text
-    assert 'commit = "a54ea64db7c3452d2be4dfdf761cdb6b6962c09b"' in text
-    assert "size = 18051429" in text
-    assert (
-        'sha256 = "0d13b8940184befed42b6e96d3789b06c0cc6842bcd3473d8e26738d6df35749"'
-        in text
-    )
-
-    assert 'version = "0.4.1"' in text
-    assert 'commit = "6e34498e98a315baaef00314fd59772a3af008df"' in text
-    assert "size = 18056957" in text
-    assert (
-        'sha256 = "ea2093cd63860e2575715617f3bde363646213841f60be1db97433b19052b46b"'
-        in text
-    )
-    assert (
-        'releases/download/v0.4.1/Provelume-Setup-0.4.1-x64.exe' in text
-    )
-''',
-              encoding='utf-8',
+          test_content = base64.b64decode(os.environ["TEST_FILE_BASE64"]).decode("utf-8")
+          Path("tests/test_windows_public_baselines.py").write_text(
+              test_content,
+              encoding="utf-8",
           )
-
-          Path('.github/workflows/apply-0-5-0-release-unblock.yml').unlink()
+          Path(".github/workflows/apply-0-5-0-release-unblock.yml").unlink()
           PY
 
       - name: Commit final product delta
@@ -92,8 +62,7 @@ def test_windows_upgrade_uses_immutable_public_installer_baselines() -> None:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add scripts/test_windows_installer.ps1 tests/test_windows_public_baselines.py \
-            .github/workflows/apply-0-5-0-release-unblock.yml
+          git add -A
           git diff --cached --check
           git commit -m 'Correct published 0.4.1 installer baseline'
           git push origin HEAD:product/0.5.0-release-unblock
