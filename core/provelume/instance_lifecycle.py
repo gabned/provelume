@@ -365,6 +365,9 @@ class InstanceLifecycleManager:
         if self.pending_path.exists():
             with self._hold(purpose="instance-lifecycle-recovery"):
                 recovery = self._recover_pending()
+        from .retention import DocumentRetentionManager
+
+        retention_recovery = DocumentRetentionManager(self.store).recover_pending()
         report = self.validate(deep=False)
         if report["status"] != "valid":
             raise InstanceLifecycleError("Instance validation failed before open")
@@ -377,6 +380,7 @@ class InstanceLifecycleManager:
                 "instance_schema_version": schema,
                 "migration": None,
                 "recovery": recovery,
+                "retention_recovery": retention_recovery,
             }
         if schema != LEGACY_INSTANCE_SCHEMA_VERSION:
             raise InstanceLifecycleError("Instance schema has no supported migration path")
@@ -393,6 +397,7 @@ class InstanceLifecycleManager:
                     "instance_schema_version": CURRENT_INSTANCE_SCHEMA_VERSION,
                     "migration": None,
                     "recovery": recovery,
+                    "retention_recovery": retention_recovery,
                 }
             backup = create_backup(self.store, reason="pre_migration_1_to_2")
             self._write_pending(operation="migration", rollback=backup)
@@ -426,6 +431,7 @@ class InstanceLifecycleManager:
             "migration": receipt,
             "backup": backup,
             "recovery": recovery,
+            "retention_recovery": retention_recovery,
         }
 
     def backup(

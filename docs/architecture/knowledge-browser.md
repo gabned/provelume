@@ -52,6 +52,8 @@ filtering. One primary classification and multiple secondary associations are sh
 application-service result returned to the read-only API; the template maintains no private tree.
 Source-locator areas remain a distinct compatibility filter. Filesystem projection and safe
 rendered Markdown are now implemented by `0.6/S03` from the same application-service state.
+`0.6/S04` adds explicit active/archive/trash filtering and per-Document disposition status while
+keeping every retention mutation outside the read-only HTTP surface.
 
 Deterministic navigation remains complete without AI, embeddings or a vector store. Later semantic
 retrieval may add suggestions, but cannot replace stable links, filters, provenance or full-text

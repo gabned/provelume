@@ -17,6 +17,7 @@ from .i18n import SUPPORTED_LANGUAGES, translator
 from .installation import verify_current_installation
 from .installation_i18n import installation_translator
 from .markdown_viewer import DocumentContentError, safe_markdown_html
+from .retention_model import DISPOSITION_FILTERS
 from .service import ProvelumeInstance
 from .web_security import LocalWebSecurityMiddleware
 
@@ -222,7 +223,10 @@ def create_app(
         media_type: str | None = None,
         area: str | None = None,
         hierarchy_id: str | None = None,
+        disposition: str = "active",
     ):
+        if disposition not in DISPOSITION_FILTERS:
+            raise HTTPException(status_code=400, detail="unsupported disposition filter")
         selected_hierarchy_node = None
         if hierarchy_id:
             selected_hierarchy_node = instance.get_hierarchy_node(hierarchy_id)
@@ -234,6 +238,7 @@ def create_app(
             media_type=media_type,
             area=area_filter,
             hierarchy_id=hierarchy_id,
+            disposition=disposition,
         )
         return TEMPLATES.TemplateResponse(
             request=request,
@@ -251,6 +256,7 @@ def create_app(
                 selected_area=area,
                 selected_hierarchy=hierarchy_id,
                 selected_hierarchy_node=selected_hierarchy_node,
+                selected_disposition=disposition,
                 root_area_filter=ROOT_AREA_FILTER,
             ),
         )

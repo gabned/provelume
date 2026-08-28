@@ -14,6 +14,7 @@ from typing import Any
 from .derived import materialize_extracted_text
 from .domain import as_record
 from .extractors import ExtractionError, extractor_for
+from .retention_model import effective_dispositions
 from .storage import InstanceStore, utc_now
 
 INDEX_SCHEMA = 2
@@ -61,7 +62,12 @@ def _ensure_extracted(
 def _documents_and_versions(
     store: InstanceStore,
 ) -> tuple[list[dict[str, Any]], dict[str, str]]:
-    documents = store.list_canonical("documents")
+    dispositions = effective_dispositions(store)
+    documents = [
+        document
+        for document in store.list_canonical("documents")
+        if dispositions[str(document["id"])]["status"] != "trashed"
+    ]
     current = {
         str(document["id"]): str(document["current_version_id"])
         for document in documents

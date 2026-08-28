@@ -84,13 +84,17 @@ operator mutation; no HTTP ingestion or retry route is introduced. See
 - `GET /api/v1/documents/{id}/provenance`
 - `GET /api/v1/documents/{id}/original`
 - `GET /api/v1/documents/{id}/classification`
+- `GET /api/v1/documents/{id}/disposition`
 - `GET /api/v1/documents/{id}/content?mode=raw|original`
 
 `/documents` supports `source_id`, `media_type`, `area`, `hierarchy_id`,
-`include_descendants`, `date_from` and `date_to`. Date-only values are inclusive for their entire
-UTC day. An `area` is the first logical path component below a Source; it is not a physical
-absolute path or a canonical Area identity. `hierarchy_id` selects Documents whose primary or
-secondary classification is the selected node or, by default, one of its descendants.
+`include_descendants`, `date_from`, `date_to` and
+`disposition=active|archived|trashed|all`. The default is `active`; trashed Documents are absent
+from default browse/search/library views but remain directly addressable until permanent purge.
+Date-only values are inclusive for their entire UTC day. An `area` is the first logical path
+component below a Source; it is not a physical absolute path or a canonical Area identity.
+`hierarchy_id` selects Documents whose primary or secondary classification is the selected node or,
+by default, one of its descendants.
 
 The original endpoint returns the preserved bytes of the current DocumentVersion as an attachment.
 It resolves only the content-addressed Instance reference recorded in canonical state and verifies
@@ -129,6 +133,18 @@ are HTML-escaped by the template. The Viewer does not build missing bundles, loa
 document resources, contact a provider or treat projection edits as canonical input. See
 [`architecture/markdown-library-viewer.md`](architecture/markdown-library-viewer.md).
 
+## Retention status
+
+- `GET /api/v1/documents?disposition=active|archived|trashed|all` — filter by effective canonical
+  disposition;
+- `GET /api/v1/documents/{id}/disposition` — status, library inclusion, restoration coordinates and
+  revision for one Document.
+
+Archive, library exclusion, recoverable trash, restoration and permanent purge remain local
+application-service/CLI mutations. There is deliberately no generic HTTP `DELETE`, retention
+`POST` or purge route on the unauthenticated loopback API. See
+[`architecture/retention-boundaries.md`](architecture/retention-boundaries.md).
+
 ## Search
 
 `GET /api/v1/search?q=...` supports `source_id`, `media_type`, `date_from`, `date_to` and `limit`.
@@ -156,11 +172,12 @@ The endpoint is read-only and does not mutate canonical, derived or configuratio
 
 ## Read-only boundary
 
-The v1 routes in this slice do not expose mutation endpoints. Ingestion, retry, index rebuild and
-Markdown-library rebuild are operator actions through the application service/CLI. Instance
-validation, migration, backup and restore are also local service/CLI operations; physical backup
-paths and restore authority are not exposed through HTTP. Future write APIs require separate scope
-and permission design rather than being added implicitly to this read-only surface.
+The v1 routes in this slice do not expose mutation endpoints. Ingestion, retry, index rebuild,
+Markdown-library rebuild and every retention action are operator actions through the application
+service/CLI. Instance validation, migration, backup and restore are also local service/CLI
+operations; physical backup paths, restore authority and purge confirmation tokens are not exposed
+through HTTP. Future write APIs require separate scope and permission design rather than being
+added implicitly to this read-only surface.
 
 ## Installation security
 

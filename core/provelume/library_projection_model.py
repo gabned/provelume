@@ -10,6 +10,7 @@ from pathlib import PurePosixPath
 from typing import Any
 
 from .hierarchy import HierarchyManager
+from .retention_model import effective_dispositions
 from .storage import InstanceStore
 
 LIBRARY_PROJECTION_SCHEMA_VERSION = 1
@@ -134,7 +135,7 @@ class LibraryLayoutBuilder:
             ),
             PurePosixPath("archive"): (
                 "Archive",
-                "Reserved derived Archive view; archive actions arrive in 0.6/S04.",
+                "Documents explicitly archived while their canonical identity remains intact.",
             ),
             PurePosixPath("unclassified"): (
                 "Unclassified",
@@ -249,8 +250,13 @@ class LibraryLayoutBuilder:
         dict[str, dict[str, Any]],
         dict[str, PurePosixPath],
     ]:
+        dispositions = effective_dispositions(self.store)
         documents = sorted(
-            self.store.list_canonical("documents"),
+            (
+                item
+                for item in self.store.list_canonical("documents")
+                if dispositions[str(item["id"])]["projected"]
+            ),
             key=lambda item: (str(item["title"]).casefold(), str(item["id"])),
         )
         sources = {
@@ -264,11 +270,14 @@ class LibraryLayoutBuilder:
         for document in documents:
             document_id = str(document["id"])
             classification = classifications.get(document_id)
+            disposition = dispositions[document_id]
             primary_id = (
                 str(classification["primary_node_id"]) if classification else None
             )
             directory = (
-                node_paths[primary_id]
+                PurePosixPath("archive")
+                if disposition["status"] == "archived"
+                else node_paths[primary_id]
                 if primary_id is not None
                 else PurePosixPath("unclassified")
             )
@@ -281,12 +290,18 @@ class LibraryLayoutBuilder:
                 + ".md"
             )
             paths[document_id] = directory / filename
-            relation = "primary" if classification else "unclassified"
+            relation = (
+                "archived"
+                if disposition["status"] == "archived"
+                else "primary"
+                if classification
+                else "unclassified"
+            )
             indexes[directory].documents.setdefault(document_id, set()).add(relation)
             indexes[PurePosixPath(".")].documents.setdefault(document_id, set()).add(
                 "primary path"
             )
-            if classification:
+            if classification and disposition["status"] != "archived":
                 for node_id in classification["secondary_node_ids"]:
                     indexes[node_paths[str(node_id)]].documents.setdefault(
                         document_id,
