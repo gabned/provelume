@@ -117,6 +117,7 @@ Versions or Originals. See
 
 `0.6/S04` now preserves these same stable classification references across archive, projection
 removal, recoverable trash and restoration; only authorized permanent purge removes the selected
-classification with the Document lineage. Portable export/import and cross-platform transfer
-qualification remain `0.6/S05`. See
-[`retention-boundaries.md`](retention-boundaries.md).
+classification with the Document lineage. `0.6/S05` preserves hierarchy IDs, classifications and
+association provenance through hash-manifested cross-platform export/import. See
+[`retention-boundaries.md`](retention-boundaries.md) and
+[`portable-export-import.md`](portable-export-import.md).

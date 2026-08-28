@@ -149,6 +149,8 @@ dispositions. These mutations rebuild the projection under the lifecycle lock; a
 changes disposition. Permanent purge has its own preview/confirmation contract and is documented in
 [`retention-boundaries.md`](retention-boundaries.md).
 
-Portable export/import, hostile bundle validation and Windows/Linux transfer qualification remain
-`0.6/S05`. These slices introduce no autonomous tagging/classification, connector, OCR, AI,
-semantic search, cloud storage or general Markdown editor.
+`0.6/S05` now makes the library policy explicit during portable export: default import rebuilds it
+from canonical state, while `include` retains its exact manifested bytes. Hostile transfer bundles
+are validated before staging. See [`portable-export-import.md`](portable-export-import.md). These
+slices introduce no autonomous tagging/classification, connector, OCR, AI, semantic search, cloud
+storage or general Markdown editor.

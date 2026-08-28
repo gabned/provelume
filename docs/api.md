@@ -175,9 +175,11 @@ The endpoint is read-only and does not mutate canonical, derived or configuratio
 The v1 routes in this slice do not expose mutation endpoints. Ingestion, retry, index rebuild,
 Markdown-library rebuild and every retention action are operator actions through the application
 service/CLI. Instance validation, migration, backup and restore are also local service/CLI
-operations; physical backup paths, restore authority and purge confirmation tokens are not exposed
-through HTTP. Future write APIs require separate scope and permission design rather than being
-added implicitly to this read-only surface.
+operations. Portable export and replacement import likewise remain explicit local service/CLI
+authority; physical bundle/backup paths, import/restore authority and purge confirmation tokens are
+not exposed through HTTP. Future write APIs require separate scope and permission design rather
+than being added implicitly to this read-only surface. See
+[`architecture/portable-export-import.md`](architecture/portable-export-import.md).
 
 ## Installation security
 

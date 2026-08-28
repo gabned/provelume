@@ -177,6 +177,8 @@ class InstanceLifecycleManager:
         for prefix in (
             f".{name}.restore-stage-",
             f".{name}.restore-previous-",
+            f".{name}.import-stage-",
+            f".{name}.import-previous-",
         ):
             for path in parent.glob(f"{prefix}*"):
                 if path.is_dir() and not path.is_symlink():
@@ -220,7 +222,7 @@ class InstanceLifecycleManager:
         if pending is None or pending.get("schema_version") != LIFECYCLE_STATE_SCHEMA_VERSION:
             raise InstanceLifecycleError("pending lifecycle recovery record is invalid")
         operation = pending.get("operation")
-        if operation not in {"backup", "migration", "restore"}:
+        if operation not in {"backup", "import", "migration", "restore"}:
             raise InstanceLifecycleError("pending lifecycle operation is unsupported")
         if operation == "backup":
             for path in (self.control_root / "backups").glob(".*.tmp"):

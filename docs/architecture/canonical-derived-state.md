@@ -34,6 +34,11 @@ Viewer. The projection binds the deep canonical/Original fingerprint, produces o
 per Document and uses README links for secondary/generated views. See
 [`markdown-library-viewer.md`](markdown-library-viewer.md).
 
+`0.6/S05` preserves the same authority split during cross-platform transfer. Portable export
+always includes canonical JSON, acquired Originals and retained state artifacts; default import
+rebuilds `indexes/` and `library/`, while explicit `include` carries only views that validate as
+ready. See [`portable-export-import.md`](portable-export-import.md).
+
 For PDF input, the human/agent-facing derivative is a versioned document bundle rather than an
 unqualified text dump. It may contain normalized `content.md`, a page map, referenced images and
 tables, extraction confidence and an optional separately hashed viewing/mobile-optimized PDF. The

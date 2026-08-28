@@ -28,6 +28,7 @@ from .library_projection import (
 from .markdown_viewer import MAX_VIEWER_MARKDOWN_CHARS, DocumentContentReader
 from .network_status import declared_network_status
 from .paths import UnsafePathError
+from .portable_transfer import PortableInstanceTransfer
 from .retention import DocumentRetentionManager
 from .retention_model import DISPOSITION_FILTERS, effective_dispositions
 from .storage import InstanceStore
@@ -139,6 +140,20 @@ class ProvelumeInstance:
 
     def restore(self, archive: Path | str) -> dict[str, Any]:
         return InstanceLifecycleManager(self.store).restore(archive)
+
+    def export_portable(
+        self,
+        destination: Path | str,
+        *,
+        derived_state: str = "rebuild",
+    ) -> dict[str, Any]:
+        return PortableInstanceTransfer(self.store).export(
+            destination,
+            derived_state=derived_state,
+        )
+
+    def import_portable(self, archive: Path | str) -> dict[str, Any]:
+        return PortableInstanceTransfer(self.store).import_bundle(archive)
 
     def rebuild_library(
         self,
