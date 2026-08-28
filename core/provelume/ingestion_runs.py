@@ -122,7 +122,10 @@ class IngestionLedger:
         if not self.runs.exists():
             return []
         records = [self._read_json(path) for path in self.runs.glob("run_*.json")]
-        records.sort(key=lambda item: (str(item.get("started_at", "")), item["id"]), reverse=True)
+        records.sort(
+            key=lambda item: (str(item.get("started_at", "")), item["id"]),
+            reverse=True,
+        )
         return records[:limit]
 
     def items_for_run(self, run_id: str) -> list[dict[str, Any]]:
@@ -133,7 +136,7 @@ class IngestionLedger:
             record = self._read_json(path)
             if record.get("run_id") == run_id:
                 records.append(record)
-        records.sort(key=lambda item: (str(item.get("created_at", "")), item["id"]))
+        records.sort(key=lambda item: (str(item.get("locator", "")), item["id"]))
         return records
 
     def run_detail(self, run_id: str) -> dict[str, Any] | None:
