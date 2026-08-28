@@ -107,8 +107,11 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
     assert heading_positions == sorted(heading_positions)
     assert "| Published preview | `0.4.0` |" in roadmap
     assert "| Published preview | `0.4.1` |" in roadmap
-    assert "| Next forecast | `0.5.0` |" in roadmap
-    assert "| Active implementation |" not in roadmap
+    assert "| Active implementation | `0.5.0` |" in roadmap
+    assert "| Next forecast | `0.5.0` |" not in roadmap
+    assert roadmap.count("| Active implementation |") == 1
+    assert "#66" in roadmap
+    assert "#67" in roadmap
     assert "#57" in roadmap
     assert "#62" in roadmap
     assert "issue just in time" in roadmap
@@ -194,8 +197,10 @@ def test_local_inbox_pdf_bundle_and_duplicate_contract_is_explicit() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Next forecast | `0.5.0` | Durable ingestion, local Inbox and document bundles |"
+        "| Active implementation | `0.5.0` | Durable ingestion, local Inbox and document bundles |"
     ) == 1
+    assert "Canonical issue #66 and owner PR #67 activate only" in roadmap
+    assert "**Active slice:** `0.5/S01`" in roadmap
     for required_contract in (
         "filesystem Drop Inbox",
         "move-after-commit only after exact-byte preservation and hash verification",
