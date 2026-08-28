@@ -28,18 +28,23 @@ wall-clock field inside the bundle. Two exports of unchanged Instance bytes unde
 are therefore byte-identical. The completion time is returned to the caller but is not embedded in
 the portable artifact.
 
-The default `--derived-state rebuild` mode follows the Instance manifest: retained state artifacts
+The completed temporary archive is published with an atomic no-replace filesystem operation, so a
+concurrent writer that claims the same destination is never overwritten or deleted. The default
+`--derived-state rebuild` mode follows the Instance manifest: retained state artifacts
 are included, while `indexes/` and `library/` are declared for rebuild after import. The explicit
 `include` mode carries their current verified bytes instead. Transient `state/locks/` content is
-never transferable. `include` requires both the current index and library manifests to be ready;
-import validates those included views again in staging before the swap.
+never transferable. `include` compares every index identity, filter field, title and content value
+with current canonical and derived records, and requires the library's complete hashed inventory to
+be ready; import repeats those semantic and byte checks in staging before the swap.
 
 The allowlist prevents an export from sweeping arbitrary files merely because they are below the
-Instance directory. Canonical JSON, acquired Originals, retained `state/` evidence and retained
-Inbox submission evidence are portable. Configured Source, Drop and managed-copy content is not
-copied unless already acquired into the authoritative Original store. Absolute external path
-configuration may remain descriptive configuration, but the referenced external bytes remain a
-machine-local dependency and are outside the bundle claim.
+Instance directory. Canonical JSON is selected from the registered canonical kinds and Original
+bytes only from each canonical `storage_ref`; unreferenced files below `knowledge/` or `originals/`
+are omitted. Retained `state/` evidence and retained Inbox submission evidence are portable.
+Configured Source, Drop and managed-copy content is not copied unless already acquired into the
+authoritative Original store. Absolute external path configuration may remain descriptive
+configuration, but the referenced external bytes remain a machine-local dependency and are outside
+the bundle claim.
 
 ## Validation before import
 

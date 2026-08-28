@@ -13,7 +13,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from uuid import uuid4
 
-from .index import index_status, rebuild_search_index
+from .index import index_status, rebuild_search_index, search_index_content_matches
 from .instance_backup import create_backup
 from .instance_lifecycle import InstanceLifecycleError, InstanceLifecycleManager
 from .instance_schema import (
@@ -210,6 +210,24 @@ def _category(relative: str, mode: str) -> str | None:
     return None
 
 
+def _authoritative_paths(store: InstanceStore) -> set[str]:
+    paths: set[str] = set()
+    for kind in CANONICAL_KINDS:
+        for record in store.list_canonical(kind):
+            record_id = str(record["id"])
+            paths.add(f"knowledge/{kind}/{record_id}.json")
+    for original in store.list_canonical("originals"):
+        reference = str(original["storage_ref"])
+        target = safe_instance_path(store.paths.root, reference)
+        relative = target.relative_to(store.paths.root).as_posix()
+        if not relative.startswith("originals/"):
+            raise PortableTransferError(
+                "canonical Original storage must remain below originals/"
+            )
+        paths.add(relative)
+    return paths
+
+
 def _payload_files(
     store: InstanceStore,
     *,
@@ -217,6 +235,7 @@ def _payload_files(
 ) -> tuple[list[tuple[dict[str, Any], Path]], int]:
     rows: list[tuple[dict[str, Any], Path]] = []
     omitted_files = 0
+    authoritative_paths = _authoritative_paths(store)
     for path in sorted(
         store.paths.root.rglob("*"),
         key=lambda candidate: candidate.relative_to(store.paths.root).as_posix(),
@@ -233,6 +252,8 @@ def _payload_files(
                 f"Instance entry is not a regular file: {relative}"
             )
         category = _category(relative, derived_state)
+        if category == "authoritative" and relative not in authoritative_paths:
+            category = None
         if category is None:
             omitted_files += 1
             continue
@@ -325,7 +346,7 @@ def _write_bundle(
     archive: Path,
     manifest: dict[str, Any],
     rows: list[tuple[dict[str, Any], Path]],
-) -> None:
+) -> tuple[int, int]:
     archive.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(
         prefix=f".{archive.name}.", suffix=".tmp", dir=archive.parent
@@ -350,9 +371,29 @@ def _write_bundle(
                         target_handle.write(chunk)
         with temporary.open("r+b") as handle:
             os.fsync(handle.fileno())
-        os.replace(temporary, archive)
+        published = temporary.lstat()
+        try:
+            os.link(temporary, archive)
+        except FileExistsError as exc:
+            raise PortableTransferError(
+                "portable bundle destination already exists"
+            ) from exc
+        except OSError as exc:
+            raise PortableTransferError(
+                "portable bundle cannot be published without overwrite"
+            ) from exc
+        return published.st_dev, published.st_ino
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def _unlink_published_bundle(archive: Path, identity: tuple[int, int]) -> None:
+    try:
+        current = archive.lstat()
+    except OSError:
+        return
+    if stat.S_ISREG(current.st_mode) and (current.st_dev, current.st_ino) == identity:
+        archive.unlink(missing_ok=True)
 
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -658,7 +699,7 @@ class PortableInstanceTransfer:
             if validation["status"] != "valid":
                 raise PortableTransferError("Instance validation failed before export")
             if derived_state == "include" and (
-                index_status(self.store) != "ready"
+                not search_index_content_matches(self.store)
                 or LibraryProjectionManager(self.store).status()["status"] != "ready"
             ):
                 raise PortableTransferError(
@@ -679,8 +720,9 @@ class PortableInstanceTransfer:
                 destination,
                 export_id=str(manifest["export_id"]),
             )
+            published_identity: tuple[int, int] | None = None
             try:
-                _write_bundle(archive, manifest, rows)
+                published_identity = _write_bundle(archive, manifest, rows)
                 verified = verify_portable_bundle(archive)
                 final_validation = inspect_instance(self.store.paths.root, deep=True)
                 final_rows, final_omitted = _payload_files(
@@ -699,7 +741,8 @@ class PortableInstanceTransfer:
                         "Instance changed while the portable snapshot was built"
                     )
             except Exception:
-                archive.unlink(missing_ok=True)
+                if published_identity is not None:
+                    _unlink_published_bundle(archive, published_identity)
                 raise
         return {
             **verified,
@@ -771,9 +814,11 @@ class PortableInstanceTransfer:
             }
         else:
             included_index_status = index_status(staged_store)
+            included_index_content_matches = search_index_content_matches(staged_store)
             included_library_status = LibraryProjectionManager(staged_store).status()
             if (
                 included_index_status != "ready"
+                or not included_index_content_matches
                 or included_library_status["status"] != "ready"
             ):
                 raise PortableTransferError(

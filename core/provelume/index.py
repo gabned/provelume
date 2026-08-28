@@ -410,6 +410,57 @@ def index_status(store: InstanceStore) -> str:
     return "ready"
 
 
+def search_index_content_matches(store: InstanceStore) -> bool:
+    """Verify every indexed field against current canonical and derived content."""
+
+    if index_status(store) != "ready":
+        return False
+    documents, _current = _documents_and_versions(store)
+    expected: list[tuple[Any, ...]] = []
+    try:
+        for document in documents:
+            version = store.read_canonical(
+                "versions",
+                str(document["current_version_id"]),
+            )
+            if version is None:
+                return False
+            artifact = store.derived_artifact_for_version(str(version["id"]))
+            if artifact is None:
+                continue
+            expected.append(
+                (
+                    document["id"],
+                    version["id"],
+                    document["source_id"],
+                    document["media_type"],
+                    version["acquired_at"],
+                    document["title"],
+                    store.read_derived_text(artifact),
+                )
+            )
+    except (KeyError, OSError, UnicodeError, ValueError):
+        return False
+    expected.sort(key=lambda row: (str(row[0]), str(row[1])))
+
+    connection: sqlite3.Connection | None = None
+    try:
+        connection = _connection(_database_path(store))
+        observed = [
+            tuple(row)
+            for row in connection.execute(
+                "SELECT document_id, version_id, source_id, media_type, acquired_at, "
+                "title, content FROM search ORDER BY document_id, version_id, rowid"
+            ).fetchall()
+        ]
+    except sqlite3.Error:
+        return False
+    finally:
+        if connection is not None:
+            connection.close()
+    return observed == expected
+
+
 def search_index(
     store: InstanceStore,
     query: str,

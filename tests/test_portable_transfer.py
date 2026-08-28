@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import shutil
+import sqlite3
 import stat
 import zipfile
 from pathlib import Path
@@ -167,6 +168,14 @@ def test_default_export_is_deterministic_readable_and_rebuild_explicit(
         "outside the portable allowlist",
         encoding="utf-8",
     )
+    (instance.root / "originals" / "unreferenced.txt").write_text(
+        "not a canonical Original",
+        encoding="utf-8",
+    )
+    (instance.root / "knowledge" / "private.txt").write_text(
+        "not canonical JSON",
+        encoding="utf-8",
+    )
     first = instance.export_portable(tmp_path / "first.zip")
     second = instance.export_portable(tmp_path / "second.zip")
 
@@ -190,6 +199,8 @@ def test_default_export_is_deterministic_readable_and_rebuild_explicit(
     ]
     assert "exported_at" not in manifest
     assert "unacquired-local.txt" not in paths
+    assert "originals/unreferenced.txt" not in paths
+    assert "knowledge/private.txt" not in paths
     assert not any(path.startswith(("indexes/", "library/", "state/locks/")) for path in paths)
     assert any(path.startswith("state/derived/") for path in paths)
     assert manifest["omitted_prefixes"] == [
@@ -241,6 +252,74 @@ def test_include_mode_requires_ready_derived_state(tmp_path: Path) -> None:
         )
 
     assert not (tmp_path / "included.zip").exists()
+
+
+def test_include_mode_rejects_index_content_that_only_looks_ready(
+    tmp_path: Path,
+) -> None:
+    instance = _seed(tmp_path / "instance")
+    database = instance.store.paths.indexes / "search.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "UPDATE search SET title = ?, content = ?",
+            ("stale", "stale"),
+        )
+        connection.commit()
+
+    with pytest.raises(PortableTransferError, match="requires a ready"):
+        instance.export_portable(
+            tmp_path / "included.zip",
+            derived_state="include",
+        )
+
+    assert not (tmp_path / "included.zip").exists()
+
+
+def test_import_rejects_resealed_included_index_with_stale_content(
+    tmp_path: Path,
+) -> None:
+    source = _seed(tmp_path / "source")
+    source.export_portable(tmp_path / "included.zip", derived_state="include")
+    manifest, payloads = _bundle_parts(tmp_path / "included.zip")
+    index_path = "indexes/search.sqlite3"
+    edited_index = tmp_path / "edited.sqlite3"
+    edited_index.write_bytes(payloads[index_path])
+    with sqlite3.connect(edited_index) as connection:
+        connection.execute("UPDATE search SET content = ?", ("stale",))
+        connection.commit()
+    payloads[index_path] = edited_index.read_bytes()
+    row = next(item for item in manifest["entries"] if item["path"] == index_path)
+    row["size_bytes"] = len(payloads[index_path])
+    row["sha256"] = hashlib.sha256(payloads[index_path]).hexdigest()
+    _write_bundle(tmp_path / "stale-index.zip", manifest, payloads)
+
+    target = ProvelumeInstance.initialise(tmp_path / "target")
+    target_before = target.validate_instance()
+    with pytest.raises(PortableTransferError, match="verified target backup was restored"):
+        target.import_portable(tmp_path / "stale-index.zip")
+
+    target_after = target.validate_instance()
+    assert target_after["instance_id"] == target_before["instance_id"]
+    assert target_after["content_fingerprint"] == target_before["content_fingerprint"]
+
+
+def test_export_destination_race_never_overwrites_or_deletes_competing_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance = _seed(tmp_path / "instance")
+    destination = tmp_path / "portable.zip"
+    original_link = os.link
+
+    def collide(source: Any, target: Any, *_args: Any, **_kwargs: Any) -> None:
+        Path(target).write_bytes(b"competing writer")
+        original_link(source, target)
+
+    monkeypatch.setattr(portable_transfer.os, "link", collide)
+    with pytest.raises(PortableTransferError, match="already exists"):
+        instance.export_portable(destination)
+
+    assert destination.read_bytes() == b"competing writer"
 
 
 def test_include_mode_rejects_missing_derived_state(tmp_path: Path) -> None:
