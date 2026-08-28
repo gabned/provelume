@@ -207,6 +207,7 @@ def test_include_mode_preserves_current_derived_bytes(tmp_path: Path) -> None:
     )
     manifest, _payloads = _bundle_parts(tmp_path / "included.zip")
     paths = [str(row["path"]) for row in manifest["entries"]]
+    assert paths == sorted(paths)
     assert any(path.startswith("indexes/") for path in paths)
     assert any(path.startswith("library/") for path in paths)
     assert result["derived_state"] == {

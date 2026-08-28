@@ -217,7 +217,10 @@ def _payload_files(
 ) -> tuple[list[tuple[dict[str, Any], Path]], int]:
     rows: list[tuple[dict[str, Any], Path]] = []
     omitted_files = 0
-    for path in sorted(store.paths.root.rglob("*")):
+    for path in sorted(
+        store.paths.root.rglob("*"),
+        key=lambda candidate: candidate.relative_to(store.paths.root).as_posix(),
+    ):
         relative = path.relative_to(store.paths.root).as_posix()
         if _is_unsafe_link(path):
             raise PortableTransferError(
