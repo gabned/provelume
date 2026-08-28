@@ -8,23 +8,23 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 ROADMAP_PATH = ROOT / "docs" / "roadmap.md"
-RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.5.1.md"
+RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.6.0.md"
 BASE_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.5.0.md"
 
 EXPECTED_CONTRACT = {
     "RELEASE_PLAN_SCHEMA": "1",
-    "PLANNED_VERSION": "0.5.1",
-    "MILESTONE_TITLE": "0.5.1",
-    "CURRENT_PACKAGE_VERSION": "0.5.1",
+    "PLANNED_VERSION": "0.6.0",
+    "MILESTONE_TITLE": "0.6.0",
+    "CURRENT_PACKAGE_VERSION": "0.6.0",
     "PACKAGE_VERSION_UPDATE": "APPLIED",
-    "EXECUTION_ISSUE": "80",
-    "PRODUCT_THEME": "STABILITY_SECURITY_PERFORMANCE_ACCESSIBILITY",
+    "EXECUTION_ISSUE": "95",
+    "PRODUCT_THEME": "PORTABLE_INSTANCE_HIERARCHICAL_MARKDOWN_LIBRARY",
     "RELEASE_STATUS": "PUBLISHED_PREVIEW",
     "WINDOWS_SIGNING": "NOT_INCLUDED",
     "UPDATE_APPLY_MODE": "USER_CONFIRMED_INSTALLER",
 }
 
-FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(6, 23)) + ("1.0.0",)
+FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(7, 23)) + ("1.0.0",)
 
 
 def _read(path: Path) -> str:
@@ -83,7 +83,7 @@ def test_release_preparation_aligns_package_identity() -> None:
     assert f'__version__ = "{package_version}"' in init_source
 
 
-def test_roadmap_records_published_history_and_active_release() -> None:
+def test_roadmap_records_published_history_and_next_forecast() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     for version in (
@@ -94,16 +94,14 @@ def test_roadmap_records_published_history_and_active_release() -> None:
         "0.4.1",
         "0.5.0",
         "0.5.1",
+        "0.6.0",
     ):
         assert roadmap.count(f"| Published preview | `{version}` |") == 1
-    assert (
-        "| Active implementation | `0.6.0` | Portable Instance and hierarchical Markdown "
-        "library | #95 (active) |"
-    ) in roadmap
-    assert roadmap.count("| Active implementation |") == 1
-    assert "#80 (completed)" in roadmap
-    assert "The package and embedded identity remain `0.5.1`" in roadmap
-    assert "Issue #95" in roadmap
+    assert "| Next forecast | `0.7.0` |" in roadmap
+    assert roadmap.count("| Active implementation |") == 0
+    assert "#95 (completed)" in roadmap
+    assert "The package and embedded identity are `0.6.0`" in roadmap
+    assert "`0.7.0` forecast is not active" in roadmap
 
 
 def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> None:
@@ -119,6 +117,7 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
         assert f"## {version} -" not in changelog
 
     assert heading_positions == sorted(heading_positions)
+    assert "## 0.6.0 - 2026-08-28" in changelog
     assert "## 0.5.1 - 2026-08-28" in changelog
     assert "## 0.5.0 - 2026-08-28" in changelog
     assert "Forecast entries describe intended sequencing" in roadmap
@@ -173,6 +172,24 @@ def test_published_0_5_contract_is_explicit() -> None:
         "loopback-only, CSRF-protected folder-settings form",
     ):
         assert required_release_boundary in release_plan
+
+
+def test_published_0_6_contract_is_explicit() -> None:
+    release_plan = _read(RELEASE_PLAN_PATH)
+
+    for required_contract in (
+        "schema-2 Instance manifest",
+        "stable parent-linked Area/Subarea, Project and Collection identities",
+        "deterministic staged `library/` projection",
+        "recoverable trash",
+        "deterministic hash-manifested portable export",
+        "schema-1 to schema-2 migration",
+        "compares every indexed identity, filter field, title and content value",
+        "real upgrade from the immutable public `0.5.1` installer",
+        "Provelume-Setup-0.5.1-x64.exe",
+        "Authenticode",
+    ):
+        assert required_contract in release_plan
 
 
 def test_update_policy_forecast_is_explicit_and_user_controlled() -> None:
@@ -260,7 +277,7 @@ def test_hierarchical_filesystem_library_contract_is_explicit() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Active implementation | `0.6.0` | Portable Instance and hierarchical Markdown "
+        "| Published preview | `0.6.0` | Portable Instance and hierarchical Markdown "
         "library |"
     ) == 1
     for required_contract in (
@@ -340,14 +357,17 @@ def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
     readme = _read(ROOT / "README.md")
 
     assert "[public roadmap](docs/roadmap.md)" in readme
-    assert "[0.5.1 release plan](docs/releases/0.5.1.md)" in readme
-    assert "latest published preview is `v0.5.1`" in readme
+    assert "[0.6.0 release plan](docs/releases/0.6.0.md)" in readme
+    assert "latest published preview is `v0.6.0`" in readme
     assert "[Windows preview guide](docs/windows-preview.md)" in readme
     assert "configure-inbox" in readme
     assert "external Drop folder" in readme
 
 
-@pytest.mark.parametrize("version", ("0.3.0", "0.4.0", "0.4.1", "0.5.0"))
+@pytest.mark.parametrize(
+    "version",
+    ("0.3.0", "0.4.0", "0.4.1", "0.5.0", "0.5.1"),
+)
 def test_previous_release_plans_remain_published(version: str) -> None:
     plan = _read(ROOT / "docs" / "releases" / f"{version}.md")
     block = re.findall(r"^```text\n(.*?)\n```$", plan, re.MULTILINE | re.DOTALL)

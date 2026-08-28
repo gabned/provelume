@@ -22,7 +22,7 @@ def test_cli_about_needs_no_instance_or_network(capsys) -> None:
     assert main(["about"]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["product"] == "Provelume"
-    assert payload["version"] == "0.5.1"
+    assert payload["version"] == "0.6.0"
     assert payload["updates"]["network_required_for_check"] is True
     assert payload["updates"]["check_on_start_default"] is False
 
@@ -41,7 +41,7 @@ def test_cli_update_check_is_explicit_and_reports_transport(monkeypatch, capsys)
 
     monkeypatch.setattr("provelume.cli.check_for_updates", check_stub)
     assert main(["check-updates", "--channel", "preview"]) == 0
-    assert observed == [{"current_version": "0.5.1", "channel": "preview"}]
+    assert observed == [{"current_version": "0.6.0", "channel": "preview"}]
     assert json.loads(capsys.readouterr().out)["network_used"] is True
 
 

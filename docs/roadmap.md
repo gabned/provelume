@@ -29,8 +29,8 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.4.1` | Windows product shell hardening | #62 (completed) |
 | Published preview | `0.5.0` | Durable ingestion, configurable local Inbox, document bundles and assurance | #66 and #72 (completed) |
 | Published preview | `0.5.1` | Stability, security, incremental indexing and accessibility hardening | #80 (completed) |
-| Active implementation | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (active) |
-| Forecast | `0.7.0` | Connector framework and safe web intake | issue just in time |
+| Published preview | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (completed) |
+| Next forecast | `0.7.0` | Connector framework and safe web intake | issue just in time |
 | Forecast | `0.8.0` | Refresh engine and Source lifecycle | issue just in time |
 | Forecast | `0.9.0` | Email, Google file and transcript intake | issue just in time |
 | Forecast | `0.10.0` | Unified Capture and Action Center | issue just in time |
@@ -48,9 +48,8 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Release candidate | `0.22.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time |
 | Stable | `1.0.0` | Stable provenance-first platform | issue just in time |
 
-The package and embedded identity remain `0.5.1`. Issue #95 and one sequential owner product pull
-request at a time activate `0.6.0`; implementation work is recorded under `Unreleased` until a
-separate reviewed release-preparation change aligns identity and publication metadata.
+The package and embedded identity are `0.6.0`. The `0.7.0` forecast is not active: only a canonical
+issue and one owner product pull request may activate it and add product work under `Unreleased`.
 
 ## Planning and delivery contract
 
@@ -254,14 +253,14 @@ restores the previous database/metadata pair. Dependency-update proposals remain
 inputs with no release authority; the preview security/support and maintainability boundaries are
 explicit. See [`releases/0.5.1.md`](releases/0.5.1.md).
 
-## Forecast release-by-release
+## Release record and forecast
 
 ### 0.6.0 — Portable Instance and Hierarchical Markdown Library
 
-**Depends on:** `0.5.0` ingestion runs.
+**Depends on:** the published `0.5.1` correction over `0.5.0` durable ingestion.
 
-**Outcome:** make an Instance safely upgradeable, exportable, recoverable and directly navigable
-on its filesystem before network Sources or end-user installers are introduced.
+**Outcome:** delivered an Instance that is safely upgradeable, exportable, recoverable and directly
+navigable on its filesystem before network Sources are introduced.
 
 **Includes:** versioned schema and forward-only migrations with preflight; automatic backup;
 failure restore/rollback; readable export with a deterministic Markdown library projection and
@@ -288,9 +287,11 @@ Area/Subarea/Project/Collection hierarchy; `0.6/S03` filesystem library, README 
 Viewer parity; `0.6/S04` archive/trash/purge and retention boundaries; `0.6/S05` portable
 export/import and cross-platform qualification.
 
-`S01`, `S02`, `S03`, `S04` and `S05` are implemented under `Unreleased` while package identity
-remains `0.5.1`. Only the separate release-preparation, publishing and public verification gate
-remains outstanding.
+`S01`, `S02`, `S03`, `S04` and `S05` are implemented and were delivered sequentially through issue
+#95. The release aligns package/build identity at `0.6.0` and qualifies a real immutable public
+`0.5.1 → 0.6.0` Windows upgrade, schema-1 to schema-2 migration, Instance preservation,
+deterministic builds and portable export/import. See
+[`releases/0.6.0.md`](releases/0.6.0.md).
 
 ### 0.7.0 — Connector Framework and Safe Web Intake
 

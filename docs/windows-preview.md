@@ -1,8 +1,8 @@
 # Windows product shell preview
 
-Provelume `0.5.1` is the current correction preview for the durable local-intake product surface
-introduced by `0.5.0`. Download `Provelume-Setup-0.5.1-x64.exe` from the official GitHub Release
-and run it as the current user. Git and a separately installed Python are not required.
+Provelume `0.6.0` is the current Portable Instance and hierarchical Markdown library preview.
+Download `Provelume-Setup-0.6.0-x64.exe` from the official GitHub Release and run it as the
+current user. Git and a separately installed Python are not required.
 
 ## What is installed
 
@@ -19,15 +19,15 @@ Three locations remain intentionally separate:
 | portable Instance and preserved originals | `%USERPROFILE%\\Documents\\Provelume` | no |
 
 An upgrade replaces only launcher/runtime files. The portable Instance is opened by the new
-runtime after installation; `0.5.1` introduces no mandatory canonical Instance schema migration.
-Legacy search-index metadata is derived state and is rebuilt transparently. Candidate and official
-release evidence installs the immutable public `0.5.0` executable, creates a synthetic Instance and
-launcher settings, installs `0.5.1` in place and verifies that the stable AppId, Instance bytes and
-launcher settings survive upgrade and uninstall.
+runtime after installation. Opening a valid public `0.5.1` schema-1 Instance with `0.6.0` performs
+the registered schema-2 migration only after deep preflight and a verified automatic backup.
+Candidate and official release evidence installs the immutable public `0.5.1` executable, creates a
+synthetic Instance and launcher settings, installs `0.6.0` in place and verifies stable AppId,
+exact Instance/settings preservation, the migration receipt and backup, startup and uninstall.
 
 ## Local Inbox folders
 
-The `0.5.0` browser introduced, and `0.5.1` retains, **Settings** for:
+The `0.5.0` browser introduced, and `0.6.0` retains, **Settings** for:
 
 - the Inbox display name;
 - the Drop folder;
@@ -61,7 +61,7 @@ integrity or signature verdict.
 6. Provelume requires another confirmation before starting the normal installer and closing the
    local server.
 
-No background check is enabled by default. `0.5.1` never applies an update silently.
+No background check is enabled by default. `0.6.0` never applies an update silently.
 
 ## Recovery and limitations
 

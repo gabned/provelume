@@ -89,9 +89,9 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "provelume-windows-update.json" in release
     assert "Provelume-Setup-${VERSION}-x64.exe" in release
     assert "Attest unsigned Windows preview" in publication
-    assert "Provelume-Setup-0.5.0-public.exe" in release
+    assert "Provelume-Setup-0.5.1-public.exe" in release
     assert (
-        "c604de1006c6f86a52bf61ca54fe6371e0889f728eb89f25e38776165254ecab"
+        "642de2931dc6fbc7f1a58fd490b73c45cef72719bc75c690713076f9bddf268b"
         in release
     )
 
@@ -121,9 +121,9 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "ExpectedMigrationReceiptSha256" in windows_exercise
     assert "ExpectedMigrationBackupSha256" in windows_exercise
     assert "sys.path.insert" not in windows_exercise
-    assert "Provelume-Setup-0.5.0-public.exe" in windows_exercise
+    assert "Provelume-Setup-0.5.1-public.exe" in windows_exercise
     assert (
-        "c604de1006c6f86a52bf61ca54fe6371e0889f728eb89f25e38776165254ecab"
+        "642de2931dc6fbc7f1a58fd490b73c45cef72719bc75c690713076f9bddf268b"
         in windows_exercise
     )
     assert (
@@ -178,7 +178,7 @@ def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:
         (root / "core" / "provelume" / "build_info.json").read_text(encoding="utf-8")
     )
 
-    assert package_version == "0.5.1"
+    assert package_version == "0.6.0"
     assert init_match is not None
     assert init_match.group(1) == package_version
     assert value == {

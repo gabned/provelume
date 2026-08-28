@@ -8,34 +8,25 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.5.1 preview
+## Current status: 0.6.0 preview
 
-The latest published preview is `v0.5.1`. It retains the durable filesystem ingestion, safe local
-Drop Inbox, deterministic document bundles, duplicate evidence, Original assurance, locked
-derived-state rebuilds and navigable operation log introduced by `0.5.0`, while hardening the local
-web boundary, browser accessibility and incremental full-text indexing. The Inbox name, Drop folder
-and managed-copy folder remain configurable; the two working folders may be relative to the
-Instance or absolute locations elsewhere on the local filesystem. Canonical Originals, knowledge,
-indexes, operations and reports remain inside the Instance.
+The latest published preview is `v0.6.0`. It makes an Instance explicitly versioned, safely
+upgradeable, recoverable and portable across supported Windows/Linux paths. It adds stable
+Area/Subarea, Project and Collection identities, a deterministic human-readable Markdown library,
+safe Viewer modes, distinct archive/trash/purge boundaries and deterministic cross-Instance
+export/import while canonical JSON, acquired Originals, Versions and provenance remain
+authoritative.
 
-Issue #80 and the [0.5.1 release plan](docs/releases/0.5.1.md) define the published correction
-release; the [0.5.0 release plan](docs/releases/0.5.0.md) remains the durable-intake capability
-baseline. Issue #95 owns the active `0.6.0` implementation while package and embedded release
-identity remain `0.5.1` until a separate release-preparation change.
+Issue #95 and the [0.6.0 release plan](docs/releases/0.6.0.md) define this preview; the
+[0.5.1 release plan](docs/releases/0.5.1.md) remains the correction baseline and the
+[0.5.0 release plan](docs/releases/0.5.0.md) remains the durable-intake capability baseline.
 See the [public roadmap](docs/roadmap.md), the
 [configurable-folder contract](docs/architecture/configurable-folder-settings.md) and the
 [Windows preview guide](docs/windows-preview.md) for portability and trust boundaries.
 
-The roadmap records `0.6.0` as the active Portable Instance and hierarchical Markdown library
-workstream and retains the later forecast through `1.0.0`. Forecast entries are sequencing
-coordinates, not availability claims or release authorization.
-
-The active source tree now includes the `0.6/S01` lifecycle foundation, `0.6/S02` canonical
-Area/Subarea, Project and Collection hierarchy, `0.6/S03` deterministic Markdown library and safe
-Viewer, and `0.6/S04` explicit archive, projection, recoverable-trash and live-Instance purge
-boundaries, plus `0.6/S05` deterministic portable export/import and Windows/Linux-safe bundle
-qualification. These Unreleased capabilities do not change the published `0.5.1` package identity
-and do not create a release.
+The roadmap records `0.6.0` as published and `0.7.0` as the next forecast while retaining the later
+sequence through `1.0.0`. Forecast entries are sequencing coordinates, not availability claims or
+release authorization.
 
 The active source tree can:
 
@@ -230,7 +221,7 @@ Instance content and is never enabled in the background by the Core:
 .venv/bin/provelume check-updates --channel preview
 ```
 
-The Windows `0.5.1` preview packages the same behavior behind a per-user installer and EN/IT
+The Windows `0.6.0` preview packages the same behavior behind a per-user installer and EN/IT
 launcher; see the [Windows preview guide](docs/windows-preview.md).
 
 Inspect one Instance's declared network policy and components, also without making a network request:

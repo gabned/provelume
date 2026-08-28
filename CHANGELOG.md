@@ -4,6 +4,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+## 0.6.0 - 2026-08-28
+
 ### Added
 
 - added a versioned schema-2 `instance-manifest.json` that binds stable Instance identity and an
@@ -90,6 +92,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - rejected traversal, absolute/drive-qualified paths, non-NFC names, Windows reserved names,
   case/file-directory collisions, links, undeclared entries, partial payloads and stale or
   hash-mismatched portable bundles before target mutation;
+- restricted authoritative portable payloads to registered canonical JSON and Original
+  `storage_ref` values, omitting unreferenced files below authoritative directories;
+- compared every included search-index row with current canonical identities, filter fields,
+  titles and derived content on both export and staged import;
+- published completed portable archives with atomic no-replace semantics and identity-bound
+  cleanup so a competing destination writer is neither overwritten nor deleted;
 - recovered interrupted imports by restoring the verified pre-import backup under the same
   kernel-released lifecycle lock, without treating partial replacement as success.
 
