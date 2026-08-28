@@ -12,6 +12,7 @@ from .folder_settings_cli import (
     handle_folder_settings_command,
 )
 from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES
+from .library_cli import add_library_commands, handle_library_command
 from .operations import OperationLedger
 from .rebuild_cli import add_rebuild_commands, handle_rebuild_command
 from .review_cli import add_review_commands, handle_review_command
@@ -89,6 +90,7 @@ def add_operational_commands(subparsers: Any) -> None:
     add_bundle_commands(subparsers)
     add_review_commands(subparsers)
     add_rebuild_commands(subparsers)
+    add_library_commands(subparsers)
 
 
 def handle_operational_command(args: argparse.Namespace) -> int | None:
@@ -104,6 +106,9 @@ def handle_operational_command(args: argparse.Namespace) -> int | None:
     rebuild_result = handle_rebuild_command(args)
     if rebuild_result is not None:
         return rebuild_result
+    library_result = handle_library_command(args)
+    if library_result is not None:
+        return library_result
 
     if args.command not in {
         "inbox-submit",

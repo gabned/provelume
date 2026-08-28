@@ -106,12 +106,14 @@ The Browser uses the same service results for hierarchy paths, counts, filtering
 Document classification. Source-locator `area` remains a separate backward-compatible filter; it
 does not become canonical classification.
 
-## Slice boundary
+## Derived Markdown projection
 
-This slice creates no `library/` files and does not render Markdown. The `0.6/S03` projection will
-derive Area/Project paths, Collection indexes and README navigation from these canonical records.
-Deleting and rebuilding that future projection must not change hierarchy IDs, classifications,
-provenance, Documents, Versions or Originals.
+`0.6/S03` now derives Area/Project primary paths, Collection association indexes and README
+navigation from these canonical records. The generated `library/` stores one Markdown file per
+Document; secondary associations are relative links rather than copies. Deleting, editing or
+rebuilding the projection does not change hierarchy IDs, classifications, provenance, Documents,
+Versions or Originals. See
+[`markdown-library-viewer.md`](markdown-library-viewer.md).
 
 Archive, projection removal, trash and permanent purge remain `0.6/S04`. Portable export/import
 and cross-platform transfer qualification remain `0.6/S05`.

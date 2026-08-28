@@ -288,6 +288,9 @@ Area/Subarea/Project/Collection hierarchy; `0.6/S03` filesystem library, README 
 Viewer parity; `0.6/S04` archive/trash/purge and retention boundaries; `0.6/S05` portable
 export/import and cross-platform qualification.
 
+`S01`, `S02` and `S03` are implemented under `Unreleased` while package identity remains `0.5.1`.
+`S04`, `S05` and the separate release-preparation/publishing gate remain outstanding.
+
 ### 0.7.0 — Connector Framework and Safe Web Intake
 
 **Depends on:** `0.2.0` network transparency and `0.6.0` lifecycle.

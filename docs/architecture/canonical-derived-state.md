@@ -29,6 +29,11 @@ they may be deleted and rebuilt, and changes to them never silently mutate an Or
 canonical record. A changed projection becomes knowledge only if it is deliberately submitted
 through the normal acquisition and review path as a new Original.
 
+`0.6/S03` implements this boundary through a hash-manifested staged `library/` and a safe local
+Viewer. The projection binds the deep canonical/Original fingerprint, produces one primary file
+per Document and uses README links for secondary/generated views. See
+[`markdown-library-viewer.md`](markdown-library-viewer.md).
+
 For PDF input, the human/agent-facing derivative is a versioned document bundle rather than an
 unqualified text dump. It may contain normalized `content.md`, a page map, referenced images and
 tables, extraction confidence and an optional separately hashed viewing/mobile-optimized PDF. The

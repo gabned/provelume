@@ -164,7 +164,8 @@ def test_browser_routes_and_italian_catalog(tmp_path: Path) -> None:
 
     document = client.get(f"/documents/{document_id}")
     assert document.status_code == 200
-    assert "Extracted text preview" in document.text
+    assert "Document Viewer" in document.text
+    assert "Rendered" in document.text
 
     provenance = client.get(f"/documents/{document_id}/provenance")
     assert provenance.status_code == 200

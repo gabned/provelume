@@ -81,6 +81,10 @@ class InstancePaths:
         return self.root / "indexes"
 
     @property
+    def library(self) -> Path:
+        return self.root / "library"
+
+    @property
     def migration_receipts(self) -> Path:
         return self.state / "migrations" / "receipts"
 

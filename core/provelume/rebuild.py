@@ -15,6 +15,7 @@ from .bundles import (
 )
 from .duplicates import DuplicateCaseManager, DuplicateScanLimitError
 from .index import index_status, rebuild_search_index
+from .library_projection import LibraryProjectionError, LibraryProjectionManager
 from .locks import InstanceLockManager, InstanceLockUnavailable
 from .operations import OperationLedger
 from .paths import safe_instance_path
@@ -58,6 +59,7 @@ class DerivedRebuildManager:
         self.locks = InstanceLockManager(store)
         self.bundles = DocumentBundleManager(store)
         self.duplicates = DuplicateCaseManager(store)
+        self.library = LibraryProjectionManager(store)
 
     def lock_status(self) -> dict[str, Any]:
         held = self.locks.inspect(REBUILD_LOCK_NAME)
@@ -290,6 +292,23 @@ class DerivedRebuildManager:
                 "warnings": len(duplicate_result["warnings"]),
             },
         )
+        library_result = self.library.rebuild(
+            max_documents=max_documents,
+            lock_held=True,
+        )
+        self.operations.append(
+            operation_id,
+            "rebuild.library_committed",
+            "Committed the deterministic Markdown library projection.",
+            details={
+                "documents": library_result["documents"],
+                "files": library_result["files"],
+                "content_fingerprint": library_result["content_fingerprint"],
+                "canonical_mutation": library_result["canonical_mutation"],
+                "network_used": library_result["network_used"],
+                "ai_used": library_result["ai_used"],
+            },
+        )
         return {
             "mode": mode,
             "documents": len(documents),
@@ -302,6 +321,9 @@ class DerivedRebuildManager:
             "exact_cases": len(duplicate_result["exact"]),
             "probable_cases": len(duplicate_result["probable"]),
             "duplicate_warnings": len(duplicate_result["warnings"]),
+            "library_documents": library_result["documents"],
+            "library_files": library_result["files"],
+            "library_fingerprint": library_result["content_fingerprint"],
         }
 
     def _index_component(self) -> dict[str, Any]:
@@ -396,6 +418,7 @@ class DerivedRebuildManager:
                 }
             )
         duplicate_rows.sort(key=lambda item: str(item["id"]))
+        library = self.library.status()
         components = {
             "canonical": self.store.knowledge_fingerprint(),
             "documents": _hash_json(document_rows),
@@ -403,6 +426,21 @@ class DerivedRebuildManager:
             "derived_artifacts": _hash_json(artifact_rows),
             "index": _hash_json(self._index_component()),
             "duplicates": _hash_json(duplicate_rows),
+            "library": _hash_json(
+                {
+                    key: library.get(key)
+                    for key in (
+                        "status",
+                        "canonical_fingerprint",
+                        "content_fingerprint",
+                        "documents",
+                        "files",
+                        "primary_paths",
+                        "network_used",
+                        "ai_used",
+                    )
+                }
+            ),
         }
         return {
             "fingerprint": _hash_json(components),
@@ -413,6 +451,12 @@ class DerivedRebuildManager:
                 "valid_bundles": sum(item["valid"] for item in bundle_rows),
                 "derived_artifacts": len(artifact_rows),
                 "duplicate_cases": len(duplicate_rows),
+                "library_ready": library.get("status") == "ready",
+                "library_files": (
+                    int(library["files"])
+                    if isinstance(library.get("files"), int)
+                    else 0
+                ),
             },
         }
 
@@ -514,8 +558,14 @@ class DerivedRebuildManager:
                 == final_snapshot["counts"]["documents"]
             )
             index_ready = self._index_component()["status"] == "ready"
+            library_ready = final_snapshot["counts"]["library_ready"] is True
             status = "completed"
-            if agreement is False or not all_bundles_valid or not index_ready:
+            if (
+                agreement is False
+                or not all_bundles_valid
+                or not index_ready
+                or not library_ready
+            ):
                 status = "completed_with_errors"
             warning_count = sum(
                 int(item["bundle_warnings"])
@@ -534,6 +584,8 @@ class DerivedRebuildManager:
                 ),
                 "index_rebuilds": sum(bool(item["index_rebuilt"]) for item in passes),
                 "duplicate_scans": len(passes),
+                "library_rebuilds": len(passes),
+                "library_files": final_snapshot["counts"]["library_files"],
                 "warnings": warning_count,
                 "agreement": int(agreement is True),
             }
@@ -542,7 +594,8 @@ class DerivedRebuildManager:
                 status=status,
                 summary=(
                     f"Completed {selected_mode} rebuild with "
-                    f"{metrics['valid_bundles']}/{metrics['documents']} valid bundles."
+                    f"{metrics['valid_bundles']}/{metrics['documents']} valid bundles "
+                    "and a validated Markdown library."
                 ),
                 metrics=metrics,
                 error_code=(
@@ -579,6 +632,7 @@ class DerivedRebuildManager:
             BundleBuildError,
             DuplicateScanLimitError,
             InstanceLockUnavailable,
+            LibraryProjectionError,
             RebuildInvariantError,
             RebuildLimitError,
             OSError,
