@@ -28,12 +28,17 @@ from .library_projection import (
 from .markdown_viewer import MAX_VIEWER_MARKDOWN_CHARS, DocumentContentReader
 from .network_status import declared_network_status
 from .paths import UnsafePathError
+from .retention import DocumentRetentionManager
+from .retention_model import DISPOSITION_FILTERS, effective_dispositions
 from .storage import InstanceStore
 
 
 class ProvelumeInstance:
     def __init__(self, root: Path | str):
         self.store = InstanceStore.open(root)
+        self.retention = DocumentRetentionManager(self.store)
+        preparation = self.store._open_preparation or {}
+        self.retention_recovery = preparation.get("retention_recovery")
         self.hierarchy = HierarchyManager(self.store)
         self.library = LibraryProjectionManager(self.store)
         self.content = DocumentContentReader(self.store)
@@ -203,6 +208,7 @@ class ProvelumeInstance:
         document: dict[str, Any],
         *,
         classification: dict[str, Any] | None = None,
+        disposition: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         version = self.store.read_canonical("versions", document["current_version_id"])
         source = self.store.read_canonical("sources", document["source_id"])
@@ -212,6 +218,7 @@ class ProvelumeInstance:
             "source_name": source["name"] if source else document["source_id"],
             "current_version": version,
             "classification": classification,
+            "disposition": disposition or self.retention.get(str(document["id"])),
         }
 
     def list_documents(
@@ -224,7 +231,10 @@ class ProvelumeInstance:
         include_descendants: bool = True,
         date_from: str | None = None,
         date_to: str | None = None,
+        disposition: str = "active",
     ) -> list[dict[str, Any]]:
+        if disposition not in DISPOSITION_FILTERS:
+            raise ValueError("unsupported disposition filter")
         date_from = self._date_floor(date_from)
         date_to = self._date_ceiling(date_to)
         classified_document_ids = (
@@ -236,8 +246,17 @@ class ProvelumeInstance:
             else None
         )
         classification_views = self.hierarchy.classification_views()
+        dispositions = effective_dispositions(self.store)
         result = []
         for document in self.store.list_canonical("documents"):
+            selected_disposition = dispositions.get(str(document["id"]))
+            if selected_disposition is None:
+                continue
+            if (
+                disposition != "all"
+                and selected_disposition["status"] != disposition
+            ):
+                continue
             if source_id and document["source_id"] != source_id:
                 continue
             if media_type and document["media_type"] != media_type:
@@ -250,6 +269,7 @@ class ProvelumeInstance:
             view = self._document_view(
                 document,
                 classification=classification_views.get(document["id"]),
+                disposition=selected_disposition,
             )
             if area is not None and view["area"] != area:
                 continue
@@ -322,6 +342,43 @@ class ProvelumeInstance:
 
     def document_classification(self, document_id: str) -> dict[str, Any] | None:
         return self.hierarchy.get_classification(document_id)
+
+    def document_disposition(self, document_id: str) -> dict[str, Any] | None:
+        return self.retention.get(document_id)
+
+    def archive_document(self, document_id: str) -> dict[str, Any]:
+        return self.retention.archive(document_id)
+
+    def unarchive_document(self, document_id: str) -> dict[str, Any]:
+        return self.retention.unarchive(document_id)
+
+    def remove_document_from_library(self, document_id: str) -> dict[str, Any]:
+        return self.retention.remove_from_library(document_id)
+
+    def restore_document_to_library(self, document_id: str) -> dict[str, Any]:
+        return self.retention.restore_to_library(document_id)
+
+    def trash_document(self, document_id: str) -> dict[str, Any]:
+        return self.retention.trash(document_id)
+
+    def restore_document_from_trash(self, document_id: str) -> dict[str, Any]:
+        return self.retention.restore_from_trash(document_id)
+
+    def purge_document_preview(self, document_id: str) -> dict[str, Any]:
+        return self.retention.purge_preview(document_id)
+
+    def purge_document(
+        self,
+        document_id: str,
+        confirmation_token: str,
+        *,
+        acknowledge_boundaries: bool = False,
+    ) -> dict[str, Any]:
+        return self.retention.purge(
+            document_id,
+            confirmation_token,
+            acknowledge_boundaries=acknowledge_boundaries,
+        )
 
     def current_version(self, document_id: str) -> dict[str, Any] | None:
         document = self.store.read_canonical("documents", document_id)
@@ -417,11 +474,13 @@ class ProvelumeInstance:
 
     def areas(self) -> list[str]:
         return sorted(
-            {self._area(item["locator"]) for item in self.store.list_canonical("documents")}
+            {self._area(item["locator"]) for item in self.list_documents(disposition="all")}
         )
 
     def media_types(self) -> list[str]:
-        return sorted({item["media_type"] for item in self.store.list_canonical("documents")})
+        return sorted(
+            {item["media_type"] for item in self.list_documents(disposition="all")}
+        )
 
     def instance_summary(self) -> dict[str, Any]:
         config = self.store.read_config()
@@ -432,6 +491,7 @@ class ProvelumeInstance:
         documents = self.store.list_canonical("documents")
         hierarchy_nodes = self.store.list_canonical("hierarchy")
         classifications = self.store.list_canonical("classifications")
+        dispositions = self.retention.list(status="all")
         health = self.knowledge_health()
         return {
             "id": config["instance"]["id"],
@@ -449,6 +509,16 @@ class ProvelumeInstance:
             "versions": len(self.store.list_canonical("versions")),
             "hierarchy_nodes": len(hierarchy_nodes),
             "classifications": len(classifications),
+            "archived_documents": sum(
+                item["status"] == "archived" for item in dispositions
+            ),
+            "trashed_documents": sum(
+                item["status"] == "trashed" for item in dispositions
+            ),
+            "library_excluded_documents": sum(
+                not item["projected"] and item["status"] != "trashed"
+                for item in dispositions
+            ),
             "index_status": health["index_status"],
             "knowledge_status": health["status"],
             "network": {

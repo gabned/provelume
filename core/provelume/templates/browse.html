@@ -17,12 +17,13 @@
   <label>{{ t('browse.area') }}<select name="area"><option value="">{{ t('browse.all') }}</option>{% for value in areas %}{% set option_value = root_area_filter if value == '' else value %}<option value="{{ option_value }}" {% if option_value == selected_area %}selected{% endif %}>{{ value or t('browse.root') }}</option>{% endfor %}</select></label>
   <label>{{ t('browse.hierarchy') }}<select name="hierarchy_id"><option value="">{{ t('browse.all') }}</option>{% for node in hierarchy_nodes %}<option value="{{ node.id }}" {% if node.id == selected_hierarchy %}selected{% endif %}>{{ node.breadcrumbs | map(attribute='name') | join(' / ') }}</option>{% endfor %}</select></label>
   <label>{{ t('browse.type') }}<select name="media_type"><option value="">{{ t('browse.all') }}</option>{% for value in media_types %}<option value="{{ value }}" {% if value == selected_media_type %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+  <label>{{ t('browse.disposition') }}<select name="disposition"><option value="active"{% if selected_disposition == 'active' %} selected{% endif %}>{{ t('disposition.active') }}</option><option value="archived"{% if selected_disposition == 'archived' %} selected{% endif %}>{{ t('disposition.archived') }}</option><option value="trashed"{% if selected_disposition == 'trashed' %} selected{% endif %}>{{ t('disposition.trashed') }}</option><option value="all"{% if selected_disposition == 'all' %} selected{% endif %}>{{ t('browse.all') }}</option></select></label>
   <button type="submit">{{ t('common.details') }}</button>
 </form>
 <section class="panel">
 <ul class="document-list">
 {% for document in documents %}
-<li><a href="/documents/{{ document.id }}?lang={{ lang }}"><strong>{{ document.title }}</strong><span>{{ document.source_name }} · {{ document.locator }} · {{ document.current_version.acquired_at[:10] }}{% if document.classification %} · {{ document.classification.primary.breadcrumbs | join(' / ') }}{% endif %}</span></a></li>
+<li><a href="/documents/{{ document.id }}?lang={{ lang }}"><strong>{{ document.title }}</strong><span>{{ t('disposition.' ~ document.disposition.status) }} · {{ document.source_name }} · {{ document.locator }} · {{ document.current_version.acquired_at[:10] }}{% if document.classification %} · {{ document.classification.primary.breadcrumbs | join(' / ') }}{% endif %}</span></a></li>
 {% else %}<li class="empty">{{ t('browse.empty') }}</li>{% endfor %}
 </ul>
 </section>

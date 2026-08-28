@@ -31,11 +31,12 @@ workstream and retains the later forecast through `1.0.0`. Forecast entries are 
 coordinates, not availability claims or release authorization.
 
 The active source tree now includes the `0.6/S01` lifecycle foundation, `0.6/S02` canonical
-Area/Subarea, Project and Collection hierarchy, and the `0.6/S03` deterministic Markdown library
-and safe Viewer. These Unreleased capabilities do not change the published `0.5.1` package
-identity and do not create a release.
+Area/Subarea, Project and Collection hierarchy, `0.6/S03` deterministic Markdown library and safe
+Viewer, and `0.6/S04` explicit archive, projection, recoverable-trash and live-Instance purge
+boundaries. These Unreleased capabilities do not change the published `0.5.1` package identity and
+do not create a release.
 
-The published foundation can:
+The active source tree can:
 
 - initialize a portable Instance in an ordinary directory;
 - ingest local TXT, Markdown, PDF and other bounded supported formats;
@@ -45,6 +46,10 @@ The published foundation can:
   multiple secondary Document classifications;
 - rebuild a deterministic `library/` with one primary Markdown path per Document, README indexes
   and relative secondary/Source/date/type links without copying acquired Originals;
+- archive, exclude from the library, recoverably trash and restore a Document as distinct local
+  actions without deleting its Original or changing its stable identity;
+- permanently purge a trashed Document only after a fresh impact preview, short-lived confirmation
+  token and explicit acknowledgement of Source/backup/replica limits;
 - keep durable ingestion runs and retry only failed or interrupted items;
 - process an Instance-local or external Drop Inbox with move-after-verified-commit semantics;
 - configure the Inbox display name, Drop folder and managed-copy folder locally;
@@ -69,8 +74,8 @@ hardened the per-user Windows product shell.
 
 These checks are read-only and perform no network request. They do not prove official origin,
 operating-system egress enforcement or zero runtime traffic. All extracted/searchable
-representations remain derived state and can be recreated from preserved originals after
-deletion.
+representations remain derived state and can be recreated from preserved originals after deletion
+of those derived copies.
 
 OCR, semantic/vector search, cloud connectors and AI enrichment remain later milestones.
 
@@ -127,6 +132,28 @@ Collection/tag/person/Source/date/type indexes. Generated links are relative, se
 classifications never duplicate a Document file, and projection edits never mutate canonical
 knowledge. See the
 [Markdown library and Viewer contract](docs/architecture/markdown-library-viewer.md).
+
+Apply retention actions locally. Archive and projection removal retain canonical lineage;
+recoverable trash hides the Document from default browse/search/library views but can restore it:
+
+```bash
+.venv/bin/provelume archive-document .local/demo <document-id>
+.venv/bin/provelume remove-from-library .local/demo <document-id>
+.venv/bin/provelume trash-document .local/demo <document-id>
+.venv/bin/provelume restore-from-trash .local/demo <document-id>
+```
+
+Permanent purge is a separate two-step action. The preview reports the exact current live-Instance
+impact and issues a short-lived token; the commit requires both that token and acknowledgement that
+configured Source files, backups and replicas are outside the erasure claim:
+
+```bash
+.venv/bin/provelume purge-preview .local/demo <document-id>
+.venv/bin/provelume purge-document .local/demo <document-id> \
+  --confirm <confirmation-token> --acknowledge-boundaries
+```
+
+See the [retention and purge boundary](docs/architecture/retention-boundaries.md).
 
 Validate the Instance without changing it, or create a hash-verified backup outside the Instance:
 

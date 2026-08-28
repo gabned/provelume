@@ -103,5 +103,20 @@ class DocumentClassification:
     updated_at: str
 
 
+@dataclass(frozen=True, slots=True)
+class DocumentDisposition:
+    schema_version: int
+    id: str
+    document_id: str
+    status: str
+    library_visibility: str
+    restore_status: str | None
+    restore_library_visibility: str | None
+    revision: int
+    created_at: str
+    updated_at: str
+    last_operation_id: str
+
+
 def as_record(value: Any) -> dict[str, Any]:
     return asdict(value)

@@ -15,6 +15,7 @@ from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES
 from .library_cli import add_library_commands, handle_library_command
 from .operations import OperationLedger
 from .rebuild_cli import add_rebuild_commands, handle_rebuild_command
+from .retention_cli import add_retention_commands, handle_retention_command
 from .review_cli import add_review_commands, handle_review_command
 from .storage import InstanceStore
 
@@ -91,6 +92,7 @@ def add_operational_commands(subparsers: Any) -> None:
     add_review_commands(subparsers)
     add_rebuild_commands(subparsers)
     add_library_commands(subparsers)
+    add_retention_commands(subparsers)
 
 
 def handle_operational_command(args: argparse.Namespace) -> int | None:
@@ -109,6 +111,9 @@ def handle_operational_command(args: argparse.Namespace) -> int | None:
     library_result = handle_library_command(args)
     if library_result is not None:
         return library_result
+    retention_result = handle_retention_command(args)
+    if retention_result is not None:
+        return retention_result
 
     if args.command not in {
         "inbox-submit",

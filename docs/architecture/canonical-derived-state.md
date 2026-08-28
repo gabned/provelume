@@ -4,7 +4,7 @@ Provelume treats durable knowledge and provenance as distinct from acceleration 
 
 ## Canonical state
 
-The first public Instance format stores canonical records as readable JSON under `knowledge/` and exact acquired bytes under `originals/`. Canonical records include Sources, Acquisitions, Originals, Documents, DocumentVersions, stable Area/Project/Collection nodes, Document classifications and provenance edges. These records are sufficient to retain identity, version history, current primary/secondary placement and where each version or association came from.
+The first public Instance format stores canonical records as readable JSON under `knowledge/` and exact acquired bytes under `originals/`. Canonical records include Sources, Acquisitions, Originals, Documents, DocumentVersions, stable Area/Project/Collection nodes, Document classifications, Document dispositions and provenance edges. These records are sufficient to retain identity, version history, current primary/secondary placement, retention state and where each version or association came from.
 
 Canonical state is not an SQLite database and does not depend on Git, GitHub or an AI provider.
 
@@ -53,10 +53,22 @@ Staging files, generated Markdown libraries, optimized PDFs, previews, indexes a
 artifacts have explicit retention policies independent from Originals. A staging input may move
 only after exact bytes and canonical provenance commit successfully.
 
-User-directed erasure uses separate archive, remove-projection, recoverable-trash and permanent-
-purge operations. Permanent purge requires explicit authorization, an impact summary and honest
-backup/replica boundaries. Rejecting an Inbox item, finding a duplicate, removing a connector or
-changing classification never implies purge.
+`0.6/S04` implements user-directed retention as separate archive, remove-from-library,
+recoverable-trash and permanent-purge operations. Archive and projection removal change only the
+canonical disposition and synchronized derived views. Trash retains the complete canonical
+lineage and restoration coordinates; restore preserves the same Document, Version, Original,
+Acquisition, classification and provenance identities.
+
+Permanent purge is available only for a trashed Document after deep validation, a fresh exact
+impact preview, a short-lived target-bound token and explicit acknowledgement of the erasure
+boundary. It removes the selected lineage from the live Instance while retaining a shared Original
+still referenced by another Document. It does not modify configured Source files or managed backup
+archives and cannot observe external backups or replicas. A content-minimizing receipt records
+hashed Document/token identity, counts and these limits rather than the raw Document ID or title.
+See [`retention-boundaries.md`](retention-boundaries.md).
+
+Rejecting an Inbox item, finding a duplicate, removing a connector or changing classification never
+implies purge.
 
 ## Identity and versioning
 
@@ -67,6 +79,8 @@ changing classification never implies purge.
   portable slugs and parent paths.
 - Each classified Document has one deterministic classification-record ID, one primary hierarchy
   node and a unique ordered set of secondary associations.
+- Each Document has an effective disposition; an explicit transition creates one deterministic
+  canonical disposition-record ID and monotonically advances its revision.
 - A new Acquisition is recorded on each observation; a new DocumentVersion is created only when content changes.
 - Physical source paths are operator configuration. Canonical document locators are normalized relative locators inside a Source.
 

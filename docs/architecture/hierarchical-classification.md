@@ -115,5 +115,8 @@ rebuilding the projection does not change hierarchy IDs, classifications, proven
 Versions or Originals. See
 [`markdown-library-viewer.md`](markdown-library-viewer.md).
 
-Archive, projection removal, trash and permanent purge remain `0.6/S04`. Portable export/import
-and cross-platform transfer qualification remain `0.6/S05`.
+`0.6/S04` now preserves these same stable classification references across archive, projection
+removal, recoverable trash and restoration; only authorized permanent purge removes the selected
+classification with the Document lineage. Portable export/import and cross-platform transfer
+qualification remain `0.6/S05`. See
+[`retention-boundaries.md`](retention-boundaries.md).

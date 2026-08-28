@@ -28,7 +28,13 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - added hash-manifested library status plus local `library-rebuild` and `library-status`
   service/CLI contracts and a read-only status API;
 - added safe EN/IT Document Viewer modes for rendered Markdown, raw Markdown, escaped Original
-  text and exact Original download.
+  text and exact Original download;
+- added canonical Document dispositions and distinct local archive, unarchive, library exclusion,
+  library restoration, recoverable trash and identity-preserving trash restoration actions;
+- added preview-bound permanent purge with a short-lived confirmation token, explicit boundary
+  acknowledgement, exact live-Instance impact inventory and privacy-minimizing completion receipt;
+- added read-only disposition filtering/status in the API and EN/IT Browser while retaining all
+  retention mutations as explicit local service/CLI authority.
 
 ### Changed
 
@@ -47,7 +53,10 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - made coordinated incremental/full/agreement rebuilds include the Markdown library fingerprint
   while preserving the same exclusive derived-state lock and canonical-mutation check;
 - kept the implemented Markdown library explicitly disposable under the schema-2 derived-state
-  policy and excluded it from local backups.
+  policy and excluded it from local backups;
+- made archived Documents project under `library/archive/`, projection-excluded Documents remain
+  canonical but absent from `library/`, and trashed Documents leave default browse/search/library
+  views until restored.
 
 ### Reliability and security
 
@@ -63,7 +72,14 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - escaped raw HTML in rendered Markdown and made authored links/images inert so Viewer content
   cannot emit document-controlled navigation, resource loading or active elements;
 - made Original downloads verify current Version/Original hash and size bindings before returning
-  attachment bytes.
+  attachment bytes;
+- made every non-purge retention action synchronize canonical disposition, search and library state
+  under the lifecycle lock, roll back on ordinary failure and report zero Original deletion;
+- made purge stage exact lineage targets transactionally, restore interrupted pre-commit work,
+  finish committed cleanup on reopen and reject stale, malformed or path-tampered evidence;
+- retained shared content-addressed Originals still referenced by another Document and reported
+  configured Source, managed-backup, external-replica and large-state-scan limits without claiming
+  broader erasure.
 
 ## 0.5.1 - 2026-08-28
 

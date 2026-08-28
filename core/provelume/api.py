@@ -95,6 +95,10 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
         include_descendants: bool = True,
         date_from: str | None = None,
         date_to: str | None = None,
+        disposition: str = Query(
+            default="active",
+            pattern="^(active|archived|trashed|all)$",
+        ),
     ) -> list[dict[str, Any]]:
         if hierarchy_id and instance.get_hierarchy_node(hierarchy_id) is None:
             raise _not_found("hierarchy node", hierarchy_id)
@@ -106,6 +110,7 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             include_descendants=include_descendants,
             date_from=date_from,
             date_to=date_to,
+            disposition=disposition,
         )
 
     @router.get("/documents/{document_id}")
@@ -123,6 +128,13 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             "document_id": document_id,
             "classification": instance.document_classification(document_id),
         }
+
+    @router.get("/documents/{document_id}/disposition")
+    def get_document_disposition(document_id: str) -> dict[str, Any]:
+        disposition = instance.document_disposition(document_id)
+        if disposition is None:
+            raise _not_found("document", document_id)
+        return disposition
 
     @router.get("/documents/{document_id}/content")
     def get_document_content(

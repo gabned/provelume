@@ -20,6 +20,7 @@ from .instance_schema import (
     manifest_validation_errors,
 )
 from .paths import UnsafePathError, safe_instance_path
+from .retention_model import canonical_disposition_errors
 from .storage import CANONICAL_KINDS, REQUIRED_CANONICAL_KINDS, InstanceStore
 
 VALIDATION_REPORT_SCHEMA_VERSION = 1
@@ -217,6 +218,11 @@ def _validate_references(
     for code, message, path in classification_provenance_errors(
         records["classifications"],
         records["provenance"],
+    ):
+        errors.append(_finding(code, message, path=path))
+    for code, message, path in canonical_disposition_errors(
+        records["dispositions"],
+        documents,
     ):
         errors.append(_finding(code, message, path=path))
 

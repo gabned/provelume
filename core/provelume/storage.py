@@ -18,6 +18,7 @@ from .domain import (
     DerivedArtifact,
     Document,
     DocumentClassification,
+    DocumentDisposition,
     DocumentVersion,
     HierarchyNode,
     Original,
@@ -44,6 +45,7 @@ REQUIRED_CANONICAL_KINDS = (
 ADDITIVE_CANONICAL_KINDS = (
     "hierarchy",
     "classifications",
+    "dispositions",
 )
 CANONICAL_KINDS = REQUIRED_CANONICAL_KINDS + ADDITIVE_CANONICAL_KINDS
 
@@ -111,6 +113,7 @@ class InstancePaths:
 class InstanceStore:
     def __init__(self, root: Path | str):
         self.paths = InstancePaths(Path(root).expanduser().resolve())
+        self._open_preparation: dict[str, Any] | None = None
 
     @classmethod
     def initialise(
@@ -164,7 +167,7 @@ class InstanceStore:
         store = cls(root)
         from .instance_lifecycle import InstanceLifecycleManager
 
-        InstanceLifecycleManager(store).prepare()
+        store._open_preparation = InstanceLifecycleManager(store).prepare()
         store.validate()
         return store
 
@@ -273,6 +276,9 @@ class InstanceStore:
 
     def write_classification(self, classification: DocumentClassification) -> None:
         self.write_canonical("classifications", classification)
+
+    def write_disposition(self, disposition: DocumentDisposition) -> None:
+        self.write_canonical("dispositions", disposition)
 
     def write_derived_artifact(self, artifact: DerivedArtifact) -> None:
         path = self.paths.derived_artifacts / f"{artifact.id}.json"

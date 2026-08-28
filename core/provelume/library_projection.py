@@ -36,6 +36,7 @@ from .markdown_viewer import (
     DocumentContentReader,
 )
 from .paths import normalise_locator
+from .retention_model import effective_dispositions
 from .storage import InstanceStore
 
 
@@ -513,8 +514,11 @@ class LibraryProjectionManager:
             rows.append(f"{relative}:{item['sha256']}:{item['size_bytes']}")
         if entry_paths != sorted(entry_paths):
             return self._manifest_status(value, "invalid", "file_order_invalid")
+        dispositions = effective_dispositions(self.store)
         document_ids = {
-            str(item["id"]) for item in self.store.list_canonical("documents")
+            str(item["id"])
+            for item in self.store.list_canonical("documents")
+            if dispositions[str(item["id"])]["projected"]
         }
         if set(value["primary_paths"]) != document_ids:
             return self._manifest_status(value, "invalid", "primary_identity_invalid")
