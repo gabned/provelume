@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ t('duplicates.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('duplicates.eyebrow') }}</p>
+  <h1>{{ t('duplicates.title') }}</h1>
+  <p class="lead">{{ t('duplicates.lead') }}</p>
+  <p class="technical-note">{{ t('duplicates.no_action') }}</p>
+</section>
+<form class="filters" method="get">
+  <input type="hidden" name="lang" value="{{ lang }}">
+  <label>{{ t('duplicates.kind') }}
+    <select name="kind">
+      <option value="">{{ t('browse.all') }}</option>
+      <option value="exact" {% if selected_kind == 'exact' %}selected{% endif %}>{{ t('duplicates.exact') }}</option>
+      <option value="probable" {% if selected_kind == 'probable' %}selected{% endif %}>{{ t('duplicates.probable') }}</option>
+    </select>
+  </label>
+  <label>{{ t('duplicates.current') }}
+    <select name="current">
+      <option value="true" {% if selected_current == 'true' %}selected{% endif %}>{{ t('duplicates.current_only') }}</option>
+      <option value="false" {% if selected_current == 'false' %}selected{% endif %}>{{ t('duplicates.historical_only') }}</option>
+      <option value="all" {% if selected_current == 'all' %}selected{% endif %}>{{ t('duplicates.all') }}</option>
+    </select>
+  </label>
+  <button type="submit">{{ t('operations.filter') }}</button>
+</form>
+<section class="panel">
+  <ul class="document-list">
+  {% for case in cases %}
+    <li>
+      <a href="/duplicates/{{ case.id }}?lang={{ lang }}">
+        <strong>{{ t('duplicates.exact') if case.kind == 'exact' else t('duplicates.probable') }} · {{ case.documents | length }} {{ t('duplicates.documents') }}</strong>
+        <span>{{ case.status }} · {{ t('duplicates.confidence') }} {{ '%.0f' | format(case.confidence * 100) }}% · {{ case.rule }}</span>
+        <span>{{ case.last_seen_at[:19] }}</span>
+      </a>
+    </li>
+  {% else %}
+    <li class="empty">{{ t('duplicates.empty') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}
