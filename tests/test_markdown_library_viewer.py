@@ -430,4 +430,17 @@ def test_projection_manifest_paths_are_portable(tmp_path: Path) -> None:
         json.dumps(manifest, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    assert instance.library_status()["status"] == "invalid"
+    status = instance.library_status()
+    assert status["status"] == "invalid"
+    assert status["files"] == len(manifest["files"])
+    assert "primary_paths" not in status
+
+    manifest["unexpected_echo"] = {"document_owned": ["not returned"]}
+    (instance.store.paths.library / LIBRARY_MANIFEST).write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    status = instance.library_status()
+    assert status["status"] == "invalid"
+    assert status["reason"] == "manifest_contract_invalid"
+    assert "unexpected_echo" not in status

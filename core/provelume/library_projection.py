@@ -345,6 +345,26 @@ class LibraryProjectionManager:
     def status(self) -> dict[str, Any]:
         return self._status(self.root)
 
+    @staticmethod
+    def _manifest_status(
+        value: dict[str, Any],
+        status: str,
+        reason: str,
+    ) -> dict[str, Any]:
+        """Return bounded status metadata without echoing a hostile manifest."""
+
+        return {
+            "schema_version": LIBRARY_PROJECTION_SCHEMA_VERSION,
+            "status": status,
+            "reason": reason,
+            "canonical_fingerprint": value["canonical_fingerprint"],
+            "content_fingerprint": value["content_fingerprint"],
+            "documents": value["documents"],
+            "files": len(value["files"]),
+            "network_used": False,
+            "ai_used": False,
+        }
+
     def _status(self, root: Path) -> dict[str, Any]:
         if _unsafe_link(root):
             return {
@@ -392,6 +412,19 @@ class LibraryProjectionManager:
             }
         if (
             not isinstance(value, dict)
+            or set(value)
+            != {
+                "schema_version",
+                "generator",
+                "generator_version",
+                "canonical_fingerprint",
+                "content_fingerprint",
+                "documents",
+                "primary_paths",
+                "files",
+                "network_used",
+                "ai_used",
+            }
             or value.get("schema_version") != LIBRARY_PROJECTION_SCHEMA_VERSION
             or value.get("generator") != LIBRARY_GENERATOR
             or value.get("generator_version") != LIBRARY_GENERATOR_VERSION
@@ -419,15 +452,15 @@ class LibraryProjectionManager:
         actual_paths: set[str] = set()
         for path in root.rglob("*"):
             if _unsafe_link(path):
-                return {**value, "status": "modified", "reason": "symlink_present"}
+                return self._manifest_status(value, "modified", "symlink_present")
             if path.is_file():
                 actual_paths.add(path.relative_to(root).as_posix())
                 if len(actual_paths) > MAX_LIBRARY_FILES + 1:
-                    return {
-                        **value,
-                        "status": "modified",
-                        "reason": "file_limit_exceeded",
-                    }
+                    return self._manifest_status(
+                        value,
+                        "modified",
+                        "file_limit_exceeded",
+                    )
         rows: list[str] = []
         entry_paths: list[str] = []
         expected_paths = {LIBRARY_MANIFEST}
@@ -437,7 +470,7 @@ class LibraryProjectionManager:
                 "sha256",
                 "size_bytes",
             }:
-                return {**value, "status": "invalid", "reason": "file_entry_invalid"}
+                return self._manifest_status(value, "invalid", "file_entry_invalid")
             if (
                 not isinstance(item["path"], str)
                 or not isinstance(item["sha256"], str)
@@ -447,15 +480,15 @@ class LibraryProjectionManager:
                 or item["size_bytes"] < 0
                 or item["size_bytes"] > MAX_LIBRARY_FILE_BYTES
             ):
-                return {**value, "status": "invalid", "reason": "file_entry_invalid"}
+                return self._manifest_status(value, "invalid", "file_entry_invalid")
             try:
                 relative = normalise_locator(item["path"])
             except ValueError:
-                return {**value, "status": "invalid", "reason": "file_path_invalid"}
+                return self._manifest_status(value, "invalid", "file_path_invalid")
             if relative != item["path"]:
-                return {**value, "status": "invalid", "reason": "file_path_invalid"}
+                return self._manifest_status(value, "invalid", "file_path_invalid")
             if relative in expected_paths:
-                return {**value, "status": "invalid", "reason": "file_path_duplicate"}
+                return self._manifest_status(value, "invalid", "file_path_duplicate")
             expected_paths.add(relative)
             entry_paths.append(relative)
             path = root.joinpath(*PurePosixPath(relative).parts)
@@ -463,33 +496,33 @@ class LibraryProjectionManager:
                 if _unsafe_link(path) or not path.is_file():
                     raise OSError
                 if path.stat().st_size != item["size_bytes"]:
-                    return {**value, "status": "modified", "reason": "file_changed"}
+                    return self._manifest_status(value, "modified", "file_changed")
                 data = path.read_bytes()
             except OSError:
-                return {**value, "status": "modified", "reason": "file_missing"}
+                return self._manifest_status(value, "modified", "file_missing")
             if _sha256(data) != item.get("sha256") or len(data) != item.get(
                 "size_bytes"
             ):
-                return {**value, "status": "modified", "reason": "file_changed"}
+                return self._manifest_status(value, "modified", "file_changed")
             rows.append(f"{relative}:{item['sha256']}:{item['size_bytes']}")
         if entry_paths != sorted(entry_paths):
-            return {**value, "status": "invalid", "reason": "file_order_invalid"}
+            return self._manifest_status(value, "invalid", "file_order_invalid")
         document_ids = {
             str(item["id"]) for item in self.store.list_canonical("documents")
         }
         if set(value["primary_paths"]) != document_ids:
-            return {**value, "status": "invalid", "reason": "primary_identity_invalid"}
+            return self._manifest_status(value, "invalid", "primary_identity_invalid")
         primary_values: set[str] = set()
         for document_id, relative in value["primary_paths"].items():
             if (
                 _DOCUMENT_ID.fullmatch(document_id) is None
                 or not isinstance(relative, str)
             ):
-                return {**value, "status": "invalid", "reason": "primary_path_invalid"}
+                return self._manifest_status(value, "invalid", "primary_path_invalid")
             try:
                 normalized = normalise_locator(relative)
             except ValueError:
-                return {**value, "status": "invalid", "reason": "primary_path_invalid"}
+                return self._manifest_status(value, "invalid", "primary_path_invalid")
             if (
                 normalized != relative
                 or relative not in expected_paths
@@ -498,19 +531,19 @@ class LibraryProjectionManager:
                 or relative == "README.md"
                 or relative in primary_values
             ):
-                return {**value, "status": "invalid", "reason": "primary_path_invalid"}
+                return self._manifest_status(value, "invalid", "primary_path_invalid")
             primary_values.add(relative)
         if actual_paths != expected_paths:
-            return {**value, "status": "modified", "reason": "unexpected_files"}
+            return self._manifest_status(value, "modified", "unexpected_files")
         fingerprint = _sha256("\n".join(rows).encode("utf-8"))
         if fingerprint != value.get("content_fingerprint"):
-            return {**value, "status": "modified", "reason": "fingerprint_changed"}
+            return self._manifest_status(value, "modified", "fingerprint_changed")
         try:
             canonical = self._deep_fingerprint(self.store)
         except LibraryProjectionError:
-            return {**value, "status": "invalid", "reason": "canonical_invalid"}
+            return self._manifest_status(value, "invalid", "canonical_invalid")
         if canonical != value.get("canonical_fingerprint"):
-            return {**value, "status": "stale", "reason": "canonical_changed"}
+            return self._manifest_status(value, "stale", "canonical_changed")
         return {
             **value,
             "status": "ready",
