@@ -8,45 +8,49 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.4.1 preview
+## Current status: 0.5.0 preview
 
-The latest published preview is `v0.4.1`. It hardens the Windows Product Shell introduced in
-`0.4.0`: the per-user x64 installer, bundled runtime, local launcher, About/version identity and
-explicit update-check lifecycle now have deeper upgrade, recovery, packaging and layout evidence.
-Issue #62 and the [0.4.1 release plan](docs/releases/0.4.1.md) define this patch-only scope. See
-the [public roadmap](docs/roadmap.md) and the [Windows preview guide](docs/windows-preview.md) for
-installation and trust boundaries.
+The latest published preview is `v0.5.0`. It adds durable filesystem ingestion, a safe local Drop
+Inbox, deterministic document bundles, exact/probable duplicate evidence, read-only Original
+assurance, locked derived-state rebuilds and a navigable operation log. The Inbox name, Drop folder
+and managed-copy folder are configurable; the two working folders may be relative to the Instance
+or absolute locations elsewhere on the local filesystem. Canonical Originals, knowledge, indexes,
+operations and reports remain inside the Instance.
 
-The roadmap records the non-activated release forecast from `0.5.0` through `1.0.0`. Forecast
+Issues #66 and #72 and the [0.5.0 release plan](docs/releases/0.5.0.md) define the bounded release.
+See the [public roadmap](docs/roadmap.md), the
+[configurable-folder contract](docs/architecture/configurable-folder-settings.md) and the
+[Windows preview guide](docs/windows-preview.md) for portability and trust boundaries.
+
+The roadmap records the non-activated release forecast from `0.6.0` through `1.0.0`. Forecast
 entries are sequencing coordinates, not availability claims or release authorization.
 
-The published `v0.1.0` baseline implements a small local Instance that can:
+The published foundation can:
 
-- initialize in an ordinary directory;
-- ingest local TXT, Markdown and PDF files;
+- initialize a portable Instance in an ordinary directory;
+- ingest local TXT, Markdown, PDF and other bounded supported formats;
 - preserve exact originals with SHA-256 content identity;
 - record Sources, Acquisitions, Documents, DocumentVersions and provenance;
-- create a new version only when file content changes;
+- keep durable ingestion runs and retry only failed or interrupted items;
+- process an Instance-local or external Drop Inbox with move-after-verified-commit semantics;
+- configure the Inbox display name, Drop folder and managed-copy folder locally;
+- build deterministic Markdown, page-map and bounded-asset document bundles;
+- detect exact and conservative probable duplicates without automatic merge or deletion;
+- verify retained Original bytes and canonical references without automatic repair;
+- coordinate incremental and full derived-state rebuilds under an exclusive Instance lock;
+- browse ordered, bounded and path-redacted operation evidence;
 - extract text locally and build a disposable SQLite FTS5 search index;
 - expose a read-only versioned Knowledge API with FastAPI;
-- provide a minimal EN/IT Knowledge Browser for browse, search, document detail, versions, provenance, knowledge health and build transparency;
+- provide an EN/IT Knowledge Browser for browse, search, document detail, versions, provenance,
+  Inbox, bundles, duplicates, assurance, rebuild reports, operations, settings and health;
 - report its embedded version/tag/commit/source identity offline through CLI, API and browser;
 - restart without losing canonical state;
 - run without Git, GitHub, Provelume Cloud or an external AI provider.
 
-The `v0.2.0` preview adds:
-
-- local installation verification against wheel `RECORD`, with package integrity kept
-  separate from official-origin authentication;
-- declared Privacy & Network Activity transparency, including safe endpoint origins,
-  policy-conflict reporting and an explicit `not_instrumented` traffic-observation state.
-
-The `v0.3.0` preview optionally links that local installation check to an
-operator-supplied release bundle. It verifies the bundle offline, validates the candidate
-wheel and its internal `RECORD` without extraction, and compares installed Core files with
-wheel bytes independently from the mutable local `RECORD`. Bundle self-consistency does not
-authenticate the publisher; a supplied manifest SHA-256 establishes only a match to the
-independently obtained hash.
+The `v0.2.0` preview added local installation verification against wheel `RECORD` and declared
+Privacy & Network Activity transparency. The `v0.3.0` preview optionally links installation checks
+to an operator-supplied local release bundle. The `v0.4.0` and `v0.4.1` previews introduced and
+hardened the per-user Windows product shell.
 
 These checks are read-only and perform no network request. They do not prove official origin,
 operating-system egress enforcement or zero runtime traffic. All extracted/searchable
@@ -73,6 +77,29 @@ The bootstrap command creates `.venv` and installs Provelume plus developer chec
 
 On Windows, use `.venv\\Scripts\\provelume.exe` for the same commands. Open `http://127.0.0.1:8000/` after starting the server.
 
+Configure a custom Inbox name and local folders. Relative paths resolve from the Instance root;
+absolute paths may live elsewhere on the local filesystem:
+
+```bash
+.venv/bin/provelume configure-inbox .local/demo \
+  --name "Incoming knowledge" \
+  --drop "Drop" \
+  --managed "/path/to/provelume-managed-copies"
+.venv/bin/provelume folder-settings .local/demo
+.venv/bin/provelume inbox-process .local/demo
+```
+
+A missing external folder fails visibly and is not silently recreated. Once Inbox Documents or
+Acquisitions exist, changing the managed-copy location requires a future verified relocation
+workflow; the display name and Drop folder can still change.
+
+Inspect the navigable operation log or run a consistency rebuild:
+
+```bash
+.venv/bin/provelume operations .local/demo
+.venv/bin/provelume rebuild-derived .local/demo --mode agreement
+```
+
 Inspect the package's embedded source identity without creating an Instance or making a network request:
 
 ```bash
@@ -92,7 +119,7 @@ Instance content and is never enabled in the background by the Core:
 .venv/bin/provelume check-updates --channel preview
 ```
 
-The Windows `0.4.1` preview packages the same behavior behind a per-user installer and EN/IT
+The Windows `0.5.0` preview packages the same behavior behind a per-user installer and EN/IT
 launcher; see the [Windows preview guide](docs/windows-preview.md).
 
 Inspect one Instance's declared network policy and components, also without making a network request:
@@ -155,28 +182,48 @@ Schema 1 uses an ordinary filesystem directory:
 
 `originals/` and `knowledge/` are durable canonical state. `state/derived/` and `indexes/` are rebuildable derived state. SQLite is used only for search acceleration; it is not the authoritative knowledge format.
 
-See `docs/architecture/portable-instance.md` and `docs/architecture/canonical-derived-state.md`.
+Drop and managed-copy folders may optionally be elsewhere on the local filesystem. They remain
+working locations rather than alternate canonical stores. Backing up only the Instance preserves
+acquired knowledge but not unacquired files waiting in an external Drop folder.
+
+See `docs/architecture/portable-instance.md`,
+`docs/architecture/canonical-derived-state.md` and
+`docs/architecture/configurable-folder-settings.md`.
 
 ## Knowledge API
 
-The browser and external clients use the same application layer. The first read-only API is under `/api/v1`, including:
+The browser and external clients use the same application layer. The read-only API is under `/api/v1`, including:
 
 - `GET /health`
 - `GET /api/v1/build-info`
+- `GET /api/v1/about`
 - `GET /api/v1/instance`
 - `GET /api/v1/sources`
 - `GET /api/v1/sources/{id}`
+- `GET /api/v1/ingestion/runs`
+- `GET /api/v1/ingestion/runs/{id}`
 - `GET /api/v1/documents`
 - `GET /api/v1/documents/{id}`
 - `GET /api/v1/documents/{id}/versions`
 - `GET /api/v1/documents/{id}/provenance`
 - `GET /api/v1/documents/{id}/original`
 - `GET /api/v1/search`
+- `GET /api/v1/inbox`
+- `GET /api/v1/inbox/submissions`
+- `GET /api/v1/operations`
+- `GET /api/v1/operations/{id}`
+- `GET /api/v1/bundles`
+- `GET /api/v1/duplicates`
+- `GET /api/v1/assurance`
+- `GET /api/v1/rebuild`
+- `GET /api/v1/settings/folders`
 - `GET /api/v1/knowledge-health`
 - `GET /api/v1/security/network`
 - `GET /api/v1/security/installation`
 
-See `docs/api.md` for the contract and filtering behavior.
+The settings API redacts external absolute paths. Folder mutation is available only through local
+CLI or the loopback/CSRF-protected browser form. See `docs/api.md` for the complete contract and
+filtering behavior.
 
 ## Privacy and network baseline
 
