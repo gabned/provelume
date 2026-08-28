@@ -8,33 +8,24 @@
   <link rel="stylesheet" href="/static/activity.css">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">{{ t('common.skip_to_content') }}</a>
   <header class="site-header">
     <a class="brand" href="/?lang={{ lang }}">
       <span>{{ t('brand') }}</span>
       <small>{{ t('tagline') }}</small>
     </a>
-    <nav aria-label="Primary">
-      <a href="/?lang={{ lang }}">{{ t('nav.home') }}</a>
-      <a href="/browse?lang={{ lang }}">{{ t('nav.browse') }}</a>
-      <a href="/search?lang={{ lang }}">{{ t('nav.search') }}</a>
-      <a href="/inbox?lang={{ lang }}">{{ t('nav.inbox') }}</a>
-      <a href="/bundles?lang={{ lang }}">{{ t('nav.bundles') }}</a>
-      <a href="/duplicates?lang={{ lang }}">{{ t('nav.duplicates') }}</a>
-      <a href="/assurance?lang={{ lang }}">{{ t('nav.assurance') }}</a>
-      <a href="/rebuild?lang={{ lang }}">{{ t('nav.rebuild') }}</a>
-      <a href="/operations?lang={{ lang }}">{{ t('nav.operations') }}</a>
-      <a href="/settings?lang={{ lang }}">{{ t('nav.settings') }}</a>
-      <a href="/knowledge-health?lang={{ lang }}">{{ t('nav.health') }}</a>
-      <a href="/security/installation?lang={{ lang }}">{{ security_t('nav.verify_installation') }}</a>
-      <a href="/security/network?lang={{ lang }}">{{ t('nav.network') }}</a>
-      <a href="/security?lang={{ lang }}">{{ t('nav.security') }}</a>
-      <a href="/about?lang={{ lang }}">{{ t('nav.about') }}</a>
+    <nav aria-label="{{ t('nav.primary') }}">
+      {% for item in navigation %}
+      <a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a>
+      {% endfor %}
     </nav>
     <div class="language" aria-label="{{ t('common.language') }}">
-      <a href="?lang=en">EN</a><span>·</span><a href="?lang=it">IT</a>
+      <a href="{{ language_urls.en }}" hreflang="en" lang="en"{% if lang == 'en' %} aria-current="true"{% endif %}>EN</a>
+      <span aria-hidden="true">·</span>
+      <a href="{{ language_urls.it }}" hreflang="it" lang="it"{% if lang == 'it' %} aria-current="true"{% endif %}>IT</a>
     </div>
   </header>
-  <main class="page-shell">
+  <main id="main-content" class="page-shell" tabindex="-1">
     {% block content %}{% endblock %}
   </main>
   <footer>{{ t('footer.local') }}</footer>

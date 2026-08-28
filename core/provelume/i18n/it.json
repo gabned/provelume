@@ -135,5 +135,7 @@
   "common.outcome": "Esito",
   "common.source": "Fonte",
   "common.document": "Documento",
-  "footer.local": "Base local-first: nessuna CDN, analytics, telemetria o AI esterna richiesta."
+  "footer.local": "Base local-first: nessuna CDN, analytics, telemetria o AI esterna richiesta.",
+  "nav.primary": "Navigazione principale",
+  "common.skip_to_content": "Vai al contenuto principale"
 }

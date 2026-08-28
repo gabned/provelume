@@ -135,5 +135,7 @@
   "common.outcome": "Outcome",
   "common.source": "Source",
   "common.document": "Document",
-  "footer.local": "Local-first baseline: no CDN, analytics, telemetry or external AI required."
+  "footer.local": "Local-first baseline: no CDN, analytics, telemetry or external AI required.",
+  "nav.primary": "Primary navigation",
+  "common.skip_to_content": "Skip to main content"
 }

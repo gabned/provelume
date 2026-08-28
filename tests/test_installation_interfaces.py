@@ -64,7 +64,10 @@ def test_read_only_installation_security_api_and_browser(
     assert "Verify installation" in english.text
     assert "Package integrity verified" in english.text
     assert "Not established by local package metadata" in english.text
-    assert 'href="/security/installation?lang=en">Verify installation</a>' in english.text
+    assert (
+        'href="/security/installation?lang=en" aria-current="page">'
+        "Verify installation</a>"
+    ) in english.text
     assert 'href="/security?lang=en">Security</a>' in english.text
     assert "Synthetic verification result." not in english.text
 

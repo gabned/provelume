@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
@@ -15,6 +17,7 @@ from .i18n import SUPPORTED_LANGUAGES, translator
 from .installation import verify_current_installation
 from .installation_i18n import installation_translator
 from .service import ProvelumeInstance
+from .web_security import LocalWebSecurityMiddleware
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 TEMPLATES = Jinja2Templates(directory=str(PACKAGE_ROOT / "templates"))
@@ -29,14 +32,124 @@ def _language(request: Request, instance: ProvelumeInstance) -> str:
     return configured if configured in SUPPORTED_LANGUAGES else "en"
 
 
+def _language_url(request: Request, language: str) -> str:
+    query = [
+        (key, value)
+        for key, value in request.query_params.multi_items()
+        if key != "lang"
+    ]
+    query.append(("lang", language))
+    return f"{request.url.path}?{urlencode(query, doseq=True)}"
+
+
+def _navigation(
+    language: str,
+    current_path: str,
+    t: Callable[[str], str],
+    security_t: Callable[[str], str],
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "href": f"/?lang={language}",
+            "label": t("nav.home"),
+            "current": current_path == "/",
+        },
+        {
+            "href": f"/browse?lang={language}",
+            "label": t("nav.browse"),
+            "current": (
+                current_path == "/browse" or current_path.startswith("/documents/")
+            ),
+        },
+        {
+            "href": f"/search?lang={language}",
+            "label": t("nav.search"),
+            "current": current_path == "/search",
+        },
+        {
+            "href": f"/inbox?lang={language}",
+            "label": t("nav.inbox"),
+            "current": current_path.startswith("/inbox"),
+        },
+        {
+            "href": f"/bundles?lang={language}",
+            "label": t("nav.bundles"),
+            "current": current_path.startswith("/bundles"),
+        },
+        {
+            "href": f"/duplicates?lang={language}",
+            "label": t("nav.duplicates"),
+            "current": current_path.startswith("/duplicates"),
+        },
+        {
+            "href": f"/assurance?lang={language}",
+            "label": t("nav.assurance"),
+            "current": current_path.startswith("/assurance"),
+        },
+        {
+            "href": f"/rebuild?lang={language}",
+            "label": t("nav.rebuild"),
+            "current": current_path.startswith("/rebuild"),
+        },
+        {
+            "href": f"/operations?lang={language}",
+            "label": t("nav.operations"),
+            "current": current_path.startswith("/operations"),
+        },
+        {
+            "href": f"/settings?lang={language}",
+            "label": t("nav.settings"),
+            "current": current_path.startswith("/settings"),
+        },
+        {
+            "href": f"/knowledge-health?lang={language}",
+            "label": t("nav.health"),
+            "current": current_path == "/knowledge-health",
+        },
+        {
+            "href": f"/security/installation?lang={language}",
+            "label": security_t("nav.verify_installation"),
+            "current": current_path == "/security/installation",
+        },
+        {
+            "href": f"/security/network?lang={language}",
+            "label": t("nav.network"),
+            "current": current_path == "/security/network",
+        },
+        {
+            "href": f"/security?lang={language}",
+            "label": t("nav.security"),
+            "current": current_path == "/security",
+        },
+        {
+            "href": f"/about?lang={language}",
+            "label": t("nav.about"),
+            "current": current_path == "/about",
+        },
+    ]
+
+
+def _base_context(request: Request, language: str) -> dict[str, Any]:
+    t = translator(language)
+    security_t = installation_translator(language)
+    return {
+        "request": request,
+        "lang": language,
+        "t": t,
+        "security_t": security_t,
+        "navigation": _navigation(language, request.url.path, t, security_t),
+        "language_urls": {
+            selected: _language_url(request, selected)
+            for selected in sorted(SUPPORTED_LANGUAGES)
+        },
+    }
+
+
 def _context(request: Request, instance: ProvelumeInstance, **values: Any) -> dict[str, Any]:
     language = _language(request, instance)
     return {
-        "request": request,
+        **_base_context(request, language),
         "instance": instance.instance_summary(),
-        "lang": language,
-        "t": translator(language),
-        "security_t": installation_translator(language),
         **values,
     }
 
@@ -44,13 +157,7 @@ def _context(request: Request, instance: ProvelumeInstance, **values: Any) -> di
 def _installation_context(request: Request, **values: Any) -> dict[str, Any]:
     requested = request.query_params.get("lang")
     language = requested if requested in SUPPORTED_LANGUAGES else "en"
-    return {
-        "request": request,
-        "lang": language,
-        "t": translator(language),
-        "security_t": installation_translator(language),
-        **values,
-    }
+    return {**_base_context(request, language), **values}
 
 
 def create_app(
@@ -78,9 +185,10 @@ def create_app(
     app = FastAPI(
         title="Provelume Knowledge API",
         version="1.0",
-        docs_url="/api/docs",
+        docs_url=None,
         redoc_url=None,
     )
+    app.add_middleware(LocalWebSecurityMiddleware)
     app.state.provelume = instance
     app.state.installation_verification = installation_verification
     app.state.release_evidence_configured = release_evidence_configured
