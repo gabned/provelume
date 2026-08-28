@@ -185,10 +185,13 @@ version/update lifecycle without installing Git or Python.
 
 The preview includes a per-user Windows x64 installer with a bundled runtime; launcher/runtime and
 Instance-data separation; default Instance creation and existing-Instance selection; local
-start/stop/status/browser controls; EN/IT About identity; manual and opt-in startup update checks;
-provider-independent Windows update metadata with an explicit initial GitHub Releases transport;
-installer size/SHA-256 verification; user-confirmed installer handoff; uninstall that preserves
-Instance data; release-bundle publication and Windows install/use/uninstall CI evidence.
+start/stop/status/browser controls; EN/IT About identity; update checks disabled by default, a
+manual `Check now` action and an optional check at startup; comparison of the embedded local
+version with the selected Stable or Preview online catalogue; a visible available/up-to-date
+result that leaves download and installation to the user; provider-independent Windows update
+metadata with an explicit initial GitHub Releases transport; installer size/SHA-256 verification;
+user-confirmed installer handoff; uninstall that preserves Instance data; release-bundle
+publication and Windows install/use/uninstall CI evidence.
 
 It does not include Authenticode, independent publisher authentication, unattended update
 application, runtime slots, automatic rollback, interrupted-update recovery, Instance migrations,
@@ -587,10 +590,33 @@ rollback.
 **Includes:** provider-independent signed release manifest and key lifecycle policy; Windows code
 signing; pre-install signature/hash/compatibility verification; runtime slots separate from the
 Instance; backup/migration/restart/health/automatic rollback; interrupted-update recovery;
-Stable/Preview/Dev channels; pin/defer/disable policy; offline update bundle.
+Stable/Preview/Dev channels; offline update bundle; and one explicit, user-selectable update
+policy rather than an ambiguous auto-update switch:
 
-**Exit gate:** tampered, revoked, incompatible and interrupted updates fail safely, while the
-previous healthy runtime and Instance remain recoverable.
+- **Disabled/offline:** no background check, download or update network access; the installed
+  version remains visible locally and a manual offline bundle remains possible.
+- **Manual check only:** `Check now` compares the exact installed version with the selected online
+  channel, then shows availability, release notes, security relevance, compatibility/migration
+  impact and download size; the user decides whether to download and install.
+- **Notify only:** an opt-in startup or scheduled check may notify about a newer version but never
+  downloads or installs it.
+- **Download and ask:** an opt-in check may download and verify an eligible update, but
+  installation still requires explicit confirmation.
+- **Controlled automatic install:** a separate opt-in policy, enabled only after signing, backup,
+  health-check and rollback gates are established, with a maintenance window and no forced
+  downgrade or channel switch.
+
+All online modes disclose the contacted catalogue and the minimal version/platform metadata sent;
+no Instance content is transmitted. Every mode supports Stable/Preview/Dev channel selection,
+version pinning, skip-this-version, defer-until, metered-network and battery-aware controls,
+security-update prominence, an update/rollback history and a one-click return to manual-only mode.
+Policy changes and automatic actions receive privacy-minimizing audit entries.
+
+**Exit gate:** every policy is testably distinct and persists across restart; Disabled/offline
+performs no update network access; manual and notification modes never install; a pinned, skipped
+or deferred release is respected; automatic install cannot run outside its opt-in policy and
+maintenance window; and tampered, revoked, incompatible, downgraded or interrupted updates fail
+safely while the previous healthy runtime and Instance remain recoverable.
 
 ### 0.21.0 — Business and Cloud Contracts Preview
 
