@@ -2,6 +2,20 @@
 
 The first Provelume Knowledge API is read-only and served by the same application layer used by the Knowledge Browser. The stable prefix for this pre-1.0 contract is `/api/v1`.
 
+## Local serving boundary
+
+`provelume serve` is intentionally loopback-only in the `0.5.x` line. The CLI accepts only
+`localhost`, IPv4 loopback addresses or IPv6 loopback addresses; wildcard, LAN and arbitrary
+hostnames fail before Uvicorn starts. HTTP requests must also carry a loopback or local-test Host
+value, which prevents a local browser session from accepting an unrelated Host header.
+
+The application adds a restrictive Content Security Policy, clickjacking/content-type/referrer
+protections, a limited browser permissions policy and `Cache-Control: no-store` to local responses.
+The interactive `/api/docs` page is disabled because it is not part of the packaged offline
+browser contract; the versioned JSON API remains available directly and performs no implicit
+network request. A future non-loopback mode requires separate authentication, authorization, TLS
+and deployment design rather than weakening this local boundary.
+
 ## Health
 
 `GET /health` reports runtime version, embedded build-identity status, Instance identity and derived search-index status. The build status is descriptive metadata, not a local signature or integrity verification result.

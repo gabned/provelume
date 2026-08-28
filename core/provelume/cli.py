@@ -16,6 +16,7 @@ from .operational_cli import add_operational_commands, handle_operational_comman
 from .service import ProvelumeInstance
 from .updates import UpdateError, check_for_updates
 from .web import create_app
+from .web_security import loopback_host
 
 
 def _positive_int(value: str) -> int:
@@ -23,6 +24,13 @@ def _positive_int(value: str) -> int:
     if parsed < 1:
         raise argparse.ArgumentTypeError("value must be a positive integer")
     return parsed
+
+
+def _loopback_host(value: str) -> str:
+    try:
+        return loopback_host(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -98,7 +106,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     serve = subparsers.add_parser("serve", help="Run Knowledge API and browser")
     serve.add_argument("instance", type=Path)
-    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--host", default="127.0.0.1", type=_loopback_host)
     serve.add_argument("--port", default=8000, type=int)
     serve.add_argument(
         "--release-bundle",

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from html import unescape
 from pathlib import Path
+import re
+from urllib.parse import parse_qs, urlsplit
 
 from fastapi.testclient import TestClient
 
 from provelume.service import ProvelumeInstance
 from provelume.web import create_app
+from provelume.web_security import CONTENT_SECURITY_POLICY
 
 
 def _fixture(tmp_path: Path) -> tuple[Path, Path, ProvelumeInstance]:
@@ -199,3 +203,53 @@ def test_browser_and_api_survive_restart(tmp_path: Path) -> None:
     client = TestClient(create_app(root))
     assert {item["id"] for item in client.get("/api/v1/documents").json()} == expected_ids
     assert client.get("/api/v1/build-info").json()["verification"]["network_used"] is False
+
+
+def test_local_web_security_and_accessibility_boundary(tmp_path: Path) -> None:
+    root, _source, _instance = _fixture(tmp_path)
+    client = TestClient(create_app(root))
+
+    home = client.get("/")
+    assert home.status_code == 200
+    assert home.headers["content-security-policy"] == CONTENT_SECURITY_POLICY
+    assert home.headers["cache-control"] == "no-store"
+    assert home.headers["cross-origin-opener-policy"] == "same-origin"
+    assert home.headers["cross-origin-resource-policy"] == "same-origin"
+    assert home.headers["referrer-policy"] == "no-referrer"
+    assert home.headers["x-content-type-options"] == "nosniff"
+    assert home.headers["x-frame-options"] == "DENY"
+    assert "camera=()" in home.headers["permissions-policy"]
+    assert client.get("/api/docs").status_code == 404
+
+    rejected = client.get("/", headers={"host": "example.com"})
+    assert rejected.status_code == 400
+    assert rejected.headers["content-security-policy"] == CONTENT_SECURITY_POLICY
+    assert client.get("/", headers={"host": "127.0.0.1:8042"}).status_code == 200
+    assert client.get("/", headers={"host": "[::1]:8042"}).status_code == 200
+
+    assert 'class="skip-link" href="#main-content"' in home.text
+    assert 'id="main-content"' in home.text
+    assert 'aria-current="page">Home</a>' in home.text
+
+    search = client.get(
+        "/search",
+        params=[
+            ("q", "traceable knowledge"),
+            ("date_from", "2026-01-01"),
+            ("lang", "en"),
+        ],
+    )
+    assert search.status_code == 200
+    match = re.search(
+        r'<a href="([^"]+)" hreflang="it" lang="it"',
+        search.text,
+    )
+    assert match is not None
+    target = urlsplit(unescape(match.group(1)))
+    assert target.path == "/search"
+    assert parse_qs(target.query) == {
+        "q": ["traceable knowledge"],
+        "date_from": ["2026-01-01"],
+        "lang": ["it"],
+    }
+    assert 'aria-current="page">Search</a>' in search.text

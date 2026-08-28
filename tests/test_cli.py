@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from provelume.cli import main
 from provelume.service import ProvelumeInstance
 
@@ -92,7 +94,7 @@ def test_cli_serve_configures_release_evidence_at_startup(
                 "serve",
                 str(instance_root),
                 "--host",
-                "0.0.0.0",
+                "127.0.0.1",
                 "--port",
                 "8042",
                 "--release-bundle",
@@ -112,4 +114,13 @@ def test_cli_serve_configures_release_evidence_at_startup(
             },
         )
     ]
-    assert served == [(app, {"host": "0.0.0.0", "port": 8042})]
+    assert served == [(app, {"host": "127.0.0.1", "port": 8042})]
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["0.0.0.0", "::", "192.168.1.20", "example.com"],
+)
+def test_cli_serve_rejects_non_loopback_hosts(tmp_path: Path, host: str) -> None:
+    with pytest.raises(SystemExit):
+        main(["serve", str(tmp_path / "instance"), "--host", host])

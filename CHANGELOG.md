@@ -4,6 +4,24 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Security
+
+- restricted `provelume serve` to explicit loopback bind targets and rejected wildcard, LAN and
+  arbitrary hostnames until a separately authenticated network-serving contract exists;
+- rejected non-local HTTP Host headers and added restrictive CSP, clickjacking, MIME-sniffing,
+  referrer, browser-permission, cross-origin and private-cache response headers.
+
+### Changed
+
+- disabled the interactive `/api/docs` surface while keeping the read-only versioned API directly
+  available inside the packaged local application;
+- preserved the current path, search text, dates and filters when switching between EN and IT.
+
+### Accessibility
+
+- added a keyboard-visible skip link, stable main landmark, translated navigation label,
+  current-page state, visible focus treatment and wrapping primary navigation.
+
 ## 0.5.0 - 2026-08-28
 
 ### Added
