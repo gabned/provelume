@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ t('bundles.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('bundles.eyebrow') }}</p>
+  <h1>{{ t('bundles.title') }}</h1>
+  <p class="lead">{{ t('bundles.lead') }}</p>
+  <p class="technical-note">{{ t('bundles.source_original') }}</p>
+</section>
+<section class="panel">
+  <ul class="document-list">
+  {% for record in bundles %}
+    <li>
+      <a href="/bundles/{{ record.manifest.version_id }}?lang={{ lang }}">
+        <strong>{{ record.document.title if record.document else record.manifest.document_id }}</strong>
+        <span>{{ record.manifest.media_type }} · {{ record.artifact.created_at[:19] }}</span>
+        <span>
+          {{ record.manifest.page_map.pages }} {{ t('bundles.pages') }} ·
+          {{ record.manifest.assets | length }} {{ t('bundles.assets') }} ·
+          {{ record.manifest.warnings | length }} {{ t('bundles.warnings') }}
+        </span>
+      </a>
+    </li>
+  {% else %}
+    <li class="empty">{{ t('bundles.empty') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}
