@@ -1,0 +1,135 @@
+name: Apply 0.5.1 S02 incremental search wiring
+
+on:
+  push:
+    branches:
+      - product/0.5.1-s02-incremental-search-index
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-0-5-1-s02
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout owner branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: product/0.5.1-s02-incremental-search-index
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Wire incremental refresh into ingestion and document the delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              selected = Path(path)
+              text = selected.read_text(encoding="utf-8")
+              if text.count(old) != 1:
+                  raise SystemExit(
+                      f"expected exactly one match in {path}: {old[:120]!r}"
+                  )
+              selected.write_text(text.replace(old, new), encoding="utf-8")
+
+          replace_once(
+              "core/provelume/service.py",
+              "from .index import index_status, rebuild_search_index, search_index\n",
+              "from .index import (\n"
+              "    index_status,\n"
+              "    rebuild_search_index,\n"
+              "    refresh_search_index,\n"
+              "    search_index,\n"
+              ")\n",
+          )
+          replace_once(
+              "core/provelume/service.py",
+              "        rebuild_search_index(self.store, recover_missing_derived=False)\n"
+              "        return result.as_dict()\n\n"
+              "    def retry_ingestion(self, run_id: str) -> dict[str, Any]:\n"
+              "        result = retry_ingestion_run(self.store, run_id)\n"
+              "        rebuild_search_index(self.store, recover_missing_derived=False)\n"
+              "        return result.as_dict()\n",
+              "        refresh_search_index(\n"
+              "            self.store,\n"
+              "            (\n"
+              "                acquisition.document_id\n"
+              "                for acquisition in result.acquisitions\n"
+              "                if acquisition.outcome != \"unchanged\"\n"
+              "            ),\n"
+              "            recover_missing_derived=False,\n"
+              "        )\n"
+              "        return result.as_dict()\n\n"
+              "    def retry_ingestion(self, run_id: str) -> dict[str, Any]:\n"
+              "        result = retry_ingestion_run(self.store, run_id)\n"
+              "        refresh_search_index(\n"
+              "            self.store,\n"
+              "            (\n"
+              "                acquisition.document_id\n"
+              "                for acquisition in result.acquisitions\n"
+              "                if acquisition.outcome != \"unchanged\"\n"
+              "            ),\n"
+              "            recover_missing_derived=False,\n"
+              "        )\n"
+              "        return result.as_dict()\n",
+          )
+          replace_once(
+              "core/provelume/inbox.py",
+              "from .index import rebuild_search_index\n",
+              "from .index import refresh_search_index\n",
+          )
+          replace_once(
+              "core/provelume/inbox.py",
+              "            indexed = rebuild_search_index(\n"
+              "                self.store,\n"
+              "                recover_missing_derived=False,\n"
+              "            )\n",
+              "            indexed = refresh_search_index(\n"
+              "                self.store,\n"
+              "                (\n"
+              "                    acquisition.document_id\n"
+              "                    for acquisition in acquisitions\n"
+              "                    if acquisition.outcome != \"unchanged\"\n"
+              "                ),\n"
+              "                recover_missing_derived=False,\n"
+              "            )\n",
+          )
+          replace_once(
+              "CHANGELOG.md",
+              "### Accessibility\n\n"
+              "- added a keyboard-visible skip link, stable main landmark, translated navigation label,\n"
+              "  current-page state, visible focus treatment and wrapping primary navigation.\n\n",
+              "### Accessibility\n\n"
+              "- added a keyboard-visible skip link, stable main landmark, translated navigation label,\n"
+              "  current-page state, visible focus treatment and wrapping primary navigation.\n\n"
+              "### Performance\n\n"
+              "- replaced the complete FTS rebuild after every ingestion or Inbox submission with a\n"
+              "  transactional refresh of only Documents whose searchable current Version changed;\n"
+              "- added schema-2 search metadata that records the current Document-to-Version map and uses a\n"
+              "  safe complete rebuild for legacy, missing, malformed or inconsistent derived state.\n\n"
+              "### Reliability\n\n"
+              "- made complete search-index rebuilds construct and flush a temporary SQLite database before\n"
+              "  atomically replacing the previous valid index; failed rebuilds now preserve prior search.\n\n",
+          )
+          Path(".github/workflows/apply-0-5-1-s02.yml").unlink()
+          PY
+
+      - name: Commit final product delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Refresh changed search rows incrementally'
+          git push origin HEAD:product/0.5.1-s02-incremental-search-index
