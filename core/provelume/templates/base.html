@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ t('brand') }}{% endblock %}</title>
   <link rel="stylesheet" href="/static/app.css">
+  <link rel="stylesheet" href="/static/activity.css">
 </head>
 <body>
   <header class="site-header">
@@ -16,6 +17,8 @@
       <a href="/?lang={{ lang }}">{{ t('nav.home') }}</a>
       <a href="/browse?lang={{ lang }}">{{ t('nav.browse') }}</a>
       <a href="/search?lang={{ lang }}">{{ t('nav.search') }}</a>
+      <a href="/inbox?lang={{ lang }}">{{ t('nav.inbox') }}</a>
+      <a href="/operations?lang={{ lang }}">{{ t('nav.operations') }}</a>
       <a href="/knowledge-health?lang={{ lang }}">{{ t('nav.health') }}</a>
       <a href="/security/installation?lang={{ lang }}">{{ security_t('nav.verify_installation') }}</a>
       <a href="/security/network?lang={{ lang }}">{{ t('nav.network') }}</a>
