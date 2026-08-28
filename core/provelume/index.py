@@ -31,10 +31,14 @@ def _ensure_extracted(
     store: InstanceStore,
     version: dict[str, Any],
     locator: str,
+    *,
+    recover_missing_derived: bool,
 ) -> dict[str, Any] | None:
     artifact = store.derived_artifact_for_version(version["id"])
     if artifact is not None:
         return artifact
+    if not recover_missing_derived:
+        return None
     original = store.read_canonical("originals", version["original_id"])
     if original is None:
         return None
@@ -49,7 +53,11 @@ def _ensure_extracted(
     return as_record(materialize_extracted_text(store, version["id"], result))
 
 
-def rebuild_search_index(store: InstanceStore) -> int:
+def rebuild_search_index(
+    store: InstanceStore,
+    *,
+    recover_missing_derived: bool = True,
+) -> int:
     store.paths.indexes.mkdir(parents=True, exist_ok=True)
     path = store.paths.indexes / "search.sqlite3"
     if path.exists():
@@ -66,7 +74,12 @@ def rebuild_search_index(store: InstanceStore) -> int:
             version = store.read_canonical("versions", document["current_version_id"])
             if version is None:
                 continue
-            artifact = _ensure_extracted(store, version, document["locator"])
+            artifact = _ensure_extracted(
+                store,
+                version,
+                document["locator"],
+                recover_missing_derived=recover_missing_derived,
+            )
             if artifact is None:
                 continue
             text = store.read_derived_text(artifact)

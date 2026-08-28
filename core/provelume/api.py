@@ -57,6 +57,19 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             raise _not_found("source", source_id)
         return source
 
+    @router.get("/ingestion/runs")
+    def get_ingestion_runs(
+        limit: int = Query(default=50, ge=1, le=200),
+    ) -> list[dict[str, Any]]:
+        return instance.list_ingestion_runs(limit=limit)
+
+    @router.get("/ingestion/runs/{run_id}")
+    def get_ingestion_run(run_id: str) -> dict[str, Any]:
+        result = instance.get_ingestion_run(run_id)
+        if result is None:
+            raise _not_found("ingestion run", run_id)
+        return result
+
     @router.get("/documents")
     def get_documents(
         source_id: str | None = None,

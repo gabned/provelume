@@ -4,8 +4,23 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Added
+
+- activated the `0.5.0` release lane through canonical issue #66 and began bounded slice
+  `0.5/S01` without changing the installed `0.4.1` package, tag or published preview;
+- added schema-versioned, Instance-local ingestion run and item records with atomic lifecycle
+  states, counts, safety limits, Acquisition linkage and retry lineage under `state/ingestion/`;
+- added explicit local CLI ingestion-run list/detail/retry commands and matching read-only API
+  list/detail routes without exposing configured physical Source paths.
+
 ### Changed
 
+- isolated oversized, unreadable, missing and extraction-failing items so valid files in the same
+  run still commit, index and remain visible;
+- made retries select only failed or interrupted items, preserve idempotent Original/Version
+  identity and visibly recover missing derived extraction when the current bytes still match;
+- stopped post-ingestion index refresh from silently re-running a failed extractor; an explicit
+  full index rebuild retains its recovery behavior from preserved Originals;
 - made the connector forecast explicit: read-only Gmail and Google Drive intake in `0.9.0`,
   followed by multiple Google Calendar and iCalendar Sources, Asana and Tududi adapters, and
   narrowly guarded task write-back in `0.12.0`;
