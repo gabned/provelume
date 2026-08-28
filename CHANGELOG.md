@@ -4,54 +4,79 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+## 0.5.0 - 2026-08-28
+
 ### Added
 
-- activated the `0.5.0` release lane through canonical issue #66 and began bounded slice
-  `0.5/S01` without changing the installed `0.4.1` package, tag or published preview;
 - added schema-versioned, Instance-local ingestion run and item records with atomic lifecycle
   states, counts, safety limits, Acquisition linkage and retry lineage under `state/ingestion/`;
-- added explicit local CLI ingestion-run list/detail/retry commands and matching read-only API
-  list/detail routes without exposing configured physical Source paths.
+- added explicit retry of only failed or interrupted ingestion items, including crash-safe
+  reconciliation after partial Original, Version, Document or extraction writes;
+- added a local Drop Inbox with copy-by-default capture and optional move-after-verified-commit;
+- added an Instance-local, path-redacted and navigable operation log for Inbox capture, ingestion,
+  bundle builds, duplicate scans, Original assurance, settings changes and coordinated rebuilds;
+- added CLI, read-only API and EN/IT browser list/detail surfaces for operation evidence;
+- added deterministic version-addressed document bundles with normalized Markdown, page maps,
+  bounded assets, generator identity and output fingerprints;
+- added exact current-content duplicate evidence that preserves every Document, locator and
+  Acquisition even when byte-identical content shares one content-addressed Original;
+- added conservative probable-duplicate cases with published title/text-overlap rules,
+  confidence, evidence and `automatic_action: none`;
+- added read-only Original assurance for hash, size, storage-reference and canonical
+  Source/Document/Version/Acquisition consistency without automatic repair;
+- added an exclusive Instance rebuild lock plus incremental, full and agreement rebuild modes for
+  bundles, full-text search and duplicate evidence;
+- added configurable Inbox display name, Drop folder and managed-copy folder through local CLI and
+  a loopback/CSRF-protected EN/IT settings page;
+- added support for relative Instance-local paths and absolute folders elsewhere on the local
+  filesystem, with a read-only settings API that redacts external absolute paths.
 
 ### Changed
 
 - isolated oversized, unreadable, missing and extraction-failing items so valid files in the same
-  run still commit, index and remain visible;
-- made retries select only failed or interrupted items, preserve idempotent Original/Version
-  identity and visibly recover missing derived extraction when the current bytes still match;
-- stopped post-ingestion index refresh from silently re-running a failed extractor; an explicit
-  full index rebuild retains its recovery behavior from preserved Originals;
-- made the connector forecast explicit: read-only Gmail and Google Drive intake in `0.9.0`,
-  followed by multiple Google Calendar and iCalendar Sources, Asana and Tududi adapters, and
-  narrowly guarded task write-back in `0.12.0`;
-- made every connector type multi-instance by contract, including isolated accounts, credentials,
-  policies, cursors and independently selected Sources such as multiple Asana identities,
-  workspaces and projects or multiple Tududi endpoints;
-- expanded `0.10.0` into a review-first Mobile Capture and Retrieval Inbox with QR-paired
-  uploads, authenticated recent/search/provenance/original-download access, iOS and Android
-  sharing paths, a watched Drive drop folder and an optional privacy-declared Telegram relay,
-  while deferring personal-chat access and WhatsApp Business integration;
-- established Markdown as the first-class portable classic-navigation format while retaining
-  canonical JSON and exact originals, and planned a safe rendered/raw/original Viewer plus tree,
-  search, backlinks, timelines, saved views and a secondary relation graph;
-- assigned the local filesystem Drop Inbox, PDF-to-Markdown document bundles, page maps, assets,
-  optional derived PDF optimization and exact-duplicate handling to `0.5.0`, followed in `0.6.0`
-  by a persistent hierarchical Markdown library with stable Areas, Projects, Collections,
-  per-folder README indexes and filesystem/Viewer parity;
-- defined original-retention assurance and a unified Action Center: routine classification,
-  deduplication, source refresh and library moves do not delete acquired originals; ambiguous or
-  destructive outcomes enter evidence-backed queues, while archive, projection removal, trash and
-  explicit permanent purge remain distinct user actions;
-- made normalized Markdown plus page maps and selected assets the default later AI working
-  context, with source-page/original fallback and separately reviewable, attributable proposals
-  that cannot overwrite an acquired original or extracted document bundle;
-- adopted bounded development-slice identifiers (`0.5/S01`, fine-tuning `0.5/S01/F01` and
-  micro-adjustment `0.5/S01/F01-a`) so one homogeneous agent turn need not become a package
-  release; optional installable checkpoints retain standards-compliant alpha/beta/RC identities;
-- atomically inserted the productivity-connector outcome at `0.12.0` and shifted every later
-  unreleased `0.x` forecast through the release candidate forward by one slot to `0.22.0`,
-  without changing published history, package identity, the `0.5.0`–`0.11.0` sequence or
-  stable `1.0.0`.
+  ingestion run still commit, index and remain visible;
+- made retries preserve idempotent Original and DocumentVersion identity while creating a separate
+  Acquisition for every observation or attempt;
+- stopped post-ingestion index refresh from silently re-running a failed extractor; explicit full
+  rebuild retains deterministic recovery from preserved Originals;
+- moved new Inbox submission summaries into Instance state while retaining read compatibility with
+  legacy `inbox/submissions/` evidence;
+- made the stable Inbox Source name and managed-copy path follow validated settings while retaining
+  the same Source identity across display-name or Drop-folder changes;
+- made missing external Drop or managed folders fail visibly instead of silently recreating a path
+  where a removable disk, network mount or profile directory disappeared;
+- blocked managed-copy relocation after Inbox Documents or Acquisitions exist until a separately
+  designed verified relocation workflow can preserve every binding and crash-recovery boundary;
+- made incremental/full rebuild agreement compare normalized deterministic output rather than a
+  timestamp-bearing bundle-manifest checksum, while still verifying every manifest, Markdown,
+  page-map and asset checksum independently;
+- made every duplicate and assurance operation non-destructive: no automatic merge, deletion,
+  replacement or repair is inferred from a finding;
+- expanded the public roadmap with bounded development-slice identifiers, portable Markdown
+  navigation, original-assurance boundaries, mobile capture and multi-instance connector planning;
+- inserted productivity connectors at `0.12.0` and shifted the remaining unreleased forecast
+  atomically through the `0.22.0` release candidate without changing published history.
+
+### Security and verification
+
+- rejected Drop/managed paths that are equal, nested, contain the Instance or overlap canonical
+  Originals, knowledge, state, indexes, configuration or retained submission evidence;
+- canonicalized paths before overlap checks so existing symlinks cannot bypass the filesystem
+  boundary;
+- limited full physical paths to local CLI and loopback browser settings; operation records and
+  public API/browser views retain only bounded scope and redacted locators;
+- kept canonical Originals, readable knowledge JSON, derived state, indexes, operations and reports
+  inside the Instance even when Drop or managed working folders are external;
+- verified the release candidate with Ruff and the full suite on Ubuntu and Windows, clean-room
+  checks, deterministic independent builds, release-bundle verification and Windows installer
+  upgrade/preservation evidence from the immutable public `0.4.1` preview.
+
+### Explicitly not included
+
+OCR, a background filesystem watcher, generic scheduling, network Sources, AI classification,
+semantic/vector search, automatic duplicate merge, automatic repair, external canonical storage,
+managed-folder migration, Authenticode, unattended update application, runtime slots and automatic
+rollback remain later milestones.
 
 ## 0.4.1 - 2026-08-27
 
