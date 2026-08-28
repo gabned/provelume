@@ -1,12 +1,13 @@
 {% extends "base.html" %}
-{% block title %}{{ t('inbox.title') }} · {{ t('brand') }}{% endblock %}
+{% block title %}{{ inbox.name }} · {{ t('brand') }}{% endblock %}
 {% block content %}
 <section class="hero">
   <p class="eyebrow">{{ t('inbox.eyebrow') }}</p>
-  <h1>{{ t('inbox.title') }}</h1>
+  <h1>{{ inbox.name }}</h1>
   <p class="lead">{{ t('inbox.lead') }}</p>
   <p class="technical-note">
     {{ t('inbox.drop_help') }} <strong>{{ inbox.drop_locator }}</strong>
+    · <a href="/settings?lang={{ lang }}">{{ t('nav.settings') }}</a>
   </p>
 </section>
 <section class="metric-grid">
