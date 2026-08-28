@@ -1,0 +1,66 @@
+from __future__ import annotations
+
+REBUILD_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "en": {
+        "nav.rebuild": "Rebuild",
+        "rebuild.eyebrow": "Derived-state coordination",
+        "rebuild.title": "Rebuild and consistency",
+        "rebuild.lead": (
+            "Review locked incremental and full rebuilds of document bundles, search "
+            "and duplicate evidence without changing canonical knowledge."
+        ),
+        "rebuild.not_run": "No coordinated rebuild report has been retained yet.",
+        "rebuild.latest": "Latest rebuild",
+        "rebuild.history": "Rebuild history",
+        "rebuild.lock": "Exclusive lock",
+        "rebuild.lock_available": "Available",
+        "rebuild.lock_held": "Held",
+        "rebuild.mode": "Mode",
+        "rebuild.status": "Status",
+        "rebuild.agreement": "Incremental/full agreement",
+        "rebuild.agreed": "Agreed",
+        "rebuild.not_agreed": "Did not agree",
+        "rebuild.not_checked": "Not checked",
+        "rebuild.canonical": "Canonical fingerprint",
+        "rebuild.snapshot": "Derived-state snapshot",
+        "rebuild.passes": "Rebuild passes",
+        "rebuild.metrics": "Metrics",
+        "rebuild.no_mutation": "Canonical mutation: none",
+        "rebuild.documents": "Documents",
+        "rebuild.valid_bundles": "Valid bundles",
+        "rebuild.index_rebuilds": "Index rebuilds",
+        "rebuild.duplicate_scans": "Duplicate scans",
+        "rebuild.operations": "Operation evidence",
+    },
+    "it": {
+        "nav.rebuild": "Rebuild",
+        "rebuild.eyebrow": "Coordinamento dello stato derivato",
+        "rebuild.title": "Rebuild e coerenza",
+        "rebuild.lead": (
+            "Consulta rebuild incrementali e completi, eseguiti con lock, di bundle, "
+            "ricerca ed evidenza duplicati senza modificare la conoscenza canonica."
+        ),
+        "rebuild.not_run": "Non è ancora stato conservato alcun report di rebuild.",
+        "rebuild.latest": "Ultimo rebuild",
+        "rebuild.history": "Storico rebuild",
+        "rebuild.lock": "Lock esclusivo",
+        "rebuild.lock_available": "Disponibile",
+        "rebuild.lock_held": "Occupato",
+        "rebuild.mode": "Modalità",
+        "rebuild.status": "Stato",
+        "rebuild.agreement": "Concordanza incrementale/completa",
+        "rebuild.agreed": "Concorde",
+        "rebuild.not_agreed": "Non concorde",
+        "rebuild.not_checked": "Non verificata",
+        "rebuild.canonical": "Fingerprint canonica",
+        "rebuild.snapshot": "Snapshot dello stato derivato",
+        "rebuild.passes": "Passaggi di rebuild",
+        "rebuild.metrics": "Metriche",
+        "rebuild.no_mutation": "Mutazione canonica: nessuna",
+        "rebuild.documents": "Documenti",
+        "rebuild.valid_bundles": "Bundle validi",
+        "rebuild.index_rebuilds": "Rebuild indice",
+        "rebuild.duplicate_scans": "Scansioni duplicati",
+        "rebuild.operations": "Evidenza operativa",
+    },
+}
