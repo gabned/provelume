@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from .bundle_activity import attach_bundle_routes
 from .inbox import InboxManager
 from .operations import OperationLedger
+from .review_activity import attach_review_routes
 from .service import ProvelumeInstance
 
 
@@ -96,3 +97,4 @@ def attach_activity_routes(
         )
 
     attach_bundle_routes(app, instance, templates, context_factory)
+    attach_review_routes(app, instance, templates, context_factory)
