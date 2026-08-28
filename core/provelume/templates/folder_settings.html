@@ -19,7 +19,7 @@
 {% if editable %}
 <section class="panel">
   <h2>{{ t('settings.title') }}</h2>
-  <form method="post" action="/settings/folders" class="settings-form">
+  <form method="post" action="/settings/folders?lang={{ lang }}" class="settings-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="lang" value="{{ lang }}">
     <label>
