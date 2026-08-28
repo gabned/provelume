@@ -476,7 +476,10 @@ def test_windows_missing_persisted_instance_renders_recovery_shell(
 ) -> None:
     import tkinter as tk
 
-    root = tk.Tk()
+    try:
+        root = tk.Tk()
+    except tk.TclError as exc:
+        pytest.skip(f"hosted Python Tk runtime is unavailable: {exc}")
     shell = None
     try:
         shell = DesktopShell(
