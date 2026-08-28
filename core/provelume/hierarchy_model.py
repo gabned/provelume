@@ -240,6 +240,7 @@ def canonical_hierarchy_errors(
             or _CLASSIFICATION_ID.fullmatch(record_id) is None
             or value.get("id") != record_id
             or not isinstance(document_id, str)
+            or not document_id.strip()
             or record_id != classification_id(document_id)
         ):
             errors.append(

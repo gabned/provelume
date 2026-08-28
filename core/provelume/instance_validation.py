@@ -65,6 +65,17 @@ def _canonical_records(
         directory = store.paths.canonical_dir(kind)
         selected: dict[str, dict[str, Any]] = {}
         records[kind] = selected
+        if not directory.is_dir() and (
+            directory.exists() or directory.is_symlink()
+        ):
+            errors.append(
+                _finding(
+                    "canonical_directory_invalid",
+                    f"canonical path is not a directory: knowledge/{kind}",
+                    path=f"knowledge/{kind}",
+                )
+            )
+            continue
         if not directory.is_dir() and kind in REQUIRED_CANONICAL_KINDS:
             errors.append(
                 _finding(

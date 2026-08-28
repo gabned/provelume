@@ -8,12 +8,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from provelume.cli import main
+from provelume.domain import HierarchyNode
 from provelume.hierarchy import (
     HierarchyConflictError,
     HierarchyError,
     HierarchyNotFoundError,
     classification_id,
 )
+from provelume.hierarchy_model import portable_node_slug
 from provelume.instance_validation import inspect_instance
 from provelume.service import ProvelumeInstance
 from provelume.web import create_app
@@ -159,6 +161,43 @@ def test_portable_slugs_ordering_and_cycle_prevention(tmp_path: Path) -> None:
     assert ProvelumeInstance(instance.root).hierarchy_tree() == before_restart
 
 
+def test_move_rejects_a_subtree_that_would_exceed_maximum_depth(
+    tmp_path: Path,
+) -> None:
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    timestamp = "2026-08-28T00:00:00Z"
+
+    def write_area(sequence: int, name: str, parent_id: str | None) -> str:
+        node_id = f"area_{sequence:032x}"
+        instance.store.write_hierarchy_node(
+            HierarchyNode(
+                schema_version=1,
+                id=node_id,
+                kind="area",
+                name=name,
+                slug=portable_node_slug(name, node_id, "area"),
+                parent_id=parent_id,
+                created_at=timestamp,
+                updated_at=timestamp,
+            )
+        )
+        return node_id
+
+    parent_id = None
+    for level in range(63):
+        parent_id = write_area(level + 1, f"Destination {level + 1}", parent_id)
+
+    subtree_id = write_area(64, "Subtree", None)
+    child_id = write_area(65, "Subtree child", subtree_id)
+
+    with pytest.raises(HierarchyConflictError, match="64-level limit"):
+        instance.move_hierarchy_node(subtree_id, parent_id)
+
+    assert instance.get_hierarchy_node(subtree_id)["parent_id"] is None
+    assert instance.get_hierarchy_node(child_id)["depth"] == 1
+    assert inspect_instance(instance.root, deep=True)["status"] == "valid"
+
+
 def test_one_primary_secondary_associations_are_idempotent_and_historical(
     tmp_path: Path,
 ) -> None:
@@ -255,6 +294,53 @@ def test_schema_two_additive_directories_and_deep_integrity_findings(tmp_path: P
     assert report["status"] == "invalid"
     assert "hierarchy_cycle" in codes
     assert "classification_secondary_missing" in codes
+
+
+@pytest.mark.parametrize("kind", ["hierarchy", "classifications"])
+def test_additive_canonical_path_must_be_a_directory(
+    tmp_path: Path,
+    kind: str,
+) -> None:
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    directory = instance.store.paths.canonical_dir(kind)
+    shutil.rmtree(directory)
+    directory.write_text("not a directory\n", encoding="utf-8")
+
+    report = inspect_instance(instance.root, deep=True)
+
+    assert report["status"] == "invalid"
+    assert {
+        (item["code"], item.get("path")) for item in report["errors"]
+    } >= {("canonical_directory_invalid", f"knowledge/{kind}")}
+
+
+@pytest.mark.parametrize("document_id", ["", "   "])
+def test_blank_classification_document_id_is_reported_without_crashing(
+    tmp_path: Path,
+    document_id: str,
+) -> None:
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    area = instance.create_hierarchy_node("area", "Area")
+    record_id = "classification_" + "f" * 32
+    instance.store._atomic_json(
+        instance.store.paths.canonical_dir("classifications") / f"{record_id}.json",
+        {
+            "schema_version": 1,
+            "id": record_id,
+            "document_id": document_id,
+            "primary_node_id": area["id"],
+            "secondary_node_ids": [],
+            "created_at": "2026-08-28T00:00:00Z",
+            "updated_at": "2026-08-28T00:00:00Z",
+        },
+    )
+
+    report = inspect_instance(instance.root, deep=True)
+
+    assert report["status"] == "invalid"
+    assert "classification_identity_invalid" in {
+        item["code"] for item in report["errors"]
+    }
 
 
 def test_backup_restore_round_trip_includes_canonical_hierarchy(tmp_path: Path) -> None:

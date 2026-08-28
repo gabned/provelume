@@ -171,6 +171,22 @@ class HierarchyManager:
                 pending.append(child_id)
         return selected
 
+    @staticmethod
+    def _subtree_height(
+        node_id: str,
+        children: Mapping[str | None, list[Mapping[str, Any]]],
+    ) -> int:
+        height = 0
+        pending = [(node_id, 1)]
+        while pending:
+            parent_id, depth = pending.pop()
+            height = max(height, depth)
+            pending.extend(
+                (str(child["id"]), depth + 1)
+                for child in children.get(parent_id, [])
+            )
+        return height
+
     def list_nodes(self) -> list[dict[str, Any]]:
         nodes, classifications = self._state()
         children = self._children(nodes)
@@ -300,7 +316,8 @@ class HierarchyManager:
             if parent_id in self._descendant_ids(node_id, children):
                 raise HierarchyConflictError("hierarchy movement would create a cycle")
             lineage = self._lineage(parent_id, nodes)
-            if len(lineage) >= MAX_HIERARCHY_DEPTH:
+            subtree_height = self._subtree_height(node_id, children)
+            if len(lineage) + subtree_height > MAX_HIERARCHY_DEPTH:
                 raise HierarchyConflictError(
                     f"hierarchy movement exceeds the {MAX_HIERARCHY_DEPTH}-level limit"
                 )
