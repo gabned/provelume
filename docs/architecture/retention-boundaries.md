@@ -118,6 +118,8 @@ are `GET /api/v1/documents?disposition=...` and
 
 ## Slice boundary
 
-`0.6/S05` owns portable export/import, hostile transfer-bundle validation and Windows/Linux
-qualification. This slice introduces no HTTP mutation authority, autonomous retention rule,
-connector deletion propagation, cloud erasure, storage sanitization or release activation.
+`0.6/S05` now transfers retained dispositions and privacy-bounded purge receipts as manifested
+Instance state, while configured Sources, external backups and replicas remain outside the bundle
+claim. See [`portable-export-import.md`](portable-export-import.md). These slices introduce no HTTP
+mutation authority, autonomous retention rule, connector deletion propagation, cloud erasure,
+storage sanitization or release activation.

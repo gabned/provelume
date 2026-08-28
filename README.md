@@ -33,8 +33,9 @@ coordinates, not availability claims or release authorization.
 The active source tree now includes the `0.6/S01` lifecycle foundation, `0.6/S02` canonical
 Area/Subarea, Project and Collection hierarchy, `0.6/S03` deterministic Markdown library and safe
 Viewer, and `0.6/S04` explicit archive, projection, recoverable-trash and live-Instance purge
-boundaries. These Unreleased capabilities do not change the published `0.5.1` package identity and
-do not create a release.
+boundaries, plus `0.6/S05` deterministic portable export/import and Windows/Linux-safe bundle
+qualification. These Unreleased capabilities do not change the published `0.5.1` package identity
+and do not create a release.
 
 The active source tree can:
 
@@ -50,6 +51,9 @@ The active source tree can:
   actions without deleting its Original or changing its stable identity;
 - permanently purge a trashed Document only after a fresh impact preview, short-lived confirmation
   token and explicit acknowledgement of Source/backup/replica limits;
+- export a deterministic hash-manifested portable bundle with explicit derived-state policy;
+- replace an existing target from a fully validated portable bundle with an automatic verified
+  backup, atomic staging, rollback and interrupted-import recovery;
 - keep durable ingestion runs and retry only failed or interrupted items;
 - process an Instance-local or external Drop Inbox with move-after-verified-commit semantics;
 - configure the Inbox display name, Drop folder and managed-copy folder locally;
@@ -177,6 +181,22 @@ Backup ZIPs include canonical JSON, acquired Originals and retained Instance sta
 policy. External Inbox/Source working folders are not part of the Instance backup. See the
 [Portable Instance contract](docs/architecture/portable-instance.md).
 
+For cross-Instance or cross-platform transfer, export a separate deterministic portable bundle.
+The default policy rebuilds indexes and the Markdown library after import; `include` carries their
+current manifested bytes. Import replaces an existing valid target, so initialize an empty target
+first when moving to a new directory:
+
+```bash
+.venv/bin/provelume export .local/demo --output /path/to/demo-portable.zip
+.venv/bin/provelume init .local/imported --name "Import target"
+.venv/bin/provelume import .local/imported /path/to/demo-portable.zip
+```
+
+Every bundle path and payload hash is validated before target mutation. Reserved Windows names,
+case/file-directory collisions, traversal, absolute paths, symlinks, undeclared members and partial
+bundles fail closed. See the
+[portable export/import contract](docs/architecture/portable-export-import.md).
+
 Create and navigate canonical hierarchy locally, then classify a Document without copying or
 rewriting its knowledge:
 
@@ -284,6 +304,7 @@ working locations rather than alternate canonical stores. A Provelume backup pre
 knowledge but not unacquired files waiting in an external Drop folder.
 
 See `docs/architecture/portable-instance.md`,
+`docs/architecture/portable-export-import.md`,
 `docs/architecture/canonical-derived-state.md` and
 `docs/architecture/configurable-folder-settings.md`.
 

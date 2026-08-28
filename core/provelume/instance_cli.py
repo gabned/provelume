@@ -7,6 +7,11 @@ from typing import Any
 
 from .instance_backup import BackupError
 from .instance_lifecycle import InstanceLifecycleError, InstanceLifecycleManager
+from .portable_transfer import (
+    DERIVED_STATE_MODES,
+    PortableInstanceTransfer,
+    PortableTransferError,
+)
 from .storage import InstanceStore
 
 
@@ -46,9 +51,36 @@ def add_instance_lifecycle_commands(subparsers: Any) -> None:
     restore.add_argument("instance", type=Path)
     restore.add_argument("archive", type=Path)
 
+    export = subparsers.add_parser(
+        "export",
+        help="Create a deterministic, hash-manifested portable Instance bundle",
+    )
+    export.add_argument("instance", type=Path)
+    export.add_argument("--output", type=Path, required=True)
+    export.add_argument(
+        "--derived-state",
+        choices=DERIVED_STATE_MODES,
+        default="rebuild",
+        help="rebuild indexes/library after import or include their current bytes",
+    )
+
+    import_command = subparsers.add_parser(
+        "import",
+        help="Replace an existing Instance from a verified portable bundle",
+    )
+    import_command.add_argument("instance", type=Path)
+    import_command.add_argument("bundle", type=Path)
+
 
 def handle_instance_lifecycle_command(args: argparse.Namespace) -> int | None:
-    if args.command not in {"validate", "migrate", "backup", "restore"}:
+    if args.command not in {
+        "backup",
+        "export",
+        "import",
+        "migrate",
+        "restore",
+        "validate",
+    }:
         return None
     manager = InstanceLifecycleManager(InstanceStore(args.instance))
     try:
@@ -60,9 +92,22 @@ def handle_instance_lifecycle_command(args: argparse.Namespace) -> int | None:
             result = manager.prepare()
         elif args.command == "backup":
             result = manager.backup(destination=args.output, reason="manual_cli")
-        else:
+        elif args.command == "restore":
             result = manager.restore(args.archive)
-    except (BackupError, InstanceLifecycleError, OSError, ValueError) as exc:
+        elif args.command == "export":
+            result = PortableInstanceTransfer(manager.store).export(
+                args.output,
+                derived_state=args.derived_state,
+            )
+        else:
+            result = PortableInstanceTransfer(manager.store).import_bundle(args.bundle)
+    except (
+        BackupError,
+        InstanceLifecycleError,
+        OSError,
+        PortableTransferError,
+        ValueError,
+    ) as exc:
         print(
             json.dumps(
                 {

@@ -531,7 +531,8 @@ def test_public_lifecycle_documentation_states_authority_and_limits() -> None:
         "same-Instance operation, not cross-Instance import",
         "Configured Source, Drop or managed-copy directories",
         "state/lifecycle/recovery-receipts/",
-        "remain `0.6/S05`",
+        "separate deterministic portable bundle",
+        "portable-export-import.md",
     ):
         assert required in contract
     for command in (
@@ -539,5 +540,7 @@ def test_public_lifecycle_documentation_states_authority_and_limits() -> None:
         "provelume migrate",
         "provelume backup",
         "provelume restore",
+        "provelume export",
+        "provelume import",
     ):
         assert command in readme

@@ -126,6 +126,8 @@ pre-operation backup before retrying normal preparation. Recovery is persisted u
 Abandoned staging/previous directories are removed only after the rollback archive has been
 verified and installed.
 
-These local backups are not the portable cross-Instance export/import contract. Hash-manifested
-cross-platform transfer, hostile-import qualification and explicit derived-state export options
-remain `0.6/S05`.
+These local backups are not the portable cross-Instance export/import contract. `0.6/S05` adds a
+separate deterministic portable bundle, complete hostile-input validation, explicit include/rebuild
+choices and replacement import with a verified target backup. Unlike restore, import intentionally
+accepts a different exported Instance identity and preserves it in the target directory. See
+[`portable-export-import.md`](portable-export-import.md).

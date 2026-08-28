@@ -35,6 +35,11 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   acknowledgement, exact live-Instance impact inventory and privacy-minimizing completion receipt;
 - added read-only disposition filtering/status in the API and EN/IT Browser while retaining all
   retention mutations as explicit local service/CLI authority.
+- added deterministic hash-manifested portable Instance export with canonical readable JSON,
+  stable bundle identity and explicit `rebuild` or `include` derived-state policy;
+- added aligned local `export` and `import` application-service/CLI contracts, cross-Instance
+  replacement import receipts and preserved Instance, hierarchy, classification and disposition
+  identity.
 
 ### Changed
 
@@ -57,6 +62,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - made archived Documents project under `library/archive/`, projection-excluded Documents remain
   canonical but absent from `library/`, and trashed Documents leave default browse/search/library
   views until restored.
+- made portable import stage, migrate and deeply validate the complete exported Instance before an
+  atomic same-filesystem swap, with a verified pre-import target backup and exact rollback.
 
 ### Reliability and security
 
@@ -80,6 +87,11 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - retained shared content-addressed Originals still referenced by another Document and reported
   configured Source, managed-backup, external-replica and large-state-scan limits without claiming
   broader erasure.
+- rejected traversal, absolute/drive-qualified paths, non-NFC names, Windows reserved names,
+  case/file-directory collisions, links, undeclared entries, partial payloads and stale or
+  hash-mismatched portable bundles before target mutation;
+- recovered interrupted imports by restoring the verified pre-import backup under the same
+  kernel-released lifecycle lock, without treating partial replacement as success.
 
 ## 0.5.1 - 2026-08-28
 
