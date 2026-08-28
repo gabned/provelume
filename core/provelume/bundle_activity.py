@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, PlainTextResponse
 
-from .bundles import DocumentBundleManager
+from .bundle_reader import DocumentBundleReader
 from .paths import safe_instance_path
 from .service import ProvelumeInstance
 
@@ -17,7 +17,7 @@ def attach_bundle_routes(
     templates: Any,
     context_factory: Callable[..., dict[str, Any]],
 ) -> None:
-    bundles = DocumentBundleManager(instance.store)
+    bundles = DocumentBundleReader(instance.store)
 
     @app.get("/api/v1/bundles")
     def api_bundles(
