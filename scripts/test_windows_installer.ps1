@@ -37,8 +37,8 @@ $ApprovedPreviousBaselines = @(
     @{
         version = "0.4.1"
         commit = "6e34498e98a315baaef00314fd59772a3af008df"
-        size = 18067909
-        sha256 = "d1ce3f855cb999f0063a4b08f826910c610891c6ba6c15254b16f2b42dabc4db"
+        size = 18056957
+        sha256 = "ea2093cd63860e2575715617f3bde363646213841f60be1db97433b19052b46b"
     }
 )
 $IdentifiedBaseline = $ApprovedPreviousBaselines |
