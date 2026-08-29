@@ -24,9 +24,9 @@ See the [public roadmap](docs/roadmap.md), the
 [configurable-folder contract](docs/architecture/configurable-folder-settings.md) and the
 [Windows preview guide](docs/windows-preview.md) for portability and trust boundaries.
 
-The roadmap records `0.6.1` as published and `0.7.0` as the next forecast while retaining the later
-sequence through `1.0.0`. Forecast entries are sequencing coordinates, not availability claims or
-release authorization.
+The roadmap records `0.6.1` as published, `0.7.0` as active development through issue #105 and
+`0.8.0` as the next forecast while retaining the later sequence through `1.0.0`. Development and
+forecast entries are sequencing coordinates, not availability claims or release authorization.
 
 The active source tree can:
 

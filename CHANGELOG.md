@@ -4,6 +4,23 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Added
+
+- added versioned provider-independent connector definitions, isolated multi-instance connector
+  configuration and independently identified connector Sources as additive schema-2 state;
+- added deterministic local service and CLI contracts for capability-manifest registration,
+  connector-instance creation, Source declaration and a network-free connector inventory;
+- included connector definitions, instances and Sources in deep validation, backup, restore and
+  portable Instance export/import without changing package or embedded release identity.
+
+### Security
+
+- restricted connector credentials to validated external environment or system-keyring references
+  and rejected inline secret material;
+- made every connector declare an explicit network mode and bounded HTTP(S) origin allowlist while
+  the global Instance network policy remains a fail-closed gate and this slice performs no network
+  access.
+
 ## 0.6.1 - 2026-08-29
 
 ### Fixed

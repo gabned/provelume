@@ -84,7 +84,7 @@ def test_release_preparation_aligns_package_identity() -> None:
     assert f'__version__ = "{package_version}"' in init_source
 
 
-def test_roadmap_records_published_history_and_next_forecast() -> None:
+def test_roadmap_records_published_history_active_release_and_next_forecast() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     for version in (
@@ -99,12 +99,13 @@ def test_roadmap_records_published_history_and_next_forecast() -> None:
         "0.6.1",
     ):
         assert roadmap.count(f"| Published preview | `{version}` |") == 1
-    assert "| Next forecast | `0.7.0` |" in roadmap
-    assert roadmap.count("| Active implementation |") == 0
+    assert "| Active implementation | `0.7.0` |" in roadmap
+    assert "| Next forecast | `0.8.0` |" in roadmap
+    assert roadmap.count("| Active implementation |") == 1
     assert "#95 (completed)" in roadmap
     assert "#102 (completed)" in roadmap
     assert "The package and embedded identity are `0.6.1`" in roadmap
-    assert "`0.7.0` forecast is not active" in roadmap
+    assert "Issue #105 activates `0.7.0`" in roadmap
 
 
 def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> None:

@@ -13,6 +13,54 @@ class Source:
 
 
 @dataclass(frozen=True, slots=True)
+class ConnectorDefinition:
+    schema_version: int
+    id: str
+    adapter_key: str
+    adapter_version: str
+    display_name: str
+    provider: str
+    conformance_profile: str
+    adapter_protocol_version: int
+    capabilities: tuple[str, ...]
+    authorization_modes: tuple[str, ...]
+    source_kinds: tuple[str, ...]
+    data_categories: tuple[str, ...]
+    multi_instance: bool
+    network_access: str
+    created_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class ConnectorInstance:
+    schema_version: int
+    id: str
+    definition_id: str
+    name: str
+    provider_identity: str
+    account_identity: str | None
+    network_mode: str
+    allowed_origins: tuple[str, ...]
+    authorization_mode: str
+    scopes: tuple[str, ...]
+    credential_reference: dict[str, str] | None
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class ConnectorSource:
+    schema_version: int
+    id: str
+    kind: str
+    name: str
+    created_at: str
+    connector_instance_id: str
+    source_kind: str
+    external_id: str
+
+
+@dataclass(frozen=True, slots=True)
 class Acquisition:
     id: str
     source_id: str

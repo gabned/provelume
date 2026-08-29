@@ -47,7 +47,8 @@ The same contract is exposed by `provelume about` and the local `/about` browser
 - `GET /api/v1/instance` — Instance identity, schema/manifest versions, derived-state policy,
   migration/recovery counts, canonical object counts, knowledge/index status and explicit network
   baseline.
-- `GET /api/v1/sources` — registered Sources with document counts and current local availability.
+- `GET /api/v1/sources` — registered Sources with document counts and current availability state;
+  connector declarations report `configuration_only` until their guarded transport exists.
 - `GET /api/v1/sources/{id}` — one Source.
 
 Physical source paths remain operator configuration and are not returned by these endpoints.
@@ -157,7 +158,11 @@ User input is converted to literal FTS terms rather than accepted as raw SQLite 
 
 ## Privacy and network activity
 
-`GET /api/v1/security/network` derives an effective network policy and component inventory from the local Instance configuration. The same contract is available through `provelume network-status <instance>` and the EN/IT `/security/network` browser page.
+`GET /api/v1/security/network` derives an effective network policy and component inventory from the
+local Instance configuration and canonical connector declarations. The same contract is available
+through `provelume network-status <instance>` and the EN/IT `/security/network` browser page.
+Connector entries disclose only safe origin/data-category declarations and authorization mode;
+external credential references are omitted.
 
 The result is observationally honest:
 

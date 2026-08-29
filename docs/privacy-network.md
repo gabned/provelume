@@ -32,4 +32,10 @@ This is configured-capability transparency, not traffic monitoring. `observed_ac
 
 Package installation and container-image construction may require access to public dependency registries. Official release publication and external attestation verification also involve the selected distribution provider. That build/install/verification traffic is separate from runtime knowledge processing and from reading embedded identity.
 
-Future connectors, update services and AI providers must be explicit operator choices and add their component type to the public declaration registry before they can be treated as understood. Runtime network-event auditing remains future work and must feed the same surface without collapsing configured capability into observed activity.
+Connector definitions and instances introduced by `0.7/S01` are explicit local declarations and
+appear on this surface without resolving an address or exposing an external credential reference.
+Their configured network mode remains subordinate to `network.external_access`. Future connector
+transport, update services and AI providers must remain explicit operator choices and add their
+component type to the public declaration registry before they can be treated as understood. Runtime
+network-event auditing remains future work and must feed the same surface without collapsing
+configured capability into observed activity.

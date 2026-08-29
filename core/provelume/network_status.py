@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from ipaddress import ip_address
 from typing import Any
 from urllib.parse import urlsplit
@@ -105,7 +105,12 @@ def _component(
     }
 
 
-def declared_network_status(config: Mapping[str, Any]) -> dict[str, Any]:
+def declared_network_status(
+    config: Mapping[str, Any],
+    *,
+    connector_definitions: Sequence[Mapping[str, Any]] = (),
+    connector_instances: Sequence[Mapping[str, Any]] = (),
+) -> dict[str, Any]:
     """Describe configured network capability without performing network activity."""
 
     components: list[dict[str, Any]] = []
@@ -309,6 +314,97 @@ def declared_network_status(config: Mapping[str, Any]) -> dict[str, Any]:
                     data_categories=categories,
                 )
             )
+
+    definitions = {
+        str(item.get("id")): item
+        for item in connector_definitions
+        if isinstance(item, Mapping) and isinstance(item.get("id"), str)
+    }
+    for raw_instance in sorted(
+        connector_instances,
+        key=lambda item: str(item.get("id", "")),
+    ):
+        instance = _mapping(raw_instance)
+        instance_id = instance.get("id")
+        component_id = (
+            f"connector.{instance_id}"
+            if isinstance(instance_id, str) and instance_id
+            else "connector.invalid"
+        )
+        definition = definitions.get(str(instance.get("definition_id")))
+        component_type = (
+            str(definition.get("adapter_key"))
+            if isinstance(definition, Mapping)
+            and isinstance(definition.get("adapter_key"), str)
+            else "unknown"
+        )
+        network_mode = instance.get("network_mode")
+        enabled = network_mode == "explicit"
+        if network_mode not in {"disabled", "explicit"}:
+            finding(
+                "invalid_enabled_flag",
+                component_id,
+                "Connector network mode is invalid and is treated as disabled.",
+            )
+            enabled = False
+        raw_origins = instance.get("allowed_origins")
+        origins: list[str] = []
+        origins_valid = isinstance(raw_origins, list)
+        if origins_valid:
+            for raw_origin in raw_origins:
+                origin, valid = _endpoint_origin(raw_origin)
+                if not valid or origin is None:
+                    origins_valid = False
+                    break
+                if origin not in origins:
+                    origins.append(origin)
+        if not origins_valid:
+            origins = []
+            finding(
+                "invalid_external_endpoint",
+                component_id,
+                "Connector allowed origins are not safe HTTP(S) origins.",
+            )
+        if enabled and not origins:
+            finding(
+                "missing_external_endpoint",
+                component_id,
+                "Connector network access is explicit without an allowed origin.",
+            )
+        categories, categories_valid = _data_categories(
+            definition.get("data_categories")
+            if isinstance(definition, Mapping)
+            else None
+        )
+        if not categories_valid:
+            finding(
+                "invalid_data_categories",
+                component_id,
+                "Connector data categories are invalid.",
+            )
+        if definition is None:
+            finding(
+                "undeclared_component_type",
+                component_id,
+                "Connector instance references an unavailable definition.",
+            )
+        component = _component(
+            component_id=component_id,
+            category="connector",
+            component_type=component_type,
+            enabled=enabled,
+            network_capability="external" if definition is not None else "unknown",
+            declaration_state="declared" if definition is not None else "undeclared",
+            endpoint=origins[0] if origins else None,
+            data_categories=categories,
+        )
+        component["allowed_origins"] = origins
+        component["authorization_mode"] = (
+            instance.get("authorization_mode")
+            if instance.get("authorization_mode") in {"none", "external_secret", "oauth2_pkce"}
+            else "unknown"
+        )
+        components.append(component)
 
     for component in components:
         if (
