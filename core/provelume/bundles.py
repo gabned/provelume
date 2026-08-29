@@ -11,13 +11,14 @@ from dataclasses import asdict
 from io import BytesIO
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 from uuid import NAMESPACE_URL, uuid5
 
 from pypdf import PdfReader
 
 from .derived import provenance_edge
 from .domain import DerivedArtifact
-from .extractors import ExtractionError, extractor_for
+from .extractors import ExtractionError, extract_web_readable_text, extractor_for
 from .operations import OperationLedger
 from .paths import safe_instance_path
 from .storage import InstanceStore, utc_now
@@ -291,15 +292,23 @@ class DocumentBundleManager:
         document: dict[str, Any],
         data: bytes,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
-        extractor = extractor_for(Path(document["locator"]))
-        if extractor is None:
+        locator = str(document["locator"])
+        web_locator = urlsplit(locator).scheme in {"http", "https"}
+        extractor = None if web_locator else extractor_for(Path(locator))
+        try:
+            extraction = (
+                extract_web_readable_text(str(document["media_type"]), data)
+                if web_locator
+                else extractor.extract(data)
+                if extractor is not None
+                else None
+            )
+        except ExtractionError as exc:
+            raise BundleBuildError(str(exc)) from exc
+        if extraction is None:
             raise BundleBuildError(
                 f"No document-bundle extractor for {document['media_type']}"
             )
-        try:
-            extraction = extractor.extract(data)
-        except ExtractionError as exc:
-            raise BundleBuildError(str(exc)) from exc
         text = _normalise_text(extraction.text)
         if len(text) > MAX_BUNDLE_TEXT_CHARS:
             text = text[:MAX_BUNDLE_TEXT_CHARS]

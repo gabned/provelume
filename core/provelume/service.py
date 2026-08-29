@@ -32,6 +32,7 @@ from .portable_transfer import PortableInstanceTransfer
 from .retention import DocumentRetentionManager
 from .retention_model import DISPOSITION_FILTERS, effective_dispositions
 from .storage import InstanceStore
+from .web_acquisition import ManualWebAcquisitionManager
 from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTransport
 
 
@@ -41,6 +42,7 @@ class ProvelumeInstance:
         self.retention = DocumentRetentionManager(self.store)
         preparation = self.store._open_preparation or {}
         self.retention_recovery = preparation.get("retention_recovery")
+        self.manual_web_recovery = preparation.get("manual_web_recovery")
         self.connectors = ConnectorManager(self.store)
         self.oauth = InstalledAppAuthorizationManager(self.store, self.connectors)
         self.web_transport = GuardedWebTransport(self.store, self.connectors)
@@ -294,6 +296,40 @@ class ProvelumeInstance:
         """Retrieve transient web bytes without creating canonical acquisition state."""
 
         return self.web_transport.fetch(request)
+
+    def acquire_manual_web(self, request: GuardedWebRequest) -> dict[str, Any]:
+        """Execute one explicit guarded request and atomically retain its canonical result."""
+
+        return ManualWebAcquisitionManager(
+            self.store,
+            self.connectors,
+            self.web_transport,
+        ).acquire(request)
+
+    def list_manual_web_acquisitions(
+        self,
+        connector_instance_id: str,
+        source_id: str,
+        *,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        return ManualWebAcquisitionManager(
+            self.store,
+            self.connectors,
+            self.web_transport,
+        ).list(connector_instance_id, source_id, limit=limit)
+
+    def get_manual_web_acquisition(
+        self,
+        connector_instance_id: str,
+        source_id: str,
+        acquisition_id: str,
+    ) -> dict[str, Any] | None:
+        return ManualWebAcquisitionManager(
+            self.store,
+            self.connectors,
+            self.web_transport,
+        ).get(connector_instance_id, source_id, acquisition_id)
 
     def rebuild_library(
         self,

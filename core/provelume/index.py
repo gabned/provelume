@@ -10,10 +10,11 @@ from collections.abc import Iterable
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from .derived import materialize_extracted_text
 from .domain import as_record
-from .extractors import ExtractionError, extractor_for
+from .extractors import ExtractionError, extract_web_readable_text, extractor_for
 from .retention_model import effective_dispositions
 from .storage import InstanceStore, utc_now
 
@@ -48,13 +49,20 @@ def _ensure_extracted(
     original = store.read_canonical("originals", version["original_id"])
     if original is None:
         return None
-    extractor = extractor_for(Path(locator))
-    if extractor is None:
-        return None
     data = store.original_bytes(original["id"])
     try:
-        result = extractor.extract(data)
+        web_locator = urlsplit(locator).scheme in {"http", "https"}
+        extractor = None if web_locator else extractor_for(Path(locator))
+        result = (
+            extract_web_readable_text(str(version.get("media_type", "")), data)
+            if web_locator
+            else extractor.extract(data)
+            if extractor is not None
+            else None
+        )
     except ExtractionError:
+        return None
+    if result is None:
         return None
     return as_record(materialize_extracted_text(store, version["id"], result))
 

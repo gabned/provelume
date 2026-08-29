@@ -64,6 +64,11 @@ Physical source paths remain operator configuration and are not returned by thes
   selected Source views;
 - `GET /api/v1/connectors/{connector_instance_id}/sources/{source_id}` — one selected Source with
   configured/effective lifecycle state plus retained Document and Acquisition counts.
+- `GET /api/v1/connectors/{connector_instance_id}/sources/{source_id}/acquisitions` — newest
+  retained manual web Acquisition summaries for that exact connector/Source binding;
+- `GET /api/v1/connectors/{connector_instance_id}/sources/{source_id}/acquisitions/{id}` — one
+  completed result with retrieval evidence, canonical Document/Version/Original records, provenance
+  and explicit replay/duplicate/derived-text status.
 
 The API models come directly from the same application service used by the CLI and EN/IT
 `/connectors` Browser pages. They are configuration-derived and perform no DNS resolution,
@@ -76,6 +81,18 @@ Removal retains canonical instance/Source identity, requires child Sources to be
 independently before their parent, and never deletes or overwrites acquired Original bytes.
 Configuration operations are path-redacted and secret-free. There are deliberately no connector
 `POST`, `PATCH` or `DELETE` routes.
+
+Manual acquisition is likewise not initiated over HTTP. It requires the application service or the
+explicit local command below, whose URL must exactly match the enabled web Source after guarded
+canonicalization:
+
+```bash
+provelume connector-web-acquire INSTANCE CONNECTOR_INSTANCE_ID SOURCE_ID URL --confirm-network
+```
+
+The command performs one guarded request and returns its completed result. Browser and API reads do
+not retry, refresh, contact the Source or create missing derived state. See
+[`architecture/manual-web-acquisition.md`](architecture/manual-web-acquisition.md).
 
 ## Durable ingestion runs
 

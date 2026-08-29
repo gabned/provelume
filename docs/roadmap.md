@@ -118,13 +118,11 @@ one bounded owner product pull request at a time adds its implementation slices 
 Version alignment, tagging and publication remain separate release-preparation and trusted-workflow
 steps.
 
-`0.7/S01` has established the network-free identity/manifest/policy foundation. `0.7/S02`
-extends that foundation with compatible lifecycle-schema records, tombstone removal,
-configuration-operation evidence and aligned read-only connector views. `0.7/S03` and its
-bounded correction establish the provider-independent OAuth 2.0/PKCE installed-app boundary.
-`0.7/S04` adds explicit Source-bound HTTP(S) retrieval with public-address-only DNS and redirects,
-connection pinning, typed redacted failures and bounded responses without canonical acquisition;
-manual acquisition (`S05`) and background refresh remain later boundaries.
+`0.7/S01` through `0.7/S05` are implemented. They establish provider-independent connector and
+Source identity/lifecycle, installed-app OAuth 2.0/PKCE, guarded Source-bound HTTP(S) retrieval and
+explicit atomic manual acquisition into deterministic canonical lineage with immutable Originals.
+Background refresh remains outside `0.7.0`; version alignment, tagging and publication remain the
+separate release-preparation boundary.
 
 ## Planning and delivery contract
 

@@ -20,17 +20,36 @@
   </div>
 </section>
 <section class="two-column">
-  <article class="panel">
-    <h2>{{ t('connectors.lifecycle') }}</h2>
-    <dl>
-      <dt>{{ t('connectors.source_kind') }}</dt><dd>{{ connector_source.source_kind }}</dd>
-      <dt>{{ t('connectors.external_id') }}</dt><dd><code>{{ connector_source.external_id }}</code></dd>
-      <dt>{{ t('connectors.configured_enabled') }}</dt><dd>{{ t('common.yes') if connector_source.configured_enabled else t('common.no') }}</dd>
-      <dt>{{ t('connectors.effective_enabled') }}</dt><dd>{{ t('common.yes') if connector_source.effective_enabled else t('common.no') }}</dd>
-      <dt>{{ t('connectors.health') }}</dt><dd>{{ t('connectors.status.' ~ connector_source.health.status) }}</dd>
-      <dt>{{ t('connectors.documents') }}</dt><dd>{{ connector_source.document_count }}</dd>
-      <dt>{{ t('connectors.acquisitions') }}</dt><dd>{{ connector_source.acquisition_count }}</dd>
-    </dl>
+  <article>
+    <section class="panel">
+      <h2>{{ t('connectors.lifecycle') }}</h2>
+      <dl>
+        <dt>{{ t('connectors.source_kind') }}</dt><dd>{{ connector_source.source_kind }}</dd>
+        <dt>{{ t('connectors.external_id') }}</dt><dd><code>{{ connector_source.external_id }}</code></dd>
+        <dt>{{ t('connectors.configured_enabled') }}</dt><dd>{{ t('common.yes') if connector_source.configured_enabled else t('common.no') }}</dd>
+        <dt>{{ t('connectors.effective_enabled') }}</dt><dd>{{ t('common.yes') if connector_source.effective_enabled else t('common.no') }}</dd>
+        <dt>{{ t('connectors.health') }}</dt><dd>{{ t('connectors.status.' ~ connector_source.health.status) }}</dd>
+        <dt>{{ t('connectors.documents') }}</dt><dd>{{ connector_source.document_count }}</dd>
+        <dt>{{ t('connectors.acquisitions') }}</dt><dd>{{ connector_source.acquisition_count }}</dd>
+      </dl>
+    </section>
+    <section class="panel">
+      <h2>{{ t('connectors.manual_acquisitions') }}</h2>
+      <p>{{ t('connectors.manual_acquisitions_lead') }}</p>
+      <ul class="document-list">
+        {% for acquisition in web_acquisitions %}
+        <li>
+          <a href="/connectors/{{ connector.id }}/sources/{{ connector_source.id }}/acquisitions/{{ acquisition.id }}?lang={{ lang }}">
+            <strong>{{ acquisition.media_type }} · {{ acquisition.outcome }}</strong>
+            <span>{{ acquisition.retrieved_at }} · {{ acquisition.response_size_bytes }} B</span>
+            <span><code>{{ acquisition.content_hash }}</code></span>
+          </a>
+        </li>
+        {% else %}
+        <li class="empty">{{ t('connectors.manual_acquisitions_empty') }}</li>
+        {% endfor %}
+      </ul>
+    </section>
   </article>
   <aside>
     <section class="panel trust-boundary">

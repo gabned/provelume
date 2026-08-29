@@ -3,7 +3,9 @@
 Provelume `0.7/S04` adds one provider-independent HTTP(S) retrieval boundary for connector web
 Sources. It returns a transient response to the invoking application service. It does not acquire
 the response, create or change canonical knowledge, persist a cache, schedule work, refresh a
-Source or load a real provider adapter. Manual URL acquisition remains `0.7/S05`.
+Source or load a real provider adapter. `0.7/S05` consumes this boundary, without an alternate HTTP
+client or fallback, through the separate
+[`manual-web-acquisition.md`](manual-web-acquisition.md) transaction.
 
 ## Explicit authority chain
 
@@ -113,8 +115,8 @@ inputs.
 
 Success and failure leave the complete Instance byte-identical. In particular, S04 creates or
 modifies no Source, Document, Acquisition, Version, Original, DerivedArtifact, cursor, health
-record or operation evidence. S05 must separately authorize and implement any canonical
-acquisition transaction.
+record or operation evidence. S05 separately rechecks authority and owns any canonical acquisition
+transaction after this transport has returned a complete bounded representation.
 
 ## Synthetic and cross-platform qualification
 

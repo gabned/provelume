@@ -75,6 +75,40 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             raise _not_found("connector Source", source_id)
         return result
 
+    @router.get(
+        "/connectors/{connector_instance_id}/sources/{source_id}/acquisitions"
+    )
+    def get_manual_web_acquisitions(
+        connector_instance_id: str,
+        source_id: str,
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        if instance.get_connector_source(connector_instance_id, source_id) is None:
+            raise _not_found("connector Source", source_id)
+        return instance.list_manual_web_acquisitions(
+            connector_instance_id,
+            source_id,
+            limit=limit,
+        )
+
+    @router.get(
+        "/connectors/{connector_instance_id}/sources/{source_id}/acquisitions/"
+        "{acquisition_id}"
+    )
+    def get_manual_web_acquisition(
+        connector_instance_id: str,
+        source_id: str,
+        acquisition_id: str,
+    ) -> dict[str, Any]:
+        result = instance.get_manual_web_acquisition(
+            connector_instance_id,
+            source_id,
+            acquisition_id,
+        )
+        if result is None:
+            raise _not_found("manual web acquisition", acquisition_id)
+        return result
+
     @router.get("/sources")
     def get_sources() -> list[dict[str, Any]]:
         return instance.list_sources()
