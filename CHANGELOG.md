@@ -23,6 +23,11 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   Documents, Versions, provenance and exact Original bytes;
 - added deterministic synthetic adapter conformance coverage for replay, state mismatch, scope
   escalation, callback substitution and secret-bearing adapter results;
+- added provider-independent guarded HTTP(S) retrieval that requires an explicit request plus
+  current Instance, connector and independently enabled web Source authority at execution time;
+- added bounded transient conditional metadata, redirects, time, headers, resource count,
+  compressed/decompressed body sizes, decompression ratio, media types and response framing without
+  introducing scheduling, refresh state or canonical acquisition;
 - included connector definitions, instances and Sources in deep validation, backup, restore and
   portable Instance export/import without changing package or embedded release identity.
 
@@ -59,6 +64,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   output, while persisting only validated external credential references and redacted metadata;
 - required current connector/Instance network policy, exact adapter identity, explicitly allowed
   OAuth endpoint origins and exact high-port loopback redirect binding at request and callback time;
+- restricted web transport to unambiguous HTTP(S), exact Source and origin/port authority, public
+  IPv4/IPv6 destinations and a bad-port denylist; re-resolved and revalidated every hop immediately
+  before a socket pinned to the approved address;
+- rejected mixed/non-public DNS answers, rebinding, redirect pivots and downgrade, malformed or
+  truncated framing, unsupported encoding, oversized responses and decompression bombs through
+  typed errors whose fixed messages contain no URL, credential, token, path or response content;
 - serialized authorization request, callback exchange/completion and revocation per connector,
   invalidating sibling requests after success so revocation wins every race and only one exchange
   can commit for one unchanged connector record, including revocation from a separate process-local
@@ -66,8 +77,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - kept synthetic adapter exchange outside the Instance-wide configuration lock so independent
   connectors may complete concurrently while their short canonical commits serialize locally;
 - made every connector declare an explicit network mode and bounded HTTP(S) origin allowlist while
-  the global Instance network policy remains a fail-closed gate and this slice performs no network
-  access.
+  the global Instance network policy remains a fail-closed gate and configuration mutations perform
+  no network access.
 
 ## 0.6.1 - 2026-08-29
 

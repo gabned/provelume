@@ -3,10 +3,12 @@
 Provelume `0.7/S01` introduces a provider-independent local configuration and conformance boundary.
 `0.7/S02` adds bounded multi-instance lifecycle mutations, path-redacted evidence and aligned
 service/CLI/read-only API/EN/IT Browser views. `0.7/S03` adds an installed-app OAuth 2.0/PKCE
-authorization boundary with synthetic adapters only. These slices do not implement provider HTTP
-transport, a callback server, background refreshes or executable adapter loading from a manifest.
-Issue #105 owns the complete `0.7.0` release; guarded transport and manual web acquisition remain
-later homogeneous slices.
+authorization boundary with synthetic adapters only. `0.7/S04` adds the provider-independent,
+Source-bound guarded HTTP(S) transport described in
+[`guarded-web-transport.md`](guarded-web-transport.md). These slices do not implement a callback
+server, canonical web acquisition, background refreshes or executable adapter loading from a
+manifest. Issue #105 owns the complete `0.7.0` release; manual web acquisition remains the next
+homogeneous slice.
 
 ## Identity boundary
 
@@ -75,9 +77,10 @@ idempotent; changing an existing definition under the same identity is rejected.
 Each connector instance declares `network_mode: disabled` or `network_mode: explicit`. Explicit
 mode requires at least one canonical HTTP(S) origin and a definition with `manual_read` capability.
 Origins contain only scheme, host and optional non-default port: credentials, paths, queries,
-fragments, whitespace and non-HTTP schemes are rejected. This allowlist is configuration evidence,
-not a claim that the later guarded transport has approved an address; SSRF, reserved-address,
-DNS-rebinding and redirect enforcement belongs to `0.7/S04`.
+fragments, whitespace and non-HTTP schemes are rejected. This allowlist is configuration evidence;
+S04 separately enforces the current Instance, connector and Source policy, public-address-only
+resolution, connection pinning, DNS-rebinding resistance, redirect validation and bounded response
+contract at every explicit request.
 
 The Instance-wide `network.external_access` flag remains the stronger gate. A connector may be
 prepared with explicit local policy while the global flag is false, but its effective network mode
@@ -217,5 +220,7 @@ and local revoke contracts through the in-process application service so the sam
 process retains its short-lived state; it adds no unauthenticated HTTP or split-process CLI mutation
 surface.
 
-Guarded HTTP transport and manual acquisition belong to `0.7/S04` and `0.7/S05` respectively.
-Background scheduling, polling, token refresh and renewal remain excluded.
+S04 exposes only `ProvelumeInstance.guarded_web_fetch` and the reusable transport contract; it has
+no CLI or unauthenticated HTTP route and returns transient bytes without canonical mutation.
+Manual acquisition belongs to `0.7/S05`. Background scheduling, polling, token refresh and renewal
+remain excluded.
