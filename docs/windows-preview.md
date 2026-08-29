@@ -1,10 +1,10 @@
 # Windows product shell preview
 
-Provelume `0.7.0` is the Vinculum Windows preview candidate for provider-independent connector
-identity, guarded HTTP(S) transport and explicit manual web acquisition. After the permanent
-trusted workflow publishes `v0.7.0`, download `Provelume-Setup-0.7.0-x64.exe` from that official
-GitHub prerelease and run it as the current user. Git and a separately installed Python are not
-required.
+Provelume `0.7.0` is the published Vinculum Windows preview for provider-independent connector
+identity, guarded HTTP(S) transport and explicit manual web acquisition. Download
+[`Provelume-Setup-0.7.0-x64.exe`](https://github.com/gabned/provelume/releases/download/v0.7.0/Provelume-Setup-0.7.0-x64.exe)
+from the official GitHub prerelease and run it as the current user. Git and a separately installed
+Python are not required.
 
 ## What is installed
 
@@ -23,10 +23,11 @@ Three locations remain intentionally separate:
 An upgrade replaces only launcher/runtime files. The portable Instance is opened by the new
 runtime after installation. `0.7.0` adds connector containers to the existing schema-2 Instance
 without a new whole-Instance migration and retains the registered schema-1 to schema-2 migration
-from `0.6.0`, including deep preflight and a verified automatic backup. Candidate and official
-release evidence installs the immutable public `0.6.1` executable, creates a synthetic Instance
-and launcher settings, installs `0.7.0` in place and verifies stable AppId, exact current-schema
-Instance/settings preservation, startup and uninstall.
+from `0.6.0`, including deep preflight and a verified automatic backup. The official release
+evidence installs the immutable public `0.6.1` executable, creates a synthetic Instance and
+launcher settings, installs `0.7.0` in place and verifies stable AppId, exact current-schema
+Instance/settings preservation, startup and uninstall. The published installer is `18,464,821`
+bytes with SHA-256 `46d7df0f94f3e9431685741594489ffcc99e0edf3f4880644c87e280fdecd5cb`.
 
 ## Local Inbox folders
 
