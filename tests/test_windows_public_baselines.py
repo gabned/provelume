@@ -1,6 +1,7 @@
 from pathlib import Path
 
 SCRIPT = Path("scripts/test_windows_installer.ps1")
+PIPELINE = Path(".github/workflows/release-pipeline.yml")
 
 
 def test_windows_upgrade_uses_immutable_public_installer_baselines() -> None:
@@ -35,7 +36,24 @@ def test_windows_upgrade_uses_immutable_public_installer_baselines() -> None:
         'sha256 = "642de2931dc6fbc7f1a58fd490b73c45cef72719bc75c690713076f9bddf268b"'
         in text
     )
-    assert 'releases/download/v0.5.1/Provelume-Setup-0.5.1-x64.exe' in text
+    assert 'version = "0.6.0"' in text
+    assert 'commit = "bc02180fa116c2924b04f0a4c0bcf497a1efbd70"' in text
+    assert "size = 18343369" in text
+    assert (
+        'sha256 = "da338c65b8698d411561bbcb02e0711a1467628e3551c74b0989a7efe7ef6bc3"'
+        in text
+    )
+    assert 'releases/download/v0.6.0/Provelume-Setup-0.6.0-x64.exe' in text
+
+
+def test_release_pipeline_uses_latest_immutable_public_installer() -> None:
+    text = PIPELINE.read_text(encoding="utf-8")
+
+    assert "published 0.6.0 upgrade baseline" in text
+    assert 'Provelume-Setup-0.6.0-public.exe' in text
+    assert 'releases/download/v0.6.0/Provelume-Setup-0.6.0-x64.exe' in text
+    assert "Length -ne 18343369" in text
+    assert "da338c65b8698d411561bbcb02e0711a1467628e3551c74b0989a7efe7ef6bc3" in text
 
 
 def test_windows_upgrade_proves_controlled_instance_schema_migration() -> None:

@@ -8,23 +8,23 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.6.0 preview
+## Current status: 0.6.1 correction preview
 
-The latest published preview is `v0.6.0`. It makes an Instance explicitly versioned, safely
-upgradeable, recoverable and portable across supported Windows/Linux paths. It adds stable
-Area/Subarea, Project and Collection identities, a deterministic human-readable Markdown library,
-safe Viewer modes, distinct archive/trash/purge boundaries and deterministic cross-Instance
-export/import while canonical JSON, acquired Originals, Versions and provenance remain
-authoritative.
+The latest published preview is `v0.6.1`. It retains the Portable Instance and hierarchical
+Markdown library delivered by `0.6.0` while making permanent purge remove bounded operational
+records linked through Document, Version and Acquisition identities. Filesystem ingestion, retry,
+derived index refresh and Inbox ingestion now share the same cross-process Instance lifecycle lock
+as purge, preventing acquisition or index maintenance from racing purge staging and recovery.
 
-Issue #95 and the [0.6.0 release plan](docs/releases/0.6.0.md) define this preview; the
-[0.5.1 release plan](docs/releases/0.5.1.md) remains the correction baseline and the
-[0.5.0 release plan](docs/releases/0.5.0.md) remains the durable-intake capability baseline.
+Issue #102 and the [0.6.1 release plan](docs/releases/0.6.1.md) define this correction; the
+[0.6.0 release plan](docs/releases/0.6.0.md) remains the Portable Instance and hierarchical
+Markdown library capability baseline, and the [0.5.1 release plan](docs/releases/0.5.1.md)
+remains the preceding correction baseline.
 See the [public roadmap](docs/roadmap.md), the
 [configurable-folder contract](docs/architecture/configurable-folder-settings.md) and the
 [Windows preview guide](docs/windows-preview.md) for portability and trust boundaries.
 
-The roadmap records `0.6.0` as published and `0.7.0` as the next forecast while retaining the later
+The roadmap records `0.6.1` as published and `0.7.0` as the next forecast while retaining the later
 sequence through `1.0.0`. Forecast entries are sequencing coordinates, not availability claims or
 release authorization.
 
@@ -221,8 +221,8 @@ Instance content and is never enabled in the background by the Core:
 .venv/bin/provelume check-updates --channel preview
 ```
 
-The Windows `0.6.0` preview packages the same behavior behind a per-user installer and EN/IT
-launcher; see the [Windows preview guide](docs/windows-preview.md).
+The Windows `0.6.1` correction preview packages the same behavior behind a per-user installer and
+EN/IT launcher; see the [Windows preview guide](docs/windows-preview.md).
 
 Inspect one Instance's declared network policy and components, also without making a network request:
 
