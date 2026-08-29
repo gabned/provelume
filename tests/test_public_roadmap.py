@@ -401,6 +401,29 @@ def test_legacy_import_git_mirror_and_mcp_connections_are_optional() -> None:
         assert required_contract in roadmap
 
 
+def test_rsync_mirror_and_verified_backup_are_separate() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    for required_contract in (
+        "provider-independent filesystem mirror capability",
+        "`rsync` over SSH reference profile",
+        "Destination deletion is disabled by default",
+        "never applies it\nto an Original store",
+        "destination-side staging generation",
+        "atomically activated",
+        "instead of exposing a mixed or partial generation",
+        "approval is bound to the exact source and destination manifests",
+        "requires a fresh preview and confirmation",
+        "transport and mirror mechanism, not evidence that a backup",
+        "Bidirectional rsync",
+        "creates an atomic bundle",
+        "rereads and verifies the destination manifest",
+        "never reads a live mutable Instance",
+        "one documented Synology and one documented QNAP",
+    ):
+        assert required_contract in roadmap
+
+
 def test_ai_classification_is_closed_reviewable_and_reconcilable() -> None:
     roadmap = _read(ROADMAP_PATH)
 
@@ -422,11 +445,11 @@ def test_ai_classification_is_closed_reviewable_and_reconcilable() -> None:
         assert required_contract in roadmap
 
 
-def test_synology_and_desktop_background_profiles_are_qualified() -> None:
+def test_nas_and_desktop_background_profiles_are_qualified() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.18.0` | Self-hosted and Synology operations |"
+        "| Forecast | `0.18.0` | Self-hosted, Synology and QNAP operations |"
     ) == 1
     assert roadmap.count(
         "| Forecast | `0.19.0` | Windows and macOS background agents and bootstrap "
@@ -434,9 +457,12 @@ def test_synology_and_desktop_background_profiles_are_qualified() -> None:
     ) == 1
     for required_contract in (
         "DSM Container Manager and Portainer-compatible Compose",
+        "QTS and QuTS hero systems through Container Station Compose V2",
         "UID/GID and ACL diagnostics",
+        "HBS 3, storage snapshots and external rsync jobs",
+        "native QPKG",
         "optional encrypted portable\nbundle",
-        "documented Synology architecture",
+        "one documented Synology and one documented QNAP",
         "per-user background agent and tray surface",
         "macOS adds an application/menu-bar surface and per-user LaunchAgent",
         "Keychain\ncredential references",
@@ -464,7 +490,7 @@ def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
         "per-instance read/write policy",
         "guarded task write-back preview",
         "explicit diff, human confirmation",
-        "Local-only/no-GitHub mode\nperforms no connector or mirror access",
+        "Local-only/no-GitHub/no-rsync mode performs no connector or mirror access",
     ):
         assert required_contract in roadmap
 
