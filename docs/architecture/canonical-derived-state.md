@@ -4,7 +4,14 @@ Provelume treats durable knowledge and provenance as distinct from acceleration 
 
 ## Canonical state
 
-The first public Instance format stores canonical records as readable JSON under `knowledge/` and exact acquired bytes under `originals/`. Canonical records include Sources, Acquisitions, Originals, Documents, DocumentVersions, stable Area/Project/Collection nodes, Document classifications, Document dispositions and provenance edges. These records are sufficient to retain identity, version history, current primary/secondary placement, retention state and where each version or association came from.
+The public Instance format stores canonical records as readable JSON under `knowledge/` and exact
+acquired bytes under `originals/`. Canonical records include Sources, Acquisitions, Originals,
+Documents, DocumentVersions, stable Area/Project/Collection nodes, Document classifications,
+Document dispositions, connector definitions and instances, and provenance edges. These records are
+sufficient to retain identity, version history, current primary/secondary placement, connector and
+Source configuration, retention state and where each version or association came from. Connector
+credential values remain external; canonical state contains only a validated reference. See
+[`connector-framework.md`](connector-framework.md).
 
 Canonical state is not an SQLite database and does not depend on Git, GitHub or an AI provider.
 
@@ -78,6 +85,8 @@ implies purge.
 ## Identity and versioning
 
 - Sources and Documents receive stable opaque IDs when first registered.
+- ConnectorDefinition and ConnectorInstance identities remain separate from each connector Source;
+  every connector Source retains its own stable `src_` identity.
 - Original identity is content-addressed by SHA-256 and identical bytes are stored once.
 - DocumentVersion identity is deterministic from Document identity plus content hash.
 - Area, Project and Collection identities are stable opaque IDs independent from display names,
