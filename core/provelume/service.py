@@ -151,6 +151,19 @@ class ProvelumeInstance:
     def connector_inventory(self) -> dict[str, Any]:
         return self.connectors.inventory()
 
+    def get_connector_definition(self, definition_id: str) -> dict[str, Any] | None:
+        return self.connectors.get_definition(definition_id)
+
+    def get_connector_instance(self, instance_id: str) -> dict[str, Any] | None:
+        return self.connectors.get_instance(instance_id)
+
+    def get_connector_source(
+        self,
+        connector_instance_id: str,
+        source_id: str,
+    ) -> dict[str, Any] | None:
+        return self.connectors.get_source(connector_instance_id, source_id)
+
     def create_connector_instance(
         self,
         definition_id: str,
@@ -158,6 +171,7 @@ class ProvelumeInstance:
         name: str,
         provider_identity: str,
         account_identity: str | None = None,
+        endpoint: str | None = None,
         network_mode: str = "disabled",
         allowed_origins: Iterable[str] = (),
         authorization_mode: str = "none",
@@ -169,12 +183,29 @@ class ProvelumeInstance:
             name=name,
             provider_identity=provider_identity,
             account_identity=account_identity,
+            endpoint=endpoint,
             network_mode=network_mode,
             allowed_origins=tuple(allowed_origins),
             authorization_mode=authorization_mode,
             scopes=tuple(scopes),
             credential_reference=credential_reference,
         )
+
+    def update_connector_instance(
+        self,
+        connector_instance_id: str,
+        **changes: Any,
+    ) -> dict[str, Any]:
+        return self.connectors.update_instance(connector_instance_id, **changes)
+
+    def enable_connector_instance(self, connector_instance_id: str) -> dict[str, Any]:
+        return self.connectors.enable_instance(connector_instance_id)
+
+    def disable_connector_instance(self, connector_instance_id: str) -> dict[str, Any]:
+        return self.connectors.disable_instance(connector_instance_id)
+
+    def remove_connector_instance(self, connector_instance_id: str) -> dict[str, Any]:
+        return self.connectors.remove_instance(connector_instance_id)
 
     def add_connector_source(
         self,
@@ -190,6 +221,39 @@ class ProvelumeInstance:
             source_kind=source_kind,
             external_id=external_id,
         )
+
+    def update_connector_source(
+        self,
+        connector_instance_id: str,
+        source_id: str,
+        **changes: Any,
+    ) -> dict[str, Any]:
+        return self.connectors.update_source(
+            connector_instance_id,
+            source_id,
+            **changes,
+        )
+
+    def enable_connector_source(
+        self,
+        connector_instance_id: str,
+        source_id: str,
+    ) -> dict[str, Any]:
+        return self.connectors.enable_source(connector_instance_id, source_id)
+
+    def disable_connector_source(
+        self,
+        connector_instance_id: str,
+        source_id: str,
+    ) -> dict[str, Any]:
+        return self.connectors.disable_source(connector_instance_id, source_id)
+
+    def remove_connector_source(
+        self,
+        connector_instance_id: str,
+        source_id: str,
+    ) -> dict[str, Any]:
+        return self.connectors.remove_source(connector_instance_id, source_id)
 
     def rebuild_library(
         self,
@@ -220,20 +284,36 @@ class ProvelumeInstance:
 
     def list_sources(self) -> list[dict[str, Any]]:
         documents = self.store.list_canonical("documents")
+        connector_sources = {
+            str(item["id"]): item for item in self.connectors.list_sources()
+        }
         result = []
         for source in self.store.list_canonical("sources"):
             source_path = self.store.source_path(source["id"])
             is_connector = source.get("kind") == "connector"
             available = bool(source_path and source_path.exists())
+            selected = connector_sources.get(str(source["id"]), source)
+            connector_availability = (
+                "removed"
+                if selected.get("lifecycle_state") == "removed"
+                else "disabled"
+                if selected.get("effective_enabled") is False
+                else "configuration_only"
+            )
             result.append(
                 {
-                    **source,
-                    "document_count": sum(
-                        1 for document in documents if document["source_id"] == source["id"]
+                    **selected,
+                    "document_count": selected.get(
+                        "document_count",
+                        sum(
+                            1
+                            for document in documents
+                            if document["source_id"] == source["id"]
+                        ),
                     ),
                     "available": False if is_connector else available,
                     "availability_status": (
-                        "configuration_only"
+                        connector_availability
                         if is_connector
                         else "available"
                         if available
@@ -249,21 +329,40 @@ class ProvelumeInstance:
             return None
         source_path = self.store.source_path(source_id)
         is_connector = source.get("kind") == "connector"
+        selected = source
+        if is_connector:
+            selected = (
+                self.get_connector_source(
+                    str(source.get("connector_instance_id", "")),
+                    source_id,
+                )
+                or source
+            )
         available = bool(source_path and source_path.exists())
+        connector_availability = (
+            "removed"
+            if selected.get("lifecycle_state") == "removed"
+            else "disabled"
+            if selected.get("effective_enabled") is False
+            else "configuration_only"
+        )
         return {
-            **source,
+            **selected,
             "available": False if is_connector else available,
             "availability_status": (
-                "configuration_only"
+                connector_availability
                 if is_connector
                 else "available"
                 if available
                 else "missing"
             ),
-            "document_count": sum(
-                1
-                for document in self.store.list_canonical("documents")
-                if document["source_id"] == source_id
+            "document_count": selected.get(
+                "document_count",
+                sum(
+                    1
+                    for document in self.store.list_canonical("documents")
+                    if document["source_id"] == source_id
+                ),
             ),
         }
 
@@ -562,6 +661,7 @@ class ProvelumeInstance:
         classifications = self.store.list_canonical("classifications")
         dispositions = self.retention.list(status="all")
         health = self.knowledge_health()
+        connector_lifecycle = self.connector_inventory()["lifecycle"]
         return {
             "id": config["instance"]["id"],
             "name": config["instance"]["name"],
@@ -593,9 +693,9 @@ class ProvelumeInstance:
             "network": {
                 "external_access": bool(network.get("external_access", False)),
                 "update_checks": bool(network.get("update_checks", False)),
-                "configured_external_providers": len(
-                    self.store.list_canonical("connector-instances")
-                ),
+                "configured_external_providers": connector_lifecycle[
+                    "active_instances"
+                ],
             },
         }
 

@@ -10,13 +10,31 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   configuration and independently identified connector Sources as additive schema-2 state;
 - added deterministic local service and CLI contracts for capability-manifest registration,
   connector-instance creation, Source declaration and a network-free connector inventory;
+- added bounded create, inspect, update, enable, disable and tombstone-removal lifecycle contracts
+  for connector instances and independently selected Sources, including per-instance endpoint,
+  policy, empty cursor envelope and configuration-health state;
+- added aligned read-only connector inventory/detail contracts across service, CLI, API and EN/IT
+  Browser surfaces, all derived from the same application-service views;
+- added Instance-local connector configuration operations with closed status, changed-field names,
+  stable related IDs and explicit zero-Original-mutation metrics;
 - included connector definitions, instances and Sources in deep validation, backup, restore and
   portable Instance export/import without changing package or embedded release identity.
+
+### Changed
+
+- made connector and Source removal retain canonical tombstones instead of deleting identity
+  records, and require independently selected Sources to be removed before their parent instance;
+- kept S01 schema-1 connector records valid and upgraded each record to lifecycle schema 2 only
+  when that exact record is first mutated;
+- made disabled or removed connector configuration fail closed while leaving acquired Sources,
+  Acquisitions, Documents, Versions and Original bytes untouched.
 
 ### Security
 
 - restricted connector credentials to validated external environment or system-keyring references
   and rejected inline secret material;
+- kept connector configuration operation evidence free of provider/account values, endpoint
+  origins, credential-reference names, physical paths and secret material;
 - made every connector declare an explicit network mode and bounded HTTP(S) origin allowlist while
   the global Instance network policy remains a fail-closed gate and this slice performs no network
   access.

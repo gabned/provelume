@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ connector_source.name }} · {{ t('connectors.source') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb">
+  <a href="/?lang={{ lang }}">{{ t('nav.home') }}</a>
+  <span>/</span>
+  <a href="/connectors?lang={{ lang }}">{{ t('nav.connectors') }}</a>
+  <span>/</span>
+  <a href="/connectors/{{ connector.id }}?lang={{ lang }}">{{ connector.name }}</a>
+  <span>/</span>
+  <span>{{ connector_source.name }}</span>
+</nav>
+<section class="hero">
+  <p class="eyebrow">{{ t('connectors.source') }}</p>
+  <h1>{{ connector_source.name }}</h1>
+  <p class="lead"><code>{{ connector_source.id }}</code></p>
+  <div class="status-row">
+    <span class="status {{ 'warn' if connector_source.lifecycle_state == 'removed' else 'info' if not connector_source.effective_enabled else 'ok' }}">{{ t('connectors.status.' ~ connector_source.health.status) }}</span>
+    <span>{{ t('connectors.read_only') }}</span>
+  </div>
+</section>
+<section class="two-column">
+  <article class="panel">
+    <h2>{{ t('connectors.lifecycle') }}</h2>
+    <dl>
+      <dt>{{ t('connectors.source_kind') }}</dt><dd>{{ connector_source.source_kind }}</dd>
+      <dt>{{ t('connectors.external_id') }}</dt><dd><code>{{ connector_source.external_id }}</code></dd>
+      <dt>{{ t('connectors.configured_enabled') }}</dt><dd>{{ t('common.yes') if connector_source.configured_enabled else t('common.no') }}</dd>
+      <dt>{{ t('connectors.effective_enabled') }}</dt><dd>{{ t('common.yes') if connector_source.effective_enabled else t('common.no') }}</dd>
+      <dt>{{ t('connectors.health') }}</dt><dd>{{ t('connectors.status.' ~ connector_source.health.status) }}</dd>
+      <dt>{{ t('connectors.documents') }}</dt><dd>{{ connector_source.document_count }}</dd>
+      <dt>{{ t('connectors.acquisitions') }}</dt><dd>{{ connector_source.acquisition_count }}</dd>
+    </dl>
+  </article>
+  <aside>
+    <section class="panel trust-boundary">
+      <h2>{{ t('connectors.original_boundary') }}</h2>
+      <p>{{ t('connectors.original_preserved') }}</p>
+      <p class="technical-note">{{ t('connectors.authority_text') }}</p>
+    </section>
+  </aside>
+</section>
+{% endblock %}

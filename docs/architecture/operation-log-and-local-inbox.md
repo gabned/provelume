@@ -36,6 +36,13 @@ GET /api/v1/operations/{operation_id}
 Filters are bounded by operation type, status and result limit. The HTTP surface exposes no start,
 retry, edit or delete method.
 
+`0.7/S02` reuses this ledger for every connector definition, instance and Source configuration
+mutation. Those records contain only the operation kind, stable connector/Source IDs, changed field
+names, closed outcome and integer preservation metrics. They omit provider/account values,
+endpoint origins, external credential-reference names, physical paths and secret material.
+Disable/remove evidence records zero Original deletions and overwrites; removal itself is a
+canonical tombstone, not a purge.
+
 ## Local Drop Inbox
 
 Every Instance owns these portable paths:

@@ -74,6 +74,11 @@ def _navigation(
             "current": current_path.startswith("/inbox"),
         },
         {
+            "href": f"/connectors?lang={language}",
+            "label": t("nav.connectors"),
+            "current": current_path.startswith("/connectors"),
+        },
+        {
             "href": f"/bundles?lang={language}",
             "label": t("nav.bundles"),
             "current": current_path.startswith("/bundles"),

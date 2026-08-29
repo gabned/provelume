@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ t('connectors.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('connectors.eyebrow') }}</p>
+  <h1>{{ t('connectors.title') }}</h1>
+  <p class="lead">{{ t('connectors.lead') }}</p>
+  <div class="status-row">
+    <span class="status info">{{ t('connectors.read_only') }}</span>
+    <span>{{ t('network.no_network') }}</span>
+  </div>
+</section>
+
+<section class="metric-grid">
+  <article><strong>{{ connector_inventory.lifecycle.active_instances }}</strong><span>{{ t('connectors.active') }}</span></article>
+  <article><strong>{{ connector_inventory.lifecycle.enabled_instances }}</strong><span>{{ t('connectors.enabled') }}</span></article>
+  <article><strong>{{ connector_inventory.lifecycle.disabled_instances }}</strong><span>{{ t('connectors.disabled') }}</span></article>
+  <article><strong>{{ connector_inventory.lifecycle.removed_instances }}</strong><span>{{ t('connectors.removed') }}</span></article>
+</section>
+
+<section class="two-column security-layout">
+  <article class="panel">
+    <h2>{{ t('connectors.inventory') }}</h2>
+    <ul class="document-list">
+      {% for connector in connector_inventory.instances %}
+      <li>
+        <a href="/connectors/{{ connector.id }}?lang={{ lang }}">
+          <strong>{{ connector.name }}</strong>
+          <span>{{ t('connectors.provider') }}: {{ connector.provider_identity }}{% if connector.account_identity %} · {{ t('connectors.account') }}: {{ connector.account_identity }}{% endif %}</span>
+          <span>{{ t('connectors.endpoint') }}: {{ connector.endpoint or t('common.none') }} · {{ t('connectors.sources') }}: {{ connector.source_count }}</span>
+          <span class="status-row">
+            <span class="status {{ 'warn' if connector.lifecycle_state == 'removed' or connector.health.status == 'policy_blocked' else 'info' if not connector.configured_enabled else 'ok' }}">{{ t('connectors.status.' ~ connector.health.status) }}</span>
+          </span>
+        </a>
+      </li>
+      {% else %}
+      <li class="empty">{{ t('connectors.empty') }}</li>
+      {% endfor %}
+    </ul>
+  </article>
+  <aside>
+    <section class="panel trust-boundary">
+      <h2>{{ t('connectors.authority') }}</h2>
+      <p>{{ t('connectors.authority_text') }}</p>
+      <p class="technical-note">{{ t('connectors.original_preserved') }}</p>
+    </section>
+  </aside>
+</section>
+{% endblock %}

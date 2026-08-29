@@ -154,6 +154,9 @@ def test_connector_declarations_are_network_transparent_and_secret_free(
         "observed_activity": "not_instrumented",
         "allowed_origins": ["https://service.example.test"],
         "authorization_mode": "external_secret",
+        "configured_enabled": True,
+        "lifecycle_state": "active",
+        "health": "policy_blocked",
     }
     assert "external_component_blocked_by_policy" in {item["code"] for item in status["conflicts"]}
     rendered = json.dumps(status)
