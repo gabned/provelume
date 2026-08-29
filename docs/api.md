@@ -53,6 +53,30 @@ The same contract is exposed by `provelume about` and the local `/about` browser
 
 Physical source paths remain operator configuration and are not returned by these endpoints.
 
+## Connector lifecycle and read surfaces
+
+- `GET /api/v1/connectors` — definitions, isolated connector instances, selected Sources,
+  lifecycle counts, local health, empty cursor envelopes and the canonical/Original authority
+  boundary;
+- `GET /api/v1/connectors/definitions/{id}` — one versioned connector definition manifest;
+- `GET /api/v1/connectors/{connector_instance_id}` — one instance with provider/account identity,
+  safe endpoint origin, scopes, policy, external credential reference, cursor/health state and
+  selected Source views;
+- `GET /api/v1/connectors/{connector_instance_id}/sources/{source_id}` — one selected Source with
+  configured/effective lifecycle state plus retained Document and Acquisition counts.
+
+The API models come directly from the same application service used by the CLI and EN/IT
+`/connectors` Browser pages. They are configuration-derived and perform no DNS resolution,
+provider request, OAuth flow, cursor update or Instance mutation. Connector credential values
+cannot be stored; the local detail view may show only the validated external reference kind/name.
+The privacy/network inventory remains stricter and omits that reference entirely.
+
+Create, update, enable, disable and tombstone removal are explicit local service/CLI actions.
+Removal retains canonical instance/Source identity, requires child Sources to be removed
+independently before their parent, and never deletes or overwrites acquired Original bytes.
+Configuration operations are path-redacted and secret-free. There are deliberately no connector
+`POST`, `PATCH` or `DELETE` routes.
+
 ## Durable ingestion runs
 
 - `GET /api/v1/ingestion/runs?limit=50` — newest durable run summaries, bounded to 200.
@@ -177,7 +201,8 @@ The endpoint is read-only and does not mutate canonical, derived or configuratio
 
 ## Read-only boundary
 
-The v1 routes in this slice do not expose mutation endpoints. Ingestion, retry, index rebuild,
+The v1 routes in this slice do not expose mutation endpoints. Connector lifecycle, ingestion,
+retry, index rebuild,
 Markdown-library rebuild and every retention action are operator actions through the application
 service/CLI. Instance validation, migration, backup and restore are also local service/CLI
 operations. Portable export and replacement import likewise remain explicit local service/CLI

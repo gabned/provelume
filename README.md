@@ -72,7 +72,9 @@ operating-system egress enforcement or zero runtime traffic. All extracted/searc
 representations remain derived state and can be recreated from preserved originals after deletion
 of those derived copies.
 
-OCR, semantic/vector search, cloud connectors and AI enrichment remain later milestones.
+OCR, semantic/vector search, connector network transport and AI enrichment remain later
+milestones. The active 0.7 workstream currently provides local connector configuration and
+lifecycle only.
 
 ## Quick start
 
@@ -339,11 +341,29 @@ The settings API redacts external absolute paths. Folder mutation is available o
 CLI or the loopback/CSRF-protected browser form. See `docs/api.md` for the complete contract and
 filtering behavior.
 
+## Multi-instance connector lifecycle
+
+Connector definitions, isolated account/endpoint policies and independently selected Sources are
+canonical local JSON. The service and CLI can create, inspect, update, enable, disable and retain a
+removal tombstone for each instance or Source. Removal never implies Document purge or Original
+deletion, and a parent instance can be removed only after its Sources are handled independently.
+
+```bash
+.venv/bin/provelume connector-inventory .local/demo
+.venv/bin/provelume connector-instance-show .local/demo CONNECTOR_INSTANCE_ID
+.venv/bin/provelume connector-source-show .local/demo CONNECTOR_INSTANCE_ID SOURCE_ID
+```
+
+`GET /api/v1/connectors` and the EN/IT `/connectors` Browser pages expose the same read models.
+Mutation stays local to the service/CLI. Every configuration operation is path-redacted and
+secret-free; the per-instance cursor envelope remains empty and health remains configuration-only
+until later OAuth, guarded transport and refresh slices are implemented.
+
 ## Privacy and network baseline
 
 The baseline Instance config disables external access and update checks. The runtime contains no analytics, telemetry, CDN assets or external AI calls. Its core ingestion, provenance, full-text search, API and browser remain useful offline.
 
-`provelume network-status`, `GET /api/v1/security/network` and `/security/network` expose the effective policy and configured capability inventory. Physical Source paths are redacted, configured HTTP(S) endpoints are reduced to origins, unknown component types fail visibly, and observed traffic remains explicitly `not_instrumented`. Future connectors and AI providers must declare network capability explicitly and remain optional. See `docs/privacy-network.md` and `docs/architecture/provider-boundaries.md`.
+`provelume network-status`, `GET /api/v1/security/network` and `/security/network` expose the effective policy and configured capability inventory. Physical Source paths are redacted, configured HTTP(S) endpoints are reduced to origins, unknown component types fail visibly, and observed traffic remains explicitly `not_instrumented`. Connector configuration and future AI providers must declare network capability explicitly and remain optional; the current connector lifecycle performs no provider request. See `docs/privacy-network.md` and `docs/architecture/provider-boundaries.md`.
 
 ## Verifiable and deterministic release foundation
 

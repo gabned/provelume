@@ -80,7 +80,8 @@ hashed Document/token identity, counts and these limits rather than the raw Docu
 See [`retention-boundaries.md`](retention-boundaries.md).
 
 Rejecting an Inbox item, finding a duplicate, removing a connector or changing classification never
-implies purge.
+implies purge. Connector/Source removal retains a canonical lifecycle tombstone so acquired
+lineage continues to resolve; it does not delete the configuration identity or any Original.
 
 ## Identity and versioning
 

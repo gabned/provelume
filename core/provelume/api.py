@@ -47,6 +47,34 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
     def get_instance() -> dict[str, Any]:
         return instance.instance_summary()
 
+    @router.get("/connectors")
+    def get_connectors() -> dict[str, Any]:
+        return instance.connector_inventory()
+
+    @router.get("/connectors/definitions/{definition_id}")
+    def get_connector_definition(definition_id: str) -> dict[str, Any]:
+        result = instance.get_connector_definition(definition_id)
+        if result is None:
+            raise _not_found("connector definition", definition_id)
+        return result
+
+    @router.get("/connectors/{connector_instance_id}")
+    def get_connector_instance(connector_instance_id: str) -> dict[str, Any]:
+        result = instance.get_connector_instance(connector_instance_id)
+        if result is None:
+            raise _not_found("connector instance", connector_instance_id)
+        return result
+
+    @router.get("/connectors/{connector_instance_id}/sources/{source_id}")
+    def get_connector_source(
+        connector_instance_id: str,
+        source_id: str,
+    ) -> dict[str, Any]:
+        result = instance.get_connector_source(connector_instance_id, source_id)
+        if result is None:
+            raise _not_found("connector Source", source_id)
+        return result
+
     @router.get("/sources")
     def get_sources() -> list[dict[str, Any]]:
         return instance.list_sources()

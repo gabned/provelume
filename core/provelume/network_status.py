@@ -339,7 +339,29 @@ def declared_network_status(
             else "unknown"
         )
         network_mode = instance.get("network_mode")
-        enabled = network_mode == "explicit"
+        configured_enabled, configured_enabled_valid = _boolean(
+            instance.get("enabled"),
+            default=True,
+        )
+        lifecycle_state = instance.get("lifecycle_state", "active")
+        if not configured_enabled_valid:
+            finding(
+                "invalid_enabled_flag",
+                component_id,
+                "Connector enabled state is invalid and is treated as enabled.",
+            )
+        if lifecycle_state not in {"active", "removed"}:
+            finding(
+                "invalid_enabled_flag",
+                component_id,
+                "Connector lifecycle state is invalid and is treated as removed.",
+            )
+            lifecycle_state = "removed"
+        enabled = (
+            configured_enabled
+            and lifecycle_state == "active"
+            and network_mode == "explicit"
+        )
         if network_mode not in {"disabled", "explicit"}:
             finding(
                 "invalid_enabled_flag",
@@ -371,6 +393,18 @@ def declared_network_status(
                 component_id,
                 "Connector network access is explicit without an allowed origin.",
             )
+        declared_endpoint, endpoint_valid = _endpoint_origin(instance.get("endpoint"))
+        if instance.get("endpoint") is None and origins:
+            declared_endpoint = origins[0]
+        if not endpoint_valid or (
+            declared_endpoint is not None and declared_endpoint not in origins
+        ):
+            declared_endpoint = None
+            finding(
+                "invalid_external_endpoint",
+                component_id,
+                "Connector endpoint is not a member of its safe origin allowlist.",
+            )
         categories, categories_valid = _data_categories(
             definition.get("data_categories")
             if isinstance(definition, Mapping)
@@ -395,10 +429,21 @@ def declared_network_status(
             enabled=enabled,
             network_capability="external" if definition is not None else "unknown",
             declaration_state="declared" if definition is not None else "undeclared",
-            endpoint=origins[0] if origins else None,
+            endpoint=declared_endpoint,
             data_categories=categories,
         )
         component["allowed_origins"] = origins
+        component["configured_enabled"] = configured_enabled
+        component["lifecycle_state"] = lifecycle_state
+        component["health"] = (
+            "removed"
+            if lifecycle_state == "removed"
+            else "disabled"
+            if not configured_enabled
+            else "policy_blocked"
+            if network_mode == "explicit" and not external_access
+            else "not_checked"
+        )
         component["authorization_mode"] = (
             instance.get("authorization_mode")
             if instance.get("authorization_mode") in {"none", "external_secret", "oauth2_pkce"}

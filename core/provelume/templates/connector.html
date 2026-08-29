@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ connector.name }} · {{ t('connectors.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb">
+  <a href="/?lang={{ lang }}">{{ t('nav.home') }}</a>
+  <span>/</span>
+  <a href="/connectors?lang={{ lang }}">{{ t('nav.connectors') }}</a>
+  <span>/</span>
+  <span>{{ connector.name }}</span>
+</nav>
+<section class="hero">
+  <p class="eyebrow">{{ t('connectors.eyebrow') }}</p>
+  <h1>{{ connector.name }}</h1>
+  <p class="lead"><code>{{ connector.id }}</code></p>
+  <div class="status-row">
+    <span class="status {{ 'warn' if connector.lifecycle_state == 'removed' or connector.health.status == 'policy_blocked' else 'info' if not connector.configured_enabled else 'ok' }}">{{ t('connectors.status.' ~ connector.health.status) }}</span>
+    <span>{{ t('connectors.read_only') }}</span>
+  </div>
+</section>
+
+<section class="two-column">
+  <article>
+    <section class="panel">
+      <h2>{{ t('connectors.lifecycle') }}</h2>
+      <dl>
+        <dt>{{ t('connectors.provider') }}</dt><dd>{{ connector.provider_identity }}</dd>
+        <dt>{{ t('connectors.account') }}</dt><dd>{{ connector.account_identity or t('common.none') }}</dd>
+        <dt>{{ t('connectors.endpoint') }}</dt><dd><code>{{ connector.endpoint or t('common.none') }}</code></dd>
+        <dt>{{ t('connectors.definition') }}</dt><dd><code>{{ connector.definition.id }}</code> · {{ connector.definition.display_name }}</dd>
+        <dt>{{ t('connectors.health') }}</dt><dd>{{ t('connectors.status.' ~ connector.health.status) }}</dd>
+        <dt>{{ t('connectors.last_checked') }}</dt><dd>{{ connector.health.checked_at or t('connectors.never_checked') }}</dd>
+      </dl>
+    </section>
+    <section class="panel">
+      <h2>{{ t('connectors.sources') }}</h2>
+      <ul class="document-list">
+        {% for source in connector.sources %}
+        <li>
+          <a href="/connectors/{{ connector.id }}/sources/{{ source.id }}?lang={{ lang }}">
+            <strong>{{ source.name }}</strong>
+            <span>{{ source.source_kind }} · {{ source.external_id }}</span>
+            <span>{{ t('connectors.status.' ~ source.health.status) }} · {{ t('connectors.documents') }}: {{ source.document_count }} · {{ t('connectors.acquisitions') }}: {{ source.acquisition_count }}</span>
+          </a>
+        </li>
+        {% else %}
+        <li class="empty">{{ t('connectors.empty') }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </article>
+  <aside>
+    <section class="panel">
+      <h2>{{ t('connectors.policy') }}</h2>
+      <dl>
+        <dt>{{ t('connectors.configured_enabled') }}</dt><dd>{{ t('common.yes') if connector.policy.enabled else t('common.no') }}</dd>
+        <dt>{{ t('connectors.network_mode') }}</dt><dd>{{ connector.policy.network_mode }}</dd>
+        <dt>{{ t('connectors.effective_network') }}</dt><dd>{{ connector.policy.effective_network }}</dd>
+        <dt>{{ t('connectors.authorization') }}</dt><dd>{{ connector.authorization_mode }}</dd>
+        <dt>{{ t('connectors.scopes') }}</dt><dd>{{ connector.scopes | join(', ') if connector.scopes else t('common.none') }}</dd>
+        <dt>{{ t('connectors.allowed_origins') }}</dt><dd>{{ connector.allowed_origins | join(', ') if connector.allowed_origins else t('common.none') }}</dd>
+        <dt>{{ t('connectors.credential_reference') }}</dt>
+        <dd>{% if connector.credential_reference %}<code>{{ connector.credential_reference.kind }}:{{ connector.credential_reference.name }}</code>{% else %}{{ t('connectors.no_credential') }}{% endif %}</dd>
+      </dl>
+    </section>
+    <section class="panel">
+      <h2>{{ t('connectors.cursor') }}</h2>
+      <p>{{ t('connectors.cursor_empty') }}</p>
+    </section>
+    <section class="panel trust-boundary">
+      <h2>{{ t('connectors.original_boundary') }}</h2>
+      <p>{{ t('connectors.original_preserved') }}</p>
+    </section>
+  </aside>
+</section>
+{% endblock %}

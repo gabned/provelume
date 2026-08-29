@@ -7,7 +7,11 @@ from ipaddress import ip_address
 from typing import Any
 from urllib.parse import urlsplit
 
-CONNECTOR_RECORD_SCHEMA_VERSION = 1
+CONNECTOR_DEFINITION_SCHEMA_VERSION = 1
+CONNECTOR_LIFECYCLE_SCHEMA_VERSION = 2
+CONNECTOR_INVENTORY_SCHEMA_VERSION = 2
+# Backward-compatible public alias retained for the S01 definition contract.
+CONNECTOR_RECORD_SCHEMA_VERSION = CONNECTOR_DEFINITION_SCHEMA_VERSION
 CONNECTOR_ADAPTER_PROTOCOL_VERSION = 1
 CONNECTOR_CONFORMANCE_PROFILE = "provelume.connector.v1"
 
@@ -22,6 +26,7 @@ CONNECTOR_AUTHORIZATION_MODES = ("none", "external_secret", "oauth2_pkce")
 CONNECTOR_NETWORK_MODES = ("disabled", "explicit")
 CONNECTOR_SECRET_REFERENCE_KINDS = ("environment", "system_keyring")
 CONNECTOR_SOURCE_KINDS = ("web",)
+CONNECTOR_LIFECYCLE_STATES = ("active", "removed")
 MAX_CONNECTOR_DATA_CATEGORIES = 32
 MAX_CONNECTOR_ORIGINS = 32
 MAX_CONNECTOR_SCOPES = 64
@@ -56,7 +61,7 @@ _DEFINITION_RECORD_KEYS = _DEFINITION_INPUT_KEYS | {
     "id",
     "created_at",
 }
-_INSTANCE_RECORD_KEYS = frozenset(
+_INSTANCE_RECORD_KEYS_V1 = frozenset(
     {
         "schema_version",
         "id",
@@ -73,7 +78,15 @@ _INSTANCE_RECORD_KEYS = frozenset(
         "updated_at",
     }
 )
-_CONNECTOR_SOURCE_RECORD_KEYS = frozenset(
+_INSTANCE_RECORD_KEYS_V2 = _INSTANCE_RECORD_KEYS_V1 | {
+    "endpoint",
+    "enabled",
+    "lifecycle_state",
+    "removed_at",
+    "cursors",
+    "health",
+}
+_CONNECTOR_SOURCE_RECORD_KEYS_V1 = frozenset(
     {
         "schema_version",
         "id",
@@ -85,6 +98,12 @@ _CONNECTOR_SOURCE_RECORD_KEYS = frozenset(
         "external_id",
     }
 )
+_CONNECTOR_SOURCE_RECORD_KEYS_V2 = _CONNECTOR_SOURCE_RECORD_KEYS_V1 | {
+    "enabled",
+    "lifecycle_state",
+    "updated_at",
+    "removed_at",
+}
 
 
 class ConnectorError(ValueError):
@@ -297,6 +316,7 @@ def normalise_connector_instance_configuration(
     authorization_mode: Any,
     scopes: Any,
     credential_reference: Any,
+    endpoint: Any = None,
 ) -> dict[str, Any]:
     if network_mode not in CONNECTOR_NETWORK_MODES:
         raise ConnectorError("network_mode is unsupported")
@@ -309,6 +329,15 @@ def normalise_connector_instance_configuration(
     if len(allowed_origins) > MAX_CONNECTOR_ORIGINS:
         raise ConnectorError(f"allowed_origins exceeds the {MAX_CONNECTOR_ORIGINS}-item limit")
     origins = sorted({normalise_connector_origin(item) for item in allowed_origins})
+    selected_endpoint = (
+        origins[0]
+        if endpoint is None and origins
+        else None
+        if endpoint is None
+        else normalise_connector_origin(endpoint)
+    )
+    if selected_endpoint is not None and selected_endpoint not in origins:
+        raise ConnectorError("endpoint must be included in allowed_origins")
     if network_mode == "explicit" and not origins:
         raise ConnectorError("explicit network mode requires at least one allowed origin")
     selected_scopes = _normalise_identifier_list(
@@ -334,11 +363,101 @@ def normalise_connector_instance_configuration(
             max_chars=256,
         ),
         "account_identity": selected_account,
+        "endpoint": selected_endpoint,
         "network_mode": str(network_mode),
         "allowed_origins": origins,
         "authorization_mode": str(authorization_mode),
         "scopes": selected_scopes,
         "credential_reference": selected_reference,
+    }
+
+
+def connector_instance_lifecycle(value: Mapping[str, Any]) -> dict[str, Any]:
+    schema_version = value.get("schema_version")
+    if schema_version == CONNECTOR_DEFINITION_SCHEMA_VERSION:
+        return {
+            "enabled": True,
+            "lifecycle_state": "active",
+            "removed_at": None,
+            "cursors": {},
+            "health": {
+                "status": "not_checked",
+                "checked_at": None,
+                "code": "network_not_attempted",
+            },
+        }
+    if schema_version != CONNECTOR_LIFECYCLE_SCHEMA_VERSION:
+        raise ConnectorError("connector instance schema version is unsupported")
+
+    enabled = value.get("enabled")
+    lifecycle_state = value.get("lifecycle_state")
+    removed_at = value.get("removed_at")
+    cursors = value.get("cursors")
+    health = value.get("health")
+    if type(enabled) is not bool:
+        raise ConnectorError("connector instance enabled state must be boolean")
+    if lifecycle_state not in CONNECTOR_LIFECYCLE_STATES:
+        raise ConnectorError("connector instance lifecycle state is unsupported")
+    if lifecycle_state == "removed":
+        if enabled or not isinstance(removed_at, str) or not removed_at.strip():
+            raise ConnectorError("removed connector instance lifecycle is invalid")
+        expected_health = {
+            "status": "removed",
+            "checked_at": None,
+            "code": "connector_removed",
+        }
+    else:
+        if removed_at is not None:
+            raise ConnectorError("active connector instance cannot have removed_at")
+        expected_health = {
+            "status": "not_checked" if enabled else "disabled",
+            "checked_at": None,
+            "code": "network_not_attempted" if enabled else "connector_disabled",
+        }
+    if cursors != {}:
+        raise ConnectorError("connector cursors must remain empty before refresh is implemented")
+    if health != expected_health:
+        raise ConnectorError("connector health state is invalid")
+    return {
+        "enabled": enabled,
+        "lifecycle_state": str(lifecycle_state),
+        "removed_at": removed_at,
+        "cursors": {},
+        "health": expected_health,
+    }
+
+
+def connector_source_lifecycle(value: Mapping[str, Any]) -> dict[str, Any]:
+    schema_version = value.get("schema_version")
+    if schema_version == CONNECTOR_DEFINITION_SCHEMA_VERSION:
+        return {
+            "enabled": True,
+            "lifecycle_state": "active",
+            "updated_at": value.get("created_at"),
+            "removed_at": None,
+        }
+    if schema_version != CONNECTOR_LIFECYCLE_SCHEMA_VERSION:
+        raise ConnectorError("connector Source schema version is unsupported")
+    enabled = value.get("enabled")
+    lifecycle_state = value.get("lifecycle_state")
+    updated_at = value.get("updated_at")
+    removed_at = value.get("removed_at")
+    if type(enabled) is not bool:
+        raise ConnectorError("connector Source enabled state must be boolean")
+    if lifecycle_state not in CONNECTOR_LIFECYCLE_STATES:
+        raise ConnectorError("connector Source lifecycle state is unsupported")
+    if not isinstance(updated_at, str) or not updated_at.strip():
+        raise ConnectorError("connector Source updated_at is invalid")
+    if lifecycle_state == "removed":
+        if enabled or not isinstance(removed_at, str) or not removed_at.strip():
+            raise ConnectorError("removed connector Source lifecycle is invalid")
+    elif removed_at is not None:
+        raise ConnectorError("active connector Source cannot have removed_at")
+    return {
+        "enabled": enabled,
+        "lifecycle_state": str(lifecycle_state),
+        "updated_at": updated_at,
+        "removed_at": removed_at,
     }
 
 
@@ -409,15 +528,39 @@ def canonical_connector_errors(
                 authorization_mode=value.get("authorization_mode"),
                 scopes=value.get("scopes"),
                 credential_reference=value.get("credential_reference"),
+                endpoint=value.get("endpoint"),
+            )
+            lifecycle = connector_instance_lifecycle(value)
+            schema_version = value.get("schema_version")
+            expected_keys = (
+                _INSTANCE_RECORD_KEYS_V1
+                if schema_version == CONNECTOR_DEFINITION_SCHEMA_VERSION
+                else _INSTANCE_RECORD_KEYS_V2
+            )
+            comparable_config = (
+                {key: selected for key, selected in config.items() if key != "endpoint"}
+                if schema_version == CONNECTOR_DEFINITION_SCHEMA_VERSION
+                else config
             )
             valid = (
-                set(value) == _INSTANCE_RECORD_KEYS
+                set(value) == expected_keys
                 and type(value.get("schema_version")) is int
-                and value.get("schema_version") == CONNECTOR_RECORD_SCHEMA_VERSION
+                and schema_version
+                in {
+                    CONNECTOR_DEFINITION_SCHEMA_VERSION,
+                    CONNECTOR_LIFECYCLE_SCHEMA_VERSION,
+                }
                 and _INSTANCE_ID.fullmatch(record_id) is not None
                 and value.get("id") == record_id
                 and isinstance(definition_id, str)
-                and all(value.get(key) == selected for key, selected in config.items())
+                and all(
+                    value.get(key) == selected
+                    for key, selected in comparable_config.items()
+                )
+                and (
+                    schema_version == CONNECTOR_DEFINITION_SCHEMA_VERSION
+                    or all(value.get(key) == selected for key, selected in lifecycle.items())
+                )
                 and all(
                     isinstance(value.get(field), str) and bool(str(value[field]).strip())
                     for field in ("created_at", "updated_at")
@@ -479,14 +622,29 @@ def canonical_connector_errors(
                 source_kind=value.get("source_kind"),
                 external_id=value.get("external_id"),
             )
+            lifecycle = connector_source_lifecycle(value)
+            schema_version = value.get("schema_version")
+            expected_keys = (
+                _CONNECTOR_SOURCE_RECORD_KEYS_V1
+                if schema_version == CONNECTOR_DEFINITION_SCHEMA_VERSION
+                else _CONNECTOR_SOURCE_RECORD_KEYS_V2
+            )
             valid = (
-                set(value) == _CONNECTOR_SOURCE_RECORD_KEYS
+                set(value) == expected_keys
                 and type(value.get("schema_version")) is int
-                and value.get("schema_version") == CONNECTOR_RECORD_SCHEMA_VERSION
+                and schema_version
+                in {
+                    CONNECTOR_DEFINITION_SCHEMA_VERSION,
+                    CONNECTOR_LIFECYCLE_SCHEMA_VERSION,
+                }
                 and _SOURCE_ID.fullmatch(record_id) is not None
                 and value.get("id") == record_id
                 and isinstance(connector_instance_id, str)
                 and all(value.get(key) == selected for key, selected in config.items())
+                and (
+                    schema_version == CONNECTOR_DEFINITION_SCHEMA_VERSION
+                    or all(value.get(key) == selected for key, selected in lifecycle.items())
+                )
                 and isinstance(value.get("created_at"), str)
                 and bool(str(value["created_at"]).strip())
             )
@@ -517,6 +675,17 @@ def canonical_connector_errors(
                 (
                     "connector_source_kind_unsupported",
                     "Connector Source kind is not declared by its definition",
+                    path,
+                )
+            )
+        if (
+            connector_instance_lifecycle(instance)["lifecycle_state"] == "removed"
+            and lifecycle["lifecycle_state"] != "removed"
+        ):
+            errors.append(
+                (
+                    "connector_source_parent_removed",
+                    "Active connector Source references a removed connector instance",
                     path,
                 )
             )

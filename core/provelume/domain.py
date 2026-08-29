@@ -39,11 +39,17 @@ class ConnectorInstance:
     name: str
     provider_identity: str
     account_identity: str | None
+    endpoint: str | None
     network_mode: str
     allowed_origins: tuple[str, ...]
     authorization_mode: str
     scopes: tuple[str, ...]
     credential_reference: dict[str, str] | None
+    enabled: bool
+    lifecycle_state: str
+    removed_at: str | None
+    cursors: dict[str, Any]
+    health: dict[str, Any]
     created_at: str
     updated_at: str
 
@@ -58,6 +64,10 @@ class ConnectorSource:
     connector_instance_id: str
     source_kind: str
     external_id: str
+    enabled: bool
+    lifecycle_state: str
+    updated_at: str
+    removed_at: str | None
 
 
 @dataclass(frozen=True, slots=True)

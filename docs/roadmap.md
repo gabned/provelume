@@ -54,6 +54,11 @@ one bounded owner product pull request at a time adds its implementation slices 
 Version alignment, tagging and publication remain separate release-preparation and trusted-workflow
 steps.
 
+`0.7/S01` has established the network-free identity/manifest/policy foundation. `0.7/S02`
+extends that foundation with compatible lifecycle-schema records, tombstone removal,
+configuration-operation evidence and aligned read-only connector views; OAuth, transport,
+acquisition and background refresh remain later boundaries.
+
 ## Planning and delivery contract
 
 - Activate one release at a time through one canonical parent issue and keep exactly one current
@@ -344,6 +349,11 @@ authorization, scope set and policy; each instance may expose any number of inde
 Sources such as mailboxes, folders, calendars, workspaces, projects or feeds. Connector instances
 have stable identities, isolated credentials, cursors, schedules and health. No adapter may rely on
 a process-wide singleton account.
+
+The local lifecycle can update and disable an instance or Source independently. Removal retains a
+canonical tombstone so existing Acquisitions, Documents and Original provenance remain valid; it
+does not trigger provider deletion, local purge or Original replacement. S02 cursor envelopes stay
+empty and configuration health stays network-free until later execution contracts exist.
 
 **Exit gate:** synthetic hostile-network fixtures fail closed, every acquisition is attributable,
 and disabling network capability prevents access without a silent fallback.
