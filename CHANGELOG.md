@@ -4,6 +4,15 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Fixed
+
+- made permanent purge include bounded operational records linked through the selected Document's
+  Version and Acquisition identities, preventing retained ingestion locators and dangling
+  acquisition references after purge;
+- serialized filesystem ingestion, ingestion retry and Inbox ingestion with the same cross-process
+  Instance lifecycle lock used by permanent purge, so canonical acquisition cannot race purge
+  staging, rollback or recovery.
+
 ## 0.6.0 - 2026-08-28
 
 ### Added

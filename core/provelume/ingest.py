@@ -16,6 +16,7 @@ from .ingestion_runs import (
     IngestionLedger,
     IngestionRunRecord,
 )
+from .instance_lifecycle import InstanceLifecycleManager
 from .paths import UnsafePathError, normalise_locator
 from .storage import InstanceStore, utc_now
 
@@ -295,7 +296,7 @@ def _process_item(
     return finished, acquisition
 
 
-def run_ingestion_filesystem(
+def _run_ingestion_filesystem_locked(
     store: InstanceStore,
     source_path: Path | str,
     *,
@@ -363,6 +364,26 @@ def run_ingestion_filesystem(
     )
 
 
+def run_ingestion_filesystem(
+    store: InstanceStore,
+    source_path: Path | str,
+    *,
+    source_name: str | None = None,
+    max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
+    max_files: int = DEFAULT_MAX_FILES,
+) -> IngestionRunResult:
+    """Ingest one filesystem Source under the Instance mutation lock."""
+
+    with InstanceLifecycleManager(store)._hold(purpose="filesystem-ingestion"):
+        return _run_ingestion_filesystem_locked(
+            store,
+            source_path,
+            source_name=source_name,
+            max_file_bytes=max_file_bytes,
+            max_files=max_files,
+        )
+
+
 def _safe_retry_path(source_path: Path, locator: str) -> Path:
     configured = source_path.expanduser().resolve(strict=True)
     root = configured.parent if configured.is_file() else configured
@@ -380,7 +401,10 @@ def _safe_retry_path(source_path: Path, locator: str) -> Path:
     return candidate
 
 
-def retry_ingestion_run(store: InstanceStore, run_id: str) -> IngestionRunResult:
+def _retry_ingestion_run_locked(
+    store: InstanceStore,
+    run_id: str,
+) -> IngestionRunResult:
     ledger = IngestionLedger(store)
     previous = ledger.get_run(run_id)
     if previous is None:
@@ -440,6 +464,13 @@ def retry_ingestion_run(store: InstanceStore, run_id: str) -> IngestionRunResult
         items=tuple(finished_items),
         acquisitions=tuple(acquisitions),
     )
+
+
+def retry_ingestion_run(store: InstanceStore, run_id: str) -> IngestionRunResult:
+    """Retry failed ingestion under the Instance mutation lock."""
+
+    with InstanceLifecycleManager(store)._hold(purpose="filesystem-ingestion-retry"):
+        return _retry_ingestion_run_locked(store, run_id)
 
 
 def ingest_filesystem(
