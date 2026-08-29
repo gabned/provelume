@@ -26,6 +26,34 @@ EXPECTED_CONTRACT = {
 }
 
 FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(7, 23)) + ("1.0.0",)
+LATIN_RELEASE_NAMES = {
+    "0.1.0": "Fundamentum",
+    "0.2.0": "Fiducia",
+    "0.3.0": "Ancora",
+    "0.4.0": "Fenestra",
+    "0.4.1": "Robur",
+    "0.5.0": "Ingressus",
+    "0.5.1": "Firmitas",
+    "0.6.0": "Bibliotheca",
+    "0.6.1": "Integritas",
+    "0.7.0": "Vinculum",
+    "0.8.0": "Vigilia",
+    "0.9.0": "Lectio",
+    "0.10.0": "Cura",
+    "0.11.0": "Entitas",
+    "0.12.0": "Concordia",
+    "0.13.0": "Itinerarium",
+    "0.14.0": "Interfacies",
+    "0.15.0": "Custodia",
+    "0.16.0": "Iudicium",
+    "0.17.0": "Sensus",
+    "0.18.0": "Domus",
+    "0.19.0": "Excubitor",
+    "0.20.0": "Renovatio",
+    "0.21.0": "Societas",
+    "0.22.0": "Probatio",
+    "1.0.0": "Maturitas",
+}
 
 
 def _read(path: Path) -> str:
@@ -106,6 +134,23 @@ def test_roadmap_records_published_history_active_release_and_next_forecast() ->
     assert "#102 (completed)" in roadmap
     assert "The package and embedded identity are `0.6.1`" in roadmap
     assert "Issue #105 activates `0.7.0`" in roadmap
+
+
+def test_every_release_has_a_unique_latin_name_and_concise_outcome() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    assert len(LATIN_RELEASE_NAMES) == 26
+    assert len(set(LATIN_RELEASE_NAMES.values())) == len(LATIN_RELEASE_NAMES)
+    for version, name in LATIN_RELEASE_NAMES.items():
+        assert re.fullmatch(r"[A-Za-z]+", name)
+        assert roadmap.count(f"| `{name}` |") == 1
+        summary = re.compile(
+            rf"^- \*\*`{re.escape(version)}` — `{name}`\.\*\* .+\n(?:  .+\n)*  .+\.$",
+            re.MULTILINE,
+        )
+        assert summary.search(roadmap), f"missing concise outcome for {version} — {name}"
+
+    assert "names do not replace SemVer, package identity, tags" in roadmap
 
 
 def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> None:
@@ -251,6 +296,99 @@ def test_update_policy_forecast_is_explicit_and_user_controlled() -> None:
         assert future_policy in roadmap
 
 
+def test_watched_folder_ocr_and_automation_forecast_is_explicit() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    assert roadmap.count(
+        "| Next forecast | `0.8.0` | Refresh engine, watched folders and Source lifecycle |"
+    ) == 1
+    assert roadmap.count(
+        "| Forecast | `0.9.0` | OCR, email, Google file and transcript intake |"
+    ) == 1
+    for required_contract in (
+        "**disabled/offline**",
+        "**manual**",
+        "**assisted with confirmation**",
+        "**controlled automatic**",
+        "UNC/SMB or mounted",
+        "configurable quiescence window",
+        "move-after-commit",
+        "missing external folder or network mount",
+        "optional local OCR increment tracked by #5",
+        "disabled, automatic when",
+        "forced and selected-page modes",
+        "page-level text, coordinates",
+        "OCR never replaces the Original",
+        "remote OCR or\nvision provider",
+    ):
+        assert required_contract in roadmap
+
+
+def test_legacy_import_git_mirror_and_mcp_connections_are_optional() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    for required_contract in (
+        "generic legacy filesystem/Markdown archive importer",
+        "operator-authored mapping manifest",
+        "dry-run, copy-only staging",
+        "final\nreconciliation report",
+        "provider-independent Git mirror capability",
+        "GitHub, GitLab and Gitea",
+        "disabled, manual publish or scheduled one-way publish",
+        "secret and sensitive-data findings",
+        "unknown visibility fails closed for private payloads",
+        "Bidirectional multi-master Git synchronization remains excluded",
+        "authenticated remote HTTPS MCP",
+        "ChatGPT is qualified as one\noptional client",
+        "Git mirror and MCP are independent choices",
+        "no-GitHub modes remain complete product paths",
+    ):
+        assert required_contract in roadmap
+
+
+def test_ai_classification_is_closed_reviewable_and_reconcilable() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    assert roadmap.count(
+        "| Forecast | `0.16.0` | AI classification, receipts, provider adapters and evaluation |"
+    ) == 1
+    for required_contract in (
+        "disabled, proposal-only, confirm-each and controlled-automatic modes",
+        "exact Document Version/Original hash",
+        "closed schema",
+        "new or broadened rule require review",
+        "Destructive actions, permanent purge",
+        "treated as untrusted data rather than\ninstructions",
+        "receive no ambient tools or connector secrets",
+        "indirect prompt-injection tests",
+        "watched-folder acquisition, exact Original preservation, extraction/OCR",
+        "optional\none-way Git publication",
+    ):
+        assert required_contract in roadmap
+
+
+def test_synology_and_windows_background_profiles_are_qualified() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    assert roadmap.count(
+        "| Forecast | `0.18.0` | Self-hosted and Synology operations |"
+    ) == 1
+    assert roadmap.count(
+        "| Forecast | `0.19.0` | Windows background agent and bootstrap completion |"
+    ) == 1
+    for required_contract in (
+        "DSM Container Manager and Portainer-compatible Compose",
+        "UID/GID and ACL diagnostics",
+        "optional encrypted portable\nbundle",
+        "documented Synology architecture",
+        "per-user background agent and tray surface",
+        "manual runtime, start-at-login",
+        "sleep/wake, network-share loss",
+        "while the main window\nis closed",
+    ):
+        assert required_contract in roadmap
+
+
 def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
     roadmap = _read(ROADMAP_PATH)
 
@@ -268,7 +406,7 @@ def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
         "per-instance read/write policy",
         "guarded task write-back preview",
         "explicit diff, human confirmation",
-        "Local-only mode performs no connector access",
+        "Local-only/no-GitHub mode\nperforms no connector or mirror access",
     ):
         assert required_contract in roadmap
 

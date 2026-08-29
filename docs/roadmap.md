@@ -20,34 +20,98 @@ request, tag, release or delivery commitment. Planned-version movement follows
 
 ## Release lane
 
-| State | Version | Product outcome | Activation |
-| --- | --- | --- | --- |
-| Published preview | `0.1.0` | Local provenance-first Instance and verified release foundation | #40 (completed) |
-| Published preview | `0.2.0` | Local Installation Trust and Privacy & Network Activity transparency | #50 (merged) |
-| Published preview | `0.3.0` | Anchored Local Installation Trust | #52 (completed) |
-| Published preview | `0.4.0` | Windows product shell preview | #57 (completed) |
-| Published preview | `0.4.1` | Windows product shell hardening | #62 (completed) |
-| Published preview | `0.5.0` | Durable ingestion, configurable local Inbox, document bundles and assurance | #66 and #72 (completed) |
-| Published preview | `0.5.1` | Stability, security, incremental indexing and accessibility hardening | #80 (completed) |
-| Published preview | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (completed) |
-| Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) |
-| Active implementation | `0.7.0` | Connector framework and safe web intake | #105 |
-| Next forecast | `0.8.0` | Refresh engine and Source lifecycle | issue just in time |
-| Forecast | `0.9.0` | Email, Google file and transcript intake | issue just in time |
-| Forecast | `0.10.0` | Unified Capture and Action Center | issue just in time |
-| Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time |
-| Forecast | `0.12.0` | Productivity connectors and guarded sync preview | issue just in time |
-| Forecast | `0.13.0` | Knowledge navigation, relations and deterministic discovery | issue just in time |
-| Forecast | `0.14.0` | Knowledge API v1 and read-only MCP | issue just in time |
-| Forecast | `0.15.0` | AI gateway and privacy routing | issue just in time |
-| Forecast | `0.16.0` | AI receipts, provider adapters and evaluation | issue just in time |
-| Forecast | `0.17.0` | Semantic and hybrid search | issue just in time |
-| Forecast | `0.18.0` | Self-hosted operations | issue just in time |
-| Forecast | `0.19.0` | Windows bootstrap completion | issue just in time |
-| Forecast | `0.20.0` | Signed Windows release and safe updater | issue just in time |
-| Forecast | `0.21.0` | Business and Cloud contracts preview | issue just in time |
-| Release candidate | `0.22.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time |
-| Stable | `1.0.0` | Stable provenance-first platform | issue just in time |
+| State | Version | Product outcome | Activation | Latin name |
+| --- | --- | --- | --- | --- |
+| Published preview | `0.1.0` | Local provenance-first Instance and verified release foundation | #40 (completed) | `Fundamentum` |
+| Published preview | `0.2.0` | Local Installation Trust and Privacy & Network Activity transparency | #50 (merged) | `Fiducia` |
+| Published preview | `0.3.0` | Anchored Local Installation Trust | #52 (completed) | `Ancora` |
+| Published preview | `0.4.0` | Windows product shell preview | #57 (completed) | `Fenestra` |
+| Published preview | `0.4.1` | Windows product shell hardening | #62 (completed) | `Robur` |
+| Published preview | `0.5.0` | Durable ingestion, configurable local Inbox, document bundles and assurance | #66 and #72 (completed) | `Ingressus` |
+| Published preview | `0.5.1` | Stability, security, incremental indexing and accessibility hardening | #80 (completed) | `Firmitas` |
+| Published preview | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (completed) | `Bibliotheca` |
+| Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
+| Active implementation | `0.7.0` | Connector framework and safe web intake | #105 | `Vinculum` |
+| Next forecast | `0.8.0` | Refresh engine, watched folders and Source lifecycle | issue just in time | `Vigilia` |
+| Forecast | `0.9.0` | OCR, email, Google file and transcript intake | issue just in time | `Lectio` |
+| Forecast | `0.10.0` | Unified Capture and Action Center | issue just in time | `Cura` |
+| Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
+| Forecast | `0.12.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
+| Forecast | `0.13.0` | Knowledge navigation, relations and deterministic discovery | issue just in time | `Itinerarium` |
+| Forecast | `0.14.0` | Knowledge API v1, read-only MCP and client connections | issue just in time | `Interfacies` |
+| Forecast | `0.15.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
+| Forecast | `0.16.0` | AI classification, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
+| Forecast | `0.17.0` | Semantic and hybrid search | issue just in time | `Sensus` |
+| Forecast | `0.18.0` | Self-hosted and Synology operations | issue just in time | `Domus` |
+| Forecast | `0.19.0` | Windows background agent and bootstrap completion | issue just in time | `Excubitor` |
+| Forecast | `0.20.0` | Signed Windows release and safe updater | issue just in time | `Renovatio` |
+| Forecast | `0.21.0` | Business and Cloud contracts preview | issue just in time | `Societas` |
+| Release candidate | `0.22.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time | `Probatio` |
+| Stable | `1.0.0` | Stable provenance-first platform | issue just in time | `Maturitas` |
+
+### Release names and concise outcomes
+
+Each release has one unique Latin codename for human-facing planning and communication. These
+names do not replace SemVer, package identity, tags or the immutable published release history.
+
+- **`0.1.0` — `Fundamentum`.** Establishes the local provenance-first Instance, deterministic
+  ingestion, browsing and search. It also establishes the verified build and release foundation.
+- **`0.2.0` — `Fiducia`.** Makes local installation consistency independently checkable. It also
+  exposes network capability and configuration without claiming that unobserved traffic occurred.
+- **`0.3.0` — `Ancora`.** Anchors installation trust to an operator-supplied offline release
+  bundle. Installed bytes can be compared directly with the wheel published for that release.
+- **`0.4.0` — `Fenestra`.** Introduces the first per-user Windows installer, launcher and managed
+  runtime. Update checks remain manual or explicitly enabled by the user.
+- **`0.4.1` — `Robur`.** Hardens startup, moved-Instance recovery, display scaling and update
+  validation. User data remains preserved through supported upgrade and uninstall paths.
+- **`0.5.0` — `Ingressus`.** Adds a durable Inbox, ingestion log, document bundles, duplicate
+  handling and configurable folders. Originals are preserved before any managed file move.
+- **`0.5.1` — `Firmitas`.** Strengthens security, performance and accessibility across the local
+  product. Incremental indexing retains a deterministic fallback and explicit recovery behavior.
+- **`0.6.0` — `Bibliotheca`.** Adds schema migration, backup, portable transfer and a hierarchical
+  Markdown library. Archive, trash and purge remain explicit lifecycle operations.
+- **`0.6.1` — `Integritas`.** Corrects purge integrity and serializes competing ingestion work.
+  It deliberately adds no new product feature or schema boundary.
+- **`0.7.0` — `Vinculum`.** Introduces connector and Source identities, OAuth with PKCE and guarded
+  manual web acquisition. Background refresh remains outside this active release boundary.
+- **`0.8.0` — `Vigilia`.** Adds user-controlled watched folders and a durable refresh/job
+  lifecycle. Schedules, mounted locations, quiescence and resource use stay under operator control.
+- **`0.9.0` — `Lectio`.** Adds local OCR and richer intake for scanned files, email, Google files
+  and transcripts. Cloud extraction is never an unannounced requirement or fallback.
+- **`0.10.0` — `Cura`.** Unifies capture, review queues, actions and mobile-friendly triage in one
+  Action Center. Destructive automation remains disabled unless the user explicitly enables it.
+- **`0.11.0` — `Entitas`.** Adds evidence-linked objects, claims, decisions, tasks, calendar items
+  and relations. Derived structure remains traceable to exact Originals and canonical records.
+- **`0.12.0` — `Concordia`.** Adds productivity connectors, guarded task synchronization and
+  optional one-way Git mirrors. GitHub, GitLab and Gitea remain selectable integrations, not runtime
+  requirements.
+- **`0.13.0` — `Itinerarium`.** Adds navigation, backlinks, health views and deterministic
+  discovery. A generic importer brings legacy filesystem and Markdown archives in with dry-run and
+  reconciliation evidence.
+- **`0.14.0` — `Interfacies`.** Stabilizes Knowledge API v1 and read-only MCP client profiles.
+  ChatGPT can connect locally, remotely or through a private tunnel without requiring Git sync.
+- **`0.15.0` — `Custodia`.** Adds a replaceable AI gateway with local, remote and fallback policy
+  by scope. Privacy, redaction, budgets and network use remain visible and user-controlled.
+- **`0.16.0` — `Iudicium`.** Adds guarded AI classification, receipts, review rules and provider
+  evaluation. The end-to-end intake flow resists prompt injection and keeps every catalog action
+  reviewable or reversible.
+- **`0.17.0` — `Sensus`.** Adds semantic and hybrid retrieval across canonical knowledge.
+  Embeddings and indexes remain derived, rebuildable state rather than a new source of truth.
+- **`0.18.0` — `Domus`.** Qualifies self-hosted and Synology operation with documented containers,
+  mounts, identity, backup and restore. Upgrade and rollback boundaries stay explicit.
+- **`0.19.0` — `Excubitor`.** Adds a Windows background agent, tray controls and start-at-login
+  operation. Watched intake can continue while the main interface is closed and can always be
+  paused.
+- **`0.20.0` — `Renovatio`.** Adds signed Windows artifacts and a safe updater with manual,
+  notification-only and automatic modes. Verification, staged replacement and rollback protect the
+  Instance.
+- **`0.21.0` — `Societas`.** Introduces organization, workspace, tenant and role contracts without
+  forking Core. Encryption and administrative boundaries remain explicit and portable.
+- **`0.22.0` — `Probatio`.** Freezes the intended 1.0 compatibility surface for end-to-end,
+  security, recovery and support qualification. Release-candidate evidence decides stable readiness.
+- **`1.0.0` — `Maturitas`.** Establishes the stable support perimeter and finalized public
+  contracts, artifacts and operating paths. It is a maturity gate, not a container for late new
+  features.
 
 The package and embedded identity are `0.6.1` and remain unchanged. Issue #105 activates `0.7.0`;
 one bounded owner product pull request at a time adds its implementation slices under `Unreleased`.
@@ -56,8 +120,9 @@ steps.
 
 `0.7/S01` has established the network-free identity/manifest/policy foundation. `0.7/S02`
 extends that foundation with compatible lifecycle-schema records, tombstone removal,
-configuration-operation evidence and aligned read-only connector views; OAuth, transport,
-acquisition and background refresh remain later boundaries.
+configuration-operation evidence and aligned read-only connector views. `0.7/S03` and its
+bounded correction establish the provider-independent OAuth 2.0/PKCE installed-app boundary;
+guarded transport, acquisition and background refresh remain later boundaries.
 
 ## Planning and delivery contract
 
@@ -153,6 +218,27 @@ exact/probable duplicates, version conflicts, extraction errors, Source changes,
 later AI proposals. Each item shows preview, provenance/hash, proposed action, reason/confidence,
 impact and reversibility. Confirmed rules may automate only bounded non-destructive routing;
 destructive or identity-changing decisions always require a human action.
+
+## User-controlled automation and interoperability contract
+
+Capabilities that can observe files, contact a network service, send content to an inference
+provider, publish a mirror or install an update expose distinct user-selectable modes rather than
+one ambiguous automation switch. Where technically applicable the modes are **disabled/offline**,
+**manual**, **assisted with confirmation** and **controlled automatic**. The default remains the
+least-networked non-destructive mode, and changing mode records a privacy-minimizing operation.
+
+Mode and policy may be set at Instance, ConnectorInstance, Source and, where data handling needs
+it, Area or Project scope. The narrowest explicit policy wins; a child may further restrict but
+never silently broaden a parent network, data-category, retention or write boundary. A dry run,
+impact preview, pause/resume control, bounded resource schedule and visible last/next-action state
+remain available wherever background work exists. Destructive, identity-changing and external
+provider-write actions never become unconfirmed automation merely because a broader mode is on.
+
+Direct API/MCP access and portable export remain the primary provider-independent integration
+surfaces. A Git-backed mirror is an optional compatibility and human-navigation surface, not
+canonical storage, mandatory backup or a runtime dependency. GitHub, GitLab, Gitea and another
+standards-compatible remote may be qualified behind the same Git capability; local-only and
+no-GitHub modes remain complete product paths.
 
 ## Published foundation
 
@@ -360,42 +446,84 @@ and disabling network capability prevents access without a silent fallback.
 
 **Not in this release:** broad connector catalogue or background scheduling.
 
-### 0.8.0 — Refresh Engine and Source Lifecycle
+### 0.8.0 — Refresh Engine, Watched Folders and Source Lifecycle
 
 **Depends on:** `0.7.0` Source contract.
 
-**Outcome:** make refresh, retry and Source state durable without turning every poll into a new
-document version.
+**Outcome:** make local-folder observation, refresh, retry and Source state durable without
+turning every filesystem event or poll into a new document version.
 
-**Includes:** bounded persistent jobs; manual/periodic/scheduled/conditional policies;
-per-ConnectorInstance, per-account and per-Source cursors/checkpoints; conditional requests;
-rate-limit handling; retry/backoff/cancellation; instance/Source locking and idempotency; explicit
-active/paused/error/missing/superseded/reauthorization-required states; redacted network events
-distinct from declared capability; last-attempt, last-success, next-run and bounded resync status.
+**Includes:** bounded persistent jobs; disabled, manual, periodic, scheduled, event-assisted and
+conditional policies; one or more independently configured local, removable, UNC/SMB or mounted
+Drop folders as filesystem Sources; recursive and non-recursive scope, include/exclude patterns,
+temporary-file rejection and a configurable quiescence window so a file is never acquired while
+still being written; initial scan plus periodic reconciliation so missed or coalesced watcher
+events cannot create silent gaps.
 
-**Exit gate:** unchanged bytes create no new version, retries are safe, and interrupted jobs
-resume or fail visibly with bounded evidence.
+Each folder retains the existing copy-by-default, leave-in-place and explicitly selected
+move-after-commit behavior. Move remains impossible before exact-byte preservation, hash
+verification and committed Acquisition evidence. A missing external folder or network mount is
+reported and never silently recreated; reconnection performs an idempotent reconciliation.
+Content identity distinguishes rename/movement from a changed Version without treating path alone
+as identity.
 
-### 0.9.0 — Email, Google File and Transcript Intake
+The same engine provides per-ConnectorInstance, per-account and per-Source cursors/checkpoints;
+conditional requests; rate-limit handling; retry/backoff/cancellation; instance/Source locking and
+idempotency; explicit active/paused/error/missing/superseded/reauthorization-required states;
+redacted local/network events distinct from declared capability; last-attempt, last-success,
+next-run and bounded resync status; quiet hours plus CPU, battery and metered-network limits where
+the host exposes them.
+
+**Exit gate:** unchanged bytes and duplicate watcher events create no new Version, partially
+written files are never committed, rename and changed-content behavior is explainable, unavailable
+mounts fail visibly without data loss, retries are safe, and interrupted jobs resume or fail with
+bounded evidence.
+
+**Suggested slices:** `0.8/S01` durable jobs and schedules; `0.8/S02` local/removable/network-folder
+Sources and quiescence; `0.8/S03` reconciliation, cursors and lifecycle states; `0.8/S04` resource
+policies, evidence and end-to-end recovery fixtures.
+
+### 0.9.0 — OCR, Email, Google File and Transcript Intake
 
 **Depends on:** `0.8.0` refresh engine.
 
-**Outcome:** validate the connector framework with communications, cloud files and transcripts
-while keeping Gmail, Google Drive, Plaud and every other provider outside the domain model.
+**Outcome:** make scans and images readable through a replaceable local OCR baseline, then validate
+the connector framework with communications, cloud files and transcripts while keeping every
+extractor and provider outside the canonical domain model.
 
-**Includes:** provider-neutral email, file and transcript Sources; local EML/mailbox adapter; a
-Google connector preview with independently consented read-only Gmail and Drive capabilities;
-thread/message/attachment and file/revision identity with deduplication; attachment extraction;
-bounded export of supported Google-native files with export format and provenance preserved;
-external secret references; transcript profile mapping into canonical documents; provider cursor
-state kept inside each adapter.
+**Includes:** the optional local OCR increment tracked by #5 with explicit packaging, licensing and
+platform support evidence; scanned PDF, TIFF and supported image inputs; disabled, automatic when
+no trustworthy text exists, forced and selected-page modes; explicit language selection or bounded
+language detection; rotation/orientation and conservative deskew; page-level text, coordinates,
+confidence and warnings; separately identified layout/table and barcode/QR observations when a
+supported adapter can produce them. Engine, version, languages, settings and source-page identity
+remain recorded in a rebuildable derived artifact, and OCR never replaces the Original or
+pretends uncertain handwriting is verified text.
 
-**Exit gate:** re-import and refresh are idempotent, attachments and Drive revisions retain
-provenance, revoked authorization fails visibly without corrupting canonical state, and provider
-replacement does not migrate canonical knowledge.
+Native OCR and image/PDF processing run behind bounded resource, decompression, page, pixel and
+time limits with hostile/corrupt fixtures. Local OCR is the offline baseline. A later remote OCR or
+vision provider must pass through the `0.15.0` AI/privacy gateway and cannot become a silent
+fallback.
+
+The release also includes provider-neutral email, file and transcript Sources; local EML/mailbox
+adapter; a Google connector preview with independently consented read-only Gmail and Drive
+capabilities; thread/message/attachment and file/revision identity with deduplication; attachment
+extraction and OCR eligibility; bounded export of supported Google-native files with export format
+and provenance preserved; external secret references; transcript profile mapping into canonical
+documents; provider cursor state kept inside each adapter.
+
+**Exit gate:** local OCR can be removed and rebuilt without changing canonical knowledge; existing
+trustworthy text is not needlessly degraded; low-confidence pages remain visibly uncertain;
+hostile, oversized and unsupported inputs fail safely; re-import and refresh are idempotent;
+attachments and Drive revisions retain provenance; revoked authorization fails visibly without
+corrupting canonical state; and provider replacement does not migrate canonical knowledge.
 
 **Not in this release:** Google Calendar, task-provider sync, email sending, or automatic claims,
 decisions and tasks derived from communications or transcripts.
+
+**Suggested slices:** `0.9/S01` OCR contract, licensing and packaging; `0.9/S02` bounded local OCR
+and document bundles; `0.9/S03` email identity and intake; `0.9/S04` Gmail/Drive adapters;
+`0.9/S05` transcript profiles; `0.9/S06` cross-source qualification and correction findings.
 
 ### 0.10.0 — Unified Capture and Action Center
 
@@ -431,6 +559,11 @@ confidence, impact, reversibility and a bounded choice set. Users can confirm or
 hierarchical Area/Project placement, create a reusable non-destructive routing rule, link an exact
 duplicate occurrence, or choose new-version/separate/related handling for probable duplicates.
 Destructive and identity-changing decisions never become automatic rules.
+
+Queue notifications are separately configurable as disabled, in-application only, host desktop/
+browser or a later explicitly configured provider channel. Notification previews omit document
+content and sensitive titles by default, support quiet hours and aggregation, and link back to the
+same authoritative queue item rather than creating a second decision surface.
 
 The same Inbox provides a separately scoped write API with idempotency and audit journal,
 CSRF/session protection, distinct archive/remove-projection/trash/purge decisions and undo or
@@ -472,13 +605,14 @@ API and review workflow.
 **Exit gate:** objects round-trip through export/import, retain provenance through document
 version changes and never replace the authoritative original.
 
-### 0.12.0 — Productivity Connectors and Guarded Sync Preview
+### 0.12.0 — Productivity and Git Connectors with Guarded Sync Preview
 
 **Depends on:** the `0.7.0` connector contract, `0.8.0` refresh engine, `0.10.0` review
 queue and `0.11.0` provider-independent Task and CalendarEvent objects.
 
-**Outcome:** connect common personal productivity systems without making Google, iCalendar,
-Asana or Tududi part of canonical knowledge or granting background write authority by default.
+**Outcome:** connect common personal productivity and Git mirror systems without making Google,
+iCalendar, Asana, Tududi, GitHub or another host part of canonical knowledge or granting
+background write authority by default.
 
 **Includes:** multiple independently configurable instances for every provider. Google supports
 multiple identities, with independently scoped Gmail, Drive and Calendar capabilities and
@@ -503,15 +637,39 @@ Connector items can propose routing into existing Areas and Projects, but only c
 non-destructive rules may apply that routing automatically. No connector deletion is inferred from
 local archive, deduplication, Source removal or permanent purge.
 
-**Exit gate:** multiple Google accounts, Asana identities/workspaces/projects, Tududi endpoints
-and iCalendar feeds remain distinguishable; refresh and full resync are idempotent; recurrence and
-cross-provider duplicates are explainable; revoked credentials stop access without damaging
-imported knowledge; and a stale or replayed task write cannot overwrite newer provider state.
-Local-only mode performs no connector access.
+A provider-independent Git mirror capability supports multiple independently configured local or
+remote repositories and qualifies GitHub, GitLab and Gitea reference profiles without requiring
+any one host at runtime. Each mirror selects Instance/Area/Project scope, destination branch and
+path, and one of disabled, manual publish or scheduled one-way publish. The default payload is the
+human-readable Markdown library plus bounded portable metadata; exact Originals, private
+attachments and AI receipts require separate explicit include rules and a pre-publish inventory.
+
+Every publish provides a dry-run diff, content/size limits, secret and sensitive-data findings,
+external credential references, commit identity and a privacy-minimizing receipt. A policy may
+block on any finding or require confirmation. A hosted profile verifies repository visibility when
+the provider can prove it; unknown visibility fails closed for private payloads, while publishing
+to a public repository requires a separately allowlisted content scope and explicit confirmation.
+Remote failure, non-fast-forward state or rejected credentials leave canonical knowledge and the
+last valid mirror untouched. Remote deletion never causes local deletion, and local archive/purge
+never rewrites remote history. Bidirectional multi-master Git synchronization remains excluded; a
+remote repository may instead be imported through the explicit legacy-import boundary in
+`0.13.0`.
+
+**Exit gate:** multiple Google accounts, Asana identities/workspaces/projects, Tududi endpoints,
+iCalendar feeds and Git mirrors remain distinguishable; refresh and full resync are idempotent;
+recurrence and cross-provider duplicates are explainable; revoked credentials stop access without
+damaging imported knowledge; a stale or replayed task write cannot overwrite newer provider state;
+and repeated one-way Git publication produces no needless commit. Local-only/no-GitHub mode
+performs no connector or mirror access.
 
 **Not in this release:** email sending; calendar create/update/delete; autonomous task creation or
-deletion; generic two-way multi-master synchronization; or a mandatory 1.0 commitment for
-additional adapters such as CalDAV, Microsoft 365, IMAP, Notion or Todoist.
+deletion; generic two-way multi-master synchronization; Git as canonical storage or mandatory
+backup; or a mandatory 1.0 commitment for additional adapters such as CalDAV, Microsoft 365,
+IMAP, Notion or Todoist.
+
+**Suggested slices:** keep each provider adapter in its own owner slice after shared conformance
+contracts; implement Git mirror identity/dry-run first, then one-way publication and hosted-profile
+qualification without mixing it with task write-back.
 
 This independently releasable outcome takes the former `0.12.0` slot. Every later unreleased
 forecast moves forward atomically by one through the `0.22.0` release candidate. Published
@@ -535,11 +693,25 @@ relation graph; explainable stale/conflict/missing-evidence/superseded/orphaned 
 deterministic detectors; full-text object/relation search; filters; documented ranking; portable
 references and complete navigation/relation-index rebuild.
 
+A generic legacy filesystem/Markdown archive importer provides a clean-room migration path for
+existing personal knowledge trees without naming or depending on a private instance. An
+operator-authored mapping manifest relates source folders to Areas/Projects, pairs exact originals
+with same-name or explicitly mapped Markdown sidecars, preserves portable relative links where
+safe, inventories unsupported or ambiguous items and proposes rather than guesses classifications.
+Import offers dry-run, copy-only staging, bounded batches, resume, idempotent replay and a final
+reconciliation report covering source paths, byte counts, hashes, imported Acquisitions, links,
+unresolved items and zero source deletion. Synthetic fixtures qualify the public behavior; private
+data and mappings never enter the repository.
+
 **Exit gate:** every health finding identifies its evidence and rule, deterministic rebuilds
 agree, every related result explains its deterministic path, keyboard and mobile navigation reach
-the same knowledge, and discovery remains fully useful without AI or a vector store.
+the same knowledge, discovery remains fully useful without AI or a vector store, and a repeated
+legacy import is reconcilable without duplicate Documents or lost source bytes.
 
-### 0.14.0 — Knowledge API v1 and Read-only MCP
+**Suggested slices:** build deterministic navigation and health before the generic legacy-import
+profile; qualify import through synthetic folder/sidecar/link fixtures in a separate final slice.
+
+### 0.14.0 — Knowledge API v1, Read-only MCP and Client Connections
 
 **Depends on:** stable object and discovery contracts.
 
@@ -555,8 +727,23 @@ provenance/original-download and mobile-client conformance fixtures, all distinc
 MCP tools for search and retrieval; aligned CLI/browser services; reference clients;
 version negotiation and pre-1.0 deprecation policy.
 
-**Exit gate:** at least two clients pass the same conformance fixtures and no interface exposes
-unauthorized local paths, secrets or writes.
+Connection profiles cover local MCP clients, authenticated remote HTTPS MCP and a private-tunnel
+transport without making any tunnel vendor part of the Core contract. ChatGPT is qualified as one
+optional client through its supported remote/private connection path, alongside a generic MCP
+conformance client and a local Codex-style client. Users choose which tools, Areas, Projects,
+Sources and Original-download capability each connection may see; connections are revocable,
+read-only by default and expose neither physical paths nor external credential references.
+
+Git mirror and MCP are independent choices: a user may use direct MCP only, Git mirror only, both
+or neither. No client connection requires publishing knowledge to GitHub or exposing a private
+Instance directly to the public Internet.
+
+**Exit gate:** at least two clients pass the same conformance fixtures, an authenticated private
+connection can be revoked without restarting or corrupting the Instance, and no interface exposes
+unauthorized knowledge, local paths, secrets or writes.
+
+**Suggested slices:** freeze the API first, add local read-only MCP second, then qualify remote
+authentication/private transport and client profiles without adding write authority.
 
 ### 0.15.0 — AI Gateway and Privacy Routing
 
@@ -572,24 +759,61 @@ the Original only when permitted and needed; external secret references; source/
 local-only policy; no silent cloud fallback; bounded budget, retry and cancellation; explicit
 provider and network disclosure before execution.
 
+Users may select disabled/local-only, a specific local model endpoint, a specific remote provider
+or an explicit ordered fallback at Instance, Source, Area or Project scope. A fallback may narrow
+but never override a local-only or denied-data rule. Provider/model allowlists, per-job and periodic
+budgets, content minimization/redaction preview, metered-network policy and an operator-visible
+estimate remain independent controls. Optional remote OCR/vision also uses this gateway and never
+silently replaces the local `0.9.0` OCR path.
+
 **Exit gate:** local-only fails closed, provider substitution leaves canonical knowledge intact,
 and denied data never reaches a provider in policy tests.
 
-### 0.16.0 — AI Receipts, Provider Adapters and Evaluation
+### 0.16.0 — AI Classification, Receipts, Provider Adapters and Evaluation
 
 **Depends on:** `0.15.0` gateway.
 
-**Outcome:** make AI-assisted proposals attributable, reviewable and replaceable.
+**Outcome:** complete the user-controlled folder-to-knowledge path by making AI-assisted
+classification attributable, reviewable, safely applicable and replaceable.
 
 **Includes:** privacy-aware receipts with capability/model/policy/template/source/output identity;
 versioned templates; additional optional adapters behind the same capability contract; structured
 object and classification proposals delivered through the same Action Center; immutable separation
-between extracted Markdown and AI-authored output; mandatory review for initial durable writes;
-sanitized conformance/evaluation fixtures; provider replacement tests; configurable receipt
-retention with minimum provenance.
+between extracted Markdown and AI-authored output; sanitized conformance/evaluation fixtures;
+provider replacement tests; configurable receipt retention with minimum provenance.
 
-**Exit gate:** the same fixture can be evaluated across adapters, every durable proposal is
-traceable to source and policy, and logs contain neither secrets nor raw private content.
+Classification has explicit disabled, proposal-only, confirm-each and controlled-automatic modes.
+Every proposal is bound to the exact Document Version/Original hash and may select only current
+allowlisted Area, Project, Collection, tag and relation identities through a closed schema. It
+includes reason, evidence references and calibrated confidence; stale proposals fail before
+mutation. Initial durable writes and every new or broadened rule require review. A corrected,
+confirmed non-destructive rule may later route matching items automatically within its exact scope,
+threshold and expiry, with pause, dry-run, undo/compensation and a visible operation receipt.
+Destructive actions, permanent purge, external provider writes and identity merges remain outside
+automatic classification.
+
+Extracted/OCR text, document metadata and linked content are treated as untrusted data rather than
+instructions. Classification adapters receive no ambient tools or connector secrets; embedded
+prompt-like content cannot broaden scope, change policy, select a provider or authorize a write.
+Closed-output validation, adversarial document fixtures, indirect prompt-injection tests and
+content-leakage checks fail closed before an Action Center proposal exists.
+
+An optional guarded MCP profile may submit a classification proposal or confirm an already visible
+proposal through the same optimistic-concurrency and approval boundary; it never turns the
+`0.14.0` read-only profile into implicit write authority. The end-to-end reference workflow proves
+watched-folder acquisition, exact Original preservation, extraction/OCR, privacy-routed inference,
+review or confirmed-rule application, hierarchy/library rebuild, direct MCP retrieval and optional
+one-way Git publication as independently selectable steps.
+
+**Exit gate:** the same fixture can be evaluated across adapters; every durable proposal and
+applied classification is traceable to source, policy and exact input; prompt injection cannot
+create or broaden a proposal; disabling AI stops inference without stopping deterministic
+ingestion; the complete folder-to-knowledge workflow can be paused, retried and reconciled without
+duplicate knowledge or Original loss; and logs contain neither secrets nor raw private content.
+
+**Suggested slices:** `0.16/S01` receipts/templates/evaluation; `0.16/S02` closed classification
+proposals; `0.16/S03` review, rule and guarded-apply modes; `0.16/S04` adversarial isolation and
+optional write-scoped MCP; `0.16/S05` complete folder-to-knowledge qualification.
 
 ### 0.17.0 — Semantic and Hybrid Search
 
@@ -605,23 +829,45 @@ incompatible and missing-index health.
 **Exit gate:** delete-and-rebuild and provider-replacement tests preserve canonical objects,
 privacy routing and deterministic fallback search.
 
-### 0.18.0 — Self-hosted Operations
+### 0.18.0 — Self-hosted and Synology Operations
 
 **Depends on:** `0.6.0` lifecycle and mature application contracts.
 
-**Outcome:** make the public repository operable as a self-hosted product without GitHub at
-runtime.
+**Outcome:** make the public repository operable as an always-on self-hosted product, including a
+qualified Synology container profile, without GitHub at runtime.
 
-**Includes:** immutable packages/containers with build identity; supported runtime profile;
-configuration separated from data; secret references; health/readiness and redacted logs;
-documented init/start/stop/status/backup/restore/upgrade/rollback; N-1 to N migration; local
-authentication for non-loopback exposure; provider-neutral reverse-proxy/TLS guidance; retention
-and purge reporting that distinguishes the live Instance from backups and external replicas.
+**Includes:** immutable multi-architecture packages/containers with build identity and an explicit
+supported CPU/host matrix; configuration separated from data; secret references; health/readiness
+and redacted logs; documented init/start/stop/status/backup/restore/upgrade/rollback; N-1 to N
+migration; local authentication for non-loopback exposure; provider-neutral reverse-proxy/TLS
+guidance; retention and purge reporting that distinguishes the live Instance from backups and
+external replicas.
 
-**Exit gate:** a clean supported host can install, operate, upgrade, roll back and recover an
-Instance using only published artifacts and documentation.
+The Synology profile covers DSM Container Manager and Portainer-compatible Compose, bind/named
+volume choices, UID/GID and ACL diagnostics, NAS/local/UNC Source mounts, reverse proxy and TLS,
+restart/health policies, resource limits, log rotation, verified backup/restore and immutable-image
+upgrade with rollback. It documents integration boundaries for Hyper Backup or another external
+backup system without claiming that an unverified external copy is restorable. A native DSM
+package receives an explicit feasibility/support decision and is not required for the container
+profile.
 
-### 0.19.0 — Windows Bootstrap Completion
+Backup/export modes include ordinary operator-managed archives and an optional encrypted portable
+bundle with explicit key-recovery and lost-key warnings. Keys remain outside the Instance and
+backup payload; encryption never weakens manifest/hash verification. Self-hosted update policy is
+separate from the Windows updater and offers disabled, notify, download/stage and controlled
+automatic container replacement only after verified backup, migration preflight and health-based
+rollback are available.
+
+**Exit gate:** a clean supported Linux host and one documented Synology architecture can install,
+operate, upgrade, roll back and recover an Instance using only published artifacts and
+documentation; permission, mount-loss, backup-key-loss and interrupted-upgrade failures remain
+visible and recoverable within their documented boundaries.
+
+**Suggested slices:** immutable multi-architecture runtime; generic self-hosted lifecycle;
+Synology/DSM profile; encrypted backup and container-update recovery; final support-matrix
+qualification remain separate owner slices.
+
+### 0.19.0 — Windows Background Agent and Bootstrap Completion
 
 **Depends on:** the `0.4.0` product shell preview and `0.18.0` operations.
 
@@ -631,12 +877,23 @@ with a second launcher.
 
 **Includes:** hardened launcher/runtime/Instance separation; guided prerequisite and compatibility
 detection; complete create/open/start/stop/status/browser/diagnostics behavior; redacted logs;
-spaces, Unicode and case-insensitive path support; lifecycle-aware failure recovery; uninstall
+spaces, Unicode, UNC and case-insensitive path support; lifecycle-aware failure recovery; uninstall
 that preserves the Instance; final bootstrap support matrix and migration from the `0.4.0`
 preview installation.
 
-**Exit gate:** install/use/uninstall and failure-recovery fixtures pass on supported Windows
-targets without deleting user knowledge.
+A per-user background agent and tray surface make watched folders, scheduled refresh, Action
+Center notifications and permitted AI/Git work operate while the main window is closed. Users may
+choose manual runtime, start-at-login or an explicitly supported elevated service mode; pause all
+background activity or one Source; define quiet hours and CPU/battery/metered-network limits; and
+open the exact queue or failure from a content-minimizing notification. Disabled background mode
+performs no hidden work, and closing the UI never ambiguously changes the selected policy.
+
+**Exit gate:** install/use/uninstall, login-start, pause/resume, sleep/wake, network-share loss and
+failure-recovery fixtures pass on supported Windows targets without duplicate processing, hidden
+network activity or deletion of user knowledge.
+
+**Suggested slices:** complete launcher/bootstrap recovery before adding the per-user background
+agent, then qualify startup/tray/notification and optional elevated-service behavior separately.
 
 ### 0.20.0 — Signed Windows Release and Safe Updater
 
@@ -670,6 +927,11 @@ version pinning, skip-this-version, defer-until, metered-network and battery-awa
 security-update prominence, an update/rollback history and a one-click return to manual-only mode.
 Policy changes and automatic actions receive privacy-minimizing audit entries.
 
+The background agent may execute the selected check/download/install policy while the main window
+is closed, but only within the same persisted mode, maintenance-window, battery, metered-network,
+backup and rollback gates. Exiting or pausing Provelume exposes whether update checks remain enabled
+rather than silently leaving an updater behind.
+
 **Exit gate:** every policy is testably distinct and persists across restart; Disabled/offline
 performs no update network access; manual and notification modes never install; a pinned, skipped
 or deferred release is respected; automatic install cannot run outside its opt-in policy and
@@ -698,10 +960,12 @@ cross-tenant isolation tests without vendor-specific domain logic.
 **Outcome:** freeze compatibility and exercise all 1.0 gates without adding a new feature stream.
 
 **Includes:** Instance, Knowledge API/MCP and artifact contract freeze; supported migration,
-upgrade and rollback matrix; export/import and Windows/Linux interoperability; no-GitHub,
-no-external-AI and local-only tests; provider replacement and vector rebuild; at least two real
-clients; synthetic performance limits; focused security review; complete licensing, notices,
-support and deprecation documentation.
+upgrade and rollback matrix; export/import and Windows/Linux interoperability; watched-folder/OCR/
+classification/Git-mirror end-to-end qualification; generic Linux and documented Synology
+operations; Windows background-agent and updater recovery; no-GitHub, no-external-AI and local-only
+tests; provider replacement and vector rebuild; at least two real clients; synthetic performance
+limits; focused security review; complete licensing, notices, support and deprecation
+documentation.
 
 **Exit gate:** the candidate remains stable for the documented qualification period with all
 1.0 blockers closed or explicitly removed from the support perimeter.
@@ -727,8 +991,8 @@ public Core contracts.
 
 - #1 — repository protection and security settings audit; this is a repository-setting outcome,
   not product runtime scope.
-- #5 — optional local OCR and remaining ingestion inputs; OCR was not included in `0.5.0` and
-  requires a future clean-room, licensing, packaging and support decision.
+- #5 — remaining ingestion inputs stay cross-cutting; its optional local OCR increment is now
+  forecast for `0.9.0` with a clean-room, licensing, packaging and support gate.
 - #24 — immutable OCI builder lock and pinned-container cross-job rebuild evidence; this remains
   independent release-assurance hardening until an atomic planning change places it.
 - Detached provider-independent signing, key rotation and revocation before any release that
@@ -736,4 +1000,5 @@ public Core contracts.
 - Observed runtime network-activity instrumentation and egress enforcement only after a separate
   privacy, platform and support decision.
 
-This work is not part of `0.5.0` and receives a version only through an atomic planning change.
+Except for the explicitly placed `0.9.0` OCR increment, this work is not activated and receives a
+version only through an atomic planning change.
