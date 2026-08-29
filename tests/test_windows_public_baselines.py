@@ -43,17 +43,24 @@ def test_windows_upgrade_uses_immutable_public_installer_baselines() -> None:
         'sha256 = "da338c65b8698d411561bbcb02e0711a1467628e3551c74b0989a7efe7ef6bc3"'
         in text
     )
-    assert 'releases/download/v0.6.0/Provelume-Setup-0.6.0-x64.exe' in text
+    assert 'version = "0.6.1"' in text
+    assert 'commit = "087094210be8c0d3c8d2d5a32de3f981f6e8be20"' in text
+    assert "size = 18344455" in text
+    assert (
+        'sha256 = "98e7b693903bc160ac45c11a7c114fed88019c403a98efc07bef5b7e5039afc3"'
+        in text
+    )
+    assert 'releases/download/v0.6.1/Provelume-Setup-0.6.1-x64.exe' in text
 
 
 def test_release_pipeline_uses_latest_immutable_public_installer() -> None:
     text = PIPELINE.read_text(encoding="utf-8")
 
-    assert "published 0.6.0 upgrade baseline" in text
-    assert 'Provelume-Setup-0.6.0-public.exe' in text
-    assert 'releases/download/v0.6.0/Provelume-Setup-0.6.0-x64.exe' in text
-    assert "Length -ne 18343369" in text
-    assert "da338c65b8698d411561bbcb02e0711a1467628e3551c74b0989a7efe7ef6bc3" in text
+    assert "published 0.6.1 upgrade baseline" in text
+    assert 'Provelume-Setup-0.6.1-public.exe' in text
+    assert 'releases/download/v0.6.1/Provelume-Setup-0.6.1-x64.exe' in text
+    assert "Length -ne 18344455" in text
+    assert "98e7b693903bc160ac45c11a7c114fed88019c403a98efc07bef5b7e5039afc3" in text
 
 
 def test_windows_upgrade_proves_schema_compatibility_for_public_baselines() -> None:

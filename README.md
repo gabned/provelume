@@ -8,25 +8,25 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.6.1 correction preview
+## Current status: 0.7.0 Vinculum release candidate
 
-The latest published preview is `v0.6.1`. It retains the Portable Instance and hierarchical
-Markdown library delivered by `0.6.0` while making permanent purge remove bounded operational
-records linked through Document, Version and Acquisition identities. Filesystem ingestion, retry,
-derived index refresh and Inbox ingestion now share the same cross-process Instance lifecycle lock
-as purge, preventing acquisition or index maintenance from racing purge staging and recovery.
+The source tree is aligned to the `0.7.0` Vinculum preview. Until the permanent trusted workflow
+publishes and verifies `v0.7.0`, the latest published preview remains `v0.6.1`. Vinculum adds
+provider-independent connector and Source identities, installed-app OAuth 2.0 with PKCE, guarded
+HTTP(S) transport and explicit one-URL manual acquisition while preserving exact Original bytes
+and attributable provenance.
 
-Issue #102 and the [0.6.1 release plan](docs/releases/0.6.1.md) define this correction; the
+Issue #105 and the [0.7.0 release plan](docs/releases/0.7.0.md) define this release; the
+[0.6.1 release plan](docs/releases/0.6.1.md) remains the correction baseline and the
 [0.6.0 release plan](docs/releases/0.6.0.md) remains the Portable Instance and hierarchical
-Markdown library capability baseline, and the [0.5.1 release plan](docs/releases/0.5.1.md)
-remains the preceding correction baseline.
+Markdown library capability baseline.
 See the [public roadmap](docs/roadmap.md), the
 [configurable-folder contract](docs/architecture/configurable-folder-settings.md) and the
 [Windows preview guide](docs/windows-preview.md) for portability and trust boundaries.
 
-The roadmap records `0.6.1` as published, `0.7.0` as active development through issue #105 and
-`0.8.0` as the next forecast while retaining the later sequence through `1.0.0`. Development and
-forecast entries are sequencing coordinates, not availability claims or release authorization.
+The roadmap records `0.7.0` in release preparation and `0.8.0 Vigilia` as the next forecast while
+retaining the later sequence through `1.0.0`. Preparation and forecast entries are sequencing
+coordinates, not publication claims or release authorization.
 
 The active source tree can:
 
@@ -59,6 +59,18 @@ The active source tree can:
   viewing, versions, provenance, Inbox, bundles, duplicates, assurance, rebuild reports,
   operations, settings and health;
 - report its embedded version/tag/commit/source identity offline through CLI, API and browser;
+- define provider-independent connector types and keep ConnectorDefinition, ConnectorInstance and
+  Source as separate stable multi-instance identities;
+- create, inspect, update, disable and tombstone-remove connector instances and Sources while
+  retaining acquired knowledge and immutable Original provenance;
+- expose aligned connector inventory and health through service, CLI, read-only API and EN/IT
+  Browser views;
+- perform installed-app OAuth 2.0 authorization with mandatory PKCE S256, exact callback binding,
+  explicit consent and revocation/reauthorization without deleting acquired knowledge;
+- acquire one explicitly requested HTTP(S) URL through current Instance, connector and Source
+  authority with SSRF, DNS-rebinding, redirect and bounded-response protections;
+- preserve exact guarded-response bytes as an immutable Original and create separately identified,
+  deterministic readable text only for supported web representations;
 - restart without losing canonical state;
 - run without Git, GitHub, Provelume Cloud or an external AI provider.
 
@@ -72,9 +84,8 @@ operating-system egress enforcement or zero runtime traffic. All extracted/searc
 representations remain derived state and can be recreated from preserved originals after deletion
 of those derived copies.
 
-OCR, semantic/vector search, connector network transport and AI enrichment remain later
-milestones. The active 0.7 workstream currently provides local connector configuration and
-lifecycle only.
+Background refresh, watched folders, OCR, email/Google Drive intake, semantic/vector search and AI
+classification remain later milestones. Vinculum performs no scheduled or autonomous acquisition.
 
 ## Quick start
 
@@ -223,7 +234,7 @@ Instance content and is never enabled in the background by the Core:
 .venv/bin/provelume check-updates --channel preview
 ```
 
-The Windows `0.6.1` correction preview packages the same behavior behind a per-user installer and
+The Windows `0.7.0` release candidate packages the same behavior behind a per-user installer and
 EN/IT launcher; see the [Windows preview guide](docs/windows-preview.md).
 
 Inspect one Instance's declared network policy and components, also without making a network request:

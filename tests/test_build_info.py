@@ -18,9 +18,9 @@ def clear_build_info_cache():
 def _official_payload(**changes: Any) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "schema_version": 1,
-        "version": "0.6.1",
+        "version": "0.7.0",
         "source_repository": "gabned/provelume",
-        "tag": "v0.6.1",
+        "tag": "v0.7.0",
         "commit": "a" * 40,
         "channel": "preview",
         "source_date_epoch": 1787443200,
@@ -51,7 +51,7 @@ def test_official_metadata_is_descriptive_not_locally_verified() -> None:
     assert result["identity_status"] == "official_metadata_present"
     assert result["metadata_present"] is True
     assert result["official"] is True
-    assert result["tag"] == "v0.6.1"
+    assert result["tag"] == "v0.7.0"
     assert result["commit"] == "a" * 40
     assert result["verification"]["status"] == "not_performed"
     assert result["verification"]["network_used"] is False

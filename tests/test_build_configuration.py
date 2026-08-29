@@ -83,15 +83,19 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
         assert "uuid.uuid5(" in workflow
         assert "--output-reproducible" in workflow
     assert "CycloneDX serialNumber is missing or invalid" in publication
+    assert 'notes="docs/releases/${VERSION}.md"' in publication
+    assert 'Public release notes are missing: ${notes}' in publication
+    assert '--notes-file "$notes"' in publication
+    assert "--generate-notes" not in publication
     assert "windows-package:" in release
     assert "scripts/build_windows_installer.ps1" in release
     assert "scripts/test_windows_installer.ps1" in release
     assert "provelume-windows-update.json" in release
     assert "Provelume-Setup-${VERSION}-x64.exe" in release
     assert "Attest unsigned Windows preview" in publication
-    assert "Provelume-Setup-0.6.0-public.exe" in release
+    assert "Provelume-Setup-0.6.1-public.exe" in release
     assert (
-        "da338c65b8698d411561bbcb02e0711a1467628e3551c74b0989a7efe7ef6bc3"
+        "98e7b693903bc160ac45c11a7c114fed88019c403a98efc07bef5b7e5039afc3"
         in release
     )
 
@@ -121,9 +125,9 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "ExpectedMigrationReceiptSha256" in windows_exercise
     assert "ExpectedMigrationBackupSha256" in windows_exercise
     assert "sys.path.insert" not in windows_exercise
-    assert "Provelume-Setup-0.6.0-public.exe" in windows_exercise
+    assert "Provelume-Setup-0.6.1-public.exe" in windows_exercise
     assert (
-        "da338c65b8698d411561bbcb02e0711a1467628e3551c74b0989a7efe7ef6bc3"
+        "98e7b693903bc160ac45c11a7c114fed88019c403a98efc07bef5b7e5039afc3"
         in windows_exercise
     )
     assert (
@@ -178,7 +182,7 @@ def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:
         (root / "core" / "provelume" / "build_info.json").read_text(encoding="utf-8")
     )
 
-    assert package_version == "0.6.1"
+    assert package_version == "0.7.0"
     assert init_match is not None
     assert init_match.group(1) == package_version
     assert value == {
