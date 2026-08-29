@@ -130,14 +130,23 @@ def test_multi_instance_updates_and_health_remain_isolated(tmp_path: Path) -> No
         scopes=["content.read", "metadata.read"],
         credential_reference={"kind": "environment", "name": "FIRST_TOKEN_NEXT"},
     )
+    cleared = instance.update_connector_instance(str(first["id"]), endpoint=None)
     disabled = instance.disable_connector_instance(str(first["id"]))
 
     assert updated["endpoint"] == "https://next.example.test"
     assert updated["account_identity"] is None
     assert updated["scopes"] == ["content.read", "metadata.read"]
     assert updated["cursors"] == {}
+    assert cleared["endpoint"] is None
+    assert cleared["allowed_origins"] == ["https://next.example.test"]
     assert disabled["health"]["status"] == "disabled"
     assert disabled["effective_network"] == "disabled"
+    network_component = next(
+        item
+        for item in instance.network_status()["components"]
+        if item["id"] == f"connector.{first['id']}"
+    )
+    assert network_component["endpoint"] is None
     assert instance.get_connector_instance(str(second["id"])) == second_before
     assert second_before is not None
     assert second_before["credential_reference"] == {
@@ -281,6 +290,20 @@ def test_service_cli_api_and_browser_share_read_contracts(
         source_kind="web",
         external_id="fixture:aligned",
     )
+    assert (
+        main(
+            [
+                "connector-instance-update",
+                str(instance.root),
+                str(connector["id"]),
+                "--clear-endpoint",
+            ]
+        )
+        == 0
+    )
+    cleared = json.loads(capsys.readouterr().out)
+    assert cleared["endpoint"] is None
+    assert cleared["allowed_origins"] == ["https://aligned.example.test"]
     expected_connector = instance.get_connector_instance(str(connector["id"]))
     expected_source = instance.get_connector_source(
         str(connector["id"]),

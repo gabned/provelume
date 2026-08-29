@@ -317,6 +317,7 @@ def normalise_connector_instance_configuration(
     scopes: Any,
     credential_reference: Any,
     endpoint: Any = None,
+    derive_endpoint: bool = False,
 ) -> dict[str, Any]:
     if network_mode not in CONNECTOR_NETWORK_MODES:
         raise ConnectorError("network_mode is unsupported")
@@ -331,7 +332,7 @@ def normalise_connector_instance_configuration(
     origins = sorted({normalise_connector_origin(item) for item in allowed_origins})
     selected_endpoint = (
         origins[0]
-        if endpoint is None and origins
+        if derive_endpoint and endpoint is None and origins
         else None
         if endpoint is None
         else normalise_connector_origin(endpoint)
@@ -529,6 +530,9 @@ def canonical_connector_errors(
                 scopes=value.get("scopes"),
                 credential_reference=value.get("credential_reference"),
                 endpoint=value.get("endpoint"),
+                derive_endpoint=(
+                    value.get("schema_version") == CONNECTOR_DEFINITION_SCHEMA_VERSION
+                ),
             )
             lifecycle = connector_instance_lifecycle(value)
             schema_version = value.get("schema_version")
