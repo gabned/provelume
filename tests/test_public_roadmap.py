@@ -181,6 +181,8 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
 def test_unreleased_forecast_changes_do_not_rewrite_published_changelog() -> None:
     changelog = _read(ROOT / "CHANGELOG.md")
     published_heading = changelog.index("## 0.7.0 - 2026-08-29")
+    next_heading = changelog.index("## 0.6.1 - 2026-08-29")
+    published_release = changelog[published_heading:next_heading]
 
     for forecast_entry in (
         "- expanded the unreleased public forecast with user-controlled "
@@ -191,6 +193,20 @@ def test_unreleased_forecast_changes_do_not_rewrite_published_changelog() -> Non
     ):
         assert changelog.count(forecast_entry) == 1
         assert changelog.index(forecast_entry) < published_heading
+
+    published_forecast_entry = (
+        "- expanded the unreleased `0.8.0`–`0.20.0` public forecast with user-controlled "
+        "watched-folder"
+    )
+    assert changelog.count(published_forecast_entry) == 1
+    for release_time_contract in (
+        published_forecast_entry,
+        "local OCR, legacy archive import, optional Git mirrors, direct MCP client connections",
+        "privacy-routed AI classification, qualified Synology operations",
+        "assigned one unique one-word\n  Latin codename",
+        "changing already published package, tag or version identity",
+    ):
+        assert release_time_contract in published_release
 
 
 def test_development_slices_do_not_create_ambiguous_package_versions() -> None:
