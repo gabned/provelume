@@ -4,6 +4,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+## 0.6.1 - 2026-08-29
+
 ### Fixed
 
 - made permanent purge include bounded operational records linked through the selected Document's

@@ -30,6 +30,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.5.0` | Durable ingestion, configurable local Inbox, document bundles and assurance | #66 and #72 (completed) |
 | Published preview | `0.5.1` | Stability, security, incremental indexing and accessibility hardening | #80 (completed) |
 | Published preview | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (completed) |
+| Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) |
 | Next forecast | `0.7.0` | Connector framework and safe web intake | issue just in time |
 | Forecast | `0.8.0` | Refresh engine and Source lifecycle | issue just in time |
 | Forecast | `0.9.0` | Email, Google file and transcript intake | issue just in time |
@@ -48,7 +49,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Release candidate | `0.22.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time |
 | Stable | `1.0.0` | Stable provenance-first platform | issue just in time |
 
-The package and embedded identity are `0.6.0`. The `0.7.0` forecast is not active: only a canonical
+The package and embedded identity are `0.6.1`. The `0.7.0` forecast is not active: only a canonical
 issue and one owner product pull request may activate it and add product work under `Unreleased`.
 
 ## Planning and delivery contract
@@ -293,9 +294,33 @@ export/import and cross-platform qualification.
 deterministic builds and portable export/import. See
 [`releases/0.6.0.md`](releases/0.6.0.md).
 
+### 0.6.1 — Purge Integrity and Ingestion Serialization Correction
+
+**Depends on:** the published `0.6.0` Portable Instance and hierarchical Markdown library.
+
+**Outcome:** corrected live-Instance purge completeness and serialized every supported local
+ingestion path with purge, without adding a product capability or canonical schema migration.
+
+**Includes:** bounded removal of ingestion and operational records linked through the purged
+Document's Version and Acquisition identities; one shared cross-process Instance lifecycle lock
+covering filesystem ingestion, ingestion retry, their derived search-index refresh, Inbox
+ingestion and permanent purge; focused race and dangling-reference regressions.
+
+**Exit gate:** purge leaves no bounded operational locator or Acquisition reference for the
+selected lineage; ingestion and index maintenance cannot enter while purge owns the lifecycle
+lock; the full Linux/Windows, deterministic build, offline rebuild, bundle and public `0.6.0 →
+0.6.1` Windows upgrade evidence remains green.
+
+**Not in this release:** dependency maintenance, Agent Development Protocol changes, connectors,
+network Sources or any `0.7.0` implementation.
+
+Issue #102 completed the correction. The release aligns package/build identity at `0.6.1` and
+retains the unsigned, user-confirmed preview update boundary. See
+[`releases/0.6.1.md`](releases/0.6.1.md).
+
 ### 0.7.0 — Connector Framework and Safe Web Intake
 
-**Depends on:** `0.2.0` network transparency and `0.6.0` lifecycle.
+**Depends on:** `0.2.0` network transparency and the corrected `0.6.1` lifecycle baseline.
 
 **Outcome:** introduce the first network Source without coupling the Core to one vendor or
 hiding external access.

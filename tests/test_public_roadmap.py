@@ -8,17 +8,18 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 ROADMAP_PATH = ROOT / "docs" / "roadmap.md"
-RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.6.0.md"
+RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.6.1.md"
 BASE_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.5.0.md"
+CAPABILITY_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.6.0.md"
 
 EXPECTED_CONTRACT = {
     "RELEASE_PLAN_SCHEMA": "1",
-    "PLANNED_VERSION": "0.6.0",
-    "MILESTONE_TITLE": "0.6.0",
-    "CURRENT_PACKAGE_VERSION": "0.6.0",
+    "PLANNED_VERSION": "0.6.1",
+    "MILESTONE_TITLE": "0.6.1",
+    "CURRENT_PACKAGE_VERSION": "0.6.1",
     "PACKAGE_VERSION_UPDATE": "APPLIED",
-    "EXECUTION_ISSUE": "95",
-    "PRODUCT_THEME": "PORTABLE_INSTANCE_HIERARCHICAL_MARKDOWN_LIBRARY",
+    "EXECUTION_ISSUE": "102",
+    "PRODUCT_THEME": "PURGE_INTEGRITY_INGESTION_SERIALIZATION",
     "RELEASE_STATUS": "PUBLISHED_PREVIEW",
     "WINDOWS_SIGNING": "NOT_INCLUDED",
     "UPDATE_APPLY_MODE": "USER_CONFIRMED_INSTALLER",
@@ -95,12 +96,14 @@ def test_roadmap_records_published_history_and_next_forecast() -> None:
         "0.5.0",
         "0.5.1",
         "0.6.0",
+        "0.6.1",
     ):
         assert roadmap.count(f"| Published preview | `{version}` |") == 1
     assert "| Next forecast | `0.7.0` |" in roadmap
     assert roadmap.count("| Active implementation |") == 0
     assert "#95 (completed)" in roadmap
-    assert "The package and embedded identity are `0.6.0`" in roadmap
+    assert "#102 (completed)" in roadmap
+    assert "The package and embedded identity are `0.6.1`" in roadmap
     assert "`0.7.0` forecast is not active" in roadmap
 
 
@@ -117,6 +120,7 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
         assert f"## {version} -" not in changelog
 
     assert heading_positions == sorted(heading_positions)
+    assert "## 0.6.1 - 2026-08-29" in changelog
     assert "## 0.6.0 - 2026-08-28" in changelog
     assert "## 0.5.1 - 2026-08-28" in changelog
     assert "## 0.5.0 - 2026-08-28" in changelog
@@ -175,7 +179,7 @@ def test_published_0_5_contract_is_explicit() -> None:
 
 
 def test_published_0_6_contract_is_explicit() -> None:
-    release_plan = _read(RELEASE_PLAN_PATH)
+    release_plan = _read(CAPABILITY_RELEASE_PLAN_PATH)
 
     for required_contract in (
         "schema-2 Instance manifest",
@@ -190,6 +194,27 @@ def test_published_0_6_contract_is_explicit() -> None:
         "Authenticode",
     ):
         assert required_contract in release_plan
+
+
+def test_published_0_6_1_correction_is_explicit() -> None:
+    release_plan = _read(RELEASE_PLAN_PATH)
+    roadmap = _read(ROADMAP_PATH)
+
+    for required_contract in (
+        "adds no new product capability",
+        "linked through the selected Document's\n  Version and Acquisition identities",
+        "derived search-index refresh and Inbox ingestion",
+        "same cross-process Instance lifecycle lock as permanent purge",
+        "Provelume-Setup-0.6.0-x64.exe",
+        "18,343,369",
+        "da338c65b8698d411561bbcb02e0711a1467628e3551c74b0989a7efe7ef6bc3",
+        "does not activate or begin `0.7.0`",
+    ):
+        assert required_contract in release_plan
+
+    assert roadmap.count(
+        "| Published preview | `0.6.1` | Purge integrity and ingestion serialization correction |"
+    ) == 1
 
 
 def test_update_policy_forecast_is_explicit_and_user_controlled() -> None:
@@ -357,8 +382,8 @@ def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
     readme = _read(ROOT / "README.md")
 
     assert "[public roadmap](docs/roadmap.md)" in readme
-    assert "[0.6.0 release plan](docs/releases/0.6.0.md)" in readme
-    assert "latest published preview is `v0.6.0`" in readme
+    assert "[0.6.1 release plan](docs/releases/0.6.1.md)" in readme
+    assert "latest published preview is `v0.6.1`" in readme
     assert "[Windows preview guide](docs/windows-preview.md)" in readme
     assert "configure-inbox" in readme
     assert "external Drop folder" in readme
@@ -366,7 +391,7 @@ def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
 
 @pytest.mark.parametrize(
     "version",
-    ("0.3.0", "0.4.0", "0.4.1", "0.5.0", "0.5.1"),
+    ("0.3.0", "0.4.0", "0.4.1", "0.5.0", "0.5.1", "0.6.0"),
 )
 def test_previous_release_plans_remain_published(version: str) -> None:
     plan = _read(ROOT / "docs" / "releases" / f"{version}.md")
