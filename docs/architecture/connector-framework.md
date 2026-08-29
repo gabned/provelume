@@ -14,8 +14,9 @@ Three identities remain separate:
 - a `ConnectorDefinition` identifies one reusable adapter contract and its versioned capability
   manifest;
 - a `ConnectorInstance` binds one definition to one provider identity, optional account identity,
-  primary endpoint origin, endpoint allowlist, authorization mode, scope set, external credential
-  reference, local network policy, empty pre-refresh cursor envelope and local health state;
+  optional primary endpoint origin, independent endpoint allowlist, authorization mode, scope set,
+  external credential reference, local network policy, empty pre-refresh cursor envelope and local
+  health state;
 - a canonical `Source` belongs to exactly one connector instance and identifies one independently
   selected provider resource.
 
@@ -95,6 +96,9 @@ arbitrary reference fields are rejected. Network-status output omits the referen
 Connector instances and each selected Source have independent `enabled` state. Disabling a parent
 fails its effective network policy closed but does not rewrite child configuration. Disabling a
 Source affects only that selection. Re-enabling retains the same stable identity and policy.
+The optional primary endpoint can likewise be cleared without clearing or implicitly reselecting
+the separate origin allowlist; legacy S01 records retain their first-origin derived view until that
+exact instance is upgraded.
 
 Removal is a terminal canonical tombstone, not a filesystem delete. A Source tombstone remains
 under `knowledge/sources/`, so existing Documents and Acquisitions retain a valid Source reference.

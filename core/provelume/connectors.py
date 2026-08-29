@@ -166,6 +166,9 @@ class ConnectorManager:
             authorization_mode=instance.get("authorization_mode"),
             scopes=instance.get("scopes"),
             credential_reference=instance.get("credential_reference"),
+            derive_endpoint=(
+                instance.get("schema_version") == CONNECTOR_DEFINITION_SCHEMA_VERSION
+            ),
         )
 
     @staticmethod
@@ -354,6 +357,7 @@ class ConnectorManager:
                 authorization_mode=authorization_mode,
                 scopes=scopes,
                 credential_reference=credential_reference,
+                derive_endpoint=True,
             )
             self._assert_definition_supports(definition, config)
             now = utc_now()
@@ -402,7 +406,10 @@ class ConnectorManager:
                 raise ConnectorConflictError("removed connector instance cannot be updated")
             current = self._configuration(existing)
             selected = {**current, **changes}
-            config = normalise_connector_instance_configuration(**selected)
+            config = normalise_connector_instance_configuration(
+                **selected,
+                derive_endpoint=False,
+            )
             definition = definitions[str(existing["definition_id"])]
             self._assert_definition_supports(definition, config)
             changed_fields = tuple(

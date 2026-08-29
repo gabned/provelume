@@ -28,6 +28,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   when that exact record is first mutated;
 - made disabled or removed connector configuration fail closed while leaving acquired Sources,
   Acquisitions, Documents, Versions and Original bytes untouched.
+- made explicit primary-endpoint clearing preserve the independent origin allowlist instead of
+  silently selecting its first member again.
 
 ### Security
 

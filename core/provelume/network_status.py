@@ -394,7 +394,11 @@ def declared_network_status(
                 "Connector network access is explicit without an allowed origin.",
             )
         declared_endpoint, endpoint_valid = _endpoint_origin(instance.get("endpoint"))
-        if instance.get("endpoint") is None and origins:
+        if (
+            instance.get("schema_version", 1) == 1
+            and instance.get("endpoint") is None
+            and origins
+        ):
             declared_endpoint = origins[0]
         if not endpoint_valid or (
             declared_endpoint is not None and declared_endpoint not in origins
