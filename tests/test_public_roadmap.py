@@ -309,7 +309,7 @@ def test_update_policy_forecast_is_explicit_and_user_controlled() -> None:
         assert published_baseline in roadmap
 
     assert roadmap.count(
-        "| Forecast | `0.20.0` | Signed Windows release and safe updater |"
+        "| Forecast | `0.20.0` | Signed desktop releases and safe updaters |"
     ) == 1
     for future_policy in (
         "**Disabled/offline:**",
@@ -323,8 +323,10 @@ def test_update_policy_forecast_is_explicit_and_user_controlled() -> None:
         "update/rollback history",
         "one-click return to manual-only mode",
         "no Instance content is transmitted",
-        "Disabled/offline\nperforms no update network access",
-        "automatic install cannot run outside its opt-in policy",
+        "Disabled/offline performs no update network access",
+        "automatic install cannot run outside its opt-in\npolicy",
+        "macOS Developer ID signing, notarization and",
+        "tampered, revoked, unnotarized, incompatible",
     ):
         assert future_policy in roadmap
 
@@ -420,14 +422,15 @@ def test_ai_classification_is_closed_reviewable_and_reconcilable() -> None:
         assert required_contract in roadmap
 
 
-def test_synology_and_windows_background_profiles_are_qualified() -> None:
+def test_synology_and_desktop_background_profiles_are_qualified() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
         "| Forecast | `0.18.0` | Self-hosted and Synology operations |"
     ) == 1
     assert roadmap.count(
-        "| Forecast | `0.19.0` | Windows background agent and bootstrap completion |"
+        "| Forecast | `0.19.0` | Windows and macOS background agents and bootstrap "
+        "completion |"
     ) == 1
     for required_contract in (
         "DSM Container Manager and Portainer-compatible Compose",
@@ -435,9 +438,11 @@ def test_synology_and_windows_background_profiles_are_qualified() -> None:
         "optional encrypted portable\nbundle",
         "documented Synology architecture",
         "per-user background agent and tray surface",
-        "manual runtime, start-at-login",
-        "sleep/wake, network-share loss",
-        "while the main window\nis closed",
+        "macOS adds an application/menu-bar surface and per-user LaunchAgent",
+        "Keychain\ncredential references",
+        "Apple Silicon baseline",
+        "Sleep/wake and disconnected-volume recovery",
+        "while the main window is closed",
     ):
         assert required_contract in roadmap
 
@@ -475,10 +480,18 @@ def test_mobile_capture_is_bounded_and_review_first() -> None:
     ) == 1
     for required_contract in (
         "short-lived QR pairing",
+        "installable responsive web/PWA surface",
+        "offline capture outbox",
         "minimal mobile retrieval view",
         "explicit authenticated original download",
         "iOS Shortcut exposed in the Share Sheet",
+        "iOS Share Sheet/Shortcut",
         "Android share-target",
+        "optional native iOS and Android",
+        "Native\napp-store distribution is a separately qualified delivery decision",
+        "Every non-loopback browser connection",
+        "requires authenticated HTTPS for installation",
+        "plain-HTTP\nfallback disables those capabilities visibly",
         "watched Google Drive drop",
         "optional Telegram bot adapter",
         "content traverses Telegram",
