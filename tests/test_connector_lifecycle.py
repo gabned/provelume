@@ -416,6 +416,7 @@ def test_legacy_s01_records_remain_valid_and_upgrade_on_mutation(
         instance_id,
     )
     upgraded_source = instance.store.read_canonical("sources", source_id)
-    assert upgraded_instance is not None and upgraded_instance["schema_version"] == 2
+    assert upgraded_instance is not None and upgraded_instance["schema_version"] == 3
+    assert upgraded_instance["authorization"]["status"] == "not_applicable"
     assert upgraded_source is not None and upgraded_source["schema_version"] == 2
     assert inspect_instance(instance.root, deep=True)["status"] == "valid"

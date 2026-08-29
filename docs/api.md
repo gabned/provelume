@@ -186,7 +186,10 @@ User input is converted to literal FTS terms rather than accepted as raw SQLite 
 local Instance configuration and canonical connector declarations. The same contract is available
 through `provelume network-status <instance>` and the EN/IT `/security/network` browser page.
 Connector entries disclose only safe origin/data-category declarations and authorization mode;
-external credential references are omitted.
+external credential references are omitted from this network-status surface. Connector inventory
+and detail responses may include an external reference kind/name and schema-3 authorization status,
+time, loopback-binding and consent metadata, but never state, authorization URI, code, PKCE
+verifier, token, client secret or credential value.
 
 The result is observationally honest:
 

@@ -50,6 +50,7 @@ class ConnectorInstance:
     removed_at: str | None
     cursors: dict[str, Any]
     health: dict[str, Any]
+    authorization: dict[str, Any]
     created_at: str
     updated_at: str
 

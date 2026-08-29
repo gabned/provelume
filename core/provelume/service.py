@@ -26,6 +26,7 @@ from .library_projection import (
 )
 from .markdown_viewer import MAX_VIEWER_MARKDOWN_CHARS, DocumentContentReader
 from .network_status import declared_network_status
+from .oauth_authorization import InstalledAppAuthorizationManager, InstalledAppOAuthAdapter
 from .paths import UnsafePathError
 from .portable_transfer import PortableInstanceTransfer
 from .retention import DocumentRetentionManager
@@ -40,6 +41,7 @@ class ProvelumeInstance:
         preparation = self.store._open_preparation or {}
         self.retention_recovery = preparation.get("retention_recovery")
         self.connectors = ConnectorManager(self.store)
+        self.oauth = InstalledAppAuthorizationManager(self.store, self.connectors)
         self.hierarchy = HierarchyManager(self.store)
         self.library = LibraryProjectionManager(self.store)
         self.content = DocumentContentReader(self.store)
@@ -206,6 +208,37 @@ class ProvelumeInstance:
 
     def remove_connector_instance(self, connector_instance_id: str) -> dict[str, Any]:
         return self.connectors.remove_instance(connector_instance_id)
+
+    def begin_connector_authorization(
+        self,
+        connector_instance_id: str,
+        adapter: InstalledAppOAuthAdapter,
+        *,
+        redirect_uri: str,
+        consent: bool,
+        state_ttl_seconds: int = 300,
+    ) -> dict[str, Any]:
+        return self.oauth.begin(
+            connector_instance_id,
+            adapter,
+            redirect_uri=redirect_uri,
+            consent=consent,
+            state_ttl_seconds=state_ttl_seconds,
+        )
+
+    def complete_connector_authorization(
+        self,
+        connector_instance_id: str,
+        adapter: InstalledAppOAuthAdapter,
+        callback: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        return self.oauth.complete(connector_instance_id, adapter, callback)
+
+    def revoke_connector_authorization(
+        self,
+        connector_instance_id: str,
+    ) -> dict[str, Any]:
+        return self.oauth.revoke(connector_instance_id)
 
     def add_connector_source(
         self,
