@@ -43,7 +43,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Forecast | `0.14.0` | Knowledge API v1, read-only MCP and client connections | issue just in time | `Interfacies` |
 | Forecast | `0.15.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
 | Forecast | `0.16.0` | AI classification, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
-| Forecast | `0.17.0` | Semantic and hybrid search | issue just in time | `Sensus` |
+| Forecast | `0.17.0` | Semantic, hybrid and grounded RAG retrieval | issue just in time | `Sensus` |
 | Forecast | `0.18.0` | Self-hosted, Synology and QNAP operations | issue just in time | `Domus` |
 | Forecast | `0.19.0` | Windows and macOS background agents and bootstrap completion | issue just in time | `Excubitor` |
 | Forecast | `0.20.0` | Signed desktop releases and safe updaters | issue just in time | `Renovatio` |
@@ -96,8 +96,9 @@ names do not replace SemVer, package identity, tags or the immutable published r
 - **`0.16.0` — `Iudicium`.** Adds guarded AI classification, receipts, review rules and provider
   evaluation. The end-to-end intake flow resists prompt injection and keeps every catalog action
   reviewable or reversible.
-- **`0.17.0` — `Sensus`.** Adds semantic and hybrid retrieval across canonical knowledge.
-  Embeddings and indexes remain derived, rebuildable state rather than a new source of truth.
+- **`0.17.0` — `Sensus`.** Adds semantic, hybrid and grounded RAG retrieval across canonical
+  knowledge. Chunks, embeddings and indexes remain derived and rebuildable, while every context
+  passage stays bound to exact source evidence.
 - **`0.18.0` — `Domus`.** Qualifies self-hosted, Synology and QNAP operation with containers,
   rsync/SSH backup transport and restore evidence. Capacity, upgrade and rollback boundaries stay
   explicit.
@@ -321,6 +322,46 @@ sleep/wake, removable/network volumes, Apple Silicon and any retained Intel supp
 matrix entries. `0.20.0` then adds Windows code signing and macOS Developer ID signing,
 notarization and stapling; Time Machine and other host backups remain external replicas until a
 Provelume manifest verification proves a restorable backup.
+
+## Grounded retrieval and RAG contract
+
+RAG is a versioned retrieval interface over canonical Provelume knowledge, not another canonical
+store, an opaque chat history or a requirement to publish documents to Git. Deterministic
+full-text retrieval is available first; `0.14.0` freezes its API/MCP contract and `0.17.0` adds
+semantic and hybrid ranking behind that same contract. A Git or filesystem mirror may remain an
+independently selected client context, but direct API/MCP retrieval is the authoritative path for
+current permissions, provenance and index freshness.
+
+Authorization and Source/Area/Project filters run before candidate text reaches ranking, caching
+or a model. Search returns bounded result handles rather than ambient filesystem access. Context
+assembly resolves those handles into excerpts carrying a stable evidence reference, Document and
+Version identity, Original hash, page/section/span where available, extraction identity, index
+generation, freshness and ranking components. Truncation is explicit, citations remain openable,
+and an absent, stale or unauthorized passage cannot be silently substituted.
+
+Chunking profiles are versioned by parser, boundaries, overlap and tokenizer/model assumptions.
+Chunks, embeddings, vector indexes, reranking features and answer caches are derived generations:
+they can be invalidated and rebuilt from canonical Versions without changing knowledge. A
+committed Version schedules incremental indexing; deletion, scope change and revocation invalidate
+affected candidates before the next query. If a semantic generation is unavailable or stale, the
+request visibly falls back to authorized deterministic search or fails according to the selected
+profile rather than using mismatched vectors.
+
+Knowledge API and MCP expose separate bounded operations to search knowledge, assemble context,
+open an evidence citation and retrieve an authorized document section. A retrieval receipt records
+query/profile identity, filters, authorized candidate/result identities, index generations,
+selected evidence and token/size budget without copying private content into operational logs.
+ChatGPT, a local model or another client may generate from that context. An optional
+`answer-with-sources` operation in `0.17.0` uses the `0.15.0` AI gateway and the same receipt; it is
+read-only, cites every supported assertion, distinguishes insufficient or conflicting evidence
+and never converts an answer into classification or another durable write.
+
+Retrieved document content remains untrusted input. Prompt-like text cannot expand tool scope,
+change retrieval policy, reveal excluded candidates or authorize a write; provider routing,
+redaction preview, token budget and local-only policy apply after authorization and before model
+delivery. Synthetic evaluation measures citation validity, retrieval quality, stale-index
+behavior, permission isolation, prompt-injection resistance and deterministic fallback without
+requiring private user documents or telemetry.
 
 ## Published foundation
 
@@ -885,8 +926,8 @@ fixtures in a separate final slice.
 
 **Depends on:** stable object and discovery contracts.
 
-**Outcome:** stabilize the shared client contract and prove that the browser contains no
-exclusive business logic.
+**Outcome:** stabilize the shared client and grounded-retrieval contract and prove that the
+browser contains no exclusive business logic.
 
 **Includes:** paginated and bounded Knowledge API v1 contracts; schemas and compatibility policy
 for documents, hierarchical classification, Action Center queues, objects, provenance, search,
@@ -896,6 +937,13 @@ a versioned capture-submission contract; installable-PWA and optional-native mob
 recent/search/detail/provenance/original-download plus mobile-client conformance fixtures, all
 distinct from read-only MCP tools for search and retrieval; aligned CLI/browser services;
 reference clients; version negotiation and pre-1.0 deprecation policy.
+
+Read-only retrieval tools separately search knowledge, assemble a bounded context from result
+handles, open an exact evidence citation and retrieve an authorized document section. Responses
+use the shared evidence-reference and retrieval-receipt schemas, expose deterministic rank and
+freshness, and retain the same shape when `0.17.0` later adds semantic ranking. Context assembly
+never grants broader access than the search that produced the handles, and client-supplied handles
+are reauthorized at use time.
 
 Connection profiles cover local MCP clients, authenticated remote HTTPS MCP and a private-tunnel
 transport without making any tunnel vendor part of the Core contract. ChatGPT is qualified as one
@@ -910,10 +958,12 @@ Instance directly to the public Internet.
 
 **Exit gate:** at least two clients plus the mobile profile pass the same conformance fixtures; an
 authenticated private connection can be revoked without restarting or corrupting the Instance;
-and no interface exposes unauthorized knowledge, local paths, secrets or writes.
+citations resolve to the exact authorized Version evidence; and no interface exposes unauthorized
+knowledge, local paths, secrets or writes.
 
-**Suggested slices:** freeze the API first, add local read-only MCP second, then qualify remote
-authentication, mobile/native profiles and private transport without adding write authority.
+**Suggested slices:** freeze the API and evidence references first, add local read-only
+search/context/citation MCP second, then qualify remote authentication, mobile/native profiles and
+private transport without adding write authority.
 
 ### 0.15.0 — AI Gateway and Privacy Routing
 
@@ -985,20 +1035,32 @@ duplicate knowledge or Original loss; and logs contain neither secrets nor raw p
 proposals; `0.16/S03` review, rule and guarded-apply modes; `0.16/S04` adversarial isolation and
 optional write-scoped MCP; `0.16/S05` complete folder-to-knowledge qualification.
 
-### 0.17.0 — Semantic and Hybrid Search
+### 0.17.0 — Semantic, Hybrid and Grounded RAG Retrieval
 
 **Depends on:** `0.16.0` gateway and receipts.
 
-**Outcome:** add semantic retrieval while keeping embeddings entirely derived and replaceable.
+**Outcome:** add semantic and grounded RAG retrieval through the stable client contract while
+keeping every chunk, embedding and index entirely derived and replaceable.
 
-**Includes:** separate embedding adapter; model/dimension/chunking identity and privacy policy;
-local vector-store baseline plus optional adapters; incremental indexing plus manual or scheduled
-complete rebuild from canonical state; model/store migration; explainable full-text plus semantic
-ranking; consistent filters; stale, incompatible and missing-index health; index/vector counts and
-bytes, coverage, lag, generation age and rebuild progress.
+**Includes:** separate embedding adapter; versioned parser/chunk/overlap/model/dimension/tokenizer
+identity and privacy policy; local vector-store baseline plus optional adapters; incremental
+Version-bound indexing plus manual or scheduled complete rebuild from canonical state;
+model/store migration; explainable full-text plus semantic ranking and optional reranking;
+consistent pre-retrieval authorization filters; stale, incompatible and missing-index health;
+index/chunk/vector counts and bytes, coverage, lag, generation age and rebuild progress.
 
-**Exit gate:** delete-and-rebuild, interrupted reindex and provider-replacement tests preserve
-canonical objects, privacy routing and deterministic fallback search.
+The primary RAG boundary remains retrieval rather than a proprietary chat surface. API/MCP clients
+receive bounded passages with exact Version, Original, page/section/span and index-generation
+citations, then ChatGPT or another selected model may answer from them. The optional gateway-owned
+`answer-with-sources` path uses the same authorized retrieval receipt and privacy routing, reports
+insufficient or conflicting evidence, and grants no classification, mutation or connector-write
+authority.
+
+**Exit gate:** delete-and-rebuild, interrupted reindex, model/store migration and provider-
+replacement tests preserve canonical objects, privacy routing and deterministic fallback search;
+citations resolve after incremental updates; removed or unauthorized content disappears before
+the next query; and synthetic RAG evaluation detects unsupported citations, prompt-injection scope
+expansion and cross-scope leakage.
 
 ### 0.18.0 — Self-hosted, Synology and QNAP Operations
 
@@ -1163,15 +1225,15 @@ cross-tenant isolation tests without vendor-specific domain logic.
 
 **Outcome:** freeze compatibility and exercise all 1.0 gates without adding a new feature stream.
 
-**Includes:** Instance, Knowledge API/MCP and artifact contract freeze; supported migration,
+**Includes:** Instance, Knowledge API/MCP/RAG and artifact contract freeze; supported migration,
 upgrade and rollback matrix; export/import and Windows/macOS/Linux interoperability;
 watched-folder/OCR/
 classification/Git/rsync-mirror end-to-end qualification; scheduler, interruption, maintenance,
 statistics and low-space recovery; generic Linux plus documented Synology and QNAP operations;
 Windows and macOS background-agent and updater recovery; mobile/PWA capture and retrieval;
 no-GitHub, no-rsync, no-external-AI and local-only tests; provider replacement and vector rebuild;
-at least two real clients; synthetic performance limits; focused security review; complete
-licensing, notices, support and deprecation documentation.
+at least two real clients; citation and permission-isolation tests; synthetic performance limits;
+focused security review; complete licensing, notices, support and deprecation documentation.
 
 **Exit gate:** the candidate remains stable for the documented qualification period with all
 1.0 blockers closed or explicitly removed from the support perimeter.

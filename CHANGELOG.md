@@ -4,6 +4,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Changed
+
+- defined a versioned, authorized and citable grounded-RAG retrieval boundary for API/MCP clients,
+  with derived chunks/indexes, deterministic fallback and optional provider-independent answer
+  generation remaining outside canonical knowledge;
+
 ## 0.7.0 - 2026-08-29
 
 ### Added
