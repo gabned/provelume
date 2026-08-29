@@ -26,6 +26,34 @@ EXPECTED_CONTRACT = {
 }
 
 FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(7, 23)) + ("1.0.0",)
+LATIN_RELEASE_NAMES = {
+    "0.1.0": "Fundamentum",
+    "0.2.0": "Fiducia",
+    "0.3.0": "Ancora",
+    "0.4.0": "Fenestra",
+    "0.4.1": "Robur",
+    "0.5.0": "Ingressus",
+    "0.5.1": "Firmitas",
+    "0.6.0": "Bibliotheca",
+    "0.6.1": "Integritas",
+    "0.7.0": "Vinculum",
+    "0.8.0": "Vigilia",
+    "0.9.0": "Lectio",
+    "0.10.0": "Cura",
+    "0.11.0": "Entitas",
+    "0.12.0": "Concordia",
+    "0.13.0": "Itinerarium",
+    "0.14.0": "Interfacies",
+    "0.15.0": "Custodia",
+    "0.16.0": "Iudicium",
+    "0.17.0": "Sensus",
+    "0.18.0": "Domus",
+    "0.19.0": "Excubitor",
+    "0.20.0": "Renovatio",
+    "0.21.0": "Societas",
+    "0.22.0": "Probatio",
+    "1.0.0": "Maturitas",
+}
 
 
 def _read(path: Path) -> str:
@@ -106,6 +134,23 @@ def test_roadmap_records_published_history_active_release_and_next_forecast() ->
     assert "#102 (completed)" in roadmap
     assert "The package and embedded identity are `0.6.1`" in roadmap
     assert "Issue #105 activates `0.7.0`" in roadmap
+
+
+def test_every_release_has_a_unique_latin_name_and_concise_outcome() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    assert len(LATIN_RELEASE_NAMES) == 26
+    assert len(set(LATIN_RELEASE_NAMES.values())) == len(LATIN_RELEASE_NAMES)
+    for version, name in LATIN_RELEASE_NAMES.items():
+        assert re.fullmatch(r"[A-Za-z]+", name)
+        assert roadmap.count(f"| `{name}` |") == 1
+        summary = re.compile(
+            rf"^- \*\*`{re.escape(version)}` — `{name}`\.\*\* .+\n(?:  .+\n)*  .+\.$",
+            re.MULTILINE,
+        )
+        assert summary.search(roadmap), f"missing concise outcome for {version} — {name}"
+
+    assert "names do not replace SemVer, package identity, tags" in roadmap
 
 
 def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> None:
