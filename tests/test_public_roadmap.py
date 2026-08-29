@@ -178,6 +178,21 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
     assert "issue just in time" in roadmap
 
 
+def test_unreleased_forecast_changes_do_not_rewrite_published_changelog() -> None:
+    changelog = _read(ROOT / "CHANGELOG.md")
+    published_heading = changelog.index("## 0.7.0 - 2026-08-29")
+
+    for forecast_entry in (
+        "- expanded the unreleased public forecast with user-controlled "
+        "refresh/reindex/maintenance",
+        "- added optional mobile/PWA and macOS delivery profiles",
+        "- added one-way local-folder and rsync/SSH mirror boundaries",
+        "- defined a versioned, authorized and citable grounded-RAG retrieval boundary",
+    ):
+        assert changelog.count(forecast_entry) == 1
+        assert changelog.index(forecast_entry) < published_heading
+
+
 def test_development_slices_do_not_create_ambiguous_package_versions() -> None:
     roadmap = _read(ROADMAP_PATH)
     policy = _read(ROOT / "docs" / "changelog-policy.md")
