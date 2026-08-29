@@ -115,6 +115,53 @@ names do not replace SemVer, package identity, tags or the immutable published r
   contracts, artifacts and operating paths. It is a maturity gate, not a container for late new
   features.
 
+## Public website synchronization contract
+
+[`provelume.com`](https://provelume.com/) is a public projection of released facts and explicitly
+labelled forecast direction; it does not activate work, replace this roadmap or make an unreleased
+capability available. Every page distinguishes the website build identity from the latest
+published Core release. An ambiguous footer such as `Provelume vX` is prohibited unless it says
+whether X identifies the site or Core. English and Italian pages, release links, `facts.json`,
+`llms.txt`, feature availability and the Wishlist move in one reviewable website change or retain a
+visible last-verified date and known mismatch.
+
+An immediate corrective website workstream should align the homepage, Features, Public facts,
+Wishlist and machine-readable records with published Core `0.7.0`, including the completed
+`0.5.0`–`0.7.0` capabilities and an exact `v0.7.0` evidence link. It must continue to label
+`0.8.0` and later work as planned. This website-only correction can begin now and changes neither
+the Core package identity nor release history.
+
+After every verified Core tag and asset publication, the website receives a bounded availability
+sync in the same delivery cycle: current version/release link, supported platforms and formats,
+newly available features, limitations, security/privacy implications, upgrade path and
+documentation are updated from release evidence. Forecast changes update only the Wishlist/roadmap
+view and keep `planned`, `preview`, `release candidate` and `available` visually distinct. A
+website-only deployment increments only its own build identity; a hotfix updates affected facts
+and download links without inventing a marketing milestone.
+
+The larger editorial updates belong at these evidence gates:
+
+| Evidence gate | Website update | Appropriate audience action |
+| --- | --- | --- |
+| Now, published `0.7.0` | Correct stale version/build labels, Features, Facts, Wishlist and release links in EN/IT. | Point technical evaluators to what already works; do not present `0.8.0+` as available. |
+| Published `0.8.0` | Add watched-folder, scheduler, recovery and maintenance-control documentation. | Invite a small technical early-adopter group for continuous local intake. |
+| Published `0.9.0` | Add OCR/input-format, language, quality and local/cloud privacy matrices. | Invite document-heavy users with an explicit supported-format perimeter. |
+| Published `0.10.0` | Rework the primary use-case path around Capture, Action Center, Operations and mobile PWA onboarding. | Begin a controlled public beta: this is the first coherent daily-use experience. |
+| Published `0.12.0` | Add an integrations/mirrors chooser for Git, local folders and rsync with one-way and deletion boundaries. | Reach users who need portable publication or NAS mirrors without implying mandatory GitHub. |
+| Published `0.14.0` | Publish Knowledge API, MCP, ChatGPT, client-permission and mobile/native conformance guides. | Begin developer/client dissemination with copyable, versioned connection examples. |
+| Published `0.17.0` | Add grounded RAG, citation, privacy-routing, index-health and evaluation explanations. | Reach AI/RAG evaluators only after citation and permission-isolation evidence exists. |
+| Published `0.18.0` | Add Linux, Synology and QNAP deployment, backup/restore and support-matrix pages. | Broaden to self-hosted and NAS users after published restore evidence. |
+| Published `0.20.0` | Add a download centre for signed Windows and notarized macOS installers, channels and updater policies. | Start broad non-technical desktop-preview distribution after rollback qualification. |
+| Published `0.21.0` | Explain actual Business/Cloud contract status, roles and exit paths without implying a managed service exists. | Speak to organizations only within the published preview perimeter. |
+| Published `0.22.0` | Publish the release-candidate matrix, migrations, known limits, feedback/security paths and 1.0 blockers. | Begin broad release-candidate diffusion and structured qualification. |
+| Published `1.0.0` | Make stable install/download the primary call to action and publish final editions, support and compatibility facts. | Begin general distribution only for the support perimeter proven by `0.22.0`. |
+
+Every website deployment checks EN/IT semantic parity, current release and checksum/provenance
+links, planned-versus-available badges, internal links, structured facts, accessibility,
+performance and the declared analytics/form/third-party-resource posture. The site never receives
+private Instance content, unpublished roadmap claims or release credentials, and a website outage
+cannot block installation or verification through the public repository.
+
 The package and embedded identity are `0.7.0`. Issue #105 completed implementation slices
 `0.7/S01` through `0.7/S05`; release-preparation PR #114 aligned identity, changelog, public
 release notes, Windows upgrade evidence and the release contract. The trusted workflow published
@@ -1234,6 +1281,7 @@ Windows and macOS background-agent and updater recovery; mobile/PWA capture and 
 no-GitHub, no-rsync, no-external-AI and local-only tests; provider replacement and vector rebuild;
 at least two real clients; citation and permission-isolation tests; synthetic performance limits;
 focused security review; complete licensing, notices, support and deprecation documentation.
+Website/release/facts parity must keep every forecast feature visibly unavailable.
 
 **Exit gate:** the candidate remains stable for the documented qualification period with all
 1.0 blockers closed or explicitly removed from the support perimeter.
