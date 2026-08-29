@@ -424,6 +424,29 @@ def test_rsync_mirror_and_verified_backup_are_separate() -> None:
         assert required_contract in roadmap
 
 
+def test_grounded_rag_is_versioned_authorized_and_citable() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    assert roadmap.count(
+        "| Forecast | `0.17.0` | Semantic, hybrid and grounded RAG retrieval |"
+    ) == 1
+    for required_contract in (
+        "## Grounded retrieval and RAG contract",
+        "not another canonical\nstore",
+        "Authorization and Source/Area/Project filters run before",
+        "stable evidence reference",
+        "Original hash, page/section/span",
+        "Chunks, embeddings, vector indexes, reranking features and answer caches",
+        "search knowledge, assemble context",
+        "retrieval receipt",
+        "`answer-with-sources`",
+        "Retrieved document content remains untrusted input",
+        "permission isolation",
+        "direct API/MCP retrieval is the authoritative path",
+    ):
+        assert required_contract in roadmap
+
+
 def test_ai_classification_is_closed_reviewable_and_reconcilable() -> None:
     roadmap = _read(ROADMAP_PATH)
 
