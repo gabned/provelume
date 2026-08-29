@@ -426,6 +426,7 @@ def test_rsync_mirror_and_verified_backup_are_separate() -> None:
 
 def test_grounded_rag_is_versioned_authorized_and_citable() -> None:
     roadmap = _read(ROADMAP_PATH)
+    changelog = _read(ROOT / "CHANGELOG.md")
 
     assert roadmap.count(
         "| Forecast | `0.17.0` | Semantic, hybrid and grounded RAG retrieval |"
@@ -445,6 +446,10 @@ def test_grounded_rag_is_versioned_authorized_and_citable() -> None:
         "direct API/MCP retrieval is the authoritative path",
     ):
         assert required_contract in roadmap
+
+    rag_entry = "- defined a versioned, authorized and citable grounded-RAG retrieval boundary"
+    assert changelog.count(rag_entry) == 1
+    assert changelog.index(rag_entry) < changelog.index("## 0.7.0 - 2026-08-29")
 
 
 def test_ai_classification_is_closed_reviewable_and_reconcilable() -> None:
