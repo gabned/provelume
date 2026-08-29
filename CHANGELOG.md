@@ -6,6 +6,16 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
+- expanded the unreleased public forecast with user-controlled refresh/reindex/maintenance
+  schedules, interruption recovery and local storage, capacity and job statistics while keeping
+  those capabilities outside the `0.7.0` boundary;
+- added optional mobile/PWA and macOS delivery profiles plus signed Windows/macOS self-update to
+  the unreleased forecast while keeping those capabilities outside the `0.7.0` boundary; preserved
+  the existing one-word Latin release names and changed no published package, tag or version
+  identity;
+- added one-way local-folder and rsync/SSH mirror boundaries plus qualified Synology/QNAP backup,
+  restore and operation profiles to the unreleased forecast without making a NAS or mirror
+  provider part of canonical storage;
 - defined a versioned, authorized and citable grounded-RAG retrieval boundary for API/MCP clients,
   with derived chunks/indexes, deterministic fallback and optional provider-independent answer
   generation remaining outside canonical knowledge;
@@ -47,16 +57,6 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
-- expanded the unreleased public forecast with user-controlled refresh/reindex/maintenance
-  schedules, interruption recovery and local storage, capacity and job statistics while keeping
-  those capabilities outside the `0.7.0` boundary;
-- added optional mobile/PWA and macOS delivery profiles plus signed Windows/macOS self-update to
-  the unreleased forecast while keeping those capabilities outside the `0.7.0` boundary; preserved
-  the existing one-word Latin release names and changed no published package, tag or version
-  identity;
-- added one-way local-folder and rsync/SSH mirror boundaries plus qualified Synology/QNAP backup,
-  restore and operation profiles to the unreleased forecast without making a NAS or mirror
-  provider part of canonical storage;
 - made connector and Source removal retain canonical tombstones instead of deleting identity
   records, and require independently selected Sources to be removed before their parent instance;
 - kept S01 schema-1 connector records valid and upgraded each record to lifecycle schema 2 only
