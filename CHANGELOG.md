@@ -4,6 +4,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+## 0.7.0 - 2026-08-29
+
 ### Added
 
 - added versioned provider-independent connector definitions, isolated multi-instance connector
@@ -42,9 +44,9 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - expanded the unreleased `0.8.0`–`0.20.0` public forecast with user-controlled watched-folder
   intake, local OCR, legacy archive import, optional Git mirrors, direct MCP client connections,
   privacy-routed AI classification, qualified Synology operations and a Windows background agent,
-  while preserving `0.6.1` identity and the active `0.7.0` implementation boundary; assigned one
-  unique one-word Latin codename and a concise two-sentence outcome to every published and forecast
-  release without changing package, tag or version identity;
+  while keeping those capabilities outside the `0.7.0` boundary; assigned one unique one-word
+  Latin codename and a concise two-sentence outcome to every published and forecast release without
+  changing already published package, tag or version identity;
 - made connector and Source removal retain canonical tombstones instead of deleting identity
   records, and require independently selected Sources to be removed before their parent instance;
 - kept S01 schema-1 connector records valid and upgraded each record to lifecycle schema 2 only

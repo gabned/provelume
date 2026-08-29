@@ -12,6 +12,8 @@ request, tag, release or delivery commitment. Planned-version movement follows
 - **Active implementation** — a canonical parent issue and exactly one current owner product pull
   request activate one bounded release slice; package identity and publication remain separate
   later steps.
+- **Release preparation** — all implementation slices are complete and one reviewed product pull
+  request aligns package identity and release evidence; no tag or public release exists yet.
 - **Next forecast** — first intended product increment after the published baseline, not yet
   activated until a canonical issue and one owner pull request exist.
 - **Forecast** — ordered portfolio slot whose scope may still be refined before activation.
@@ -31,7 +33,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.5.1` | Stability, security, incremental indexing and accessibility hardening | #80 (completed) | `Firmitas` |
 | Published preview | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (completed) | `Bibliotheca` |
 | Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
-| Active implementation | `0.7.0` | Connector framework and safe web intake | #105 | `Vinculum` |
+| Release preparation | `0.7.0` | Connector framework and safe web intake | #105 | `Vinculum` |
 | Next forecast | `0.8.0` | Refresh engine, watched folders and Source lifecycle | issue just in time | `Vigilia` |
 | Forecast | `0.9.0` | OCR, email, Google file and transcript intake | issue just in time | `Lectio` |
 | Forecast | `0.10.0` | Unified Capture and Action Center | issue just in time | `Cura` |
@@ -73,7 +75,7 @@ names do not replace SemVer, package identity, tags or the immutable published r
 - **`0.6.1` — `Integritas`.** Corrects purge integrity and serializes competing ingestion work.
   It deliberately adds no new product feature or schema boundary.
 - **`0.7.0` — `Vinculum`.** Introduces connector and Source identities, OAuth with PKCE and guarded
-  manual web acquisition. Background refresh remains outside this active release boundary.
+  manual web acquisition. Background refresh remains outside this release boundary.
 - **`0.8.0` — `Vigilia`.** Adds user-controlled watched folders and a durable refresh/job
   lifecycle. Schedules, mounted locations, quiescence and resource use stay under operator control.
 - **`0.9.0` — `Lectio`.** Adds local OCR and richer intake for scanned files, email, Google files
@@ -113,10 +115,11 @@ names do not replace SemVer, package identity, tags or the immutable published r
   contracts, artifacts and operating paths. It is a maturity gate, not a container for late new
   features.
 
-The package and embedded identity are `0.6.1` and remain unchanged. Issue #105 activates `0.7.0`;
-one bounded owner product pull request at a time adds its implementation slices under `Unreleased`.
-Version alignment, tagging and publication remain separate release-preparation and trusted-workflow
-steps.
+The package and embedded identity are `0.7.0`. Issue #105 has completed implementation slices
+`0.7/S01` through `0.7/S05`; one bounded release-preparation pull request aligns identity,
+changelog, public release notes, Windows upgrade evidence and the release contract. No tag or
+release is implied by that preparation state. `0.8.0 Vigilia` is the next forecast and remains
+unimplemented.
 
 `0.7/S01` through `0.7/S05` are implemented. They establish provider-independent connector and
 Source identity/lifecycle, installed-app OAuth 2.0/PKCE, guarded Source-bound HTTP(S) retrieval and
@@ -415,7 +418,7 @@ retains the unsigned, user-confirmed preview update boundary. See
 
 **Depends on:** `0.2.0` network transparency and the corrected `0.6.1` lifecycle baseline.
 
-**Outcome:** introduce the first network Source without coupling the Core to one vendor or
+**Outcome:** introduces the first network Source without coupling the Core to one vendor or
 hiding external access.
 
 **Includes:** provider-independent Source adapter and versioned capability/conformance manifest;
@@ -444,7 +447,22 @@ empty and configuration health stays network-free until later execution contract
 **Exit gate:** synthetic hostile-network fixtures fail closed, every acquisition is attributable,
 and disabling network capability prevents access without a silent fallback.
 
-**Not in this release:** broad connector catalogue or background scheduling.
+The five completed slices are:
+
+- `0.7/S01`: connector definitions, identities, capability manifests and local network policy;
+- `0.7/S02`: independent ConnectorInstance/Source lifecycle and aligned service, CLI, API and
+  EN/IT Browser views;
+- `0.7/S03`: installed-app OAuth 2.0 with PKCE S256, revocation and reauthorization preservation;
+- `0.7/S04`: guarded Source-bound HTTP(S) transport with hostile-network qualification;
+- `0.7/S05`: atomic one-URL manual acquisition, immutable Original retention, deterministic
+  readable-text derivation and backup/restore/export/import qualification.
+
+Version alignment and the immutable changelog are prepared at `0.7.0`; publication remains
+restricted to the trusted workflow after exact-head review and merge. See
+[`releases/0.7.0.md`](releases/0.7.0.md).
+
+**Not in this release:** background refresh, watched folders, OCR, email or Google Drive intake,
+AI classification, MCP, Git mirrors, a Windows background agent or Authenticode signing.
 
 ### 0.8.0 — Refresh Engine, Watched Folders and Source Lifecycle
 

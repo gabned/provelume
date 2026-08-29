@@ -17,9 +17,9 @@ $ExpectedAppIdKey = "{E41A426B-F5FC-473F-A096-875017656A31}_is1"
 if ([string]::IsNullOrWhiteSpace($PreviousInstaller)) {
     $PreviousInstaller = Join-Path (
         Split-Path $InstallerPath -Parent
-    ) "Provelume-Setup-0.6.0-public.exe"
+    ) "Provelume-Setup-0.6.1-public.exe"
     Invoke-WebRequest `
-        -Uri "https://github.com/gabned/provelume/releases/download/v0.6.0/Provelume-Setup-0.6.0-x64.exe" `
+        -Uri "https://github.com/gabned/provelume/releases/download/v0.6.1/Provelume-Setup-0.6.1-x64.exe" `
         -OutFile $PreviousInstaller
 }
 $PreviousInstallerPath = (Resolve-Path $PreviousInstaller).Path
@@ -57,6 +57,12 @@ $ApprovedPreviousBaselines = @(
         commit = "bc02180fa116c2924b04f0a4c0bcf497a1efbd70"
         size = 18343369
         sha256 = "da338c65b8698d411561bbcb02e0711a1467628e3551c74b0989a7efe7ef6bc3"
+    },
+    @{
+        version = "0.6.1"
+        commit = "087094210be8c0d3c8d2d5a32de3f981f6e8be20"
+        size = 18344455
+        sha256 = "98e7b693903bc160ac45c11a7c114fed88019c403a98efc07bef5b7e5039afc3"
     }
 )
 $IdentifiedBaseline = $ApprovedPreviousBaselines |

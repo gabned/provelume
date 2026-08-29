@@ -166,8 +166,13 @@ jobs:
           if [ "$CHANNEL" = "preview" ]; then
             flags+=(--prerelease)
           fi
+          notes="docs/releases/${VERSION}.md"
+          if [ ! -f "$notes" ]; then
+            echo "::error::Public release notes are missing: ${notes}."
+            exit 1
+          fi
           gh release create "$TAG" "$release"/* \
             --verify-tag \
             --title "Provelume ${VERSION}" \
-            --generate-notes \
+            --notes-file "$notes" \
             "${flags[@]}"

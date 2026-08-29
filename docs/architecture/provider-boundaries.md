@@ -17,13 +17,14 @@ network:
 This is a declared baseline, not a claim that the operating system prevents every process from
 opening a socket. `provelume network-status`, `GET /api/v1/security/network` and
 `/security/network` expose the configuration-derived policy and component inventory without
-performing a network request. Filesystem Sources remain the only executable intake type in the
-published `0.6.1` product. Active `0.7/S01` through `0.7/S03` add validated connector definitions,
-isolated instance/Source lifecycle configuration, aligned read-only health views and a synthetic-
-adapter-only installed-app OAuth/PKCE boundary, but no provider transport; every such declaration
-remains behind the Instance-wide network gate. S03 retains short-lived state and the PKCE verifier
-only in process memory, accepts only external credential references after callback completion and
-performs no provider-side revocation or other remote mutation.
+performing a network request. The `0.7.0` Vinculum candidate adds validated connector definitions,
+isolated instance/Source lifecycle configuration, aligned read-only health views, installed-app
+OAuth/PKCE, guarded Source-bound HTTP(S) transport and one explicitly requested manual URL
+acquisition; every declaration and execution remains behind the Instance-wide network gate. OAuth
+state and the PKCE verifier remain short-lived process memory, canonical connector records accept
+only external credential references, and provider-side deletion or movement is not implemented.
+Acquired response bytes remain immutable Originals with attributable Source and Acquisition
+provenance; readable text is a separate derived artifact.
 Unknown Source, connector or provider types stay visibly `undeclared` until their public
 capability contract is implemented.
 

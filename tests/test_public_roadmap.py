@@ -8,24 +8,25 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 ROADMAP_PATH = ROOT / "docs" / "roadmap.md"
-RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.6.1.md"
+RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.7.0.md"
 BASE_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.5.0.md"
 CAPABILITY_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.6.0.md"
+CORRECTION_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.6.1.md"
 
 EXPECTED_CONTRACT = {
     "RELEASE_PLAN_SCHEMA": "1",
-    "PLANNED_VERSION": "0.6.1",
-    "MILESTONE_TITLE": "0.6.1",
-    "CURRENT_PACKAGE_VERSION": "0.6.1",
+    "PLANNED_VERSION": "0.7.0",
+    "MILESTONE_TITLE": "0.7.0",
+    "CURRENT_PACKAGE_VERSION": "0.7.0",
     "PACKAGE_VERSION_UPDATE": "APPLIED",
-    "EXECUTION_ISSUE": "102",
-    "PRODUCT_THEME": "PURGE_INTEGRITY_INGESTION_SERIALIZATION",
-    "RELEASE_STATUS": "PUBLISHED_PREVIEW",
+    "EXECUTION_ISSUE": "105",
+    "PRODUCT_THEME": "CONNECTOR_FRAMEWORK_SAFE_WEB_INTAKE",
+    "RELEASE_STATUS": "RELEASE_CANDIDATE",
     "WINDOWS_SIGNING": "NOT_INCLUDED",
     "UPDATE_APPLY_MODE": "USER_CONFIRMED_INSTALLER",
 }
 
-FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(7, 23)) + ("1.0.0",)
+FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(8, 23)) + ("1.0.0",)
 LATIN_RELEASE_NAMES = {
     "0.1.0": "Fundamentum",
     "0.2.0": "Fiducia",
@@ -81,7 +82,7 @@ def _contract_fields(plan: str) -> dict[str, str]:
     return fields
 
 
-def test_release_plan_contract_is_complete_and_published() -> None:
+def test_release_plan_contract_is_complete_and_prepared() -> None:
     assert _contract_fields(_read(RELEASE_PLAN_PATH)) == EXPECTED_CONTRACT
 
 
@@ -112,7 +113,7 @@ def test_release_preparation_aligns_package_identity() -> None:
     assert f'__version__ = "{package_version}"' in init_source
 
 
-def test_roadmap_records_published_history_active_release_and_next_forecast() -> None:
+def test_roadmap_records_published_history_release_preparation_and_next_forecast() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     for version in (
@@ -127,13 +128,14 @@ def test_roadmap_records_published_history_active_release_and_next_forecast() ->
         "0.6.1",
     ):
         assert roadmap.count(f"| Published preview | `{version}` |") == 1
-    assert "| Active implementation | `0.7.0` |" in roadmap
+    assert "| Release preparation | `0.7.0` |" in roadmap
     assert "| Next forecast | `0.8.0` |" in roadmap
-    assert roadmap.count("| Active implementation |") == 1
+    assert roadmap.count("| Active implementation |") == 0
+    assert roadmap.count("| Release preparation |") == 1
     assert "#95 (completed)" in roadmap
     assert "#102 (completed)" in roadmap
-    assert "The package and embedded identity are `0.6.1`" in roadmap
-    assert "Issue #105 activates `0.7.0`" in roadmap
+    assert "The package and embedded identity are `0.7.0`" in roadmap
+    assert "Issue #105 has completed implementation slices" in roadmap
 
 
 def test_every_release_has_a_unique_latin_name_and_concise_outcome() -> None:
@@ -166,6 +168,7 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
         assert f"## {version} -" not in changelog
 
     assert heading_positions == sorted(heading_positions)
+    assert "## 0.7.0 - 2026-08-29" in changelog
     assert "## 0.6.1 - 2026-08-29" in changelog
     assert "## 0.6.0 - 2026-08-28" in changelog
     assert "## 0.5.1 - 2026-08-28" in changelog
@@ -243,7 +246,7 @@ def test_published_0_6_contract_is_explicit() -> None:
 
 
 def test_published_0_6_1_correction_is_explicit() -> None:
-    release_plan = _read(RELEASE_PLAN_PATH)
+    release_plan = _read(CORRECTION_RELEASE_PLAN_PATH)
     roadmap = _read(ROADMAP_PATH)
 
     for required_contract in (
@@ -261,6 +264,33 @@ def test_published_0_6_1_correction_is_explicit() -> None:
     assert roadmap.count(
         "| Published preview | `0.6.1` | Purge integrity and ingestion serialization correction |"
     ) == 1
+
+
+def test_0_7_vinculum_candidate_is_explicit_and_bounded() -> None:
+    release_plan = _read(RELEASE_PLAN_PATH)
+    roadmap = _read(ROADMAP_PATH)
+
+    for required_contract in (
+        "first Provelume preview that can acquire one explicitly requested web URL",
+        "ConnectorDefinition`, `ConnectorInstance` and `Source` as separate stable identities",
+        "mandatory PKCE S256",
+        "One explicit local action acquires one canonical URL",
+        "exact response representation as a content-addressed immutable Original",
+        "0.7/S01 — Connector foundations",
+        "0.7/S05 — Manual acquisition",
+        "does not include automatic or scheduled refresh, watched folders",
+        "OCR, email or Google Drive intake, AI classification",
+        "real immutable public `0.6.1 → 0.7.0` in-place upgrade",
+        "Provelume-Setup-0.6.1-x64.exe",
+        "18,344,455",
+        "98e7b693903bc160ac45c11a7c114fed88019c403a98efc07bef5b7e5039afc3",
+        "may record `0.7.0` as published only after the tag",
+    ):
+        assert required_contract in release_plan
+
+    for slice_id in ("0.7/S01", "0.7/S02", "0.7/S03", "0.7/S04", "0.7/S05"):
+        assert slice_id in roadmap
+    assert "`0.8.0 Vigilia` is the next forecast and remains\nunimplemented" in roadmap
 
 
 def test_update_policy_forecast_is_explicit_and_user_controlled() -> None:
@@ -521,8 +551,8 @@ def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
     readme = _read(ROOT / "README.md")
 
     assert "[public roadmap](docs/roadmap.md)" in readme
-    assert "[0.6.1 release plan](docs/releases/0.6.1.md)" in readme
-    assert "latest published preview is `v0.6.1`" in readme
+    assert "[0.7.0 release plan](docs/releases/0.7.0.md)" in readme
+    assert "latest published preview remains `v0.6.1`" in readme
     assert "[Windows preview guide](docs/windows-preview.md)" in readme
     assert "configure-inbox" in readme
     assert "external Drop folder" in readme
@@ -530,7 +560,7 @@ def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
 
 @pytest.mark.parametrize(
     "version",
-    ("0.3.0", "0.4.0", "0.4.1", "0.5.0", "0.5.1", "0.6.0"),
+    ("0.3.0", "0.4.0", "0.4.1", "0.5.0", "0.5.1", "0.6.0", "0.6.1"),
 )
 def test_previous_release_plans_remain_published(version: str) -> None:
     plan = _read(ROOT / "docs" / "releases" / f"{version}.md")

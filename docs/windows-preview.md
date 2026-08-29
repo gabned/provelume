@@ -1,8 +1,9 @@
 # Windows product shell preview
 
-Provelume `0.6.1` is the current correction preview for the Portable Instance and hierarchical
-Markdown library delivered by `0.6.0`. Download `Provelume-Setup-0.6.1-x64.exe` from the official
-GitHub Release and run it as the current user. Git and a separately installed Python are not
+Provelume `0.7.0` is the Vinculum Windows preview candidate for provider-independent connector
+identity, guarded HTTP(S) transport and explicit manual web acquisition. After the permanent
+trusted workflow publishes `v0.7.0`, download `Provelume-Setup-0.7.0-x64.exe` from that official
+GitHub prerelease and run it as the current user. Git and a separately installed Python are not
 required.
 
 ## What is installed
@@ -20,15 +21,16 @@ Three locations remain intentionally separate:
 | portable Instance and preserved originals | `%USERPROFILE%\\Documents\\Provelume` | no |
 
 An upgrade replaces only launcher/runtime files. The portable Instance is opened by the new
-runtime after installation. `0.6.1` introduces no new canonical Instance migration and retains the
-registered schema-1 to schema-2 migration from `0.6.0`, including deep preflight and a verified
-automatic backup. Candidate and official release evidence installs the immutable public `0.6.0`
-executable, creates a synthetic Instance and launcher settings, installs `0.6.1` in place and
-verifies stable AppId, exact current-schema Instance/settings preservation, startup and uninstall.
+runtime after installation. `0.7.0` adds connector containers to the existing schema-2 Instance
+without a new whole-Instance migration and retains the registered schema-1 to schema-2 migration
+from `0.6.0`, including deep preflight and a verified automatic backup. Candidate and official
+release evidence installs the immutable public `0.6.1` executable, creates a synthetic Instance
+and launcher settings, installs `0.7.0` in place and verifies stable AppId, exact current-schema
+Instance/settings preservation, startup and uninstall.
 
 ## Local Inbox folders
 
-The `0.5.0` browser introduced, and `0.6.1` retains, **Settings** for:
+The `0.5.0` browser introduced, and `0.7.0` retains, **Settings** for:
 
 - the Inbox display name;
 - the Drop folder;
@@ -62,7 +64,7 @@ integrity or signature verdict.
 6. Provelume requires another confirmation before starting the normal installer and closing the
    local server.
 
-No background check is enabled by default. `0.6.1` never applies an update silently.
+No background check is enabled by default. `0.7.0` never applies an update silently.
 
 ## Recovery and limitations
 
