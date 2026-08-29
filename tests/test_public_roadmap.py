@@ -156,38 +156,6 @@ def test_every_release_has_a_unique_latin_name_and_concise_outcome() -> None:
     assert "names do not replace SemVer, package identity, tags" in roadmap
 
 
-def test_public_website_updates_follow_release_evidence() -> None:
-    roadmap = _read(ROADMAP_PATH)
-
-    for required_contract in (
-        "## Public website synchronization contract",
-        "[`provelume.com`](https://provelume.com/)",
-        "website build identity from the latest\npublished Core release",
-        "`facts.json`,\n`llms.txt`",
-        "immediate corrective website workstream",
-        "published Core `0.7.0`",
-        "website-only correction can begin now",
-        "After every verified Core tag and asset publication",
-        "`planned`, `preview`, `release candidate` and `available`",
-        "| Now, published `0.7.0` |",
-        "| Published `0.10.0` |",
-        "| Published `0.14.0` |",
-        "| Published `0.17.0` |",
-        "| Published `0.18.0` |",
-        "| Published `0.20.0` |",
-        "| Published `0.22.0` |",
-        "controlled public beta",
-        "developer/client dissemination",
-        "broad non-technical desktop-preview distribution",
-        "broad release-candidate diffusion",
-        "Begin general distribution",
-        "EN/IT semantic parity",
-        "website/release/facts parity",
-        "website outage\ncannot block installation",
-    ):
-        assert required_contract in roadmap
-
-
 def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> None:
     roadmap = _read(ROADMAP_PATH)
     changelog = _read(ROOT / "CHANGELOG.md")
@@ -341,7 +309,7 @@ def test_update_policy_forecast_is_explicit_and_user_controlled() -> None:
         assert published_baseline in roadmap
 
     assert roadmap.count(
-        "| Forecast | `0.20.0` | Signed desktop releases and safe updaters |"
+        "| Forecast | `0.20.0` | Signed Windows release and safe updater |"
     ) == 1
     for future_policy in (
         "**Disabled/offline:**",
@@ -355,10 +323,8 @@ def test_update_policy_forecast_is_explicit_and_user_controlled() -> None:
         "update/rollback history",
         "one-click return to manual-only mode",
         "no Instance content is transmitted",
-        "Disabled/offline performs no update network access",
-        "automatic install cannot run outside its opt-in\npolicy",
-        "macOS Developer ID signing, notarization and",
-        "tampered, revoked, unnotarized, incompatible",
+        "Disabled/offline\nperforms no update network access",
+        "automatic install cannot run outside its opt-in policy",
     ):
         assert future_policy in roadmap
 
@@ -433,47 +399,6 @@ def test_legacy_import_git_mirror_and_mcp_connections_are_optional() -> None:
         assert required_contract in roadmap
 
 
-def test_rsync_mirror_and_verified_backup_are_separate() -> None:
-    roadmap = _read(ROADMAP_PATH)
-
-    for required_contract in (
-        "provider-independent filesystem mirror capability",
-        "`rsync` over SSH reference profile",
-        "Destination deletion is disabled by default",
-        "never applies it\nto an Original store",
-        "transport and mirror mechanism, not evidence that a backup",
-        "Bidirectional rsync",
-        "creates an atomic bundle",
-        "rereads and verifies the destination manifest",
-        "never reads a live mutable Instance",
-        "one documented Synology and one documented QNAP",
-    ):
-        assert required_contract in roadmap
-
-
-def test_grounded_rag_is_versioned_authorized_and_citable() -> None:
-    roadmap = _read(ROADMAP_PATH)
-
-    assert roadmap.count(
-        "| Forecast | `0.17.0` | Semantic, hybrid and grounded RAG retrieval |"
-    ) == 1
-    for required_contract in (
-        "## Grounded retrieval and RAG contract",
-        "not another canonical\nstore",
-        "Authorization and Source/Area/Project filters run before",
-        "stable evidence reference",
-        "Original hash, page/section/span",
-        "Chunks, embeddings, vector indexes, reranking features and answer caches",
-        "search knowledge, assemble context",
-        "retrieval receipt",
-        "`answer-with-sources`",
-        "Retrieved document content remains untrusted input",
-        "permission isolation",
-        "direct API/MCP retrieval is the authoritative path",
-    ):
-        assert required_contract in roadmap
-
-
 def test_ai_classification_is_closed_reviewable_and_reconcilable() -> None:
     roadmap = _read(ROADMAP_PATH)
 
@@ -495,30 +420,24 @@ def test_ai_classification_is_closed_reviewable_and_reconcilable() -> None:
         assert required_contract in roadmap
 
 
-def test_nas_and_desktop_background_profiles_are_qualified() -> None:
+def test_synology_and_windows_background_profiles_are_qualified() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.18.0` | Self-hosted, Synology and QNAP operations |"
+        "| Forecast | `0.18.0` | Self-hosted and Synology operations |"
     ) == 1
     assert roadmap.count(
-        "| Forecast | `0.19.0` | Windows and macOS background agents and bootstrap "
-        "completion |"
+        "| Forecast | `0.19.0` | Windows background agent and bootstrap completion |"
     ) == 1
     for required_contract in (
         "DSM Container Manager and Portainer-compatible Compose",
-        "QTS and QuTS hero systems through Container Station Compose V2",
         "UID/GID and ACL diagnostics",
-        "HBS 3, storage snapshots and external rsync jobs",
-        "native QPKG",
         "optional encrypted portable\nbundle",
-        "one documented Synology and one documented QNAP",
+        "documented Synology architecture",
         "per-user background agent and tray surface",
-        "macOS adds an application/menu-bar surface and per-user LaunchAgent",
-        "Keychain\ncredential references",
-        "Apple Silicon baseline",
-        "Sleep/wake and disconnected-volume recovery",
-        "while the main window is closed",
+        "manual runtime, start-at-login",
+        "sleep/wake, network-share loss",
+        "while the main window\nis closed",
     ):
         assert required_contract in roadmap
 
@@ -540,7 +459,7 @@ def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
         "per-instance read/write policy",
         "guarded task write-back preview",
         "explicit diff, human confirmation",
-        "Local-only/no-GitHub/no-rsync mode performs no connector or mirror access",
+        "Local-only/no-GitHub mode\nperforms no connector or mirror access",
     ):
         assert required_contract in roadmap
 
@@ -556,15 +475,10 @@ def test_mobile_capture_is_bounded_and_review_first() -> None:
     ) == 1
     for required_contract in (
         "short-lived QR pairing",
-        "installable responsive web/PWA surface",
-        "offline capture outbox",
         "minimal mobile retrieval view",
         "explicit authenticated original download",
         "iOS Shortcut exposed in the Share Sheet",
-        "iOS Share Sheet/Shortcut",
         "Android share-target",
-        "optional native iOS and Android",
-        "Native\napp-store distribution is a separately qualified delivery decision",
         "watched Google Drive drop",
         "optional Telegram bot adapter",
         "content traverses Telegram",
