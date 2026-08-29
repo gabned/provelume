@@ -15,6 +15,9 @@ import yaml
 
 from .domain import (
     Acquisition,
+    ConnectorDefinition,
+    ConnectorInstance,
+    ConnectorSource,
     DerivedArtifact,
     Document,
     DocumentClassification,
@@ -46,6 +49,8 @@ ADDITIVE_CANONICAL_KINDS = (
     "hierarchy",
     "classifications",
     "dispositions",
+    "connector-definitions",
+    "connector-instances",
 )
 CANONICAL_KINDS = REQUIRED_CANONICAL_KINDS + ADDITIVE_CANONICAL_KINDS
 
@@ -254,6 +259,15 @@ class InstanceStore:
         return [self._read_json(path) for path in sorted(directory.glob("*.json"))]
 
     def write_source(self, source: Source) -> None:
+        self.write_canonical("sources", source)
+
+    def write_connector_definition(self, definition: ConnectorDefinition) -> None:
+        self.write_canonical("connector-definitions", definition)
+
+    def write_connector_instance(self, instance: ConnectorInstance) -> None:
+        self.write_canonical("connector-instances", instance)
+
+    def write_connector_source(self, source: ConnectorSource) -> None:
         self.write_canonical("sources", source)
 
     def write_acquisition(self, acquisition: Acquisition) -> None:

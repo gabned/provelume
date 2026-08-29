@@ -31,8 +31,8 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.5.1` | Stability, security, incremental indexing and accessibility hardening | #80 (completed) |
 | Published preview | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (completed) |
 | Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) |
-| Next forecast | `0.7.0` | Connector framework and safe web intake | issue just in time |
-| Forecast | `0.8.0` | Refresh engine and Source lifecycle | issue just in time |
+| Active implementation | `0.7.0` | Connector framework and safe web intake | #105 |
+| Next forecast | `0.8.0` | Refresh engine and Source lifecycle | issue just in time |
 | Forecast | `0.9.0` | Email, Google file and transcript intake | issue just in time |
 | Forecast | `0.10.0` | Unified Capture and Action Center | issue just in time |
 | Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time |
@@ -49,8 +49,10 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Release candidate | `0.22.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time |
 | Stable | `1.0.0` | Stable provenance-first platform | issue just in time |
 
-The package and embedded identity are `0.6.1`. The `0.7.0` forecast is not active: only a canonical
-issue and one owner product pull request may activate it and add product work under `Unreleased`.
+The package and embedded identity are `0.6.1` and remain unchanged. Issue #105 activates `0.7.0`;
+one bounded owner product pull request at a time adds its implementation slices under `Unreleased`.
+Version alignment, tagging and publication remain separate release-preparation and trusted-workflow
+steps.
 
 ## Planning and delivery contract
 

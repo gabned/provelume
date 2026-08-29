@@ -9,6 +9,7 @@ from typing import Any
 
 import yaml
 
+from .connector_model import canonical_connector_errors
 from .hierarchy_model import (
     canonical_hierarchy_errors,
     classification_provenance_errors,
@@ -209,6 +210,12 @@ def _validate_references(
                     )
                 )
 
+    for code, message, path in canonical_connector_errors(
+        records["connector-definitions"],
+        records["connector-instances"],
+        sources,
+    ):
+        errors.append(_finding(code, message, path=path))
     for code, message, path in canonical_hierarchy_errors(
         records["hierarchy"],
         records["classifications"],

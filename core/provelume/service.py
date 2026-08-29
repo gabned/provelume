@@ -4,6 +4,7 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from .connectors import ConnectorManager
 from .hierarchy import HierarchyManager
 from .index import (
     index_status,
@@ -38,6 +39,7 @@ class ProvelumeInstance:
         self.retention = DocumentRetentionManager(self.store)
         preparation = self.store._open_preparation or {}
         self.retention_recovery = preparation.get("retention_recovery")
+        self.connectors = ConnectorManager(self.store)
         self.hierarchy = HierarchyManager(self.store)
         self.library = LibraryProjectionManager(self.store)
         self.content = DocumentContentReader(self.store)
@@ -139,6 +141,55 @@ class ProvelumeInstance:
 
     def import_portable(self, archive: Path | str) -> dict[str, Any]:
         return PortableInstanceTransfer(self.store).import_bundle(archive)
+
+    def register_connector_definition(
+        self,
+        manifest: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        return self.connectors.register_definition(manifest)
+
+    def connector_inventory(self) -> dict[str, Any]:
+        return self.connectors.inventory()
+
+    def create_connector_instance(
+        self,
+        definition_id: str,
+        *,
+        name: str,
+        provider_identity: str,
+        account_identity: str | None = None,
+        network_mode: str = "disabled",
+        allowed_origins: Iterable[str] = (),
+        authorization_mode: str = "none",
+        scopes: Iterable[str] = (),
+        credential_reference: Mapping[str, str] | None = None,
+    ) -> dict[str, Any]:
+        return self.connectors.create_instance(
+            definition_id,
+            name=name,
+            provider_identity=provider_identity,
+            account_identity=account_identity,
+            network_mode=network_mode,
+            allowed_origins=tuple(allowed_origins),
+            authorization_mode=authorization_mode,
+            scopes=tuple(scopes),
+            credential_reference=credential_reference,
+        )
+
+    def add_connector_source(
+        self,
+        connector_instance_id: str,
+        *,
+        name: str,
+        source_kind: str,
+        external_id: str,
+    ) -> dict[str, Any]:
+        return self.connectors.add_source(
+            connector_instance_id,
+            name=name,
+            source_kind=source_kind,
+            external_id=external_id,
+        )
 
     def rebuild_library(
         self,
@@ -524,12 +575,20 @@ class ProvelumeInstance:
             "network": {
                 "external_access": bool(network.get("external_access", False)),
                 "update_checks": bool(network.get("update_checks", False)),
-                "configured_external_providers": 0,
+                "configured_external_providers": len(
+                    self.store.list_canonical("connector-instances")
+                ),
             },
         }
 
     def network_status(self) -> dict[str, Any]:
-        return declared_network_status(self.store.read_config())
+        return declared_network_status(
+            self.store.read_config(),
+            connector_definitions=self.store.list_canonical(
+                "connector-definitions"
+            ),
+            connector_instances=self.store.list_canonical("connector-instances"),
+        )
 
     def knowledge_health(self) -> dict[str, Any]:
         documents = self.store.list_canonical("documents")
