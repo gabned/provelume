@@ -161,6 +161,33 @@ def test_connector_declarations_are_network_transparent_and_secret_free(
     assert "credential" not in rendered
 
 
+def test_connector_sources_do_not_create_false_filesystem_health_findings(
+    tmp_path: Path,
+) -> None:
+    instance, definition = _configured_instance(tmp_path)
+    connector = instance.create_connector_instance(
+        str(definition["id"]),
+        name="Configuration-only fixture",
+        provider_identity="fixture-provider",
+    )
+    source = instance.add_connector_source(
+        str(connector["id"]),
+        name="Configured web Source",
+        source_kind="web",
+        external_id="fixture:configured",
+    )
+    instance.rebuild_index()
+
+    health = instance.knowledge_health()
+    source_view = instance.get_source(str(source["id"]))
+    assert health["status"] == "healthy"
+    assert "source_missing" not in {item["code"] for item in health["problems"]}
+    assert source_view is not None
+    assert source_view["available"] is False
+    assert source_view["availability_status"] == "configuration_only"
+    assert instance.instance_summary()["knowledge_status"] == "healthy"
+
+
 @pytest.mark.parametrize(
     ("mutate", "message"),
     [
@@ -172,6 +199,10 @@ def test_connector_declarations_are_network_transparent_and_secret_free(
         ),
         (
             lambda value: value.update({"adapter_protocol_version": 99}),
+            "protocol version",
+        ),
+        (
+            lambda value: value.update({"adapter_protocol_version": True}),
             "protocol version",
         ),
     ],

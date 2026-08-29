@@ -47,7 +47,8 @@ The same contract is exposed by `provelume about` and the local `/about` browser
 - `GET /api/v1/instance` — Instance identity, schema/manifest versions, derived-state policy,
   migration/recovery counts, canonical object counts, knowledge/index status and explicit network
   baseline.
-- `GET /api/v1/sources` — registered Sources with document counts and current local availability.
+- `GET /api/v1/sources` — registered Sources with document counts and current availability state;
+  connector declarations report `configuration_only` until their guarded transport exists.
 - `GET /api/v1/sources/{id}` — one Source.
 
 Physical source paths remain operator configuration and are not returned by these endpoints.

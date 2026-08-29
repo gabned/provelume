@@ -227,7 +227,10 @@ def normalise_connector_definition_manifest(
         raise ConnectorError("provider is invalid")
     if value.get("conformance_profile") != CONNECTOR_CONFORMANCE_PROFILE:
         raise ConnectorError("connector conformance profile is unsupported")
-    if value.get("adapter_protocol_version") != CONNECTOR_ADAPTER_PROTOCOL_VERSION:
+    if (
+        type(value.get("adapter_protocol_version")) is not int
+        or value.get("adapter_protocol_version") != CONNECTOR_ADAPTER_PROTOCOL_VERSION
+    ):
         raise ConnectorError("connector adapter protocol version is unsupported")
     if value.get("multi_instance") is not True:
         raise ConnectorError("connector definitions must require multi-instance operation")
@@ -371,6 +374,7 @@ def canonical_connector_errors(
             )
             valid = (
                 set(value) == _DEFINITION_RECORD_KEYS
+                and type(value.get("schema_version")) is int
                 and value.get("schema_version") == CONNECTOR_RECORD_SCHEMA_VERSION
                 and _DEFINITION_ID.fullmatch(record_id) is not None
                 and value.get("id") == record_id
@@ -408,6 +412,7 @@ def canonical_connector_errors(
             )
             valid = (
                 set(value) == _INSTANCE_RECORD_KEYS
+                and type(value.get("schema_version")) is int
                 and value.get("schema_version") == CONNECTOR_RECORD_SCHEMA_VERSION
                 and _INSTANCE_ID.fullmatch(record_id) is not None
                 and value.get("id") == record_id
@@ -476,6 +481,7 @@ def canonical_connector_errors(
             )
             valid = (
                 set(value) == _CONNECTOR_SOURCE_RECORD_KEYS
+                and type(value.get("schema_version")) is int
                 and value.get("schema_version") == CONNECTOR_RECORD_SCHEMA_VERSION
                 and _SOURCE_ID.fullmatch(record_id) is not None
                 and value.get("id") == record_id

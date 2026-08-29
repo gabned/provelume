@@ -223,13 +223,22 @@ class ProvelumeInstance:
         result = []
         for source in self.store.list_canonical("sources"):
             source_path = self.store.source_path(source["id"])
+            is_connector = source.get("kind") == "connector"
+            available = bool(source_path and source_path.exists())
             result.append(
                 {
                     **source,
                     "document_count": sum(
                         1 for document in documents if document["source_id"] == source["id"]
                     ),
-                    "available": bool(source_path and source_path.exists()),
+                    "available": False if is_connector else available,
+                    "availability_status": (
+                        "configuration_only"
+                        if is_connector
+                        else "available"
+                        if available
+                        else "missing"
+                    ),
                 }
             )
         return sorted(result, key=lambda item: item["name"].casefold())
@@ -239,9 +248,18 @@ class ProvelumeInstance:
         if source is None:
             return None
         source_path = self.store.source_path(source_id)
+        is_connector = source.get("kind") == "connector"
+        available = bool(source_path and source_path.exists())
         return {
             **source,
-            "available": bool(source_path and source_path.exists()),
+            "available": False if is_connector else available,
+            "availability_status": (
+                "configuration_only"
+                if is_connector
+                else "available"
+                if available
+                else "missing"
+            ),
             "document_count": sum(
                 1
                 for document in self.store.list_canonical("documents")
@@ -605,6 +623,8 @@ class ProvelumeInstance:
                     }
                 )
         for source in sources:
+            if source.get("kind") == "connector":
+                continue
             source_path = self.store.source_path(source["id"])
             if source_path is None or not source_path.exists():
                 problems.append(
