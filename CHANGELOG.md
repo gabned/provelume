@@ -42,12 +42,9 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 ### Changed
 
 - expanded the unreleased public forecast with user-controlled refresh/reindex/maintenance
-  schedules, interruption recovery, local storage/job statistics, mobile/PWA and macOS clients,
-  one-way rsync/SSH mirrors, grounded RAG retrieval, qualified Synology/QNAP operations and signed
-  Windows/macOS self-update; added an evidence-gated `provelume.com` synchronization cadence and an
-  immediate published-`0.7.0` correction point; kept GitHub and every platform/integration path
-  optional, preserved the existing one-word Latin release names and changed no published package,
-  tag or version identity;
+  schedules, interruption recovery and local storage, capacity and job statistics while keeping
+  those capabilities outside the `0.7.0` boundary; preserved the existing one-word Latin release
+  names and changed no published package, tag or version identity;
 - made connector and Source removal retain canonical tombstones instead of deleting identity
   records, and require independently selected Sources to be removed before their parent instance;
 - kept S01 schema-1 connector records valid and upgraded each record to lifecycle schema 2 only
