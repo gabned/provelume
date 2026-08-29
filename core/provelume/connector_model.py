@@ -32,6 +32,8 @@ CONNECTOR_LIFECYCLE_STATES = ("active", "removed")
 MAX_CONNECTOR_DATA_CATEGORIES = 32
 MAX_CONNECTOR_ORIGINS = 32
 MAX_CONNECTOR_SCOPES = 64
+MAX_OAUTH_SCOPE_CHARS = 512
+MAX_OAUTH_SCOPE_TOTAL_CHARS = 8192
 
 _ADAPTER_KEY = re.compile(r"[a-z][a-z0-9-]{0,47}\Z")
 _ADAPTER_VERSION = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\Z")
@@ -174,6 +176,34 @@ def _normalise_identifier_list(
     if required and not result:
         raise ConnectorError(f"{label} must contain at least one value")
     return result
+
+
+def normalise_oauth_scopes(value: Any) -> list[str]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
+        raise ConnectorError("scopes must be a sequence")
+    if len(value) > MAX_CONNECTOR_SCOPES:
+        raise ConnectorError(f"scopes exceeds the {MAX_CONNECTOR_SCOPES}-item limit")
+    selected: list[str] = []
+    total_chars = 0
+    for item in value:
+        if not isinstance(item, str) or not 1 <= len(item) <= MAX_OAUTH_SCOPE_CHARS:
+            raise ConnectorError("scopes contains an invalid OAuth scope token")
+        if any(
+            not (
+                ord(character) == 0x21
+                or 0x23 <= ord(character) <= 0x5B
+                or 0x5D <= ord(character) <= 0x7E
+            )
+            for character in item
+        ):
+            raise ConnectorError("scopes contains an invalid OAuth scope token")
+        selected.append(item)
+        total_chars += len(item)
+    if total_chars > MAX_OAUTH_SCOPE_TOTAL_CHARS:
+        raise ConnectorError(
+            f"scopes exceeds the {MAX_OAUTH_SCOPE_TOTAL_CHARS}-character total limit"
+        )
+    return sorted(set(selected))
 
 
 def connector_definition_id(adapter_key: str) -> str:
@@ -477,11 +507,7 @@ def normalise_connector_instance_configuration(
         raise ConnectorError("endpoint must be included in allowed_origins")
     if network_mode == "explicit" and not origins:
         raise ConnectorError("explicit network mode requires at least one allowed origin")
-    selected_scopes = _normalise_identifier_list(
-        scopes,
-        "scopes",
-        max_items=MAX_CONNECTOR_SCOPES,
-    )
+    selected_scopes = normalise_oauth_scopes(scopes)
     selected_reference = normalise_secret_reference(credential_reference)
     if authorization_mode == "none" and (selected_scopes or selected_reference is not None):
         raise ConnectorError("authorization mode none cannot declare scopes or credentials")

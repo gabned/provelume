@@ -7,18 +7,20 @@ import re
 import secrets
 import unicodedata
 from collections import OrderedDict
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from threading import Lock
 from typing import Any, Protocol
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
+from weakref import WeakValueDictionary
 
 from .connector_model import (
     ConnectorError,
     ConnectorNotFoundError,
     normalise_connector_origin,
+    normalise_oauth_scopes,
     normalise_secret_reference,
 )
 from .connectors import ConnectorManager
@@ -35,7 +37,6 @@ MAX_TERMINAL_REQUESTS = 256
 _REQUEST_ID = re.compile(r"oauth_request_[0-9a-f]{32}\Z")
 _ADAPTER_KEY = re.compile(r"[a-z][a-z0-9-]{0,47}\Z")
 _ADAPTER_VERSION = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\Z")
-_SCOPE = re.compile(r"[a-z][a-z0-9_.-]{0,63}\Z")
 _URLSAFE_SECRET = re.compile(r"[A-Za-z0-9_-]{43,128}\Z")
 _SENSITIVE_RESPONSE_KEYS = frozenset(
     {
@@ -152,14 +153,10 @@ class _PendingAuthorization:
 
 
 def _normalise_scopes(value: Any) -> tuple[str, ...]:
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
-        raise OAuthScopeError("OAuth scopes must be a sequence")
-    selected: list[str] = []
-    for item in value:
-        if not isinstance(item, str) or _SCOPE.fullmatch(item) is None:
-            raise OAuthScopeError("OAuth scopes contain an invalid identifier")
-        selected.append(item)
-    result = tuple(sorted(set(selected)))
+    try:
+        result = tuple(normalise_oauth_scopes(value))
+    except ConnectorError as exc:
+        raise OAuthScopeError(str(exc)) from exc
     if not result:
         raise OAuthScopeError("OAuth authorization requires at least one scope")
     return result
@@ -379,6 +376,7 @@ class InstalledAppAuthorizationManager:
         self._pending: dict[str, _PendingAuthorization] = {}
         self._terminal: OrderedDict[str, str] = OrderedDict()
         self._state_lock = Lock()
+        self._connector_locks: WeakValueDictionary[str, Lock] = WeakValueDictionary()
 
     @staticmethod
     def _operation_view(record: Any) -> dict[str, Any]:
@@ -393,6 +391,10 @@ class InstalledAppAuthorizationManager:
         if selected.tzinfo is None or selected.utcoffset() is None:
             raise OAuthAuthorizationError("OAuth authorization clock must be offset-aware")
         return selected.astimezone(UTC)
+
+    def _connector_lock(self, connector_instance_id: str) -> Lock:
+        with self._state_lock:
+            return self._connector_locks.setdefault(connector_instance_id, Lock())
 
     def _terminate(self, request_id: str, reason: str) -> None:
         self._terminal[request_id] = reason
@@ -494,6 +496,8 @@ class InstalledAppAuthorizationManager:
             "Prepare installed-app OAuth authorization",
             connector_instance_id,
         )
+        connector_lock = self._connector_lock(connector_instance_id)
+        connector_lock.acquire()
         try:
             if consent is not True:
                 raise OAuthPolicyError("OAuth authorization requires explicit consent")
@@ -619,6 +623,8 @@ class InstalledAppAuthorizationManager:
         except Exception as exc:
             self._fail_operation(operation, exc)
             raise
+        finally:
+            connector_lock.release()
 
     def complete(
         self,
@@ -631,6 +637,8 @@ class InstalledAppAuthorizationManager:
             "Complete installed-app OAuth callback",
             connector_instance_id,
         )
+        connector_lock = self._connector_lock(connector_instance_id)
+        connector_lock.acquire()
         try:
             selected = _normalise_callback(callback)
             now = self._now()
@@ -683,14 +691,18 @@ class InstalledAppAuthorizationManager:
                 adapter.exchange_callback(exchange),
                 pending.scopes,
             )
+
             completed = self.connectors.complete_oauth_authorization(
                 connector_instance_id,
-                credential_reference=grant["credential_reference"],
-                account_identity=grant["account_identity"],
-                granted_scopes=grant["granted_scopes"],
+                grant=grant,
                 authorized_at=now.isoformat(),
                 expected_record_sha256=pending.connector_record_sha256,
             )
+            with self._state_lock:
+                for sibling_id, sibling in tuple(self._pending.items()):
+                    if sibling.connector_instance_id == connector_instance_id:
+                        self._pending.pop(sibling_id, None)
+                        self._terminate(sibling_id, "superseded")
             self.operations.append(
                 operation.id,
                 "connector.authorization.callback.completed",
@@ -725,25 +737,28 @@ class InstalledAppAuthorizationManager:
         except Exception as exc:
             self._fail_operation(operation, exc)
             raise
+        finally:
+            connector_lock.release()
 
     def revoke(self, connector_instance_id: str) -> dict[str, Any]:
-        now = self._now()
-        cancelled = 0
-        with self._state_lock:
-            for request_id, pending in tuple(self._pending.items()):
-                if pending.connector_instance_id == connector_instance_id:
-                    self._pending.pop(request_id, None)
-                    self._terminate(request_id, "revoked")
-                    cancelled += 1
-        result = self.connectors.revoke_oauth_authorization(
-            connector_instance_id,
-            revoked_at=now.isoformat(),
-        )
-        return {
-            "status": result["authorization"]["status"],
-            "connector_instance": result,
-            "pending_requests_cancelled": cancelled,
-            "remote_mutation_attempted": False,
-            "credential_material_stored": False,
-            "originals_mutated": 0,
-        }
+        with self._connector_lock(connector_instance_id):
+            now = self._now()
+            cancelled = 0
+            with self._state_lock:
+                for request_id, pending in tuple(self._pending.items()):
+                    if pending.connector_instance_id == connector_instance_id:
+                        self._pending.pop(request_id, None)
+                        self._terminate(request_id, "revoked")
+                        cancelled += 1
+            result = self.connectors.revoke_oauth_authorization(
+                connector_instance_id,
+                revoked_at=now.isoformat(),
+            )
+            return {
+                "status": result["authorization"]["status"],
+                "connector_instance": result,
+                "pending_requests_cancelled": cancelled,
+                "remote_mutation_attempted": False,
+                "credential_material_stored": False,
+                "originals_mutated": 0,
+            }

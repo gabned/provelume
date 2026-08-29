@@ -4,8 +4,10 @@ import hashlib
 import json
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
+from threading import Lock
 from typing import Any
 from uuid import uuid4
+from weakref import WeakValueDictionary
 
 from .connector_model import (
     CONNECTOR_AUTHORIZATION_SCHEMA_VERSION,
@@ -26,6 +28,7 @@ from .connector_model import (
     normalise_connector_definition_manifest,
     normalise_connector_instance_configuration,
     normalise_connector_source_configuration,
+    normalise_oauth_scopes,
 )
 from .domain import ConnectorDefinition, ConnectorInstance, ConnectorSource
 from .locks import InstanceLockManager
@@ -48,6 +51,14 @@ _INSTANCE_UPDATE_FIELDS = frozenset(
 )
 _SOURCE_UPDATE_FIELDS = frozenset({"name"})
 MutationResult = tuple[dict[str, Any], tuple[str, ...], dict[str, int]]
+_LOCAL_MUTATION_LOCKS_GUARD = Lock()
+_LOCAL_MUTATION_LOCKS: WeakValueDictionary[str, Lock] = WeakValueDictionary()
+
+
+def _local_mutation_lock(store: InstanceStore) -> Lock:
+    key = str(store.paths.root.resolve())
+    with _LOCAL_MUTATION_LOCKS_GUARD:
+        return _LOCAL_MUTATION_LOCKS.setdefault(key, Lock())
 
 
 class ConnectorManager:
@@ -57,6 +68,7 @@ class ConnectorManager:
         self.store = store
         self.operations = OperationLedger(store)
         self.locks = InstanceLockManager(store)
+        self._mutation_lock = _local_mutation_lock(store)
 
     def _state(
         self,
@@ -99,7 +111,10 @@ class ConnectorManager:
         related: dict[str, str],
         apply: Callable[[], MutationResult],
     ) -> dict[str, Any]:
-        with self.locks.hold(CONNECTOR_CONFIGURATION_LOCK, purpose=kind):
+        with (
+            self._mutation_lock,
+            self.locks.hold(CONNECTOR_CONFIGURATION_LOCK, purpose=kind),
+        ):
             operation = self.operations.start(
                 kind,
                 title,
@@ -518,9 +533,7 @@ class ConnectorManager:
         self,
         instance_id: str,
         *,
-        credential_reference: Mapping[str, str],
-        account_identity: str | None,
-        granted_scopes: Sequence[str],
+        grant: Mapping[str, Any],
         authorized_at: str,
         expected_record_sha256: str,
     ) -> dict[str, Any]:
@@ -553,7 +566,13 @@ class ConnectorManager:
                 raise ConnectorConflictError(
                     "connector instance does not declare OAuth 2.0/PKCE authorization"
                 )
-            selected_scopes = sorted(set(granted_scopes))
+            if not isinstance(grant, Mapping) or set(grant) != {
+                "credential_reference",
+                "account_identity",
+                "granted_scopes",
+            }:
+                raise ConnectorError("OAuth grant returned an invalid contract")
+            selected_scopes = normalise_oauth_scopes(grant["granted_scopes"])
             if selected_scopes != config["scopes"]:
                 raise ConnectorConflictError(
                     "granted OAuth scopes must exactly match the configured least-privilege set"
@@ -562,8 +581,8 @@ class ConnectorManager:
             selected = normalise_connector_instance_configuration(
                 **{
                     **config,
-                    "account_identity": account_identity,
-                    "credential_reference": credential_reference,
+                    "account_identity": grant["account_identity"],
+                    "credential_reference": grant["credential_reference"],
                 },
                 derive_endpoint=False,
             )
@@ -625,12 +644,6 @@ class ConnectorManager:
                 raise ConnectorConflictError("connector instance is not configured for OAuth")
             current = connector_instance_authorization(existing)
             if current["status"] == "revoked" and config["credential_reference"] is None:
-                return (
-                    self.get_instance(instance_id) or {},
-                    (),
-                    {"configuration_records": 0, "authorizations_revoked": 0},
-                )
-            if current["status"] == "not_authorized" and config["credential_reference"] is None:
                 return (
                     self.get_instance(instance_id) or {},
                     (),
