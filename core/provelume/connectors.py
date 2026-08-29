@@ -518,9 +518,7 @@ class ConnectorManager:
         self,
         instance_id: str,
         *,
-        credential_reference: Mapping[str, str],
-        account_identity: str | None,
-        granted_scopes: Sequence[str],
+        grant_factory: Callable[[], Mapping[str, Any]],
         authorized_at: str,
         expected_record_sha256: str,
     ) -> dict[str, Any]:
@@ -553,7 +551,14 @@ class ConnectorManager:
                 raise ConnectorConflictError(
                     "connector instance does not declare OAuth 2.0/PKCE authorization"
                 )
-            selected_scopes = sorted(set(granted_scopes))
+            grant = grant_factory()
+            if not isinstance(grant, Mapping) or set(grant) != {
+                "credential_reference",
+                "account_identity",
+                "granted_scopes",
+            }:
+                raise ConnectorError("OAuth grant factory returned an invalid contract")
+            selected_scopes = sorted(set(grant["granted_scopes"]))
             if selected_scopes != config["scopes"]:
                 raise ConnectorConflictError(
                     "granted OAuth scopes must exactly match the configured least-privilege set"
@@ -562,8 +567,8 @@ class ConnectorManager:
             selected = normalise_connector_instance_configuration(
                 **{
                     **config,
-                    "account_identity": account_identity,
-                    "credential_reference": credential_reference,
+                    "account_identity": grant["account_identity"],
+                    "credential_reference": grant["credential_reference"],
                 },
                 derive_endpoint=False,
             )

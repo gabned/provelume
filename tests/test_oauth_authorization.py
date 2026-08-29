@@ -5,12 +5,14 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from threading import Barrier, Event
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
 from uuid import uuid4
 
 import pytest
 
+from provelume.connector_model import ConnectorError
 from provelume.domain import Acquisition, Document, DocumentVersion
 from provelume.instance_schema import build_instance_manifest
 from provelume.instance_validation import inspect_instance
@@ -44,6 +46,8 @@ class SyntheticOAuthAdapter:
     extra_grant: dict[str, Any] = field(default_factory=dict)
     exchanges: int = 0
     last_exchange: InstalledAppTokenExchange | None = None
+    exchange_started: Event | None = None
+    release_exchange: Event | None = None
 
     def build_authorization_uri(
         self,
@@ -66,6 +70,10 @@ class SyntheticOAuthAdapter:
     def exchange_callback(self, exchange: InstalledAppTokenExchange) -> dict[str, Any]:
         self.exchanges += 1
         self.last_exchange = exchange
+        if self.exchange_started is not None:
+            self.exchange_started.set()
+        if self.release_exchange is not None and not self.release_exchange.wait(timeout=5):
+            raise RuntimeError("synthetic exchange release timed out")
         return {
             "credential_reference": {
                 "kind": "system_keyring",
@@ -109,7 +117,11 @@ def _manifest() -> dict[str, object]:
     }
 
 
-def _configured(tmp_path: Path) -> tuple[ProvelumeInstance, dict[str, Any]]:
+def _configured(
+    tmp_path: Path,
+    *,
+    scopes: list[str] | None = None,
+) -> tuple[ProvelumeInstance, dict[str, Any]]:
     instance = ProvelumeInstance.initialise(tmp_path / "instance")
     config = instance.store.read_config()
     config["network"]["external_access"] = True
@@ -127,7 +139,7 @@ def _configured(tmp_path: Path) -> tuple[ProvelumeInstance, dict[str, Any]]:
         network_mode="explicit",
         allowed_origins=["https://oauth.example.test"],
         authorization_mode="oauth2_pkce",
-        scopes=SCOPES,
+        scopes=SCOPES if scopes is None else scopes,
     )
     return instance, connector
 
@@ -149,7 +161,7 @@ def _callback(
         "redirect_uri": redirect_uri,
         "state": state or _state(request),
         "authorization_code": code,
-        "granted_scopes": scopes or SCOPES,
+        "granted_scopes": SCOPES if scopes is None else scopes,
     }
 
 
@@ -337,6 +349,79 @@ def test_concurrent_callback_replay_exchanges_exactly_once(tmp_path: Path) -> No
     assert adapter.exchanges == 1
 
 
+def test_revocation_serializes_through_in_flight_callback_exchange(tmp_path: Path) -> None:
+    instance, connector = _configured(tmp_path)
+    exchange_started = Event()
+    release_exchange = Event()
+    revoke_entered = Event()
+    adapter = SyntheticOAuthAdapter(
+        exchange_started=exchange_started,
+        release_exchange=release_exchange,
+    )
+    request = _begin(instance, connector, adapter)
+
+    def revoke() -> dict[str, Any]:
+        revoke_entered.set()
+        return instance.revoke_connector_authorization(str(connector["id"]))
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        completion = executor.submit(
+            instance.complete_connector_authorization,
+            str(connector["id"]),
+            adapter,
+            _callback(request),
+        )
+        assert exchange_started.wait(timeout=2)
+        revocation = executor.submit(revoke)
+        assert revoke_entered.wait(timeout=2)
+        assert not revocation.done()
+        release_exchange.set()
+        assert completion.result(timeout=5)["status"] == "authorized"
+        revoked = revocation.result(timeout=5)
+
+    assert revoked["status"] == "revoked"
+    assert adapter.exchanges == 1
+    selected = instance.get_connector_instance(str(connector["id"]))
+    assert selected is not None
+    assert selected["authorization"]["status"] == "revoked"
+    assert selected["credential_reference"] is None
+
+
+def test_parallel_distinct_callbacks_invoke_only_one_exchange(tmp_path: Path) -> None:
+    instance, connector = _configured(tmp_path)
+    exchange_started = Event()
+    release_exchange = Event()
+    adapter = SyntheticOAuthAdapter(
+        exchange_started=exchange_started,
+        release_exchange=release_exchange,
+    )
+    requests = [_begin(instance, connector, adapter) for _index in range(2)]
+    ready = Barrier(3)
+
+    def complete(request: dict[str, Any]) -> str:
+        ready.wait(timeout=2)
+        try:
+            instance.complete_connector_authorization(
+                str(connector["id"]),
+                adapter,
+                _callback(request),
+            )
+        except OAuthReplayError:
+            return "superseded"
+        return "authorized"
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        completions = [executor.submit(complete, request) for request in requests]
+        ready.wait(timeout=2)
+        assert exchange_started.wait(timeout=2)
+        assert adapter.exchanges == 1
+        release_exchange.set()
+        outcomes = sorted(item.result(timeout=5) for item in completions)
+
+    assert outcomes == ["authorized", "superseded"]
+    assert adapter.exchanges == 1
+
+
 def test_callback_fails_if_connector_record_changes_after_request(tmp_path: Path) -> None:
     instance, connector = _configured(tmp_path)
     adapter = SyntheticOAuthAdapter()
@@ -388,6 +473,51 @@ def test_short_lived_state_and_consent_and_network_policy_are_fail_closed(
     with pytest.raises(OAuthPolicyError, match="network policy"):
         _begin(instance, connector, adapter)
     assert adapter.exchanges == 0
+
+
+def test_oauth_scope_tokens_are_case_sensitive_and_provider_independent(
+    tmp_path: Path,
+) -> None:
+    scopes = [
+        "Files.Read",
+        "https://www.googleapis.com/auth/drive.readonly",
+        "user:email",
+    ]
+    instance, connector = _configured(tmp_path, scopes=scopes)
+    adapter = SyntheticOAuthAdapter()
+    assert connector["scopes"] == sorted(scopes)
+    request = _begin(instance, connector, adapter)
+    completed = instance.complete_connector_authorization(
+        str(connector["id"]),
+        adapter,
+        _callback(request, scopes=scopes),
+    )
+    assert completed["connector_instance"]["scopes"] == sorted(scopes)
+
+    reauthorization = _begin(instance, connector, adapter)
+    changed_case = [
+        "files.read",
+        "https://www.googleapis.com/auth/drive.readonly",
+        "user:email",
+    ]
+    with pytest.raises(OAuthScopeError):
+        instance.complete_connector_authorization(
+            str(connector["id"]),
+            adapter,
+            _callback(reauthorization, scopes=changed_case),
+        )
+
+
+@pytest.mark.parametrize(
+    "scope",
+    ["", "two words", 'bad"quote', "bad\\slash", "café", "x" * 513],
+)
+def test_invalid_oauth_scope_tokens_fail_configuration_closed(
+    tmp_path: Path,
+    scope: str,
+) -> None:
+    with pytest.raises(ConnectorError, match="scope"):
+        _configured(tmp_path, scopes=[scope])
 
 
 def test_pre_s03_empty_scope_record_stays_valid_but_cannot_authorize(

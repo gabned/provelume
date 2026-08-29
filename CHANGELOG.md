@@ -34,6 +34,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   when that exact record is first mutated;
 - kept schema-1/schema-2 connector instances valid while new or changed instances use additive
   schema 3 with redacted OAuth status, timestamps, loopback binding and consent metadata;
+- accepted the bounded RFC 6749 scope-token character set without lowercasing case-sensitive
+  provider scopes, including colon-delimited, mixed-case and URL-shaped read scopes;
 - made disabled or removed connector configuration fail closed while leaving acquired Sources,
   Acquisitions, Documents, Versions and Original bytes untouched.
 - made explicit primary-endpoint clearing preserve the independent origin allowlist instead of
@@ -51,6 +53,9 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   output, while persisting only validated external credential references and redacted metadata;
 - required current connector/Instance network policy, exact adapter identity, explicitly allowed
   OAuth endpoint origins and exact high-port loopback redirect binding at request and callback time;
+- serialized authorization request, callback exchange/completion and revocation per connector,
+  invalidating sibling requests after success so revocation wins every race and only one exchange
+  can commit for one unchanged connector record;
 - made every connector declare an explicit network mode and bounded HTTP(S) origin allowlist while
   the global Instance network policy remains a fail-closed gate and this slice performs no network
   access.

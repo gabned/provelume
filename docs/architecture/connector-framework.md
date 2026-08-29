@@ -111,6 +111,10 @@ minutes by default and never more than ten minutes. The URI must preserve the ex
 challenge, `response_type=code`, exact sorted scope set and explicit consent binding. Core does not
 open a browser, listen on the callback port or perform an HTTP request in this slice.
 
+Scope values use the bounded RFC 6749 `scope-token` ASCII grammar. They remain case-sensitive and
+may therefore contain provider forms such as `user:email`, `Files.Read` and URL-shaped Google
+scopes; spaces, quotes, backslashes, controls, non-ASCII text and oversized tokens/sets fail closed.
+
 Callback completion requires the same request identity, state, redirect URI, adapter identity,
 adapter version and exact configured scope set. A valid-state callback is consumed before adapter
 exchange, so success and every later validation/exchange failure are non-replayable. Unknown,
@@ -131,6 +135,13 @@ clears the reference and records a redacted revocation timestamp; it deliberatel
 provider-side mutation. Changing the account, mode or scopes of an authorized instance requires
 revocation first. Neither operation disables/removes Sources or touches Acquisitions, Documents,
 Versions, provenance or Original bytes.
+
+Begin, callback exchange/completion and revocation share one in-process mutex per connector
+instance. A callback that starts first commits before a waiting revocation, which then clears its
+reference; a revocation that starts first cancels the pending callback. Successful completion also
+invalidates sibling requests before releasing the mutex. Thus parallel callbacks invoke at most one
+adapter exchange for one unchanged connector record, and revocation cannot be overtaken by an
+already-consumed in-flight callback.
 
 ## Lifecycle and preservation boundary
 
