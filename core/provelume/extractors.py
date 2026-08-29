@@ -598,3 +598,52 @@ def extractor_for(path: Path) -> Extractor | None:
         if extractor.supports(path.suffix):
             return extractor
     return None
+
+
+WEB_TEXT_MEDIA_TYPES = frozenset(
+    {
+        "application/json",
+        "application/ld+json",
+        "application/xml",
+        "text/markdown",
+        "text/plain",
+        "text/xml",
+    }
+)
+WEB_HTML_MEDIA_TYPES = frozenset({"application/xhtml+xml", "text/html"})
+
+
+def extract_web_readable_text(
+    media_type: str,
+    data: bytes,
+) -> ExtractionResult | None:
+    """Create bounded deterministic text for one guarded web representation.
+
+    Unsupported or non-UTF-8 representations remain valid Originals without a fabricated text
+    surrogate. Callers may treat ``ExtractionError`` as a rebuildable derived-state miss while
+    retaining the successfully acquired bytes.
+    """
+
+    selected = media_type.strip().casefold()
+    if selected == "application/pdf":
+        result = PdfTextExtractor().extract(data)
+    elif selected == "text/csv":
+        result = CsvTextExtractor().extract(data)
+    elif selected in WEB_TEXT_MEDIA_TYPES | WEB_HTML_MEDIA_TYPES:
+        try:
+            decoded = data.decode("utf-8-sig")
+        except UnicodeDecodeError as exc:
+            raise ExtractionError("web representation is not valid UTF-8") from exc
+        text = _html_to_text(decoded) if selected in WEB_HTML_MEDIA_TYPES else decoded
+        result = ExtractionResult(
+            text=_bounded_text(text, "web representation"),
+            generator=(
+                "provelume.web-html"
+                if selected in WEB_HTML_MEDIA_TYPES
+                else "provelume.web-text"
+            ),
+            generator_version="1",
+        )
+    else:
+        return None
+    return result if result.text.strip() else None

@@ -23,6 +23,7 @@ from .instance_schema import (
 from .paths import UnsafePathError, safe_instance_path
 from .retention_model import canonical_disposition_errors
 from .storage import CANONICAL_KINDS, REQUIRED_CANONICAL_KINDS, InstanceStore
+from .web_transport import WebTransportError, canonical_web_url
 
 VALIDATION_REPORT_SCHEMA_VERSION = 1
 _INSTANCE_ID = re.compile(r"inst_[0-9a-f]{32}\Z")
@@ -209,6 +210,159 @@ def _validate_references(
                         path=path,
                     )
                 )
+
+        if acquisition.get("acquisition_kind") != "manual_web":
+            continue
+        source = sources.get(str(acquisition.get("source_id")))
+        connector = records["connector-instances"].get(
+            str(acquisition.get("connector_instance_id"))
+        )
+        version = versions.get(str(acquisition.get("version_id")))
+        original = originals.get(str(acquisition.get("original_id")))
+        requested_url = acquisition.get("requested_url")
+        final_url = acquisition.get("final_url")
+        valid_urls = True
+        for selected in (requested_url, final_url):
+            try:
+                if not isinstance(selected, str) or canonical_web_url(selected) != selected:
+                    valid_urls = False
+            except WebTransportError:
+                valid_urls = False
+        source_url_matches = False
+        if source is not None:
+            try:
+                source_url_matches = (
+                    canonical_web_url(source.get("external_id")) == requested_url
+                )
+            except WebTransportError:
+                source_url_matches = False
+        replay_id = acquisition.get("replay_of_acquisition_id")
+        replay = (
+            records["acquisitions"].get(replay_id)
+            if isinstance(replay_id, str)
+            else None
+        )
+        replay_valid = replay_id is None or (
+            replay is not None
+            and replay_id != record_id
+            and replay.get("acquisition_kind") == "manual_web"
+            and replay.get("source_id") == acquisition.get("source_id")
+            and replay.get("requested_url") == requested_url
+        )
+        derived_status = acquisition.get("derived_status")
+        derived_artifact_id = acquisition.get("derived_artifact_id")
+        if (
+            acquisition.get("schema_version") != 1
+            or source is None
+            or source.get("kind") != "connector"
+            or connector is None
+            or source.get("connector_instance_id") != acquisition.get(
+                "connector_instance_id"
+            )
+            or acquisition.get("locator") != requested_url
+            or acquisition.get("observed_at") != acquisition.get("retrieved_at")
+            or acquisition.get("http_status") != 200
+            or not isinstance(acquisition.get("media_type"), str)
+            or type(acquisition.get("response_size_bytes")) is not int
+            or int(acquisition.get("response_size_bytes", -1)) < 0
+            or acquisition.get("outcome")
+            not in {"created", "unchanged", "version_created", "version_reused"}
+            or acquisition.get("derived_status")
+            not in {"created", "reused", "unavailable"}
+            or type(acquisition.get("exact_duplicate")) is not bool
+            or not replay_valid
+            or (derived_status == "unavailable" and derived_artifact_id is not None)
+            or (
+                derived_status in {"created", "reused"}
+                and not isinstance(derived_artifact_id, str)
+            )
+            or not source_url_matches
+            or not valid_urls
+        ):
+            errors.append(
+                _finding(
+                    "manual_web_acquisition_invalid",
+                    "Manual web Acquisition metadata or authority binding is invalid",
+                    path=path,
+                )
+            )
+        if (
+            version is None
+            or original is None
+            or acquisition.get("content_hash") != version.get("content_hash")
+            or acquisition.get("content_hash") != original.get("sha256")
+            or acquisition.get("original_id") != version.get("original_id")
+            or acquisition.get("response_size_bytes") != original.get("size_bytes")
+        ):
+            errors.append(
+                _finding(
+                    "manual_web_original_binding_invalid",
+                    "Manual web Acquisition does not match its Version and Original",
+                    path=path,
+                )
+            )
+        required_edges = {
+            (
+                "source",
+                str(acquisition.get("source_id")),
+                "observed",
+                "acquisition",
+                record_id,
+            ),
+            (
+                "connector_instance",
+                str(acquisition.get("connector_instance_id")),
+                "acquired_via",
+                "acquisition",
+                record_id,
+            ),
+            (
+                "acquisition",
+                record_id,
+                "captured",
+                "original",
+                str(acquisition.get("original_id")),
+            ),
+            (
+                "acquisition",
+                record_id,
+                "matched",
+                "version",
+                str(acquisition.get("version_id")),
+            ),
+            (
+                "original",
+                str(acquisition.get("original_id")),
+                "materialized_as",
+                "version",
+                str(acquisition.get("version_id")),
+            ),
+            (
+                "version",
+                str(acquisition.get("version_id")),
+                "version_of",
+                "document",
+                str(acquisition.get("document_id")),
+            ),
+        }
+        observed_edges = {
+            (
+                str(edge.get("from_kind")),
+                str(edge.get("from_id")),
+                str(edge.get("relation")),
+                str(edge.get("to_kind")),
+                str(edge.get("to_id")),
+            )
+            for edge in records["provenance"].values()
+        }
+        if not required_edges.issubset(observed_edges):
+            errors.append(
+                _finding(
+                    "manual_web_provenance_incomplete",
+                    "Manual web Acquisition provenance is incomplete",
+                    path=path,
+                )
+            )
 
     for code, message, path in canonical_connector_errors(
         records["connector-definitions"],

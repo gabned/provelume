@@ -15,6 +15,8 @@ from .connector_model import (
     ConnectorNotFoundError,
 )
 from .service import ProvelumeInstance
+from .web_acquisition import ManualWebAcquisitionError
+from .web_transport import GuardedWebRequest, WebTransportError
 
 _INSTANCE_STATE_COMMANDS = {
     "connector-instance-enable": "enable",
@@ -166,6 +168,19 @@ def add_connector_commands(subparsers: Any) -> None:
         )
         _add_source_identity(parser)
 
+    acquire = subparsers.add_parser(
+        "connector-web-acquire",
+        help="Explicitly acquire one guarded web Source URL into canonical knowledge",
+    )
+    _add_source_identity(acquire)
+    acquire.add_argument("url")
+    acquire.add_argument(
+        "--confirm-network",
+        action="store_true",
+        required=True,
+        help="confirm this one explicit guarded network request",
+    )
+
 
 def _manifest(path: Path) -> Mapping[str, Any]:
     with path.open("r", encoding="utf-8") as handle:
@@ -293,6 +308,17 @@ def _connector_result(
             f"{_SOURCE_STATE_COMMANDS[args.command]}_connector_source",
         )
         return method(args.connector_instance_id, args.source_id)
+    if args.command == "connector-web-acquire":
+        if args.confirm_network is not True:
+            raise ManualWebAcquisitionError
+        return instance.acquire_manual_web(
+            GuardedWebRequest(
+                connector_instance_id=args.connector_instance_id,
+                source_id=args.source_id,
+                url=args.url,
+                network_authorization="explicit",
+            )
+        )
     raise ConnectorError(f"unsupported connector command: {args.command}")
 
 
@@ -306,6 +332,7 @@ def handle_connector_command(args: argparse.Namespace) -> int | None:
         "connector-source-add",
         "connector-source-show",
         "connector-source-update",
+        "connector-web-acquire",
         *_INSTANCE_STATE_COMMANDS,
         *_SOURCE_STATE_COMMANDS,
     }
@@ -315,6 +342,24 @@ def handle_connector_command(args: argparse.Namespace) -> int | None:
     try:
         result = _connector_result(ProvelumeInstance(args.instance), args)
     except (OSError, RuntimeError, UnicodeError, ValueError) as exc:
+        if args.command == "connector-web-acquire":
+            if isinstance(exc, (WebTransportError, ManualWebAcquisitionError)):
+                error = exc.as_dict()
+            else:
+                error = ManualWebAcquisitionError().as_dict()
+            print(
+                json.dumps(
+                    {
+                        "status": "error",
+                        "error": error["message"],
+                        "error_code": error["code"],
+                        "network_attempted": True,
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+            return 2
         print(
             json.dumps(
                 {
@@ -333,11 +378,10 @@ def handle_connector_command(args: argparse.Namespace) -> int | None:
         )
         return 3 if isinstance(exc, ConnectorNotFoundError) else 2
 
-    print(
-        json.dumps(
-            {**result, "network_attempted": False},
-            indent=2,
-            sort_keys=True,
-        )
+    output = (
+        result
+        if args.command == "connector-web-acquire"
+        else {**result, "network_attempted": False}
     )
+    print(json.dumps(output, indent=2, sort_keys=True))
     return 0

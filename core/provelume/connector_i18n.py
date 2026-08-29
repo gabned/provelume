@@ -42,6 +42,34 @@ CONNECTOR_TRANSLATIONS: dict[str, dict[str, str]] = {
         "connectors.source_kind": "Source kind",
         "connectors.documents": "Documents retained",
         "connectors.acquisitions": "Acquisitions retained",
+        "connectors.manual_acquisitions": "Manual web acquisitions",
+        "connectors.manual_acquisitions_lead": (
+            "Each completed explicit request retains its own Acquisition while exact content "
+            "reuses canonical Document, Version and Original identities where applicable."
+        ),
+        "connectors.manual_acquisitions_empty": (
+            "No manual web acquisition has completed for this Source."
+        ),
+        "connectors.manual_acquisition": "Manual web acquisition",
+        "connectors.acquisition_completed": "Acquisition completed",
+        "connectors.read_only_result": "Read-only canonical result",
+        "connectors.acquisition_evidence": "Retrieval evidence",
+        "connectors.requested_url": "Canonical requested URL",
+        "connectors.final_url": "Final URL",
+        "connectors.retrieved_at": "Retrieved at",
+        "connectors.media_type": "Media type",
+        "connectors.response_size": "Exact retained size",
+        "connectors.outcome": "Canonical outcome",
+        "connectors.canonical_records": "Canonical records",
+        "connectors.idempotency": "Replay and idempotency",
+        "connectors.replay": "Replay request",
+        "connectors.exact_duplicate": "Exact duplicate bytes",
+        "connectors.canonical_outcome": "Canonical content effect",
+        "connectors.derived_boundary": "Derived text boundary",
+        "connectors.derived_status": "Readable text status",
+        "connectors.derived_rebuildable": (
+            "Readable text is separate and rebuildable; it never replaces the Original."
+        ),
         "connectors.original_boundary": "Original preservation boundary",
         "connectors.original_preserved": (
             "Disabling or removing this configuration never deletes or overwrites an acquired "
@@ -104,6 +132,35 @@ CONNECTOR_TRANSLATIONS: dict[str, dict[str, str]] = {
         "connectors.source_kind": "Tipo di Fonte",
         "connectors.documents": "Documenti conservati",
         "connectors.acquisitions": "Acquisizioni conservate",
+        "connectors.manual_acquisitions": "Acquisizioni web manuali",
+        "connectors.manual_acquisitions_lead": (
+            "Ogni richiesta esplicita completata conserva la propria Acquisition; quando "
+            "possibile, i contenuti identici riusano le identità canoniche di Document, Version "
+            "e Original."
+        ),
+        "connectors.manual_acquisitions_empty": (
+            "Nessuna acquisizione web manuale è stata completata per questa Fonte."
+        ),
+        "connectors.manual_acquisition": "Acquisizione web manuale",
+        "connectors.acquisition_completed": "Acquisizione completata",
+        "connectors.read_only_result": "Risultato canonico in sola lettura",
+        "connectors.acquisition_evidence": "Evidenza del recupero",
+        "connectors.requested_url": "URL canonico richiesto",
+        "connectors.final_url": "URL finale",
+        "connectors.retrieved_at": "Recuperato il",
+        "connectors.media_type": "Tipo di contenuto",
+        "connectors.response_size": "Dimensione esatta conservata",
+        "connectors.outcome": "Esito canonico",
+        "connectors.canonical_records": "Record canonici",
+        "connectors.idempotency": "Replay e idempotenza",
+        "connectors.replay": "Richiesta ripetuta",
+        "connectors.exact_duplicate": "Byte esattamente duplicati",
+        "connectors.canonical_outcome": "Effetto sul contenuto canonico",
+        "connectors.derived_boundary": "Confine del testo derivato",
+        "connectors.derived_status": "Stato del testo leggibile",
+        "connectors.derived_rebuildable": (
+            "Il testo leggibile è separato e ricostruibile; non sostituisce mai l'Original."
+        ),
         "connectors.original_boundary": "Confine di conservazione degli Original",
         "connectors.original_preserved": (
             "La disabilitazione o rimozione di questa configurazione non cancella né sovrascrive "

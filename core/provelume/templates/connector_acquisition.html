@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ t('connectors.manual_acquisition') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb">
+  <a href="/?lang={{ lang }}">{{ t('nav.home') }}</a>
+  <span>/</span>
+  <a href="/connectors?lang={{ lang }}">{{ t('nav.connectors') }}</a>
+  <span>/</span>
+  <a href="/connectors/{{ connector.id }}?lang={{ lang }}">{{ connector.name }}</a>
+  <span>/</span>
+  <a href="/connectors/{{ connector.id }}/sources/{{ connector_source.id }}?lang={{ lang }}">{{ connector_source.name }}</a>
+  <span>/</span>
+  <span>{{ web_acquisition.acquisition.id }}</span>
+</nav>
+<section class="hero">
+  <p class="eyebrow">{{ t('connectors.manual_acquisition') }}</p>
+  <h1>{{ web_acquisition.document.title }}</h1>
+  <p class="lead"><code>{{ web_acquisition.acquisition.id }}</code></p>
+  <div class="status-row">
+    <span class="status ok">{{ t('connectors.acquisition_completed') }}</span>
+    <span>{{ t('connectors.read_only_result') }}</span>
+  </div>
+</section>
+<section class="two-column">
+  <article>
+    <section class="panel">
+      <h2>{{ t('connectors.acquisition_evidence') }}</h2>
+      <dl>
+        <dt>{{ t('connectors.requested_url') }}</dt><dd><code>{{ web_acquisition.acquisition.requested_url }}</code></dd>
+        <dt>{{ t('connectors.final_url') }}</dt><dd><code>{{ web_acquisition.acquisition.final_url }}</code></dd>
+        <dt>{{ t('connectors.retrieved_at') }}</dt><dd>{{ web_acquisition.acquisition.retrieved_at }}</dd>
+        <dt>{{ t('connectors.media_type') }}</dt><dd>{{ web_acquisition.acquisition.media_type }}</dd>
+        <dt>{{ t('connectors.response_size') }}</dt><dd>{{ web_acquisition.acquisition.response_size_bytes }} B</dd>
+        <dt>SHA-256</dt><dd><code>{{ web_acquisition.acquisition.content_hash }}</code></dd>
+        <dt>{{ t('connectors.outcome') }}</dt><dd>{{ web_acquisition.acquisition.outcome }}</dd>
+      </dl>
+    </section>
+    <section class="panel">
+      <h2>{{ t('connectors.canonical_records') }}</h2>
+      <dl>
+        <dt>Source</dt><dd><code>{{ web_acquisition.acquisition.source_id }}</code></dd>
+        <dt>ConnectorInstance</dt><dd><code>{{ web_acquisition.acquisition.connector_instance_id }}</code></dd>
+        <dt>Document</dt><dd><a href="/documents/{{ web_acquisition.document.id }}?lang={{ lang }}"><code>{{ web_acquisition.document.id }}</code></a></dd>
+        <dt>Version</dt><dd><code>{{ web_acquisition.version.id }}</code></dd>
+        <dt>Original</dt><dd><code>{{ web_acquisition.original.id }}</code></dd>
+      </dl>
+    </section>
+  </article>
+  <aside>
+    <section class="panel">
+      <h2>{{ t('connectors.idempotency') }}</h2>
+      <dl>
+        <dt>{{ t('connectors.replay') }}</dt><dd>{{ t('common.yes') if web_acquisition.idempotency.replay else t('common.no') }}</dd>
+        <dt>{{ t('connectors.exact_duplicate') }}</dt><dd>{{ t('common.yes') if web_acquisition.idempotency.exact_duplicate else t('common.no') }}</dd>
+        <dt>{{ t('connectors.canonical_outcome') }}</dt><dd>{{ web_acquisition.idempotency.canonical_outcome }}</dd>
+      </dl>
+    </section>
+    <section class="panel trust-boundary">
+      <h2>{{ t('connectors.derived_boundary') }}</h2>
+      <p>{{ t('connectors.derived_status') }}: {{ web_acquisition.derived.status }}</p>
+      <p>{{ t('connectors.derived_rebuildable') }}</p>
+    </section>
+  </aside>
+</section>
+{% endblock %}

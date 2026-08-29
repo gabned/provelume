@@ -42,10 +42,13 @@ reference kind/name to the local operator, while secret-free operation evidence 
 privacy/network inventory omit it.
 
 The `0.7/S04` connector web transport remains an explicit operator action behind the current
-Instance, connector and Source gates. It performs no background access, proxy discovery,
-credential fallback or canonical mutation; its fixed typed failures omit URLs, tokens, paths and
-response content. This does not turn configured-capability transparency into traffic monitoring:
-runtime network-event auditing remains future work and must feed the same surface without
-collapsing configured capability into observed activity. Future update services and AI providers
-must likewise remain explicit choices and add their component type to the public declaration
-registry before they can be treated as understood.
+Instance, connector and Source gates. It performs no background access, proxy discovery or
+credential fallback; its fixed typed failures omit URLs, tokens, paths and response content.
+`0.7/S05` can persist a complete guarded response only after another current-policy check under a
+short configuration lock. Its operation evidence retains opaque canonical IDs, safe status codes
+and bounded metrics, never the requested/final URL, response body, credential reference or physical
+path. This does not turn configured-capability transparency into traffic monitoring: runtime
+network-event auditing remains future work and must feed the same surface without collapsing
+configured capability into observed activity. Future update services and AI providers must likewise
+remain explicit choices and add their component type to the public declaration registry before they
+can be treated as understood.

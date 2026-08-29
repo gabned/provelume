@@ -28,6 +28,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - added bounded transient conditional metadata, redirects, time, headers, resource count,
   compressed/decompressed body sizes, decompression ratio, media types and response framing without
   introducing scheduling, refresh state or canonical acquisition;
+- added explicit one-URL manual web acquisition through the guarded transport, with one retained
+  Acquisition per successful request and deterministic content reuse across Document, Version and
+  immutable content-addressed Original records;
+- added bounded deterministic readable-text derivation for supported web representations plus
+  aligned service/CLI initiation and read-only API/EN/IT Browser result views; unsupported or
+  unreadable formats remain acquired without OCR or invented text;
 - included connector definitions, instances and Sources in deep validation, backup, restore and
   portable Instance export/import without changing package or embedded release identity.
 
@@ -51,6 +57,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   Acquisitions, Documents, Versions and Original bytes untouched.
 - made explicit primary-endpoint clearing preserve the independent origin allowlist instead of
   silently selecting its first member again.
+- made manual web replay and exact-duplicate behavior explicit: every successful request preserves
+  its own provenance while unchanged content avoids redundant canonical Versions and Originals.
 
 ### Security
 
@@ -76,6 +84,11 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   service instance;
 - kept synthetic adapter exchange outside the Instance-wide configuration lock so independent
   connectors may complete concurrently while their short canonical commits serialize locally;
+- rechecked current Instance, connector, Source and authorization policy under the connector
+  configuration lock immediately before an atomic lifecycle-serialized acquisition commit;
+- staged exact guarded-response representation bytes and all new canonical/derived bindings as one
+  rollback-capable transaction, with fixed redacted failure evidence and deep validation of the
+  resulting Original and provenance links;
 - made every connector declare an explicit network mode and bounded HTTP(S) origin allowlist while
   the global Instance network policy remains a fail-closed gate and configuration mutations perform
   no network access.

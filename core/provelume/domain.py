@@ -82,6 +82,21 @@ class Acquisition:
     document_id: str
     version_id: str
     error: str | None = None
+    schema_version: int = 1
+    acquisition_kind: str = "filesystem"
+    connector_instance_id: str | None = None
+    requested_url: str | None = None
+    final_url: str | None = None
+    retrieved_at: str | None = None
+    media_type: str | None = None
+    original_id: str | None = None
+    http_status: int | None = None
+    content_encoding: str | None = None
+    response_size_bytes: int | None = None
+    replay_of_acquisition_id: str | None = None
+    exact_duplicate: bool | None = None
+    derived_status: str | None = None
+    derived_artifact_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -3,7 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import Counter
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from threading import Lock
 from typing import Any
 from uuid import uuid4
@@ -69,6 +70,24 @@ class ConnectorManager:
         self.operations = OperationLedger(store)
         self.locks = InstanceLockManager(store)
         self._mutation_lock = _local_mutation_lock(store)
+
+    @contextmanager
+    def policy_commit_guard(self, *, purpose: str) -> Iterator[None]:
+        """Serialize a short policy recheck and canonical consumer commit.
+
+        Network activity must happen before this guard is entered. Holding the same process-local
+        and cross-process locks as connector configuration prevents a disable, removal or
+        revocation from racing the consumer's final authority check and commit.
+        """
+
+        selected = purpose.strip()[:120]
+        if not selected:
+            raise ValueError("connector policy guard purpose is required")
+        with (
+            self._mutation_lock,
+            self.locks.hold(CONNECTOR_CONFIGURATION_LOCK, purpose=selected),
+        ):
+            yield
 
     def _state(
         self,

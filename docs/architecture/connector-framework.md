@@ -5,10 +5,11 @@ Provelume `0.7/S01` introduces a provider-independent local configuration and co
 service/CLI/read-only API/EN/IT Browser views. `0.7/S03` adds an installed-app OAuth 2.0/PKCE
 authorization boundary with synthetic adapters only. `0.7/S04` adds the provider-independent,
 Source-bound guarded HTTP(S) transport described in
-[`guarded-web-transport.md`](guarded-web-transport.md). These slices do not implement a callback
-server, canonical web acquisition, background refreshes or executable adapter loading from a
-manifest. Issue #105 owns the complete `0.7.0` release; manual web acquisition remains the next
-homogeneous slice.
+[`guarded-web-transport.md`](guarded-web-transport.md). `0.7/S05` adds explicit atomic manual
+acquisition through that transport as described in
+[`manual-web-acquisition.md`](manual-web-acquisition.md). These slices do not implement a callback
+server, background refreshes or executable adapter loading from a manifest. Issue #105 owns the
+complete `0.7.0` release.
 
 ## Identity boundary
 
@@ -220,7 +221,8 @@ and local revoke contracts through the in-process application service so the sam
 process retains its short-lived state; it adds no unauthenticated HTTP or split-process CLI mutation
 surface.
 
-S04 exposes only `ProvelumeInstance.guarded_web_fetch` and the reusable transport contract; it has
-no CLI or unauthenticated HTTP route and returns transient bytes without canonical mutation.
-Manual acquisition belongs to `0.7/S05`. Background scheduling, polling, token refresh and renewal
-remain excluded.
+S04 exposes `ProvelumeInstance.guarded_web_fetch` and the reusable transport contract; it has no
+unauthenticated HTTP mutation route and returns transient bytes without canonical mutation. S05
+adds `ProvelumeInstance.acquire_manual_web` and the explicit `connector-web-acquire` CLI command,
+then exposes only their retained status/detail through read-only HTTP and EN/IT Browser routes.
+Background scheduling, polling, token refresh and renewal remain excluded.

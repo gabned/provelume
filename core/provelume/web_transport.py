@@ -533,6 +533,16 @@ def _normalise_url(value: Any, limits: GuardedWebLimits) -> _Target:
     )
 
 
+def canonical_web_url(
+    value: Any,
+    *,
+    limits: GuardedWebLimits | None = None,
+) -> str:
+    """Return the guarded transport's canonical form without network access."""
+
+    return _normalise_url(value, limits or GuardedWebLimits()).url
+
+
 def _public_ip(value: str) -> str:
     if not isinstance(value, str) or "%" in value:
         raise WebTransportDestinationError
@@ -911,6 +921,26 @@ class GuardedWebTransport:
             raise WebTransportPolicyError
         return allowed_origins
 
+    def assert_current_authority(
+        self,
+        request: GuardedWebRequest,
+        *,
+        final_url: str | None = None,
+    ) -> str:
+        """Revalidate current policy and return the canonical requested URL.
+
+        Canonical acquisition consumers call this again inside their short commit guard. The
+        optional final URL is checked against the currently authorized origin set without
+        performing DNS or opening a connection.
+        """
+
+        _connector, target, allowed_origins = self._policy(request)
+        if final_url is not None:
+            selected_final = _normalise_url(final_url, self.limits)
+            if selected_final.origin not in allowed_origins:
+                raise WebTransportPolicyError
+        return target.url
+
     def _bounded_resolver_call(
         self,
         host: str,
@@ -1280,4 +1310,5 @@ __all__ = [
     "WebTransportTimeoutError",
     "WebTransportTruncatedError",
     "WebTransportUrlError",
+    "canonical_web_url",
 ]
