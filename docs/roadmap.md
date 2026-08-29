@@ -44,7 +44,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Forecast | `0.15.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
 | Forecast | `0.16.0` | AI classification, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
 | Forecast | `0.17.0` | Semantic and hybrid search | issue just in time | `Sensus` |
-| Forecast | `0.18.0` | Self-hosted and Synology operations | issue just in time | `Domus` |
+| Forecast | `0.18.0` | Self-hosted, Synology and QNAP operations | issue just in time | `Domus` |
 | Forecast | `0.19.0` | Windows and macOS background agents and bootstrap completion | issue just in time | `Excubitor` |
 | Forecast | `0.20.0` | Signed desktop releases and safe updaters | issue just in time | `Renovatio` |
 | Forecast | `0.21.0` | Business and Cloud contracts preview | issue just in time | `Societas` |
@@ -85,8 +85,8 @@ names do not replace SemVer, package identity, tags or the immutable published r
 - **`0.11.0` — `Entitas`.** Adds evidence-linked objects, claims, decisions, tasks, calendar items
   and relations. Derived structure remains traceable to exact Originals and canonical records.
 - **`0.12.0` — `Concordia`.** Adds productivity connectors, guarded task synchronization and
-  optional one-way Git mirrors. GitHub, GitLab and Gitea remain selectable integrations, not runtime
-  requirements.
+  optional one-way Git, local-folder and rsync mirrors. No mirror provider becomes canonical
+  storage or a runtime requirement.
 - **`0.13.0` — `Itinerarium`.** Adds navigation, backlinks, health, local statistics and capacity
   views. Deterministic discovery and legacy import remain explainable and fully reconcilable.
 - **`0.14.0` — `Interfacies`.** Stabilizes Knowledge API v1 plus desktop, mobile and read-only MCP
@@ -98,8 +98,9 @@ names do not replace SemVer, package identity, tags or the immutable published r
   reviewable or reversible.
 - **`0.17.0` — `Sensus`.** Adds semantic and hybrid retrieval across canonical knowledge.
   Embeddings and indexes remain derived, rebuildable state rather than a new source of truth.
-- **`0.18.0` — `Domus`.** Qualifies self-hosted and Synology operation with documented containers,
-  mounts, identity, backup and restore. Upgrade and rollback boundaries stay explicit.
+- **`0.18.0` — `Domus`.** Qualifies self-hosted, Synology and QNAP operation with containers,
+  rsync/SSH backup transport and restore evidence. Capacity, upgrade and rollback boundaries stay
+  explicit.
 - **`0.19.0` — `Excubitor`.** Adds Windows tray and macOS menu-bar agents with start-at-login
   operation. Watched intake and maintenance can continue while the interface is closed and can
   always be paused.
@@ -792,21 +793,37 @@ never rewrites remote history. Bidirectional multi-master Git synchronization re
 remote repository may instead be imported through the explicit legacy-import boundary in
 `0.13.0`.
 
+A provider-independent filesystem mirror capability qualifies a local-folder target and an
+`rsync` over SSH reference profile beside Git. It publishes only from an atomically completed
+library/export staging generation, never from a live mutable Instance tree, and supports disabled,
+manual or scheduled one-way transfer with dry-run inventory, bandwidth/maintenance windows,
+resume, destination host-key verification, external credential references and a final
+source/destination manifest comparison. The destination may be a user-controlled server, NAS or
+mounted path; `rsync` availability and version stay part of the host support matrix rather than a
+hidden runtime assumption.
+
+Destination deletion is disabled by default. If a user explicitly enables cleanup for a derived
+mirror, Provelume first presents the exact destination-only path/byte impact and never applies it
+to an Original store, canonical Instance, backup inventory or unknown destination root. Rsync is a
+transport and mirror mechanism, not evidence that a backup is complete or restorable; verified
+backup replication and restore drills are qualified separately in `0.18.0`. Bidirectional rsync or
+two concurrently writable Instances remain excluded.
+
 **Exit gate:** multiple Google accounts, Asana identities/workspaces/projects, Tududi endpoints,
-iCalendar feeds and Git mirrors remain distinguishable; refresh and full resync are idempotent;
+iCalendar feeds, Git and rsync mirrors remain distinguishable; refresh and full resync are idempotent;
 recurrence and cross-provider duplicates are explainable; revoked credentials stop access without
 damaging imported knowledge; a stale or replayed task write cannot overwrite newer provider state;
-and repeated one-way Git publication produces no needless commit. Local-only/no-GitHub mode
-performs no connector or mirror access.
+and repeated one-way Git or filesystem publication produces no needless commit or transfer.
+Local-only/no-GitHub/no-rsync mode performs no connector or mirror access.
 
 **Not in this release:** email sending; calendar create/update/delete; autonomous task creation or
-deletion; generic two-way multi-master synchronization; Git as canonical storage or mandatory
-backup; or a mandatory 1.0 commitment for additional adapters such as CalDAV, Microsoft 365,
-IMAP, Notion or Todoist.
+deletion; generic two-way multi-master synchronization; Git or rsync as canonical storage or
+mandatory backup; or a mandatory 1.0 commitment for additional adapters such as CalDAV, Microsoft
+365, IMAP, Notion or Todoist.
 
 **Suggested slices:** keep each provider adapter in its own owner slice after shared conformance
-contracts; implement Git mirror identity/dry-run first, then one-way publication and hosted-profile
-qualification without mixing it with task write-back.
+contracts; implement shared mirror identity/staging/dry-run first, then Git publication, hosted
+profiles and the local/rsync one-way adapter without mixing them with task write-back.
 
 This independently releasable outcome takes the former `0.12.0` slot. Every later unreleased
 forecast moves forward atomically by one through the `0.22.0` release candidate. Published
@@ -978,12 +995,12 @@ bytes, coverage, lag, generation age and rebuild progress.
 **Exit gate:** delete-and-rebuild, interrupted reindex and provider-replacement tests preserve
 canonical objects, privacy routing and deterministic fallback search.
 
-### 0.18.0 — Self-hosted and Synology Operations
+### 0.18.0 — Self-hosted, Synology and QNAP Operations
 
 **Depends on:** `0.6.0` lifecycle and mature application contracts.
 
-**Outcome:** make the public repository operable as an always-on self-hosted product, including a
-qualified Synology container profile, without GitHub at runtime.
+**Outcome:** make the public repository operable as an always-on self-hosted product, including
+qualified Synology and QNAP container profiles, without GitHub at runtime.
 
 **Includes:** immutable multi-architecture packages/containers with build identity and an explicit
 supported CPU/host matrix; configuration separated from data; secret references; health/readiness
@@ -1001,22 +1018,40 @@ backup system without claiming that an unverified external copy is restorable. A
 package receives an explicit feasibility/support decision and is not required for the container
 profile.
 
+The QNAP profile covers supported QTS and QuTS hero systems through Container Station Compose V2,
+shared-folder/bind/named-volume choices, UID/GID and ACL diagnostics, NAS/local/network Source
+mounts, reverse proxy and TLS, restart/health policies, resource limits, log rotation and
+immutable-image upgrade with rollback. HBS 3, storage snapshots and external rsync jobs are
+documented as integration boundaries: none is called a valid Provelume backup until the received
+portable bundle and manifest have been verified and a restore drill succeeds. A native QPKG
+receives a separate feasibility, signing, update and support decision and is not required for the
+Container Station profile.
+
 Backup/export modes include ordinary operator-managed archives and an optional encrypted portable
-bundle with explicit key-recovery and lost-key warnings. Keys remain outside the Instance and
-backup payload; encryption never weakens manifest/hash verification. Self-hosted update policy is
-separate from the Windows updater and offers disabled, notify, download/stage and controlled
-automatic container replacement only after verified backup, migration preflight and health-based
-rollback are available. Capacity thresholds warn first and can pause acquisition, indexing or
-backup staging; they never silently purge Originals, derived generations, logs or old backups.
+bundle with explicit key-recovery and lost-key warnings. Qualified targets include local/mounted
+storage and one-way `rsync` over SSH: Provelume creates an atomic bundle, transfers with pinned host
+identity and externally held credentials, rereads and verifies the destination manifest, records a
+receipt and can schedule a bounded restore drill. Rsync never reads a live mutable Instance, never
+becomes bidirectional synchronization and is transport rather than proof of recoverability. Keys
+remain outside the Instance and backup payload; encryption never weakens manifest/hash
+verification.
 
-**Exit gate:** a clean supported Linux host and one documented Synology architecture can install,
-operate, upgrade, roll back and recover an Instance using only published artifacts and
-documentation; permission, mount-loss, backup-key-loss and interrupted-upgrade failures remain
-visible and recoverable within their documented boundaries.
+Self-hosted update policy is separate from the desktop updater and offers disabled, notify,
+download/stage and controlled automatic container replacement only after verified backup,
+migration preflight and health-based rollback are available. Capacity thresholds warn first and
+can pause acquisition, indexing or backup staging; they never silently purge Originals, derived
+generations, logs, snapshots or old backups.
 
-**Suggested slices:** immutable multi-architecture runtime; generic self-hosted lifecycle;
-Synology/DSM profile; encrypted backup and container-update recovery; final support-matrix
-qualification remain separate owner slices.
+**Exit gate:** a clean supported Linux host plus one documented Synology and one documented QNAP
+architecture can install, operate, schedule, upgrade, roll back and recover an Instance using only
+published artifacts and documentation; permission, mount-loss, low-space, interrupted job,
+rsync/host-key, backup-key-loss and interrupted-upgrade failures remain visible and recoverable
+within their documented boundaries.
+
+**Suggested slices:** immutable multi-architecture runtime; generic self-hosted lifecycle and
+always-on scheduler; Synology/DSM profile; QNAP QTS/QuTS hero profile; encrypted local/rsync backup,
+restore drill and container-update recovery; final support-matrix qualification remain separate
+owner slices.
 
 ### 0.19.0 — Windows and macOS Background Agents and Bootstrap Completion
 
@@ -1126,12 +1161,12 @@ cross-tenant isolation tests without vendor-specific domain logic.
 **Includes:** Instance, Knowledge API/MCP and artifact contract freeze; supported migration,
 upgrade and rollback matrix; export/import and Windows/macOS/Linux interoperability;
 watched-folder/OCR/
-classification/Git-mirror end-to-end qualification; scheduler, interruption, maintenance,
-statistics and low-space recovery; generic Linux and documented Synology operations; Windows
-and macOS background-agent and updater recovery; mobile/PWA capture and retrieval; no-GitHub,
-no-external-AI and local-only tests; provider replacement and vector rebuild; at least two real
-clients; synthetic performance limits; focused security review; complete licensing, notices,
-support and deprecation documentation.
+classification/Git/rsync-mirror end-to-end qualification; scheduler, interruption, maintenance,
+statistics and low-space recovery; generic Linux plus documented Synology and QNAP operations;
+Windows and macOS background-agent and updater recovery; mobile/PWA capture and retrieval;
+no-GitHub, no-rsync, no-external-AI and local-only tests; provider replacement and vector rebuild;
+at least two real clients; synthetic performance limits; focused security review; complete
+licensing, notices, support and deprecation documentation.
 
 **Exit gate:** the candidate remains stable for the documented qualification period with all
 1.0 blockers closed or explicitly removed from the support perimeter.
