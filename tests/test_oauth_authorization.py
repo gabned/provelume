@@ -387,6 +387,24 @@ def test_revocation_serializes_through_in_flight_callback_exchange(tmp_path: Pat
     assert selected["credential_reference"] is None
 
 
+def test_separate_instance_revocation_invalidates_pending_callback(tmp_path: Path) -> None:
+    instance, connector = _configured(tmp_path)
+    adapter = SyntheticOAuthAdapter()
+    request = _begin(instance, connector, adapter)
+
+    separate_instance = ProvelumeInstance(instance.root)
+    revoked = separate_instance.revoke_connector_authorization(str(connector["id"]))
+    assert revoked["status"] == "revoked"
+
+    with pytest.raises(OAuthCallbackError):
+        instance.complete_connector_authorization(
+            str(connector["id"]),
+            adapter,
+            _callback(request),
+        )
+    assert adapter.exchanges == 0
+
+
 def test_parallel_distinct_callbacks_invoke_only_one_exchange(tmp_path: Path) -> None:
     instance, connector = _configured(tmp_path)
     exchange_started = Event()

@@ -55,7 +55,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   OAuth endpoint origins and exact high-port loopback redirect binding at request and callback time;
 - serialized authorization request, callback exchange/completion and revocation per connector,
   invalidating sibling requests after success so revocation wins every race and only one exchange
-  can commit for one unchanged connector record;
+  can commit for one unchanged connector record, including revocation from a separate process-local
+  service instance;
 - made every connector declare an explicit network mode and bounded HTTP(S) origin allowlist while
   the global Instance network policy remains a fail-closed gate and this slice performs no network
   access.

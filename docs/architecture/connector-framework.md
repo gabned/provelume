@@ -141,7 +141,9 @@ instance. A callback that starts first commits before a waiting revocation, whic
 reference; a revocation that starts first cancels the pending callback. Successful completion also
 invalidates sibling requests before releasing the mutex. Thus parallel callbacks invoke at most one
 adapter exchange for one unchanged connector record, and revocation cannot be overtaken by an
-already-consumed in-flight callback.
+already-consumed in-flight callback. Revocation before first authorization is itself recorded as a
+redacted revoked state, changing the canonical fingerprint so a pending callback held by another
+process-local service instance cannot later authorize against stale policy.
 
 ## Lifecycle and preservation boundary
 

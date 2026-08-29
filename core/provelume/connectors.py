@@ -26,6 +26,7 @@ from .connector_model import (
     normalise_connector_definition_manifest,
     normalise_connector_instance_configuration,
     normalise_connector_source_configuration,
+    normalise_oauth_scopes,
 )
 from .domain import ConnectorDefinition, ConnectorInstance, ConnectorSource
 from .locks import InstanceLockManager
@@ -558,7 +559,7 @@ class ConnectorManager:
                 "granted_scopes",
             }:
                 raise ConnectorError("OAuth grant factory returned an invalid contract")
-            selected_scopes = sorted(set(grant["granted_scopes"]))
+            selected_scopes = normalise_oauth_scopes(grant["granted_scopes"])
             if selected_scopes != config["scopes"]:
                 raise ConnectorConflictError(
                     "granted OAuth scopes must exactly match the configured least-privilege set"
@@ -630,12 +631,6 @@ class ConnectorManager:
                 raise ConnectorConflictError("connector instance is not configured for OAuth")
             current = connector_instance_authorization(existing)
             if current["status"] == "revoked" and config["credential_reference"] is None:
-                return (
-                    self.get_instance(instance_id) or {},
-                    (),
-                    {"configuration_records": 0, "authorizations_revoked": 0},
-                )
-            if current["status"] == "not_authorized" and config["credential_reference"] is None:
                 return (
                     self.get_instance(instance_id) or {},
                     (),
