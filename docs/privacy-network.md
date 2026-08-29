@@ -41,7 +41,11 @@ credential reference. Their configured network mode remains subordinate to
 reference kind/name to the local operator, while secret-free operation evidence and the
 privacy/network inventory omit it.
 
-Future connector transport, update services and AI providers must remain explicit operator choices
-and add their component type to the public declaration registry before they can be treated as
-understood. Runtime network-event auditing remains future work and must feed the same surface
-without collapsing configured capability into observed activity.
+The `0.7/S04` connector web transport remains an explicit operator action behind the current
+Instance, connector and Source gates. It performs no background access, proxy discovery,
+credential fallback or canonical mutation; its fixed typed failures omit URLs, tokens, paths and
+response content. This does not turn configured-capability transparency into traffic monitoring:
+runtime network-event auditing remains future work and must feed the same surface without
+collapsing configured capability into observed activity. Future update services and AI providers
+must likewise remain explicit choices and add their component type to the public declaration
+registry before they can be treated as understood.

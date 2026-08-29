@@ -32,6 +32,7 @@ from .portable_transfer import PortableInstanceTransfer
 from .retention import DocumentRetentionManager
 from .retention_model import DISPOSITION_FILTERS, effective_dispositions
 from .storage import InstanceStore
+from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTransport
 
 
 class ProvelumeInstance:
@@ -42,6 +43,7 @@ class ProvelumeInstance:
         self.retention_recovery = preparation.get("retention_recovery")
         self.connectors = ConnectorManager(self.store)
         self.oauth = InstalledAppAuthorizationManager(self.store, self.connectors)
+        self.web_transport = GuardedWebTransport(self.store, self.connectors)
         self.hierarchy = HierarchyManager(self.store)
         self.library = LibraryProjectionManager(self.store)
         self.content = DocumentContentReader(self.store)
@@ -287,6 +289,11 @@ class ProvelumeInstance:
         source_id: str,
     ) -> dict[str, Any]:
         return self.connectors.remove_source(connector_instance_id, source_id)
+
+    def guarded_web_fetch(self, request: GuardedWebRequest) -> GuardedWebResponse:
+        """Retrieve transient web bytes without creating canonical acquisition state."""
+
+        return self.web_transport.fetch(request)
 
     def rebuild_library(
         self,
