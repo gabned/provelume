@@ -4,8 +4,10 @@ import hashlib
 import json
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
+from threading import Lock
 from typing import Any
 from uuid import uuid4
+from weakref import WeakValueDictionary
 
 from .connector_model import (
     CONNECTOR_AUTHORIZATION_SCHEMA_VERSION,
@@ -49,6 +51,14 @@ _INSTANCE_UPDATE_FIELDS = frozenset(
 )
 _SOURCE_UPDATE_FIELDS = frozenset({"name"})
 MutationResult = tuple[dict[str, Any], tuple[str, ...], dict[str, int]]
+_LOCAL_MUTATION_LOCKS_GUARD = Lock()
+_LOCAL_MUTATION_LOCKS: WeakValueDictionary[str, Lock] = WeakValueDictionary()
+
+
+def _local_mutation_lock(store: InstanceStore) -> Lock:
+    key = str(store.paths.root.resolve())
+    with _LOCAL_MUTATION_LOCKS_GUARD:
+        return _LOCAL_MUTATION_LOCKS.setdefault(key, Lock())
 
 
 class ConnectorManager:
@@ -58,6 +68,7 @@ class ConnectorManager:
         self.store = store
         self.operations = OperationLedger(store)
         self.locks = InstanceLockManager(store)
+        self._mutation_lock = _local_mutation_lock(store)
 
     def _state(
         self,
@@ -100,7 +111,10 @@ class ConnectorManager:
         related: dict[str, str],
         apply: Callable[[], MutationResult],
     ) -> dict[str, Any]:
-        with self.locks.hold(CONNECTOR_CONFIGURATION_LOCK, purpose=kind):
+        with (
+            self._mutation_lock,
+            self.locks.hold(CONNECTOR_CONFIGURATION_LOCK, purpose=kind),
+        ):
             operation = self.operations.start(
                 kind,
                 title,
@@ -519,7 +533,7 @@ class ConnectorManager:
         self,
         instance_id: str,
         *,
-        grant_factory: Callable[[], Mapping[str, Any]],
+        grant: Mapping[str, Any],
         authorized_at: str,
         expected_record_sha256: str,
     ) -> dict[str, Any]:
@@ -552,13 +566,12 @@ class ConnectorManager:
                 raise ConnectorConflictError(
                     "connector instance does not declare OAuth 2.0/PKCE authorization"
                 )
-            grant = grant_factory()
             if not isinstance(grant, Mapping) or set(grant) != {
                 "credential_reference",
                 "account_identity",
                 "granted_scopes",
             }:
-                raise ConnectorError("OAuth grant factory returned an invalid contract")
+                raise ConnectorError("OAuth grant returned an invalid contract")
             selected_scopes = normalise_oauth_scopes(grant["granted_scopes"])
             if selected_scopes != config["scopes"]:
                 raise ConnectorConflictError(

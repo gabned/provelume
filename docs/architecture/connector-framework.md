@@ -145,6 +145,12 @@ already-consumed in-flight callback. Revocation before first authorization is it
 redacted revoked state, changing the canonical fingerprint so a pending callback held by another
 process-local service instance cannot later authorize against stale policy.
 
+The provider adapter exchange remains outside the Instance-wide connector-configuration lock.
+Independent connector exchanges may therefore overlap; only their short canonical commits are
+serialized by a process-local Instance mutex and the existing cross-process configuration lease.
+The per-connector callback mutex remains held through exchange and commit, so this does not permit
+sibling callbacks or a same-process revocation to overtake completion.
+
 ## Lifecycle and preservation boundary
 
 Connector instances and each selected Source have independent `enabled` state. Disabling a parent

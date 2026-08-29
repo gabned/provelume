@@ -440,6 +440,62 @@ def test_parallel_distinct_callbacks_invoke_only_one_exchange(tmp_path: Path) ->
     assert adapter.exchanges == 1
 
 
+def test_different_connector_exchanges_overlap_without_callback_loss(
+    tmp_path: Path,
+) -> None:
+    instance, first_connector = _configured(tmp_path)
+    second_connector = instance.create_connector_instance(
+        str(first_connector["definition_id"]),
+        name="Second synthetic OAuth account",
+        provider_identity="synthetic-provider-two",
+        endpoint="https://oauth.example.test",
+        network_mode="explicit",
+        allowed_origins=["https://oauth.example.test"],
+        authorization_mode="oauth2_pkce",
+        scopes=SCOPES,
+    )
+    first_started = Event()
+    second_started = Event()
+    release_exchanges = Event()
+    first_adapter = SyntheticOAuthAdapter(
+        credential_name="provelume:oauth:first",
+        exchange_started=first_started,
+        release_exchange=release_exchanges,
+    )
+    second_adapter = SyntheticOAuthAdapter(
+        credential_name="provelume:oauth:second",
+        exchange_started=second_started,
+        release_exchange=release_exchanges,
+    )
+    requests = [
+        _begin(instance, first_connector, first_adapter),
+        _begin(instance, second_connector, second_adapter),
+    ]
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        completions = [
+            executor.submit(
+                instance.complete_connector_authorization,
+                str(first_connector["id"]),
+                first_adapter,
+                _callback(requests[0]),
+            ),
+            executor.submit(
+                instance.complete_connector_authorization,
+                str(second_connector["id"]),
+                second_adapter,
+                _callback(requests[1]),
+            ),
+        ]
+        assert first_started.wait(timeout=2)
+        assert second_started.wait(timeout=2)
+        release_exchanges.set()
+        results = [item.result(timeout=5) for item in completions]
+
+    assert [item["status"] for item in results] == ["authorized", "authorized"]
+    assert first_adapter.exchanges == second_adapter.exchanges == 1
+
+
 def test_callback_fails_if_connector_record_changes_after_request(tmp_path: Path) -> None:
     instance, connector = _configured(tmp_path)
     adapter = SyntheticOAuthAdapter()

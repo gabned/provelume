@@ -57,6 +57,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   invalidating sibling requests after success so revocation wins every race and only one exchange
   can commit for one unchanged connector record, including revocation from a separate process-local
   service instance;
+- kept synthetic adapter exchange outside the Instance-wide configuration lock so independent
+  connectors may complete concurrently while their short canonical commits serialize locally;
 - made every connector declare an explicit network mode and bounded HTTP(S) origin allowlist while
   the global Instance network policy remains a fail-closed gate and this slice performs no network
   access.

@@ -687,15 +687,14 @@ class InstalledAppAuthorizationManager:
                 pkce_verifier=pending.verifier,
                 granted_scopes=pending.scopes,
             )
-            def grant_factory() -> dict[str, Any]:
-                return _normalise_grant(
-                    adapter.exchange_callback(exchange),
-                    pending.scopes,
-                )
+            grant = _normalise_grant(
+                adapter.exchange_callback(exchange),
+                pending.scopes,
+            )
 
             completed = self.connectors.complete_oauth_authorization(
                 connector_instance_id,
-                grant_factory=grant_factory,
+                grant=grant,
                 authorized_at=now.isoformat(),
                 expected_record_sha256=pending.connector_record_sha256,
             )
