@@ -20,34 +20,98 @@ request, tag, release or delivery commitment. Planned-version movement follows
 
 ## Release lane
 
-| State | Version | Product outcome | Activation |
-| --- | --- | --- | --- |
-| Published preview | `0.1.0` | Local provenance-first Instance and verified release foundation | #40 (completed) |
-| Published preview | `0.2.0` | Local Installation Trust and Privacy & Network Activity transparency | #50 (merged) |
-| Published preview | `0.3.0` | Anchored Local Installation Trust | #52 (completed) |
-| Published preview | `0.4.0` | Windows product shell preview | #57 (completed) |
-| Published preview | `0.4.1` | Windows product shell hardening | #62 (completed) |
-| Published preview | `0.5.0` | Durable ingestion, configurable local Inbox, document bundles and assurance | #66 and #72 (completed) |
-| Published preview | `0.5.1` | Stability, security, incremental indexing and accessibility hardening | #80 (completed) |
-| Published preview | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (completed) |
-| Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) |
-| Active implementation | `0.7.0` | Connector framework and safe web intake | #105 |
-| Next forecast | `0.8.0` | Refresh engine, watched folders and Source lifecycle | issue just in time |
-| Forecast | `0.9.0` | OCR, email, Google file and transcript intake | issue just in time |
-| Forecast | `0.10.0` | Unified Capture and Action Center | issue just in time |
-| Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time |
-| Forecast | `0.12.0` | Productivity connectors and guarded sync preview | issue just in time |
-| Forecast | `0.13.0` | Knowledge navigation, relations and deterministic discovery | issue just in time |
-| Forecast | `0.14.0` | Knowledge API v1, read-only MCP and client connections | issue just in time |
-| Forecast | `0.15.0` | AI gateway and privacy routing | issue just in time |
-| Forecast | `0.16.0` | AI classification, receipts, provider adapters and evaluation | issue just in time |
-| Forecast | `0.17.0` | Semantic and hybrid search | issue just in time |
-| Forecast | `0.18.0` | Self-hosted and Synology operations | issue just in time |
-| Forecast | `0.19.0` | Windows background agent and bootstrap completion | issue just in time |
-| Forecast | `0.20.0` | Signed Windows release and safe updater | issue just in time |
-| Forecast | `0.21.0` | Business and Cloud contracts preview | issue just in time |
-| Release candidate | `0.22.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time |
-| Stable | `1.0.0` | Stable provenance-first platform | issue just in time |
+| State | Version | Product outcome | Activation | Latin name |
+| --- | --- | --- | --- | --- |
+| Published preview | `0.1.0` | Local provenance-first Instance and verified release foundation | #40 (completed) | `Fundamentum` |
+| Published preview | `0.2.0` | Local Installation Trust and Privacy & Network Activity transparency | #50 (merged) | `Fiducia` |
+| Published preview | `0.3.0` | Anchored Local Installation Trust | #52 (completed) | `Ancora` |
+| Published preview | `0.4.0` | Windows product shell preview | #57 (completed) | `Fenestra` |
+| Published preview | `0.4.1` | Windows product shell hardening | #62 (completed) | `Robur` |
+| Published preview | `0.5.0` | Durable ingestion, configurable local Inbox, document bundles and assurance | #66 and #72 (completed) | `Ingressus` |
+| Published preview | `0.5.1` | Stability, security, incremental indexing and accessibility hardening | #80 (completed) | `Firmitas` |
+| Published preview | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (completed) | `Bibliotheca` |
+| Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
+| Active implementation | `0.7.0` | Connector framework and safe web intake | #105 | `Vinculum` |
+| Next forecast | `0.8.0` | Refresh engine, watched folders and Source lifecycle | issue just in time | `Vigilia` |
+| Forecast | `0.9.0` | OCR, email, Google file and transcript intake | issue just in time | `Lectio` |
+| Forecast | `0.10.0` | Unified Capture and Action Center | issue just in time | `Cura` |
+| Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
+| Forecast | `0.12.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
+| Forecast | `0.13.0` | Knowledge navigation, relations and deterministic discovery | issue just in time | `Itinerarium` |
+| Forecast | `0.14.0` | Knowledge API v1, read-only MCP and client connections | issue just in time | `Interfacies` |
+| Forecast | `0.15.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
+| Forecast | `0.16.0` | AI classification, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
+| Forecast | `0.17.0` | Semantic and hybrid search | issue just in time | `Sensus` |
+| Forecast | `0.18.0` | Self-hosted and Synology operations | issue just in time | `Domus` |
+| Forecast | `0.19.0` | Windows background agent and bootstrap completion | issue just in time | `Excubitor` |
+| Forecast | `0.20.0` | Signed Windows release and safe updater | issue just in time | `Renovatio` |
+| Forecast | `0.21.0` | Business and Cloud contracts preview | issue just in time | `Societas` |
+| Release candidate | `0.22.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time | `Probatio` |
+| Stable | `1.0.0` | Stable provenance-first platform | issue just in time | `Maturitas` |
+
+### Release names and concise outcomes
+
+Each release has one unique Latin codename for human-facing planning and communication. These
+names do not replace SemVer, package identity, tags or the immutable published release history.
+
+- **`0.1.0` — `Fundamentum`.** Establishes the local provenance-first Instance, deterministic
+  ingestion, browsing and search. It also establishes the verified build and release foundation.
+- **`0.2.0` — `Fiducia`.** Makes local installation consistency independently checkable. It also
+  exposes network capability and configuration without claiming that unobserved traffic occurred.
+- **`0.3.0` — `Ancora`.** Anchors installation trust to an operator-supplied offline release
+  bundle. Installed bytes can be compared directly with the wheel published for that release.
+- **`0.4.0` — `Fenestra`.** Introduces the first per-user Windows installer, launcher and managed
+  runtime. Update checks remain manual or explicitly enabled by the user.
+- **`0.4.1` — `Robur`.** Hardens startup, moved-Instance recovery, display scaling and update
+  validation. User data remains preserved through supported upgrade and uninstall paths.
+- **`0.5.0` — `Ingressus`.** Adds a durable Inbox, ingestion log, document bundles, duplicate
+  handling and configurable folders. Originals are preserved before any managed file move.
+- **`0.5.1` — `Firmitas`.** Strengthens security, performance and accessibility across the local
+  product. Incremental indexing retains a deterministic fallback and explicit recovery behavior.
+- **`0.6.0` — `Bibliotheca`.** Adds schema migration, backup, portable transfer and a hierarchical
+  Markdown library. Archive, trash and purge remain explicit lifecycle operations.
+- **`0.6.1` — `Integritas`.** Corrects purge integrity and serializes competing ingestion work.
+  It deliberately adds no new product feature or schema boundary.
+- **`0.7.0` — `Vinculum`.** Introduces connector and Source identities, OAuth with PKCE and guarded
+  manual web acquisition. Background refresh remains outside this active release boundary.
+- **`0.8.0` — `Vigilia`.** Adds user-controlled watched folders and a durable refresh/job
+  lifecycle. Schedules, mounted locations, quiescence and resource use stay under operator control.
+- **`0.9.0` — `Lectio`.** Adds local OCR and richer intake for scanned files, email, Google files
+  and transcripts. Cloud extraction is never an unannounced requirement or fallback.
+- **`0.10.0` — `Cura`.** Unifies capture, review queues, actions and mobile-friendly triage in one
+  Action Center. Destructive automation remains disabled unless the user explicitly enables it.
+- **`0.11.0` — `Entitas`.** Adds evidence-linked objects, claims, decisions, tasks, calendar items
+  and relations. Derived structure remains traceable to exact Originals and canonical records.
+- **`0.12.0` — `Concordia`.** Adds productivity connectors, guarded task synchronization and
+  optional one-way Git mirrors. GitHub, GitLab and Gitea remain selectable integrations, not runtime
+  requirements.
+- **`0.13.0` — `Itinerarium`.** Adds navigation, backlinks, health views and deterministic
+  discovery. A generic importer brings legacy filesystem and Markdown archives in with dry-run and
+  reconciliation evidence.
+- **`0.14.0` — `Interfacies`.** Stabilizes Knowledge API v1 and read-only MCP client profiles.
+  ChatGPT can connect locally, remotely or through a private tunnel without requiring Git sync.
+- **`0.15.0` — `Custodia`.** Adds a replaceable AI gateway with local, remote and fallback policy
+  by scope. Privacy, redaction, budgets and network use remain visible and user-controlled.
+- **`0.16.0` — `Iudicium`.** Adds guarded AI classification, receipts, review rules and provider
+  evaluation. The end-to-end intake flow resists prompt injection and keeps every catalog action
+  reviewable or reversible.
+- **`0.17.0` — `Sensus`.** Adds semantic and hybrid retrieval across canonical knowledge.
+  Embeddings and indexes remain derived, rebuildable state rather than a new source of truth.
+- **`0.18.0` — `Domus`.** Qualifies self-hosted and Synology operation with documented containers,
+  mounts, identity, backup and restore. Upgrade and rollback boundaries stay explicit.
+- **`0.19.0` — `Excubitor`.** Adds a Windows background agent, tray controls and start-at-login
+  operation. Watched intake can continue while the main interface is closed and can always be
+  paused.
+- **`0.20.0` — `Renovatio`.** Adds signed Windows artifacts and a safe updater with manual,
+  notification-only and automatic modes. Verification, staged replacement and rollback protect the
+  Instance.
+- **`0.21.0` — `Societas`.** Introduces organization, workspace, tenant and role contracts without
+  forking Core. Encryption and administrative boundaries remain explicit and portable.
+- **`0.22.0` — `Probatio`.** Freezes the intended 1.0 compatibility surface for end-to-end,
+  security, recovery and support qualification. Release-candidate evidence decides stable readiness.
+- **`1.0.0` — `Maturitas`.** Establishes the stable support perimeter and finalized public
+  contracts, artifacts and operating paths. It is a maturity gate, not a container for late new
+  features.
 
 The package and embedded identity are `0.6.1` and remain unchanged. Issue #105 activates `0.7.0`;
 one bounded owner product pull request at a time adds its implementation slices under `Unreleased`.
