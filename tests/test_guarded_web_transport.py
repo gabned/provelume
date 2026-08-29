@@ -468,11 +468,13 @@ def test_non_http_userinfo_and_ambiguous_urls_are_rejected_before_dns(
         "https://[::1]/article",
         "https://[fe80::1]/article",
         "https://[fc00::1]/article",
+        "https://[fec0::1]/article",
         "https://[ff02::1]/article",
         "https://[::]/article",
         "https://[::ffff:127.0.0.1]/article",
         "https://[64:ff9b::7f00:1]/article",
         "https://[2002:7f00:1::]/article",
+        "https://[2001:4860::5efe:c0a8:101]/article",
     ],
 )
 def test_direct_non_public_ipv4_ipv6_and_mapped_forms_are_blocked(
@@ -897,7 +899,7 @@ def test_missing_framing_short_content_length_and_chunk_truncation_fail_closed(
     ]
     for index, response in enumerate(fixtures):
         network = SyntheticNetwork([response])
-        with pytest.raises(WebTransportTruncatedError), pytest.MonkeyPatch.context():
+        with pytest.raises(WebTransportTruncatedError):
             _transport(instance, network).fetch(_request(connector, source))
         assert network.connections[0].closed is True, index
 

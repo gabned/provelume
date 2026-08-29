@@ -545,6 +545,9 @@ def _public_ip(value: str) -> str:
             raise WebTransportDestinationError
         if address in _NAT64_WELL_KNOWN:
             candidates.append(IPv4Address(int(address) & 0xFFFFFFFF))
+        interface_prefix = address.packed[-8:-4]
+        if interface_prefix in {b"\x00\x00\x5e\xfe", b"\x02\x00\x5e\xfe"}:
+            candidates.append(IPv4Address(address.packed[-4:]))
     if any(
         not candidate.is_global
         or candidate.is_private
@@ -553,6 +556,8 @@ def _public_ip(value: str) -> str:
         or candidate.is_multicast
         or candidate.is_reserved
         or candidate.is_unspecified
+        or isinstance(candidate, IPv6Address)
+        and candidate.is_site_local
         for candidate in candidates
     ):
         raise WebTransportDestinationError
