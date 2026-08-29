@@ -302,8 +302,11 @@ offline capture outbox and explicit iOS Share Sheet/Shortcut and Android share-t
 paths in `0.10.0`. Camera, file, photo/scan, screenshot, URL, text and voice-note capture are
 separate user actions. Minimal recent/search/detail/provenance retrieval can avoid persistent
 device caching; offline knowledge copies, biometric unlock and content-bearing push notifications
-remain independently consented capabilities. LAN, trusted VPN/private tunnel or hardened HTTPS
-are supported connection choices without requiring a Provelume cloud relay.
+remain independently consented capabilities. Every non-loopback browser connection, including a
+phone on the LAN or a trusted VPN/private tunnel, requires authenticated HTTPS for installation,
+service-worker offline behavior and the PWA share target. Any explicitly supported plain-HTTP
+fallback disables those capabilities visibly. No connection choice requires a Provelume cloud
+relay.
 
 `0.14.0` freezes mobile client profiles and conformance fixtures so optional native iOS and Android
 companions or third-party clients can replace the reference paths without changing Core. Native
