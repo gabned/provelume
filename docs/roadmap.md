@@ -45,8 +45,8 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Forecast | `0.16.0` | AI classification, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
 | Forecast | `0.17.0` | Semantic and hybrid search | issue just in time | `Sensus` |
 | Forecast | `0.18.0` | Self-hosted and Synology operations | issue just in time | `Domus` |
-| Forecast | `0.19.0` | Windows background agent and bootstrap completion | issue just in time | `Excubitor` |
-| Forecast | `0.20.0` | Signed Windows release and safe updater | issue just in time | `Renovatio` |
+| Forecast | `0.19.0` | Windows and macOS background agents and bootstrap completion | issue just in time | `Excubitor` |
+| Forecast | `0.20.0` | Signed desktop releases and safe updaters | issue just in time | `Renovatio` |
 | Forecast | `0.21.0` | Business and Cloud contracts preview | issue just in time | `Societas` |
 | Release candidate | `0.22.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time | `Probatio` |
 | Stable | `1.0.0` | Stable provenance-first platform | issue just in time | `Maturitas` |
@@ -80,8 +80,8 @@ names do not replace SemVer, package identity, tags or the immutable published r
   lifecycle. Refresh, reindex, maintenance, interruption recovery and resource use stay governed.
 - **`0.9.0` — `Lectio`.** Adds local OCR and richer intake for scanned files, email, Google files
   and transcripts. Cloud extraction is never an unannounced requirement or fallback.
-- **`0.10.0` — `Cura`.** Unifies capture, review and operations/maintenance queues in one Action
-  Center. Interrupted work and every destructive choice remain explicit.
+- **`0.10.0` — `Cura`.** Unifies capture, mobile access, review and operations/maintenance queues
+  in one Action Center. Interrupted work and every destructive choice remain explicit.
 - **`0.11.0` — `Entitas`.** Adds evidence-linked objects, claims, decisions, tasks, calendar items
   and relations. Derived structure remains traceable to exact Originals and canonical records.
 - **`0.12.0` — `Concordia`.** Adds productivity connectors, guarded task synchronization and
@@ -89,8 +89,8 @@ names do not replace SemVer, package identity, tags or the immutable published r
   requirements.
 - **`0.13.0` — `Itinerarium`.** Adds navigation, backlinks, health, local statistics and capacity
   views. Deterministic discovery and legacy import remain explainable and fully reconcilable.
-- **`0.14.0` — `Interfacies`.** Stabilizes Knowledge API v1 and read-only MCP client profiles.
-  ChatGPT can connect locally, remotely or through a private tunnel without requiring Git sync.
+- **`0.14.0` — `Interfacies`.** Stabilizes Knowledge API v1 plus desktop, mobile and read-only MCP
+  client profiles. ChatGPT and optional native clients need neither Git sync nor public exposure.
 - **`0.15.0` — `Custodia`.** Adds a replaceable AI gateway with local, remote and fallback policy
   by scope. Privacy, redaction, budgets and network use remain visible and user-controlled.
 - **`0.16.0` — `Iudicium`.** Adds guarded AI classification, receipts, review rules and provider
@@ -100,12 +100,11 @@ names do not replace SemVer, package identity, tags or the immutable published r
   Embeddings and indexes remain derived, rebuildable state rather than a new source of truth.
 - **`0.18.0` — `Domus`.** Qualifies self-hosted and Synology operation with documented containers,
   mounts, identity, backup and restore. Upgrade and rollback boundaries stay explicit.
-- **`0.19.0` — `Excubitor`.** Adds a Windows background agent, tray controls and start-at-login
-  operation. Watched intake can continue while the main interface is closed and can always be
-  paused.
-- **`0.20.0` — `Renovatio`.** Adds signed Windows artifacts and a safe updater with manual,
-  notification-only and automatic modes. Verification, staged replacement and rollback protect the
-  Instance.
+- **`0.19.0` — `Excubitor`.** Adds Windows tray and macOS menu-bar agents with start-at-login
+  operation. Watched intake and maintenance can continue while the interface is closed and can
+  always be paused.
+- **`0.20.0` — `Renovatio`.** Adds signed Windows and notarized macOS artifacts with safe updaters.
+  Manual, notification-only and controlled-automatic modes retain verification and rollback.
 - **`0.21.0` — `Societas`.** Introduces organization, workspace, tenant and role contracts without
   forking Core. Encryption and administrative boundaries remain explicit and portable.
 - **`0.22.0` — `Probatio`.** Freezes the intended 1.0 compatibility surface for end-to-end,
@@ -290,6 +289,34 @@ content-free support bundle contains only explicit selected configuration classe
 redacted health, job receipts and checksums. Threshold notifications link to the evidence and safe
 response, while low space pauses new acquisitions before integrity is endangered and never
 triggers silent deletion.
+
+## Client and platform contract
+
+The responsive Knowledge Browser and versioned API remain complete baseline clients; desktop or
+mobile applications do not own exclusive business logic or canonical state. Capabilities are
+declared per client and support level, and an unsupported platform path fails visibly rather than
+silently dropping capture, background work or security controls.
+
+Mobile delivery starts with an installable responsive web/PWA surface, revocable device pairing,
+offline capture outbox and explicit iOS Share Sheet/Shortcut and Android share-target reference
+paths in `0.10.0`. Camera, file, photo/scan, screenshot, URL, text and voice-note capture are
+separate user actions. Minimal recent/search/detail/provenance retrieval can avoid persistent
+device caching; offline knowledge copies, biometric unlock and content-bearing push notifications
+remain independently consented capabilities. LAN, trusted VPN/private tunnel or hardened HTTPS
+are supported connection choices without requiring a Provelume cloud relay.
+
+`0.14.0` freezes mobile client profiles and conformance fixtures so optional native iOS and Android
+companions or third-party clients can replace the reference paths without changing Core. Native
+app-store distribution is a separately qualified delivery decision, not a prerequisite for the
+PWA, API or self-hosted product. Device loss or revocation stops future access without deleting
+knowledge already preserved in the Instance.
+
+`0.19.0` adds a qualified macOS application/menu-bar and per-user LaunchAgent beside the Windows
+launcher/tray agent. Selected-folder access, Keychain credential references, path normalization,
+sleep/wake, removable/network volumes, Apple Silicon and any retained Intel support are explicit
+matrix entries. `0.20.0` then adds Windows code signing and macOS Developer ID signing,
+notarization and stapling; Time Machine and other host backups remain external replicas until a
+Provelume manifest verification proves a restorable backup.
 
 ## Published foundation
 
@@ -667,8 +694,8 @@ capacity warnings can pause new ingestion without deleting Originals, derived st
 backups automatically.
 
 Queue notifications are separately configurable as disabled, in-application only, host desktop/
-browser or a later explicitly configured provider channel. Notification previews omit document
-content and sensitive titles by default, support quiet hours and aggregation, and link back to the
+browser/mobile PWA or a later explicitly configured provider channel. Notification previews omit
+document content and sensitive titles by default, support quiet hours and aggregation, and link back to the
 same authoritative queue item rather than creating a second decision surface.
 
 The same Inbox provides a separately scoped write API with idempotency and audit journal,
@@ -693,7 +720,7 @@ scraping or impersonating a personal WhatsApp account.
 **Suggested slices:** `0.10/S01` Action Center state model and local queues; `0.10/S02` Operations &
 Maintenance schedules, job control and interruption recovery; `0.10/S03`
 classification/duplicate/version-conflict decisions and reusable safe routing; `0.10/S04` mobile
-capture, device pairing and offline retry; `0.10/S05` iOS, Android, Drive-drop and Telegram
+PWA capture, device pairing and offline retry; `0.10/S05` iOS, Android, Drive-drop and Telegram
 reference paths; `0.10/S06` mobile retrieval, authorization and end-to-end assurance fixtures.
 
 ### 0.11.0 — Knowledge Objects v1
@@ -840,10 +867,10 @@ exclusive business logic.
 for documents, hierarchical classification, Action Center queues, objects, provenance, search,
 related, retention and health; read/write scope separation with permanent purge excluded from
 read-only clients and MCP;
-a versioned capture-submission contract, a mobile read profile for recent/search/detail/
-provenance/original-download and mobile-client conformance fixtures, all distinct from read-only
-MCP tools for search and retrieval; aligned CLI/browser services; reference clients;
-version negotiation and pre-1.0 deprecation policy.
+a versioned capture-submission contract; installable-PWA and optional-native mobile profiles for
+recent/search/detail/provenance/original-download plus mobile-client conformance fixtures, all
+distinct from read-only MCP tools for search and retrieval; aligned CLI/browser services;
+reference clients; version negotiation and pre-1.0 deprecation policy.
 
 Connection profiles cover local MCP clients, authenticated remote HTTPS MCP and a private-tunnel
 transport without making any tunnel vendor part of the Core contract. ChatGPT is qualified as one
@@ -856,12 +883,12 @@ Git mirror and MCP are independent choices: a user may use direct MCP only, Git 
 or neither. No client connection requires publishing knowledge to GitHub or exposing a private
 Instance directly to the public Internet.
 
-**Exit gate:** at least two clients pass the same conformance fixtures, an authenticated private
-connection can be revoked without restarting or corrupting the Instance, and no interface exposes
-unauthorized knowledge, local paths, secrets or writes.
+**Exit gate:** at least two clients plus the mobile profile pass the same conformance fixtures; an
+authenticated private connection can be revoked without restarting or corrupting the Instance;
+and no interface exposes unauthorized knowledge, local paths, secrets or writes.
 
 **Suggested slices:** freeze the API first, add local read-only MCP second, then qualify remote
-authentication/private transport and client profiles without adding write authority.
+authentication, mobile/native profiles and private transport without adding write authority.
 
 ### 0.15.0 — AI Gateway and Privacy Routing
 
@@ -988,48 +1015,56 @@ visible and recoverable within their documented boundaries.
 Synology/DSM profile; encrypted backup and container-update recovery; final support-matrix
 qualification remain separate owner slices.
 
-### 0.19.0 — Windows Background Agent and Bootstrap Completion
+### 0.19.0 — Windows and macOS Background Agents and Bootstrap Completion
 
 **Depends on:** the `0.4.0` product shell preview and `0.18.0` operations.
 
-**Outcome:** converge the early Windows product shell with mature self-hosted lifecycle and
-operations, completing the supported non-technical bootstrap rather than replacing the preview
-with a second launcher.
+**Outcome:** converge the early Windows product shell with mature operations and add a native-feel
+macOS bootstrap, so both desktop systems can run watched intake and maintenance without an open
+browser.
 
-**Includes:** hardened launcher/runtime/Instance separation; guided prerequisite and compatibility
-detection; complete create/open/start/stop/status/browser/diagnostics behavior; redacted logs;
-spaces, Unicode, UNC and case-insensitive path support; lifecycle-aware failure recovery; uninstall
-that preserves the Instance; final bootstrap support matrix and migration from the `0.4.0`
-preview installation.
+**Includes:** shared hardened launcher/runtime/Instance separation; guided prerequisite and
+compatibility detection; complete create/open/start/stop/status/browser/diagnostics behavior;
+redacted logs; spaces, Unicode, case and path-normalization fixtures; lifecycle-aware failure
+recovery; uninstall that preserves the Instance; and a final desktop support matrix.
 
-A per-user background agent and tray surface make watched folders, scheduled refresh/reindex/
-maintenance, Action Center notifications and permitted AI/Git work operate while the main window
-is closed. Users may
-choose manual runtime, start-at-login or an explicitly supported elevated service mode; pause all
-background activity or one Source; define quiet hours and CPU/battery/metered-network limits; and
-open the exact queue or failure from a content-minimizing notification. Disabled background mode
-performs no hidden work, and closing the UI never ambiguously changes the selected policy.
-Sleep/wake recovery obeys the scheduler's bounded missed-run and checkpoint contracts.
+Windows retains migration from the `0.4.0` preview installation, UNC/network-share support, a
+per-user background agent and tray surface, with an explicitly qualified elevated-service option
+only if needed. macOS adds an application/menu-bar surface and per-user LaunchAgent, Keychain
+credential references, explicit selected-folder access, removable/network-volume handling and an
+Apple Silicon baseline; any Intel support remains an explicit matrix entry rather than an
+assumption.
 
-**Exit gate:** install/use/uninstall, login-start, pause/resume, sleep/wake, network-share loss and
-failure-recovery fixtures pass on supported Windows targets without duplicate processing, hidden
-network activity or deletion of user knowledge.
+The platform agent makes watched folders, scheduled refresh/reindex/maintenance, Action Center
+notifications and permitted AI/Git work operate while the main window is closed. Users may choose
+manual runtime or start-at-login; pause all background activity or one Source; define quiet hours
+and CPU/battery/metered-network limits; and open the exact queue or failure from a content-
+minimizing notification. Disabled background mode performs no hidden work, and closing the UI
+never ambiguously changes the selected policy. Sleep/wake and disconnected-volume recovery obey
+the scheduler's bounded missed-run and checkpoint contracts.
 
-**Suggested slices:** complete launcher/bootstrap recovery before adding the per-user background
-agent, then qualify startup/tray/notification and optional elevated-service behavior separately.
+**Exit gate:** install/use/uninstall, login-start, pause/resume, sleep/wake, network-volume loss and
+failure-recovery fixtures pass on supported Windows and macOS targets without duplicate
+processing, hidden network activity or deletion of user knowledge.
 
-### 0.20.0 — Signed Windows Release and Safe Updater
+**Suggested slices:** complete shared launcher/bootstrap recovery before adding platform agents;
+then qualify Windows startup/tray/optional-service and macOS app/menu-bar/LaunchAgent behavior in
+separate slices before cross-platform recovery fixtures.
+
+### 0.20.0 — Signed Desktop Releases and Safe Updaters
 
 **Depends on:** `0.19.0` bootstrap and the verified release chain.
 
-**Outcome:** complete the Windows lifecycle with authenticated artifacts, backup, health and
-rollback.
+**Outcome:** complete the Windows and macOS lifecycle with authenticated installers, backup,
+health, safe self-update and rollback.
 
-**Includes:** provider-independent signed release manifest and key lifecycle policy; Windows code
-signing; pre-install signature/hash/compatibility verification; runtime slots separate from the
-Instance; backup/migration/restart/health/automatic rollback; interrupted-update recovery;
-Stable/Preview/Dev channels; offline update bundle; and one explicit, user-selectable update
-policy rather than an ambiguous auto-update switch:
+**Includes:** provider-independent signed release manifest, update catalogue and key lifecycle
+policy; Windows code signing plus a signed installer; macOS Developer ID signing, notarization and
+stapling for the application and chosen installer image/package; pre-install signature/hash/
+compatibility verification; runtime slots separate from the Instance; backup/migration/restart/
+health/automatic rollback; interrupted-update recovery; Stable/Preview/Dev channels; offline
+update bundles; and one explicit, user-selectable update policy rather than an ambiguous
+auto-update switch:
 
 - **Disabled/offline:** no background check, download or update network access; the installed
   version remains visible locally and a manual offline bundle remains possible.
@@ -1050,16 +1085,19 @@ version pinning, skip-this-version, defer-until, metered-network and battery-awa
 security-update prominence, an update/rollback history and a one-click return to manual-only mode.
 Policy changes and automatic actions receive privacy-minimizing audit entries.
 
-The background agent may execute the selected check/download/install policy while the main window
-is closed, but only within the same persisted mode, maintenance-window, battery, metered-network,
-backup and rollback gates. Exiting or pausing Provelume exposes whether update checks remain enabled
-rather than silently leaving an updater behind.
+The Windows or macOS background agent may execute the selected check/download/install policy while
+the main window is closed, but only within the same persisted mode, maintenance-window, battery,
+metered-network, backup and rollback gates. Exiting or pausing Provelume exposes whether update
+checks remain enabled rather than silently leaving an updater behind. Platform-specific updater
+privilege, quarantine, locked-file and application-bundle replacement failures retain the previous
+healthy runtime.
 
-**Exit gate:** every policy is testably distinct and persists across restart; Disabled/offline
-performs no update network access; manual and notification modes never install; a pinned, skipped
-or deferred release is respected; automatic install cannot run outside its opt-in policy and
-maintenance window; and tampered, revoked, incompatible, downgraded or interrupted updates fail
-safely while the previous healthy runtime and Instance remain recoverable.
+**Exit gate:** every policy is testably distinct and persists across restart on Windows and macOS;
+Disabled/offline performs no update network access; manual and notification modes never install; a
+pinned, skipped or deferred release is respected; automatic install cannot run outside its opt-in
+policy and maintenance window; and tampered, revoked, unnotarized, incompatible, downgraded or
+interrupted updates fail safely while the previous healthy runtime and Instance remain
+recoverable.
 
 ### 0.21.0 — Business and Cloud Contracts Preview
 
@@ -1083,12 +1121,14 @@ cross-tenant isolation tests without vendor-specific domain logic.
 **Outcome:** freeze compatibility and exercise all 1.0 gates without adding a new feature stream.
 
 **Includes:** Instance, Knowledge API/MCP and artifact contract freeze; supported migration,
-upgrade and rollback matrix; export/import and Windows/Linux interoperability; watched-folder/OCR/
+upgrade and rollback matrix; export/import and Windows/macOS/Linux interoperability;
+watched-folder/OCR/
 classification/Git-mirror end-to-end qualification; scheduler, interruption, maintenance,
 statistics and low-space recovery; generic Linux and documented Synology operations; Windows
-background-agent and updater recovery; no-GitHub, no-external-AI and local-only tests; provider
-replacement and vector rebuild; at least two real clients; synthetic performance limits; focused
-security review; complete licensing, notices, support and deprecation documentation.
+and macOS background-agent and updater recovery; mobile/PWA capture and retrieval; no-GitHub,
+no-external-AI and local-only tests; provider replacement and vector rebuild; at least two real
+clients; synthetic performance limits; focused security review; complete licensing, notices,
+support and deprecation documentation.
 
 **Exit gate:** the candidate remains stable for the documented qualification period with all
 1.0 blockers closed or explicitly removed from the support perimeter.
