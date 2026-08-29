@@ -798,16 +798,21 @@ A provider-independent filesystem mirror capability qualifies a local-folder tar
 library/export staging generation, never from a live mutable Instance tree, and supports disabled,
 manual or scheduled one-way transfer with dry-run inventory, bandwidth/maintenance windows,
 resume, destination host-key verification, external credential references and a final
-source/destination manifest comparison. The destination may be a user-controlled server, NAS or
-mounted path; `rsync` availability and version stay part of the host support matrix rather than a
-hidden runtime assumption.
+source/destination manifest comparison. Files transfer into a destination-side staging generation;
+only a verified complete manifest may be atomically activated, preserving the previous active
+generation after interruption. A target that cannot provide the qualified activation primitive
+fails visibly instead of exposing a mixed or partial generation. The destination may be a user-
+controlled server, NAS or mounted path; `rsync` availability and version stay part of the host
+support matrix rather than a hidden runtime assumption.
 
 Destination deletion is disabled by default. If a user explicitly enables cleanup for a derived
 mirror, Provelume first presents the exact destination-only path/byte impact and never applies it
-to an Original store, canonical Instance, backup inventory or unknown destination root. Rsync is a
-transport and mirror mechanism, not evidence that a backup is complete or restorable; verified
-backup replication and restore drills are qualified separately in `0.18.0`. Bidirectional rsync or
-two concurrently writable Instances remain excluded.
+to an Original store, canonical Instance, backup inventory or unknown destination root. Cleanup
+approval is bound to the exact source and destination manifests used by that preview; any change
+invalidates the plan and requires a fresh preview and confirmation before transfer or deletion.
+Rsync is a transport and mirror mechanism, not evidence that a backup is complete or restorable;
+verified backup replication and restore drills are qualified separately in `0.18.0`.
+Bidirectional rsync or two concurrently writable Instances remain excluded.
 
 **Exit gate:** multiple Google accounts, Asana identities/workspaces/projects, Tududi endpoints,
 iCalendar feeds, Git and rsync mirrors remain distinguishable; refresh and full resync are idempotent;
