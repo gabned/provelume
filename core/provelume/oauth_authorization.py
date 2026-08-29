@@ -14,6 +14,7 @@ from threading import Lock
 from typing import Any, Protocol
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
+from weakref import WeakValueDictionary
 
 from .connector_model import (
     ConnectorError,
@@ -375,7 +376,7 @@ class InstalledAppAuthorizationManager:
         self._pending: dict[str, _PendingAuthorization] = {}
         self._terminal: OrderedDict[str, str] = OrderedDict()
         self._state_lock = Lock()
-        self._connector_locks: dict[str, Lock] = {}
+        self._connector_locks: WeakValueDictionary[str, Lock] = WeakValueDictionary()
 
     @staticmethod
     def _operation_view(record: Any) -> dict[str, Any]:
