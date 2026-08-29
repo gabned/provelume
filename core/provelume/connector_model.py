@@ -3,12 +3,14 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections.abc import Mapping, Sequence
+from datetime import datetime
 from ipaddress import ip_address
 from typing import Any
 from urllib.parse import urlsplit
 
 CONNECTOR_DEFINITION_SCHEMA_VERSION = 1
 CONNECTOR_LIFECYCLE_SCHEMA_VERSION = 2
+CONNECTOR_AUTHORIZATION_SCHEMA_VERSION = 3
 CONNECTOR_INVENTORY_SCHEMA_VERSION = 2
 # Backward-compatible public alias retained for the S01 definition contract.
 CONNECTOR_RECORD_SCHEMA_VERSION = CONNECTOR_DEFINITION_SCHEMA_VERSION
@@ -86,6 +88,20 @@ _INSTANCE_RECORD_KEYS_V2 = _INSTANCE_RECORD_KEYS_V1 | {
     "cursors",
     "health",
 }
+_INSTANCE_RECORD_KEYS_V3 = _INSTANCE_RECORD_KEYS_V2 | {"authorization"}
+_AUTHORIZATION_METADATA_KEYS = frozenset(
+    {
+        "status",
+        "method",
+        "authorized_at",
+        "revoked_at",
+        "redirect_binding",
+        "consent",
+    }
+)
+_AUTHORIZATION_STATUSES = frozenset(
+    {"not_applicable", "not_authorized", "legacy_reference", "authorized", "revoked"}
+)
 _CONNECTOR_SOURCE_RECORD_KEYS_V1 = frozenset(
     {
         "schema_version",
@@ -228,6 +244,126 @@ def normalise_secret_reference(value: Any) -> dict[str, str] | None:
     if pattern.fullmatch(name) is None:
         raise ConnectorError("credential_reference name is invalid")
     return {"kind": str(kind), "name": name}
+
+
+def _normalise_authorization_timestamp(value: Any, label: str) -> str:
+    if not isinstance(value, str) or not value.strip() or value != value.strip():
+        raise ConnectorError(f"{label} must be an offset-aware timestamp")
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise ConnectorError(f"{label} must be an offset-aware timestamp") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ConnectorError(f"{label} must be an offset-aware timestamp")
+    return value
+
+
+def default_connector_authorization(
+    authorization_mode: Any,
+    credential_reference: Any,
+) -> dict[str, Any]:
+    reference = normalise_secret_reference(credential_reference)
+    if authorization_mode != "oauth2_pkce":
+        return {
+            "status": "not_applicable",
+            "method": None,
+            "authorized_at": None,
+            "revoked_at": None,
+            "redirect_binding": None,
+            "consent": None,
+        }
+    return {
+        "status": "legacy_reference" if reference is not None else "not_authorized",
+        "method": "oauth2_pkce",
+        "authorized_at": None,
+        "revoked_at": None,
+        "redirect_binding": None,
+        "consent": None,
+    }
+
+
+def normalise_connector_authorization(
+    value: Any,
+    *,
+    authorization_mode: Any,
+    credential_reference: Any,
+) -> dict[str, Any]:
+    reference = normalise_secret_reference(credential_reference)
+    if not isinstance(value, Mapping) or set(value) != _AUTHORIZATION_METADATA_KEYS:
+        raise ConnectorError("connector authorization metadata has missing or unsupported fields")
+    status = value.get("status")
+    if status not in _AUTHORIZATION_STATUSES:
+        raise ConnectorError("connector authorization status is unsupported")
+    selected = {
+        "status": str(status),
+        "method": value.get("method"),
+        "authorized_at": value.get("authorized_at"),
+        "revoked_at": value.get("revoked_at"),
+        "redirect_binding": value.get("redirect_binding"),
+        "consent": value.get("consent"),
+    }
+    if authorization_mode != "oauth2_pkce":
+        expected = default_connector_authorization(authorization_mode, reference)
+        if selected != expected:
+            raise ConnectorError("non-OAuth connector cannot retain OAuth authorization metadata")
+        return expected
+    if selected["method"] != "oauth2_pkce":
+        raise ConnectorError("OAuth connector authorization method must be oauth2_pkce")
+    if status == "not_authorized":
+        expected = default_connector_authorization("oauth2_pkce", None)
+        if reference is not None or selected != expected:
+            raise ConnectorError("not-authorized OAuth metadata cannot retain credentials")
+        return expected
+    if status == "legacy_reference":
+        expected = default_connector_authorization("oauth2_pkce", reference)
+        if reference is None or selected != expected:
+            raise ConnectorError("legacy OAuth metadata requires only an external reference")
+        return expected
+    if status == "authorized":
+        authorized_at = _normalise_authorization_timestamp(
+            selected["authorized_at"],
+            "authorized_at",
+        )
+        if selected["redirect_binding"] != "loopback" or selected["consent"] != "explicit":
+            raise ConnectorError(
+                "OAuth authorization metadata must record loopback binding and consent"
+            )
+        if reference is None or selected["revoked_at"] is not None:
+            raise ConnectorError("authorized OAuth metadata requires an external reference")
+        return {**selected, "authorized_at": authorized_at}
+    if status == "revoked":
+        if reference is not None:
+            raise ConnectorError("revoked OAuth metadata cannot retain credentials")
+        revoked_at = _normalise_authorization_timestamp(selected["revoked_at"], "revoked_at")
+        authorized_at = selected["authorized_at"]
+        if authorized_at is None:
+            if selected["redirect_binding"] is not None or selected["consent"] is not None:
+                raise ConnectorError("legacy OAuth revocation metadata cannot claim consent")
+        else:
+            authorized_at = _normalise_authorization_timestamp(authorized_at, "authorized_at")
+            if selected["redirect_binding"] != "loopback" or selected["consent"] != "explicit":
+                raise ConnectorError(
+                    "OAuth authorization metadata must record loopback binding and consent"
+                )
+        return {
+            **selected,
+            "authorized_at": authorized_at,
+            "revoked_at": revoked_at,
+        }
+    raise ConnectorError("connector authorization metadata is invalid")
+
+
+def connector_instance_authorization(value: Mapping[str, Any]) -> dict[str, Any]:
+    if value.get("schema_version") != CONNECTOR_AUTHORIZATION_SCHEMA_VERSION:
+        return default_connector_authorization(
+            value.get("authorization_mode"),
+            value.get("credential_reference"),
+        )
+    return normalise_connector_authorization(
+        value.get("authorization"),
+        authorization_mode=value.get("authorization_mode"),
+        credential_reference=value.get("credential_reference"),
+    )
 
 
 def normalise_connector_definition_manifest(
@@ -387,7 +523,10 @@ def connector_instance_lifecycle(value: Mapping[str, Any]) -> dict[str, Any]:
                 "code": "network_not_attempted",
             },
         }
-    if schema_version != CONNECTOR_LIFECYCLE_SCHEMA_VERSION:
+    if schema_version not in {
+        CONNECTOR_LIFECYCLE_SCHEMA_VERSION,
+        CONNECTOR_AUTHORIZATION_SCHEMA_VERSION,
+    }:
         raise ConnectorError("connector instance schema version is unsupported")
 
     enabled = value.get("enabled")
@@ -535,11 +674,14 @@ def canonical_connector_errors(
                 ),
             )
             lifecycle = connector_instance_lifecycle(value)
+            authorization = connector_instance_authorization(value)
             schema_version = value.get("schema_version")
             expected_keys = (
                 _INSTANCE_RECORD_KEYS_V1
                 if schema_version == CONNECTOR_DEFINITION_SCHEMA_VERSION
                 else _INSTANCE_RECORD_KEYS_V2
+                if schema_version == CONNECTOR_LIFECYCLE_SCHEMA_VERSION
+                else _INSTANCE_RECORD_KEYS_V3
             )
             comparable_config = (
                 {key: selected for key, selected in config.items() if key != "endpoint"}
@@ -553,6 +695,7 @@ def canonical_connector_errors(
                 in {
                     CONNECTOR_DEFINITION_SCHEMA_VERSION,
                     CONNECTOR_LIFECYCLE_SCHEMA_VERSION,
+                    CONNECTOR_AUTHORIZATION_SCHEMA_VERSION,
                 }
                 and _INSTANCE_ID.fullmatch(record_id) is not None
                 and value.get("id") == record_id
@@ -564,6 +707,10 @@ def canonical_connector_errors(
                 and (
                     schema_version == CONNECTOR_DEFINITION_SCHEMA_VERSION
                     or all(value.get(key) == selected for key, selected in lifecycle.items())
+                )
+                and (
+                    schema_version != CONNECTOR_AUTHORIZATION_SCHEMA_VERSION
+                    or value.get("authorization") == authorization
                 )
                 and all(
                     isinstance(value.get(field), str) and bool(str(value[field]).strip())

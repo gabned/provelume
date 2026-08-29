@@ -17,6 +17,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   Browser surfaces, all derived from the same application-service views;
 - added Instance-local connector configuration operations with closed status, changed-field names,
   stable related IDs and explicit zero-Original-mutation metrics;
+- added provider-independent installed-app OAuth 2.0 authorization request, short-lived state and
+  exact callback-completion contracts with mandatory PKCE S256 and explicit consent;
+- added reauthorization and local revocation contracts that retain Sources, Acquisitions,
+  Documents, Versions, provenance and exact Original bytes;
+- added deterministic synthetic adapter conformance coverage for replay, state mismatch, scope
+  escalation, callback substitution and secret-bearing adapter results;
 - included connector definitions, instances and Sources in deep validation, backup, restore and
   portable Instance export/import without changing package or embedded release identity.
 
@@ -26,6 +32,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   records, and require independently selected Sources to be removed before their parent instance;
 - kept S01 schema-1 connector records valid and upgraded each record to lifecycle schema 2 only
   when that exact record is first mutated;
+- kept schema-1/schema-2 connector instances valid while new or changed instances use additive
+  schema 3 with redacted OAuth status, timestamps, loopback binding and consent metadata;
 - made disabled or removed connector configuration fail closed while leaving acquired Sources,
   Acquisitions, Documents, Versions and Original bytes untouched.
 - made explicit primary-endpoint clearing preserve the independent origin allowlist instead of
@@ -37,6 +45,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   and rejected inline secret material;
 - kept connector configuration operation evidence free of provider/account values, endpoint
   origins, credential-reference names, physical paths and secret material;
+- retained OAuth state and PKCE verifiers only in process memory, consumed valid-state callbacks
+  once and rejected expired, replayed, mismatched or scope-escalated callbacks before mutation;
+- rejected token, client-secret, authorization-code, verifier and other secret-bearing adapter
+  output, while persisting only validated external credential references and redacted metadata;
+- required current connector/Instance network policy, exact adapter identity, explicitly allowed
+  OAuth endpoint origins and exact high-port loopback redirect binding at request and callback time;
 - made every connector declare an explicit network mode and bounded HTTP(S) origin allowlist while
   the global Instance network policy remains a fail-closed gate and this slice performs no network
   access.

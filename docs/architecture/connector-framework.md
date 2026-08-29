@@ -2,10 +2,11 @@
 
 Provelume `0.7/S01` introduces a provider-independent local configuration and conformance boundary.
 `0.7/S02` adds bounded multi-instance lifecycle mutations, path-redacted evidence and aligned
-service/CLI/read-only API/EN/IT Browser views. Neither slice performs HTTP requests, executes OAuth,
-schedules refreshes or loads adapter code from a manifest. Issue #105 owns the complete `0.7.0`
-release; later slices add authorization, guarded transport and manual web acquisition one
-homogeneous pull request at a time.
+service/CLI/read-only API/EN/IT Browser views. `0.7/S03` adds an installed-app OAuth 2.0/PKCE
+authorization boundary with synthetic adapters only. These slices do not implement provider HTTP
+transport, a callback server, background refreshes or executable adapter loading from a manifest.
+Issue #105 owns the complete `0.7.0` release; guarded transport and manual web acquisition remain
+later homogeneous slices.
 
 ## Identity boundary
 
@@ -15,8 +16,8 @@ Three identities remain separate:
   manifest;
 - a `ConnectorInstance` binds one definition to one provider identity, optional account identity,
   optional primary endpoint origin, independent endpoint allowlist, authorization mode, scope set,
-  external credential reference, local network policy, empty pre-refresh cursor envelope and local
-  health state;
+  external credential reference, redacted authorization metadata, local network policy, empty
+  pre-refresh cursor envelope and local health state;
 - a canonical `Source` belongs to exactly one connector instance and identifies one independently
   selected provider resource.
 
@@ -32,9 +33,11 @@ directories are valid and are created on first use. Deep validation, local backu
 portable export/import include every connector record.
 
 S01 connector-instance and Source records use record schema 1. S02 keeps them readable and deeply
-valid without rewriting them. A create uses lifecycle schema 2; an update, enable, disable or remove
-upgrades only the exact legacy record being changed. Definitions remain manifest schema 1. This
-lazy, per-record transition avoids a second Instance migration and preserves stable IDs.
+valid without rewriting them. S02 Source mutations use lifecycle schema 2. S03 connector-instance
+creates and mutations use authorization schema 3, adding only the redacted `authorization`
+envelope. Schema-1 and schema-2 connector instances remain readable and deeply valid; only the
+exact record first changed after S03 is upgraded. Definitions remain manifest schema 1. This lazy,
+per-record transition avoids an Instance migration and preserves stable IDs.
 
 ## Versioned capability manifest
 
@@ -91,6 +94,44 @@ external reference with exactly two fields:
 The alternative kind is `system_keyring`. Values, tokens, passwords, client secrets, file paths and
 arbitrary reference fields are rejected. Network-status output omits the reference entirely.
 
+## Installed-app OAuth 2.0/PKCE boundary
+
+OAuth begins only for an active, enabled connector instance whose definition declares
+`oauth2_pkce_authorization`, whose authorization mode is `oauth2_pkce`, whose least-privilege scope
+set is non-empty and whose connector plus Instance-wide network policy both allow explicit access.
+The adapter identity and version must exactly match the registered definition. Its declared HTTPS
+authorization and token endpoint origins must both already be members of the instance allowlist.
+This is an authorization-specific declaration check, not the guarded DNS/redirect/SSRF transport
+implemented later in S04.
+
+The installed app supplies an explicit consent decision and one canonical high-port loopback
+callback URI. Core creates a cryptographically random, short-lived state and RFC 7636 S256 verifier,
+retains both only in process memory and returns a transient authorization URI. State lives for five
+minutes by default and never more than ten minutes. The URI must preserve the exact redirect, state,
+challenge, `response_type=code`, exact sorted scope set and explicit consent binding. Core does not
+open a browser, listen on the callback port or perform an HTTP request in this slice.
+
+Callback completion requires the same request identity, state, redirect URI, adapter identity,
+adapter version and exact configured scope set. A valid-state callback is consumed before adapter
+exchange, so success and every later validation/exchange failure are non-replayable. Unknown,
+expired, mismatched and already-consumed state fails closed. The token-exchange extension point is
+rechecked against current policy immediately before invocation; S03 ships no real provider adapter
+and proves the contract only with deterministic synthetic adapters.
+
+An adapter result has exactly three fields: an external environment/keyring reference, an optional
+redacted provider account identity and the exact granted scope set. Returning an access/refresh/ID
+token, authorization code, verifier, client secret, password or any extra field is rejected before
+canonical mutation. Successful completion stores only the external reference and schema-3 metadata:
+status, OAuth method, authorization time, loopback binding and explicit-consent marker. State,
+authorization URI, code, verifier and credential material are never canonical or derived state.
+
+Reauthorization repeats the complete boundary and may replace only the external credential
+reference and redacted account/authorization metadata. Local revocation cancels pending requests,
+clears the reference and records a redacted revocation timestamp; it deliberately performs no
+provider-side mutation. Changing the account, mode or scopes of an authorized instance requires
+revocation first. Neither operation disables/removes Sources or touches Acquisitions, Documents,
+Versions, provenance or Original bytes.
+
 ## Lifecycle and preservation boundary
 
 Connector instances and each selected Source have independent `enabled` state. Disabling a parent
@@ -113,12 +154,18 @@ the mutation kind, stable related IDs, changed field names and zero Original del
 It never records provider/account values, endpoint origins, external credential-reference names,
 physical paths or secret material.
 
+Authorization-boundary evidence additionally records only PKCE method, redirect-binding kind,
+consent marker, scope count, state lifetime, external-reference storage and zero Original mutation.
+It never records the authorization URI, state, code, verifier, callback payload, credential
+reference name or adapter grant. Failure evidence contains only a closed exception class and the
+same zero-Original metrics.
+
 ## Cursor and health boundary
 
-Each lifecycle-schema-2 instance owns a separate `cursors: {}` envelope. S02 requires that it stay
-empty: it does not invent cursor tokens, conditional checkpoints, jobs, retries or refresh state
-before the later transport/refresh contracts exist. This reserves an isolated per-instance
-boundary without anticipating `0.8.0`.
+Each lifecycle-schema-2 or authorization-schema-3 instance owns a separate `cursors: {}` envelope.
+S02 requires that it stay empty: it does not invent cursor tokens, conditional checkpoints, jobs,
+retries or refresh state before the later transport/refresh contracts exist. This reserves an
+isolated per-instance boundary without anticipating `0.8.0`.
 
 Canonical local health is limited to `not_checked`, `disabled` or `removed`, with no check
 timestamp. The shared service view may additionally report `policy_blocked` when the instance asks
@@ -146,7 +193,10 @@ provelume connector-inventory INSTANCE
 Mutation commands only validate and atomically write local records. The same application-service
 read models back `GET /api/v1/connectors`, instance/Source detail endpoints and the EN/IT
 `/connectors` Browser inventory/detail pages; HTTP exposes no connector mutation route. Views
-contain no exclusive business logic and never change Instance state.
+contain no exclusive business logic and never change Instance state. S03 exposes begin, complete
+and local revoke contracts through the in-process application service so the same installed-app
+process retains its short-lived state; it adds no unauthenticated HTTP or split-process CLI mutation
+surface.
 
-OAuth execution belongs to `0.7/S03`; guarded HTTP transport and manual acquisition belong to
-`0.7/S04` and `0.7/S05` respectively. Background scheduling and refresh remain excluded.
+Guarded HTTP transport and manual acquisition belong to `0.7/S04` and `0.7/S05` respectively.
+Background scheduling, polling, token refresh and renewal remain excluded.

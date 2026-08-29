@@ -18,9 +18,12 @@ This is a declared baseline, not a claim that the operating system prevents ever
 opening a socket. `provelume network-status`, `GET /api/v1/security/network` and
 `/security/network` expose the configuration-derived policy and component inventory without
 performing a network request. Filesystem Sources remain the only executable intake type in the
-published `0.6.1` product. Active `0.7/S01` and `0.7/S02` add validated connector definitions,
-isolated instance/Source lifecycle configuration and aligned read-only health views, but no
-connector transport; every such declaration remains behind the Instance-wide network gate.
+published `0.6.1` product. Active `0.7/S01` through `0.7/S03` add validated connector definitions,
+isolated instance/Source lifecycle configuration, aligned read-only health views and a synthetic-
+adapter-only installed-app OAuth/PKCE boundary, but no provider transport; every such declaration
+remains behind the Instance-wide network gate. S03 retains short-lived state and the PKCE verifier
+only in process memory, accepts only external credential references after callback completion and
+performs no provider-side revocation or other remote mutation.
 Unknown Source, connector or provider types stay visibly `undeclared` until their public
 capability contract is implemented.
 

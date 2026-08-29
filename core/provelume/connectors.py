@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 from uuid import uuid4
 
 from .connector_model import (
+    CONNECTOR_AUTHORIZATION_SCHEMA_VERSION,
     CONNECTOR_DEFINITION_SCHEMA_VERSION,
     CONNECTOR_INVENTORY_SCHEMA_VERSION,
     CONNECTOR_LIFECYCLE_SCHEMA_VERSION,
@@ -15,8 +18,11 @@ from .connector_model import (
     ConnectorNotFoundError,
     canonical_connector_errors,
     connector_definition_id,
+    connector_instance_authorization,
     connector_instance_lifecycle,
     connector_source_lifecycle,
+    default_connector_authorization,
+    normalise_connector_authorization,
     normalise_connector_definition_manifest,
     normalise_connector_instance_configuration,
     normalise_connector_source_configuration,
@@ -194,10 +200,31 @@ class ConnectorManager:
         lifecycle_state: str,
         removed_at: str | None,
         updated_at: str,
+        authorization: Mapping[str, Any] | None = None,
     ) -> None:
+        same_authorization_contract = (
+            existing.get("authorization_mode") == config["authorization_mode"]
+            and existing.get("scopes") == config["scopes"]
+            and existing.get("credential_reference") == config["credential_reference"]
+        )
+        selected_authorization = (
+            dict(authorization)
+            if authorization is not None
+            else connector_instance_authorization(existing)
+            if same_authorization_contract
+            else default_connector_authorization(
+                config["authorization_mode"],
+                config["credential_reference"],
+            )
+        )
+        selected_authorization = normalise_connector_authorization(
+            selected_authorization,
+            authorization_mode=config["authorization_mode"],
+            credential_reference=config["credential_reference"],
+        )
         self.store.write_connector_instance(
             ConnectorInstance(
-                schema_version=CONNECTOR_LIFECYCLE_SCHEMA_VERSION,
+                schema_version=CONNECTOR_AUTHORIZATION_SCHEMA_VERSION,
                 id=str(existing["id"]),
                 definition_id=str(existing["definition_id"]),
                 name=str(config["name"]),
@@ -218,6 +245,7 @@ class ConnectorManager:
                 removed_at=removed_at,
                 cursors={},
                 health=self._health(enabled=enabled, lifecycle_state=lifecycle_state),
+                authorization=selected_authorization,
                 created_at=str(existing["created_at"]),
                 updated_at=updated_at,
             )
@@ -324,6 +352,19 @@ class ConnectorManager:
         selected = definitions.get(definition_id)
         return dict(selected) if selected is not None else None
 
+    def authorization_fingerprint(self, instance_id: str) -> str:
+        _definitions, instances, _sources = self._state()
+        existing = instances.get(instance_id)
+        if existing is None:
+            raise ConnectorNotFoundError(f"connector instance not found: {instance_id}")
+        payload = json.dumps(
+            existing,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        return hashlib.sha256(payload).hexdigest()
+
     def create_instance(
         self,
         definition_id: str,
@@ -359,6 +400,17 @@ class ConnectorManager:
                 credential_reference=credential_reference,
                 derive_endpoint=True,
             )
+            if (
+                config["authorization_mode"] == "oauth2_pkce"
+                and config["credential_reference"] is not None
+            ):
+                raise ConnectorError(
+                    "OAuth credentials may be referenced only after PKCE callback completion"
+                )
+            if config["authorization_mode"] == "oauth2_pkce" and not config["scopes"]:
+                raise ConnectorError(
+                    "OAuth connector instances require a least-privilege scope set"
+                )
             self._assert_definition_supports(definition, config)
             now = utc_now()
             seed = {
@@ -405,11 +457,36 @@ class ConnectorManager:
             if lifecycle["lifecycle_state"] == "removed":
                 raise ConnectorConflictError("removed connector instance cannot be updated")
             current = self._configuration(existing)
+            current_authorization = connector_instance_authorization(existing)
+            if (
+                current["authorization_mode"] == "oauth2_pkce"
+                and current_authorization["status"] in {"authorized", "legacy_reference"}
+                and {"authorization_mode", "scopes", "account_identity"}.intersection(changes)
+            ):
+                raise ConnectorConflictError(
+                    "revoke OAuth authorization before changing its account, mode or scopes"
+                )
             selected = {**current, **changes}
             config = normalise_connector_instance_configuration(
                 **selected,
                 derive_endpoint=False,
             )
+            if (
+                config["authorization_mode"] == "oauth2_pkce"
+                and "credential_reference" in changes
+            ):
+                raise ConnectorError(
+                    "OAuth credential references are managed only by callback completion "
+                    "and revocation"
+                )
+            if (
+                config["authorization_mode"] == "oauth2_pkce"
+                and config["credential_reference"] is not None
+                and current["authorization_mode"] != "oauth2_pkce"
+            ):
+                raise ConnectorError(
+                    "OAuth configuration must begin without a credential reference"
+                )
             definition = definitions[str(existing["definition_id"])]
             self._assert_definition_supports(definition, config)
             changed_fields = tuple(
@@ -433,6 +510,176 @@ class ConnectorManager:
         return self._mutate(
             kind="connector.instance.update",
             title="Update connector instance",
+            related={"connector_instance_id": instance_id},
+            apply=apply,
+        )
+
+    def complete_oauth_authorization(
+        self,
+        instance_id: str,
+        *,
+        credential_reference: Mapping[str, str],
+        account_identity: str | None,
+        granted_scopes: Sequence[str],
+        authorized_at: str,
+        expected_record_sha256: str,
+    ) -> dict[str, Any]:
+        def apply() -> MutationResult:
+            definitions, instances, _sources = self._state()
+            existing = instances.get(instance_id)
+            if existing is None:
+                raise ConnectorNotFoundError(f"connector instance not found: {instance_id}")
+            payload = json.dumps(
+                existing,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("utf-8")
+            if hashlib.sha256(payload).hexdigest() != expected_record_sha256:
+                raise ConnectorConflictError(
+                    "connector instance changed during OAuth authorization"
+                )
+            lifecycle = connector_instance_lifecycle(existing)
+            if lifecycle["lifecycle_state"] != "active" or not lifecycle["enabled"]:
+                raise ConnectorConflictError(
+                    "OAuth authorization requires an active enabled connector instance"
+                )
+            config = self._configuration(existing)
+            definition = definitions[str(existing["definition_id"])]
+            if (
+                config["authorization_mode"] != "oauth2_pkce"
+                or "oauth2_pkce_authorization" not in definition["capabilities"]
+            ):
+                raise ConnectorConflictError(
+                    "connector instance does not declare OAuth 2.0/PKCE authorization"
+                )
+            selected_scopes = sorted(set(granted_scopes))
+            if selected_scopes != config["scopes"]:
+                raise ConnectorConflictError(
+                    "granted OAuth scopes must exactly match the configured least-privilege set"
+                )
+            current_authorization = connector_instance_authorization(existing)
+            selected = normalise_connector_instance_configuration(
+                **{
+                    **config,
+                    "account_identity": account_identity,
+                    "credential_reference": credential_reference,
+                },
+                derive_endpoint=False,
+            )
+            authorization = {
+                "status": "authorized",
+                "method": "oauth2_pkce",
+                "authorized_at": authorized_at,
+                "revoked_at": None,
+                "redirect_binding": "loopback",
+                "consent": "explicit",
+            }
+            self._write_instance(
+                existing,
+                selected,
+                enabled=True,
+                lifecycle_state="active",
+                removed_at=None,
+                updated_at=authorized_at,
+                authorization=authorization,
+            )
+            reauthorized = current_authorization["status"] in {
+                "authorized",
+                "legacy_reference",
+                "revoked",
+            }
+            return (
+                self.get_instance(instance_id) or {},
+                ("account_identity", "authorization", "credential_reference"),
+                {
+                    "configuration_records": 1,
+                    "authorizations_completed": 1,
+                    "reauthorizations_completed": int(reauthorized),
+                },
+            )
+
+        return self._mutate(
+            kind="connector.authorization.complete",
+            title="Complete installed-app OAuth authorization",
+            related={"connector_instance_id": instance_id},
+            apply=apply,
+        )
+
+    def revoke_oauth_authorization(
+        self,
+        instance_id: str,
+        *,
+        revoked_at: str,
+    ) -> dict[str, Any]:
+        def apply() -> MutationResult:
+            _definitions, instances, sources = self._state()
+            existing = instances.get(instance_id)
+            if existing is None:
+                raise ConnectorNotFoundError(f"connector instance not found: {instance_id}")
+            lifecycle = connector_instance_lifecycle(existing)
+            if lifecycle["lifecycle_state"] == "removed":
+                raise ConnectorConflictError("removed connector instance cannot be revoked")
+            config = self._configuration(existing)
+            if config["authorization_mode"] != "oauth2_pkce":
+                raise ConnectorConflictError("connector instance is not configured for OAuth")
+            current = connector_instance_authorization(existing)
+            if current["status"] == "revoked" and config["credential_reference"] is None:
+                return (
+                    self.get_instance(instance_id) or {},
+                    (),
+                    {"configuration_records": 0, "authorizations_revoked": 0},
+                )
+            if current["status"] == "not_authorized" and config["credential_reference"] is None:
+                return (
+                    self.get_instance(instance_id) or {},
+                    (),
+                    {"configuration_records": 0, "authorizations_revoked": 0},
+                )
+            selected = {**config, "credential_reference": None}
+            authorization = {
+                "status": "revoked",
+                "method": "oauth2_pkce",
+                "authorized_at": current["authorized_at"],
+                "revoked_at": revoked_at,
+                "redirect_binding": current["redirect_binding"],
+                "consent": current["consent"],
+            }
+            self._write_instance(
+                existing,
+                selected,
+                enabled=bool(lifecycle["enabled"]),
+                lifecycle_state="active",
+                removed_at=None,
+                updated_at=revoked_at,
+                authorization=authorization,
+            )
+            source_ids = {
+                str(source["id"])
+                for source in sources.values()
+                if source["connector_instance_id"] == instance_id
+            }
+            return (
+                self.get_instance(instance_id) or {},
+                ("authorization", "credential_reference"),
+                {
+                    "configuration_records": 1,
+                    "authorizations_revoked": 1,
+                    "sources_preserved": len(source_ids),
+                    "acquisitions_preserved": sum(
+                        item.get("source_id") in source_ids
+                        for item in self.store.list_canonical("acquisitions")
+                    ),
+                    "documents_preserved": sum(
+                        item.get("source_id") in source_ids
+                        for item in self.store.list_canonical("documents")
+                    ),
+                },
+            )
+
+        return self._mutate(
+            kind="connector.authorization.revoke",
+            title="Revoke local connector authorization",
             related={"connector_instance_id": instance_id},
             apply=apply,
         )
@@ -605,6 +852,7 @@ class ConnectorManager:
         instance_id = str(instance["id"])
         lifecycle = connector_instance_lifecycle(instance)
         config = self._configuration(instance)
+        authorization = connector_instance_authorization(instance)
         selected_sources = [
             self._source_view(
                 source,
@@ -647,6 +895,7 @@ class ConnectorManager:
             **dict(instance),
             **config,
             **lifecycle,
+            "authorization": authorization,
             "definition": dict(definitions[str(instance["definition_id"])]),
             "sources": selected_sources,
             "source_count": len(selected_sources),
@@ -661,6 +910,7 @@ class ConnectorManager:
                 "network_mode": str(config["network_mode"]),
                 "allowed_origins": list(config["allowed_origins"]),
                 "authorization_mode": str(config["authorization_mode"]),
+                "authorization_status": str(authorization["status"]),
                 "scopes": list(config["scopes"]),
                 "global_external_access": global_network,
                 "effective_network": effective_network,
