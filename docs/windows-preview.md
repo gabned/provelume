@@ -24,8 +24,7 @@ runtime after installation. `0.6.1` introduces no new canonical Instance migrati
 registered schema-1 to schema-2 migration from `0.6.0`, including deep preflight and a verified
 automatic backup. Candidate and official release evidence installs the immutable public `0.6.0`
 executable, creates a synthetic Instance and launcher settings, installs `0.6.1` in place and
-verifies stable AppId, exact Instance/settings preservation, migration evidence, startup and
-uninstall.
+verifies stable AppId, exact current-schema Instance/settings preservation, startup and uninstall.
 
 ## Local Inbox folders
 

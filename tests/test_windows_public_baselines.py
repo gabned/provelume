@@ -56,10 +56,14 @@ def test_release_pipeline_uses_latest_immutable_public_installer() -> None:
     assert "da338c65b8698d411561bbcb02e0711a1467628e3551c74b0989a7efe7ef6bc3" in text
 
 
-def test_windows_upgrade_proves_controlled_instance_schema_migration() -> None:
+def test_windows_upgrade_proves_schema_compatibility_for_public_baselines() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
 
     assert "LegacyInstanceConfigSha256" in text
+    assert "BaselineRequiresMigration" in text
+    assert "ExpectedBaselineSchemaVersion" in text
+    assert "BaselineInstanceManifestSha256" in text
+    assert "ExpectedMigrationCount" in text
     assert '$LegacyInstanceName = "Windows CI Instance – sintética 日本"' in text
     assert 'Get-YamlScalar -Text $LegacyConfigText -Key "name"' not in text
     assert "The installer mutated the Instance" in text
@@ -67,11 +71,12 @@ def test_windows_upgrade_proves_controlled_instance_schema_migration() -> None:
     assert "state\\migrations\\receipts\\instance-schema-1-to-2.json" in text
     assert '$Instance.schema_version -ne 2' in text
     assert '$Instance.manifest_schema_version -ne 1' in text
-    assert '$Instance.migrations_applied -ne 1' in text
+    assert '$Instance.migrations_applied -ne $ExpectedMigrationCount' in text
     assert '$Manifest.derived_state.indexes -ne "rebuild"' in text
     assert '$Manifest.derived_state.library -ne "rebuild"' in text
     assert '$Manifest.derived_state.state_artifacts -ne "include"' in text
     assert '$Receipt.preflight_content_fingerprint -notmatch' in text
     assert '$Receipt.backup.sha256 -notmatch' in text
     assert "ExpectedMigrationBackupSha256" in text
-    assert 'instance_schema_migration_and_backup = "PASS"' in text
+    assert "SchemaEvidencePreserved" in text
+    assert 'instance_schema_compatibility = "PASS"' in text
