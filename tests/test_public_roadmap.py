@@ -333,7 +333,7 @@ def test_watched_folder_ocr_and_automation_forecast_is_explicit() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Next forecast | `0.8.0` | Refresh engine, watched folders and Source lifecycle |"
+        "| Next forecast | `0.8.0` | Refresh scheduler, watched folders and Source lifecycle |"
     ) == 1
     assert roadmap.count(
         "| Forecast | `0.9.0` | OCR, email, Google file and transcript intake |"
@@ -353,6 +353,26 @@ def test_watched_folder_ocr_and_automation_forecast_is_explicit() -> None:
         "page-level text, coordinates",
         "OCR never replaces the Original",
         "remote OCR or\nvision provider",
+    ):
+        assert required_contract in roadmap
+
+
+def test_scheduler_maintenance_and_local_statistics_are_user_controlled() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    for required_contract in (
+        "## Scheduling, maintenance and local observability contract",
+        "fixed interval, local calendar schedule, event-assisted or conditional",
+        "skip,\ncoalesce-to-one or one bounded catch-up",
+        "lease,\nheartbeat, checkpoint",
+        "Incremental or\nfull search reindex",
+        "Operations & Maintenance view",
+        "run now,\npause, resume, retry, cancel or safely restart",
+        "canonical, derived, cache and external-replica",
+        "disk-exhaustion forecasts",
+        "content-free support bundle",
+        "low space pauses new acquisitions",
+        "Statistics & Capacity view",
     ):
         assert required_contract in roadmap
 
@@ -451,7 +471,7 @@ def test_mobile_capture_is_bounded_and_review_first() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.10.0` | Unified Capture and Action Center |"
+        "| Forecast | `0.10.0` | Unified Capture, Operations and Action Center |"
     ) == 1
     for required_contract in (
         "short-lived QR pairing",
@@ -526,7 +546,8 @@ def test_markdown_navigation_and_viewer_contract_is_explicit() -> None:
     )
 
     assert roadmap.count(
-        "| Forecast | `0.13.0` | Knowledge navigation, relations and deterministic discovery |"
+        "| Forecast | `0.13.0` | Knowledge navigation, statistics, relations and "
+        "deterministic discovery |"
     ) == 1
     for required_contract in (
         "Markdown is the first-class portable, human-facing format",

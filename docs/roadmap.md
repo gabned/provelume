@@ -34,12 +34,12 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (completed) | `Bibliotheca` |
 | Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
-| Next forecast | `0.8.0` | Refresh engine, watched folders and Source lifecycle | issue just in time | `Vigilia` |
+| Next forecast | `0.8.0` | Refresh scheduler, watched folders and Source lifecycle | issue just in time | `Vigilia` |
 | Forecast | `0.9.0` | OCR, email, Google file and transcript intake | issue just in time | `Lectio` |
-| Forecast | `0.10.0` | Unified Capture and Action Center | issue just in time | `Cura` |
+| Forecast | `0.10.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
 | Forecast | `0.12.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
-| Forecast | `0.13.0` | Knowledge navigation, relations and deterministic discovery | issue just in time | `Itinerarium` |
+| Forecast | `0.13.0` | Knowledge navigation, statistics, relations and deterministic discovery | issue just in time | `Itinerarium` |
 | Forecast | `0.14.0` | Knowledge API v1, read-only MCP and client connections | issue just in time | `Interfacies` |
 | Forecast | `0.15.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
 | Forecast | `0.16.0` | AI classification, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
@@ -76,20 +76,19 @@ names do not replace SemVer, package identity, tags or the immutable published r
   It deliberately adds no new product feature or schema boundary.
 - **`0.7.0` — `Vinculum`.** Introduces connector and Source identities, OAuth with PKCE and guarded
   manual web acquisition. Background refresh remains outside this release boundary.
-- **`0.8.0` — `Vigilia`.** Adds user-controlled watched folders and a durable refresh/job
-  lifecycle. Schedules, mounted locations, quiescence and resource use stay under operator control.
+- **`0.8.0` — `Vigilia`.** Adds a user-controlled scheduler, watched folders and a durable job
+  lifecycle. Refresh, reindex, maintenance, interruption recovery and resource use stay governed.
 - **`0.9.0` — `Lectio`.** Adds local OCR and richer intake for scanned files, email, Google files
   and transcripts. Cloud extraction is never an unannounced requirement or fallback.
-- **`0.10.0` — `Cura`.** Unifies capture, review queues, actions and mobile-friendly triage in one
-  Action Center. Destructive automation remains disabled unless the user explicitly enables it.
+- **`0.10.0` — `Cura`.** Unifies capture, review and operations/maintenance queues in one Action
+  Center. Interrupted work and every destructive choice remain explicit.
 - **`0.11.0` — `Entitas`.** Adds evidence-linked objects, claims, decisions, tasks, calendar items
   and relations. Derived structure remains traceable to exact Originals and canonical records.
 - **`0.12.0` — `Concordia`.** Adds productivity connectors, guarded task synchronization and
   optional one-way Git mirrors. GitHub, GitLab and Gitea remain selectable integrations, not runtime
   requirements.
-- **`0.13.0` — `Itinerarium`.** Adds navigation, backlinks, health views and deterministic
-  discovery. A generic importer brings legacy filesystem and Markdown archives in with dry-run and
-  reconciliation evidence.
+- **`0.13.0` — `Itinerarium`.** Adds navigation, backlinks, health, local statistics and capacity
+  views. Deterministic discovery and legacy import remain explainable and fully reconcilable.
 - **`0.14.0` — `Interfacies`.** Stabilizes Knowledge API v1 and read-only MCP client profiles.
   ChatGPT can connect locally, remotely or through a private tunnel without requiring Git sync.
 - **`0.15.0` — `Custodia`.** Adds a replaceable AI gateway with local, remote and fallback policy
@@ -242,6 +241,55 @@ surfaces. A Git-backed mirror is an optional compatibility and human-navigation 
 canonical storage, mandatory backup or a runtime dependency. GitHub, GitLab, Gitea and another
 standards-compatible remote may be qualified behind the same Git capability; local-only and
 no-GitHub modes remain complete product paths.
+
+## Scheduling, maintenance and local observability contract
+
+Every refresh, watcher, reindex, rebuild, validation, assurance, backup or maintenance capability
+uses one durable job contract rather than its own hidden timer. Where applicable a user may choose
+disabled, run now, fixed interval, local calendar schedule, event-assisted or conditional
+execution at Instance or narrower Source scope. Policies expose timezone, daylight-saving
+behavior, earliest/latest window, quiet hours, bounded jitter, minimum interval, concurrency and
+CPU, battery, metered-network, bandwidth and disk limits. Last attempt, last success, next due
+time, policy revision and the reason a run executed, waited, coalesced or was skipped remain
+visible.
+
+Downtime never creates an unbounded catch-up storm. Each policy explicitly chooses skip,
+coalesce-to-one or one bounded catch-up after restart, sleep/wake, clock correction or mount
+reconnection. Retry uses typed transient/permanent failures, capped exponential backoff and a
+user-visible retry time; provider rate limits can lengthen but never silently shorten a user's
+minimum interval.
+
+Jobs carry stable identity, kind, scope, idempotency key, policy revision, attempt, lease,
+heartbeat, checkpoint, progress and a terminal receipt. After interruption, stale leases are
+detected and the job becomes resumable, safely restartable or manual-intervention-required rather
+than falsely successful. Resume begins only from a committed checkpoint; replay cannot create a
+second Acquisition, Version, index generation, backup or external publication. Users may pause,
+resume, retry, cancel or restart when that action is safe, while force repair and generic
+`fix everything` controls remain excluded.
+
+The maintenance catalogue distinguishes rebuildable work from canonical mutation. Incremental or
+full search reindex, Markdown-library rebuild, Source reconciliation, Instance validation,
+Original assurance, duplicate scan, backup creation/verification and redacted diagnostics may be
+manual or scheduled once their owning release supports them. Full rebuilds expose estimated work,
+free-space preflight and a dry run where meaningful. A repair that changes canonical state remains
+a separate preview, backup and confirmation flow; a schedule never upgrades a read-only check into
+automatic repair, purge or retention deletion.
+
+Local statistics are derived, timestamped and rebuildable from canonical manifests and bounded
+operation evidence. They report counts and exact bytes for Sources, Acquisitions, Documents,
+Versions, Originals, derived bundles, indexes, library projections, queues, trash and configured
+backup inventories, with filters by type, Source, Area, Project, status and time. Growth,
+throughput, duplicate reuse/storage savings, extraction/OCR coverage, queue age, job duration and
+failure rate may be summarized; disk-exhaustion forecasts are labelled estimates with their
+window and assumptions. Every view distinguishes canonical, derived, cache and external-replica
+bytes so a number cannot be mistaken for reclaimable space.
+
+Statistics and diagnostics perform no telemetry or implicit network access. Document content,
+sensitive titles, secrets and physical paths are excluded from aggregate exports by default; a
+content-free support bundle contains only explicit selected configuration classes, build identity,
+redacted health, job receipts and checksums. Threshold notifications link to the evidence and safe
+response, while low space pauses new acquisitions before integrity is endangered and never
+triggers silent deletion.
 
 ## Published foundation
 
@@ -465,12 +513,12 @@ workflow after exact-head review and merge. The tag and public prerelease point 
 **Not in this release:** background refresh, watched folders, OCR, email or Google Drive intake,
 AI classification, MCP, Git mirrors, a Windows background agent or Authenticode signing.
 
-### 0.8.0 — Refresh Engine, Watched Folders and Source Lifecycle
+### 0.8.0 — Refresh Scheduler, Watched Folders and Source Lifecycle
 
 **Depends on:** `0.7.0` Source contract.
 
-**Outcome:** make local-folder observation, refresh, retry and Source state durable without
-turning every filesystem event or poll into a new document version.
+**Outcome:** make schedules, local-folder observation, refresh, reindex, retry and Source/job state
+durable without turning every timer, filesystem event or poll into a new document version.
 
 **Includes:** bounded persistent jobs; disabled, manual, periodic, scheduled, event-assisted and
 conditional policies; one or more independently configured local, removable, UNC/SMB or mounted
@@ -478,6 +526,14 @@ Drop folders as filesystem Sources; recursive and non-recursive scope, include/e
 temporary-file rejection and a configurable quiescence window so a file is never acquired while
 still being written; initial scan plus periodic reconciliation so missed or coalesced watcher
 events cannot create silent gaps.
+
+Every job policy has Instance/ConnectorInstance/Source scope as applicable and supports run now,
+fixed interval or local calendar time with an explicit timezone and daylight-saving rule. It also
+records quiet and maintenance windows, bounded jitter, minimum/maximum interval, concurrency and
+one closed missed-run policy: skip, coalesce to one or run one bounded catch-up. Sleep/wake, clock
+correction, restart and a long-disconnected mount cannot enqueue an unbounded backlog. Conditional
+HTTP metadata, provider rate limits and exponential backoff reduce unnecessary transfers without
+silently changing the user-selected minimum refresh frequency.
 
 Each folder retains the existing copy-by-default, leave-in-place and explicitly selected
 move-after-commit behavior. Move remains impossible before exact-byte preservation, hash
@@ -493,14 +549,30 @@ redacted local/network events distinct from declared capability; last-attempt, l
 next-run and bounded resync status; quiet hours plus CPU, battery and metered-network limits where
 the host exposes them.
 
+The durable journal records job identity/kind/scope, idempotency key, policy revision, attempt,
+lease, heartbeat, checkpoint, progress, processed/skipped/error counts, duration and terminal
+receipt. An interrupted or stale-leased job is classified as resumable, restart-only or requiring
+manual intervention; replay begins from committed evidence and cannot duplicate an Acquisition,
+Version, index generation, backup or publication.
+
+The first maintenance catalogue covers incremental or full FTS reindex, Markdown-library rebuild,
+Source reconciliation, Instance validation, Original assurance, duplicate scan and verified backup
+creation/verification to an explicit target. These actions can use the scheduler while the current
+runtime is active; always-on execution while the interface is closed depends on the qualified
+self-hosted or desktop agents in `0.18.0` and `0.19.0`. Reindex and library work mutate only
+rebuildable generations. Validation and assurance remain read-only, and no timer can authorize
+repair, purge, retention deletion or destination cleanup.
+
 **Exit gate:** unchanged bytes and duplicate watcher events create no new Version, partially
 written files are never committed, rename and changed-content behavior is explainable, unavailable
-mounts fail visibly without data loss, retries are safe, and interrupted jobs resume or fail with
-bounded evidence.
+mounts fail visibly without data loss, retries are safe, timezone/DST and missed-run fixtures stay
+bounded, and interruption at every checkpoint resumes, restarts or fails with exact evidence and no
+duplicate canonical or derived state.
 
-**Suggested slices:** `0.8/S01` durable jobs and schedules; `0.8/S02` local/removable/network-folder
-Sources and quiescence; `0.8/S03` reconciliation, cursors and lifecycle states; `0.8/S04` resource
-policies, evidence and end-to-end recovery fixtures.
+**Suggested slices:** `0.8/S01` durable scheduler, journal, leases and clocks; `0.8/S02`
+local/removable/network-folder Sources and quiescence; `0.8/S03` maintenance/reindex catalogue and
+interruption recovery; `0.8/S04` reconciliation, cursors and lifecycle states; `0.8/S05` resource
+policies, statistics evidence and end-to-end recovery fixtures.
 
 ### 0.9.0 — OCR, Email, Google File and Transcript Intake
 
@@ -544,14 +616,14 @@ decisions and tasks derived from communications or transcripts.
 and document bundles; `0.9/S03` email identity and intake; `0.9/S04` Gmail/Drive adapters;
 `0.9/S05` transcript profiles; `0.9/S06` cross-source qualification and correction findings.
 
-### 0.10.0 — Unified Capture and Action Center
+### 0.10.0 — Unified Capture, Operations and Action Center
 
 **Depends on:** durable ingestion, hierarchical classification, Sources and the `0.8.0`
 refresh/job foundation.
 
-**Outcome:** unify local, connector and mobile capture decisions in one evidence-backed Action
-Center rather than silently turning submitted items into durable or destructively changed
-knowledge.
+**Outcome:** unify local, connector and mobile capture decisions plus background operations and
+maintenance in one evidence-backed Action Center rather than hiding submitted items or interrupted
+work.
 
 **Includes:** closed review states and transitions; a mobile-responsive Capture Inbox and
 `Needs attention` Action Center; typed intake/classification/exact-duplicate/probable-duplicate/
@@ -579,6 +651,21 @@ hierarchical Area/Project placement, create a reusable non-destructive routing r
 duplicate occurrence, or choose new-version/separate/related handling for probable duplicates.
 Destructive and identity-changing decisions never become automatic rules.
 
+An Operations & Maintenance view lists every schedule and current/recent job with scope, policy,
+last attempt/success, next due time, progress, throughput, checkpoint, resource wait, retry time
+and terminal receipt. It distinguishes queued, running, pausing, paused, blocked, interrupted,
+resumable, restart-only, failed and completed states. From the same evidence users can run now,
+pause, resume, retry, cancel or safely restart; a control is absent when the job contract cannot
+honour it. Interrupted work links to the exact checkpoint and recommended safe action instead of a
+generic error or `fix everything` button.
+
+Maintenance actions include incremental/full reindex, library rebuild, Source reconciliation,
+validation, Original assurance, duplicate scan, backup verification and a content-free redacted
+diagnostic bundle. Estimated item count, bytes, temporary disk need and expected authority
+boundary precede heavy work. Repair remains a distinct preview/backup/confirmation operation, and
+capacity warnings can pause new ingestion without deleting Originals, derived state, logs or old
+backups automatically.
+
 Queue notifications are separately configurable as disabled, in-application only, host desktop/
 browser or a later explicitly configured provider channel. Notification previews omit document
 content and sensitive titles by default, support quiet hours and aggregation, and link back to the
@@ -603,10 +690,11 @@ cloud relay; WhatsApp Cloud API integration; or autonomous classification and du
 WhatsApp remains a later candidate only through a dedicated Business number/API flow, never by
 scraping or impersonating a personal WhatsApp account.
 
-**Suggested slices:** `0.10/S01` Action Center state model and local queues; `0.10/S02`
-classification/duplicate/version-conflict decisions and reusable safe routing; `0.10/S03` mobile
-capture, device pairing and offline retry; `0.10/S04` iOS, Android, Drive-drop and Telegram
-reference paths; `0.10/S05` mobile retrieval, authorization and end-to-end assurance fixtures.
+**Suggested slices:** `0.10/S01` Action Center state model and local queues; `0.10/S02` Operations &
+Maintenance schedules, job control and interruption recovery; `0.10/S03`
+classification/duplicate/version-conflict decisions and reusable safe routing; `0.10/S04` mobile
+capture, device pairing and offline retry; `0.10/S05` iOS, Android, Drive-drop and Telegram
+reference paths; `0.10/S06` mobile retrieval, authorization and end-to-end assurance fixtures.
 
 ### 0.11.0 — Knowledge Objects v1
 
@@ -696,12 +784,12 @@ history, the numbering and relative order of `0.5.0`–`0.11.0`, and stable `1.0
 unchanged; the Inbox/library/assurance expansions in `0.5.0`, `0.6.0` and `0.10.0`, and the
 connector-related scope expansions in `0.7.0`–`0.11.0`, are explicit above.
 
-### 0.13.0 — Knowledge Navigation, Relations and Deterministic Discovery
+### 0.13.0 — Knowledge Navigation, Statistics, Relations and Deterministic Discovery
 
 **Depends on:** `0.11.0` objects.
 
-**Outcome:** make documents and objects coherently navigable and diagnosable before introducing
-embeddings.
+**Outcome:** make documents and objects coherently navigable, measurable and diagnosable before
+introducing embeddings.
 
 **Includes:** a mature Knowledge Browser/Viewer over the existing filesystem library and
 structured objects; Area/Subarea/Project/Collection and Source/tag/type trees with breadcrumbs;
@@ -711,6 +799,15 @@ related document/object views with a visible reason for each suggestion; an opti
 relation graph; explainable stale/conflict/missing-evidence/superseded/orphaned health states;
 deterministic detectors; full-text object/relation search; filters; documented ranking; portable
 references and complete navigation/relation-index rebuild.
+
+A local Statistics & Capacity view reports timestamped counts and exact bytes across Sources,
+Acquisitions, Documents, Versions, Originals, derived bundles, indexes, library projections,
+queues, trash and configured backup inventories. It distinguishes canonical, derived, cache and
+external-replica space; supports type, Source, Area, Project, status and time filters; and shows
+growth, throughput, extraction/OCR coverage, duplicate reuse, queue age, job duration/failure rate
+and labelled disk-capacity forecasts. Statistics are incrementally maintained but fully
+rebuildable from manifests and operation evidence, perform no telemetry and never make deletion or
+retention decisions.
 
 A generic legacy filesystem/Markdown archive importer provides a clean-room migration path for
 existing personal knowledge trees without naming or depending on a private instance. An
@@ -722,13 +819,15 @@ reconciliation report covering source paths, byte counts, hashes, imported Acqui
 unresolved items and zero source deletion. Synthetic fixtures qualify the public behavior; private
 data and mappings never enter the repository.
 
-**Exit gate:** every health finding identifies its evidence and rule, deterministic rebuilds
-agree, every related result explains its deterministic path, keyboard and mobile navigation reach
-the same knowledge, discovery remains fully useful without AI or a vector store, and a repeated
-legacy import is reconcilable without duplicate Documents or lost source bytes.
+**Exit gate:** every health finding identifies its evidence and rule; deterministic navigation,
+relation and statistics rebuilds agree with canonical counts and bytes; every related result
+explains its deterministic path; keyboard and mobile navigation reach the same knowledge;
+discovery remains fully useful without AI or a vector store; and a repeated legacy import is
+reconcilable without duplicate Documents or lost source bytes.
 
-**Suggested slices:** build deterministic navigation and health before the generic legacy-import
-profile; qualify import through synthetic folder/sidecar/link fixtures in a separate final slice.
+**Suggested slices:** build deterministic navigation and health, then local statistics/capacity,
+before the generic legacy-import profile; qualify import through synthetic folder/sidecar/link
+fixtures in a separate final slice.
 
 ### 0.14.0 — Knowledge API v1, Read-only MCP and Client Connections
 
@@ -841,12 +940,13 @@ optional write-scoped MCP; `0.16/S05` complete folder-to-knowledge qualification
 **Outcome:** add semantic retrieval while keeping embeddings entirely derived and replaceable.
 
 **Includes:** separate embedding adapter; model/dimension/chunking identity and privacy policy;
-local vector-store baseline plus optional adapters; complete rebuild from canonical state;
-model/store migration; explainable full-text plus semantic ranking; consistent filters; stale,
-incompatible and missing-index health.
+local vector-store baseline plus optional adapters; incremental indexing plus manual or scheduled
+complete rebuild from canonical state; model/store migration; explainable full-text plus semantic
+ranking; consistent filters; stale, incompatible and missing-index health; index/vector counts and
+bytes, coverage, lag, generation age and rebuild progress.
 
-**Exit gate:** delete-and-rebuild and provider-replacement tests preserve canonical objects,
-privacy routing and deterministic fallback search.
+**Exit gate:** delete-and-rebuild, interrupted reindex and provider-replacement tests preserve
+canonical objects, privacy routing and deterministic fallback search.
 
 ### 0.18.0 — Self-hosted and Synology Operations
 
@@ -860,7 +960,8 @@ supported CPU/host matrix; configuration separated from data; secret references;
 and redacted logs; documented init/start/stop/status/backup/restore/upgrade/rollback; N-1 to N
 migration; local authentication for non-loopback exposure; provider-neutral reverse-proxy/TLS
 guidance; retention and purge reporting that distinguishes the live Instance from backups and
-external replicas.
+external replicas. The durable scheduler runs refresh, indexing, backup verification and permitted
+maintenance inside explicit windows and resource/disk thresholds even when no browser is open.
 
 The Synology profile covers DSM Container Manager and Portainer-compatible Compose, bind/named
 volume choices, UID/GID and ACL diagnostics, NAS/local/UNC Source mounts, reverse proxy and TLS,
@@ -875,7 +976,8 @@ bundle with explicit key-recovery and lost-key warnings. Keys remain outside the
 backup payload; encryption never weakens manifest/hash verification. Self-hosted update policy is
 separate from the Windows updater and offers disabled, notify, download/stage and controlled
 automatic container replacement only after verified backup, migration preflight and health-based
-rollback are available.
+rollback are available. Capacity thresholds warn first and can pause acquisition, indexing or
+backup staging; they never silently purge Originals, derived generations, logs or old backups.
 
 **Exit gate:** a clean supported Linux host and one documented Synology architecture can install,
 operate, upgrade, roll back and recover an Instance using only published artifacts and
@@ -900,12 +1002,14 @@ spaces, Unicode, UNC and case-insensitive path support; lifecycle-aware failure 
 that preserves the Instance; final bootstrap support matrix and migration from the `0.4.0`
 preview installation.
 
-A per-user background agent and tray surface make watched folders, scheduled refresh, Action
-Center notifications and permitted AI/Git work operate while the main window is closed. Users may
+A per-user background agent and tray surface make watched folders, scheduled refresh/reindex/
+maintenance, Action Center notifications and permitted AI/Git work operate while the main window
+is closed. Users may
 choose manual runtime, start-at-login or an explicitly supported elevated service mode; pause all
 background activity or one Source; define quiet hours and CPU/battery/metered-network limits; and
 open the exact queue or failure from a content-minimizing notification. Disabled background mode
 performs no hidden work, and closing the UI never ambiguously changes the selected policy.
+Sleep/wake recovery obeys the scheduler's bounded missed-run and checkpoint contracts.
 
 **Exit gate:** install/use/uninstall, login-start, pause/resume, sleep/wake, network-share loss and
 failure-recovery fixtures pass on supported Windows targets without duplicate processing, hidden
@@ -980,11 +1084,11 @@ cross-tenant isolation tests without vendor-specific domain logic.
 
 **Includes:** Instance, Knowledge API/MCP and artifact contract freeze; supported migration,
 upgrade and rollback matrix; export/import and Windows/Linux interoperability; watched-folder/OCR/
-classification/Git-mirror end-to-end qualification; generic Linux and documented Synology
-operations; Windows background-agent and updater recovery; no-GitHub, no-external-AI and local-only
-tests; provider replacement and vector rebuild; at least two real clients; synthetic performance
-limits; focused security review; complete licensing, notices, support and deprecation
-documentation.
+classification/Git-mirror end-to-end qualification; scheduler, interruption, maintenance,
+statistics and low-space recovery; generic Linux and documented Synology operations; Windows
+background-agent and updater recovery; no-GitHub, no-external-AI and local-only tests; provider
+replacement and vector rebuild; at least two real clients; synthetic performance limits; focused
+security review; complete licensing, notices, support and deprecation documentation.
 
 **Exit gate:** the candidate remains stable for the documented qualification period with all
 1.0 blockers closed or explicitly removed from the support perimeter.

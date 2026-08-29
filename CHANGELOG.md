@@ -41,12 +41,10 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
-- expanded the unreleased `0.8.0`–`0.20.0` public forecast with user-controlled watched-folder
-  intake, local OCR, legacy archive import, optional Git mirrors, direct MCP client connections,
-  privacy-routed AI classification, qualified Synology operations and a Windows background agent,
-  while keeping those capabilities outside the `0.7.0` boundary; assigned one unique one-word
-  Latin codename and a concise two-sentence outcome to every published and forecast release without
-  changing already published package, tag or version identity;
+- expanded the unreleased public forecast with user-controlled refresh/reindex/maintenance
+  schedules, interruption recovery and local storage, capacity and job statistics while keeping
+  those capabilities outside the `0.7.0` boundary; preserved the existing one-word Latin release
+  names and changed no published package, tag or version identity;
 - made connector and Source removal retain canonical tombstones instead of deleting identity
   records, and require independently selected Sources to be removed before their parent instance;
 - kept S01 schema-1 connector records valid and upgraded each record to lifecycle schema 2 only
