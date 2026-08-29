@@ -10,6 +10,7 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 from .derived import materialize_extracted_text, provenance_edge
 from .domain import Acquisition, Document, DocumentVersion, Original, Source
 from .extractors import ExtractionError, extractor_for
+from .index import refresh_search_index
 from .ingestion_runs import (
     INGESTION_RUN_SCHEMA_VERSION,
     IngestionItemRecord,
@@ -49,6 +50,21 @@ class IngestionRunResult:
             "items": [asdict(item) for item in self.items],
             "acquisitions": [asdict(item) for item in self.acquisitions],
         }
+
+
+def _refresh_after_ingestion(
+    store: InstanceStore,
+    result: IngestionRunResult,
+) -> None:
+    refresh_search_index(
+        store,
+        (
+            acquisition.document_id
+            for acquisition in result.acquisitions
+            if acquisition.outcome != "unchanged"
+        ),
+        recover_missing_derived=False,
+    )
 
 
 def _stable_document_id(source_id: str, locator: str) -> str:
@@ -375,13 +391,15 @@ def run_ingestion_filesystem(
     """Ingest one filesystem Source under the Instance mutation lock."""
 
     with InstanceLifecycleManager(store)._hold(purpose="filesystem-ingestion"):
-        return _run_ingestion_filesystem_locked(
+        result = _run_ingestion_filesystem_locked(
             store,
             source_path,
             source_name=source_name,
             max_file_bytes=max_file_bytes,
             max_files=max_files,
         )
+        _refresh_after_ingestion(store, result)
+        return result
 
 
 def _safe_retry_path(source_path: Path, locator: str) -> Path:
@@ -470,7 +488,9 @@ def retry_ingestion_run(store: InstanceStore, run_id: str) -> IngestionRunResult
     """Retry failed ingestion under the Instance mutation lock."""
 
     with InstanceLifecycleManager(store)._hold(purpose="filesystem-ingestion-retry"):
-        return _retry_ingestion_run_locked(store, run_id)
+        result = _retry_ingestion_run_locked(store, run_id)
+        _refresh_after_ingestion(store, result)
+        return result
 
 
 def ingest_filesystem(

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+import provelume.ingest as ingest_module
 import provelume.retention as retention_module
 from provelume.cli import main
 from provelume.inbox import InboxManager
@@ -348,6 +349,53 @@ def test_permanent_purge_serializes_all_canonical_ingestion_paths(
         for item in instance.store.list_canonical("documents")
     )
     assert inspect_instance(instance.root, deep=True)["status"] == "valid"
+
+
+def test_filesystem_index_refresh_remains_inside_lifecycle_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "locked-refresh.md"
+    source.write_bytes(b"# Locked refresh\n\nindex-lock-token\n")
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    real_refresh = ingest_module.refresh_search_index
+    refreshed_document_ids: list[tuple[str, ...]] = []
+
+    def refresh_while_lock_is_observed(
+        store: InstanceStore,
+        document_ids: object,
+        *,
+        recover_missing_derived: bool = False,
+    ) -> int:
+        selected = tuple(str(value) for value in document_ids)
+        with (
+            pytest.raises(
+                InstanceLifecycleError,
+                match="another Instance lifecycle operation is active",
+            ),
+            InstanceLifecycleManager(store)._hold(
+                purpose="competing-permanent-purge"
+            ),
+        ):
+            pass
+        refreshed_document_ids.append(selected)
+        return real_refresh(
+            store,
+            selected,
+            recover_missing_derived=recover_missing_derived,
+        )
+
+    monkeypatch.setattr(
+        ingest_module,
+        "refresh_search_index",
+        refresh_while_lock_is_observed,
+    )
+    acquisitions = instance.ingest(source)
+
+    assert refreshed_document_ids == [(str(acquisitions[0]["document_id"]),)]
+    assert [item["document_id"] for item in instance.search("index-lock-token")] == [
+        acquisitions[0]["document_id"]
+    ]
 
 
 def test_purge_retains_original_still_referenced_by_another_document(
