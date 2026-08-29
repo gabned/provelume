@@ -23,7 +23,7 @@ from .instance_schema import (
 from .paths import UnsafePathError, safe_instance_path
 from .retention_model import canonical_disposition_errors
 from .storage import CANONICAL_KINDS, REQUIRED_CANONICAL_KINDS, InstanceStore
-from .web_transport import WebTransportError, canonical_web_url
+from .web_transport import WebTransportError, canonical_web_origin, canonical_web_url
 
 VALIDATION_REPORT_SCHEMA_VERSION = 1
 _INSTANCE_ID = re.compile(r"inst_[0-9a-f]{32}\Z")
@@ -228,6 +228,25 @@ def _validate_references(
                     valid_urls = False
             except WebTransportError:
                 valid_urls = False
+        authorized_origins = acquisition.get("authorized_origins")
+        valid_authorized_origins = (
+            isinstance(authorized_origins, list)
+            and bool(authorized_origins)
+            and all(isinstance(origin, str) for origin in authorized_origins)
+            and authorized_origins == sorted(set(authorized_origins))
+        )
+        if valid_authorized_origins:
+            try:
+                valid_authorized_origins = all(
+                    isinstance(origin, str)
+                    and canonical_web_origin(origin) == origin
+                    for origin in authorized_origins
+                ) and all(
+                    canonical_web_origin(selected) in authorized_origins
+                    for selected in (requested_url, final_url)
+                )
+            except WebTransportError:
+                valid_authorized_origins = False
         source_url_matches = False
         if source is not None:
             try:
@@ -277,6 +296,7 @@ def _validate_references(
                 and not isinstance(derived_artifact_id, str)
             )
             or not source_url_matches
+            or not valid_authorized_origins
             or not valid_urls
         ):
             errors.append(

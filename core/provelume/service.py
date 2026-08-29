@@ -42,6 +42,7 @@ class ProvelumeInstance:
         self.retention = DocumentRetentionManager(self.store)
         preparation = self.store._open_preparation or {}
         self.retention_recovery = preparation.get("retention_recovery")
+        self.manual_web_recovery = preparation.get("manual_web_recovery")
         self.connectors = ConnectorManager(self.store)
         self.oauth = InstalledAppAuthorizationManager(self.store, self.connectors)
         self.web_transport = GuardedWebTransport(self.store, self.connectors)

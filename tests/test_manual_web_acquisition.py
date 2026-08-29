@@ -6,6 +6,7 @@ import json
 import os as stdlib_os
 from dataclasses import dataclass, field
 from pathlib import Path
+from threading import Event, Thread
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
 
@@ -14,6 +15,7 @@ from fastapi.testclient import TestClient
 
 from provelume import connector_cli, web_acquisition
 from provelume.cli import main
+from provelume.desktop import declare_startup_update_policy
 from provelume.instance_backup import verify_backup
 from provelume.instance_schema import build_instance_manifest
 from provelume.instance_validation import inspect_instance
@@ -21,6 +23,7 @@ from provelume.oauth_authorization import (
     InstalledAppAuthorizationParameters,
     InstalledAppTokenExchange,
 )
+from provelume.operations import OperationLedger
 from provelume.service import ProvelumeInstance
 from provelume.storage import CANONICAL_KINDS, InstanceStore
 from provelume.web import create_app
@@ -267,6 +270,7 @@ def test_manual_acquisition_preserves_exact_bytes_hash_and_lineage(tmp_path: Pat
     assert acquisition["observed_at"] == acquisition["retrieved_at"]
     assert acquisition["media_type"] == "text/html"
     assert acquisition["connector_instance_id"] == connector["id"]
+    assert acquisition["authorized_origins"] == ["https://public.example.test"]
     assert acquisition["source_id"] == source["id"]
     assert acquisition["content_hash"] == result["original"]["sha256"]
     assert acquisition["response_size_bytes"] == len(body)
@@ -403,6 +407,28 @@ def test_deep_validation_rejects_incomplete_manual_web_provenance(
     }
 
 
+def test_deep_validation_rejects_final_origin_outside_commit_allowlist(
+    tmp_path: Path,
+) -> None:
+    instance, connector, source = _configured(tmp_path / "instance")
+    _use_network(instance, SyntheticNetwork([SyntheticResponse()]))
+    result = _acquire(instance, connector, source)
+    acquisition = dict(result["acquisition"])
+    acquisition["final_url"] = "https://other.example.test/final"
+    instance.store._atomic_json(
+        instance.store.paths.canonical_dir("acquisitions")
+        / f"{acquisition['id']}.json",
+        acquisition,
+    )
+
+    report = inspect_instance(instance.root, deep=True)
+
+    assert report["status"] == "invalid"
+    assert "manual_web_acquisition_invalid" in {
+        error["code"] for error in report["errors"]
+    }
+
+
 class _FailingReplaceProxy:
     def __init__(self, failure_at: int):
         self.failure_at = failure_at
@@ -415,6 +441,14 @@ class _FailingReplaceProxy:
         self.calls += 1
         if self.calls == self.failure_at:
             raise OSError("synthetic atomic replacement failure")
+        stdlib_os.replace(source, target)
+
+
+class _CrashingReplaceProxy(_FailingReplaceProxy):
+    def replace(self, source: Any, target: Any) -> None:
+        self.calls += 1
+        if self.calls == self.failure_at:
+            raise KeyboardInterrupt
         stdlib_os.replace(source, target)
 
 
@@ -443,6 +477,60 @@ def test_atomic_commit_rolls_back_every_canonical_and_original_file(
     assert inspect_instance(instance.root, deep=True)["status"] == "valid"
 
 
+def test_interrupted_commit_is_durably_rolled_back_on_instance_open(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance, connector, source = _configured(tmp_path / "instance")
+    _use_network(instance, SyntheticNetwork([SyntheticResponse(body=b"crash body")]))
+    before = _snapshot(instance.store)
+    monkeypatch.setattr(web_acquisition, "os", _CrashingReplaceProxy(failure_at=4))
+
+    with pytest.raises(KeyboardInterrupt):
+        _acquire(instance, connector, source)
+
+    transaction_root = (
+        instance.root.parent / f".{instance.root.name}.provelume" / "transactions"
+    )
+    assert list(transaction_root.glob("manual-web-*"))
+    monkeypatch.setattr(web_acquisition, "os", stdlib_os)
+    reopened = ProvelumeInstance(instance.root)
+
+    assert _snapshot(reopened.store) == before
+    assert reopened.manual_web_recovery == {
+        "schema_version": 1,
+        "status": "recovered",
+        "rolled_back": 1,
+        "committed_cleanups": 0,
+    }
+    assert not list(transaction_root.glob("manual-web-*"))
+    operation = reopened.connectors.operations.list(kind="connector.web.acquire")[0]
+    assert operation["status"] == "failed"
+    assert operation["error_code"] == "manual_web_interrupted_rollback"
+    assert inspect_instance(reopened.root, deep=True)["status"] == "valid"
+
+
+def test_success_stages_terminal_operation_without_postcommit_writes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance, connector, source = _configured(tmp_path / "instance")
+    _use_network(instance, SyntheticNetwork([SyntheticResponse()]))
+
+    def unexpected(*_args: Any, **_kwargs: Any) -> Any:
+        raise AssertionError("postcommit ledger/detail call")
+
+    monkeypatch.setattr(OperationLedger, "close", unexpected)
+    monkeypatch.setattr(web_acquisition.ManualWebAcquisitionManager, "get", unexpected)
+
+    result = _acquire(instance, connector, source)
+
+    assert result["status"] == "completed"
+    operation = instance.connectors.operations.get(result["operation"]["id"])
+    assert operation is not None
+    assert operation["status"] == "completed"
+
+
 class _AfterFetchMutation:
     def __init__(
         self,
@@ -464,6 +552,14 @@ class _AfterFetchMutation:
         final_url: str | None = None,
     ) -> str:
         return self.transport.assert_current_authority(request, final_url=final_url)
+
+    def current_authority(
+        self,
+        request: GuardedWebRequest,
+        *,
+        final_url: str | None = None,
+    ):
+        return self.transport.current_authority(request, final_url=final_url)
 
 
 @pytest.mark.parametrize("change", ["instance", "source", "global"])
@@ -611,6 +707,59 @@ def test_oauth_revocation_after_transport_and_before_commit_fails_closed(
     evidence = json.dumps(instance.connectors.operations.list(limit=100))
     assert "sensitive-code" not in evidence
     assert URL not in evidence
+
+
+class _ConcurrentGlobalDisable:
+    def __init__(self, transport: GuardedWebTransport, instance_root: Path):
+        self.transport = transport
+        self.instance_root = instance_root
+        self.started = Event()
+        self.finished = Event()
+        self.thread: Thread | None = None
+
+    def fetch(self, request: GuardedWebRequest):
+        return self.transport.fetch(request)
+
+    def current_authority(
+        self,
+        request: GuardedWebRequest,
+        *,
+        final_url: str | None = None,
+    ):
+        authority = self.transport.current_authority(request, final_url=final_url)
+
+        def disable() -> None:
+            self.started.set()
+            declare_startup_update_policy(self.instance_root, enabled=False)
+            self.finished.set()
+
+        self.thread = Thread(target=disable)
+        self.thread.start()
+        assert self.started.wait(timeout=2)
+        assert not self.finished.is_set()
+        return authority
+
+
+def test_global_policy_writer_serializes_after_canonical_commit(tmp_path: Path) -> None:
+    instance, connector, source = _configured(tmp_path / "instance")
+    network = SyntheticNetwork([SyntheticResponse(body=b"locked policy commit")])
+    base = GuardedWebTransport(
+        instance.store,
+        instance.connectors,
+        resolver=network.resolver,
+        connection_factory=network.factory,
+    )
+    guarded = _ConcurrentGlobalDisable(base, instance.root)
+    instance.web_transport = guarded
+
+    result = _acquire(instance, connector, source)
+
+    assert guarded.thread is not None
+    guarded.thread.join(timeout=5)
+    assert guarded.finished.is_set()
+    assert instance.store.read_config()["network"]["external_access"] is False
+    assert result["status"] == "completed"
+    assert inspect_instance(instance.root, deep=True)["status"] == "valid"
 
 
 def _hostile_case(name: str) -> tuple[SyntheticNetwork, GuardedWebLimits | None, type[Exception]]:

@@ -367,6 +367,16 @@ class InstanceLifecycleManager:
         if self.pending_path.exists():
             with self._hold(purpose="instance-lifecycle-recovery"):
                 recovery = self._recover_pending()
+        manual_web_recovery = None
+        transaction_root = self.control_root / "transactions"
+        if transaction_root.exists() and any(transaction_root.glob("manual-web-*")):
+            from .web_acquisition import recover_manual_web_transactions
+
+            with self._hold(purpose="manual-web-acquisition-recovery"):
+                manual_web_recovery = recover_manual_web_transactions(
+                    self.store,
+                    self.control_root,
+                )
         from .retention import DocumentRetentionManager
 
         retention_recovery = DocumentRetentionManager(self.store).recover_pending()
@@ -382,6 +392,7 @@ class InstanceLifecycleManager:
                 "instance_schema_version": schema,
                 "migration": None,
                 "recovery": recovery,
+                "manual_web_recovery": manual_web_recovery,
                 "retention_recovery": retention_recovery,
             }
         if schema != LEGACY_INSTANCE_SCHEMA_VERSION:
@@ -399,6 +410,7 @@ class InstanceLifecycleManager:
                     "instance_schema_version": CURRENT_INSTANCE_SCHEMA_VERSION,
                     "migration": None,
                     "recovery": recovery,
+                    "manual_web_recovery": manual_web_recovery,
                     "retention_recovery": retention_recovery,
                 }
             backup = create_backup(self.store, reason="pre_migration_1_to_2")
@@ -433,6 +445,7 @@ class InstanceLifecycleManager:
             "migration": receipt,
             "backup": backup,
             "recovery": recovery,
+            "manual_web_recovery": manual_web_recovery,
             "retention_recovery": retention_recovery,
         }
 

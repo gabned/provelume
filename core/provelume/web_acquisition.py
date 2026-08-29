@@ -3,9 +3,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
-import tempfile
-from dataclasses import asdict
+from contextlib import suppress
+from dataclasses import asdict, replace
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlsplit
@@ -23,7 +24,7 @@ from .domain import (
 )
 from .extractors import ExtractionError, ExtractionResult, extract_web_readable_text
 from .instance_lifecycle import InstanceLifecycleManager
-from .operations import OperationLedger, OperationRecord
+from .operations import OperationEvent, OperationLedger, OperationRecord
 from .paths import safe_instance_path
 from .storage import InstanceStore, utc_now
 from .web_transport import (
@@ -36,6 +37,11 @@ from .web_transport import (
 MANUAL_WEB_ACQUISITION_SCHEMA_VERSION = 1
 MANUAL_WEB_ACQUISITION_KIND = "manual_web"
 MANUAL_WEB_OPERATION_KIND = "connector.web.acquire"
+MANUAL_WEB_TRANSACTION_SCHEMA_VERSION = 1
+_TRANSACTION_DIRECTORY = re.compile(r"manual-web-[0-9a-f]{32}\Z")
+_OPERATION_ID = re.compile(r"op_[0-9a-f]{32}\Z")
+_JOURNAL_FILE = re.compile(r"(?:candidates|preimages)/[0-9]{4}\.bin\Z")
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 
 class ManualWebAcquisitionError(RuntimeError):
@@ -65,11 +71,18 @@ class ManualWebAtomicityError(ManualWebAcquisitionError):
 
 
 class _AtomicInstanceCommit:
-    """Stage a bounded set of Instance files and restore every touched preimage on error."""
+    """Durably journal a bounded multi-file Instance commit before live replacement."""
 
-    def __init__(self, store: InstanceStore, stage_parent: Path):
+    def __init__(
+        self,
+        store: InstanceStore,
+        stage_parent: Path,
+        *,
+        operation_id: str,
+    ):
         self.store = store
         self.stage_parent = stage_parent
+        self.operation_id = operation_id
         self._writes: dict[str, tuple[bytes, bool]] = {}
 
     def add(self, relative: str, data: bytes, *, immutable: bool) -> None:
@@ -81,59 +94,330 @@ class _AtomicInstanceCommit:
             raise ManualWebIntegrityError
         self._writes[selected] = candidate
 
-    def commit(self) -> None:
+    def _prepare(self) -> tuple[Path, dict[str, Any]]:
         self.stage_parent.mkdir(parents=True, exist_ok=True)
-        stage = Path(tempfile.mkdtemp(prefix="manual-web-", dir=self.stage_parent))
-        preimages: dict[str, bytes | None] = {}
-        staged: dict[str, Path] = {}
-        touched: list[str] = []
+        transaction_id = f"manual-web-{uuid4().hex}"
+        stage = self.stage_parent / transaction_id
+        stage.mkdir()
         try:
-            for index, (relative, (data, immutable)) in enumerate(self._writes.items()):
+            entries: list[dict[str, Any]] = []
+            for index, (relative, (data, immutable)) in enumerate(
+                sorted(self._writes.items())
+            ):
                 target = safe_instance_path(self.store.paths.root, relative)
                 if target.is_symlink():
                     raise ManualWebIntegrityError
                 if target.exists() and not target.is_file():
                     raise ManualWebIntegrityError
                 before = target.read_bytes() if target.is_file() else None
-                preimages[relative] = before
                 if before is not None and immutable and before != data:
                     raise ManualWebIntegrityError
                 if before == data:
                     continue
-                candidate = stage / f"{index:04d}.bin"
-                with candidate.open("wb") as handle:
-                    handle.write(data)
-                    handle.flush()
-                    os.fsync(handle.fileno())
-                staged[relative] = candidate
+                candidate_ref = f"candidates/{index:04d}.bin"
+                self.store._atomic_bytes(stage / candidate_ref, data)
+                preimage_ref = (
+                    f"preimages/{index:04d}.bin" if before is not None else None
+                )
+                if before is not None and preimage_ref is not None:
+                    self.store._atomic_bytes(stage / preimage_ref, before)
+                entries.append(
+                    {
+                        "relative": relative,
+                        "immutable": immutable,
+                        "had_preimage": before is not None,
+                        "preimage_ref": preimage_ref,
+                        "preimage_sha256": (
+                            hashlib.sha256(before).hexdigest()
+                            if before is not None
+                            else None
+                        ),
+                        "candidate_ref": candidate_ref,
+                        "candidate_sha256": hashlib.sha256(data).hexdigest(),
+                    }
+                )
+            if not entries:
+                raise ManualWebIntegrityError
+            manifest = {
+                "schema_version": MANUAL_WEB_TRANSACTION_SCHEMA_VERSION,
+                "transaction_id": transaction_id,
+                "kind": MANUAL_WEB_OPERATION_KIND,
+                "status": "prepared",
+                "operation_id": self.operation_id,
+                "prepared_at": utc_now(),
+                "committed_at": None,
+                "entries": entries,
+            }
+            self.store._atomic_json(stage / "manifest.json", manifest)
+            _fsync_directory(stage)
+            _fsync_directory(self.stage_parent)
+            return stage, manifest
+        except Exception:
+            shutil.rmtree(stage, ignore_errors=True)
+            raise
 
-            for relative, candidate in staged.items():
-                target = safe_instance_path(self.store.paths.root, relative)
-                current = target.read_bytes() if target.is_file() else None
-                if current != preimages[relative]:
+    def commit(self) -> None:
+        try:
+            stage, manifest = self._prepare()
+        except ManualWebAcquisitionError:
+            raise
+        except Exception:
+            raise ManualWebAtomicityError from None
+        try:
+            for entry in manifest["entries"]:
+                target = safe_instance_path(
+                    self.store.paths.root,
+                    str(entry["relative"]),
+                )
+                before = target.read_bytes() if target.is_file() else None
+                expected_before = (
+                    _journal_bytes(stage, str(entry["preimage_ref"]))
+                    if entry["had_preimage"]
+                    else None
+                )
+                if before != expected_before:
+                    raise ManualWebAtomicityError
+                candidate = _journal_path(stage, str(entry["candidate_ref"]))
+                data = candidate.read_bytes()
+                if hashlib.sha256(data).hexdigest() != entry["candidate_sha256"]:
                     raise ManualWebAtomicityError
                 target.parent.mkdir(parents=True, exist_ok=True)
                 os.replace(candidate, target)
-                touched.append(relative)
+                _fsync_directory(target.parent)
+            committed = {
+                **manifest,
+                "status": "committed",
+                "committed_at": utc_now(),
+            }
+            self.store._atomic_json(stage / "manifest.json", committed)
+            _fsync_directory(stage)
         except Exception as exc:
-            rollback_failed = False
-            for relative in reversed(touched):
-                target = safe_instance_path(self.store.paths.root, relative)
-                before = preimages[relative]
-                try:
-                    if before is None:
-                        target.unlink(missing_ok=True)
-                    else:
-                        self.store._atomic_bytes(target, before)
-                except OSError:
-                    rollback_failed = True
-            if rollback_failed:
+            try:
+                _rollback_prepared_transaction(self.store, stage, manifest)
+                shutil.rmtree(stage)
+                _fsync_directory(self.stage_parent)
+            except Exception:
                 raise ManualWebAtomicityError from None
             if isinstance(exc, ManualWebAcquisitionError):
                 raise
             raise ManualWebAtomicityError from None
-        finally:
-            shutil.rmtree(stage, ignore_errors=True)
+        shutil.rmtree(stage, ignore_errors=True)
+        # A durable committed marker makes later journal cleanup recoverable on open.
+        with suppress(OSError):
+            _fsync_directory(self.stage_parent)
+
+
+def _fsync_directory(path: Path) -> None:
+    if os.name == "nt":
+        return
+    descriptor = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _journal_path(stage: Path, relative: str) -> Path:
+    if _JOURNAL_FILE.fullmatch(relative) is None:
+        raise ManualWebAtomicityError
+    return safe_instance_path(stage, relative)
+
+
+def _journal_bytes(stage: Path, relative: str) -> bytes:
+    path = _journal_path(stage, relative)
+    if not path.is_file() or path.is_symlink():
+        raise ManualWebAtomicityError
+    return path.read_bytes()
+
+
+def _load_transaction_manifest(stage: Path) -> dict[str, Any] | None:
+    path = stage / "manifest.json"
+    if not path.exists():
+        return None
+    if not path.is_file() or path.is_symlink():
+        raise ManualWebAtomicityError
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            value = json.load(handle)
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        raise ManualWebAtomicityError from None
+    if not isinstance(value, dict):
+        raise ManualWebAtomicityError
+    return value
+
+
+def _validate_transaction_manifest(
+    store: InstanceStore,
+    stage: Path,
+    manifest: dict[str, Any],
+) -> None:
+    if set(manifest) != {
+        "schema_version",
+        "transaction_id",
+        "kind",
+        "status",
+        "operation_id",
+        "prepared_at",
+        "committed_at",
+        "entries",
+    }:
+        raise ManualWebAtomicityError
+    status = manifest.get("status")
+    if (
+        manifest.get("schema_version") != MANUAL_WEB_TRANSACTION_SCHEMA_VERSION
+        or manifest.get("transaction_id") != stage.name
+        or _TRANSACTION_DIRECTORY.fullmatch(stage.name) is None
+        or manifest.get("kind") != MANUAL_WEB_OPERATION_KIND
+        or _OPERATION_ID.fullmatch(str(manifest.get("operation_id"))) is None
+        or status not in {"prepared", "committed"}
+        or not isinstance(manifest.get("prepared_at"), str)
+        or (status == "prepared" and manifest.get("committed_at") is not None)
+        or (status == "committed" and not isinstance(manifest.get("committed_at"), str))
+    ):
+        raise ManualWebAtomicityError
+    entries = manifest.get("entries")
+    if not isinstance(entries, list) or not 1 <= len(entries) <= 2048:
+        raise ManualWebAtomicityError
+    seen: set[str] = set()
+    candidate_refs: set[str] = set()
+    preimage_refs: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, dict) or set(entry) != {
+            "relative",
+            "immutable",
+            "had_preimage",
+            "preimage_ref",
+            "preimage_sha256",
+            "candidate_ref",
+            "candidate_sha256",
+        }:
+            raise ManualWebAtomicityError
+        relative = entry.get("relative")
+        if not isinstance(relative, str) or relative in seen:
+            raise ManualWebAtomicityError
+        safe_instance_path(store.paths.root, relative)
+        seen.add(relative)
+        candidate_ref = entry.get("candidate_ref")
+        if (
+            type(entry.get("immutable")) is not bool
+            or type(entry.get("had_preimage")) is not bool
+            or not isinstance(candidate_ref, str)
+            or not candidate_ref.startswith("candidates/")
+            or _JOURNAL_FILE.fullmatch(candidate_ref) is None
+            or candidate_ref in candidate_refs
+            or _SHA256.fullmatch(str(entry.get("candidate_sha256"))) is None
+        ):
+            raise ManualWebAtomicityError
+        candidate_refs.add(candidate_ref)
+        if entry["had_preimage"]:
+            preimage_ref = entry.get("preimage_ref")
+            if (
+                not isinstance(preimage_ref, str)
+                or not preimage_ref.startswith("preimages/")
+                or _JOURNAL_FILE.fullmatch(preimage_ref) is None
+                or preimage_ref in preimage_refs
+                or _SHA256.fullmatch(str(entry.get("preimage_sha256"))) is None
+            ):
+                raise ManualWebAtomicityError
+            preimage_refs.add(preimage_ref)
+        elif entry.get("preimage_ref") is not None or entry.get(
+            "preimage_sha256"
+        ) is not None:
+            raise ManualWebAtomicityError
+
+
+def _rollback_prepared_transaction(
+    store: InstanceStore,
+    stage: Path,
+    manifest: dict[str, Any],
+) -> None:
+    for entry in reversed(manifest["entries"]):
+        target = safe_instance_path(store.paths.root, str(entry["relative"]))
+        if entry["had_preimage"]:
+            before = _journal_bytes(stage, str(entry["preimage_ref"]))
+            if hashlib.sha256(before).hexdigest() != entry["preimage_sha256"]:
+                raise ManualWebAtomicityError
+            store._atomic_bytes(target, before)
+            _fsync_directory(target.parent)
+        else:
+            existed = target.exists()
+            target.unlink(missing_ok=True)
+            if existed:
+                _fsync_directory(target.parent)
+
+
+def _close_interrupted_operation(store: InstanceStore, operation_id: str) -> None:
+    ledger = OperationLedger(store)
+    current = ledger.get_record(operation_id)
+    if current is None:
+        raise ManualWebAtomicityError
+    if current.status == "failed":
+        return
+    if current.status != "running":
+        raise ManualWebAtomicityError
+    ledger.append(
+        operation_id,
+        "manual_web.interrupted_rollback",
+        "Interrupted manual web acquisition was rolled back during Instance open.",
+        level="error",
+        details={"canonical_records_created": 0, "originals_deleted": 0},
+    )
+    ledger.close(
+        operation_id,
+        status="failed",
+        summary="Interrupted manual web acquisition recovered without canonical partial state.",
+        metrics={"canonical_records_created": 0, "originals_deleted": 0},
+        error_code="manual_web_interrupted_rollback",
+        error="Interrupted manual web acquisition was rolled back safely.",
+    )
+
+
+def recover_manual_web_transactions(
+    store: InstanceStore,
+    control_root: Path,
+) -> dict[str, Any] | None:
+    """Recover prepared S05 journals before an Instance is validated or used."""
+
+    root = control_root / "transactions"
+    if not root.exists():
+        return None
+    if not root.is_dir() or root.is_symlink():
+        raise ManualWebAtomicityError
+    rolled_back = 0
+    committed_cleanups = 0
+    for stage in sorted(root.glob("manual-web-*")):
+        if not stage.is_dir() or stage.is_symlink():
+            raise ManualWebAtomicityError
+        manifest = _load_transaction_manifest(stage)
+        if manifest is None:
+            shutil.rmtree(stage)
+            continue
+        _validate_transaction_manifest(store, stage, manifest)
+        if manifest["status"] == "prepared":
+            _rollback_prepared_transaction(store, stage, manifest)
+            _close_interrupted_operation(store, str(manifest["operation_id"]))
+            rolled_back += 1
+        else:
+            for entry in manifest["entries"]:
+                target = safe_instance_path(store.paths.root, str(entry["relative"]))
+                if (
+                    not target.is_file()
+                    or target.is_symlink()
+                    or hashlib.sha256(target.read_bytes()).hexdigest()
+                    != entry["candidate_sha256"]
+                ):
+                    raise ManualWebAtomicityError
+            committed_cleanups += 1
+        shutil.rmtree(stage)
+    _fsync_directory(root)
+    if not rolled_back and not committed_cleanups:
+        return None
+    return {
+        "schema_version": MANUAL_WEB_TRANSACTION_SCHEMA_VERSION,
+        "status": "recovered",
+        "rolled_back": rolled_back,
+        "committed_cleanups": committed_cleanups,
+    }
 
 
 def _json_bytes(value: Any) -> bytes:
@@ -293,23 +577,127 @@ class ManualWebAcquisitionManager:
         self,
         transaction: _AtomicInstanceCommit,
         edge: ProvenanceEdge,
-    ) -> None:
+    ) -> dict[str, Any]:
         existing = self.store.read_canonical("provenance", edge.id)
         if existing is not None:
             expected = asdict(edge)
             expected["created_at"] = existing.get("created_at")
             if existing != expected:
                 raise ManualWebIntegrityError
-            return
+            return existing
         self._stage_canonical(transaction, "provenance", edge, immutable=True)
+        return asdict(edge)
+
+    def _detail_payload(
+        self,
+        acquisition: dict[str, Any],
+        document: dict[str, Any],
+        version: dict[str, Any],
+        original: dict[str, Any],
+        artifact: dict[str, Any] | None,
+        provenance: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        provenance.sort(key=lambda item: (str(item["created_at"]), str(item["id"])))
+        return {
+            "schema_version": MANUAL_WEB_ACQUISITION_SCHEMA_VERSION,
+            "status": "completed",
+            "acquisition": acquisition,
+            "summary": self._summary(acquisition),
+            "document": document,
+            "version": version,
+            "original": original,
+            "derived": {
+                "status": str(acquisition["derived_status"]),
+                "artifact": artifact,
+                "rebuildable": True,
+                "replaces_original": False,
+            },
+            "provenance": provenance,
+            "idempotency": {
+                "scope": "canonical_content",
+                "acquisition_per_successful_request": True,
+                "replay": acquisition.get("replay_of_acquisition_id") is not None,
+                "replay_of_acquisition_id": acquisition.get(
+                    "replay_of_acquisition_id"
+                ),
+                "exact_duplicate": bool(acquisition.get("exact_duplicate")),
+                "canonical_outcome": str(acquisition["outcome"]),
+            },
+        }
+
+    def _terminal_operation(
+        self,
+        operation_id: str,
+        acquisition: Acquisition,
+        effects: dict[str, Any],
+    ) -> OperationRecord:
+        current = self.operations.get_record(operation_id)
+        if current is None or current.status != "running":
+            raise ManualWebIntegrityError
+        events = list(current.events)
+        if acquisition.derived_status == "unavailable":
+            events.append(
+                OperationEvent(
+                    at=utc_now(),
+                    level="warning",
+                    code="manual_web.derived_unavailable",
+                    message=(
+                        "No deterministic readable text was created; the Original remains retained."
+                    ),
+                    details={"media_type": acquisition.media_type},
+                )
+            )
+        events.append(
+            OperationEvent(
+                at=utc_now(),
+                level="info",
+                code="manual_web.committed",
+                message=(
+                    "Canonical acquisition and exact Original bindings were committed."
+                ),
+                details={
+                    "acquisition_id": acquisition.id,
+                    "document_id": acquisition.document_id,
+                    "version_id": acquisition.version_id,
+                    "original_id": acquisition.original_id,
+                    "original_action": (
+                        "created" if effects["original_created"] else "reused"
+                    ),
+                },
+            )
+        )
+        closed = replace(
+            current,
+            status="completed",
+            completed_at=utc_now(),
+            summary=(
+                "Manual web acquisition completed with immutable Original preservation."
+            ),
+            metrics={
+                "acquisitions_created": 1,
+                "documents_created": int(effects["document_created"]),
+                "versions_created": int(effects["version_created"]),
+                "originals_created": int(effects["original_created"]),
+                "derived_artifacts_created": int(effects["derived_created"]),
+                "originals_deleted": 0,
+                "originals_overwritten": 0,
+            },
+            error_code=None,
+            error=None,
+            events=tuple(events),
+        )
+        self.operations._validate_record(closed)
+        return closed
 
     def _plan_commit(
         self,
         request: GuardedWebRequest,
         response: GuardedWebResponse,
         canonical_url: str,
+        authorized_origins: tuple[str, ...],
         retrieved_at: str,
-    ) -> tuple[Acquisition, dict[str, Any]]:
+        operation_id: str,
+    ) -> tuple[dict[str, Any], dict[str, Any], OperationRecord]:
         if response.status != 200 or response.not_modified or response.content_type is None:
             raise ManualWebResponseError
         data = response.body
@@ -474,6 +862,7 @@ class ManualWebAcquisitionManager:
             http_status=response.status,
             content_encoding=response.content_encoding,
             response_size_bytes=len(data),
+            authorized_origins=authorized_origins,
             replay_of_acquisition_id=(str(previous["id"]) if previous else None),
             exact_duplicate=exact_duplicate,
             derived_status=derived_status,
@@ -481,7 +870,11 @@ class ManualWebAcquisitionManager:
         )
 
         stage_parent = self.lifecycle.control_root / "transactions"
-        transaction = _AtomicInstanceCommit(self.store, stage_parent)
+        transaction = _AtomicInstanceCommit(
+            self.store,
+            stage_parent,
+            operation_id=operation_id,
+        )
         transaction.add(original.storage_ref, data, immutable=True)
         if existing_original is None:
             self._stage_canonical(transaction, "originals", original, immutable=True)
@@ -539,8 +932,7 @@ class ManualWebAcquisitionManager:
                 created_at=retrieved_at,
             ),
         )
-        for edge in edges:
-            self._stage_edge(transaction, edge)
+        provenance = [self._stage_edge(transaction, edge) for edge in edges]
 
         if artifact is not None and artifact_data is not None and derived_status == "created":
             transaction.add(artifact.storage_ref, artifact_data, immutable=True)
@@ -562,10 +954,17 @@ class ManualWebAcquisitionManager:
                 _json_bytes(derived_edge),
                 immutable=True,
             )
+            provenance.append(asdict(derived_edge))
+        elif artifact is not None:
+            provenance.extend(
+                edge
+                for edge in self.store.list_derived_provenance()
+                if edge.get("from_id") == version_id
+                and edge.get("to_id") == artifact.id
+            )
 
         self._stage_canonical(transaction, "acquisitions", acquisition, immutable=True)
-        transaction.commit()
-        return acquisition, {
+        effects = {
             "document_created": existing_document is None,
             "version_created": not version_preexisting,
             "original_created": existing_original is None,
@@ -573,6 +972,25 @@ class ManualWebAcquisitionManager:
             "exact_duplicate": exact_duplicate,
             "replay": previous is not None,
         }
+        closed = self._terminal_operation(operation_id, acquisition, effects)
+        transaction.add(
+            f"state/operations/records/{closed.id}.json",
+            _json_bytes(closed),
+            immutable=False,
+        )
+        detail = self._detail_payload(
+            {
+                **asdict(acquisition),
+                "authorized_origins": list(authorized_origins),
+            },
+            asdict(document),
+            asdict(version),
+            asdict(original),
+            asdict(artifact) if artifact is not None else None,
+            provenance,
+        )
+        transaction.commit()
+        return detail, effects, closed
 
     def acquire(self, request: GuardedWebRequest) -> dict[str, Any]:
         operation = self.operations.start(
@@ -611,59 +1029,18 @@ class ManualWebAcquisitionManager:
                     purpose="manual-web-acquisition-commit"
                 ),
             ):
-                canonical_url = self.transport.assert_current_authority(
+                authority = self.transport.current_authority(
                     request,
                     final_url=response.final_url,
                 )
-                acquisition, effects = self._plan_commit(
+                detail, _effects, closed = self._plan_commit(
                     request,
                     response,
-                    canonical_url,
+                    authority.canonical_url,
+                    authority.allowed_origins,
                     retrieved_at,
-                )
-            if acquisition.derived_status == "unavailable":
-                self.operations.append(
                     operation.id,
-                    "manual_web.derived_unavailable",
-                    "No deterministic readable text was created; the Original remains retained.",
-                    level="warning",
-                    details={"media_type": acquisition.media_type},
                 )
-            self.operations.append(
-                operation.id,
-                "manual_web.committed",
-                "Canonical acquisition and exact Original bindings were committed.",
-                details={
-                    "acquisition_id": acquisition.id,
-                    "document_id": acquisition.document_id,
-                    "version_id": acquisition.version_id,
-                    "original_id": acquisition.original_id,
-                    "original_action": (
-                        "created" if effects["original_created"] else "reused"
-                    ),
-                },
-            )
-            closed = self.operations.close(
-                operation.id,
-                status="completed",
-                summary="Manual web acquisition completed with immutable Original preservation.",
-                metrics={
-                    "acquisitions_created": 1,
-                    "documents_created": int(effects["document_created"]),
-                    "versions_created": int(effects["version_created"]),
-                    "originals_created": int(effects["original_created"]),
-                    "derived_artifacts_created": int(effects["derived_created"]),
-                    "originals_deleted": 0,
-                    "originals_overwritten": 0,
-                },
-            )
-            detail = self.get(
-                request.connector_instance_id,
-                request.source_id,
-                acquisition.id,
-            )
-            if detail is None:
-                raise ManualWebIntegrityError
             return {
                 **detail,
                 "operation": self._operation_view(closed),
@@ -772,42 +1149,25 @@ class ManualWebAcquisitionManager:
             )
             if edge.get("from_id") in involved and edge.get("to_id") in involved
         ]
-        provenance.sort(key=lambda item: (str(item["created_at"]), str(item["id"])))
-        return {
-            "schema_version": MANUAL_WEB_ACQUISITION_SCHEMA_VERSION,
-            "status": "completed",
-            "acquisition": acquisition,
-            "summary": self._summary(acquisition),
-            "document": document,
-            "version": version,
-            "original": original,
-            "derived": {
-                "status": str(acquisition["derived_status"]),
-                "artifact": artifact,
-                "rebuildable": True,
-                "replaces_original": False,
-            },
-            "provenance": provenance,
-            "idempotency": {
-                "scope": "canonical_content",
-                "acquisition_per_successful_request": True,
-                "replay": acquisition.get("replay_of_acquisition_id") is not None,
-                "replay_of_acquisition_id": acquisition.get(
-                    "replay_of_acquisition_id"
-                ),
-                "exact_duplicate": bool(acquisition.get("exact_duplicate")),
-                "canonical_outcome": str(acquisition["outcome"]),
-            },
-        }
+        return self._detail_payload(
+            acquisition,
+            document,
+            version,
+            original,
+            artifact,
+            provenance,
+        )
 
 
 __all__ = [
     "MANUAL_WEB_ACQUISITION_KIND",
     "MANUAL_WEB_ACQUISITION_SCHEMA_VERSION",
     "MANUAL_WEB_OPERATION_KIND",
+    "MANUAL_WEB_TRANSACTION_SCHEMA_VERSION",
     "ManualWebAcquisitionError",
     "ManualWebAcquisitionManager",
     "ManualWebAtomicityError",
     "ManualWebIntegrityError",
     "ManualWebResponseError",
+    "recover_manual_web_transactions",
 ]

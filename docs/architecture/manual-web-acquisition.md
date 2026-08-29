@@ -14,19 +14,24 @@ guard begins.
 
 The service then holds the Instance lifecycle lock used by ingestion, backup, restore, portable
 transfer and retention work. Inside it, the service also holds the same process-local and
-cross-process connector-configuration locks used by disable, removal and authorization revocation.
-It rechecks the complete current policy plus the final redirect origin before staging any Instance
-write. A disable, Source change, revocation or global network-policy change observed before commit
-therefore fails closed with no canonical or Original partial state.
+cross-process connector-configuration locks used by disable, removal, authorization revocation and
+the desktop's global network-policy writer. It rechecks the complete current policy plus the final
+redirect origin before staging any Instance write and captures the sorted canonical origin allowlist
+used by that decision. A disable, Source change, revocation or global network-policy change observed
+before commit therefore fails closed with no canonical or Original partial state.
 
 ## Canonical transaction and exact bytes
 
-A successful request stages one rollback-capable transaction outside the live Instance, verifies
-every existing preimage, and atomically replaces only its planned files while both locks remain
-held. An ordinary write or replacement error restores every touched preimage and removes newly
-created files. Existing Original records and bytes are immutable: a mismatched pre-existing
-content-addressed identity rejects the complete transaction, and no acquisition path modifies or
-deletes an Original.
+A successful request stages one durably journaled transaction outside the live Instance, fsyncs its
+candidate bytes, exact preimages and prepared manifest, and only then replaces planned live files
+while both locks remain held. The terminal operation record is part of the same transaction. An
+ordinary write or replacement error restores every preimage and removes newly created files. A
+process or power interruption leaves the prepared journal for lifecycle recovery during the next
+Instance open; recovery is idempotent, restores the complete pre-commit state and closes the
+interrupted operation as failed. A durable committed marker makes cleanup-only interruption retain
+the complete success instead. Existing Original records and bytes are immutable: a mismatched
+pre-existing content-addressed identity rejects the complete transaction, and no acquisition path
+modifies or deletes an Original.
 
 The retained Original contains exactly the bounded representation bytes returned by S04 after its
 validated HTTP content-decoding step. Transfer framing and compressed wire form are not promoted to
@@ -38,6 +43,7 @@ One successful request records:
 
 - the canonical requested URL and guarded final URL;
 - retrieval instant, HTTP status, normalized media type, content encoding and exact retained size;
+- the exact sorted canonical origin allowlist rechecked for the request and final redirect;
 - response SHA-256, Source and ConnectorInstance identities;
 - the resulting Acquisition, deterministic Document and Version, and immutable Original identities;
 - canonical provenance from Source and ConnectorInstance through Acquisition, Original, Version and
@@ -77,11 +83,13 @@ report zero canonical creation; they never serialize an exception message contai
 
 Canonical acquisitions, provenance and Originals are included by the existing backup, restore and
 portable export/import contracts. Derived text follows their declared include/rebuild policy.
-Deep validation checks URL canonicality, connector/Source isolation, retrieval metadata, hash/size/
-Original/Version agreement and required acquisition provenance.
+Deep validation checks URL canonicality, the captured origin allowlist and final-origin membership,
+connector/Source isolation, retrieval metadata, hash/size/Original/Version agreement and required
+acquisition provenance.
 
 The synthetic Linux and Windows suite injects DNS, pinned connections and response streams and
-opens no real socket. It covers successful exact-byte retention, redirects, replay, duplicate and
-rollback behavior; cross-instance policy changes and authorization revocation; SSRF, DNS rebinding,
-timeouts, malformed/truncated/oversized/compressed responses inherited from S04; unreadable content,
-redacted evidence, deep validation, backup/restore and portable transfer.
+opens no real socket. It covers successful exact-byte retention, redirects, replay, duplicate,
+ordinary rollback and interruption recovery; serialized global policy changes, cross-instance
+disable and authorization revocation; SSRF, DNS rebinding, timeouts, malformed/truncated/oversized/
+compressed responses inherited from S04; unreadable content, redacted evidence, deep validation,
+backup/restore and portable transfer.

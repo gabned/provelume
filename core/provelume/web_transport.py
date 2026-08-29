@@ -366,6 +366,12 @@ class GuardedWebResponse:
 
 
 @dataclass(frozen=True, slots=True)
+class GuardedWebAuthority:
+    canonical_url: str
+    allowed_origins: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class _Target:
     url: str
     scheme: str
@@ -541,6 +547,16 @@ def canonical_web_url(
     """Return the guarded transport's canonical form without network access."""
 
     return _normalise_url(value, limits or GuardedWebLimits()).url
+
+
+def canonical_web_origin(
+    value: Any,
+    *,
+    limits: GuardedWebLimits | None = None,
+) -> str:
+    """Return the guarded transport's canonical origin without network access."""
+
+    return _normalise_url(value, limits or GuardedWebLimits()).origin
 
 
 def _public_ip(value: str) -> str:
@@ -934,12 +950,25 @@ class GuardedWebTransport:
         performing DNS or opening a connection.
         """
 
+        return self.current_authority(request, final_url=final_url).canonical_url
+
+    def current_authority(
+        self,
+        request: GuardedWebRequest,
+        *,
+        final_url: str | None = None,
+    ) -> GuardedWebAuthority:
+        """Return commit-time canonical URL and immutable origin-policy evidence."""
+
         _connector, target, allowed_origins = self._policy(request)
         if final_url is not None:
             selected_final = _normalise_url(final_url, self.limits)
             if selected_final.origin not in allowed_origins:
                 raise WebTransportPolicyError
-        return target.url
+        return GuardedWebAuthority(
+            canonical_url=target.url,
+            allowed_origins=tuple(sorted(allowed_origins)),
+        )
 
     def _bounded_resolver_call(
         self,
@@ -1288,6 +1317,7 @@ __all__ = [
     "ConditionalMetadata",
     "ConnectionParameters",
     "DEFAULT_ALLOWED_CONTENT_TYPES",
+    "GuardedWebAuthority",
     "GuardedWebLimits",
     "GuardedWebRequest",
     "GuardedWebResponse",
@@ -1310,5 +1340,6 @@ __all__ = [
     "WebTransportTimeoutError",
     "WebTransportTruncatedError",
     "WebTransportUrlError",
+    "canonical_web_origin",
     "canonical_web_url",
 ]

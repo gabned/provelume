@@ -86,9 +86,9 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   connectors may complete concurrently while their short canonical commits serialize locally;
 - rechecked current Instance, connector, Source and authorization policy under the connector
   configuration lock immediately before an atomic lifecycle-serialized acquisition commit;
-- staged exact guarded-response representation bytes and all new canonical/derived bindings as one
-  rollback-capable transaction, with fixed redacted failure evidence and deep validation of the
-  resulting Original and provenance links;
+- durably journaled exact guarded-response representation bytes, terminal operation evidence and
+  all new canonical/derived bindings as one recoverable transaction, with on-open rollback of
+  interrupted commits and deep validation of Original, origin-policy and provenance links;
 - made every connector declare an explicit network mode and bounded HTTP(S) origin allowlist while
   the global Instance network policy remains a fail-closed gate and configuration mutations perform
   no network access.

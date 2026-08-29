@@ -140,15 +140,16 @@ def declare_startup_update_policy(instance_path: Path, *, enabled: bool) -> None
     """Keep the Instance capability inventory aligned with launcher startup policy."""
 
     instance = ProvelumeInstance(instance_path)
-    config = instance.store.read_config()
-    network = config.setdefault("network", {})
-    if not isinstance(network, dict):
-        raise ValueError("Instance network configuration must be an object")
-    network["external_access"] = bool(enabled)
-    network["update_checks"] = bool(enabled)
-    network["update_endpoint"] = "https://api.github.com"
-    network["update_data_categories"] = []
-    instance.store.write_config(config)
+    with instance.connectors.policy_commit_guard(purpose="startup-update-policy"):
+        config = instance.store.read_config()
+        network = config.setdefault("network", {})
+        if not isinstance(network, dict):
+            raise ValueError("Instance network configuration must be an object")
+        network["external_access"] = bool(enabled)
+        network["update_checks"] = bool(enabled)
+        network["update_endpoint"] = "https://api.github.com"
+        network["update_data_categories"] = []
+        instance.store.write_config(config)
 
 
 def startup_update_policy_enabled(instance_path: Path) -> bool:

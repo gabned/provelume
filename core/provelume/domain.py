@@ -93,6 +93,7 @@ class Acquisition:
     http_status: int | None = None
     content_encoding: str | None = None
     response_size_bytes: int | None = None
+    authorized_origins: tuple[str, ...] | None = None
     replay_of_acquisition_id: str | None = None
     exact_duplicate: bool | None = None
     derived_status: str | None = None
