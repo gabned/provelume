@@ -22,6 +22,7 @@ from .ingest import (
     _process_item,
 )
 from .ingestion_runs import IngestionLedger
+from .instance_lifecycle import InstanceLifecycleManager
 from .operations import OperationLedger
 from .paths import UnsafePathError, normalise_locator
 from .storage import InstanceStore, utc_now
@@ -262,6 +263,24 @@ class InboxManager:
         return operation
 
     def submit(
+        self,
+        source_path: Path | str,
+        *,
+        move_after_commit: bool = False,
+        max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
+        max_files: int = DEFAULT_MAX_FILES,
+    ) -> dict[str, Any]:
+        """Capture local files under the shared Instance mutation lock."""
+
+        with InstanceLifecycleManager(self.store)._hold(purpose="inbox-ingestion"):
+            return self._submit_locked(
+                source_path,
+                move_after_commit=move_after_commit,
+                max_file_bytes=max_file_bytes,
+                max_files=max_files,
+            )
+
+    def _submit_locked(
         self,
         source_path: Path | str,
         *,

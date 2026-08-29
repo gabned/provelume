@@ -6,9 +6,14 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+import provelume.ingest as ingest_module
 import provelume.retention as retention_module
 from provelume.cli import main
-from provelume.instance_lifecycle import InstanceLifecycleManager
+from provelume.inbox import InboxManager
+from provelume.instance_lifecycle import (
+    InstanceLifecycleError,
+    InstanceLifecycleManager,
+)
 from provelume.instance_validation import inspect_instance
 from provelume.library_projection_model import LIBRARY_MANIFEST
 from provelume.paths import safe_instance_path
@@ -254,6 +259,143 @@ def test_permanent_purge_requires_fresh_preview_confirmation_and_boundaries(
     )
     assert repeated["status"] == "already_completed"
     assert repeated["receipt"] == receipt
+
+
+def test_permanent_purge_removes_operational_records_linked_by_acquisition(
+    tmp_path: Path,
+) -> None:
+    instance, source, document = _ingested_markdown(tmp_path)
+    document_id = str(document["id"])
+    acquisition = next(
+        item
+        for item in instance.store.list_canonical("acquisitions")
+        if item["document_id"] == document_id
+    )
+    runs = instance.list_ingestion_runs()
+    assert len(runs) == 1
+    run_id = str(runs[0]["id"])
+    item_paths = sorted(
+        (instance.store.paths.state / "ingestion" / "items").glob("item_*.json")
+    )
+    assert len(item_paths) == 1
+    item_path = item_paths[0]
+    item_bytes = item_path.read_bytes()
+    assert document_id.encode("utf-8") not in item_bytes
+    assert str(acquisition["id"]).encode("utf-8") in item_bytes
+    assert source.name.encode("utf-8") in item_bytes
+
+    instance.trash_document(document_id)
+    preview = instance.purge_document_preview(document_id)
+    result = instance.purge_document(
+        document_id,
+        str(preview["confirmation_token"]),
+        acknowledge_boundaries=True,
+    )
+
+    assert result["status"] == "completed"
+    assert item_path.exists() is False
+    detail = instance.get_ingestion_run(run_id)
+    assert detail is not None
+    assert detail["items"] == []
+    assert source.name not in json.dumps(detail, sort_keys=True)
+    assert inspect_instance(instance.root, deep=True)["status"] == "valid"
+
+
+def test_permanent_purge_serializes_all_canonical_ingestion_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance, _source, document = _ingested_markdown(tmp_path)
+    document_id = str(document["id"])
+    retry_source = tmp_path / "retry-after-purge.md"
+    retry_source.write_bytes(b"retry content")
+    failed = instance.ingest_run(retry_source, max_file_bytes=1)
+    assert failed["run"]["status"] == "failed"
+    competing_source = tmp_path / "concurrent-ingestion.md"
+    competing_source.write_bytes(b"must not race purge")
+
+    instance.trash_document(document_id)
+    preview = instance.purge_document_preview(document_id)
+    manager = instance.retention
+    real_stage = manager._stage_targets
+    blocked_paths: list[str] = []
+
+    def stage_after_rejected_ingestion(pending: dict[str, object]) -> None:
+        attempts = (
+            ("filesystem", lambda: instance.ingest(competing_source)),
+            ("retry", lambda: instance.retry_ingestion(str(failed["run"]["id"]))),
+            ("inbox", lambda: InboxManager(instance.store).submit(competing_source)),
+        )
+        for label, attempt in attempts:
+            with pytest.raises(
+                InstanceLifecycleError,
+                match="another Instance lifecycle operation is active",
+            ):
+                attempt()
+            blocked_paths.append(label)
+        real_stage(pending)
+
+    monkeypatch.setattr(manager, "_stage_targets", stage_after_rejected_ingestion)
+    result = manager.purge(
+        document_id,
+        str(preview["confirmation_token"]),
+        acknowledge_boundaries=True,
+    )
+
+    assert result["status"] == "completed"
+    assert blocked_paths == ["filesystem", "retry", "inbox"]
+    assert not any(
+        item.get("locator") == competing_source.name
+        for item in instance.store.list_canonical("documents")
+    )
+    assert inspect_instance(instance.root, deep=True)["status"] == "valid"
+
+
+def test_filesystem_index_refresh_remains_inside_lifecycle_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "locked-refresh.md"
+    source.write_bytes(b"# Locked refresh\n\nindex-lock-token\n")
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    real_refresh = ingest_module.refresh_search_index
+    refreshed_document_ids: list[tuple[str, ...]] = []
+
+    def refresh_while_lock_is_observed(
+        store: InstanceStore,
+        document_ids: object,
+        *,
+        recover_missing_derived: bool = False,
+    ) -> int:
+        selected = tuple(str(value) for value in document_ids)
+        with (
+            pytest.raises(
+                InstanceLifecycleError,
+                match="another Instance lifecycle operation is active",
+            ),
+            InstanceLifecycleManager(store)._hold(
+                purpose="competing-permanent-purge"
+            ),
+        ):
+            pass
+        refreshed_document_ids.append(selected)
+        return real_refresh(
+            store,
+            selected,
+            recover_missing_derived=recover_missing_derived,
+        )
+
+    monkeypatch.setattr(
+        ingest_module,
+        "refresh_search_index",
+        refresh_while_lock_is_observed,
+    )
+    acquisitions = instance.ingest(source)
+
+    assert refreshed_document_ids == [(str(acquisitions[0]["document_id"]),)]
+    assert [item["document_id"] for item in instance.search("index-lock-token")] == [
+        acquisitions[0]["document_id"]
+    ]
 
 
 def test_purge_retains_original_still_referenced_by_another_document(

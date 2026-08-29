@@ -489,7 +489,16 @@ class DocumentRetentionManager:
                     if path.is_file() or _unsafe_link(path):
                         add(path, "document_bundle")
         state_root = self.store.paths.state
-        identity = document_id.encode("utf-8")
+        identities = tuple(
+            value.encode("utf-8")
+            for value in sorted(
+                {
+                    document_id,
+                    *(str(value) for value in lineage["version_ids"]),
+                    *(str(item["id"]) for item in lineage["acquisitions"]),
+                }
+            )
+        )
         state_files_not_content_scanned = 0
         if state_root.is_dir():
             for path in state_root.rglob("*"):
@@ -510,7 +519,8 @@ class DocumentRetentionManager:
                     if path.stat().st_size > MAX_PURGE_STATE_SCAN_BYTES:
                         state_files_not_content_scanned += 1
                         continue
-                    if identity in path.read_bytes():
+                    payload = path.read_bytes()
+                    if any(identity in payload for identity in identities):
                         add(path, "operational_identity_record")
                 except OSError as exc:
                     raise PurgeTransactionError("Instance state cannot be inspected") from exc
