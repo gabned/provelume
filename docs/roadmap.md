@@ -33,7 +33,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.5.1` | Stability, security, incremental indexing and accessibility hardening | #80 (completed) | `Firmitas` |
 | Published preview | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (completed) | `Bibliotheca` |
 | Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
-| Release preparation | `0.7.0` | Connector framework and safe web intake | #105 | `Vinculum` |
+| Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
 | Next forecast | `0.8.0` | Refresh engine, watched folders and Source lifecycle | issue just in time | `Vigilia` |
 | Forecast | `0.9.0` | OCR, email, Google file and transcript intake | issue just in time | `Lectio` |
 | Forecast | `0.10.0` | Unified Capture and Action Center | issue just in time | `Cura` |
@@ -115,17 +115,17 @@ names do not replace SemVer, package identity, tags or the immutable published r
   contracts, artifacts and operating paths. It is a maturity gate, not a container for late new
   features.
 
-The package and embedded identity are `0.7.0`. Issue #105 has completed implementation slices
-`0.7/S01` through `0.7/S05`; one bounded release-preparation pull request aligns identity,
-changelog, public release notes, Windows upgrade evidence and the release contract. No tag or
-release is implied by that preparation state. `0.8.0 Vigilia` is the next forecast and remains
-unimplemented.
+The package and embedded identity are `0.7.0`. Issue #105 completed implementation slices
+`0.7/S01` through `0.7/S05`; release-preparation PR #114 aligned identity, changelog, public
+release notes, Windows upgrade evidence and the release contract. The trusted workflow published
+`v0.7.0` from commit `1e1731969552497c2d3fe79b1c26eccdaad712c0` after the reviewed result was
+present on `main`. `0.8.0 Vigilia` is the next forecast and remains unimplemented.
 
 `0.7/S01` through `0.7/S05` are implemented. They establish provider-independent connector and
 Source identity/lifecycle, installed-app OAuth 2.0/PKCE, guarded Source-bound HTTP(S) retrieval and
 explicit atomic manual acquisition into deterministic canonical lineage with immutable Originals.
-Background refresh remains outside `0.7.0`; version alignment, tagging and publication remain the
-separate release-preparation boundary.
+Background refresh remains outside `0.7.0`; version alignment, tagging and publication completed
+through the separate release boundary without activating `0.8.0`.
 
 ## Planning and delivery contract
 
@@ -457,8 +457,9 @@ The five completed slices are:
 - `0.7/S05`: atomic one-URL manual acquisition, immutable Original retention, deterministic
   readable-text derivation and backup/restore/export/import qualification.
 
-Version alignment and the immutable changelog are prepared at `0.7.0`; publication remains
-restricted to the trusted workflow after exact-head review and merge. See
+Version alignment and the immutable changelog were published at `0.7.0` through the trusted
+workflow after exact-head review and merge. The tag and public prerelease point to commit
+`1e1731969552497c2d3fe79b1c26eccdaad712c0`; see
 [`releases/0.7.0.md`](releases/0.7.0.md).
 
 **Not in this release:** background refresh, watched folders, OCR, email or Google Drive intake,
