@@ -39,7 +39,8 @@ origin tries to allowlist one of those service ports; this prevents the web tran
 repurposed against mail, DNS, file-transfer, directory, remote-login and similar services.
 
 An HTTPS redirect may not downgrade to HTTP. A redirect may change origin only when the new origin
-was already explicitly allowlisted. Conditional request metadata is not forwarded across origins.
+was already explicitly allowlisted. Conditional request metadata is sent only on the initial hop
+and is stripped after every redirect.
 Redirect loops, missing or duplicate `Location` headers and chains beyond the configured limits
 are rejected.
 
@@ -58,7 +59,10 @@ The connection uses the public IP from the second validation directly, so the HT
 resolve the hostname a third time. HTTPS keeps the separately validated hostname for SNI and
 certificate verification, requires the platform trust store and TLS 1.2 or newer, and never falls
 back to an unverified connection. A changed DNS answer may proceed only when every newly returned
-address is still public; a public-to-non-public change is a typed DNS-rebinding rejection.
+address is still public; a public-to-non-public change is a typed DNS-rebinding rejection. Each
+platform resolver call runs behind both a five-second DNS-stage deadline and the request's shorter
+remaining total deadline. A process-wide four-slot cap prevents an unresponsive platform resolver
+from causing unbounded worker accumulation; a timed-out call causes no retry or refresh.
 
 ## Bounded request and response contract
 
@@ -69,7 +73,7 @@ The default immutable limit contract is:
 | Redirects | 5 | 10 |
 | HTTP resources in one chain | 6 | 11 |
 | Total time | 30 s | 120 s |
-| Connect/read stage time | 10 s / 15 s | 120 s each |
+| DNS/connect/read stage time | 5 s / 10 s / 15 s | 120 s each |
 | URL length | 4,096 characters | 16,384 |
 | Resolved addresses per check | 16 | 64 |
 | Header count/aggregate bytes | 100 / 64 KiB | 256 / 1 MiB |
@@ -97,8 +101,9 @@ closed. Error-status bodies are neither consumed into application state nor expo
 ## Conditional metadata and state boundary
 
 `ETag` and `Last-Modified` inputs and outputs use bounded validated syntax. A valid `304 Not
-Modified` is returned as a transient bodyless result; the transport does not persist validators,
-create a cursor, schedule a retry or infer a refresh cadence.
+Modified` is accepted only on the initial hop that actually carried a validator and is returned as
+a transient bodyless result; the transport does not persist validators, create a cursor, schedule
+a retry or infer a refresh cadence.
 
 Every failure is a typed `WebTransportError` with a closed code, fixed safe message and explicit
 retryability marker. Errors contain no URL, host, query, credential name, token, local path,

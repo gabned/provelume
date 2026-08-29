@@ -5,6 +5,7 @@ import http.client
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from threading import Event
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -49,6 +50,7 @@ class SyntheticResponse:
     timeout_on_read: bool = False
     incomplete_after_body: bool = False
     on_first_read: Callable[[], None] | None = None
+    on_read: Callable[[], None] | None = None
     _offset: int = 0
     _incomplete_raised: bool = False
     _read_hook_called: bool = False
@@ -64,6 +66,8 @@ class SyntheticResponse:
         return self.headers
 
     def read(self, amount: int) -> bytes:
+        if self.on_read is not None:
+            self.on_read()
         if self.on_first_read is not None and not self._read_hook_called:
             self._read_hook_called = True
             self.on_first_read()
@@ -87,6 +91,7 @@ class SyntheticConnection:
     response: SyntheticResponse
     closed: bool = False
     read_timeout: float | None = None
+    read_timeouts: list[float] = field(default_factory=list)
 
     def request(self, method: str, target: str, headers: dict[str, str]) -> None:
         self.network.requests.append(
@@ -103,6 +108,7 @@ class SyntheticConnection:
 
     def set_read_timeout(self, seconds: float) -> None:
         self.read_timeout = seconds
+        self.read_timeouts.append(seconds)
 
     def close(self) -> None:
         self.closed = True
@@ -299,20 +305,22 @@ def test_http_and_explicit_safe_non_default_https_port_are_supported(
 
 
 def test_public_ipv6_literal_is_pinned_without_dns(tmp_path: Path) -> None:
-    address = "2606:2800:220:1:248:1893:25c8:1946"
-    url = f"https://[{address}]/article"
+    expanded = "2606:2800:0220:0001:0248:1893:25c8:1946"
+    canonical = "2606:2800:220:1:248:1893:25c8:1946"
+    url = f"https://[{expanded}]/article"
     instance, connector, source = _configured(
         tmp_path,
         url=url,
-        allowed_origins=[f"https://[{address}]"],
+        allowed_origins=[f"https://[{expanded}]"],
     )
     network = SyntheticNetwork([SyntheticResponse()])
 
     result = _transport(instance, network).fetch(_request(connector, source))
 
     assert result.status == 200
+    assert result.final_url == f"https://[{canonical}]/article"
     assert network.resolver_calls == []
-    assert network.connections[0].parameters.address == address
+    assert network.connections[0].parameters.address == canonical
 
 
 def test_request_requires_an_explicit_network_authorization_marker(tmp_path: Path) -> None:
@@ -432,6 +440,7 @@ def test_source_url_is_an_exact_initial_request_boundary(tmp_path: Path) -> None
         "https://2130706433/article",
         "https://127.1/article",
         "https://public.example.test/%zz",
+        "https://public.example.test/a b",
         " https://public.example.test/article",
     ],
 )
@@ -569,6 +578,46 @@ def test_dns_failures_and_address_count_are_typed_and_redacted(tmp_path: Path) -
     assert network.connections == []
 
 
+def test_dns_resolution_is_bounded_by_stage_and_total_deadline(tmp_path: Path) -> None:
+    instance, connector, source = _configured(tmp_path)
+    started = Event()
+    release = Event()
+    finished = Event()
+
+    def blocked_resolver(_host: str, _port: int) -> list[str]:
+        started.set()
+        try:
+            release.wait(timeout=1)
+            return [PUBLIC_IPV4]
+        finally:
+            finished.set()
+
+    network = SyntheticNetwork([SyntheticResponse()])
+    limits = replace(
+        GuardedWebLimits(),
+        dns_timeout_seconds=0.01,
+        connect_timeout_seconds=0.05,
+        read_timeout_seconds=0.05,
+        total_timeout_seconds=0.1,
+    )
+    transport = GuardedWebTransport(
+        instance.store,
+        instance.connectors,
+        limits=limits,
+        resolver=blocked_resolver,
+        connection_factory=network.factory,
+    )
+
+    try:
+        with pytest.raises(WebTransportTimeoutError):
+            transport.fetch(_request(connector, source))
+        assert started.is_set()
+        assert network.connections == []
+    finally:
+        release.set()
+        assert finished.wait(timeout=1)
+
+
 def test_redirects_revalidate_each_origin_and_strip_cross_origin_conditionals(
     tmp_path: Path,
 ) -> None:
@@ -609,6 +658,51 @@ def test_redirects_revalidate_each_origin_and_strip_cross_origin_conditionals(
     assert network.requests[0]["headers"]["If-Modified-Since"] == HTTP_DATE
     assert "If-None-Match" not in network.requests[1]["headers"]
     assert "If-Modified-Since" not in network.requests[1]["headers"]
+
+
+@pytest.mark.parametrize(
+    "location",
+    ["/final", "https://cdn.example.test/final"],
+)
+def test_redirected_hop_cannot_return_304_without_current_hop_validators(
+    tmp_path: Path,
+    location: str,
+) -> None:
+    instance, connector, source = _configured(
+        tmp_path,
+        allowed_origins=[
+            "https://public.example.test",
+            "https://cdn.example.test",
+        ],
+    )
+    network = SyntheticNetwork(
+        [
+            SyntheticResponse(
+                status=302,
+                headers=[("Location", location)],
+            ),
+            SyntheticResponse(
+                status=304,
+                headers=[("Content-Length", "0")],
+                body=b"",
+            ),
+        ],
+        answers={
+            "public.example.test": [[PUBLIC_IPV4], [PUBLIC_IPV4]],
+            "cdn.example.test": [[PUBLIC_IPV4_TWO], [PUBLIC_IPV4_TWO]],
+        },
+    )
+
+    with pytest.raises(WebTransportResponseError):
+        _transport(instance, network).fetch(
+            _request(
+                connector,
+                source,
+                conditional=ConditionalMetadata(etag='"known"'),
+            )
+        )
+
+    assert "If-None-Match" not in network.requests[1]["headers"]
 
 
 def test_redirect_dns_pivot_to_private_network_is_blocked(tmp_path: Path) -> None:
@@ -706,6 +800,25 @@ def test_conditional_metadata_is_bounded_and_304_is_bodyless(tmp_path: Path) -> 
     assert result.etag == 'W/"next"'
     assert result.last_modified == HTTP_DATE
     assert _snapshot(instance.root) == before
+
+
+def test_304_without_any_validator_on_the_current_hop_is_rejected(tmp_path: Path) -> None:
+    instance, connector, source = _configured(tmp_path)
+    network = SyntheticNetwork(
+        [
+            SyntheticResponse(
+                status=304,
+                headers=[("Content-Length", "0")],
+                body=b"",
+            )
+        ]
+    )
+
+    with pytest.raises(WebTransportResponseError):
+        _transport(instance, network).fetch(_request(connector, source))
+
+    assert "If-None-Match" not in network.requests[0]["headers"]
+    assert "If-Modified-Since" not in network.requests[0]["headers"]
 
 
 @pytest.mark.parametrize(
@@ -1019,6 +1132,40 @@ def test_timeout_and_error_response_do_not_disclose_url_or_body(tmp_path: Path) 
     )
     with pytest.raises(WebTransportResponseError):
         _transport(instance, partial_network).fetch(_request(connector, source))
+
+
+def test_read_timeout_is_recalculated_before_every_blocking_body_read(tmp_path: Path) -> None:
+    instance, connector, source = _configured(tmp_path)
+    now = [0.0]
+
+    def clock() -> float:
+        return now[0]
+
+    def advance_clock() -> None:
+        now[0] += 0.6
+
+    network = SyntheticNetwork([SyntheticResponse(body=b"x" * 512, on_read=advance_clock)])
+    limits = replace(
+        GuardedWebLimits(),
+        dns_timeout_seconds=1.0,
+        connect_timeout_seconds=1.0,
+        read_timeout_seconds=1.0,
+        total_timeout_seconds=2.0,
+        read_chunk_bytes=256,
+    )
+    transport = GuardedWebTransport(
+        instance.store,
+        instance.connectors,
+        limits=limits,
+        resolver=network.resolver,
+        connection_factory=network.factory,
+        clock=clock,
+    )
+
+    result = transport.fetch(_request(connector, source))
+
+    assert result.body == b"x" * 512
+    assert network.connections[0].read_timeouts == pytest.approx([1.0, 1.0, 1.0, 0.8])
 
 
 def test_transport_success_and_failure_do_not_mutate_instance_or_canonical_knowledge(

@@ -10,8 +10,10 @@ from contextlib import suppress
 from dataclasses import dataclass
 from email.utils import parsedate_to_datetime
 from ipaddress import IPv4Address, IPv6Address, ip_address, ip_network
+from queue import Empty, Queue
+from threading import BoundedSemaphore, Thread
 from time import monotonic
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from urllib.parse import urljoin, urlsplit
 
 from . import __version__
@@ -129,6 +131,8 @@ _PERCENT_ESCAPE = re.compile(r"%[0-9A-Fa-f]{2}")
 _ETAG = re.compile(r'(?:W/)?"[\x21\x23-\x7e]*"\Z')
 _NAT64_WELL_KNOWN = ip_network("64:ff9b::/96")
 _NAT64_LOCAL_USE = ip_network("64:ff9b:1::/48")
+_MAX_DNS_RESOLVER_WORKERS = 4
+_DNS_RESOLVER_SLOTS = BoundedSemaphore(_MAX_DNS_RESOLVER_WORKERS)
 
 
 class WebTransportError(RuntimeError):
@@ -264,6 +268,7 @@ class GuardedWebRequest:
 class GuardedWebLimits:
     max_redirects: int = 5
     max_resources: int = 6
+    dns_timeout_seconds: float = 5.0
     connect_timeout_seconds: float = 10.0
     read_timeout_seconds: float = 15.0
     total_timeout_seconds: float = 30.0
@@ -312,6 +317,7 @@ class GuardedWebLimits:
         if self.max_resources < self.max_redirects + 1:
             raise WebTransportConfigurationError
         for value in (
+            self.dns_timeout_seconds,
             self.connect_timeout_seconds,
             self.read_timeout_seconds,
             self.total_timeout_seconds,
@@ -319,6 +325,7 @@ class GuardedWebLimits:
             if type(value) not in {int, float} or not 0 < value <= 120:
                 raise WebTransportConfigurationError
         if self.total_timeout_seconds < min(
+            self.dns_timeout_seconds,
             self.connect_timeout_seconds,
             self.read_timeout_seconds,
         ):
@@ -473,7 +480,7 @@ def _normalise_url(value: Any, limits: GuardedWebLimits) -> _Target:
         or value != value.strip()
         or not value.isascii()
         or "\\" in value
-        or any(ord(character) < 0x20 or ord(character) == 0x7F for character in value)
+        or any(character.isspace() or ord(character) == 0x7F for character in value)
         or not _has_valid_percent_escapes(value)
     ):
         raise WebTransportUrlError
@@ -573,6 +580,29 @@ def _default_resolver(host: str, port: int) -> Sequence[str]:
         proto=socket.IPPROTO_TCP,
     )
     return [str(item[4][0]) for item in results]
+
+
+def _normalise_allowed_origins(
+    value: Any,
+    limits: GuardedWebLimits,
+) -> tuple[_Target, ...]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)) or not value:
+        raise WebTransportPolicyError
+    selected: list[_Target] = []
+    seen: set[str] = set()
+    try:
+        for item in value:
+            origin = _normalise_url(item, limits)
+            if origin.request_target != "/":
+                raise WebTransportPolicyError
+            if origin.origin not in seen:
+                selected.append(origin)
+                seen.add(origin.origin)
+    except WebTransportPolicyError:
+        raise
+    except WebTransportError:
+        raise WebTransportPolicyError from None
+    return tuple(selected)
 
 
 def _open_pinned_socket(address: str, port: int, timeout: float) -> socket.socket:
@@ -795,7 +825,10 @@ class GuardedWebTransport:
             raise WebTransportTimeoutError
         return min(remaining, stage_limit)
 
-    def _policy(self, request: GuardedWebRequest) -> tuple[dict[str, Any], _Target]:
+    def _policy(
+        self,
+        request: GuardedWebRequest,
+    ) -> tuple[dict[str, Any], _Target, frozenset[str]]:
         if request.network_authorization != "explicit":
             raise WebTransportAuthorizationError
         if (
@@ -852,33 +885,77 @@ class GuardedWebTransport:
             raise WebTransportPolicyError
         target = _normalise_url(request.url, self.limits)
         source_target = _normalise_url(source.get("external_id"), self.limits)
-        allowed_origins = connector.get("allowed_origins")
-        if (
-            target.url != source_target.url
-            or not isinstance(allowed_origins, Sequence)
-            or isinstance(allowed_origins, (str, bytes, bytearray))
-        ):
+        allowed_targets = _normalise_allowed_origins(
+            connector.get("allowed_origins"),
+            self.limits,
+        )
+        allowed_origins = frozenset(item.origin for item in allowed_targets)
+        if target.url != source_target.url:
             raise WebTransportPolicyError
         if target.origin not in allowed_origins:
-            for origin in allowed_origins:
-                parsed_origin = urlsplit(str(origin))
-                if parsed_origin.scheme == target.scheme and parsed_origin.hostname == target.host:
-                    raise WebTransportPortError
+            if any(
+                origin.scheme == target.scheme and origin.host == target.host
+                for origin in allowed_targets
+            ):
+                raise WebTransportPortError
             raise WebTransportPolicyError
-        return dict(connector), target
+        return dict(connector), target, allowed_origins
 
     def _assert_current_authority(
         self,
         request: GuardedWebRequest,
         target: _Target,
     ) -> frozenset[str]:
-        connector, _initial_target = self._policy(request)
-        allowed_origins = frozenset(str(item) for item in connector["allowed_origins"])
+        _connector, _initial_target, allowed_origins = self._policy(request)
         if target.origin not in allowed_origins:
             raise WebTransportPolicyError
         return allowed_origins
 
-    def _resolve(self, target: _Target, *, connection_recheck: bool) -> tuple[str, ...]:
+    def _bounded_resolver_call(
+        self,
+        host: str,
+        port: int,
+        deadline: float,
+    ) -> Sequence[str]:
+        stage_deadline = min(deadline, self.clock() + self.limits.dns_timeout_seconds)
+        slot_timeout = self._deadline_timeout(stage_deadline, self.limits.dns_timeout_seconds)
+        if not _DNS_RESOLVER_SLOTS.acquire(timeout=slot_timeout):
+            raise WebTransportTimeoutError
+        outcomes: Queue[tuple[bool, object]] = Queue(maxsize=1)
+
+        def resolve() -> None:
+            try:
+                outcomes.put((True, self.resolver(host, port)))
+            except BaseException:
+                outcomes.put((False, None))
+            finally:
+                _DNS_RESOLVER_SLOTS.release()
+
+        worker = Thread(target=resolve, name="provelume-dns-resolver", daemon=True)
+        try:
+            worker.start()
+        except Exception:
+            _DNS_RESOLVER_SLOTS.release()
+            raise WebTransportDnsError from None
+        try:
+            wait_timeout = self._deadline_timeout(
+                stage_deadline,
+                self.limits.dns_timeout_seconds,
+            )
+            succeeded, value = outcomes.get(timeout=wait_timeout)
+        except Empty:
+            raise WebTransportTimeoutError from None
+        if not succeeded:
+            raise WebTransportDnsError
+        return cast(Sequence[str], value)
+
+    def _resolve(
+        self,
+        target: _Target,
+        *,
+        connection_recheck: bool,
+        deadline: float,
+    ) -> tuple[str, ...]:
         try:
             literal = ip_address(target.host)
         except ValueError:
@@ -886,7 +963,9 @@ class GuardedWebTransport:
         if literal is not None:
             return (_public_ip(str(literal)),)
         try:
-            raw = self.resolver(target.host, target.port)
+            raw = self._bounded_resolver_call(target.host, target.port, deadline)
+        except WebTransportError:
+            raise
         except Exception:
             raise WebTransportDnsError from None
         if (
@@ -931,6 +1010,7 @@ class GuardedWebTransport:
 
     def _read_body(
         self,
+        connection: WebConnection,
         response: ResponseStream,
         *,
         expected_length: int | None,
@@ -950,11 +1030,15 @@ class GuardedWebTransport:
         body = bytearray()
         compressed = 0
         while True:
-            self._deadline_timeout(deadline, self.limits.read_timeout_seconds)
             try:
+                connection.set_read_timeout(
+                    self._deadline_timeout(deadline, self.limits.read_timeout_seconds)
+                )
                 block = response.read(self.limits.read_chunk_bytes)
             except TimeoutError:
                 raise WebTransportTimeoutError from None
+            except WebTransportError:
+                raise
             except (http.client.IncompleteRead, http.client.HTTPException, OSError):
                 raise WebTransportTruncatedError from None
             if not isinstance(block, bytes):
@@ -1007,7 +1091,7 @@ class GuardedWebTransport:
         return bytes(body), compressed
 
     def fetch(self, request: GuardedWebRequest) -> GuardedWebResponse:
-        _, target = self._policy(request)
+        _, target, _allowed_origins = self._policy(request)
         initial_origin = target.origin
         visited = {target.url}
         deadline = self.clock() + self.limits.total_timeout_seconds
@@ -1019,9 +1103,9 @@ class GuardedWebTransport:
                 raise WebTransportRedirectError
             allowed_origins = self._assert_current_authority(request, target)
             self._deadline_timeout(deadline, self.limits.total_timeout_seconds)
-            self._resolve(target, connection_recheck=False)
+            self._resolve(target, connection_recheck=False, deadline=deadline)
             self._deadline_timeout(deadline, self.limits.total_timeout_seconds)
-            addresses = self._resolve(target, connection_recheck=True)
+            addresses = self._resolve(target, connection_recheck=True, deadline=deadline)
             allowed_origins = self._assert_current_authority(request, target)
             parameters = ConnectionParameters(
                 scheme=target.scheme,
@@ -1041,18 +1125,23 @@ class GuardedWebTransport:
                 raise WebTransportConnectionError from None
             try:
                 try:
+                    send_conditionals = (
+                        request.conditional is not None
+                        and resources == 0
+                        and target.origin == initial_origin
+                    )
                     connection.request(
                         "GET",
                         target.request_target,
                         self._request_headers(
                             request,
-                            send_conditionals=target.origin == initial_origin,
+                            send_conditionals=send_conditionals,
                         ),
                     )
-                    response = connection.getresponse()
                     connection.set_read_timeout(
                         self._deadline_timeout(deadline, self.limits.read_timeout_seconds)
                     )
+                    response = connection.getresponse()
                 except TimeoutError:
                     raise WebTransportTimeoutError from None
                 except WebTransportError:
@@ -1100,16 +1189,20 @@ class GuardedWebTransport:
                 if last_modified is not None and not _valid_http_date(last_modified):
                     raise WebTransportHeaderError
 
-                if status == 304 and request.conditional is None:
+                if status == 304 and not send_conditionals:
                     raise WebTransportResponseError
                 if status in _NO_BODY_STATUSES:
                     if (expected_length not in {None, 0}) or chunked:
                         raise WebTransportResponseError
-                    self._deadline_timeout(deadline, self.limits.read_timeout_seconds)
                     try:
+                        connection.set_read_timeout(
+                            self._deadline_timeout(deadline, self.limits.read_timeout_seconds)
+                        )
                         unexpected = response.read(1)
                     except TimeoutError:
                         raise WebTransportTimeoutError from None
+                    except WebTransportError:
+                        raise
                     except (http.client.IncompleteRead, http.client.HTTPException, OSError):
                         raise WebTransportResponseError from None
                     if unexpected != b"":
@@ -1133,6 +1226,7 @@ class GuardedWebTransport:
                 content_type = _content_type(headers, self.limits)
                 encoding = _content_encoding(headers)
                 body, compressed = self._read_body(
+                    connection,
                     response,
                     expected_length=expected_length,
                     chunked=chunked,
