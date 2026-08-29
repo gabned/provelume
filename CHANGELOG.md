@@ -19,6 +19,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - defined a versioned, authorized and citable grounded-RAG retrieval boundary for API/MCP clients,
   with derived chunks/indexes, deterministic fallback and optional provider-independent answer
   generation remaining outside canonical knowledge;
+- added an evidence-gated `provelume.com` synchronization cadence, including an immediate
+  published-`0.7.0` correction point and separate website/Core build identities;
 
 ## 0.7.0 - 2026-08-29
 

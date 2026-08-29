@@ -156,6 +156,38 @@ def test_every_release_has_a_unique_latin_name_and_concise_outcome() -> None:
     assert "names do not replace SemVer, package identity, tags" in roadmap
 
 
+def test_public_website_updates_follow_release_evidence() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    for required_contract in (
+        "## Public website synchronization contract",
+        "[`provelume.com`](https://provelume.com/)",
+        "website build identity from the latest\npublished Core release",
+        "`facts.json`,\n`llms.txt`",
+        "immediate corrective website workstream",
+        "published Core `0.7.0`",
+        "website-only correction can begin now",
+        "After every verified Core tag and asset publication",
+        "`planned`, `preview`, `release candidate` and `available`",
+        "| Now, published `0.7.0` |",
+        "| Published `0.10.0` |",
+        "| Published `0.14.0` |",
+        "| Published `0.17.0` |",
+        "| Published `0.18.0` |",
+        "| Published `0.20.0` |",
+        "| Published `0.22.0` |",
+        "controlled public beta",
+        "developer/client dissemination",
+        "broad non-technical desktop-preview distribution",
+        "broad release-candidate diffusion",
+        "Begin general distribution",
+        "EN/IT semantic parity",
+        "Website/release/facts parity",
+        "website outage\ncannot block installation",
+    ):
+        assert required_contract in roadmap
+
+
 def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> None:
     roadmap = _read(ROADMAP_PATH)
     changelog = _read(ROOT / "CHANGELOG.md")
@@ -190,6 +222,7 @@ def test_unreleased_forecast_changes_do_not_rewrite_published_changelog() -> Non
         "- added optional mobile/PWA and macOS delivery profiles",
         "- added one-way local-folder and rsync/SSH mirror boundaries",
         "- defined a versioned, authorized and citable grounded-RAG retrieval boundary",
+        "- added an evidence-gated `provelume.com` synchronization cadence",
     ):
         assert changelog.count(forecast_entry) == 1
         assert changelog.index(forecast_entry) < published_heading
