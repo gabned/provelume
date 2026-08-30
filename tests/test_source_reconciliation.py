@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+import provelume.source_reconciliation as reconciliation_module
 from provelume.cli import main
 from provelume.maintenance_model import MaintenanceError
 from provelume.scheduler import retry_payload, schedule_payload
@@ -192,6 +193,85 @@ def test_changed_rename_untracked_and_missing_are_classified_without_ingestion(
     assert replay_job["id"] != job["id"]
     assert instance.get_source_reconciliation_cursor(source_id)["revision"] == 2
     assert _canonical_snapshot(instance) == canonical_before
+
+
+def test_present_canonical_locator_is_reserved_before_rename_inference(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance, source, source_id = _registered_instance(
+        tmp_path,
+        {"kept.txt": b"duplicate bytes\n"},
+    )
+    manager = instance.source_reconciliation
+    monkeypatch.setattr(
+        SourceReconciliationManager,
+        "_locator_identity",
+        staticmethod(
+            lambda _source_id, locator: (
+                "0" * 64 if locator == "duplicate.txt" else "f" * 64
+            )
+        ),
+    )
+    (source / "duplicate.txt").write_bytes(b"duplicate bytes\n")
+
+    result = _run_reconciliation(
+        instance,
+        source_id,
+        request_key="present-locator-not-rename",
+    )
+    job = result["job"]
+    assert isinstance(job, dict) and job["status"] == "succeeded"
+    run = manager.run_for_job(str(job["id"]))
+    assert run is not None
+    assert run["counts"]["current"] == 1
+    assert run["counts"]["untracked"] == 1
+    assert run["counts"]["renamed"] == 0
+
+
+def test_disappearing_child_is_superseded_not_a_missing_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance, source, source_id = _registered_instance(
+        tmp_path,
+        {"kept.txt": b"kept bytes\n", "vanishing.txt": b"vanishing bytes\n"},
+    )
+    original_iter = reconciliation_module._iter_files
+
+    def enumerate_then_remove(
+        selected_source: Path,
+        max_files: int,
+    ) -> list[tuple[str, Path]]:
+        files = original_iter(selected_source, max_files)
+        (source / "vanishing.txt").unlink()
+        return files
+
+    monkeypatch.setattr(reconciliation_module, "_iter_files", enumerate_then_remove)
+    plan, network_used = instance.source_reconciliation.build_plan(source_id)
+
+    assert network_used is False
+    assert source.is_dir()
+    assert plan["snapshot_state"] == "superseded"
+    assert plan["lifecycle_state"] == "superseded"
+    assert plan["lifecycle_code"] == "source_changed"
+
+    def disappear_during_enumeration(
+        _selected_source: Path,
+        _max_files: int,
+    ) -> list[tuple[str, Path]]:
+        raise FileNotFoundError("synthetic child enumeration race")
+
+    monkeypatch.setattr(
+        reconciliation_module,
+        "_iter_files",
+        disappear_during_enumeration,
+    )
+    enumeration_plan, _network_used = instance.source_reconciliation.build_plan(
+        source_id
+    )
+    assert enumeration_plan["snapshot_state"] == "superseded"
+    assert enumeration_plan["lifecycle_code"] == "source_changed"
 
 
 def test_paused_and_missing_mount_lifecycle_is_visible_and_non_destructive(

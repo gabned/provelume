@@ -235,16 +235,23 @@ class SourceReconciliationManager:
         rows: list[dict[str, Any]] = []
         total_bytes = 0
         for locator, selected_path in files:
-            before = selected_path.stat()
-            if before.st_size > max_file_bytes:
-                raise IngestionLimitError(
-                    "Source reconciliation file exceeds its configured byte limit"
-                )
-            digest = hashlib.sha256()
-            with selected_path.open("rb") as handle:
-                while chunk := handle.read(_READ_CHUNK_BYTES):
-                    digest.update(chunk)
-            after = selected_path.stat()
+            try:
+                before = selected_path.stat()
+                if before.st_size > max_file_bytes:
+                    raise IngestionLimitError(
+                        "Source reconciliation file exceeds its configured byte limit"
+                    )
+                digest = hashlib.sha256()
+                with selected_path.open("rb") as handle:
+                    while chunk := handle.read(_READ_CHUNK_BYTES):
+                        digest.update(chunk)
+                after = selected_path.stat()
+            except FileNotFoundError as exc:
+                if not path.exists():
+                    raise
+                raise SourceReconciliationSupersededError(
+                    "Source item disappeared while reconciliation evidence was read"
+                ) from exc
             if (
                 before.st_size != after.st_size
                 or before.st_mtime_ns != after.st_mtime_ns
@@ -332,6 +339,19 @@ class SourceReconciliationManager:
                 max_file_bytes=int(folder["max_file_bytes"]),
             )
         except FileNotFoundError:
+            source_path = self.store.source_path(selected_id)
+            if source_path is not None and source_path.exists():
+                return (
+                    self._special_plan(
+                        source_id=selected_id,
+                        configuration_fingerprint=configuration_fingerprint,
+                        canonical_fingerprint=canonical_fingerprint,
+                        snapshot_state="superseded",
+                        lifecycle_state="superseded",
+                        lifecycle_code="source_changed",
+                    ),
+                    network_used,
+                )
             return (
                 self._special_plan(
                     source_id=selected_id,
@@ -405,7 +425,8 @@ class SourceReconciliationManager:
             )
 
         canonical_by_locator = {str(row["locator"]): row for row in canonical_rows}
-        unmatched_locators = set(canonical_by_locator)
+        observed_locators = {str(row["locator"]) for row in observed}
+        unmatched_locators = set(canonical_by_locator) - observed_locators
         by_digest: dict[str, list[str]] = {}
         for row in canonical_rows:
             by_digest.setdefault(str(row["content_hash"]), []).append(str(row["locator"]))
@@ -423,7 +444,6 @@ class SourceReconciliationManager:
                     if existing["content_hash"] == content_hash
                     else "changed"
                 )
-                unmatched_locators.discard(locator)
             else:
                 rename_from = next(
                     (
