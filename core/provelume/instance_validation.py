@@ -613,9 +613,11 @@ def inspect_instance(root: Path | str, *, deep: bool = True) -> dict[str, Any]:
         records = _canonical_records(store, errors)
         _validate_references(records, errors)
         from .folder_sources import folder_source_state_findings
+        from .maintenance import maintenance_state_findings
         from .scheduler import scheduler_state_findings
 
         errors.extend(folder_source_state_findings(store))
+        errors.extend(maintenance_state_findings(store))
         errors.extend(scheduler_state_findings(store))
         original_files = _validate_originals(
             store,

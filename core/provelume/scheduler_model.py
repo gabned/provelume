@@ -11,9 +11,13 @@ SCHEDULER_SCHEMA_VERSION = 1
 SCHEDULER_JOB_KINDS = (
     "source.refresh",
     "search.reindex",
+    "search.reindex.incremental",
+    "maintenance.library_rebuild",
     "maintenance.validate",
+    "maintenance.original_assurance",
+    "maintenance.duplicate_scan",
 )
-EXECUTABLE_JOB_KINDS = ("source.refresh", "search.reindex", "maintenance.validate")
+EXECUTABLE_JOB_KINDS = SCHEDULER_JOB_KINDS
 POLICY_STATES = ("disabled", "enabled", "paused")
 SCHEDULE_MODES = ("manual", "interval", "calendar")
 MISSED_RUN_POLICIES = ("skip", "coalesce", "catch_up_one")
@@ -36,11 +40,14 @@ ERROR_CODES = (
     "committed_checkpoint_needs_review",
     "executor_unavailable",
     "instance_validation_failed",
+    "insufficient_temporary_space",
     "invalid_state",
     "lease_clock_reversed",
     "lease_expired",
     "lease_recovery_exhausted",
     "local_io",
+    "maintenance_action_failed",
+    "reindex_state_invalid",
     "source_refresh_failed",
 )
 RECOVERY_STATES = ("none", "resumable", "restart_only", "manual_intervention")

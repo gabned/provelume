@@ -678,7 +678,12 @@ class SchedulerStore:
             if not clock_reversed and utc_instant(str(lease["expires_at"])) > now:
                 continue
             checkpoint = job["checkpoint"]
-            if checkpoint["phase"] == "committed":
+            if (
+                job["job_kind"] in {"search.reindex", "search.reindex.incremental"}
+                and int(checkpoint["sequence"]) > 0
+            ):
+                recovery_state = "resumable"
+            elif checkpoint["phase"] == "committed":
                 recovery_state = "manual_intervention"
             elif job["job_kind"] == "source.refresh" and int(checkpoint["sequence"]) > 0:
                 recovery_state = "resumable"
@@ -1392,12 +1397,104 @@ class SchedulerCoordinator:
                 network_used,
                 canonical_mutation,
             )
-        if job["job_kind"] == "search.reindex":
-            from .index import rebuild_search_index
+        if job["job_kind"] in {"search.reindex", "search.reindex.incremental"}:
+            from .maintenance import MaintenanceManager
+            from .maintenance_model import (
+                MaintenanceInsufficientSpaceError,
+                MaintenanceStateError,
+            )
+
+            lease_token = str(job["lease"]["token"])
+            checkpoint_now = getattr(self, "_execution_checkpoint_now", None)
+
+            def checkpoint(progress: dict[str, int]) -> Mapping[str, Any]:
+                current = self.journal.get_job(str(job["id"]))
+                if current is None:
+                    raise MaintenanceStateError("reindex scheduler job disappeared")
+                return self.journal.checkpoint(
+                    str(job["id"]),
+                    lease_token,
+                    sequence=int(current["checkpoint"]["sequence"]) + 1,
+                    phase="executing",
+                    progress=progress,
+                    now=checkpoint_now,
+                )
 
             try:
-                indexed = rebuild_search_index(self.store)
+                progress = MaintenanceManager(self.store).execute_reindex(
+                    job,
+                    checkpoint=checkpoint,
+                )
+            except MaintenanceInsufficientSpaceError:
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "permanent",
+                    "insufficient_temporary_space",
+                    False,
+                    False,
+                )
             except (OSError, sqlite3.Error):
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "transient",
+                    "local_io",
+                    False,
+                    False,
+                )
+            except (KeyError, TypeError, MaintenanceStateError, ValueError):
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "permanent",
+                    "reindex_state_invalid",
+                    False,
+                    False,
+                )
+            return True, progress, "", "", False, False
+        if job["job_kind"] == "maintenance.library_rebuild":
+            from .library_projection import (
+                LibraryProjectionError,
+                LibraryProjectionLimitError,
+                LibraryProjectionManager,
+            )
+            from .locks import InstanceLockUnavailable
+
+            try:
+                result = LibraryProjectionManager(self.store).rebuild()
+            except (InstanceLockUnavailable, OSError):
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "transient",
+                    "local_io",
+                    False,
+                    False,
+                )
+            except (LibraryProjectionError, LibraryProjectionLimitError, ValueError):
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "permanent",
+                    "maintenance_action_failed",
+                    False,
+                    False,
+                )
+            return (
+                True,
+                self._progress(processed=int(result["documents"])),
+                "",
+                "",
+                False,
+                False,
+            )
+        if job["job_kind"] == "maintenance.validate":
+            from .instance_validation import inspect_instance
+
+            try:
+                report = inspect_instance(self.store.paths.root, deep=True)
+            except OSError:
                 return (
                     False,
                     self._progress(errors=1),
@@ -1415,11 +1512,6 @@ class SchedulerCoordinator:
                     False,
                     False,
                 )
-            return True, self._progress(processed=indexed), "", "", False, False
-        if job["job_kind"] == "maintenance.validate":
-            from .instance_validation import inspect_instance
-
-            report = inspect_instance(self.store.paths.root, deep=True)
             findings = len(report.get("errors", []))
             if report.get("status") != "valid":
                 return (
@@ -1431,6 +1523,82 @@ class SchedulerCoordinator:
                     False,
                 )
             return True, self._progress(processed=1), "", "", False, False
+        if job["job_kind"] == "maintenance.original_assurance":
+            from .assurance import AssuranceLimitError, OriginalAssuranceManager
+
+            try:
+                report = OriginalAssuranceManager(self.store).check()
+            except OSError:
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "transient",
+                    "local_io",
+                    False,
+                    False,
+                )
+            except (AssuranceLimitError, KeyError, TypeError, ValueError):
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "permanent",
+                    "maintenance_action_failed",
+                    False,
+                    False,
+                )
+            metrics = report["metrics"]
+            return (
+                True,
+                self._progress(
+                    processed=int(metrics["originals_verified"]),
+                    errors=int(metrics["attention_findings"]),
+                ),
+                "",
+                "",
+                False,
+                False,
+            )
+        if job["job_kind"] == "maintenance.duplicate_scan":
+            from .assurance import AssuranceLimitError
+            from .duplicates import DuplicateCaseManager, DuplicateScanLimitError
+
+            try:
+                result = DuplicateCaseManager(self.store).scan()
+            except OSError:
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "transient",
+                    "local_io",
+                    False,
+                    False,
+                )
+            except (
+                AssuranceLimitError,
+                DuplicateScanLimitError,
+                KeyError,
+                TypeError,
+                ValueError,
+            ):
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "permanent",
+                    "maintenance_action_failed",
+                    False,
+                    False,
+                )
+            return (
+                True,
+                self._progress(
+                    processed=len(result["exact"]) + len(result["probable"]),
+                    errors=len(result["warnings"]),
+                ),
+                "",
+                "",
+                False,
+                False,
+            )
         return (
             False,
             self._progress(errors=1),
@@ -1502,18 +1670,29 @@ class SchedulerCoordinator:
                 progress=job["progress"],
                 now=checkpoint_now,
             )
-            (
-                ok,
-                attempt_progress,
-                error_class,
-                error_code,
-                network_used,
-                canonical_mutation,
-            ) = self._execute(job)
+            self._execution_checkpoint_now = checkpoint_now
+            try:
+                (
+                    ok,
+                    attempt_progress,
+                    error_class,
+                    error_code,
+                    network_used,
+                    canonical_mutation,
+                ) = self._execute(job)
+            finally:
+                del self._execution_checkpoint_now
+            current = self.journal.get_job(str(job["id"]))
+            if current is None:
+                raise SchedulerConflictError("scheduler job disappeared during execution")
             progress = {
-                key: int(job["progress"][key]) + int(attempt_progress[key])
+                key: max(
+                    int(current["progress"][key]),
+                    int(job["progress"][key]) + int(attempt_progress[key]),
+                )
                 for key in job["progress"]
             }
+            job = current
             if ok:
                 job = self.journal.checkpoint(
                     str(job["id"]),

@@ -3,7 +3,9 @@
 `0.8/S01` adds the first user-controlled scheduling vertical slice without changing the published
 `0.7.0` package identity. It schedules safe local validation and derived full-text reindex work.
 `0.8/S02` activates the same schema-reserved `source.refresh` kind only for an exact managed folder
-Source; see [Durable folder Sources](durable-folder-sources.md).
+Source; see [Durable folder Sources](durable-folder-sources.md). `0.8/S03` activates the closed
+maintenance catalogue, incremental reindex and per-item recovery adapters described in
+[Maintenance catalogue and reindex recovery](maintenance-catalogue-and-reindex-recovery.md).
 
 ## Storage and authority
 
@@ -36,9 +38,9 @@ a process exit.
 
 ## Policy contract
 
-Every policy selects exactly one job kind and one scope. `maintenance.validate` and
-`search.reindex` require the current Instance ID. `source.refresh` requires one existing Source ID;
-execution fails closed unless that Source has a valid S02 folder contract.
+Every policy selects exactly one job kind and one scope. All available maintenance kinds require
+the current Instance ID. `source.refresh` requires one existing Source ID; execution fails closed
+unless that Source has a valid S02 folder contract.
 
 | Control | Closed values and behavior |
 | --- | --- |
@@ -76,7 +78,8 @@ Checkpoints use consecutive sequence numbers and the phases `prepared`, `executi
 | --- | --- |
 | No committed effect for a current local executor | `restart_only`; requeue within attempt bound |
 | Source refresh executing checkpoint | `resumable`; replay uses its durable Source/run evidence |
-| `committed` checkpoint without a terminal receipt | `manual_intervention`; never infer success |
+| Full/incremental reindex checkpoint | `resumable`; replay validates its candidate or exact active generation |
+| Other `committed` checkpoint without a terminal receipt | `manual_intervention`; never infer success |
 | Attempt bound exhausted | `manual_intervention` with a closed recovery error |
 | Immutable receipt already exists | Reconcile the terminal job from the exact receipt; do not run again |
 | Wall clock earlier than the last heartbeat | Expire the stale lease and apply the same bounded recovery rules |
@@ -95,10 +98,12 @@ network use and canonical Acquisition mutation truthfully; automatic deletion re
 
 ## Executable work and runtime boundary
 
-`maintenance.validate` performs deep read-only Instance validation. `search.reindex` atomically
-replaces only the rebuildable SQLite FTS generation and its metadata. `source.refresh` observes one
-explicit managed folder and ingests only after its S02 quiescence gate. No executor can repair,
-purge, apply retention, contact a provider or delete canonical knowledge.
+`maintenance.validate` performs deep read-only Instance validation. `search.reindex` and
+`search.reindex.incremental` build isolated rebuildable SQLite FTS generations.
+`maintenance.library_rebuild`, `maintenance.original_assurance` and
+`maintenance.duplicate_scan` reuse their existing local bounded contracts. `source.refresh`
+observes one explicit managed folder and ingests only after its S02 quiescence gate. No executor
+can repair, purge, apply retention, contact a provider or delete canonical knowledge.
 
 An explicit CLI cycle evaluates policies and executes a bounded number of jobs:
 
@@ -130,12 +135,13 @@ This is not an always-on system service. Scheduling while the Browser is closed 
 later qualified self-hosted and desktop-agent work; S01 does not register a daemon, startup task or
 hidden process.
 
-## Deliberate S01/S02 limits
+## Deliberate S01–S03 limits
 
 - S02 watching is bounded scheduler polling while a qualified runtime is active; it installs no
   native filesystem-event service, daemon or startup task.
-- The broader maintenance/reindex catalogue and per-operation checkpoint adapters belong to
-  `0.8/S03`.
+- Source reconciliation is catalogued but unavailable until its S04 cursor/lifecycle contract.
+- Backup creation and verification are catalogued but unavailable to the scheduler until an exact
+  destination can be bound without persisting a path or granting destination cleanup authority.
 - Connector cursors, Source reconciliation and lifecycle states belong to `0.8/S04`.
 - Resource policies and capacity/statistics evidence belong to `0.8/S05`.
 - There is no hidden network access, cloud fallback, canonical duplication, automatic repair,

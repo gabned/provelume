@@ -136,10 +136,12 @@ action through `scheduler-policy-create`, `scheduler-policy-state`, `scheduler-r
 `scheduler-run`. The EN/IT `/scheduler` Browser view uses the same service reads; its active local
 runtime evaluates at most one safe job per cycle while the Browser is running.
 
-Deep Instance validation and derived FTS reindex are the `0.8/S01` executors. `0.8/S02` also
-executes `source.refresh` for an exact managed folder Source after its durable observer reaches a
-stable snapshot. Records contain only IDs, clocks, closed status/error values, fingerprints and
-counts; caller idempotency text, paths, URLs, credentials and document content are not persisted.
+Deep Instance validation and the initial derived FTS reindex are the `0.8/S01` executors. `0.8/S02`
+also executes `source.refresh` for an exact managed folder Source after its durable observer reaches
+a stable snapshot. `0.8/S03` adds incremental reindex, Markdown-library rebuild, Original assurance
+and duplicate scan plus resumable per-item FTS generation evidence. Records contain only IDs,
+clocks, closed status/error values, fingerprints and counts; caller idempotency text, paths, URLs,
+credentials and document content are not persisted.
 See
 [`architecture/durable-scheduler-and-job-journal.md`](architecture/durable-scheduler-and-job-journal.md).
 The random lease token is execution authority and is never returned by service, CLI, API or
@@ -156,6 +158,24 @@ These routes never enumerate a mount and expose no configured path. Registration
 enable/pause and refresh remain local service/CLI authority; the loopback `/sources` Browser adds
 the same explicit controls behind a per-process CSRF token. See
 [`architecture/durable-folder-sources.md`](architecture/durable-folder-sources.md).
+
+## Maintenance catalogue and reindex generations
+
+- `GET /api/v1/maintenance` — the complete closed catalogue, exact availability boundaries and
+  linked scheduler policies;
+- `GET /api/v1/maintenance/actions/{action_id}` — one catalogue action;
+- `GET /api/v1/maintenance/plans/{action_id}` — a read-only full/incremental reindex estimate and
+  temporary-space preflight;
+- `GET /api/v1/maintenance/runs?limit=100` — newest durable reindex generation records;
+- `GET /api/v1/maintenance/runs/{run_id}` — one content-free plan, cursor, generation and recovery
+  record.
+
+All maintenance API routes are read-only. They never queue work, activate a generation, read a
+Source path or accept a backup destination. Local mutations use `maintenance-policy-create` and
+`maintenance-run`; the loopback `/maintenance` Browser protects Run now with a per-process CSRF
+token. Full and incremental plans expose only canonical IDs, counts, byte estimates, fingerprints
+and observed free space. See
+[`architecture/maintenance-catalogue-and-reindex-recovery.md`](architecture/maintenance-catalogue-and-reindex-recovery.md).
 
 ## Documents
 

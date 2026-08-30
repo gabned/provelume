@@ -19,6 +19,10 @@ from .retention_model import effective_dispositions
 from .storage import InstanceStore, utc_now
 
 INDEX_SCHEMA = 2
+GENERATION_METADATA_TABLE = "provelume_generation_metadata"
+_GENERATION_ID = re.compile(r"generation_[0-9a-f]{32}\Z")
+_JOB_ID = re.compile(r"job_[0-9a-f]{32}\Z")
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 
 def _connection(path: Path) -> sqlite3.Connection:
@@ -102,10 +106,28 @@ def _database_path(store: InstanceStore) -> Path:
 def _valid_metadata(value: Any) -> bool:
     if not isinstance(value, dict):
         return False
+    base_fields = {
+        "schema_version",
+        "knowledge_fingerprint",
+        "built_at",
+        "documents_indexed",
+        "documents",
+    }
+    generation_fields = {
+        "generation_id",
+        "job_id",
+        "build_mode",
+        "build_strategy",
+        "plan_digest",
+    }
+    fields = frozenset(value)
+    if fields not in {frozenset(base_fields), frozenset(base_fields | generation_fields)}:
+        return False
     documents = value.get("documents")
-    return (
+    base_valid = (
         value.get("schema_version") == INDEX_SCHEMA
         and isinstance(value.get("knowledge_fingerprint"), str)
+        and _SHA256.fullmatch(str(value.get("knowledge_fingerprint"))) is not None
         and isinstance(value.get("built_at"), str)
         and type(value.get("documents_indexed")) is int
         and int(value["documents_indexed"]) >= 0
@@ -115,14 +137,50 @@ def _valid_metadata(value: Any) -> bool:
             for key, item in documents.items()
         )
     )
+    if not base_valid or not generation_fields.issubset(value):
+        return base_valid
+    return (
+        _GENERATION_ID.fullmatch(str(value.get("generation_id"))) is not None
+        and _JOB_ID.fullmatch(str(value.get("job_id"))) is not None
+        and value.get("build_mode") in {"full", "incremental"}
+        and value.get("build_strategy") in {"full", "incremental"}
+        and not (
+            value.get("build_mode") == "full"
+            and value.get("build_strategy") != "full"
+        )
+        and _SHA256.fullmatch(str(value.get("plan_digest"))) is not None
+    )
 
 
 def _read_metadata(store: InstanceStore) -> dict[str, Any] | None:
     path = _metadata_path(store)
+    sidecar = None
     try:
         with path.open("r", encoding="utf-8") as handle:
             value = json.load(handle)
     except (OSError, json.JSONDecodeError):
+        value = None
+    if _valid_metadata(value):
+        sidecar = value
+    embedded = _read_embedded_metadata(_database_path(store))
+    return embedded if embedded is not None else sidecar
+
+
+def _read_embedded_metadata(database: Path) -> dict[str, Any] | None:
+    if not database.is_file():
+        return None
+    try:
+        connection = _connection(database)
+        try:
+            row = connection.execute(
+                f"SELECT payload FROM {GENERATION_METADATA_TABLE} WHERE id = 1"
+            ).fetchone()
+        finally:
+            connection.close()
+        if row is None:
+            return None
+        value = json.loads(str(row[0]))
+    except (json.JSONDecodeError, OSError, sqlite3.Error):
         return None
     return value if _valid_metadata(value) else None
 
@@ -381,6 +439,7 @@ def refresh_search_index(
                     document,
                     recover_missing_derived=recover_missing_derived,
                 )
+        connection.execute(f"DROP TABLE IF EXISTS {GENERATION_METADATA_TABLE}")
         count = int(connection.execute("SELECT count(*) FROM search").fetchone()[0])
         connection.commit()
     except sqlite3.Error:

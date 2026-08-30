@@ -22,11 +22,17 @@ from .ingest import (
     run_ingestion_filesystem,
 )
 from .ingestion_runs import IngestionLedger
-from .instance_lifecycle import InstanceLifecycleManager
+from .instance_lifecycle import (
+    InstanceLifecycleBusy,
+    InstanceLifecycleError,
+    InstanceLifecycleManager,
+)
 from .library_projection import (
     DEFAULT_MAX_LIBRARY_DOCUMENTS,
     LibraryProjectionManager,
 )
+from .maintenance import MaintenanceManager
+from .maintenance_model import MaintenanceError, MaintenanceUnavailableError
 from .markdown_viewer import MAX_VIEWER_MARKDOWN_CHARS, DocumentContentReader
 from .network_status import declared_network_status
 from .oauth_authorization import InstalledAppAuthorizationManager, InstalledAppOAuthAdapter
@@ -55,6 +61,7 @@ class ProvelumeInstance:
         self.library = LibraryProjectionManager(self.store)
         self.content = DocumentContentReader(self.store)
         self.folder_sources = FolderSourceManager(self.store)
+        self.maintenance = MaintenanceManager(self.store)
         self.scheduler = SchedulerCoordinator(self.store)
         try:
             recovery = self.scheduler.recover()
@@ -221,6 +228,119 @@ class ProvelumeInstance:
 
     def list_scheduler_receipts(self, *, limit: int = 100) -> list[dict[str, Any]]:
         return self.scheduler.journal.list_receipts(limit=limit)
+
+    def maintenance_catalog(self) -> list[dict[str, Any]]:
+        return self.maintenance.catalog(policies=self.list_schedule_policies())
+
+    def get_maintenance_action(self, action_id: str) -> dict[str, Any]:
+        return self.maintenance.action(
+            action_id,
+            policies=self.list_schedule_policies(),
+        )
+
+    def plan_maintenance_action(self, action_id: str) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(purpose="maintenance-plan"):
+                return self.maintenance.plan_action(action_id)
+        except InstanceLifecycleBusy as exc:
+            raise MaintenanceError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise MaintenanceError("maintenance lifecycle lock is unavailable") from exc
+
+    def list_maintenance_runs(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        return self.maintenance.list_runs(limit=limit)
+
+    def get_maintenance_run(self, run_id: str) -> dict[str, Any] | None:
+        return self.maintenance.get_run(run_id)
+
+    def create_maintenance_policy(
+        self,
+        action_id: str,
+        *,
+        state: str,
+        schedule: Mapping[str, Any],
+        retry: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        action = self.maintenance.action(action_id)
+        if not action["available"] or not action["schedulable"]:
+            raise MaintenanceUnavailableError(str(action["unavailable_reason"]))
+        return self.create_schedule_policy(
+            job_kind=str(action["scheduler_job_kind"]),
+            scope={"kind": "instance", "id": self.store.read_config()["instance"]["id"]},
+            state=state,
+            schedule=schedule,
+            retry=retry,
+        )
+
+    def queue_maintenance_action(
+        self,
+        action_id: str,
+        *,
+        request_key: str | None = None,
+        policy_id: str | None = None,
+    ) -> dict[str, Any]:
+        action = self.maintenance.action(action_id)
+        if not action["available"] or not action["schedulable"]:
+            raise MaintenanceUnavailableError(str(action["unavailable_reason"]))
+        kind = str(action["scheduler_job_kind"])
+        instance_id = str(self.store.read_config()["instance"]["id"])
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="maintenance-run-now"
+            ):
+                matches = [
+                    policy
+                    for policy in self.scheduler.journal.list_policies()
+                    if policy["job_kind"] == kind
+                    and policy["scope"] == {"kind": "instance", "id": instance_id}
+                    and (policy_id is None or policy["id"] == policy_id)
+                ]
+                if policy_id is not None and not matches:
+                    raise MaintenanceError("maintenance scheduler policy not found")
+                if len(matches) > 1:
+                    raise MaintenanceError(
+                        "maintenance action has multiple policies; select one explicitly"
+                    )
+                if matches:
+                    policy = matches[0]
+                else:
+                    policy = self.scheduler.journal.create_policy(
+                        job_kind=kind,
+                        scope={"kind": "instance", "id": instance_id},
+                        state="enabled",
+                        schedule=schedule_payload(mode="manual", timezone="UTC"),
+                    )
+                result = self.scheduler.journal.run_now(
+                    str(policy["id"]),
+                    request_key=request_key,
+                )
+        except InstanceLifecycleBusy as exc:
+            raise MaintenanceError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise MaintenanceError("maintenance lifecycle lock is unavailable") from exc
+        return {**result, "policy": policy, "job": public_job_record(result["job"])}
+
+    def run_maintenance_action(
+        self,
+        action_id: str,
+        *,
+        request_key: str | None = None,
+        policy_id: str | None = None,
+    ) -> dict[str, Any]:
+        queued = self.queue_maintenance_action(
+            action_id,
+            request_key=request_key,
+            policy_id=policy_id,
+        )
+        job_id = str(queued["job"]["id"])
+        current = self.scheduler.journal.get_job(job_id)
+        executed = None
+        if current is not None and current["status"] == "queued":
+            executed = self.scheduler.run_one(job_id=job_id)
+        if executed is None:
+            current = self.scheduler.journal.get_job(job_id)
+            executed = public_job_record(current) if current is not None else None
+        return {"queued": queued, "job": executed}
 
     def register_folder_source(
         self,
