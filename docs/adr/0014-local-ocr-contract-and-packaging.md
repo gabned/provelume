@@ -138,8 +138,9 @@ S01 sets hard ceilings that configuration may lower but never raise:
 Media type, extension and signature must agree before a decoder is selected. A future renderer must
 measure page, pixel and decoded-byte evidence before engine invocation and must map corrupt,
 oversized, unsupported, deadline and adapter failures to the closed error vocabulary. Each job
-uses a private mode-0700 temporary directory under an explicit local root; the directory is removed
-after success, cancellation or exception.
+uses an unshared temporary directory under an explicit local root; POSIX mode is forced to 0700,
+while Windows inherits the per-user root ACL and requires a qualified DACL in S02. The directory is
+removed after success, cancellation or exception.
 
 Committed page results advance a deterministic `ocr.page.committed` checkpoint. The checkpoint
 sequence and processed/skipped/error counts fit Vigilia's journal without adding a scheduler job

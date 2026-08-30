@@ -1035,5 +1035,6 @@ def isolated_ocr_temp_directory(base: Path) -> Iterator[Path]:
         )
     with tempfile.TemporaryDirectory(prefix="ocr-job-", dir=selected) as directory:
         path = Path(directory)
-        os.chmod(path, 0o700)
+        if os.name == "posix":
+            os.chmod(path, 0o700)
         yield path

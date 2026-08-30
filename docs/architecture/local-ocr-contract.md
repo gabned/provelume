@@ -130,9 +130,10 @@ lease and recovery lifecycle. S01 does not register an executable scheduler job.
 
 ## Temporary files and deletion
 
-The seam creates one private mode-0700 temporary directory per job under an explicit local root and
-removes it after success or exception. S02 must apply OS process, CPU/memory and deadline isolation
-around the engine.
+The seam creates one unshared temporary directory per job under an explicit local root and removes
+it after success or exception. POSIX directories are forced to mode 0700. Windows uses a per-user
+root and inherited ACLs; S02 must qualify that DACL as well as OS process, CPU/memory and deadline
+isolation around the engine.
 
 OCR artifacts belong under derived state. Removing them does not remove an Original or canonical
 record. A rebuild creates the same derivation identity only when page bytes, engine, adapter,

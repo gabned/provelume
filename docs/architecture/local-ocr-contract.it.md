@@ -133,9 +133,10 @@ content-free introdotti da Vigilia. S01 non registra un job schedulabile.
 
 ## File temporanei e cancellazione
 
-Il seam crea per ogni job una directory temporanea privata con mode 0700 sotto una radice locale
-esplicita e la rimuove dopo successo o eccezione. S02 dovrà aggiungere isolamento del processo,
-limiti CPU/memoria e deadline attorno al motore.
+Il seam crea per ogni job una directory temporanea non condivisa sotto una radice locale esplicita
+e la rimuove dopo successo o eccezione. Su POSIX forza mode 0700; Windows usa una radice per utente
+e ACL ereditate. S02 dovrà qualificare la DACL e aggiungere isolamento del processo, limiti
+CPU/memoria e deadline attorno al motore.
 
 Gli artefatti OCR appartengono soltanto allo stato derivato. La loro rimozione non elimina Original
 o record canonici. Una ricostruzione conserva la stessa identità soltanto se byte della pagina,

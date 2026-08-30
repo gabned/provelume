@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import socket
 import subprocess
 import tomllib
@@ -481,7 +482,10 @@ def test_temporary_files_are_private_and_cleaned_after_failure(tmp_path: Path) -
     ):
         created = selected
         assert selected.parent == base
-        assert selected.stat().st_mode & 0o777 == 0o700
+        assert selected.name.startswith("ocr-job-")
+        assert not selected.is_symlink()
+        if os.name == "posix":
+            assert selected.stat().st_mode & 0o777 == 0o700
         (selected / "page.bin").write_bytes(b"synthetic")
         raise RuntimeError("synthetic failure")
     assert created is not None
