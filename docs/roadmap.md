@@ -21,6 +21,8 @@ request, tag, release or delivery commitment. Planned-version movement follows
 - **Forecast** — ordered portfolio slot whose scope may still be refined before activation.
 - **Release candidate** — compatibility-freeze and validation release, not general availability.
 - **Stable** — the supported 1.0 contract after release-candidate exit gates pass.
+- **Post-stable forecast** — directional work after 1.0 whose exact scope and compatibility policy
+  are activated only through a later canonical issue and owner pull request.
 
 ## Release lane
 
@@ -38,20 +40,25 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
 | Active development | `0.9.0` | OCR, email, Google file and transcript intake | #137; S01 completed by #5/#138 | `Lectio` |
-| Forecast | `0.10.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
-| Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
-| Forecast | `0.12.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
-| Forecast | `0.13.0` | Knowledge navigation, statistics, relations and deterministic discovery | issue just in time | `Itinerarium` |
-| Forecast | `0.14.0` | Knowledge API v1, read-only MCP and client connections | issue just in time | `Interfacies` |
-| Forecast | `0.15.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
-| Forecast | `0.16.0` | AI classification, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
-| Forecast | `0.17.0` | Semantic, hybrid and grounded RAG retrieval | issue just in time | `Sensus` |
-| Forecast | `0.18.0` | Self-hosted, Synology and QNAP operations | issue just in time | `Domus` |
-| Forecast | `0.19.0` | Windows and macOS background agents and bootstrap completion | issue just in time | `Excubitor` |
-| Forecast | `0.20.0` | Signed desktop releases and safe updaters | issue just in time | `Renovatio` |
-| Forecast | `0.21.0` | Business and Cloud contracts preview | issue just in time | `Societas` |
-| Release candidate | `0.22.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time | `Probatio` |
+| Forecast | `0.10.0` | Multimedia, universal content representations and component inventory | issue just in time | `Perceptio` |
+| Forecast | `0.11.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
+| Forecast | `0.12.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
+| Forecast | `0.13.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
+| Forecast | `0.14.0` | Knowledge navigation, statistics, relations and deterministic discovery | issue just in time | `Itinerarium` |
+| Forecast | `0.15.0` | Knowledge API v1, read-only MCP and client connections | issue just in time | `Interfacies` |
+| Forecast | `0.16.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
+| Forecast | `0.17.0` | AI classification, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
+| Forecast | `0.18.0` | Semantic, hybrid and grounded RAG retrieval | issue just in time | `Sensus` |
+| Forecast | `0.19.0` | Self-hosted, Synology and QNAP operations | issue just in time | `Domus` |
+| Forecast | `0.20.0` | Windows and macOS background agents and bootstrap completion | issue just in time | `Excubitor` |
+| Forecast | `0.21.0` | Signed desktop releases and safe updaters | issue just in time | `Renovatio` |
+| Forecast | `0.22.0` | Business and Cloud contracts preview | issue just in time | `Societas` |
+| Release candidate | `0.23.0` | 1.0 compatibility freeze and end-to-end qualification | issue just in time | `Probatio` |
 | Stable | `1.0.0` | Stable provenance-first platform | issue just in time | `Maturitas` |
+| Post-stable forecast | `1.1.0` | Public adapter SDK and advanced format profiles | issue just in time | `Extensio` |
+| Post-stable forecast | `1.2.0` | Native mobile companions and encrypted offline collections | issue just in time | `Mobilitas` |
+| Post-stable forecast | `1.3.0` | Collaboration, review and shared-workspace workflows | issue just in time | `Cooperatio` |
+| Post-stable forecast | `1.4.0` | Long-term preservation, signatures and governed retention | issue just in time | `Conservatio` |
 
 ### Release names and concise outcomes
 
@@ -82,40 +89,112 @@ names do not replace SemVer, package identity, tags or the immutable published r
   lifecycle. Refresh, reindex, maintenance, interruption recovery and resource use stay governed.
 - **`0.9.0` — `Lectio`.** Adds local OCR and richer intake for scanned files, email, Google files
   and transcripts. Cloud extraction is never an unannounced requirement or fallback.
-- **`0.10.0` — `Cura`.** Unifies capture, mobile access, review and operations/maintenance queues
+- **`0.10.0` — `Perceptio`.** Adds portable representations for photos, audio, video and further
+  file families plus a complete component inventory. Media enrichment remains local-first,
+  attributable and rebuildable, and no source-side Markdown sidecar appears by default.
+- **`0.11.0` — `Cura`.** Unifies capture, mobile access, review and operations/maintenance queues
   in one Action Center. Interrupted work and every destructive choice remain explicit.
-- **`0.11.0` — `Entitas`.** Adds evidence-linked objects, claims, decisions, tasks, calendar items
+- **`0.12.0` — `Entitas`.** Adds evidence-linked objects, claims, decisions, tasks, calendar items
   and relations. Derived structure remains traceable to exact Originals and canonical records.
-- **`0.12.0` — `Concordia`.** Adds productivity connectors, guarded task synchronization and
+- **`0.13.0` — `Concordia`.** Adds productivity connectors, guarded task synchronization and
   optional one-way Git, local-folder and rsync mirrors. No mirror provider becomes canonical
   storage or a runtime requirement.
-- **`0.13.0` — `Itinerarium`.** Adds navigation, backlinks, health, local statistics and capacity
+- **`0.14.0` — `Itinerarium`.** Adds navigation, backlinks, health, local statistics and capacity
   views. Deterministic discovery and legacy import remain explainable and fully reconcilable.
-- **`0.14.0` — `Interfacies`.** Stabilizes Knowledge API v1 plus desktop, mobile and read-only MCP
+- **`0.15.0` — `Interfacies`.** Stabilizes Knowledge API v1 plus desktop, mobile and read-only MCP
   client profiles. ChatGPT and optional native clients need neither Git sync nor public exposure.
-- **`0.15.0` — `Custodia`.** Adds a replaceable AI gateway with local, remote and fallback policy
+- **`0.16.0` — `Custodia`.** Adds a replaceable AI gateway with local, remote and fallback policy
   by scope. Privacy, redaction, budgets and network use remain visible and user-controlled.
-- **`0.16.0` — `Iudicium`.** Adds guarded AI classification, receipts, review rules and provider
+- **`0.17.0` — `Iudicium`.** Adds guarded AI classification, receipts, review rules and provider
   evaluation. The end-to-end intake flow resists prompt injection and keeps every catalog action
   reviewable or reversible.
-- **`0.17.0` — `Sensus`.** Adds semantic, hybrid and grounded RAG retrieval across canonical
+- **`0.18.0` — `Sensus`.** Adds semantic, hybrid and grounded RAG retrieval across canonical
   knowledge. Chunks, embeddings and indexes remain derived and rebuildable, while every context
   passage stays bound to exact source evidence.
-- **`0.18.0` — `Domus`.** Qualifies self-hosted, Synology and QNAP operation with containers,
+- **`0.19.0` — `Domus`.** Qualifies self-hosted, Synology and QNAP operation with containers,
   rsync/SSH backup transport and restore evidence. Capacity, upgrade and rollback boundaries stay
   explicit.
-- **`0.19.0` — `Excubitor`.** Adds Windows tray and macOS menu-bar agents with start-at-login
+- **`0.20.0` — `Excubitor`.** Adds Windows tray and macOS menu-bar agents with start-at-login
   operation. Watched intake and maintenance can continue while the interface is closed and can
   always be paused.
-- **`0.20.0` — `Renovatio`.** Adds signed Windows and notarized macOS artifacts with safe updaters.
+- **`0.21.0` — `Renovatio`.** Adds signed Windows and notarized macOS artifacts with safe updaters.
   Manual, notification-only and controlled-automatic modes retain verification and rollback.
-- **`0.21.0` — `Societas`.** Introduces organization, workspace, tenant and role contracts without
+- **`0.22.0` — `Societas`.** Introduces organization, workspace, tenant and role contracts without
   forking Core. Encryption and administrative boundaries remain explicit and portable.
-- **`0.22.0` — `Probatio`.** Freezes the intended 1.0 compatibility surface for end-to-end,
+- **`0.23.0` — `Probatio`.** Freezes the intended 1.0 compatibility surface for end-to-end,
   security, recovery and support qualification. Release-candidate evidence decides stable readiness.
 - **`1.0.0` — `Maturitas`.** Establishes the stable support perimeter and finalized public
   contracts, artifacts and operating paths. It is a maturity gate, not a container for late new
   features.
+- **`1.1.0` — `Extensio`.** Stabilizes a sandboxed adapter SDK and conformance kit for advanced
+  formats and providers. Extensions cannot silently gain network, secret or canonical-write
+  authority.
+- **`1.2.0` — `Mobilitas`.** Adds optional native mobile companions with encrypted offline
+  collections and explicit synchronization policy. Core and the responsive PWA remain complete
+  product paths without an app store or cloud relay.
+- **`1.3.0` — `Cooperatio`.** Adds comments, assignments, review and shared-workspace workflows on
+  the public tenant and permission contracts. Personal single-user operation remains the default.
+- **`1.4.0` — `Conservatio`.** Adds preservation profiles, fixity schedules, signature validation,
+  governed retention and migration evidence. It never turns a technical check into a legal claim.
+
+## Personal use and dissemination contract
+
+Forecast means unavailable. A capability becomes usable only after its exact tag, artifacts,
+support matrix, limitations, migration path and security/privacy evidence are published. This
+table answers two different questions: the earliest sensible personal-use level after publication
+and the audience to whom that same evidence permits dissemination. It is updated in the same
+planning or publication change whenever release scope or order moves.
+
+| Evidence gate | Personal use after verified publication | Dissemination after verified publication |
+| --- | --- | --- |
+| Current published `0.8.0` | Technical personal pilot for local files, search, watched folders and maintenance, with verified backups and no claim that it replaces an established knowledge system. | Small technical early-adopter group within the published Vigilia support perimeter. |
+| `0.9.0` | Document-heavy personal pilot for scans, OCR and richer intake; uncertainty and unsupported formats still require review. | Document-heavy testers selected against the published format/language matrix. |
+| `0.10.0` | Personal photo, audio and video archive pilot with local transcription, OCR and time/region citations where supported. | Multimedia testers who accept explicit model, codec, performance and privacy limits. |
+| `0.11.0` | First recommended personal daily-use beta: coherent Capture, Action Center, recovery and mobile-PWA journeys within the qualified perimeter. | Controlled public beta, with feedback, support and security-reporting paths open. |
+| `0.12.0` | Personal use of evidence-linked claims, decisions, tasks and events after export/import qualification. | Existing beta group; no broader claim until object migration and review UX are proven. |
+| `0.13.0` | Personal productivity connectors and one-way mirrors with explicit write/deletion boundaries. | Connector and NAS-mirror evaluators; provider-specific limitations remain visible. |
+| `0.14.0` | Easier daily navigation, statistics, timeline/gallery/map views and legacy migration without requiring AI. | Broaden the controlled beta only after accessibility, capacity and migration evidence passes. |
+| `0.15.0` | Personal API/MCP and client connections with revocable read-only profiles. | Developer and client preview with versioned conformance examples. |
+| `0.16.0` | Optional local or remote AI use with explicit routing, cost and redaction policy; deterministic operation remains complete without AI. | Privacy-routing evaluators, not general AI marketing. |
+| `0.17.0` | Personal AI-assisted classification and reviewed rules; earliest candidate for replacing a private reference workflow, never an equivalence claim. | Advanced evaluators after prompt-injection, receipt and rollback evidence. |
+| `0.18.0` | Personal grounded semantic search and answer-with-sources where cited evidence is sufficient. | AI/RAG evaluators after permission isolation, citation and rebuild qualification. |
+| `0.19.0` | Dependable always-on personal self-hosting on qualified Linux, Synology or QNAP profiles. | Self-hosted and NAS users after published backup, restore and rollback drills. |
+| `0.20.0` | Desktop power-user operation while the main interface is closed, with visible pause and resource controls. | Windows/macOS power-user preview within the exact platform matrix. |
+| `0.21.0` | Signed desktop installation and safe updates suitable for less-technical personal users. | Broad non-technical desktop preview after signing, backup and rollback qualification. |
+| `0.22.0` | Personal behavior remains unchanged while optional organization/workspace contracts are previewed. | Selected organizational design partners within published isolation and exit boundaries. |
+| `0.23.0` | Release-candidate use on supported personal paths, with compatibility frozen and known blockers public. | Broad structured RC qualification, not general availability. |
+| `1.0.0` | Supported personal daily use inside the final platform, format and operating matrix. | General distribution only for the proven Community, Personal and Business perimeter. |
+| `1.1.0` | User-selected advanced formats and extensions after per-adapter trust review. | Extension developers and specialist-format users through the published SDK contract. |
+| `1.2.0` | Native mobile/offline use where device encryption, revocation and sync limits are qualified. | Mobile users only on explicitly supported stores, systems and device profiles. |
+| `1.3.0` | Optional shared review without weakening the personal single-user path. | Teams after concurrency, audit, export and permission-isolation evidence. |
+| `1.4.0` | Long-term personal archive checks and retention profiles with explicit legal limits. | Preservation and regulated-domain evaluators; no compliance claim without separate evidence. |
+
+The current answer is therefore explicit: `0.8.0` is usable now as a bounded technical personal
+preview; active `0.9.0` work is not available until publication; `0.11.0` is the first planned
+coherent personal daily-use beta and controlled public-beta gate; `0.21.0` is the broad
+non-technical desktop-preview gate; `0.23.0` is broad release-candidate qualification; and
+`1.0.0` is general distribution.
+
+## Release quality, UX, documentation and security cadence
+
+UX, documentation and security are release work, not an end-of-project cleanup. Every feature
+release reserves capacity for the following moments. It cannot enter release preparation while
+any pre-publication moment from `Before activation` through `Release preparation` is missing.
+The `After publication` row is a follow-up obligation, not an entry prerequisite:
+
+| Moment | Required work and evidence |
+| --- | --- |
+| Before activation | Primary personal and operator journeys, non-technical language, EN/IT information architecture, accessibility risks, data/network flow, threat-model delta, support perimeter and documentation outline. |
+| Every bounded slice | Happy, empty, loading, degraded, permission-denied, interrupted and recovery states; keyboard/mobile behavior where applicable; updated user/operator/developer documentation; negative/hostile-input tests; dependency, license and privacy review. |
+| Final quality slice | End-to-end usability sessions, WCAG-oriented accessibility checks, EN/IT semantic parity, migration/rollback and backup/restore drills, performance/resource budgets, security abuse cases, redacted diagnostics, support/format/component matrices and known limits. |
+| Release preparation | Exact version and artifact identity, SBOM/notices, signatures/checksums where supported, vulnerability/advisory evidence, clean-install and N-1 upgrade checks, release notes, website/facts parity and an updated personal-use/dissemination row. |
+| After publication | Bounded feedback triage, documentation corrections, security-response readiness and evidence-based adoption expansion; regressions and security fixes use patch releases without hiding a new feature stream. |
+
+At least one final bounded slice in every feature release is dedicated to cross-cutting quality and
+adoption evidence. Earlier slices still own their UX, documentation and security deltas; the final
+slice is an integration gate, not a place to defer them. A release can narrow its support perimeter
+when evidence is insufficient, but cannot waive a missing destructive-action, privacy, recovery or
+authorization control merely to meet a forecast slot.
 
 ## Public website synchronization contract
 
@@ -148,15 +227,17 @@ The larger editorial updates belong at these evidence gates:
 | --- | --- | --- |
 | Now, published `0.8.0` | Correct version/build labels, Features, Facts, Wishlist and release links in EN/IT; add bounded scheduler, folder-Source, recovery and maintenance documentation. | Invite a small technical early-adopter group for the capabilities actually published in Vigilia; keep active Lectio work visibly unavailable until publication. |
 | Published `0.9.0` | Add OCR/input-format, language, quality and local/cloud privacy matrices. | Invite document-heavy users with an explicit supported-format perimeter. |
-| Published `0.10.0` | Rework the primary use-case path around Capture, Action Center, Operations and mobile PWA onboarding. | Begin a controlled public beta: this is the first coherent daily-use experience. |
-| Published `0.12.0` | Add an integrations/mirrors chooser for Git, local folders and rsync with one-way and deletion boundaries. | Reach users who need portable publication or NAS mirrors without implying mandatory GitHub. |
-| Published `0.14.0` | Publish Knowledge API, MCP, ChatGPT, client-permission and mobile/native conformance guides. | Begin developer/client dissemination with copyable, versioned connection examples. |
-| Published `0.17.0` | Add grounded RAG, citation, privacy-routing, index-health and evaluation explanations. | Reach AI/RAG evaluators only after citation and permission-isolation evidence exists. |
-| Published `0.18.0` | Add Linux, Synology and QNAP deployment, backup/restore and support-matrix pages. | Broaden to self-hosted and NAS users after published restore evidence. |
-| Published `0.20.0` | Add a download centre for signed Windows and notarized macOS installers, channels and updater policies. | Start broad non-technical desktop-preview distribution after rollback qualification. |
-| Published `0.21.0` | Explain actual Business/Cloud contract status, roles and exit paths without implying a managed service exists. | Speak to organizations only within the published preview perimeter. |
-| Published `0.22.0` | Publish the release-candidate matrix, migrations, known limits, feedback/security paths and 1.0 blockers. | Begin broad release-candidate diffusion and structured qualification. |
-| Published `1.0.0` | Make stable install/download the primary call to action and publish final editions, support and compatibility facts. | Begin general distribution only for the support perimeter proven by `0.22.0`. |
+| Published `0.10.0` | Add multimedia/format support, model and codec matrices plus the component, license and update-status catalogue. | Invite multimedia testers without implying that every preserved format is extractable or AI-ready. |
+| Published `0.11.0` | Rework the primary use-case path around Capture, Action Center, Operations and mobile PWA onboarding. | Begin a controlled public beta: this is the first coherent daily-use experience. |
+| Published `0.13.0` | Add an integrations/mirrors chooser for Git, local folders and rsync with one-way and deletion boundaries. | Reach users who need portable publication or NAS mirrors without implying mandatory GitHub. |
+| Published `0.15.0` | Publish Knowledge API, MCP, ChatGPT, client-permission and mobile/native conformance guides. | Begin developer/client dissemination with copyable, versioned connection examples. |
+| Published `0.18.0` | Add grounded RAG, citation, privacy-routing, index-health and evaluation explanations. | Reach AI/RAG evaluators only after citation and permission-isolation evidence exists. |
+| Published `0.19.0` | Add Linux, Synology and QNAP deployment, backup/restore and support-matrix pages. | Broaden to self-hosted and NAS users after published restore evidence. |
+| Published `0.21.0` | Add a download centre for signed Windows and notarized macOS installers, channels and updater policies. | Start broad non-technical desktop-preview distribution after rollback qualification. |
+| Published `0.22.0` | Explain actual Business/Cloud contract status, roles and exit paths without implying a managed service exists. | Speak to organizations only within the published preview perimeter. |
+| Published `0.23.0` | Publish the release-candidate matrix, migrations, known limits, feedback/security paths and 1.0 blockers. | Begin broad release-candidate diffusion and structured qualification. |
+| Published `1.0.0` | Make stable install/download the primary call to action and publish final editions, support and compatibility facts. | Begin general distribution only for the support perimeter proven by `0.23.0`. |
+| Published `1.1.0`–`1.4.0` | Add separate extension, mobile, collaboration and preservation matrices only as each post-stable release is proven. | Expand to specialist audiences one evidence gate at a time; never market the complete post-stable horizon as already available. |
 
 Every website deployment checks EN/IT semantic parity, current release and checksum/provenance
 links, planned-versus-available badges, internal links, structured facts, accessibility,
@@ -216,6 +297,108 @@ as `0.5.0a1`, `0.5.0b1` or `0.5.0rc1` and matching SemVer tags such as
 `0.5.2`, and so on. Collapsed forms such as `0.51` or `0.511` and letter-suffixed package versions
 remain human shorthand only because they do not sort consistently across the Python package,
 Windows updater and release tooling. See [`changelog-policy.md`](changelog-policy.md).
+
+## Universal content representation and file-family contract
+
+Every acquired byte sequence remains an exact, hash-addressed Original. Provelume records one
+format identity and an explicit support level for each Version: **Preserve**, **Inspect**,
+**Extract**, **Preview**, **Local enrich** and **AI enrich**. A higher level is never inferred from
+an extension, MIME claim or successful preservation; the interface shows the effective parser,
+limits, warnings and unsupported operations. Preserve-only is a valid result.
+
+The existing versioned document bundle becomes the first profile of a universal representation
+bundle rather than a PDF-only exception. It remains under
+`state/derived/bundles/<version_id>/<output_fingerprint>/`, contains `manifest.json`, a bounded
+`document.md` when a textual projection exists, typed maps and bounded `assets/`, and is removable
+and rebuildable from the exact Original plus its recorded recipe. Additive maps may include
+`page-map.json`, `time-map.json`, `region-map.json`, `slide-map.json`, `sheet-map.json`,
+`cell-map.json`, `member-map.json` and `symbol-map.json`. They bind Markdown spans and extracted
+assets to exact pages, timestamps, image/frame regions, slides, sheets/cells, archive members or
+code/notebook symbols so search and later citations can reopen the evidence.
+
+There is no automatic `.md` file beside every source file. Human-readable Markdown appears in the
+rebuildable `library/` projection and internal bundles. A later explicit export or one-way mirror
+may materialize sidecars after collision preview, naming policy and manifest comparison; it never
+silently overwrites a user-authored sidecar. OCR/transcription corrections are versioned
+annotations over one exact derived result, with author, time, changed span and evidence anchors;
+they do not mutate the Original or make machine output verified fact.
+
+The Core format registry can grow through bounded profiles without putting provider or parser
+logic into canonical domain records:
+
+| Family | Planned examples | Information and safety perimeter |
+| --- | --- | --- |
+| Documents and ebooks | PDF/PDF-A, DOCX, ODT, RTF, EPUB | Pages/sections, headings, tables, links, comments/revisions and embedded assets; signatures and active content remain separate observations. |
+| Presentations | PPTX, ODP | Slides, speaker notes, reading order, charts and embedded media with slide anchors. |
+| Tables and datasets | CSV, TSV, XLSX, ODS, JSONL, Parquet | Sheets, cells, formulas versus displayed values, types and schema; never execute formulas, macros or external links. |
+| Text, web and technical | TXT, Markdown, HTML, XML, JSON, YAML, logs, source code, IPYNB | Encoding, language, headings, links, symbols and notebook cells; never execute code, scripts, active HTML or notebook output. |
+| Email and personal information | EML, MBOX, MSG, ICS, VCF | Message/thread and attachment identity, participants, recurrence, exceptions and timezone; sending and provider mutation remain separate capabilities. |
+| Web archives and bookmarks | HTML, MHTML, WARC, WACZ and browser bookmark exports | Captured-resource/member provenance, canonical URL and bounded offline rendering with no live remote resource load. |
+| Archives and containers | ZIP, TAR, GZ and 7Z | Member identity, paths, hashes and nesting lineage behind count, size, ratio, depth and time limits; archive bombs and unsafe paths fail closed. |
+| Photos and images | JPEG, PNG, TIFF, BMP, WebP, HEIC/HEIF, AVIF, SVG, DNG and selected RAW profiles | Dimensions, orientation, color/ICC, EXIF/IPTC/XMP, capture time, optional GPS, perceptual duplicate evidence, OCR regions and QR/barcode observations. Metadata display and privacy-preserving removal/export are distinct actions. |
+| Audio | WAV, FLAC, MP3, M4A/AAC, OGG and Opus | Container/codec, tracks, chapters, duration, waveform/energy observations, language, timestamped transcript and optional speaker proposals; uncertainty remains visible. |
+| Video | MP4, MOV, MKV, WebM and AVI | Streams/codecs, duration, chapters, subtitles, scenes, keyframes, timestamped transcript and bounded frame OCR with time/region anchors. |
+| Geospatial | GPX, KML and GeoJSON | Tracks, waypoints, time ranges and coordinate systems with location redaction, precision and sharing controls. |
+| Signed and administrative | P7M/P7S, ASiC-E, PEC/EML, signed PDF and a bounded FatturaPA profile | Payload/member identity, certificate chain, timestamp and technical validation status; no automatic legal-validity or compliance claim. |
+
+Common photo/audio/video profiles belong to `0.10.0`. Advanced office, archive, web, geospatial and
+domain profiles may enter `0.10.0` only when bounded enough; otherwise the public adapter SDK in
+`1.1.0` is their preferred expansion point. Preservation and signature depth belongs to `1.4.0`.
+The support matrix, not this examples list, remains the release-time authority for what is actually
+available.
+
+## Component provenance, licensing and update visibility contract
+
+`0.10.0` adds one EN/IT **Components, models & licenses** surface over the installed runtime and
+its published build evidence. It inventories direct and transitive Python/frontend packages,
+bundled or host-provided native libraries and binaries, parsers/codecs, OCR/ASR engines, model and
+language-pack files, database/search components, container base images and declared operating-
+system prerequisites. A summary remains readable by a non-technical user; filtering and machine-
+readable export expose the complete inventory.
+
+Each component record carries name, category, purpose, installed/effective version, approved or
+pinned version/range, latest-known upstream version, source and project links, package URL where
+available, license/notices, distribution/bundling mode, platform, hash or manifest identity,
+dependency relationship, update route, compatibility state, last successful check and evidence
+timestamp. Closed status includes **current**, **update known**, **ahead of approved**,
+**unverified**, **unsupported/EOL**, **security action**, **missing** and **disabled**. `Latest`
+without a successful dated source check is prohibited; offline operation shows `not checked` or
+the last-known value instead of pretending it is current.
+
+Installed Python metadata and release manifests feed a
+[CycloneDX SBOM](https://cyclonedx.org/specification/overview/); native/model manifests and hashes
+complete what Python metadata cannot observe. A manual check and an optional separately scheduled
+check may query explicitly configured package/project catalogues and
+[OSV-format](https://osv.dev/) advisories. Disabled/offline performs no discovery traffic.
+Checking never runs `pip`, replaces a binary, downloads a model or upgrades an Instance.
+Remediation links to the supported Provelume release/update path, and a component can be
+intentionally pinned while its newer upstream version is shown as incompatible or not yet
+approved.
+
+The initial technology direction is replaceable rather than a hidden stack commitment:
+
+- Tesseract CLI `5.5.3`, selected by `0.9/S01`, remains the first local OCR reference engine;
+- [`pypdfium2`/PDFium](https://pypdfium2.readthedocs.io/) is the preferred candidate for bounded
+  PDF rasterization, subject to its own packaging, binary provenance, license and hostile-file ADR
+  before `0.9/S02` execution;
+- [`faster-whisper`](https://github.com/SYSTRAN/faster-whisper) with CTranslate2 is the preferred
+  Python local-ASR candidate, while
+  [`whisper.cpp`](https://github.com/ggml-org/whisper.cpp) is the lower-runtime alternative to
+  qualify through the same transcript contract;
+- [PyAV](https://pyav.org/docs/stable/) against a separately qualified
+  [FFmpeg](https://ffmpeg.org/) build is the preferred container/stream/frame seam, with
+  [PySceneDetect](https://www.scenedetect.com/docs/latest/) as an optional deterministic
+  scene-boundary adapter;
+- [ExifTool](https://exiftool.org/) is the broad metadata candidate and
+  [ZXing-C++](https://github.com/zxing-cpp/zxing-cpp) the QR/barcode candidate;
+  [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) may later qualify as an alternative
+  OCR/layout adapter but never silently replaces the Tesseract baseline.
+
+Except for the already selected Tesseract version, exact versions and redistribution modes are
+fixed only by an activation-time ADR after license, model/source origin, platform coverage,
+deterministic/offline packaging, size, CPU/GPU/memory budgets, hostile-input behavior, update
+policy and fallback tests pass. Models and language packs are components in their own right; the
+runtime neither downloads nor activates them without an explicit user-selected route.
 
 ## Knowledge representation and navigation contract
 
@@ -355,7 +538,7 @@ silently dropping capture, background work or security controls.
 
 Mobile delivery starts with an installable responsive web/PWA surface, revocable device pairing,
 offline capture outbox and explicit iOS Share Sheet/Shortcut and Android share-target reference
-paths in `0.10.0`. Camera, file, photo/scan, screenshot, URL, text and voice-note capture are
+paths in `0.11.0`. Camera, file, photo/scan, screenshot, URL, text and voice-note capture are
 separate user actions. Minimal recent/search/detail/provenance retrieval can avoid persistent
 device caching; offline knowledge copies, biometric unlock and content-bearing push notifications
 remain independently consented capabilities. Every non-loopback browser connection, including a
@@ -364,16 +547,16 @@ service-worker offline behavior and the PWA share target. Any explicitly support
 fallback disables those capabilities visibly. No connection choice requires a Provelume cloud
 relay.
 
-`0.14.0` freezes mobile client profiles and conformance fixtures so optional native iOS and Android
+`0.15.0` freezes mobile client profiles and conformance fixtures so optional native iOS and Android
 companions or third-party clients can replace the reference paths without changing Core. Native
 app-store distribution is a separately qualified delivery decision, not a prerequisite for the
 PWA, API or self-hosted product. Device loss or revocation stops future access without deleting
 knowledge already preserved in the Instance.
 
-`0.19.0` adds a qualified macOS application/menu-bar and per-user LaunchAgent beside the Windows
+`0.20.0` adds a qualified macOS application/menu-bar and per-user LaunchAgent beside the Windows
 launcher/tray agent. Selected-folder access, Keychain credential references, path normalization,
 sleep/wake, removable/network volumes, Apple Silicon and any retained Intel support are explicit
-matrix entries. `0.20.0` then adds Windows code signing and macOS Developer ID signing,
+matrix entries. `0.21.0` then adds Windows code signing and macOS Developer ID signing,
 notarization and stapling; Time Machine and other host backups remain external replicas until a
 Provelume manifest verification proves a restorable backup.
 
@@ -381,7 +564,7 @@ Provelume manifest verification proves a restorable backup.
 
 RAG is a versioned retrieval interface over canonical Provelume knowledge, not another canonical
 store, an opaque chat history or a requirement to publish documents to Git. Deterministic
-full-text retrieval is available first; `0.14.0` freezes its API/MCP contract and `0.17.0` adds
+full-text retrieval is available first; `0.15.0` freezes its API/MCP contract and `0.18.0` adds
 semantic and hybrid ranking behind that same contract. A Git or filesystem mirror may remain an
 independently selected client context, but direct API/MCP retrieval is the authoritative path for
 current permissions, provenance and index freshness.
@@ -406,7 +589,7 @@ open an evidence citation and retrieve an authorized document section. A retriev
 query/profile identity, filters, authorized candidate/result identities, index generations,
 selected evidence and token/size budget without copying private content into operational logs.
 ChatGPT, a local model or another client may generate from that context. An optional
-`answer-with-sources` operation in `0.17.0` uses the `0.15.0` AI gateway and the same receipt; it is
+`answer-with-sources` operation in `0.18.0` uses the `0.16.0` AI gateway and the same receipt; it is
 read-only, cites every supported assertion, distinguishes insufficient or conflicting evidence
 and never converts an answer into classification or another durable write.
 
@@ -470,9 +653,10 @@ application, runtime slots, automatic rollback, interrupted-update recovery, Ins
 
 This independently releasable product shell displaced the former `0.4.0` forecast. At its
 publication, every later unreleased `0.x` slot moved forward atomically through the then-current
-`0.21.0` release candidate. The later productivity-connector insertion documented below moves the
-current release candidate to `0.22.0`; stable `1.0.0` now depends on `0.22.0`. Earlier published
-history remains unchanged. See [`releases/0.4.0.md`](releases/0.4.0.md).
+`0.21.0` release candidate. The later productivity-connector insertion moved that candidate to
+`0.22.0`; the Perceptio insertion now moves it to `0.23.0`. Stable `1.0.0` depends on `0.23.0`,
+while earlier published history remains unchanged. See
+[`releases/0.4.0.md`](releases/0.4.0.md).
 
 ### 0.4.1 — Windows Product Shell Hardening
 
@@ -696,7 +880,7 @@ The first maintenance catalogue covers incremental or full FTS reindex, Markdown
 Source reconciliation, Instance validation, Original assurance, duplicate scan and verified backup
 creation/verification to an explicit target. These actions can use the scheduler while the current
 runtime is active; always-on execution while the interface is closed depends on the qualified
-self-hosted or desktop agents in `0.18.0` and `0.19.0`. Reindex and library work mutate only
+self-hosted or desktop agents in `0.19.0` and `0.20.0`. Reindex and library work mutate only
 rebuildable generations. Validation and assurance remain read-only, and no timer can authorize
 repair, purge, retention deletion or destination cleanup.
 
@@ -733,7 +917,7 @@ pretends uncertain handwriting is verified text.
 
 Native OCR and image/PDF processing run behind bounded resource, decompression, page, pixel and
 time limits with hostile/corrupt fixtures. Local OCR is the offline baseline. A later remote OCR or
-vision provider must pass through the `0.15.0` AI/privacy gateway and cannot become a silent
+vision provider must pass through the `0.16.0` AI/privacy gateway and cannot become a silent
 fallback.
 
 The release also includes provider-neutral email, file and transcript Sources; local EML/mailbox
@@ -761,7 +945,93 @@ pre-existing #5 and owner PR #138. S01 defines the contract, licensing and optio
 only; it ships no OCR execution adapter. `0.9/S02` is the next forecast-only slice and has no
 issue, branch or owner pull request. S03–S06 likewise have no operational issues.
 
-### 0.10.0 — Unified Capture, Operations and Action Center
+### 0.10.0 — Multimedia, Universal Content Representations and Component Inventory
+
+**Depends on:** the `0.8.0` durable job/resource foundation, the `0.9.0` OCR and richer-intake
+contracts, and the existing versioned document-bundle boundary.
+
+**Outcome:** make photos, audio, video and further common files durable, searchable and citable
+without creating loose source-side transcripts or letting one media engine become canonical
+knowledge.
+
+**Includes:** universal representation bundle v1 and the explicit Preserve/Inspect/Extract/
+Preview/Local-enrich/AI-enrich support matrix; additive page, time, region, slide, sheet, cell,
+member and symbol anchors; derived-artifact recipe and engine/model identity; versioned human
+correction annotations; deterministic rebuild and export behavior; gallery, player, waveform,
+transcript/subtitle and metadata preview contracts that later browser/mobile surfaces share.
+
+Photo/image work covers bounded JPEG, PNG, TIFF, BMP and selected WebP/HEIC/HEIF/AVIF profiles;
+orientation and color metadata; EXIF/IPTC/XMP and capture-time extraction; explicit GPS privacy,
+precision and redaction controls; perceptual-duplicate proposals distinct from exact-byte
+identity; page/region OCR using the `0.9.0` contract; and separately identified QR/barcode
+observations. RAW/DNG support may begin as Preserve/Inspect/embedded-preview rather than claiming
+full decode parity.
+
+Audio work covers bounded WAV, FLAC, MP3, M4A/AAC, OGG and Opus profiles; container, codec,
+duration, track and chapter observations; local ASR behind a replaceable adapter; explicit model,
+language, quantization/device and decoding settings; segment and optional word timestamps;
+confidence/warnings; and `time-map.json` links into normalized Markdown. Speaker diarization is an
+optional proposal with explicit model/license/consent and uncertainty, not a biometric identity or
+verified participant record.
+
+Video work covers bounded MP4, MOV, MKV, WebM and AVI profiles; stream/codec, duration, chapter and
+embedded-subtitle inspection; local audio extraction into the same ASR contract; deterministic
+scene boundaries and bounded keyframes; selected-frame OCR; and combined time/region anchors.
+Unsupported codecs or encrypted streams remain preserved and visible without pretending they can
+be previewed. Provelume neither records a camera/microphone continuously nor imports a live feed
+through this release.
+
+Common office, presentation, table/data, notebook, PIM, web-archive, container, geospatial and
+signed-administrative profiles use the same registry. `0.10.0` implements only the bounded profiles
+whose parser, active-content, decompression, privacy and platform gates pass; the rest remain
+explicit Preserve/Inspect entries or move to `1.1.0`/`1.4.0`. Macros, formulas, scripts, notebooks,
+HTML and embedded attachments are never executed during identification, extraction or preview.
+
+The EN/IT Components, models & licenses interface lists every effective direct/transitive,
+bundled, native, model, language-pack, codec and host prerequisite with installed, approved and
+latest-known versions, source/license/project links, hashes/PURL, dependency relation, last-check
+evidence, security/EOL state and supported update route. Manual and optional scheduled checks are
+separate from update application; offline mode performs no check, and no engine/model/package is
+downloaded or upgraded in place merely because a newer upstream version exists.
+
+The first implementation candidates are the already selected Tesseract `5.5.3`, a separately
+qualified PDFium rasterization adapter, faster-whisper/CTranslate2 with whisper.cpp as an
+alternative local-ASR implementation, PyAV with a qualified FFmpeg build, PySceneDetect,
+ExifTool and ZXing-C++. Each remains behind a public contract and receives an activation-time ADR,
+version lock, license/notices, SBOM/model manifest, platform/support matrix and hostile-input
+qualification. PaddleOCR remains a later alternative adapter rather than a silent new baseline.
+
+Remote speech, vision, OCR or multimodal inference is excluded until the `0.16.0` gateway can
+enforce local-only, consent, minimization, redaction, budget and provider policy. Deterministic
+metadata, local extraction and exact Originals remain useful with every AI/model adapter disabled.
+
+**Exit gate:** deleting every media representation and index then rebuilding produces equivalent
+manifested outputs without changing canonical knowledge; transcript, subtitle, page/time/region
+citations reopen exact evidence; corrupt, oversized, deeply nested, adversarial and unsupported
+inputs fail within declared CPU/GPU/memory/disk/time limits; disabled/offline causes no model,
+catalogue or provider traffic; GPS and sensitive metadata never leak into default exports or
+notifications; component inventory agrees with installed/release SBOM evidence; and UX,
+accessibility, EN/IT, documentation, licensing, backup/restore and security gates from the common
+quality cadence are complete.
+
+**Not in this release:** face recognition or identity matching; emotion or sensitive-trait
+inference; surveillance/live capture; generative media; autonomous summaries, decisions or
+classification; unreviewed speaker identity; a cloud requirement; automatic model downloads; or a
+claim that every preserved file is extractable, previewable or semantically searchable.
+
+**Suggested slices:** `0.10/S01` universal representation and support-registry contract;
+`0.10/S02` installed/release component inventory plus EN/IT catalogue; `0.10/S03` photo metadata,
+privacy, duplicate and OCR profiles; `0.10/S04` local audio transcription and time anchors;
+`0.10/S05` video streams, subtitles, scenes, keyframes and frame OCR; `0.10/S06` bounded additional
+file-family profiles; `0.10/S07` correction/preview UX plus end-to-end accessibility,
+documentation, hostile-input, performance, licensing and recovery qualification.
+
+This independently releasable outcome takes the former `0.10.0` slot. Every later unreleased
+forecast moves forward atomically by one through the `0.23.0` release candidate while stable
+`1.0.0` remains unchanged. `0.9.x` stays reserved for corrections, security work and regressions
+belonging to Lectio; multimedia is not hidden in a `0.9.5` feature release.
+
+### 0.11.0 — Unified Capture, Operations and Action Center
 
 **Depends on:** durable ingestion, hierarchical classification, Sources and the `0.8.0`
 refresh/job foundation.
@@ -795,6 +1065,12 @@ confidence, impact, reversibility and a bounded choice set. Users can confirm or
 hierarchical Area/Project placement, create a reusable non-destructive routing rule, link an exact
 duplicate occurrence, or choose new-version/separate/related handling for probable duplicates.
 Destructive and identity-changing decisions never become automatic rules.
+
+The review surface also provides synchronized page/image/audio/video evidence for OCR and
+transcript corrections, including low-confidence navigation, keyboard editing, segment merge/split,
+speaker-label proposals and before/after diff. Corrections remain versioned annotations bound to
+the exact engine/model result and page/time/region anchors; accepting one never rewrites the
+Original or silently retrains, identifies a person or changes a canonical fact.
 
 An Operations & Maintenance view lists every schedule and current/recent job with scope, policy,
 last attempt/success, next due time, progress, throughput, checkpoint, resource wait, retry time
@@ -830,20 +1106,20 @@ retain every Acquisition; probable duplicates remain separate until decided; ign
 cause no destructive action; and capture creates no automatic Claim, Decision, Task or
 CalendarEvent before review.
 
-**Not in this release:** reading arbitrary private chats; automatic audio transcription; mandatory
-cloud relay; WhatsApp Cloud API integration; or autonomous classification and durable writes.
+**Not in this release:** reading arbitrary private chats; mandatory cloud relay;
+WhatsApp Cloud API integration; or autonomous classification and durable writes.
 WhatsApp remains a later candidate only through a dedicated Business number/API flow, never by
 scraping or impersonating a personal WhatsApp account.
 
-**Suggested slices:** `0.10/S01` Action Center state model and local queues; `0.10/S02` Operations &
-Maintenance schedules, job control and interruption recovery; `0.10/S03`
-classification/duplicate/version-conflict decisions and reusable safe routing; `0.10/S04` mobile
-PWA capture, device pairing and offline retry; `0.10/S05` iOS, Android, Drive-drop and Telegram
-reference paths; `0.10/S06` mobile retrieval, authorization and end-to-end assurance fixtures.
+**Suggested slices:** `0.11/S01` Action Center state model and local queues; `0.11/S02` Operations &
+Maintenance schedules, job control and interruption recovery; `0.11/S03`
+classification/duplicate/version-conflict decisions and reusable safe routing; `0.11/S04` mobile
+PWA capture, device pairing and offline retry; `0.11/S05` iOS, Android, Drive-drop and Telegram
+reference paths; `0.11/S06` mobile retrieval, authorization and end-to-end assurance fixtures.
 
-### 0.11.0 — Knowledge Objects v1
+### 0.12.0 — Knowledge Objects v1
 
-**Depends on:** `0.10.0` review flow.
+**Depends on:** `0.11.0` review flow.
 
 **Outcome:** move beyond document-only knowledge with explicit canonical objects and evidence.
 
@@ -857,10 +1133,10 @@ API and review workflow.
 **Exit gate:** objects round-trip through export/import, retain provenance through document
 version changes and never replace the authoritative original.
 
-### 0.12.0 — Productivity and Git Connectors with Guarded Sync Preview
+### 0.13.0 — Productivity and Git Connectors with Guarded Sync Preview
 
-**Depends on:** the `0.7.0` connector contract, `0.8.0` refresh engine, `0.10.0` review
-queue and `0.11.0` provider-independent Task and CalendarEvent objects.
+**Depends on:** the `0.7.0` connector contract, `0.8.0` refresh engine, `0.11.0` review
+queue and `0.12.0` provider-independent Task and CalendarEvent objects.
 
 **Outcome:** connect common personal productivity and Git mirror systems without making Google,
 iCalendar, Asana, Tududi, GitHub or another host part of canonical knowledge or granting
@@ -905,7 +1181,7 @@ Remote failure, non-fast-forward state or rejected credentials leave canonical k
 last valid mirror untouched. Remote deletion never causes local deletion, and local archive/purge
 never rewrites remote history. Bidirectional multi-master Git synchronization remains excluded; a
 remote repository may instead be imported through the explicit legacy-import boundary in
-`0.13.0`.
+`0.14.0`.
 
 A provider-independent filesystem mirror capability qualifies a local-folder target and an
 `rsync` over SSH reference profile beside Git. It publishes only from an atomically completed
@@ -925,7 +1201,7 @@ to an Original store, canonical Instance, backup inventory or unknown destinatio
 approval is bound to the exact source and destination manifests used by that preview; any change
 invalidates the plan and requires a fresh preview and confirmation before transfer or deletion.
 Rsync is a transport and mirror mechanism, not evidence that a backup is complete or restorable;
-verified backup replication and restore drills are qualified separately in `0.18.0`.
+verified backup replication and restore drills are qualified separately in `0.19.0`.
 Bidirectional rsync or two concurrently writable Instances remain excluded.
 
 **Exit gate:** multiple Google accounts, Asana identities/workspaces/projects, Tududi endpoints,
@@ -944,15 +1220,14 @@ mandatory backup; or a mandatory 1.0 commitment for additional adapters such as 
 contracts; implement shared mirror identity/staging/dry-run first, then Git publication, hosted
 profiles and the local/rsync one-way adapter without mixing them with task write-back.
 
-This independently releasable outcome takes the former `0.12.0` slot. Every later unreleased
-forecast moves forward atomically by one through the `0.22.0` release candidate. Published
-history, the numbering and relative order of `0.5.0`–`0.11.0`, and stable `1.0.0` remain
-unchanged; the Inbox/library/assurance expansions in `0.5.0`, `0.6.0` and `0.10.0`, and the
-connector-related scope expansions in `0.7.0`–`0.11.0`, are explicit above.
+This independently releasable outcome originally took the former `0.12.0` slot and moved every
+later forecast through the then-current `0.22.0` release candidate. The Perceptio insertion above
+now moves it to `0.13.0` and shifts every later unreleased release through `0.23.0`. Published
+history, stable `1.0.0`, scope and relative order remain unchanged.
 
-### 0.13.0 — Knowledge Navigation, Statistics, Relations and Deterministic Discovery
+### 0.14.0 — Knowledge Navigation, Statistics, Relations and Deterministic Discovery
 
-**Depends on:** `0.11.0` objects.
+**Depends on:** `0.10.0` representation anchors and `0.12.0` objects.
 
 **Outcome:** make documents and objects coherently navigable, measurable and diagnosable before
 introducing embeddings.
@@ -965,6 +1240,12 @@ related document/object views with a visible reason for each suggestion; an opti
 relation graph; explainable stale/conflict/missing-evidence/superseded/orphaned health states;
 deterministic detectors; full-text object/relation search; filters; documented ranking; portable
 references and complete navigation/relation-index rebuild.
+
+Media navigation adds gallery and contact-sheet views, capture and provenance timelines, audio/
+video players synchronized with transcript/subtitle and scene anchors, and an optional map for
+items whose location policy permits it. Time, page, slide, sheet/cell and image/frame-region
+citations remain openable without AI. Location is hidden or coarsened by default in shared/exported
+views, and no face cluster, speaker label or similarity result becomes a verified identity.
 
 A local Statistics & Capacity view reports timestamped counts and exact bytes across Sources,
 Acquisitions, Documents, Versions, Originals, derived bundles, indexes, library projections,
@@ -995,7 +1276,7 @@ reconcilable without duplicate Documents or lost source bytes.
 before the generic legacy-import profile; qualify import through synthetic folder/sidecar/link
 fixtures in a separate final slice.
 
-### 0.14.0 — Knowledge API v1, Read-only MCP and Client Connections
+### 0.15.0 — Knowledge API v1, Read-only MCP and Client Connections
 
 **Depends on:** stable object and discovery contracts.
 
@@ -1011,10 +1292,15 @@ recent/search/detail/provenance/original-download plus mobile-client conformance
 distinct from read-only MCP tools for search and retrieval; aligned CLI/browser services;
 reference clients; version negotiation and pre-1.0 deprecation policy.
 
+Representation endpoints expose capability/support state plus bounded page, time, region, slide,
+sheet/cell, member and symbol anchors. Clients request a preview, transcript span, keyframe or
+metadata class through authorized handles rather than receiving an ambient filesystem path or an
+unbounded media stream.
+
 Read-only retrieval tools separately search knowledge, assemble a bounded context from result
 handles, open an exact evidence citation and retrieve an authorized document section. Responses
 use the shared evidence-reference and retrieval-receipt schemas, expose deterministic rank and
-freshness, and retain the same shape when `0.17.0` later adds semantic ranking. Context assembly
+freshness, and retain the same shape when `0.18.0` later adds semantic ranking. Context assembly
 never grants broader access than the search that produced the handles, and client-supplied handles
 are reauthorized at use time.
 
@@ -1038,9 +1324,9 @@ knowledge, local paths, secrets or writes.
 search/context/citation MCP second, then qualify remote authentication, mobile/native profiles and
 private transport without adding write authority.
 
-### 0.15.0 — AI Gateway and Privacy Routing
+### 0.16.0 — AI Gateway and Privacy Routing
 
-**Depends on:** `0.14.0` contracts and `0.2.0` network transparency.
+**Depends on:** `0.15.0` contracts and `0.2.0` network transparency.
 
 **Outcome:** introduce inference as a replaceable adapter, never as the foundation of canonical
 knowledge.
@@ -1062,9 +1348,9 @@ silently replaces the local `0.9.0` OCR path.
 **Exit gate:** local-only fails closed, provider substitution leaves canonical knowledge intact,
 and denied data never reaches a provider in policy tests.
 
-### 0.16.0 — AI Classification, Receipts, Provider Adapters and Evaluation
+### 0.17.0 — AI Classification, Receipts, Provider Adapters and Evaluation
 
-**Depends on:** `0.15.0` gateway.
+**Depends on:** `0.16.0` gateway.
 
 **Outcome:** complete the user-controlled folder-to-knowledge path by making AI-assisted
 classification attributable, reviewable, safely applicable and replaceable.
@@ -1093,7 +1379,7 @@ content-leakage checks fail closed before an Action Center proposal exists.
 
 An optional guarded MCP profile may submit a classification proposal or confirm an already visible
 proposal through the same optimistic-concurrency and approval boundary; it never turns the
-`0.14.0` read-only profile into implicit write authority. The end-to-end reference workflow proves
+`0.15.0` read-only profile into implicit write authority. The end-to-end reference workflow proves
 watched-folder acquisition, exact Original preservation, extraction/OCR, privacy-routed inference,
 review or confirmed-rule application, hierarchy/library rebuild, direct MCP retrieval and optional
 one-way Git publication as independently selectable steps.
@@ -1104,13 +1390,13 @@ create or broaden a proposal; disabling AI stops inference without stopping dete
 ingestion; the complete folder-to-knowledge workflow can be paused, retried and reconciled without
 duplicate knowledge or Original loss; and logs contain neither secrets nor raw private content.
 
-**Suggested slices:** `0.16/S01` receipts/templates/evaluation; `0.16/S02` closed classification
-proposals; `0.16/S03` review, rule and guarded-apply modes; `0.16/S04` adversarial isolation and
-optional write-scoped MCP; `0.16/S05` complete folder-to-knowledge qualification.
+**Suggested slices:** `0.17/S01` receipts/templates/evaluation; `0.17/S02` closed classification
+proposals; `0.17/S03` review, rule and guarded-apply modes; `0.17/S04` adversarial isolation and
+optional write-scoped MCP; `0.17/S05` complete folder-to-knowledge qualification.
 
-### 0.17.0 — Semantic, Hybrid and Grounded RAG Retrieval
+### 0.18.0 — Semantic, Hybrid and Grounded RAG Retrieval
 
-**Depends on:** `0.16.0` gateway and receipts.
+**Depends on:** `0.10.0` representation anchors and the `0.17.0` gateway and receipts.
 
 **Outcome:** add semantic and grounded RAG retrieval through the stable client contract while
 keeping every chunk, embedding and index entirely derived and replaceable.
@@ -1121,6 +1407,12 @@ Version-bound indexing plus manual or scheduled complete rebuild from canonical 
 model/store migration; explainable full-text plus semantic ranking and optional reranking;
 consistent pre-retrieval authorization filters; stale, incompatible and missing-index health;
 index/chunk/vector counts and bytes, coverage, lag, generation age and rebuild progress.
+
+Text and transcript spans are indexed first. Optional image/keyframe/audio embeddings and
+multimodal reranking may join only through the same page/time/region evidence handles, independent
+adapter generations and privacy policy. A caption, OCR region, speaker proposal or visual
+similarity is never promoted to canonical fact, and disabling or rebuilding a multimodal index
+leaves deterministic metadata/text retrieval complete.
 
 The primary RAG boundary remains retrieval rather than a proprietary chat surface. API/MCP clients
 receive bounded passages with exact Version, Original, page/section/span and index-generation
@@ -1135,7 +1427,7 @@ citations resolve after incremental updates; removed or unauthorized content dis
 the next query; and synthetic RAG evaluation detects unsupported citations, prompt-injection scope
 expansion and cross-scope leakage.
 
-### 0.18.0 — Self-hosted, Synology and QNAP Operations
+### 0.19.0 — Self-hosted, Synology and QNAP Operations
 
 **Depends on:** `0.6.0` lifecycle and mature application contracts.
 
@@ -1193,9 +1485,9 @@ always-on scheduler; Synology/DSM profile; QNAP QTS/QuTS hero profile; encrypted
 restore drill and container-update recovery; final support-matrix qualification remain separate
 owner slices.
 
-### 0.19.0 — Windows and macOS Background Agents and Bootstrap Completion
+### 0.20.0 — Windows and macOS Background Agents and Bootstrap Completion
 
-**Depends on:** the `0.4.0` product shell preview and `0.18.0` operations.
+**Depends on:** the `0.4.0` product shell preview and `0.19.0` operations.
 
 **Outcome:** converge the early Windows product shell with mature operations and add a native-feel
 macOS bootstrap, so both desktop systems can run watched intake and maintenance without an open
@@ -1229,9 +1521,9 @@ processing, hidden network activity or deletion of user knowledge.
 then qualify Windows startup/tray/optional-service and macOS app/menu-bar/LaunchAgent behavior in
 separate slices before cross-platform recovery fixtures.
 
-### 0.20.0 — Signed Desktop Releases and Safe Updaters
+### 0.21.0 — Signed Desktop Releases and Safe Updaters
 
-**Depends on:** `0.19.0` bootstrap and the verified release chain.
+**Depends on:** `0.20.0` bootstrap and the verified release chain.
 
 **Outcome:** complete the Windows and macOS lifecycle with authenticated installers, backup,
 health, safe self-update and rollback.
@@ -1277,7 +1569,7 @@ policy and maintenance window; and tampered, revoked, unnotarized, incompatible,
 interrupted updates fail safely while the previous healthy runtime and Instance remain
 recoverable.
 
-### 0.21.0 — Business and Cloud Contracts Preview
+### 0.22.0 — Business and Cloud Contracts Preview
 
 **Depends on:** stable API, packaging and enforceable privacy boundaries.
 
@@ -1292,7 +1584,7 @@ provider-neutral encryption/KMS boundary; isolation and authorization conformanc
 **Exit gate:** personal self-hosted behavior remains intact and the same public contracts pass
 cross-tenant isolation tests without vendor-specific domain logic.
 
-### 0.22.0 — 1.0 Release Candidate
+### 0.23.0 — 1.0 Release Candidate
 
 **Depends on:** every release required by the approved 1.0 support perimeter.
 
@@ -1300,9 +1592,9 @@ cross-tenant isolation tests without vendor-specific domain logic.
 
 **Includes:** Instance, Knowledge API/MCP/RAG and artifact contract freeze; supported migration,
 upgrade and rollback matrix; export/import and Windows/macOS/Linux interoperability;
-watched-folder/OCR/
-classification/Git/rsync-mirror end-to-end qualification; scheduler, interruption, maintenance,
-statistics and low-space recovery; generic Linux plus documented Synology and QNAP operations;
+watched-folder/OCR/photo/audio/video representation/transcription/classification/Git/rsync-mirror
+end-to-end qualification; component/model/license inventory agreement; scheduler, interruption,
+maintenance, statistics and low-space recovery; generic Linux plus documented Synology and QNAP operations;
 Windows and macOS background-agent and updater recovery; mobile/PWA capture and retrieval;
 no-GitHub, no-rsync, no-external-AI and local-only tests; provider replacement and vector rebuild;
 at least two real clients; citation and permission-isolation tests; synthetic performance limits;
@@ -1314,7 +1606,7 @@ Website/release/facts parity must keep every forecast feature visibly unavailabl
 
 ### 1.0.0 — Stable Provenance-first Platform
 
-**Depends on:** successful `0.22.0` qualification.
+**Depends on:** successful `0.23.0` qualification.
 
 **Outcome:** declare the proven support perimeter stable; do not add new functionality during
 release preparation.
@@ -1328,6 +1620,97 @@ surfaces; immutable stable tag from the reviewed `main` result.
 portable, provider independence and no-AI/no-GitHub modes pass, update/rollback is supported,
 trust/privacy claims are evidence-backed, and self-hosted, Dedicated and Cloud use the same
 public Core contracts.
+
+### 1.1.0 — Public Adapter SDK and Advanced Format Profiles
+
+**Depends on:** the stable `1.0.0` API, representation, component and permission contracts.
+
+**Outcome:** let specialist formats and providers evolve without putting their libraries,
+licenses or failure modes inside the canonical Core.
+
+**Includes:** versioned adapter manifests and SDK for identification, metadata, extraction,
+preview, local enrichment and connector profiles; generated schemas and conformance fixtures;
+out-of-process resource limits where native/hostile parsing requires them; explicit filesystem,
+network, secret, model and canonical-write capabilities; install/disable/remove lifecycle; signed
+or hash-verified package evidence; compatibility negotiation; and integration with Components,
+models & licenses, diagnostics and portable export. Initial advanced profiles may cover bounded
+office/presentation/table, archive/web-archive, geospatial and signed-administrative families left
+at Preserve/Inspect in `0.10.0`.
+
+**Exit gate:** a synthetic third-party adapter can be installed, inspected, denied authority,
+upgraded, disabled and removed without corrupting canonical state; malicious or incompatible
+adapters fail inside declared boundaries; and a complete Core path works with every extension
+disabled. UX, developer documentation, threat model, SDK security guidance and conformance
+versioning pass the common quality cadence.
+
+**Not in this release:** an unreviewed public marketplace, arbitrary in-process code with ambient
+authority, mandatory online activation or an extension that makes its proprietary state canonical.
+
+### 1.2.0 — Native Mobile Companions and Encrypted Offline Collections
+
+**Depends on:** `1.0.0` stable client profiles and `1.1.0` extension/conformance boundaries.
+
+**Outcome:** add native-feel mobile capture and selected offline reading while one portable
+Instance remains authoritative and the PWA remains complete.
+
+**Includes:** optional iOS and Android companions; secure device pairing, hardware-backed key
+references where available, biometric-gated local unlock as a separate consent, encrypted selected
+offline collections, bounded background capture upload, download/cache expiry, revocation,
+conflict-visible annotation outbox and explicit Wi-Fi/metered/battery policy. Synchronization is
+Instance-authoritative and scope-selected; it is not hidden multi-master replication. Push
+notifications remain content-free by default and no cloud relay is required.
+
+**Exit gate:** loss, revocation, reinstall, offline edits, interrupted synchronization and key-loss
+fixtures preserve the authoritative Instance, expose unrecoverable local-cache limits and leak no
+content through notifications or backups. Store/privacy disclosures, accessibility, mobile UX,
+support matrix and security review pass before dissemination.
+
+**Not in this release:** ambient photo-library ingestion, always-on microphone/camera access,
+silent full-library replication or mandatory Apple, Google or Provelume cloud storage.
+
+### 1.3.0 — Collaboration, Review and Shared-workspace Workflows
+
+**Depends on:** the `0.22.0` organization/role contracts and stable export, audit and permission
+isolation.
+
+**Outcome:** add optional human collaboration without changing the personal single-user default or
+forking the public Core.
+
+**Includes:** comments and mentions; review requests, assignments and due state; shared Action
+Center decisions; presence-free optimistic concurrency; compare/merge proposals for supported
+canonical edits; bounded share links; workspace notifications; content-minimizing audit; role and
+Area/Project policy; and complete tenant/workspace export and offboarding. Destructive decisions,
+identity merges, retention changes and external writes retain explicit authority and impact
+preview.
+
+**Exit gate:** concurrent, stale, revoked and cross-tenant actions cannot overwrite newer state or
+leak excluded knowledge; every durable collaboration action retains actor, scope and evidence;
+offboarding is portable; and personal mode incurs no account, network or collaboration dependency.
+
+**Not in this release:** opaque social feeds, public-by-default sharing, workplace surveillance or
+provider-specific collaboration state that cannot be exported.
+
+### 1.4.0 — Long-term Preservation, Signatures and Governed Retention
+
+**Depends on:** stable Originals/provenance, the adapter SDK and qualified backup/restore paths.
+
+**Outcome:** make long-lived archives easier to verify and migrate while keeping legal and policy
+claims separate from technical evidence.
+
+**Includes:** scheduled fixity and readability checks; format-risk and obsolescence observations;
+preservation package/export profiles; documented lossless or lossy migration proposals with exact
+before/after hashes and retained Originals; PDF/A, WARC/WACZ and selected archival-profile
+validation through replaceable adapters; P7M/P7S, ASiC-E, PEC and PDF signature/certificate/
+timestamp technical observations; retention schedules, legal-hold markers, disposition review and
+separation-of-duty hooks; key/certificate expiry warnings; and restore plus migration drills.
+
+**Exit gate:** every migration and disposition remains previewed, attributable, reversible where
+claimed and independently exportable; validation identifies the exact profile/tool/trust store and
+time; expired, revoked, unknown or offline-uncheckable evidence stays explicit; and no technical
+result is presented as legal advice, regulatory certification or guaranteed future readability.
+
+**Not in this release:** silent format conversion, automatic destruction at retention expiry,
+provider-locked keys/trust stores or a universal compliance claim.
 
 ## Cross-cutting work without an activated release slot
 
