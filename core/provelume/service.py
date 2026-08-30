@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .connectors import ConnectorManager
+from .folder_source_model import SOURCE_LIFECYCLE_STATES, FolderSourceError
+from .folder_sources import FolderSourceManager
 from .hierarchy import HierarchyManager
 from .index import (
     index_status,
@@ -31,7 +34,7 @@ from .paths import UnsafePathError
 from .portable_transfer import PortableInstanceTransfer
 from .retention import DocumentRetentionManager
 from .retention_model import DISPOSITION_FILTERS, effective_dispositions
-from .scheduler import SchedulerCoordinator, public_job_record
+from .scheduler import SchedulerCoordinator, public_job_record, schedule_payload
 from .scheduler_model import SchedulerBusyError
 from .storage import InstanceStore
 from .web_acquisition import ManualWebAcquisitionManager
@@ -51,6 +54,7 @@ class ProvelumeInstance:
         self.hierarchy = HierarchyManager(self.store)
         self.library = LibraryProjectionManager(self.store)
         self.content = DocumentContentReader(self.store)
+        self.folder_sources = FolderSourceManager(self.store)
         self.scheduler = SchedulerCoordinator(self.store)
         try:
             recovery = self.scheduler.recover()
@@ -217,6 +221,128 @@ class ProvelumeInstance:
 
     def list_scheduler_receipts(self, *, limit: int = 100) -> list[dict[str, Any]]:
         return self.scheduler.journal.list_receipts(limit=limit)
+
+    def register_folder_source(
+        self,
+        path: Path | str,
+        *,
+        name: str,
+        source_class: str = "local",
+        lifecycle_state: str = "enabled",
+        quiescence_seconds: int = 5,
+        stable_observations: int = 2,
+        max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
+        max_files: int = DEFAULT_MAX_FILES,
+        schedule: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        selected_schedule = schedule or schedule_payload(mode="manual", timezone="UTC")
+        with InstanceLifecycleManager(self.store)._hold(purpose="folder-source-register"):
+            source = self.folder_sources.register(
+                path,
+                name=name,
+                source_class=source_class,
+                lifecycle_state=lifecycle_state,
+                quiescence_seconds=quiescence_seconds,
+                stable_observations=stable_observations,
+                max_file_bytes=max_file_bytes,
+                max_files=max_files,
+            )
+            policy_id = source.get("policy_id")
+            policy = (
+                self.scheduler.journal.get_policy(str(policy_id))
+                if isinstance(policy_id, str)
+                else None
+            )
+            if policy is not None:
+                if (
+                    policy["job_kind"] != "source.refresh"
+                    or policy["scope"]
+                    != {"kind": "source", "id": str(source["id"])}
+                    or policy["state"] != lifecycle_state
+                ):
+                    raise FolderSourceError(
+                        "folder Source scheduler policy binding is inconsistent"
+                    )
+                if policy["schedule"] != selected_schedule:
+                    raise FolderSourceError(
+                        "folder Source schedule already exists; update its policy explicitly"
+                    )
+            if policy is None:
+                matches = [
+                    item
+                    for item in self.scheduler.journal.list_policies()
+                    if item.get("job_kind") == "source.refresh"
+                    and item.get("scope") == {"kind": "source", "id": source["id"]}
+                ]
+                if len(matches) > 1:
+                    raise FolderSourceError(
+                        "folder Source has more than one refresh policy"
+                    )
+                policy = matches[0] if matches else None
+            if policy is None:
+                policy = self.scheduler.journal.create_policy(
+                    job_kind="source.refresh",
+                    scope={"kind": "source", "id": str(source["id"])},
+                    state=lifecycle_state,
+                    schedule=selected_schedule,
+                )
+            source = self.folder_sources.link_policy(str(source["id"]), str(policy["id"]))
+            return {**source, "policy": policy}
+
+    def set_folder_source_state(self, source_id: str, state: str) -> dict[str, Any]:
+        if state not in SOURCE_LIFECYCLE_STATES:
+            raise FolderSourceError("unsupported folder Source state")
+        with InstanceLifecycleManager(self.store)._hold(purpose="folder-source-state"):
+            source = self.folder_sources.public_view(source_id)
+            policy_id = source.get("policy_id")
+            if not isinstance(policy_id, str):
+                raise FolderSourceError("folder Source has no linked scheduler policy")
+            current_policy = self.scheduler.journal.get_policy(policy_id)
+            if current_policy is None:
+                raise FolderSourceError("folder Source scheduler policy is missing")
+            if source["lifecycle_state"] == state and current_policy["state"] == state:
+                return {**source, "policy": current_policy}
+            policy = self.scheduler.journal.update_policy(policy_id, state=state)
+            selected = self.folder_sources.set_state(source_id, state)
+            return {**selected, "policy": policy}
+
+    def observe_folder_source(
+        self,
+        source_id: str,
+        *,
+        now: datetime | str | None = None,
+    ) -> dict[str, Any]:
+        with InstanceLifecycleManager(self.store)._hold(purpose="folder-source-observe"):
+            return self.folder_sources.observe(source_id, now=now)
+
+    def queue_folder_source_refresh(
+        self,
+        source_id: str,
+        *,
+        request_key: str | None = None,
+    ) -> dict[str, Any]:
+        source = self.folder_sources.public_view(source_id)
+        policy_id = source.get("policy_id")
+        if not isinstance(policy_id, str):
+            raise FolderSourceError("folder Source has no linked scheduler policy")
+        return self.schedule_run_now(policy_id, request_key=request_key)
+
+    def refresh_folder_source(
+        self,
+        source_id: str,
+        *,
+        request_key: str | None = None,
+    ) -> dict[str, Any]:
+        queued = self.queue_folder_source_refresh(source_id, request_key=request_key)
+        job_id = str(queued["job"]["id"])
+        current = self.scheduler.journal.get_job(job_id)
+        executed = None
+        if current is not None and current["status"] == "queued":
+            executed = self.scheduler.run_one(job_id=job_id)
+        if executed is None:
+            current = self.scheduler.journal.get_job(job_id)
+            executed = public_job_record(current) if current is not None else None
+        return {"queued": queued, "job": executed}
 
     def backup(
         self,
@@ -467,6 +593,13 @@ class ProvelumeInstance:
             is_connector = source.get("kind") == "connector"
             available = bool(source_path and source_path.exists())
             selected = connector_sources.get(str(source["id"]), source)
+            folder = (
+                self.folder_sources.public_view(str(source["id"]))
+                if not is_connector and self.folder_sources.is_managed(str(source["id"]))
+                else None
+            )
+            if folder is not None:
+                available = folder["observer"]["availability"] == "available"
             connector_availability = (
                 "removed"
                 if selected.get("lifecycle_state") == "removed"
@@ -477,6 +610,7 @@ class ProvelumeInstance:
             result.append(
                 {
                     **selected,
+                    **({"folder": folder} if folder is not None else {}),
                     "document_count": selected.get(
                         "document_count",
                         sum(
@@ -489,6 +623,8 @@ class ProvelumeInstance:
                     "availability_status": (
                         connector_availability
                         if is_connector
+                        else folder["observer"]["phase"]
+                        if folder is not None
                         else "available"
                         if available
                         else "missing"
@@ -512,7 +648,14 @@ class ProvelumeInstance:
                 )
                 or source
             )
+        folder = (
+            self.folder_sources.public_view(source_id)
+            if not is_connector and self.folder_sources.is_managed(source_id)
+            else None
+        )
         available = bool(source_path and source_path.exists())
+        if folder is not None:
+            available = folder["observer"]["availability"] == "available"
         connector_availability = (
             "removed"
             if selected.get("lifecycle_state") == "removed"
@@ -522,10 +665,13 @@ class ProvelumeInstance:
         )
         return {
             **selected,
+            **({"folder": folder} if folder is not None else {}),
             "available": False if is_connector else available,
             "availability_status": (
                 connector_availability
                 if is_connector
+                else folder["observer"]["phase"]
+                if folder is not None
                 else "available"
                 if available
                 else "missing"

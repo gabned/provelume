@@ -58,7 +58,10 @@ class InboxManager(BaseInboxManager):
         sources = config.setdefault("sources", {})
         if not isinstance(sources, dict):
             raise ValueError("Instance Sources configuration must be an object")
+        current = sources.get(source_id)
+        preserved = dict(current) if isinstance(current, dict) else {}
         sources[source_id] = {
+            **preserved,
             "kind": "filesystem",
             "name": settings.name,
             "path": settings.managed_configured,

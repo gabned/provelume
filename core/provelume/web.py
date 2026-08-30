@@ -15,6 +15,7 @@ from .about import current_about
 from .activity import attach_activity_routes
 from .api import attach_api, reject_client_installation_evidence
 from .build_info import current_build_info
+from .folder_source_activity import attach_folder_source_routes
 from .i18n import SUPPORTED_LANGUAGES, translator
 from .installation import verify_current_installation
 from .installation_i18n import installation_translator
@@ -75,6 +76,11 @@ def _navigation(
             "href": f"/inbox?lang={language}",
             "label": t("nav.inbox"),
             "current": current_path.startswith("/inbox"),
+        },
+        {
+            "href": f"/sources?lang={language}",
+            "label": t("nav.sources"),
+            "current": current_path.startswith("/sources"),
         },
         {
             "href": f"/connectors?lang={language}",
@@ -246,6 +252,7 @@ def create_app(
         installation_verification=installation_verification,
     )
     attach_activity_routes(app, instance, TEMPLATES, _context)
+    attach_folder_source_routes(app, instance, TEMPLATES, _context)
 
     @app.get("/")
     def home(request: Request):

@@ -34,7 +34,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (completed) | `Bibliotheca` |
 | Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
-| Active implementation | `0.8.0` | Refresh scheduler, watched folders and Source lifecycle | #122 (`0.8/S01`) | `Vigilia` |
+| Active implementation | `0.8.0` | Refresh scheduler, watched folders and Source lifecycle | #122 (`0.8/S01`), #124 (`0.8/S02`) | `Vigilia` |
 | Forecast | `0.9.0` | OCR, email, Google file and transcript intake | issue just in time | `Lectio` |
 | Forecast | `0.10.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
@@ -167,8 +167,9 @@ The package and embedded identity are `0.7.0`. Issue #105 completed implementati
 release notes, Windows upgrade evidence and the release contract. The trusted workflow published
 `v0.7.0` from commit `1e1731969552497c2d3fe79b1c26eccdaad712c0` after the reviewed result was
 present on `main`. Issue #122 activates the bounded, unreleased `0.8/S01` scheduler and journal
-slice. Package identity and the latest public release remain `0.7.0`; watched folders, Source
-refresh and the other `0.8.0 Vigilia` slices remain unimplemented.
+slice. Issue #124 activates the bounded, unreleased `0.8/S02` folder Source slice. Package identity
+and the latest public release remain `0.7.0`; the maintenance catalogue, reconciliation lifecycle
+and statistics slices remain unimplemented.
 
 `0.7/S01` through `0.7/S05` are implemented. They establish provider-independent connector and
 Source identity/lifecycle, installed-app OAuth 2.0/PKCE, guarded Source-bound HTTP(S) retrieval and
@@ -639,9 +640,10 @@ AI classification, MCP, Git mirrors, a Windows background agent or Authenticode 
 **Depends on:** `0.7.0` Source contract.
 
 **Slice status:** issue #122 implements unreleased `0.8/S01`: strict manual/interval/calendar
-policies, clocks, durable jobs, leases, heartbeat, checkpoint/recovery, bounded retry and receipts,
-with executable deep validation and derived FTS reindex only. `source.refresh` is schema-reserved
-but fail-closed; `0.8/S02` through `0.8/S05` remain planned.
+policies, clocks, durable jobs, leases, heartbeat, checkpoint/recovery, bounded retry and receipts.
+Issue #124 implements `0.8/S02`: explicit local/removable/mounted-network filesystem Sources,
+portable scheduled watching, quiescence, mount-loss state and an idempotent `source.refresh`
+executor. `0.8/S03` through `0.8/S05` remain planned.
 
 **Outcome:** make schedules, local-folder observation, refresh, reindex, retry and Source/job state
 durable without turning every timer, filesystem event or poll into a new document version.
@@ -696,8 +698,9 @@ bounded, and interruption at every checkpoint resumes, restarts or fails with ex
 duplicate canonical or derived state.
 
 **Bounded slices:** `0.8/S01` durable scheduler, journal, leases and clocks (implemented on
-unreleased `main` through #122); `0.8/S02` local/removable/network-folder Sources and quiescence;
-`0.8/S03` maintenance/reindex catalogue and interruption recovery; `0.8/S04` reconciliation,
+unreleased `main` through #122); `0.8/S02` local/removable/network-folder Sources, portable
+watching, quiescence and mount-loss recovery (implemented through #124); `0.8/S03`
+maintenance/reindex catalogue and interruption recovery; `0.8/S04` reconciliation,
 cursors and lifecycle states; `0.8/S05` resource policies, statistics evidence and end-to-end
 recovery fixtures.
 

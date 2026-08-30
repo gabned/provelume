@@ -11,6 +11,7 @@ from . import __version__
 from .about import current_about
 from .build_info import current_build_info
 from .connector_cli import add_connector_commands, handle_connector_command
+from .folder_source_cli import add_folder_source_commands, handle_folder_source_command
 from .hierarchy_cli import add_hierarchy_commands, handle_hierarchy_command
 from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES, IngestionRetryError
 from .installation import verify_current_installation
@@ -147,6 +148,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_instance_lifecycle_commands(subparsers)
     add_hierarchy_commands(subparsers)
     add_connector_commands(subparsers)
+    add_folder_source_commands(subparsers)
     add_scheduler_commands(subparsers)
     return parser
 
@@ -165,6 +167,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     connector_result = handle_connector_command(args)
     if connector_result is not None:
         return connector_result
+    folder_source_result = handle_folder_source_command(args)
+    if folder_source_result is not None:
+        return folder_source_result
     scheduler_result = handle_scheduler_command(args)
     if scheduler_result is not None:
         return scheduler_result

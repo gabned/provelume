@@ -379,8 +379,6 @@ class SchedulerStore:
             raise SchedulerError("unsupported scheduler job kind")
         if state not in POLICY_STATES:
             raise SchedulerError("unsupported scheduler policy state")
-        if state == "enabled" and job_kind == "source.refresh":
-            raise SchedulerError("source.refresh remains disabled until its executor slice")
         selected_now = utc_instant(now)
         selected_schedule = normalise_schedule(schedule)
         selected_retry = normalise_retry(retry or retry_payload())
@@ -439,8 +437,6 @@ class SchedulerStore:
             selected_state = current["state"] if state is None else state
             if selected_state not in POLICY_STATES:
                 raise SchedulerError("unsupported scheduler policy state")
-            if selected_state == "enabled" and current["job_kind"] == "source.refresh":
-                raise SchedulerError("source.refresh remains disabled until its executor slice")
             selected_schedule = normalise_schedule(schedule or current["schedule"])
             selected_retry = normalise_retry(retry or current["retry"])
             revision = int(current["revision"]) + 1
@@ -531,7 +527,7 @@ class SchedulerStore:
             if policy is None:
                 raise SchedulerNotFoundError("scheduler policy not found")
             if policy["job_kind"] not in EXECUTABLE_JOB_KINDS:
-                raise SchedulerError("this job kind has no executor in 0.8/S01")
+                raise SchedulerError("this job kind has no local executor")
             identity = request_key.strip() if isinstance(request_key, str) else uuid4().hex
             if not identity or len(identity) > 200:
                 raise SchedulerError("manual idempotency key is invalid")
@@ -906,6 +902,7 @@ class SchedulerStore:
         *,
         worker_id: str,
         allowed_kinds: Sequence[str] = EXECUTABLE_JOB_KINDS,
+        job_id: str | None = None,
         lease_seconds: int = DEFAULT_LEASE_SECONDS,
         now: datetime | str | None = None,
     ) -> dict[str, Any] | None:
@@ -922,11 +919,15 @@ class SchedulerStore:
             raise SchedulerError("worker requested an unsupported executor kind")
         if not self.root.exists():
             return None
+        if job_id is not None and self.get_job(job_id) is None:
+            raise SchedulerNotFoundError("scheduler job not found")
         with self.hold():
             self._recover_locked(selected_now)
             candidates = []
             for job in self._all_jobs():
                 if job["status"] != "queued" or job["job_kind"] not in kinds:
+                    continue
+                if job_id is not None and job["id"] != job_id:
                     continue
                 if utc_instant(job["eligible_at"]) > selected_now:
                     continue
@@ -1259,14 +1260,14 @@ class SchedulerStore:
             "receipts": len(receipts),
             "next_due_at": next_due[0] if next_due else None,
             "executable_job_kinds": list(EXECUTABLE_JOB_KINDS),
-            "deferred_job_kinds": ["source.refresh"],
+            "deferred_job_kinds": [],
             "network_used": False,
             "automatic_deletion": False,
         }
 
 
 class SchedulerCoordinator:
-    """Evaluate durable policies and execute only the S01-safe local job kinds."""
+    """Evaluate durable policies and execute bounded, explicit local job kinds."""
 
     def __init__(self, store: InstanceStore):
         self.store = store
@@ -1341,17 +1342,76 @@ class SchedulerCoordinator:
     def _progress(*, processed: int = 0, skipped: int = 0, errors: int = 0) -> dict[str, int]:
         return {"processed": processed, "skipped": skipped, "errors": errors}
 
-    def _execute(self, job: Mapping[str, Any]) -> tuple[bool, dict[str, int], str, str]:
+    def _execute(
+        self,
+        job: Mapping[str, Any],
+    ) -> tuple[bool, dict[str, int], str, str, bool, bool]:
+        if job["job_kind"] == "source.refresh":
+            from .folder_source_model import FolderSourceError
+            from .folder_sources import FolderSourceManager
+            from .ingest import IngestionInputError
+
+            try:
+                result = FolderSourceManager(self.store).refresh(
+                    str(job["scope"]["id"]),
+                    scheduler_job_id=str(job["id"]),
+                )
+            except OSError:
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "transient",
+                    "local_io",
+                    False,
+                    False,
+                )
+            except (FolderSourceError, IngestionInputError):
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "permanent",
+                    "invalid_state",
+                    False,
+                    False,
+                )
+            progress = dict(result["progress"])
+            network_used = bool(result["network_used"])
+            canonical_mutation = bool(result["canonical_mutation"])
+            if result["status"] != "failed":
+                return True, progress, "", "", network_used, canonical_mutation
+            transient = result.get("reason") in {"input_io_error", "input_unreadable"}
+            return (
+                False,
+                progress,
+                "transient" if transient else "permanent",
+                "local_io" if transient else "source_refresh_failed",
+                network_used,
+                canonical_mutation,
+            )
         if job["job_kind"] == "search.reindex":
             from .index import rebuild_search_index
 
             try:
                 indexed = rebuild_search_index(self.store)
             except (OSError, sqlite3.Error):
-                return False, self._progress(errors=1), "transient", "local_io"
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "transient",
+                    "local_io",
+                    False,
+                    False,
+                )
             except (KeyError, TypeError, ValueError):
-                return False, self._progress(errors=1), "permanent", "invalid_state"
-            return True, self._progress(processed=indexed), "", ""
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "permanent",
+                    "invalid_state",
+                    False,
+                    False,
+                )
+            return True, self._progress(processed=indexed), "", "", False, False
         if job["job_kind"] == "maintenance.validate":
             from .instance_validation import inspect_instance
 
@@ -1363,13 +1423,17 @@ class SchedulerCoordinator:
                     self._progress(processed=1, errors=findings or 1),
                     "permanent",
                     "instance_validation_failed",
+                    False,
+                    False,
                 )
-            return True, self._progress(processed=1), "", ""
+            return True, self._progress(processed=1), "", "", False, False
         return (
             False,
             self._progress(errors=1),
             "manual_intervention",
             "executor_unavailable",
+            False,
+            False,
         )
 
     def _run_one_locked(
@@ -1379,11 +1443,13 @@ class SchedulerCoordinator:
         lease_seconds: int = DEFAULT_LEASE_SECONDS,
         now: datetime | str | None = None,
         live_clock: bool = False,
+        job_id: str | None = None,
     ) -> dict[str, Any] | None:
         selected_now = datetime.now(UTC) if live_clock else utc_instant(now)
         job = self.journal.claim_next(
             worker_id=worker_id,
             allowed_kinds=EXECUTABLE_JOB_KINDS,
+            job_id=job_id,
             lease_seconds=lease_seconds,
             now=selected_now,
         )
@@ -1432,7 +1498,14 @@ class SchedulerCoordinator:
                 progress=job["progress"],
                 now=checkpoint_now,
             )
-            ok, progress, error_class, error_code = self._execute(job)
+            (
+                ok,
+                progress,
+                error_class,
+                error_code,
+                network_used,
+                canonical_mutation,
+            ) = self._execute(job)
             if ok:
                 job = self.journal.checkpoint(
                     str(job["id"]),
@@ -1452,8 +1525,8 @@ class SchedulerCoordinator:
                 str(job["id"]),
                 lease_token,
                 progress=progress,
-                network_used=False,
-                canonical_mutation=False,
+                network_used=network_used,
+                canonical_mutation=canonical_mutation,
                 now=completed_at,
             )
         return self.journal.fail(
@@ -1462,8 +1535,8 @@ class SchedulerCoordinator:
             error_class=error_class,
             error_code=error_code,
             progress=progress,
-            network_used=False,
-            canonical_mutation=False,
+            network_used=network_used,
+            canonical_mutation=canonical_mutation,
             now=completed_at,
         )
 
@@ -1473,6 +1546,7 @@ class SchedulerCoordinator:
         worker_id: str = "local-runtime",
         lease_seconds: int = DEFAULT_LEASE_SECONDS,
         now: datetime | str | None = None,
+        job_id: str | None = None,
     ) -> dict[str, Any] | None:
         if not self.journal.root.exists():
             return None
@@ -1482,6 +1556,7 @@ class SchedulerCoordinator:
                 lease_seconds=lease_seconds,
                 now=now,
                 live_clock=now is None,
+                job_id=job_id,
             )
 
     def cycle(

@@ -218,7 +218,10 @@ class InstanceStore:
     def register_source_path(self, source_id: str, path: Path, *, name: str) -> None:
         config = self.read_config()
         sources = config.setdefault("sources", {})
+        current = sources.get(source_id)
+        preserved = dict(current) if isinstance(current, dict) else {}
         sources[source_id] = {
+            **preserved,
             "kind": "filesystem",
             "name": name,
             "path": portable_config_path(self.paths.root, path),

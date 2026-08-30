@@ -180,7 +180,7 @@ def test_wide_jitter_preserves_interval_evaluation_order(tmp_path: Path) -> None
     assert datetime.fromisoformat(current["next_due_at"]) == first_due + timedelta(seconds=120)
 
 
-def test_policy_modes_scope_and_source_refresh_activation_are_fail_closed(
+def test_policy_modes_scope_and_unmanaged_source_refresh_fail_closed(
     tmp_path: Path,
 ) -> None:
     instance = _instance(tmp_path)
@@ -234,10 +234,14 @@ def test_policy_modes_scope_and_source_refresh_activation_are_fail_closed(
         schedule=schedule_payload(mode="manual", timezone="UTC"),
         now=now,
     )
-    with pytest.raises(SchedulerError, match="remains disabled"):
-        journal.update_policy(refresh["id"], state="enabled", now=now)
-    with pytest.raises(SchedulerError, match="no executor"):
-        journal.run_now(refresh["id"], request_key="explicit", now=now)
+    enabled = journal.update_policy(refresh["id"], state="enabled", now=now)
+    assert enabled["state"] == "enabled"
+    queued = journal.run_now(refresh["id"], request_key="explicit", now=now)
+    assert queued["created"] is True
+    finished = instance.scheduler.run_one(now=now)
+    assert finished is not None
+    assert finished["status"] == "failed"
+    assert finished["attempts"][-1]["error_code"] == "invalid_state"
 
 
 def test_missed_runs_are_bounded_and_clock_reversal_recomputes(tmp_path: Path) -> None:
@@ -554,7 +558,14 @@ def test_execution_serializes_with_instance_lifecycle_and_heartbeats(
 
     def slow_success(_job):
         time.sleep(1.1)
-        return True, {"processed": 1, "skipped": 0, "errors": 0}, "", ""
+        return (
+            True,
+            {"processed": 1, "skipped": 0, "errors": 0},
+            "",
+            "",
+            False,
+            False,
+        )
 
     monkeypatch.setattr(journal, "heartbeat", observed_heartbeat)
     monkeypatch.setattr(instance.scheduler, "_execute", slow_success)
