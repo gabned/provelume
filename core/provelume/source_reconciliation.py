@@ -706,13 +706,23 @@ class SourceReconciliationManager:
         progress: Mapping[str, int],
     ) -> dict[str, Any]:
         within = self._within_progress(run)
+        observed = {key: int(progress[key]) for key in within}
+        if (
+            run["status"] == "completed"
+            and run["plan"]["snapshot_state"] in {"paused", "missing"}
+            and observed == run["base_progress"]
+        ):
+            # The terminal run/lifecycle cursor may be durable just before the
+            # scheduler commits the single visible skipped result. Replay returns
+            # that one delta to the journal without completing the run twice.
+            return dict(run)
         rebased: dict[str, int] = {}
         for key, value in within.items():
-            if int(progress[key]) < value:
+            if observed[key] < value:
                 raise SourceReconciliationStateError(
                     "Scheduler progress precedes Source reconciliation evidence"
                 )
-            rebased[key] = int(progress[key]) - value
+            rebased[key] = observed[key] - value
         if rebased == run["base_progress"]:
             return dict(run)
         return self._write_run(

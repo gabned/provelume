@@ -229,6 +229,73 @@ def test_paused_and_missing_mount_lifecycle_is_visible_and_non_destructive(
     detached.rename(source)
 
 
+def test_paused_terminal_skip_replays_across_scheduler_split(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance, _source, source_id = _registered_instance(
+        tmp_path,
+        {"note.txt": b"paused split evidence\n"},
+    )
+    instance.set_folder_source_state(source_id, "paused")
+    base = datetime(2026, 8, 30, 9, 30, tzinfo=UTC)
+    policy = instance.scheduler.journal.create_policy(
+        job_kind="maintenance.source_reconcile",
+        scope={"kind": "source", "id": source_id},
+        state="disabled",
+        schedule=schedule_payload(mode="manual", timezone="UTC"),
+        retry=retry_payload(max_attempts=3, base_seconds=1, max_seconds=2),
+        now=base,
+    )
+    queued = instance.scheduler.journal.run_now(
+        policy["id"],
+        request_key="paused-terminal-split",
+        now=base,
+    )["job"]
+    interrupted = False
+
+    def stop_after_terminal_cursor(
+        _self: SourceReconciliationManager,
+        _run: dict[str, object],
+        _cursor: dict[str, object],
+    ) -> None:
+        nonlocal interrupted
+        if not interrupted:
+            interrupted = True
+            raise KeyboardInterrupt("synthetic paused scheduler split")
+
+    monkeypatch.setattr(
+        SourceReconciliationManager,
+        "_after_terminal_state",
+        stop_after_terminal_cursor,
+    )
+    with pytest.raises(KeyboardInterrupt, match="synthetic paused scheduler split"):
+        instance.scheduler.run_one(
+            job_id=str(queued["id"]),
+            lease_seconds=1,
+            now=base,
+        )
+    split_job = instance.scheduler.journal.get_job(str(queued["id"]))
+    run = instance.source_reconciliation.run_for_job(str(queued["id"]))
+    cursor = instance.get_source_reconciliation_cursor(source_id)
+    assert split_job is not None
+    assert split_job["progress"] == {"processed": 0, "skipped": 0, "errors": 0}
+    assert run is not None and run["status"] == "completed"
+    assert cursor["state"] == "paused" and cursor["revision"] == 1
+    assert instance.validate_instance(deep=True)["status"] == "valid"
+
+    assert instance.scheduler.recover(now=base + timedelta(seconds=2))[
+        "expired_leases"
+    ] == 1
+    completed = instance.scheduler.run_one(
+        job_id=str(queued["id"]),
+        now=base + timedelta(seconds=2),
+    )
+    assert completed is not None and completed["status"] == "succeeded"
+    assert completed["progress"] == {"processed": 0, "skipped": 1, "errors": 0}
+    assert instance.get_source_reconciliation_cursor(source_id)["revision"] == 1
+
+
 def test_source_scope_is_explicit_and_policy_selection_cannot_cross_sources(
     tmp_path: Path,
 ) -> None:
