@@ -1379,7 +1379,11 @@ class SchedulerCoordinator:
             canonical_mutation = bool(result["canonical_mutation"])
             if result["status"] != "failed":
                 return True, progress, "", "", network_used, canonical_mutation
-            transient = result.get("reason") in {"input_io_error", "input_unreadable"}
+            transient = result.get("reason") in {
+                "input_io_error",
+                "input_missing",
+                "input_unreadable",
+            }
             return (
                 False,
                 progress,
@@ -1500,12 +1504,16 @@ class SchedulerCoordinator:
             )
             (
                 ok,
-                progress,
+                attempt_progress,
                 error_class,
                 error_code,
                 network_used,
                 canonical_mutation,
             ) = self._execute(job)
+            progress = {
+                key: int(job["progress"][key]) + int(attempt_progress[key])
+                for key in job["progress"]
+            }
             if ok:
                 job = self.journal.checkpoint(
                     str(job["id"]),

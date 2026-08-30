@@ -30,10 +30,11 @@ state/folder-sources/
 ```
 
 The strict schema-1 observer stores Source/job/run IDs, lifecycle and availability enums,
-timestamps, a SHA-256 metadata fingerprint, file/byte counts, stable-observation and clock-change
-counters, and closed error codes. It never stores configured paths, file locators, document bytes,
-extracted text, credentials or caller idempotency text. Deep Instance validation rejects unknown
-fields, malformed identities and observers not bound to a current managed Source.
+timestamps, SHA-256 pending/ingested/last-attempted metadata fingerprints, file/byte counts,
+stable-observation and clock-change counters, and closed error codes. It never stores configured
+paths, file locators, document bytes, extracted text, credentials or caller idempotency text. Deep
+Instance validation rejects unknown fields, malformed identities, lifecycle divergence and
+observers not bound to a current managed Source.
 
 Observation enumerates only supported regular files inside the configured root. Resolved symlink
 escapes fail closed. The fingerprint binds sorted relative locator, size and nanosecond mtime rows;
@@ -52,9 +53,16 @@ portable watch baseline; no native OS watcher, daemon or startup task is install
 Only a `ready` snapshot can ingest. One deterministic ingestion run is derived from Source ID,
 durable change sequence and fingerprint. Its item and Acquisition IDs are deterministic within
 that run. If a process exits after canonical Acquisition commit but before the item checkpoint,
-replay resumes the same running ledger record and overwrites the same Acquisition identity instead
-of creating another event. A terminal run can likewise be reconciled into observer state without
-re-reading canonical bytes.
+replay detects that exact deterministic Acquisition and reconstructs the item checkpoint without
+re-reading bytes, changing its timestamp/outcome or creating another event. The active run remains
+recoverable across temporary mount loss. A terminal successful run can likewise be reconciled into
+observer state without re-reading canonical bytes.
+
+A terminal failed or partially failed run is not mistaken for a successful replay. A bounded
+scheduler retry creates a linked durable retry run containing only failed/interrupted items; its
+item and Acquisition identities are deterministic for that attempt, and its checkpoint is itself
+crash-resumable. Job progress remains monotonic across attempts, preserving earlier error evidence
+when a later attempt succeeds.
 
 After ingestion, the Source is observed again. If the fingerprint changed while files were read,
 the captured work remains attributable but the Source returns to quiescence and must converge on a

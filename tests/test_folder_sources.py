@@ -231,7 +231,20 @@ def test_interrupted_item_commit_resumes_same_run_without_duplicate_acquisition(
     running = instance.list_ingestion_runs()[0]
     assert running["status"] == "running"
     assert len(instance.store.list_canonical("acquisitions")) == 1
+    committed_acquisition = instance.store.list_canonical("acquisitions")[0]
+    assert committed_acquisition["outcome"] == "created"
     active_run_id = manager.observer(source_id)["active_run_id"]
+    detached = tmp_path / "detached"
+    source.rename(detached)
+    with InstanceLifecycleManager(instance.store)._hold(purpose="missing-after-commit"):
+        missing = manager.refresh(
+            source_id,
+            scheduler_job_id="job_" + "1" * 32,
+        )
+    assert missing["status"] == "skipped"
+    assert missing["reason"] == "missing"
+    assert manager.observer(source_id)["active_run_id"] == active_run_id
+    detached.rename(source)
     monkeypatch.setattr(IngestionLedger, "write_item", original_write_item)
 
     with InstanceLifecycleManager(instance.store)._hold(purpose="synthetic-replay"):
@@ -244,9 +257,55 @@ def test_interrupted_item_commit_resumes_same_run_without_duplicate_acquisition(
     assert replayed["run"]["run"]["id"] == active_run_id
     assert replayed["run"]["run"]["status"] == "completed"
     assert len(instance.store.list_canonical("acquisitions")) == 1
+    assert instance.store.list_canonical("acquisitions")[0] == committed_acquisition
     assert len(instance.store.list_canonical("originals")) == 1
     assert len(instance.store.list_canonical("versions")) == 1
     assert manager.observer(source_id)["phase"] == "current"
+
+
+def test_transient_failed_snapshot_retries_failed_items_with_bounded_backoff(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    note = source / "note.txt"
+    note.write_text("retry readable snapshot\n", encoding="utf-8")
+    instance = _instance(tmp_path)
+    source_id = str(_register(instance, source)["id"])
+    original_read_bytes = Path.read_bytes
+    fail_once = True
+
+    def transient_read_failure(path: Path) -> bytes:
+        nonlocal fail_once
+        if path == note and fail_once:
+            fail_once = False
+            raise PermissionError("synthetic transient read failure")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", transient_read_failure)
+    first = instance.refresh_folder_source(source_id, request_key="transient-read")
+    first_job = first["job"]
+    assert isinstance(first_job, dict)
+    assert first_job["status"] == "retry_wait"
+    assert first_job["attempts"][-1]["error_class"] == "transient"
+    assert first_job["attempts"][-1]["error_code"] == "local_io"
+    failed_run = instance.list_ingestion_runs()[0]
+    assert failed_run["status"] == "failed"
+    assert failed_run["failed_items"] == 1
+
+    retry_at = datetime.fromisoformat(str(first_job["retry_not_before"]))
+    completed = instance.scheduler.run_one(job_id=str(first_job["id"]), now=retry_at)
+    assert completed is not None
+    assert completed["status"] == "succeeded"
+    assert completed["attempt"] == 2
+    assert completed["progress"] == {"processed": 1, "skipped": 0, "errors": 2}
+    runs = instance.list_ingestion_runs()
+    assert runs[0]["status"] == "completed"
+    assert runs[0]["retry_of_run_id"] == failed_run["id"]
+    assert len(instance.store.list_canonical("acquisitions")) == 1
+    assert instance.store.list_canonical("acquisitions")[0]["outcome"] == "created"
+    assert instance.folder_sources.observer(source_id)["phase"] == "current"
 
 
 def test_expired_source_job_replays_committed_effect_into_one_receipt(
@@ -503,3 +562,25 @@ def test_closed_observer_schema_rejects_private_or_unknown_fields(tmp_path: Path
         item for item in report["errors"] if item["code"] == "folder_source_state_invalid"
     )
     assert finding["path"].endswith(f"{source_id}.json")
+
+
+def test_deep_validation_rejects_observer_and_config_lifecycle_mismatch(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    instance = _instance(tmp_path)
+    source_id = str(_register(instance, source)["id"])
+    instance.observe_folder_source(source_id)
+    path = instance.store.paths.state / "folder-sources" / "observers" / f"{source_id}.json"
+    value = json.loads(path.read_text(encoding="utf-8"))
+    value["lifecycle_state"] = "paused"
+    value["phase"] = "paused"
+    path.write_text(json.dumps(value), encoding="utf-8")
+
+    report = instance.validate_instance()
+    assert report["status"] == "invalid"
+    finding = next(
+        item for item in report["errors"] if item["code"] == "folder_source_state_invalid"
+    )
+    assert "lifecycle does not match" in finding["message"]

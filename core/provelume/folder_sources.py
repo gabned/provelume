@@ -21,8 +21,10 @@ from .folder_source_model import (
 )
 from .ingest import (
     IngestionLimitError,
+    IngestionRetryError,
     _iter_files,
     _refresh_after_ingestion,
+    _retry_ingestion_run_locked,
     _run_ingestion_filesystem_locked,
 )
 from .ingestion_runs import IngestionLedger
@@ -300,7 +302,7 @@ class FolderSourceManager:
                 "stable_observations": 0,
                 "file_count": 0,
                 "total_bytes": 0,
-                "active_run_id": None,
+                "active_run_id": observer["active_run_id"],
                 "last_error_code": error_code,
                 "updated_at": now_text,
                 "network_used": False,
@@ -412,7 +414,11 @@ class FolderSourceManager:
                 "total_bytes": total_bytes,
                 "clock_change_count": int(observer["clock_change_count"])
                 + (1 if clock_reversed else 0),
-                "active_run_id": None if changed else observer["active_run_id"],
+                "active_run_id": (
+                    None
+                    if changed and observer["last_attempted_fingerprint"] != fingerprint
+                    else observer["active_run_id"]
+                ),
                 "last_error_code": None,
                 "updated_at": now_text,
                 "network_used": folder["source_class"] == "network",
@@ -477,17 +483,65 @@ class FolderSourceManager:
                 "canonical_mutation": False,
                 "automatic_deletion": False,
             }
-        run_id = observed["active_run_id"] or self._run_id(
+        target_fingerprint = str(
+            observed["last_attempted_fingerprint"]
+            if observed["active_run_id"] is not None
+            and observed["last_attempted_fingerprint"] is not None
+            else observed["pending_fingerprint"]
+        )
+        ledger = IngestionLedger(self.store)
+        base_run_id = self._run_id(
             source_id,
             int(observed["change_sequence"]),
-            str(observed["pending_fingerprint"]),
+            target_fingerprint,
         )
-        target_fingerprint = str(observed["pending_fingerprint"])
+        run_id = observed["active_run_id"]
+        prior_failure: dict[str, Any] | None = None
+        retry_of_run_id: str | None = None
+        if run_id is not None:
+            active = ledger.get_run(str(run_id))
+            if active is not None and active.get("status") in {
+                "failed",
+                "completed_with_errors",
+            }:
+                prior_failure = active
+                run_id = None
+            elif active is not None and isinstance(active.get("retry_of_run_id"), str):
+                retry_of_run_id = str(active["retry_of_run_id"])
+        if run_id is None and prior_failure is None:
+            prior_id = observed["last_ingestion_run_id"]
+            prior = ledger.get_run(str(prior_id)) if isinstance(prior_id, str) else None
+            if (
+                prior is not None
+                and prior.get("status") in {"failed", "completed_with_errors"}
+                and observed["last_attempted_fingerprint"] == target_fingerprint
+            ):
+                prior_failure = prior
+        if run_id is None and prior_failure is None:
+            base = ledger.get_run(base_run_id)
+            if (
+                base is not None
+                and base.get("status") in {"failed", "completed_with_errors"}
+                and observed["last_attempted_fingerprint"] == target_fingerprint
+            ):
+                prior_failure = base
+        if run_id is None and prior_failure is not None:
+            seed = scheduler_job_id or uuid4().hex
+            value = f"provelume:folder-refresh-retry:{prior_failure['id']}:{seed}"
+            run_id = f"run_{uuid5(NAMESPACE_URL, value).hex}"
+            if any(
+                item.get("status") != "completed"
+                for item in ledger.items_for_run(str(prior_failure["id"]))
+            ):
+                retry_of_run_id = str(prior_failure["id"])
+        if run_id is None:
+            run_id = base_run_id
         self._write_observer(
             {
                 **observed,
                 "phase": "refreshing",
                 "active_run_id": run_id,
+                "last_attempted_fingerprint": target_fingerprint,
                 "last_scheduler_job_id": scheduler_job_id,
                 "updated_at": instant_text(now),
                 "network_used": network_used,
@@ -496,13 +550,24 @@ class FolderSourceManager:
         path = self.store.source_path(source_id)
         if path is None:
             raise FolderSourceError("folder Source path is missing")
-        result = _run_ingestion_filesystem_locked(
-            self.store,
-            path,
-            max_file_bytes=int(folder["max_file_bytes"]),
-            max_files=int(folder["max_files"]),
-            run_id=str(run_id),
-        )
+        try:
+            if retry_of_run_id is not None:
+                result = _retry_ingestion_run_locked(
+                    self.store,
+                    retry_of_run_id,
+                    retry_run_id=str(run_id),
+                    deterministic_acquisitions=True,
+                )
+            else:
+                result = _run_ingestion_filesystem_locked(
+                    self.store,
+                    path,
+                    max_file_bytes=int(folder["max_file_bytes"]),
+                    max_files=int(folder["max_files"]),
+                    run_id=str(run_id),
+                )
+        except IngestionRetryError as exc:
+            raise FolderSourceError("durable folder Source retry is inconsistent") from exc
         _refresh_after_ingestion(self.store, result)
         post = self.observe(source_id, now=now)
         successful = result.run.status == "completed"
@@ -575,9 +640,24 @@ class FolderSourceManager:
                     "network_used": network_used,
                 }
             )
+        failure_codes = {
+            str(code)
+            for code in [result.run.error_code, *(item.error_code for item in result.items)]
+            if code is not None
+        }
+        transient_codes = {"input_io_error", "input_missing", "input_unreadable"}
+        failure_reason = (
+            "input_unreadable"
+            if failure_codes
+            and failure_codes <= transient_codes
+            and "input_unreadable" in failure_codes
+            else "input_io_error"
+            if failure_codes and failure_codes <= transient_codes
+            else "ingestion_failed"
+        )
         return {
             "status": "refreshed" if successful else "failed",
-            "reason": None if successful else "ingestion_failed",
+            "reason": None if successful else failure_reason,
             "observer": post,
             "run": result.as_dict(),
             "progress": {
@@ -718,7 +798,11 @@ def folder_source_state_findings(store: InstanceStore) -> list[dict[str, str]]:
                 record = normalise_observer_record(json.load(handle))
             if path.stem != record["source_id"]:
                 raise FolderSourceError("observer filename does not match its Source ID")
-            manager._configured(str(record["source_id"]))
+            _source, _item, folder = manager._configured(str(record["source_id"]))
+            if record["lifecycle_state"] != folder["lifecycle_state"]:
+                raise FolderSourceError(
+                    "folder Source observer lifecycle does not match its configuration"
+                )
         except (FolderSourceError, OSError, UnicodeError, json.JSONDecodeError) as exc:
             findings.append(
                 {"code": "folder_source_state_invalid", "message": str(exc), "path": relative}

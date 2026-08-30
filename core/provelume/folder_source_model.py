@@ -176,6 +176,7 @@ def new_observer_record(source_id: str, *, lifecycle_state: str) -> dict[str, An
             "pending_since": None,
             "pending_fingerprint": None,
             "ingested_fingerprint": None,
+            "last_attempted_fingerprint": None,
             "change_sequence": 0,
             "stable_observations": 0,
             "file_count": 0,
@@ -205,6 +206,7 @@ def normalise_observer_record(value: Any) -> dict[str, Any]:
         "pending_since",
         "pending_fingerprint",
         "ingested_fingerprint",
+        "last_attempted_fingerprint",
         "change_sequence",
         "stable_observations",
         "file_count",
@@ -254,6 +256,9 @@ def normalise_observer_record(value: Any) -> dict[str, Any]:
         ),
         "ingested_fingerprint": _optional_fingerprint(
             value.get("ingested_fingerprint"), "ingested fingerprint"
+        ),
+        "last_attempted_fingerprint": _optional_fingerprint(
+            value.get("last_attempted_fingerprint"), "last attempted fingerprint"
         ),
         "change_sequence": _integer(
             value.get("change_sequence"), "change_sequence", minimum=0, maximum=2**63 - 1
