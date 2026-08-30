@@ -522,6 +522,11 @@ def test_release_quality_and_adoption_gates_are_mandatory_and_aligned() -> None:
         "broad release-candidate qualification",
         "`1.0.0` is general distribution",
         "## Release quality, UX, documentation and security cadence",
+        (
+            "any pre-publication moment from `Before activation` through "
+            "`Release preparation` is missing"
+        ),
+        "The `After publication` row is a follow-up obligation, not an entry prerequisite",
         "| Before activation |",
         "| Every bounded slice |",
         "| Final quality slice |",

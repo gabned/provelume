@@ -178,8 +178,9 @@ non-technical desktop-preview gate; `0.23.0` is broad release-candidate qualific
 ## Release quality, UX, documentation and security cadence
 
 UX, documentation and security are release work, not an end-of-project cleanup. Every feature
-release reserves capacity for the following moments and cannot enter release preparation while
-one is missing:
+release reserves capacity for the following moments. It cannot enter release preparation while
+any pre-publication moment from `Before activation` through `Release preparation` is missing.
+The `After publication` row is a follow-up obligation, not an entry prerequisite:
 
 | Moment | Required work and evidence |
 | --- | --- |
