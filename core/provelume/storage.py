@@ -34,6 +34,7 @@ from .instance_schema import (
     build_instance_manifest,
     manifest_validation_errors,
 )
+from .ocr_contract import default_ocr_config, ocr_settings_from_config
 from .paths import portable_config_path, resolve_config_path, safe_instance_path
 
 SCHEMA_VERSION = CURRENT_INSTANCE_SCHEMA_VERSION
@@ -152,6 +153,7 @@ class InstanceStore:
                 },
                 "ui": {"language": "en"},
                 "network": {"external_access": False, "update_checks": False},
+                "ocr": default_ocr_config(),
                 "sources": {},
             }
             store._atomic_text(
@@ -193,6 +195,7 @@ class InstanceStore:
             or not instance["created_at"].strip()
         ):
             raise ValueError("invalid Provelume Instance identity")
+        ocr_settings_from_config(config)
         manifest = self.read_manifest()
         errors = manifest_validation_errors(manifest, config=config)
         if errors:

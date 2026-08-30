@@ -30,10 +30,12 @@ See the [public roadmap](docs/roadmap.md), the
 [configurable-folder contract](docs/architecture/configurable-folder-settings.md) and the
 [Windows preview guide](docs/windows-preview.md) for portability and trust boundaries.
 
-The roadmap records `0.8.0 Vigilia` as a published preview and `0.9.0 Lectio` only as the next
-forecast while retaining the later sequence through `1.0.0`. Package and embedded build identity
-are aligned to `0.8.0`, `v0.8.0` and the exact published commit. Forecast entries are sequencing
-coordinates, not publication claims or release authorization.
+The roadmap records `0.8.0 Vigilia` as the published preview and `0.9.0 Lectio` as active
+development under [#137](https://github.com/gabned/provelume/issues/137). Lectio's current S01
+reuses [#5](https://github.com/gabned/provelume/issues/5) to define the local OCR contract,
+licensing and optional packaging; it does not yet deliver OCR execution.
+Package and embedded build identity are aligned to `0.8.0`, `v0.8.0` and the exact published
+commit.
 
 The active source tree can:
 
@@ -61,6 +63,8 @@ The active source tree can:
 - coordinate incremental and full derived-state rebuilds under an exclusive Instance lock;
 - browse ordered, bounded and path-redacted operation evidence;
 - extract text locally and build a disposable SQLite FTS5 search index;
+- expose a disabled-by-default local OCR contract, closed capability/error reporting, page-level
+  provenance and hostile-input/resource ceilings without shipping or invoking an OCR engine;
 - expose a read-only versioned Knowledge API with FastAPI;
 - provide an EN/IT Knowledge Browser for browse, search, safe rendered/raw/Original document
   viewing, versions, provenance, Inbox, bundles, duplicates, assurance, rebuild reports,
@@ -120,8 +124,13 @@ of those derived copies.
 The published `0.8.0` Vigilia preview creates no scheduler policy or job on install, upgrade or
 startup.
 Folder refresh and maintenance require explicit local configuration and run only while the current
-runtime is active. Native filesystem-event watchers, always-on desktop agents, OCR, email/Google
-Drive intake, semantic/vector search and AI classification remain later work.
+runtime is active. Native filesystem-event watchers, always-on desktop agents, OCR execution,
+email/Google Drive intake, semantic/vector search and AI classification remain later work. The active
+`0.9/S01` source defines only the OCR contract: no page renderer, Tesseract process adapter or
+document-bundle OCR flow is available yet. See the
+[English OCR contract](docs/architecture/local-ocr-contract.md), the
+[Italian OCR contract](docs/architecture/local-ocr-contract.it.md) and
+[ADR 0014](docs/adr/0014-local-ocr-contract-and-packaging.md).
 
 ## Quick start
 

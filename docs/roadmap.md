@@ -9,6 +9,8 @@ request, tag, release or delivery commitment. Planned-version movement follows
 ## Status vocabulary
 
 - **Published preview** — immutable tag and public preview release exist.
+- **Active development** — a canonical parent tracker exists; completed slices remain recorded and
+  a next slice may stay forecast-only between owner pull requests.
 - **Active implementation** — a canonical parent issue and exactly one current owner product pull
   request activate one bounded release slice; package identity and publication remain separate
   later steps.
@@ -35,7 +37,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
-| Next forecast | `0.9.0` | OCR, email, Google file and transcript intake | issue just in time | `Lectio` |
+| Active development | `0.9.0` | OCR, email, Google file and transcript intake | #137; S01 reuses #5 | `Lectio` |
 | Forecast | `0.10.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
 | Forecast | `0.12.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
@@ -127,9 +129,10 @@ visible last-verified date and known mismatch.
 
 An immediate bounded website workstream should align the homepage, Features, Public facts,
 Wishlist and machine-readable records with published Core `0.8.0`, including the completed
-`0.5.0`–`0.8.0` capabilities and an exact `v0.8.0` evidence link. It must continue to label
-`0.9.0` and later work as planned. This website-only correction can begin now and changes neither
-the Core package identity nor release history.
+`0.5.0`–`0.8.0` capabilities and an exact `v0.8.0` evidence link. It must label the active
+`0.9/S01` contract as unreleased and unavailable, and keep every later capability planned. This
+website-only correction can begin now and changes neither the Core package identity nor release
+history.
 
 After every verified Core tag and asset publication, the website receives a bounded availability
 sync in the same delivery cycle: current version/release link, supported platforms and formats,
@@ -143,7 +146,7 @@ The larger editorial updates belong at these evidence gates:
 
 | Evidence gate | Website update | Appropriate audience action |
 | --- | --- | --- |
-| Now, published `0.8.0` | Correct version/build labels, Features, Facts, Wishlist and release links in EN/IT; add bounded scheduler, folder-Source, recovery and maintenance documentation. | Invite a small technical early-adopter group for the capabilities actually published in Vigilia; keep `0.9.0+` planned. |
+| Now, published `0.8.0` | Correct version/build labels, Features, Facts, Wishlist and release links in EN/IT; add bounded scheduler, folder-Source, recovery and maintenance documentation. | Invite a small technical early-adopter group for the capabilities actually published in Vigilia; keep active Lectio work visibly unavailable until publication. |
 | Published `0.9.0` | Add OCR/input-format, language, quality and local/cloud privacy matrices. | Invite document-heavy users with an explicit supported-format perimeter. |
 | Published `0.10.0` | Rework the primary use-case path around Capture, Action Center, Operations and mobile PWA onboarding. | Begin a controlled public beta: this is the first coherent daily-use experience. |
 | Published `0.12.0` | Add an integrations/mirrors chooser for Git, local folders and rsync with one-way and deletion boundaries. | Reach users who need portable publication or NAS mirrors without implying mandatory GitHub. |
@@ -170,8 +173,12 @@ The immutable [`v0.8.0`](https://github.com/gabned/provelume/releases/tag/v0.8.0
 commit `d20e63079adf85829723cab86766266a8bc6cdcd`. Official release workflow run
 [`33315580878`](https://github.com/gabned/provelume/actions/runs/33315580878) published the public
 prerelease with 22 unique, nonempty assets; API digests, `SHA256SUMS`, package identities and both
-offline bundle verifiers were observed successfully. `0.9.0 Lectio` is only the next forecast: no
-issue, owner pull request or implementation has activated it.
+offline bundle verifiers were observed successfully. `0.9.0 Lectio` is active development under
+parent tracker [#137](https://github.com/gabned/provelume/issues/137). Its first bounded slice
+reuses the remaining OCR increment in [#5](https://github.com/gabned/provelume/issues/5) to define
+the local/offline contract, licensing and optional packaging without changing the published
+`0.8.0` identity or claiming that OCR execution is already available. `0.9/S02` remains the
+next forecast-only slice with no issue, branch or owner pull request.
 
 ## Planning and delivery contract
 
@@ -748,6 +755,11 @@ decisions and tasks derived from communications or transcripts.
 and document bundles; `0.9/S03` email identity and intake; `0.9/S04` Gmail/Drive adapters;
 `0.9/S05` transcript profiles; `0.9/S06` cross-source qualification and correction findings.
 
+**Current activation:** parent tracker #137 is open and the pre-existing #5 is reused as the
+`0.9/S01` owner issue. S01 defines the contract, licensing and optional packaging only; it ships
+no OCR execution adapter. `0.9/S02` is the next forecast-only slice and has no issue, branch or
+owner pull request. S03–S06 likewise have no operational issues.
+
 ### 0.10.0 — Unified Capture, Operations and Action Center
 
 **Depends on:** durable ingestion, hierarchical classification, Sources and the `0.8.0`
@@ -1320,8 +1332,6 @@ public Core contracts.
 
 - #1 — repository protection and security settings audit; this is a repository-setting outcome,
   not product runtime scope.
-- #5 — remaining ingestion inputs stay cross-cutting; its optional local OCR increment is now
-  forecast for `0.9.0` with a clean-room, licensing, packaging and support gate.
 - #24 — immutable OCI builder lock and pinned-container cross-job rebuild evidence; this remains
   independent release-assurance hardening until an atomic planning change places it.
 - Detached provider-independent signing, key rotation and revocation before any release that
@@ -1329,5 +1339,5 @@ public Core contracts.
 - Observed runtime network-activity instrumentation and egress enforcement only after a separate
   privacy, platform and support decision.
 
-Except for the explicitly placed `0.9.0` OCR increment, this work is not activated and receives a
-version only through an atomic planning change.
+This cross-cutting work is not activated and receives a version only through an atomic planning
+change.

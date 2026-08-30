@@ -114,7 +114,7 @@ def test_release_candidate_aligns_package_identity() -> None:
     assert f'__version__ = "{package_version}"' in init_source
 
 
-def test_roadmap_records_published_history_and_next_forecast() -> None:
+def test_roadmap_records_published_history_and_active_lectio_development() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     for version in (
@@ -131,15 +131,17 @@ def test_roadmap_records_published_history_and_next_forecast() -> None:
         "0.8.0",
     ):
         assert roadmap.count(f"| Published preview | `{version}` |") == 1
+    assert roadmap.count("| Active development | `0.9.0` |") == 1
     assert roadmap.count("| Active implementation |") == 0
     assert roadmap.count("| Release preparation |") == 0
-    assert "| Next forecast | `0.9.0` |" in roadmap
-    assert roadmap.count("| Next forecast |") == 1
+    assert "| Next forecast | `0.9.0` |" not in roadmap
+    assert "#137; S01 reuses #5" in roadmap
     assert "#95 (completed)" in roadmap
     assert "#102 (completed)" in roadmap
     assert "#105 (completed)" in roadmap
     assert "Published package and embedded identity are aligned to `0.8.0`" in roadmap
     assert "Issues #122, #124, #126, #128 and\n#130 completed" in roadmap
+    assert "`0.9/S02` remains the\nnext forecast-only slice" in roadmap
 
 
 def test_every_release_has_a_unique_latin_name_and_concise_outcome() -> None:
@@ -435,7 +437,7 @@ def test_watched_folder_ocr_and_automation_forecast_is_explicit() -> None:
         "recoverable maintenance |"
     ) == 1
     assert roadmap.count(
-        "| Next forecast | `0.9.0` | OCR, email, Google file and transcript intake |"
+        "| Active development | `0.9.0` | OCR, email, Google file and transcript intake |"
     ) == 1
     for required_contract in (
         "**disabled/offline**",

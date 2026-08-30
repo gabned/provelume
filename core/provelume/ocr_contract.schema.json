@@ -1,0 +1,837 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/ocr-contract-v1.schema.json",
+  "title": "Provelume local OCR contract v1",
+  "description": "Public records for the optional, local-only, derived OCR capability. S01 defines this schema but ships no execution adapter.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/settings"
+    },
+    {
+      "$ref": "#/$defs/capabilityReport"
+    },
+    {
+      "$ref": "#/$defs/pageRequest"
+    },
+    {
+      "$ref": "#/$defs/pageResult"
+    },
+    {
+      "$ref": "#/$defs/checkpoint"
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "componentId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_.-]{0,79}$"
+    },
+    "componentVersion": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,79}$"
+    },
+    "language": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,31}$"
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_input_bytes",
+        "max_pages",
+        "max_page_pixels",
+        "max_total_pixels",
+        "max_decompressed_page_bytes",
+        "max_decompression_ratio",
+        "max_temp_bytes",
+        "max_seconds_per_page",
+        "max_total_seconds",
+        "max_output_chars_per_page"
+      ],
+      "properties": {
+        "max_input_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 268435456
+        },
+        "max_pages": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "max_page_pixels": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 80000000
+        },
+        "max_total_pixels": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500000000
+        },
+        "max_decompressed_page_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 335544320
+        },
+        "max_decompression_ratio": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "max_temp_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1073741824
+        },
+        "max_seconds_per_page": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60
+        },
+        "max_total_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 900
+        },
+        "max_output_chars_per_page": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500000
+        }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "mode",
+        "engine",
+        "languages",
+        "language_detection",
+        "automatic",
+        "limits"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "mode": {
+          "enum": [
+            "disabled",
+            "automatic",
+            "forced",
+            "selected-page"
+          ]
+        },
+        "engine": {
+          "$ref": "#/$defs/componentId"
+        },
+        "languages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/language"
+          }
+        },
+        "language_detection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "candidates"
+          ],
+          "properties": {
+            "mode": {
+              "enum": [
+                "disabled",
+                "bounded"
+              ]
+            },
+            "candidates": {
+              "type": "array",
+              "maxItems": 4,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/language"
+              }
+            }
+          }
+        },
+        "automatic": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "min_reliable_characters",
+            "min_printable_ratio"
+          ],
+          "properties": {
+            "min_reliable_characters": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            },
+            "min_printable_ratio": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "limits": {
+          "$ref": "#/$defs/limits"
+        }
+      }
+    },
+    "localizedError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "messages"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "ocr_disabled",
+            "ocr_adapter_unavailable",
+            "ocr_engine_unavailable",
+            "ocr_language_pack_missing",
+            "ocr_unsupported_input",
+            "ocr_corrupt_input",
+            "ocr_input_too_large",
+            "ocr_page_limit_exceeded",
+            "ocr_pixel_limit_exceeded",
+            "ocr_decompression_limit_exceeded",
+            "ocr_temporary_space_exceeded",
+            "ocr_deadline_exceeded",
+            "ocr_invalid_selection",
+            "ocr_contract_violation",
+            "ocr_adapter_failure",
+            "ocr_cancelled"
+          ]
+        },
+        "messages": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "en",
+            "it"
+          ],
+          "properties": {
+            "en": {
+              "type": "string",
+              "minLength": 1
+            },
+            "it": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version",
+        "engine_id",
+        "engine_version",
+        "installed_languages",
+        "input_media_types",
+        "outputs"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/componentId"
+        },
+        "version": {
+          "$ref": "#/$defs/componentVersion"
+        },
+        "engine_id": {
+          "$ref": "#/$defs/componentId"
+        },
+        "engine_version": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/componentVersion"
+            }
+          ]
+        },
+        "installed_languages": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/language"
+          }
+        },
+        "input_media_types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "application/pdf",
+              "image/tiff",
+              "image/png",
+              "image/jpeg",
+              "image/bmp"
+            ]
+          }
+        },
+        "outputs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "coordinates",
+            "confidence",
+            "layout",
+            "tables",
+            "barcodes",
+            "qr_codes"
+          ],
+          "properties": {
+            "coordinates": {
+              "type": "boolean"
+            },
+            "confidence": {
+              "type": "boolean"
+            },
+            "layout": {
+              "type": "boolean"
+            },
+            "tables": {
+              "type": "boolean"
+            },
+            "barcodes": {
+              "type": "boolean"
+            },
+            "qr_codes": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "capabilityReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "state",
+        "available",
+        "mode",
+        "configured_engine",
+        "configured_languages",
+        "missing_languages",
+        "adapter",
+        "error",
+        "network_required",
+        "runtime_downloads",
+        "remote_fallback",
+        "original_mutation",
+        "canonical_mutation"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "state": {
+          "enum": [
+            "disabled",
+            "adapter-unavailable",
+            "engine-unavailable",
+            "language-pack-missing",
+            "ready"
+          ]
+        },
+        "available": {
+          "type": "boolean"
+        },
+        "mode": {
+          "enum": [
+            "disabled",
+            "automatic",
+            "forced",
+            "selected-page"
+          ]
+        },
+        "configured_engine": {
+          "$ref": "#/$defs/componentId"
+        },
+        "configured_languages": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/language"
+          }
+        },
+        "missing_languages": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/language"
+          }
+        },
+        "adapter": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/adapter"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/localizedError"
+            }
+          ]
+        },
+        "network_required": {
+          "const": false
+        },
+        "runtime_downloads": {
+          "const": false
+        },
+        "remote_fallback": {
+          "const": false
+        },
+        "original_mutation": {
+          "const": false
+        },
+        "canonical_mutation": {
+          "const": false
+        }
+      }
+    },
+    "sourcePage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "original_sha256",
+        "version_id",
+        "page_number",
+        "page_image_sha256",
+        "source_media_type"
+      ],
+      "properties": {
+        "original_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "version_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "page_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "page_image_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_media_type": {
+          "enum": [
+            "application/pdf",
+            "image/tiff",
+            "image/png",
+            "image/jpeg",
+            "image/bmp"
+          ]
+        }
+      }
+    },
+    "pageRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "source_page",
+        "staged_media_type",
+        "settings_sha256",
+        "languages",
+        "deadline_seconds",
+        "max_output_chars"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "source_page": {
+          "$ref": "#/$defs/sourcePage"
+        },
+        "staged_media_type": {
+          "enum": [
+            "image/tiff",
+            "image/png",
+            "image/jpeg",
+            "image/bmp"
+          ]
+        },
+        "settings_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "languages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/language"
+          }
+        },
+        "deadline_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 900
+        },
+        "max_output_chars": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500000
+        }
+      }
+    },
+    "box": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "left",
+        "top",
+        "width",
+        "height",
+        "page_width",
+        "page_height",
+        "coordinate_space"
+      ],
+      "properties": {
+        "left": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "top": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "page_width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "page_height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "coordinate_space": {
+          "const": "source-pixels"
+        }
+      }
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "status",
+        "confidence",
+        "box"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100000
+        },
+        "status": {
+          "enum": [
+            "machine-unverified",
+            "needs-review"
+          ]
+        },
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "box": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/box"
+            }
+          ]
+        }
+      }
+    },
+    "warning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_.-]{0,79}$"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter_id",
+        "adapter_version",
+        "schema_id",
+        "payload"
+      ],
+      "properties": {
+        "adapter_id": {
+          "$ref": "#/$defs/componentId"
+        },
+        "adapter_version": {
+          "$ref": "#/$defs/componentVersion"
+        },
+        "schema_id": {
+          "$ref": "#/$defs/componentId"
+        },
+        "payload": {
+          "type": "object"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "engine_id",
+        "engine_version",
+        "adapter_id",
+        "adapter_version",
+        "languages",
+        "settings_sha256",
+        "source_page"
+      ],
+      "properties": {
+        "engine_id": {
+          "$ref": "#/$defs/componentId"
+        },
+        "engine_version": {
+          "$ref": "#/$defs/componentVersion"
+        },
+        "adapter_id": {
+          "$ref": "#/$defs/componentId"
+        },
+        "adapter_version": {
+          "$ref": "#/$defs/componentVersion"
+        },
+        "languages": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/language"
+          }
+        },
+        "settings_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_page": {
+          "$ref": "#/$defs/sourcePage"
+        }
+      }
+    },
+    "observations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "layout",
+        "table",
+        "barcode",
+        "qr-code"
+      ],
+      "properties": {
+        "layout": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/observation"
+          }
+        },
+        "table": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/observation"
+          }
+        },
+        "barcode": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/observation"
+          }
+        },
+        "qr-code": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/observation"
+          }
+        }
+      }
+    },
+    "pageResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "source_page",
+        "text",
+        "text_status",
+        "spans",
+        "warnings",
+        "observations",
+        "provenance",
+        "authoritative",
+        "derived",
+        "removable",
+        "rebuildable"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "source_page": {
+          "$ref": "#/$defs/sourcePage"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 500000
+        },
+        "text_status": {
+          "enum": [
+            "machine-unverified",
+            "needs-review"
+          ]
+        },
+        "spans": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "$ref": "#/$defs/span"
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "$ref": "#/$defs/warning"
+          }
+        },
+        "observations": {
+          "$ref": "#/$defs/observations"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "authoritative": {
+          "const": false
+        },
+        "derived": {
+          "const": true
+        },
+        "removable": {
+          "const": true
+        },
+        "rebuildable": {
+          "const": true
+        }
+      }
+    },
+    "checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "derivation_key",
+        "phase",
+        "sequence",
+        "committed_pages",
+        "next_page",
+        "terminal"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "derivation_key": {
+          "type": "string",
+          "pattern": "^ocr_[0-9a-f]{64}$"
+        },
+        "phase": {
+          "const": "ocr.page.committed"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "committed_pages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 200,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "next_page": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "terminal": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "corrupt-png-signature",
+      "expected_code": "ocr_unsupported_input",
+      "descriptor": {
+        "media_type": "image/png",
+        "suffix": ".png",
+        "signature_hex": "89504e4700000000",
+        "input_bytes": 1024,
+        "page_count": 1,
+        "max_page_pixels": 1000000,
+        "total_pixels": 1000000,
+        "max_decompressed_page_bytes": 4000000,
+        "max_decompression_ratio": 4
+      }
+    },
+    {
+      "name": "oversized-input",
+      "expected_code": "ocr_input_too_large",
+      "descriptor": {
+        "media_type": "application/pdf",
+        "suffix": ".pdf",
+        "signature_hex": "255044462d312e37",
+        "input_bytes": 268435457,
+        "page_count": 1,
+        "max_page_pixels": 1000000,
+        "total_pixels": 1000000,
+        "max_decompressed_page_bytes": 4000000,
+        "max_decompression_ratio": 4
+      }
+    },
+    {
+      "name": "page-bomb",
+      "expected_code": "ocr_page_limit_exceeded",
+      "descriptor": {
+        "media_type": "image/tiff",
+        "suffix": ".tiff",
+        "signature_hex": "49492a00",
+        "input_bytes": 1048576,
+        "page_count": 201,
+        "max_page_pixels": 1000000,
+        "total_pixels": 201000000,
+        "max_decompressed_page_bytes": 4000000,
+        "max_decompression_ratio": 4
+      }
+    },
+    {
+      "name": "pixel-bomb",
+      "expected_code": "ocr_pixel_limit_exceeded",
+      "descriptor": {
+        "media_type": "image/png",
+        "suffix": ".png",
+        "signature_hex": "89504e470d0a1a0a",
+        "input_bytes": 1048576,
+        "page_count": 1,
+        "max_page_pixels": 80000001,
+        "total_pixels": 80000001,
+        "max_decompressed_page_bytes": 320000004,
+        "max_decompression_ratio": 80
+      }
+    },
+    {
+      "name": "decompression-bomb",
+      "expected_code": "ocr_decompression_limit_exceeded",
+      "descriptor": {
+        "media_type": "image/tiff",
+        "suffix": ".tif",
+        "signature_hex": "4d4d002a",
+        "input_bytes": 1048576,
+        "page_count": 1,
+        "max_page_pixels": 80000000,
+        "total_pixels": 80000000,
+        "max_decompressed_page_bytes": 335544320,
+        "max_decompression_ratio": 101
+      }
+    },
+    {
+      "name": "decoded-byte-bomb",
+      "expected_code": "ocr_decompression_limit_exceeded",
+      "descriptor": {
+        "media_type": "image/jpeg",
+        "suffix": ".jpg",
+        "signature_hex": "ffd8ffe0",
+        "input_bytes": 4194304,
+        "page_count": 1,
+        "max_page_pixels": 80000000,
+        "total_pixels": 80000000,
+        "max_decompressed_page_bytes": 335544321,
+        "max_decompression_ratio": 81
+      }
+    },
+    {
+      "name": "inconsistent-pixel-evidence",
+      "expected_code": "ocr_corrupt_input",
+      "descriptor": {
+        "media_type": "image/bmp",
+        "suffix": ".bmp",
+        "signature_hex": "424d0000",
+        "input_bytes": 1048576,
+        "page_count": 2,
+        "max_page_pixels": 1000000,
+        "total_pixels": 999999,
+        "max_decompressed_page_bytes": 4000000,
+        "max_decompression_ratio": 4
+      }
+    },
+    {
+      "name": "unsupported-webp",
+      "expected_code": "ocr_unsupported_input",
+      "descriptor": {
+        "media_type": "image/webp",
+        "suffix": ".webp",
+        "signature_hex": "524946460000000057454250",
+        "input_bytes": 1048576,
+        "page_count": 1,
+        "max_page_pixels": 1000000,
+        "total_pixels": 1000000,
+        "max_decompressed_page_bytes": 4000000,
+        "max_decompression_ratio": 4
+      }
+    }
+  ]
+}
