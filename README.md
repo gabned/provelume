@@ -8,13 +8,15 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.8.0 Vigilia release candidate
+## Current status: 0.8.0 Vigilia published preview
 
-The source tree is aligned to the `0.8.0` Vigilia preview. Until the permanent trusted workflow
-publishes and verifies `v0.8.0`, [`v0.7.0`](https://github.com/gabned/provelume/releases/tag/v0.7.0)
-Vinculum remains the latest published prerelease. Vigilia adds an explicitly configured durable
-scheduler, folder Sources, recoverable local maintenance, Source reconciliation and content-free
-resource observations while keeping startup and upgrade default-disabled.
+[`v0.8.0`](https://github.com/gabned/provelume/releases/tag/v0.8.0) Vigilia is the latest published
+prerelease. It was built from commit
+[`d20e63079adf85829723cab86766266a8bc6cdcd`](https://github.com/gabned/provelume/commit/d20e63079adf85829723cab86766266a8bc6cdcd)
+by the permanent trusted [Official release workflow](https://github.com/gabned/provelume/actions/runs/33315580878).
+Vigilia adds an explicitly configured durable scheduler, folder Sources, recoverable local
+maintenance, Source reconciliation and content-free resource observations while keeping startup
+and upgrade default-disabled.
 
 Issues [#122](https://github.com/gabned/provelume/issues/122),
 [#124](https://github.com/gabned/provelume/issues/124),
@@ -28,10 +30,10 @@ See the [public roadmap](docs/roadmap.md), the
 [configurable-folder contract](docs/architecture/configurable-folder-settings.md) and the
 [Windows preview guide](docs/windows-preview.md) for portability and trust boundaries.
 
-The roadmap records `0.8.0 Vigilia` in release preparation and `0.9.0 Lectio` only as the next
+The roadmap records `0.8.0 Vigilia` as a published preview and `0.9.0 Lectio` only as the next
 forecast while retaining the later sequence through `1.0.0`. Package and embedded build identity
-are aligned to `0.8.0`; no `v0.8.0` tag or release is implied by this candidate. Forecast entries
-are sequencing coordinates, not publication claims or release authorization.
+are aligned to `0.8.0`, `v0.8.0` and the exact published commit. Forecast entries are sequencing
+coordinates, not publication claims or release authorization.
 
 The active source tree can:
 
@@ -115,7 +117,8 @@ operating-system egress enforcement or zero runtime traffic. All extracted/searc
 representations remain derived state and can be recreated from preserved originals after deletion
 of those derived copies.
 
-The `0.8.0` Vigilia candidate creates no scheduler policy or job on install, upgrade or startup.
+The published `0.8.0` Vigilia preview creates no scheduler policy or job on install, upgrade or
+startup.
 Folder refresh and maintenance require explicit local configuration and run only while the current
 runtime is active. Native filesystem-event watchers, always-on desktop agents, OCR, email/Google
 Drive intake, semantic/vector search and AI classification remain later work.
@@ -314,9 +317,10 @@ Instance content and is never enabled in the background by the Core:
 .venv/bin/provelume check-updates --channel preview
 ```
 
-The Windows `0.8.0` candidate packages the same behavior behind a per-user installer and EN/IT
-launcher; the latest published installer remains `0.7.0` until the trusted release workflow
-completes. See the [Windows preview guide](docs/windows-preview.md).
+The published Windows `0.8.0` preview packages the same behavior behind a per-user installer and
+EN/IT launcher. Download it only from the official
+[`v0.8.0` prerelease](https://github.com/gabned/provelume/releases/tag/v0.8.0); it remains an
+unsigned preview. See the [Windows preview guide](docs/windows-preview.md).
 
 Inspect one Instance's declared network policy and components, also without making a network request:
 

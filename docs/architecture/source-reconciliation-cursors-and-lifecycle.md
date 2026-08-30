@@ -1,10 +1,9 @@
 # Source reconciliation cursors and lifecycle
 
-`0.8/S04` supplies the bounded, read-only reconciliation slice included in the `0.8.0` Vigilia
-release candidate. It compares one explicitly selected managed filesystem Source with current
+`0.8/S04` supplies the bounded, read-only reconciliation slice published in the `v0.8.0` Vigilia
+preview. It compares one explicitly selected managed filesystem Source with current
 canonical Document, Version, Original and Acquisition evidence. It never ingests, repairs, purges,
-deletes or rewrites canonical knowledge. The public tag remains `v0.7.0` until the separate trusted
-release workflow completes.
+deletes or rewrites canonical knowledge.
 
 ## Exact scope and authority
 

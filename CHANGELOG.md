@@ -6,6 +6,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## 0.8.0 - 2026-08-30
 
+Published as the [`v0.8.0` prerelease](https://github.com/gabned/provelume/releases/tag/v0.8.0)
+from commit [`d20e63079adf85829723cab86766266a8bc6cdcd`](https://github.com/gabned/provelume/commit/d20e63079adf85829723cab86766266a8bc6cdcd)
+by [Official release workflow run 33315580878](https://github.com/gabned/provelume/actions/runs/33315580878).
+The observed release contains 22 nonempty, uniquely named assets whose published digests match the
+offline-verified release bundle.
+
 ### Added
 
 - added strict durable scheduler policies with manual, bounded interval and local calendar modes,
