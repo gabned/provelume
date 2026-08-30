@@ -308,6 +308,67 @@ def test_transient_failed_snapshot_retries_failed_items_with_bounded_backoff(
     assert instance.folder_sources.observer(source_id)["phase"] == "current"
 
 
+def test_retry_creation_crash_reuses_reserved_run_and_failed_item_scope(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    note = source / "note.txt"
+    note.write_text("resume retry creation\n", encoding="utf-8")
+    instance = _instance(tmp_path)
+    source_id = str(_register(instance, source)["id"])
+    manager = instance.folder_sources
+    original_read_bytes = Path.read_bytes
+    fail_once = True
+
+    def transient_read_failure(path: Path) -> bytes:
+        nonlocal fail_once
+        if path == note and fail_once:
+            fail_once = False
+            raise PermissionError("synthetic first-attempt failure")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", transient_read_failure)
+    job_id = "job_" + "3" * 32
+    with InstanceLifecycleManager(instance.store)._hold(purpose="failed-first-attempt"):
+        failed = manager.refresh(source_id, scheduler_job_id=job_id)
+    assert failed["status"] == "failed"
+    failed_run_id = str(failed["run"]["run"]["id"])
+    original_retry = folder_sources_module._retry_ingestion_run_locked
+
+    def interrupt_before_retry_record(*args, **kwargs):
+        raise RuntimeError("synthetic crash before retry record")
+
+    monkeypatch.setattr(
+        folder_sources_module,
+        "_retry_ingestion_run_locked",
+        interrupt_before_retry_record,
+    )
+    with (
+        pytest.raises(RuntimeError, match="before retry record"),
+        InstanceLifecycleManager(instance.store)._hold(purpose="interrupted-retry-create"),
+    ):
+        manager.refresh(source_id, scheduler_job_id=job_id)
+    reserved_run_id = manager.observer(source_id)["active_run_id"]
+    assert isinstance(reserved_run_id, str)
+    assert IngestionLedger(instance.store).get_run(reserved_run_id) is None
+
+    monkeypatch.setattr(
+        folder_sources_module,
+        "_retry_ingestion_run_locked",
+        original_retry,
+    )
+    with InstanceLifecycleManager(instance.store)._hold(purpose="resume-retry-create"):
+        resumed = manager.refresh(source_id, scheduler_job_id=job_id)
+
+    assert resumed["status"] == "refreshed"
+    assert resumed["run"]["run"]["id"] == reserved_run_id
+    assert resumed["run"]["run"]["retry_of_run_id"] == failed_run_id
+    assert len(instance.store.list_canonical("acquisitions")) == 1
+    assert manager.observer(source_id)["phase"] == "current"
+
+
 def test_expired_source_job_replays_committed_effect_into_one_receipt(
     tmp_path: Path,
 ) -> None:

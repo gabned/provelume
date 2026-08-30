@@ -496,11 +496,15 @@ class FolderSourceManager:
             target_fingerprint,
         )
         run_id = observed["active_run_id"]
+        reserved_run_id: str | None = None
         prior_failure: dict[str, Any] | None = None
         retry_of_run_id: str | None = None
         if run_id is not None:
             active = ledger.get_run(str(run_id))
-            if active is not None and active.get("status") in {
+            if active is None:
+                reserved_run_id = str(run_id)
+                run_id = None
+            elif active.get("status") in {
                 "failed",
                 "completed_with_errors",
             }:
@@ -526,9 +530,12 @@ class FolderSourceManager:
             ):
                 prior_failure = base
         if run_id is None and prior_failure is not None:
-            seed = scheduler_job_id or uuid4().hex
-            value = f"provelume:folder-refresh-retry:{prior_failure['id']}:{seed}"
-            run_id = f"run_{uuid5(NAMESPACE_URL, value).hex}"
+            if reserved_run_id is not None:
+                run_id = reserved_run_id
+            else:
+                seed = scheduler_job_id or uuid4().hex
+                value = f"provelume:folder-refresh-retry:{prior_failure['id']}:{seed}"
+                run_id = f"run_{uuid5(NAMESPACE_URL, value).hex}"
             if any(
                 item.get("status") != "completed"
                 for item in ledger.items_for_run(str(prior_failure["id"]))
