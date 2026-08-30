@@ -17,6 +17,7 @@ SCHEDULER_JOB_KINDS = (
     "maintenance.original_assurance",
     "maintenance.duplicate_scan",
     "maintenance.source_reconcile",
+    "maintenance.resource_snapshot",
 )
 EXECUTABLE_JOB_KINDS = SCHEDULER_JOB_KINDS
 SOURCE_SCOPED_JOB_KINDS = frozenset(
@@ -52,6 +53,9 @@ ERROR_CODES = (
     "local_io",
     "maintenance_action_failed",
     "reindex_state_invalid",
+    "resource_statistics_changed",
+    "resource_statistics_failed",
+    "resource_statistics_limit",
     "source_refresh_failed",
     "source_reconciliation_failed",
     "source_reauthorization_required",

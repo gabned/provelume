@@ -31,9 +31,10 @@ The unreleased source tree also contains the bounded `0.8/S01` scheduler slice t
 [#122](https://github.com/gabned/provelume/issues/122), the `0.8/S02` folder Source slice tracked by
 issue [#124](https://github.com/gabned/provelume/issues/124), and the `0.8/S03` maintenance/reindex
 slice tracked by issue [#126](https://github.com/gabned/provelume/issues/126), plus the `0.8/S04`
-Source reconciliation slice tracked by issue [#128](https://github.com/gabned/provelume/issues/128).
+Source reconciliation slice tracked by issue [#128](https://github.com/gabned/provelume/issues/128),
+and the `0.8/S05` resource-statistics slice tracked by issue [#130](https://github.com/gabned/provelume/issues/130).
 Package, embedded build identity, tag and latest public release remain `0.7.0`; these unreleased
-capabilities are not publication claims and `0.8/S05` remains planned.
+capabilities are not publication claims.
 
 The active source tree can:
 
@@ -98,6 +99,12 @@ The active source tree can:
   current, changed, renamed, untracked and missing evidence without ingesting or deleting anything;
 - retain path-redacted Source cursors and per-job runs with lifecycle, resync, bounded retry,
   checkpoint and replay evidence across crash, stale lease, backup/restore and portable transfer;
+- record append-only, content-free Instance resource snapshots with exact regular-file and logical-
+  byte totals, closed authority-aware categories, filesystem capacity and user-selected warning or
+  critical thresholds;
+- inspect exact per-snapshot count, byte, free-capacity and category deltas across clock change and
+  interrupted scheduler receipt commits without quota enforcement, automatic retention, cleanup or
+  canonical mutation;
 - restart without losing canonical state;
 - run without Git, GitHub, Provelume Cloud or an external AI provider.
 

@@ -116,6 +116,31 @@
   </ul>
 </section>
 
+<section class="panel">
+  <h2>{{ t('maintenance.resource_title') }}</h2>
+  {% set latest_resource = resource_status.latest %}
+  {% if latest_resource %}
+  <p><strong>{{ t('maintenance.resource_state') }}: {{ latest_resource.thresholds.state }}</strong></p>
+  <p>{{ latest_resource.file_count }} {{ t('maintenance.resource_files') }} · {{ latest_resource.byte_count }} {{ t('maintenance.resource_bytes') }} · {{ latest_resource.capacity.free_bytes }} {{ t('maintenance.resource_capacity') }}</p>
+  <p>{{ t('maintenance.resource_threshold_revision') }}: {{ latest_resource.thresholds.settings_revision }}{% if latest_resource.thresholds.codes %} · {{ latest_resource.thresholds.codes|join(', ') }}{% endif %}</p>
+  <ul class="document-list">
+  {% for category, totals in latest_resource.categories.items() %}
+    <li><div><strong>{{ category }}</strong><span>{{ totals.file_count }} {{ t('maintenance.resource_files') }} · {{ totals.byte_count }} {{ t('maintenance.resource_bytes') }}</span></div></li>
+  {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">{{ t('maintenance.resource_never') }}</p>
+  {% endif %}
+  <h3>{{ t('maintenance.resource_trends') }}</h3>
+  <ul class="document-list">
+  {% for snapshot in resource_status.history %}
+    <li><div><strong>#{{ snapshot.sequence }} · {{ snapshot.thresholds.state }}</strong><span>{{ snapshot.observed_at }} · {{ snapshot.file_count }} {{ t('maintenance.resource_files') }} · {{ snapshot.byte_count }} {{ t('maintenance.resource_bytes') }}</span>{% if snapshot.delta %}<span>Δ {{ snapshot.delta.file_count }} / {{ snapshot.delta.byte_count }} · {{ snapshot.delta.elapsed_seconds }}s{% if snapshot.delta.clock_reversed %} · clock_reversed{% endif %}</span>{% endif %}</div></li>
+  {% else %}
+    <li class="empty">{{ t('maintenance.resource_no_trends') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+
 <section class="notice info">
   <strong>{{ t('maintenance.boundary_title') }}</strong>
   <p>{{ t('maintenance.boundary') }}</p>

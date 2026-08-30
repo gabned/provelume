@@ -35,6 +35,11 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - added Source-scoped maintenance policies, lease/checkpoint replay, bounded superseded and I/O
   retries, manual reauthorization handling, path-redacted receipts, deep validation,
   backup/restore/portable-transfer coverage and aligned service/CLI/API/EN/IT Browser surfaces;
+- added Instance-scoped resource snapshots with exact regular-file and logical-byte totals, closed
+  authority-aware categories, local filesystem capacity and optional warning/critical thresholds;
+- added append-only idempotent trend chains with count, byte, free-capacity and per-category deltas,
+  explicit reversed-clock evidence, bounded retry, deep validation, portable recovery and aligned
+  service/CLI/read-only API/EN/IT Browser surfaces without content reads or quota enforcement;
 
 ### Changed
 

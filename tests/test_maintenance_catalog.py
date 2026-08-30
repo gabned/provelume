@@ -73,6 +73,7 @@ def test_catalog_is_closed_and_reindex_plans_are_read_only(tmp_path: Path) -> No
         "maintenance.library_rebuild",
         "maintenance.source_reconcile",
         "maintenance.validate",
+        "maintenance.resource_snapshot",
         "maintenance.original_assurance",
         "maintenance.duplicate_scan",
         "maintenance.backup_create",
@@ -656,6 +657,7 @@ def test_safe_catalogue_executors_emit_content_free_receipts(tmp_path: Path) -> 
     for action_id in (
         "maintenance.library_rebuild",
         "maintenance.validate",
+        "maintenance.resource_snapshot",
         "maintenance.original_assurance",
         "maintenance.duplicate_scan",
     ):
@@ -723,7 +725,7 @@ def test_maintenance_state_is_backed_up_exported_validated_and_exposed(
     with TestClient(app) as client:
         api_catalog = client.get("/api/v1/maintenance")
         assert api_catalog.status_code == 200
-        assert len(api_catalog.json()) == 9
+        assert len(api_catalog.json()) == 10
         assert client.get(f"/api/v1/maintenance/runs/{run['id']}").status_code == 200
         assert client.post("/api/v1/maintenance").status_code == 405
         english = client.get("/maintenance?lang=en")

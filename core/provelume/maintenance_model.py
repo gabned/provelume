@@ -86,6 +86,22 @@ MAINTENANCE_CATALOG: tuple[dict[str, Any], ...] = (
         "recovery": "restart_only",
     },
     {
+        "id": "maintenance.resource_snapshot",
+        "label": "Instance resource snapshot",
+        "description": (
+            "Record content-free file, byte, category, capacity and threshold evidence."
+        ),
+        "scheduler_job_kind": "maintenance.resource_snapshot",
+        "scope_kind": "instance",
+        "authority": "read_only",
+        "mutation": "operational_evidence",
+        "available": True,
+        "unavailable_reason": None,
+        "schedulable": True,
+        "dry_run": False,
+        "recovery": "restart_only",
+    },
+    {
         "id": "maintenance.original_assurance",
         "label": "Original assurance",
         "description": "Verify retained Original bytes and canonical references without repair.",

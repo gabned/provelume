@@ -233,6 +233,25 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             raise _not_found("Source reconciliation run", run_id)
         return result
 
+    @router.get("/maintenance/resource-statistics")
+    def get_resource_statistics(
+        history_limit: int = Query(default=30, ge=1, le=500),
+    ) -> dict[str, Any]:
+        return instance.resource_statistics_status(history_limit=history_limit)
+
+    @router.get("/maintenance/resource-statistics/snapshots")
+    def get_resource_snapshots(
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_resource_snapshots(limit=limit)
+
+    @router.get("/maintenance/resource-statistics/snapshots/{snapshot_id}")
+    def get_resource_snapshot(snapshot_id: str) -> dict[str, Any]:
+        result = instance.get_resource_snapshot(snapshot_id)
+        if result is None:
+            raise _not_found("resource snapshot", snapshot_id)
+        return result
+
     @router.get("/hierarchy")
     def get_hierarchy() -> dict[str, Any]:
         return instance.hierarchy_tree()

@@ -51,6 +51,10 @@ MAINTENANCE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "maintenance.action.maintenance.validate.description": (
             "Run deep, read-only validation over exact Instance state."
         ),
+        "maintenance.action.maintenance.resource_snapshot": "Instance resource snapshot",
+        "maintenance.action.maintenance.resource_snapshot.description": (
+            "Record content-free file, byte, category, capacity and threshold evidence."
+        ),
         "maintenance.action.maintenance.original_assurance": "Original assurance",
         "maintenance.action.maintenance.original_assurance.description": (
             "Verify retained Original bytes and canonical references without repair."
@@ -84,11 +88,20 @@ MAINTENANCE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "maintenance.no_source_cursors": "No managed Source is available.",
         "maintenance.source_runs": "Source reconciliation runs",
         "maintenance.no_source_runs": "No Source reconciliation has been journaled.",
-        "maintenance.boundary_title": "0.8/S04 safety boundary",
+        "maintenance.resource_title": "Instance resource statistics",
+        "maintenance.resource_never": "No resource snapshot has been recorded.",
+        "maintenance.resource_state": "Threshold state",
+        "maintenance.resource_files": "regular files",
+        "maintenance.resource_bytes": "logical bytes",
+        "maintenance.resource_capacity": "filesystem free bytes",
+        "maintenance.resource_threshold_revision": "Threshold revision",
+        "maintenance.resource_trends": "Recent resource trends",
+        "maintenance.resource_no_trends": "No resource trend has been recorded.",
+        "maintenance.boundary_title": "0.8/S05 safety boundary",
         "maintenance.boundary": (
             "Reconciliation may read an explicitly configured mounted network Source, but opens "
-            "no network transport and performs no canonical mutation or automatic deletion. "
-            "Backup actions remain unavailable until an explicit destination can be bound safely."
+            "no network transport. Resource snapshots read metadata only below the Instance root; "
+            "thresholds never enforce quotas, mutate canonical knowledge or delete files."
         ),
     },
     "it": {
@@ -148,6 +161,12 @@ MAINTENANCE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "maintenance.action.maintenance.validate.description": (
             "Esegue una validazione profonda e di sola lettura sullo stato esatto dell'Instance."
         ),
+        "maintenance.action.maintenance.resource_snapshot": (
+            "Snapshot delle risorse dell'Instance"
+        ),
+        "maintenance.action.maintenance.resource_snapshot.description": (
+            "Registra evidenza senza contenuti su file, byte, categorie, capacità e soglie."
+        ),
         "maintenance.action.maintenance.original_assurance": "Assurance degli Original",
         "maintenance.action.maintenance.original_assurance.description": (
             "Verifica byte degli Original e riferimenti canonici senza riparazioni."
@@ -187,12 +206,21 @@ MAINTENANCE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "maintenance.no_source_runs": (
             "Non è stata registrata alcuna riconciliazione Source."
         ),
-        "maintenance.boundary_title": "Confine di sicurezza 0.8/S04",
+        "maintenance.resource_title": "Statistiche risorse dell'Instance",
+        "maintenance.resource_never": "Non è stato registrato alcuno snapshot risorse.",
+        "maintenance.resource_state": "Stato delle soglie",
+        "maintenance.resource_files": "file regolari",
+        "maintenance.resource_bytes": "byte logici",
+        "maintenance.resource_capacity": "byte liberi del filesystem",
+        "maintenance.resource_threshold_revision": "Revisione soglie",
+        "maintenance.resource_trends": "Trend recenti delle risorse",
+        "maintenance.resource_no_trends": "Non è stato registrato alcun trend risorse.",
+        "maintenance.boundary_title": "Confine di sicurezza 0.8/S05",
         "maintenance.boundary": (
             "La riconciliazione può leggere una Source di rete montata e configurata "
-            "esplicitamente, ma non apre trasporti di rete e non modifica lo stato canonico né "
-            "cancella automaticamente. Le azioni di backup restano indisponibili finché non sarà "
-            "possibile vincolare in sicurezza una destinazione esplicita."
+            "esplicitamente, ma non apre trasporti di rete. Gli snapshot risorse leggono solo "
+            "metadati sotto la radice dell'Instance; le soglie non impongono quote, non modificano "
+            "conoscenza canonica e non cancellano file."
         ),
     },
 }

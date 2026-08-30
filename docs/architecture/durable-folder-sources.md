@@ -113,6 +113,7 @@ archive therefore makes no preservation claim about unacquired Source files.
   does not broaden its authority;
 - exact filesystem Source reconciliation and lifecycle evidence are implemented separately by
   `0.8/S04`; provider/connector network cursors remain later work;
-- resource trends, capacity policies and thresholds belong to `0.8/S05`;
+- `0.8/S05` implements Instance-root resource trends, capacity policies and thresholds without
+  scanning this external Source volume;
 - no timer authorizes repair, purge, retention deletion, Source cleanup, provider writes, cloud
   fallback or hidden network access.
