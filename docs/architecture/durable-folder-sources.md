@@ -1,7 +1,8 @@
 # Durable folder Sources
 
-`0.8/S02` adds a bounded filesystem-Source vertical slice on top of the `0.8/S01` scheduler. It is
-unreleased work and does not change the published `0.7.0` package, tag or release identity.
+`0.8/S02` supplies the bounded filesystem-Source vertical slice included in the `0.8.0` Vigilia
+release candidate on top of the `0.8/S01` scheduler. The latest published tag remains `v0.7.0`
+until the separate trusted release workflow completes.
 
 ## Explicit authority and scope
 

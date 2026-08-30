@@ -1,9 +1,10 @@
 # Source reconciliation cursors and lifecycle
 
-`0.8/S04` adds a bounded, read-only reconciliation slice to unreleased `main`. It does not change
-the published `0.7.0` package identity, tag or release. The slice compares one explicitly selected
-managed filesystem Source with current canonical Document, Version, Original and Acquisition
-evidence. It never ingests, repairs, purges, deletes or rewrites canonical knowledge.
+`0.8/S04` supplies the bounded, read-only reconciliation slice included in the `0.8.0` Vigilia
+release candidate. It compares one explicitly selected managed filesystem Source with current
+canonical Document, Version, Original and Acquisition evidence. It never ingests, repairs, purges,
+deletes or rewrites canonical knowledge. The public tag remains `v0.7.0` until the separate trusted
+release workflow completes.
 
 ## Exact scope and authority
 

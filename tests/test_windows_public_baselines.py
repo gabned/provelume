@@ -50,17 +50,33 @@ def test_windows_upgrade_uses_immutable_public_installer_baselines() -> None:
         'sha256 = "98e7b693903bc160ac45c11a7c114fed88019c403a98efc07bef5b7e5039afc3"'
         in text
     )
-    assert 'releases/download/v0.6.1/Provelume-Setup-0.6.1-x64.exe' in text
+    assert 'version = "0.7.0"' in text
+    assert 'commit = "1e1731969552497c2d3fe79b1c26eccdaad712c0"' in text
+    assert "size = 18464821" in text
+    assert (
+        'sha256 = "46d7df0f94f3e9431685741594489ffcc99e0edf3f4880644c87e280fdecd5cb"'
+        in text
+    )
+    assert "wheel_size = 294593" in text
+    assert (
+        'wheel_sha256 = "1beba35635fca2bcafa5d4f1a93d035592751f18785339705e1dbb3df7bf2a41"'
+        in text
+    )
+    assert 'releases/download/v0.7.0/Provelume-Setup-0.7.0-x64.exe' in text
+    assert 'provelume-$($IdentifiedBaseline.version)-py3-none-any.whl' in text
 
 
 def test_release_pipeline_uses_latest_immutable_public_installer() -> None:
     text = PIPELINE.read_text(encoding="utf-8")
 
-    assert "published 0.6.1 upgrade baseline" in text
-    assert 'Provelume-Setup-0.6.1-public.exe' in text
-    assert 'releases/download/v0.6.1/Provelume-Setup-0.6.1-x64.exe' in text
-    assert "Length -ne 18344455" in text
-    assert "98e7b693903bc160ac45c11a7c114fed88019c403a98efc07bef5b7e5039afc3" in text
+    assert "published 0.7.0 upgrade baseline" in text
+    assert 'Provelume-Setup-0.7.0-public.exe' in text
+    assert 'releases/download/v0.7.0/Provelume-Setup-0.7.0-x64.exe' in text
+    assert "Length -ne 18464821" in text
+    assert "46d7df0f94f3e9431685741594489ffcc99e0edf3f4880644c87e280fdecd5cb" in text
+    assert 'provelume-0.7.0-py3-none-any.whl' in text
+    assert "Length -ne 294593" in text
+    assert "1beba35635fca2bcafa5d4f1a93d035592751f18785339705e1dbb3df7bf2a41" in text
 
 
 def test_windows_upgrade_proves_schema_compatibility_for_public_baselines() -> None:
@@ -87,3 +103,13 @@ def test_windows_upgrade_proves_schema_compatibility_for_public_baselines() -> N
     assert "ExpectedMigrationBackupSha256" in text
     assert "SchemaEvidencePreserved" in text
     assert 'instance_schema_compatibility = "PASS"' in text
+    assert "BaselineInstanceTreeSha256" in text
+    assert "PostStartupInstanceTreeSha256" in text
+    assert "PostReinstallInstanceTreeSha256" in text
+    assert "PostUninstallInstanceTreeSha256" in text
+    assert "RuntimeBoundaryEvidence" in text
+    assert '$ResourceSnapshotCount = @($ResourceSnapshots).Count' in text
+    assert "Published 0.7.0 synthetic source" in text
+    assert "scheduler/policies" in text
+    assert "api/v1/security/network" in text
+    assert 'scheduler_refresh_network_delete_and_repair_default_disabled = "PASS"' in text
