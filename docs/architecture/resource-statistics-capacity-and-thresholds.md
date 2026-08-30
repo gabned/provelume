@@ -4,7 +4,7 @@ Status: bounded `0.8/S05` implementation tracked by issue [#130](https://github.
 
 ## Authority and measurement boundary
 
-`maintenance.resource_snapshot` is an Instance-scoped scheduler action. It observes regular files below the already selected Instance root and calls the local filesystem capacity interface for that root. It never reads file content, follows a symbolic link, scans a configured Source outside the Instance, opens a provider transport or performs telemetry.
+`maintenance.resource_snapshot` is an Instance-scoped scheduler action. It observes regular files below the already selected Instance root and calls the local filesystem capacity interface for that root. It never reads file content, follows a symbolic link or Windows junction, scans a configured Source outside the Instance, opens a provider transport or performs telemetry.
 
 Each regular directory entry contributes one logical file and its reported `st_size` contributes logical bytes. These values are not deduplicated physical blocks, allocated-block counts or storage reservations. Symlinks and special files are excluded. A concurrent disappearance or directory-shape change is a retryable `resource_statistics_changed` result; unreadable metadata is a bounded local-I/O failure. The explicit file and history bounds fail visibly and are never bypassed by sampling or deletion.
 

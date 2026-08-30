@@ -38,13 +38,19 @@ class ResourceStatisticsManager:
         self.settings_path = self.root / "thresholds.json"
         self.snapshots = self.root / "snapshots"
 
+    @staticmethod
+    def _link_like(path: Path) -> bool:
+        return path.is_symlink() or path.is_junction()
+
     def _check_state_parents(self) -> None:
         state = self.store.paths.state
-        if state.is_symlink() or (state.exists() and not state.is_dir()):
+        if self._link_like(state) or (state.exists() and not state.is_dir()):
             raise ResourceStatisticsStateError(
                 "resource statistics state parent is unsafe"
             )
-        if self.root.is_symlink() or (self.root.exists() and not self.root.is_dir()):
+        if self._link_like(self.root) or (
+            self.root.exists() and not self.root.is_dir()
+        ):
             raise ResourceStatisticsStateError(
                 "resource statistics state directory is unsafe"
             )
@@ -79,19 +85,19 @@ class ResourceStatisticsManager:
     def _ensure_root(self, *, snapshots: bool = False) -> None:
         self._check_state_parents()
         self.root.mkdir(parents=True, exist_ok=True)
-        if not self.root.is_dir() or self.root.is_symlink():
+        if not self.root.is_dir() or self._link_like(self.root):
             raise ResourceStatisticsStateError(
                 "resource statistics state directory is invalid"
             )
         if snapshots:
-            if self.snapshots.is_symlink() or (
+            if self._link_like(self.snapshots) or (
                 self.snapshots.exists() and not self.snapshots.is_dir()
             ):
                 raise ResourceStatisticsStateError(
                     "resource snapshot directory is unsafe"
                 )
             self.snapshots.mkdir(parents=True, exist_ok=True)
-            if not self.snapshots.is_dir() or self.snapshots.is_symlink():
+            if not self.snapshots.is_dir() or self._link_like(self.snapshots):
                 raise ResourceStatisticsStateError(
                     "resource snapshot directory is invalid"
                 )
@@ -99,7 +105,7 @@ class ResourceStatisticsManager:
     def threshold_settings(self) -> dict[str, Any]:
         instance_id = self._instance_id()
         self._check_state_parents()
-        if not self.settings_path.exists() and not self.settings_path.is_symlink():
+        if not self.settings_path.exists() and not self._link_like(self.settings_path):
             return default_threshold_settings(instance_id)
         settings = validate_threshold_settings(self._read_json(self.settings_path))
         if settings["instance_id"] != instance_id:
@@ -128,7 +134,7 @@ class ResourceStatisticsManager:
             }
         )
         self._ensure_root()
-        if self.settings_path.is_symlink():
+        if self._link_like(self.settings_path):
             raise ResourceStatisticsStateError(
                 "resource threshold settings path is unsafe"
             )
@@ -175,7 +181,7 @@ class ResourceStatisticsManager:
         while pending:
             directory = pending.pop()
             try:
-                if directory.is_symlink() or directory.resolve(strict=True) != directory:
+                if self._link_like(directory) or directory.resolve(strict=True) != directory:
                     raise ResourceStatisticsChangedError(
                         "Instance directory changed during resource observation"
                     )
@@ -201,7 +207,8 @@ class ResourceStatisticsManager:
                 ) from exc
             for entry in entries:
                 try:
-                    if entry.is_symlink():
+                    selected = Path(entry.path)
+                    if entry.is_symlink() or selected.is_junction():
                         continue
                     metadata = entry.stat(follow_symlinks=False)
                 except FileNotFoundError as exc:
@@ -216,7 +223,6 @@ class ResourceStatisticsManager:
                     raise ResourceStatisticsIOError(
                         "Instance files could not be observed"
                     ) from exc
-                selected = Path(entry.path)
                 if stat.S_ISDIR(metadata.st_mode):
                     pending.append(selected)
                     continue
@@ -308,14 +314,14 @@ class ResourceStatisticsManager:
         if not resource_snapshot_identifier(snapshot_id):
             return None
         self._check_state_parents()
-        if self.snapshots.is_symlink() or (
+        if self._link_like(self.snapshots) or (
             self.snapshots.exists() and not self.snapshots.is_dir()
         ):
             raise ResourceStatisticsStateError(
                 "resource snapshot directory is unsafe"
             )
         path = self._snapshot_path(snapshot_id)
-        if not path.exists() and not path.is_symlink():
+        if not path.exists() and not self._link_like(path):
             return None
         snapshot = validate_resource_snapshot(self._read_json(path))
         if path.stem != snapshot["id"]:
@@ -369,9 +375,9 @@ class ResourceStatisticsManager:
 
     def _all_snapshots(self) -> list[dict[str, Any]]:
         self._check_state_parents()
-        if not self.snapshots.exists() and not self.snapshots.is_symlink():
+        if not self.snapshots.exists() and not self._link_like(self.snapshots):
             return []
-        if self.snapshots.is_symlink() or not self.snapshots.is_dir():
+        if self._link_like(self.snapshots) or not self.snapshots.is_dir():
             raise ResourceStatisticsStateError("resource snapshot directory is invalid")
         paths = sorted(self.snapshots.iterdir())
         if len(paths) > MAX_RESOURCE_SNAPSHOTS:
@@ -445,7 +451,7 @@ class ResourceStatisticsManager:
         snapshot = validate_resource_snapshot(value)
         self._ensure_root(snapshots=True)
         path = self._snapshot_path(str(snapshot["id"]))
-        if path.exists() or path.is_symlink():
+        if path.exists() or self._link_like(path):
             existing = self.get_snapshot(str(snapshot["id"]))
             if existing != snapshot:
                 raise ResourceStatisticsStateError(
@@ -534,7 +540,7 @@ def resource_statistics_state_findings(store: InstanceStore) -> list[dict[str, s
     """Validate durable resource observations without scanning Instance file content."""
 
     manager = ResourceStatisticsManager(store)
-    if store.paths.state.is_symlink() or (
+    if manager._link_like(store.paths.state) or (
         store.paths.state.exists() and not store.paths.state.is_dir()
     ):
         return [
@@ -544,9 +550,9 @@ def resource_statistics_state_findings(store: InstanceStore) -> list[dict[str, s
                 "path": "state",
             }
         ]
-    if not manager.root.exists() and not manager.root.is_symlink():
+    if not manager.root.exists() and not manager._link_like(manager.root):
         return []
-    if manager.root.is_symlink() or not manager.root.is_dir():
+    if manager._link_like(manager.root) or not manager.root.is_dir():
         return [
             {
                 "code": "resource_statistics_directory_invalid",
