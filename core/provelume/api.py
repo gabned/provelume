@@ -12,7 +12,6 @@ from .build_info import current_build_info
 from .maintenance_model import MaintenanceError, MaintenanceNotFoundError
 from .markdown_viewer import DocumentContentError
 from .service import ProvelumeInstance
-from .source_reconciliation_model import SourceReconciliationError
 
 CLIENT_INSTALLATION_EVIDENCE_PARAMETERS = frozenset(
     {"release_bundle", "expected_manifest_sha256"}
@@ -217,10 +216,9 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
 
     @router.get("/maintenance/source-cursors/{source_id}")
     def get_source_reconciliation_cursor(source_id: str) -> dict[str, Any]:
-        try:
-            return instance.get_source_reconciliation_cursor(source_id)
-        except SourceReconciliationError as exc:
-            raise _not_found("Source reconciliation cursor", source_id) from exc
+        if not instance.folder_sources.is_managed(source_id):
+            raise _not_found("Source reconciliation cursor", source_id)
+        return instance.get_source_reconciliation_cursor(source_id)
 
     @router.get("/maintenance/source-runs")
     def get_source_reconciliation_runs(

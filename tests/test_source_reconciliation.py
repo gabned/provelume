@@ -733,6 +733,10 @@ def test_reconciliation_state_is_backed_up_exported_validated_and_exposed(
         )
         assert cursors.status_code == detail.status_code == 200
         assert runs.status_code == run_detail.status_code == 200
+        assert (
+            client.get("/api/v1/maintenance/source-cursors/src_" + "0" * 32).status_code
+            == 404
+        )
         assert detail.json()["code"] == "current"
         assert run_detail.json()["id"] == run["id"]
         api_text = json.dumps(
@@ -832,6 +836,9 @@ def test_reconciliation_state_is_backed_up_exported_validated_and_exposed(
         error["code"] == "source_reconciliation_record_invalid"
         for error in report["errors"]
     )
+    with TestClient(create_app(restored.root), raise_server_exceptions=False) as client:
+        response = client.get(f"/api/v1/maintenance/source-cursors/{source_id}")
+        assert response.status_code == 500
 
     imported_job_path = (
         imported.store.paths.state / "scheduler" / "jobs" / f"{job['id']}.json"
