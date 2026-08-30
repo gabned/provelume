@@ -4,6 +4,18 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Added
+
+- activated `0.9.0 — Lectio` with a public, disabled-by-default local OCR contract that keeps
+  Originals authoritative and treats page text, coordinates, confidence, warnings and optional
+  observations as unverified, removable and rebuildable derived state;
+- selected Tesseract CLI 5.5.3 as the first replaceable engine seam and recorded engine,
+  Leptonica, language-pack, platform, size, notice, manifest and SBOM gates without bundling an OCR
+  runtime in the wheel, sdist or Windows installer;
+- added closed English/Italian capability and error reporting, explicit modes/languages/input
+  formats, provenance/idempotency/checkpoint records, hostile-input limits and isolated temporary
+  directory cleanup with no runtime download, cloud requirement or remote fallback.
+
 ## 0.8.0 - 2026-08-30
 
 Published as the [`v0.8.0` prerelease](https://github.com/gabned/provelume/releases/tag/v0.8.0)

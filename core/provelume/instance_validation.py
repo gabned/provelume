@@ -20,6 +20,7 @@ from .instance_schema import (
     LEGACY_INSTANCE_SCHEMA_VERSION,
     manifest_validation_errors,
 )
+from .ocr_contract import OcrContractError, ocr_settings_from_config
 from .paths import UnsafePathError, safe_instance_path
 from .retention_model import canonical_disposition_errors
 from .storage import CANONICAL_KINDS, REQUIRED_CANONICAL_KINDS, InstanceStore
@@ -561,6 +562,17 @@ def inspect_instance(root: Path | str, *, deep: bool = True) -> dict[str, Any]:
             _finding(
                 "instance_identity_invalid",
                 "Instance ID, name or creation time is invalid",
+                path="provelume.yml",
+            )
+        )
+
+    try:
+        ocr_settings_from_config(config)
+    except OcrContractError as exc:
+        errors.append(
+            _finding(
+                "ocr_configuration_invalid",
+                str(exc),
                 path="provelume.yml",
             )
         )

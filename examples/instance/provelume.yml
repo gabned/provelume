@@ -8,4 +8,27 @@ ui:
 network:
   external_access: false
   update_checks: false
+ocr:
+  schema_version: 1
+  mode: disabled
+  engine: tesseract-cli
+  languages:
+  - eng
+  language_detection:
+    mode: disabled
+    candidates: []
+  automatic:
+    min_reliable_characters: 32
+    min_printable_ratio: 0.85
+  limits:
+    max_input_bytes: 268435456
+    max_pages: 200
+    max_page_pixels: 80000000
+    max_total_pixels: 500000000
+    max_decompressed_page_bytes: 335544320
+    max_decompression_ratio: 100
+    max_temp_bytes: 1073741824
+    max_seconds_per_page: 60
+    max_total_seconds: 900
+    max_output_chars_per_page: 500000
 sources: {}

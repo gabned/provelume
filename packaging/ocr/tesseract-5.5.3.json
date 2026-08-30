@@ -1,0 +1,185 @@
+{
+  "schema_version": 1,
+  "slice": "0.9/S01",
+  "status": "contract-only",
+  "selected_engine": {
+    "id": "tesseract-cli",
+    "qualified_baseline_version": "5.5.3",
+    "source": "https://github.com/tesseract-ocr/tesseract/releases/tag/5.5.3",
+    "license": "Apache-2.0",
+    "bundled": false,
+    "runtime_download": false,
+    "remote_fallback": false
+  },
+  "evaluated_alternatives": [
+    {
+      "id": "ocrmypdf",
+      "license": "MPL-2.0",
+      "decision": "not-baseline",
+      "reason": "PDF orchestrator rather than the engine seam; requires Tesseract and Ghostscript, whose AGPL-3.0 redistribution and service obligations need a separate decision"
+    },
+    {
+      "id": "paddleocr",
+      "license": "Apache-2.0",
+      "decision": "future-adapter",
+      "reason": "large ML runtime and model supply chain; official pipelines can obtain models from remote model sources"
+    },
+    {
+      "id": "easyocr",
+      "license": "Apache-2.0",
+      "decision": "future-adapter",
+      "reason": "PyTorch runtime and language models that are automatically downloaded unless separately staged"
+    }
+  ],
+  "upstream_components": [
+    {
+      "id": "tesseract",
+      "purpose": "local printed-text OCR engine",
+      "license": "Apache-2.0",
+      "source": "https://github.com/tesseract-ocr/tesseract",
+      "version": "5.5.3",
+      "bundled": false
+    },
+    {
+      "id": "leptonica",
+      "purpose": "image decoding and processing used by Tesseract",
+      "license": "BSD-2-Clause",
+      "source": "https://github.com/DanBloomberg/leptonica",
+      "version": null,
+      "bundled": false
+    },
+    {
+      "id": "image-codecs",
+      "purpose": "optional PNG, JPEG and TIFF decoding selected by a future pinned Leptonica build",
+      "license": "component-specific",
+      "source": null,
+      "version": null,
+      "bundled": false,
+      "gate": "Every selected codec requires an exact version, source, license, digest and SBOM entry before redistribution"
+    }
+  ],
+  "language_pack_source": {
+    "repository": "https://github.com/tesseract-ocr/tessdata_fast",
+    "commit": "87416418657359cb625c412a48b6e1d6d41c29bd",
+    "license": "Apache-2.0",
+    "bundled_in_s01": [],
+    "reference_packs": [
+      {
+        "id": "eng",
+        "filename": "eng.traineddata",
+        "size_bytes": 4113088,
+        "git_blob_sha1": "bbef4675053b5b468cdb477053e28b1c698ba08e",
+        "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+      },
+      {
+        "id": "ita",
+        "filename": "ita.traineddata",
+        "size_bytes": 2701314,
+        "git_blob_sha1": "edbffbe0e51892b240630b5eeabededa7e7c9c4f",
+        "sha256": "b8f89e1e785118dac4d51ae042c029a64edb5c3ee42ef73027a6d412748d8827"
+      },
+      {
+        "id": "osd",
+        "filename": "osd.traineddata",
+        "size_bytes": 10562727,
+        "git_blob_sha1": "527457ca8f8fe1fda7c2f88bce3c0e4be12be9d0",
+        "sha256": "9cf5d576fcc47564f11265841e5ca839001e7e6f38ff7f7aacf46d15a96b00ff"
+      }
+    ]
+  },
+  "distribution": {
+    "base_wheel": {
+      "engine_bundled": false,
+      "language_packs_bundled": [],
+      "python_runtime_dependencies_added": [],
+      "behavior": "Contract, schema and disabled configuration only"
+    },
+    "sdist": {
+      "engine_bundled": false,
+      "language_packs_bundled": [],
+      "behavior": "Includes source contract and packaging metadata, never third-party OCR binaries"
+    },
+    "windows_installer": {
+      "s01_architecture": "x86_64",
+      "engine_bundled": false,
+      "language_packs_bundled": [],
+      "future_model": "Separate opt-in component, unchecked by default, fully staged in the signed installer or offline companion bundle",
+      "future_payload_gate": "Pinned source build, exact manifest and digests, license files, notices, SBOM, clean-room scan and offline installation test",
+      "silent_runtime_download": false,
+      "nested_upstream_installer_execution": false
+    }
+  },
+  "platforms": [
+    {
+      "platform": "windows",
+      "architecture": "x86_64",
+      "provelume_s01": "contract-only",
+      "engine_evidence": "Official upstream 5.5.3 w64 release asset",
+      "engine_asset_size_bytes": 26573224,
+      "engine_asset_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4"
+    },
+    {
+      "platform": "windows",
+      "architecture": "arm64",
+      "provelume_s01": "unsupported",
+      "engine_evidence": null
+    },
+    {
+      "platform": "linux",
+      "architecture": "x86_64",
+      "provelume_s01": "contract-only",
+      "engine_evidence": "Upstream source build and distribution packages; no Provelume OCR execution qualification in S01"
+    },
+    {
+      "platform": "linux",
+      "architecture": "aarch64",
+      "provelume_s01": "contract-only",
+      "engine_evidence": "Upstream source build is possible; no Provelume OCR execution qualification in S01"
+    },
+    {
+      "platform": "macos",
+      "architecture": "x86_64",
+      "provelume_s01": "contract-only",
+      "engine_evidence": "Upstream documents Homebrew/MacPorts installation; Provelume macOS packaging is not yet delivered"
+    },
+    {
+      "platform": "macos",
+      "architecture": "arm64",
+      "provelume_s01": "contract-only",
+      "engine_evidence": "Upstream/Homebrew distribution is external; Provelume macOS packaging is not yet delivered"
+    }
+  ],
+  "size_and_supply_chain": {
+    "base_wheel_ocr_engine_bytes": 0,
+    "base_sdist_ocr_engine_bytes": 0,
+    "base_windows_installer_ocr_engine_bytes": 0,
+    "future_windows_component_max_bytes": 268435456,
+    "future_single_language_pack_max_bytes": 52428800,
+    "future_default_pack_set": [
+      "eng",
+      "ita"
+    ],
+    "future_detection_pack": "osd",
+    "detection_pack_default": false
+  },
+  "redistribution": {
+    "provelume_license_compatibility": "Compatible as an aggregate when third-party licenses and notices remain attached; Provelume's PolyForm/Commercial terms do not replace them",
+    "required_before_bundle": [
+      "Copy Apache-2.0 terms for Tesseract and every redistributed tessdata pack",
+      "Preserve applicable upstream NOTICE and attribution material",
+      "Copy the Leptonica BSD-2-Clause copyright and license text",
+      "Inventory every linked codec and runtime library with exact source, version, license and digest",
+      "Add all components and language packs to release manifest and CycloneDX SBOM",
+      "Publish checksums and independently verify an offline install with networking denied"
+    ],
+    "source_offer_required_by_selected_baseline": false,
+    "agpl_component_selected": false
+  },
+  "absence_behavior": {
+    "disabled": "Report ocr_disabled without probing an adapter or engine",
+    "adapter_missing": "Report ocr_adapter_unavailable; do not install or download anything",
+    "engine_missing": "Report ocr_engine_unavailable; do not invoke a remote service",
+    "language_pack_missing": "Report ocr_language_pack_missing with the missing explicit pack IDs; do not download them",
+    "all_failures": "Preserve the Original and canonical knowledge; derived OCR state may be removed or rebuilt"
+  }
+}
