@@ -399,12 +399,14 @@ def _jitter_seconds(
     *,
     policy_id: str,
     revision: int,
-    nominal: datetime,
     maximum: int,
 ) -> int:
     if maximum <= 0:
         return 0
-    seed = f"{policy_id}:{revision}:{instant_text(nominal)}".encode()
+    # A stable policy-revision offset spreads otherwise coincident policies while
+    # preserving the order of their occurrences. Independently jittering each
+    # nominal instant can invert adjacent deadlines when jitter exceeds cadence.
+    seed = f"{policy_id}:{revision}".encode()
     return int.from_bytes(hashlib.sha256(seed).digest()[:8], "big") % (maximum + 1)
 
 
@@ -452,7 +454,6 @@ def eligible_instant(
         seconds=_jitter_seconds(
             policy_id=policy_id,
             revision=revision,
-            nominal=selected,
             maximum=int(normalised["jitter_seconds"]),
         )
     )

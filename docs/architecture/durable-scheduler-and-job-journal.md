@@ -48,15 +48,16 @@ existing Source ID and remains fail-closed in this slice.
 | Timezone | Explicit IANA name such as `UTC` or `Europe/Rome`, using system data or the public Python-maintained `tzdata` fallback |
 | DST | `earliest`, `latest`, `skip`, or bounded `shift_forward` for gaps/folds |
 | Quiet window | Optional local start/end; an eligible instant is deferred to the resolved end |
-| Jitter | Deterministic policy/revision/occurrence hash, bounded to 24 hours |
+| Jitter | Deterministic policy/revision offset, bounded to 24 hours and monotonic across occurrences |
 | Missed run | `skip`, `coalesce`, or `catch_up_one`; never an unbounded backlog |
 | Retry | One to eight attempts with capped exponential local backoff |
 
 Intervals are bounded from 60 seconds to one year. Calendar search, DST-gap recovery, missed-run
-scan, jitter, retries and leases all have explicit upper bounds. A backward wall-clock change is
-detected from the last evaluation and recomputes the next occurrence instead of replaying future
-work. A forward change, restart, sleep or wake evaluates the configured missed-run policy and
-creates at most one job per policy per cycle.
+scan, jitter, retries and leases all have explicit upper bounds. Jitter is a deterministic,
+policy-revision offset: it spreads coincident policies without reordering successive occurrence
+deadlines. A backward wall-clock change is detected from the last evaluation and recomputes the
+next occurrence instead of replaying future work. A forward change, restart, sleep or wake
+evaluates the configured missed-run policy and creates at most one job per policy per cycle.
 
 Changing state, schedule or retry policy creates a new policy revision and recomputes its next
 occurrence. Job records retain the exact policy revision and retry envelope that created them, so a

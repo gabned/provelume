@@ -128,6 +128,57 @@ def test_dst_gap_fold_quiet_window_and_jitter_are_deterministic() -> None:
     assert first == second
     assert timedelta(0) <= first - nominal <= timedelta(seconds=30)
 
+    wide_jitter = schedule_payload(
+        mode="interval",
+        timezone="UTC",
+        interval_seconds=60,
+        jitter_seconds=24 * 60 * 60,
+    )
+    wide_first = eligible_instant(
+        nominal,
+        policy_id="policy_" + "3" * 32,
+        revision=7,
+        schedule=wide_jitter,
+    )
+    wide_second = eligible_instant(
+        nominal + timedelta(seconds=60),
+        policy_id="policy_" + "3" * 32,
+        revision=7,
+        schedule=wide_jitter,
+    )
+    assert wide_second - wide_first == timedelta(seconds=60)
+
+
+def test_wide_jitter_preserves_interval_evaluation_order(tmp_path: Path) -> None:
+    instance = _instance(tmp_path)
+    journal = instance.scheduler.journal
+    start = datetime(2026, 8, 30, 0, 0, tzinfo=UTC)
+    policy = journal.create_policy(
+        job_kind="maintenance.validate",
+        scope=_scope(instance),
+        state="enabled",
+        schedule=schedule_payload(
+            mode="interval",
+            timezone="UTC",
+            interval_seconds=60,
+            jitter_seconds=24 * 60 * 60,
+            missed_run_policy="catch_up_one",
+        ),
+        now=start,
+    )
+    first_due = datetime.fromisoformat(str(policy["next_due_at"]))
+
+    result = journal.evaluate(now=first_due + timedelta(seconds=61))
+
+    assert len(result["created_jobs"]) == 1
+    job = journal.get_job(result["created_jobs"][0])
+    assert job is not None
+    assert job["reason"] == "catch_up"
+    assert datetime.fromisoformat(job["eligible_at"]) == first_due + timedelta(seconds=60)
+    current = journal.get_policy(str(policy["id"]))
+    assert current is not None
+    assert datetime.fromisoformat(current["next_due_at"]) == first_due + timedelta(seconds=120)
+
 
 def test_policy_modes_scope_and_source_refresh_activation_are_fail_closed(
     tmp_path: Path,
