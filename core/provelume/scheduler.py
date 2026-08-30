@@ -1778,6 +1778,12 @@ class SchedulerCoordinator:
             progress=job["progress"],
             now=checkpoint_now,
         )
+        if live_clock:
+            self.journal.heartbeat(
+                str(job["id"]),
+                lease_token,
+                lease_seconds=lease_seconds,
+            )
         job = self.journal.checkpoint(
             str(job["id"]),
             lease_token,
@@ -1786,6 +1792,12 @@ class SchedulerCoordinator:
             progress=job["progress"],
             now=checkpoint_now,
         )
+        if live_clock:
+            job = self.journal.heartbeat(
+                str(job["id"]),
+                lease_token,
+                lease_seconds=lease_seconds,
+            )
         stop_heartbeat = Event()
         heartbeat_thread = None
         if live_clock:
@@ -1827,6 +1839,12 @@ class SchedulerCoordinator:
             stop_heartbeat.set()
             if heartbeat_thread is not None:
                 heartbeat_thread.join()
+        if live_clock:
+            self.journal.heartbeat(
+                str(job["id"]),
+                lease_token,
+                lease_seconds=lease_seconds,
+            )
         current = self.journal.get_job(str(job["id"]))
         if current is None:
             raise SchedulerConflictError("scheduler job disappeared during execution")
