@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import stat
 import zipfile
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
@@ -189,6 +190,18 @@ def test_scan_rejects_directory_addition_at_the_stability_barrier(
         instance.resource_statistics._scan()
 
 
+def test_counted_identity_uses_only_cross_platform_aggregate_fields() -> None:
+    regular = SimpleNamespace(st_mode=stat.S_IFREG | 0o600, st_size=7)
+    permission_churn = SimpleNamespace(st_mode=stat.S_IFREG | 0o777, st_size=7)
+    size_churn = SimpleNamespace(st_mode=stat.S_IFREG | 0o600, st_size=8)
+    type_churn = SimpleNamespace(st_mode=stat.S_IFDIR | 0o700, st_size=7)
+
+    identity = ResourceStatisticsManager._counted_identity(regular)
+    assert identity == ResourceStatisticsManager._counted_identity(permission_churn)
+    assert identity != ResourceStatisticsManager._counted_identity(size_churn)
+    assert identity != ResourceStatisticsManager._counted_identity(type_churn)
+
+
 def test_threshold_boundaries_and_trends_are_durable_and_content_free(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -351,14 +364,12 @@ def test_filesystem_churn_retries_boundedly_and_limit_failure_is_closed(
 
     def changed_once(
         manager: ResourceStatisticsManager,
-        *,
-        job_id: str | None = None,
     ) -> tuple[dict[str, dict[str, int]], int, int]:
         nonlocal calls
         calls += 1
         if calls == 1:
             raise ResourceStatisticsChangedError("synthetic filesystem churn")
-        return original_scan(manager, job_id=job_id)
+        return original_scan(manager)
 
     monkeypatch.setattr(ResourceStatisticsManager, "_scan", changed_once)
     job = instance.scheduler.journal.run_now(
@@ -380,7 +391,7 @@ def test_filesystem_churn_retries_boundedly_and_limit_failure_is_closed(
     monkeypatch.setattr(
         ResourceStatisticsManager,
         "_scan",
-        lambda _manager, **_kwargs: (_ for _ in ()).throw(
+        lambda _manager: (_ for _ in ()).throw(
             ResourceStatisticsLimitError("synthetic resource bound")
         ),
     )

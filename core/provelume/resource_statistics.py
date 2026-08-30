@@ -168,15 +168,8 @@ class ResourceStatisticsManager:
         return "other"
 
     @staticmethod
-    def _metadata_identity(value: os.stat_result) -> tuple[int, int, int, int, int, int]:
-        return (
-            int(value.st_mode),
-            int(value.st_size),
-            int(value.st_mtime_ns),
-            int(value.st_ctime_ns),
-            int(value.st_dev),
-            int(value.st_ino),
-        )
+    def _counted_identity(value: os.stat_result) -> tuple[int, int]:
+        return stat.S_IFMT(value.st_mode), int(value.st_size)
 
     @staticmethod
     def _member_digest(rows: list[tuple[str, str]]) -> str:
@@ -229,11 +222,7 @@ class ResourceStatisticsManager:
     def _after_scan_walk(self) -> None:
         """Test seam before the stability barrier rechecks every observed entry."""
 
-    def _scan(
-        self,
-        *,
-        job_id: str | None = None,
-    ) -> tuple[dict[str, dict[str, int]], int, int]:
+    def _scan(self) -> tuple[dict[str, dict[str, int]], int, int]:
         instance_root = self.store.paths.root
         try:
             resolved_root = instance_root.resolve(strict=True)
@@ -246,14 +235,7 @@ class ResourceStatisticsManager:
         byte_count = 0
         pending = [instance_root]
         directory_members: dict[Path, str] = {}
-        file_metadata: list[
-            tuple[Path, tuple[int, int, int, int, int, int], bool]
-        ] = []
-        volatile_job = (
-            self.store.paths.state / "scheduler" / "jobs" / f"{job_id}.json"
-            if job_id is not None
-            else None
-        )
+        file_metadata: list[tuple[Path, tuple[int, int]]] = []
         while pending:
             directory = pending.pop()
             try:
@@ -322,13 +304,7 @@ class ResourceStatisticsManager:
                 category = self._category(relative)
                 categories[category]["file_count"] += 1
                 categories[category]["byte_count"] += size
-                file_metadata.append(
-                    (
-                        selected,
-                        self._metadata_identity(metadata),
-                        selected == volatile_job,
-                    )
-                )
+                file_metadata.append((selected, self._counted_identity(metadata)))
             directory_members[directory] = self._member_digest(member_rows)
 
         self._after_scan_walk()
@@ -337,7 +313,7 @@ class ResourceStatisticsManager:
                 raise ResourceStatisticsChangedError(
                     "Instance directory membership changed during resource observation"
                 )
-        for path, expected, heartbeat_volatile in file_metadata:
+        for path, expected in file_metadata:
             try:
                 if self._link_like(path):
                     raise ResourceStatisticsChangedError(
@@ -358,15 +334,12 @@ class ResourceStatisticsManager:
                 raise ResourceStatisticsIOError(
                     "Instance files could not be observed"
                 ) from exc
-            identity = self._metadata_identity(observed)
-            stable_total_fields = identity[:2] == expected[:2]
-            if not stat.S_ISREG(observed.st_mode) or not stable_total_fields:
+            if (
+                not stat.S_ISREG(observed.st_mode)
+                or self._counted_identity(observed) != expected
+            ):
                 raise ResourceStatisticsChangedError(
-                    "Instance file metadata changed during resource observation"
-                )
-            if not heartbeat_volatile and identity != expected:
-                raise ResourceStatisticsChangedError(
-                    "Instance file metadata changed during resource observation"
+                    "Instance file type or size changed during resource observation"
                 )
         return categories, file_count, byte_count
 
@@ -614,7 +587,7 @@ class ResourceStatisticsManager:
             raise ResourceStatisticsLimitError(
                 "resource snapshot history reached its explicit safety bound"
             )
-        categories, file_count, byte_count = self._scan(job_id=job_id)
+        categories, file_count, byte_count = self._scan()
         capacity = self._capacity()
         settings = self.threshold_settings()
         previous = history[-1] if history else None
