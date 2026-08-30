@@ -14,6 +14,7 @@ from typing import Any, Protocol
 
 OCR_CONTRACT_SCHEMA_VERSION = 1
 OCR_ENGINE_ID = "tesseract-cli"
+OCR_ARTIFACT_KIND = "ocr_document_bundle"
 OCR_MODES = ("disabled", "automatic", "forced", "selected-page")
 OCR_LANGUAGE_DETECTION_MODES = ("disabled", "bounded")
 OCR_CAPABILITY_STATES = (

@@ -42,7 +42,7 @@ from provelume.ocr_renderer import (
     RenderedOcrPage,
 )
 from provelume.ocr_tesseract import TesseractCliAdapter
-from provelume.scheduler_model import SchedulerError
+from provelume.scheduler_model import SchedulerError, schedule_payload
 from provelume.service import ProvelumeInstance
 from provelume.web import create_app
 
@@ -354,6 +354,40 @@ def test_selected_page_job_is_idempotent_checkpointed_and_removable(
     )
 
 
+def test_permanent_document_purge_removes_every_ocr_bundle_payload(
+    tmp_path: Path,
+) -> None:
+    instance, manager, _renderer, _adapter, version_id = _fixture(tmp_path)
+    queued = manager.queue(version_id, mode="forced")
+    completed = instance.scheduler.run_one(job_id=queued["job"]["id"])
+    assert completed is not None and completed["status"] == "succeeded"
+    bundle = manager.list_bundles(version_id)[0]
+    manifest = bundle["manifest"]
+    payloads = {
+        instance.root / str(bundle["artifact"]["storage_ref"]),
+        *(
+            instance.root / str(page[key])
+            for page in manifest["pages"]
+            for key in ("result_ref", "text_ref")
+        ),
+    }
+    assert all(path.is_file() for path in payloads)
+    document_id = str(manifest["document_id"])
+
+    instance.trash_document(document_id)
+    preview = instance.purge_document_preview(document_id)
+    result = instance.purge_document(
+        document_id,
+        str(preview["confirmation_token"]),
+        acknowledge_boundaries=True,
+    )
+
+    assert result["status"] == "completed"
+    assert all(not path.exists() for path in payloads)
+    assert not any(manager.bundles.rglob("*.txt"))
+    assert manager.list_bundles(version_id) == []
+
+
 def test_automatic_mode_skips_reliable_text_without_component_probe(
     tmp_path: Path,
 ) -> None:
@@ -509,12 +543,18 @@ def test_ocr_job_enforces_the_total_deadline_without_publishing(
         ),
     )
     manager.configure(settings)
-    ticks = iter([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0])
+    calls = 0
+
+    def advancing_clock() -> float:
+        nonlocal calls
+        calls += 1
+        return 2.0 if calls >= 7 else 0.0
+
     timed = OcrJobManager(
         instance.store,
         renderer_factory=manager.renderer_factory,
         adapter_factory=manager.adapter_factory,
-        clock=lambda: next(ticks),
+        clock=advancing_clock,
     )
     instance.scheduler._ocr_manager_factory = lambda store: timed
     queued = timed.queue(version_id)
@@ -528,6 +568,116 @@ def test_ocr_job_enforces_the_total_deadline_without_publishing(
     assert run is not None and run["error"]["code"] == "ocr_deadline_exceeded"
     assert run["original_sha256_before"] == run["original_sha256_after"]
     assert run["canonical_fingerprint_before"] == run["canonical_fingerprint_after"]
+
+
+def test_ocr_deadline_covers_bundle_and_registration_finalization(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance, manager, _renderer, _adapter, version_id = _fixture(tmp_path)
+    settings = OcrSettings(mode="forced")
+    settings = replace(
+        settings,
+        limits=replace(
+            settings.limits,
+            max_seconds_per_page=1,
+            max_total_seconds=1,
+        ),
+    )
+    manager.configure(settings)
+    now = [0.0]
+    timed = OcrJobManager(
+        instance.store,
+        renderer_factory=manager.renderer_factory,
+        adapter_factory=manager.adapter_factory,
+        clock=lambda: now[0],
+    )
+    instance.scheduler._ocr_manager_factory = lambda store: timed
+    original_promote = timed._promote_bundle
+
+    def promote_then_expire(*args, **kwargs):
+        result = original_promote(*args, **kwargs)
+        now[0] = 2.0
+        return result
+
+    monkeypatch.setattr(timed, "_promote_bundle", promote_then_expire)
+    queued = timed.queue(version_id)
+
+    result = instance.scheduler.run_one(job_id=queued["job"]["id"])
+
+    assert result is not None and result["status"] == "retry_wait"
+    assert result["attempts"][-1]["error_code"] == "ocr_deadline_exceeded"
+    assert timed.list_bundles(version_id) == []
+    assert not any(timed.bundles.rglob("manifest.json"))
+
+
+def test_ocr_cumulative_work_and_promotion_respect_temporary_budget(
+    tmp_path: Path,
+) -> None:
+    _instance, manager, _renderer, _adapter, _version_id = _fixture(tmp_path)
+    manager._ensure_directories()
+    derivation = f"ocr_{'a' * 64}"
+    request = {"derivation_key": derivation, "version_id": "ver_fixture"}
+    work = manager.work / derivation
+    work.mkdir()
+    record = {"payload": "x" * 1024}
+    first = manager._checkpoint_work_page(
+        work,
+        request,
+        1,
+        record,
+        max_temp_bytes=1024 * 1024,
+    )
+    committed_bytes = sum(
+        path.stat().st_size for path in work.rglob("*") if path.is_file()
+    )
+    cumulative_limit = committed_bytes + 1
+    assert len(first) < cumulative_limit
+
+    with pytest.raises(OcrContractError) as checkpoint_error:
+        manager._checkpoint_work_page(
+            work,
+            request,
+            2,
+            record,
+            max_temp_bytes=cumulative_limit,
+        )
+    assert checkpoint_error.value.code == "ocr_temporary_space_exceeded"
+    assert not (work / "pages" / "000002.json").exists()
+
+    with pytest.raises(OcrContractError) as promotion_error:
+        manager._promote_bundle(
+            {"id": "job_fixture"},
+            request,
+            {1: first},
+            work_directory=work,
+            max_temp_bytes=committed_bytes + len(first) - 1,
+            check_deadline=lambda: 1,
+        )
+    assert promotion_error.value.code == "ocr_temporary_space_exceeded"
+    assert not (manager.bundles / "ver_fixture" / derivation).exists()
+
+
+def test_ocr_run_rejects_non_ocr_scheduler_job_without_executing(
+    tmp_path: Path,
+) -> None:
+    instance, _manager, _renderer, _adapter, _version_id = _fixture(tmp_path)
+    policy = instance.scheduler.journal.create_policy(
+        job_kind="maintenance.validate",
+        scope={"kind": "instance", "id": instance.instance_summary()["id"]},
+        state="disabled",
+        schedule=schedule_payload(mode="manual", timezone="UTC"),
+    )
+    queued = instance.scheduler.journal.run_now(
+        policy["id"], request_key="not-an-ocr-job"
+    )["job"]
+
+    with pytest.raises(OcrContractError) as exc_info:
+        instance.run_ocr_job(str(queued["id"]))
+
+    assert exc_info.value.code == "ocr_contract_violation"
+    unchanged = instance.scheduler.journal.get_job(str(queued["id"]))
+    assert unchanged is not None and unchanged["status"] == "queued"
 
 
 def test_failed_bundle_registration_rolls_back_publication_and_resumes(

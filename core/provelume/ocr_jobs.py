@@ -15,6 +15,7 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 from .derived import provenance_edge
 from .domain import DerivedArtifact
 from .ocr_contract import (
+    OCR_ARTIFACT_KIND,
     OCR_CONTRACT_SCHEMA_VERSION,
     OCR_ERROR_MESSAGES,
     OCR_RELIABLE_TEXT_GENERATORS,
@@ -43,7 +44,6 @@ from .storage import InstanceStore, utc_now
 
 OCR_BUNDLE_SCHEMA_VERSION = 1
 OCR_JOB_KIND = "ocr.execute"
-OCR_ARTIFACT_KIND = "ocr_document_bundle"
 OCR_BUNDLE_GENERATOR = "provelume.local_ocr"
 OCR_BUNDLE_GENERATOR_VERSION = "1"
 
@@ -60,6 +60,36 @@ def _sha256_file(path: Path) -> tuple[str, int]:
             digest.update(chunk)
             size += len(chunk)
     return digest.hexdigest(), size
+
+
+def _tree_file_bytes(root: Path) -> int:
+    if not root.exists():
+        return 0
+    if root.is_symlink() or not root.is_dir():
+        raise OcrContractError(
+            "ocr_internal_error", "OCR temporary state directory is invalid"
+        )
+    total = 0
+    for path in root.rglob("*"):
+        if path.is_symlink():
+            raise OcrContractError(
+                "ocr_internal_error", "OCR temporary state contains a symbolic link"
+            )
+        if path.is_file():
+            total += path.stat().st_size
+        elif not path.is_dir():
+            raise OcrContractError(
+                "ocr_internal_error", "OCR temporary state contains a special file"
+            )
+    return total
+
+
+def _require_temp_budget(*, current: int, additional: int, limit: int) -> None:
+    if current < 0 or additional < 0 or current + additional > limit:
+        raise OcrContractError(
+            "ocr_temporary_space_exceeded",
+            "OCR job exceeded its cumulative temporary-storage allowance",
+        )
 
 
 def _signature(path: Path) -> bytes:
@@ -481,8 +511,17 @@ class OcrJobManager:
         return value
 
     def _completed_work_pages(
-        self, work_directory: Path, request: Mapping[str, Any]
+        self,
+        work_directory: Path,
+        request: Mapping[str, Any],
+        *,
+        max_temp_bytes: int,
     ) -> dict[int, bytes]:
+        _require_temp_budget(
+            current=0,
+            additional=_tree_file_bytes(work_directory),
+            limit=max_temp_bytes,
+        )
         checkpoint = work_directory / "checkpoint.json"
         if not checkpoint.exists():
             return {}
@@ -527,11 +566,13 @@ class OcrJobManager:
         request: Mapping[str, Any],
         page_number: int,
         page_record: Mapping[str, Any],
+        *,
+        max_temp_bytes: int,
     ) -> bytes:
         pages = work_directory / "pages"
         pages.mkdir(parents=True, exist_ok=True)
         data = _json_bytes(page_record)
-        self.store._atomic_bytes(pages / f"{page_number:06d}.json", data)
+        page_path = pages / f"{page_number:06d}.json"
         checkpoint_path = work_directory / "checkpoint.json"
         current = {
             "schema_version": OCR_BUNDLE_SCHEMA_VERSION,
@@ -544,7 +585,40 @@ class OcrJobManager:
         current["pages"] = dict(
             sorted(current["pages"].items(), key=lambda item: int(item[0]))
         )
-        self.store._atomic_json(checkpoint_path, current)
+        checkpoint_data = _json_bytes(current)
+        existing_bytes = _tree_file_bytes(work_directory)
+        if (
+            page_path.is_symlink()
+            or checkpoint_path.is_symlink()
+            or (page_path.exists() and not page_path.is_file())
+            or (checkpoint_path.exists() and not checkpoint_path.is_file())
+        ):
+            raise OcrContractError(
+                "ocr_internal_error", "OCR checkpoint target is invalid"
+            )
+        old_page_bytes = page_path.stat().st_size if page_path.is_file() else 0
+        old_checkpoint_bytes = (
+            checkpoint_path.stat().st_size if checkpoint_path.is_file() else 0
+        )
+        # Atomic replacement briefly retains the old target beside the new
+        # temporary file. Account for both atomic writes before changing disk.
+        peak_page_write = existing_bytes + len(data)
+        after_page_write = existing_bytes - old_page_bytes + len(data)
+        peak_checkpoint_write = after_page_write + len(checkpoint_data)
+        after_checkpoint_write = (
+            after_page_write - old_checkpoint_bytes + len(checkpoint_data)
+        )
+        _require_temp_budget(
+            current=0,
+            additional=max(
+                peak_page_write,
+                peak_checkpoint_write,
+                after_checkpoint_write,
+            ),
+            limit=max_temp_bytes,
+        )
+        self.store._atomic_bytes(page_path, data)
+        self.store._atomic_bytes(checkpoint_path, checkpoint_data)
         return data
 
     def _promote_bundle(
@@ -552,6 +626,10 @@ class OcrJobManager:
         job: Mapping[str, Any],
         request: Mapping[str, Any],
         page_records: Mapping[int, bytes],
+        *,
+        work_directory: Path,
+        max_temp_bytes: int,
+        check_deadline: Callable[[], int],
     ) -> tuple[str, bytes, bool]:
         derivation = str(request["derivation_key"])
         relative_root = (
@@ -559,19 +637,51 @@ class OcrJobManager:
         )
         final = safe_instance_path(self.store.paths.root, relative_root)
         final.parent.mkdir(parents=True, exist_ok=True)
+        check_deadline()
+        if final.exists():
+            existing = final / "manifest.json"
+            if (
+                final.is_symlink()
+                or not final.is_dir()
+                or not existing.is_file()
+                or existing.is_symlink()
+            ):
+                raise OcrContractError(
+                    "ocr_internal_error", "Existing OCR bundle identity conflicts"
+                )
+            existing_bytes = existing.read_bytes()
+            if json.loads(existing_bytes).get("derivation_key") != derivation:
+                raise OcrContractError(
+                    "ocr_internal_error", "Existing OCR bundle identity conflicts"
+                )
+            check_deadline()
+            return f"{relative_root}/manifest.json", existing_bytes, False
         staging = Path(tempfile.mkdtemp(prefix=".ocr-bundle-", dir=final.parent))
         try:
+            def write_bounded(path: Path, data: bytes) -> None:
+                check_deadline()
+                current_bytes = _tree_file_bytes(work_directory) + _tree_file_bytes(
+                    staging
+                )
+                _require_temp_budget(
+                    current=current_bytes,
+                    additional=len(data),
+                    limit=max_temp_bytes,
+                )
+                path.write_bytes(data)
+                check_deadline()
+
             pages_directory = staging / "pages"
             pages_directory.mkdir()
             entries = []
             for page_number, data in sorted(page_records.items()):
                 page_path = pages_directory / f"{page_number:06d}.json"
-                page_path.write_bytes(data)
+                write_bounded(page_path, data)
                 record = json.loads(data)
                 text = str(record["result"]["text"])
                 text_data = text.encode("utf-8")
                 text_path = pages_directory / f"{page_number:06d}.txt"
-                text_path.write_bytes(text_data)
+                write_bounded(text_path, text_data)
                 entries.append(
                     {
                         "page_number": page_number,
@@ -616,22 +726,12 @@ class OcrJobManager:
                 "runtime_downloads": False,
                 "remote_fallback": False,
             }
+            check_deadline()
             manifest_bytes = _json_bytes(manifest)
-            (staging / "manifest.json").write_bytes(manifest_bytes)
-            if final.exists():
-                existing = final / "manifest.json"
-                if not existing.is_file() or existing.is_symlink():
-                    raise OcrContractError(
-                        "ocr_internal_error", "Existing OCR bundle identity conflicts"
-                    )
-                existing_bytes = existing.read_bytes()
-                if json.loads(existing_bytes).get("derivation_key") != derivation:
-                    raise OcrContractError(
-                        "ocr_internal_error", "Existing OCR bundle identity conflicts"
-                    )
-                return f"{relative_root}/manifest.json", existing_bytes, False
-            else:
-                os.replace(staging, final)
+            write_bounded(staging / "manifest.json", manifest_bytes)
+            check_deadline()
+            os.replace(staging, final)
+            check_deadline()
             return f"{relative_root}/manifest.json", manifest_bytes, True
         finally:
             if staging.exists():
@@ -662,6 +762,11 @@ class OcrJobManager:
             raise OcrContractError("ocr_internal_error", "OCR work directory is invalid")
         if os.name == "posix":
             os.chmod(work_directory, 0o700)
+        _require_temp_budget(
+            current=0,
+            additional=_tree_file_bytes(work_directory),
+            limit=settings.limits.max_temp_bytes,
+        )
         error_code: str | None = None
         deadline = self.clock() + settings.limits.max_total_seconds
 
@@ -718,7 +823,11 @@ class OcrJobManager:
                 page_count=plan.page_count,
                 max_pages=settings.limits.max_pages,
             )
-            completed = self._completed_work_pages(work_directory, request)
+            completed = self._completed_work_pages(
+                work_directory,
+                request,
+                max_temp_bytes=settings.limits.max_temp_bytes,
+            )
             committed_pages = sorted(set(completed) & set(pages))
             current_processed = int(job["progress"]["processed"])
             current_skipped = int(job["progress"]["skipped"])
@@ -738,6 +847,34 @@ class OcrJobManager:
                     raise OcrContractError("ocr_cancelled", "OCR job was cancelled")
                 if page_number in completed:
                     continue
+                work_bytes = _tree_file_bytes(work_directory)
+                remaining_temp_bytes = settings.limits.max_temp_bytes - work_bytes
+                _require_temp_budget(
+                    current=work_bytes,
+                    additional=1,
+                    limit=settings.limits.max_temp_bytes,
+                )
+                page_settings = replace(
+                    settings,
+                    limits=replace(
+                        settings.limits,
+                        max_temp_bytes=remaining_temp_bytes,
+                    ),
+                )
+                (
+                    page_renderer,
+                    page_renderer_capability,
+                    page_adapter,
+                    page_adapter_capability,
+                ) = self._components(page_settings)
+                if (
+                    page_adapter_capability.as_record() != expected_adapter
+                    or page_renderer_capability.as_record() != expected_renderer
+                ):
+                    raise OcrContractError(
+                        "ocr_version_incompatible",
+                        "OCR component identity changed during execution",
+                    )
                 with tempfile.TemporaryDirectory(
                     prefix=f"ocr-page-{page_number:06d}-",
                     dir=self.temporary_root,
@@ -745,7 +882,7 @@ class OcrJobManager:
                     temporary = Path(page_directory)
                     if os.name == "posix":
                         os.chmod(temporary, 0o700)
-                    rendered = renderer.render(
+                    rendered = page_renderer.render(
                         original_path,
                         plan,
                         page_number,
@@ -770,9 +907,9 @@ class OcrJobManager:
                         deadline_seconds=remaining_seconds(),
                         max_output_chars=settings.limits.max_output_chars_per_page,
                     )
-                    if hasattr(adapter, "cancelled"):
-                        adapter.cancelled = lambda: self._cancelled(str(job["id"]))
-                    result = adapter.recognise_page(page_request, rendered.path)
+                    if hasattr(page_adapter, "cancelled"):
+                        page_adapter.cancelled = lambda: self._cancelled(str(job["id"]))
+                    result = page_adapter.recognise_page(page_request, rendered.path)
                     remaining_seconds()
                     record = {
                         "schema_version": OCR_BUNDLE_SCHEMA_VERSION,
@@ -781,7 +918,11 @@ class OcrJobManager:
                         "result": result.as_record(),
                     }
                     completed[page_number] = self._checkpoint_work_page(
-                        work_directory, request, page_number, record
+                        work_directory,
+                        request,
+                        page_number,
+                        record,
+                        max_temp_bytes=settings.limits.max_temp_bytes,
                     )
                 committed_pages.append(page_number)
                 committed_pages.sort()
@@ -799,11 +940,16 @@ class OcrJobManager:
                     raise OcrContractError(
                         "ocr_internal_error", "OCR changed canonical knowledge"
                     )
+            remaining_seconds()
             bundle_ref, manifest_bytes, bundle_created = self._promote_bundle(
                 job,
                 request,
                 {page: completed[page] for page in pages},
+                work_directory=work_directory,
+                max_temp_bytes=settings.limits.max_temp_bytes,
+                check_deadline=remaining_seconds,
             )
+            remaining_seconds()
             artifact_key = f"{request['version_id']}:{request['derivation_key']}"
             artifact_id = f"derived_{uuid5(NAMESPACE_URL, artifact_key).hex}"
             artifact = DerivedArtifact(
@@ -817,6 +963,7 @@ class OcrJobManager:
                 created_at=utc_now(),
             )
             self.store.write_derived_artifact(artifact)
+            remaining_seconds()
             edge = provenance_edge(
                 "version",
                 str(request["version_id"]),
@@ -826,6 +973,7 @@ class OcrJobManager:
             )
             provenance_id = edge.id
             self.store.write_derived_provenance(edge)
+            remaining_seconds()
             if (
                 self._verify_original(version, original, original_path)
                 != original_before
@@ -836,6 +984,7 @@ class OcrJobManager:
                     "ocr_internal_error",
                     "OCR changed the Original or canonical knowledge",
                 )
+            remaining_seconds()
             return {"processed": newly_processed, "skipped": 0, "errors": 0}
         except (OcrContractError, OcrUnavailableError) as exc:
             error_code = exc.code

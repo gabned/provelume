@@ -36,7 +36,7 @@ from .maintenance_model import MaintenanceError, MaintenanceUnavailableError
 from .markdown_viewer import MAX_VIEWER_MARKDOWN_CHARS, DocumentContentReader
 from .network_status import declared_network_status
 from .oauth_authorization import InstalledAppAuthorizationManager, InstalledAppOAuthAdapter
-from .ocr_contract import OcrSettings
+from .ocr_contract import OcrContractError, OcrSettings
 from .ocr_jobs import OCR_JOB_KIND, OcrJobManager
 from .paths import UnsafePathError
 from .portable_transfer import PortableInstanceTransfer
@@ -271,6 +271,13 @@ class ProvelumeInstance:
             raise SchedulerBusyError("OCR lifecycle lock is unavailable") from exc
 
     def run_ocr_job(self, job_id: str) -> dict[str, Any] | None:
+        job = self.scheduler.journal.get_job(job_id)
+        if job is None:
+            return None
+        if job["job_kind"] != OCR_JOB_KIND:
+            raise OcrContractError(
+                "ocr_contract_violation", "OCR job was not found"
+            )
         result = self.scheduler.run_one(job_id=job_id)
         return public_job_record(result) if result is not None else None
 
