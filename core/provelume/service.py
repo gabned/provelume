@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -36,13 +36,15 @@ from .maintenance_model import MaintenanceError, MaintenanceUnavailableError
 from .markdown_viewer import MAX_VIEWER_MARKDOWN_CHARS, DocumentContentReader
 from .network_status import declared_network_status
 from .oauth_authorization import InstalledAppAuthorizationManager, InstalledAppOAuthAdapter
+from .ocr_contract import OcrContractError, OcrSettings
+from .ocr_jobs import OCR_JOB_KIND, OcrJobManager
 from .paths import UnsafePathError
 from .portable_transfer import PortableInstanceTransfer
 from .resource_statistics import ResourceStatisticsManager
 from .retention import DocumentRetentionManager
 from .retention_model import DISPOSITION_FILTERS, effective_dispositions
 from .scheduler import SchedulerCoordinator, public_job_record, schedule_payload
-from .scheduler_model import SchedulerBusyError
+from .scheduler_model import SchedulerBusyError, SchedulerError
 from .source_reconciliation import SourceReconciliationManager
 from .storage import InstanceStore
 from .web_acquisition import ManualWebAcquisitionManager
@@ -67,6 +69,7 @@ class ProvelumeInstance:
         self.source_reconciliation = SourceReconciliationManager(self.store)
         self.resource_statistics = ResourceStatisticsManager(self.store)
         self.scheduler = SchedulerCoordinator(self.store)
+        self.ocr = OcrJobManager(self.store)
         try:
             recovery = self.scheduler.recover()
             self.scheduler_recovery = {**recovery, "deferred": False}
@@ -158,6 +161,10 @@ class ProvelumeInstance:
         schedule: Mapping[str, Any],
         retry: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
+        if job_kind == OCR_JOB_KIND:
+            raise SchedulerError(
+                "OCR jobs require an exact persisted request through the OCR controls"
+            )
         return self.scheduler.create_policy(
             job_kind=job_kind,
             scope=scope,
@@ -229,6 +236,99 @@ class ProvelumeInstance:
     def get_scheduler_job(self, job_id: str) -> dict[str, Any] | None:
         job = self.scheduler.journal.get_job(job_id)
         return public_job_record(job) if job is not None else None
+
+    def ocr_capability(self) -> dict[str, Any]:
+        return self.ocr.capability()
+
+    def configure_ocr(self, settings: OcrSettings) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(purpose="ocr-configure"):
+                return self.ocr.configure(settings)
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError("OCR lifecycle lock is unavailable") from exc
+
+    def queue_ocr(
+        self,
+        version_id: str,
+        *,
+        mode: str | None = None,
+        languages: Sequence[str] | None = None,
+        pages: Sequence[int] = (),
+    ) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(purpose="ocr-queue"):
+                return self.ocr.queue(
+                    version_id,
+                    mode=mode,
+                    languages=languages,
+                    pages=pages,
+                )
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError("OCR lifecycle lock is unavailable") from exc
+
+    def run_ocr_job(self, job_id: str) -> dict[str, Any] | None:
+        job = self.scheduler.journal.get_job(job_id)
+        if job is None:
+            return None
+        if job["job_kind"] != OCR_JOB_KIND:
+            raise OcrContractError(
+                "ocr_contract_violation", "OCR job was not found"
+            )
+        result = self.scheduler.run_one(job_id=job_id)
+        return public_job_record(result) if result is not None else None
+
+    def list_ocr_jobs(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        selected_limit = min(max(limit, 0), 500)
+        if selected_limit == 0:
+            return []
+        result = []
+        for job in self.scheduler.journal.list_jobs(limit=500):
+            if job["job_kind"] != OCR_JOB_KIND:
+                continue
+            result.append(
+                {
+                    "job": public_job_record(job),
+                    "run": self.ocr.get_run(str(job["id"])),
+                }
+            )
+            if len(result) >= selected_limit:
+                break
+        return result
+
+    def get_ocr_job(self, job_id: str) -> dict[str, Any] | None:
+        job = self.scheduler.journal.get_job(job_id)
+        if job is None or job["job_kind"] != OCR_JOB_KIND:
+            return None
+        return {"job": public_job_record(job), "run": self.ocr.get_run(job_id)}
+
+    def cancel_ocr_job(self, job_id: str) -> dict[str, Any]:
+        result = self.ocr.cancel(job_id)
+        return {**result, "job": public_job_record(result["job"])}
+
+    def list_ocr_bundles(self, version_id: str | None = None) -> list[dict[str, Any]]:
+        return self.ocr.list_bundles(version_id)
+
+    def remove_ocr(self, version_id: str) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(purpose="ocr-remove"):
+                return self.ocr.remove(version_id)
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError("OCR lifecycle lock is unavailable") from exc
+
+    def rebuild_ocr(self, version_id: str) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(purpose="ocr-rebuild"):
+                return self.ocr.rebuild(version_id)
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError("OCR lifecycle lock is unavailable") from exc
 
     def list_scheduler_receipts(self, *, limit: int = 100) -> list[dict[str, Any]]:
         return self.scheduler.journal.list_receipts(limit=limit)

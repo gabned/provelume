@@ -14,12 +14,15 @@ from typing import Any, Protocol
 
 OCR_CONTRACT_SCHEMA_VERSION = 1
 OCR_ENGINE_ID = "tesseract-cli"
+OCR_ARTIFACT_KIND = "ocr_document_bundle"
 OCR_MODES = ("disabled", "automatic", "forced", "selected-page")
 OCR_LANGUAGE_DETECTION_MODES = ("disabled", "bounded")
 OCR_CAPABILITY_STATES = (
     "disabled",
     "adapter-unavailable",
     "engine-unavailable",
+    "renderer-unavailable",
+    "version-incompatible",
     "language-pack-missing",
     "ready",
 )
@@ -29,6 +32,8 @@ OCR_ERROR_CODES = (
     "ocr_disabled",
     "ocr_adapter_unavailable",
     "ocr_engine_unavailable",
+    "ocr_renderer_unavailable",
+    "ocr_version_incompatible",
     "ocr_language_pack_missing",
     "ocr_unsupported_input",
     "ocr_corrupt_input",
@@ -38,9 +43,12 @@ OCR_ERROR_CODES = (
     "ocr_decompression_limit_exceeded",
     "ocr_temporary_space_exceeded",
     "ocr_deadline_exceeded",
+    "ocr_output_limit_exceeded",
     "ocr_invalid_selection",
     "ocr_contract_violation",
     "ocr_adapter_failure",
+    "ocr_engine_output_invalid",
+    "ocr_internal_error",
     "ocr_cancelled",
 )
 
@@ -54,6 +62,7 @@ OCR_SUPPORTED_INPUTS = {
 OCR_STAGED_PAGE_INPUTS = tuple(
     media_type for media_type in OCR_SUPPORTED_INPUTS if media_type != "application/pdf"
 )
+OCR_RELIABLE_TEXT_GENERATORS = ("pypdf",)
 
 OCR_ERROR_MESSAGES = {
     "ocr_disabled": {
@@ -61,15 +70,20 @@ OCR_ERROR_MESSAGES = {
         "it": "L'OCR è disabilitato in questa Istanza.",
     },
     "ocr_adapter_unavailable": {
-        "en": "No OCR execution adapter is installed; this build exposes the contract only.",
-        "it": (
-            "Nessun adapter di esecuzione OCR è installato; "
-            "questa build espone solo il contratto."
-        ),
+        "en": "The configured local OCR execution adapter is unavailable.",
+        "it": "L'adapter di esecuzione OCR locale configurato non è disponibile.",
     },
     "ocr_engine_unavailable": {
         "en": "The configured local OCR engine is not installed or cannot be executed.",
         "it": "Il motore OCR locale configurato non è installato o non può essere eseguito.",
+    },
+    "ocr_renderer_unavailable": {
+        "en": "The configured local OCR renderer or image decoder is not installed.",
+        "it": "Il renderer OCR locale o il decoder immagini configurato non è installato.",
+    },
+    "ocr_version_incompatible": {
+        "en": "An installed OCR engine, renderer or decoder version is incompatible.",
+        "it": "La versione installata di motore OCR, renderer o decoder non è compatibile.",
     },
     "ocr_language_pack_missing": {
         "en": "One or more explicitly selected OCR language packs are not installed.",
@@ -107,6 +121,10 @@ OCR_ERROR_MESSAGES = {
         "en": "The OCR page or job exceeded its configured deadline.",
         "it": "La pagina o il job OCR ha superato il tempo massimo configurato.",
     },
+    "ocr_output_limit_exceeded": {
+        "en": "The OCR process or derived output exceeded its configured byte limit.",
+        "it": "Il processo OCR o l'output derivato ha superato il limite di byte configurato.",
+    },
     "ocr_invalid_selection": {
         "en": "The selected-page request is empty, duplicated or outside the document.",
         "it": "La selezione pagine è vuota, duplicata o esterna al documento.",
@@ -118,6 +136,14 @@ OCR_ERROR_MESSAGES = {
     "ocr_adapter_failure": {
         "en": "The local OCR adapter failed without producing a valid result.",
         "it": "L'adapter OCR locale non ha prodotto un risultato valido.",
+    },
+    "ocr_engine_output_invalid": {
+        "en": "The local OCR engine produced missing, malformed or incomplete output.",
+        "it": "Il motore OCR locale ha prodotto un output mancante, malformato o incompleto.",
+    },
+    "ocr_internal_error": {
+        "en": "The local OCR pipeline encountered an internal error.",
+        "it": "La pipeline OCR locale ha rilevato un errore interno.",
     },
     "ocr_cancelled": {
         "en": "The OCR job was cancelled without changing canonical knowledge.",
@@ -336,6 +362,10 @@ class OcrSettings:
     schema_version: int = OCR_CONTRACT_SCHEMA_VERSION
     mode: str = "disabled"
     engine: str = OCR_ENGINE_ID
+    engine_executable: str = "tesseract"
+    tessdata_path: str | None = None
+    renderer: str = "pdfium-pillow"
+    render_dpi: int = 300
     languages: tuple[str, ...] = ("eng",)
     language_detection: OcrLanguageDetection = OcrLanguageDetection()
     automatic: OcrAutomaticPolicy = OcrAutomaticPolicy()
@@ -349,6 +379,30 @@ class OcrSettings:
         if self.mode not in OCR_MODES:
             raise OcrContractError("ocr_contract_violation", "unsupported OCR mode")
         _closed_identifier(self.engine, "OCR engine", _COMPONENT_ID)
+        _closed_identifier(self.renderer, "OCR renderer", _COMPONENT_ID)
+        if (
+            not isinstance(self.engine_executable, str)
+            or not self.engine_executable.strip()
+            or len(self.engine_executable) > 1024
+            or "\x00" in self.engine_executable
+        ):
+            raise OcrContractError(
+                "ocr_contract_violation", "OCR engine executable is invalid"
+            )
+        if self.tessdata_path is not None and (
+            not isinstance(self.tessdata_path, str)
+            or not self.tessdata_path.strip()
+            or len(self.tessdata_path) > 1024
+            or "\x00" in self.tessdata_path
+        ):
+            raise OcrContractError(
+                "ocr_contract_violation", "OCR tessdata path is invalid"
+            )
+        _closed_integer(self.render_dpi, "render_dpi", ceiling=600)
+        if self.render_dpi < 72:
+            raise OcrContractError(
+                "ocr_contract_violation", "render_dpi must be between 72 and 600"
+            )
         selected = _languages(self.languages)
         object.__setattr__(self, "languages", selected)
         if self.language_detection.mode == "bounded" and not set(
@@ -364,6 +418,10 @@ class OcrSettings:
             "schema_version": self.schema_version,
             "mode": self.mode,
             "engine": self.engine,
+            "engine_executable": self.engine_executable,
+            "tessdata_path": self.tessdata_path,
+            "renderer": self.renderer,
+            "render_dpi": self.render_dpi,
             "languages": list(self.languages),
             "language_detection": self.language_detection.as_record(),
             "automatic": self.automatic.as_record(),
@@ -389,12 +447,23 @@ def ocr_settings_from_config(config: Any) -> OcrSettings:
         "schema_version",
         "mode",
         "engine",
+        "engine_executable",
+        "tessdata_path",
+        "renderer",
+        "render_dpi",
         "languages",
         "language_detection",
         "automatic",
         "limits",
     }
-    if not isinstance(value, Mapping) or set(value) != expected:
+    legacy = expected - {
+        "engine_executable",
+        "tessdata_path",
+        "renderer",
+        "render_dpi",
+    }
+    fields = set(value) if isinstance(value, Mapping) else set()
+    if not isinstance(value, Mapping) or (fields != expected and fields != legacy):
         raise OcrContractError(
             "ocr_contract_violation", "OCR settings fields are incomplete or unsupported"
         )
@@ -405,6 +474,10 @@ def ocr_settings_from_config(config: Any) -> OcrSettings:
         schema_version=value["schema_version"],
         mode=value["mode"],
         engine=value["engine"],
+        engine_executable=value.get("engine_executable", "tesseract"),
+        tessdata_path=value.get("tessdata_path"),
+        renderer=value.get("renderer", "pdfium-pillow"),
+        render_dpi=value.get("render_dpi", 300),
         languages=tuple(languages),
         language_detection=OcrLanguageDetection.from_mapping(value["language_detection"]),
         automatic=OcrAutomaticPolicy.from_mapping(value["automatic"]),
@@ -417,6 +490,26 @@ def settings_fingerprint(settings: OcrSettings) -> str:
         settings.as_record(), sort_keys=True, separators=(",", ":"), ensure_ascii=True
     ).encode("ascii")
     return hashlib.sha256(payload).hexdigest()
+
+
+def reliable_text_metrics(
+    value: str | None, *, generator: str | None = None
+) -> tuple[int, float]:
+    """Return deterministic printable, non-whitespace evidence for automatic mode."""
+
+    if generator is not None and generator not in OCR_RELIABLE_TEXT_GENERATORS:
+        return 0, 0.0
+    if value is None:
+        return 0, 0.0
+    if not isinstance(value, str):
+        raise OcrContractError(
+            "ocr_contract_violation", "reliable text evidence must be text"
+        )
+    significant = [character for character in value if not character.isspace()]
+    if not significant:
+        return 0, 0.0
+    printable = sum(character.isprintable() for character in significant)
+    return printable, printable / len(significant)
 
 
 def should_schedule_ocr(
@@ -595,6 +688,9 @@ class OcrAdapterCapability:
     engine_id: str
     engine_version: str | None
     engine_available: bool
+    engine_executable: str | None
+    version_compatible: bool
+    tessdata_path: str | None
     installed_languages: tuple[str, ...]
     input_media_types: tuple[str, ...]
     emits_coordinates: bool
@@ -617,6 +713,31 @@ class OcrAdapterCapability:
         if self.engine_available and self.engine_version is None:
             raise OcrContractError(
                 "ocr_contract_violation", "an available engine requires an exact version"
+            )
+        if self.engine_available and (
+            not isinstance(self.engine_executable, str)
+            or not self.engine_executable
+            or "\x00" in self.engine_executable
+        ):
+            raise OcrContractError(
+                "ocr_contract_violation",
+                "an available engine requires its resolved executable",
+            )
+        if type(self.version_compatible) is not bool:
+            raise OcrContractError(
+                "ocr_contract_violation", "engine compatibility must be boolean"
+            )
+        if not self.engine_available and self.version_compatible:
+            raise OcrContractError(
+                "ocr_contract_violation", "an unavailable engine cannot be compatible"
+            )
+        if self.tessdata_path is not None and (
+            not isinstance(self.tessdata_path, str)
+            or not self.tessdata_path
+            or "\x00" in self.tessdata_path
+        ):
+            raise OcrContractError(
+                "ocr_contract_violation", "tessdata path is invalid"
             )
         if self.installed_languages:
             selected = _languages(self.installed_languages, "installed languages")
@@ -642,9 +763,116 @@ class OcrAdapterCapability:
                     "ocr_contract_violation", f"{name} must be boolean"
                 )
 
+    def as_record(self) -> dict[str, Any]:
+        return {
+            "adapter_id": self.adapter_id,
+            "adapter_version": self.adapter_version,
+            "engine_id": self.engine_id,
+            "engine_version": self.engine_version,
+            "engine_available": self.engine_available,
+            "engine_executable": self.engine_executable,
+            "version_compatible": self.version_compatible,
+            "tessdata_path": self.tessdata_path,
+            "installed_languages": list(self.installed_languages),
+            "input_media_types": list(self.input_media_types),
+            "outputs": {
+                "coordinates": self.emits_coordinates,
+                "confidence": self.emits_confidence,
+                "layout": self.emits_layout,
+                "tables": self.emits_tables,
+                "barcodes": self.emits_barcodes,
+                "qr_codes": self.emits_qr_codes,
+            },
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class OcrRendererCapability:
+    adapter_id: str
+    adapter_version: str
+    renderer_id: str
+    renderer_version: str | None
+    renderer_available: bool
+    version_compatible: bool
+    resolved_path: str | None
+    decoder_id: str
+    decoder_version: str | None
+    component_versions: tuple[tuple[str, str], ...]
+    input_media_types: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        for value, label in (
+            (self.adapter_id, "renderer adapter ID"),
+            (self.renderer_id, "renderer ID"),
+            (self.decoder_id, "decoder ID"),
+        ):
+            _closed_identifier(value, label, _COMPONENT_ID)
+        _closed_identifier(self.adapter_version, "renderer adapter version", _VERSION)
+        for value, label in (
+            (self.renderer_version, "renderer version"),
+            (self.decoder_version, "decoder version"),
+        ):
+            if value is not None:
+                _closed_identifier(value, label, _VERSION)
+        if type(self.renderer_available) is not bool or type(self.version_compatible) is not bool:
+            raise OcrContractError(
+                "ocr_contract_violation", "renderer availability is invalid"
+            )
+        if self.renderer_available and (
+            self.renderer_version is None
+            or self.decoder_version is None
+            or not isinstance(self.resolved_path, str)
+            or not self.resolved_path
+        ):
+            raise OcrContractError(
+                "ocr_contract_violation", "renderer component identity is incomplete"
+            )
+        if not self.renderer_available and self.version_compatible:
+            raise OcrContractError(
+                "ocr_contract_violation", "an unavailable renderer cannot be compatible"
+            )
+        if (
+            tuple(sorted(set(self.component_versions))) != self.component_versions
+            or any(
+                not isinstance(name, str)
+                or _COMPONENT_ID.fullmatch(name) is None
+                or not isinstance(version, str)
+                or _VERSION.fullmatch(version) is None
+                for name, version in self.component_versions
+            )
+        ):
+            raise OcrContractError(
+                "ocr_contract_violation", "renderer component versions are invalid"
+            )
+        if (
+            not self.input_media_types
+            or tuple(sorted(set(self.input_media_types))) != self.input_media_types
+            or any(item not in OCR_SUPPORTED_INPUTS for item in self.input_media_types)
+        ):
+            raise OcrContractError(
+                "ocr_contract_violation", "renderer input media types are invalid"
+            )
+
+    def as_record(self) -> dict[str, Any]:
+        return {
+            "adapter_id": self.adapter_id,
+            "adapter_version": self.adapter_version,
+            "renderer_id": self.renderer_id,
+            "renderer_version": self.renderer_version,
+            "renderer_available": self.renderer_available,
+            "version_compatible": self.version_compatible,
+            "resolved_path": self.resolved_path,
+            "decoder_id": self.decoder_id,
+            "decoder_version": self.decoder_version,
+            "component_versions": {
+                name: version for name, version in self.component_versions
+            },
+            "input_media_types": list(self.input_media_types),
+        }
+
 
 class OcrEngineAdapter(Protocol):
-    """Replaceable local-only S02 seam; S01 intentionally ships no implementation."""
+    """Replaceable local-only engine seam implemented by the S02 baseline."""
 
     def capability(self) -> OcrAdapterCapability: ...
 
@@ -653,13 +881,21 @@ class OcrEngineAdapter(Protocol):
     ) -> OcrPageResult: ...
 
 
+class OcrPageRenderer(Protocol):
+    """Replaceable local-only renderer/decoder discovery seam."""
+
+    def capability(self) -> OcrRendererCapability: ...
+
+
 def ocr_capability_report(
     settings: OcrSettings,
     adapter: OcrEngineAdapter | None = None,
+    renderer: OcrPageRenderer | None = None,
 ) -> dict[str, Any]:
     """Report capability without implicit discovery, execution, download or fallback."""
 
     capability: OcrAdapterCapability | None = None
+    renderer_capability: OcrRendererCapability | None = None
     missing_languages: tuple[str, ...] = ()
     code: str | None
     if settings.mode == "disabled":
@@ -670,9 +906,20 @@ def ocr_capability_report(
         code = "ocr_adapter_unavailable"
     else:
         capability = adapter.capability()
+        if renderer is not None:
+            renderer_capability = renderer.capability()
         if capability.engine_id != settings.engine or not capability.engine_available:
             state = "engine-unavailable"
             code = "ocr_engine_unavailable"
+        elif renderer_capability is None or (
+            renderer_capability.renderer_id != settings.renderer
+            or not renderer_capability.renderer_available
+        ):
+            state = "renderer-unavailable"
+            code = "ocr_renderer_unavailable"
+        elif not capability.version_compatible or not renderer_capability.version_compatible:
+            state = "version-incompatible"
+            code = "ocr_version_incompatible"
         elif not set(settings.languages).issubset(capability.installed_languages):
             state = "language-pack-missing"
             code = "ocr_language_pack_missing"
@@ -682,32 +929,31 @@ def ocr_capability_report(
         else:
             state = "ready"
             code = None
+    supported_input_media_types = (
+        []
+        if capability is None or renderer_capability is None
+        else sorted(
+            set(capability.input_media_types)
+            & set(renderer_capability.input_media_types)
+        )
+    )
     return {
         "schema_version": OCR_CONTRACT_SCHEMA_VERSION,
         "state": state,
         "available": state == "ready",
         "mode": settings.mode,
         "configured_engine": settings.engine,
+        "configured_engine_executable": settings.engine_executable,
+        "configured_renderer": settings.renderer,
+        "render_dpi": settings.render_dpi,
         "configured_languages": list(settings.languages),
         "missing_languages": list(missing_languages),
-        "adapter": None
-        if capability is None
-        else {
-            "id": capability.adapter_id,
-            "version": capability.adapter_version,
-            "engine_id": capability.engine_id,
-            "engine_version": capability.engine_version,
-            "installed_languages": list(capability.installed_languages),
-            "input_media_types": list(capability.input_media_types),
-            "outputs": {
-                "coordinates": capability.emits_coordinates,
-                "confidence": capability.emits_confidence,
-                "layout": capability.emits_layout,
-                "tables": capability.emits_tables,
-                "barcodes": capability.emits_barcodes,
-                "qr_codes": capability.emits_qr_codes,
-            },
-        },
+        "supported_input_media_types": supported_input_media_types,
+        "adapter": None if capability is None else capability.as_record(),
+        "renderer": (
+            None if renderer_capability is None else renderer_capability.as_record()
+        ),
+        "limits": settings.limits.as_record(),
         "error": None
         if code is None
         else {"code": code, "messages": dict(OCR_ERROR_MESSAGES[code])},
@@ -740,6 +986,8 @@ def require_ocr_available(report: Mapping[str, Any]) -> None:
 class OcrPageRequest:
     source_page: OcrSourcePageIdentity
     staged_media_type: str
+    page_width: int
+    page_height: int
     settings_sha256: str
     languages: tuple[str, ...]
     deadline_seconds: int
@@ -751,6 +999,8 @@ class OcrPageRequest:
                 "ocr_contract_violation",
                 "staged OCR pages must use an explicitly supported raster media type",
             )
+        _closed_integer(self.page_width, "page_width", ceiling=1_000_000)
+        _closed_integer(self.page_height, "page_height", ceiling=1_000_000)
         _closed_identifier(self.settings_sha256, "settings SHA-256", _SHA256)
         object.__setattr__(self, "languages", _languages(self.languages))
         _closed_integer(self.deadline_seconds, "deadline_seconds", ceiling=900)
@@ -761,6 +1011,8 @@ class OcrPageRequest:
             "schema_version": OCR_CONTRACT_SCHEMA_VERSION,
             "source_page": self.source_page.as_record(),
             "staged_media_type": self.staged_media_type,
+            "page_width": self.page_width,
+            "page_height": self.page_height,
             "settings_sha256": self.settings_sha256,
             "languages": list(self.languages),
             "deadline_seconds": self.deadline_seconds,
@@ -863,8 +1115,18 @@ class OcrObservation:
 class OcrProvenance:
     engine_id: str
     engine_version: str
+    engine_executable: str
     adapter_id: str
     adapter_version: str
+    tessdata_path: str | None
+    renderer_id: str
+    renderer_version: str
+    renderer_adapter_id: str
+    renderer_adapter_version: str
+    renderer_resolved_path: str
+    decoder_id: str
+    decoder_version: str
+    render_dpi: int
     languages: tuple[str, ...]
     settings_sha256: str
     source_page: OcrSourcePageIdentity
@@ -872,8 +1134,32 @@ class OcrProvenance:
     def __post_init__(self) -> None:
         _closed_identifier(self.engine_id, "engine ID", _COMPONENT_ID)
         _closed_identifier(self.engine_version, "engine version", _VERSION)
+        if not self.engine_executable or "\x00" in self.engine_executable:
+            raise OcrContractError(
+                "ocr_contract_violation", "resolved engine executable is invalid"
+            )
         _closed_identifier(self.adapter_id, "adapter ID", _COMPONENT_ID)
         _closed_identifier(self.adapter_version, "adapter version", _VERSION)
+        if self.tessdata_path is not None and (
+            not self.tessdata_path or "\x00" in self.tessdata_path
+        ):
+            raise OcrContractError(
+                "ocr_contract_violation", "resolved tessdata path is invalid"
+            )
+        for value, label, pattern in (
+            (self.renderer_id, "renderer ID", _COMPONENT_ID),
+            (self.renderer_version, "renderer version", _VERSION),
+            (self.renderer_adapter_id, "renderer adapter ID", _COMPONENT_ID),
+            (self.renderer_adapter_version, "renderer adapter version", _VERSION),
+            (self.decoder_id, "decoder ID", _COMPONENT_ID),
+            (self.decoder_version, "decoder version", _VERSION),
+        ):
+            _closed_identifier(value, label, pattern)
+        if not self.renderer_resolved_path or "\x00" in self.renderer_resolved_path:
+            raise OcrContractError(
+                "ocr_contract_violation", "resolved renderer path is invalid"
+            )
+        _closed_integer(self.render_dpi, "render_dpi", ceiling=600)
         object.__setattr__(self, "languages", _languages(self.languages))
         _closed_identifier(self.settings_sha256, "settings SHA-256", _SHA256)
 
@@ -952,6 +1238,7 @@ def validate_ocr_page_result(
     request: OcrPageRequest,
     result: OcrPageResult,
     capability: OcrAdapterCapability,
+    renderer: OcrRendererCapability,
 ) -> None:
     """Validate an adapter result against the exact request and reported component identity."""
 
@@ -969,8 +1256,17 @@ def validate_ocr_page_result(
         or provenance.languages != request.languages
         or provenance.engine_id != capability.engine_id
         or provenance.engine_version != capability.engine_version
+        or provenance.engine_executable != capability.engine_executable
         or provenance.adapter_id != capability.adapter_id
         or provenance.adapter_version != capability.adapter_version
+        or provenance.tessdata_path != capability.tessdata_path
+        or provenance.renderer_id != renderer.renderer_id
+        or provenance.renderer_version != renderer.renderer_version
+        or provenance.renderer_adapter_id != renderer.adapter_id
+        or provenance.renderer_adapter_version != renderer.adapter_version
+        or provenance.renderer_resolved_path != renderer.resolved_path
+        or provenance.decoder_id != renderer.decoder_id
+        or provenance.decoder_version != renderer.decoder_version
     ):
         raise OcrContractError(
             "ocr_contract_violation",
@@ -982,10 +1278,20 @@ def ocr_derivation_key(
     source_page: OcrSourcePageIdentity,
     settings: OcrSettings,
     capability: OcrAdapterCapability,
+    renderer: OcrRendererCapability,
 ) -> str:
     if not capability.engine_available or capability.engine_version is None:
         raise OcrContractError(
             "ocr_engine_unavailable", "cannot identify a derivation without an engine version"
+        )
+    if (
+        not renderer.renderer_available
+        or renderer.renderer_version is None
+        or renderer.decoder_version is None
+    ):
+        raise OcrContractError(
+            "ocr_renderer_unavailable",
+            "cannot identify a derivation without renderer and decoder versions",
         )
     payload = {
         "contract_schema_version": OCR_CONTRACT_SCHEMA_VERSION,
@@ -993,6 +1299,57 @@ def ocr_derivation_key(
         "settings_sha256": settings_fingerprint(settings),
         "adapter": {"id": capability.adapter_id, "version": capability.adapter_version},
         "engine": {"id": capability.engine_id, "version": capability.engine_version},
+        "renderer": {
+            "adapter_id": renderer.adapter_id,
+            "adapter_version": renderer.adapter_version,
+            "id": renderer.renderer_id,
+            "version": renderer.renderer_version,
+            "decoder_id": renderer.decoder_id,
+            "decoder_version": renderer.decoder_version,
+        },
+    }
+    digest = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return f"ocr_{digest}"
+
+
+def ocr_document_derivation_key(
+    *,
+    original_sha256: str,
+    version_id: str,
+    pages: Sequence[int],
+    settings: OcrSettings,
+    capability: OcrAdapterCapability,
+    renderer: OcrRendererCapability,
+) -> str:
+    """Bind a document job to every stable input that can change its result."""
+
+    _closed_identifier(original_sha256, "Original SHA-256", _SHA256)
+    _closed_identifier(version_id, "Version ID", _RECORD_ID)
+    selected_pages = validate_page_selection(
+        pages,
+        page_count=settings.limits.max_pages,
+        max_pages=settings.limits.max_pages,
+    )
+    if (
+        not capability.engine_available
+        or capability.engine_version is None
+        or not renderer.renderer_available
+        or renderer.renderer_version is None
+        or renderer.decoder_version is None
+    ):
+        raise OcrContractError(
+            "ocr_contract_violation", "OCR derivation components are incomplete"
+        )
+    payload = {
+        "contract_schema_version": OCR_CONTRACT_SCHEMA_VERSION,
+        "original_sha256": original_sha256,
+        "version_id": version_id,
+        "pages": list(selected_pages),
+        "settings": settings.as_record(),
+        "adapter": capability.as_record(),
+        "renderer": renderer.as_record(),
     }
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")

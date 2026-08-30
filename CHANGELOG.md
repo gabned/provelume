@@ -15,6 +15,16 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - added closed English/Italian capability and error reporting, explicit modes/languages/input
   formats, provenance/idempotency/checkpoint records, hostile-input limits and isolated temporary
   directory cleanup with no runtime download, cloud requirement or remote fallback.
+- implemented the `0.9/S02` replaceable local execution path with bounded pypdfium2/PDFium/Pillow
+  page preparation and a safe Tesseract CLI adapter that resolves exact components and language
+  packs, uses `shell=False`, monitors output/time and terminates process trees on cancellation;
+- integrated OCR with durable leases, heartbeat, page checkpoints, retry/crash recovery and exact
+  idempotency, then atomically promotes only complete checksum-bound derived document bundles;
+- added explicit local CLI and protected EN/IT loopback Browser controls plus read-only capability,
+  job and bundle API views, including removal/rebuild without Original or canonical mutation;
+- qualified only Ubuntu 24.04 x86-64/Python 3.12 with external Tesseract 5.x `eng`, pypdfium2
+  5.13.0/PDFium 153.0.7999.0 and Pillow 12.3.0 across PDF, TIFF, PNG, JPEG and BMP, while keeping
+  those components out of wheel, sdist and Windows installer.
 
 ### Changed
 

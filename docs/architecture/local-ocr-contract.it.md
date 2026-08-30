@@ -1,42 +1,103 @@
-# Contratto della capability OCR locale
+# Esecuzione OCR locale e document bundle
 
-Stato: consegnato come `0.9/S01` in
-[#137](https://github.com/gabned/provelume/issues/137) e
-[#5](https://github.com/gabned/provelume/issues/5) tramite owner
-[PR #138](https://github.com/gabned/provelume/pull/138).
+Stato: `0.9/S01` ha definito il contratto pubblico tramite
+[#5](https://github.com/gabned/provelume/issues/5) e
+[PR #138](https://github.com/gabned/provelume/pull/138). `0.9/S02 — Bounded local OCR and
+document bundles` lo implementa sotto la issue owner
+[#140](https://github.com/gabned/provelume/issues/140) e la
+[PR #141](https://github.com/gabned/provelume/pull/141). Lectio resta sviluppo non pubblicato:
+package, runtime e build identity incorporata rimangono `0.8.0`.
 
-S01 definisce un confine OCR locale stabile. **Non** implementa ancora renderer completo, adapter
-di processo Tesseract, integrazione nei document bundle o flusso utente di esecuzione. L'OCR non è
-quindi ancora una funzione di elaborazione utilizzabile in Provelume.
+I record normativi sono:
 
-Il contratto normativo nel codice è
-[`ocr_contract.py`](../../core/provelume/ocr_contract.py), lo schema machine-readable è
-[`ocr_contract.schema.json`](../../core/provelume/ocr_contract.schema.json) e la decisione tecnica
-e di licensing è [ADR 0014](../adr/0014-local-ocr-contract-and-packaging.md).
+- [`ocr_contract.py`](../../core/provelume/ocr_contract.py) e
+  [`ocr_contract.schema.json`](../../core/provelume/ocr_contract.schema.json) per impostazioni,
+  capability, richieste e risultati di pagina;
+- [`ocr_bundle.schema.json`](../../core/provelume/ocr_bundle.schema.json) per manifest e page
+  envelope del document bundle completo, promosso atomicamente;
+- [ADR 0014](../adr/0014-local-ocr-contract-and-packaging.md) per la scelta del motore in S01 e
+  [ADR 0015](../adr/0015-bounded-local-ocr-execution.md) per il percorso eseguibile S02;
+- [`tesseract-5.5.3.json`](../../packaging/ocr/tesseract-5.5.3.json) e la
+  [BOM dei componenti esterni qualificati](../../packaging/ocr/qualified-local-components.cdx.json)
+  per il perimetro tecnico e di licensing provato.
 
-## Regole di base
+## Confine inderogabile
 
-- La baseline OCR è locale e offline. Non comprende endpoint cloud o provider remoto.
-- La modalità predefinita è `disabled`; in questo stato il reporting non cerca adapter o motori.
-- Provelume non scarica a runtime motori o language pack e non prevede fallback impliciti.
-- L'Original acquisito esatto rimane autorevole e invariato.
-- Testo e osservazioni OCR sono artefatti derivati, eliminabili e ricostruibili.
-- Un errore OCR non autorizza modifiche canoniche, cancellazione dell'Original o pulizia automatica
-  della conoscenza dell'utente.
-- Il primo seam usa Tesseract CLI 5.5.3, ma gli adapter restano sostituibili ed espliciti.
+- L'OCR è opzionale, locale e offline. Il default è `disabled` e in tale stato la probe non cerca
+  né avvia il motore.
+- Provelume non scarica né installa componenti a runtime, non contatta provider e non effettua
+  fallback remoto. Motore, renderer, decoder e language pack sono dipendenze locali predisposte
+  dall'operatore.
+- L'Original acquisito esatto resta autorevole. SHA-256 e lunghezza, insieme al fingerprint
+  completo della conoscenza canonica, sono controllati prima e dopo pianificazione, esecuzione,
+  errore, cancellazione, rimozione e ricostruzione.
+- Il testo OCR è un derivato non verificato. Non diventa automaticamente conoscenza canonica né
+  testo verificato. La confidence è evidenza del motore, non una dichiarazione di verità.
+- Le osservazioni di layout, tabelle, barcode e QR restano separate dal testo. L'adapter Tesseract
+  baseline non ne produce e lascia vuote queste collezioni.
 
-## Configurazione
+## Componenti e matrice qualificati
 
-Le nuove Istanze ricevono l'intera configurazione predefinita disabilitata. Le Istanze esistenti
-senza sezione `ocr` mantengono lo stesso comportamento, senza migration:
+Il motore di riferimento resta Tesseract CLI 5.5.3 con licenza Apache-2.0. L'adapter accetta una
+versione dichiarata in `>=5.3,<6`, risolve l'eseguibile configurato nel path locale effettivo e
+registra entrambi. Prima del job controlla l'elenco dei language pack installati. Non installa mai
+Tesseract o i pack.
+
+La rasterizzazione PDF usa pypdfium2 5.13.0 con PDFium 153.0.7999.0. La decodifica di TIFF, PNG,
+JPEG e BMP usa Pillow 12.3.0. Queste wheel e i relativi componenti nativi restano esterni a ogni
+package Provelume. L'unica qualifica S02 con componenti reali è:
+
+| OS | Architettura | Python | Motore/pack | Renderer/decoder | Input |
+| --- | --- | --- | --- | --- | --- |
+| Ubuntu 24.04 | x86-64 | 3.12 | Tesseract 5.x della distribuzione e `eng` locale; CI registra l'identità esatta | pypdfium2 5.13.0 / PDFium 153.0.7999.0 / Pillow 12.3.0 | PDF scansionato, TIFF, PNG, JPEG, BMP |
+
+La suite multipiattaforma verifica anche la pulizia dei processi su Windows, ma S02 non qualifica
+alcuna combinazione reale motore/renderer per Windows. Restano quindi non qualificati Windows
+x86-64 e ARM64, Linux ARM64 e macOS x86-64/ARM64. Non è una promessa generale per PDF, codec o
+lingue ulteriori.
+
+## Preparazione locale esplicita
+
+Dopo aver creato il normale ambiente Provelume, l'operatore installa i componenti esterni tramite
+una propria procedura di sistema/ambiente. Per il profilo Ubuntu qualificato, il modello CI
+equivale a:
+
+```bash
+sudo apt-get install tesseract-ocr tesseract-ocr-eng
+.venv/bin/python -m pip install 'pypdfium2==5.13.0' 'Pillow==12.3.0'
+```
+
+Sono esempi di setup, non comportamento del prodotto a runtime. Il workflow CI scarica le due
+wheel esatte in una fase di provisioning separata, verifica gli SHA-256 registrati, le installa
+offline dalla wheelhouse e soltanto dopo esegue lo smoke test del prodotto.
+
+Abilitare esplicitamente la capability e verificarla prima di accodare lavoro:
+
+```bash
+.venv/bin/provelume ocr-configure INSTANCE \
+  --mode automatic \
+  --language eng \
+  --engine-executable /usr/bin/tesseract
+.venv/bin/provelume ocr-capability INSTANCE
+```
+
+Opzioni `--language` ripetute definiscono un insieme ordinato esplicito. `--tessdata-path` può
+indicare una directory di pack locali gestita dall'operatore. Gli stessi controlli sono disponibili
+nella pagina Browser `/ocr`, vincolata al loopback e protetta da token CSRF per-processo. Le route
+HTTP API restano read-only.
+
+Il default disabilitato completo è:
 
 ```yaml
 ocr:
   schema_version: 1
   mode: disabled
   engine: tesseract-cli
-  languages:
-    - eng
+  engine_executable: tesseract
+  tessdata_path: null
+  renderer: pdfium-pillow
+  render_dpi: 300
+  languages: [eng]
   language_detection:
     mode: disabled
     candidates: []
@@ -56,106 +117,110 @@ ocr:
     max_output_chars_per_page: 500000
 ```
 
-La configurazione può ridurre questi massimali, ma non aumentarli. Campi, modalità o limiti non
-riconosciuti falliscono in modo chiuso.
+La configurazione può abbassare ma non superare questi massimali. Campi sconosciuti o valori non
+validi falliscono in modo chiuso.
 
-## Modalità e lingue
+## Modalità e regola automatica deterministica
 
-| Modalità | Contratto |
+| Modalità | Regola di esecuzione |
 | --- | --- |
-| `disabled` | non pianifica OCR e non cerca un motore |
-| `automatic` | pianifica solo quando il testo affidabile esistente non raggiunge la soglia esplicita di caratteri o rapporto stampabile |
-| `forced` | richiede OCR per ogni pagina altrimenti valida del job esplicito |
-| `selected-page` | richiede una lista di pagine 1-based ordinata, univoca, non vuota e interna al documento |
+| `disabled` | non effettua probe, pianificazione, accodamento o esecuzione OCR |
+| `automatic` | salta soltanto se il testo PDF incorporato affidabile contiene almeno 32 caratteri stampabili non whitespace e rapporto stampabile almeno 0,85; altrimenti accoda OCR |
+| `forced` | accoda ogni pagina valida del documento |
+| `selected-page` | richiede pagine 1-based ordinate, univoche, non vuote e interne al documento |
 
-Occorre selezionare esplicitamente da uno a otto ID di language pack ordinati. Il rilevamento
-opzionale `bounded` può scegliere soltanto tra un massimo di quattro pack già selezionati e
-installati. Non può ampliare l'insieme né scaricare un modello. I dati di orientamento/script come
-`osd` sono un pack opt-in separato.
+In questo perimetro soltanto l'estrattore `pypdf` del testo incorporato costituisce evidenza di
+testo affidabile. Metadati immagine come formato e dimensioni non sopprimono mai l'OCR automatico.
+Regola, generatore, numero caratteri e rapporto sono persistiti con la richiesta durevole. Da una
+a otto lingue sono esplicite; la baseline passa a Tesseract esclusivamente i pack selezionati e
+presenti localmente.
 
-## Perimetro degli input
+Accodamento ed esecuzione di una Version esatta:
 
-Il contratto accetta PDF scansionati, TIFF, PNG, JPEG e BMP. Tipo media, estensione e firma iniziale
-del file devono concordare. WebP, GIF, JPEG 2000 e PNM restano non supportati anche se una specifica
-build di Leptonica potrebbe decodificarli.
-
-Tesseract usa immagini raster e non interpreta un modello PDF generale. S02 dovrà scegliere e
-qualificare un rasterizzatore PDF limitato, misurare pagine, pixel e byte decodificati prima
-dell'esecuzione e registrare in provenienza l'hash esatto dell'immagine di pagina.
-
-Byte, numero di pagine, pixel per pagina e totali, byte decodificati, rapporto di decompressione,
-spazio temporaneo e tempi massimi hanno errori chiusi distinti. Input corrotti o non supportati
-falliscono senza provare un altro provider.
-
-## Reporting e componenti assenti
-
-Gli stati chiusi sono `disabled`, `adapter-unavailable`, `engine-unavailable`,
-`language-pack-missing` e `ready`. Ogni stato non disponibile contiene messaggi stabili inglesi
-e italiani; un errore dei language pack indica anche gli ID esatti dei pack mancanti. Ogni report
-include questi fatti invarianti:
-
-```json
-{
-  "network_required": false,
-  "runtime_downloads": false,
-  "remote_fallback": false,
-  "original_mutation": false,
-  "canonical_mutation": false
-}
+```bash
+.venv/bin/provelume ocr-queue INSTANCE VERSION_ID --mode forced --language eng
+.venv/bin/provelume ocr-run INSTANCE JOB_ID
+.venv/bin/provelume ocr-job INSTANCE JOB_ID
 ```
 
-S01 non include un adapter di esecuzione. Abilitare l'OCR in configurazione produce quindi
-`adapter-unavailable`, non un download né un falso stato `ready`.
+Per scegliere pagine usare `--mode selected-page --page 1 --page 3`. Uno skip `automatic` restituisce
+la decisione deterministica ma non crea lavoro per il motore.
 
-Il seam dell'adapter riceve un request record esatto e il path di un raster predisposto nella
-directory privata del job. La richiesta vincola identità della pagina, tipo media del raster,
-fingerprint delle impostazioni, lingue, deadline e limite configurato dei caratteri in output. Il
-PDF non viene mai passato direttamente al seam del motore: S02 dovrà predisporre e calcolare l'hash
-di un raster limitato per pagina. Un output con provenienza, pagina o limite incoerenti viene
-rifiutato.
+## Processo e input ostili
 
-## Pagina derivata e provenienza
+La pianificazione verifica prima tipo media, estensione e firma, byte input, numero pagine, pixel
+per pagina e totali, byte decodificati e rapporto di decompressione. PDFium non passa mai un PDF a
+Tesseract: produce un PNG limitato alla volta. Pillow decodifica soltanto le famiglie dichiarate.
+Input corrotti, non supportati o oltre limite falliscono senza provare altri decoder o provider.
 
-Ogni pagina è identificata da SHA-256 dell'Original, ID della Version canonica, numero pagina
-1-based, SHA-256 del raster e tipo media sorgente. Ogni risultato registra inoltre ID/versioni di
-motore e adapter, language pack e fingerprint delle impostazioni. Questi dati formano una chiave di
-derivazione deterministica per replay e idempotenza.
+Tesseract usa `shell=False`, un vettore di argomenti da allowlist, un ambiente figlio minimo e senza
+contenuti e una directory privata per pagina. Stdout, stderr e file prodotti sono sorvegliati
+durante il processo. Sono applicate deadline per pagina e complessive. Timeout e cancellazione
+terminano il process group POSIX o il process tree Windows prima della pulizia. Exit code non zero,
+TSV assente, malformato/incompleto o eccessivo sono errori chiusi distinti.
 
-Testo e span possono essere soltanto `machine-unverified` o `needs-review`: non esiste uno stato
-OCR verificato. La confidence è un'osservazione del motore tra 0 e 1. Le coordinate usano pixel
-della pagina sorgente e comprendono le dimensioni della pagina. Osservazioni di layout, tabelle,
-barcode e QR sono quattro collezioni separate e versionate dall'adapter; restano vuote se
-l'adapter non le supporta.
+È contenimento di processo, non un sandbox di sicurezza generale. S02 non dichiara sandbox OS,
+container, seccomp o quote CPU/memoria indipendenti. Le directory temporanee POSIX usano mode
+`0700`; Windows usa le ACL ereditate dall'utente corrente. Solo Ubuntu x86-64 possiede la qualifica
+con componenti reali descritta sopra.
 
-Le pagine committate producono un checkpoint `ocr.page.committed` con sequenza, pagine concluse e
-pagina successiva. Il record è compatibile con progressi processed/skipped/error, lease e recovery
-content-free introdotti da Vigilia. S01 non registra un job schedulabile.
+## Lifecycle durevole e bundle
 
-## File temporanei e cancellazione
+La chiave di idempotenza lega Original, Version, versione contratto, pagine, modalità, lingue,
+impostazioni e identità di adapter, motore, renderer e decoder. Il journal fornisce lease esclusiva,
+heartbeat, retry limitato e receipt terminale. Ogni pagina completata produce un checkpoint di
+lavoro vincolato da checksum. Dopo lease scaduta o crash, le pagine concluse vengono riprese senza
+essere pubblicate o ricalcolate; un errore transitorio ritenta la pagina incompleta.
 
-Il seam crea per ogni job una directory temporanea non condivisa sotto una radice locale esplicita
-e la rimuove dopo successo o eccezione. Su POSIX forza mode 0700; Windows usa una radice per utente
-e ACL ereditate. S02 dovrà qualificare la DACL e aggiungere isolamento del processo, limiti
-CPU/memoria e deadline attorno al motore.
+Solo un documento completo viene promosso atomicamente sotto `state/derived/ocr-bundles/`. Il
+manifest contiene stato job, identità Original/Version/Document, impostazioni e provenienza dei
+componenti, riferimenti e hash stabili di risultato/testo per pagina, warning, incertezza e proprietà
+di rimozione/ricostruzione. Il risultato pagina contiene testo, coordinate e confidence quando
+prodotti, oltre all'hash del raster sorgente. Nessun work directory parziale appare come derivato
+riuscito.
 
-Gli artefatti OCR appartengono soltanto allo stato derivato. La loro rimozione non elimina Original
-o record canonici. Una ricostruzione conserva la stessa identità soltanto se byte della pagina,
-motore, adapter, lingue e impostazioni non cambiano.
+I controlli locali sono:
 
-## Stato del packaging
+```bash
+.venv/bin/provelume ocr-jobs INSTANCE
+.venv/bin/provelume ocr-cancel INSTANCE JOB_ID
+.venv/bin/provelume ocr-bundles INSTANCE --version-id VERSION_ID
+.venv/bin/provelume ocr-remove INSTANCE VERSION_ID
+.venv/bin/provelume ocr-rebuild INSTANCE VERSION_ID
+```
 
-Wheel base, sdist e installer Windows non contengono binari Tesseract o language pack e non
-aggiungono dipendenze runtime OCR. Un futuro componente Windows potrà essere solo opt-in,
-disabilitato di default e interamente predisposto offline, con sorgente/versione/hash esatti, file
-di licenza, notice, release manifest, SBOM e verifica offline. I download silenziosi a runtime
-restano vietati.
+La rimozione elimina soltanto bundle, record di artefatto/provenienza derivati e lavoro riprendibile,
+conservando una receipt senza contenuti per ricostruire. La ricostruzione rimuove il derivato,
+riaccoda la stessa identità materiale e non modifica Original o conoscenza canonica.
 
-Il record
-[`tesseract-5.5.3.json`](../../packaging/ocr/tesseract-5.5.3.json) contiene matrice piattaforme,
-provenienza dei pack di riferimento, budget dimensionali e gate di redistribuzione.
+## Capability ed errori
 
-## Prossimo slice
+La probe mostra limiti configurati/effettivi, lingue scelte e installate, path risolti di motore e
+PDFium, versioni esatte di motore/renderer/decoder/componenti e invarianti di assenza rete. Espone
+`available: true` soltanto in `ready`. Gli stati distinguono disabilitato, adapter assente, motore
+assente, renderer/decoder assente, versione incompatibile e language pack mancante. L'esecuzione
+distingue inoltre input non supportato/corrotto/eccessivo, limiti file/pagine/pixel/decompressione/
+temporanei/tempo/output, cancellazione, output motore invalido, errore adapter, violazione contratto
+ed errore interno. I messaggi EN/IT sono stabili e non includono contenuti sorgente.
 
-`0.9/S02` potrà implementare preparazione limitata delle pagine PDF/immagine, isolamento del
-processo Tesseract, persistenza degli artefatti derivati e integrazione nei document bundle contro
-questo contratto esatto. Non è attivo e non ha ancora issue, branch o owner PR.
+Lo stato read-only è in `/api/v1/ocr/capability`, `/api/v1/ocr/jobs`,
+`/api/v1/ocr/jobs/{job_id}` e `/api/v1/ocr/bundles`. I token di lease non vengono mai esposti.
+Accodamento, esecuzione, cancellazione, rimozione e ricostruzione restano azioni CLI locali o
+Browser loopback protette.
+
+## Packaging, licensing e limiti
+
+Wheel base, sdist e installer Windows includono seam Python e schemi, ma nessun payload Tesseract,
+Leptonica, language pack, pypdfium2/PDFium o Pillow e nessuna dipendenza runtime OCR. Gli extra
+Python non fingono di installare componenti nativi. La BOM dei componenti esterni è evidenza di
+qualifica, non SBOM di una release Provelume. Qualsiasi futura redistribuzione richiede inventario
+esatto di binari/codec/pack, digest, licenze/notice, manifest/SBOM di release e test offline.
+
+I limiti S02 includono OCR di testo stampato, page segmentation mode 3 di Tesseract, nessuna
+verifica semantica o correzione automatica, nessuna promessa qualificata sulla scrittura manuale,
+nessun deskew/preprocessing avanzato automatico, nessun adapter baseline per layout/tabelle/barcode/
+QR e nessun supporto oltre la matrice esatta provata. `0.9.0` non è pubblicata: lo slice non crea
+tag, release o asset.
+
+`0.9/S03` resta soltanto il prossimo forecast per identità e intake email. Non è attivato e non ha
+issue operativa, branch o PR.

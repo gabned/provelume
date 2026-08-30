@@ -18,6 +18,7 @@ from .instance_lifecycle import InstanceLifecycleManager
 from .instance_validation import inspect_instance
 from .library_projection import LibraryProjectionManager
 from .library_projection_model import MAX_LIBRARY_DOCUMENTS
+from .ocr_contract import OCR_ARTIFACT_KIND
 from .operations import OperationLedger
 from .paths import normalise_locator
 from .retention_model import (
@@ -467,12 +468,30 @@ class DocumentRetentionManager:
             )
             try:
                 relative = normalise_locator(str(artifact["storage_ref"]))
+                artifact_path = self.store.paths.root.joinpath(
+                    *PurePosixPath(relative).parts,
+                )
                 add(
-                    self.store.paths.root.joinpath(
-                        *PurePosixPath(relative).parts,
-                    ),
+                    artifact_path,
                     "derived_artifact_bytes",
                 )
+                if artifact.get("kind") == OCR_ARTIFACT_KIND:
+                    parts = PurePosixPath(relative).parts
+                    if (
+                        len(parts) != 6
+                        or parts[:3] != ("state", "derived", "ocr-bundles")
+                        or parts[3] != str(artifact.get("version_id"))
+                        or parts[-1] != "manifest.json"
+                    ):
+                        raise PurgeTransactionError(
+                            "OCR bundle artifact path is invalid"
+                        )
+                    bundle_root = self._live_target(relative).parent
+                    if _unsafe_link(bundle_root) or not bundle_root.is_dir():
+                        raise PurgeTransactionError("OCR bundle path is unsafe")
+                    for path in bundle_root.rglob("*"):
+                        if path.is_file() or _unsafe_link(path):
+                            add(path, "ocr_bundle_bytes")
             except (KeyError, ValueError):
                 raise PurgeTransactionError("derived artifact path is invalid") from None
         for edge in lineage["derived_provenance"]:

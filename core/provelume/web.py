@@ -21,6 +21,7 @@ from .installation import verify_current_installation
 from .installation_i18n import installation_translator
 from .maintenance_activity import attach_maintenance_routes
 from .markdown_viewer import DocumentContentError, safe_markdown_html
+from .ocr_activity import attach_ocr_routes
 from .retention_model import DISPOSITION_FILTERS
 from .scheduler_model import SchedulerBusyError, SchedulerError
 from .service import ProvelumeInstance
@@ -122,6 +123,11 @@ def _navigation(
             "href": f"/scheduler?lang={language}",
             "label": t("nav.scheduler"),
             "current": current_path.startswith("/scheduler"),
+        },
+        {
+            "href": f"/ocr?lang={language}",
+            "label": t("nav.ocr"),
+            "current": current_path.startswith("/ocr"),
         },
         {
             "href": f"/settings?lang={language}",
@@ -260,6 +266,7 @@ def create_app(
     attach_activity_routes(app, instance, TEMPLATES, _context)
     attach_folder_source_routes(app, instance, TEMPLATES, _context)
     attach_maintenance_routes(app, instance, TEMPLATES, _context)
+    attach_ocr_routes(app, instance, TEMPLATES, _context)
 
     @app.get("/")
     def home(request: Request):

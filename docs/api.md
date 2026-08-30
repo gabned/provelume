@@ -148,6 +148,40 @@ See
 The random lease token is execution authority and is never returned by service, CLI, API or
 Browser read surfaces; those views retain only worker/timing evidence plus `token_present`.
 
+## Local OCR capability, jobs and bundles
+
+- `GET /api/v1/ocr/capability` — disabled/availability state, closed localized error, configured
+  and installed languages, exact engine/renderer/decoder identities and effective limits;
+- `GET /api/v1/ocr/jobs?limit=100` — bounded durable OCR jobs joined to content-free execution
+  run state, warnings or closed error;
+- `GET /api/v1/ocr/jobs/{job_id}` — one OCR scheduler job and its run record;
+- `GET /api/v1/ocr/bundles?version_id=...` — checksum-verified derived bundle manifests, optionally
+  restricted to one exact DocumentVersion.
+
+These reads never enable OCR, probe when the configured mode is disabled, queue work, invoke a
+component or repair/remove state. Lease tokens are sanitized. There are deliberately no versioned
+API mutation routes; `POST /api/v1/ocr/...` is not defined.
+
+Local mutations require explicit CLI commands or the loopback `/ocr` Browser surface, whose forms
+carry a per-process CSRF token:
+
+```bash
+provelume ocr-configure INSTANCE --mode automatic --language eng \
+  --engine-executable /usr/bin/tesseract
+provelume ocr-capability INSTANCE
+provelume ocr-queue INSTANCE VERSION_ID --mode forced --language eng
+provelume ocr-run INSTANCE JOB_ID
+provelume ocr-cancel INSTANCE JOB_ID
+provelume ocr-remove INSTANCE VERSION_ID
+provelume ocr-rebuild INSTANCE VERSION_ID
+```
+
+Capability is disabled by default and reports `ready` only after compatible local Tesseract,
+pypdfium2/PDFium, Pillow and every selected local language pack are observed. Execution has no
+runtime download, cloud provider or remote fallback. OCR results remain unverified derived state;
+the API does not promote them into canonical Document content. See
+[`architecture/local-ocr-contract.md`](architecture/local-ocr-contract.md).
+
 ## Managed folder Sources
 
 - `GET /api/v1/sources` and `GET /api/v1/sources/{source_id}` include a path-redacted `folder`

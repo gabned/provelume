@@ -177,6 +177,27 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
     ) -> list[dict[str, Any]]:
         return instance.list_scheduler_receipts(limit=limit)
 
+    @router.get("/ocr/capability")
+    def get_ocr_capability() -> dict[str, Any]:
+        return instance.ocr_capability()
+
+    @router.get("/ocr/jobs")
+    def get_ocr_jobs(
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_ocr_jobs(limit=limit)
+
+    @router.get("/ocr/jobs/{job_id}")
+    def get_ocr_job(job_id: str) -> dict[str, Any]:
+        result = instance.get_ocr_job(job_id)
+        if result is None:
+            raise _not_found("OCR job", job_id)
+        return result
+
+    @router.get("/ocr/bundles")
+    def get_ocr_bundles(version_id: str | None = None) -> list[dict[str, Any]]:
+        return instance.list_ocr_bundles(version_id)
+
     @router.get("/maintenance")
     def get_maintenance_catalog() -> list[dict[str, Any]]:
         return instance.maintenance_catalog()

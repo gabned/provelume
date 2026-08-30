@@ -143,13 +143,13 @@ def test_roadmap_records_published_history_and_active_lectio_development() -> No
     assert roadmap.count("| Active implementation |") == 0
     assert re.search(r"^\| Release preparation \| `", roadmap, re.MULTILINE) is None
     assert "| Next forecast | `0.9.0` |" not in roadmap
-    assert "#137; S01 completed by #5/#138" in roadmap
+    assert "#137; S01 completed by #5/#138; S02 completed by #140/" in roadmap
     assert "#95 (completed)" in roadmap
     assert "#102 (completed)" in roadmap
     assert "#105 (completed)" in roadmap
     assert "Published package and embedded identity are aligned to `0.8.0`" in roadmap
     assert "Issues #122, #124, #126, #128 and\n#130 completed" in roadmap
-    assert "`0.9/S02` remains the next forecast-only slice" in roadmap
+    assert "`0.9/S03` is the next forecast only" in roadmap
 
 
 def test_every_release_has_a_unique_latin_name_and_concise_outcome() -> None:

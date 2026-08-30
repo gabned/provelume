@@ -1,42 +1,102 @@
-# Local OCR capability contract
+# Local OCR execution and document bundles
 
-Status: delivered as `0.9/S01` under
-[#137](https://github.com/gabned/provelume/issues/137) and
-[#5](https://github.com/gabned/provelume/issues/5) by owner
-[PR #138](https://github.com/gabned/provelume/pull/138).
+Status: `0.9/S01` established the public contract through
+[#5](https://github.com/gabned/provelume/issues/5) and
+[PR #138](https://github.com/gabned/provelume/pull/138). `0.9/S02 — Bounded local OCR and
+document bundles` implements that contract under owner
+[#140](https://github.com/gabned/provelume/issues/140) and
+[PR #141](https://github.com/gabned/provelume/pull/141). Lectio remains unreleased development:
+the package, runtime and embedded build identity stay `0.8.0`.
 
-S01 defines a stable local OCR boundary. It does **not** implement the complete renderer, Tesseract
-process adapter, document-bundle integration or user execution flow. OCR is therefore not an
-available Provelume processing feature yet.
+The normative records are:
 
-The normative code contract is
-[`ocr_contract.py`](../../core/provelume/ocr_contract.py), the machine-readable schema is
-[`ocr_contract.schema.json`](../../core/provelume/ocr_contract.schema.json), and the technology
-and licensing decision is [ADR 0014](../adr/0014-local-ocr-contract-and-packaging.md).
+- [`ocr_contract.py`](../../core/provelume/ocr_contract.py) and
+  [`ocr_contract.schema.json`](../../core/provelume/ocr_contract.schema.json) for settings,
+  capability, request and page-result records;
+- [`ocr_bundle.schema.json`](../../core/provelume/ocr_bundle.schema.json) for the successful,
+  atomically promoted document-bundle manifest and page envelope;
+- [ADR 0014](../adr/0014-local-ocr-contract-and-packaging.md) for the S01 engine decision and
+  [ADR 0015](../adr/0015-bounded-local-ocr-execution.md) for the executable S02 path;
+- [`tesseract-5.5.3.json`](../../packaging/ocr/tesseract-5.5.3.json) and the
+  [qualified external-component BOM](../../packaging/ocr/qualified-local-components.cdx.json) for
+  the tested component and licensing perimeter.
 
-## Baseline rules
+## Non-negotiable boundary
 
-- OCR is local and offline. No cloud endpoint or remote provider is part of the baseline.
-- The default mode is `disabled`; disabled reporting does not probe an adapter or engine.
-- Provelume never downloads an engine or language pack at runtime and has no implicit fallback.
-- The exact acquired Original remains authoritative and unchanged.
-- OCR text and observations are derived, removable and rebuildable.
-- An OCR failure cannot authorize a canonical mutation, Original deletion or automatic cleanup of
-  user knowledge.
-- The first engine seam is Tesseract CLI 5.5.3, but adapters remain replaceable and explicit.
+- OCR is optional, local and offline. The default is `disabled` and a disabled probe does not
+  discover or start an engine.
+- Provelume performs no runtime download, package installation, provider request or remote
+  fallback. Engine, renderer, decoder and language packs are operator-installed local components.
+- The exact acquired Original remains authoritative. Its SHA-256 and byte length, and the complete
+  canonical knowledge fingerprint, are checked before and after planning, execution, failure,
+  cancellation, removal and rebuild.
+- OCR text is an unverified derived artifact. It never becomes canonical knowledge or verified
+  text automatically. Confidence is engine evidence, not a truth claim.
+- Layout, table, barcode and QR observations are separate from text. The baseline Tesseract
+  adapter emits none, so those collections remain empty.
 
-## Configuration
+## Qualified components and matrix
 
-New Instances receive the full disabled default. Existing Instances without an `ocr` section
-behave identically and resolve to the same default without a migration:
+The selected reference engine remains Tesseract CLI 5.5.3 under Apache-2.0. The adapter accepts a
+reported engine version in `>=5.3,<6`, resolves the configured executable to an exact local path,
+and records that version and path. It checks the installed language-pack list before accepting a
+job. It never installs Tesseract or a pack.
+
+PDF rasterisation uses pypdfium2 5.13.0 with PDFium 153.0.7999.0. TIFF, PNG, JPEG and BMP decoding
+uses Pillow 12.3.0. These wheels and their native contents are external to every Provelume package.
+The only S02 real-component qualification is:
+
+| OS | Architecture | Python | Engine/packs | Renderer/decoder | Inputs |
+| --- | --- | --- | --- | --- | --- |
+| Ubuntu 24.04 | x86-64 | 3.12 | distribution Tesseract 5.x plus local `eng`; exact CI identity is logged | pypdfium2 5.13.0 / PDFium 153.0.7999.0 / Pillow 12.3.0 | scanned PDF, TIFF, PNG, JPEG, BMP |
+
+Windows process cleanup is covered by the normal cross-platform test suite, but no Windows OCR
+engine/renderer combination is S02-qualified. Windows x86-64 and ARM64, Linux ARM64 and macOS
+x86-64/ARM64 therefore remain unqualified for OCR execution. This is not a general PDF, codec or
+language support claim.
+
+## Explicit local setup
+
+Create the normal Provelume environment first. Then install the external components through an
+operator-controlled system/environment procedure. For the qualified Ubuntu profile, the CI model
+is equivalent to:
+
+```bash
+sudo apt-get install tesseract-ocr tesseract-ocr-eng
+.venv/bin/python -m pip install 'pypdfium2==5.13.0' 'Pillow==12.3.0'
+```
+
+Those commands are setup examples, not runtime behavior. The CI workflow downloads the two exact
+wheels in a separate provisioning step, verifies their recorded SHA-256 digests, installs them
+offline from its wheelhouse, and only then runs the product smoke test.
+
+Enable OCR explicitly and inspect the resulting capability before queueing work:
+
+```bash
+.venv/bin/provelume ocr-configure INSTANCE \
+  --mode automatic \
+  --language eng \
+  --engine-executable /usr/bin/tesseract
+.venv/bin/provelume ocr-capability INSTANCE
+```
+
+Use repeated `--language` options for a sorted explicit pack set. `--tessdata-path` may point to an
+operator-managed local pack directory. The same configuration and lifecycle controls are
+available on the loopback-only `/ocr` Browser page. Browser mutations require its per-process CSRF
+token. HTTP API routes remain read-only.
+
+The complete disabled default is:
 
 ```yaml
 ocr:
   schema_version: 1
   mode: disabled
   engine: tesseract-cli
-  languages:
-    - eng
+  engine_executable: tesseract
+  tessdata_path: null
+  renderer: pdfium-pillow
+  render_dpi: 300
+  languages: [eng]
   language_detection:
     mode: disabled
     candidates: []
@@ -56,102 +116,108 @@ ocr:
     max_output_chars_per_page: 500000
 ```
 
-Configurations may lower those ceilings but cannot raise them. Unknown fields, modes and limits
+Configurations may lower these ceilings but cannot raise them. Unknown fields and invalid values
 fail closed.
 
-## Modes and language policy
+## Modes and deterministic automatic rule
 
-| Mode | Contract |
+| Mode | Execution rule |
 | --- | --- |
-| `disabled` | never schedules OCR and never discovers an engine |
-| `automatic` | schedules only when existing reliable text is below the explicit character or printable-ratio threshold |
-| `forced` | requests OCR for every otherwise valid page in the explicit job |
-| `selected-page` | requires a sorted, unique, nonempty and in-range 1-based page list |
+| `disabled` | never probes, plans, queues or executes OCR |
+| `automatic` | skips only when trusted embedded PDF text has at least 32 non-whitespace printable characters and a printable ratio of at least 0.85; otherwise queues OCR |
+| `forced` | queues every valid page in the document |
+| `selected-page` | requires a sorted, unique, nonempty, in-range list of 1-based pages |
 
-One to eight sorted language-pack IDs must be selected explicitly. Optional `bounded` detection
-may choose only among at most four of those already installed packs. It cannot broaden the set or
-download a model. Orientation/script data such as `osd` is a separate opt-in pack.
+For this input perimeter, only the `pypdf` embedded-text extractor is reliable-text evidence.
+Image metadata such as format and dimensions never suppresses automatic OCR. The rule, generator,
+character count and ratio are stored with the durable request. One to eight language IDs are
+explicit; the baseline passes only locally installed selected packs to Tesseract.
 
-## Supported input perimeter
+Queue and execute an exact Version locally:
 
-The contract accepts scanned PDF, TIFF, PNG, JPEG and BMP. Media type, extension and leading file
-signature must agree. WebP, GIF, JPEG 2000 and PNM remain unsupported even if a particular
-Leptonica build could decode them.
-
-Tesseract consumes raster images, not a general PDF object model. S02 must choose and qualify a
-bounded PDF rasteriser, measure page and decoded-image evidence before engine invocation and retain
-the exact page raster hash in provenance.
-
-Oversized input bytes, page counts, per-page/total pixels, decoded bytes, decompression ratio,
-temporary storage and deadlines have separate closed errors. Corrupt and unsupported inputs fail
-without invoking another provider.
-
-## Capability and absence reporting
-
-The closed states are `disabled`, `adapter-unavailable`, `engine-unavailable`,
-`language-pack-missing` and `ready`. Each unavailable report contains stable English and Italian
-messages; a language-pack failure also names the exact missing pack IDs. Every report includes
-these invariant facts:
-
-```json
-{
-  "network_required": false,
-  "runtime_downloads": false,
-  "remote_fallback": false,
-  "original_mutation": false,
-  "canonical_mutation": false
-}
+```bash
+.venv/bin/provelume ocr-queue INSTANCE VERSION_ID --mode forced --language eng
+.venv/bin/provelume ocr-run INSTANCE JOB_ID
+.venv/bin/provelume ocr-job INSTANCE JOB_ID
 ```
 
-S01 ships no built-in execution adapter, so enabling OCR in configuration produces
-`adapter-unavailable`, not a download or a false ready state.
+For selected pages, add `--mode selected-page --page 1 --page 3`. An `automatic` skip returns a
+durable decision response but creates no engine work.
 
-The adapter seam receives an exact request record plus a staged raster path inside the private
-job directory. The request binds page identity, staged media type, settings fingerprint,
-languages, deadline and the configured output-character limit. PDF is never passed directly to
-the engine seam; S02 must stage and hash one bounded raster per page. Adapter output is rejected if
-its provenance, page or configured output limit does not match that request.
+## Process and hostile-input controls
 
-## Derived page record and provenance
+Planning first checks media type, suffix and signature, input bytes, page count, page and total
+pixels, decoded bytes and decompression ratio. PDFium never passes a PDF to Tesseract; it renders
+one bounded PNG page at a time. Pillow decodes only the declared image families. Corrupt,
+unsupported and over-limit input fails without another decoder/provider fallback.
 
-Every page is identified by Original SHA-256, canonical Version ID, 1-based page number, raster
-SHA-256 and source media type. Every result also records the engine and adapter IDs/versions,
-language packs and settings fingerprint. Together these fields form a deterministic derivation key
-for replay and idempotency.
+Tesseract runs with `shell=False`, an allowlisted argument vector, a minimal content-free child
+environment and a private per-page directory. Stdout, stderr and produced files are monitored
+while the process runs. Per-page and total deadlines are enforced. Timeout or cancellation
+terminates the POSIX process group or Windows process tree before temporary cleanup. Non-zero exit,
+missing TSV, malformed/incomplete TSV and excessive output have distinct closed failures.
 
-Text and spans can only be `machine-unverified` or `needs-review`; there is no verified OCR
-status. Confidence is an engine observation between 0 and 1. Coordinates use source-page pixels
-and include page dimensions. Layout, table, barcode and QR-code observations are four separate
-adapter-versioned collections; absent adapter support leaves them empty.
+This is process containment, not a general security sandbox. S02 does not claim an OS sandbox,
+container boundary, seccomp profile or independently enforced CPU/memory quota. POSIX temporary
+roots are mode `0700`; Windows uses the current user's inherited ACL. Only Ubuntu x86-64 has the
+real-component qualification above.
 
-Committed pages produce an `ocr.page.committed` checkpoint with sequence, completed pages and the
-next page. This record is compatible with Vigilia's content-free processed/skipped/error progress,
-lease and recovery lifecycle. S01 does not register an executable scheduler job.
+## Durable lifecycle and bundle
 
-## Temporary files and deletion
+The scheduler idempotency key binds Original identity, Version, contract version, selected pages,
+mode, languages, settings, adapter, engine, renderer and decoder identities. The journal supplies
+exclusive lease, heartbeat, bounded retry and terminal receipts. Each completed page is written to
+a checksum-bound work checkpoint. An expired lease or crash resumes completed pages instead of
+publishing or recomputing them; a transient failure may retry the unfinished page.
 
-The seam creates one unshared temporary directory per job under an explicit local root and removes
-it after success or exception. POSIX directories are forced to mode 0700. Windows uses a per-user
-root and inherited ACLs; S02 must qualify that DACL as well as OS process, CPU/memory and deadline
-isolation around the engine.
+Only a complete document is atomically promoted under `state/derived/ocr-bundles/`. Its manifest
+contains job state, Original/Version/Document identity, settings and component provenance, stable
+page result/text references and hashes, page warnings, uncertainty flags, and removal/rebuild
+facts. Each page result contains text, coordinates and confidence when Tesseract produced them,
+plus a source-page raster hash. No partial work directory is listed as a successful derived
+artifact.
 
-OCR artifacts belong under derived state. Removing them does not remove an Original or canonical
-record. A rebuild creates the same derivation identity only when page bytes, engine, adapter,
-languages and settings are unchanged.
+Control commands are:
 
-## Packaging status
+```bash
+.venv/bin/provelume ocr-jobs INSTANCE
+.venv/bin/provelume ocr-cancel INSTANCE JOB_ID
+.venv/bin/provelume ocr-bundles INSTANCE --version-id VERSION_ID
+.venv/bin/provelume ocr-remove INSTANCE VERSION_ID
+.venv/bin/provelume ocr-rebuild INSTANCE VERSION_ID
+```
 
-The base wheel, sdist and Windows installer contain no Tesseract binary or language pack and add no
-OCR runtime dependency. A future Windows component may be delivered only as a default-off, fully
-pre-staged offline payload with exact source/version/digests, license files, notices, release
-manifest entries, SBOM and offline verification. Silent runtime download remains forbidden.
+Removal deletes only the derived bundle, its derived-artifact/provenance records and resumable work.
+It retains a content-free rebuild receipt. Rebuild removes the prior derivation, queues it again
+with the same material derivation identity and never changes the Original or canonical knowledge.
 
-See the
-[`tesseract-5.5.3.json` packaging record](../../packaging/ocr/tesseract-5.5.3.json) for the
-platform matrix, reference language-pack provenance, size budgets and redistribution gates.
+## Capability and failures
 
-## Next slice
+The probe reports configured/effective limits, selected and installed languages, resolved engine
+and PDFium paths, exact engine/renderer/decoder/component versions and invariant no-network facts.
+It advertises `available: true` only in `ready`. Closed states distinguish `disabled`, missing
+adapter, missing engine, missing renderer/decoder, incompatible version and missing language pack.
+Execution further distinguishes unsupported/corrupt/oversized input, page/pixel/decompression/temp/
+time/output limits, cancellation, invalid engine output, adapter failure, contract violation and
+internal error. Messages are stable in English and Italian and never include source content.
 
-`0.9/S02` may implement bounded PDF/image page preparation, Tesseract process isolation, derived
-artifact persistence and document-bundle integration against this exact contract. It is not active
-and has no issue, branch or owner PR yet.
+Read-only status is available at `/api/v1/ocr/capability`, `/api/v1/ocr/jobs`,
+`/api/v1/ocr/jobs/{job_id}` and `/api/v1/ocr/bundles`. Lease tokens are never exposed. Queue,
+execute, cancel, remove and rebuild remain explicit local CLI or protected loopback Browser actions.
+
+## Packaging, licensing and limits
+
+The base wheel, sdist and Windows installer contain the Python seam and schemas but no Tesseract,
+Leptonica, language pack, pypdfium2/PDFium or Pillow payload and no OCR runtime dependency. Python
+extras do not pretend to install native components. The external-component BOM is qualification
+evidence, not a Provelume release SBOM. Any future redistribution requires exact binary/codec/pack
+inventory, digests, license/notice files, release manifest/SBOM entries and an offline install test.
+
+Known S02 limits include printed-text OCR only, Tesseract page-segmentation mode 3, no semantic
+verification or automatic correction, no qualified handwriting promise, no automatic deskew or
+advanced preprocessing, no baseline layout/table/barcode/QR adapter, and no supported platform or
+language beyond the exact matrix proved above. `0.9.0` is not published and no tag, release or
+asset is created by this slice.
+
+`0.9/S03` is only the next forecast for email identity and intake. It is not activated and has no
+operational issue, branch or PR.

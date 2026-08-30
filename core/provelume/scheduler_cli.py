@@ -12,7 +12,7 @@ from .scheduler_model import (
     MISSED_RUN_POLICIES,
     POLICY_STATES,
     SCHEDULE_MODES,
-    SCHEDULER_JOB_KINDS,
+    USER_SCHEDULER_JOB_KINDS,
     SchedulerBusyError,
     SchedulerError,
 )
@@ -52,7 +52,7 @@ def add_scheduler_commands(subparsers: Any) -> None:
         help="Create one durable, user-controlled local scheduler policy",
     )
     create.add_argument("instance", type=Path)
-    create.add_argument("--kind", choices=SCHEDULER_JOB_KINDS, required=True)
+    create.add_argument("--kind", choices=USER_SCHEDULER_JOB_KINDS, required=True)
     create.add_argument("--scope-kind", choices=("instance", "source"), default="instance")
     create.add_argument("--scope-id")
     create.add_argument("--state", choices=POLICY_STATES, default="disabled")

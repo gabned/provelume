@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}{{ t('ocr.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('ocr.eyebrow') }}</p>
+  <h1>{{ t('ocr.title') }}</h1>
+  <p class="lead">{{ t('ocr.lead') }}</p>
+</section>
+{% if saved %}<section class="panel"><p class="status ok">{{ t('ocr.saved') }}</p><p class="technical-note">{{ saved }}</p></section>{% endif %}
+{% if error %}<section class="panel"><p class="status warn">{{ t('ocr.error') }}</p><p>{{ error }}</p></section>{% endif %}
+{% if not editable %}<section class="panel"><p class="technical-note">{{ t('ocr.local_only') }}</p></section>{% endif %}
+
+<section class="panel">
+  <h2>{{ t('ocr.capability') }}</h2>
+  <p><strong>{{ t('ocr.state') }}: {{ capability.state }}</strong> · {{ t('ocr.available') }}: {{ capability.available }}</p>
+  {% if capability.error %}<p class="status warn">{{ capability.error.code }} · {{ capability.error.messages[lang] }}</p>{% endif %}
+  {% if capability.adapter %}<p>{{ t('ocr.engine') }}: {{ capability.adapter.engine_id }} {{ capability.adapter.engine_version }} · {{ capability.adapter.engine_executable }}</p><p>{{ t('ocr.languages') }}: {{ capability.adapter.installed_languages|join(', ') }}</p>{% endif %}
+  {% if capability.renderer %}<p>{{ t('ocr.renderer') }}: {{ capability.renderer.renderer_id }} {{ capability.renderer.renderer_version }} · {{ capability.renderer.decoder_id }} {{ capability.renderer.decoder_version }} · {{ capability.renderer.resolved_path }}</p>{% endif %}
+  <details><summary>{{ t('ocr.limits') }}</summary><pre>{{ capability.limits|tojson(indent=2) }}</pre></details>
+</section>
+
+{% if editable %}
+<section class="panel">
+  <h2>{{ t('ocr.configure') }}</h2>
+  <form method="post" action="/ocr?lang={{ lang }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="action" value="configure">
+    <label>{{ t('ocr.mode') }} <select name="mode">{% for mode in ocr_modes %}<option value="{{ mode }}"{% if mode == ocr_settings.mode %} selected{% endif %}>{{ mode }}</option>{% endfor %}</select></label>
+    <label>{{ t('ocr.selected_languages') }} <input name="languages" value="{{ ocr_settings.languages|join(',') }}" required></label>
+    <label>{{ t('ocr.executable') }} <input name="engine_executable" value="{{ ocr_settings.engine_executable }}" required></label>
+    <label>{{ t('ocr.tessdata') }} <input name="tessdata_path" value="{{ ocr_settings.tessdata_path or '' }}"></label>
+    <label>{{ t('ocr.dpi') }} <input name="render_dpi" type="number" min="72" max="600" value="{{ ocr_settings.render_dpi }}" required></label>
+    <button type="submit">{{ t('ocr.save') }}</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>{{ t('ocr.queue') }}</h2>
+  <form method="post" action="/ocr?lang={{ lang }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="action" value="queue">
+    <label>{{ t('ocr.version') }} <input name="version_id" required></label>
+    <label>{{ t('ocr.mode') }} <select name="mode">{% for mode in ocr_modes %}<option value="{{ mode }}"{% if mode == ocr_settings.mode %} selected{% endif %}>{{ mode }}</option>{% endfor %}</select></label>
+    <label>{{ t('ocr.selected_languages') }} <input name="languages" value="{{ ocr_settings.languages|join(',') }}" required></label>
+    <label>{{ t('ocr.pages') }} <input name="pages"></label>
+    <button type="submit">{{ t('ocr.queue_action') }}</button>
+  </form>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h2>{{ t('ocr.jobs') }}</h2>
+  <ul class="document-list">
+  {% for item in jobs %}
+    <li><div><strong>{{ item.job.status }} · {{ item.job.id }}</strong><span>{{ item.job.checkpoint.phase }} #{{ item.job.checkpoint.sequence }} · {{ item.job.progress.processed }}/{{ item.job.progress.errors }}</span>{% if item.run and item.run.error %}<span>{{ item.run.error.code }} · {{ item.run.error.messages[lang] }}</span>{% endif %}</div>{% if editable and item.job.status not in ['succeeded', 'failed', 'manual_intervention', 'cancelled'] %}<form method="post" action="/ocr?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="cancel"><input type="hidden" name="job_id" value="{{ item.job.id }}"><button type="submit">{{ t('ocr.cancel') }}</button></form>{% endif %}</li>
+  {% else %}<li class="empty">{{ t('ocr.no_jobs') }}</li>{% endfor %}
+  </ul>
+</section>
+
+<section class="panel">
+  <h2>{{ t('ocr.bundles') }}</h2>
+  <ul class="document-list">
+  {% for item in bundles %}
+    <li><div><strong>{{ item.manifest.version_id }}</strong><span>{{ item.manifest.derivation_key }} · {{ item.manifest.pages|length }} pages · {{ item.manifest.job.state }}</span><span>{{ item.artifact.checksum }}</span></div>{% if editable %}<form method="post" action="/ocr?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="version_id" value="{{ item.manifest.version_id }}"><button name="action" value="remove" type="submit">{{ t('ocr.remove') }}</button><button name="action" value="rebuild" type="submit">{{ t('ocr.rebuild') }}</button></form>{% endif %}</li>
+  {% else %}<li class="empty">{{ t('ocr.no_bundles') }}</li>{% endfor %}
+  </ul>
+</section>
+
+<section class="notice info"><p>{{ t('ocr.boundary') }}</p></section>
+{% endblock %}
