@@ -612,6 +612,36 @@ try {
                 "http://127.0.0.1:$Port/api/v1/maintenance/resource-statistics/snapshots" `
                 -TimeoutSec 2
         )
+        $RuntimeBoundaryEvidence = [ordered]@{
+            build_version = $Build.version
+            build_commit = $Build.commit
+            build_channel = $Build.channel
+            instance_id = $Instance.id
+            instance_name = $Instance.name
+            instance_schema_version = $Instance.schema_version
+            manifest_schema_version = $Instance.manifest_schema_version
+            derived_indexes = $Instance.derived_state.indexes
+            derived_library = $Instance.derived_state.library
+            derived_state_artifacts = $Instance.derived_state.state_artifacts
+            migrations_applied = $Instance.migrations_applied
+            lifecycle_recoveries = $Instance.lifecycle_recoveries
+            network_status = $Network.status
+            network_external_access = $Network.policy.external_access
+            enabled_external_components = $Network.summary.enabled_external_components
+            network_used = $Network.network_used
+            document_count = $Documents.Count
+            baseline_document_count = $BaselineDocumentCount
+            policy_count = $Policies.Count
+            job_count = $Jobs.Count
+            receipt_count = $Receipts.Count
+            maintenance_run_count = $MaintenanceRuns.Count
+            source_run_count = $SourceRuns.Count
+            resource_snapshot_count = $ResourceSnapshots.Count
+        }
+        Write-Host (
+            "Windows runtime boundary evidence: " +
+            ($RuntimeBoundaryEvidence | ConvertTo-Json -Compress)
+        )
         if (
             $Build.version -ne $ExpectedVersion -or
             $Build.commit -ne $ExpectedCommit -or

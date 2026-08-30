@@ -107,6 +107,7 @@ def test_windows_upgrade_proves_schema_compatibility_for_public_baselines() -> N
     assert "PostStartupInstanceTreeSha256" in text
     assert "PostReinstallInstanceTreeSha256" in text
     assert "PostUninstallInstanceTreeSha256" in text
+    assert "RuntimeBoundaryEvidence" in text
     assert "Published 0.7.0 synthetic source" in text
     assert "scheduler/policies" in text
     assert "api/v1/security/network" in text
