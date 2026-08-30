@@ -67,22 +67,54 @@ def _jpeg_bytes(width: int, height: int) -> bytes:
     return b"\xff\xd8" + sof_segment + b"\xff\xd9"
 
 
+def _tiff_bytes(width: int, height: int) -> bytes:
+    entries = b"".join(
+        (
+            (256).to_bytes(2, "little")
+            + (4).to_bytes(2, "little")
+            + (1).to_bytes(4, "little")
+            + width.to_bytes(4, "little"),
+            (257).to_bytes(2, "little")
+            + (4).to_bytes(2, "little")
+            + (1).to_bytes(4, "little")
+            + height.to_bytes(4, "little"),
+        )
+    )
+    return b"II*\x00" + (8).to_bytes(4, "little") + (2).to_bytes(2, "little") + entries
+
+
+def _bmp_bytes(width: int, height: int) -> bytes:
+    return (
+        b"BM"
+        + (54).to_bytes(4, "little")
+        + b"\x00" * 8
+        + (40).to_bytes(4, "little")
+        + width.to_bytes(4, "little", signed=True)
+        + height.to_bytes(4, "little", signed=True)
+        + b"\x00" * 28
+    )
+
+
 def test_xlsx_and_image_metadata_survive_derived_rebuild(tmp_path: Path) -> None:
     source = tmp_path / "source"
     source.mkdir()
     (source / "workbook.xlsx").write_bytes(_xlsx_bytes())
     (source / "diagram.png").write_bytes(_png_bytes(321, 7))
     (source / "photo.jpg").write_bytes(_jpeg_bytes(123, 45))
+    (source / "scan.tiff").write_bytes(_tiff_bytes(234, 56))
+    (source / "bitmap.bmp").write_bytes(_bmp_bytes(345, 67))
 
     instance = ProvelumeInstance.initialise(tmp_path / "instance", name="XLSX images")
     acquisitions = instance.ingest(source)
     assert {item["outcome"] for item in acquisitions} == {"created"}
-    assert len(instance.list_documents()) == 3
+    assert len(instance.list_documents()) == 5
 
     expected = {
         "celadon": "workbook.xlsx",
         "321": "diagram.png",
         "123": "photo.jpg",
+        "234": "scan.tiff",
+        "345": "bitmap.bmp",
     }
     for query, title in expected.items():
         result = instance.search(query)
@@ -101,7 +133,7 @@ def test_xlsx_and_image_metadata_survive_derived_rebuild(tmp_path: Path) -> None
     }
     shutil.rmtree(instance.store.paths.derived_text)
     shutil.rmtree(instance.store.paths.indexes)
-    assert instance.rebuild_index() == 3
+    assert instance.rebuild_index() == 5
     canonical_after = {kind: instance.store.list_canonical(kind) for kind in canonical_before}
     assert canonical_after == canonical_before
 
@@ -116,12 +148,14 @@ def test_malformed_xlsx_and_image_preserve_originals(tmp_path: Path) -> None:
     (source / "broken.xlsx").write_bytes(b"not-an-ooxml-package")
     (source / "broken.png").write_bytes(b"not-a-png")
     (source / "broken.jpg").write_bytes(b"\xff\xd8\xff\xd9")
+    (source / "broken.tiff").write_bytes(b"II*\x00bad")
+    (source / "broken.bmp").write_bytes(b"BMbad")
 
     instance = ProvelumeInstance.initialise(tmp_path / "instance")
     acquisitions = instance.ingest(source)
 
-    assert len(acquisitions) == 3
+    assert len(acquisitions) == 5
     assert {item["outcome"] for item in acquisitions} == {"extraction_failed"}
-    assert len(instance.store.list_canonical("originals")) == 3
-    assert len(instance.list_documents()) == 3
+    assert len(instance.store.list_canonical("originals")) == 5
+    assert len(instance.list_documents()) == 5
     assert all(item["error"] for item in acquisitions)

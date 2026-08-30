@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://provelume.com/schemas/ocr-contract-v1.schema.json",
   "title": "Provelume local OCR contract v1",
-  "description": "Public records for the optional, local-only, derived OCR capability. S01 defines this schema but ships no execution adapter.",
+  "description": "Public records for the optional, local-only, derived OCR capability and the bounded S02 execution baseline.",
   "oneOf": [
     {
       "$ref": "#/$defs/settings"
@@ -112,6 +112,10 @@
         "schema_version",
         "mode",
         "engine",
+        "engine_executable",
+        "tessdata_path",
+        "renderer",
+        "render_dpi",
         "languages",
         "language_detection",
         "automatic",
@@ -131,6 +135,27 @@
         },
         "engine": {
           "$ref": "#/$defs/componentId"
+        },
+        "engine_executable": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "tessdata_path": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "renderer": {
+          "$ref": "#/$defs/componentId"
+        },
+        "render_dpi": {
+          "type": "integer",
+          "minimum": 72,
+          "maximum": 600
         },
         "languages": {
           "type": "array",
@@ -203,6 +228,8 @@
             "ocr_disabled",
             "ocr_adapter_unavailable",
             "ocr_engine_unavailable",
+            "ocr_renderer_unavailable",
+            "ocr_version_incompatible",
             "ocr_language_pack_missing",
             "ocr_unsupported_input",
             "ocr_corrupt_input",
@@ -212,9 +239,12 @@
             "ocr_decompression_limit_exceeded",
             "ocr_temporary_space_exceeded",
             "ocr_deadline_exceeded",
+            "ocr_output_limit_exceeded",
             "ocr_invalid_selection",
             "ocr_contract_violation",
             "ocr_adapter_failure",
+            "ocr_engine_output_invalid",
+            "ocr_internal_error",
             "ocr_cancelled"
           ]
         },
@@ -242,19 +272,23 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "id",
-        "version",
+        "adapter_id",
+        "adapter_version",
         "engine_id",
         "engine_version",
+        "engine_available",
+        "engine_executable",
+        "version_compatible",
+        "tessdata_path",
         "installed_languages",
         "input_media_types",
         "outputs"
       ],
       "properties": {
-        "id": {
+        "adapter_id": {
           "$ref": "#/$defs/componentId"
         },
-        "version": {
+        "adapter_version": {
           "$ref": "#/$defs/componentVersion"
         },
         "engine_id": {
@@ -268,6 +302,24 @@
             {
               "$ref": "#/$defs/componentVersion"
             }
+          ]
+        },
+        "engine_available": {
+          "type": "boolean"
+        },
+        "engine_executable": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version_compatible": {
+          "type": "boolean"
+        },
+        "tessdata_path": {
+          "type": [
+            "string",
+            "null"
           ]
         },
         "installed_languages": {
@@ -325,6 +377,89 @@
         }
       }
     },
+    "renderer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter_id",
+        "adapter_version",
+        "renderer_id",
+        "renderer_version",
+        "renderer_available",
+        "version_compatible",
+        "resolved_path",
+        "decoder_id",
+        "decoder_version",
+        "component_versions",
+        "input_media_types"
+      ],
+      "properties": {
+        "adapter_id": {
+          "$ref": "#/$defs/componentId"
+        },
+        "adapter_version": {
+          "$ref": "#/$defs/componentVersion"
+        },
+        "renderer_id": {
+          "$ref": "#/$defs/componentId"
+        },
+        "renderer_version": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/componentVersion"
+            }
+          ]
+        },
+        "renderer_available": {
+          "type": "boolean"
+        },
+        "version_compatible": {
+          "type": "boolean"
+        },
+        "resolved_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "decoder_id": {
+          "$ref": "#/$defs/componentId"
+        },
+        "decoder_version": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/componentVersion"
+            }
+          ]
+        },
+        "component_versions": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/componentVersion"
+          }
+        },
+        "input_media_types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "application/pdf",
+              "image/tiff",
+              "image/png",
+              "image/jpeg",
+              "image/bmp"
+            ]
+          }
+        }
+      }
+    },
     "capabilityReport": {
       "type": "object",
       "additionalProperties": false,
@@ -334,9 +469,15 @@
         "available",
         "mode",
         "configured_engine",
+        "configured_engine_executable",
+        "configured_renderer",
+        "render_dpi",
         "configured_languages",
         "missing_languages",
+        "supported_input_media_types",
         "adapter",
+        "renderer",
+        "limits",
         "error",
         "network_required",
         "runtime_downloads",
@@ -353,6 +494,8 @@
             "disabled",
             "adapter-unavailable",
             "engine-unavailable",
+            "renderer-unavailable",
+            "version-incompatible",
             "language-pack-missing",
             "ready"
           ]
@@ -371,6 +514,18 @@
         "configured_engine": {
           "$ref": "#/$defs/componentId"
         },
+        "configured_engine_executable": {
+          "type": "string",
+          "minLength": 1
+        },
+        "configured_renderer": {
+          "$ref": "#/$defs/componentId"
+        },
+        "render_dpi": {
+          "type": "integer",
+          "minimum": 72,
+          "maximum": 600
+        },
         "configured_languages": {
           "type": "array",
           "minItems": 1,
@@ -387,6 +542,19 @@
             "$ref": "#/$defs/language"
           }
         },
+        "supported_input_media_types": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "application/pdf",
+              "image/bmp",
+              "image/jpeg",
+              "image/png",
+              "image/tiff"
+            ]
+          }
+        },
         "adapter": {
           "oneOf": [
             {
@@ -396,6 +564,19 @@
               "$ref": "#/$defs/adapter"
             }
           ]
+        },
+        "renderer": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/renderer"
+            }
+          ]
+        },
+        "limits": {
+          "$ref": "#/$defs/limits"
         },
         "error": {
           "oneOf": [
@@ -468,6 +649,8 @@
         "schema_version",
         "source_page",
         "staged_media_type",
+        "page_width",
+        "page_height",
         "settings_sha256",
         "languages",
         "deadline_seconds",
@@ -487,6 +670,16 @@
             "image/jpeg",
             "image/bmp"
           ]
+        },
+        "page_width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "page_height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
         },
         "settings_sha256": {
           "$ref": "#/$defs/sha256"
@@ -644,8 +837,18 @@
       "required": [
         "engine_id",
         "engine_version",
+        "engine_executable",
         "adapter_id",
         "adapter_version",
+        "tessdata_path",
+        "renderer_id",
+        "renderer_version",
+        "renderer_adapter_id",
+        "renderer_adapter_version",
+        "renderer_resolved_path",
+        "decoder_id",
+        "decoder_version",
+        "render_dpi",
         "languages",
         "settings_sha256",
         "source_page"
@@ -657,11 +860,48 @@
         "engine_version": {
           "$ref": "#/$defs/componentVersion"
         },
+        "engine_executable": {
+          "type": "string",
+          "minLength": 1
+        },
         "adapter_id": {
           "$ref": "#/$defs/componentId"
         },
         "adapter_version": {
           "$ref": "#/$defs/componentVersion"
+        },
+        "tessdata_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "renderer_id": {
+          "$ref": "#/$defs/componentId"
+        },
+        "renderer_version": {
+          "$ref": "#/$defs/componentVersion"
+        },
+        "renderer_adapter_id": {
+          "$ref": "#/$defs/componentId"
+        },
+        "renderer_adapter_version": {
+          "$ref": "#/$defs/componentVersion"
+        },
+        "renderer_resolved_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decoder_id": {
+          "$ref": "#/$defs/componentId"
+        },
+        "decoder_version": {
+          "$ref": "#/$defs/componentVersion"
+        },
+        "render_dpi": {
+          "type": "integer",
+          "minimum": 72,
+          "maximum": 600
         },
         "languages": {
           "type": "array",

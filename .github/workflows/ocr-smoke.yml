@@ -1,0 +1,59 @@
+name: OCR real-component smoke
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu-x86_64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Provision external local OCR components
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends tesseract-ocr tesseract-ocr-eng
+          python scripts/bootstrap.py
+          mkdir .ocr-wheelhouse
+          .venv/bin/python -m pip download --only-binary=:all: --no-deps \
+            --dest .ocr-wheelhouse 'pypdfium2==5.13.0' 'Pillow==12.3.0'
+          echo '81df25c1ab4c13ff773102d3cbea1967511d079123b067fc077bd0c4d57d91d8  .ocr-wheelhouse/pypdfium2-5.13.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl' | sha256sum --check --strict
+          echo '78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91  .ocr-wheelhouse/pillow-12.3.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl' | sha256sum --check --strict
+          .venv/bin/python -m pip install --no-index --no-deps \
+            --find-links .ocr-wheelhouse 'pypdfium2==5.13.0' 'Pillow==12.3.0'
+
+      - name: Record qualified component identity
+        run: |
+          uname -a
+          uname -m
+          tesseract --version
+          tesseract --list-langs
+          dpkg-query -W -f='${Package} ${Version} ${Architecture}\n' \
+            tesseract-ocr tesseract-ocr-eng liblept5
+          sha256sum "$(command -v tesseract)"
+          sha256sum /usr/share/tesseract-ocr/5/tessdata/eng.traineddata
+          echo '7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2  /usr/share/tesseract-ocr/5/tessdata/eng.traineddata' | sha256sum --check --strict
+          sha256sum /usr/share/doc/tesseract-ocr/copyright
+          sha256sum /usr/share/doc/liblept5/copyright
+          .venv/bin/python -m pip show pypdfium2 Pillow
+
+      - name: Run real local OCR and renderer smoke
+        env:
+          PROVELUME_REAL_OCR: "1"
+        run: .venv/bin/python -m pytest -q tests/test_ocr_real_smoke.py

@@ -684,6 +684,7 @@ class SchedulerStore:
                     "search.reindex",
                     "search.reindex.incremental",
                     "maintenance.source_reconcile",
+                    "ocr.execute",
                 }
                 and int(checkpoint["sequence"]) > 0
             ):
@@ -1357,6 +1358,64 @@ class SchedulerCoordinator:
         self,
         job: Mapping[str, Any],
     ) -> tuple[bool, dict[str, int], str, str, bool, bool]:
+        if job["job_kind"] == "ocr.execute":
+            from .ocr_contract import OcrContractError, OcrUnavailableError
+            from .ocr_jobs import OcrJobManager
+
+            lease_token = str(job["lease"]["token"])
+            checkpoint_now = getattr(self, "_execution_checkpoint_now", None)
+
+            def checkpoint(progress: dict[str, int]) -> Mapping[str, Any]:
+                current = self.journal.get_job(str(job["id"]))
+                if current is None:
+                    raise OcrContractError(
+                        "ocr_internal_error", "OCR scheduler job disappeared"
+                    )
+                return self.journal.checkpoint(
+                    str(job["id"]),
+                    lease_token,
+                    sequence=int(current["checkpoint"]["sequence"]) + 1,
+                    phase="executing",
+                    progress=progress,
+                    now=checkpoint_now,
+                )
+
+            manager_factory = getattr(self, "_ocr_manager_factory", OcrJobManager)
+            try:
+                progress = manager_factory(self.store).execute(
+                    job,
+                    checkpoint=checkpoint,
+                )
+            except (OcrContractError, OcrUnavailableError) as exc:
+                code = exc.code
+                if code == "ocr_cancelled":
+                    error_class = "cancelled"
+                elif code in {
+                    "ocr_deadline_exceeded",
+                    "ocr_internal_error",
+                    "ocr_adapter_failure",
+                }:
+                    error_class = "transient"
+                else:
+                    error_class = "permanent"
+                return (
+                    False,
+                    self._progress(errors=1),
+                    error_class,
+                    code,
+                    False,
+                    False,
+                )
+            except OSError:
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "transient",
+                    "local_io",
+                    False,
+                    False,
+                )
+            return True, progress, "", "", False, False
         if job["job_kind"] == "source.refresh":
             from .folder_source_model import FolderSourceError
             from .folder_sources import FolderSourceManager

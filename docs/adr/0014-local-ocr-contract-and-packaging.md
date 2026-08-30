@@ -7,6 +7,16 @@
 - Owner PR: [#138](https://github.com/gabned/provelume/pull/138)
 - Published baseline: `0.8.0`
 
+## S02 implementation note
+
+This ADR remains the historical `0.9/S01` contract and engine-selection record. The executable
+`0.9/S02` decision is [ADR 0015](0015-bounded-local-ocr-execution.md), owned by
+[#140](https://github.com/gabned/provelume/issues/140). S02 adds the Tesseract process adapter,
+pypdfium2/PDFium renderer, Pillow decoder, durable job and derived bundle without changing the
+S01 authority or uncertainty rules. Its closed capability vocabulary also distinguishes a missing
+renderer and incompatible component version. Statements below that S01 ships no execution path or
+has no qualified platform describe the completed S01 snapshot, not the later S02 implementation.
+
 ## Context
 
 Lectio needs a replaceable OCR boundary before any document pipeline can execute it. The boundary

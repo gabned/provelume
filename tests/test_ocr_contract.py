@@ -33,6 +33,7 @@ from provelume.ocr_contract import (
     OcrPageResult,
     OcrPageWarning,
     OcrProvenance,
+    OcrRendererCapability,
     OcrSettings,
     OcrSourcePageIdentity,
     OcrTextSpan,
@@ -72,6 +73,9 @@ class FakeAdapter:
             engine_id=OCR_ENGINE_ID,
             engine_version="5.5.3" if self.engine_available else None,
             engine_available=self.engine_available,
+            engine_executable=("/fixtures/tesseract" if self.engine_available else None),
+            version_compatible=self.engine_available,
+            tessdata_path="/fixtures/tessdata" if self.engine_available else None,
             installed_languages=self.languages,
             input_media_types=tuple(sorted(OCR_SUPPORTED_INPUTS)),
             emits_coordinates=True,
@@ -84,6 +88,60 @@ class FakeAdapter:
         raise AssertionError(
             f"S01 must not execute OCR: {request}, {staged_page_path}"
         )
+
+
+class FakeRenderer:
+    def __init__(self, *, available: bool = True, compatible: bool = True):
+        self.calls = 0
+        self.available = available
+        self.compatible = compatible
+
+    def capability(self) -> OcrRendererCapability:
+        self.calls += 1
+        return OcrRendererCapability(
+            adapter_id="provelume.test-renderer",
+            adapter_version="1",
+            renderer_id="pdfium-pillow",
+            renderer_version="5.13.0" if self.available else None,
+            renderer_available=self.available,
+            version_compatible=self.available and self.compatible,
+            resolved_path="/fixtures/libpdfium.so" if self.available else None,
+            decoder_id="pillow",
+            decoder_version="12.3.0" if self.available else None,
+            component_versions=(
+                (("pdfium", "145.0.7616.0"),) if self.available else ()
+            ),
+            input_media_types=tuple(sorted(OCR_SUPPORTED_INPUTS)),
+        )
+
+
+def page_provenance(
+    page: OcrSourcePageIdentity,
+    settings: OcrSettings,
+    capability: OcrAdapterCapability | None = None,
+    renderer: OcrRendererCapability | None = None,
+) -> OcrProvenance:
+    selected_capability = capability or FakeAdapter().capability()
+    selected_renderer = renderer or FakeRenderer().capability()
+    return OcrProvenance(
+        engine_id=selected_capability.engine_id,
+        engine_version=selected_capability.engine_version or "missing",
+        engine_executable=selected_capability.engine_executable or "missing",
+        adapter_id=selected_capability.adapter_id,
+        adapter_version=selected_capability.adapter_version,
+        tessdata_path=selected_capability.tessdata_path,
+        renderer_id=selected_renderer.renderer_id,
+        renderer_version=selected_renderer.renderer_version or "missing",
+        renderer_adapter_id=selected_renderer.adapter_id,
+        renderer_adapter_version=selected_renderer.adapter_version,
+        renderer_resolved_path=selected_renderer.resolved_path or "missing",
+        decoder_id=selected_renderer.decoder_id,
+        decoder_version=selected_renderer.decoder_version or "missing",
+        render_dpi=settings.render_dpi,
+        languages=("eng",),
+        settings_sha256=settings_fingerprint(settings),
+        source_page=page,
+    )
 
 
 def source_page(page_number: int = 1) -> OcrSourcePageIdentity:
@@ -282,12 +340,24 @@ def test_enabled_reporting_fails_closed_when_components_are_absent() -> None:
     assert set(exc_info.value.messages) == {"en", "it"}
 
     engine_missing = ocr_capability_report(
-        settings, FakeAdapter(engine_available=False, languages=())
+        settings,
+        FakeAdapter(engine_available=False, languages=()),
+        FakeRenderer(),
     )
     assert engine_missing["state"] == "engine-unavailable"
 
+    renderer_missing = ocr_capability_report(
+        settings, FakeAdapter(), FakeRenderer(available=False)
+    )
+    assert renderer_missing["state"] == "renderer-unavailable"
+
+    incompatible = ocr_capability_report(
+        settings, FakeAdapter(), FakeRenderer(compatible=False)
+    )
+    assert incompatible["state"] == "version-incompatible"
+
     pack_missing = ocr_capability_report(
-        settings, FakeAdapter(languages=("eng",))
+        settings, FakeAdapter(languages=("eng",)), FakeRenderer()
     )
     assert pack_missing["state"] == "language-pack-missing"
     assert pack_missing["missing_languages"] == ["ita"]
@@ -298,6 +368,7 @@ def test_explicit_adapter_can_report_ready_without_remote_fallback() -> None:
     report = ocr_capability_report(
         OcrSettings(mode="forced", languages=("eng", "ita")),
         adapter,
+        FakeRenderer(),
     )
     assert adapter.calls == 1
     assert report["state"] == "ready"
@@ -317,6 +388,8 @@ def test_explicit_adapter_can_report_ready_without_remote_fallback() -> None:
         "disabled",
         "adapter-unavailable",
         "engine-unavailable",
+        "renderer-unavailable",
+        "version-incompatible",
         "language-pack-missing",
         "ready",
     )
@@ -325,12 +398,19 @@ def test_explicit_adapter_can_report_ready_without_remote_fallback() -> None:
 def test_provenance_idempotency_and_page_checkpoint_are_exact() -> None:
     settings = OcrSettings(mode="forced", languages=("eng", "ita"))
     capability = FakeAdapter().capability()
-    first = ocr_derivation_key(source_page(1), settings, capability)
-    assert first == ocr_derivation_key(source_page(1), settings, capability)
-    assert first != ocr_derivation_key(source_page(2), settings, capability)
+    renderer = FakeRenderer().capability()
+    first = ocr_derivation_key(source_page(1), settings, capability, renderer)
+    assert first == ocr_derivation_key(
+        source_page(1), settings, capability, renderer
+    )
+    assert first != ocr_derivation_key(
+        source_page(2), settings, capability, renderer
+    )
 
     changed = OcrSettings(mode="forced", languages=("eng",))
-    assert first != ocr_derivation_key(source_page(1), changed, capability)
+    assert first != ocr_derivation_key(
+        source_page(1), changed, capability, renderer
+    )
 
     checkpoint = ocr_checkpoint_record(first, (1, 2), total_pages=3)
     assert checkpoint == {
@@ -348,15 +428,7 @@ def test_provenance_idempotency_and_page_checkpoint_are_exact() -> None:
 def test_page_result_keeps_uncertainty_and_nontext_observations_separate() -> None:
     page = source_page()
     settings = OcrSettings(mode="forced")
-    provenance = OcrProvenance(
-        engine_id="tesseract-cli",
-        engine_version="5.5.3",
-        adapter_id="provelume.tesseract-cli",
-        adapter_version="1",
-        languages=("eng",),
-        settings_sha256=settings_fingerprint(settings),
-        source_page=page,
-    )
+    provenance = page_provenance(page, settings)
     span = OcrTextSpan(
         text="uncertain",
         status="needs-review",
@@ -408,6 +480,8 @@ def test_page_request_binds_page_settings_languages_and_deadline() -> None:
     request = OcrPageRequest(
         source_page=source_page(),
         staged_media_type="image/png",
+        page_width=1000,
+        page_height=1400,
         settings_sha256=settings_fingerprint(settings),
         languages=("eng",),
         deadline_seconds=settings.limits.max_seconds_per_page,
@@ -422,6 +496,8 @@ def test_page_request_binds_page_settings_languages_and_deadline() -> None:
         OcrPageRequest(
             source_page=source_page(),
             staged_media_type="application/pdf",
+            page_width=1000,
+            page_height=1400,
             settings_sha256=settings_fingerprint(settings),
             languages=("eng",),
             deadline_seconds=60,
@@ -432,22 +508,19 @@ def test_page_request_binds_page_settings_languages_and_deadline() -> None:
 def test_adapter_result_must_match_request_limits_and_provenance() -> None:
     settings = OcrSettings(mode="forced")
     capability = FakeAdapter().capability()
+    renderer = FakeRenderer().capability()
     request = OcrPageRequest(
         source_page=source_page(),
         staged_media_type="image/png",
+        page_width=1000,
+        page_height=1400,
         settings_sha256=settings_fingerprint(settings),
         languages=("eng",),
         deadline_seconds=60,
         max_output_chars=5,
     )
-    provenance = OcrProvenance(
-        engine_id=capability.engine_id,
-        engine_version=capability.engine_version or "missing",
-        adapter_id=capability.adapter_id,
-        adapter_version=capability.adapter_version,
-        languages=request.languages,
-        settings_sha256=request.settings_sha256,
-        source_page=request.source_page,
+    provenance = page_provenance(
+        request.source_page, settings, capability, renderer
     )
     result = OcrPageResult(
         source_page=request.source_page,
@@ -458,7 +531,7 @@ def test_adapter_result_must_match_request_limits_and_provenance() -> None:
         observations=(),
         provenance=provenance,
     )
-    validate_ocr_page_result(request, result, capability)
+    validate_ocr_page_result(request, result, capability, renderer)
 
     too_long = OcrPageResult(
         source_page=request.source_page,
@@ -470,7 +543,7 @@ def test_adapter_result_must_match_request_limits_and_provenance() -> None:
         provenance=provenance,
     )
     with pytest.raises(OcrContractError, match="requested text limit"):
-        validate_ocr_page_result(request, too_long, capability)
+        validate_ocr_page_result(request, too_long, capability, renderer)
 
 
 def test_temporary_files_are_private_and_cleaned_after_failure(tmp_path: Path) -> None:
@@ -540,7 +613,8 @@ def test_packaging_manifest_is_optional_offline_and_license_complete() -> None:
             encoding="utf-8"
         )
     )
-    assert manifest["status"] == "contract-only"
+    assert manifest["slice"] == "0.9/S02"
+    assert manifest["status"] == "local-execution-qualified"
     assert manifest["selected_engine"] == {
         "id": "tesseract-cli",
         "qualified_baseline_version": "5.5.3",
@@ -558,6 +632,26 @@ def test_packaging_manifest_is_optional_offline_and_license_complete() -> None:
     assert distribution["windows_installer"]["silent_runtime_download"] is False
     assert manifest["size_and_supply_chain"]["base_wheel_ocr_engine_bytes"] == 0
     assert manifest["size_and_supply_chain"]["base_windows_installer_ocr_engine_bytes"] == 0
+    assert manifest["execution_baseline"]["qualified_matrix"] == [
+        {
+            "platform": "ubuntu-24.04",
+            "architecture": "x86_64",
+            "python": "3.12",
+            "engine": (
+                "distribution-provided Tesseract 5.x (5.3.4 observed locally; "
+                "exact CI version recorded by the workflow)"
+            ),
+            "renderer": "pypdfium2 5.13.0 / PDFium 153.0.7999.0",
+            "decoder": "Pillow 12.3.0",
+            "language_packs": ["eng"],
+            "formats": ["PDF", "TIFF", "PNG", "JPEG", "BMP"],
+            "workflow": ".github/workflows/ocr-smoke.yml",
+        }
+    ]
+    assert all(
+        component["bundled_by_provelume"] is False
+        for component in manifest["renderer_and_decoder"]["components"]
+    )
     assert manifest["language_pack_source"]["license"] == "Apache-2.0"
     assert manifest["language_pack_source"]["commit"] == (
         "87416418657359cb625c412a48b6e1d6d41c29bd"
@@ -570,7 +664,7 @@ def test_packaging_manifest_is_optional_offline_and_license_complete() -> None:
     assert manifest["redistribution"]["agpl_component_selected"] is False
 
 
-def test_s01_does_not_change_release_identity_or_add_ocr_dependencies() -> None:
+def test_s02_does_not_change_release_identity_or_add_ocr_dependencies() -> None:
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert pyproject["project"]["version"] == "0.8.0"
     assert __version__ == "0.8.0"
@@ -578,7 +672,15 @@ def test_s01_does_not_change_release_identity_or_add_ocr_dependencies() -> None:
     assert all(
         token not in dependency.casefold()
         for dependency in dependencies
-        for token in ("tesseract", "ocrmypdf", "paddleocr", "easyocr", "torch")
+        for token in (
+            "tesseract",
+            "ocrmypdf",
+            "paddleocr",
+            "easyocr",
+            "torch",
+            "pypdfium2",
+            "pillow",
+        )
     )
     embedded = json.loads(
         (ROOT / "core" / "provelume" / "build_info.json").read_text(encoding="utf-8")
@@ -591,4 +693,33 @@ def test_notices_distinguish_selected_but_unbundled_components() -> None:
     assert "Tesseract" in notices
     assert "Leptonica" in notices
     assert "tessdata_fast" in notices
+    assert "pypdfium2" in notices
+    assert "PDFium" in notices
+    assert "Pillow" in notices
     assert "not bundled" in notices.casefold()
+
+
+def test_qualified_external_component_bom_is_not_a_release_sbom() -> None:
+    bom = json.loads(
+        (
+            ROOT / "packaging" / "ocr" / "qualified-local-components.cdx.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert bom["bomFormat"] == "CycloneDX"
+    assert bom["specVersion"] == "1.6"
+    assert bom["metadata"]["component"]["name"] == (
+        "Provelume local OCR execution baseline"
+    )
+    assert {component["name"] for component in bom["components"]} == {
+        "Tesseract OCR",
+        "tessdata_fast eng.traineddata",
+        "pypdfium2",
+        "PDFium",
+        "Pillow",
+    }
+    assert all(
+        property_["value"] == "false"
+        for component in bom["components"]
+        for property_ in component.get("properties", [])
+        if property_["name"] == "provelume:bundled"
+    )

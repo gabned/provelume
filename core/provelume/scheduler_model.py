@@ -7,6 +7,8 @@ from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from .ocr_contract import OCR_ERROR_CODES
+
 SCHEDULER_SCHEMA_VERSION = 1
 SCHEDULER_JOB_KINDS = (
     "source.refresh",
@@ -18,6 +20,10 @@ SCHEDULER_JOB_KINDS = (
     "maintenance.duplicate_scan",
     "maintenance.source_reconcile",
     "maintenance.resource_snapshot",
+    "ocr.execute",
+)
+USER_SCHEDULER_JOB_KINDS = tuple(
+    kind for kind in SCHEDULER_JOB_KINDS if kind != "ocr.execute"
 )
 EXECUTABLE_JOB_KINDS = SCHEDULER_JOB_KINDS
 SOURCE_SCOPED_JOB_KINDS = frozenset(
@@ -60,7 +66,7 @@ ERROR_CODES = (
     "source_reconciliation_failed",
     "source_reauthorization_required",
     "source_reconciliation_superseded",
-)
+) + OCR_ERROR_CODES
 RECOVERY_STATES = ("none", "resumable", "restart_only", "manual_intervention")
 RUN_REASONS = ("manual", "scheduled", "coalesced", "catch_up")
 PROGRESS_KEYS = ("processed", "skipped", "errors")

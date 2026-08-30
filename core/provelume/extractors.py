@@ -415,7 +415,7 @@ class XlsxTextExtractor:
 
 
 class ImageMetadataExtractor:
-    extensions = {".png", ".jpg", ".jpeg"}
+    extensions = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}
     jpeg_sof_markers = {
         0xC0,
         0xC1,
@@ -479,6 +479,52 @@ class ImageMetadataExtractor:
             position += segment_length
         raise ExtractionError("JPEG frame dimensions were not found")
 
+    @staticmethod
+    def _bmp_dimensions(data: bytes) -> tuple[int, int]:
+        if len(data) < 26 or data[:2] != b"BM":
+            raise ExtractionError("BMP signature or header is invalid")
+        header_size = int.from_bytes(data[14:18], "little")
+        if header_size == 12:
+            width = int.from_bytes(data[18:20], "little")
+            height = int.from_bytes(data[20:22], "little")
+        elif header_size >= 40:
+            width = int.from_bytes(data[18:22], "little", signed=True)
+            height = abs(int.from_bytes(data[22:26], "little", signed=True))
+        else:
+            raise ExtractionError("BMP DIB header is unsupported")
+        if width <= 0 or height <= 0:
+            raise ExtractionError("BMP dimensions are invalid")
+        return width, height
+
+    @staticmethod
+    def _tiff_dimensions(data: bytes) -> tuple[int, int]:
+        if len(data) < 10 or data[:4] not in {b"II*\x00", b"MM\x00*"}:
+            raise ExtractionError("TIFF signature or header is invalid")
+        byteorder = "little" if data[:2] == b"II" else "big"
+        offset = int.from_bytes(data[4:8], byteorder)
+        if offset < 8 or offset + 2 > len(data):
+            raise ExtractionError("TIFF IFD offset is invalid")
+        count = int.from_bytes(data[offset : offset + 2], byteorder)
+        if count > 4096 or offset + 2 + count * 12 > len(data):
+            raise ExtractionError("TIFF IFD entry limit is invalid")
+        dimensions: dict[int, int] = {}
+        for index in range(count):
+            start = offset + 2 + index * 12
+            tag = int.from_bytes(data[start : start + 2], byteorder)
+            field_type = int.from_bytes(data[start + 2 : start + 4], byteorder)
+            values = int.from_bytes(data[start + 4 : start + 8], byteorder)
+            if tag not in {256, 257} or values != 1 or field_type not in {3, 4}:
+                continue
+            length = 2 if field_type == 3 else 4
+            dimensions[tag] = int.from_bytes(
+                data[start + 8 : start + 8 + length], byteorder
+            )
+        width = dimensions.get(256, 0)
+        height = dimensions.get(257, 0)
+        if width <= 0 or height <= 0:
+            raise ExtractionError("TIFF dimensions were not found")
+        return width, height
+
     def extract(self, data: bytes) -> ExtractionResult:
         if data.startswith(b"\x89PNG\r\n\x1a\n"):
             image_format = "PNG"
@@ -486,8 +532,16 @@ class ImageMetadataExtractor:
         elif data.startswith(b"\xff\xd8"):
             image_format = "JPEG"
             width, height = self._jpeg_dimensions(data)
+        elif data.startswith((b"II*\x00", b"MM\x00*")):
+            image_format = "TIFF"
+            width, height = self._tiff_dimensions(data)
+        elif data.startswith(b"BM"):
+            image_format = "BMP"
+            width, height = self._bmp_dimensions(data)
         else:
-            raise ExtractionError("image format does not match PNG or JPEG")
+            raise ExtractionError(
+                "image format does not match PNG, JPEG, TIFF or BMP"
+            )
         text = (
             f"Image format: {image_format}\n"
             f"Width: {width}\n"

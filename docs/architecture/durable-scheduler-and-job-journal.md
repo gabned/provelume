@@ -82,6 +82,7 @@ Checkpoints use consecutive sequence numbers and the phases `prepared`, `executi
 | Source refresh executing checkpoint | `resumable`; replay uses its durable Source/run evidence |
 | Full/incremental reindex checkpoint | `resumable`; replay validates its candidate or exact active generation |
 | Source reconciliation checkpoint | `resumable`; replay reconciles the one-ahead cursor split and revalidates the Source snapshot |
+| OCR page checkpoint | `resumable`; replay verifies page-result checksums and continues without publishing or duplicating completed pages |
 | Other `committed` checkpoint without a terminal receipt | `manual_intervention`; never infer success |
 | Attempt bound exhausted | `manual_intervention` with a closed recovery error |
 | Immutable receipt already exists | Reconcile the terminal job from the exact receipt; do not run again |
@@ -112,6 +113,11 @@ only Source-bound hashes and counts, and performs no ingestion or canonical muta
 `maintenance.resource_snapshot` reads only local Instance filesystem metadata and capacity,
 persists one idempotent aggregate observation per job, and never enforces its warning or critical
 thresholds.
+`ocr.execute`, added by `0.9/S02`, executes only a previously persisted exact local OCR request.
+Its idempotency binds source and component identity; page checkpoints survive retry or stale lease;
+only a complete derived bundle is promoted. It reports no network use or canonical mutation. OCR
+configuration and queueing remain explicit through their dedicated local controls rather than a
+generic recurring scheduler policy.
 
 An explicit CLI cycle evaluates policies and executes a bounded number of jobs:
 

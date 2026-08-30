@@ -32,6 +32,13 @@ This is configured-capability transparency, not traffic monitoring. `observed_ac
 
 Package installation and container-image construction may require access to public dependency registries. Official release publication and external attestation verification also involve the selected distribution provider. That build/install/verification traffic is separate from runtime knowledge processing and from reading embedded identity.
 
+The optional `0.9/S02` OCR path is a local-only runtime capability. Its capability report and every
+request/run/bundle record state `network_required: false`, `runtime_downloads: false` and
+`remote_fallback: false` as applicable. Provelume never installs Tesseract, a language pack,
+pypdfium2/PDFium or Pillow while probing or processing a document. Operator installation and the
+explicit CI provisioning step may use package repositories; that traffic is outside OCR runtime.
+Enabling OCR therefore does not enable `network.external_access` and does not add a provider origin.
+
 Connector definitions and instances introduced by `0.7/S01` are explicit local declarations.
 `0.7/S02` adds independent enabled/removed lifecycle state: a disabled or tombstoned connector is
 never counted as an enabled external component even when its retained policy says `explicit`.

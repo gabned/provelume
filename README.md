@@ -31,10 +31,11 @@ See the [public roadmap](docs/roadmap.md), the
 [Windows preview guide](docs/windows-preview.md) for portability and trust boundaries.
 
 The roadmap records `0.8.0 Vigilia` as the published preview and `0.9.0 Lectio` as active
-development under [#137](https://github.com/gabned/provelume/issues/137). Lectio's delivered S01
-reuses [#5](https://github.com/gabned/provelume/issues/5) through owner
-[PR #138](https://github.com/gabned/provelume/pull/138) to define the local OCR contract, licensing
-and optional packaging; it does not yet deliver OCR execution.
+development under [#137](https://github.com/gabned/provelume/issues/137). Lectio's S01 reused
+[#5](https://github.com/gabned/provelume/issues/5) through owner
+[PR #138](https://github.com/gabned/provelume/pull/138) to define the local OCR contract. S02 owner
+[#140](https://github.com/gabned/provelume/issues/140) implements bounded local Tesseract execution,
+PDF/image page preparation and removable document bundles in the unreleased source tree.
 Package and embedded build identity are aligned to `0.8.0`, `v0.8.0` and the exact published
 commit.
 
@@ -71,8 +72,10 @@ The active source tree can:
 - coordinate incremental and full derived-state rebuilds under an exclusive Instance lock;
 - browse ordered, bounded and path-redacted operation evidence;
 - extract text locally and build a disposable SQLite FTS5 search index;
-- expose a disabled-by-default local OCR contract, closed capability/error reporting, page-level
-  provenance and hostile-input/resource ceilings without shipping or invoking an OCR engine;
+- expose a disabled-by-default local OCR capability with closed availability/errors, explicit
+  modes/languages/pages, bounded PDF/TIFF/image preparation, local Tesseract process execution,
+  durable jobs and removable/rebuildable page-provenance bundles while shipping no OCR engine,
+  renderer, decoder or language pack;
 - expose a read-only versioned Knowledge API with FastAPI;
 - provide an EN/IT Knowledge Browser for browse, search, safe rendered/raw/Original document
   viewing, versions, provenance, Inbox, bundles, duplicates, assurance, rebuild reports,
@@ -130,15 +133,14 @@ representations remain derived state and can be recreated from preserved origina
 of those derived copies.
 
 The published `0.8.0` Vigilia preview creates no scheduler policy or job on install, upgrade or
-startup.
-Folder refresh and maintenance require explicit local configuration and run only while the current
-runtime is active. Native filesystem-event watchers, always-on desktop agents, OCR execution,
-email/Google Drive intake, semantic/vector search and AI classification remain later work. The active
-`0.9/S01` source defines only the OCR contract: no page renderer, Tesseract process adapter or
-document-bundle OCR flow is available yet. See the
+startup and does not contain the unreleased OCR execution baseline. Folder refresh, maintenance and
+the active-source S02 OCR path require explicit local configuration and run only while the current
+runtime is active. Native filesystem-event watchers, always-on desktop agents, email/Google Drive
+intake, semantic/vector search and AI classification remain later work. S02 performs no cloud call,
+runtime download or remote fallback and keeps every OCR result derived and unverified. See the
 [English OCR contract](docs/architecture/local-ocr-contract.md), the
 [Italian OCR contract](docs/architecture/local-ocr-contract.it.md) and
-[ADR 0014](docs/adr/0014-local-ocr-contract-and-packaging.md).
+[ADR 0015](docs/adr/0015-bounded-local-ocr-execution.md).
 
 ## Quick start
 
@@ -157,6 +159,19 @@ The bootstrap command creates `.venv` and installs Provelume plus developer chec
 ```
 
 On Windows, use `.venv\\Scripts\\provelume.exe` for the same commands. Open `http://127.0.0.1:8000/` after starting the server.
+
+For the unreleased S02 path, first install Tesseract, the selected local language packs,
+pypdfium2 5.13.0 and Pillow 12.3.0 explicitly. Then enable and probe OCR; Provelume never installs
+or downloads them at runtime:
+
+```bash
+.venv/bin/provelume ocr-configure .local/demo --mode automatic \
+  --language eng --engine-executable /usr/bin/tesseract
+.venv/bin/provelume ocr-capability .local/demo
+```
+
+See the [local OCR execution guide](docs/architecture/local-ocr-contract.md) for the exact qualified
+matrix, queue/cancel/remove/rebuild controls, uncertainty boundary and known limits.
 
 Configure a custom Inbox name and local folders. Relative paths resolve from the Instance root;
 absolute paths may live elsewhere on the local filesystem:

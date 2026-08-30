@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/ocr-document-bundle-v1.schema.json",
+  "title": "Provelume derived OCR document bundle manifest v1",
+  "description": "Atomic, removable and rebuildable manifest for a successful local OCR derivation. Page result records use the public OCR contract schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_schema_version",
+    "kind",
+    "job",
+    "derivation_key",
+    "document_id",
+    "version_id",
+    "original",
+    "settings",
+    "settings_sha256",
+    "adapter",
+    "renderer",
+    "pages",
+    "warnings",
+    "observations_are_separate_from_text",
+    "text_is_verified",
+    "authoritative",
+    "derived",
+    "removable",
+    "rebuildable",
+    "network_used",
+    "runtime_downloads",
+    "remote_fallback"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "contract_schema_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "ocr_document_bundle"
+    },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "state"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/recordId"
+        },
+        "state": {
+          "const": "succeeded"
+        }
+      }
+    },
+    "derivation_key": {
+      "type": "string",
+      "pattern": "^ocr_[0-9a-f]{64}$"
+    },
+    "document_id": {
+      "$ref": "#/$defs/recordId"
+    },
+    "version_id": {
+      "$ref": "#/$defs/recordId"
+    },
+    "original": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "sha256"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/recordId"
+        },
+        "sha256": {
+          "$ref": "ocr_contract.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "settings": {
+      "$ref": "ocr_contract.schema.json#/$defs/settings"
+    },
+    "settings_sha256": {
+      "$ref": "ocr_contract.schema.json#/$defs/sha256"
+    },
+    "adapter": {
+      "$ref": "ocr_contract.schema.json#/$defs/adapter"
+    },
+    "renderer": {
+      "$ref": "ocr_contract.schema.json#/$defs/renderer"
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 200,
+      "items": {
+        "$ref": "#/$defs/page"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "maxItems": 200000,
+      "items": {
+        "$ref": "ocr_contract.schema.json#/$defs/warning"
+      }
+    },
+    "observations_are_separate_from_text": {
+      "const": true
+    },
+    "text_is_verified": {
+      "const": false
+    },
+    "authoritative": {
+      "const": false
+    },
+    "derived": {
+      "const": true
+    },
+    "removable": {
+      "const": true
+    },
+    "rebuildable": {
+      "const": true
+    },
+    "network_used": {
+      "const": false
+    },
+    "runtime_downloads": {
+      "const": false
+    },
+    "remote_fallback": {
+      "const": false
+    }
+  },
+  "$defs": {
+    "recordId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "derivedRef": {
+      "type": "string",
+      "pattern": "^state/derived/ocr-bundles/[A-Za-z0-9_.:-]+/ocr_[0-9a-f]{64}/pages/[0-9]{6}\\.(json|txt)$"
+    },
+    "pageRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "derivation_key",
+        "page_request",
+        "result"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "derivation_key": {
+          "type": "string",
+          "pattern": "^ocr_[0-9a-f]{64}$"
+        },
+        "page_request": {
+          "$ref": "ocr_contract.schema.json#/$defs/pageRequest"
+        },
+        "result": {
+          "$ref": "ocr_contract.schema.json#/$defs/pageResult"
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "page_number",
+        "source_page",
+        "result_ref",
+        "result_sha256",
+        "text_ref",
+        "text_sha256",
+        "text_status",
+        "warning_count"
+      ],
+      "properties": {
+        "page_number": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "source_page": {
+          "$ref": "ocr_contract.schema.json#/$defs/sourcePage"
+        },
+        "result_ref": {
+          "$ref": "#/$defs/derivedRef"
+        },
+        "result_sha256": {
+          "$ref": "ocr_contract.schema.json#/$defs/sha256"
+        },
+        "text_ref": {
+          "$ref": "#/$defs/derivedRef"
+        },
+        "text_sha256": {
+          "$ref": "ocr_contract.schema.json#/$defs/sha256"
+        },
+        "text_status": {
+          "enum": [
+            "machine-unverified",
+            "needs-review"
+          ]
+        },
+        "warning_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      }
+    }
+  }
+}

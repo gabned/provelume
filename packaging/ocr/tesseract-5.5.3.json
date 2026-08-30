@@ -1,7 +1,45 @@
 {
   "schema_version": 1,
-  "slice": "0.9/S01",
-  "status": "contract-only",
+  "slice": "0.9/S02",
+  "status": "local-execution-qualified",
+  "execution_baseline": {
+    "default_enabled": false,
+    "network_required": false,
+    "runtime_download": false,
+    "remote_fallback": false,
+    "engine_version_constraint": ">=5.3,<6",
+    "renderer_version_constraint": ">=5,<6",
+    "decoder_version_constraint": ">=12,<13",
+    "qualified_matrix": [
+      {
+        "platform": "ubuntu-24.04",
+        "architecture": "x86_64",
+        "python": "3.12",
+        "engine": "distribution-provided Tesseract 5.x (5.3.4 observed locally; exact CI version recorded by the workflow)",
+        "renderer": "pypdfium2 5.13.0 / PDFium 153.0.7999.0",
+        "decoder": "Pillow 12.3.0",
+        "language_packs": [
+          "eng"
+        ],
+        "formats": [
+          "PDF",
+          "TIFF",
+          "PNG",
+          "JPEG",
+          "BMP"
+        ],
+        "workflow": ".github/workflows/ocr-smoke.yml"
+      }
+    ],
+    "unqualified_platforms": [
+      "windows-x86_64",
+      "windows-arm64",
+      "linux-aarch64",
+      "macos-x86_64",
+      "macos-arm64"
+    ],
+    "security_boundary": "Private temporary directories and bounded child processes are implemented; no general-purpose security sandbox is claimed"
+  },
   "selected_engine": {
     "id": "tesseract-cli",
     "qualified_baseline_version": "5.5.3",
@@ -10,6 +48,40 @@
     "bundled": false,
     "runtime_download": false,
     "remote_fallback": false
+  },
+  "renderer_and_decoder": {
+    "selection": "PDFium for PDF rasterization and Pillow for TIFF/image decoding",
+    "components": [
+      {
+        "id": "pypdfium2",
+        "version": "5.13.0",
+        "source": "https://github.com/pypdfium2-team/pypdfium2/tree/5.13.0",
+        "license": "Apache-2.0 OR BSD-3-Clause, plus dependency licenses shipped in the wheel",
+        "bundled_by_provelume": false,
+        "ci_wheel": "pypdfium2-5.13.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "ci_wheel_size_bytes": 3730077,
+        "ci_wheel_sha256": "81df25c1ab4c13ff773102d3cbea1967511d079123b067fc077bd0c4d57d91d8"
+      },
+      {
+        "id": "pdfium",
+        "version": "153.0.7999.0",
+        "source": "https://pdfium.googlesource.com/pdfium/",
+        "license": "BSD-3-Clause and bundled dependency licenses",
+        "delivery": "contained in the external pypdfium2 Linux wheel, not in a Provelume artifact",
+        "bundled_by_provelume": false
+      },
+      {
+        "id": "pillow",
+        "version": "12.3.0",
+        "source": "https://github.com/python-pillow/Pillow/tree/12.3.0",
+        "license": "MIT-CMU",
+        "bundled_by_provelume": false,
+        "ci_wheel": "pillow-12.3.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+        "ci_wheel_size_bytes": 6940830,
+        "ci_wheel_sha256": "78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91"
+      }
+    ],
+    "native_dependency_notices": "The external wheels retain their own license directories; no wheel or native library is copied into Provelume distributions"
   },
   "evaluated_alternatives": [
     {
@@ -62,7 +134,7 @@
     "repository": "https://github.com/tesseract-ocr/tessdata_fast",
     "commit": "87416418657359cb625c412a48b6e1d6d41c29bd",
     "license": "Apache-2.0",
-    "bundled_in_s01": [],
+    "bundled_in_s02": [],
     "reference_packs": [
       {
         "id": "eng",
@@ -92,7 +164,7 @@
       "engine_bundled": false,
       "language_packs_bundled": [],
       "python_runtime_dependencies_added": [],
-      "behavior": "Contract, schema and disabled configuration only"
+      "behavior": "Contract, local adapter code, schema and disabled configuration; no native OCR component"
     },
     "sdist": {
       "engine_bundled": false,
@@ -100,10 +172,10 @@
       "behavior": "Includes source contract and packaging metadata, never third-party OCR binaries"
     },
     "windows_installer": {
-      "s01_architecture": "x86_64",
+      "architecture": "x86_64",
       "engine_bundled": false,
       "language_packs_bundled": [],
-      "future_model": "Separate opt-in component, unchecked by default, fully staged in the signed installer or offline companion bundle",
+      "supported_model": "Explicit external local installation only; no offline Windows payload is delivered or qualified in S02",
       "future_payload_gate": "Pinned source build, exact manifest and digests, license files, notices, SBOM, clean-room scan and offline installation test",
       "silent_runtime_download": false,
       "nested_upstream_installer_execution": false
@@ -113,7 +185,7 @@
     {
       "platform": "windows",
       "architecture": "x86_64",
-      "provelume_s01": "contract-only",
+      "provelume_s02": "external-local-install-unqualified",
       "engine_evidence": "Official upstream 5.5.3 w64 release asset",
       "engine_asset_size_bytes": 26573224,
       "engine_asset_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4"
@@ -121,32 +193,32 @@
     {
       "platform": "windows",
       "architecture": "arm64",
-      "provelume_s01": "unsupported",
+      "provelume_s02": "unsupported",
       "engine_evidence": null
     },
     {
       "platform": "linux",
       "architecture": "x86_64",
-      "provelume_s01": "contract-only",
-      "engine_evidence": "Upstream source build and distribution packages; no Provelume OCR execution qualification in S01"
+      "provelume_s02": "qualified-on-ubuntu-24.04-with-explicit-CI-provisioning",
+      "engine_evidence": "Real-component CI executes Tesseract, pypdfium2/PDFium, Pillow and the external eng pack"
     },
     {
       "platform": "linux",
       "architecture": "aarch64",
-      "provelume_s01": "contract-only",
-      "engine_evidence": "Upstream source build is possible; no Provelume OCR execution qualification in S01"
+      "provelume_s02": "unqualified",
+      "engine_evidence": "No S02 real-component CI evidence"
     },
     {
       "platform": "macos",
       "architecture": "x86_64",
-      "provelume_s01": "contract-only",
-      "engine_evidence": "Upstream documents Homebrew/MacPorts installation; Provelume macOS packaging is not yet delivered"
+      "provelume_s02": "unqualified",
+      "engine_evidence": "Upstream documents Homebrew/MacPorts installation; no S02 real-component CI evidence"
     },
     {
       "platform": "macos",
       "architecture": "arm64",
-      "provelume_s01": "contract-only",
-      "engine_evidence": "Upstream/Homebrew distribution is external; Provelume macOS packaging is not yet delivered"
+      "provelume_s02": "unqualified",
+      "engine_evidence": "Upstream/Homebrew distribution is external; no S02 real-component CI evidence"
     }
   ],
   "size_and_supply_chain": {
@@ -179,6 +251,8 @@
     "disabled": "Report ocr_disabled without probing an adapter or engine",
     "adapter_missing": "Report ocr_adapter_unavailable; do not install or download anything",
     "engine_missing": "Report ocr_engine_unavailable; do not invoke a remote service",
+    "renderer_missing": "Report ocr_renderer_unavailable; do not install a renderer or decoder",
+    "version_incompatible": "Report ocr_version_incompatible and require an explicit local replacement",
     "language_pack_missing": "Report ocr_language_pack_missing with the missing explicit pack IDs; do not download them",
     "all_failures": "Preserve the Original and canonical knowledge; derived OCR state may be removed or rebuilt"
   }

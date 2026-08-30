@@ -39,7 +39,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
-| Active development | `0.9.0` | OCR, email, Google file and transcript intake | #137; S01 completed by #5/#138 | `Lectio` |
+| Active development | `0.9.0` | OCR, email, Google file and transcript intake | #137; S01 completed by #5/#138; S02 completed by #140/S02_OWNER_PR | `Lectio` |
 | Forecast | `0.10.0` | Multimedia, universal content representations and component inventory | issue just in time | `Perceptio` |
 | Forecast | `0.11.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.12.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
@@ -259,7 +259,10 @@ parent tracker [#137](https://github.com/gabned/provelume/issues/137). Its first
 completed through [#5](https://github.com/gabned/provelume/issues/5) and owner
 [PR #138](https://github.com/gabned/provelume/pull/138): it defines the local/offline contract,
 licensing and optional packaging without changing the published `0.8.0` identity or claiming that
-OCR execution is already available. `0.9/S02` remains the next forecast-only slice with no issue,
+OCR execution was already available in S01. `0.9/S02` is completed by owner
+[#140](https://github.com/gabned/provelume/issues/140) and `S02_OWNER_PR`: it adds the bounded local
+Tesseract/PDFium/Pillow execution, durable derived bundle and explicit control surfaces while
+retaining `0.8.0` public identity. `0.9/S03` is the next forecast only and has no operational issue,
 branch or owner pull request.
 
 ## Planning and delivery contract
@@ -378,9 +381,9 @@ approved.
 The initial technology direction is replaceable rather than a hidden stack commitment:
 
 - Tesseract CLI `5.5.3`, selected by `0.9/S01`, remains the first local OCR reference engine;
-- [`pypdfium2`/PDFium](https://pypdfium2.readthedocs.io/) is the preferred candidate for bounded
-  PDF rasterization, subject to its own packaging, binary provenance, license and hostile-file ADR
-  before `0.9/S02` execution;
+- [`pypdfium2`/PDFium](https://github.com/pypdfium2-team/pypdfium2) 5.13.0 / 153.0.7999.0
+  and Pillow 12.3.0 are the S02 external renderer/decoder baseline, qualified only on Ubuntu 24.04
+  x86-64 with Python 3.12 and recorded in ADR 0015;
 - [`faster-whisper`](https://github.com/SYSTRAN/faster-whisper) with CTranslate2 is the preferred
   Python local-ASR candidate, while
   [`whisper.cpp`](https://github.com/ggml-org/whisper.cpp) is the lower-runtime alternative to
@@ -394,7 +397,7 @@ The initial technology direction is replaceable rather than a hidden stack commi
   [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) may later qualify as an alternative
   OCR/layout adapter but never silently replaces the Tesseract baseline.
 
-Except for the already selected Tesseract version, exact versions and redistribution modes are
+Except for the selected S02 OCR components, exact versions and redistribution modes are
 fixed only by an activation-time ADR after license, model/source origin, platform coverage,
 deterministic/offline packaging, size, CPU/GPU/memory budgets, hostile-input behavior, update
 policy and fallback tests pass. Models and language packs are components in their own right; the
@@ -940,10 +943,10 @@ decisions and tasks derived from communications or transcripts.
 and document bundles; `0.9/S03` email identity and intake; `0.9/S04` Gmail/Drive adapters;
 `0.9/S05` transcript profiles; `0.9/S06` cross-source qualification and correction findings.
 
-**Current status:** parent tracker #137 remains open and `0.9/S01` was completed by the
-pre-existing #5 and owner PR #138. S01 defines the contract, licensing and optional packaging
-only; it ships no OCR execution adapter. `0.9/S02` is the next forecast-only slice and has no
-issue, branch or owner pull request. S03–S06 likewise have no operational issues.
+**Current status:** parent tracker #137 remains open. `0.9/S01` was completed by the pre-existing
+#5 and owner PR #138. `0.9/S02` is completed by #140 and `S02_OWNER_PR`; it implements bounded
+local execution and derived document bundles without publishing `0.9.0`. `0.9/S03` is the next
+forecast only. S03–S06 have no operational issues, branches or owner pull requests.
 
 ### 0.10.0 — Multimedia, Universal Content Representations and Component Inventory
 

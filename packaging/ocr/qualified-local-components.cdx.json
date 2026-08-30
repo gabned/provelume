@@ -1,0 +1,214 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "provelume-0.9-s02-development",
+      "name": "Provelume local OCR execution baseline",
+      "type": "application",
+      "version": "0.8.0+0.9.S02-development",
+      "properties": [
+        {
+          "name": "provelume:release_identity",
+          "value": "0.8.0"
+        },
+        {
+          "name": "provelume:distribution_contains_optional_components",
+          "value": "false"
+        },
+        {
+          "name": "provelume:qualified_matrix",
+          "value": "ubuntu-24.04/x86_64/python-3.12"
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:github/tesseract-ocr/tesseract@5.5.3",
+      "type": "application",
+      "name": "Tesseract OCR",
+      "version": "5.5.3",
+      "scope": "optional",
+      "purl": "pkg:github/tesseract-ocr/tesseract@5.5.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/tesseract-ocr/tesseract/tree/5.5.3"
+        }
+      ],
+      "properties": [
+        {
+          "name": "provelume:bundled",
+          "value": "false"
+        },
+        {
+          "name": "provelume:compatible_versions",
+          "value": ">=5.3,<6"
+        },
+        {
+          "name": "provelume:local_smoke_observed_version",
+          "value": "5.3.4"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/tesseract-ocr/tessdata_fast@87416418657359cb625c412a48b6e1d6d41c29bd?download_url=eng.traineddata",
+      "type": "data",
+      "name": "tessdata_fast eng.traineddata",
+      "version": "87416418657359cb625c412a48b6e1d6d41c29bd",
+      "scope": "optional",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/tesseract-ocr/tessdata_fast/tree/87416418657359cb625c412a48b6e1d6d41c29bd"
+        }
+      ],
+      "properties": [
+        {
+          "name": "provelume:bundled",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/pypdfium2@5.13.0",
+      "type": "library",
+      "name": "pypdfium2",
+      "version": "5.13.0",
+      "scope": "optional",
+      "purl": "pkg:pypi/pypdfium2@5.13.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "81df25c1ab4c13ff773102d3cbea1967511d079123b067fc077bd0c4d57d91d8"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR BSD-3-Clause"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/pypdfium2-team/pypdfium2/tree/5.13.0"
+        }
+      ],
+      "properties": [
+        {
+          "name": "provelume:bundled",
+          "value": "false"
+        },
+        {
+          "name": "provelume:wheel_platform",
+          "value": "manylinux_2_17_x86_64"
+        },
+        {
+          "name": "provelume:dependency_license_inventory",
+          "value": "wheel .dist-info/licenses and BUILD_LICENSES"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pdfium-153.0.7999.0-linux-x64",
+      "type": "library",
+      "name": "PDFium",
+      "version": "153.0.7999.0",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://pdfium.googlesource.com/pdfium/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "provelume:delivery",
+          "value": "inside the external pypdfium2 wheel"
+        },
+        {
+          "name": "provelume:bundled",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/pillow@12.3.0",
+      "type": "library",
+      "name": "Pillow",
+      "version": "12.3.0",
+      "scope": "optional",
+      "purl": "pkg:pypi/pillow@12.3.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT-CMU"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/python-pillow/Pillow/tree/12.3.0"
+        }
+      ],
+      "properties": [
+        {
+          "name": "provelume:bundled",
+          "value": "false"
+        },
+        {
+          "name": "provelume:wheel_platform",
+          "value": "manylinux_2_27_x86_64"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "provelume-0.9-s02-development",
+      "dependsOn": [
+        "pkg:github/tesseract-ocr/tesseract@5.5.3",
+        "pkg:github/tesseract-ocr/tessdata_fast@87416418657359cb625c412a48b6e1d6d41c29bd?download_url=eng.traineddata",
+        "pkg:pypi/pypdfium2@5.13.0",
+        "pdfium-153.0.7999.0-linux-x64",
+        "pkg:pypi/pillow@12.3.0"
+      ]
+    }
+  ]
+}
