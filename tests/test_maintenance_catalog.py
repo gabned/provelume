@@ -405,6 +405,11 @@ def test_replay_reconciles_activation_completed_before_job_receipt(
         "_after_database_activation",
         lambda _self, _record: None,
     )
+
+    def unexpected_space_probe(_path):
+        raise AssertionError("an activated generation does not need temporary space")
+
+    monkeypatch.setattr(maintenance_module.shutil, "disk_usage", unexpected_space_probe)
     recovery_at = base + timedelta(seconds=2)
     instance.scheduler.recover(now=recovery_at)
     finished = instance.scheduler.run_one(job_id=queued["id"], now=recovery_at)

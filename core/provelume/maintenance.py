@@ -656,21 +656,14 @@ class MaintenanceManager:
             raise MaintenanceStateError("reindex job mode changed after it was journaled")
         if existing["status"] == "completed":
             return existing
-        current_plan = self.plan_reindex(mode)
+        _current_documents, current_versions = _documents_and_versions(self.store)
         if (
-            current_plan["canonical_fingerprint"]
+            self.store.knowledge_fingerprint()
             != existing["plan"]["canonical_fingerprint"]
-            or current_plan["knowledge_fingerprint"]
+            or _knowledge_fingerprint(current_versions)
             != existing["plan"]["knowledge_fingerprint"]
         ):
             return self._restart(existing, mode=mode, base_progress=progress)
-        if (
-            current_plan["free_bytes_observed"]
-            < existing["plan"]["temporary_bytes_required"]
-        ):
-            raise MaintenanceInsufficientSpaceError(
-                "reindex temporary-space preflight failed during recovery"
-            )
         if self._active_generation_matches(existing):
             existing = self._apply_rebased_progress(existing, progress)
             self._reconcile_active_metadata(existing)
@@ -685,6 +678,14 @@ class MaintenanceManager:
         database, _metadata_candidate = self._candidate_paths(existing)
         if not database.is_file():
             return self._restart(existing, mode=mode, base_progress=progress)
+        current_plan = self.plan_reindex(mode)
+        available_with_candidate = (
+            int(current_plan["free_bytes_observed"]) + database.stat().st_size
+        )
+        if available_with_candidate < existing["plan"]["temporary_bytes_required"]:
+            raise MaintenanceInsufficientSpaceError(
+                "reindex temporary-space preflight failed during recovery"
+            )
         recovered = self._recover_candidate_prefix(existing, progress)
         if recovered is None:
             return self._restart(existing, mode=mode, base_progress=progress)
