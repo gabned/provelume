@@ -86,8 +86,9 @@ Deleting before insertion makes an item replay idempotent. Before resuming, the 
 the exact expected candidate from the bound baseline plus the committed prefix and compares every
 row, so a partial SQLite copy or mismatched processed/unprocessed row starts a new plan revision. A
 crash after the SQLite commit but before the scheduler checkpoint repeats the item safely. A crash
-after the scheduler checkpoint but before the maintenance cursor repeats the item with the same
-absolute progress; progress never moves backward or counts the item twice.
+after the scheduler checkpoint but before the maintenance cursor leaves the candidate exactly one
+row ahead; recovery advances the cursor to the already-advertised item without processing or
+counting it twice. Progress never moves backward.
 
 After the final item, the worker compares every candidate row with exact current canonical and
 derived evidence. It writes the same generation-bound metadata into the candidate database and its

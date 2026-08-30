@@ -32,6 +32,15 @@
       <form method="post" action="/maintenance?lang={{ lang }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="action_id" value="{{ action.id }}">
+        {% if action.policies %}
+        <label>{{ t('maintenance.policy') }}
+          <select name="policy_id">
+          {% for policy in action.policies %}
+            <option value="{{ policy.id }}">{{ policy.id }} · {{ policy.state }} · {{ policy.schedule.mode }}</option>
+          {% endfor %}
+          </select>
+        </label>
+        {% endif %}
         <button type="submit">{{ t('maintenance.run_now') }}</button>
       </form>
       {% endif %}

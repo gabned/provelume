@@ -114,10 +114,12 @@ def attach_maintenance_routes(
         if not hmac.compare_digest(supplied_token, csrf_token):
             raise HTTPException(status_code=403, detail="invalid maintenance token")
         action_id = fields.get("action_id", [""])[0]
+        policy_id = fields.get("policy_id", [""])[0].strip() or None
         try:
             queued = instance.queue_maintenance_action(
                 action_id,
                 request_key=secrets.token_hex(16),
+                policy_id=policy_id,
             )
         except (MaintenanceError, OSError, SchedulerError, ValueError) as exc:
             return templates.TemplateResponse(

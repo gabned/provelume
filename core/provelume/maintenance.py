@@ -521,6 +521,97 @@ class MaintenanceManager:
         except (KeyError, MaintenanceStateError, OSError, UnicodeError, ValueError, sqlite3.Error):
             return False
 
+    @staticmethod
+    def _within_run_progress(record: Mapping[str, Any]) -> dict[str, int]:
+        return {
+            "processed": int(record["indexed"]),
+            "skipped": int(record["skipped"]),
+            "errors": int(record["errors"]),
+        }
+
+    def _rebased_progress(
+        self,
+        record: Mapping[str, Any],
+        progress: Mapping[str, int],
+    ) -> dict[str, int]:
+        within_run = self._within_run_progress(record)
+        rebased: dict[str, int] = {}
+        for key in within_run:
+            minimum = int(record["base_progress"][key]) + within_run[key]
+            if int(progress[key]) < minimum:
+                raise MaintenanceStateError(
+                    "scheduler progress precedes durable reindex evidence"
+                )
+            rebased[key] = int(progress[key]) - within_run[key]
+        return rebased
+
+    def _apply_rebased_progress(
+        self,
+        record: Mapping[str, Any],
+        progress: Mapping[str, int],
+    ) -> dict[str, Any]:
+        rebased = self._rebased_progress(record, progress)
+        if rebased == record["base_progress"]:
+            return dict(record)
+        return self._write_run(
+            {
+                **record,
+                "base_progress": rebased,
+                "updated_at": instant_text(),
+            }
+        )
+
+    def _advanced_prefix_record(self, record: Mapping[str, Any]) -> dict[str, Any] | None:
+        cursor = int(record["cursor"])
+        selected = record["plan"]["selected_document_ids"]
+        if record["status"] != "building" or cursor >= len(selected):
+            return None
+        document_id = str(selected[cursor])
+        version_id = record["plan"]["documents"].get(document_id)
+        indexed = bool(
+            version_id is not None
+            and self.store.derived_artifact_for_version(str(version_id)) is not None
+        )
+        return {
+            **record,
+            "cursor": cursor + 1,
+            "indexed": int(record["indexed"]) + int(indexed),
+            "skipped": int(record["skipped"]) + int(not indexed),
+        }
+
+    def _recover_candidate_prefix(
+        self,
+        record: Mapping[str, Any],
+        progress: Mapping[str, int],
+    ) -> dict[str, Any] | None:
+        if self._prefix_matches(record):
+            return self._apply_rebased_progress(record, progress)
+        advanced = self._advanced_prefix_record(record)
+        if advanced is None or not self._prefix_matches(advanced):
+            return None
+        before = {
+            key: int(record["base_progress"][key]) + value
+            for key, value in self._within_run_progress(record).items()
+        }
+        after = {
+            key: int(advanced["base_progress"][key]) + value
+            for key, value in self._within_run_progress(advanced).items()
+        }
+        observed_items = (int(progress["processed"]), int(progress["skipped"]))
+        if observed_items == (after["processed"], after["skipped"]):
+            return self._write_run(
+                {
+                    **advanced,
+                    "base_progress": self._rebased_progress(advanced, progress),
+                    "updated_at": instant_text(),
+                }
+            )
+        if observed_items == (before["processed"], before["skipped"]):
+            # SQLite is one idempotent item ahead of both journals. Keep the cursor
+            # unchanged so execution deliberately replays that exact item.
+            return self._apply_rebased_progress(record, progress)
+        return None
+
     def _restart(
         self,
         record: Mapping[str, Any],
@@ -563,26 +654,6 @@ class MaintenanceManager:
             return record
         if existing["plan"]["requested_mode"] != mode:
             raise MaintenanceStateError("reindex job mode changed after it was journaled")
-        within_run = {
-            "processed": int(existing["indexed"]),
-            "skipped": int(existing["skipped"]),
-            "errors": int(existing["errors"]),
-        }
-        rebased = {
-            key: max(
-                int(existing["base_progress"][key]),
-                int(progress[key]) - within_run[key],
-            )
-            for key in existing["base_progress"]
-        }
-        if rebased != existing["base_progress"]:
-            existing = self._write_run(
-                {
-                    **existing,
-                    "base_progress": rebased,
-                    "updated_at": instant_text(),
-                }
-            )
         if existing["status"] == "completed":
             return existing
         current_plan = self.plan_reindex(mode)
@@ -601,6 +672,7 @@ class MaintenanceManager:
                 "reindex temporary-space preflight failed during recovery"
             )
         if self._active_generation_matches(existing):
+            existing = self._apply_rebased_progress(existing, progress)
             self._reconcile_active_metadata(existing)
             return self._write_run(
                 {
@@ -611,9 +683,12 @@ class MaintenanceManager:
                 }
             )
         database, _metadata_candidate = self._candidate_paths(existing)
-        if not database.is_file() or not self._prefix_matches(existing):
+        if not database.is_file():
             return self._restart(existing, mode=mode, base_progress=progress)
-        return existing
+        recovered = self._recover_candidate_prefix(existing, progress)
+        if recovered is None:
+            return self._restart(existing, mode=mode, base_progress=progress)
+        return recovered
 
     def _expected_rows(self, documents: Mapping[str, str]) -> list[tuple[Any, ...]]:
         return self._rows_for_documents(documents, require_current=True)
@@ -646,6 +721,9 @@ class MaintenanceManager:
 
     def _after_item_checkpoint(self, record: Mapping[str, Any]) -> None:
         """Test seam for synthetic crash boundaries; production execution is a no-op."""
+
+    def _after_scheduler_checkpoint(self, record: Mapping[str, Any]) -> None:
+        """Test seam between scheduler progress and the maintenance cursor."""
 
     def execute_reindex(
         self,
@@ -707,6 +785,7 @@ class MaintenanceManager:
                         "errors": int(record["base_progress"]["errors"]),
                     }
                     checkpoint(absolute_progress)
+                    self._after_scheduler_checkpoint(record)
                     record = self._write_run(
                         {
                             **record,

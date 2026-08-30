@@ -259,6 +259,58 @@ def test_stale_lease_resumes_after_exact_item_checkpoint_without_duplicate_rows(
     assert len(rows) == len(set(rows)) == 3
 
 
+def test_scheduler_checkpoint_gap_reconciles_without_counting_the_item_twice(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance, _source = _instance_with_documents(tmp_path, count=3)
+    base = datetime(2026, 8, 30, 8, 15, tzinfo=UTC)
+    policy = instance.scheduler.journal.create_policy(
+        job_kind="search.reindex",
+        scope=_instance_scope(instance),
+        state="disabled",
+        schedule=schedule_payload(mode="manual", timezone="UTC"),
+        retry=retry_payload(max_attempts=3, base_seconds=1, max_seconds=2),
+        now=base,
+    )
+    queued = instance.scheduler.journal.run_now(
+        policy["id"], request_key="scheduler-cursor-gap", now=base
+    )["job"]
+
+    def stop_after_scheduler_checkpoint(_self, _record):
+        raise KeyboardInterrupt("synthetic scheduler-cursor gap")
+
+    monkeypatch.setattr(
+        MaintenanceManager,
+        "_after_scheduler_checkpoint",
+        stop_after_scheduler_checkpoint,
+    )
+    with pytest.raises(KeyboardInterrupt, match="scheduler-cursor gap"):
+        instance.scheduler.run_one(job_id=queued["id"], lease_seconds=1, now=base)
+    interrupted_job = instance.scheduler.journal.get_job(queued["id"])
+    interrupted_run = instance.maintenance.run_for_job(queued["id"])
+    assert interrupted_job is not None
+    assert interrupted_job["progress"] == {"processed": 1, "skipped": 0, "errors": 0}
+    assert interrupted_run is not None and interrupted_run["cursor"] == 0
+
+    monkeypatch.setattr(
+        MaintenanceManager,
+        "_after_scheduler_checkpoint",
+        lambda _self, _record: None,
+    )
+    recovery_at = base + timedelta(seconds=2)
+    instance.scheduler.recover(now=recovery_at)
+    finished = instance.scheduler.run_one(job_id=queued["id"], now=recovery_at)
+    assert finished is not None and finished["status"] == "succeeded"
+    assert finished["attempt"] == 2
+    assert finished["progress"] == {"processed": 3, "skipped": 0, "errors": 0}
+    completed = instance.maintenance.run_for_job(queued["id"])
+    assert completed is not None
+    assert completed["plan_revision"] == 1
+    assert completed["cursor"] == 3
+    assert len(_database_rows(instance)) == 3
+
+
 def test_recovery_restarts_a_content_mismatched_checkpoint_candidate(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -641,6 +693,21 @@ def test_maintenance_state_is_backed_up_exported_validated_and_exposed(
     ) == 0
     assert json.loads(capsys.readouterr().out)["ready"] is True
 
+    first_policy = instance.create_maintenance_policy(
+        "maintenance.validate",
+        state="disabled",
+        schedule=schedule_payload(mode="manual", timezone="UTC"),
+    )
+    second_policy = instance.create_maintenance_policy(
+        "maintenance.validate",
+        state="paused",
+        schedule=schedule_payload(
+            mode="interval",
+            timezone="UTC",
+            interval_seconds=3600,
+        ),
+    )
+
     app = create_app(instance.root)
     with TestClient(app) as client:
         api_catalog = client.get("/api/v1/maintenance")
@@ -655,6 +722,8 @@ def test_maintenance_state_is_backed_up_exported_validated_and_exposed(
         assert "Catalogo manutenzione" in italian.text
         assert "Full FTS reindex" in english.text
         assert "Reindicizzazione FTS completa" in italian.text
+        assert first_policy["id"] in english.text
+        assert second_policy["id"] in english.text
         assert str(instance.root) not in english.text
         csrf = re.search(r'name="csrf_token" value="([^"]+)"', english.text)
         assert csrf is not None
@@ -663,10 +732,12 @@ def test_maintenance_state_is_backed_up_exported_validated_and_exposed(
             data={
                 "csrf_token": csrf.group(1),
                 "action_id": "maintenance.validate",
+                "policy_id": second_policy["id"],
             },
         )
         assert queued.status_code == 200
         assert "Maintenance job queued" in queued.text
+        assert instance.list_scheduler_jobs(policy_id=second_policy["id"])
 
     run_path = instance.root / relative
     run_path.unlink()
