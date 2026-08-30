@@ -45,7 +45,7 @@ def test_quiescence_clock_reversal_and_explicit_policy_are_durable(
 ) -> None:
     source = tmp_path / "source"
     source.mkdir()
-    (source / "guide.md").write_text("# Stable\n", encoding="utf-8")
+    (source / "guide.md").write_bytes(b"# Stable\n")
     instance = _instance(tmp_path)
     registered = _register(
         instance,
