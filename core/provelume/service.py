@@ -31,6 +31,8 @@ from .paths import UnsafePathError
 from .portable_transfer import PortableInstanceTransfer
 from .retention import DocumentRetentionManager
 from .retention_model import DISPOSITION_FILTERS, effective_dispositions
+from .scheduler import SchedulerCoordinator, public_job_record
+from .scheduler_model import SchedulerBusyError
 from .storage import InstanceStore
 from .web_acquisition import ManualWebAcquisitionManager
 from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTransport
@@ -49,6 +51,18 @@ class ProvelumeInstance:
         self.hierarchy = HierarchyManager(self.store)
         self.library = LibraryProjectionManager(self.store)
         self.content = DocumentContentReader(self.store)
+        self.scheduler = SchedulerCoordinator(self.store)
+        try:
+            recovery = self.scheduler.recover()
+            self.scheduler_recovery = {**recovery, "deferred": False}
+        except SchedulerBusyError:
+            self.scheduler_recovery = {
+                "expired_leases": 0,
+                "retries_ready": 0,
+                "receipts_reconciled": 0,
+                "clock_changes": 0,
+                "deferred": True,
+            }
 
     @classmethod
     def initialise(
@@ -119,6 +133,90 @@ class ProvelumeInstance:
 
     def validate_instance(self, *, deep: bool = True) -> dict[str, Any]:
         return InstanceLifecycleManager(self.store).validate(deep=deep)
+
+    def create_schedule_policy(
+        self,
+        *,
+        job_kind: str,
+        scope: Mapping[str, str],
+        state: str,
+        schedule: Mapping[str, Any],
+        retry: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return self.scheduler.create_policy(
+            job_kind=job_kind,
+            scope=scope,
+            state=state,
+            schedule=schedule,
+            retry=retry,
+        )
+
+    def update_schedule_policy(
+        self,
+        policy_id: str,
+        *,
+        state: str | None = None,
+        schedule: Mapping[str, Any] | None = None,
+        retry: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return self.scheduler.update_policy(
+            policy_id,
+            state=state,
+            schedule=schedule,
+            retry=retry,
+        )
+
+    def list_schedule_policies(self) -> list[dict[str, Any]]:
+        return self.scheduler.journal.list_policies()
+
+    def get_schedule_policy(self, policy_id: str) -> dict[str, Any] | None:
+        return self.scheduler.journal.get_policy(policy_id)
+
+    def schedule_run_now(
+        self,
+        policy_id: str,
+        *,
+        request_key: str | None = None,
+    ) -> dict[str, Any]:
+        result = self.scheduler.run_now(policy_id, request_key=request_key)
+        return {**result, "job": public_job_record(result["job"])}
+
+    def run_scheduler_cycle(self, *, max_jobs: int = 1) -> dict[str, Any]:
+        result = self.scheduler.cycle(max_jobs=max_jobs)
+        self.scheduler_recovery = {
+            **result["evaluation"]["recovery"],
+            "deferred": False,
+        }
+        return result
+
+    def scheduler_status(self) -> dict[str, Any]:
+        return {
+            **self.scheduler.journal.status(),
+            "startup_recovery": dict(self.scheduler_recovery),
+        }
+
+    def list_scheduler_jobs(
+        self,
+        *,
+        status: str | None = None,
+        policy_id: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        return [
+            public_job_record(job)
+            for job in self.scheduler.journal.list_jobs(
+                status=status,
+                policy_id=policy_id,
+                limit=limit,
+            )
+        ]
+
+    def get_scheduler_job(self, job_id: str) -> dict[str, Any] | None:
+        job = self.scheduler.journal.get_job(job_id)
+        return public_job_record(job) if job is not None else None
+
+    def list_scheduler_receipts(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        return self.scheduler.journal.list_receipts(limit=limit)
 
     def backup(
         self,
@@ -766,6 +864,7 @@ class ProvelumeInstance:
             ),
             "index_status": health["index_status"],
             "knowledge_status": health["status"],
+            "scheduler": self.scheduler_status(),
             "network": {
                 "external_access": bool(network.get("external_access", False)),
                 "update_checks": bool(network.get("update_checks", False)),

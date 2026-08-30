@@ -4,6 +4,19 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Added
+
+- added strict durable scheduler policies with manual, bounded interval and local calendar modes,
+  explicit IANA timezones, DST rules, quiet windows, deterministic jitter and closed missed-run
+  behavior;
+- added a privacy-minimizing job journal with exclusive leases, active heartbeats, monotonic
+  checkpoints, bounded retry/backoff, immutable terminal receipts and crash reconciliation;
+- added safe local executors for deep Instance validation and rebuildable FTS reindex, with
+  service/CLI control plus read-only API and EN/IT Browser status; reserved Source refresh remains
+  disabled until its later executor slice;
+- added the Python-maintained public `tzdata` fallback so explicit IANA calendar rules also work
+  on Windows systems without a system timezone database;
+
 ### Changed
 
 - expanded the unreleased public forecast with user-controlled refresh/reindex/maintenance

@@ -32,10 +32,20 @@ def test_repository_pins_deterministic_build_inputs() -> None:
     assert "pefile==2023.2.7" in windows_lock
     assert "pefile==2024.8.26" not in windows_lock
     assert "pywin32-ctypes==0.2.3" in windows_lock
+    assert "tzdata==2026.3" in windows_lock
     assert "setuptools==" in windows_lock
     assert "--hash=sha256:" in windows_lock
     assert "http://" not in windows_lock
     assert "https://" not in windows_lock
+
+    windows_direct = {
+        line.strip()
+        for line in (root / "build-lock" / "windows-py312-x86_64.in")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+    assert set(configuration["project"]["dependencies"]) <= windows_direct
 
 
 def test_release_workflows_use_the_shared_deterministic_builder() -> None:

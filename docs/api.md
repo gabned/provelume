@@ -118,6 +118,32 @@ committing and indexing valid work. Retry selects only failed or interrupted ite
 operator mutation; no HTTP ingestion or retry route is introduced. See
 [`architecture/durable-ingestion-runs.md`](architecture/durable-ingestion-runs.md).
 
+## Durable scheduler and job journal
+
+- `GET /api/v1/scheduler` — bounded policy/job counts, next due instant, executable/deferred job
+  kinds and explicit network/deletion flags;
+- `GET /api/v1/scheduler/policies` — all strict, versioned policies;
+- `GET /api/v1/scheduler/policies/{policy_id}` — one policy;
+- `GET /api/v1/scheduler/jobs?status=...&policy_id=...&limit=100` — newest privacy-minimizing
+  durable jobs, bounded to 500;
+- `GET /api/v1/scheduler/jobs/{job_id}` — one job with lease/checkpoint/attempt evidence and its
+  terminal receipt reference;
+- `GET /api/v1/scheduler/receipts?limit=100` — newest immutable terminal receipts, bounded to 500.
+
+The endpoints are read-only and perform no evaluation, execution, recovery, network request,
+repair or deletion. Scheduler mutations require the application service or an explicit local CLI
+action through `scheduler-policy-create`, `scheduler-policy-state`, `scheduler-run-now` and
+`scheduler-run`. The EN/IT `/scheduler` Browser view uses the same service reads; its active local
+runtime evaluates at most one safe job per cycle while the Browser is running.
+
+Only deep Instance validation and derived FTS reindex have executors in `0.8/S01`. Reserved Source
+refresh policies remain disabled until their later Source executor exists. Records contain only
+IDs, clocks, closed status/error values and counts; caller idempotency text, paths, URLs,
+credentials and document content are not persisted. See
+[`architecture/durable-scheduler-and-job-journal.md`](architecture/durable-scheduler-and-job-journal.md).
+The random lease token is execution authority and is never returned by service, CLI, API or
+Browser read surfaces; those views retain only worker/timing evidence plus `token_present`.
+
 ## Documents
 
 - `GET /api/v1/documents`

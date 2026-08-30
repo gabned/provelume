@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
@@ -18,6 +20,7 @@ from .installation import verify_current_installation
 from .installation_i18n import installation_translator
 from .markdown_viewer import DocumentContentError, safe_markdown_html
 from .retention_model import DISPOSITION_FILTERS
+from .scheduler_model import SchedulerBusyError, SchedulerError
 from .service import ProvelumeInstance
 from .web_security import LocalWebSecurityMiddleware
 
@@ -102,6 +105,11 @@ def _navigation(
             "href": f"/operations?lang={language}",
             "label": t("nav.operations"),
             "current": current_path.startswith("/operations"),
+        },
+        {
+            "href": f"/scheduler?lang={language}",
+            "label": t("nav.scheduler"),
+            "current": current_path.startswith("/scheduler"),
         },
         {
             "href": f"/settings?lang={language}",
@@ -189,14 +197,46 @@ def create_app(
         installation_verification = verify_current_installation()
 
     instance = ProvelumeInstance(instance_root)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        stop = asyncio.Event()
+        app.state.scheduler_runtime_error = None
+
+        async def scheduler_worker() -> None:
+            while not stop.is_set():
+                try:
+                    await asyncio.to_thread(instance.run_scheduler_cycle, max_jobs=1)
+                    app.state.scheduler_runtime_error = None
+                except SchedulerBusyError:
+                    app.state.scheduler_runtime_error = "scheduler_busy"
+                except SchedulerError:
+                    app.state.scheduler_runtime_error = "scheduler_state_invalid"
+                except Exception:
+                    app.state.scheduler_runtime_error = "scheduler_cycle_failed"
+                try:
+                    await asyncio.wait_for(stop.wait(), timeout=30)
+                except TimeoutError:
+                    continue
+
+        worker = asyncio.create_task(scheduler_worker())
+        try:
+            yield
+        finally:
+            stop.set()
+            with suppress(asyncio.CancelledError):
+                await worker
+
     app = FastAPI(
         title="Provelume Knowledge API",
         version="1.0",
         docs_url=None,
         redoc_url=None,
+        lifespan=lifespan,
     )
     app.add_middleware(LocalWebSecurityMiddleware)
     app.state.provelume = instance
+    app.state.scheduler_runtime_error = None
     app.state.installation_verification = installation_verification
     app.state.release_evidence_configured = release_evidence_configured
     app.mount("/static", StaticFiles(directory=str(PACKAGE_ROOT / "static")), name="static")
@@ -358,6 +398,23 @@ def create_app(
             request=request,
             name="knowledge_health.html",
             context=_context(request, instance, health=instance.knowledge_health()),
+        )
+
+    @app.get("/scheduler")
+    def scheduler_page(request: Request):
+        return TEMPLATES.TemplateResponse(
+            request=request,
+            name="scheduler.html",
+            context=_context(
+                request,
+                instance,
+                scheduler=instance.scheduler_status(),
+                policies=instance.list_schedule_policies(),
+                jobs=instance.list_scheduler_jobs(limit=100),
+                receipts=instance.list_scheduler_receipts(limit=50),
+                recovery=instance.scheduler_recovery,
+                runtime_error=request.app.state.scheduler_runtime_error,
+            ),
         )
 
     @app.get("/security")

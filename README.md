@@ -23,9 +23,13 @@ See the [public roadmap](docs/roadmap.md), the
 [configurable-folder contract](docs/architecture/configurable-folder-settings.md) and the
 [Windows preview guide](docs/windows-preview.md) for portability and trust boundaries.
 
-The roadmap records `0.7.0` as a published preview and `0.8.0 Vigilia` as the next forecast while
-retaining the later sequence through `1.0.0`. Forecast entries are sequencing coordinates, not
-implementation claims, publication claims or release authorization.
+The roadmap records `0.7.0` as a published preview and `0.8.0 Vigilia` in active bounded
+implementation while retaining the later sequence through `1.0.0`. Forecast entries are
+sequencing coordinates, not publication claims or release authorization.
+
+The unreleased source tree also contains the bounded `0.8/S01` scheduler slice tracked by issue
+[#122](https://github.com/gabned/provelume/issues/122). Package, embedded build identity, tag and
+latest public release remain `0.7.0`; Source refresh and the rest of `0.8.0` remain planned.
 
 The active source tree can:
 
@@ -70,6 +74,12 @@ The active source tree can:
   authority with SSRF, DNS-rebinding, redirect and bounded-response protections;
 - preserve exact guarded-response bytes as an immutable Original and create separately identified,
   deterministic readable text only for supported web representations;
+- configure disabled, paused or enabled durable policies for manual, interval or local calendar
+  execution with explicit timezone, DST, quiet-window, jitter and missed-run behavior;
+- journal bounded validation and derived FTS-reindex jobs with leases, heartbeat, checkpoints,
+  retry/backoff, crash recovery and content-free terminal receipts;
+- inspect the unreleased scheduler through service, CLI, read-only API and EN/IT Browser surfaces
+  without enabling Source refresh, hidden network access or automatic deletion;
 - restart without losing canonical state;
 - run without Git, GitHub, Provelume Cloud or an external AI provider.
 

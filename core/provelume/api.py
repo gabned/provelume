@@ -133,6 +133,49 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             raise _not_found("ingestion run", run_id)
         return result
 
+    @router.get("/scheduler")
+    def get_scheduler_status() -> dict[str, Any]:
+        return instance.scheduler_status()
+
+    @router.get("/scheduler/policies")
+    def get_scheduler_policies() -> list[dict[str, Any]]:
+        return instance.list_schedule_policies()
+
+    @router.get("/scheduler/policies/{policy_id}")
+    def get_scheduler_policy(policy_id: str) -> dict[str, Any]:
+        result = instance.get_schedule_policy(policy_id)
+        if result is None:
+            raise _not_found("scheduler policy", policy_id)
+        return result
+
+    @router.get("/scheduler/jobs")
+    def get_scheduler_jobs(
+        status: str | None = Query(
+            default=None,
+            pattern="^(queued|running|retry_wait|succeeded|failed|manual_intervention|cancelled)$",
+        ),
+        policy_id: str | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_scheduler_jobs(
+            status=status,
+            policy_id=policy_id,
+            limit=limit,
+        )
+
+    @router.get("/scheduler/jobs/{job_id}")
+    def get_scheduler_job(job_id: str) -> dict[str, Any]:
+        result = instance.get_scheduler_job(job_id)
+        if result is None:
+            raise _not_found("scheduler job", job_id)
+        return result
+
+    @router.get("/scheduler/receipts")
+    def get_scheduler_receipts(
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_scheduler_receipts(limit=limit)
+
     @router.get("/hierarchy")
     def get_hierarchy() -> dict[str, Any]:
         return instance.hierarchy_tree()
