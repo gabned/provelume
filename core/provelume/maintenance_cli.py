@@ -29,6 +29,9 @@ MAINTENANCE_COMMANDS = frozenset(
         "maintenance-run",
         "maintenance-runs",
         "maintenance-reindex-run",
+        "maintenance-source-cursors",
+        "maintenance-source-runs",
+        "maintenance-source-run",
     }
 )
 
@@ -74,6 +77,7 @@ def add_maintenance_commands(subparsers: Any) -> None:
     )
     policy.add_argument("instance", type=Path)
     policy.add_argument("action_id", choices=MAINTENANCE_ACTION_IDS)
+    policy.add_argument("--source-id")
     policy.add_argument("--state", choices=POLICY_STATES, default="disabled")
     policy.add_argument("--mode", choices=SCHEDULE_MODES, default="manual")
     policy.add_argument("--timezone", default="UTC")
@@ -99,6 +103,7 @@ def add_maintenance_commands(subparsers: Any) -> None:
     )
     run.add_argument("instance", type=Path)
     run.add_argument("action_id", choices=MAINTENANCE_ACTION_IDS)
+    run.add_argument("--source-id")
     run.add_argument("--policy-id")
     run.add_argument("--idempotency-key")
 
@@ -115,6 +120,26 @@ def add_maintenance_commands(subparsers: Any) -> None:
     )
     detail.add_argument("instance", type=Path)
     detail.add_argument("run_id")
+
+    cursors = subparsers.add_parser(
+        "maintenance-source-cursors",
+        help="List durable, path-redacted Source reconciliation cursors",
+    )
+    cursors.add_argument("instance", type=Path)
+
+    source_runs = subparsers.add_parser(
+        "maintenance-source-runs",
+        help="List durable, content-free Source reconciliation runs",
+    )
+    source_runs.add_argument("instance", type=Path)
+    source_runs.add_argument("--limit", type=_positive, default=100)
+
+    source_run = subparsers.add_parser(
+        "maintenance-source-run",
+        help="Show one durable Source reconciliation run",
+    )
+    source_run.add_argument("instance", type=Path)
+    source_run.add_argument("run_id")
 
 
 def _print(value: Any) -> None:
@@ -164,6 +189,7 @@ def handle_maintenance_command(args: argparse.Namespace) -> int | None:
                     state=args.state,
                     schedule=schedule,
                     retry=retry,
+                    source_id=args.source_id,
                 )
             )
             return 0
@@ -172,6 +198,7 @@ def handle_maintenance_command(args: argparse.Namespace) -> int | None:
                 args.action_id,
                 request_key=args.idempotency_key,
                 policy_id=args.policy_id,
+                source_id=args.source_id,
             )
             _print(result)
             job = result.get("job")
@@ -181,6 +208,19 @@ def handle_maintenance_command(args: argparse.Namespace) -> int | None:
             return 0
         if args.command == "maintenance-reindex-run":
             result = instance.get_maintenance_run(args.run_id)
+            if result is None:
+                _print({"status": "not_found", "run_id": args.run_id})
+                return 3
+            _print(result)
+            return 0
+        if args.command == "maintenance-source-cursors":
+            _print(instance.list_source_reconciliation_cursors())
+            return 0
+        if args.command == "maintenance-source-runs":
+            _print(instance.list_source_reconciliation_runs(limit=args.limit))
+            return 0
+        if args.command == "maintenance-source-run":
+            result = instance.get_source_reconciliation_run(args.run_id)
             if result is None:
                 _print({"status": "not_found", "run_id": args.run_id})
                 return 3

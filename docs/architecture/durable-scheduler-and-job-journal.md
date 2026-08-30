@@ -6,6 +6,8 @@
 Source; see [Durable folder Sources](durable-folder-sources.md). `0.8/S03` activates the closed
 maintenance catalogue, incremental reindex and per-item recovery adapters described in
 [Maintenance catalogue and reindex recovery](maintenance-catalogue-and-reindex-recovery.md).
+`0.8/S04` activates exact Source-scoped reconciliation, durable cursors and lifecycle evidence; see
+[Source reconciliation cursors and lifecycle](source-reconciliation-cursors-and-lifecycle.md).
 
 ## Storage and authority
 
@@ -79,6 +81,7 @@ Checkpoints use consecutive sequence numbers and the phases `prepared`, `executi
 | No committed effect for a current local executor | `restart_only`; requeue within attempt bound |
 | Source refresh executing checkpoint | `resumable`; replay uses its durable Source/run evidence |
 | Full/incremental reindex checkpoint | `resumable`; replay validates its candidate or exact active generation |
+| Source reconciliation checkpoint | `resumable`; replay reconciles the one-ahead cursor split and revalidates the Source snapshot |
 | Other `committed` checkpoint without a terminal receipt | `manual_intervention`; never infer success |
 | Attempt bound exhausted | `manual_intervention` with a closed recovery error |
 | Immutable receipt already exists | Reconcile the terminal job from the exact receipt; do not run again |
@@ -104,6 +107,8 @@ network use and canonical Acquisition mutation truthfully; automatic deletion re
 `maintenance.duplicate_scan` reuse their existing local bounded contracts. `source.refresh`
 observes one explicit managed folder and ingests only after its S02 quiescence gate. No executor
 can repair, purge, apply retention, contact a provider or delete canonical knowledge.
+`maintenance.source_reconcile` reads one exact managed Source and canonical provenance, persists
+only Source-bound hashes and counts, and performs no ingestion or canonical mutation.
 
 An explicit CLI cycle evaluates policies and executes a bounded number of jobs:
 
@@ -135,14 +140,14 @@ This is not an always-on system service. Scheduling while the Browser is closed 
 later qualified self-hosted and desktop-agent work; S01 does not register a daemon, startup task or
 hidden process.
 
-## Deliberate S01–S03 limits
+## Deliberate S01–S04 limits
 
 - S02 watching is bounded scheduler polling while a qualified runtime is active; it installs no
   native filesystem-event service, daemon or startup task.
-- Source reconciliation is catalogued but unavailable until its S04 cursor/lifecycle contract.
 - Backup creation and verification are catalogued but unavailable to the scheduler until an exact
   destination can be bound without persisting a path or granting destination cleanup authority.
-- Connector cursors, Source reconciliation and lifecycle states belong to `0.8/S04`.
+- Provider/connector network cursors remain later work; S04 implements only managed filesystem
+  Source reconciliation and lifecycle state.
 - Resource policies and capacity/statistics evidence belong to `0.8/S05`.
 - There is no hidden network access, cloud fallback, canonical duplication, automatic repair,
   purge, retention action, destination cleanup or release/version change in this slice.

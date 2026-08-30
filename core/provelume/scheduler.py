@@ -679,7 +679,12 @@ class SchedulerStore:
                 continue
             checkpoint = job["checkpoint"]
             if (
-                job["job_kind"] in {"search.reindex", "search.reindex.incremental"}
+                job["job_kind"]
+                in {
+                    "search.reindex",
+                    "search.reindex.incremental",
+                    "maintenance.source_reconcile",
+                }
                 and int(checkpoint["sequence"]) > 0
             ):
                 recovery_state = "resumable"
@@ -1174,18 +1179,19 @@ class SchedulerStore:
                 raise SchedulerNotFoundError("scheduler job not found")
             self._owned(job, lease_token, selected_now)
             attempts = [dict(item) for item in job["attempts"]]
+            retry_available = (
+                error_class == "transient"
+                and int(job["attempt"]) < int(job["retry"]["max_attempts"])
+            )
             if attempts and attempts[-1]["outcome"] == "running":
                 attempts[-1] = {
                     **attempts[-1],
                     "completed_at": instant_text(selected_now),
-                    "outcome": "retry" if error_class == "transient" else "failed",
+                    "outcome": "retry" if retry_available else "failed",
                     "error_class": error_class,
                     "error_code": selected_error,
                 }
-            if (
-                error_class == "transient"
-                and int(job["attempt"]) < int(job["retry"]["max_attempts"])
-            ):
+            if retry_available:
                 delay = retry_delay_seconds(job["retry"], int(job["attempt"]))
                 return self._write_job(
                     {
@@ -1396,6 +1402,86 @@ class SchedulerCoordinator:
                 "local_io" if transient else "source_refresh_failed",
                 network_used,
                 canonical_mutation,
+            )
+        if job["job_kind"] == "maintenance.source_reconcile":
+            from .source_reconciliation import SourceReconciliationManager
+            from .source_reconciliation_model import (
+                SourceReconciliationAuthorizationError,
+                SourceReconciliationIOError,
+                SourceReconciliationLimitError,
+                SourceReconciliationStateError,
+                SourceReconciliationSupersededError,
+            )
+
+            lease_token = str(job["lease"]["token"])
+            checkpoint_now = getattr(self, "_execution_checkpoint_now", None)
+            manager = SourceReconciliationManager(self.store)
+
+            def checkpoint(progress: dict[str, int]) -> Mapping[str, Any]:
+                current = self.journal.get_job(str(job["id"]))
+                if current is None:
+                    raise SourceReconciliationStateError(
+                        "Source reconciliation scheduler job disappeared"
+                    )
+                return self.journal.checkpoint(
+                    str(job["id"]),
+                    lease_token,
+                    sequence=int(current["checkpoint"]["sequence"]) + 1,
+                    phase="executing",
+                    progress=progress,
+                    now=checkpoint_now,
+                )
+
+            try:
+                progress = manager.execute(job, checkpoint=checkpoint)
+            except SourceReconciliationAuthorizationError:
+                run = manager.run_for_job(str(job["id"]))
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "manual_intervention",
+                    "source_reauthorization_required",
+                    bool(run and run["network_used"]),
+                    False,
+                )
+            except SourceReconciliationSupersededError:
+                run = manager.run_for_job(str(job["id"]))
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "transient",
+                    "source_reconciliation_superseded",
+                    bool(run and run["network_used"]),
+                    False,
+                )
+            except (SourceReconciliationIOError, OSError):
+                run = manager.run_for_job(str(job["id"]))
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "transient",
+                    "local_io",
+                    bool(run and run["network_used"]),
+                    False,
+                )
+            except (SourceReconciliationLimitError, SourceReconciliationStateError):
+                run = manager.run_for_job(str(job["id"]))
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "permanent",
+                    "source_reconciliation_failed",
+                    bool(run and run["network_used"]),
+                    False,
+                )
+            run = manager.run_for_job(str(job["id"]))
+            return (
+                True,
+                progress,
+                "",
+                "",
+                bool(run and run["network_used"]),
+                False,
             )
         if job["job_kind"] in {"search.reindex", "search.reindex.incremental"}:
             from .maintenance import MaintenanceManager

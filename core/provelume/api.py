@@ -12,6 +12,7 @@ from .build_info import current_build_info
 from .maintenance_model import MaintenanceError, MaintenanceNotFoundError
 from .markdown_viewer import DocumentContentError
 from .service import ProvelumeInstance
+from .source_reconciliation_model import SourceReconciliationError
 
 CLIENT_INSTALLATION_EVIDENCE_PARAMETERS = frozenset(
     {"release_bundle", "expected_manifest_sha256"}
@@ -208,6 +209,30 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
         result = instance.get_maintenance_run(run_id)
         if result is None:
             raise _not_found("maintenance reindex run", run_id)
+        return result
+
+    @router.get("/maintenance/source-cursors")
+    def get_source_reconciliation_cursors() -> list[dict[str, Any]]:
+        return instance.list_source_reconciliation_cursors()
+
+    @router.get("/maintenance/source-cursors/{source_id}")
+    def get_source_reconciliation_cursor(source_id: str) -> dict[str, Any]:
+        try:
+            return instance.get_source_reconciliation_cursor(source_id)
+        except SourceReconciliationError as exc:
+            raise _not_found("Source reconciliation cursor", source_id) from exc
+
+    @router.get("/maintenance/source-runs")
+    def get_source_reconciliation_runs(
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_source_reconciliation_runs(limit=limit)
+
+    @router.get("/maintenance/source-runs/{run_id}")
+    def get_source_reconciliation_run(run_id: str) -> dict[str, Any]:
+        result = instance.get_source_reconciliation_run(run_id)
+        if result is None:
+            raise _not_found("Source reconciliation run", run_id)
         return result
 
     @router.get("/hierarchy")

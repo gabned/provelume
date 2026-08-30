@@ -29,6 +29,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - added durable per-item reindex checkpoints, stale-lease and post-activation replay recovery,
   monotonic retry progress, strict state validation, backup/export preservation and aligned
   service/CLI/read-only API/local EN/IT Browser surfaces;
+- added exact, read-only reconciliation for one managed filesystem Source with current, changed,
+  renamed, untracked and missing classifications, content-free durable cursors and closed active,
+  paused, missing, error, superseded and reauthorization-required lifecycle evidence;
+- added Source-scoped maintenance policies, lease/checkpoint replay, bounded superseded and I/O
+  retries, manual reauthorization handling, path-redacted receipts, deep validation,
+  backup/restore/portable-transfer coverage and aligned service/CLI/API/EN/IT Browser surfaces;
 
 ### Changed
 
