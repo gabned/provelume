@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from fastapi.testclient import TestClient
 
+from provelume import scheduler as scheduler_module
 from provelume.cli import main
 from provelume.instance_lifecycle import InstanceLifecycleManager
 from provelume.scheduler import SchedulerStore, retry_payload, schedule_payload
@@ -571,7 +572,72 @@ def test_execution_serializes_with_instance_lifecycle_and_heartbeats(
     monkeypatch.setattr(instance.scheduler, "_execute", slow_success)
     finished = instance.scheduler.run_one(lease_seconds=3)
     assert finished is not None and finished["status"] == "succeeded"
-    assert heartbeat_calls == [finished["id"]]
+    assert heartbeat_calls == [finished["id"]] * 4
+
+
+def test_heartbeat_is_bounded_to_executor_interval(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance = _instance(tmp_path)
+    policy = _manual_policy(instance)
+    instance.schedule_run_now(policy["id"], request_key="heartbeat-order")
+    journal = instance.scheduler.journal
+    checkpoint_phases: list[str] = []
+    worker_events: list[str] = []
+    original_checkpoint = journal.checkpoint
+    original_heartbeat = journal.heartbeat
+
+    def observed_checkpoint(*args, **kwargs):
+        checkpoint_phases.append(str(kwargs["phase"]))
+        worker_events.append(f"checkpoint:{kwargs['phase']}")
+        return original_checkpoint(*args, **kwargs)
+
+    def observed_heartbeat(*args, **kwargs):
+        worker_events.append("heartbeat")
+        return original_heartbeat(*args, **kwargs)
+
+    class ObservedThread:
+        def __init__(self, *, target, name, daemon):
+            del target, name, daemon
+
+        def start(self) -> None:
+            worker_events.append("thread:start")
+
+        def join(self) -> None:
+            worker_events.append("thread:join")
+
+    def successful_execution(_job):
+        worker_events.append("execute")
+        return (
+            True,
+            {"processed": 1, "skipped": 0, "errors": 0},
+            "",
+            "",
+            False,
+            False,
+        )
+
+    monkeypatch.setattr(journal, "checkpoint", observed_checkpoint)
+    monkeypatch.setattr(journal, "heartbeat", observed_heartbeat)
+    monkeypatch.setattr(scheduler_module, "Thread", ObservedThread)
+    monkeypatch.setattr(instance.scheduler, "_execute", successful_execution)
+
+    finished = instance.scheduler.run_one(lease_seconds=3)
+
+    assert finished is not None and finished["status"] == "succeeded"
+    assert checkpoint_phases == ["prepared", "executing", "committed"]
+    assert worker_events == [
+        "checkpoint:prepared",
+        "heartbeat",
+        "checkpoint:executing",
+        "heartbeat",
+        "thread:start",
+        "execute",
+        "thread:join",
+        "heartbeat",
+        "checkpoint:committed",
+    ]
 
 
 def test_scheduler_state_survives_restart_backup_restore_and_portable_import(
