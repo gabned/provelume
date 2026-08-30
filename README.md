@@ -31,9 +31,10 @@ See the [public roadmap](docs/roadmap.md), the
 [Windows preview guide](docs/windows-preview.md) for portability and trust boundaries.
 
 The roadmap records `0.8.0 Vigilia` as the published preview and `0.9.0 Lectio` as active
-development under [#137](https://github.com/gabned/provelume/issues/137). Lectio's current S01
-reuses [#5](https://github.com/gabned/provelume/issues/5) to define the local OCR contract,
-licensing and optional packaging; it does not yet deliver OCR execution.
+development under [#137](https://github.com/gabned/provelume/issues/137). Lectio's delivered S01
+reuses [#5](https://github.com/gabned/provelume/issues/5) through owner
+[PR #138](https://github.com/gabned/provelume/pull/138) to define the local OCR contract, licensing
+and optional packaging; it does not yet deliver OCR execution.
 Package and embedded build identity are aligned to `0.8.0`, `v0.8.0` and the exact published
 commit.
 

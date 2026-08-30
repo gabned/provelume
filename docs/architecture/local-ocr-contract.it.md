@@ -1,8 +1,9 @@
 # Contratto della capability OCR locale
 
-Stato: lavoro di contratto `0.9/S01` attivo in
+Stato: consegnato come `0.9/S01` in
 [#137](https://github.com/gabned/provelume/issues/137) e
-[#5](https://github.com/gabned/provelume/issues/5).
+[#5](https://github.com/gabned/provelume/issues/5) tramite owner
+[PR #138](https://github.com/gabned/provelume/pull/138).
 
 S01 definisce un confine OCR locale stabile. **Non** implementa ancora renderer completo, adapter
 di processo Tesseract, integrazione nei document bundle o flusso utente di esecuzione. L'OCR non è

@@ -1,8 +1,9 @@
 # Local OCR capability contract
 
-Status: active `0.9/S01` contract work under
+Status: delivered as `0.9/S01` under
 [#137](https://github.com/gabned/provelume/issues/137) and
-[#5](https://github.com/gabned/provelume/issues/5).
+[#5](https://github.com/gabned/provelume/issues/5) by owner
+[PR #138](https://github.com/gabned/provelume/pull/138).
 
 S01 defines a stable local OCR boundary. It does **not** implement the complete renderer, Tesseract
 process adapter, document-bundle integration or user execution flow. OCR is therefore not an

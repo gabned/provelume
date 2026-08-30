@@ -37,7 +37,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
-| Active development | `0.9.0` | OCR, email, Google file and transcript intake | #137; S01 reuses #5 | `Lectio` |
+| Active development | `0.9.0` | OCR, email, Google file and transcript intake | #137; S01 completed by #5/#138 | `Lectio` |
 | Forecast | `0.10.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
 | Forecast | `0.12.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
@@ -174,11 +174,12 @@ commit `d20e63079adf85829723cab86766266a8bc6cdcd`. Official release workflow run
 [`33315580878`](https://github.com/gabned/provelume/actions/runs/33315580878) published the public
 prerelease with 22 unique, nonempty assets; API digests, `SHA256SUMS`, package identities and both
 offline bundle verifiers were observed successfully. `0.9.0 Lectio` is active development under
-parent tracker [#137](https://github.com/gabned/provelume/issues/137). Its first bounded slice
-reuses the remaining OCR increment in [#5](https://github.com/gabned/provelume/issues/5) to define
-the local/offline contract, licensing and optional packaging without changing the published
-`0.8.0` identity or claiming that OCR execution is already available. `0.9/S02` remains the
-next forecast-only slice with no issue, branch or owner pull request.
+parent tracker [#137](https://github.com/gabned/provelume/issues/137). Its first bounded slice was
+completed through [#5](https://github.com/gabned/provelume/issues/5) and owner
+[PR #138](https://github.com/gabned/provelume/pull/138): it defines the local/offline contract,
+licensing and optional packaging without changing the published `0.8.0` identity or claiming that
+OCR execution is already available. `0.9/S02` remains the next forecast-only slice with no issue,
+branch or owner pull request.
 
 ## Planning and delivery contract
 
@@ -755,10 +756,10 @@ decisions and tasks derived from communications or transcripts.
 and document bundles; `0.9/S03` email identity and intake; `0.9/S04` Gmail/Drive adapters;
 `0.9/S05` transcript profiles; `0.9/S06` cross-source qualification and correction findings.
 
-**Current activation:** parent tracker #137 is open and the pre-existing #5 is reused as the
-`0.9/S01` owner issue. S01 defines the contract, licensing and optional packaging only; it ships
-no OCR execution adapter. `0.9/S02` is the next forecast-only slice and has no issue, branch or
-owner pull request. S03–S06 likewise have no operational issues.
+**Current status:** parent tracker #137 remains open and `0.9/S01` was completed by the
+pre-existing #5 and owner PR #138. S01 defines the contract, licensing and optional packaging
+only; it ships no OCR execution adapter. `0.9/S02` is the next forecast-only slice and has no
+issue, branch or owner pull request. S03–S06 likewise have no operational issues.
 
 ### 0.10.0 — Unified Capture, Operations and Action Center
 
