@@ -4,6 +4,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+## 0.8.0 - 2026-08-30
+
 ### Added
 
 - added strict durable scheduler policies with manual, bounded interval and local calendar modes,

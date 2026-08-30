@@ -1,6 +1,6 @@
 # Durable resource statistics, capacity and thresholds
 
-Status: bounded `0.8/S05` implementation tracked by issue [#130](https://github.com/gabned/provelume/issues/130). Package, tag and public release identity remain `0.7.0`.
+Status: bounded `0.8/S05` implementation tracked by issue [#130](https://github.com/gabned/provelume/issues/130) and included in the `0.8.0` Vigilia release candidate. The public tag remains `v0.7.0` until the separate trusted release workflow completes.
 
 ## Authority and measurement boundary
 

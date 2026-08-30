@@ -1023,8 +1023,6 @@ def test_public_source_reconciliation_contract_is_explicit() -> None:
         "portable export/import",
     ):
         assert required in contract
-    assert "issue [#128]" in readme
-    assert (
-        "Package, embedded build identity, tag and latest public release remain `0.7.0`"
-        in readme
-    )
+    assert "[#128](https://github.com/gabned/provelume/issues/128)" in readme
+    assert "Package and embedded build identity" in readme
+    assert "are aligned to `0.8.0`" in readme

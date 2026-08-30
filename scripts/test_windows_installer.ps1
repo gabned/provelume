@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$Installer,
     [string]$PreviousInstaller,
+    [string]$PreviousWheel,
     [Parameter(Mandatory = $true)][string]$InstallDirectory,
     [Parameter(Mandatory = $true)][string]$InstanceDirectory,
     [Parameter(Mandatory = $true)][string]$ExpectedVersion,
@@ -17,9 +18,9 @@ $ExpectedAppIdKey = "{E41A426B-F5FC-473F-A096-875017656A31}_is1"
 if ([string]::IsNullOrWhiteSpace($PreviousInstaller)) {
     $PreviousInstaller = Join-Path (
         Split-Path $InstallerPath -Parent
-    ) "Provelume-Setup-0.6.1-public.exe"
+    ) "Provelume-Setup-0.7.0-public.exe"
     Invoke-WebRequest `
-        -Uri "https://github.com/gabned/provelume/releases/download/v0.6.1/Provelume-Setup-0.6.1-x64.exe" `
+        -Uri "https://github.com/gabned/provelume/releases/download/v0.7.0/Provelume-Setup-0.7.0-x64.exe" `
         -OutFile $PreviousInstaller
 }
 $PreviousInstallerPath = (Resolve-Path $PreviousInstaller).Path
@@ -63,6 +64,14 @@ $ApprovedPreviousBaselines = @(
         commit = "087094210be8c0d3c8d2d5a32de3f981f6e8be20"
         size = 18344455
         sha256 = "98e7b693903bc160ac45c11a7c114fed88019c403a98efc07bef5b7e5039afc3"
+    },
+    @{
+        version = "0.7.0"
+        commit = "1e1731969552497c2d3fe79b1c26eccdaad712c0"
+        size = 18464821
+        sha256 = "46d7df0f94f3e9431685741594489ffcc99e0edf3f4880644c87e280fdecd5cb"
+        wheel_size = 294593
+        wheel_sha256 = "1beba35635fca2bcafa5d4f1a93d035592751f18785339705e1dbb3df7bf2a41"
     }
 )
 $IdentifiedBaseline = $ApprovedPreviousBaselines |
@@ -73,6 +82,32 @@ $IdentifiedBaseline = $ApprovedPreviousBaselines |
     Select-Object -First 1
 if ($null -eq $IdentifiedBaseline) {
     throw "Previous installer does not match an approved public Provelume baseline."
+}
+$PreviousWheelPath = $null
+if ($IdentifiedBaseline.ContainsKey("wheel_size")) {
+    if ([string]::IsNullOrWhiteSpace($PreviousWheel)) {
+        $PreviousWheel = Join-Path (
+            Split-Path $InstallerPath -Parent
+        ) "provelume-$($IdentifiedBaseline.version)-py3-none-any.whl"
+        Invoke-WebRequest `
+            -Uri (
+                "https://github.com/gabned/provelume/releases/download/" +
+                "v$($IdentifiedBaseline.version)/" +
+                "provelume-$($IdentifiedBaseline.version)-py3-none-any.whl"
+            ) `
+            -OutFile $PreviousWheel
+    }
+    $PreviousWheelPath = (Resolve-Path $PreviousWheel).Path
+    $ObservedWheelSize = (Get-Item $PreviousWheelPath).Length
+    $ObservedWheelSha256 = (
+        Get-FileHash $PreviousWheelPath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    if (
+        $ObservedWheelSize -ne $IdentifiedBaseline.wheel_size -or
+        $ObservedWheelSha256 -ne $IdentifiedBaseline.wheel_sha256
+    ) {
+        throw "Previous wheel does not match the approved public Provelume baseline."
+    }
 }
 if (
     -not [string]::IsNullOrWhiteSpace($PreviousVersion) -and
@@ -101,6 +136,8 @@ $OriginalPythonHome = $env:PYTHONHOME
 $OriginalPythonPath = $env:PYTHONPATH
 $SyntheticLocalAppData = Join-Path (Split-Path $InstallRoot -Parent) "Local AppData Próvelume 日本"
 $SettingsPath = Join-Path $SyntheticLocalAppData "Provelume\launcher.json"
+$BaselineRuntimeRoot = Join-Path (Split-Path $InstallRoot -Parent) "Published Baseline Runtime"
+$BaselineSourceRoot = Join-Path (Split-Path $InstallRoot -Parent) "Published Baseline Source"
 
 function Invoke-WindowsProcess {
     param(
@@ -250,6 +287,31 @@ function Get-YamlScalar {
     return $Value
 }
 
+function Get-InstanceTreeFingerprint {
+    param([Parameter(Mandatory = $true)][string]$Root)
+    $Rows = @(
+        Get-ChildItem -LiteralPath $Root -File -Recurse |
+            ForEach-Object {
+                $Relative = [System.IO.Path]::GetRelativePath($Root, $_.FullName).Replace("\", "/")
+                $Hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+                "$Relative`t$($_.Length)`t$Hash"
+            } |
+            Sort-Object
+    )
+    $Payload = [System.Text.UTF8Encoding]::new($false).GetBytes(
+        (($Rows -join "`n") + "`n")
+    )
+    $Hasher = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return [System.BitConverter]::ToString(
+            $Hasher.ComputeHash($Payload)
+        ).Replace("-", "").ToLowerInvariant()
+    }
+    finally {
+        $Hasher.Dispose()
+    }
+}
+
 New-Item -ItemType Directory -Force -Path $EvidenceRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $SyntheticLocalAppData | Out-Null
 
@@ -348,6 +410,51 @@ try {
         "synthetic upgrade preservation evidence`n",
         [System.Text.UTF8Encoding]::new($false)
     )
+    $BaselineDocumentCount = 0
+    if ($null -ne $PreviousWheelPath) {
+        python -m venv $BaselineRuntimeRoot
+        if ($LASTEXITCODE -ne 0) {
+            throw "Creating the published baseline runtime failed."
+        }
+        $BaselinePython = Join-Path $BaselineRuntimeRoot "Scripts\python.exe"
+        $BaselineWheelRoot = Join-Path $BaselineRuntimeRoot "verified-wheel"
+        New-Item -ItemType Directory -Force -Path $BaselineWheelRoot | Out-Null
+        $CanonicalPreviousWheelPath = Join-Path $BaselineWheelRoot (
+            "provelume-$PreviousVersion-py3-none-any.whl"
+        )
+        Copy-Item -LiteralPath $PreviousWheelPath -Destination $CanonicalPreviousWheelPath
+        & $BaselinePython -m pip install --disable-pip-version-check --require-hashes `
+            -r (Join-Path $PSScriptRoot "..\build-lock\windows-py312-x86_64.requirements.txt")
+        if ($LASTEXITCODE -ne 0) {
+            throw "Installing the reviewed Windows runtime lock for the baseline failed."
+        }
+        & $BaselinePython -m pip install --disable-pip-version-check --no-deps `
+            $CanonicalPreviousWheelPath
+        if ($LASTEXITCODE -ne 0) {
+            throw "Installing the immutable published baseline wheel failed."
+        }
+        New-Item -ItemType Directory -Force -Path $BaselineSourceRoot | Out-Null
+        [System.IO.File]::WriteAllText(
+            (Join-Path $BaselineSourceRoot "preserved-knowledge.md"),
+            "# Preserved knowledge`n`nSynthetic 0.7.0 upgrade evidence.`n",
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        & $BaselinePython -m provelume ingest $InstanceRoot $BaselineSourceRoot `
+            --name "Published 0.7.0 synthetic source"
+        if ($LASTEXITCODE -ne 0) {
+            throw "The immutable published baseline could not create canonical knowledge."
+        }
+        $BaselineDocumentCount = @(
+            Get-ChildItem (Join-Path $InstanceRoot "knowledge\documents") -File
+        ).Count
+        if (
+            $BaselineDocumentCount -lt 1 -or
+            @(Get-ChildItem (Join-Path $InstanceRoot "originals") -File -Recurse).Count -lt 1 -or
+            @(Get-ChildItem (Join-Path $InstanceRoot "state\ingestion") -File -Recurse).Count -lt 1
+        ) {
+            throw "Published baseline ingestion did not create canonical, Original and durable state."
+        }
+    }
     New-Item -ItemType Directory -Force -Path (Split-Path $SettingsPath -Parent) | Out-Null
     $Settings = @{
         schema_version = 1
@@ -371,6 +478,7 @@ try {
     $ExpectedSettingsSha256 = (
         Get-FileHash $SettingsPath -Algorithm SHA256
     ).Hash.ToLowerInvariant()
+    $BaselineInstanceTreeSha256 = Get-InstanceTreeFingerprint -Root $InstanceRoot
     Assert-SingleProductRegistration -ExpectedInstallRoot $InstallRoot
 
     # Install the candidate over the public baseline. The stable AppId must replace one product.
@@ -387,7 +495,8 @@ try {
     if (
         (Get-FileHash $InstanceConfig -Algorithm SHA256).Hash.ToLowerInvariant() -ne
             $LegacyInstanceConfigSha256 -or
-        $ManifestChangedByInstaller
+        $ManifestChangedByInstaller -or
+        (Get-InstanceTreeFingerprint -Root $InstanceRoot) -ne $BaselineInstanceTreeSha256
     ) {
         throw "The installer mutated the Instance instead of preserving Core authority."
     }
@@ -491,6 +600,59 @@ try {
         $ExpectedMigrationCount = if ($BaselineRequiresMigration) { 1 } else { 0 }
         $Build = Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/build-info" -TimeoutSec 2
         $Instance = Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/instance" -TimeoutSec 2
+        $Network = Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/security/network" -TimeoutSec 2
+        $Documents = Invoke-RestMethod `
+            "http://127.0.0.1:$Port/api/v1/documents" -TimeoutSec 2
+        $Policies = Invoke-RestMethod `
+            "http://127.0.0.1:$Port/api/v1/scheduler/policies" -TimeoutSec 2
+        $Jobs = Invoke-RestMethod `
+            "http://127.0.0.1:$Port/api/v1/scheduler/jobs" -TimeoutSec 2
+        $Receipts = Invoke-RestMethod `
+            "http://127.0.0.1:$Port/api/v1/scheduler/receipts" -TimeoutSec 2
+        $MaintenanceRuns = Invoke-RestMethod `
+            "http://127.0.0.1:$Port/api/v1/maintenance/runs" -TimeoutSec 2
+        $SourceRuns = Invoke-RestMethod `
+            "http://127.0.0.1:$Port/api/v1/maintenance/source-runs" -TimeoutSec 2
+        $ResourceSnapshots = Invoke-RestMethod `
+            "http://127.0.0.1:$Port/api/v1/maintenance/resource-statistics/snapshots" `
+            -TimeoutSec 2
+        $DocumentCount = @($Documents).Count
+        $PolicyCount = @($Policies).Count
+        $JobCount = @($Jobs).Count
+        $ReceiptCount = @($Receipts).Count
+        $MaintenanceRunCount = @($MaintenanceRuns).Count
+        $SourceRunCount = @($SourceRuns).Count
+        $ResourceSnapshotCount = @($ResourceSnapshots).Count
+        $RuntimeBoundaryEvidence = [ordered]@{
+            build_version = $Build.version
+            build_commit = $Build.commit
+            build_channel = $Build.channel
+            instance_id = $Instance.id
+            instance_name = $Instance.name
+            instance_schema_version = $Instance.schema_version
+            manifest_schema_version = $Instance.manifest_schema_version
+            derived_indexes = $Instance.derived_state.indexes
+            derived_library = $Instance.derived_state.library
+            derived_state_artifacts = $Instance.derived_state.state_artifacts
+            migrations_applied = $Instance.migrations_applied
+            lifecycle_recoveries = $Instance.lifecycle_recoveries
+            network_status = $Network.status
+            network_external_access = $Network.policy.external_access
+            enabled_external_components = $Network.summary.enabled_external_components
+            network_used = $Network.network_used
+            document_count = $DocumentCount
+            baseline_document_count = $BaselineDocumentCount
+            policy_count = $PolicyCount
+            job_count = $JobCount
+            receipt_count = $ReceiptCount
+            maintenance_run_count = $MaintenanceRunCount
+            source_run_count = $SourceRunCount
+            resource_snapshot_count = $ResourceSnapshotCount
+        }
+        Write-Host (
+            "Windows runtime boundary evidence: " +
+            ($RuntimeBoundaryEvidence | ConvertTo-Json -Compress)
+        )
         if (
             $Build.version -ne $ExpectedVersion -or
             $Build.commit -ne $ExpectedCommit -or
@@ -503,9 +665,23 @@ try {
             $Instance.derived_state.library -ne "rebuild" -or
             $Instance.derived_state.state_artifacts -ne "include" -or
             $Instance.migrations_applied -ne $ExpectedMigrationCount -or
-            $Instance.lifecycle_recoveries -ne 0
+            $Instance.lifecycle_recoveries -ne 0 -or
+            $Network.status -ne "local_only" -or
+            $Network.policy.external_access -or
+            $Network.summary.enabled_external_components -ne 0 -or
+            $Network.network_used -or
+            $DocumentCount -lt $BaselineDocumentCount -or
+            $PolicyCount -ne 0 -or
+            $JobCount -ne 0 -or
+            $ReceiptCount -ne 0 -or
+            $MaintenanceRunCount -ne 0 -or
+            $SourceRunCount -ne 0 -or
+            $ResourceSnapshotCount -ne 0
         ) {
-            throw "Candidate backend identity or preserved Instance is inconsistent."
+            throw (
+                "Candidate identity, preserved knowledge or default-disabled automation " +
+                "boundary is inconsistent."
+            )
         }
     }
     finally {
@@ -513,6 +689,15 @@ try {
             Stop-Process -Id $Backend.Id -Force
             $Backend.WaitForExit()
         }
+    }
+
+    # Cover runtime access as well as installer replacement with the exact tree proof.
+    $PostStartupInstanceTreeSha256 = Get-InstanceTreeFingerprint -Root $InstanceRoot
+    if (
+        -not $BaselineRequiresMigration -and
+        $PostStartupInstanceTreeSha256 -ne $BaselineInstanceTreeSha256
+    ) {
+        throw "Candidate startup mutated the preserved current-schema Instance tree."
     }
 
     # Verify either the controlled legacy migration or exact current-schema preservation.
@@ -611,6 +796,10 @@ try {
     # Reinstall once more, then uninstall the candidate while retaining state and the Instance.
     Install-Provelume -Setup $InstallerPath -Directory $InstallRoot
     Assert-SingleProductRegistration -ExpectedInstallRoot $InstallRoot
+    $PostReinstallInstanceTreeSha256 = Get-InstanceTreeFingerprint -Root $InstanceRoot
+    if ($PostReinstallInstanceTreeSha256 -ne $PostStartupInstanceTreeSha256) {
+        throw "Candidate reinstall mutated the verified post-startup Instance tree."
+    }
     Uninstall-Provelume -Directory $InstallRoot
     if (Test-Path $Executable) {
         throw "Uninstall left the installed executable behind."
@@ -651,6 +840,7 @@ try {
     else {
         -not (Test-Path $MigrationReceiptPath)
     }
+    $PostUninstallInstanceTreeSha256 = Get-InstanceTreeFingerprint -Root $InstanceRoot
     if (
         $ConfigText -notmatch '(?m)^schema_version:\s+2\s*$' -or
         $ConfigText -notmatch '(?m)^instance:\s*$' -or
@@ -667,7 +857,8 @@ try {
         (Get-FileHash (Join-Path $InstanceRoot "upgrade-preservation-marker.txt") `
             -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedMarkerSha256 -or
         (Get-FileHash $SettingsPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne
-            $ExpectedSettingsSha256
+            $ExpectedSettingsSha256 -or
+        $PostUninstallInstanceTreeSha256 -ne $PostStartupInstanceTreeSha256
     ) {
         throw "The preserved Instance was not readable after uninstall."
     }
@@ -686,6 +877,12 @@ try {
             commit = $ExpectedCommit
             channel = $ExpectedChannel
         }
+        instance_tree_fingerprints = @{
+            baseline = $BaselineInstanceTreeSha256
+            post_startup = $PostStartupInstanceTreeSha256
+            post_reinstall = $PostReinstallInstanceTreeSha256
+            post_uninstall = $PostUninstallInstanceTreeSha256
+        }
         results = @{
             default_per_user_install = "PASS"
             unicode_install_and_instance_paths = "PASS"
@@ -693,8 +890,9 @@ try {
             published_baseline_identity = "PASS"
             in_place_upgrade_and_single_app_id = "PASS"
             launcher_settings_preserved = "PASS"
-            instance_preserved_and_readable = "PASS"
+            instance_originals_canonical_knowledge_and_state_preserved = "PASS"
             instance_schema_compatibility = "PASS"
+            scheduler_refresh_network_delete_and_repair_default_disabled = "PASS"
             bundled_runtime_without_python_or_git = "PASS"
             loopback_backend_identity_and_readiness = "PASS"
             reinstall_and_uninstall = "PASS"
@@ -715,4 +913,9 @@ finally {
     $env:PATH = $OriginalPath
     $env:PYTHONHOME = $OriginalPythonHome
     $env:PYTHONPATH = $OriginalPythonPath
+    foreach ($TemporaryPath in @($BaselineRuntimeRoot, $BaselineSourceRoot)) {
+        if (Test-Path $TemporaryPath) {
+            Remove-Item -Recurse -Force $TemporaryPath
+        }
+    }
 }

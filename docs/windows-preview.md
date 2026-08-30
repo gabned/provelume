@@ -1,9 +1,10 @@
 # Windows product shell preview
 
-Provelume `0.7.0` is the published Vinculum Windows preview for provider-independent connector
-identity, guarded HTTP(S) transport and explicit manual web acquisition. Download
-[`Provelume-Setup-0.7.0-x64.exe`](https://github.com/gabned/provelume/releases/download/v0.7.0/Provelume-Setup-0.7.0-x64.exe)
-from the official GitHub prerelease and run it as the current user. Git and a separately installed
+Provelume `0.8.0` is the Vigilia Windows preview candidate for explicitly configured scheduling,
+folder Sources, recoverable maintenance, Source reconciliation and local resource observations.
+After the permanent trusted workflow publishes `v0.8.0`, download
+`Provelume-Setup-0.8.0-x64.exe` from that official GitHub prerelease and run it as the current
+user. Until then, `0.7.0` remains the latest published installer. Git and a separately installed
 Python are not required.
 
 ## What is installed
@@ -21,13 +22,17 @@ Three locations remain intentionally separate:
 | portable Instance and preserved originals | `%USERPROFILE%\\Documents\\Provelume` | no |
 
 An upgrade replaces only launcher/runtime files. The portable Instance is opened by the new
-runtime after installation. `0.7.0` adds connector containers to the existing schema-2 Instance
-without a new whole-Instance migration and retains the registered schema-1 to schema-2 migration
-from `0.6.0`, including deep preflight and a verified automatic backup. The official release
-evidence installs the immutable public `0.6.1` executable, creates a synthetic Instance and
-launcher settings, installs `0.7.0` in place and verifies stable AppId, exact current-schema
-Instance/settings preservation, startup and uninstall. The published installer is `18,464,821`
-bytes with SHA-256 `46d7df0f94f3e9431685741594489ffcc99e0edf3f4880644c87e280fdecd5cb`.
+runtime after installation. `0.8.0` adds scheduler, folder Source, maintenance, reconciliation and
+resource-observation state to the existing schema-2 Instance without a whole-Instance migration;
+the registered schema-1 to schema-2 migration from `0.6.0` remains available.
+
+Candidate and official release evidence install the immutable public `0.7.0` executable,
+bootstrap a Unicode-path Instance and use the matching immutable public wheel to ingest synthetic
+canonical knowledge and an exact Original. Before installing `0.8.0`, the test fingerprints the
+complete Instance tree; the installer must preserve configuration, manifest, canonical records,
+Original bytes and durable ingestion state byte-for-byte. First startup must expose the preserved
+knowledge while leaving policies, jobs, receipts, maintenance/reconciliation runs and resource
+snapshots empty. Stable AppId, launcher settings, startup, reinstall and uninstall remain verified.
 
 ## Local Inbox folders
 
@@ -45,6 +50,18 @@ A missing external location fails visibly and is not silently recreated. Backing
 Instance does not back up unacquired files waiting in an external Drop folder. After Inbox
 acquisitions exist, moving the managed-copy folder is blocked until a separately designed verified
 relocation workflow is available; the Inbox name and Drop folder may still change.
+
+## Scheduler, folder Sources and maintenance
+
+No scheduler policy or job is created by install, upgrade or startup. A user may explicitly add a
+local, removable or already-mounted network folder Source and choose manual, bounded interval or
+local-calendar observation. The schedule, timezone, DST behavior, quiet window, retry and
+missed-run policy remain visible and independently enabled or paused.
+
+Scheduled work runs only while the current local runtime is active. A network-class folder is a
+path the operating system has already mounted; Provelume does not discover shares or negotiate
+network credentials. Reconciliation, validation and resource observations do not authorize
+repair, deletion, purge, cleanup or provider access. Thresholds report evidence only.
 
 ## Version and About
 
@@ -65,15 +82,16 @@ integrity or signature verdict.
 6. Provelume requires another confirmation before starting the normal installer and closing the
    local server.
 
-No background check is enabled by default. `0.7.0` never applies an update silently.
+No background check is enabled by default. `0.8.0` never applies an update silently.
 
 ## Recovery and limitations
 
 If a selected Instance was moved or removed, the launcher reports the problem and keeps Choose and
-Create available instead of silently creating a replacement. If a configured external Inbox
-folder disappears, Inbox processing fails without creating a replacement directory. If an update
-check or download fails, the installed runtime and Instance are unchanged. A partial file is not
-promoted to the final installer name. The user can retry or download a release asset manually.
+Create available instead of silently creating a replacement. If a configured external Inbox or
+folder Source disappears, processing changes to visible missing/error state without creating a
+replacement directory or deleting acquired knowledge. If an update check or download fails, the
+installed runtime and Instance are unchanged. A partial file is not promoted to the final installer
+name. The user can retry or download a release asset manually.
 
 The preview installer is not Authenticode-signed. Windows may show SmartScreen. SHA-256 agreement
 with metadata fetched through the same release transport is consistency evidence, not independent
