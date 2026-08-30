@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from fastapi.testclient import TestClient
 
+from provelume import scheduler as scheduler_module
 from provelume.cli import main
 from provelume.instance_lifecycle import InstanceLifecycleManager
 from provelume.scheduler import SchedulerStore, retry_payload, schedule_payload
@@ -572,6 +573,57 @@ def test_execution_serializes_with_instance_lifecycle_and_heartbeats(
     finished = instance.scheduler.run_one(lease_seconds=3)
     assert finished is not None and finished["status"] == "succeeded"
     assert heartbeat_calls == [finished["id"]]
+
+
+def test_heartbeat_is_bounded_to_executor_interval(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance = _instance(tmp_path)
+    policy = _manual_policy(instance)
+    instance.schedule_run_now(policy["id"], request_key="heartbeat-order")
+    journal = instance.scheduler.journal
+    checkpoint_phases: list[str] = []
+    thread_events: list[tuple[str, tuple[str, ...]]] = []
+    original_checkpoint = journal.checkpoint
+
+    def observed_checkpoint(*args, **kwargs):
+        checkpoint_phases.append(str(kwargs["phase"]))
+        return original_checkpoint(*args, **kwargs)
+
+    class ObservedThread:
+        def __init__(self, *, target, name, daemon):
+            del target, name, daemon
+
+        def start(self) -> None:
+            thread_events.append(("start", tuple(checkpoint_phases)))
+
+        def join(self) -> None:
+            thread_events.append(("join", tuple(checkpoint_phases)))
+
+    monkeypatch.setattr(journal, "checkpoint", observed_checkpoint)
+    monkeypatch.setattr(scheduler_module, "Thread", ObservedThread)
+    monkeypatch.setattr(
+        instance.scheduler,
+        "_execute",
+        lambda _job: (
+            True,
+            {"processed": 1, "skipped": 0, "errors": 0},
+            "",
+            "",
+            False,
+            False,
+        ),
+    )
+
+    finished = instance.scheduler.run_one(lease_seconds=3)
+
+    assert finished is not None and finished["status"] == "succeeded"
+    assert checkpoint_phases == ["prepared", "executing", "committed"]
+    assert thread_events == [
+        ("start", ("prepared", "executing")),
+        ("join", ("prepared", "executing")),
+    ]
 
 
 def test_scheduler_state_survives_restart_backup_restore_and_portable_import(

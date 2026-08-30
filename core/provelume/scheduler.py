@@ -1769,6 +1769,23 @@ class SchedulerCoordinator:
         if job is None:
             return None
         lease_token = str(job["lease"]["token"])
+        checkpoint_now = None if live_clock else selected_now
+        job = self.journal.checkpoint(
+            str(job["id"]),
+            lease_token,
+            sequence=int(job["checkpoint"]["sequence"]) + 1,
+            phase="prepared",
+            progress=job["progress"],
+            now=checkpoint_now,
+        )
+        job = self.journal.checkpoint(
+            str(job["id"]),
+            lease_token,
+            sequence=int(job["checkpoint"]["sequence"]) + 1,
+            phase="executing",
+            progress=job["progress"],
+            now=checkpoint_now,
+        )
         stop_heartbeat = Event()
         heartbeat_thread = None
         if live_clock:
@@ -1794,23 +1811,6 @@ class SchedulerCoordinator:
             )
             heartbeat_thread.start()
         try:
-            checkpoint_now = None if live_clock else selected_now
-            job = self.journal.checkpoint(
-                str(job["id"]),
-                lease_token,
-                sequence=int(job["checkpoint"]["sequence"]) + 1,
-                phase="prepared",
-                progress=job["progress"],
-                now=checkpoint_now,
-            )
-            job = self.journal.checkpoint(
-                str(job["id"]),
-                lease_token,
-                sequence=int(job["checkpoint"]["sequence"]) + 1,
-                phase="executing",
-                progress=job["progress"],
-                now=checkpoint_now,
-            )
             self._execution_checkpoint_now = checkpoint_now
             try:
                 (
@@ -1823,30 +1823,30 @@ class SchedulerCoordinator:
                 ) = self._execute(job)
             finally:
                 del self._execution_checkpoint_now
-            current = self.journal.get_job(str(job["id"]))
-            if current is None:
-                raise SchedulerConflictError("scheduler job disappeared during execution")
-            progress = {
-                key: max(
-                    int(current["progress"][key]),
-                    int(job["progress"][key]) + int(attempt_progress[key]),
-                )
-                for key in job["progress"]
-            }
-            job = current
-            if ok:
-                job = self.journal.checkpoint(
-                    str(job["id"]),
-                    lease_token,
-                    sequence=int(job["checkpoint"]["sequence"]) + 1,
-                    phase="committed",
-                    progress=progress,
-                    now=(None if live_clock else selected_now),
-                )
         finally:
             stop_heartbeat.set()
             if heartbeat_thread is not None:
                 heartbeat_thread.join()
+        current = self.journal.get_job(str(job["id"]))
+        if current is None:
+            raise SchedulerConflictError("scheduler job disappeared during execution")
+        progress = {
+            key: max(
+                int(current["progress"][key]),
+                int(job["progress"][key]) + int(attempt_progress[key]),
+            )
+            for key in job["progress"]
+        }
+        job = current
+        if ok:
+            job = self.journal.checkpoint(
+                str(job["id"]),
+                lease_token,
+                sequence=int(job["checkpoint"]["sequence"]) + 1,
+                phase="committed",
+                progress=progress,
+                now=(None if live_clock else selected_now),
+            )
         completed_at = max(selected_now, datetime.now(UTC)) if live_clock else selected_now
         if ok:
             return self.journal.succeed(
