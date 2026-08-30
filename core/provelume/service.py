@@ -42,6 +42,7 @@ from .retention import DocumentRetentionManager
 from .retention_model import DISPOSITION_FILTERS, effective_dispositions
 from .scheduler import SchedulerCoordinator, public_job_record, schedule_payload
 from .scheduler_model import SchedulerBusyError
+from .source_reconciliation import SourceReconciliationManager
 from .storage import InstanceStore
 from .web_acquisition import ManualWebAcquisitionManager
 from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTransport
@@ -62,6 +63,7 @@ class ProvelumeInstance:
         self.content = DocumentContentReader(self.store)
         self.folder_sources = FolderSourceManager(self.store)
         self.maintenance = MaintenanceManager(self.store)
+        self.source_reconciliation = SourceReconciliationManager(self.store)
         self.scheduler = SchedulerCoordinator(self.store)
         try:
             recovery = self.scheduler.recover()
@@ -253,6 +255,57 @@ class ProvelumeInstance:
     def get_maintenance_run(self, run_id: str) -> dict[str, Any] | None:
         return self.maintenance.get_run(run_id)
 
+    def list_source_reconciliation_cursors(self) -> list[dict[str, Any]]:
+        return self.source_reconciliation.list_cursors()
+
+    def get_source_reconciliation_cursor(
+        self,
+        source_id: str,
+    ) -> dict[str, Any]:
+        return self.source_reconciliation.cursor(source_id)
+
+    def list_source_reconciliation_runs(
+        self,
+        *,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        return self.source_reconciliation.list_runs(limit=limit)
+
+    def get_source_reconciliation_run(
+        self,
+        run_id: str,
+    ) -> dict[str, Any] | None:
+        return self.source_reconciliation.get_run(run_id)
+
+    def _maintenance_scope(
+        self,
+        action: Mapping[str, Any],
+        *,
+        source_id: str | None,
+    ) -> dict[str, str]:
+        if action["scope_kind"] == "instance":
+            if source_id is not None:
+                raise MaintenanceError(
+                    "Instance maintenance actions cannot select a Source"
+                )
+            return {
+                "kind": "instance",
+                "id": str(self.store.read_config()["instance"]["id"]),
+            }
+        if action["scope_kind"] != "source":
+            raise MaintenanceError("maintenance action scope is unsupported")
+        if source_id is None:
+            raise MaintenanceError(
+                "Source maintenance actions require an exact managed Source"
+            )
+        try:
+            self.folder_sources.public_view(source_id)
+        except FolderSourceError as exc:
+            raise MaintenanceError(
+                "maintenance Source is not a managed filesystem Source"
+            ) from exc
+        return {"kind": "source", "id": source_id}
+
     def create_maintenance_policy(
         self,
         action_id: str,
@@ -260,13 +313,15 @@ class ProvelumeInstance:
         state: str,
         schedule: Mapping[str, Any],
         retry: Mapping[str, Any] | None = None,
+        source_id: str | None = None,
     ) -> dict[str, Any]:
         action = self.maintenance.action(action_id)
         if not action["available"] or not action["schedulable"]:
             raise MaintenanceUnavailableError(str(action["unavailable_reason"]))
+        scope = self._maintenance_scope(action, source_id=source_id)
         return self.create_schedule_policy(
             job_kind=str(action["scheduler_job_kind"]),
-            scope={"kind": "instance", "id": self.store.read_config()["instance"]["id"]},
+            scope=scope,
             state=state,
             schedule=schedule,
             retry=retry,
@@ -278,12 +333,13 @@ class ProvelumeInstance:
         *,
         request_key: str | None = None,
         policy_id: str | None = None,
+        source_id: str | None = None,
     ) -> dict[str, Any]:
         action = self.maintenance.action(action_id)
         if not action["available"] or not action["schedulable"]:
             raise MaintenanceUnavailableError(str(action["unavailable_reason"]))
         kind = str(action["scheduler_job_kind"])
-        instance_id = str(self.store.read_config()["instance"]["id"])
+        scope = self._maintenance_scope(action, source_id=source_id)
         try:
             with InstanceLifecycleManager(self.store)._hold(
                 purpose="maintenance-run-now"
@@ -292,7 +348,7 @@ class ProvelumeInstance:
                     policy
                     for policy in self.scheduler.journal.list_policies()
                     if policy["job_kind"] == kind
-                    and policy["scope"] == {"kind": "instance", "id": instance_id}
+                    and policy["scope"] == scope
                     and (policy_id is None or policy["id"] == policy_id)
                 ]
                 if policy_id is not None and not matches:
@@ -306,7 +362,7 @@ class ProvelumeInstance:
                 else:
                     policy = self.scheduler.journal.create_policy(
                         job_kind=kind,
-                        scope={"kind": "instance", "id": instance_id},
+                        scope=scope,
                         state="enabled",
                         schedule=schedule_payload(mode="manual", timezone="UTC"),
                     )
@@ -326,11 +382,13 @@ class ProvelumeInstance:
         *,
         request_key: str | None = None,
         policy_id: str | None = None,
+        source_id: str | None = None,
     ) -> dict[str, Any]:
         queued = self.queue_maintenance_action(
             action_id,
             request_key=request_key,
             policy_id=policy_id,
+            source_id=source_id,
         )
         job_id = str(queued["job"]["id"])
         current = self.scheduler.journal.get_job(job_id)

@@ -111,7 +111,8 @@ archive therefore makes no preservation claim about unacquired Source files.
   later bounded work;
 - the maintenance/reindex catalogue is implemented separately by `0.8/S03`; folder observation
   does not broaden its authority;
-- connector cursors and full Source lifecycle reconciliation belong to `0.8/S04`;
+- exact filesystem Source reconciliation and lifecycle evidence are implemented separately by
+  `0.8/S04`; provider/connector network cursors remain later work;
 - resource trends, capacity policies and thresholds belong to `0.8/S05`;
 - no timer authorizes repair, purge, retention deletion, Source cleanup, provider writes, cloud
   fallback or hidden network access.

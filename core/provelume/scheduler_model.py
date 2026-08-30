@@ -16,8 +16,12 @@ SCHEDULER_JOB_KINDS = (
     "maintenance.validate",
     "maintenance.original_assurance",
     "maintenance.duplicate_scan",
+    "maintenance.source_reconcile",
 )
 EXECUTABLE_JOB_KINDS = SCHEDULER_JOB_KINDS
+SOURCE_SCOPED_JOB_KINDS = frozenset(
+    {"source.refresh", "maintenance.source_reconcile"}
+)
 POLICY_STATES = ("disabled", "enabled", "paused")
 SCHEDULE_MODES = ("manual", "interval", "calendar")
 MISSED_RUN_POLICIES = ("skip", "coalesce", "catch_up_one")
@@ -49,6 +53,9 @@ ERROR_CODES = (
     "maintenance_action_failed",
     "reindex_state_invalid",
     "source_refresh_failed",
+    "source_reconciliation_failed",
+    "source_reauthorization_required",
+    "source_reconciliation_superseded",
 )
 RECOVERY_STATES = ("none", "resumable", "restart_only", "manual_intervention")
 RUN_REASONS = ("manual", "scheduled", "coalesced", "catch_up")
@@ -156,8 +163,8 @@ def normalise_scope(
     if kind == "instance":
         if selected_id != instance_id or _INSTANCE_ID.fullmatch(str(selected_id)) is None:
             raise SchedulerError("scheduler Instance scope does not match this Instance")
-        if job_kind == "source.refresh":
-            raise SchedulerError("source.refresh requires an exact Source scope")
+        if job_kind in SOURCE_SCOPED_JOB_KINDS:
+            raise SchedulerError(f"{job_kind} requires an exact Source scope")
     elif kind == "source":
         if (
             not isinstance(selected_id, str)
@@ -165,7 +172,7 @@ def normalise_scope(
             or selected_id not in known_source_ids
         ):
             raise SchedulerError("scheduler Source scope is not available")
-        if job_kind != "source.refresh":
+        if job_kind not in SOURCE_SCOPED_JOB_KINDS:
             raise SchedulerError("this job kind requires Instance scope")
     else:
         raise SchedulerError("scheduler scope kind must be instance or source")
@@ -596,14 +603,14 @@ def _record_scope(value: Any, *, job_kind: str) -> dict[str, str]:
         kind == "instance"
         and isinstance(selected_id, str)
         and _INSTANCE_ID.fullmatch(selected_id) is not None
-        and job_kind != "source.refresh"
+        and job_kind not in SOURCE_SCOPED_JOB_KINDS
     ):
         return {"kind": kind, "id": selected_id}
     if (
         kind == "source"
         and isinstance(selected_id, str)
         and _SOURCE_ID.fullmatch(selected_id) is not None
-        and job_kind == "source.refresh"
+        and job_kind in SOURCE_SCOPED_JOB_KINDS
     ):
         return {"kind": kind, "id": selected_id}
     raise SchedulerError("scheduler record scope does not match its job kind")

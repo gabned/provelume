@@ -17,7 +17,7 @@ from provelume.cli import main
 from provelume.index import index_status
 from provelume.library_projection_model import LIBRARY_MANIFEST
 from provelume.maintenance import MaintenanceManager
-from provelume.maintenance_model import MaintenanceUnavailableError
+from provelume.maintenance_model import MaintenanceError, MaintenanceUnavailableError
 from provelume.scheduler import retry_payload, schedule_payload
 from provelume.service import ProvelumeInstance
 from provelume.storage import CANONICAL_KINDS
@@ -90,10 +90,16 @@ def test_catalog_is_closed_and_reindex_plans_are_read_only(tmp_path: Path) -> No
         if not item["available"]
     }
     assert unavailable == {
-        "maintenance.source_reconcile": "planned_s04",
         "maintenance.backup_create": "explicit_target_required",
         "maintenance.backup_verify": "explicit_target_required",
     }
+    source_reconcile = next(
+        item for item in catalog if item["id"] == "maintenance.source_reconcile"
+    )
+    assert source_reconcile["available"] is True
+    assert source_reconcile["scheduler_job_kind"] == "maintenance.source_reconcile"
+    assert source_reconcile["scope_kind"] == "source"
+    assert source_reconcile["recovery"] == "resumable"
 
     state_root = instance.root / "state" / "maintenance"
     candidate_root = instance.root / "indexes" / "reindex-candidates"
@@ -107,7 +113,7 @@ def test_catalog_is_closed_and_reindex_plans_are_read_only(tmp_path: Path) -> No
     assert not state_root.exists()
     assert not candidate_root.exists()
     assert instance.get_maintenance_run("../../provelume") is None
-    with pytest.raises(MaintenanceUnavailableError, match="planned_s04"):
+    with pytest.raises(MaintenanceError, match="require an exact managed Source"):
         instance.queue_maintenance_action("maintenance.source_reconcile")
     with pytest.raises(MaintenanceUnavailableError, match="explicit_target_required"):
         instance.create_maintenance_policy(

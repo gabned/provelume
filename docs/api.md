@@ -139,9 +139,10 @@ runtime evaluates at most one safe job per cycle while the Browser is running.
 Deep Instance validation and the initial derived FTS reindex are the `0.8/S01` executors. `0.8/S02`
 also executes `source.refresh` for an exact managed folder Source after its durable observer reaches
 a stable snapshot. `0.8/S03` adds incremental reindex, Markdown-library rebuild, Original assurance
-and duplicate scan plus resumable per-item FTS generation evidence. Records contain only IDs,
-clocks, closed status/error values, fingerprints and counts; caller idempotency text, paths, URLs,
-credentials and document content are not persisted.
+and duplicate scan plus resumable per-item FTS generation evidence. `0.8/S04` adds exact
+Source-scoped reconciliation with monotonic cursors and closed lifecycle evidence. Records contain
+only IDs, clocks, closed status/error values, fingerprints and counts; caller idempotency text,
+paths, URLs, credentials and document content are not persisted.
 See
 [`architecture/durable-scheduler-and-job-journal.md`](architecture/durable-scheduler-and-job-journal.md).
 The random lease token is execution authority and is never returned by service, CLI, API or
@@ -169,6 +170,12 @@ the same explicit controls behind a per-process CSRF token. See
 - `GET /api/v1/maintenance/runs?limit=100` — newest durable reindex generation records;
 - `GET /api/v1/maintenance/runs/{run_id}` — one content-free plan, cursor, generation and recovery
   record.
+- `GET /api/v1/maintenance/source-cursors` — path-redacted reconciliation lifecycle for every
+  managed filesystem Source;
+- `GET /api/v1/maintenance/source-cursors/{source_id}` — one exact Source cursor;
+- `GET /api/v1/maintenance/source-runs?limit=100` — newest content-free reconciliation runs;
+- `GET /api/v1/maintenance/source-runs/{run_id}` — one Source-bound plan, classification counts,
+  checkpoint and terminal state.
 
 All maintenance API routes are read-only. They never queue work, activate a generation, read a
 Source path or accept a backup destination. Local mutations use `maintenance-policy-create` and
@@ -176,6 +183,9 @@ Source path or accept a backup destination. Local mutations use `maintenance-pol
 token. Full and incremental plans expose only canonical IDs, counts, byte estimates, fingerprints
 and observed free space. See
 [`architecture/maintenance-catalogue-and-reindex-recovery.md`](architecture/maintenance-catalogue-and-reindex-recovery.md).
+Source reconciliation endpoints never enumerate a Source or expose locators. Local policy and Run
+now mutations require an exact managed `source_id`; see
+[`architecture/source-reconciliation-cursors-and-lifecycle.md`](architecture/source-reconciliation-cursors-and-lifecycle.md).
 
 ## Documents
 

@@ -34,7 +34,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (completed) | `Bibliotheca` |
 | Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
-| Active implementation | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122 (`0.8/S01`), #124 (`0.8/S02`), #126 (`0.8/S03`) | `Vigilia` |
+| Active implementation | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122 (`0.8/S01`), #124 (`0.8/S02`), #126 (`0.8/S03`), #128 (`0.8/S04`) | `Vigilia` |
 | Forecast | `0.9.0` | OCR, email, Google file and transcript intake | issue just in time | `Lectio` |
 | Forecast | `0.10.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
@@ -169,8 +169,9 @@ release notes, Windows upgrade evidence and the release contract. The trusted wo
 present on `main`. Issue #122 activates the bounded, unreleased `0.8/S01` scheduler and journal
 slice. Issue #124 activates the bounded, unreleased `0.8/S02` folder Source slice. Issue #126
 activates the bounded, unreleased `0.8/S03` maintenance catalogue and recoverable reindex slice.
-Package identity and the latest public release remain `0.7.0`; reconciliation lifecycle and
-statistics slices remain unimplemented.
+Issue #128 activates the bounded, unreleased `0.8/S04` filesystem Source reconciliation, cursor
+and lifecycle slice. Package identity and the latest public release remain `0.7.0`; the statistics
+slice remains unimplemented.
 
 `0.7/S01` through `0.7/S05` are implemented. They establish provider-independent connector and
 Source identity/lifecycle, installed-app OAuth 2.0/PKCE, guarded Source-bound HTTP(S) retrieval and
@@ -645,8 +646,9 @@ policies, clocks, durable jobs, leases, heartbeat, checkpoint/recovery, bounded 
 Issue #124 implements `0.8/S02`: explicit local/removable/mounted-network filesystem Sources,
 portable scheduled watching, quiescence, mount-loss state and an idempotent `source.refresh`
 executor. Issue #126 implements `0.8/S03`: a closed maintenance catalogue, dry-run estimates and
-full/incremental FTS generations with per-item checkpoint and activation recovery. `0.8/S04` and
-`0.8/S05` remain planned.
+full/incremental FTS generations with per-item checkpoint and activation recovery. Issue #128
+implements `0.8/S04`: exact filesystem Source reconciliation, monotonic cursors and closed
+lifecycle states. `0.8/S05` remains planned.
 
 **Outcome:** make schedules, local-folder observation, refresh, reindex, retry and Source/job state
 durable without turning every timer, filesystem event or poll into a new document version.
@@ -704,8 +706,8 @@ duplicate canonical or derived state.
 unreleased `main` through #122); `0.8/S02` local/removable/network-folder Sources, portable
 watching, quiescence and mount-loss recovery (implemented through #124); `0.8/S03`
 maintenance/reindex catalogue and interruption recovery (implemented through #126); `0.8/S04`
-reconciliation, cursors and lifecycle states; `0.8/S05` resource policies, statistics evidence and
-end-to-end recovery fixtures.
+filesystem Source reconciliation, cursors and lifecycle states (implemented through #128);
+`0.8/S05` resource policies, statistics evidence and end-to-end recovery fixtures.
 
 ### 0.9.0 — OCR, Email, Google File and Transcript Intake
 

@@ -14,7 +14,7 @@ The catalogue is code-defined and returned in one stable order. Unknown action I
 | `search.reindex.full` | available | rebuildable derived write; resumable |
 | `search.reindex.incremental` | available | rebuildable derived write; resumable |
 | `maintenance.library_rebuild` | available | rebuildable derived write; restart-only |
-| `maintenance.source_reconcile` | unavailable until S04 | read-only Source scope |
+| `maintenance.source_reconcile` | available | read-only exact Source scope; resumable |
 | `maintenance.validate` | available | read-only; restart-only |
 | `maintenance.original_assurance` | available | read-only verification; restart-only |
 | `maintenance.duplicate_scan` | available | review-only derived evidence; restart-only |
@@ -22,10 +22,11 @@ The catalogue is code-defined and returned in one stable order. Unknown action I
 | `maintenance.backup_verify` | unavailable | explicit destination required |
 
 Every entry declares scope, authority, mutability, scheduling, dry-run and recovery capabilities.
-Every entry also declares `network_used: false`, `canonical_mutation: false` and
-`automatic_deletion: false`. An unavailable entry cannot create a policy or job. In particular,
-the scheduler never invents a backup destination and never turns validation, assurance or a
-duplicate scan into repair.
+Every catalogue read also declares that the read itself uses no network, canonical mutation or
+automatic deletion. A Source-reconciliation terminal receipt separately records whether the
+operator-selected Source is a mounted-network class. An unavailable entry cannot create a policy
+or job. In particular, the scheduler never invents a backup destination and never turns
+validation, assurance or a duplicate scan into repair.
 
 Available actions use exact Instance scope and the existing manual/interval/calendar policy
 contract, including explicit timezone, DST policy, quiet window, deterministic jitter, missed-run
@@ -134,11 +135,11 @@ provelume maintenance-reindex-run INSTANCE REINDEX_RUN_ID
 
 The `/api/v1/maintenance` family is read-only. The EN/IT `/maintenance` Browser has semantic parity;
 only a loopback request with the per-process CSRF token can queue Run now. API and remote Browser
-reads expose no Instance or Source path.
+reads expose no Instance or Source path. S04 reconciliation cursors and runs are specified in
+[Source reconciliation cursors and lifecycle](source-reconciliation-cursors-and-lifecycle.md).
 
 ## Deliberate limits
 
-- S04 owns Source reconciliation cursors and lifecycle transitions.
 - S05 owns resource policies, durable file/byte/category/trend statistics and capacity thresholds.
 - Backup scheduling remains unavailable until an explicit destination/verification parameter can
   be bound without weakening path privacy or cleanup authority.

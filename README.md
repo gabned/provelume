@@ -30,9 +30,10 @@ sequencing coordinates, not publication claims or release authorization.
 The unreleased source tree also contains the bounded `0.8/S01` scheduler slice tracked by issue
 [#122](https://github.com/gabned/provelume/issues/122), the `0.8/S02` folder Source slice tracked by
 issue [#124](https://github.com/gabned/provelume/issues/124), and the `0.8/S03` maintenance/reindex
-slice tracked by issue [#126](https://github.com/gabned/provelume/issues/126). Package, embedded
-build identity, tag and latest public release remain `0.7.0`; these unreleased capabilities are not
-publication claims and `0.8/S04` onward remain planned.
+slice tracked by issue [#126](https://github.com/gabned/provelume/issues/126), plus the `0.8/S04`
+Source reconciliation slice tracked by issue [#128](https://github.com/gabned/provelume/issues/128).
+Package, embedded build identity, tag and latest public release remain `0.7.0`; these unreleased
+capabilities are not publication claims and `0.8/S05` remains planned.
 
 The active source tree can:
 
@@ -92,7 +93,11 @@ The active source tree can:
 - build full or incremental FTS candidates outside the active index, checkpoint each committed
   item, resume after stale leases, and atomically activate only a complete validated generation;
 - schedule Markdown-library rebuild, deep Instance validation, Original assurance and duplicate
-  scanning while Source reconciliation and target-bound backup actions remain visibly unavailable;
+  scanning while target-bound backup actions remain visibly unavailable;
+- reconcile one exact managed filesystem Source against current canonical provenance, classifying
+  current, changed, renamed, untracked and missing evidence without ingesting or deleting anything;
+- retain path-redacted Source cursors and per-job runs with lifecycle, resync, bounded retry,
+  checkpoint and replay evidence across crash, stale lease, backup/restore and portable transfer;
 - restart without losing canonical state;
 - run without Git, GitHub, Provelume Cloud or an external AI provider.
 
@@ -174,6 +179,23 @@ Timed actions use `maintenance-policy-create` with the same timezone, DST, quiet
 missed-run controls as every other scheduler policy. Candidate indexes are derived and disposable;
 durable run evidence is included in backup and portable transfer. See the
 [maintenance catalogue and reindex recovery contract](docs/architecture/maintenance-catalogue-and-reindex-recovery.md).
+
+Reconcile one exact managed Source without changing canonical knowledge:
+
+```bash
+.venv/bin/provelume maintenance-policy-create .local/demo maintenance.source_reconcile \
+  --source-id <source-id> --state paused --mode interval --timezone Europe/Rome \
+  --interval-seconds 3600
+.venv/bin/provelume maintenance-run .local/demo maintenance.source_reconcile \
+  --source-id <source-id> --idempotency-key operator-reconcile-1
+.venv/bin/provelume maintenance-source-cursors .local/demo
+.venv/bin/provelume maintenance-source-runs .local/demo
+```
+
+Only Source-bound hashes, digests, counts and clocks are journaled; locators and configured paths
+are not. A mounted-network Source is reported truthfully in its terminal receipt, but the action
+opens no provider or HTTP transport. See the
+[Source reconciliation contract](docs/architecture/source-reconciliation-cursors-and-lifecycle.md).
 
 Inspect the navigable operation log or run a consistency rebuild:
 

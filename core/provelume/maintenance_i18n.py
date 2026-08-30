@@ -18,6 +18,8 @@ MAINTENANCE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "maintenance.authority": "Authority",
         "maintenance.recovery": "Recovery",
         "maintenance.policy": "Scheduler policy",
+        "maintenance.source": "Managed Source",
+        "maintenance.no_sources": "No managed filesystem Source is available.",
         "maintenance.plan": "Dry-run estimate",
         "maintenance.items": "items",
         "maintenance.bytes": "estimated bytes",
@@ -74,11 +76,19 @@ MAINTENANCE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "maintenance.no_jobs": "No maintenance job has been journaled.",
         "maintenance.generations": "Reindex generations",
         "maintenance.no_generations": "No durable reindex generation has been recorded.",
-        "maintenance.boundary_title": "0.8/S03 safety boundary",
+        "maintenance.source_lifecycle": "Source reconciliation lifecycle",
+        "maintenance.revision": "revision",
+        "maintenance.last_attempt": "Last attempt",
+        "maintenance.last_success": "Last success",
+        "maintenance.resync": "Resync required",
+        "maintenance.no_source_cursors": "No managed Source is available.",
+        "maintenance.source_runs": "Source reconciliation runs",
+        "maintenance.no_source_runs": "No Source reconciliation has been journaled.",
+        "maintenance.boundary_title": "0.8/S04 safety boundary",
         "maintenance.boundary": (
-            "No action performs network traffic, canonical mutation or automatic deletion. "
-            "Source reconciliation remains planned for S04; backup actions remain unavailable "
-            "until an explicit destination can be bound safely."
+            "Reconciliation may read an explicitly configured mounted network Source, but opens "
+            "no network transport and performs no canonical mutation or automatic deletion. "
+            "Backup actions remain unavailable until an explicit destination can be bound safely."
         ),
     },
     "it": {
@@ -99,6 +109,8 @@ MAINTENANCE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "maintenance.authority": "Autorità",
         "maintenance.recovery": "Recupero",
         "maintenance.policy": "Policy dello scheduler",
+        "maintenance.source": "Source gestita",
+        "maintenance.no_sources": "Non è disponibile alcuna Source filesystem gestita.",
         "maintenance.plan": "Stima dry-run",
         "maintenance.items": "elementi",
         "maintenance.bytes": "byte stimati",
@@ -163,12 +175,24 @@ MAINTENANCE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "maintenance.no_generations": (
             "Non è stata registrata alcuna generazione durevole dell'indice."
         ),
-        "maintenance.boundary_title": "Confine di sicurezza 0.8/S03",
+        "maintenance.source_lifecycle": (
+            "Ciclo di vita della riconciliazione Source"
+        ),
+        "maintenance.revision": "revisione",
+        "maintenance.last_attempt": "Ultimo tentativo",
+        "maintenance.last_success": "Ultimo successo",
+        "maintenance.resync": "Risincronizzazione necessaria",
+        "maintenance.no_source_cursors": "Non è disponibile alcuna Source gestita.",
+        "maintenance.source_runs": "Esecuzioni di riconciliazione Source",
+        "maintenance.no_source_runs": (
+            "Non è stata registrata alcuna riconciliazione Source."
+        ),
+        "maintenance.boundary_title": "Confine di sicurezza 0.8/S04",
         "maintenance.boundary": (
-            "Nessuna azione usa la rete, modifica lo stato canonico o cancella automaticamente. "
-            "La riconciliazione Source resta pianificata per S04; le azioni di backup restano "
-            "indisponibili finché non sarà possibile vincolare in sicurezza una destinazione "
-            "esplicita."
+            "La riconciliazione può leggere una Source di rete montata e configurata "
+            "esplicitamente, ma non apre trasporti di rete e non modifica lo stato canonico né "
+            "cancella automaticamente. Le azioni di backup restano indisponibili finché non sarà "
+            "possibile vincolare in sicurezza una destinazione esplicita."
         ),
     },
 }

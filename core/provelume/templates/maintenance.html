@@ -29,6 +29,28 @@
         {% if action.policies %}<span>{{ action.policies|length }} policy · {{ action.policies|map(attribute='state')|join(', ') }}</span>{% endif %}
       </div>
       {% if editable and action.available %}
+      {% if action.scope_kind == 'source' %}
+      {% for source_form in source_forms.get(action.id, []) %}
+      <form method="post" action="/maintenance?lang={{ lang }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="action_id" value="{{ action.id }}">
+        <input type="hidden" name="source_id" value="{{ source_form.source.id }}">
+        <span>{{ t('maintenance.source') }}: {{ source_form.source.name }} · {{ source_form.source.id }}</span>
+        {% if source_form.policies %}
+        <label>{{ t('maintenance.policy') }}
+          <select name="policy_id">
+          {% for policy in source_form.policies %}
+            <option value="{{ policy.id }}">{{ policy.id }} · {{ policy.state }} · {{ policy.schedule.mode }}</option>
+          {% endfor %}
+          </select>
+        </label>
+        {% endif %}
+        <button type="submit">{{ t('maintenance.run_now') }}</button>
+      </form>
+      {% else %}
+      <span class="technical-note">{{ t('maintenance.no_sources') }}</span>
+      {% endfor %}
+      {% else %}
       <form method="post" action="/maintenance?lang={{ lang }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="action_id" value="{{ action.id }}">
@@ -43,6 +65,7 @@
         {% endif %}
         <button type="submit">{{ t('maintenance.run_now') }}</button>
       </form>
+      {% endif %}
       {% endif %}
     </li>
   {% endfor %}
@@ -67,6 +90,28 @@
     <li><div><strong>{{ run.plan.requested_mode }} · {{ run.status }}</strong><span>{{ run.id }} · {{ run.generation_id }} · revision {{ run.plan_revision }}</span><span>{{ run.cursor }}/{{ run.plan.estimated_items }} · {{ run.updated_at }}</span></div></li>
   {% else %}
     <li class="empty">{{ t('maintenance.no_generations') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+
+<section class="panel">
+  <h2>{{ t('maintenance.source_lifecycle') }}</h2>
+  <ul class="document-list">
+  {% for cursor in source_cursors %}
+    <li><div><strong>{{ cursor.state }} · {{ cursor.code }}</strong><span>{{ cursor.source_id }} · {{ t('maintenance.revision') }} {{ cursor.revision }}</span><span>{{ t('maintenance.last_attempt') }}: {{ cursor.last_attempt_at or '—' }} · {{ t('maintenance.last_success') }}: {{ cursor.last_success_at or '—' }}</span><span>{{ cursor.counts.current }}/{{ cursor.counts.changed }}/{{ cursor.counts.renamed }}/{{ cursor.counts.untracked }}/{{ cursor.counts.missing }} · {{ t('maintenance.resync') }}: {{ cursor.resync_required }}</span></div></li>
+  {% else %}
+    <li class="empty">{{ t('maintenance.no_source_cursors') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+
+<section class="panel">
+  <h2>{{ t('maintenance.source_runs') }}</h2>
+  <ul class="document-list">
+  {% for run in source_runs %}
+    <li><div><strong>{{ run.status }} · {{ run.plan.lifecycle_state }}</strong><span>{{ run.id }} · {{ run.source_id }} · {{ t('maintenance.revision') }} {{ run.plan_revision }}</span><span>{{ run.cursor }}/{{ run.plan.estimated_items }} · {{ run.updated_at }}</span></div></li>
+  {% else %}
+    <li class="empty">{{ t('maintenance.no_source_runs') }}</li>
   {% endfor %}
   </ul>
 </section>

@@ -210,6 +210,29 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             raise _not_found("maintenance reindex run", run_id)
         return result
 
+    @router.get("/maintenance/source-cursors")
+    def get_source_reconciliation_cursors() -> list[dict[str, Any]]:
+        return instance.list_source_reconciliation_cursors()
+
+    @router.get("/maintenance/source-cursors/{source_id}")
+    def get_source_reconciliation_cursor(source_id: str) -> dict[str, Any]:
+        if not instance.folder_sources.is_managed(source_id):
+            raise _not_found("Source reconciliation cursor", source_id)
+        return instance.get_source_reconciliation_cursor(source_id)
+
+    @router.get("/maintenance/source-runs")
+    def get_source_reconciliation_runs(
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_source_reconciliation_runs(limit=limit)
+
+    @router.get("/maintenance/source-runs/{run_id}")
+    def get_source_reconciliation_run(run_id: str) -> dict[str, Any]:
+        result = instance.get_source_reconciliation_run(run_id)
+        if result is None:
+            raise _not_found("Source reconciliation run", run_id)
+        return result
+
     @router.get("/hierarchy")
     def get_hierarchy() -> dict[str, Any]:
         return instance.hierarchy_tree()
