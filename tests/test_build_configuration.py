@@ -151,6 +151,7 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "PostReinstallInstanceTreeSha256" in windows_exercise
     assert "PostUninstallInstanceTreeSha256" in windows_exercise
     assert "Windows runtime boundary evidence" in windows_exercise
+    assert '$PolicyCount = @($Policies).Count' in windows_exercise
     assert (
         "0d13b8940184befed42b6e96d3789b06c0cc6842bcd3473d8e26738d6df35749"
         in windows_exercise

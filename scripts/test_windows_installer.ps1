@@ -601,17 +601,28 @@ try {
         $Build = Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/build-info" -TimeoutSec 2
         $Instance = Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/instance" -TimeoutSec 2
         $Network = Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/security/network" -TimeoutSec 2
-        $Documents = @(Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/documents" -TimeoutSec 2)
-        $Policies = @(Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/scheduler/policies" -TimeoutSec 2)
-        $Jobs = @(Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/scheduler/jobs" -TimeoutSec 2)
-        $Receipts = @(Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/scheduler/receipts" -TimeoutSec 2)
-        $MaintenanceRuns = @(Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/maintenance/runs" -TimeoutSec 2)
-        $SourceRuns = @(Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/maintenance/source-runs" -TimeoutSec 2)
-        $ResourceSnapshots = @(
-            Invoke-RestMethod `
-                "http://127.0.0.1:$Port/api/v1/maintenance/resource-statistics/snapshots" `
-                -TimeoutSec 2
-        )
+        $Documents = Invoke-RestMethod `
+            "http://127.0.0.1:$Port/api/v1/documents" -TimeoutSec 2
+        $Policies = Invoke-RestMethod `
+            "http://127.0.0.1:$Port/api/v1/scheduler/policies" -TimeoutSec 2
+        $Jobs = Invoke-RestMethod `
+            "http://127.0.0.1:$Port/api/v1/scheduler/jobs" -TimeoutSec 2
+        $Receipts = Invoke-RestMethod `
+            "http://127.0.0.1:$Port/api/v1/scheduler/receipts" -TimeoutSec 2
+        $MaintenanceRuns = Invoke-RestMethod `
+            "http://127.0.0.1:$Port/api/v1/maintenance/runs" -TimeoutSec 2
+        $SourceRuns = Invoke-RestMethod `
+            "http://127.0.0.1:$Port/api/v1/maintenance/source-runs" -TimeoutSec 2
+        $ResourceSnapshots = Invoke-RestMethod `
+            "http://127.0.0.1:$Port/api/v1/maintenance/resource-statistics/snapshots" `
+            -TimeoutSec 2
+        $DocumentCount = @($Documents).Count
+        $PolicyCount = @($Policies).Count
+        $JobCount = @($Jobs).Count
+        $ReceiptCount = @($Receipts).Count
+        $MaintenanceRunCount = @($MaintenanceRuns).Count
+        $SourceRunCount = @($SourceRuns).Count
+        $ResourceSnapshotCount = @($ResourceSnapshots).Count
         $RuntimeBoundaryEvidence = [ordered]@{
             build_version = $Build.version
             build_commit = $Build.commit
@@ -629,14 +640,14 @@ try {
             network_external_access = $Network.policy.external_access
             enabled_external_components = $Network.summary.enabled_external_components
             network_used = $Network.network_used
-            document_count = $Documents.Count
+            document_count = $DocumentCount
             baseline_document_count = $BaselineDocumentCount
-            policy_count = $Policies.Count
-            job_count = $Jobs.Count
-            receipt_count = $Receipts.Count
-            maintenance_run_count = $MaintenanceRuns.Count
-            source_run_count = $SourceRuns.Count
-            resource_snapshot_count = $ResourceSnapshots.Count
+            policy_count = $PolicyCount
+            job_count = $JobCount
+            receipt_count = $ReceiptCount
+            maintenance_run_count = $MaintenanceRunCount
+            source_run_count = $SourceRunCount
+            resource_snapshot_count = $ResourceSnapshotCount
         }
         Write-Host (
             "Windows runtime boundary evidence: " +
@@ -659,13 +670,13 @@ try {
             $Network.policy.external_access -or
             $Network.summary.enabled_external_components -ne 0 -or
             $Network.network_used -or
-            $Documents.Count -lt $BaselineDocumentCount -or
-            $Policies.Count -ne 0 -or
-            $Jobs.Count -ne 0 -or
-            $Receipts.Count -ne 0 -or
-            $MaintenanceRuns.Count -ne 0 -or
-            $SourceRuns.Count -ne 0 -or
-            $ResourceSnapshots.Count -ne 0
+            $DocumentCount -lt $BaselineDocumentCount -or
+            $PolicyCount -ne 0 -or
+            $JobCount -ne 0 -or
+            $ReceiptCount -ne 0 -or
+            $MaintenanceRunCount -ne 0 -or
+            $SourceRunCount -ne 0 -or
+            $ResourceSnapshotCount -ne 0
         ) {
             throw (
                 "Candidate identity, preserved knowledge or default-disabled automation " +
