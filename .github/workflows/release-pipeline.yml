@@ -417,7 +417,7 @@ jobs:
           if ($hash -ne "46d7df0f94f3e9431685741594489ffcc99e0edf3f4880644c87e280fdecd5cb") {
             throw "Published 0.7.0 installer SHA-256 differs from the reviewed baseline."
           }
-          $wheel = "$env:RUNNER_TEMP\provelume-0.7.0-public.whl"
+          $wheel = "$env:RUNNER_TEMP\provelume-0.7.0-py3-none-any.whl"
           Invoke-WebRequest `
             -Uri "https://github.com/gabned/provelume/releases/download/v0.7.0/provelume-0.7.0-py3-none-any.whl" `
             -OutFile $wheel

@@ -88,7 +88,7 @@ if ($IdentifiedBaseline.ContainsKey("wheel_size")) {
     if ([string]::IsNullOrWhiteSpace($PreviousWheel)) {
         $PreviousWheel = Join-Path (
             Split-Path $InstallerPath -Parent
-        ) "provelume-$($IdentifiedBaseline.version)-public.whl"
+        ) "provelume-$($IdentifiedBaseline.version)-py3-none-any.whl"
         Invoke-WebRequest `
             -Uri (
                 "https://github.com/gabned/provelume/releases/download/" +
@@ -417,13 +417,19 @@ try {
             throw "Creating the published baseline runtime failed."
         }
         $BaselinePython = Join-Path $BaselineRuntimeRoot "Scripts\python.exe"
+        $BaselineWheelRoot = Join-Path $BaselineRuntimeRoot "verified-wheel"
+        New-Item -ItemType Directory -Force -Path $BaselineWheelRoot | Out-Null
+        $CanonicalPreviousWheelPath = Join-Path $BaselineWheelRoot (
+            "provelume-$PreviousVersion-py3-none-any.whl"
+        )
+        Copy-Item -LiteralPath $PreviousWheelPath -Destination $CanonicalPreviousWheelPath
         & $BaselinePython -m pip install --disable-pip-version-check --require-hashes `
             -r (Join-Path $PSScriptRoot "..\build-lock\windows-py312-x86_64.requirements.txt")
         if ($LASTEXITCODE -ne 0) {
             throw "Installing the reviewed Windows runtime lock for the baseline failed."
         }
         & $BaselinePython -m pip install --disable-pip-version-check --no-deps `
-            $PreviousWheelPath
+            $CanonicalPreviousWheelPath
         if ($LASTEXITCODE -ne 0) {
             throw "Installing the immutable published baseline wheel failed."
         }
@@ -644,6 +650,15 @@ try {
         }
     }
 
+    # Cover runtime access as well as installer replacement with the exact tree proof.
+    $PostStartupInstanceTreeSha256 = Get-InstanceTreeFingerprint -Root $InstanceRoot
+    if (
+        -not $BaselineRequiresMigration -and
+        $PostStartupInstanceTreeSha256 -ne $BaselineInstanceTreeSha256
+    ) {
+        throw "Candidate startup mutated the preserved current-schema Instance tree."
+    }
+
     # Verify either the controlled legacy migration or exact current-schema preservation.
     $MigrationReceiptPath = Join-Path $InstanceRoot (
         "state\migrations\receipts\instance-schema-1-to-2.json"
@@ -740,6 +755,10 @@ try {
     # Reinstall once more, then uninstall the candidate while retaining state and the Instance.
     Install-Provelume -Setup $InstallerPath -Directory $InstallRoot
     Assert-SingleProductRegistration -ExpectedInstallRoot $InstallRoot
+    $PostReinstallInstanceTreeSha256 = Get-InstanceTreeFingerprint -Root $InstanceRoot
+    if ($PostReinstallInstanceTreeSha256 -ne $PostStartupInstanceTreeSha256) {
+        throw "Candidate reinstall mutated the verified post-startup Instance tree."
+    }
     Uninstall-Provelume -Directory $InstallRoot
     if (Test-Path $Executable) {
         throw "Uninstall left the installed executable behind."
@@ -780,6 +799,7 @@ try {
     else {
         -not (Test-Path $MigrationReceiptPath)
     }
+    $PostUninstallInstanceTreeSha256 = Get-InstanceTreeFingerprint -Root $InstanceRoot
     if (
         $ConfigText -notmatch '(?m)^schema_version:\s+2\s*$' -or
         $ConfigText -notmatch '(?m)^instance:\s*$' -or
@@ -796,7 +816,8 @@ try {
         (Get-FileHash (Join-Path $InstanceRoot "upgrade-preservation-marker.txt") `
             -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedMarkerSha256 -or
         (Get-FileHash $SettingsPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne
-            $ExpectedSettingsSha256
+            $ExpectedSettingsSha256 -or
+        $PostUninstallInstanceTreeSha256 -ne $PostStartupInstanceTreeSha256
     ) {
         throw "The preserved Instance was not readable after uninstall."
     }
@@ -814,6 +835,12 @@ try {
             version = $ExpectedVersion
             commit = $ExpectedCommit
             channel = $ExpectedChannel
+        }
+        instance_tree_fingerprints = @{
+            baseline = $BaselineInstanceTreeSha256
+            post_startup = $PostStartupInstanceTreeSha256
+            post_reinstall = $PostReinstallInstanceTreeSha256
+            post_uninstall = $PostUninstallInstanceTreeSha256
         }
         results = @{
             default_per_user_install = "PASS"

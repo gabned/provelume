@@ -74,7 +74,7 @@ def test_release_pipeline_uses_latest_immutable_public_installer() -> None:
     assert 'releases/download/v0.7.0/Provelume-Setup-0.7.0-x64.exe' in text
     assert "Length -ne 18464821" in text
     assert "46d7df0f94f3e9431685741594489ffcc99e0edf3f4880644c87e280fdecd5cb" in text
-    assert 'provelume-0.7.0-public.whl' in text
+    assert 'provelume-0.7.0-py3-none-any.whl' in text
     assert "Length -ne 294593" in text
     assert "1beba35635fca2bcafa5d4f1a93d035592751f18785339705e1dbb3df7bf2a41" in text
 
@@ -104,6 +104,9 @@ def test_windows_upgrade_proves_schema_compatibility_for_public_baselines() -> N
     assert "SchemaEvidencePreserved" in text
     assert 'instance_schema_compatibility = "PASS"' in text
     assert "BaselineInstanceTreeSha256" in text
+    assert "PostStartupInstanceTreeSha256" in text
+    assert "PostReinstallInstanceTreeSha256" in text
+    assert "PostUninstallInstanceTreeSha256" in text
     assert "Published 0.7.0 synthetic source" in text
     assert "scheduler/policies" in text
     assert "api/v1/security/network" in text
