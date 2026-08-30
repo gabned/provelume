@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import tempfile
@@ -179,7 +180,7 @@ def _closed_ratio(value: Any, name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise OcrContractError("ocr_contract_violation", f"{name} must be a number")
     selected = float(value)
-    if selected < 0.0 or selected > 1.0:
+    if not math.isfinite(selected) or selected < 0.0 or selected > 1.0:
         raise OcrContractError(
             "ocr_contract_violation", f"{name} must be between 0 and 1"
         )

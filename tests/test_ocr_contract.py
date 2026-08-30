@@ -131,6 +131,18 @@ def test_configuration_is_closed_and_cannot_raise_resource_ceilings() -> None:
     assert OcrSettings(engine="fixture-local-adapter").engine == "fixture-local-adapter"
 
 
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_ratios_reject_non_finite_configuration_and_confidence(value: float) -> None:
+    with pytest.raises(OcrContractError, match="between 0 and 1"):
+        OcrAutomaticPolicy(min_printable_ratio=value)
+    with pytest.raises(OcrContractError, match="between 0 and 1"):
+        OcrTextSpan(
+            text="uncertain",
+            status="machine-unverified",
+            confidence=value,
+        )
+
+
 @pytest.mark.parametrize("mode", OCR_MODES)
 def test_declared_modes_are_closed(mode: str) -> None:
     settings = OcrSettings(mode=mode)
