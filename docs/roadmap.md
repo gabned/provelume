@@ -34,7 +34,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (completed) | `Bibliotheca` |
 | Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
-| Release preparation | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
+| Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
 | Next forecast | `0.9.0` | OCR, email, Google file and transcript intake | issue just in time | `Lectio` |
 | Forecast | `0.10.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
@@ -125,10 +125,10 @@ whether X identifies the site or Core. English and Italian pages, release links,
 `llms.txt`, feature availability and the Wishlist move in one reviewable website change or retain a
 visible last-verified date and known mismatch.
 
-An immediate corrective website workstream should align the homepage, Features, Public facts,
-Wishlist and machine-readable records with published Core `0.7.0`, including the completed
-`0.5.0`–`0.7.0` capabilities and an exact `v0.7.0` evidence link. It must continue to label
-`0.8.0` and later work as planned. This website-only correction can begin now and changes neither
+An immediate bounded website workstream should align the homepage, Features, Public facts,
+Wishlist and machine-readable records with published Core `0.8.0`, including the completed
+`0.5.0`–`0.8.0` capabilities and an exact `v0.8.0` evidence link. It must continue to label
+`0.9.0` and later work as planned. This website-only correction can begin now and changes neither
 the Core package identity nor release history.
 
 After every verified Core tag and asset publication, the website receives a bounded availability
@@ -143,8 +143,7 @@ The larger editorial updates belong at these evidence gates:
 
 | Evidence gate | Website update | Appropriate audience action |
 | --- | --- | --- |
-| Now, published `0.7.0` | Correct stale version/build labels, Features, Facts, Wishlist and release links in EN/IT. | Point technical evaluators to what already works; do not present `0.8.0+` as available. |
-| Published `0.8.0` | Add watched-folder, scheduler, recovery and maintenance-control documentation. | Invite a small technical early-adopter group for continuous local intake. |
+| Now, published `0.8.0` | Correct version/build labels, Features, Facts, Wishlist and release links in EN/IT; add bounded scheduler, folder-Source, recovery and maintenance documentation. | Invite a small technical early-adopter group for the capabilities actually published in Vigilia; keep `0.9.0+` planned. |
 | Published `0.9.0` | Add OCR/input-format, language, quality and local/cloud privacy matrices. | Invite document-heavy users with an explicit supported-format perimeter. |
 | Published `0.10.0` | Rework the primary use-case path around Capture, Action Center, Operations and mobile PWA onboarding. | Begin a controlled public beta: this is the first coherent daily-use experience. |
 | Published `0.12.0` | Add an integrations/mirrors chooser for Git, local folders and rsync with one-way and deletion boundaries. | Reach users who need portable publication or NAS mirrors without implying mandatory GitHub. |
@@ -162,16 +161,17 @@ performance and the declared analytics/form/third-party-resource posture. The si
 private Instance content, unpublished roadmap claims or release credentials, and a website outage
 cannot block installation or verification through the public repository.
 
-Package and embedded identity are aligned to `0.8.0` for release preparation. Issues #122, #124,
-#126, #128 and #130 completed `0.8/S01` through `0.8/S05`; their implementation PRs #123, #125,
-#127, #129 and #131 are merged on `main`. One bounded release-preparation pull request aligns the
-dated changelog, public release notes, immutable `0.7.0 → 0.8.0` Windows upgrade evidence and the
-release contract. No `v0.8.0` tag or release exists until the exact reviewed result is present on
-`main` and the permanent trusted workflow completes.
+Published package and embedded identity are aligned to `0.8.0`. Issues #122, #124, #126, #128 and
+#130 completed `0.8/S01` through `0.8/S05`; their implementation PRs #123, #125, #127, #129 and
+#131 are merged on `main`. The release-blocking scheduler correction was completed through
+#133/#134, and release preparation was merged through #135.
 
-The latest published preview remains `v0.7.0` from commit
-`1e1731969552497c2d3fe79b1c26eccdaad712c0`. `0.9.0 Lectio` is only the next forecast: no issue,
-owner pull request or implementation has activated it.
+The immutable [`v0.8.0`](https://github.com/gabned/provelume/releases/tag/v0.8.0) tag resolves to
+commit `d20e63079adf85829723cab86766266a8bc6cdcd`. Official release workflow run
+[`33315580878`](https://github.com/gabned/provelume/actions/runs/33315580878) published the public
+prerelease with 22 unique, nonempty assets; API digests, `SHA256SUMS`, package identities and both
+offline bundle verifiers were observed successfully. `0.9.0 Lectio` is only the next forecast: no
+issue, owner pull request or implementation has activated it.
 
 ## Planning and delivery contract
 
@@ -703,8 +703,8 @@ duplicate canonical or derived state.
 recovery (#124/#125); `0.8/S03` maintenance/reindex catalogue and interruption recovery
 (#126/#127); `0.8/S04` filesystem Source reconciliation, cursors and lifecycle states (#128/#129);
 `0.8/S05` resource policies, statistics evidence and end-to-end recovery fixtures (#130/#131).
-All are merged; version alignment and publication remain the separate release boundary documented
-in [`releases/0.8.0.md`](releases/0.8.0.md).
+All are merged and published as the bounded `v0.8.0` preview documented in
+[`releases/0.8.0.md`](releases/0.8.0.md).
 
 ### 0.9.0 — OCR, Email, Google File and Transcript Intake
 

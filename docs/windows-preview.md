@@ -1,11 +1,10 @@
 # Windows product shell preview
 
-Provelume `0.8.0` is the Vigilia Windows preview candidate for explicitly configured scheduling,
+Provelume `0.8.0` is the published Vigilia Windows preview for explicitly configured scheduling,
 folder Sources, recoverable maintenance, Source reconciliation and local resource observations.
-After the permanent trusted workflow publishes `v0.8.0`, download
-`Provelume-Setup-0.8.0-x64.exe` from that official GitHub prerelease and run it as the current
-user. Until then, `0.7.0` remains the latest published installer. Git and a separately installed
-Python are not required.
+Download `Provelume-Setup-0.8.0-x64.exe` only from the official
+[`v0.8.0` GitHub prerelease](https://github.com/gabned/provelume/releases/tag/v0.8.0) and run it as
+the current user. Git and a separately installed Python are not required.
 
 ## What is installed
 
@@ -26,7 +25,7 @@ runtime after installation. `0.8.0` adds scheduler, folder Source, maintenance, 
 resource-observation state to the existing schema-2 Instance without a whole-Instance migration;
 the registered schema-1 to schema-2 migration from `0.6.0` remains available.
 
-Candidate and official release evidence install the immutable public `0.7.0` executable,
+The official release evidence installs the immutable public `0.7.0` executable,
 bootstrap a Unicode-path Instance and use the matching immutable public wheel to ingest synthetic
 canonical knowledge and an exact Original. Before installing `0.8.0`, the test fingerprints the
 complete Instance tree; the installer must preserve configuration, manifest, canonical records,

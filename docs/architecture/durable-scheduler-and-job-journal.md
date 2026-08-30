@@ -1,7 +1,7 @@
 # Durable scheduler and job journal
 
-`0.8/S01` supplies the first user-controlled scheduling vertical slice included in the `0.8.0`
-Vigilia release candidate. It schedules safe local validation and derived full-text reindex work.
+`0.8/S01` supplies the first user-controlled scheduling vertical slice published in the `v0.8.0`
+Vigilia preview. It schedules safe local validation and derived full-text reindex work.
 `0.8/S02` activates the same schema-reserved `source.refresh` kind only for an exact managed folder
 Source; see [Durable folder Sources](durable-folder-sources.md). `0.8/S03` activates the closed
 maintenance catalogue, incremental reindex and per-item recovery adapters described in

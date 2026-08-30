@@ -1,8 +1,7 @@
 # Durable folder Sources
 
-`0.8/S02` supplies the bounded filesystem-Source vertical slice included in the `0.8.0` Vigilia
-release candidate on top of the `0.8/S01` scheduler. The latest published tag remains `v0.7.0`
-until the separate trusted release workflow completes.
+`0.8/S02` supplies the bounded filesystem-Source vertical slice published in the `v0.8.0` Vigilia
+preview on top of the `0.8/S01` scheduler.
 
 ## Explicit authority and scope
 
