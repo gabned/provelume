@@ -1,9 +1,9 @@
 # Maintenance catalogue and reindex recovery
 
-`0.8/S03` adds one bounded maintenance vertical slice to unreleased `main`. It does not change the
-published `0.7.0` package identity, tag or release. Its first usable operation is a durable full or
-incremental SQLite FTS generation; other already-safe local operations use the same S01 scheduler
-and journal.
+`0.8/S03` supplies the bounded maintenance vertical slice included in the `0.8.0` Vigilia release
+candidate. Its first usable operation is a durable full or incremental SQLite FTS generation;
+other already-safe local operations use the same S01 scheduler and journal. The public tag remains
+`v0.7.0` until the separate trusted release workflow completes.
 
 ## Closed catalogue
 

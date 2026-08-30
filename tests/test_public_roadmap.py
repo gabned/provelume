@@ -8,25 +8,26 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 ROADMAP_PATH = ROOT / "docs" / "roadmap.md"
-RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.7.0.md"
+RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.8.0.md"
+VINCULUM_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.7.0.md"
 BASE_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.5.0.md"
 CAPABILITY_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.6.0.md"
 CORRECTION_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.6.1.md"
 
 EXPECTED_CONTRACT = {
     "RELEASE_PLAN_SCHEMA": "1",
-    "PLANNED_VERSION": "0.7.0",
-    "MILESTONE_TITLE": "0.7.0",
-    "CURRENT_PACKAGE_VERSION": "0.7.0",
+    "PLANNED_VERSION": "0.8.0",
+    "MILESTONE_TITLE": "0.8.0",
+    "CURRENT_PACKAGE_VERSION": "0.8.0",
     "PACKAGE_VERSION_UPDATE": "APPLIED",
-    "EXECUTION_ISSUE": "105",
-    "PRODUCT_THEME": "CONNECTOR_FRAMEWORK_SAFE_WEB_INTAKE",
-    "RELEASE_STATUS": "PUBLISHED_PREVIEW",
+    "EXECUTION_ISSUE": "NONE",
+    "PRODUCT_THEME": "DURABLE_SCHEDULER_FOLDER_SOURCES_MAINTENANCE",
+    "RELEASE_STATUS": "RELEASE_CANDIDATE",
     "WINDOWS_SIGNING": "NOT_INCLUDED",
     "UPDATE_APPLY_MODE": "USER_CONFIRMED_INSTALLER",
 }
 
-FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(8, 23)) + ("1.0.0",)
+FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(9, 23)) + ("1.0.0",)
 LATIN_RELEASE_NAMES = {
     "0.1.0": "Fundamentum",
     "0.2.0": "Fiducia",
@@ -82,7 +83,7 @@ def _contract_fields(plan: str) -> dict[str, str]:
     return fields
 
 
-def test_release_plan_contract_is_complete_and_published() -> None:
+def test_release_plan_contract_is_complete_for_candidate() -> None:
     assert _contract_fields(_read(RELEASE_PLAN_PATH)) == EXPECTED_CONTRACT
 
 
@@ -103,7 +104,7 @@ def test_release_plan_contract_rejects_unsupported_lines(extra_field: str) -> No
         _contract_fields(malformed)
 
 
-def test_published_release_aligns_package_identity() -> None:
+def test_release_candidate_aligns_package_identity() -> None:
     with (ROOT / "pyproject.toml").open("rb") as handle:
         package_version = tomllib.load(handle)["project"]["version"]
     init_source = _read(ROOT / "core" / "provelume" / "__init__.py")
@@ -129,14 +130,16 @@ def test_roadmap_records_published_history_and_next_forecast() -> None:
         "0.7.0",
     ):
         assert roadmap.count(f"| Published preview | `{version}` |") == 1
-    assert "| Active implementation | `0.8.0` |" in roadmap
-    assert roadmap.count("| Active implementation |") == 1
-    assert roadmap.count("| Release preparation |") == 0
+    assert "| Release preparation | `0.8.0` |" in roadmap
+    assert roadmap.count("| Active implementation |") == 0
+    assert roadmap.count("| Release preparation |") == 1
+    assert "| Next forecast | `0.9.0` |" in roadmap
+    assert roadmap.count("| Next forecast |") == 1
     assert "#95 (completed)" in roadmap
     assert "#102 (completed)" in roadmap
     assert "#105 (completed)" in roadmap
-    assert "The package and embedded identity are `0.7.0`" in roadmap
-    assert "Issue #105 completed implementation slices" in roadmap
+    assert "Package and embedded identity are aligned to `0.8.0`" in roadmap
+    assert "Issues #122, #124,\n#126, #128 and #130 completed" in roadmap
 
 
 def test_every_release_has_a_unique_latin_name_and_concise_outcome() -> None:
@@ -202,6 +205,7 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
 
     assert heading_positions == sorted(heading_positions)
     assert "## 0.7.0 - 2026-08-29" in changelog
+    assert "## 0.8.0 - 2026-08-30" in changelog
     assert "## 0.6.1 - 2026-08-29" in changelog
     assert "## 0.6.0 - 2026-08-28" in changelog
     assert "## 0.5.1 - 2026-08-28" in changelog
@@ -332,7 +336,7 @@ def test_published_0_6_1_correction_is_explicit() -> None:
 
 
 def test_published_0_7_vinculum_is_explicit_and_bounded() -> None:
-    release_plan = _read(RELEASE_PLAN_PATH)
+    release_plan = _read(VINCULUM_RELEASE_PLAN_PATH)
     roadmap = _read(ROADMAP_PATH)
 
     for required_contract in (
@@ -357,8 +361,31 @@ def test_published_0_7_vinculum_is_explicit_and_bounded() -> None:
 
     for slice_id in ("0.7/S01", "0.7/S02", "0.7/S03", "0.7/S04", "0.7/S05"):
         assert slice_id in roadmap
-    assert "Issue #122 activates the bounded, unreleased `0.8/S01`" in roadmap
-    assert "latest public release remain `0.7.0`" in roadmap
+    assert "The latest published preview remains `v0.7.0`" in roadmap
+
+
+def test_0_8_vigilia_candidate_is_explicit_and_default_disabled() -> None:
+    release_plan = _read(RELEASE_PLAN_PATH)
+    roadmap = _read(ROADMAP_PATH)
+
+    for required_contract in (
+        "first Provelume preview with durable, explicitly configured scheduling",
+        "No policy is created or enabled by upgrade",
+        "0.8/S01 — Durable scheduler and journal",
+        "0.8/S05 — Resource observations",
+        "scheduler policies, jobs, receipts",
+        "real immutable public `0.7.0 → 0.8.0` upgrade",
+        "Provelume-Setup-0.7.0-x64.exe",
+        "18,464,821",
+        "46d7df0f94f3e9431685741594489ffcc99e0edf3f4880644c87e280fdecd5cb",
+        "provelume-0.7.0-py3-none-any.whl",
+        "1beba35635fca2bcafa5d4f1a93d035592751f18785339705e1dbb3df7bf2a41",
+        "does not activate `0.9.0 Lectio`",
+    ):
+        assert required_contract in release_plan
+
+    assert "All are merged; version alignment and publication remain" in roadmap
+    assert "[`releases/0.8.0.md`](releases/0.8.0.md)" in roadmap
 
 
 def test_update_policy_forecast_is_explicit_and_user_controlled() -> None:
@@ -400,11 +427,11 @@ def test_watched_folder_ocr_and_automation_forecast_is_explicit() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Active implementation | `0.8.0` | Scheduler, watched folders and "
+        "| Release preparation | `0.8.0` | Scheduler, watched folders and "
         "recoverable maintenance |"
     ) == 1
     assert roadmap.count(
-        "| Forecast | `0.9.0` | OCR, email, Google file and transcript intake |"
+        "| Next forecast | `0.9.0` | OCR, email, Google file and transcript intake |"
     ) == 1
     for required_contract in (
         "**disabled/offline**",
@@ -708,9 +735,10 @@ def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
     readme = _read(ROOT / "README.md")
 
     assert "[public roadmap](docs/roadmap.md)" in readme
+    assert "[0.8.0 release plan](docs/releases/0.8.0.md)" in readme
     assert "[0.7.0 release plan](docs/releases/0.7.0.md)" in readme
     assert "`v0.7.0`](https://github.com/gabned/provelume/releases/tag/v0.7.0)" in readme
-    assert "is the latest\npublished prerelease" in readme
+    assert "remains the latest published prerelease" in readme
     assert "[Windows preview guide](docs/windows-preview.md)" in readme
     assert "configure-inbox" in readme
     assert "external Drop folder" in readme

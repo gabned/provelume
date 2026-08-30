@@ -403,21 +403,34 @@ jobs:
             -Channel "${{ needs.candidate.outputs.channel }}" `
             -Commit "${{ needs.candidate.outputs.commit }}"
 
-      - name: Download and verify the published 0.6.1 upgrade baseline
+      - name: Download and verify the published 0.7.0 upgrade baseline
         shell: pwsh
         run: |
-          $baseline = "$env:RUNNER_TEMP\Provelume-Setup-0.6.1-public.exe"
+          $baseline = "$env:RUNNER_TEMP\Provelume-Setup-0.7.0-public.exe"
           Invoke-WebRequest `
-            -Uri "https://github.com/gabned/provelume/releases/download/v0.6.1/Provelume-Setup-0.6.1-x64.exe" `
+            -Uri "https://github.com/gabned/provelume/releases/download/v0.7.0/Provelume-Setup-0.7.0-x64.exe" `
             -OutFile $baseline
-          if ((Get-Item $baseline).Length -ne 18344455) {
-            throw "Published 0.6.1 installer size differs from the reviewed baseline."
+          if ((Get-Item $baseline).Length -ne 18464821) {
+            throw "Published 0.7.0 installer size differs from the reviewed baseline."
           }
           $hash = (Get-FileHash $baseline -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($hash -ne "98e7b693903bc160ac45c11a7c114fed88019c403a98efc07bef5b7e5039afc3") {
-            throw "Published 0.6.1 installer SHA-256 differs from the reviewed baseline."
+          if ($hash -ne "46d7df0f94f3e9431685741594489ffcc99e0edf3f4880644c87e280fdecd5cb") {
+            throw "Published 0.7.0 installer SHA-256 differs from the reviewed baseline."
+          }
+          $wheel = "$env:RUNNER_TEMP\provelume-0.7.0-public.whl"
+          Invoke-WebRequest `
+            -Uri "https://github.com/gabned/provelume/releases/download/v0.7.0/provelume-0.7.0-py3-none-any.whl" `
+            -OutFile $wheel
+          if ((Get-Item $wheel).Length -ne 294593) {
+            throw "Published 0.7.0 wheel size differs from the reviewed baseline."
+          }
+          $wheelHash = (Get-FileHash $wheel -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($wheelHash -ne "1beba35635fca2bcafa5d4f1a93d035592751f18785339705e1dbb3df7bf2a41") {
+            throw "Published 0.7.0 wheel SHA-256 differs from the reviewed baseline."
           }
           "PROVELUME_PREVIOUS_INSTALLER=$baseline" | Out-File `
+            -FilePath $env:GITHUB_ENV -Append
+          "PROVELUME_PREVIOUS_WHEEL=$wheel" | Out-File `
             -FilePath $env:GITHUB_ENV -Append
 
       - name: Exercise install, real upgrade, identity, layout and preservation boundary
@@ -426,6 +439,7 @@ jobs:
           ./scripts/test_windows_installer.ps1 `
             -Installer "$env:RUNNER_TEMP\provelume-windows-output\Provelume-Setup-${{ needs.candidate.outputs.version }}-x64.exe" `
             -PreviousInstaller "$env:PROVELUME_PREVIOUS_INSTALLER" `
+            -PreviousWheel "$env:PROVELUME_PREVIOUS_WHEEL" `
             -InstallDirectory "$env:RUNNER_TEMP\Installed Próvelume 日本" `
             -InstanceDirectory "$env:RUNNER_TEMP\Portable Instance – sintética 日本" `
             -ExpectedVersion "${{ needs.candidate.outputs.version }}" `

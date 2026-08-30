@@ -8,33 +8,30 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.7.0 Vinculum published preview
+## Current status: 0.8.0 Vigilia release candidate
 
-[`v0.7.0`](https://github.com/gabned/provelume/releases/tag/v0.7.0) Vinculum is the latest
-published prerelease. It adds provider-independent connector and Source identities, installed-app
-OAuth 2.0 with PKCE, guarded HTTP(S) transport and explicit one-URL manual acquisition while
-preserving exact Original bytes and attributable provenance.
+The source tree is aligned to the `0.8.0` Vigilia preview. Until the permanent trusted workflow
+publishes and verifies `v0.8.0`, [`v0.7.0`](https://github.com/gabned/provelume/releases/tag/v0.7.0)
+Vinculum remains the latest published prerelease. Vigilia adds an explicitly configured durable
+scheduler, folder Sources, recoverable local maintenance, Source reconciliation and content-free
+resource observations while keeping startup and upgrade default-disabled.
 
-Issue #105 and the [0.7.0 release plan](docs/releases/0.7.0.md) define this release; the
-[0.6.1 release plan](docs/releases/0.6.1.md) remains the correction baseline and the
-[0.6.0 release plan](docs/releases/0.6.0.md) remains the Portable Instance and hierarchical
-Markdown library capability baseline.
+Issues [#122](https://github.com/gabned/provelume/issues/122),
+[#124](https://github.com/gabned/provelume/issues/124),
+[#126](https://github.com/gabned/provelume/issues/126),
+[#128](https://github.com/gabned/provelume/issues/128) and
+[#130](https://github.com/gabned/provelume/issues/130), together with the
+[0.8.0 release plan](docs/releases/0.8.0.md), define this release. The
+[0.7.0 release plan](docs/releases/0.7.0.md) remains the published connector and safe-web-intake
+baseline.
 See the [public roadmap](docs/roadmap.md), the
 [configurable-folder contract](docs/architecture/configurable-folder-settings.md) and the
 [Windows preview guide](docs/windows-preview.md) for portability and trust boundaries.
 
-The roadmap records `0.7.0` as a published preview and `0.8.0 Vigilia` in active bounded
-implementation while retaining the later sequence through `1.0.0`. Forecast entries are
-sequencing coordinates, not publication claims or release authorization.
-
-The unreleased source tree also contains the bounded `0.8/S01` scheduler slice tracked by issue
-[#122](https://github.com/gabned/provelume/issues/122), the `0.8/S02` folder Source slice tracked by
-issue [#124](https://github.com/gabned/provelume/issues/124), and the `0.8/S03` maintenance/reindex
-slice tracked by issue [#126](https://github.com/gabned/provelume/issues/126), plus the `0.8/S04`
-Source reconciliation slice tracked by issue [#128](https://github.com/gabned/provelume/issues/128),
-and the `0.8/S05` resource-statistics slice tracked by issue [#130](https://github.com/gabned/provelume/issues/130).
-Package, embedded build identity, tag and latest public release remain `0.7.0`; these unreleased
-capabilities are not publication claims.
+The roadmap records `0.8.0 Vigilia` in release preparation and `0.9.0 Lectio` only as the next
+forecast while retaining the later sequence through `1.0.0`. Package and embedded build identity
+are aligned to `0.8.0`; no `v0.8.0` tag or release is implied by this candidate. Forecast entries
+are sequencing coordinates, not publication claims or release authorization.
 
 The active source tree can:
 
@@ -87,14 +84,14 @@ The active source tree can:
   with explicit timezone-aware manual/interval/calendar refresh policies;
 - observe path-redacted durable availability, quiescence and mount-loss state, then refresh stable
   snapshots through deterministic crash-resumable ingestion without duplicate Acquisitions;
-- inspect and control the unreleased scheduler and folder Sources through service, CLI, read-only
+- inspect and control the candidate scheduler and folder Sources through service, CLI, read-only
   API and local EN/IT Browser surfaces without hidden provider access or automatic deletion;
 - inspect a closed maintenance catalogue, dry-run full or incremental FTS work with exact
   item/byte/free-space evidence, and schedule available actions through the same durable journal;
 - build full or incremental FTS candidates outside the active index, checkpoint each committed
   item, resume after stale leases, and atomically activate only a complete validated generation;
 - schedule Markdown-library rebuild, deep Instance validation, Original assurance and duplicate
-  scanning while target-bound backup actions remain visibly unavailable;
+  scanning while target-bound backup catalogue entries remain visibly unavailable;
 - reconcile one exact managed filesystem Source against current canonical provenance, classifying
   current, changed, renamed, untracked and missing evidence without ingesting or deleting anything;
 - retain path-redacted Source cursors and per-job runs with lifecycle, resync, bounded retry,
@@ -118,10 +115,10 @@ operating-system egress enforcement or zero runtime traffic. All extracted/searc
 representations remain derived state and can be recreated from preserved originals after deletion
 of those derived copies.
 
-The released `0.7.0` Vinculum build performs no scheduled or autonomous acquisition. Portable
-folder watching and refresh exist only in the unreleased source tree; native filesystem-event
-watchers, OCR, email/Google Drive intake, semantic/vector search and AI classification remain later
-work.
+The `0.8.0` Vigilia candidate creates no scheduler policy or job on install, upgrade or startup.
+Folder refresh and maintenance require explicit local configuration and run only while the current
+runtime is active. Native filesystem-event watchers, always-on desktop agents, OCR, email/Google
+Drive intake, semantic/vector search and AI classification remain later work.
 
 ## Quick start
 
@@ -317,8 +314,9 @@ Instance content and is never enabled in the background by the Core:
 .venv/bin/provelume check-updates --channel preview
 ```
 
-The published Windows `0.7.0` preview packages the same behavior behind a per-user installer and
-EN/IT launcher; see the [Windows preview guide](docs/windows-preview.md).
+The Windows `0.8.0` candidate packages the same behavior behind a per-user installer and EN/IT
+launcher; the latest published installer remains `0.7.0` until the trusted release workflow
+completes. See the [Windows preview guide](docs/windows-preview.md).
 
 Inspect one Instance's declared network policy and components, also without making a network request:
 
