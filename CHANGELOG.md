@@ -21,6 +21,14 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   ingestion runs, duplicate-Acquisition protection, bounded receipts and no automatic deletion;
 - added local service/CLI and CSRF-protected Browser controls plus path-redacted read-only API
   views, deep validation and backup/restore/portable-transfer coverage for folder Source state;
+- added a closed maintenance catalogue for full/incremental FTS reindex, Markdown-library rebuild,
+  Source reconciliation, Instance validation, Original assurance, duplicate scan and verified
+  backup actions, with unsupported S04/target-bound entries failing visibly as unavailable;
+- added dry-run reindex plans with exact Version scope, item/byte estimates and temporary-space
+  preflight plus isolated full/incremental SQLite candidates and atomic generation activation;
+- added durable per-item reindex checkpoints, stale-lease and post-activation replay recovery,
+  monotonic retry progress, strict state validation, backup/export preservation and aligned
+  service/CLI/read-only API/local EN/IT Browser surfaces;
 
 ### Changed
 

@@ -109,7 +109,8 @@ archive therefore makes no preservation claim about unacquired Source files.
 
 - native filesystem-event adapters, include/exclude patterns and rename reconciliation remain
   later bounded work;
-- the broader maintenance/reindex catalogue belongs to `0.8/S03`;
+- the maintenance/reindex catalogue is implemented separately by `0.8/S03`; folder observation
+  does not broaden its authority;
 - connector cursors and full Source lifecycle reconciliation belong to `0.8/S04`;
 - resource trends, capacity policies and thresholds belong to `0.8/S05`;
 - no timer authorizes repair, purge, retention deletion, Source cleanup, provider writes, cloud

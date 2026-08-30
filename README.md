@@ -28,10 +28,11 @@ implementation while retaining the later sequence through `1.0.0`. Forecast entr
 sequencing coordinates, not publication claims or release authorization.
 
 The unreleased source tree also contains the bounded `0.8/S01` scheduler slice tracked by issue
-[#122](https://github.com/gabned/provelume/issues/122) and the `0.8/S02` folder Source slice tracked
-by issue [#124](https://github.com/gabned/provelume/issues/124). Package, embedded build identity,
-tag and latest public release remain `0.7.0`; these unreleased capabilities are not publication
-claims and the rest of `0.8.0` remains planned.
+[#122](https://github.com/gabned/provelume/issues/122), the `0.8/S02` folder Source slice tracked by
+issue [#124](https://github.com/gabned/provelume/issues/124), and the `0.8/S03` maintenance/reindex
+slice tracked by issue [#126](https://github.com/gabned/provelume/issues/126). Package, embedded
+build identity, tag and latest public release remain `0.7.0`; these unreleased capabilities are not
+publication claims and `0.8/S04` onward remain planned.
 
 The active source tree can:
 
@@ -86,6 +87,12 @@ The active source tree can:
   snapshots through deterministic crash-resumable ingestion without duplicate Acquisitions;
 - inspect and control the unreleased scheduler and folder Sources through service, CLI, read-only
   API and local EN/IT Browser surfaces without hidden provider access or automatic deletion;
+- inspect a closed maintenance catalogue, dry-run full or incremental FTS work with exact
+  item/byte/free-space evidence, and schedule available actions through the same durable journal;
+- build full or incremental FTS candidates outside the active index, checkpoint each committed
+  item, resume after stale leases, and atomically activate only a complete validated generation;
+- schedule Markdown-library rebuild, deep Instance validation, Original assurance and duplicate
+  scanning while Source reconciliation and target-bound backup actions remain visibly unavailable;
 - restart without losing canonical state;
 - run without Git, GitHub, Provelume Cloud or an external AI provider.
 
@@ -152,6 +159,21 @@ state, or request one exact journaled refresh:
 The observer waits for two stable metadata snapshots and five quiescent seconds by default. Mount
 loss is visible and never deletes acquired knowledge. See the
 [durable folder Source contract](docs/architecture/durable-folder-sources.md).
+
+Inspect the unreleased maintenance catalogue, dry-run an exact reindex plan, or execute one
+journaled incremental generation:
+
+```bash
+.venv/bin/provelume maintenance-catalog .local/demo
+.venv/bin/provelume maintenance-plan .local/demo search.reindex.incremental
+.venv/bin/provelume maintenance-run .local/demo search.reindex.incremental \
+  --idempotency-key operator-incremental-1
+```
+
+Timed actions use `maintenance-policy-create` with the same timezone, DST, quiet-window, jitter and
+missed-run controls as every other scheduler policy. Candidate indexes are derived and disposable;
+durable run evidence is included in backup and portable transfer. See the
+[maintenance catalogue and reindex recovery contract](docs/architecture/maintenance-catalogue-and-reindex-recovery.md).
 
 Inspect the navigable operation log or run a consistency rebuild:
 

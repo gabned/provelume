@@ -19,6 +19,7 @@ from .folder_source_activity import attach_folder_source_routes
 from .i18n import SUPPORTED_LANGUAGES, translator
 from .installation import verify_current_installation
 from .installation_i18n import installation_translator
+from .maintenance_activity import attach_maintenance_routes
 from .markdown_viewer import DocumentContentError, safe_markdown_html
 from .retention_model import DISPOSITION_FILTERS
 from .scheduler_model import SchedulerBusyError, SchedulerError
@@ -106,6 +107,11 @@ def _navigation(
             "href": f"/rebuild?lang={language}",
             "label": t("nav.rebuild"),
             "current": current_path.startswith("/rebuild"),
+        },
+        {
+            "href": f"/maintenance?lang={language}",
+            "label": t("nav.maintenance"),
+            "current": current_path.startswith("/maintenance"),
         },
         {
             "href": f"/operations?lang={language}",
@@ -253,6 +259,7 @@ def create_app(
     )
     attach_activity_routes(app, instance, TEMPLATES, _context)
     attach_folder_source_routes(app, instance, TEMPLATES, _context)
+    attach_maintenance_routes(app, instance, TEMPLATES, _context)
 
     @app.get("/")
     def home(request: Request):

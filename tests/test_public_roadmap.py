@@ -400,8 +400,8 @@ def test_watched_folder_ocr_and_automation_forecast_is_explicit() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Active implementation | `0.8.0` | Refresh scheduler, watched folders "
-        "and Source lifecycle |"
+        "| Active implementation | `0.8.0` | Scheduler, watched folders and "
+        "recoverable maintenance |"
     ) == 1
     assert roadmap.count(
         "| Forecast | `0.9.0` | OCR, email, Google file and transcript intake |"

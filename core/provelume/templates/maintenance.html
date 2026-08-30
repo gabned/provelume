@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ t('maintenance.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('maintenance.eyebrow') }}</p>
+  <h1>{{ t('maintenance.title') }}</h1>
+  <p class="lead">{{ t('maintenance.lead') }}</p>
+</section>
+{% if saved %}<section class="panel"><p class="status ok">{{ t('maintenance.saved') }}</p><p class="technical-note">{{ saved }}</p></section>{% endif %}
+{% if error %}<section class="panel"><p class="status warn">{{ t('maintenance.error') }}</p><p>{{ error }}</p></section>{% endif %}
+{% if not editable %}<section class="panel"><p class="technical-note">{{ t('maintenance.local_only') }}</p></section>{% endif %}
+
+<section class="panel">
+  <h2>{{ t('maintenance.catalog') }}</h2>
+  <ul class="document-list">
+  {% for action in catalog %}
+    {% set plan = plans.get(action.id) %}
+    <li>
+      <div>
+        <strong>{{ t('maintenance.action.' ~ action.id) }}</strong>
+        <span class="status {{ 'ok' if action.available else 'warn' }}">{{ t('maintenance.available') if action.available else t('maintenance.planned') }}</span>
+        <span>{{ action.id }} · {{ t('maintenance.scope') }}: {{ action.scope_kind }} · {{ t('maintenance.authority') }}: {{ action.authority }} · {{ t('maintenance.recovery') }}: {{ action.recovery }}</span>
+        <span>{{ t('maintenance.action.' ~ action.id ~ '.description') }}</span>
+        {% if not action.available %}<span>{{ t('maintenance.reason.' ~ action.unavailable_reason) }}</span>{% endif %}
+        {% if plan %}
+        <span><strong>{{ t('maintenance.plan') }}</strong>: {{ plan.plan.estimated_items }} {{ t('maintenance.items') }} · {{ plan.plan.estimated_bytes }} {{ t('maintenance.bytes') }}</span>
+        <span>{{ plan.plan.temporary_bytes_required }} {{ t('maintenance.temporary') }} · {{ plan.plan.free_bytes_observed }} {{ t('maintenance.free') }} · {{ t('maintenance.ready') if plan.ready else t('maintenance.blocked') }}</span>
+        {% endif %}
+        {% if action.policies %}<span>{{ action.policies|length }} policy · {{ action.policies|map(attribute='state')|join(', ') }}</span>{% endif %}
+      </div>
+      {% if editable and action.available %}
+      <form method="post" action="/maintenance?lang={{ lang }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="action_id" value="{{ action.id }}">
+        <button type="submit">{{ t('maintenance.run_now') }}</button>
+      </form>
+      {% endif %}
+    </li>
+  {% endfor %}
+  </ul>
+</section>
+
+<section class="panel">
+  <h2>{{ t('maintenance.recent_jobs') }}</h2>
+  <ul class="document-list">
+  {% for job in jobs %}
+    <li><div><strong>{{ job.job_kind }} · {{ job.status }}</strong><span>{{ job.id }} · {{ job.checkpoint.phase }} #{{ job.checkpoint.sequence }}</span><span>{{ job.progress.processed }}/{{ job.progress.skipped }}/{{ job.progress.errors }}</span></div></li>
+  {% else %}
+    <li class="empty">{{ t('maintenance.no_jobs') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+
+<section class="panel">
+  <h2>{{ t('maintenance.generations') }}</h2>
+  <ul class="document-list">
+  {% for run in runs %}
+    <li><div><strong>{{ run.plan.requested_mode }} · {{ run.status }}</strong><span>{{ run.id }} · {{ run.generation_id }} · revision {{ run.plan_revision }}</span><span>{{ run.cursor }}/{{ run.plan.estimated_items }} · {{ run.updated_at }}</span></div></li>
+  {% else %}
+    <li class="empty">{{ t('maintenance.no_generations') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+
+<section class="notice info">
+  <strong>{{ t('maintenance.boundary_title') }}</strong>
+  <p>{{ t('maintenance.boundary') }}</p>
+</section>
+{% endblock %}

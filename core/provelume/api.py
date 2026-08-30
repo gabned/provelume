@@ -9,6 +9,7 @@ from fastapi.responses import PlainTextResponse, Response
 from . import __version__
 from .about import current_about
 from .build_info import current_build_info
+from .maintenance_model import MaintenanceError, MaintenanceNotFoundError
 from .markdown_viewer import DocumentContentError
 from .service import ProvelumeInstance
 
@@ -175,6 +176,39 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_scheduler_receipts(limit=limit)
+
+    @router.get("/maintenance")
+    def get_maintenance_catalog() -> list[dict[str, Any]]:
+        return instance.maintenance_catalog()
+
+    @router.get("/maintenance/actions/{action_id}")
+    def get_maintenance_action(action_id: str) -> dict[str, Any]:
+        try:
+            return instance.get_maintenance_action(action_id)
+        except MaintenanceNotFoundError as exc:
+            raise _not_found("maintenance action", action_id) from exc
+
+    @router.get("/maintenance/plans/{action_id}")
+    def get_maintenance_plan(action_id: str) -> dict[str, Any]:
+        try:
+            return instance.plan_maintenance_action(action_id)
+        except MaintenanceNotFoundError as exc:
+            raise _not_found("maintenance action", action_id) from exc
+        except MaintenanceError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.get("/maintenance/runs")
+    def get_maintenance_runs(
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_maintenance_runs(limit=limit)
+
+    @router.get("/maintenance/runs/{run_id}")
+    def get_maintenance_run(run_id: str) -> dict[str, Any]:
+        result = instance.get_maintenance_run(run_id)
+        if result is None:
+            raise _not_found("maintenance reindex run", run_id)
+        return result
 
     @router.get("/hierarchy")
     def get_hierarchy() -> dict[str, Any]:

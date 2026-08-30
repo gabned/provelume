@@ -19,6 +19,7 @@ from .instance_cli import (
     add_instance_lifecycle_commands,
     handle_instance_lifecycle_command,
 )
+from .maintenance_cli import add_maintenance_commands, handle_maintenance_command
 from .operational_cli import add_operational_commands, handle_operational_command
 from .scheduler_cli import add_scheduler_commands, handle_scheduler_command
 from .service import ProvelumeInstance
@@ -150,6 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_connector_commands(subparsers)
     add_folder_source_commands(subparsers)
     add_scheduler_commands(subparsers)
+    add_maintenance_commands(subparsers)
     return parser
 
 
@@ -173,6 +175,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     scheduler_result = handle_scheduler_command(args)
     if scheduler_result is not None:
         return scheduler_result
+    maintenance_result = handle_maintenance_command(args)
+    if maintenance_result is not None:
+        return maintenance_result
 
     if args.command == "verify-installation":
         if args.release_bundle is None and args.expected_manifest_sha256 is None:
