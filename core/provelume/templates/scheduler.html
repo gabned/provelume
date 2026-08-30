@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{{ t('scheduler.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('scheduler.eyebrow') }}</p>
+  <h1>{{ t('scheduler.title') }}</h1>
+  <p class="lead">{{ t('scheduler.lead') }}</p>
+  <div class="status-row">
+    <span class="status {{ 'warn' if runtime_error else 'ok' }}">
+      {{ runtime_error or t('scheduler.runtime_ready') }}
+    </span>
+    <span>{{ t('scheduler.next_due') }}: {{ scheduler.next_due_at or t('common.none') }}</span>
+  </div>
+</section>
+
+<section class="metric-grid" aria-label="{{ t('scheduler.summary') }}">
+  <article><strong>{{ scheduler.policies }}</strong><span>{{ t('scheduler.policies') }}</span></article>
+  <article><strong>{{ scheduler.jobs }}</strong><span>{{ t('scheduler.jobs') }}</span></article>
+  <article><strong>{{ scheduler.receipts }}</strong><span>{{ t('scheduler.receipts') }}</span></article>
+  <article><strong>{{ scheduler.job_states.running }}</strong><span>{{ t('scheduler.running') }}</span></article>
+</section>
+
+<section class="panel">
+  <div class="panel-heading">
+    <h2>{{ t('scheduler.policies') }}</h2>
+    <span class="muted">{{ t('scheduler.cli_control') }}</span>
+  </div>
+  <ul class="document-list">
+  {% for policy in policies %}
+    <li>
+      <div>
+        <strong>{{ policy.job_kind }}</strong>
+        <span>{{ policy.id }} · {{ policy.state }} · {{ policy.scope.kind }}:{{ policy.scope.id }}</span>
+        <span>{{ policy.schedule.mode }} · {{ policy.schedule.timezone }} · {{ t('scheduler.next_due') }}: {{ policy.next_due_at or t('common.none') }}</span>
+      </div>
+    </li>
+  {% else %}
+    <li class="empty">{{ t('scheduler.no_policies') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+
+<section class="panel">
+  <h2>{{ t('scheduler.recent_jobs') }}</h2>
+  <ul class="document-list">
+  {% for job in jobs %}
+    <li>
+      <div>
+        <strong>{{ job.job_kind }} · {{ job.status }}</strong>
+        <span>{{ job.id }} · {{ job.reason }} · {{ job.scheduled_for }}</span>
+        <span>{{ t('scheduler.progress') }}: {{ job.progress.processed }}/{{ job.progress.skipped }}/{{ job.progress.errors }} · {{ t('scheduler.attempt') }} {{ job.attempt }}/{{ job.retry.max_attempts }}</span>
+      </div>
+    </li>
+  {% else %}
+    <li class="empty">{{ t('scheduler.no_jobs') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+
+<section class="panel">
+  <h2>{{ t('scheduler.recent_receipts') }}</h2>
+  <ul class="document-list">
+  {% for receipt in receipts %}
+    <li>
+      <div>
+        <strong>{{ receipt.job_kind }} · {{ receipt.status }}</strong>
+        <span>{{ receipt.id }} · {{ receipt.completed_at }} · {{ receipt.duration_ms }} ms</span>
+        <span>{{ t('scheduler.no_network_delete') }}</span>
+      </div>
+    </li>
+  {% else %}
+    <li class="empty">{{ t('scheduler.no_receipts') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+
+<section class="notice info">
+  <strong>{{ t('scheduler.boundary_title') }}</strong>
+  <p>{{ t('scheduler.boundary') }}</p>
+</section>
+{% endblock %}

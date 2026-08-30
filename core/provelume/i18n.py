@@ -9,6 +9,7 @@ from .activity_i18n import ACTIVITY_TRANSLATIONS
 from .connector_i18n import CONNECTOR_TRANSLATIONS
 from .folder_settings_i18n import FOLDER_SETTINGS_TRANSLATIONS
 from .rebuild_i18n import REBUILD_TRANSLATIONS
+from .scheduler_i18n import SCHEDULER_TRANSLATIONS
 
 SUPPORTED_LANGUAGES = {"en", "it"}
 
@@ -25,6 +26,7 @@ def catalog(language: str) -> dict[str, str]:
     result.update(CONNECTOR_TRANSLATIONS.get(selected, {}))
     result.update(REBUILD_TRANSLATIONS.get(selected, {}))
     result.update(FOLDER_SETTINGS_TRANSLATIONS.get(selected, {}))
+    result.update(SCHEDULER_TRANSLATIONS.get(selected, {}))
     return result
 
 

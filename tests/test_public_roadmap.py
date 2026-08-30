@@ -129,8 +129,8 @@ def test_roadmap_records_published_history_and_next_forecast() -> None:
         "0.7.0",
     ):
         assert roadmap.count(f"| Published preview | `{version}` |") == 1
-    assert "| Next forecast | `0.8.0` |" in roadmap
-    assert roadmap.count("| Active implementation |") == 0
+    assert "| Active implementation | `0.8.0` |" in roadmap
+    assert roadmap.count("| Active implementation |") == 1
     assert roadmap.count("| Release preparation |") == 0
     assert "#95 (completed)" in roadmap
     assert "#102 (completed)" in roadmap
@@ -357,7 +357,8 @@ def test_published_0_7_vinculum_is_explicit_and_bounded() -> None:
 
     for slice_id in ("0.7/S01", "0.7/S02", "0.7/S03", "0.7/S04", "0.7/S05"):
         assert slice_id in roadmap
-    assert "`0.8.0 Vigilia` is the next forecast and remains unimplemented" in roadmap
+    assert "Issue #122 activates the bounded, unreleased `0.8/S01`" in roadmap
+    assert "latest public release remain `0.7.0`" in roadmap
 
 
 def test_update_policy_forecast_is_explicit_and_user_controlled() -> None:
@@ -399,7 +400,8 @@ def test_watched_folder_ocr_and_automation_forecast_is_explicit() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Next forecast | `0.8.0` | Refresh scheduler, watched folders and Source lifecycle |"
+        "| Active implementation | `0.8.0` | Refresh scheduler, watched folders "
+        "and Source lifecycle |"
     ) == 1
     assert roadmap.count(
         "| Forecast | `0.9.0` | OCR, email, Google file and transcript intake |"
