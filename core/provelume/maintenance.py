@@ -24,6 +24,7 @@ from .index import (
 from .maintenance_model import (
     MAINTENANCE_CATALOG,
     MAINTENANCE_SCHEMA_VERSION,
+    MINIMUM_REINDEX_TEMPORARY_BYTES,
     MaintenanceInsufficientSpaceError,
     MaintenanceStateError,
     MaintenanceUnavailableError,
@@ -38,7 +39,6 @@ from .paths import safe_instance_path
 from .scheduler_model import instant_text
 from .storage import InstanceStore
 
-MINIMUM_REINDEX_TEMPORARY_BYTES = 1024 * 1024
 REINDEX_RUN_LIMIT = 10_000
 
 
@@ -89,13 +89,22 @@ class MaintenanceManager:
     @staticmethod
     def _document_bytes(store: InstanceStore, documents: Mapping[str, str]) -> int:
         total = 0
-        for version_id in documents.values():
+        for document_id, version_id in documents.items():
             version = store.read_canonical("versions", version_id)
-            if version is None:
-                continue
+            if version is None or version.get("document_id") != document_id:
+                raise MaintenanceStateError(
+                    "reindex estimate references a missing Version"
+                )
             original = store.read_canonical("originals", str(version.get("original_id", "")))
-            if original is not None and type(original.get("size_bytes")) is int:
-                total += max(0, int(original["size_bytes"]))
+            if (
+                original is None
+                or type(original.get("size_bytes")) is not int
+                or int(original["size_bytes"]) < 0
+            ):
+                raise MaintenanceStateError(
+                    "reindex estimate references invalid Original evidence"
+                )
+            total += int(original["size_bytes"])
         return total
 
     def _rows_for_documents(
@@ -402,16 +411,20 @@ class MaintenanceManager:
             and metadata.get("job_id") == record["job_id"]
             and metadata.get("plan_digest") == record["plan_digest"]
             and metadata.get("documents") == record["plan"]["documents"]
+            and metadata.get("knowledge_fingerprint")
+            == record["plan"]["knowledge_fingerprint"]
+            and metadata.get("build_mode") == record["plan"]["requested_mode"]
+            and metadata.get("build_strategy") == record["plan"]["strategy"]
         ):
             return False
         try:
-            matches, _count = self._database_matches(
+            matches, count = self._database_matches(
                 _database_path(self.store),
                 record["plan"]["documents"],
             )
         except (MaintenanceStateError, OSError):
             return False
-        return matches
+        return matches and metadata.get("documents_indexed") == count
 
     @staticmethod
     def _embedded_generation_metadata(database: Path) -> dict[str, Any] | None:

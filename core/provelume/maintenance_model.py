@@ -10,6 +10,7 @@ from typing import Any
 from .scheduler_model import SchedulerError, instant_text, utc_instant, validate_progress
 
 MAINTENANCE_SCHEMA_VERSION = 1
+MINIMUM_REINDEX_TEMPORARY_BYTES = 1024 * 1024
 REINDEX_MODES = ("full", "incremental")
 REINDEX_STATUSES = ("building", "validating", "activating", "completed")
 
@@ -242,6 +243,13 @@ def _relative_candidate(value: Any, suffix: str) -> str:
     return value
 
 
+def _instant(value: Any, label: str) -> str:
+    try:
+        return instant_text(value)
+    except SchedulerError as exc:
+        raise MaintenanceStateError(f"invalid {label}") from exc
+
+
 def validate_reindex_plan(value: Any) -> dict[str, Any]:
     expected = {
         "requested_mode",
@@ -292,12 +300,13 @@ def validate_reindex_plan(value: Any) -> dict[str, Any]:
     selected = value.get("selected_document_ids")
     if (
         not isinstance(selected, list)
-        or selected != sorted(set(selected))
         or any(
             not isinstance(item, str) or _CANONICAL_ID.fullmatch(item) is None
             for item in selected
         )
     ):
+        raise MaintenanceStateError("reindex selected document IDs are invalid")
+    if selected != sorted(set(selected)):
         raise MaintenanceStateError("reindex selected document IDs are invalid")
     expected_selected = (
         sorted(normalised_documents)
@@ -313,6 +322,14 @@ def validate_reindex_plan(value: Any) -> dict[str, Any]:
         raise MaintenanceStateError("full reindex cannot retain baseline documents")
     if selected != expected_selected:
         raise MaintenanceStateError("reindex selection does not match its strategy")
+    expected_knowledge_fingerprint = hashlib.sha256(
+        "\n".join(
+            f"{document_id}:{version_id}"
+            for document_id, version_id in normalised_documents.items()
+        ).encode("utf-8")
+    ).hexdigest()
+    if knowledge_fingerprint != expected_knowledge_fingerprint:
+        raise MaintenanceStateError("reindex knowledge fingerprint is inconsistent")
     estimated_items = _integer(value.get("estimated_items"), "estimated item count")
     if estimated_items != len(selected):
         raise MaintenanceStateError("reindex estimate does not match its selected items")
@@ -327,7 +344,9 @@ def validate_reindex_plan(value: Any) -> dict[str, Any]:
         "estimated_items": estimated_items,
         "estimated_bytes": _integer(value.get("estimated_bytes"), "estimated bytes"),
         "temporary_bytes_required": _integer(
-            value.get("temporary_bytes_required"), "temporary bytes"
+            value.get("temporary_bytes_required"),
+            "temporary bytes",
+            minimum=MINIMUM_REINDEX_TEMPORARY_BYTES,
         ),
         "free_bytes_observed": _integer(value.get("free_bytes_observed"), "free bytes"),
     }
@@ -413,20 +432,24 @@ def validate_reindex_run(value: Any) -> dict[str, Any]:
     status = str(value.get("status"))
     completed_at = value.get("completed_at")
     if completed_at is not None:
-        completed_at = instant_text(completed_at)
+        completed_at = _instant(completed_at, "reindex completion time")
     if status == "completed":
         if cursor != len(plan["selected_document_ids"]) or completed_at is None:
             raise MaintenanceStateError("completed reindex evidence is incomplete")
     elif completed_at is not None:
         raise MaintenanceStateError("unfinished reindex cannot have a completion time")
+    if status in {"validating", "activating"} and cursor != len(
+        plan["selected_document_ids"]
+    ):
+        raise MaintenanceStateError("advanced reindex phase has incomplete item progress")
     if value.get("network_used") is not False:
         raise MaintenanceStateError("reindex cannot report network use")
     if value.get("canonical_mutation") is not False:
         raise MaintenanceStateError("reindex cannot report canonical mutation")
     if value.get("automatic_deletion") is not False:
         raise MaintenanceStateError("reindex cannot authorize automatic deletion")
-    created_at = instant_text(value.get("created_at"))
-    updated_at = instant_text(value.get("updated_at"))
+    created_at = _instant(value.get("created_at"), "reindex creation time")
+    updated_at = _instant(value.get("updated_at"), "reindex update time")
     if utc_instant(updated_at) < utc_instant(created_at):
         raise MaintenanceStateError("reindex run update precedes creation")
     if completed_at is not None and utc_instant(completed_at) < utc_instant(updated_at):
@@ -467,6 +490,7 @@ __all__ = [
     "MAINTENANCE_ACTION_IDS",
     "MAINTENANCE_CATALOG",
     "MAINTENANCE_SCHEMA_VERSION",
+    "MINIMUM_REINDEX_TEMPORARY_BYTES",
     "MaintenanceError",
     "MaintenanceInsufficientSpaceError",
     "MaintenanceNotFoundError",

@@ -20,6 +20,7 @@ from provelume.maintenance import MaintenanceManager
 from provelume.maintenance_model import MaintenanceUnavailableError
 from provelume.scheduler import retry_payload, schedule_payload
 from provelume.service import ProvelumeInstance
+from provelume.storage import CANONICAL_KINDS
 from provelume.web import create_app
 
 
@@ -54,6 +55,13 @@ def _database_rows(instance: ProvelumeInstance) -> list[tuple[str, str]]:
         ).fetchall()
     finally:
         connection.close()
+
+
+def _canonical_snapshot(instance: ProvelumeInstance) -> dict[str, list[dict[str, object]]]:
+    return {
+        kind: instance.store.list_canonical(kind)
+        for kind in CANONICAL_KINDS
+    }
 
 
 def test_catalog_is_closed_and_reindex_plans_are_read_only(tmp_path: Path) -> None:
@@ -113,7 +121,7 @@ def test_full_reindex_activates_one_verified_generation_without_canonical_mutati
     tmp_path: Path,
 ) -> None:
     instance, _source = _instance_with_documents(tmp_path)
-    canonical_before = instance.store.knowledge_fingerprint()
+    canonical_before = _canonical_snapshot(instance)
     result = instance.run_maintenance_action(
         "search.reindex.full",
         request_key="full-generation",
@@ -126,7 +134,7 @@ def test_full_reindex_activates_one_verified_generation_without_canonical_mutati
     assert run["status"] == "completed"
     assert run["cursor"] == 2
     assert run["plan"]["strategy"] == "full"
-    assert instance.store.knowledge_fingerprint() == canonical_before
+    assert _canonical_snapshot(instance) == canonical_before
     assert index_status(instance.store) == "ready"
     assert len(_database_rows(instance)) == 2
 
@@ -176,7 +184,7 @@ def test_incremental_reindex_selects_only_changed_version_evidence(
     assert plan["plan"]["strategy"] == "incremental"
     assert plan["plan"]["selected_document_ids"] == [alpha["id"]]
     assert plan["plan"]["estimated_items"] == 1
-    canonical_before = instance.store.knowledge_fingerprint()
+    canonical_before = _canonical_snapshot(instance)
     result = instance.run_maintenance_action(
         "search.reindex.incremental",
         request_key="incremental-generation",
@@ -187,7 +195,7 @@ def test_incremental_reindex_selects_only_changed_version_evidence(
         "skipped": 0,
         "errors": 0,
     }
-    assert instance.store.knowledge_fingerprint() == canonical_before
+    assert _canonical_snapshot(instance) == canonical_before
     assert instance.search("replacement incremental")[0]["document_id"] == alpha["id"]
     assert instance.search("durable maintenance evidence 1")[0]["title"] == "note-1.txt"
     assert instance.search("durable maintenance evidence 0") == []
@@ -581,7 +589,7 @@ def test_temporary_space_refusal_preserves_active_index(
 
 def test_safe_catalogue_executors_emit_content_free_receipts(tmp_path: Path) -> None:
     instance, _source = _instance_with_documents(tmp_path)
-    canonical_before = instance.store.knowledge_fingerprint()
+    canonical_before = _canonical_snapshot(instance)
     for action_id in (
         "maintenance.library_rebuild",
         "maintenance.validate",
@@ -601,7 +609,7 @@ def test_safe_catalogue_executors_emit_content_free_receipts(tmp_path: Path) -> 
         assert receipt["network_used"] is False
         assert receipt["canonical_mutation"] is False
         assert receipt["automatic_deletion"] is False
-    assert instance.store.knowledge_fingerprint() == canonical_before
+    assert _canonical_snapshot(instance) == canonical_before
     assert (instance.root / "library" / LIBRARY_MANIFEST).is_file()
     assert instance.validate_instance(deep=True)["status"] == "valid"
 
@@ -678,3 +686,23 @@ def test_maintenance_state_is_backed_up_exported_validated_and_exposed(
     report = restored.validate_instance(deep=True)
     assert report["status"] == "invalid"
     assert any(error["code"] == "maintenance_record_invalid" for error in report["errors"])
+
+    for field, hostile in (
+        ("updated_at", "not-an-instant"),
+        ("plan.selected_document_ids", [{"not": "an-id"}]),
+    ):
+        corrupted = {**run, "network_used": False}
+        if field == "updated_at":
+            corrupted["updated_at"] = hostile
+        else:
+            corrupted["plan"] = {
+                **corrupted["plan"],
+                "selected_document_ids": hostile,
+            }
+        run_path.write_text(json.dumps(corrupted), encoding="utf-8")
+        report = restored.validate_instance(deep=True)
+        assert report["status"] == "invalid", field
+        assert any(
+            error["code"] == "maintenance_record_invalid"
+            for error in report["errors"]
+        )
