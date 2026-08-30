@@ -16,6 +16,16 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   formats, provenance/idempotency/checkpoint records, hostile-input limits and isolated temporary
   directory cleanup with no runtime download, cloud requirement or remote fallback.
 
+### Changed
+
+- inserted `0.10.0 — Perceptio` for universal photo/audio/video representations, local-first media
+  enrichment and complete component/model/license visibility; shifted every later unreleased
+  forecast atomically through the `0.23.0` release candidate without changing published history,
+  the active `0.9.0` scope, package identity or stable `1.0.0`;
+- added release-wide UX, EN/IT documentation, accessibility, security/privacy, recovery and
+  adoption gates plus an explicit personal-use and dissemination matrix from the current `0.8.0`
+  preview through post-1.0 extension, mobile, collaboration and preservation forecasts.
+
 ## 0.8.0 - 2026-08-30
 
 Published as the [`v0.8.0` prerelease](https://github.com/gabned/provelume/releases/tag/v0.8.0)

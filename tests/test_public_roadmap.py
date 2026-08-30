@@ -27,7 +27,10 @@ EXPECTED_CONTRACT = {
     "UPDATE_APPLY_MODE": "USER_CONFIRMED_INSTALLER",
 }
 
-FORECAST_VERSIONS = tuple(f"0.{minor}.0" for minor in range(9, 23)) + ("1.0.0",)
+FORECAST_VERSIONS = (
+    tuple(f"0.{minor}.0" for minor in range(9, 24))
+    + tuple(f"1.{minor}.0" for minor in range(0, 5))
+)
 LATIN_RELEASE_NAMES = {
     "0.1.0": "Fundamentum",
     "0.2.0": "Fiducia",
@@ -41,20 +44,25 @@ LATIN_RELEASE_NAMES = {
     "0.7.0": "Vinculum",
     "0.8.0": "Vigilia",
     "0.9.0": "Lectio",
-    "0.10.0": "Cura",
-    "0.11.0": "Entitas",
-    "0.12.0": "Concordia",
-    "0.13.0": "Itinerarium",
-    "0.14.0": "Interfacies",
-    "0.15.0": "Custodia",
-    "0.16.0": "Iudicium",
-    "0.17.0": "Sensus",
-    "0.18.0": "Domus",
-    "0.19.0": "Excubitor",
-    "0.20.0": "Renovatio",
-    "0.21.0": "Societas",
-    "0.22.0": "Probatio",
+    "0.10.0": "Perceptio",
+    "0.11.0": "Cura",
+    "0.12.0": "Entitas",
+    "0.13.0": "Concordia",
+    "0.14.0": "Itinerarium",
+    "0.15.0": "Interfacies",
+    "0.16.0": "Custodia",
+    "0.17.0": "Iudicium",
+    "0.18.0": "Sensus",
+    "0.19.0": "Domus",
+    "0.20.0": "Excubitor",
+    "0.21.0": "Renovatio",
+    "0.22.0": "Societas",
+    "0.23.0": "Probatio",
     "1.0.0": "Maturitas",
+    "1.1.0": "Extensio",
+    "1.2.0": "Mobilitas",
+    "1.3.0": "Cooperatio",
+    "1.4.0": "Conservatio",
 }
 
 
@@ -133,7 +141,7 @@ def test_roadmap_records_published_history_and_active_lectio_development() -> No
         assert roadmap.count(f"| Published preview | `{version}` |") == 1
     assert roadmap.count("| Active development | `0.9.0` |") == 1
     assert roadmap.count("| Active implementation |") == 0
-    assert roadmap.count("| Release preparation |") == 0
+    assert re.search(r"^\| Release preparation \| `", roadmap, re.MULTILINE) is None
     assert "| Next forecast | `0.9.0` |" not in roadmap
     assert "#137; S01 completed by #5/#138" in roadmap
     assert "#95 (completed)" in roadmap
@@ -147,7 +155,7 @@ def test_roadmap_records_published_history_and_active_lectio_development() -> No
 def test_every_release_has_a_unique_latin_name_and_concise_outcome() -> None:
     roadmap = _read(ROADMAP_PATH)
 
-    assert len(LATIN_RELEASE_NAMES) == 26
+    assert len(LATIN_RELEASE_NAMES) == 31
     assert len(set(LATIN_RELEASE_NAMES.values())) == len(LATIN_RELEASE_NAMES)
     for version, name in LATIN_RELEASE_NAMES.items():
         assert re.fullmatch(r"[A-Za-z]+", name)
@@ -176,11 +184,12 @@ def test_public_website_updates_follow_release_evidence() -> None:
         "`planned`, `preview`, `release candidate` and `available`",
         "| Now, published `0.8.0` |",
         "| Published `0.10.0` |",
-        "| Published `0.14.0` |",
-        "| Published `0.17.0` |",
+        "| Published `0.11.0` |",
+        "| Published `0.15.0` |",
         "| Published `0.18.0` |",
-        "| Published `0.20.0` |",
-        "| Published `0.22.0` |",
+        "| Published `0.19.0` |",
+        "| Published `0.21.0` |",
+        "| Published `0.23.0` |",
         "controlled public beta",
         "developer/client dissemination",
         "broad non-technical desktop-preview distribution",
@@ -199,7 +208,12 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
     heading_positions: list[int] = []
 
     for version in FORECAST_VERSIONS:
-        assert roadmap.count(f"| `{version}` |") == 1
+        release_row = re.compile(
+            rf"^\| (?:Active development|Forecast|Release candidate|Stable|"
+            rf"Post-stable forecast) \| `{re.escape(version)}` \|",
+            re.MULTILINE,
+        )
+        assert len(release_row.findall(roadmap)) == 1
         heading = f"### {version} — "
         assert roadmap.count(heading) == 1
         heading_positions.append(roadmap.index(heading))
@@ -407,7 +421,7 @@ def test_update_policy_forecast_is_explicit_and_user_controlled() -> None:
         assert published_baseline in roadmap
 
     assert roadmap.count(
-        "| Forecast | `0.20.0` | Signed desktop releases and safe updaters |"
+        "| Forecast | `0.21.0` | Signed desktop releases and safe updaters |"
     ) == 1
     for future_policy in (
         "**Disabled/offline:**",
@@ -454,6 +468,103 @@ def test_watched_folder_ocr_and_automation_forecast_is_explicit() -> None:
         "page-level text, coordinates",
         "OCR never replaces the Original",
         "remote OCR or\nvision provider",
+    ):
+        assert required_contract in roadmap
+
+
+def test_multimedia_representations_and_component_catalogue_are_explicit() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    assert roadmap.count(
+        "| Forecast | `0.10.0` | Multimedia, universal content representations and "
+        "component inventory |"
+    ) == 1
+    for required_contract in (
+        "## Universal content representation and file-family contract",
+        "**Preserve**, **Inspect**",
+        "state/derived/bundles/<version_id>/<output_fingerprint>/",
+        "`time-map.json`, `region-map.json`",
+        "There is no automatic `.md` file beside every source file",
+        "versioned\nannotations over one exact derived result",
+        "PDF/PDF-A, DOCX, ODT, RTF, EPUB",
+        "CSV, TSV, XLSX, ODS, JSONL, Parquet",
+        "WAV, FLAC, MP3, M4A/AAC, OGG and Opus",
+        "MP4, MOV, MKV, WebM and AVI",
+        "P7M/P7S, ASiC-E",
+        "## Component provenance, licensing and update visibility contract",
+        "Components, models & licenses",
+        "latest-known upstream version",
+        "`not checked`",
+        "Checking never runs `pip`",
+        "https://cyclonedx.org/specification/overview/",
+        "https://osv.dev/",
+        "https://github.com/SYSTRAN/faster-whisper",
+        "https://github.com/ggml-org/whisper.cpp",
+        "https://pyav.org/docs/stable/",
+        "https://www.scenedetect.com/docs/latest/",
+        "https://exiftool.org/",
+        "https://github.com/zxing-cpp/zxing-cpp",
+        "local audio transcription and time anchors",
+        "video streams, subtitles, scenes, keyframes and frame OCR",
+    ):
+        assert required_contract in roadmap
+
+
+def test_release_quality_and_adoption_gates_are_mandatory_and_aligned() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    for required_contract in (
+        "## Personal use and dissemination contract",
+        "Forecast means unavailable",
+        "Current published `0.8.0`",
+        "First recommended personal daily-use beta",
+        "non-technical desktop-preview gate",
+        "broad release-candidate qualification",
+        "`1.0.0` is general distribution",
+        "## Release quality, UX, documentation and security cadence",
+        "| Before activation |",
+        "| Every bounded slice |",
+        "| Final quality slice |",
+        "| Release preparation |",
+        "| After publication |",
+        "EN/IT semantic parity",
+        "migration/rollback and backup/restore drills",
+        "security-response readiness",
+        "At least one final bounded slice in every feature release",
+    ):
+        assert required_contract in roadmap
+
+
+def test_perceptio_insertion_shifts_the_complete_unreleased_lane() -> None:
+    roadmap = _read(ROADMAP_PATH)
+    changelog = _read(ROOT / "CHANGELOG.md")
+    readme = _read(ROOT / "README.md")
+
+    assert "takes the former `0.10.0` slot" in roadmap
+    assert "through the `0.23.0` release candidate" in roadmap
+    assert "`0.9.x` stays reserved for corrections" in roadmap
+    assert "not hidden in a `0.9.5` feature release" in roadmap
+    assert "shifted every later unreleased\n  forecast atomically" in changelog
+    assert "It does not use `0.9.5` for feature work" in readme
+    assert "0.23.0 — Perceptio" not in roadmap
+
+
+def test_post_stable_horizon_preserves_personal_and_provider_independence() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    for version, outcome in (
+        ("1.1.0", "Public Adapter SDK and Advanced Format Profiles"),
+        ("1.2.0", "Native Mobile Companions and Encrypted Offline Collections"),
+        ("1.3.0", "Collaboration, Review and Shared-workspace Workflows"),
+        ("1.4.0", "Long-term Preservation, Signatures and Governed Retention"),
+    ):
+        assert f"### {version} — {outcome}" in roadmap
+
+    for required_contract in (
+        "complete Core path works with every extension\ndisabled",
+        "no cloud relay is required",
+        "personal mode incurs no account, network or collaboration dependency",
+        "no technical\nresult is presented as legal advice",
     ):
         assert required_contract in roadmap
 
@@ -528,7 +639,7 @@ def test_grounded_rag_is_versioned_authorized_and_citable() -> None:
     changelog = _read(ROOT / "CHANGELOG.md")
 
     assert roadmap.count(
-        "| Forecast | `0.17.0` | Semantic, hybrid and grounded RAG retrieval |"
+        "| Forecast | `0.18.0` | Semantic, hybrid and grounded RAG retrieval |"
     ) == 1
     for required_contract in (
         "## Grounded retrieval and RAG contract",
@@ -555,7 +666,7 @@ def test_ai_classification_is_closed_reviewable_and_reconcilable() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.16.0` | AI classification, receipts, provider adapters and evaluation |"
+        "| Forecast | `0.17.0` | AI classification, receipts, provider adapters and evaluation |"
     ) == 1
     for required_contract in (
         "disabled, proposal-only, confirm-each and controlled-automatic modes",
@@ -576,10 +687,10 @@ def test_nas_and_desktop_background_profiles_are_qualified() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.18.0` | Self-hosted, Synology and QNAP operations |"
+        "| Forecast | `0.19.0` | Self-hosted, Synology and QNAP operations |"
     ) == 1
     assert roadmap.count(
-        "| Forecast | `0.19.0` | Windows and macOS background agents and bootstrap "
+        "| Forecast | `0.20.0` | Windows and macOS background agents and bootstrap "
         "completion |"
     ) == 1
     for required_contract in (
@@ -604,7 +715,7 @@ def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.12.0` | Productivity connectors and guarded sync preview |"
+        "| Forecast | `0.13.0` | Productivity connectors and guarded sync preview |"
     ) == 1
     for required_contract in (
         "Every connector type is multi-instance by contract",
@@ -621,15 +732,15 @@ def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
     ):
         assert required_contract in roadmap
 
-    assert "`0.22.0` release candidate" in roadmap
-    assert "stable `1.0.0` now depends on `0.22.0`" in roadmap
+    assert "`0.23.0` release candidate" in roadmap
+    assert "Stable `1.0.0` depends on `0.23.0`" in roadmap
 
 
 def test_mobile_capture_is_bounded_and_review_first() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.10.0` | Unified Capture, Operations and Action Center |"
+        "| Forecast | `0.11.0` | Unified Capture, Operations and Action Center |"
     ) == 1
     for required_contract in (
         "short-lived QR pairing",
@@ -712,7 +823,7 @@ def test_markdown_navigation_and_viewer_contract_is_explicit() -> None:
     )
 
     assert roadmap.count(
-        "| Forecast | `0.13.0` | Knowledge navigation, statistics, relations and "
+        "| Forecast | `0.14.0` | Knowledge navigation, statistics, relations and "
         "deterministic discovery |"
     ) == 1
     for required_contract in (

@@ -38,6 +38,13 @@ and optional packaging; it does not yet deliver OCR execution.
 Package and embedded build identity are aligned to `0.8.0`, `v0.8.0` and the exact published
 commit.
 
+The future lane now keeps Lectio at `0.9.0`, inserts `0.10.0 Perceptio` for photo/audio/video
+representations and component visibility, and shifts the previous forecasts forward through the
+`0.23.0` release candidate. It does not use `0.9.5` for feature work. The roadmap identifies
+`0.11.0` as the first planned coherent personal daily-use beta and controlled public-beta gate,
+`0.21.0` as the broad non-technical desktop-preview gate, and `1.0.0` as general distribution;
+none of those forecast capabilities is available before its verified publication.
+
 The active source tree can:
 
 - initialize a portable Instance in an ordinary directory;
