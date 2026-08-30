@@ -136,13 +136,26 @@ action through `scheduler-policy-create`, `scheduler-policy-state`, `scheduler-r
 `scheduler-run`. The EN/IT `/scheduler` Browser view uses the same service reads; its active local
 runtime evaluates at most one safe job per cycle while the Browser is running.
 
-Only deep Instance validation and derived FTS reindex have executors in `0.8/S01`. Reserved Source
-refresh policies remain disabled until their later Source executor exists. Records contain only
-IDs, clocks, closed status/error values and counts; caller idempotency text, paths, URLs,
-credentials and document content are not persisted. See
+Deep Instance validation and derived FTS reindex are the `0.8/S01` executors. `0.8/S02` also
+executes `source.refresh` for an exact managed folder Source after its durable observer reaches a
+stable snapshot. Records contain only IDs, clocks, closed status/error values, fingerprints and
+counts; caller idempotency text, paths, URLs, credentials and document content are not persisted.
+See
 [`architecture/durable-scheduler-and-job-journal.md`](architecture/durable-scheduler-and-job-journal.md).
 The random lease token is execution authority and is never returned by service, CLI, API or
 Browser read surfaces; those views retain only worker/timing evidence plus `token_present`.
+
+## Managed folder Sources
+
+- `GET /api/v1/sources` and `GET /api/v1/sources/{source_id}` include a path-redacted `folder`
+  view for managed filesystem Sources;
+- `GET /api/v1/folder-sources` lists only managed folder Sources with lifecycle, policy,
+  availability, quiescence, fingerprint/count and last-run evidence.
+
+These routes never enumerate a mount and expose no configured path. Registration, observation,
+enable/pause and refresh remain local service/CLI authority; the loopback `/sources` Browser adds
+the same explicit controls behind a per-process CSRF token. See
+[`architecture/durable-folder-sources.md`](architecture/durable-folder-sources.md).
 
 ## Documents
 

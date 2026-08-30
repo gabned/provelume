@@ -13,7 +13,7 @@ SCHEDULER_JOB_KINDS = (
     "search.reindex",
     "maintenance.validate",
 )
-EXECUTABLE_JOB_KINDS = ("search.reindex", "maintenance.validate")
+EXECUTABLE_JOB_KINDS = ("source.refresh", "search.reindex", "maintenance.validate")
 POLICY_STATES = ("disabled", "enabled", "paused")
 SCHEDULE_MODES = ("manual", "interval", "calendar")
 MISSED_RUN_POLICIES = ("skip", "coalesce", "catch_up_one")
@@ -41,6 +41,7 @@ ERROR_CODES = (
     "lease_expired",
     "lease_recovery_exhausted",
     "local_io",
+    "source_refresh_failed",
 )
 RECOVERY_STATES = ("none", "resumable", "restart_only", "manual_intervention")
 RUN_REASONS = ("manual", "scheduled", "coalesced", "catch_up")
@@ -539,8 +540,6 @@ def validate_policy_record(
         raise SchedulerError("inactive scheduler policy cannot have a next occurrence")
     if state == "enabled" and schedule["mode"] != "manual" and nominal is None:
         raise SchedulerError("enabled timed policy requires a next occurrence")
-    if state == "enabled" and job_kind == "source.refresh":
-        raise SchedulerError("source.refresh remains disabled until its executor slice")
     return {
         "schema_version": SCHEDULER_SCHEMA_VERSION,
         "id": policy_id,

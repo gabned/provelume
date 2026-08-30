@@ -1,10 +1,9 @@
 # Durable scheduler and job journal
 
 `0.8/S01` adds the first user-controlled scheduling vertical slice without changing the published
-`0.7.0` package identity. It schedules only safe local validation and derived full-text reindex
-work. Source refresh is represented in the closed policy schema so later slices do not need a
-second scheduler, but it cannot be enabled or queued until its executor and Source-reconciliation
-contract exist.
+`0.7.0` package identity. It schedules safe local validation and derived full-text reindex work.
+`0.8/S02` activates the same schema-reserved `source.refresh` kind only for an exact managed folder
+Source; see [Durable folder Sources](durable-folder-sources.md).
 
 ## Storage and authority
 
@@ -38,8 +37,8 @@ a process exit.
 ## Policy contract
 
 Every policy selects exactly one job kind and one scope. `maintenance.validate` and
-`search.reindex` require the current Instance ID. The reserved `source.refresh` kind requires one
-existing Source ID and remains fail-closed in this slice.
+`search.reindex` require the current Instance ID. `source.refresh` requires one existing Source ID;
+execution fails closed unless that Source has a valid S02 folder contract.
 
 | Control | Closed values and behavior |
 | --- | --- |
@@ -76,7 +75,7 @@ Checkpoints use consecutive sequence numbers and the phases `prepared`, `executi
 | Durable evidence | Recovery action |
 | --- | --- |
 | No committed effect for a current local executor | `restart_only`; requeue within attempt bound |
-| Future Source refresh checkpoint | `resumable`; preserved for its later executor contract |
+| Source refresh executing checkpoint | `resumable`; replay uses its durable Source/run evidence |
 | `committed` checkpoint without a terminal receipt | `manual_intervention`; never infer success |
 | Attempt bound exhausted | `manual_intervention` with a closed recovery error |
 | Immutable receipt already exists | Reconcile the terminal job from the exact receipt; do not run again |
@@ -91,13 +90,15 @@ Each terminal receipt states job/policy/scope identity, attempts, completion tim
 bounded cumulative attempt duration, terminal status and a closed error class/code. It explicitly
 records network use, canonical
 mutation and automatic deletion. Both S01 executors report `network_used: false`,
-`canonical_mutation: false` and `automatic_deletion: false`.
+`canonical_mutation: false` and `automatic_deletion: false`. S02 Source refresh reports mounted
+network use and canonical Acquisition mutation truthfully; automatic deletion remains false.
 
 ## Executable work and runtime boundary
 
 `maintenance.validate` performs deep read-only Instance validation. `search.reindex` atomically
-replaces only the rebuildable SQLite FTS generation and its metadata. Neither executor can repair,
-purge, apply retention, acquire a Source, contact a provider or delete canonical knowledge.
+replaces only the rebuildable SQLite FTS generation and its metadata. `source.refresh` observes one
+explicit managed folder and ingests only after its S02 quiescence gate. No executor can repair,
+purge, apply retention, contact a provider or delete canonical knowledge.
 
 An explicit CLI cycle evaluates policies and executes a bounded number of jobs:
 
@@ -129,10 +130,10 @@ This is not an always-on system service. Scheduling while the Browser is closed 
 later qualified self-hosted and desktop-agent work; S01 does not register a daemon, startup task or
 hidden process.
 
-## Deliberate S01 limits
+## Deliberate S01/S02 limits
 
-- `source.refresh` cannot be enabled or run; watched folders, mount loss and quiescence belong to
-  `0.8/S02`.
+- S02 watching is bounded scheduler polling while a qualified runtime is active; it installs no
+  native filesystem-event service, daemon or startup task.
 - The broader maintenance/reindex catalogue and per-operation checkpoint adapters belong to
   `0.8/S03`.
 - Connector cursors, Source reconciliation and lifecycle states belong to `0.8/S04`.

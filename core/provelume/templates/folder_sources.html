@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ t('sources.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('sources.eyebrow') }}</p>
+  <h1>{{ t('sources.title') }}</h1>
+  <p class="lead">{{ t('sources.lead') }}</p>
+</section>
+{% if saved %}<section class="panel"><p class="status ok">{{ t('sources.saved') }}</p><p class="technical-note">{{ saved }}</p></section>{% endif %}
+{% if error %}<section class="panel"><p class="status warn">{{ t('sources.error') }}</p><p>{{ error }}</p></section>{% endif %}
+{% if editable %}
+<section class="panel">
+  <h2>{{ t('sources.register') }}</h2>
+  <form method="post" action="/sources?lang={{ lang }}" class="settings-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="action" value="register">
+    <label><span>{{ t('sources.name') }}</span><input name="name" maxlength="120" required></label>
+    <label><span>{{ t('sources.path') }}</span><input name="path" required></label>
+    <label><span>{{ t('sources.class') }}</span><select name="source_class"><option value="local">local</option><option value="removable">removable</option><option value="network">network</option></select></label>
+    <label><span>{{ t('sources.state') }}</span><select name="state"><option value="enabled">enabled</option><option value="paused">paused</option></select></label>
+    <label><span>{{ t('sources.quiescence') }}</span><input name="quiescence_seconds" type="number" min="0" value="5" required></label>
+    <label><span>{{ t('sources.stable') }}</span><input name="stable_observations" type="number" min="1" value="2" required></label>
+    <label><span>{{ t('sources.watch') }}</span><input name="watch_interval_seconds" type="number" min="60" value="60"></label>
+    <label><span>{{ t('sources.timezone') }}</span><input name="timezone" value="UTC" required></label>
+    <button type="submit">{{ t('sources.submit') }}</button>
+  </form>
+</section>
+{% else %}
+<section class="panel"><p class="technical-note">{{ t('sources.remote_readonly') }}</p></section>
+{% endif %}
+<section class="panel">
+  <h2>{{ t('sources.inventory') }}</h2>
+  <ul class="document-list">
+  {% for source in sources %}
+    <li>
+      <div>
+        <strong>{{ source.name }}</strong>
+        <span>{{ source.source_class }} · {{ source.lifecycle_state }} · {{ source.observer.phase }}</span>
+        {% if editable %}<span class="hash">{{ source.path }}</span>{% endif %}
+        <span>{{ t('sources.files') }}: {{ source.observer.file_count }} · {{ t('sources.bytes') }}: {{ source.observer.total_bytes }}</span>
+        <span>{{ t('sources.policy') }}: {{ source.policy_id or t('common.none') }}</span>
+      </div>
+      {% if editable %}
+      <div class="status-row">
+        {% for action, label in [('observe', t('sources.observe')), ('refresh', t('sources.refresh')), ('enabled', t('sources.enable')), ('paused', t('sources.pause'))] %}
+        <form method="post" action="/sources?lang={{ lang }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="source_id" value="{{ source.id }}">
+          <input type="hidden" name="action" value="{{ action }}">
+          <button type="submit">{{ label }}</button>
+        </form>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </li>
+  {% else %}
+    <li class="empty">{{ t('sources.empty') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+<section class="notice info">
+  <strong>{{ t('sources.boundary_title') }}</strong>
+  <p>{{ t('sources.boundary') }}</p>
+</section>
+{% endblock %}

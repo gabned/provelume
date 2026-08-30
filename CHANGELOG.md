@@ -12,10 +12,15 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - added a privacy-minimizing job journal with exclusive leases, active heartbeats, monotonic
   checkpoints, bounded retry/backoff, immutable terminal receipts and crash reconciliation;
 - added safe local executors for deep Instance validation and rebuildable FTS reindex, with
-  service/CLI control plus read-only API and EN/IT Browser status; reserved Source refresh remains
-  disabled until its later executor slice;
+  service/CLI control plus read-only API and EN/IT Browser status;
 - added the Python-maintained public `tzdata` fallback so explicit IANA calendar rules also work
   on Windows systems without a system timezone database;
+- added explicit local, removable and mounted-network folder Sources with durable availability,
+  pause, quiescence, clock-change and mount-loss state plus portable interval/calendar watching;
+- added the `source.refresh` executor with exact Source scope, deterministic crash-resumable
+  ingestion runs, duplicate-Acquisition protection, bounded receipts and no automatic deletion;
+- added local service/CLI and CSRF-protected Browser controls plus path-redacted read-only API
+  views, deep validation and backup/restore/portable-transfer coverage for folder Source state;
 
 ### Changed
 

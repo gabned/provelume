@@ -28,8 +28,10 @@ implementation while retaining the later sequence through `1.0.0`. Forecast entr
 sequencing coordinates, not publication claims or release authorization.
 
 The unreleased source tree also contains the bounded `0.8/S01` scheduler slice tracked by issue
-[#122](https://github.com/gabned/provelume/issues/122). Package, embedded build identity, tag and
-latest public release remain `0.7.0`; Source refresh and the rest of `0.8.0` remain planned.
+[#122](https://github.com/gabned/provelume/issues/122) and the `0.8/S02` folder Source slice tracked
+by issue [#124](https://github.com/gabned/provelume/issues/124). Package, embedded build identity,
+tag and latest public release remain `0.7.0`; these unreleased capabilities are not publication
+claims and the rest of `0.8.0` remains planned.
 
 The active source tree can:
 
@@ -78,8 +80,12 @@ The active source tree can:
   execution with explicit timezone, DST, quiet-window, jitter and missed-run behavior;
 - journal bounded validation and derived FTS-reindex jobs with leases, heartbeat, checkpoints,
   retry/backoff, crash recovery and content-free terminal receipts;
-- inspect the unreleased scheduler through service, CLI, read-only API and EN/IT Browser surfaces
-  without enabling Source refresh, hidden network access or automatic deletion;
+- register independently enabled or paused local, removable and mounted-network folder Sources,
+  with explicit timezone-aware manual/interval/calendar refresh policies;
+- observe path-redacted durable availability, quiescence and mount-loss state, then refresh stable
+  snapshots through deterministic crash-resumable ingestion without duplicate Acquisitions;
+- inspect and control the unreleased scheduler and folder Sources through service, CLI, read-only
+  API and local EN/IT Browser surfaces without hidden provider access or automatic deletion;
 - restart without losing canonical state;
 - run without Git, GitHub, Provelume Cloud or an external AI provider.
 
@@ -93,8 +99,10 @@ operating-system egress enforcement or zero runtime traffic. All extracted/searc
 representations remain derived state and can be recreated from preserved originals after deletion
 of those derived copies.
 
-Background refresh, watched folders, OCR, email/Google Drive intake, semantic/vector search and AI
-classification remain later milestones. Vinculum performs no scheduled or autonomous acquisition.
+The released `0.7.0` Vinculum build performs no scheduled or autonomous acquisition. Portable
+folder watching and refresh exist only in the unreleased source tree; native filesystem-event
+watchers, OCR, email/Google Drive intake, semantic/vector search and AI classification remain later
+work.
 
 ## Quick start
 
@@ -129,6 +137,21 @@ absolute paths may live elsewhere on the local filesystem:
 A missing external folder fails visibly and is not silently recreated. Once Inbox Documents or
 Acquisitions exist, changing the managed-copy location requires a future verified relocation
 workflow; the display name and Drop folder can still change.
+
+Register an unreleased managed folder Source with portable interval watching, inspect its durable
+state, or request one exact journaled refresh:
+
+```bash
+.venv/bin/provelume folder-source-register .local/demo /path/to/research \
+  --name "Research" --class removable --mode interval \
+  --timezone Europe/Rome --interval-seconds 300
+.venv/bin/provelume folder-sources .local/demo
+.venv/bin/provelume folder-source-refresh .local/demo <source-id>
+```
+
+The observer waits for two stable metadata snapshots and five quiescent seconds by default. Mount
+loss is visible and never deletes acquired knowledge. See the
+[durable folder Source contract](docs/architecture/durable-folder-sources.md).
 
 Inspect the navigable operation log or run a consistency rebuild:
 
@@ -319,7 +342,8 @@ knowledge but not unacquired files waiting in an external Drop folder.
 See `docs/architecture/portable-instance.md`,
 `docs/architecture/portable-export-import.md`,
 `docs/architecture/canonical-derived-state.md` and
-`docs/architecture/configurable-folder-settings.md`.
+`docs/architecture/configurable-folder-settings.md`, plus the unreleased
+`docs/architecture/durable-folder-sources.md` contract.
 
 ## Knowledge API
 
@@ -331,6 +355,7 @@ The browser and external clients use the same application layer. The read-only A
 - `GET /api/v1/instance`
 - `GET /api/v1/sources`
 - `GET /api/v1/sources/{id}`
+- `GET /api/v1/folder-sources`
 - `GET /api/v1/ingestion/runs`
 - `GET /api/v1/ingestion/runs/{id}`
 - `GET /api/v1/hierarchy`

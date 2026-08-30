@@ -28,11 +28,11 @@ SCHEDULER_TRANSLATIONS: dict[str, dict[str, str]] = {
             "The receipt declares network use and canonical mutation; automatic deletion "
             "is always false."
         ),
-        "scheduler.boundary_title": "0.8/S01 boundary",
+        "scheduler.boundary_title": "0.8/S01–S02 boundary",
         "scheduler.boundary": (
-            "Instance validation and derived FTS reindex are the only executable job kinds. "
-            "Source refresh remains disabled until its later executor slice. No schedule can "
-            "authorize repair, purge, retention deletion or provider writes."
+            "Instance validation, derived FTS reindex and exact managed-folder refresh are the "
+            "executable job kinds. No schedule can authorize repair, purge, retention deletion "
+            "or provider writes."
         ),
     },
     "it": {
@@ -65,12 +65,11 @@ SCHEDULER_TRANSLATIONS: dict[str, dict[str, str]] = {
             "La ricevuta dichiara uso della rete e mutazione canonica; la cancellazione "
             "automatica è sempre falsa."
         ),
-        "scheduler.boundary_title": "Confine 0.8/S01",
+        "scheduler.boundary_title": "Confine 0.8/S01–S02",
         "scheduler.boundary": (
-            "Validazione dell'istanza e reindicizzazione FTS derivata sono gli unici job "
-            "eseguibili. Il refresh delle Source resta disabilitato fino alla successiva "
-            "slice esecutiva. Nessuna pianificazione può autorizzare riparazione, purge, "
-            "cancellazioni di retention o scritture verso provider."
+            "Validazione dell'istanza, reindicizzazione FTS derivata e refresh esatto delle "
+            "cartelle gestite sono i job eseguibili. Nessuna pianificazione può autorizzare "
+            "riparazione, purge, cancellazioni di retention o scritture verso provider."
         ),
     },
 }

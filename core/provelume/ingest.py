@@ -140,10 +140,11 @@ def _new_run(
     max_file_bytes: int,
     max_files: int,
     retry_of_run_id: str | None = None,
+    record_id: str | None = None,
 ) -> IngestionRunRecord:
     return IngestionRunRecord(
         schema_version=INGESTION_RUN_SCHEMA_VERSION,
-        id=ledger.new_run_id(),
+        id=record_id or ledger.new_run_id(),
         source_id=source_id,
         started_at=utc_now(),
         completed_at=None,
@@ -165,10 +166,11 @@ def _new_item(
     locator: str,
     attempt: int = 1,
     retry_of_item_id: str | None = None,
+    record_id: str | None = None,
 ) -> IngestionItemRecord:
     return IngestionItemRecord(
         schema_version=INGESTION_RUN_SCHEMA_VERSION,
-        id=ledger.new_item_id(),
+        id=record_id or ledger.new_item_id(),
         run_id=run_id,
         source_id=source_id,
         locator=locator,
@@ -266,6 +268,7 @@ def _process_item(
     *,
     max_file_bytes: int,
     retry_extraction: bool,
+    acquisition_id: str | None = None,
 ) -> tuple[IngestionItemRecord, Acquisition | None]:
     running = replace(item, status="running", started_at=utc_now())
     ledger.write_item(running)
@@ -278,6 +281,7 @@ def _process_item(
             path,
             max_file_bytes,
             retry_extraction=retry_extraction,
+            acquisition_id=acquisition_id,
         )
     except (IngestionInputError, IngestionLimitError, OSError, UnsafePathError) as exc:
         failed = replace(
@@ -312,6 +316,103 @@ def _process_item(
     return finished, acquisition
 
 
+def _reconcile_committed_acquisition(
+    store: InstanceStore,
+    ledger: IngestionLedger,
+    item: IngestionItemRecord,
+    acquisition_id: str,
+) -> tuple[IngestionItemRecord, Acquisition] | None:
+    """Finish an interrupted item from its already-canonical Acquisition."""
+
+    record = store.read_canonical("acquisitions", acquisition_id)
+    if record is None:
+        return None
+    acquisition = Acquisition(**record)
+    if acquisition.source_id != item.source_id or acquisition.locator != item.locator:
+        raise IngestionInputError(
+            "deterministic Acquisition identity belongs to another ingestion item"
+        )
+    extraction_failed = acquisition.outcome == "extraction_failed"
+    finished = replace(
+        item,
+        status="failed" if extraction_failed else "completed",
+        started_at=item.started_at or acquisition.observed_at,
+        completed_at=acquisition.observed_at,
+        acquisition_id=acquisition.id,
+        outcome=acquisition.outcome,
+        error_code="extraction_failed" if extraction_failed else None,
+        error=(
+            _bounded_error(acquisition.error or "text extraction failed")
+            if extraction_failed
+            else None
+        ),
+    )
+    ledger.write_item(finished)
+    return finished, acquisition
+
+
+def _close_changed_interrupted_run(
+    store: InstanceStore,
+    ledger: IngestionLedger,
+    run: IngestionRunRecord,
+    items: list[IngestionItemRecord],
+    *,
+    deterministic_acquisitions: bool,
+) -> IngestionRunResult:
+    """Reconcile commits but never read bytes from a changed Source snapshot."""
+
+    finished_items: list[IngestionItemRecord] = []
+    acquisitions: list[Acquisition] = []
+    for item in items:
+        if item.status in {"completed", "failed"}:
+            finished_items.append(item)
+            if item.acquisition_id is not None:
+                record = store.read_canonical("acquisitions", item.acquisition_id)
+                if record is not None:
+                    acquisitions.append(Acquisition(**record))
+                    continue
+            if item.status == "failed":
+                continue
+            raise IngestionInputError(
+                "completed interrupted item references a missing Acquisition"
+            )
+        deterministic_acquisition_id = None
+        if deterministic_acquisitions:
+            value = f"provelume:ingestion-acquisition:{run.id}:{item.locator}"
+            deterministic_acquisition_id = f"acq_{uuid5(NAMESPACE_URL, value).hex}"
+            reconciled = _reconcile_committed_acquisition(
+                store,
+                ledger,
+                item,
+                deterministic_acquisition_id,
+            )
+            if reconciled is not None:
+                finished, acquisition = reconciled
+                finished_items.append(finished)
+                acquisitions.append(acquisition)
+                continue
+        completed_at = utc_now()
+        failed = replace(
+            item,
+            status="failed",
+            started_at=item.started_at or completed_at,
+            completed_at=completed_at,
+            acquisition_id=None,
+            outcome=None,
+            error_code="input_io_error",
+            error="Source snapshot changed before the interrupted item could resume",
+        )
+        ledger.write_item(failed)
+        finished_items.append(failed)
+
+    closed = _close_run(ledger, run, finished_items)
+    return IngestionRunResult(
+        run=closed,
+        items=tuple(finished_items),
+        acquisitions=tuple(acquisitions),
+    )
+
+
 def _run_ingestion_filesystem_locked(
     store: InstanceStore,
     source_path: Path | str,
@@ -319,16 +420,54 @@ def _run_ingestion_filesystem_locked(
     source_name: str | None = None,
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
     max_files: int = DEFAULT_MAX_FILES,
+    run_id: str | None = None,
+    reconcile_only: bool = False,
 ) -> IngestionRunResult:
     source_id, configured_source_path = _source_for_run(store, source_path, source_name)
     ledger = IngestionLedger(store)
-    run = _new_run(
-        ledger,
-        source_id=source_id,
-        max_file_bytes=max_file_bytes,
-        max_files=max_files,
+    existing_run = ledger.get_run(run_id) if run_id is not None else None
+    if existing_run is not None and existing_run.get("source_id") != source_id:
+        raise IngestionInputError("durable ingestion run belongs to another Source")
+    if existing_run is not None and existing_run.get("status") != "running":
+        existing_items = ledger.items_for_run(str(existing_run["id"]))
+        acquisitions = []
+        for item in existing_items:
+            acquisition_id = item.get("acquisition_id")
+            if isinstance(acquisition_id, str):
+                record = store.read_canonical("acquisitions", acquisition_id)
+                if record is not None:
+                    acquisitions.append(Acquisition(**record))
+                elif item.get("status") == "completed":
+                    raise IngestionInputError(
+                        "terminal ingestion run references a missing Acquisition"
+                    )
+        return IngestionRunResult(
+            run=IngestionRunRecord(**existing_run),
+            items=tuple(IngestionItemRecord(**item) for item in existing_items),
+            acquisitions=tuple(acquisitions),
+        )
+    run = (
+        IngestionRunRecord(**existing_run)
+        if existing_run is not None
+        else _new_run(
+            ledger,
+            source_id=source_id,
+            max_file_bytes=max_file_bytes,
+            max_files=max_files,
+            record_id=run_id,
+        )
     )
     ledger.write_run(run)
+    if reconcile_only:
+        if existing_run is None:
+            raise IngestionInputError("cannot reconcile an ingestion run that was not started")
+        return _close_changed_interrupted_run(
+            store,
+            ledger,
+            run,
+            [IngestionItemRecord(**item) for item in ledger.items_for_run(run.id)],
+            deterministic_acquisitions=run_id is not None,
+        )
 
     try:
         canonical_source_path = configured_source_path.expanduser().resolve(strict=True)
@@ -343,15 +482,26 @@ def _run_ingestion_filesystem_locked(
         )
         return IngestionRunResult(run=closed, items=(), acquisitions=())
 
-    items = [
-        _new_item(
-            ledger,
-            run_id=run.id,
-            source_id=source_id,
-            locator=locator,
+    previous_items = {str(item["locator"]): item for item in ledger.items_for_run(run.id)}
+    items = []
+    for locator, _path in files:
+        previous = previous_items.get(locator)
+        if previous is not None:
+            items.append(IngestionItemRecord(**previous))
+            continue
+        deterministic_item_id = None
+        if run_id is not None:
+            value = f"provelume:ingestion-item:{run.id}:{locator}"
+            deterministic_item_id = f"item_{uuid5(NAMESPACE_URL, value).hex}"
+        items.append(
+            _new_item(
+                ledger,
+                run_id=run.id,
+                source_id=source_id,
+                locator=locator,
+                record_id=deterministic_item_id,
+            )
         )
-        for locator, _path in files
-    ]
     run = replace(run, item_count=len(items))
     ledger.write_run(run)
     for item in items:
@@ -360,6 +510,34 @@ def _run_ingestion_filesystem_locked(
     finished_items: list[IngestionItemRecord] = []
     acquisitions: list[Acquisition] = []
     for item, (_locator, path) in zip(items, files, strict=True):
+        if item.status in {"completed", "failed"}:
+            finished_items.append(item)
+            acquisition_id = item.acquisition_id
+            if acquisition_id is not None:
+                record = store.read_canonical("acquisitions", acquisition_id)
+                if record is not None:
+                    acquisitions.append(Acquisition(**record))
+                    continue
+            if item.status == "failed":
+                continue
+        deterministic_acquisition_id = None
+        if run_id is not None:
+            value = f"provelume:ingestion-acquisition:{run.id}:{item.locator}"
+            deterministic_acquisition_id = f"acq_{uuid5(NAMESPACE_URL, value).hex}"
+            reconciled = _reconcile_committed_acquisition(
+                store,
+                ledger,
+                item,
+                deterministic_acquisition_id,
+            )
+            if reconciled is not None:
+                finished, acquisition = reconciled
+                if finished_items and finished_items[-1].id == item.id:
+                    finished_items[-1] = finished
+                else:
+                    finished_items.append(finished)
+                acquisitions.append(acquisition)
+                continue
         finished, acquisition = _process_item(
             store,
             ledger,
@@ -367,8 +545,12 @@ def _run_ingestion_filesystem_locked(
             lambda selected=path: selected,
             max_file_bytes=max_file_bytes,
             retry_extraction=False,
+            acquisition_id=deterministic_acquisition_id,
         )
-        finished_items.append(finished)
+        if finished_items and finished_items[-1].id == item.id:
+            finished_items[-1] = finished
+        else:
+            finished_items.append(finished)
         if acquisition is not None:
             acquisitions.append(acquisition)
 
@@ -422,6 +604,10 @@ def _safe_retry_path(source_path: Path, locator: str) -> Path:
 def _retry_ingestion_run_locked(
     store: InstanceStore,
     run_id: str,
+    *,
+    retry_run_id: str | None = None,
+    deterministic_acquisitions: bool = False,
+    reconcile_only: bool = False,
 ) -> IngestionRunResult:
     ledger = IngestionLedger(store)
     previous = ledger.get_run(run_id)
@@ -438,32 +624,101 @@ def _retry_ingestion_run_locked(
         raise IngestionRetryError(f"ingestion Source is not configured: {source_id}")
     max_file_bytes = int(previous["max_file_bytes"])
     max_files = int(previous["max_files"])
-    run = _new_run(
-        ledger,
-        source_id=source_id,
-        max_file_bytes=max_file_bytes,
-        max_files=max_files,
-        retry_of_run_id=run_id,
-    )
-    items = [
-        _new_item(
+    existing = ledger.get_run(retry_run_id) if retry_run_id is not None else None
+    if existing is not None:
+        if (
+            existing.get("source_id") != source_id
+            or existing.get("retry_of_run_id") != run_id
+        ):
+            raise IngestionRetryError("durable retry run binding is inconsistent")
+        existing_items = ledger.items_for_run(str(existing["id"]))
+        if existing.get("status") != "running":
+            acquisitions = []
+            for existing_item in existing_items:
+                acquisition_id = existing_item.get("acquisition_id")
+                if isinstance(acquisition_id, str):
+                    record = store.read_canonical("acquisitions", acquisition_id)
+                    if record is None and existing_item.get("status") == "completed":
+                        raise IngestionRetryError(
+                            "terminal retry run references a missing Acquisition"
+                        )
+                    if record is not None:
+                        acquisitions.append(Acquisition(**record))
+            return IngestionRunResult(
+                run=IngestionRunRecord(**existing),
+                items=tuple(IngestionItemRecord(**item) for item in existing_items),
+                acquisitions=tuple(acquisitions),
+            )
+        run = IngestionRunRecord(**existing)
+        items = [IngestionItemRecord(**item) for item in existing_items]
+    else:
+        run = _new_run(
             ledger,
-            run_id=run.id,
             source_id=source_id,
-            locator=str(previous_item["locator"]),
-            attempt=int(previous_item.get("attempt", 1)) + 1,
-            retry_of_item_id=str(previous_item["id"]),
+            max_file_bytes=max_file_bytes,
+            max_files=max_files,
+            retry_of_run_id=run_id,
+            record_id=retry_run_id,
         )
-        for previous_item in retryable
-    ]
-    run = replace(run, item_count=len(items))
-    ledger.write_run(run)
-    for item in items:
-        ledger.write_item(item)
+        items = []
+        for previous_item in retryable:
+            item_id = None
+            if retry_run_id is not None:
+                value = f"provelume:ingestion-retry-item:{run.id}:{previous_item['id']}"
+                item_id = f"item_{uuid5(NAMESPACE_URL, value).hex}"
+            items.append(
+                _new_item(
+                    ledger,
+                    run_id=run.id,
+                    source_id=source_id,
+                    locator=str(previous_item["locator"]),
+                    attempt=int(previous_item.get("attempt", 1)) + 1,
+                    retry_of_item_id=str(previous_item["id"]),
+                    record_id=item_id,
+                )
+            )
+        run = replace(run, item_count=len(items))
+        ledger.write_run(run)
+        for item in items:
+            ledger.write_item(item)
+
+    if reconcile_only:
+        return _close_changed_interrupted_run(
+            store,
+            ledger,
+            run,
+            items,
+            deterministic_acquisitions=deterministic_acquisitions,
+        )
 
     finished_items: list[IngestionItemRecord] = []
     acquisitions: list[Acquisition] = []
     for item in items:
+        if item.status in {"completed", "failed"}:
+            finished_items.append(item)
+            if item.acquisition_id is not None:
+                record = store.read_canonical("acquisitions", item.acquisition_id)
+                if record is not None:
+                    acquisitions.append(Acquisition(**record))
+                    continue
+            if item.status == "failed":
+                continue
+            raise IngestionRetryError("completed retry item references a missing Acquisition")
+        deterministic_acquisition_id = None
+        if deterministic_acquisitions:
+            value = f"provelume:ingestion-acquisition:{run.id}:{item.locator}"
+            deterministic_acquisition_id = f"acq_{uuid5(NAMESPACE_URL, value).hex}"
+            reconciled = _reconcile_committed_acquisition(
+                store,
+                ledger,
+                item,
+                deterministic_acquisition_id,
+            )
+            if reconciled is not None:
+                finished, acquisition = reconciled
+                finished_items.append(finished)
+                acquisitions.append(acquisition)
+                continue
         finished, acquisition = _process_item(
             store,
             ledger,
@@ -471,6 +726,7 @@ def _retry_ingestion_run_locked(
             lambda locator=item.locator: _safe_retry_path(source_path, locator),
             max_file_bytes=max_file_bytes,
             retry_extraction=True,
+            acquisition_id=deterministic_acquisition_id,
         )
         finished_items.append(finished)
         if acquisition is not None:
@@ -541,6 +797,7 @@ def _record_matching_acquisition(
     path: Path,
     data: bytes,
     retry_extraction: bool,
+    acquisition_id: str | None = None,
 ) -> Acquisition:
     outcome = "unchanged"
     extraction_error: str | None = None
@@ -549,7 +806,7 @@ def _record_matching_acquisition(
         outcome = "extraction_failed" if extraction_error else "extraction_recovered"
 
     acquisition = Acquisition(
-        id=f"acq_{uuid4().hex}",
+        id=acquisition_id or f"acq_{uuid4().hex}",
         source_id=source_id,
         locator=locator,
         observed_at=observed_at,
@@ -594,13 +851,14 @@ def _record_version_acquisition(
     path: Path,
     data: bytes,
     base_outcome: str,
+    acquisition_id: str | None = None,
 ) -> Acquisition:
     extraction_error: str | None = None
     if store.derived_artifact_for_version(version_id) is None:
         extraction_error = _extract_version(store, version_id, path, data)
     outcome = "extraction_failed" if extraction_error else base_outcome
     acquisition = Acquisition(
-        id=f"acq_{uuid4().hex}",
+        id=acquisition_id or f"acq_{uuid4().hex}",
         source_id=source_id,
         locator=locator,
         observed_at=observed_at,
@@ -658,6 +916,7 @@ def _ingest_one(
     max_file_bytes: int,
     *,
     retry_extraction: bool = False,
+    acquisition_id: str | None = None,
 ) -> Acquisition:
     observed_at = utc_now()
     size = path.stat().st_size
@@ -691,6 +950,7 @@ def _ingest_one(
                 path=path,
                 data=data,
                 retry_extraction=retry_extraction,
+                acquisition_id=acquisition_id,
             )
 
     matching = next(
@@ -763,4 +1023,5 @@ def _ingest_one(
         path=path,
         data=data,
         base_outcome=base_outcome,
+        acquisition_id=acquisition_id,
     )
