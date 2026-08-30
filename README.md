@@ -34,7 +34,8 @@ The roadmap records `0.8.0 Vigilia` as the published preview and `0.9.0 Lectio` 
 development under [#137](https://github.com/gabned/provelume/issues/137). Lectio's S01 reused
 [#5](https://github.com/gabned/provelume/issues/5) through owner
 [PR #138](https://github.com/gabned/provelume/pull/138) to define the local OCR contract. S02 owner
-[#140](https://github.com/gabned/provelume/issues/140) implements bounded local Tesseract execution,
+[#140](https://github.com/gabned/provelume/issues/140) and
+[PR #141](https://github.com/gabned/provelume/pull/141) implement bounded local Tesseract execution,
 PDF/image page preparation and removable document bundles in the unreleased source tree.
 Package and embedded build identity are aligned to `0.8.0`, `v0.8.0` and the exact published
 commit.

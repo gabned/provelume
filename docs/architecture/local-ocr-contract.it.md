@@ -4,7 +4,8 @@ Stato: `0.9/S01` ha definito il contratto pubblico tramite
 [#5](https://github.com/gabned/provelume/issues/5) e
 [PR #138](https://github.com/gabned/provelume/pull/138). `0.9/S02 — Bounded local OCR and
 document bundles` lo implementa sotto la issue owner
-[#140](https://github.com/gabned/provelume/issues/140). Lectio resta sviluppo non pubblicato:
+[#140](https://github.com/gabned/provelume/issues/140) e la
+[PR #141](https://github.com/gabned/provelume/pull/141). Lectio resta sviluppo non pubblicato:
 package, runtime e build identity incorporata rimangono `0.8.0`.
 
 I record normativi sono:

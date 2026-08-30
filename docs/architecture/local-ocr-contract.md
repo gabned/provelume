@@ -4,7 +4,8 @@ Status: `0.9/S01` established the public contract through
 [#5](https://github.com/gabned/provelume/issues/5) and
 [PR #138](https://github.com/gabned/provelume/pull/138). `0.9/S02 — Bounded local OCR and
 document bundles` implements that contract under owner
-[#140](https://github.com/gabned/provelume/issues/140). Lectio remains unreleased development:
+[#140](https://github.com/gabned/provelume/issues/140) and
+[PR #141](https://github.com/gabned/provelume/pull/141). Lectio remains unreleased development:
 the package, runtime and embedded build identity stay `0.8.0`.
 
 The normative records are:
