@@ -32,6 +32,10 @@ MAINTENANCE_COMMANDS = frozenset(
         "maintenance-source-cursors",
         "maintenance-source-runs",
         "maintenance-source-run",
+        "maintenance-resource-status",
+        "maintenance-resource-thresholds-set",
+        "maintenance-resource-snapshots",
+        "maintenance-resource-snapshot",
     }
 )
 
@@ -141,6 +145,37 @@ def add_maintenance_commands(subparsers: Any) -> None:
     source_run.add_argument("instance", type=Path)
     source_run.add_argument("run_id")
 
+    resource_status = subparsers.add_parser(
+        "maintenance-resource-status",
+        help="Show path-free Instance resource statistics, thresholds and trends",
+    )
+    resource_status.add_argument("instance", type=Path)
+    resource_status.add_argument("--history-limit", type=_positive, default=30)
+
+    thresholds = subparsers.add_parser(
+        "maintenance-resource-thresholds-set",
+        help="Replace optional warning and critical Instance capacity thresholds",
+    )
+    thresholds.add_argument("instance", type=Path)
+    thresholds.add_argument("--minimum-free-bytes-warning", type=_non_negative)
+    thresholds.add_argument("--minimum-free-bytes-critical", type=_non_negative)
+    thresholds.add_argument("--maximum-instance-bytes-warning", type=_non_negative)
+    thresholds.add_argument("--maximum-instance-bytes-critical", type=_non_negative)
+
+    resource_snapshots = subparsers.add_parser(
+        "maintenance-resource-snapshots",
+        help="List durable content-free Instance resource snapshots",
+    )
+    resource_snapshots.add_argument("instance", type=Path)
+    resource_snapshots.add_argument("--limit", type=_positive, default=100)
+
+    resource_snapshot = subparsers.add_parser(
+        "maintenance-resource-snapshot",
+        help="Show one durable Instance resource snapshot",
+    )
+    resource_snapshot.add_argument("instance", type=Path)
+    resource_snapshot.add_argument("snapshot_id")
+
 
 def _print(value: Any) -> None:
     print(json.dumps(value, indent=2, sort_keys=True))
@@ -223,6 +258,33 @@ def handle_maintenance_command(args: argparse.Namespace) -> int | None:
             result = instance.get_source_reconciliation_run(args.run_id)
             if result is None:
                 _print({"status": "not_found", "run_id": args.run_id})
+                return 3
+            _print(result)
+            return 0
+        if args.command == "maintenance-resource-status":
+            _print(
+                instance.resource_statistics_status(
+                    history_limit=args.history_limit
+                )
+            )
+            return 0
+        if args.command == "maintenance-resource-thresholds-set":
+            _print(
+                instance.configure_resource_thresholds(
+                    minimum_free_bytes_warning=args.minimum_free_bytes_warning,
+                    minimum_free_bytes_critical=args.minimum_free_bytes_critical,
+                    maximum_instance_bytes_warning=args.maximum_instance_bytes_warning,
+                    maximum_instance_bytes_critical=args.maximum_instance_bytes_critical,
+                )
+            )
+            return 0
+        if args.command == "maintenance-resource-snapshots":
+            _print(instance.list_resource_snapshots(limit=args.limit))
+            return 0
+        if args.command == "maintenance-resource-snapshot":
+            result = instance.get_resource_snapshot(args.snapshot_id)
+            if result is None:
+                _print({"status": "not_found", "snapshot_id": args.snapshot_id})
                 return 3
             _print(result)
             return 0

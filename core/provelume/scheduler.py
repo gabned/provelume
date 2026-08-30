@@ -1483,6 +1483,61 @@ class SchedulerCoordinator:
                 bool(run and run["network_used"]),
                 False,
             )
+        if job["job_kind"] == "maintenance.resource_snapshot":
+            from .resource_statistics import ResourceStatisticsManager
+            from .resource_statistics_model import (
+                ResourceStatisticsChangedError,
+                ResourceStatisticsIOError,
+                ResourceStatisticsLimitError,
+                ResourceStatisticsStateError,
+            )
+
+            try:
+                snapshot = ResourceStatisticsManager(self.store).capture(job)
+            except ResourceStatisticsChangedError:
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "transient",
+                    "resource_statistics_changed",
+                    False,
+                    False,
+                )
+            except (ResourceStatisticsIOError, OSError):
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "transient",
+                    "local_io",
+                    False,
+                    False,
+                )
+            except ResourceStatisticsLimitError:
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "permanent",
+                    "resource_statistics_limit",
+                    False,
+                    False,
+                )
+            except ResourceStatisticsStateError:
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "permanent",
+                    "resource_statistics_failed",
+                    False,
+                    False,
+                )
+            return (
+                True,
+                self._progress(processed=int(snapshot["file_count"])),
+                "",
+                "",
+                False,
+                False,
+            )
         if job["job_kind"] in {"search.reindex", "search.reindex.incremental"}:
             from .maintenance import MaintenanceManager
             from .maintenance_model import (

@@ -109,6 +109,9 @@ observes one explicit managed folder and ingests only after its S02 quiescence g
 can repair, purge, apply retention, contact a provider or delete canonical knowledge.
 `maintenance.source_reconcile` reads one exact managed Source and canonical provenance, persists
 only Source-bound hashes and counts, and performs no ingestion or canonical mutation.
+`maintenance.resource_snapshot` reads only local Instance filesystem metadata and capacity,
+persists one idempotent aggregate observation per job, and never enforces its warning or critical
+thresholds.
 
 An explicit CLI cycle evaluates policies and executes a bounded number of jobs:
 
@@ -148,6 +151,7 @@ hidden process.
   destination can be bound without persisting a path or granting destination cleanup authority.
 - Provider/connector network cursors remain later work; S04 implements only managed filesystem
   Source reconciliation and lifecycle state.
-- Resource policies and capacity/statistics evidence belong to `0.8/S05`.
+- Resource policies and capacity/statistics evidence are implemented by `0.8/S05` through
+  idempotent Instance-scoped snapshots.
 - There is no hidden network access, cloud fallback, canonical duplication, automatic repair,
   purge, retention action, destination cleanup or release/version change in this slice.

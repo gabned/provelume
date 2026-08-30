@@ -34,7 +34,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.6.0` | Portable Instance and hierarchical Markdown library | #95 (completed) | `Bibliotheca` |
 | Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
-| Active implementation | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122 (`0.8/S01`), #124 (`0.8/S02`), #126 (`0.8/S03`), #128 (`0.8/S04`) | `Vigilia` |
+| Active implementation | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122 (`0.8/S01`), #124 (`0.8/S02`), #126 (`0.8/S03`), #128 (`0.8/S04`), #130 (`0.8/S05`) | `Vigilia` |
 | Forecast | `0.9.0` | OCR, email, Google file and transcript intake | issue just in time | `Lectio` |
 | Forecast | `0.10.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.11.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
@@ -648,7 +648,8 @@ portable scheduled watching, quiescence, mount-loss state and an idempotent `sou
 executor. Issue #126 implements `0.8/S03`: a closed maintenance catalogue, dry-run estimates and
 full/incremental FTS generations with per-item checkpoint and activation recovery. Issue #128
 implements `0.8/S04`: exact filesystem Source reconciliation, monotonic cursors and closed
-lifecycle states. `0.8/S05` remains planned.
+lifecycle states. Issue #130 implements `0.8/S05`: append-only Instance file/byte/category trends,
+filesystem capacity and observable warning/critical thresholds.
 
 **Outcome:** make schedules, local-folder observation, refresh, reindex, retry and Source/job state
 durable without turning every timer, filesystem event or poll into a new document version.
@@ -707,7 +708,8 @@ unreleased `main` through #122); `0.8/S02` local/removable/network-folder Source
 watching, quiescence and mount-loss recovery (implemented through #124); `0.8/S03`
 maintenance/reindex catalogue and interruption recovery (implemented through #126); `0.8/S04`
 filesystem Source reconciliation, cursors and lifecycle states (implemented through #128);
-`0.8/S05` resource policies, statistics evidence and end-to-end recovery fixtures.
+`0.8/S05` resource policies, statistics evidence and end-to-end recovery fixtures (implemented
+through #130).
 
 ### 0.9.0 — OCR, Email, Google File and Transcript Intake
 

@@ -176,6 +176,12 @@ the same explicit controls behind a per-process CSRF token. See
 - `GET /api/v1/maintenance/source-runs?limit=100` — newest content-free reconciliation runs;
 - `GET /api/v1/maintenance/source-runs/{run_id}` — one Source-bound plan, classification counts,
   checkpoint and terminal state.
+- `GET /api/v1/maintenance/resource-statistics?history_limit=30` — current threshold settings,
+  newest content-free observation and bounded trend history;
+- `GET /api/v1/maintenance/resource-statistics/snapshots?limit=100` — newest immutable Instance
+  resource snapshots;
+- `GET /api/v1/maintenance/resource-statistics/snapshots/{snapshot_id}` — one exact file/byte/
+  category/capacity observation and its previous-snapshot delta.
 
 All maintenance API routes are read-only. They never queue work, activate a generation, read a
 Source path or accept a backup destination. Local mutations use `maintenance-policy-create` and
@@ -186,6 +192,10 @@ and observed free space. See
 Source reconciliation endpoints never enumerate a Source or expose locators. Local policy and Run
 now mutations require an exact managed `source_id`; see
 [`architecture/source-reconciliation-cursors-and-lifecycle.md`](architecture/source-reconciliation-cursors-and-lifecycle.md).
+Resource endpoints return aggregate regular-file and logical-byte counts, closed categories,
+filesystem capacity and applied threshold codes; they expose no path, filename or content. Threshold
+configuration remains local service/CLI authority. See
+[`architecture/resource-statistics-capacity-and-thresholds.md`](architecture/resource-statistics-capacity-and-thresholds.md).
 
 ## Documents
 

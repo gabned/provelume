@@ -614,6 +614,7 @@ def inspect_instance(root: Path | str, *, deep: bool = True) -> dict[str, Any]:
         _validate_references(records, errors)
         from .folder_sources import folder_source_state_findings
         from .maintenance import maintenance_state_findings
+        from .resource_statistics import resource_statistics_state_findings
         from .scheduler import scheduler_state_findings
         from .source_reconciliation import source_reconciliation_state_findings
 
@@ -621,6 +622,7 @@ def inspect_instance(root: Path | str, *, deep: bool = True) -> dict[str, Any]:
         errors.extend(maintenance_state_findings(store))
         errors.extend(scheduler_state_findings(store))
         errors.extend(source_reconciliation_state_findings(store))
+        errors.extend(resource_statistics_state_findings(store))
         original_files = _validate_originals(
             store,
             records["originals"],

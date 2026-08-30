@@ -107,6 +107,7 @@ the same Source selection and evidence; only a CSRF-protected local form may que
 
 - S04 does not add a native filesystem-event service, daemon or hidden background process.
 - Provider, connector, HTTP conditional-request and remote authorization cursors remain later work.
-- S05 owns durable file/category/trend/capacity statistics, thresholds and resource policies.
+- S05 implements durable Instance file/category/trend/capacity statistics, thresholds and resource
+  policies without extending reconciliation authority to Source-volume scans.
 - Reconciliation does not import untracked files, mutate moved Documents, repair missing state,
   clean destinations, delete derived data or publish a release.

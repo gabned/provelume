@@ -16,6 +16,7 @@ The catalogue is code-defined and returned in one stable order. Unknown action I
 | `maintenance.library_rebuild` | available | rebuildable derived write; restart-only |
 | `maintenance.source_reconcile` | available | read-only exact Source scope; resumable |
 | `maintenance.validate` | available | read-only; restart-only |
+| `maintenance.resource_snapshot` | available | content-free Instance observation; restart-only and idempotent |
 | `maintenance.original_assurance` | available | read-only verification; restart-only |
 | `maintenance.duplicate_scan` | available | review-only derived evidence; restart-only |
 | `maintenance.backup_create` | unavailable | explicit destination required |
@@ -27,6 +28,10 @@ automatic deletion. A Source-reconciliation terminal receipt separately records 
 operator-selected Source is a mounted-network class. An unavailable entry cannot create a policy
 or job. In particular, the scheduler never invents a backup destination and never turns
 validation, assurance or a duplicate scan into repair.
+
+Resource observations use the same journal but persist their own immutable, job-bound sample before
+the terminal receipt. Their categories, capacity semantics, threshold settings and replay boundary
+are defined in [resource statistics, capacity and thresholds](resource-statistics-capacity-and-thresholds.md).
 
 Available actions use exact Instance scope and the existing manual/interval/calendar policy
 contract, including explicit timezone, DST policy, quiet window, deterministic jitter, missed-run
@@ -50,8 +55,8 @@ content-mismatched baseline falls back visibly to a full strategy. Execution rep
 temporary-space check and fails with the closed `insufficient_temporary_space` code before creating
 a run or changing the active index.
 
-The estimate is a safety preflight, not a capacity forecast. S05 owns durable capacity thresholds,
-resource policies and trends.
+The estimate is a safety preflight, not a capacity forecast. S05 implements durable local Instance
+capacity thresholds and trends through the separate content-free resource-snapshot action.
 
 ## Durable run and isolated candidate
 
@@ -140,7 +145,8 @@ reads expose no Instance or Source path. S04 reconciliation cursors and runs are
 
 ## Deliberate limits
 
-- S05 owns resource policies, durable file/byte/category/trend statistics and capacity thresholds.
+- S05 resource policies, durable file/byte/category/trend statistics and capacity thresholds are
+  implemented by the content-free Instance snapshot contract; they do not enforce quotas.
 - Backup scheduling remains unavailable until an explicit destination/verification parameter can
   be bound without weakening path privacy or cleanup authority.
 - No maintenance schedule performs repair, purge, retention deletion, destination cleanup,

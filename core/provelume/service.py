@@ -38,6 +38,7 @@ from .network_status import declared_network_status
 from .oauth_authorization import InstalledAppAuthorizationManager, InstalledAppOAuthAdapter
 from .paths import UnsafePathError
 from .portable_transfer import PortableInstanceTransfer
+from .resource_statistics import ResourceStatisticsManager
 from .retention import DocumentRetentionManager
 from .retention_model import DISPOSITION_FILTERS, effective_dispositions
 from .scheduler import SchedulerCoordinator, public_job_record, schedule_payload
@@ -64,6 +65,7 @@ class ProvelumeInstance:
         self.folder_sources = FolderSourceManager(self.store)
         self.maintenance = MaintenanceManager(self.store)
         self.source_reconciliation = SourceReconciliationManager(self.store)
+        self.resource_statistics = ResourceStatisticsManager(self.store)
         self.scheduler = SchedulerCoordinator(self.store)
         try:
             recovery = self.scheduler.recover()
@@ -276,6 +278,50 @@ class ProvelumeInstance:
         run_id: str,
     ) -> dict[str, Any] | None:
         return self.source_reconciliation.get_run(run_id)
+
+    def resource_statistics_status(
+        self,
+        *,
+        history_limit: int = 30,
+    ) -> dict[str, Any]:
+        return self.resource_statistics.status(history_limit=history_limit)
+
+    def list_resource_snapshots(
+        self,
+        *,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        return self.resource_statistics.list_snapshots(limit=limit)
+
+    def get_resource_snapshot(self, snapshot_id: str) -> dict[str, Any] | None:
+        return self.resource_statistics.get_snapshot(snapshot_id)
+
+    def configure_resource_thresholds(
+        self,
+        *,
+        minimum_free_bytes_warning: int | None = None,
+        minimum_free_bytes_critical: int | None = None,
+        maximum_instance_bytes_warning: int | None = None,
+        maximum_instance_bytes_critical: int | None = None,
+    ) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="resource-threshold-configure"
+            ):
+                return self.resource_statistics.configure_thresholds(
+                    {
+                        "minimum_free_bytes_warning": minimum_free_bytes_warning,
+                        "minimum_free_bytes_critical": minimum_free_bytes_critical,
+                        "maximum_instance_bytes_warning": maximum_instance_bytes_warning,
+                        "maximum_instance_bytes_critical": maximum_instance_bytes_critical,
+                    }
+                )
+        except InstanceLifecycleBusy as exc:
+            raise MaintenanceError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise MaintenanceError(
+                "resource threshold lifecycle lock is unavailable"
+            ) from exc
 
     def _maintenance_scope(
         self,

@@ -90,6 +90,7 @@ def attach_maintenance_routes(
             source_forms=source_forms,
             source_cursors=instance.list_source_reconciliation_cursors(),
             source_runs=instance.list_source_reconciliation_runs(limit=50),
+            resource_status=instance.resource_statistics_status(history_limit=20),
             jobs=jobs,
             editable=editable,
             csrf_token=csrf_token if editable else None,
