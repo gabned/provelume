@@ -351,6 +351,68 @@ def _reconcile_committed_acquisition(
     return finished, acquisition
 
 
+def _close_changed_interrupted_run(
+    store: InstanceStore,
+    ledger: IngestionLedger,
+    run: IngestionRunRecord,
+    items: list[IngestionItemRecord],
+    *,
+    deterministic_acquisitions: bool,
+) -> IngestionRunResult:
+    """Reconcile commits but never read bytes from a changed Source snapshot."""
+
+    finished_items: list[IngestionItemRecord] = []
+    acquisitions: list[Acquisition] = []
+    for item in items:
+        if item.status in {"completed", "failed"}:
+            finished_items.append(item)
+            if item.acquisition_id is not None:
+                record = store.read_canonical("acquisitions", item.acquisition_id)
+                if record is not None:
+                    acquisitions.append(Acquisition(**record))
+                    continue
+            if item.status == "failed":
+                continue
+            raise IngestionInputError(
+                "completed interrupted item references a missing Acquisition"
+            )
+        deterministic_acquisition_id = None
+        if deterministic_acquisitions:
+            value = f"provelume:ingestion-acquisition:{run.id}:{item.locator}"
+            deterministic_acquisition_id = f"acq_{uuid5(NAMESPACE_URL, value).hex}"
+            reconciled = _reconcile_committed_acquisition(
+                store,
+                ledger,
+                item,
+                deterministic_acquisition_id,
+            )
+            if reconciled is not None:
+                finished, acquisition = reconciled
+                finished_items.append(finished)
+                acquisitions.append(acquisition)
+                continue
+        completed_at = utc_now()
+        failed = replace(
+            item,
+            status="failed",
+            started_at=item.started_at or completed_at,
+            completed_at=completed_at,
+            acquisition_id=None,
+            outcome=None,
+            error_code="input_io_error",
+            error="Source snapshot changed before the interrupted item could resume",
+        )
+        ledger.write_item(failed)
+        finished_items.append(failed)
+
+    closed = _close_run(ledger, run, finished_items)
+    return IngestionRunResult(
+        run=closed,
+        items=tuple(finished_items),
+        acquisitions=tuple(acquisitions),
+    )
+
+
 def _run_ingestion_filesystem_locked(
     store: InstanceStore,
     source_path: Path | str,
@@ -359,6 +421,7 @@ def _run_ingestion_filesystem_locked(
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
     max_files: int = DEFAULT_MAX_FILES,
     run_id: str | None = None,
+    reconcile_only: bool = False,
 ) -> IngestionRunResult:
     source_id, configured_source_path = _source_for_run(store, source_path, source_name)
     ledger = IngestionLedger(store)
@@ -395,6 +458,16 @@ def _run_ingestion_filesystem_locked(
         )
     )
     ledger.write_run(run)
+    if reconcile_only:
+        if existing_run is None:
+            raise IngestionInputError("cannot reconcile an ingestion run that was not started")
+        return _close_changed_interrupted_run(
+            store,
+            ledger,
+            run,
+            [IngestionItemRecord(**item) for item in ledger.items_for_run(run.id)],
+            deterministic_acquisitions=run_id is not None,
+        )
 
     try:
         canonical_source_path = configured_source_path.expanduser().resolve(strict=True)
@@ -534,6 +607,7 @@ def _retry_ingestion_run_locked(
     *,
     retry_run_id: str | None = None,
     deterministic_acquisitions: bool = False,
+    reconcile_only: bool = False,
 ) -> IngestionRunResult:
     ledger = IngestionLedger(store)
     previous = ledger.get_run(run_id)
@@ -607,6 +681,15 @@ def _retry_ingestion_run_locked(
         ledger.write_run(run)
         for item in items:
             ledger.write_item(item)
+
+    if reconcile_only:
+        return _close_changed_interrupted_run(
+            store,
+            ledger,
+            run,
+            items,
+            deterministic_acquisitions=deterministic_acquisitions,
+        )
 
     finished_items: list[IngestionItemRecord] = []
     acquisitions: list[Acquisition] = []

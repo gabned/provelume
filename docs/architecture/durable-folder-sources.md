@@ -70,6 +70,10 @@ later refresh. An unchanged, successfully completed snapshot becomes `current`; 
 scheduled jobs skip it without a new Acquisition, Version or Original. Per-item failures produce a
 closed scheduler failure and never weaken file, count or byte limits.
 
+If the fingerprint changes while a run is interrupted, recovery first reconciles any already
+committed deterministic Acquisitions, closes unread items without reading bytes from the changed
+snapshot, and only then permits a new quiesced run to ingest that new snapshot.
+
 Scheduler lease, heartbeat, checkpoint, bounded retry and immutable receipt behavior remains the
 S01 contract. A folder receipt truthfully records mounted-network use, whether that attempt wrote
 canonical Acquisition evidence and `automatic_deletion: false`. Sleep/wake and forward clock jumps

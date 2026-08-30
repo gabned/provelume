@@ -244,6 +244,11 @@ def test_interrupted_item_commit_resumes_same_run_without_duplicate_acquisition(
     assert missing["status"] == "skipped"
     assert missing["reason"] == "missing"
     assert manager.observer(source_id)["active_run_id"] == active_run_id
+    paused = instance.set_folder_source_state(source_id, "paused")
+    assert paused["observer"]["active_run_id"] == active_run_id
+    assert instance.observe_folder_source(source_id)["active_run_id"] == active_run_id
+    enabled = instance.set_folder_source_state(source_id, "enabled")
+    assert enabled["observer"]["active_run_id"] == active_run_id
     detached.rename(source)
     monkeypatch.setattr(IngestionLedger, "write_item", original_write_item)
 
@@ -261,6 +266,59 @@ def test_interrupted_item_commit_resumes_same_run_without_duplicate_acquisition(
     assert len(instance.store.list_canonical("originals")) == 1
     assert len(instance.store.list_canonical("versions")) == 1
     assert manager.observer(source_id)["phase"] == "current"
+
+
+def test_changed_snapshot_after_interruption_reconciles_before_new_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    first_path = source / "a.txt"
+    second_path = source / "b.txt"
+    first_path.write_text("first old\n", encoding="utf-8")
+    second_path.write_text("second old\n", encoding="utf-8")
+    instance = _instance(tmp_path)
+    source_id = str(_register(instance, source)["id"])
+    manager = instance.folder_sources
+    original_write_item = IngestionLedger.write_item
+    interrupted = False
+
+    def interrupt_after_first_commit(self, item):
+        nonlocal interrupted
+        if item.status == "completed" and not interrupted:
+            interrupted = True
+            raise RuntimeError("synthetic snapshot interruption")
+        return original_write_item(self, item)
+
+    monkeypatch.setattr(IngestionLedger, "write_item", interrupt_after_first_commit)
+    job_id = "job_" + "4" * 32
+    with (
+        pytest.raises(RuntimeError, match="snapshot interruption"),
+        InstanceLifecycleManager(instance.store)._hold(purpose="changing-snapshot-crash"),
+    ):
+        manager.refresh(source_id, scheduler_job_id=job_id)
+    committed = instance.store.list_canonical("acquisitions")[0]
+    assert committed["outcome"] == "created"
+    monkeypatch.setattr(IngestionLedger, "write_item", original_write_item)
+    first_path.write_text("first new\n", encoding="utf-8")
+    second_path.write_text("second new\n", encoding="utf-8")
+
+    with InstanceLifecycleManager(instance.store)._hold(purpose="reconcile-old-snapshot"):
+        reconciled = manager.refresh(source_id, scheduler_job_id=job_id)
+    assert reconciled["status"] == "failed"
+    assert reconciled["reason"] == "input_io_error"
+    assert reconciled["run"]["run"]["status"] == "completed_with_errors"
+    assert instance.store.list_canonical("acquisitions") == [committed]
+
+    with InstanceLifecycleManager(instance.store)._hold(purpose="ingest-new-snapshot"):
+        converged = manager.refresh(source_id, scheduler_job_id=job_id)
+    assert converged["status"] == "refreshed"
+    assert converged["observer"]["phase"] == "current"
+    assert len(instance.store.list_canonical("acquisitions")) == 3
+    assert len(instance.store.list_canonical("versions")) == 3
+    assert instance.search("first new")[0]["source_id"] == source_id
+    assert instance.search("second new")[0]["source_id"] == source_id
 
 
 def test_transient_failed_snapshot_retries_failed_items_with_bounded_backoff(

@@ -218,7 +218,7 @@ class FolderSourceManager:
             **observer,
             "lifecycle_state": state,
             "phase": "paused" if state == "paused" else "unobserved",
-            "active_run_id": None if state == "paused" else observer["active_run_id"],
+            "active_run_id": observer["active_run_id"],
             "updated_at": instant_text(None),
         }
         self._write_observer(observer)
@@ -329,7 +329,7 @@ class FolderSourceManager:
                     "lifecycle_state": "paused",
                     "phase": "paused",
                     "last_observed_at": now_text,
-                    "active_run_id": None,
+                    "active_run_id": observer["active_run_id"],
                     "last_error_code": None,
                     "updated_at": now_text,
                     "network_used": False,
@@ -414,11 +414,7 @@ class FolderSourceManager:
                 "total_bytes": total_bytes,
                 "clock_change_count": int(observer["clock_change_count"])
                 + (1 if clock_reversed else 0),
-                "active_run_id": (
-                    None
-                    if changed and observer["last_attempted_fingerprint"] != fingerprint
-                    else observer["active_run_id"]
-                ),
+                "active_run_id": observer["active_run_id"],
                 "last_error_code": None,
                 "updated_at": now_text,
                 "network_used": folder["source_class"] == "network",
@@ -488,6 +484,12 @@ class FolderSourceManager:
             if observed["active_run_id"] is not None
             and observed["last_attempted_fingerprint"] is not None
             else observed["pending_fingerprint"]
+        )
+        reconcile_only = (
+            observed["active_run_id"] is not None
+            and observed["last_attempted_fingerprint"] is not None
+            and observed["pending_fingerprint"]
+            != observed["last_attempted_fingerprint"]
         )
         ledger = IngestionLedger(self.store)
         base_run_id = self._run_id(
@@ -564,6 +566,7 @@ class FolderSourceManager:
                     retry_of_run_id,
                     retry_run_id=str(run_id),
                     deterministic_acquisitions=True,
+                    reconcile_only=reconcile_only,
                 )
             else:
                 result = _run_ingestion_filesystem_locked(
@@ -572,6 +575,7 @@ class FolderSourceManager:
                     max_file_bytes=int(folder["max_file_bytes"]),
                     max_files=int(folder["max_files"]),
                     run_id=str(run_id),
+                    reconcile_only=reconcile_only,
                 )
         except IngestionRetryError as exc:
             raise FolderSourceError("durable folder Source retry is inconsistent") from exc
