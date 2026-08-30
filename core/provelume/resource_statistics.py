@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -166,7 +167,73 @@ class ResourceStatisticsManager:
             return "managed_inbox"
         return "other"
 
-    def _scan(self) -> tuple[dict[str, dict[str, int]], int, int]:
+    @staticmethod
+    def _metadata_identity(value: os.stat_result) -> tuple[int, int, int, int, int, int]:
+        return (
+            int(value.st_mode),
+            int(value.st_size),
+            int(value.st_mtime_ns),
+            int(value.st_ctime_ns),
+            int(value.st_dev),
+            int(value.st_ino),
+        )
+
+    @staticmethod
+    def _member_digest(rows: list[tuple[str, str]]) -> str:
+        digest = hashlib.sha256()
+        for name, kind in rows:
+            encoded = os.fsencode(name)
+            digest.update(len(encoded).to_bytes(8, "big"))
+            digest.update(encoded)
+            digest.update(b"\0" + kind.encode("ascii") + b"\n")
+        return digest.hexdigest()
+
+    def _directory_member_digest(self, directory: Path, instance_root: Path) -> str:
+        try:
+            if self._link_like(directory) or directory.resolve(strict=True) != directory:
+                raise ResourceStatisticsChangedError(
+                    "Instance directory changed during resource observation"
+                )
+            if not directory.is_relative_to(instance_root):
+                raise ResourceStatisticsStateError(
+                    "resource observation escaped the Instance root"
+                )
+            with os.scandir(directory) as iterator:
+                entries = sorted(iterator, key=lambda item: item.name)
+            rows: list[tuple[str, str]] = []
+            for entry in entries:
+                selected = Path(entry.path)
+                if entry.is_symlink() or selected.is_junction():
+                    continue
+                metadata = entry.stat(follow_symlinks=False)
+                if stat.S_ISDIR(metadata.st_mode):
+                    rows.append((entry.name, "directory"))
+                elif stat.S_ISREG(metadata.st_mode):
+                    rows.append((entry.name, "file"))
+            return self._member_digest(rows)
+        except FileNotFoundError as exc:
+            raise ResourceStatisticsChangedError(
+                "Instance files changed during resource observation"
+            ) from exc
+        except PermissionError as exc:
+            raise ResourceStatisticsIOError(
+                "Instance files are unreadable for resource observation"
+            ) from exc
+        except ResourceStatisticsStateError:
+            raise
+        except OSError as exc:
+            raise ResourceStatisticsIOError(
+                "Instance files could not be observed"
+            ) from exc
+
+    def _after_scan_walk(self) -> None:
+        """Test seam before the stability barrier rechecks every observed entry."""
+
+    def _scan(
+        self,
+        *,
+        job_id: str | None = None,
+    ) -> tuple[dict[str, dict[str, int]], int, int]:
         instance_root = self.store.paths.root
         try:
             resolved_root = instance_root.resolve(strict=True)
@@ -178,6 +245,15 @@ class ResourceStatisticsManager:
         file_count = 0
         byte_count = 0
         pending = [instance_root]
+        directory_members: dict[Path, str] = {}
+        file_metadata: list[
+            tuple[Path, tuple[int, int, int, int, int, int], bool]
+        ] = []
+        volatile_job = (
+            self.store.paths.state / "scheduler" / "jobs" / f"{job_id}.json"
+            if job_id is not None
+            else None
+        )
         while pending:
             directory = pending.pop()
             try:
@@ -205,6 +281,7 @@ class ResourceStatisticsManager:
                 raise ResourceStatisticsIOError(
                     "Instance files could not be observed"
                 ) from exc
+            member_rows: list[tuple[str, str]] = []
             for entry in entries:
                 try:
                     selected = Path(entry.path)
@@ -224,10 +301,12 @@ class ResourceStatisticsManager:
                         "Instance files could not be observed"
                     ) from exc
                 if stat.S_ISDIR(metadata.st_mode):
+                    member_rows.append((entry.name, "directory"))
                     pending.append(selected)
                     continue
                 if not stat.S_ISREG(metadata.st_mode):
                     continue
+                member_rows.append((entry.name, "file"))
                 file_count += 1
                 if file_count > MAX_RESOURCE_FILES:
                     raise ResourceStatisticsLimitError(
@@ -243,6 +322,52 @@ class ResourceStatisticsManager:
                 category = self._category(relative)
                 categories[category]["file_count"] += 1
                 categories[category]["byte_count"] += size
+                file_metadata.append(
+                    (
+                        selected,
+                        self._metadata_identity(metadata),
+                        selected == volatile_job,
+                    )
+                )
+            directory_members[directory] = self._member_digest(member_rows)
+
+        self._after_scan_walk()
+        for directory, expected in directory_members.items():
+            if self._directory_member_digest(directory, resolved_root) != expected:
+                raise ResourceStatisticsChangedError(
+                    "Instance directory membership changed during resource observation"
+                )
+        for path, expected, heartbeat_volatile in file_metadata:
+            try:
+                if self._link_like(path):
+                    raise ResourceStatisticsChangedError(
+                        "Instance file changed during resource observation"
+                    )
+                observed = path.stat(follow_symlinks=False)
+            except FileNotFoundError as exc:
+                raise ResourceStatisticsChangedError(
+                    "Instance files changed during resource observation"
+                ) from exc
+            except PermissionError as exc:
+                raise ResourceStatisticsIOError(
+                    "Instance files are unreadable for resource observation"
+                ) from exc
+            except ResourceStatisticsStateError:
+                raise
+            except OSError as exc:
+                raise ResourceStatisticsIOError(
+                    "Instance files could not be observed"
+                ) from exc
+            identity = self._metadata_identity(observed)
+            stable_total_fields = identity[:2] == expected[:2]
+            if not stat.S_ISREG(observed.st_mode) or not stable_total_fields:
+                raise ResourceStatisticsChangedError(
+                    "Instance file metadata changed during resource observation"
+                )
+            if not heartbeat_volatile and identity != expected:
+                raise ResourceStatisticsChangedError(
+                    "Instance file metadata changed during resource observation"
+                )
         return categories, file_count, byte_count
 
     def _capacity(self) -> dict[str, int]:
@@ -489,7 +614,7 @@ class ResourceStatisticsManager:
             raise ResourceStatisticsLimitError(
                 "resource snapshot history reached its explicit safety bound"
             )
-        categories, file_count, byte_count = self._scan()
+        categories, file_count, byte_count = self._scan(job_id=job_id)
         capacity = self._capacity()
         settings = self.threshold_settings()
         previous = history[-1] if history else None
