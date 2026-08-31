@@ -8,18 +8,28 @@ from pathlib import Path
 
 import pytest
 
+import provelume.email_containers as email_containers
 from provelume.email_containers import EmlFileAdapter, MaildirAdapter, adapter_for_profile
-from provelume.email_contract import EmailContractError, EmailLimits, EmailSourceConfig
+from provelume.email_contract import (
+    EmailContractError,
+    EmailLimits,
+    EmailSourceConfig,
+    FilesystemIdentity,
+)
 
 SOURCE_ID = "src_" + "2" * 32
+WINDOWS_MAILDIR_UNQUALIFIED = pytest.mark.skipif(
+    os.name == "nt", reason="Maildir is not qualified on Windows"
+)
 
 
 @pytest.fixture(autouse=True)
 def qualified_linux(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "provelume.email_contract.qualified_runtime_target",
-        lambda: "ubuntu-24.04-x86_64-cpython312",
-    )
+    if os.name != "nt":
+        monkeypatch.setattr(
+            "provelume.email_contract.qualified_runtime_target",
+            lambda: "ubuntu-24.04-x86_64-cpython312",
+        )
 
 
 def eml_config(path: Path, *, state: str = "enabled") -> EmailSourceConfig:
@@ -65,6 +75,29 @@ def test_eml_snapshot_and_read_preserve_exact_source_bytes(tmp_path: Path) -> No
     assert observed.size_bytes == len(data)
     assert observed.sha256 == hashlib.sha256(data).hexdigest()
     assert adapter.recheck(snapshot).snapshot_sha256 == snapshot.snapshot_sha256
+
+
+def test_windows_open_identity_uses_stable_handle_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected = FilesystemIdentity(
+        device=3,
+        inode=5,
+        size_bytes=7,
+        mtime_ns=11,
+        ctime_ns=13,
+        link_count=1,
+        file_attributes=32,
+    )
+    monkeypatch.setattr(email_containers, "_WINDOWS_PLATFORM", True)
+    opened = replace(expected, ctime_ns=17, file_attributes=0)
+    assert email_containers._same_open_identity(opened, expected)
+    assert not email_containers._same_open_identity(
+        replace(opened, inode=opened.inode + 1), expected
+    )
+    assert not email_containers._same_open_identity(
+        replace(opened, size_bytes=opened.size_bytes + 1), expected
+    )
 
 
 @pytest.mark.parametrize(
@@ -182,6 +215,7 @@ def test_reparse_point_branch_fails_closed(
     assert probe.reason == "email_source_unsafe"
 
 
+@WINDOWS_MAILDIR_UNQUALIFIED
 def test_maildir_enumerates_only_cur_and_new_and_preserves_bytes(tmp_path: Path) -> None:
     root = make_maildir(tmp_path / "maildir")
     first = b"Subject: cur\n\ncur-body\n"
@@ -200,6 +234,7 @@ def test_maildir_enumerates_only_cur_and_new_and_preserves_bytes(tmp_path: Path)
     assert all(b"incomplete" not in value for value in observed)
 
 
+@WINDOWS_MAILDIR_UNQUALIFIED
 def test_maildir_requires_exact_layout_and_rejects_bad_entries(tmp_path: Path) -> None:
     root = tmp_path / "maildir"
     root.mkdir()
@@ -212,6 +247,7 @@ def test_maildir_requires_exact_layout_and_rejects_bad_entries(tmp_path: Path) -
     assert probe.reason == "email_input_non_regular"
 
 
+@WINDOWS_MAILDIR_UNQUALIFIED
 def test_maildir_rejects_symlink_and_hardlink_entries(tmp_path: Path) -> None:
     root = make_maildir(tmp_path / "maildir")
     target = root / "new" / "message"
@@ -234,6 +270,7 @@ def test_maildir_rejects_symlink_and_hardlink_entries(tmp_path: Path) -> None:
         assert MaildirAdapter(maildir_config(root)).probe().reason == "email_source_unsafe"
 
 
+@WINDOWS_MAILDIR_UNQUALIFIED
 def test_maildir_rename_or_mutation_invalidates_snapshot(tmp_path: Path) -> None:
     root = make_maildir(tmp_path / "maildir")
     message = root / "new" / "one"
@@ -249,6 +286,7 @@ def test_maildir_rename_or_mutation_invalidates_snapshot(tmp_path: Path) -> None
     assert caught.value.code == "email_input_changed"
 
 
+@WINDOWS_MAILDIR_UNQUALIFIED
 def test_maildir_cumulative_limits_fail_before_any_message_read(tmp_path: Path) -> None:
     root = make_maildir(tmp_path / "maildir")
     (root / "new" / "one").write_bytes(b"12345")

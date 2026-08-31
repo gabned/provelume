@@ -272,6 +272,7 @@ def test_enabled_capability_probe_is_bounded_path_free_and_effective(
     )
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Maildir is not qualified on Windows")
 def test_maildir_capability_requires_explicit_layout(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

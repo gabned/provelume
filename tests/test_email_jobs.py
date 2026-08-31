@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import socket
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -12,13 +13,18 @@ from provelume.email_contract import EmailContractError
 from provelume.email_sources import EmailSourceError
 from provelume.service import ProvelumeInstance
 
+WINDOWS_MAILDIR_UNQUALIFIED = pytest.mark.skipif(
+    os.name == "nt", reason="Maildir is not qualified on Windows"
+)
+
 
 @pytest.fixture(autouse=True)
 def qualified_linux(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "provelume.email_contract.qualified_runtime_target",
-        lambda: "ubuntu-24.04-x86_64-cpython312",
-    )
+    if os.name != "nt":
+        monkeypatch.setattr(
+            "provelume.email_contract.qualified_runtime_target",
+            lambda: "ubuntu-24.04-x86_64-cpython312",
+        )
 
 
 def _message(
@@ -156,6 +162,7 @@ def test_replay_collision_and_derived_rebuild_preserve_canonical_state(
     assert instance.validate_instance(deep=True)["status"] == "valid"
 
 
+@WINDOWS_MAILDIR_UNQUALIFIED
 def test_scheduled_maildir_materializes_request_and_isolates_message_errors(
     tmp_path: Path,
 ) -> None:
@@ -364,6 +371,7 @@ def test_expired_lease_recovers_commit_before_scheduler_checkpoint(
     assert instance.validate_instance(deep=True)["status"] == "valid"
 
 
+@WINDOWS_MAILDIR_UNQUALIFIED
 def test_locator_rename_reuses_message_but_retains_a_new_observation(
     tmp_path: Path,
 ) -> None:

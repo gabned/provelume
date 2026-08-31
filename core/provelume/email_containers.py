@@ -26,6 +26,7 @@ from .email_contract import (
 
 _READ_CHUNK_BYTES = 1024 * 1024
 _REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+_WINDOWS_PLATFORM = os.name == "nt"
 
 
 def _utc_now() -> str:
@@ -120,6 +121,29 @@ def _directory_identity(path: Path) -> FilesystemIdentity:
 
 def _same_identity(left: FilesystemIdentity, right: FilesystemIdentity) -> bool:
     return left == right
+
+
+def _same_open_identity(
+    opened: FilesystemIdentity, path_identity: FilesystemIdentity
+) -> bool:
+    common_matches = (
+        opened.device == path_identity.device
+        and opened.inode == path_identity.inode
+        and opened.size_bytes == path_identity.size_bytes
+        and opened.mtime_ns == path_identity.mtime_ns
+        and opened.link_count == path_identity.link_count
+    )
+    if _WINDOWS_PLATFORM:
+        # CPython's path and handle stat implementations can expose different
+        # precision or dummy values for Windows-only metadata.  The file index,
+        # device, size, modification time and link count bind the open handle;
+        # full path identities are still compared before and after the read.
+        return common_matches
+    return (
+        common_matches
+        and opened.ctime_ns == path_identity.ctime_ns
+        and opened.file_attributes == path_identity.file_attributes
+    )
 
 
 class _BaseLocalEmailAdapter:
@@ -263,7 +287,7 @@ class _BaseLocalEmailAdapter:
         data = bytearray()
         try:
             opened = _identity(os.fstat(descriptor))
-            if not _same_identity(opened, expected):
+            if not _same_open_identity(opened, expected):
                 raise EmailContractError(
                     "email_input_changed", "email input changed while it was opened"
                 )
@@ -282,7 +306,7 @@ class _BaseLocalEmailAdapter:
                         "email message byte limit was exceeded",
                     )
             after = _identity(os.fstat(descriptor))
-            if not _same_identity(after, expected) or len(data) != expected.size_bytes:
+            if not _same_identity(after, opened) or len(data) != expected.size_bytes:
                 raise EmailContractError(
                     "email_input_changed", "email input changed during the bounded read"
                 )
