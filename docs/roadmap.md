@@ -931,6 +931,23 @@ extraction and OCR eligibility; bounded export of supported Google-native files 
 and provenance preserved; external secret references; transcript profile mapping into canonical
 documents; provider cursor state kept inside each adapter.
 
+The final Windows-shell quality slice corrects product identity before publication. One
+multi-resolution icon family must agree across the executable, installer, uninstaller, Start-menu
+and desktop shortcuts, taskbar, main window and the later tray surface, including clean install,
+upgrade and Windows icon-cache regression evidence. Product/company/version metadata must be
+truthful, but this release remains visibly unsigned: authenticated Windows publisher identity is a
+separate `0.21.0` signing outcome and cannot be simulated with installer metadata.
+
+The local desktop endpoint uses `44851` as Provelume's stable default loopback port. A normal
+installation keeps that value without prompting when it is available; advanced installer settings
+allow an explicit override. If the port is occupied, setup proposes a validated free alternative,
+shows it to the user and persists the accepted value across restart and upgrade. The same setting
+can later be changed through a controlled availability check and runtime restart. Provelume never
+randomizes the port on each start and never presents port obscurity as a security control:
+loopback-only binding, Host validation and the later explicit authenticated-HTTPS boundary govern
+exposure. Shortcuts, status, diagnostics and browser launch always resolve the persisted endpoint
+rather than assuming a compiled port.
+
 **Exit gate:** local OCR can be removed and rebuilt without changing canonical knowledge; existing
 trustworthy text is not needlessly degraded; low-confidence pages remain visibly uncertain;
 hostile, oversized and unsupported inputs fail safely; re-import and refresh are idempotent;
@@ -942,7 +959,9 @@ decisions and tasks derived from communications or transcripts.
 
 **Suggested slices:** `0.9/S01` OCR contract, licensing and packaging; `0.9/S02` bounded local OCR
 and document bundles; `0.9/S03` email identity and intake; `0.9/S04` Gmail/Drive adapters;
-`0.9/S05` transcript profiles; `0.9/S06` cross-source qualification and correction findings.
+`0.9/S05` transcript profiles; `0.9/S06` cross-source qualification and correction findings;
+`0.9/S07` Windows shell identity, configurable local endpoint and final EN/IT usability,
+accessibility, documentation, security and release-quality qualification.
 
 **Current status:** parent tracker #137 remains open. `0.9/S01` was completed by the pre-existing
 #5 and owner PR #138. `0.9/S02` is completed by #140 and owner PR #141; it implements bounded
@@ -1091,6 +1110,24 @@ boundary precede heavy work. Repair remains a distinct preview/backup/confirmati
 capacity warnings can pause new ingestion without deleting Originals, derived state, logs or old
 backups automatically.
 
+The EN/IT information architecture separates everyday knowledge work from service and
+maintenance controls. Primary navigation is compact and journey-based: Overview, Knowledge,
+Capture, Search and Needs attention. A secondary Management surface groups Sources & Connectors,
+Operations & Maintenance, Diagnostics, Settings and About. Icons accompany visible text labels
+rather than replacing them; responsive overflow, semantic landmarks, current-location state,
+keyboard order and screen-reader names remain equivalent across desktop and mobile layouts.
+
+Appearance is an explicit persisted choice with System as the default plus Light and Dark modes.
+System follows the host preference without a wrong-theme startup flash; all three modes qualify
+focus, contrast, empty/loading/degraded/error states, diagrams, evidence views and EN/IT parity.
+
+Cura also brings forward a minimal Windows tray lifecycle needed for coherent personal daily use,
+without claiming the complete cross-platform agent promised by `0.20.0`. Users can independently
+choose whether closing the window keeps Provelume running and whether it starts at Windows login.
+The first close explains the selected behavior; the tray exposes Open, Status, Pause, Settings and
+Exit, and Exit stops the local runtime. Disabled background mode performs no hidden activity, and
+closing or minimizing the interface never silently changes the persisted policy.
+
 Queue notifications are separately configurable as disabled, in-application only, host desktop/
 browser/mobile PWA or a later explicitly configured provider channel. Notification previews omit
 document content and sensitive titles by default, support quiet hours and aggregation, and link back to the
@@ -1119,7 +1156,9 @@ scraping or impersonating a personal WhatsApp account.
 Maintenance schedules, job control and interruption recovery; `0.11/S03`
 classification/duplicate/version-conflict decisions and reusable safe routing; `0.11/S04` mobile
 PWA capture, device pairing and offline retry; `0.11/S05` iOS, Android, Drive-drop and Telegram
-reference paths; `0.11/S06` mobile retrieval, authorization and end-to-end assurance fixtures.
+reference paths; `0.11/S06` mobile retrieval and authorization; `0.11/S07` EN/IT information
+architecture, System/Light/Dark appearance, minimal Windows tray and end-to-end usability,
+accessibility and assurance fixtures.
 
 ### 0.12.0 — Knowledge Objects v1
 
@@ -1502,9 +1541,10 @@ compatibility detection; complete create/open/start/stop/status/browser/diagnost
 redacted logs; spaces, Unicode, case and path-normalization fixtures; lifecycle-aware failure
 recovery; uninstall that preserves the Instance; and a final desktop support matrix.
 
-Windows retains migration from the `0.4.0` preview installation, UNC/network-share support, a
-per-user background agent and tray surface, with an explicitly qualified elevated-service option
-only if needed. macOS adds an application/menu-bar surface and per-user LaunchAgent, Keychain
+Windows retains migration from the `0.4.0` preview installation, UNC/network-share support and
+the `0.11.0` minimal tray preferences, then matures them into a fully qualified per-user background
+agent and tray surface, with an explicitly qualified elevated-service option only if needed.
+macOS adds an application/menu-bar surface and per-user LaunchAgent, Keychain
 credential references, explicit selected-folder access, removable/network-volume handling and an
 Apple Silicon baseline; any Intel support remains an explicit matrix entry rather than an
 assumption.
@@ -1552,6 +1592,11 @@ auto-update switch:
 - **Controlled automatic install:** a separate opt-in policy, enabled only after signing, backup,
   health-check and rollback gates are established, with a maintenance window and no forced
   downgrade or channel switch.
+
+On Windows, Authenticode signs both the application and installer with the authenticated
+publisher identity displayed by the operating system. Product metadata alone never claims to
+remove the truthful Unknown publisher state; clean install, upgrade, uninstaller, signature-chain,
+timestamp, revocation and SmartScreen-facing evidence are qualified together.
 
 All online modes disclose the contacted catalogue and the minimal version/platform metadata sent;
 no Instance content is transmitted. Every mode supports Stable/Preview/Dev channel selection,
