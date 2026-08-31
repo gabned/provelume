@@ -11,6 +11,7 @@ from . import __version__
 from .about import current_about
 from .build_info import current_build_info
 from .connector_cli import add_connector_commands, handle_connector_command
+from .email_cli import add_email_commands, handle_email_command
 from .folder_source_cli import add_folder_source_commands, handle_folder_source_command
 from .hierarchy_cli import add_hierarchy_commands, handle_hierarchy_command
 from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES, IngestionRetryError
@@ -154,6 +155,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_scheduler_commands(subparsers)
     add_maintenance_commands(subparsers)
     add_ocr_commands(subparsers)
+    add_email_commands(subparsers)
     return parser
 
 
@@ -183,6 +185,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     ocr_result = handle_ocr_command(args)
     if ocr_result is not None:
         return ocr_result
+    email_result = handle_email_command(args)
+    if email_result is not None:
+        return email_result
 
     if args.command == "verify-installation":
         if args.release_bundle is None and args.expected_manifest_sha256 is None:

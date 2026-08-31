@@ -15,6 +15,7 @@ from .about import current_about
 from .activity import attach_activity_routes
 from .api import attach_api, reject_client_installation_evidence
 from .build_info import current_build_info
+from .email_activity import attach_email_routes
 from .folder_source_activity import attach_folder_source_routes
 from .i18n import SUPPORTED_LANGUAGES, translator
 from .installation import verify_current_installation
@@ -128,6 +129,11 @@ def _navigation(
             "href": f"/ocr?lang={language}",
             "label": t("nav.ocr"),
             "current": current_path.startswith("/ocr"),
+        },
+        {
+            "href": f"/email?lang={language}",
+            "label": t("nav.email"),
+            "current": current_path.startswith("/email"),
         },
         {
             "href": f"/settings?lang={language}",
@@ -267,6 +273,7 @@ def create_app(
     attach_folder_source_routes(app, instance, TEMPLATES, _context)
     attach_maintenance_routes(app, instance, TEMPLATES, _context)
     attach_ocr_routes(app, instance, TEMPLATES, _context)
+    attach_email_routes(app, instance, TEMPLATES, _context)
 
     @app.get("/")
     def home(request: Request):

@@ -182,6 +182,47 @@ runtime download, cloud provider or remote fallback. OCR results remain unverifi
 the API does not promote them into canonical Document content. See
 [`architecture/local-ocr-contract.md`](architecture/local-ocr-contract.md).
 
+## Local email capability, Sources, jobs and representations
+
+The unreleased `0.9/S03` read model is grouped below `/api/v1/email`:
+
+- `GET /api/v1/email/capability` — effective adapter/parser versions, supported profiles, current
+  platform target, independent availability/reason, no-network declaration and exact limits; its
+  `attachment_ocr` block reports the separate OCR state without making OCR an intake dependency;
+- `GET /api/v1/email/sources` and `GET /api/v1/email/sources/{source_id}` — path-redacted explicit
+  local Source lifecycle, profile, schedule, availability and retained acquisition counts;
+- `GET /api/v1/email/jobs?limit=100` and `GET /api/v1/email/jobs/{job_id}` — bounded durable intake
+  state, attempts, checkpoint counts, warnings and closed content-free errors;
+- `GET /api/v1/email/messages` and `GET /api/v1/email/messages/{message_id}` — exact-Original
+  binding, selected derived envelope/body state, declared identity evidence and observed thread;
+- `GET /api/v1/email/threads` and `GET /api/v1/email/threads/{thread_id}` — Source-scoped observed
+  grouping and its non-authoritative reason/evidence;
+- `GET /api/v1/email/attachments` and `GET /api/v1/email/attachments/{attachment_id}` — verified
+  child-Original binding, MIME-part evidence and OCR eligibility without OCR execution.
+
+Every route is a local read. The global capability view examines only the runtime profile; a
+source-scoped capability request may perform the profile's bounded local path/layout and immediate
+entry-metadata probe but never reads message bytes. Other reads do not probe a Source,
+start/retry/cancel work, remove/rebuild derived state, parse missing content, open a socket or mutate
+the Instance. Physical Source paths are excluded from every API view. Operational jobs, receipts
+and error messages also exclude bodies, subjects, addresses and filenames; message/attachment
+views return only the bounded, escaped local observations defined by the email bundle. Lease tokens
+are sanitized.
+
+There are no versioned email mutation or upload routes. In particular, HTTP cannot select a path,
+upload EML bytes, enable a Source, start intake or fetch a remote mailbox. Local mutation authority
+belongs to the application service, explicit `email-source-create`, `email-source-state`,
+`email-source-schedule`, `email-source-remove`, `email-intake-queue`, `email-intake-run`,
+`email-intake-cancel`, `email-derived-remove` and `email-derived-rebuild` CLI actions, and the
+loopback `/email` Browser form protected by the current per-process CSRF contract.
+
+Source creation requires an explicit local path and exactly one `eml-file-v1` or
+`maildir-cur-new-v1` profile. It creates a disabled, manual Source and performs no scan. Enablement
+and Run now are separate actions; pause/disable/cancel are explicit; tombstone removal preserves
+completed acquisitions. mbox is rejected as unsupported. The EML/Maildir platform target is shown
+as available only when its exact runtime probe is positive. See
+[`architecture/local-email-intake.md`](architecture/local-email-intake.md).
+
 ## Managed folder Sources
 
 - `GET /api/v1/sources` and `GET /api/v1/sources/{source_id}` include a path-redacted `folder`

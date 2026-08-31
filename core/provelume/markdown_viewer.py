@@ -10,6 +10,7 @@ from markupsafe import Markup
 
 from .bundle_reader import DocumentBundleReader
 from .bundles import DocumentBundleManager
+from .index import verified_email_text_artifact
 from .paths import safe_instance_path
 from .storage import InstanceStore
 
@@ -185,6 +186,23 @@ class DocumentContentReader:
         document: dict[str, Any],
         version: dict[str, Any],
     ) -> str | None:
+        email_message = next(
+            (
+                item
+                for item in self.store.list_canonical("email-messages")
+                if item.get("version_id") == version.get("id")
+            ),
+            None,
+        )
+        if email_message is not None:
+            verified = verified_email_text_artifact(self.store, str(version["id"]))
+            if verified is None:
+                return None
+            _artifact, text = verified
+            title = str(document.get("title") or "Local email message").replace(
+                "\n", " "
+            )
+            return f"# {title}\n\n{text.rstrip()}\n"
         artifact = self.store.derived_artifact_for_version(
             str(version["id"]),
             "extracted_text",
@@ -256,7 +274,15 @@ class DocumentContentReader:
         source = "unavailable"
         raw_markdown = None
         bundle = None
-        if self._is_markdown(document, version) and text_original is not None:
+        is_email = any(
+            item.get("version_id") == version.get("id")
+            for item in self.store.list_canonical("email-messages")
+        )
+        if is_email:
+            raw_markdown = self._extracted_markdown(document, version)
+            if raw_markdown is not None:
+                source = "verified_email_body"
+        elif self._is_markdown(document, version) and text_original is not None:
             raw_markdown = text_original
             source = "verified_original_markdown"
         else:

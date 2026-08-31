@@ -6,6 +6,9 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .connectors import ConnectorManager
+from .email_contract import EmailContractError
+from .email_jobs import EMAIL_JOB_KIND, EmailJobManager
+from .email_sources import EmailSourceManager
 from .folder_source_model import SOURCE_LIFECYCLE_STATES, FolderSourceError
 from .folder_sources import FolderSourceManager
 from .hierarchy import HierarchyManager
@@ -58,6 +61,8 @@ class ProvelumeInstance:
         preparation = self.store._open_preparation or {}
         self.retention_recovery = preparation.get("retention_recovery")
         self.manual_web_recovery = preparation.get("manual_web_recovery")
+        self.email_intake_recovery = preparation.get("email_intake_recovery")
+        self.transaction_recovery = preparation.get("transaction_recovery")
         self.connectors = ConnectorManager(self.store)
         self.oauth = InstalledAppAuthorizationManager(self.store, self.connectors)
         self.web_transport = GuardedWebTransport(self.store, self.connectors)
@@ -70,6 +75,8 @@ class ProvelumeInstance:
         self.resource_statistics = ResourceStatisticsManager(self.store)
         self.scheduler = SchedulerCoordinator(self.store)
         self.ocr = OcrJobManager(self.store)
+        self.email_sources = EmailSourceManager(self.store)
+        self.email = EmailJobManager(self.store)
         try:
             recovery = self.scheduler.recover()
             self.scheduler_recovery = {**recovery, "deferred": False}
@@ -161,9 +168,9 @@ class ProvelumeInstance:
         schedule: Mapping[str, Any],
         retry: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
-        if job_kind == OCR_JOB_KIND:
+        if job_kind in {OCR_JOB_KIND, EMAIL_JOB_KIND}:
             raise SchedulerError(
-                "OCR jobs require an exact persisted request through the OCR controls"
+                "this job kind requires an exact persisted request through its dedicated controls"
             )
         return self.scheduler.create_policy(
             job_kind=job_kind,
@@ -236,6 +243,230 @@ class ProvelumeInstance:
     def get_scheduler_job(self, job_id: str) -> dict[str, Any] | None:
         job = self.scheduler.journal.get_job(job_id)
         return public_job_record(job) if job is not None else None
+
+    def email_capability(
+        self,
+        source_id: str | None = None,
+        *,
+        local: bool = False,
+    ) -> dict[str, Any]:
+        email = self.email_sources.capability(source_id, local=local)
+        try:
+            ocr = self.ocr.capability()
+            attachment_ocr = {
+                "state": ocr["state"],
+                "available": ocr["available"],
+                "reason": (
+                    ocr.get("error", {}).get("code")
+                    if isinstance(ocr.get("error"), Mapping)
+                    else None
+                ),
+                "configured_mode": ocr["mode"],
+                "supported_input_media_types": ocr["supported_input_media_types"],
+                "intake_dependency": False,
+                "eligibility_reported_per_attachment": True,
+                "execution_requires_explicit_ocr_job": True,
+                "execution_requested": False,
+                "execution_started": False,
+                "network_required": False,
+                "runtime_downloads": False,
+                "remote_fallback": False,
+            }
+        except (OcrContractError, OSError):
+            attachment_ocr = {
+                "state": "unavailable",
+                "available": False,
+                "reason": "ocr_internal_error",
+                "configured_mode": "unknown",
+                "supported_input_media_types": [],
+                "intake_dependency": False,
+                "eligibility_reported_per_attachment": True,
+                "execution_requires_explicit_ocr_job": True,
+                "execution_requested": False,
+                "execution_started": False,
+                "network_required": False,
+                "runtime_downloads": False,
+                "remote_fallback": False,
+            }
+        return {**email, "attachment_ocr": attachment_ocr}
+
+    def create_email_source(
+        self,
+        *,
+        name: str,
+        path: Path | str,
+        profile: str,
+    ) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="email-source-create"
+            ):
+                return self.email_sources.create(name=name, path=path, profile=profile)
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError("email Source lifecycle lock is unavailable") from exc
+
+    def list_email_sources(
+        self,
+        *,
+        local: bool = False,
+        include_removed: bool = True,
+    ) -> list[dict[str, Any]]:
+        if local:
+            return self.email_sources.list_local(include_removed=include_removed)
+        return self.email_sources.list_public(include_removed=include_removed)
+
+    def get_email_source(
+        self,
+        source_id: str,
+        *,
+        local: bool = False,
+    ) -> dict[str, Any] | None:
+        try:
+            if local:
+                return self.email_sources.local_view(source_id)
+            return self.email_sources.public_view(source_id)
+        except EmailContractError:
+            return None
+        except ValueError as exc:
+            if getattr(exc, "code", None) == "email_source_missing":
+                return None
+            raise
+
+    def set_email_source_state(self, source_id: str, state: str) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="email-source-state"
+            ):
+                result = self.email_sources.set_state(source_id, state)
+                self.email.sync_policy(source_id)
+                return result
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError("email Source lifecycle lock is unavailable") from exc
+
+    def configure_email_source_schedule(
+        self,
+        source_id: str,
+        *,
+        mode: str,
+        interval_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="email-source-schedule"
+            ):
+                result = self.email_sources.configure_schedule(
+                    source_id,
+                    mode=mode,
+                    interval_seconds=interval_seconds,
+                )
+                self.email.sync_policy(source_id)
+                return result
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError("email Source lifecycle lock is unavailable") from exc
+
+    def remove_email_source(self, source_id: str) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="email-source-remove"
+            ):
+                result = self.email_sources.remove(source_id)
+                self.email.sync_policy(source_id)
+                return result
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError("email Source lifecycle lock is unavailable") from exc
+
+    def queue_email_intake(
+        self,
+        source_id: str,
+        *,
+        request_key: str | None = None,
+    ) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(purpose="email-intake-queue"):
+                return self.email.queue(source_id, request_key=request_key)
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError("email intake lifecycle lock is unavailable") from exc
+
+    def run_email_job(self, job_id: str) -> dict[str, Any] | None:
+        job = self.scheduler.journal.get_job(job_id)
+        if job is None:
+            return None
+        if job["job_kind"] != EMAIL_JOB_KIND:
+            raise EmailContractError("email_internal_error", "email job was not found")
+        result = self.scheduler.run_one(job_id=job_id)
+        return public_job_record(result) if result is not None else None
+
+    def list_email_jobs(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        return self.email.list_jobs(limit=limit)
+
+    def get_email_job(self, job_id: str) -> dict[str, Any] | None:
+        return self.email.get_job(job_id)
+
+    def cancel_email_job(self, job_id: str) -> dict[str, Any]:
+        return self.email.cancel(job_id)
+
+    def list_email_messages(
+        self,
+        *,
+        source_id: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        return self.email.list_messages(source_id=source_id, limit=limit)
+
+    def get_email_message(self, message_id: str) -> dict[str, Any] | None:
+        return self.email.get_message(message_id)
+
+    def list_email_threads(
+        self,
+        *,
+        source_id: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        return self.email.list_threads(source_id=source_id, limit=limit)
+
+    def get_email_thread(self, thread_id: str) -> dict[str, Any] | None:
+        return self.email.get_thread(thread_id)
+
+    def list_email_attachments(
+        self,
+        *,
+        message_id: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        return self.email.list_attachments(message_id=message_id, limit=limit)
+
+    def get_email_attachment(self, attachment_id: str) -> dict[str, Any] | None:
+        return self.email.get_attachment(attachment_id)
+
+    def remove_email_derived(self, message_id: str) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(purpose="email-derived-remove"):
+                return self.email.remove_derived(message_id)
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError("email derived lifecycle lock is unavailable") from exc
+
+    def rebuild_email_derived(self, message_id: str) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="email-derived-rebuild"
+            ):
+                return self.email.rebuild_derived(message_id)
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError("email derived lifecycle lock is unavailable") from exc
 
     def ocr_capability(self) -> dict[str, Any]:
         return self.ocr.capability()

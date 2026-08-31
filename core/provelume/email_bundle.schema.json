@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/email-message-bundle-v1.schema.json",
+  "title": "Provelume derived local email message bundle v1",
+  "description": "Atomic, passive, removable and rebuildable representation of one immutable local email Original.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "status",
+    "job",
+    "derivation_key",
+    "message",
+    "timestamps",
+    "envelope",
+    "declared_identity",
+    "body",
+    "mime_tree",
+    "attachments",
+    "thread_observation",
+    "parser",
+    "adapter",
+    "platform",
+    "warnings",
+    "identity_warnings",
+    "original_authoritative",
+    "derived",
+    "removable",
+    "rebuildable_from_original",
+    "active_content_executed",
+    "remote_fetch",
+    "network_used",
+    "runtime_downloads",
+    "remote_fallback",
+    "complete"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "email_message_bundle"},
+    "status": {"const": "complete"},
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "state"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^job_[0-9a-f]{32}$"},
+        "state": {"const": "message-complete"}
+      }
+    },
+    "derivation_key": {"$ref": "#/$defs/sha256"},
+    "message": {"$ref": "#/$defs/message"},
+    "timestamps": {"$ref": "#/$defs/timestamps"},
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["headers", "address_groups"],
+      "properties": {
+        "headers": {"type": "array", "maxItems": 4096},
+        "address_groups": {"type": "array", "maxItems": 4096}
+      }
+    },
+    "declared_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["message_ids", "references", "in_reply_to", "authoritative"],
+      "properties": {
+        "message_ids": {"type": "array", "maxItems": 4096, "items": {"type": "string"}},
+        "references": {"type": "array", "maxItems": 1000, "items": {"type": "string"}},
+        "in_reply_to": {"type": "array", "maxItems": 1000, "items": {"type": "string"}},
+        "authoritative": {"const": false}
+      }
+    },
+    "body": {"$ref": "#/$defs/body"},
+    "mime_tree": {"type": "array", "maxItems": 4096},
+    "attachments": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {"$ref": "#/$defs/attachment"}
+    },
+    "thread_observation": {"$ref": "#/$defs/thread"},
+    "parser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "protocol_version", "settings_sha256", "limits", "total_decoded_bytes"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "maxLength": 120},
+        "version": {"type": "string", "minLength": 1, "maxLength": 120},
+        "protocol_version": {"const": 1},
+        "settings_sha256": {"$ref": "#/$defs/sha256"},
+        "limits": {"$ref": "email_contract.schema.json#/$defs/limits"},
+        "total_decoded_bytes": {"type": "integer", "minimum": 0, "maximum": 268435456}
+      }
+    },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter_id", "adapter_version", "network_access"],
+      "properties": {
+        "adapter_id": {"const": "provelume.local-email"},
+        "adapter_version": {"const": "1.0.0"},
+        "network_access": {"const": "none"}
+      }
+    },
+    "platform": {"type": ["string", "null"]},
+    "warnings": {"type": "array", "maxItems": 1000},
+    "identity_warnings": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {"$ref": "#/$defs/identityWarning"}
+    },
+    "original_authoritative": {"const": true},
+    "derived": {"const": true},
+    "removable": {"const": true},
+    "rebuildable_from_original": {"const": true},
+    "active_content_executed": {"const": false},
+    "remote_fetch": {"const": false},
+    "network_used": {"const": false},
+    "runtime_downloads": {"const": false},
+    "remote_fallback": {"const": false},
+    "complete": {"const": true}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "message": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "observation_id", "source_id", "acquisition_id", "document_id",
+        "version_id", "original_id", "original_sha256", "original_size_bytes",
+        "container_identity_sha256", "container_snapshot_sha256", "locator_sha256",
+        "filesystem_identity_sha256", "filesystem_mtime_ns"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^emsg_[0-9a-f]{64}$"},
+        "observation_id": {"type": "string", "pattern": "^eobs_[0-9a-f]{64}$"},
+        "source_id": {"type": "string", "pattern": "^src_[0-9a-f]{32}$"},
+        "acquisition_id": {"type": "string", "pattern": "^acq_[0-9a-f]{32}$"},
+        "document_id": {"type": "string", "pattern": "^doc_[0-9a-f]{32}$"},
+        "version_id": {"type": "string", "pattern": "^ver_[0-9a-f]{32}$"},
+        "original_id": {"type": "string", "pattern": "^sha256_[0-9a-f]{64}$"},
+        "original_sha256": {"$ref": "#/$defs/sha256"},
+        "original_size_bytes": {"type": "integer", "minimum": 1},
+        "container_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "container_snapshot_sha256": {"$ref": "#/$defs/sha256"},
+        "locator_sha256": {"$ref": "#/$defs/sha256"},
+        "filesystem_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "filesystem_mtime_ns": {"type": "integer", "minimum": 0}
+      }
+    },
+    "timestamps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared", "filesystem_observed_at", "acquired_at"],
+      "properties": {
+        "declared": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["parsed", "observations"],
+          "properties": {
+            "parsed": {"type": "array", "maxItems": 4096, "items": {"type": "string", "format": "date-time"}},
+            "observations": {"type": "array", "maxItems": 4096}
+          }
+        },
+        "filesystem_observed_at": {"type": "string", "format": "date-time"},
+        "acquired_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "body": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "selection_rule", "part_id", "media_type", "charset", "sha256", "character_count", "storage_ref", "authoritative", "derived"],
+      "properties": {
+        "status": {"enum": ["available", "unavailable"]},
+        "selection_rule": {"type": "string", "minLength": 1},
+        "part_id": {"type": ["string", "null"], "pattern": "^epart_[0-9a-f]{64}$"},
+        "media_type": {"type": ["string", "null"]},
+        "charset": {"type": ["string", "null"]},
+        "sha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "character_count": {"type": "integer", "minimum": 0, "maximum": 5000000},
+        "storage_ref": {"type": ["string", "null"]},
+        "authoritative": {"const": false},
+        "derived": {"const": true}
+      }
+    },
+    "attachment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "part_id", "part_path", "part_identity_sha256", "original_id", "sha256", "size_bytes", "media_type", "disposition", "content_id", "filename", "filename_is_untrusted", "original_authoritative", "ocr"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^eatt_[0-9a-f]{64}$"},
+        "part_id": {"type": "string", "pattern": "^epart_[0-9a-f]{64}$"},
+        "part_path": {"type": "string", "minLength": 1},
+        "part_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "original_id": {"type": "string", "pattern": "^sha256_[0-9a-f]{64}$"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "size_bytes": {"type": "integer", "minimum": 0, "maximum": 134217728},
+        "media_type": {"type": "string", "minLength": 1},
+        "disposition": {"type": ["string", "null"]},
+        "content_id": {"type": ["string", "null"]},
+        "filename": {"type": ["string", "null"]},
+        "filename_is_untrusted": {"type": "boolean"},
+        "original_authoritative": {"const": true},
+        "ocr": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["eligible", "media_type_supported", "signature_matches", "configured_mode", "execution_requested", "execution_started"],
+          "properties": {
+            "eligible": {"type": "boolean"},
+            "media_type_supported": {"type": "boolean"},
+            "signature_matches": {"type": "boolean"},
+            "configured_mode": {"enum": ["disabled", "automatic", "forced", "selected-page"]},
+            "execution_requested": {"const": false},
+            "execution_started": {"const": false}
+          }
+        }
+      }
+    },
+    "thread": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parent_message_id", "reason", "warning_codes", "authoritative", "source_scoped"],
+      "properties": {
+        "parent_message_id": {"type": ["string", "null"], "pattern": "^emsg_[0-9a-f]{64}$"},
+        "reason": {"type": "string", "minLength": 1},
+        "warning_codes": {"type": "array", "maxItems": 5, "items": {"type": "string"}},
+        "authoritative": {"const": false},
+        "source_scoped": {"const": true}
+      }
+    },
+    "identityWarning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code"],
+      "properties": {
+        "code": {
+          "enum": [
+            "declared_message_id_collision",
+            "thread_reference_missing",
+            "thread_reference_ambiguous",
+            "thread_reference_cross_source",
+            "thread_reference_cycle"
+          ]
+        }
+      }
+    }
+  }
+}

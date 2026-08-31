@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "slice": "0.9/S03",
+  "status": "qualified-local-baseline",
+  "release_identity": "0.8.0",
+  "development_line": "0.9.0-Lectio-unreleased",
+  "baseline": {
+    "default_enabled": false,
+    "automatic_discovery": false,
+    "network_required": false,
+    "runtime_download": false,
+    "remote_fallback": false,
+    "provider_access": false,
+    "parser": {
+      "id": "python-stdlib-email",
+      "contract_version": "1",
+      "python_version_constraint": ">=3.12,<3.13",
+      "public_contract_bound_to_implementation": false,
+      "source": "https://docs.python.org/3.12/library/email.html",
+      "license": "PSF-2.0"
+    },
+    "container_reader": {
+      "id": "provelume-bounded-local-email",
+      "version": "1",
+      "uses_python_mailbox_module": false,
+      "preserves_message_bytes": true,
+      "shell_or_subprocess": false
+    },
+    "qualified_matrix": [
+      {
+        "platform": "ubuntu-24.04",
+        "architecture": "x86_64",
+        "python": "CPython 3.12",
+        "profiles": [
+          "eml-file-v1",
+          "maildir-cur-new-v1"
+        ],
+        "workflow": ".github/workflows/email-smoke.yml"
+      },
+      {
+        "platform": "windows",
+        "architecture": "x86_64",
+        "python": "CPython 3.12",
+        "profiles": [
+          "eml-file-v1"
+        ],
+        "workflow": ".github/workflows/email-smoke.yml"
+      }
+    ],
+    "unqualified": [
+      "maildir-cur-new-v1 on Windows",
+      "all profiles on macOS",
+      "all ARM architectures",
+      "mbox",
+      "PST/OST",
+      "remote mailboxes and provider APIs"
+    ]
+  },
+  "stdlib_evaluation": {
+    "email": {
+      "decision": "selected-behind-replaceable-parser-seam",
+      "use": "MIME and header parsing after exact raw bytes have been bounded and hashed",
+      "policy": "explicit versioned policy and closed Provelume limits",
+      "raw_bytes_authority": false
+    },
+    "mailbox": {
+      "decision": "not-selected-for-reading-or-delimitation",
+      "reason": "Its public mailbox abstractions do not establish Provelume's exact-byte, locator, symlink and snapshot invariants across the qualified profiles.",
+      "runtime_imported": false
+    }
+  },
+  "distribution": {
+    "new_python_dependencies": [],
+    "new_native_components": [],
+    "new_language_packs": [],
+    "new_provider_payloads": [],
+    "base_wheel": "Provelume adapter, parser seam, schemas and UI only; CPython standard library is supplied by the runtime",
+    "sdist": "Source, schemas, synthetic fixtures and packaging metadata only",
+    "windows_installer": "Uses the already packaged CPython runtime; no mail engine, provider component or mailbox payload is added",
+    "silent_runtime_download": false
+  },
+  "security": {
+    "active_html": false,
+    "remote_resources": false,
+    "link_following": false,
+    "archive_expansion": false,
+    "attachment_execution": false,
+    "malware_scanning_claim": false,
+    "signature_or_authentication_claim": false,
+    "ocr_implicit_execution": false
+  },
+  "sources": [
+    {
+      "id": "python-email-docs",
+      "url": "https://docs.python.org/3.12/library/email.html",
+      "license": "PSF-2.0"
+    },
+    {
+      "id": "python-mailbox-docs",
+      "url": "https://docs.python.org/3.12/library/mailbox.html",
+      "license": "PSF-2.0"
+    },
+    {
+      "id": "rfc-5322",
+      "url": "https://www.rfc-editor.org/rfc/rfc5322.html"
+    },
+    {
+      "id": "rfc-2045",
+      "url": "https://www.rfc-editor.org/rfc/rfc2045.html"
+    },
+    {
+      "id": "rfc-2046",
+      "url": "https://www.rfc-editor.org/rfc/rfc2046.html"
+    },
+    {
+      "id": "rfc-2047",
+      "url": "https://www.rfc-editor.org/rfc/rfc2047.html"
+    },
+    {
+      "id": "rfc-2231",
+      "url": "https://www.rfc-editor.org/rfc/rfc2231.html"
+    }
+  ]
+}

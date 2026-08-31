@@ -353,11 +353,36 @@ class DocumentRetentionManager:
             for item in self.store.list_canonical("dispositions")
             if item.get("document_id") == document_id
         ]
-        original_ids = {str(item["original_id"]) for item in versions}
+        email_messages = [
+            item
+            for item in self.store.list_canonical("email-messages")
+            if item.get("document_id") == document_id
+        ]
+        email_message_ids = {str(item["id"]) for item in email_messages}
+        email_observations = [
+            item
+            for item in self.store.list_canonical("email-observations")
+            if item.get("message_id") in email_message_ids
+        ]
+        email_attachments = [
+            item
+            for item in self.store.list_canonical("email-attachments")
+            if item.get("parent_message_id") in email_message_ids
+        ]
+        email_attachment_ids = {str(item["id"]) for item in email_attachments}
+        original_ids = {
+            *(str(item["original_id"]) for item in versions),
+            *(str(item["original_id"]) for item in email_attachments),
+        }
         remaining_versions = [
             item
             for item in self.store.list_canonical("versions")
             if str(item["id"]) not in version_ids
+        ]
+        remaining_attachments = [
+            item
+            for item in self.store.list_canonical("email-attachments")
+            if str(item["id"]) not in email_attachment_ids
         ]
         removable_original_ids = {
             original_id
@@ -365,6 +390,10 @@ class DocumentRetentionManager:
             if not any(
                 item.get("original_id") == original_id
                 for item in remaining_versions
+            )
+            and not any(
+                item.get("original_id") == original_id
+                for item in remaining_attachments
             )
         }
         originals = [
@@ -377,6 +406,8 @@ class DocumentRetentionManager:
             *(("version", item) for item in version_ids),
             *(("acquisition", item) for item in acquisition_ids),
             *(("original", item) for item in removable_original_ids),
+            *(("email_message", item) for item in email_message_ids),
+            *(("email_attachment", item) for item in email_attachment_ids),
         }
         provenance = [
             item
@@ -410,6 +441,9 @@ class DocumentRetentionManager:
             "acquisitions": acquisitions,
             "classifications": classifications,
             "dispositions": dispositions,
+            "email-messages": email_messages,
+            "email-observations": email_observations,
+            "email-attachments": email_attachments,
             "originals": originals,
             "shared_originals": len(original_ids - removable_original_ids),
             "provenance": provenance,
@@ -444,6 +478,9 @@ class DocumentRetentionManager:
             "acquisitions": lineage["acquisitions"],
             "classifications": lineage["classifications"],
             "dispositions": lineage["dispositions"],
+            "email-messages": lineage["email-messages"],
+            "email-observations": lineage["email-observations"],
+            "email-attachments": lineage["email-attachments"],
             "originals": lineage["originals"],
             "provenance": lineage["provenance"],
         }
@@ -515,6 +552,9 @@ class DocumentRetentionManager:
                     document_id,
                     *(str(value) for value in lineage["version_ids"]),
                     *(str(item["id"]) for item in lineage["acquisitions"]),
+                    *(str(item["id"]) for item in lineage["email-messages"]),
+                    *(str(item["id"]) for item in lineage["email-observations"]),
+                    *(str(item["id"]) for item in lineage["email-attachments"]),
                 }
             )
         )

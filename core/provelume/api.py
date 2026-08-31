@@ -198,6 +198,81 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
     def get_ocr_bundles(version_id: str | None = None) -> list[dict[str, Any]]:
         return instance.list_ocr_bundles(version_id)
 
+    @router.get("/email/capability")
+    def get_email_capability(source_id: str | None = None) -> dict[str, Any]:
+        return instance.email_capability(source_id, local=False)
+
+    @router.get("/email/sources")
+    def get_email_sources(
+        include_removed: bool = True,
+    ) -> list[dict[str, Any]]:
+        return instance.list_email_sources(
+            local=False,
+            include_removed=include_removed,
+        )
+
+    @router.get("/email/sources/{source_id}")
+    def get_email_source(source_id: str) -> dict[str, Any]:
+        result = instance.get_email_source(source_id, local=False)
+        if result is None:
+            raise _not_found("email Source", source_id)
+        return result
+
+    @router.get("/email/jobs")
+    def get_email_jobs(
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_email_jobs(limit=limit)
+
+    @router.get("/email/jobs/{job_id}")
+    def get_email_job(job_id: str) -> dict[str, Any]:
+        result = instance.get_email_job(job_id)
+        if result is None:
+            raise _not_found("email job", job_id)
+        return result
+
+    @router.get("/email/messages")
+    def get_email_messages(
+        source_id: str | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_email_messages(source_id=source_id, limit=limit)
+
+    @router.get("/email/messages/{message_id}")
+    def get_email_message(message_id: str) -> dict[str, Any]:
+        result = instance.get_email_message(message_id)
+        if result is None:
+            raise _not_found("email message", message_id)
+        return result
+
+    @router.get("/email/threads")
+    def get_email_threads(
+        source_id: str | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_email_threads(source_id=source_id, limit=limit)
+
+    @router.get("/email/threads/{thread_id}")
+    def get_email_thread(thread_id: str) -> dict[str, Any]:
+        result = instance.get_email_thread(thread_id)
+        if result is None:
+            raise _not_found("observed email thread", thread_id)
+        return result
+
+    @router.get("/email/attachments")
+    def get_email_attachments(
+        message_id: str | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_email_attachments(message_id=message_id, limit=limit)
+
+    @router.get("/email/attachments/{attachment_id}")
+    def get_email_attachment(attachment_id: str) -> dict[str, Any]:
+        result = instance.get_email_attachment(attachment_id)
+        if result is None:
+            raise _not_found("email attachment", attachment_id)
+        return result
+
     @router.get("/maintenance")
     def get_maintenance_catalog() -> list[dict[str, Any]]:
         return instance.maintenance_catalog()

@@ -219,5 +219,5 @@ advanced preprocessing, no baseline layout/table/barcode/QR adapter, and no supp
 language beyond the exact matrix proved above. `0.9.0` is not published and no tag, release or
 asset is created by this slice.
 
-`0.9/S03` is only the next forecast for email identity and intake. It is not activated and has no
-operational issue, branch or PR.
+`0.9/S03` is implemented separately by issue #143 and its owner PR without changing the S02 OCR
+contract. `0.9/S04` is only the next forecast and is not activated by this document.

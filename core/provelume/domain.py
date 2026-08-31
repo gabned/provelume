@@ -1,7 +1,60 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import asdict, dataclass
 from typing import Any
+
+EMAIL_EVIDENCE_SCHEMA_VERSION = 1
+
+
+def email_message_evidence_id(
+    source_id: str,
+    original_sha256: str,
+    size_bytes: int,
+) -> str:
+    identity = f"{source_id}\0{original_sha256}\0{size_bytes}".encode()
+    return f"emsg_{hashlib.sha256(identity).hexdigest()}"
+
+
+def email_attachment_evidence_id(
+    source_id: str,
+    parent_message_id: str,
+    part_identity_sha256: str,
+    original_sha256: str,
+    size_bytes: int,
+) -> str:
+    identity = (
+        f"{source_id}\0{parent_message_id}\0{part_identity_sha256}\0"
+        f"{original_sha256}\0{size_bytes}"
+    ).encode()
+    return f"eatt_{hashlib.sha256(identity).hexdigest()}"
+
+
+def email_message_observation_id(
+    source_id: str,
+    adapter_id: str,
+    adapter_version: str,
+    container_identity_sha256: str,
+    container_snapshot_sha256: str,
+    locator_sha256: str,
+    original_sha256: str,
+    size_bytes: int,
+    settings_sha256: str,
+) -> str:
+    identity = "\0".join(
+        (
+            source_id,
+            adapter_id,
+            adapter_version,
+            container_identity_sha256,
+            container_snapshot_sha256,
+            locator_sha256,
+            original_sha256,
+            str(size_bytes),
+            settings_sha256,
+        )
+    ).encode()
+    return f"eobs_{hashlib.sha256(identity).hexdigest()}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -191,6 +244,65 @@ class DocumentDisposition:
     created_at: str
     updated_at: str
     last_operation_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class EmailMessageEvidence:
+    """PII-free canonical identity and integrity evidence for one email message."""
+
+    schema_version: int
+    id: str
+    source_id: str
+    document_id: str
+    version_id: str
+    original_id: str
+    original_sha256: str
+    size_bytes: int
+    adapter_id: str
+    adapter_version: str
+    parser_id: str
+    parser_version: str
+    contract_version: str
+    settings_sha256: str
+    first_acquired_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class EmailMessageObservation:
+    """PII-free evidence for one bounded local-container observation."""
+
+    schema_version: int
+    id: str
+    source_id: str
+    message_id: str
+    acquisition_id: str
+    container_identity_sha256: str
+    container_snapshot_sha256: str
+    locator_sha256: str
+    filesystem_identity_sha256: str
+    filesystem_mtime_ns: int
+    observed_at: str
+    acquired_at: str
+    adapter_id: str
+    adapter_version: str
+    settings_sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class EmailAttachmentEvidence:
+    """PII-free canonical occurrence evidence for decoded attachment bytes."""
+
+    schema_version: int
+    id: str
+    source_id: str
+    parent_message_id: str
+    parent_document_id: str
+    parent_version_id: str
+    part_identity_sha256: str
+    original_id: str
+    original_sha256: str
+    size_bytes: int
+    accepted_at: str
 
 
 def as_record(value: Any) -> dict[str, Any]:

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}{{ t('email.messages') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero"><p class="eyebrow">{{ t('email.eyebrow') }}</p><h1>{{ t('email.messages') }}</h1><p class="technical-note">{{ message.id }}</p></section>
+<section class="panel"><pre>{{ message|tojson(indent=2) }}</pre></section>
+<section class="notice info"><p>{{ t('email.passive') }}</p></section>
+<p><a href="/email?lang={{ lang }}">{{ t('email.back') }}</a></p>
+{% endblock %}

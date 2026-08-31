@@ -367,16 +367,54 @@ class InstanceLifecycleManager:
         if self.pending_path.exists():
             with self._hold(purpose="instance-lifecycle-recovery"):
                 recovery = self._recover_pending()
+        transaction_recovery = None
         manual_web_recovery = None
+        email_intake_recovery = None
         transaction_root = self.control_root / "transactions"
-        if transaction_root.exists() and any(transaction_root.glob("manual-web-*")):
-            from .web_acquisition import recover_manual_web_transactions
+        has_registered_transactions = transaction_root.is_symlink() or (
+            transaction_root.exists()
+            and (
+                not transaction_root.is_dir()
+                or any(transaction_root.glob("manual-web-*"))
+                or any(transaction_root.glob("email-intake-*"))
+            )
+        )
+        if has_registered_transactions:
+            from .atomic_commit import (
+                ATOMIC_COMMIT_SCHEMA_VERSION,
+                EMAIL_INTAKE_TRANSACTION_PROFILE,
+                AtomicRecoveryHandler,
+                recover_atomic_transactions,
+            )
+            from .web_acquisition import _manual_web_recovery_handler
 
-            with self._hold(purpose="manual-web-acquisition-recovery"):
-                manual_web_recovery = recover_manual_web_transactions(
+            with self._hold(purpose="instance-transaction-recovery"):
+                transaction_recovery = recover_atomic_transactions(
                     self.store,
                     self.control_root,
+                    handlers=(
+                        _manual_web_recovery_handler(),
+                        AtomicRecoveryHandler(
+                            profile=EMAIL_INTAKE_TRANSACTION_PROFILE,
+                        ),
+                    ),
                 )
+            if transaction_recovery is not None:
+                profiles = transaction_recovery["profiles"]
+                manual_counts = profiles.get("manual-web")
+                if manual_counts is not None:
+                    manual_web_recovery = {
+                        "schema_version": ATOMIC_COMMIT_SCHEMA_VERSION,
+                        "status": "recovered",
+                        **manual_counts,
+                    }
+                email_counts = profiles.get("email-intake")
+                if email_counts is not None:
+                    email_intake_recovery = {
+                        "schema_version": ATOMIC_COMMIT_SCHEMA_VERSION,
+                        "status": "recovered",
+                        **email_counts,
+                    }
         from .retention import DocumentRetentionManager
 
         retention_recovery = DocumentRetentionManager(self.store).recover_pending()
@@ -392,7 +430,9 @@ class InstanceLifecycleManager:
                 "instance_schema_version": schema,
                 "migration": None,
                 "recovery": recovery,
+                "transaction_recovery": transaction_recovery,
                 "manual_web_recovery": manual_web_recovery,
+                "email_intake_recovery": email_intake_recovery,
                 "retention_recovery": retention_recovery,
             }
         if schema != LEGACY_INSTANCE_SCHEMA_VERSION:
@@ -410,7 +450,9 @@ class InstanceLifecycleManager:
                     "instance_schema_version": CURRENT_INSTANCE_SCHEMA_VERSION,
                     "migration": None,
                     "recovery": recovery,
+                    "transaction_recovery": transaction_recovery,
                     "manual_web_recovery": manual_web_recovery,
+                    "email_intake_recovery": email_intake_recovery,
                     "retention_recovery": retention_recovery,
                 }
             backup = create_backup(self.store, reason="pre_migration_1_to_2")
@@ -445,7 +487,9 @@ class InstanceLifecycleManager:
             "migration": receipt,
             "backup": backup,
             "recovery": recovery,
+            "transaction_recovery": transaction_recovery,
             "manual_web_recovery": manual_web_recovery,
+            "email_intake_recovery": email_intake_recovery,
             "retention_recovery": retention_recovery,
         }
 

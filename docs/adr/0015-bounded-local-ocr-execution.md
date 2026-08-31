@@ -133,5 +133,5 @@ Operators control every local dependency and pack. Missing or incompatible compo
 unambiguous capability errors. Results are reproducible only when exact source, settings and
 component identities remain available. Printed text is the only qualified content; there is no
 handwriting, semantic correction, automatic verification, advanced preprocessing, layout/table/
-barcode/QR claim or remote fallback. `0.9/S03` remains a forecast only and is not activated by
-this decision.
+barcode/QR claim or remote fallback. The separately implemented `0.9/S03` email slice does not
+change this OCR decision; `0.9/S04` remains forecast-only.

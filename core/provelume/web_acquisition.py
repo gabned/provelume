@@ -3,15 +3,20 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import re
-import shutil
-from contextlib import suppress
 from dataclasses import asdict, replace
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlsplit
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
+from .atomic_commit import (
+    ATOMIC_COMMIT_SCHEMA_VERSION,
+    MANUAL_WEB_TRANSACTION_PROFILE,
+    AtomicCommitRecoveryError,
+    AtomicInstanceCommit,
+    AtomicRecoveryHandler,
+    recover_atomic_transactions,
+)
 from .connectors import ConnectorManager
 from .derived import EXTRACTED_TEXT_SCHEMA
 from .domain import (
@@ -36,12 +41,8 @@ from .web_transport import (
 
 MANUAL_WEB_ACQUISITION_SCHEMA_VERSION = 1
 MANUAL_WEB_ACQUISITION_KIND = "manual_web"
-MANUAL_WEB_OPERATION_KIND = "connector.web.acquire"
-MANUAL_WEB_TRANSACTION_SCHEMA_VERSION = 1
-_TRANSACTION_DIRECTORY = re.compile(r"manual-web-[0-9a-f]{32}\Z")
-_OPERATION_ID = re.compile(r"op_[0-9a-f]{32}\Z")
-_JOURNAL_FILE = re.compile(r"(?:candidates|preimages)/[0-9]{4}\.bin\Z")
-_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+MANUAL_WEB_OPERATION_KIND = MANUAL_WEB_TRANSACTION_PROFILE.kind
+MANUAL_WEB_TRANSACTION_SCHEMA_VERSION = ATOMIC_COMMIT_SCHEMA_VERSION
 
 
 class ManualWebAcquisitionError(RuntimeError):
@@ -68,282 +69,6 @@ class ManualWebIntegrityError(ManualWebAcquisitionError):
 class ManualWebAtomicityError(ManualWebAcquisitionError):
     code = "manual_web_atomic_commit_failed"
     safe_message = "Manual web acquisition rolled back before completion."
-
-
-class _AtomicInstanceCommit:
-    """Durably journal a bounded multi-file Instance commit before live replacement."""
-
-    def __init__(
-        self,
-        store: InstanceStore,
-        stage_parent: Path,
-        *,
-        operation_id: str,
-    ):
-        self.store = store
-        self.stage_parent = stage_parent
-        self.operation_id = operation_id
-        self._writes: dict[str, tuple[bytes, bool]] = {}
-
-    def add(self, relative: str, data: bytes, *, immutable: bool) -> None:
-        target = safe_instance_path(self.store.paths.root, relative)
-        selected = target.relative_to(self.store.paths.root).as_posix()
-        current = self._writes.get(selected)
-        candidate = (bytes(data), immutable)
-        if current is not None and current != candidate:
-            raise ManualWebIntegrityError
-        self._writes[selected] = candidate
-
-    def _prepare(self) -> tuple[Path, dict[str, Any]]:
-        self.stage_parent.mkdir(parents=True, exist_ok=True)
-        transaction_id = f"manual-web-{uuid4().hex}"
-        stage = self.stage_parent / transaction_id
-        stage.mkdir()
-        try:
-            entries: list[dict[str, Any]] = []
-            for index, (relative, (data, immutable)) in enumerate(
-                sorted(self._writes.items())
-            ):
-                target = safe_instance_path(self.store.paths.root, relative)
-                if target.is_symlink():
-                    raise ManualWebIntegrityError
-                if target.exists() and not target.is_file():
-                    raise ManualWebIntegrityError
-                before = target.read_bytes() if target.is_file() else None
-                if before is not None and immutable and before != data:
-                    raise ManualWebIntegrityError
-                if before == data:
-                    continue
-                candidate_ref = f"candidates/{index:04d}.bin"
-                self.store._atomic_bytes(stage / candidate_ref, data)
-                preimage_ref = (
-                    f"preimages/{index:04d}.bin" if before is not None else None
-                )
-                if before is not None and preimage_ref is not None:
-                    self.store._atomic_bytes(stage / preimage_ref, before)
-                entries.append(
-                    {
-                        "relative": relative,
-                        "immutable": immutable,
-                        "had_preimage": before is not None,
-                        "preimage_ref": preimage_ref,
-                        "preimage_sha256": (
-                            hashlib.sha256(before).hexdigest()
-                            if before is not None
-                            else None
-                        ),
-                        "candidate_ref": candidate_ref,
-                        "candidate_sha256": hashlib.sha256(data).hexdigest(),
-                    }
-                )
-            if not entries:
-                raise ManualWebIntegrityError
-            manifest = {
-                "schema_version": MANUAL_WEB_TRANSACTION_SCHEMA_VERSION,
-                "transaction_id": transaction_id,
-                "kind": MANUAL_WEB_OPERATION_KIND,
-                "status": "prepared",
-                "operation_id": self.operation_id,
-                "prepared_at": utc_now(),
-                "committed_at": None,
-                "entries": entries,
-            }
-            self.store._atomic_json(stage / "manifest.json", manifest)
-            _fsync_directory(stage)
-            _fsync_directory(self.stage_parent)
-            return stage, manifest
-        except Exception:
-            shutil.rmtree(stage, ignore_errors=True)
-            raise
-
-    def commit(self) -> None:
-        try:
-            stage, manifest = self._prepare()
-        except ManualWebAcquisitionError:
-            raise
-        except Exception:
-            raise ManualWebAtomicityError from None
-        try:
-            for entry in manifest["entries"]:
-                target = safe_instance_path(
-                    self.store.paths.root,
-                    str(entry["relative"]),
-                )
-                before = target.read_bytes() if target.is_file() else None
-                expected_before = (
-                    _journal_bytes(stage, str(entry["preimage_ref"]))
-                    if entry["had_preimage"]
-                    else None
-                )
-                if before != expected_before:
-                    raise ManualWebAtomicityError
-                candidate = _journal_path(stage, str(entry["candidate_ref"]))
-                data = candidate.read_bytes()
-                if hashlib.sha256(data).hexdigest() != entry["candidate_sha256"]:
-                    raise ManualWebAtomicityError
-                target.parent.mkdir(parents=True, exist_ok=True)
-                os.replace(candidate, target)
-                _fsync_directory(target.parent)
-            committed = {
-                **manifest,
-                "status": "committed",
-                "committed_at": utc_now(),
-            }
-            self.store._atomic_json(stage / "manifest.json", committed)
-            _fsync_directory(stage)
-        except Exception as exc:
-            try:
-                _rollback_prepared_transaction(self.store, stage, manifest)
-                shutil.rmtree(stage)
-                _fsync_directory(self.stage_parent)
-            except Exception:
-                raise ManualWebAtomicityError from None
-            if isinstance(exc, ManualWebAcquisitionError):
-                raise
-            raise ManualWebAtomicityError from None
-        shutil.rmtree(stage, ignore_errors=True)
-        # A durable committed marker makes later journal cleanup recoverable on open.
-        with suppress(OSError):
-            _fsync_directory(self.stage_parent)
-
-
-def _fsync_directory(path: Path) -> None:
-    if os.name == "nt":
-        return
-    descriptor = os.open(path, os.O_RDONLY)
-    try:
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
-
-
-def _journal_path(stage: Path, relative: str) -> Path:
-    if _JOURNAL_FILE.fullmatch(relative) is None:
-        raise ManualWebAtomicityError
-    return safe_instance_path(stage, relative)
-
-
-def _journal_bytes(stage: Path, relative: str) -> bytes:
-    path = _journal_path(stage, relative)
-    if not path.is_file() or path.is_symlink():
-        raise ManualWebAtomicityError
-    return path.read_bytes()
-
-
-def _load_transaction_manifest(stage: Path) -> dict[str, Any] | None:
-    path = stage / "manifest.json"
-    if not path.exists():
-        return None
-    if not path.is_file() or path.is_symlink():
-        raise ManualWebAtomicityError
-    try:
-        with path.open("r", encoding="utf-8") as handle:
-            value = json.load(handle)
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        raise ManualWebAtomicityError from None
-    if not isinstance(value, dict):
-        raise ManualWebAtomicityError
-    return value
-
-
-def _validate_transaction_manifest(
-    store: InstanceStore,
-    stage: Path,
-    manifest: dict[str, Any],
-) -> None:
-    if set(manifest) != {
-        "schema_version",
-        "transaction_id",
-        "kind",
-        "status",
-        "operation_id",
-        "prepared_at",
-        "committed_at",
-        "entries",
-    }:
-        raise ManualWebAtomicityError
-    status = manifest.get("status")
-    if (
-        manifest.get("schema_version") != MANUAL_WEB_TRANSACTION_SCHEMA_VERSION
-        or manifest.get("transaction_id") != stage.name
-        or _TRANSACTION_DIRECTORY.fullmatch(stage.name) is None
-        or manifest.get("kind") != MANUAL_WEB_OPERATION_KIND
-        or _OPERATION_ID.fullmatch(str(manifest.get("operation_id"))) is None
-        or status not in {"prepared", "committed"}
-        or not isinstance(manifest.get("prepared_at"), str)
-        or (status == "prepared" and manifest.get("committed_at") is not None)
-        or (status == "committed" and not isinstance(manifest.get("committed_at"), str))
-    ):
-        raise ManualWebAtomicityError
-    entries = manifest.get("entries")
-    if not isinstance(entries, list) or not 1 <= len(entries) <= 2048:
-        raise ManualWebAtomicityError
-    seen: set[str] = set()
-    candidate_refs: set[str] = set()
-    preimage_refs: set[str] = set()
-    for entry in entries:
-        if not isinstance(entry, dict) or set(entry) != {
-            "relative",
-            "immutable",
-            "had_preimage",
-            "preimage_ref",
-            "preimage_sha256",
-            "candidate_ref",
-            "candidate_sha256",
-        }:
-            raise ManualWebAtomicityError
-        relative = entry.get("relative")
-        if not isinstance(relative, str) or relative in seen:
-            raise ManualWebAtomicityError
-        safe_instance_path(store.paths.root, relative)
-        seen.add(relative)
-        candidate_ref = entry.get("candidate_ref")
-        if (
-            type(entry.get("immutable")) is not bool
-            or type(entry.get("had_preimage")) is not bool
-            or not isinstance(candidate_ref, str)
-            or not candidate_ref.startswith("candidates/")
-            or _JOURNAL_FILE.fullmatch(candidate_ref) is None
-            or candidate_ref in candidate_refs
-            or _SHA256.fullmatch(str(entry.get("candidate_sha256"))) is None
-        ):
-            raise ManualWebAtomicityError
-        candidate_refs.add(candidate_ref)
-        if entry["had_preimage"]:
-            preimage_ref = entry.get("preimage_ref")
-            if (
-                not isinstance(preimage_ref, str)
-                or not preimage_ref.startswith("preimages/")
-                or _JOURNAL_FILE.fullmatch(preimage_ref) is None
-                or preimage_ref in preimage_refs
-                or _SHA256.fullmatch(str(entry.get("preimage_sha256"))) is None
-            ):
-                raise ManualWebAtomicityError
-            preimage_refs.add(preimage_ref)
-        elif entry.get("preimage_ref") is not None or entry.get(
-            "preimage_sha256"
-        ) is not None:
-            raise ManualWebAtomicityError
-
-
-def _rollback_prepared_transaction(
-    store: InstanceStore,
-    stage: Path,
-    manifest: dict[str, Any],
-) -> None:
-    for entry in reversed(manifest["entries"]):
-        target = safe_instance_path(store.paths.root, str(entry["relative"]))
-        if entry["had_preimage"]:
-            before = _journal_bytes(stage, str(entry["preimage_ref"]))
-            if hashlib.sha256(before).hexdigest() != entry["preimage_sha256"]:
-                raise ManualWebAtomicityError
-            store._atomic_bytes(target, before)
-            _fsync_directory(target.parent)
-        else:
-            existed = target.exists()
-            target.unlink(missing_ok=True)
-            if existed:
-                _fsync_directory(target.parent)
 
 
 def _close_interrupted_operation(store: InstanceStore, operation_id: str) -> None:
@@ -377,47 +102,53 @@ def recover_manual_web_transactions(
     control_root: Path,
 ) -> dict[str, Any] | None:
     """Recover prepared S05 journals before an Instance is validated or used."""
-
-    root = control_root / "transactions"
-    if not root.exists():
-        return None
-    if not root.is_dir() or root.is_symlink():
-        raise ManualWebAtomicityError
-    rolled_back = 0
-    committed_cleanups = 0
-    for stage in sorted(root.glob("manual-web-*")):
-        if not stage.is_dir() or stage.is_symlink():
-            raise ManualWebAtomicityError
-        manifest = _load_transaction_manifest(stage)
-        if manifest is None:
-            shutil.rmtree(stage)
-            continue
-        _validate_transaction_manifest(store, stage, manifest)
-        if manifest["status"] == "prepared":
-            _rollback_prepared_transaction(store, stage, manifest)
-            _close_interrupted_operation(store, str(manifest["operation_id"]))
-            rolled_back += 1
-        else:
-            for entry in manifest["entries"]:
-                target = safe_instance_path(store.paths.root, str(entry["relative"]))
-                if (
-                    not target.is_file()
-                    or target.is_symlink()
-                    or hashlib.sha256(target.read_bytes()).hexdigest()
-                    != entry["candidate_sha256"]
-                ):
-                    raise ManualWebAtomicityError
-            committed_cleanups += 1
-        shutil.rmtree(stage)
-    _fsync_directory(root)
-    if not rolled_back and not committed_cleanups:
+    try:
+        report = recover_atomic_transactions(
+            store,
+            control_root,
+            handlers=(_manual_web_recovery_handler(),),
+        )
+    except AtomicCommitRecoveryError:
+        raise ManualWebAtomicityError from None
+    if report is None:
         return None
     return {
         "schema_version": MANUAL_WEB_TRANSACTION_SCHEMA_VERSION,
         "status": "recovered",
-        "rolled_back": rolled_back,
-        "committed_cleanups": committed_cleanups,
+        "rolled_back": report["rolled_back"],
+        "committed_cleanups": report["committed_cleanups"],
     }
+
+
+def _manual_web_recovery_handler() -> AtomicRecoveryHandler:
+    return AtomicRecoveryHandler(
+        profile=MANUAL_WEB_TRANSACTION_PROFILE,
+        on_prepared_rollback=_close_interrupted_operation,
+        error_type=ManualWebAtomicityError,
+    )
+
+
+class _AtomicInstanceCommit(AtomicInstanceCommit):
+    """Compatibility adapter for the shared bounded transaction primitive."""
+
+    def __init__(
+        self,
+        store: InstanceStore,
+        stage_parent: Path,
+        *,
+        operation_id: str,
+    ):
+        self.operation_id = operation_id
+        super().__init__(
+            store,
+            stage_parent,
+            profile=MANUAL_WEB_TRANSACTION_PROFILE,
+            owner_id=operation_id,
+            error_type=ManualWebAtomicityError,
+            integrity_error_type=ManualWebIntegrityError,
+            limit_error_type=ManualWebAtomicityError,
+            replace=lambda source, target: os.replace(source, target),
+        )
 
 
 def _json_bytes(value: Any) -> bytes:

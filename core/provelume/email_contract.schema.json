@@ -1,0 +1,232 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/local-email-contract-v1.schema.json",
+  "title": "Provelume local email contract v1",
+  "description": "Closed, provider-neutral records for explicit offline EML and Maildir intake.",
+  "oneOf": [
+    {"$ref": "#/$defs/limits"},
+    {"$ref": "#/$defs/capabilityReport"},
+    {"$ref": "#/$defs/capabilityEnvelope"},
+    {"$ref": "#/$defs/sourceConfig"},
+    {"$ref": "#/$defs/containerSnapshot"},
+    {"$ref": "#/$defs/parsedEmail"}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "sourceId": {"type": "string", "pattern": "^src_[0-9a-f]{32}$"},
+    "partId": {"type": "string", "pattern": "^epart_[0-9a-f]{64}$"},
+    "profile": {"enum": ["eml-file-v1", "maildir-cur-new-v1"]},
+    "format": {"enum": ["eml", "maildir"]},
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_message_bytes", "max_maildir_container_bytes", "max_messages_per_run",
+        "max_total_read_bytes", "max_headers_per_message",
+        "max_header_bytes_per_message", "max_header_line_bytes", "max_mime_parts",
+        "max_mime_depth", "max_nested_message_depth", "max_attachments_per_message",
+        "max_attachment_bytes", "max_total_attachment_bytes_per_message",
+        "max_decoded_bytes_per_message", "max_decoded_bytes_per_run",
+        "max_body_characters", "max_reference_tokens", "max_warnings_per_message",
+        "max_errors_per_run", "max_temp_bytes_per_job", "max_seconds_per_message",
+        "max_seconds_per_job"
+      ],
+      "properties": {
+        "max_message_bytes": {"type": "integer", "minimum": 1, "maximum": 268435456},
+        "max_maildir_container_bytes": {"type": "integer", "minimum": 1, "maximum": 8589934592},
+        "max_messages_per_run": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "max_total_read_bytes": {"type": "integer", "minimum": 1, "maximum": 4294967296},
+        "max_headers_per_message": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "max_header_bytes_per_message": {"type": "integer", "minimum": 1, "maximum": 4194304},
+        "max_header_line_bytes": {"type": "integer", "minimum": 1, "maximum": 1048576},
+        "max_mime_parts": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "max_mime_depth": {"type": "integer", "minimum": 1, "maximum": 64},
+        "max_nested_message_depth": {"type": "integer", "minimum": 1, "maximum": 16},
+        "max_attachments_per_message": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "max_attachment_bytes": {"type": "integer", "minimum": 1, "maximum": 134217728},
+        "max_total_attachment_bytes_per_message": {"type": "integer", "minimum": 1, "maximum": 268435456},
+        "max_decoded_bytes_per_message": {"type": "integer", "minimum": 1, "maximum": 268435456},
+        "max_decoded_bytes_per_run": {"type": "integer", "minimum": 1, "maximum": 4294967296},
+        "max_body_characters": {"type": "integer", "minimum": 1, "maximum": 5000000},
+        "max_reference_tokens": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "max_warnings_per_message": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "max_errors_per_run": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "max_temp_bytes_per_job": {"type": "integer", "minimum": 1, "maximum": 8589934592},
+        "max_seconds_per_message": {"type": "integer", "minimum": 1, "maximum": 300},
+        "max_seconds_per_job": {"type": "integer", "minimum": 1, "maximum": 86400}
+      }
+    },
+    "capabilityReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "adapter_id", "adapter_version", "adapter_protocol_version",
+        "mailbox_format", "profile", "available", "state", "reason", "current_target",
+        "qualified_targets", "parser_id", "parser_version", "limits", "network_access",
+        "runtime_downloads", "remote_fallback"
+      ],
+      "properties": {
+        "schema_version": {"const": 1},
+        "adapter_id": {"const": "provelume.local-email"},
+        "adapter_version": {"const": "1.0.0"},
+        "adapter_protocol_version": {"const": 1},
+        "mailbox_format": {"type": "string", "minLength": 1, "maxLength": 40},
+        "profile": {"type": "string", "minLength": 1, "maxLength": 80},
+        "available": {"type": "boolean"},
+        "state": {"enum": ["ready", "runtime-unqualified", "format-unsupported", "profile-unsupported", "source-missing", "source-unsafe"]},
+        "reason": {
+          "type": ["string", "null"],
+          "enum": [null, "email_format_unsupported", "email_profile_unsupported", "email_runtime_unqualified", "email_source_missing", "email_source_unsafe"]
+        },
+        "current_target": {"type": "string", "minLength": 1, "maxLength": 120},
+        "qualified_targets": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 120}},
+        "parser_id": {"const": "python.email"},
+        "parser_version": {"const": "stdlib-3.12"},
+        "limits": {"$ref": "#/$defs/limits"},
+        "network_access": {"const": "none"},
+        "runtime_downloads": {"const": false},
+        "remote_fallback": {"const": false}
+      }
+    },
+    "attachmentOcrBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state", "available", "reason", "configured_mode",
+        "supported_input_media_types", "intake_dependency",
+        "eligibility_reported_per_attachment", "execution_requires_explicit_ocr_job",
+        "execution_requested", "execution_started", "network_required",
+        "runtime_downloads", "remote_fallback"
+      ],
+      "properties": {
+        "state": {"type": "string", "minLength": 1, "maxLength": 80},
+        "available": {"type": "boolean"},
+        "reason": {"type": ["string", "null"], "maxLength": 80},
+        "configured_mode": {"type": "string", "minLength": 1, "maxLength": 40},
+        "supported_input_media_types": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 120}
+        },
+        "intake_dependency": {"const": false},
+        "eligibility_reported_per_attachment": {"const": true},
+        "execution_requires_explicit_ocr_job": {"const": true},
+        "execution_requested": {"const": false},
+        "execution_started": {"const": false},
+        "network_required": {"const": false},
+        "runtime_downloads": {"const": false},
+        "remote_fallback": {"const": false}
+      }
+    },
+    "capabilityEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "available", "profiles", "attachment_ocr",
+        "network_access", "runtime_downloads", "remote_fallback",
+        "autodiscovery", "automatic_activity"
+      ],
+      "properties": {
+        "schema_version": {"const": 1},
+        "available": {"type": "boolean"},
+        "profiles": {"type": "array", "items": {"$ref": "#/$defs/capabilityReport"}},
+        "attachment_ocr": {"$ref": "#/$defs/attachmentOcrBoundary"},
+        "network_access": {"const": "none"},
+        "runtime_downloads": {"const": false},
+        "remote_fallback": {"const": false},
+        "autodiscovery": {"const": false},
+        "automatic_activity": {"const": false}
+      }
+    },
+    "sourceConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "source_id", "mailbox_format", "profile", "state", "adapter_id", "adapter_version", "network_access"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "source_id": {"$ref": "#/$defs/sourceId"},
+        "mailbox_format": {"$ref": "#/$defs/format"},
+        "profile": {"$ref": "#/$defs/profile"},
+        "state": {"enum": ["enabled", "paused", "disabled"]},
+        "adapter_id": {"const": "provelume.local-email"},
+        "adapter_version": {"const": "1.0.0"},
+        "network_access": {"const": "none"}
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locator_sha256", "filesystem_identity_sha256", "size_bytes"],
+      "properties": {
+        "locator_sha256": {"$ref": "#/$defs/sha256"},
+        "filesystem_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "size_bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "containerSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "source_id", "mailbox_format", "profile", "container_identity_sha256", "snapshot_sha256", "observed_at", "message_count", "total_bytes", "candidates", "network_used"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "source_id": {"$ref": "#/$defs/sourceId"},
+        "mailbox_format": {"$ref": "#/$defs/format"},
+        "profile": {"$ref": "#/$defs/profile"},
+        "container_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "snapshot_sha256": {"$ref": "#/$defs/sha256"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "message_count": {"type": "integer", "minimum": 0},
+        "total_bytes": {"type": "integer", "minimum": 0},
+        "candidates": {"type": "array", "items": {"$ref": "#/$defs/candidate"}},
+        "network_used": {"const": false}
+      }
+    },
+    "warning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "part_id", "header_name", "occurrence"],
+      "properties": {
+        "code": {"enum": ["header_repeated", "header_malformed", "encoded_word_invalid", "declared_date_invalid", "declared_message_id_absent", "declared_message_id_malformed", "declared_message_id_repeated", "reference_malformed", "reference_repeated", "charset_absent", "charset_unsupported", "charset_invalid", "html_body_unavailable", "body_text_unavailable", "mime_defect", "unsupported_signed_part", "unsupported_encrypted_part", "nested_message_preserved", "declared_message_id_collision", "thread_reference_missing", "thread_reference_ambiguous", "thread_reference_cycle", "thread_reference_cross_source"]},
+        "part_id": {"oneOf": [{"$ref": "#/$defs/partId"}, {"type": "null"}]},
+        "header_name": {"type": ["string", "null"], "maxLength": 120},
+        "occurrence": {"type": ["integer", "null"], "minimum": 1}
+      }
+    },
+    "parsedEmail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "parser_id", "parser_version", "parser_protocol_version", "message_sha256", "message_size_bytes", "headers", "address_groups", "declared_message_ids", "references", "in_reply_to", "declared_dates", "parts", "body", "attachments", "total_decoded_bytes", "warnings", "limits", "network_used", "active_content_executed", "remote_fetch"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "parser_id": {"const": "python.email"},
+        "parser_version": {"const": "stdlib-3.12"},
+        "parser_protocol_version": {"const": 1},
+        "message_sha256": {"$ref": "#/$defs/sha256"},
+        "message_size_bytes": {"type": "integer", "minimum": 1},
+        "headers": {"type": "array"},
+        "address_groups": {"type": "array"},
+        "declared_message_ids": {"type": "array", "items": {"type": "string"}},
+        "references": {"type": "array", "items": {"type": "string"}},
+        "in_reply_to": {"type": "array", "items": {"type": "string"}},
+        "declared_dates": {"type": "array", "items": {"type": "string", "format": "date-time"}},
+        "parts": {"type": "array"},
+        "body": {"type": "object"},
+        "attachments": {"type": "array"},
+        "total_decoded_bytes": {"type": "integer", "minimum": 0, "maximum": 268435456},
+        "warnings": {"type": "array", "items": {"$ref": "#/$defs/warning"}},
+        "limits": {"$ref": "#/$defs/limits"},
+        "network_used": {"const": false},
+        "active_content_executed": {"const": false},
+        "remote_fetch": {"const": false}
+      }
+    },
+    "localizedError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code"],
+      "properties": {
+        "code": {"enum": ["email_disabled", "email_source_disabled", "email_source_paused", "email_source_removed", "email_format_unsupported", "email_profile_unsupported", "email_runtime_unqualified", "email_source_missing", "email_source_unsafe", "email_input_non_regular", "email_input_changed", "email_message_limit_exceeded", "email_container_limit_exceeded", "email_total_read_limit_exceeded", "email_header_limit_exceeded", "email_mime_limit_exceeded", "email_attachment_limit_exceeded", "email_decoded_limit_exceeded", "email_message_malformed", "email_mime_malformed", "email_transfer_invalid", "email_timeout", "email_cancelled", "email_derived_invalid", "email_internal_error"]}
+      }
+    }
+  }
+}

@@ -23,6 +23,9 @@ from .domain import (
     DocumentClassification,
     DocumentDisposition,
     DocumentVersion,
+    EmailAttachmentEvidence,
+    EmailMessageEvidence,
+    EmailMessageObservation,
     HierarchyNode,
     Original,
     ProvenanceEdge,
@@ -52,6 +55,9 @@ ADDITIVE_CANONICAL_KINDS = (
     "dispositions",
     "connector-definitions",
     "connector-instances",
+    "email-messages",
+    "email-observations",
+    "email-attachments",
 )
 CANONICAL_KINDS = REQUIRED_CANONICAL_KINDS + ADDITIVE_CANONICAL_KINDS
 
@@ -299,6 +305,21 @@ class InstanceStore:
 
     def write_disposition(self, disposition: DocumentDisposition) -> None:
         self.write_canonical("dispositions", disposition)
+
+    def write_email_message_evidence(self, evidence: EmailMessageEvidence) -> None:
+        self.write_canonical("email-messages", evidence)
+
+    def write_email_message_observation(
+        self,
+        observation: EmailMessageObservation,
+    ) -> None:
+        self.write_canonical("email-observations", observation)
+
+    def write_email_attachment_evidence(
+        self,
+        evidence: EmailAttachmentEvidence,
+    ) -> None:
+        self.write_canonical("email-attachments", evidence)
 
     def write_derived_artifact(self, artifact: DerivedArtifact) -> None:
         path = self.paths.derived_artifacts / f"{artifact.id}.json"
