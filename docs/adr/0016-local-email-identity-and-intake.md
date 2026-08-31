@@ -5,7 +5,7 @@
 - Parent tracker: [#137](https://github.com/gabned/provelume/issues/137)
 - Predecessors: [#5](https://github.com/gabned/provelume/issues/5) / [PR #138](https://github.com/gabned/provelume/pull/138) and [#140](https://github.com/gabned/provelume/issues/140) / [PR #141](https://github.com/gabned/provelume/pull/141)
 - Owner issue: [#143](https://github.com/gabned/provelume/issues/143)
-- Owner PR: `OWNER_PR_TBD`
+- Owner PR: [#144](https://github.com/gabned/provelume/pull/144)
 - Published baseline: `0.8.0`; `0.9.0` remains unreleased development
 
 ## Context

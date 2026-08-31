@@ -1,7 +1,8 @@
 # Identità e intake email locale
 
 Stato: implementato per `0.9/S03`, attivo ma non pubblicato, tramite
-[#143](https://github.com/gabned/provelume/issues/143) e owner PR `OWNER_PR_TBD`.
+[#143](https://github.com/gabned/provelume/issues/143) e
+[PR #144](https://github.com/gabned/provelume/pull/144).
 Package, identità incorporata, tag e release pubblicata restano `0.8.0 — Vigilia`.
 
 La qualifica è vincolata all'owner head invariato dallo smoke permanente EML/Maildir e dai workflow
