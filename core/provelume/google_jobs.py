@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
@@ -21,7 +21,12 @@ from .domain import (
     as_record,
     email_message_evidence_id,
 )
-from .email_contract import EmailLimits, FilesystemIdentity, ObservedMessageBytes
+from .email_contract import (
+    EmailContractError,
+    EmailLimits,
+    FilesystemIdentity,
+    ObservedMessageBytes,
+)
 from .email_jobs import EmailJobManager
 from .google_adapters import GoogleApiAdapter
 from .google_contract import (
@@ -357,7 +362,13 @@ class GoogleJobManager:
             data=item.payload,
         )
         limits = EmailLimits()
-        parsed = self.email.parser.parse(item.payload, limits=limits)
+        try:
+            parsed = self.email.parser.parse(item.payload, limits=limits)
+        except EmailContractError as exc:
+            raise GoogleContractError(
+                "google_payload_invalid",
+                "Gmail message violates the bounded email contract",
+            ) from exc
         observation_id = _stable_id(
             "google_gmail_observation",
             f"{source_id}:{identity['provider_item_ref_sha256']}:{identity['provider_revision_ref_sha256']}:{item.payload_sha256}",
@@ -557,9 +568,17 @@ class GoogleJobManager:
         ]
         self._write_run(job_id, request, status="running", progress=progress, error_codes=errors)
         cursor = source["cursor"].get("provider_cursor")
-        base_ordinal = 0 if cursor is None else int(source["cursor"]["page_ordinal"])
+        resuming = cursor is not None
+        base_ordinal = int(source["cursor"]["page_ordinal"]) if resuming else 0
+        session_fingerprints = (
+            list(source["cursor"]["page_fingerprints"]) if resuming else []
+        )
         pages = 0
-        total_bytes = 0
+        total_bytes = sum(
+            int(value.get("size_bytes", 0))
+            for value in work["items"].values()
+            if value.get("status") in {"processed", "skipped"}
+        )
         while True:
             if self._cancel_requested(job_id):
                 self._write_run(
@@ -574,17 +593,22 @@ class GoogleJobManager:
                 raise GoogleContractError(
                     "google_backfill_limit_exceeded", "Google page bound was reached"
                 )
+            remaining_bytes = limits.max_total_bytes_per_run - total_bytes
+            if remaining_bytes <= 0:
+                raise GoogleContractError(
+                    "google_payload_limit_exceeded", "Google run byte bound was reached"
+                )
             page = self.adapter.fetch_page(
                 instance=instance,
                 capability=capability,
                 source=source,
                 cursor=cursor,
-                limits=limits,
+                limits=replace(limits, max_total_bytes_per_run=remaining_bytes),
             )
             pages += 1
             fingerprint = page.fingerprint()
             ordinal = base_ordinal + pages
-            previous_fingerprints = list(source["cursor"]["page_fingerprints"])
+            previous_fingerprints = list(session_fingerprints)
             if (
                 len(previous_fingerprints) >= ordinal
                 and previous_fingerprints[ordinal - 1] != fingerprint
@@ -595,6 +619,7 @@ class GoogleJobManager:
                 and len(previous_fingerprints) < limits.max_page_fingerprints
             ):
                 previous_fingerprints.append(fingerprint)
+            session_fingerprints = previous_fingerprints
             for item in page.items:
                 if len(work["items"]) >= limits.max_items_per_run:
                     raise GoogleContractError(
@@ -639,11 +664,12 @@ class GoogleJobManager:
                     checkpoint(progress)
             now = utc_now()
             next_cursor = page.next_cursor
+            checkpoint_fingerprints = previous_fingerprints if next_cursor is not None else []
             updated_cursor = {
                 **source["cursor"],
                 "provider_cursor": next_cursor,
-                "page_ordinal": ordinal,
-                "page_fingerprints": previous_fingerprints,
+                "page_ordinal": ordinal if next_cursor is not None else 0,
+                "page_fingerprints": checkpoint_fingerprints,
                 "resync_required": False,
                 "last_attempt_at": now,
                 "last_success_at": now,

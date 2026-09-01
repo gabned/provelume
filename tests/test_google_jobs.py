@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import socket
 import zipfile
@@ -8,13 +9,15 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from provelume.google_adapters import SyntheticGoogleAdapter
+from provelume.google_adapters import GoogleApiAdapter, SyntheticGoogleAdapter
 from provelume.google_contract import (
     GOOGLE_CAPABILITY_SCOPES,
+    GoogleAdapterError,
     GoogleAuthorizationError,
     GoogleContractError,
     GoogleCursorInvalidated,
     GoogleItem,
+    GoogleLimits,
     GooglePage,
     GoogleRateLimitError,
 )
@@ -142,9 +145,181 @@ def test_gmail_paging_exact_original_replay_and_independent_revoke(tmp_path: Pat
         or caught.value.code == "google_authorization_required"
     )
     assert (
-        instance.get_google_instance(connector_id)["capabilities"]["drive"]["authorization_status"]
+        instance.get_google_instance(connector_id)["capabilities"]["drive"][
+            "authorization_status"
+        ]
         == "not_authorized"
     )
+
+
+def test_completed_scan_discards_page_fingerprints_before_remote_change(tmp_path: Path) -> None:
+    instance, _connector_id, source_id = _configured_source(
+        tmp_path,
+        capability="drive",
+        selection_kind="file",
+        selectors=["one"],
+    )
+    first = GoogleItem(
+        capability="drive",
+        provider_item_id="provider-file",
+        provider_revision_id="revision-1",
+        payload=b"first revision",
+        media_type="application/octet-stream",
+    )
+    adapter = SyntheticGoogleAdapter(
+        {source_id: (GooglePage(capability="drive", items=(first,)),)}
+    )
+    _use_adapter(instance, adapter)
+    queued = instance.queue_google_intake(source_id)
+    assert instance.run_google_job(str(queued["job"]["id"]))["status"] == "succeeded"
+    cursor = instance.get_google_source(source_id)["cursor"]
+    assert cursor["page_ordinal"] == 0
+    assert cursor["page_fingerprints"] == []
+
+    changed = GoogleItem(
+        capability="drive",
+        provider_item_id="provider-file",
+        provider_revision_id="revision-2",
+        payload=b"second revision",
+        media_type="application/octet-stream",
+    )
+    changed_adapter = SyntheticGoogleAdapter(
+        {source_id: (GooglePage(capability="drive", items=(changed,)),)}
+    )
+    _use_adapter(instance, changed_adapter)
+    queued = instance.queue_google_intake(source_id)
+    assert instance.run_google_job(str(queued["job"]["id"]))["status"] == "succeeded"
+    assert len(instance.list_google_drive_revisions()) == 2
+
+
+def test_gmail_raw_json_uses_item_bound_not_metadata_bound(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter = GoogleApiAdapter(credential_resolver=lambda _reference: "synthetic")
+    raw_payload = _message("x" * 2048)
+    raw_json = json.dumps(
+        {"raw": base64.urlsafe_b64encode(raw_payload).decode().rstrip("=")}
+    ).encode()
+    maxima: list[int] = []
+
+    def fake_request(
+        url: str,
+        *,
+        credential_reference: object,
+        limits: GoogleLimits,
+        maximum: int,
+    ) -> tuple[bytes, str]:
+        del credential_reference, limits
+        maxima.append(maximum)
+        if url.endswith("/messages?maxResults=1"):
+            return b'{"messages":[{"id":"one"}]}', "application/json"
+        assert len(raw_json) <= maximum
+        return raw_json, "application/json"
+
+    monkeypatch.setattr(adapter, "_request", fake_request)
+    limits = GoogleLimits(
+        max_items_per_page=1,
+        max_items_per_run=1,
+        max_item_bytes=4096,
+        max_total_bytes_per_run=4096,
+        max_json_bytes=128,
+    )
+    page = adapter.fetch_page(
+        instance={},
+        capability={
+            "capability": "gmail",
+            "credential_reference": {"kind": "environment", "name": "SYNTHETIC"},
+        },
+        source={"capability": "gmail", "selection_kind": "mailbox", "selectors": ["me"]},
+        cursor=None,
+        limits=limits,
+    )
+    assert page.items[0].payload == raw_payload
+    assert maxima == [limits.max_json_bytes, ((limits.max_item_bytes + 2) // 3) * 4 + 128]
+
+
+def test_drive_adapter_applies_remaining_run_budget_while_buffering_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter = GoogleApiAdapter(credential_resolver=lambda _reference: "synthetic")
+    content_maxima: list[int] = []
+
+    def fake_request(
+        url: str,
+        *,
+        credential_reference: object,
+        limits: GoogleLimits,
+        maximum: int,
+    ) -> tuple[bytes, str]:
+        del credential_reference, limits
+        if "/drive/v3/files?" in url:
+            return (
+                b'{"files":[{"id":"one","mimeType":"application/pdf","version":"1"},'
+                b'{"id":"two","mimeType":"application/pdf","version":"1"}]}',
+                "application/json",
+            )
+        if "alt=media" in url:
+            content_maxima.append(maximum)
+            payload = b"123456" if len(content_maxima) == 1 else b"12345"
+            if len(payload) > maximum:
+                raise GoogleAdapterError(
+                    "google_payload_limit_exceeded",
+                    "synthetic response exceeds remaining bytes",
+                )
+            return payload, "application/pdf"
+        return (
+            b'{"id":"one","mimeType":"application/pdf","version":"1"}',
+            "application/json",
+        )
+
+    monkeypatch.setattr(adapter, "_request", fake_request)
+    limits = GoogleLimits(
+        max_items_per_page=2,
+        max_items_per_run=2,
+        max_item_bytes=8,
+        max_total_bytes_per_run=10,
+    )
+    with pytest.raises(GoogleAdapterError) as caught:
+        adapter.fetch_page(
+            instance={},
+            capability={
+                "capability": "drive",
+                "credential_reference": {"kind": "environment", "name": "SYNTHETIC"},
+            },
+            source={"capability": "drive", "selection_kind": "file", "selectors": ["one"]},
+            cursor=None,
+            limits=limits,
+        )
+    assert caught.value.code == "google_payload_limit_exceeded"
+    assert content_maxima == [8, 4]
+
+
+def test_malformed_gmail_item_is_recorded_as_bounded_error(tmp_path: Path) -> None:
+    instance, _connector_id, source_id = _configured_source(
+        tmp_path,
+        capability="gmail",
+        selection_kind="mailbox",
+        selectors=["me"],
+    )
+    malformed = GoogleItem(
+        capability="gmail",
+        provider_item_id="bad-message",
+        provider_revision_id="bad-revision",
+        payload=b"X-Too-Long: " + b"x" * (17 * 1024) + b"\r\n\r\n",
+        media_type="message/rfc822",
+    )
+    adapter = SyntheticGoogleAdapter(
+        {source_id: (GooglePage(capability="gmail", items=(malformed,)),)}
+    )
+    _use_adapter(instance, adapter)
+    queued = instance.queue_google_intake(source_id)
+    job_id = str(queued["job"]["id"])
+    result = instance.run_google_job(job_id)
+    assert result["status"] == "succeeded"
+    retained = instance.get_google_job(job_id)
+    assert retained["google_run"]["status"] == "completed_with_errors"
+    assert retained["google_run"]["progress"] == {"processed": 0, "skipped": 0, "errors": 1}
+    assert retained["google_run"]["error_codes"] == ["google_payload_invalid"]
 
 
 def test_drive_binary_revision_and_bounded_google_native_export(tmp_path: Path) -> None:

@@ -114,6 +114,11 @@ class SyntheticGoogleAdapter:
                 "google_payload_limit_exceeded",
                 "Synthetic Google page exceeds the configured item limit",
             )
+        if sum(len(item.payload) for item in page.items) > limits.max_total_bytes_per_run:
+            raise GoogleAdapterError(
+                "google_payload_limit_exceeded",
+                "Synthetic Google page exceeds the remaining run byte limit",
+            )
         expected_cursor = str(index + 1) if index + 1 < len(pages) else None
         return GooglePage(
             capability=page.capability,
@@ -218,12 +223,13 @@ class GoogleApiAdapter:
         *,
         credential_reference: Mapping[str, str],
         limits: GoogleLimits,
+        maximum: int | None = None,
     ) -> dict[str, Any]:
         payload, content_type = self._request(
             url,
             credential_reference=credential_reference,
             limits=limits,
-            maximum=limits.max_json_bytes,
+            maximum=limits.max_json_bytes if maximum is None else maximum,
         )
         if content_type != "application/json":
             raise GoogleAdapterError(
@@ -275,21 +281,33 @@ class GoogleApiAdapter:
                 "google_payload_limit_exceeded", "Gmail message page exceeds its closed limit"
             )
         items: list[GoogleItem] = []
+        page_bytes = 0
         for row in rows:
             if not isinstance(row, Mapping) or not isinstance(row.get("id"), str):
                 raise GoogleAdapterError(
                     "google_payload_invalid", "Gmail message reference is malformed"
                 )
             message_id = row["id"]
+            item_limit = min(
+                limits.max_item_bytes,
+                limits.max_total_bytes_per_run - page_bytes,
+            )
+            if item_limit <= 0:
+                raise GoogleAdapterError(
+                    "google_payload_limit_exceeded",
+                    "Gmail page exceeds the remaining run byte limit",
+                )
+            encoded_item_limit = ((item_limit + 2) // 3) * 4
             value = self._json(
                 "https://gmail.googleapis.com/gmail/v1/users/me/messages/"
                 + quote(message_id, safe="")
                 + "?format=raw",
                 credential_reference=self._reference(capability),
                 limits=limits,
+                maximum=encoded_item_limit + limits.max_json_bytes,
             )
             raw = value.get("raw")
-            if not isinstance(raw, str) or len(raw) > (limits.max_item_bytes * 4 // 3 + 16):
+            if not isinstance(raw, str) or len(raw) > encoded_item_limit + 16:
                 raise GoogleAdapterError(
                     "google_payload_limit_exceeded", "Gmail raw message exceeds its closed limit"
                 )
@@ -299,10 +317,11 @@ class GoogleApiAdapter:
                 raise GoogleAdapterError(
                     "google_payload_invalid", "Gmail raw message encoding is invalid"
                 ) from exc
-            if not payload or len(payload) > limits.max_item_bytes:
+            if not payload or len(payload) > item_limit:
                 raise GoogleAdapterError(
                     "google_payload_limit_exceeded", "Gmail raw message exceeds its closed limit"
                 )
+            page_bytes += len(payload)
             thread_id = value.get("threadId")
             labels = value.get("labelIds", [])
             internal_date = value.get("internalDate")
@@ -395,6 +414,7 @@ class GoogleApiAdapter:
                 "google_payload_limit_exceeded", "Drive file page exceeds its closed limit"
             )
         items: list[GoogleItem] = []
+        page_bytes = 0
         for row in rows:
             if not isinstance(row, Mapping):
                 raise GoogleAdapterError(
@@ -429,16 +449,26 @@ class GoogleApiAdapter:
                 )
                 effective_type = export_format
                 google_native = True
+            item_limit = min(
+                limits.max_item_bytes,
+                limits.max_total_bytes_per_run - page_bytes,
+            )
+            if item_limit <= 0:
+                raise GoogleAdapterError(
+                    "google_payload_limit_exceeded",
+                    "Drive page exceeds the remaining run byte limit",
+                )
             payload, _content_type = self._request(
                 url,
                 credential_reference=reference,
                 limits=limits,
-                maximum=limits.max_item_bytes,
+                maximum=item_limit,
             )
             if not payload:
                 raise GoogleAdapterError(
                     "google_payload_invalid", "Drive returned an empty file representation"
                 )
+            page_bytes += len(payload)
             rechecked = self._drive_metadata(file_id, reference=reference, limits=limits)
             rechecked_revision = str(
                 rechecked.get("headRevisionId") or rechecked.get("version") or "unknown"
