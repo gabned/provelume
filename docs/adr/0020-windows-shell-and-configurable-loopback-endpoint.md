@@ -120,8 +120,9 @@ are stable, disjoint and complete; targeted invocations are untouched. Each subp
 isolated state directory. The parent has a 420-second bounded deadline, replays at most 2 MiB per
 shard, reports only shard index/count/duration/exit code, and terminates the process tree on timeout.
 Child pytest processes receive an explicit `--rootdir` anchored to the versioned configuration
-directory; derived collection roots are never appended to an explicit target, preventing Windows
-volume roots and protected junctions from becoming implicit collection input.
+directory and derived collection roots are never appended. The bounded harness selects a tracked,
+non-recursive node ID under that same root; cross-volume forced targets are not part of the bare
+full-suite production contract.
 No test is marked skipped or removed from the union. A permanent Windows shell workflow separately
 builds and exercises the exact-head installer, identity, collision rollback, loopback service,
 the installed frozen executable's real Win32 notification add/update/action/delete lifecycle, the

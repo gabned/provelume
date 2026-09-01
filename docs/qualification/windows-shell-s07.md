@@ -60,4 +60,11 @@ module-atomic shards in 377.27 seconds. Its sole failure was the forced nested c
 the parent appended pytest's derived `config.args` volume root after the explicit temporary-file
 target, causing collection of the protected `C:\\Documents and Settings` junction. Child commands
 now pass the versioned config directory through explicit `--rootdir` and retain only the original
-argument vector, with the same cross-drive regression proving bounded completion and cleanup.
+argument vector. The following run determines the remaining fixture boundary.
+
+Exact-head run `33547788896`, Windows Core job `99989493670`, completed the full primary shard union
+in 286.30 seconds, then failed only because pytest still traversed the volume root of the artificial
+`tmp_path` target on `C:` despite explicit `--rootdir`. Automatic orchestration never accepts such a
+target: it runs only for the bare repository suite. The harness now selects a tracked, non-recursive
+node ID under the versioned root while continuing to prove two-child dispatch, empty-shard success,
+bounded completion and cleanup.
