@@ -373,7 +373,7 @@ class EmailJobManager:
                 )
             return request, adapter, snapshot
 
-        if job.get("reason") not in {"scheduled", "coalesced", "catch_up", "manual"}:
+        if job.get("reason") not in {"scheduled", "coalesced", "catch_up"}:
             raise EmailContractError(
                 "email_internal_error", "email intake request is missing"
             )
@@ -1045,6 +1045,11 @@ class EmailJobManager:
                 "skipped",
             }:
                 continue
+            if isinstance(prior, Mapping) and prior.get("status") == "error":
+                progress["errors"] -= 1
+                prior_error = prior.get("error_code")
+                if prior_error in errors:
+                    errors.remove(prior_error)
             try:
                 observed = adapter.read_exact(candidate, limits=limits)
                 item_key = _item_idempotency_key(
