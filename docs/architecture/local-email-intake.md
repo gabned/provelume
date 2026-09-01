@@ -66,7 +66,7 @@ Original and provenance relationship. It does not delete or rewrite acquired kno
 The permanent smoke runs the real selected parser and generated synthetic messages on these exact
 qualified targets:
 
-| Profile | Ubuntu 24.04 x86-64 / CPython 3.12 | Windows x86-64 / CPython 3.12 | Other targets |
+| Profile | Ubuntu 24.04 x86-64 / CPython 3.12 | Windows Server 2025 x86-64 / CPython 3.12 | Other targets |
 | --- | --- | --- | --- |
 | `eml-file-v1` | qualified | qualified | unqualified |
 | `maildir-cur-new-v1` | qualified | unqualified | unqualified |
