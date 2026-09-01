@@ -232,11 +232,17 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     }
     $Evidence.checks.shortcuts_and_app_user_model_id = "PASS"
 
-    & $Executable --diagnostics-file $EvidencePath
-    if ($LASTEXITCODE -ne 0) {
+    $DiagnosticsPath = Join-Path `
+        (Split-Path $InstallerPath -Parent) `
+        "installed-shell-diagnostics.json"
+    $DiagnosticsProcess = Start-Process -FilePath $Executable -ArgumentList @(
+        "--diagnostics-file",
+        "`"$DiagnosticsPath`""
+    ) -Wait -PassThru
+    if ($DiagnosticsProcess.ExitCode -ne 0 -or -not (Test-Path $DiagnosticsPath)) {
         throw "Installed shell diagnostics failed."
     }
-    $Diagnostics = Get-Content -LiteralPath $EvidencePath -Raw | ConvertFrom-Json
+    $Diagnostics = Get-Content -LiteralPath $DiagnosticsPath -Raw | ConvertFrom-Json
     if (
         $Diagnostics.about.version -ne $ExpectedVersion -or
         $Diagnostics.about.commit -ne $ExpectedCommit -or
@@ -259,8 +265,11 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     $NativeTrayEvidencePath = Join-Path `
         (Split-Path $InstallerPath -Parent) `
         "native-tray-evidence.json"
-    & $Executable --native-tray-smoke-file $NativeTrayEvidencePath
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $NativeTrayEvidencePath)) {
+    $NativeTrayProcess = Start-Process -FilePath $Executable -ArgumentList @(
+        "--native-tray-smoke-file",
+        "`"$NativeTrayEvidencePath`""
+    ) -Wait -PassThru
+    if ($NativeTrayProcess.ExitCode -ne 0 -or -not (Test-Path $NativeTrayEvidencePath)) {
         throw "Installed native tray lifecycle failed."
     }
     $NativeTray = Get-Content -LiteralPath $NativeTrayEvidencePath -Raw | ConvertFrom-Json
@@ -293,8 +302,13 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     $Evidence.checks.installed_native_tray_add_update_delete_and_actions = "PASS"
 
     Set-FailureCode "instance_or_service_lifecycle_failed"
-    & $Executable --bootstrap-instance $InstanceRoot --instance-name "Synthetic S07"
-    if ($LASTEXITCODE -ne 0) {
+    $BootstrapProcess = Start-Process -FilePath $Executable -ArgumentList @(
+        "--bootstrap-instance",
+        "`"$InstanceRoot`"",
+        "--instance-name",
+        "`"Synthetic S07`""
+    ) -Wait -PassThru
+    if ($BootstrapProcess.ExitCode -ne 0) {
         throw "Synthetic Instance bootstrap failed."
     }
     $Service = Start-Process -FilePath $Executable -ArgumentList @(
