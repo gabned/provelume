@@ -3,7 +3,7 @@
 - Status: accepted for unreleased `0.9/S06`
 - Date: 2026-09-01
 - Owner issue: [#153](https://github.com/gabned/provelume/issues/153)
-- Owner PR: pending candidate creation
+- Owner PR: [#154](https://github.com/gabned/provelume/pull/154)
 - Parent tracker: [#137](https://github.com/gabned/provelume/issues/137)
 - Public identity: `0.8.0`
 
