@@ -38,7 +38,7 @@
         "workflow": ".github/workflows/email-smoke.yml"
       },
       {
-        "platform": "windows",
+        "platform": "windows-server-2025",
         "architecture": "x86_64",
         "python": "CPython 3.12",
         "profiles": [
