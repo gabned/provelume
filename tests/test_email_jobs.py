@@ -112,6 +112,58 @@ def test_explicit_eml_job_commits_exact_original_attachment_and_inert_bundle(
     assert validation["status"] == "valid", validation["errors"]
 
 
+def test_manual_job_without_its_immutable_request_fails_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance, _eml, source_id = _enabled_source(tmp_path, _message())
+    original_write = instance.email._write_immutable_json
+
+    def fail_request_write(_path: Path, _value: object) -> None:
+        raise EmailContractError(
+            "email_internal_error", "simulated request persistence failure"
+        )
+
+    monkeypatch.setattr(instance.email, "_write_immutable_json", fail_request_write)
+    with pytest.raises(EmailContractError) as caught:
+        instance.queue_email_intake(source_id)
+    assert caught.value.code == "email_internal_error"
+
+    jobs = instance.list_email_jobs()
+    assert len(jobs) == 1
+    job_id = str(jobs[0]["id"])
+    assert jobs[0]["reason"] == "manual"
+    assert not (instance.email.requests / f"{job_id}.json").exists()
+
+    monkeypatch.setattr(instance.email, "_write_immutable_json", original_write)
+    result = instance.run_email_job(job_id)
+    assert result is not None and result["status"] != "succeeded"
+    assert instance.list_email_messages() == []
+    assert not (instance.email.requests / f"{job_id}.json").exists()
+
+
+def test_retry_replaces_a_prior_error_outcome(tmp_path: Path) -> None:
+    instance, _eml, source_id = _enabled_source(tmp_path, _message())
+    queued = instance.queue_email_intake(source_id)
+    job_id = str(queued["job"]["id"])
+    request, _adapter, snapshot = instance.email._snapshot_request(job_id, source_id)
+    locator = str(snapshot.candidates[0].locator_sha256)
+    work = instance.email._work_record(job_id, request)
+    work["items"][locator] = {
+        "status": "error",
+        "error_code": "email_transfer_invalid",
+    }
+    instance.email._write_work(job_id, work)
+
+    finished = instance.run_email_job(job_id)
+    assert finished is not None and finished["status"] == "succeeded"
+    assert finished["progress"] == {"processed": 1, "skipped": 0, "errors": 0}
+    detail = instance.get_email_job(job_id)
+    assert detail is not None
+    assert detail["intake_run"]["status"] == "completed"
+    assert detail["intake_run"]["error_codes"] == []
+
+
 def test_replay_collision_and_derived_rebuild_preserve_canonical_state(
     tmp_path: Path,
 ) -> None:
