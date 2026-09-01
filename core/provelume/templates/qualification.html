@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ t('qualification.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('qualification.eyebrow') }}</p>
+  <h1>{{ t('qualification.title') }}</h1>
+  <p class="lead">{{ t('qualification.lead') }}</p>
+</section>
+{% if saved %}<section class="panel" role="status"><p class="status ok">{{ t('qualification.saved') }}</p><p class="technical-note">{{ saved }}</p></section>{% endif %}
+{% if error %}<section class="panel" role="alert"><p class="status warn">{{ t('qualification.error') }}</p><p class="technical-note">{{ error }}</p></section>{% endif %}
+{% if not editable %}<section class="panel"><p class="technical-note">{{ t('qualification.local_only') }}</p></section>{% endif %}
+
+<section class="panel">
+  <h2>{{ t('qualification.matrix') }}</h2>
+  <p><strong>{{ matrix.matrix_version }}</strong> · {{ matrix.claim_boundary }}</p>
+  <div class="table-wrap"><table><thead><tr><th scope="col">profile</th><th scope="col">local</th><th scope="col">preview</th><th scope="col">real provider</th></tr></thead><tbody>
+  {% for profile in matrix.profiles %}<tr><th scope="row">{{ profile.id }}</th><td>{{ profile.deterministic_local_conformance }}</td><td>{{ profile.platform_preview|join(', ') }}</td><td>{{ profile.authenticated_real_qualification }}</td></tr>{% endfor %}
+  </tbody></table></div>
+  <details><summary>{{ t('qualification.limits') }}</summary><pre>{{ qualification_limits|tojson(indent=2) }}</pre></details>
+</section>
+
+<section class="panel">
+  <h2>{{ t('qualification.sources') }}</h2>
+  {% if editable %}<form method="post" action="/qualification?lang={{ lang }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="queue">
+    <fieldset><legend>{{ t('qualification.sources') }}</legend>
+    {% for source in sources %}<label><input type="checkbox" name="source_id" value="{{ source.id }}"> <span class="technical-note">{{ source.id }} · {{ source.kind }}{% if source.source_kind %}/{{ source.source_kind }}{% endif %}</span></label>{% endfor %}
+    </fieldset><button type="submit">{{ t('qualification.queue') }}</button>
+  </form>{% endif %}
+  <ul class="document-list">{% for source in sources %}<li><div><strong>{{ source.id }}</strong><span>{{ source.kind }}{% if source.source_kind %}/{{ source.source_kind }}{% endif %} · revision={{ checkpoints[source.id].revision }} · resync={{ checkpoints[source.id].resync_required }}</span></div>{% if editable %}<form method="post" action="/qualification?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="resync"><input type="hidden" name="source_id" value="{{ source.id }}"><button>{{ t('qualification.resync') }}</button></form>{% endif %}</li>{% endfor %}</ul>
+</section>
+
+<section class="panel"><h2>{{ t('qualification.jobs') }}</h2><ul class="document-list">
+{% for job in jobs %}<li><div><strong>{{ job.status }} · {{ job.id }}</strong><span>{{ job.source_ids|join(', ') }}</span><span>{{ job.checkpoint.phase }} #{{ job.checkpoint.sequence }} · {{ job.progress.processed }}/{{ job.progress.errors }} · attempt={{ job.attempt }}/{{ job.max_attempts }} · lease={{ job.lease.present }} · {{ job.error_code or 'ok' }}</span></div>{% if editable %}<form method="post" action="/qualification?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="job_id" value="{{ job.id }}">{% if job.status == 'queued' %}<button name="action" value="run">{{ t('qualification.run') }}</button>{% endif %}{% if job.status in ['failed','cancelled'] %}<button name="action" value="retry">{{ t('qualification.retry') }}</button>{% endif %}{% if job.status in ['queued','running'] %}<button name="action" value="cancel">{{ t('qualification.cancel') }}</button>{% endif %}{% if job.status == 'succeeded' %}<button name="action" value="rebuild">{{ t('qualification.rebuild') }}</button>{% endif %}</form>{% endif %}</li>{% else %}<li class="empty">{{ t('qualification.no_jobs') }}</li>{% endfor %}
+</ul></section>
+
+<section class="panel"><h2>{{ t('qualification.findings') }}</h2>
+  <form method="get" action="/qualification">
+    <input type="hidden" name="lang" value="{{ lang }}">
+    <label>Source <select name="source_id"><option value=""></option>{% for source in sources %}<option value="{{ source.id }}"{% if selected_source == source.id %} selected{% endif %}>{{ source.id }}</option>{% endfor %}</select></label>
+    <label>Type <select name="finding_type"><option value=""></option>{% for value in finding_types %}<option value="{{ value }}"{% if selected_type == value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+    <label>State <select name="workflow_state"><option value=""></option>{% for value in workflow_states %}<option value="{{ value }}"{% if selected_state == value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+    <button>{{ t('qualification.filter') }}</button>
+  </form>
+  <ul class="document-list">{% for finding in findings %}<li><div><strong>{{ finding.finding_type }} · {{ finding.workflow_state }}</strong><span>{{ finding.id }}</span><span>{{ finding.epistemic_state }} · {{ finding.source_ids|join(', ') }} · {{ finding.evidence.code }}</span></div><a href="/qualification/findings/{{ finding.id }}?lang={{ lang }}">{{ t('qualification.inspect') }}</a></li>{% else %}<li class="empty">{{ t('qualification.no_findings') }}</li>{% endfor %}</ul>
+</section>
+<section class="notice info"><p><strong>{{ t('qualification.canonical') }}.</strong> {{ t('qualification.inert') }}</p></section>
+{% endblock %}

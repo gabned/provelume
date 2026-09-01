@@ -24,6 +24,7 @@ from .installation_i18n import installation_translator
 from .maintenance_activity import attach_maintenance_routes
 from .markdown_viewer import DocumentContentError, safe_markdown_html
 from .ocr_activity import attach_ocr_routes
+from .qualification_activity import attach_qualification_routes
 from .retention_model import DISPOSITION_FILTERS
 from .scheduler_model import SchedulerBusyError, SchedulerError
 from .service import ProvelumeInstance
@@ -140,6 +141,11 @@ def _navigation(
             "href": f"/transcripts?lang={language}",
             "label": t("nav.transcripts"),
             "current": current_path.startswith("/transcripts"),
+        },
+        {
+            "href": f"/qualification?lang={language}",
+            "label": t("nav.qualification"),
+            "current": current_path.startswith("/qualification"),
         },
         {
             "href": f"/settings?lang={language}",
@@ -279,6 +285,7 @@ def create_app(
     attach_email_routes(app, instance, TEMPLATES, _context)
     attach_google_routes(app, instance, TEMPLATES, _context)
     attach_transcript_routes(app, instance, TEMPLATES, _context)
+    attach_qualification_routes(app, instance, TEMPLATES, _context)
 
     @app.get("/")
     def home(request: Request):

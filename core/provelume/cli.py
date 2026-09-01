@@ -24,6 +24,7 @@ from .instance_cli import (
 from .maintenance_cli import add_maintenance_commands, handle_maintenance_command
 from .ocr_cli import add_ocr_commands, handle_ocr_command
 from .operational_cli import add_operational_commands, handle_operational_command
+from .qualification_cli import add_qualification_commands, handle_qualification_command
 from .scheduler_cli import add_scheduler_commands, handle_scheduler_command
 from .service import ProvelumeInstance
 from .transcript_cli import add_transcript_commands, handle_transcript_command
@@ -156,6 +157,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_email_commands(subparsers)
     add_google_commands(subparsers)
     add_transcript_commands(subparsers)
+    add_qualification_commands(subparsers)
     return parser
 
 
@@ -194,6 +196,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     transcript_result = handle_transcript_command(args)
     if transcript_result is not None:
         return transcript_result
+    qualification_result = handle_qualification_command(args)
+    if qualification_result is not None:
+        return qualification_result
 
     if args.command == "verify-installation":
         if args.release_bundle is None and args.expected_manifest_sha256 is None:

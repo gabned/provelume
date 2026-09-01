@@ -46,6 +46,8 @@ from .ocr_contract import OcrContractError, OcrSettings
 from .ocr_jobs import OCR_JOB_KIND, OcrJobManager
 from .paths import UnsafePathError
 from .portable_transfer import PortableInstanceTransfer
+from .qualification import QualificationManager
+from .qualification_contract import QualificationLimits
 from .resource_statistics import ResourceStatisticsManager
 from .retention import DocumentRetentionManager
 from .retention_model import DISPOSITION_FILTERS, effective_dispositions
@@ -87,6 +89,7 @@ class ProvelumeInstance:
         self.google = GoogleJobManager(self.store)
         self.transcript_sources = TranscriptSourceManager(self.store)
         self.transcripts = TranscriptJobManager(self.store)
+        self.qualification = QualificationManager(self.store)
         try:
             recovery = self.scheduler.recover()
             self.scheduler_recovery = {**recovery, "deferred": False}
@@ -112,6 +115,93 @@ class ProvelumeInstance:
     @property
     def root(self) -> Path:
         return self.store.paths.root
+
+    def qualification_matrix(self) -> dict[str, Any]:
+        return self.qualification.matrix()
+
+    def qualification_limits(self) -> dict[str, Any]:
+        return self.qualification.limits()
+
+    def qualification_source_checkpoint(self, source_id: str) -> dict[str, Any]:
+        return self.qualification.source_checkpoint(source_id)
+
+    def reset_qualification_source(self, source_id: str) -> dict[str, Any]:
+        return self.qualification.reset_source(source_id)
+
+    def queue_qualification(
+        self,
+        source_ids: Sequence[str],
+        *,
+        limits: Mapping[str, Any] | None = None,
+        request_key: str | None = None,
+    ) -> dict[str, Any]:
+        selected_limits = QualificationLimits.from_mapping(limits) if limits is not None else None
+        return self.qualification.queue(
+            source_ids,
+            limits=selected_limits,
+            request_key=request_key,
+        )
+
+    def run_qualification(self, job_id: str) -> dict[str, Any]:
+        return self.qualification.run(job_id)
+
+    def retry_qualification(self, job_id: str) -> dict[str, Any]:
+        return self.qualification.retry(job_id)
+
+    def cancel_qualification(self, job_id: str) -> dict[str, Any]:
+        return self.qualification.cancel(job_id)
+
+    def rebuild_qualification(self, job_id: str) -> dict[str, Any]:
+        return self.qualification.rebuild(job_id)
+
+    def list_qualification_jobs(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        return self.qualification.list_jobs(limit=limit)
+
+    def get_qualification_job(self, job_id: str) -> dict[str, Any] | None:
+        return self.qualification.get_job(job_id)
+
+    def list_qualification_findings(
+        self,
+        *,
+        source_id: str | None = None,
+        finding_type: str | None = None,
+        workflow_state: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        return self.qualification.list_findings(
+            source_id=source_id,
+            finding_type=finding_type,
+            workflow_state=workflow_state,
+            limit=limit,
+        )
+
+    def get_qualification_finding(self, finding_id: str) -> dict[str, Any] | None:
+        return self.qualification.get_finding(finding_id)
+
+    def decide_qualification_finding(
+        self,
+        finding_id: str,
+        *,
+        action: str,
+        actor_id: str,
+        reason: str,
+        expected_revision: int,
+        payload: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return self.qualification.decide(
+            finding_id,
+            action=action,
+            actor_id=actor_id,
+            reason=reason,
+            expected_revision=expected_revision,
+            payload=payload,
+        )
+
+    def list_qualification_decisions(self, finding_id: str | None = None) -> list[dict[str, Any]]:
+        return self.qualification.list_decisions(finding_id)
+
+    def get_qualification_decision(self, decision_id: str) -> dict[str, Any] | None:
+        return self.qualification.get_decision(decision_id)
 
     def ingest(
         self,

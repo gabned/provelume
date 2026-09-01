@@ -11,6 +11,7 @@ from .about import current_about
 from .build_info import current_build_info
 from .maintenance_model import MaintenanceError, MaintenanceNotFoundError
 from .markdown_viewer import DocumentContentError
+from .qualification_contract import QualificationError
 from .service import ProvelumeInstance
 from .transcript_contract import TranscriptContractError
 
@@ -19,6 +20,13 @@ CLIENT_INSTALLATION_EVIDENCE_PARAMETERS = frozenset({"release_bundle", "expected
 
 def _not_found(kind: str, object_id: str) -> HTTPException:
     return HTTPException(status_code=404, detail=f"{kind} not found: {object_id}")
+
+
+def _qualification_http_error(error: QualificationError) -> HTTPException:
+    status = (
+        404 if error.code in {"qualification_not_found", "qualification_invalid_source"} else 400
+    )
+    return HTTPException(status_code=status, detail={"code": error.code, "message": str(error)})
 
 
 def reject_client_installation_evidence(request: Request) -> None:
@@ -172,6 +180,80 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_scheduler_receipts(limit=limit)
+
+    @router.get("/qualification/matrix")
+    def get_qualification_matrix() -> dict[str, Any]:
+        return instance.qualification_matrix()
+
+    @router.get("/qualification/limits")
+    def get_qualification_limits() -> dict[str, Any]:
+        return instance.qualification_limits()
+
+    @router.get("/qualification/sources/{source_id}/checkpoint")
+    def get_qualification_source_checkpoint(source_id: str) -> dict[str, Any]:
+        try:
+            return instance.qualification_source_checkpoint(source_id)
+        except QualificationError as exc:
+            raise _qualification_http_error(exc) from exc
+
+    @router.get("/qualification/jobs")
+    def get_qualification_jobs(
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_qualification_jobs(limit=limit)
+
+    @router.get("/qualification/jobs/{job_id}")
+    def get_qualification_job(job_id: str) -> dict[str, Any]:
+        try:
+            result = instance.get_qualification_job(job_id)
+        except QualificationError as exc:
+            raise _qualification_http_error(exc) from exc
+        if result is None:
+            raise _not_found("qualification job", job_id)
+        return result
+
+    @router.get("/qualification/findings")
+    def get_qualification_findings(
+        source_id: str | None = None,
+        finding_type: str | None = None,
+        workflow_state: str | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        try:
+            return instance.list_qualification_findings(
+                source_id=source_id,
+                finding_type=finding_type,
+                workflow_state=workflow_state,
+                limit=limit,
+            )
+        except QualificationError as exc:
+            raise _qualification_http_error(exc) from exc
+
+    @router.get("/qualification/findings/{finding_id}")
+    def get_qualification_finding(finding_id: str) -> dict[str, Any]:
+        try:
+            result = instance.get_qualification_finding(finding_id)
+        except QualificationError as exc:
+            raise _qualification_http_error(exc) from exc
+        if result is None:
+            raise _not_found("qualification finding", finding_id)
+        return result
+
+    @router.get("/qualification/findings/{finding_id}/decisions")
+    def get_qualification_finding_decisions(finding_id: str) -> list[dict[str, Any]]:
+        try:
+            if instance.get_qualification_finding(finding_id) is None:
+                raise _not_found("qualification finding", finding_id)
+            return instance.list_qualification_decisions(finding_id)
+        except QualificationError as exc:
+            raise _qualification_http_error(exc) from exc
+
+    @router.get("/qualification/decisions/{decision_id}")
+    def get_qualification_decision(decision_id: str) -> dict[str, Any]:
+        result = instance.get_qualification_decision(decision_id)
+        if result is None:
+            raise _not_found("qualification decision", decision_id)
+        return result
 
     @router.get("/ocr/capability")
     def get_ocr_capability() -> dict[str, Any]:

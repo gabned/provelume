@@ -75,6 +75,24 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - kept plain text, proprietary/provider formats, non-UTF-8 encodings, cloud imports, audio/video,
   ASR/diarization, cross-Source linking, AI/RAG and real-provider qualification explicitly
   unsupported; no `0.9.0` publication or identity change is made by S05.
+- implemented `0.9/S06` with a closed versioned qualification matrix for filesystem/document,
+  OCR bundle, local email, synthetic Gmail/Drive and SRT/WebVTT Sources while keeping authenticated
+  Gmail/Drive explicitly unqualified;
+- added a replaceable provider-neutral finding contract with stable identities, sanitized evidence,
+  deterministic rule/algorithm versions, epistemic/confidence state, exact Source/object
+  fingerprints, closed limits and atomic complete-result publication;
+- added Source-isolated bounded queue, batch, checkpoint, cancellation, retry, lease recovery,
+  resync, replay, recalculation and obsolete-finding supersession without creating a Version,
+  merging a Source or mutating an Original/provider object;
+- added append-only attributed human decisions for acknowledge, accept, reject, defer,
+  declare-distinct, relation, derived-observation correction, supersede, withdraw and revert, with
+  optimistic concurrency, stale-reference rejection and reversible history;
+- added service/CLI, read-only API and CSRF-protected accessible EN/IT Browser controls plus
+  backup/restore, portable export/import, schemas, packaging evidence and a permanent Ubuntu/
+  Windows exact-head synthetic no-network smoke across all seven matrix profiles;
+- kept source text, names, subjects, titles, paths, speaker labels, provider identifiers, secrets
+  and lease tokens out of finding/job/receipt/diagnostic state; added no network, SDK, runtime
+  download, remote fallback, AI, provider write-back, publication or `0.8.0` identity change.
 
 ### Changed
 

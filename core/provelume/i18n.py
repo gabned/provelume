@@ -13,6 +13,7 @@ from .folder_source_i18n import FOLDER_SOURCE_TRANSLATIONS
 from .google_i18n import GOOGLE_TRANSLATIONS
 from .maintenance_i18n import MAINTENANCE_TRANSLATIONS
 from .ocr_i18n import OCR_TRANSLATIONS
+from .qualification_i18n import QUALIFICATION_TRANSLATIONS
 from .rebuild_i18n import REBUILD_TRANSLATIONS
 from .scheduler_i18n import SCHEDULER_TRANSLATIONS
 from .transcript_i18n import TRANSCRIPT_TRANSLATIONS
@@ -38,6 +39,7 @@ def catalog(language: str) -> dict[str, str]:
     result.update(MAINTENANCE_TRANSLATIONS.get(selected, {}))
     result.update(SCHEDULER_TRANSLATIONS.get(selected, {}))
     result.update(OCR_TRANSLATIONS.get(selected, {}))
+    result.update(QUALIFICATION_TRANSLATIONS.get(selected, {}))
     result.update(TRANSCRIPT_TRANSLATIONS.get(selected, {}))
     return result
 
