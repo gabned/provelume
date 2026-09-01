@@ -57,7 +57,7 @@ def test_adr_release_plan_roadmap_changelog_and_api_keep_unreleased_boundary() -
     assert "DELIVERED_SLICES: 0.9/S01,0.9/S02,0.9/S03,0.9/S04,0.9/S05,0.9/S06" in release
     assert "DELIVERED_SLICE_OWNER_PRS: #138,#141,#147,#150,#152,#154" in release
     assert "CURRENT_SLICE: NONE" in release
-    assert "NEXT_SLICE: 0.9/S07" in release
+    assert "NEXT_SLICE: NONE" in release
     assert "CURRENT_SLICE_STATE: NONE" in release
     assert "does not publish `0.9.0`" in roadmap
     assert "no `0.9.0` publication or identity change" in changelog

@@ -93,6 +93,25 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - kept source text, names, subjects, titles, paths, speaker labels, provider identifiers, secrets
   and lease tokens out of finding/job/receipt/diagnostic state; added no network, SDK, runtime
   download, remote fallback, AI, provider write-back, publication or `0.8.0` identity change.
+- implemented the `0.9/S07` candidate with one reproducible multi-resolution Windows icon family,
+  truthful `0.8.0` executable/installer/uninstaller metadata, `Provelume.Desktop` AppUserModelID,
+  coherent shortcuts/taskbar/window/tray identity and explicit unsigned-development verification;
+- added an installed Windows tray-default lifecycle with separate opt-out and login-startup choice,
+  one child service, labelled EN/IT open/status/endpoint/settings/restart/exit actions, visible crash
+  state and bounded process/socket cleanup;
+- replaced per-start ephemeral ports with the closed revisioned loopback endpoint contract:
+  `44851` remains the default, explicit 1024–65535 installer/CLI/Browser choices are validated and
+  reversible, upgrade preserves compatible state, and collision never causes a random fallback,
+  LAN bind or firewall change;
+- added read-only shell API inspection plus CSRF/nonce/revision-protected local Browser mutation,
+  portable shell preference backup/restore without Instance/provider data, system/light/dark theme,
+  grouped EN/IT navigation, forced-colors/reduced-motion/reflow and accessibility regressions;
+- added the permanent exact-head Windows shell smoke and deterministic complete two-shard Windows
+  Core orchestration with bounded timing/process-tree diagnostics, addressing the cumulative serial
+  filesystem budget evidenced by all three non-green S06 post-merge Windows attempts without
+  changing the protected CI timeout, hiding slow tests or reducing union coverage;
+- kept `0.9.0` unpublished and the public package/runtime/embedded identity at `0.8.0`; no tag,
+  release, release asset, signing credential, publisher-authentication claim or S08 is introduced.
 
 ### Changed
 

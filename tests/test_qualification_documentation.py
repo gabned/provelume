@@ -67,10 +67,11 @@ def test_adr_api_release_roadmap_and_changelog_bind_s06_without_publication() ->
     assert "DELIVERED_SLICE_OWNER_PRS: #138,#141,#147,#150,#152,#154" in release
     assert "CURRENT_SLICE: NONE" in release
     assert "CURRENT_PACKAGE_VERSION: 0.8.0" in release
-    assert "NEXT_SLICE: 0.9/S07" in release
+    assert "NEXT_SLICE: NONE" in release
+    assert "RELEASE_PREPARATION_IS_A_SEPARATE_UNAUTHORIZED_WORKSTREAM" in release
     assert "product/0.9-s06-cross-source-qualification" in release
     assert "product/0.9-s06-cross-source-qualification" in roadmap
-    assert "`0.9/S07` remains forecast-only" in roadmap
+    assert "`0.9/S07` is implemented through [#155]" in roadmap
     assert "implemented `0.9/S06`" in changelog
     assert "no `0.9.0` publication" in changelog
 

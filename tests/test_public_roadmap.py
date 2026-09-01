@@ -155,7 +155,8 @@ def test_roadmap_records_published_history_and_active_lectio_development() -> No
     assert "`0.9/S05` transcript profiles is delivered" in roadmap
     assert "owner PR #152" in roadmap
     assert "`0.9/S06` cross-source qualification and correction findings is delivered" in roadmap
-    assert "`0.9/S07` remains forecast-only" in roadmap
+    assert "`0.9/S07` is implemented through [#155]" in roadmap
+    assert "creates no S08" in roadmap
 
 
 def test_every_release_has_a_unique_latin_name_and_concise_outcome() -> None:

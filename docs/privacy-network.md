@@ -10,6 +10,20 @@ The Security/build-identity surfaces—`provelume build-info`, `GET /api/v1/buil
 The About surfaces—`provelume about`, `GET /api/v1/about`, `/about` and the Windows launcher
 dialog—are also offline. They describe that an update capability exists without invoking it.
 
+The unreleased S07 endpoint and shell-preference surfaces are also offline. The default endpoint is
+`http://127.0.0.1:44851`; every accepted custom port remains on `127.0.0.1`. Validation opens only a
+temporary local listener to detect collision. Provelume performs no DNS query, remote probe,
+firewall change, LAN binding, port-forwarding request or random-port fallback. `shell-config`,
+`shell-diagnostics`, `GET /api/v1/shell` and `/settings/shell` omit the Instance path and every
+content/provider/secret value. Browser mutation requires loopback service authorization, CSRF, a
+one-time reference and an exact revision; none of those authorization values enters diagnostics.
+
+System/light/dark themes, tray and login-startup preferences are external shell state. They never
+authorize network access and are not written to Originals, Documents, Versions, Acquisitions,
+Sources or provider records. Portable preference transfer excludes the Instance path. The
+installed per-user Run entry contains only one quoted absolute Provelume executable plus the
+static `--tray` argument and is removed on uninstall without deleting the persisted preference.
+
 `provelume check-updates`, the Windows **Check now** action and a launcher startup check explicitly
 enabled by the user are the first built-in operations that make a network request. The initial
 transport contacts GitHub Releases over HTTPS, sends no Instance content, and is separate from

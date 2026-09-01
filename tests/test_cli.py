@@ -111,6 +111,8 @@ def test_cli_serve_configures_release_evidence_at_startup(
             {
                 "release_bundle": release_bundle,
                 "expected_manifest_sha256": "a" * 64,
+                "effective_host": "127.0.0.1",
+                "effective_port": 8042,
             },
         )
     ]

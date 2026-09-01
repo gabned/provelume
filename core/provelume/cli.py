@@ -27,6 +27,14 @@ from .operational_cli import add_operational_commands, handle_operational_comman
 from .qualification_cli import add_qualification_commands, handle_qualification_command
 from .scheduler_cli import add_scheduler_commands, handle_scheduler_command
 from .service import ProvelumeInstance
+from .shell_cli import add_shell_commands, handle_shell_command
+from .shell_settings import (
+    ShellSettingsError,
+    ShellSettingsManager,
+    default_settings,
+    effective_port,
+    settings_path,
+)
 from .transcript_cli import add_transcript_commands, handle_transcript_command
 from .updates import UpdateError, check_for_updates
 from .web import create_app
@@ -121,7 +129,7 @@ def build_parser() -> argparse.ArgumentParser:
     serve = subparsers.add_parser("serve", help="Run Knowledge API and browser")
     serve.add_argument("instance", type=Path)
     serve.add_argument("--host", default="127.0.0.1", type=_loopback_host)
-    serve.add_argument("--port", default=8000, type=int)
+    serve.add_argument("--port", type=int)
     serve.add_argument(
         "--release-bundle",
         type=Path,
@@ -158,6 +166,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_google_commands(subparsers)
     add_transcript_commands(subparsers)
     add_qualification_commands(subparsers)
+    add_shell_commands(subparsers)
     return parser
 
 
@@ -199,6 +208,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     qualification_result = handle_qualification_command(args)
     if qualification_result is not None:
         return qualification_result
+    shell_result = handle_shell_command(args)
+    if shell_result is not None:
+        return shell_result
 
     if args.command == "verify-installation":
         if args.release_bundle is None and args.expected_manifest_sha256 is None:
@@ -303,11 +315,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(instance.network_status(), indent=2, sort_keys=True))
         return 0
     if args.command == "serve":
+        try:
+            selected_port = effective_port(
+                explicit_port=args.port,
+                persisted=ShellSettingsManager(settings_path(), default_settings()).load().settings,
+            )["port"]
+        except ShellSettingsError as exc:
+            print(json.dumps({"status": "error", "error": str(exc)}, indent=2))
+            return 2
         app = create_app(
             args.instance,
             release_bundle=args.release_bundle,
             expected_manifest_sha256=args.expected_manifest_sha256,
+            effective_host=args.host,
+            effective_port=selected_port,
         )
-        uvicorn.run(app, host=args.host, port=args.port)
+        uvicorn.run(app, host=args.host, port=selected_port)
         return 0
     raise RuntimeError(f"unsupported command: {args.command}")

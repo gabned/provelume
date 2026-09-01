@@ -39,7 +39,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
-| Active development | `0.9.0` | OCR, email, Google file and transcript intake | #137; S01 completed by #5/#138; S02 completed by #140/#141; S03 completed by #143/#147; S04 completed by #149/#150 | `Lectio` |
+| Active development | `0.9.0` | OCR, email, Google file and transcript intake | #137; S01 completed by #5/#138; S02 completed by #140/#141; S03 completed by #143/#147; S04 completed by #149/#150; S05 completed by #151/#152; S06 completed by #153/#154; S07 owner #155/#156 | `Lectio` |
 | Forecast | `0.10.0` | Multimedia, universal content representations and component inventory | issue just in time | `Perceptio` |
 | Forecast | `0.11.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
@@ -279,7 +279,9 @@ through [#151](https://github.com/gabned/provelume/issues/151) and owner
 [#153](https://github.com/gabned/provelume/issues/153) and owner
 [PR #154](https://github.com/gabned/provelume/pull/154) on
 `product/0.9-s06-cross-source-qualification`, without publishing `0.9.0`.
-`0.9/S07` remains forecast-only.
+`0.9/S07` is implemented through [#155](https://github.com/gabned/provelume/issues/155) on the
+single `product/0.9-s07-windows-shell-endpoint-ux` candidate branch. It remains subject to exact-head
+candidate qualification and does not authorize `0.9.0` publication, a version change or S08.
 
 ## Planning and delivery contract
 
@@ -968,17 +970,18 @@ local conformance only, not authenticated provider qualification.
 
 The final Windows-shell quality slice corrects product identity before publication. One
 multi-resolution icon family must agree across the executable, installer, uninstaller, Start-menu
-and desktop shortcuts, taskbar, main window and the later tray surface, including clean install,
+and desktop shortcuts, taskbar, main window and native tray surface, including clean install,
 upgrade and Windows icon-cache regression evidence. Product/company/version metadata must be
 truthful, but this release remains visibly unsigned: authenticated Windows publisher identity is a
 separate `0.21.0` signing outcome and cannot be simulated with installer metadata.
 
 The local desktop endpoint uses `44851` as Provelume's stable default loopback port. A normal
 installation keeps that value without prompting when it is available; advanced installer settings
-allow an explicit override. If the port is occupied, setup proposes a validated free alternative,
-shows it to the user and persists the accepted value across restart and upgrade. The same setting
-can later be changed through a controlled availability check and runtime restart. Provelume never
-randomizes the port on each start and never presents port obscurity as a security control:
+allow an explicit override. If the port is occupied, setup fails visibly and rolls back; the user
+must stop the conflicting process or explicitly select another bounded value. Setup never proposes,
+discovers or persists a random/free alternative. The same setting can later be changed through a
+controlled availability check and explicit runtime restart. Provelume never randomizes the port on
+each start and never presents port obscurity as a security control:
 loopback-only binding, Host validation and the later explicit authenticated-HTTPS boundary govern
 exposure. Shortcuts, status, diagnostics and browser launch always resolve the persisted endpoint
 rather than assuming a compiled port.
@@ -988,6 +991,9 @@ trustworthy text is not needlessly degraded; low-confidence pages remain visibly
 hostile, oversized and unsupported inputs fail safely; re-import and refresh are idempotent;
 attachments and Drive revisions retain provenance; revoked authorization fails visibly without
 corrupting canonical state; and provider replacement does not migrate canonical knowledge.
+The Windows executable, installer, uninstaller, shortcuts, tray and Browser must also pass the
+permanent exact-head shell smoke; Windows Core must complete positively within its unchanged job
+budget, and unsigned artifacts must remain explicitly identified as such.
 
 **Not in this release:** Google Calendar, task-provider sync, email sending, or automatic claims,
 decisions and tasks derived from communications or transcripts.
@@ -1007,8 +1013,11 @@ adapters without publishing `0.9.0`. `0.9/S05` is completed by #151 and owner PR
 implements the closed local SRT/WebVTT profile matrix and does not publish `0.9.0`. `0.9/S06` is
 delivered through #153 and owner PR #154 on
 `product/0.9-s06-cross-source-qualification` without publishing `0.9.0`. It keeps the public
-identity `0.8.0`. `0.9/S07` is forecast-only and has no issue, branch or
-owner pull request.
+identity `0.8.0`. `0.9/S07` is implemented through #155 on
+`product/0.9-s07-windows-shell-endpoint-ux`; its single owner PR is created from the real candidate
+head and remains subject to every exact-head gate. S07 does not publish `0.9.0` and creates no S08.
+The next possible activity is the separate, explicitly authorized `0.9.0` release-preparation and
+publication workstream, not another product slice.
 
 ### 0.10.0 — Multimedia, Universal Content Representations and Component Inventory
 

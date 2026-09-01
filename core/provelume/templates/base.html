@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ lang }}">
+<html lang="{{ lang }}" data-theme="{{ theme }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -15,8 +15,15 @@
       <small>{{ t('tagline') }}</small>
     </a>
     <nav aria-label="{{ t('nav.primary') }}">
-      {% for item in navigation %}
-      <a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a>
+      {% for group in navigation %}
+      <details class="nav-group"{% if group.current %} open{% endif %}>
+        <summary>{{ group.label }}</summary>
+        <div class="nav-menu">
+          {% for item in group.links %}
+          <a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a>
+          {% endfor %}
+        </div>
+      </details>
       {% endfor %}
     </nav>
     <div class="language" aria-label="{{ t('common.language') }}">

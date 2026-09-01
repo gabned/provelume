@@ -16,6 +16,7 @@ from .ocr_i18n import OCR_TRANSLATIONS
 from .qualification_i18n import QUALIFICATION_TRANSLATIONS
 from .rebuild_i18n import REBUILD_TRANSLATIONS
 from .scheduler_i18n import SCHEDULER_TRANSLATIONS
+from .shell_i18n import SHELL_TRANSLATIONS
 from .transcript_i18n import TRANSCRIPT_TRANSLATIONS
 
 SUPPORTED_LANGUAGES = {"en", "it"}
@@ -38,6 +39,7 @@ def catalog(language: str) -> dict[str, str]:
     result.update(GOOGLE_TRANSLATIONS.get(selected, {}))
     result.update(MAINTENANCE_TRANSLATIONS.get(selected, {}))
     result.update(SCHEDULER_TRANSLATIONS.get(selected, {}))
+    result.update(SHELL_TRANSLATIONS.get(selected, {}))
     result.update(OCR_TRANSLATIONS.get(selected, {}))
     result.update(QUALIFICATION_TRANSLATIONS.get(selected, {}))
     result.update(TRANSCRIPT_TRANSLATIONS.get(selected, {}))

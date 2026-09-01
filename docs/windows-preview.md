@@ -1,5 +1,10 @@
 # Windows product shell preview
 
+> Development note (unpublished): the S07 source tree adds the configurable loopback endpoint,
+> coherent icon/AppUserModelID, tray lifecycle, theme and final accessibility contracts described
+> in [`windows-shell.md`](windows-shell.md). These changes do not publish `0.9.0`; the latest public
+> installer and identity remain the immutable `0.8.0` prerelease described below.
+
 Provelume `0.8.0` is the published Vigilia Windows preview for explicitly configured scheduling,
 folder Sources, recoverable maintenance, Source reconciliation and local resource observations.
 Download `Provelume-Setup-0.8.0-x64.exe` only from the official
@@ -96,3 +101,9 @@ The preview installer is not Authenticode-signed. Windows may show SmartScreen. 
 with metadata fetched through the same release transport is consistency evidence, not independent
 publisher authentication. Automatic rollback, interrupted-install recovery, offline update
 bundles and signed publisher identity remain later milestones.
+
+The S07 development source contains a fail-closed signing verifier and explicitly classifies the
+generated executable, installer and uninstaller as unsigned. Descriptive Publisher/version
+metadata does not eliminate `Unknown publisher`. Authentic qualification remains blocked on an
+authorized certificate, valid chain, expected publisher, valid timestamp and permanent
+verification of the exact artifact; no key or certificate is included here.

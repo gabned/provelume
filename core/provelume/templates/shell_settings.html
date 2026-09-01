@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}{{ t('shell.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('shell.eyebrow') }}</p>
+  <h1>{{ t('shell.title') }}</h1>
+  <p class="lead">{{ t('shell.lead') }}</p>
+</section>
+<div role="status" aria-live="polite" aria-atomic="true">
+{% if saved %}<p class="status ok">{{ t('shell.saved') }}</p>{% endif %}
+{% if reset %}<p class="status ok">{{ t('shell.reset_done') }}</p>{% endif %}
+{% if error_code %}
+<section class="panel" role="alert">
+  <p class="status warn">{{ t('shell.error') }}</p>
+  <p>{{ t('shell.error.' ~ error_code) }} <code>{{ error_code }}</code></p>
+</section>
+{% endif %}
+</div>
+{% if shell.warning %}
+<section class="panel" role="status">
+  <h2>{{ t('shell.warning') }}</h2><p><code>{{ shell.warning }}</code></p>
+</section>
+{% endif %}
+<div class="two-column">
+  <section class="panel operation-meta" aria-labelledby="effective-endpoint">
+    <h2 id="effective-endpoint">{{ t('shell.endpoint') }}</h2>
+    <dl>
+      <dt>{{ t('shell.service') }}</dt><dd>{{ t('shell.running') }}</dd>
+      <dt>{{ t('shell.active_endpoint') }}</dt><dd><code>{{ shell.service.display }}</code></dd>
+      <dt>{{ t('shell.configured_endpoint') }}</dt><dd><code>{{ shell.endpoint.display }}</code></dd>
+      <dt>{{ t('shell.binding') }}</dt><dd>{{ t('shell.loopback') }}</dd>
+      <dt>{{ t('shell.source') }}</dt><dd>{{ shell.endpoint.source }}</dd>
+      <dt>{{ t('shell.restart') }}</dt><dd>{{ t('common.yes') if shell.endpoint.restart_required else t('common.no') }}</dd>
+      <dt>{{ t('shell.schema') }}</dt><dd>{{ shell.configuration_schema_version }}</dd>
+      <dt>{{ t('shell.revision') }}</dt><dd>{{ shell.revision }}</dd>
+    </dl>
+  </section>
+  <section class="panel" aria-labelledby="safety-limits">
+    <h2 id="safety-limits">{{ t('shell.limits') }}</h2>
+    <ul>
+      <li>{{ t('shell.no_random') }}</li>
+      <li>{{ t('shell.no_remote') }}</li>
+      <li>{{ t('shell.no_firewall') }}</li>
+    </ul>
+    <p>{{ t('shell.restart_plan') }}</p>
+  </section>
+</div>
+{% if editable %}
+<section class="panel">
+  <h2>{{ t('shell.title') }}</h2>
+  <form method="post" action="/settings/shell?lang={{ lang }}" class="settings-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="mutation_nonce" value="{{ mutation_nonce }}">
+    <input type="hidden" name="revision" value="{{ shell.revision }}">
+    <label for="shell-port">
+      <span>{{ t('shell.port') }}</span>
+      <input id="shell-port" name="port" type="number" min="1024" max="65535" required inputmode="numeric" value="{{ shell.endpoint.port }}" aria-describedby="port-help">
+      <small id="port-help">{{ t('shell.port_help') }}</small>
+    </label>
+    <label class="check-row" for="tray-enabled">
+      <input id="tray-enabled" name="tray_enabled" type="checkbox"{% if shell.shell.tray_enabled %} checked{% endif %}>
+      <span>{{ t('shell.tray') }}</span>
+    </label>
+    <label class="check-row" for="login-startup">
+      <input id="login-startup" name="login_startup" type="checkbox"{% if shell.shell.login_startup %} checked{% endif %}{% if not shell.capabilities.login_startup %} disabled aria-disabled="true"{% endif %}>
+      <span>{{ t('shell.login') }}</span>
+      {% if not shell.capabilities.login_startup %}<small>{{ t('shell.login_unavailable') }}</small>{% endif %}
+    </label>
+    <label for="shell-theme"><span>{{ t('shell.theme') }}</span>
+      <select id="shell-theme" name="theme">
+        {% for value in ['system', 'light', 'dark'] %}
+        <option value="{{ value }}"{% if shell.shell.theme == value %} selected{% endif %}>{{ t('shell.theme.' ~ value) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label for="shell-language"><span>{{ t('shell.language') }}</span>
+      <select id="shell-language" name="language">
+        <option value="en"{% if lang == 'en' %} selected{% endif %}>English</option>
+        <option value="it"{% if lang == 'it' %} selected{% endif %}>Italiano</option>
+      </select>
+    </label>
+    <div class="form-actions">
+      <button type="submit" name="action" value="save">{{ t('shell.save') }}</button>
+      <button class="button secondary" type="submit" name="action" value="reset-port">{{ t('shell.reset') }}</button>
+    </div>
+  </form>
+  <p class="technical-note">{{ t('shell.local_only') }}</p>
+</section>
+{% else %}
+<section class="panel"><p class="technical-note">{{ t('shell.remote_readonly') }}</p></section>
+{% endif %}
+<section class="panel trust-boundary">
+  <p>{{ t('shell.unsigned') }}</p>
+</section>
+{% endblock %}
