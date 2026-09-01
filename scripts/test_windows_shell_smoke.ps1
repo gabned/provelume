@@ -110,7 +110,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
     listener.bind(("127.0.0.1", port))
     listener.listen(1)
     ready.write_text("READY\n", encoding="ascii")
-    time.sleep(30)
+    time.sleep(120)
 '@ | Set-Content -LiteralPath $HolderScript -Encoding utf8NoBOM
     $OccupiedHolder = Start-Process -FilePath python -ArgumentList @(
         $HolderScript,
@@ -130,6 +130,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
             -Port $OccupiedPort `
             -Tasks "traydefault"
         $Evidence.collision_installer_exit_code = $CollisionInstall.ExitCode
+        if ($OccupiedHolder.HasExited) {
+            Set-FailureCode "occupied_port_fixture_expired"
+            throw "Exclusive collision fixture expired before installer validation completed."
+        }
         if ($CollisionInstall.ExitCode -eq 0) {
             Set-FailureCode "occupied_port_installer_returned_success"
             throw "Installer accepted an occupied port."

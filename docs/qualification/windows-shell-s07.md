@@ -28,7 +28,8 @@ installed metadata/icon/signature checks. It emits one bounded JSON file with co
 codes and booleans only. A sanitized `qualification_incomplete` record remains uploadable if an
 earlier step fails. The collision fixture uses a bounded child CPython socket with the same
 `SO_EXCLUSIVEADDRUSE`, IPv4 loopback bind and listen sequence as the application probe, waits for a
-synthetic readiness marker, and always terminates the holder. Bounded stage-specific failure codes
+synthetic readiness marker, remains alive for at most 120 seconds, fails separately if it expires
+before installer validation, and always terminates the holder. Bounded stage-specific failure codes
 identify the failed contract without serializing exception text, paths or private content.
 
 For a pull request the workflow explicitly checks out and records
