@@ -1,0 +1,24 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "provelume-0.9-s06-development",
+      "name": "Provelume cross-source qualification baseline",
+      "type": "application",
+      "version": "0.8.0+0.9.S06-development",
+      "properties": [
+        {"name": "provelume:release_identity", "value": "0.8.0"},
+        {"name": "provelume:published_release", "value": "false"},
+        {"name": "provelume:new_runtime_dependencies", "value": "0"},
+        {"name": "provelume:network_required", "value": "false"},
+        {"name": "provelume:real_provider_qualification", "value": "false"}
+      ]
+    }
+  },
+  "components": [],
+  "dependencies": [
+    {"ref": "provelume-0.9-s06-development", "dependsOn": []}
+  ]
+}

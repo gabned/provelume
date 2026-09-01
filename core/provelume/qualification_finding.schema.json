@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/qualification-finding-v1.schema.json",
+  "title": "Provelume provider-neutral qualification finding v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "id", "finding_type", "finding_version", "source_ids",
+    "object_refs", "evidence", "rule", "algorithm", "epistemic_state",
+    "confidence", "workflow_state", "provenance", "observed_at", "limits"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {"type": "string", "pattern": "^finding_[0-9a-f]{64}$"},
+    "finding_type": {
+      "enum": [
+        "possible-exact-byte-duplicate", "possible-revision-relation",
+        "observed-metadata-inconsistent", "checksum-provenance-incompatible",
+        "timestamp-inconsistent", "language-format-discordant",
+        "possible-same-event-document-content", "possible-participant-homonym",
+        "representation-missing", "representation-obsolete",
+        "representation-not-reconstructible", "representation-recipe-inconsistent",
+        "qualification-required"
+      ]
+    },
+    "finding_version": {"const": 1},
+    "source_ids": {
+      "type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^src_[0-9a-f]{32}$"}
+    },
+    "object_refs": {
+      "type": "array", "minItems": 1, "maxItems": 100000,
+      "items": {"$ref": "#/$defs/objectRef"}
+    },
+    "evidence": {"type": "object", "minProperties": 1, "maxProperties": 16},
+    "rule": {"$ref": "#/$defs/versionedIdentity"},
+    "algorithm": {"$ref": "#/$defs/versionedIdentity"},
+    "epistemic_state": {
+      "enum": [
+        "deterministic-observation", "possible", "incompatible",
+        "requires-human-review", "unqualified"
+      ]
+    },
+    "confidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "value"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1, "maxLength": 100},
+        "value": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+      }
+    },
+    "workflow_state": {
+      "enum": [
+        "open", "acknowledged", "accepted", "rejected", "deferred",
+        "superseded", "withdrawn", "reverted"
+      ]
+    },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "qualification_job_id", "snapshot_fingerprint", "source_snapshot_fingerprints", "network_used",
+        "provider_mutation", "canonical_source_mutation", "automatic_merge"
+      ],
+      "properties": {
+        "qualification_job_id": {"type": "string", "pattern": "^qualification_job_[0-9a-f]{64}$"},
+        "snapshot_fingerprint": {"$ref": "#/$defs/sha256"},
+        "source_snapshot_fingerprints": {
+          "type": "object", "minProperties": 1, "maxProperties": 64,
+          "additionalProperties": {"$ref": "#/$defs/sha256"},
+          "propertyNames": {"pattern": "^src_[0-9a-f]{32}$"}
+        },
+        "network_used": {"const": false},
+        "provider_mutation": {"const": false},
+        "canonical_source_mutation": {"const": false},
+        "automatic_merge": {"const": false}
+      }
+    },
+    "observed_at": {"type": "string", "format": "date-time"},
+    "limits": {"type": "object", "minProperties": 1, "maxProperties": 16}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "versionedIdentity": {
+      "type": "object", "additionalProperties": false, "required": ["id", "version"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "maxLength": 160},
+        "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}
+      }
+    },
+    "objectRef": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "id", "source_id", "fingerprint"],
+      "properties": {
+        "kind": {"enum": ["document-version", "source"]},
+        "id": {"type": "string", "minLength": 1, "maxLength": 160},
+        "source_id": {"type": "string", "pattern": "^src_[0-9a-f]{32}$"},
+        "fingerprint": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

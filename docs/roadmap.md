@@ -272,10 +272,14 @@ local EML/Maildir Sources, exact message and attachment Originals, bounded repla
 Source-scoped identity/thread observations, durable intake and removable email representations.
 `0.9/S04` is completed by [#149](https://github.com/gabned/provelume/issues/149) and owner
 [PR #150](https://github.com/gabned/provelume/pull/150); it adds replaceable read-only Gmail/Drive
-adapters while retaining the public `0.8.0` identity. `0.9/S05` transcript profiles is the current
-unreleased implementation delivered through [#151](https://github.com/gabned/provelume/issues/151)
-and owner [PR #152](https://github.com/gabned/provelume/pull/152), without any `0.9.0` publication;
-`0.9/S06` is forecast-only.
+adapters while retaining the public `0.8.0` identity. `0.9/S05` transcript profiles is delivered
+through [#151](https://github.com/gabned/provelume/issues/151) and owner
+[PR #152](https://github.com/gabned/provelume/pull/152), without any `0.9.0` publication.
+`0.9/S06` cross-source qualification and correction findings is delivered through
+[#153](https://github.com/gabned/provelume/issues/153) and owner
+[PR #154](https://github.com/gabned/provelume/pull/154) on
+`product/0.9-s06-cross-source-qualification`, without publishing `0.9.0`.
+`0.9/S07` remains forecast-only.
 
 ## Planning and delivery contract
 
@@ -954,6 +958,14 @@ provider-neutral revision/cue identity and removable checksum-bound derivations.
 filesystem and provider observations stay outside canonical revision evidence. Local email
 attachment OCR eligibility is visible but never enables or starts OCR.
 
+S06 adds an explicit, closed and versioned cross-source qualification matrix plus provider-neutral
+derived findings. It can observe exact-byte duplication, possible revision/content/event
+relations, inconsistent metadata/checksum/time/format, ambiguous participants and representation
+state, but never merges or verifies a Source, Document, Version, Original or person. Human
+corrections are attributed, append-only, reversible overlays with stale-reference and concurrency
+guards; they do not rewrite Source data or provider objects. Gmail/Drive fixtures prove synthetic
+local conformance only, not authenticated provider qualification.
+
 The final Windows-shell quality slice corrects product identity before publication. One
 multi-resolution icon family must agree across the executable, installer, uninstaller, Start-menu
 and desktop shortcuts, taskbar, main window and the later tray surface, including clean install,
@@ -991,10 +1003,12 @@ accessibility, documentation, security and release-quality qualification.
 local execution and derived document bundles without publishing `0.9.0`. `0.9/S03` is completed by
 #143 and owner PR #147; it implements bounded local EML/Maildir identity and intake without
 publishing `0.9.0`. `0.9/S04` is completed by #149 and owner PR #150; it adds read-only Gmail/Drive
-adapters without publishing `0.9.0`. `0.9/S05` is the merge-gated product candidate owned by #151
-and owner PR #152 on `product/0.9-s05-transcript-profiles`; it implements the closed local
-SRT/WebVTT profile matrix and does not publish `0.9.0`. `0.9/S06` remains forecast-only and has no
-issue, branch or owner pull request.
+adapters without publishing `0.9.0`. `0.9/S05` is completed by #151 and owner PR #152; it
+implements the closed local SRT/WebVTT profile matrix and does not publish `0.9.0`. `0.9/S06` is
+delivered through #153 and owner PR #154 on
+`product/0.9-s06-cross-source-qualification` without publishing `0.9.0`. It keeps the public
+identity `0.8.0`. `0.9/S07` is forecast-only and has no issue, branch or
+owner pull request.
 
 ### 0.10.0 — Multimedia, Universal Content Representations and Component Inventory
 

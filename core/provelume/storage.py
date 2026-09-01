@@ -62,6 +62,7 @@ ADDITIVE_CANONICAL_KINDS = (
     "google-drive-files",
     "google-drive-revisions",
     "transcript-revisions",
+    "qualification-decisions",
 )
 CANONICAL_KINDS = REQUIRED_CANONICAL_KINDS + ADDITIVE_CANONICAL_KINDS
 

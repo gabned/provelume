@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/qualification-decision-v1.schema.json",
+  "title": "Provelume append-only qualification decision v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "id", "finding_id", "finding_identity_sha256", "revision",
+    "action", "resulting_state", "actor_id", "reason", "payload", "provenance",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {"type": "string", "pattern": "^decision_[0-9a-f]{64}$"},
+    "finding_id": {"type": "string", "pattern": "^finding_[0-9a-f]{64}$"},
+    "finding_identity_sha256": {"$ref": "#/$defs/sha256"},
+    "revision": {"type": "integer", "minimum": 1},
+    "action": {
+      "enum": [
+        "acknowledge", "accept", "reject", "defer", "declare-distinct",
+        "add-relation", "correct-observation", "supersede", "withdraw", "revert"
+      ]
+    },
+    "resulting_state": {
+      "enum": [
+        "acknowledged", "accepted", "rejected", "deferred", "superseded",
+        "withdrawn", "reverted"
+      ]
+    },
+    "actor_id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{1,79}$"},
+    "reason": {"type": "string", "minLength": 1, "maxLength": 4000},
+    "payload": {"type": "object", "maxProperties": 2},
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "source_ids", "qualification_job_id", "snapshot_fingerprint",
+        "originals_modified", "provider_objects_modified", "source_observations_modified",
+        "automatic_propagation"
+      ],
+      "properties": {
+        "source_ids": {
+          "type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^src_[0-9a-f]{32}$"}
+        },
+        "qualification_job_id": {"type": "string", "pattern": "^qualification_job_[0-9a-f]{64}$"},
+        "snapshot_fingerprint": {"$ref": "#/$defs/sha256"},
+        "originals_modified": {"const": false},
+        "provider_objects_modified": {"const": false},
+        "source_observations_modified": {"const": false},
+        "automatic_propagation": {"const": false}
+      }
+    },
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

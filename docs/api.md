@@ -148,6 +148,39 @@ See
 The random lease token is execution authority and is never returned by service, CLI, API or
 Browser read surfaces; those views retain only worker/timing evidence plus `token_present`.
 
+## Cross-source qualification inspection
+
+- `GET /api/v1/qualification/matrix` — closed versioned local/platform/authenticated claim matrix;
+- `GET /api/v1/qualification/limits` — default bounds and contract ceilings;
+- `GET /api/v1/qualification/sources/{source_id}/checkpoint` — one Source-confined qualification
+  cursor, last complete snapshot and explicit resync state;
+- `GET /api/v1/qualification/jobs?limit=100` — bounded jobs with Source IDs, status, attempts,
+  checkpoint, counts, sanitized error, algorithm/limits and lease presence/expiry;
+- `GET /api/v1/qualification/jobs/{job_id}` — one job without its private input snapshot or lease
+  token;
+- `GET /api/v1/qualification/findings?source_id=...&finding_type=...&workflow_state=...&limit=100`
+  — filtered provider-neutral findings;
+- `GET /api/v1/qualification/findings/{finding_id}` — one finding with sanitized evidence,
+  epistemic/confidence state, internal object fingerprints, rule/algorithm, provenance, limits and
+  append-only decision history;
+- `GET /api/v1/qualification/findings/{finding_id}/decisions` — the finding's ordered human
+  history;
+- `GET /api/v1/qualification/decisions/{decision_id}` — one attributed correction decision.
+
+These routes inspect already retained local state. They never enumerate or refresh a Source,
+resolve credentials, open a network connection, run qualification, rebuild findings, append a
+decision or mutate a provider. There are no qualification `POST`, `PATCH`, `DELETE`, upload or
+remote-intake endpoints. Mutations require the explicit local service/CLI or CSRF-protected
+loopback Browser controls.
+
+Responses contain internal IDs, SHA-256 values, counts, closed finding/status/error codes,
+sanitized evidence and the explicitly entered sanitized rationale. Source text, name, subject,
+title, path, speaker label, provider ID, token, secret-reference value and lease token are absent.
+An exact-byte finding is an observation about bytes, not verified identity or an automatic merge.
+Synthetic Gmail/Drive conformance remains distinct from—and does not claim—authenticated real
+provider qualification. See
+[`architecture/cross-source-qualification.md`](architecture/cross-source-qualification.md).
+
 ## Local OCR capability, jobs and bundles
 
 - `GET /api/v1/ocr/capability` — disabled/availability state, closed localized error, configured
