@@ -161,6 +161,7 @@ def test_windows_shell_smoke_is_bounded_sanitized_and_exact_head_aware() -> None
         'Set-FailureCode "occupied_port_left_runtime"',
         'Set-FailureCode "occupied_port_left_preferences"',
         "collision_installer_exit_code",
+        "final_uninstall_exit_code",
         'listener.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)',
         'ready.write_text("READY\\n", encoding="ascii")',
         "time.sleep(120)",
