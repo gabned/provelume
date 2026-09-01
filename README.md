@@ -147,18 +147,22 @@ representations remain derived state and can be recreated from preserved origina
 of those derived copies.
 
 The published `0.8.0` Vigilia preview creates no scheduler policy or job on install, upgrade or
-startup and does not contain the unreleased OCR or email execution baselines. Folder refresh,
-maintenance, S02 OCR and S03 local email intake require explicit local configuration and run only
-while the current runtime is active. Native filesystem-event watchers, always-on desktop agents,
-Gmail/Google Drive and other remote-mailbox intake, semantic/vector search and AI classification
-remain later work. S02 and S03 perform no cloud call, runtime download or remote fallback and keep
-their generated representations derived. See the
+startup and does not contain the unreleased OCR, email, Google or transcript execution baselines.
+Folder refresh, maintenance, S02 OCR, S03 local email intake, S04 Google preview and S05 transcript
+profiles require explicit local configuration and run only while the current runtime is active.
+Native filesystem-event watchers, always-on desktop agents, authenticated Google qualification,
+other remote-mailbox intake, semantic/vector search and AI classification remain later work. S02,
+S03 and S05 perform no cloud call, runtime download or remote fallback and keep their generated
+representations derived. See the
 [English OCR contract](docs/architecture/local-ocr-contract.md), the
 [Italian OCR contract](docs/architecture/local-ocr-contract.it.md) and
 [ADR 0015](docs/adr/0015-bounded-local-ocr-execution.md), plus the
 [English email guide](docs/architecture/local-email-intake.md),
 [Italian email guide](docs/architecture/local-email-intake.it.md) and
-[ADR 0016](docs/adr/0016-local-email-identity-and-intake.md).
+[ADR 0016](docs/adr/0016-local-email-identity-and-intake.md), plus the
+[English transcript guide](docs/architecture/transcript-profiles.md),
+[Italian transcript guide](docs/architecture/transcript-profiles.it.md) and
+[ADR 0018](docs/adr/0018-versioned-transcript-profiles.md).
 
 ## Quick start
 
@@ -206,6 +210,22 @@ The create/queue responses supply the opaque IDs for the next command. Use
 `maildir-cur-new-v1` only with an explicit Maildir root on a qualified target. See the
 [local email intake guide](docs/architecture/local-email-intake.md) for platform targets, limits,
 safe-content behavior, retry/cancel and derived removal/rebuild.
+
+The unreleased S05 transcript path likewise starts disabled. Choose exactly one SRT file or one
+non-recursive SRT folder and its versioned profile, then enable and run explicitly:
+
+```bash
+.venv/bin/provelume transcript-source-create .local/demo --name "Local transcript" \
+  --path /path/to/transcript.srt --profile srt-v1 --selection-kind file
+.venv/bin/provelume transcript-source-state .local/demo SOURCE_ID enabled
+.venv/bin/provelume transcript-intake-queue .local/demo SOURCE_ID
+.venv/bin/provelume transcript-intake-run .local/demo JOB_ID
+```
+
+Use `webvtt-v1` only for an explicitly selected `.vtt` file/folder. There is no format or encoding
+fallback, watcher, upload, source mutation or network path. See the
+[versioned transcript profile guide](docs/architecture/transcript-profiles.md) for the closed
+grammar, identity/provenance boundary, limits, warning/error behavior and removal/rebuild controls.
 
 Configure a custom Inbox name and local folders. Relative paths resolve from the Instance root;
 absolute paths may live elsewhere on the local filesystem:

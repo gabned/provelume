@@ -161,6 +161,19 @@ GOOGLE_INTAKE_TRANSACTION_PROFILE = AtomicCommitProfile(
     ),
 )
 
+TRANSCRIPT_INTAKE_TRANSACTION_PROFILE = AtomicCommitProfile(
+    key="transcript-intake",
+    kind="transcript.intake",
+    owner_id_pattern=r"job_[0-9a-f]{32}\Z",
+    limits=AtomicCommitLimits(
+        max_entries=2048,
+        max_entry_bytes=64 * 1024 * 1024,
+        max_candidate_bytes=192 * 1024 * 1024,
+        max_preimage_bytes=64 * 1024 * 1024,
+        max_journal_payload_bytes=256 * 1024 * 1024,
+    ),
+)
+
 _ErrorType = type[Exception]
 _Replace = Callable[[Path, Path], None]
 _InterruptedHandler = Callable[[InstanceStore, str], None]

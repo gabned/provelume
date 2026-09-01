@@ -272,8 +272,9 @@ local EML/Maildir Sources, exact message and attachment Originals, bounded repla
 Source-scoped identity/thread observations, durable intake and removable email representations.
 `0.9/S04` is completed by [#149](https://github.com/gabned/provelume/issues/149) and owner
 [PR #150](https://github.com/gabned/provelume/pull/150); it adds replaceable read-only Gmail/Drive
-adapters while retaining the public `0.8.0` identity. `0.9/S05` transcript profiles is the next
-forecast only.
+adapters while retaining the public `0.8.0` identity. `0.9/S05` transcript profiles is the current
+merge-gated product candidate under [#151](https://github.com/gabned/provelume/issues/151), still
+without any `0.9.0` publication; `0.9/S06` is forecast-only.
 
 ## Planning and delivery contract
 
@@ -946,9 +947,11 @@ unsupported.
 S04 adds a Google connector preview with independently consented read-only Gmail and Drive
 capabilities; file/revision identity with deduplication; bounded export of supported Google-native
 files with export format and provenance preserved; external secret references; and provider cursor
-state kept inside each Source adapter. Later Lectio slices add transcript profile mapping into
-canonical documents. Local email attachment OCR eligibility is visible but never enables or starts
-OCR.
+state kept inside each Source adapter. S05 adds explicit disabled local transcript
+ConnectorInstance/Sources with a closed versioned SRT/WebVTT matrix, exact-byte Originals,
+provider-neutral revision/cue identity and removable checksum-bound derivations. Parser, format,
+filesystem and provider observations stay outside canonical revision evidence. Local email
+attachment OCR eligibility is visible but never enables or starts OCR.
 
 The final Windows-shell quality slice corrects product identity before publication. One
 multi-resolution icon family must agree across the executable, installer, uninstaller, Start-menu
@@ -987,8 +990,10 @@ accessibility, documentation, security and release-quality qualification.
 local execution and derived document bundles without publishing `0.9.0`. `0.9/S03` is completed by
 #143 and owner PR #147; it implements bounded local EML/Maildir identity and intake without
 publishing `0.9.0`. `0.9/S04` is completed by #149 and owner PR #150; it adds read-only Gmail/Drive
-adapters without publishing `0.9.0`. `0.9/S05` is the next forecast only;
-S05–S06 have no operational issues, branches or owner pull requests.
+adapters without publishing `0.9.0`. `0.9/S05` is the merge-gated product candidate owned by #151
+on `product/0.9-s05-transcript-profiles`; it does not publish `0.9.0`. One owner PR may be opened
+only after a true candidate head exists. `0.9/S06` remains forecast-only and has no issue, branch or
+owner pull request.
 
 ### 0.10.0 — Multimedia, Universal Content Representations and Component Inventory
 

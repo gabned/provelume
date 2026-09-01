@@ -61,6 +61,7 @@ ADDITIVE_CANONICAL_KINDS = (
     "google-gmail-observations",
     "google-drive-files",
     "google-drive-revisions",
+    "transcript-revisions",
 )
 CANONICAL_KINDS = REQUIRED_CANONICAL_KINDS + ADDITIVE_CANONICAL_KINDS
 
@@ -205,6 +206,15 @@ class InstanceStore:
         ):
             raise ValueError("invalid Provelume Instance identity")
         ocr_settings_from_config(config)
+        transcript_sources = config.get("transcript_sources")
+        if transcript_sources is not None:
+            if not isinstance(transcript_sources, dict):
+                raise ValueError("transcript_sources must be a mapping")
+            from .transcript_sources import TranscriptSourceManager
+
+            manager = TranscriptSourceManager(self)
+            for source_id in transcript_sources:
+                manager.public_view(str(source_id))
         manifest = self.read_manifest()
         errors = manifest_validation_errors(manifest, config=config)
         if errors:

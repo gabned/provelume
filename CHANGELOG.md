@@ -55,6 +55,26 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - recorded Google as `local-conformance-preview` with `real_google_qualified=false`: no real
   credential enters the repository, workflows, fixtures, logs, backups or portable exports, and no
   authenticated provider matrix is claimed without a permanent authorized exact-head smoke.
+- implemented `0.9/S05` with separate disabled-by-default ConnectorInstance/Source configurations
+  for an explicit local file or non-recursive folder, a closed versioned `srt-v1`/`webvtt-v1`
+  matrix and a replaceable first-party bounded parser with no watcher, global discovery, network,
+  runtime download or source mutation;
+- preserved exact transcript bytes as authoritative Originals and mapped them into provider-neutral
+  Document/Version/Acquisition and transcript/revision/cue identities while keeping profile,
+  format, parser, filesystem and provider observations outside the canonical revision record;
+- added reproducible checksum-bound derivation recipes plus inert removable/rebuildable cue/text
+  bundles, explicit UTF-8/BOM/newline behavior, deterministic anomaly warnings and fail-closed
+  malformed/unsupported handling without encoding or profile fallback;
+- integrated Source-confined enumeration, cursor/checkpoint/resync, bounded batch/retry/
+  cancellation/lease recovery and atomic promotion, with content-free operational evidence and
+  visible failure on source mutation during read or parsing;
+- added service/CLI, read-only API and protected EN/IT Browser controls for Source, capability,
+  job, Original and representation lifecycle, plus backup/portable-transfer/deep-validation
+  regressions and a permanent exact-head synthetic smoke target for Ubuntu 24.04 and Windows
+  Server 2025 x86-64 on CPython 3.12;
+- kept plain text, proprietary/provider formats, non-UTF-8 encodings, cloud imports, audio/video,
+  ASR/diarization, cross-Source linking, AI/RAG and real-provider qualification explicitly
+  unsupported; no `0.9.0` publication or identity change is made by S05.
 
 ### Changed
 

@@ -12,6 +12,7 @@ from .build_info import current_build_info
 from .maintenance_model import MaintenanceError, MaintenanceNotFoundError
 from .markdown_viewer import DocumentContentError
 from .service import ProvelumeInstance
+from .transcript_contract import TranscriptContractError
 
 CLIENT_INSTALLATION_EVIDENCE_PARAMETERS = frozenset({"release_bundle", "expected_manifest_sha256"})
 
@@ -267,6 +268,82 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
         if result is None:
             raise _not_found("email attachment", attachment_id)
         return result
+
+    @router.get("/transcripts/capability")
+    def get_transcript_capability(
+        source_id: str | None = None,
+    ) -> dict[str, Any]:
+        return instance.transcript_capability(source_id, local=False)
+
+    @router.get("/transcripts/sources")
+    def get_transcript_sources(
+        include_removed: bool = True,
+    ) -> list[dict[str, Any]]:
+        return instance.list_transcript_sources(
+            local=False, include_removed=include_removed
+        )
+
+    @router.get("/transcripts/sources/{source_id}")
+    def get_transcript_source(source_id: str) -> dict[str, Any]:
+        result = instance.get_transcript_source(source_id, local=False)
+        if result is None:
+            raise _not_found("transcript Source", source_id)
+        return result
+
+    @router.get("/transcripts/sources/{source_id}/checkpoint")
+    def get_transcript_source_checkpoint(source_id: str) -> dict[str, Any]:
+        if instance.get_transcript_source(source_id, local=False) is None:
+            raise _not_found("transcript Source", source_id)
+        return instance.transcript_source_checkpoint(source_id)
+
+    @router.get("/transcripts/jobs")
+    def get_transcript_jobs(
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_transcript_jobs(limit=limit)
+
+    @router.get("/transcripts/jobs/{job_id}")
+    def get_transcript_job(job_id: str) -> dict[str, Any]:
+        result = instance.get_transcript_job(job_id)
+        if result is None:
+            raise _not_found("transcript job", job_id)
+        return result
+
+    @router.get("/transcripts/revisions")
+    def get_transcript_revisions(
+        source_id: str | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_transcript_revisions(source_id=source_id, limit=limit)
+
+    @router.get("/transcripts/revisions/{revision_id}")
+    def get_transcript_revision(
+        revision_id: str,
+        include_content: bool = False,
+    ) -> dict[str, Any]:
+        result = instance.get_transcript_revision(
+            revision_id, include_content=include_content
+        )
+        if result is None:
+            raise _not_found("transcript revision", revision_id)
+        return result
+
+    @router.get("/transcripts/revisions/{revision_id}/original")
+    def get_transcript_original(revision_id: str) -> Response:
+        try:
+            original, data = instance.get_transcript_original(revision_id)
+        except TranscriptContractError as exc:
+            if exc.code == "transcript_source_missing":
+                raise _not_found("transcript revision", revision_id) from exc
+            raise HTTPException(status_code=409, detail=exc.code) from exc
+        return Response(
+            content=data,
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": "attachment; filename=transcript-original.bin",
+                "X-Provelume-Original-SHA256": str(original["sha256"]),
+            },
+        )
 
     @router.get("/google/capability")
     def get_google_capability() -> dict[str, Any]:

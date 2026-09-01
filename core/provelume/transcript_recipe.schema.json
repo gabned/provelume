@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/transcript-derivation-recipe-v1.schema.json",
+  "title": "Provelume transcript derivation recipe v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "revision_id",
+    "transcript_id",
+    "derivation_key",
+    "source_id",
+    "connector_instance_id",
+    "original_id",
+    "original_sha256",
+    "profile",
+    "format",
+    "adapter_id",
+    "adapter_version",
+    "parser_id",
+    "parser_version",
+    "parser_protocol_version",
+    "settings_sha256",
+    "limits",
+    "locator_sha256",
+    "filesystem_identity_sha256",
+    "filesystem_mtime_ns",
+    "created_at",
+    "network_used",
+    "runtime_downloads",
+    "remote_fallback",
+    "active_content_executed"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "revision_id": {"type": "string", "pattern": "^trev_[0-9a-f]{32}$"},
+    "transcript_id": {"type": "string", "pattern": "^trn_[0-9a-f]{32}$"},
+    "derivation_key": {"$ref": "#/$defs/sha256"},
+    "source_id": {"type": "string", "pattern": "^src_[0-9a-f]{32}$"},
+    "connector_instance_id": {
+      "type": "string",
+      "pattern": "^connector_instance_[0-9a-f]{32}$"
+    },
+    "original_id": {"type": "string", "pattern": "^sha256_[0-9a-f]{64}$"},
+    "original_sha256": {"$ref": "#/$defs/sha256"},
+    "profile": {"enum": ["srt-v1", "webvtt-v1"]},
+    "format": {"enum": ["srt", "webvtt"]},
+    "adapter_id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,127}$"},
+    "adapter_version": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,63}$"
+    },
+    "parser_id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,127}$"},
+    "parser_version": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,63}$"
+    },
+    "parser_protocol_version": {"const": 1},
+    "settings_sha256": {"$ref": "#/$defs/sha256"},
+    "limits": {"$ref": "#/$defs/limits"},
+    "locator_sha256": {"$ref": "#/$defs/sha256"},
+    "filesystem_identity_sha256": {"$ref": "#/$defs/sha256"},
+    "filesystem_mtime_ns": {"type": "integer"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "network_used": {"const": false},
+    "runtime_downloads": {"const": false},
+    "remote_fallback": {"const": false},
+    "active_content_executed": {"const": false}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_file_bytes",
+        "max_files_per_job",
+        "max_enumerated_entries",
+        "max_total_read_bytes",
+        "max_cues_per_file",
+        "max_line_characters",
+        "max_cue_characters",
+        "max_text_characters_per_file",
+        "max_cue_duration_ms",
+        "max_timeline_ms",
+        "max_warnings_per_file",
+        "max_errors_per_job",
+        "max_temp_bytes_per_job",
+        "max_derived_bytes_per_file",
+        "max_seconds_per_file",
+        "max_seconds_per_job"
+      ],
+      "properties": {
+        "max_file_bytes": {"type": "integer", "minimum": 1, "maximum": 268435456},
+        "max_files_per_job": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "max_enumerated_entries": {"type": "integer", "minimum": 1, "maximum": 50000},
+        "max_total_read_bytes": {"type": "integer", "minimum": 1, "maximum": 4294967296},
+        "max_cues_per_file": {"type": "integer", "minimum": 1, "maximum": 100000},
+        "max_line_characters": {"type": "integer", "minimum": 1, "maximum": 1048576},
+        "max_cue_characters": {"type": "integer", "minimum": 1, "maximum": 5242880},
+        "max_text_characters_per_file": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50000000
+        },
+        "max_cue_duration_ms": {"type": "integer", "minimum": 1, "maximum": 604800000},
+        "max_timeline_ms": {"type": "integer", "minimum": 1, "maximum": 31536000000},
+        "max_warnings_per_file": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "max_errors_per_job": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "max_temp_bytes_per_job": {"type": "integer", "minimum": 1, "maximum": 8589934592},
+        "max_derived_bytes_per_file": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 268435456
+        },
+        "max_seconds_per_file": {"type": "integer", "minimum": 1, "maximum": 300},
+        "max_seconds_per_job": {"type": "integer", "minimum": 1, "maximum": 86400}
+      }
+    }
+  }
+}

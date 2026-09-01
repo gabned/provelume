@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ revision.id }} · {{ t('transcript.title') }}{% endblock %}
+{% block content %}
+<p><a href="/transcripts?lang={{ lang }}">← {{ t('transcript.back') }}</a></p>
+<section class="hero"><p class="eyebrow">{{ revision.profile }}</p><h1>{{ revision.id }}</h1><p class="lead">{{ revision.original_sha256 }} · {{ revision.size_bytes }} bytes · {{ revision.derived_status }}</p></section>
+<section class="panel"><h2>Original</h2><p><a href="/api/v1/transcripts/revisions/{{ revision.id }}/original">{{ t('transcript.inspect_original') }}</a></p><pre>{{ {'original_id': revision.original_id, 'sha256': revision.original_sha256, 'version_id': revision.version_id, 'source_id': revision.source_id}|tojson(indent=2) }}</pre></section>
+{% if revision.private_content_included %}
+<section class="panel"><h2>{{ t('transcript.text') }}</h2><pre>{{ revision.text }}</pre></section>
+<section class="panel"><h2>{{ t('transcript.cues') }}</h2><ol>{% for cue in revision.cues %}<li><p><strong>{{ cue.start_ms }}–{{ cue.end_ms }} ms</strong> · {{ cue.id }}{% if cue.speaker_label %} · speaker observation: {{ cue.speaker_label }}{% endif %}</p><pre>{{ cue.text }}</pre><p class="technical-note">{{ cue.warning_codes|join(', ') }}</p></li>{% endfor %}</ol></section>
+{% else %}<section class="panel"><p>{{ t('transcript.rebuild_derived') }}</p></section>{% endif %}
+<section class="notice info"><p>{{ t('transcript.inert') }}</p></section>
+{% endblock %}

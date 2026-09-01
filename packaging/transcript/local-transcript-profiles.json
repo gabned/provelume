@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "slice": "0.9/S05",
+  "status": "permanent-conformance-contract",
+  "release_identity": "0.8.0",
+  "development_line": "0.9.0-Lectio-unreleased",
+  "baseline": {
+    "default_enabled": false,
+    "explicit_file_or_folder_selection": true,
+    "recursive_discovery": false,
+    "watcher": false,
+    "network_required": false,
+    "runtime_download": false,
+    "remote_fallback": false,
+    "source_mutation": false,
+    "exact_byte_original": true,
+    "parser": {
+      "id": "provelume.bounded-transcript",
+      "version": "1.0.0",
+      "protocol_version": 1,
+      "replaceable": true,
+      "implementation": "first-party Python standard-library-only"
+    },
+    "profile_matrix": [
+      {
+        "profile": "srt-v1",
+        "format": "SubRip Subtitle",
+        "public_specification": "Library of Congress FDD-000569 plus documented closed Provelume grammar",
+        "encoding": ["UTF-8", "UTF-8 with BOM"],
+        "timestamps": true,
+        "speaker_labels": "not inferred"
+      },
+      {
+        "profile": "webvtt-v1",
+        "format": "WebVTT",
+        "public_specification": "W3C WebVTT",
+        "encoding": ["UTF-8", "UTF-8 with BOM"],
+        "timestamps": true,
+        "speaker_labels": "voice-span observation only; never personal identity"
+      }
+    ],
+    "permanent_smoke_matrix": [
+      {
+        "platform": "ubuntu-24.04",
+        "architecture": "x86_64",
+        "python": "CPython 3.12",
+        "profiles": ["srt-v1", "webvtt-v1"],
+        "workflow": ".github/workflows/transcript-smoke.yml"
+      },
+      {
+        "platform": "windows-server-2025",
+        "architecture": "x86_64",
+        "python": "CPython 3.12",
+        "profiles": ["srt-v1", "webvtt-v1"],
+        "workflow": ".github/workflows/transcript-smoke.yml"
+      }
+    ],
+    "qualification_boundary": {
+      "deterministic_profile_conformance": "requires-positive-exact-head-workflow",
+      "platform_smoke": "requires-positive-exact-head-workflow",
+      "real_provider_qualification": false,
+      "cloud_import_qualification": false,
+      "audio_or_video_qualification": false
+    },
+    "unqualified": [
+      "all non-UTF-8 encodings",
+      "plain text",
+      "proprietary transcript formats",
+      "all cloud provider imports",
+      "audio and video",
+      "speech-to-text, diarization and inferred participants",
+      "macOS and ARM platform packaging"
+    ]
+  },
+  "distribution": {
+    "new_python_dependencies": [],
+    "new_native_components": [],
+    "new_models": [],
+    "new_provider_payloads": [],
+    "base_wheel": "first-party contracts, bounded parsers, schemas, service, CLI and Browser only",
+    "sdist": "source, schemas, synthetic tests and packaging metadata only",
+    "windows_installer": "no transcript parser payload beyond first-party Python code",
+    "silent_runtime_download": false
+  },
+  "security": {
+    "active_markup": false,
+    "remote_resources": false,
+    "link_following": false,
+    "embedded_content_execution": false,
+    "shell_or_subprocess": false,
+    "network": false,
+    "source_write": false,
+    "semantic_identity_promotion": false
+  },
+  "sources": [
+    {"id": "w3c-webvtt", "url": "https://www.w3.org/TR/webvtt1/"},
+    {
+      "id": "loc-srt-fdd",
+      "url": "https://www.loc.gov/preservation/digital/formats/fdd/fdd000569.shtml"
+    }
+  ]
+}

@@ -26,6 +26,7 @@ from .ocr_cli import add_ocr_commands, handle_ocr_command
 from .operational_cli import add_operational_commands, handle_operational_command
 from .scheduler_cli import add_scheduler_commands, handle_scheduler_command
 from .service import ProvelumeInstance
+from .transcript_cli import add_transcript_commands, handle_transcript_command
 from .updates import UpdateError, check_for_updates
 from .web import create_app
 from .web_security import loopback_host
@@ -154,6 +155,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_ocr_commands(subparsers)
     add_email_commands(subparsers)
     add_google_commands(subparsers)
+    add_transcript_commands(subparsers)
     return parser
 
 
@@ -189,6 +191,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     google_result = handle_google_command(args)
     if google_result is not None:
         return google_result
+    transcript_result = handle_transcript_command(args)
+    if transcript_result is not None:
+        return transcript_result
 
     if args.command == "verify-installation":
         if args.release_bundle is None and args.expected_manifest_sha256 is None:

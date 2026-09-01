@@ -1,0 +1,46 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "provelume-0.9-s05-development",
+      "name": "Provelume local transcript profile baseline",
+      "type": "application",
+      "version": "0.8.0+0.9.S05-development",
+      "properties": [
+        {"name": "provelume:release_identity", "value": "0.8.0"},
+        {"name": "provelume:published_release", "value": "false"},
+        {"name": "provelume:new_runtime_dependencies", "value": "0"},
+        {"name": "provelume:network_required", "value": "false"},
+        {
+          "name": "provelume:permanent_smoke_matrix",
+          "value": "srt-v1+webvtt-v1:ubuntu-24.04-x86_64+windows-server-2025-x86_64;python:3.12"
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:generic/cpython-stdlib@3.12",
+      "type": "library",
+      "name": "CPython standard library",
+      "version": "3.12",
+      "scope": "required",
+      "purl": "pkg:generic/cpython-stdlib@3.12",
+      "licenses": [{"license": {"id": "PSF-2.0"}}],
+      "properties": [
+        {"name": "provelume:delivery", "value": "runtime-provided standard library"},
+        {"name": "provelume:copied_into_wheel_or_sdist", "value": "false"},
+        {"name": "provelume:replaceable_parser_seam", "value": "true"},
+        {"name": "provelume:runtime_download", "value": "false"}
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "provelume-0.9-s05-development",
+      "dependsOn": ["pkg:generic/cpython-stdlib@3.12"]
+    }
+  ]
+}

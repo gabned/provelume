@@ -50,7 +50,7 @@ _INSTANCE_UPDATE_FIELDS = frozenset(
         "credential_reference",
     }
 )
-_SOURCE_UPDATE_FIELDS = frozenset({"name"})
+_SOURCE_UPDATE_FIELDS = frozenset({"external_id", "name"})
 MutationResult = tuple[dict[str, Any], tuple[str, ...], dict[str, int]]
 _LOCAL_MUTATION_LOCKS_GUARD = Lock()
 _LOCAL_MUTATION_LOCKS: WeakValueDictionary[str, Lock] = WeakValueDictionary()
@@ -360,7 +360,7 @@ class ConnectorManager:
                 source_kinds=tuple(normalised["source_kinds"]),
                 data_categories=tuple(normalised["data_categories"]),
                 multi_instance=True,
-                network_access="explicit_only",
+                network_access=str(normalised["network_access"]),
                 created_at=utc_now(),
             )
             self.store.write_connector_definition(definition)
@@ -412,7 +412,10 @@ class ConnectorManager:
         authorization_mode: str = "none",
         scopes: Sequence[str] = (),
         credential_reference: Mapping[str, str] | None = None,
+        enabled: bool = True,
     ) -> dict[str, Any]:
+        if type(enabled) is not bool:
+            raise ConnectorError("connector instance enabled state must be boolean")
         instance_id = f"connector_instance_{uuid4().hex}"
 
         def apply() -> MutationResult:
@@ -455,7 +458,7 @@ class ConnectorManager:
             self._write_instance(
                 seed,
                 config,
-                enabled=True,
+                enabled=enabled,
                 lifecycle_state="active",
                 removed_at=None,
                 updated_at=now,
@@ -1017,7 +1020,10 @@ class ConnectorManager:
         name: str,
         source_kind: str,
         external_id: str,
+        enabled: bool = True,
     ) -> dict[str, Any]:
+        if type(enabled) is not bool:
+            raise ConnectorError("connector Source enabled state must be boolean")
         source_id = f"src_{uuid4().hex}"
 
         def apply() -> MutationResult:
@@ -1065,7 +1071,7 @@ class ConnectorManager:
             self._write_source(
                 seed,
                 config,
-                enabled=True,
+                enabled=enabled,
                 lifecycle_state="active",
                 removed_at=None,
                 updated_at=now,

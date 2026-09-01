@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/transcript-revision-v1.schema.json",
+  "title": "Provelume provider-neutral transcript revision v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "transcript_id",
+    "source_id",
+    "connector_instance_id",
+    "locator_sha256",
+    "document_id",
+    "version_id",
+    "acquisition_id",
+    "original_id",
+    "original_sha256",
+    "size_bytes",
+    "first_acquired_at",
+    "identity_authority",
+    "filename_authoritative",
+    "path_authoritative",
+    "speaker_identity_verified",
+    "media_existence_attested",
+    "cross_source_merge"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {"type": "string", "pattern": "^trev_[0-9a-f]{32}$"},
+    "transcript_id": {"type": "string", "pattern": "^trn_[0-9a-f]{32}$"},
+    "source_id": {"type": "string", "pattern": "^src_[0-9a-f]{32}$"},
+    "connector_instance_id": {
+      "type": "string",
+      "pattern": "^connector_instance_[0-9a-f]{32}$"
+    },
+    "locator_sha256": {"$ref": "#/$defs/sha256"},
+    "document_id": {"type": "string", "pattern": "^doc_[0-9a-f]{32}$"},
+    "version_id": {"type": "string", "pattern": "^ver_[0-9a-f]{32}$"},
+    "acquisition_id": {"type": "string", "pattern": "^acq_[0-9a-f]{32}$"},
+    "original_id": {"type": "string", "pattern": "^sha256_[0-9a-f]{64}$"},
+    "original_sha256": {"$ref": "#/$defs/sha256"},
+    "size_bytes": {"type": "integer", "minimum": 0, "maximum": 268435456},
+    "first_acquired_at": {"type": "string", "format": "date-time"},
+    "identity_authority": {"const": "source-locator-and-exact-bytes"},
+    "filename_authoritative": {"const": false},
+    "path_authoritative": {"const": false},
+    "speaker_identity_verified": {"const": false},
+    "media_existence_attested": {"const": false},
+    "cross_source_merge": {"const": false}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
