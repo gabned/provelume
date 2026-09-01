@@ -44,7 +44,7 @@ def test_email_qualification_inventory_is_explicit_and_unpublished() -> None:
         (item["platform"], tuple(item["profiles"])) for item in matrix
     } == {
         ("ubuntu-24.04", ("eml-file-v1", "maildir-cur-new-v1")),
-        ("windows", ("eml-file-v1",)),
+        ("windows-server-2025", ("eml-file-v1",)),
     }
     assert "mbox" in baseline["unqualified"]
     assert (ROOT / "core" / "provelume" / "email_contract.schema.json").is_file()
