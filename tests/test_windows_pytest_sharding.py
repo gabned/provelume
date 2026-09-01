@@ -31,7 +31,7 @@ def test_child_working_directory_prefers_versioned_config_over_volume_root(
 
 
 def test_hash_partition_is_stable_disjoint_and_complete() -> None:
-    nodeids = [f"tests/test_synthetic_{index}.py::test_case" for index in range(1000)]
+    nodeids = [f"tests/test_synthetic.py::test_case[{index}]" for index in range(1000)]
     partitions = [
         {nodeid for nodeid in nodeids if shard_for_nodeid(nodeid, SHARD_COUNT) == index}
         for index in range(SHARD_COUNT)
@@ -39,9 +39,6 @@ def test_hash_partition_is_stable_disjoint_and_complete() -> None:
     assert set.union(*partitions) == set(nodeids)
     assert not set.intersection(*partitions)
     assert all(partitions)
-    assert shard_for_nodeid("tests/test_one.py::test_a", SHARD_COUNT) == (
-        shard_for_nodeid("tests/test_one.py::test_b", SHARD_COUNT)
-    )
     assert shard_for_nodeid(nodeids[123], SHARD_COUNT) == shard_for_nodeid(
         nodeids[123],
         SHARD_COUNT,
@@ -59,7 +56,7 @@ def test_orchestration_is_only_automatic_for_bare_windows_full_suite(monkeypatch
     assert _should_orchestrate(()) is False
 
 
-def test_two_process_harness_completes_bounded_and_cleans_children(tmp_path: Path) -> None:
+def test_multi_process_harness_completes_bounded_and_cleans_children(tmp_path: Path) -> None:
     tiny = tmp_path / "test_tiny_shard.py"
     tiny.write_text(
         "def test_tiny_shard():\n"
@@ -89,14 +86,24 @@ def test_two_process_harness_completes_bounded_and_cleans_children(tmp_path: Pat
     )
     output = completed.stdout + completed.stderr
     assert completed.returncode == 0, output
-    assert "windows-shard index=0/2" in output
-    assert "windows-shard index=1/2" in output
+    for index in range(SHARD_COUNT):
+        assert f"windows-shard index={index}/{SHARD_COUNT}" in output
     assert "windows-shards completed=True" in output
 
 
-def test_shard_children_bind_root_and_effective_collection_targets() -> None:
+def test_shard_children_bind_versioned_root_without_synthetic_targets() -> None:
     source = (ROOT / "core/provelume/pytest_windows_shard.py").read_text(encoding="utf-8")
     assert "root = _child_working_directory(config)" in source
     assert "Path(inipath).resolve().parent" in source
-    assert "collection_targets = tuple(str(value) for value in config.args)" in source
+    assert "collection_targets = tuple(str(value) for value in config.args)" not in source
     assert "cwd=root" in source
+
+
+def test_public_ci_runs_windows_shards_on_independent_runners() -> None:
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    assert workflow.count("os: windows-latest") == 2
+    assert "label: windows-latest shard 1/2" in workflow
+    assert "label: windows-latest shard 2/2" in workflow
+    assert "--provelume-shard-index=0 --provelume-shard-count=2" in workflow
+    assert "--provelume-shard-index=1 --provelume-shard-count=2" in workflow
+    assert "timeout-minutes: 10" in workflow

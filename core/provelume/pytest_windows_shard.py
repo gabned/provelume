@@ -30,11 +30,7 @@ def pytest_addoption(parser) -> None:
 
 
 def shard_for_nodeid(nodeid: str, count: int) -> int:
-    # Keep every test from one source module on the same runner.  Sharding
-    # individual nodeids duplicates module-scoped setup and file-backed
-    # fixtures in both Windows children, erasing the parallel speedup.
-    source = nodeid.split("::", 1)[0].replace("\\", "/")
-    digest = hashlib.sha256(source.encode("utf-8")).digest()
+    digest = hashlib.sha256(nodeid.encode("utf-8")).digest()
     return int.from_bytes(digest[:8], "big") % count
 
 
@@ -153,8 +149,7 @@ def pytest_cmdline_main(config) -> int | None:
     # configuration directory instead; fall back to rootpath only when no
     # configuration file exists.
     root = _child_working_directory(config)
-    collection_targets = tuple(str(value) for value in config.args)
-    child_args = args + tuple(value for value in collection_targets if value not in args)
+    child_args = args
     with tempfile.TemporaryDirectory(prefix="provelume-windows-shards-") as temporary:
         temporary_root = Path(temporary)
         processes: list[subprocess.Popen[Any]] = []
