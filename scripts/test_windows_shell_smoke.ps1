@@ -26,6 +26,7 @@ $Evidence = [ordered]@{
     exact_head = $ExpectedCommit
     default_port = 44851
     configured_port = $null
+    collision_installer_exit_code = $null
     checks = [ordered]@{}
     native_tray = $null
     network_used_by_harness = $false
@@ -128,7 +129,9 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
             -Target $CollisionRoot `
             -Port $OccupiedPort `
             -Tasks "traydefault"
+        $Evidence.collision_installer_exit_code = $CollisionInstall.ExitCode
         if ($CollisionInstall.ExitCode -eq 0) {
+            Set-FailureCode "occupied_port_installer_returned_success"
             throw "Installer accepted an occupied port."
         }
     }
@@ -140,9 +143,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
         Remove-Item -LiteralPath $HolderScript, $HolderReady -Force -ErrorAction SilentlyContinue
     }
     if (Test-Path (Join-Path $CollisionRoot "Provelume.exe")) {
+        Set-FailureCode "occupied_port_left_runtime"
         throw "Failed occupied-port setup left an installed executable."
     }
     if (Test-Path $SettingsPath) {
+        Set-FailureCode "occupied_port_left_preferences"
         throw "Failed occupied-port setup left shell preferences."
     }
     $Evidence.checks.occupied_port_fail_closed_and_rolled_back = "PASS"
