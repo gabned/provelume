@@ -684,7 +684,7 @@ def test_ai_classification_is_closed_reviewable_and_reconcilable() -> None:
         "Confidence alone never grants authority",
         "exact Document Version/Original hash",
         "closed schema",
-        "Every new, changed or broadened rule",
+        "every new, changed or broadened rule",
         "Destructive actions, permanent purge",
         "treated as untrusted data rather than\ninstructions",
         "receive no ambient tools or connector secrets",
