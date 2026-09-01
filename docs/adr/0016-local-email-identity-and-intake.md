@@ -141,7 +141,7 @@ permanent real-parser smoke:
 | Platform target | Architecture/runtime | EML | Maildir | Qualification boundary |
 | --- | --- | --- | --- | --- |
 | Ubuntu 24.04 | x86-64, CPython 3.12 | qualified | qualified | local regular files; POSIX link/mutation tests |
-| GitHub-hosted Windows | x86-64, CPython 3.12 | qualified | unqualified | local regular file; hardlink/junction/reparse and mutation tests |
+| GitHub-hosted Windows Server 2025 | x86-64, CPython 3.12 | qualified | unqualified | local regular file; hardlink/junction/reparse and mutation tests |
 | Other Linux, Windows, macOS | any | unqualified | unqualified | no exact S03 smoke evidence |
 
 Maildir is not advertised on Windows: standard Maildir `cur` naming and filesystem behavior are
