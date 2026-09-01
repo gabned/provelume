@@ -46,12 +46,12 @@ LATIN_RELEASE_NAMES = {
     "0.9.0": "Lectio",
     "0.10.0": "Perceptio",
     "0.11.0": "Cura",
-    "0.12.0": "Entitas",
-    "0.13.0": "Concordia",
-    "0.14.0": "Itinerarium",
-    "0.15.0": "Interfacies",
-    "0.16.0": "Custodia",
-    "0.17.0": "Iudicium",
+    "0.12.0": "Custodia",
+    "0.13.0": "Iudicium",
+    "0.14.0": "Entitas",
+    "0.15.0": "Concordia",
+    "0.16.0": "Itinerarium",
+    "0.17.0": "Interfacies",
     "0.18.0": "Sensus",
     "0.19.0": "Domus",
     "0.20.0": "Excubitor",
@@ -186,7 +186,10 @@ def test_public_website_updates_follow_release_evidence() -> None:
         "| Now, published `0.8.0` |",
         "| Published `0.10.0` |",
         "| Published `0.11.0` |",
+        "| Published `0.12.0` |",
+        "| Published `0.13.0` |",
         "| Published `0.15.0` |",
+        "| Published `0.17.0` |",
         "| Published `0.18.0` |",
         "| Published `0.19.0` |",
         "| Published `0.21.0` |",
@@ -672,19 +675,22 @@ def test_ai_classification_is_closed_reviewable_and_reconcilable() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.17.0` | AI classification, receipts, provider adapters and evaluation |"
+        "| Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, "
+        "provider adapters and evaluation |"
     ) == 1
     for required_contract in (
-        "disabled, proposal-only, confirm-each and controlled-automatic modes",
+        "disabled`, `proposal-only`, `confirm-each` and\n`controlled-automatic` policies",
+        "How much can Provelume decide?",
+        "Confidence alone never grants authority",
         "exact Document Version/Original hash",
         "closed schema",
-        "new or broadened rule require review",
+        "Every new, changed or broadened rule",
         "Destructive actions, permanent purge",
         "treated as untrusted data rather than\ninstructions",
         "receive no ambient tools or connector secrets",
         "indirect prompt-injection tests",
         "watched-folder acquisition, exact Original preservation, extraction/OCR",
-        "optional\none-way Git publication",
+        "higher processing level never\nauthorizes canonical classification",
     ):
         assert required_contract in roadmap
 
@@ -721,7 +727,7 @@ def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.13.0` | Productivity connectors and guarded sync preview |"
+        "| Forecast | `0.15.0` | Productivity connectors and guarded sync preview |"
     ) == 1
     for required_contract in (
         "Every connector type is multi-instance by contract",
@@ -829,7 +835,7 @@ def test_markdown_navigation_and_viewer_contract_is_explicit() -> None:
     )
 
     assert roadmap.count(
-        "| Forecast | `0.14.0` | Knowledge navigation, statistics, relations and "
+        "| Forecast | `0.16.0` | Knowledge navigation, statistics, relations and "
         "deterministic discovery |"
     ) == 1
     for required_contract in (
