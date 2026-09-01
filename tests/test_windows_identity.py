@@ -127,7 +127,7 @@ def test_signing_path_is_fail_closed_and_unsigned_development_is_truthful() -> N
 def test_windows_shell_smoke_is_bounded_sanitized_and_exact_head_aware() -> None:
     smoke = (ROOT / "scripts/test_windows_shell_smoke.ps1").read_text(encoding="utf-8")
     for token in (
-        "GITHUB_SHA",
+        "PROVELUME_QUALIFIED_SHA",
         "ExpectedCommit",
         "occupied_port_fail_closed_and_rolled_back",
         "shortcuts_and_app_user_model_id",
@@ -152,6 +152,9 @@ def test_windows_shell_smoke_is_bounded_sanitized_and_exact_head_aware() -> None
     workflow = (ROOT / ".github/workflows/windows-shell-smoke.yml").read_text(encoding="utf-8")
     assert "if: always()" in workflow
     assert "qualification_incomplete" in workflow
+    assert "github.event.pull_request.head.sha || github.sha" in workflow
+    assert workflow.count("$env:PROVELUME_QUALIFIED_SHA") >= 6
+    assert "-ExpectedCommit $env:GITHUB_SHA" not in workflow
     assert (
         "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f" in workflow
     )

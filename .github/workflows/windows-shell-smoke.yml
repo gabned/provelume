@@ -14,11 +14,14 @@ jobs:
     name: Exact-head Windows shell qualification
     runs-on: windows-latest
     timeout-minutes: 45
+    env:
+      PROVELUME_QUALIFIED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
     steps:
       - name: Check out exact revision without credentials
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -26,8 +29,11 @@ jobs:
         shell: pwsh
         run: |
           $observed = git rev-parse HEAD
-          if ($observed -ne $env:GITHUB_SHA) {
-            throw "Checkout is not bound to the workflow head."
+          if (
+            $env:PROVELUME_QUALIFIED_SHA -notmatch '^[0-9a-f]{40}$' -or
+            $observed -ne $env:PROVELUME_QUALIFIED_SHA
+          ) {
+            throw "Checkout is not bound to the qualified candidate head."
           }
 
       - name: Initialize sanitized bounded evidence
@@ -39,7 +45,7 @@ jobs:
             schema_version = 1
             status = "NOT_RUN"
             failure_code = "qualification_incomplete"
-            exact_head = $env:GITHUB_SHA
+            exact_head = $env:PROVELUME_QUALIFIED_SHA
             checks = [ordered]@{}
             network_used_by_harness = $false
             private_content_logged = $false
@@ -72,10 +78,10 @@ jobs:
       - name: Build exact-head development wheel
         shell: pwsh
         run: |
-          $epoch = git show -s --format=%ct $env:GITHUB_SHA
+          $epoch = git show -s --format=%ct $env:PROVELUME_QUALIFIED_SHA
           $env:SOURCE_DATE_EPOCH = $epoch
           python scripts/deterministic_build.py `
-            --commit $env:GITHUB_SHA `
+            --commit $env:PROVELUME_QUALIFIED_SHA `
             --output-dir "$env:RUNNER_TEMP\s07-wheel" `
             --evidence "$env:RUNNER_TEMP\s07-build-evidence.json" `
             --channel development
@@ -91,7 +97,7 @@ jobs:
             -Version $version `
             -Tag "v$version" `
             -Channel development `
-            -Commit $env:GITHUB_SHA
+            -Commit $env:PROVELUME_QUALIFIED_SHA
 
       - name: Exercise identity, endpoint, tray lifecycle and cleanup
         shell: pwsh
@@ -102,7 +108,7 @@ jobs:
             -InstallDirectory "$env:RUNNER_TEMP\S07 Installed Provelume" `
             -InstanceDirectory "$env:RUNNER_TEMP\S07 Synthetic Instance" `
             -ExpectedVersion $version `
-            -ExpectedCommit $env:GITHUB_SHA
+            -ExpectedCommit $env:PROVELUME_QUALIFIED_SHA
 
       - name: Upload sanitized exact-head evidence
         if: always()

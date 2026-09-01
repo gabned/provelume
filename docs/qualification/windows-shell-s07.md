@@ -30,6 +30,11 @@ earlier step fails. The collision fixture requests exclusive ownership before li
 cannot admit a second exclusive probe, and bounded stage-specific failure codes identify the failed
 contract without serializing exception text, paths or private content.
 
+For a pull request the workflow explicitly checks out and records
+`github.event.pull_request.head.sha`; it never substitutes GitHub's synthetic test-merge ref for the
+candidate head. Push and manual runs use `github.sha`. Checkout, embedded build identity, installer
+metadata and smoke evidence must all equal that one qualified SHA.
+
 The S06 timeout finding remains historical evidence: run `33520782921`, jobs `99899187383`,
 `99902830064`, `99906749116`, all non-green at the 10-minute job limit. S07 can close that finding
 only after the unchanged candidate head completes Windows Core positively and no child process,

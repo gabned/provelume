@@ -23,7 +23,7 @@ $Evidence = [ordered]@{
     status = "RUNNING"
     failure_code = $null
     expected_commit = $ExpectedCommit
-    exact_head = $env:GITHUB_SHA
+    exact_head = $ExpectedCommit
     default_port = 44851
     configured_port = $null
     checks = [ordered]@{}
@@ -72,8 +72,11 @@ try {
     if ($ExpectedCommit -notmatch '^[0-9a-f]{40}$') {
         throw "ExpectedCommit must be a full lowercase Git SHA-1."
     }
-    if ($env:GITHUB_SHA -and $env:GITHUB_SHA -ne $ExpectedCommit) {
-        throw "Windows shell smoke is not bound to the workflow head."
+    if (
+        $env:PROVELUME_QUALIFIED_SHA -and
+        $env:PROVELUME_QUALIFIED_SHA -ne $ExpectedCommit
+    ) {
+        throw "Windows shell smoke is not bound to the qualified candidate head."
     }
     New-Item -ItemType Directory -Force -Path $SyntheticLocalAppData | Out-Null
     $env:LOCALAPPDATA = $SyntheticLocalAppData
