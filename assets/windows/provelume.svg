@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Provelume application icon</title>
+  <desc id="desc">A white letter P and verification mark on a deep green rounded square.</desc>
+  <rect x="16" y="16" width="224" height="224" rx="52" fill="#315f4c"/>
+  <path fill="#ffffff" d="M70 190V62h65c34 0 55 19 55 49 0 31-21 50-55 50h-28v29H70zm37-62h26c13 0 20-6 20-17 0-10-7-16-20-16h-26v33z"/>
+  <path fill="none" stroke="#dce9e2" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" d="m133 180 17 17 38-43"/>
+</svg>

@@ -37,6 +37,7 @@ reproducible = true
 packages = ["core/provelume"]
 
 [tool.pytest.ini_options]
+addopts = "-p provelume.pytest_windows_shard"
 pythonpath = ["core"]
 testpaths = ["tests"]
 

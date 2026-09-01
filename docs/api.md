@@ -16,6 +16,26 @@ browser contract; the versioned JSON API remains available directly and performs
 network request. A future non-loopback mode requires separate authentication, authorization, TLS
 and deployment design rather than weakening this local boundary.
 
+The unreleased S07 shell uses the stable persisted port `44851` by default for both
+`provelume serve` and the installed launcher. An explicit `--port` remains a process-only override.
+Accepted persisted values are 1024–65535; the bind remains loopback and no random port, LAN
+exposure or firewall rule is available.
+
+## Shell and effective endpoint
+
+`GET /api/v1/shell` returns only sanitized local shell state:
+
+- the configured and currently running loopback endpoint;
+- service state and configuration provenance;
+- tray, login-startup and system/light/dark capability declarations;
+- configuration/schema versions, revision, limits and warning codes;
+- explicit unsigned/publisher-not-established state.
+
+It omits the Instance path, source/provider data, credentials, CSRF token and mutation nonce. It
+performs no network request. There is no `/api/v1/shell` POST, PATCH, PUT, DELETE, upload or remote
+intake route. The separate local `/settings/shell` form is service-authorized and requires a
+loopback client, CSRF, a bounded one-time reference and the exact current revision.
+
 ## Health
 
 `GET /health` reports runtime version, embedded build-identity status, Instance identity and derived search-index status. The build status is descriptive metadata, not a local signature or integrity verification result.

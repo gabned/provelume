@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
-import locale
 import os
-import socket
 import subprocess
 import sys
 import tempfile
@@ -13,7 +12,7 @@ import time
 import urllib.request
 import webbrowser
 from contextlib import suppress
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -22,118 +21,38 @@ import uvicorn
 from . import __version__
 from .about import current_about
 from .service import ProvelumeInstance
+from .shell_settings import (
+    APP_USER_MODEL_ID,
+    DEFAULT_LOCAL_PORT,
+    SHELL_SETTINGS_SCHEMA_VERSION,
+    LauncherSettings,
+    ShellSettingsError,
+    ShellSettingsManager,
+    configure_login_startup,
+    default_settings,
+    effective_port,
+    probe_port,
+    settings_path,
+    state_directory,
+    validate_port,
+)
 from .updates import UpdateCandidate, UpdateError, check_for_updates, download_update
 from .web import create_app
+from .windows_tray import TrayState, WindowsTray
 
-SETTINGS_SCHEMA_VERSION = 1
-DESKTOP_DIAGNOSTICS_SCHEMA_VERSION = 1
+SETTINGS_SCHEMA_VERSION = SHELL_SETTINGS_SCHEMA_VERSION
+DESKTOP_DIAGNOSTICS_SCHEMA_VERSION = 2
 MUTEX_NAME = "Local\\ProvelumeDesktop"
-
-
-@dataclass(frozen=True, slots=True)
-class LauncherSettings:
-    instance_path: str
-    update_channel: str = "preview"
-    check_on_start: bool = False
-    language: str = "en"
-    schema_version: int = SETTINGS_SCHEMA_VERSION
-
-    def normalized(self) -> LauncherSettings:
-        channel = self.update_channel if self.update_channel in {"stable", "preview"} else "preview"
-        language = self.language if self.language in {"en", "it"} else "en"
-        return LauncherSettings(
-            instance_path=str(Path(self.instance_path).expanduser()),
-            update_channel=channel,
-            check_on_start=bool(self.check_on_start),
-            language=language,
-        )
-
-
-def state_directory() -> Path:
-    if os.name == "nt":
-        local = os.environ.get("LOCALAPPDATA")
-        if local:
-            return Path(local) / "Provelume"
-    state_home = os.environ.get("XDG_STATE_HOME")
-    if state_home:
-        return Path(state_home) / "provelume"
-    return Path.home() / ".local" / "state" / "provelume"
-
-
-def default_instance_directory() -> Path:
-    return Path.home() / "Documents" / "Provelume"
-
-
-def settings_path() -> Path:
-    return state_directory() / "launcher.json"
-
-
-def default_language() -> str:
-    try:
-        configured = locale.getlocale()[0] or ""
-    except (ValueError, TypeError):
-        configured = ""
-    return "it" if configured.casefold().startswith("it") else "en"
-
-
-def default_settings() -> LauncherSettings:
-    return LauncherSettings(
-        instance_path=str(default_instance_directory()),
-        language=default_language(),
-    )
 
 
 def load_settings(path: Path | None = None) -> LauncherSettings:
     selected = path or settings_path()
-    if not selected.is_file() or selected.is_symlink():
-        return default_settings()
-    try:
-        value = json.loads(selected.read_text(encoding="utf-8"))
-        if not isinstance(value, dict) or set(value) != {
-            "schema_version",
-            "instance_path",
-            "update_channel",
-            "check_on_start",
-            "language",
-        }:
-            raise ValueError("unsupported launcher settings fields")
-        if type(value["schema_version"]) is not int or value["schema_version"] != 1:
-            raise ValueError("unsupported launcher settings schema")
-        if not isinstance(value["instance_path"], str) or not value["instance_path"].strip():
-            raise ValueError("launcher instance path is invalid")
-        if not isinstance(value["check_on_start"], bool):
-            raise ValueError("launcher update policy is invalid")
-        return LauncherSettings(**value).normalized()
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError):
-        return default_settings()
+    return ShellSettingsManager(selected, default_settings()).load().settings
 
 
 def save_settings(settings: LauncherSettings, path: Path | None = None) -> Path:
-    selected = (path or settings_path()).expanduser().resolve()
-    selected.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(asdict(settings.normalized()), indent=2, sort_keys=True) + "\n"
-    temporary_name: str | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            newline="\n",
-            prefix=f".{selected.name}.",
-            suffix=".tmp",
-            dir=selected.parent,
-            delete=False,
-        ) as temporary:
-            temporary_name = temporary.name
-            temporary.write(payload)
-            temporary.flush()
-            os.fsync(temporary.fileno())
-        os.replace(temporary_name, selected)
-        temporary_name = None
-    finally:
-        if temporary_name is not None:
-            with suppress(OSError):
-                Path(temporary_name).unlink()
-    return selected
+    selected = path or settings_path()
+    return ShellSettingsManager(selected, default_settings()).save(settings)
 
 
 def declare_startup_update_policy(instance_path: Path, *, enabled: bool) -> None:
@@ -168,12 +87,24 @@ def startup_update_policy_enabled(instance_path: Path) -> bool:
 
 
 def diagnostics_payload() -> dict[str, Any]:
+    loaded = ShellSettingsManager(settings_path(), default_settings()).load()
     return {
         "schema_version": DESKTOP_DIAGNOSTICS_SCHEMA_VERSION,
         "desktop_shell": True,
         "frozen": bool(getattr(sys, "frozen", False)),
         "about": current_about(),
         "settings_schema_version": SETTINGS_SCHEMA_VERSION,
+        "settings_warning": loaded.warning,
+        "endpoint": loaded.settings.public_view(warning=loaded.warning)["endpoint"],
+        "shell": loaded.settings.public_view(warning=loaded.warning)["shell"],
+        "windows_identity": {
+            "app_user_model_id": APP_USER_MODEL_ID,
+            "process_app_user_model_id": _configure_windows_identity(),
+            "product": "Provelume",
+            "publisher_authentication": "not_established",
+            "authenticode": "unsigned",
+            "icon": _icon_identity_payload(),
+        },
         "network_used": False,
     }
 
@@ -221,6 +152,8 @@ def write_ui_diagnostics(
                     instance_path=str(instance),
                     language=language,
                 ),
+                auto_start_service=False,
+                enable_native_tray=False,
             )
             target_width, target_height = _window_dimensions(
                 viewport_width,
@@ -287,8 +220,15 @@ def _acquire_windows_mutex():
     if os.name != "nt":
         return object()
     import ctypes
+    from ctypes import wintypes
 
     kernel32 = ctypes.windll.kernel32
+    kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
+    kernel32.CreateMutexW.restype = wintypes.HANDLE
+    kernel32.GetLastError.argtypes = []
+    kernel32.GetLastError.restype = wintypes.DWORD
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
     handle = kernel32.CreateMutexW(None, False, MUTEX_NAME)
     if not handle:
         return None
@@ -296,6 +236,17 @@ def _acquire_windows_mutex():
         kernel32.CloseHandle(handle)
         return None
     return handle
+
+
+def _release_windows_mutex(handle: object) -> None:
+    if os.name == "nt" and handle is not None:
+        import ctypes
+        from ctypes import wintypes
+
+        close_handle = ctypes.windll.kernel32.CloseHandle
+        close_handle.argtypes = [wintypes.HANDLE]
+        close_handle.restype = wintypes.BOOL
+        close_handle(handle)
 
 
 def _command_for_backend(instance: Path, port: int) -> list[str]:
@@ -312,10 +263,47 @@ def _command_for_backend(instance: Path, port: int) -> list[str]:
     ]
 
 
-def _available_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
-        listener.bind(("127.0.0.1", 0))
-        return int(listener.getsockname()[1])
+def _configure_windows_identity() -> str:
+    """Set taskbar grouping identity before any native window is created."""
+
+    if os.name != "nt":
+        return "not_applicable"
+    try:
+        import ctypes
+
+        configure = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID
+        configure.argtypes = [ctypes.c_wchar_p]
+        configure.restype = ctypes.c_long
+        result = configure(APP_USER_MODEL_ID)
+        return "configured" if result == 0 else "failed"
+    except (AttributeError, OSError, ValueError):
+        return "failed"
+
+
+def _versioned_icon_path() -> Path | None:
+    candidates = [
+        Path(getattr(sys, "_MEIPASS", "")) / "assets" / "provelume.ico",
+        Path(__file__).resolve().parents[2] / "assets" / "windows" / "provelume.ico",
+        Path(sys.executable).with_name("provelume.ico"),
+    ]
+    return next((candidate for candidate in candidates if candidate.is_file()), None)
+
+
+def _icon_identity_payload() -> dict[str, Any]:
+    path = _versioned_icon_path()
+    if path is None:
+        return {
+            "status": "controlled_fallback_required",
+            "sizes": [16, 20, 24, 32, 40, 48, 64, 128, 256],
+            "sha256": None,
+        }
+    payload = path.read_bytes()
+    return {
+        "status": "versioned_asset",
+        "sizes": [16, 20, 24, 32, 40, 48, 64, 128, 256],
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "size_bytes": len(payload),
+    }
 
 
 def _window_dimensions(screen_width: int, screen_height: int) -> tuple[int, int]:
@@ -395,6 +383,19 @@ STRINGS = {
         ),
         "instance_open_failed": "The local Instance could not be opened: {error}",
         "server_failed": "The local service could not start.",
+        "port_unavailable": (
+            "The configured endpoint is occupied. Choose another explicit port or restore "
+            "44851 in Shell settings. No random port was selected."
+        ),
+        "endpoint_rolled_back": (
+            "The local service failed; the endpoint setting was rolled back to the previous "
+            "known value. Restart explicitly after reviewing Shell settings."
+        ),
+        "shell_settings": "Shell settings",
+        "endpoint": "Local endpoint",
+        "tray_enabled": "Keep running in the system tray",
+        "theme": "Theme",
+        "already_running": "Provelume is already running.",
         "about_text": (
             "Provelume {version}\nChannel: {channel}\nTag: {tag}\nCommit: {commit}\n"
             "Package: {packaging}\nPlatform signature: {signature}\n\n"
@@ -448,6 +449,19 @@ STRINGS = {
         ),
         "instance_open_failed": "Impossibile aprire l'istanza locale: {error}",
         "server_failed": "Non è stato possibile avviare il servizio locale.",
+        "port_unavailable": (
+            "L'endpoint configurato è occupato. Scegli un'altra porta esplicita o ripristina "
+            "44851 nelle impostazioni shell. Non è stata scelta una porta casuale."
+        ),
+        "endpoint_rolled_back": (
+            "Il servizio locale non si è avviato; l'endpoint è stato ripristinato al precedente "
+            "valore noto. Riavvia esplicitamente dopo aver verificato le impostazioni shell."
+        ),
+        "shell_settings": "Impostazioni shell",
+        "endpoint": "Endpoint locale",
+        "tray_enabled": "Mantieni in esecuzione nell'area di notifica",
+        "theme": "Tema",
+        "already_running": "Provelume è già in esecuzione.",
         "about_text": (
             "Provelume {version}\nCanale: {channel}\nTag: {tag}\nCommit: {commit}\n"
             "Pacchetto: {packaging}\nFirma di piattaforma: {signature}\n\n"
@@ -464,6 +478,8 @@ class DesktopShell:
         *,
         initial_settings: LauncherSettings,
         create_instance_if_missing: bool = True,
+        auto_start_service: bool = True,
+        enable_native_tray: bool = True,
     ):
         import tkinter as tk
         from tkinter import ttk
@@ -472,15 +488,18 @@ class DesktopShell:
         self.tk = tk
         self.ttk = ttk
         self.settings = initial_settings.normalized()
+        self.settings_manager = ShellSettingsManager(settings_path(), default_settings())
         self.text = STRINGS[self.settings.language]
         self.instance = Path(self.settings.instance_path).expanduser()
         self.server: subprocess.Popen[bytes] | None = None
         self.server_port: int | None = None
         self.server_ready = False
+        self.open_target: str | None = None
         self.instance_available = False
         self.candidate: UpdateCandidate | None = None
         self.update_generation = 0
         self.closed = False
+        self.tray: WindowsTray | None = None
 
         self.status = tk.StringVar(value=self.text["instance_ready"])
         self.update_status = tk.StringVar(value=self.text["current"])
@@ -505,7 +524,26 @@ class DesktopShell:
         self._build()
         if instance_error is not None:
             self._show_instance_error(instance_error)
-        self.root.protocol("WM_DELETE_WINDOW", self.close)
+        self.root.protocol("WM_DELETE_WINDOW", self.window_close)
+        if os.name == "nt" and self.settings.tray_enabled and enable_native_tray:
+            endpoint = f"http://127.0.0.1:{self.settings.endpoint_port}"
+            self.tray = WindowsTray(
+                self.root,
+                state=TrayState(
+                    language=self.settings.language,
+                    service_status="stopped",
+                    endpoint=endpoint,
+                ),
+                open_interface=self.show_window,
+                open_settings=self.open_shell_settings,
+                restart_service=self.restart_server,
+                quit_application=self.close,
+                icon_path=_versioned_icon_path(),
+            )
+            if not self.tray.start():
+                self.tray = None
+        if auto_start_service and self.instance_available:
+            self.root.after(250, self.start_server)
         if self.settings.check_on_start and self.instance_available:
             self.root.after(400, lambda: self.check_updates(interactive=False))
 
@@ -513,6 +551,10 @@ class DesktopShell:
         ttk = self.ttk
         root = self.root
         root.title(self.text["title"])
+        icon = _versioned_icon_path()
+        if icon is not None and os.name == "nt":
+            with suppress(self.tk.TclError):
+                root.iconbitmap(default=str(icon))
         width, height = _window_dimensions(root.winfo_screenwidth(), root.winfo_screenheight())
         root.geometry(f"{width}x{height}")
         root.minsize(min(520, width), min(360, height))
@@ -587,6 +629,23 @@ class DesktopShell:
         )
         self.create_button.pack(side="right", padx=8)
 
+        shell = ttk.LabelFrame(outer, text=self.text["shell_settings"], padding=14)
+        shell.pack(fill="x", pady=(0, 14))
+        ttk.Label(
+            shell,
+            text=(
+                f"{self.text['endpoint']}: http://127.0.0.1:{self.settings.endpoint_port} · "
+                f"{self.text['theme']}: {self.settings.theme}"
+            ),
+            wraplength=560,
+            justify="left",
+        ).pack(side="left", fill="x", expand=True)
+        ttk.Button(
+            shell,
+            text=self.text["shell_settings"],
+            command=self.open_shell_settings,
+        ).pack(side="right")
+
         updates = ttk.LabelFrame(outer, text=self.text["updates"], padding=14)
         updates.pack(fill="x", pady=(0, 14))
         policy = ttk.Frame(updates)
@@ -658,10 +717,12 @@ class DesktopShell:
             ) from exc
 
     def _replace_settings(self, **changes: object) -> None:
-        values = asdict(self.settings)
-        values.update(changes)
-        self.settings = LauncherSettings(**values).normalized()
-        save_settings(self.settings)
+        def change(current: LauncherSettings) -> LauncherSettings:
+            values = asdict(current)
+            values.update(changes)
+            return LauncherSettings(**values).normalized()
+
+        self.settings = self.settings_manager.mutate(change)
 
     def _save_policy(self) -> None:
         previous_channel = self.settings.update_channel
@@ -733,7 +794,12 @@ class DesktopShell:
         if self.server is not None and self.server.poll() is None and self.server_port is not None:
             if self.server_ready:
                 webbrowser.open(f"http://127.0.0.1:{self.server_port}/")
+            else:
+                self.open_target = "/"
             return
+        self.start_server(open_target="/")
+
+    def start_server(self, *, open_target: str | None = None) -> None:
         try:
             ProvelumeInstance(self.instance)
         except (OSError, ValueError):
@@ -742,7 +808,15 @@ class DesktopShell:
             self._show_instance_error(self.text["invalid_instance"])
             messagebox.showerror("Provelume", self.text["invalid_instance"])
             return
-        port = _available_port()
+        loaded = self.settings_manager.load()
+        self.settings = loaded.settings
+        port = self.settings.endpoint_port
+        if not probe_port(port)["available"]:
+            self.status.set(self.text["port_unavailable"])
+            self.open_button.configure(state="normal")
+            self.stop_button.configure(state="disabled")
+            self._update_tray("occupied")
+            return
         command = _command_for_backend(self.instance, port)
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
         process = subprocess.Popen(
@@ -755,7 +829,9 @@ class DesktopShell:
         self.server = process
         self.server_port = port
         self.server_ready = False
+        self.open_target = open_target
         self.status.set(self.text["starting"])
+        self._update_tray("starting")
         self.open_button.configure(state="disabled")
         self.stop_button.configure(state="normal")
         threading.Thread(
@@ -763,6 +839,28 @@ class DesktopShell:
             args=(process, port),
             daemon=True,
         ).start()
+
+    def open_shell_settings(self) -> None:
+        target = f"/settings/shell?lang={self.settings.language}"
+        if self.server is not None and self.server.poll() is None and self.server_ready:
+            webbrowser.open(f"http://127.0.0.1:{self.server_port}{target}")
+            return
+        self.start_server(open_target=target)
+
+    def show_window(self) -> None:
+        self.root.deiconify()
+        self.root.lift()
+        with suppress(Exception):
+            self.root.focus_force()
+
+    def _update_tray(self, status: str) -> None:
+        tray = getattr(self, "tray", None)
+        if tray is not None:
+            port = self.server_port or self.settings.endpoint_port
+            tray.update(
+                service_status=status,
+                endpoint=f"http://127.0.0.1:{port}",
+            )
 
     def _wait_for_server(self, process: subprocess.Popen[bytes], port: int) -> None:
         url = f"http://127.0.0.1:{port}/health"
@@ -799,11 +897,40 @@ class DesktopShell:
         if ready and process.poll() is None:
             self.server_ready = True
             self.status.set(self.text["running"])
+            self._update_tray("running")
             self.open_button.configure(state="normal")
             self.stop_button.configure(state="normal")
-            webbrowser.open(f"http://127.0.0.1:{port}/")
+            manager = getattr(self, "settings_manager", None)
+            if manager is not None and self.settings.restart_required:
+                with suppress(ShellSettingsError):
+                    self.settings = manager.mark_endpoint_started(
+                        port,
+                        expected_revision=self.settings.revision,
+                    )
+            target = getattr(self, "open_target", "/")
+            self.open_target = None
+            if target is not None:
+                webbrowser.open(f"http://127.0.0.1:{port}{target}")
         else:
-            self.stop_server(final_status="server_failed")
+            rolled_back = False
+            manager = getattr(self, "settings_manager", None)
+            settings = getattr(self, "settings", None)
+            if (
+                manager is not None
+                and settings is not None
+                and settings.restart_required
+                and settings.last_good_port != settings.endpoint_port
+            ):
+                try:
+                    self.settings = manager.rollback_endpoint(
+                        expected_revision=settings.revision,
+                    )
+                    rolled_back = True
+                except ShellSettingsError:
+                    pass
+            self.stop_server(
+                final_status="endpoint_rolled_back" if rolled_back else "server_failed"
+            )
 
     def _server_exited(
         self,
@@ -817,6 +944,7 @@ class DesktopShell:
         self.server_port = None
         self.server_ready = False
         self.status.set(self.text["server_exited"])
+        self._update_tray("crashed")
         self.open_button.configure(state="normal")
         self.stop_button.configure(state="disabled")
 
@@ -833,12 +961,32 @@ class DesktopShell:
                 process.wait(timeout=4)
             except subprocess.TimeoutExpired:
                 process.kill()
+                try:
+                    process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    if not self.closed:
+                        self.status.set(self.text["server_failed"])
         if not self.closed:
             self.status.set(self.text[final_status])
+            self._update_tray(final_status)
             self.open_button.configure(
                 state="normal" if self.instance_available else "disabled"
             )
             self.stop_button.configure(state="disabled")
+
+    def restart_server(self) -> None:
+        self.stop_server()
+        self.root.after(100, self.start_server)
+
+    def window_close(self) -> None:
+        manager = getattr(self, "settings_manager", None)
+        if manager is not None:
+            self.settings = manager.load().settings
+        if self.settings.tray_enabled and self.tray is not None:
+            self.root.withdraw()
+            self._update_tray("running" if self.server_ready else "stopped")
+            return
+        self.close()
 
     def check_updates(self, interactive: bool = True) -> None:
         if not interactive and not startup_update_policy_enabled(self.instance):
@@ -1007,10 +1155,14 @@ class DesktopShell:
             return
         self.closed = True
         self.stop_server()
+        if self.tray is not None:
+            self.tray.stop()
+            self.tray = None
         self.root.destroy()
 
 
-def run_ui() -> int:
+def run_ui(*, start_hidden: bool = False) -> int:
+    _configure_windows_identity()
     _configure_windows_dpi_awareness()
     import tkinter as tk
     from tkinter import messagebox
@@ -1019,30 +1171,47 @@ def run_ui() -> int:
     if mutex is None:
         root = tk.Tk()
         root.withdraw()
-        messagebox.showinfo("Provelume", "Provelume is already running.")
+        icon = _versioned_icon_path()
+        if icon is not None and os.name == "nt":
+            with suppress(tk.TclError):
+                root.iconbitmap(default=str(icon))
+        language = load_settings().language
+        messagebox.showinfo("Provelume", STRINGS[language]["already_running"])
         root.destroy()
         return 0
-    root = tk.Tk()
     try:
-        persisted_settings = settings_path().is_file()
-        DesktopShell(
-            root,
-            initial_settings=load_settings(),
-            create_instance_if_missing=not persisted_settings,
-        )
-    except RuntimeError as exc:
-        root.withdraw()
-        messagebox.showerror("Provelume", str(exc))
-        root.destroy()
-        return 1
-    root.mainloop()
-    return 0
+        root = tk.Tk()
+        try:
+            with suppress(ShellSettingsError, OSError):
+                ShellSettingsManager(settings_path(), default_settings()).recover_abandoned_writes()
+            persisted_settings = settings_path().is_file()
+            shell = DesktopShell(
+                root,
+                initial_settings=load_settings(),
+                create_instance_if_missing=not persisted_settings,
+            )
+            if start_hidden and shell.tray is not None:
+                root.withdraw()
+        except RuntimeError as exc:
+            root.withdraw()
+            messagebox.showerror("Provelume", str(exc))
+            root.destroy()
+            return 1
+        root.mainloop()
+        return 0
+    finally:
+        _release_windows_mutex(mutex)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="Provelume", add_help=True)
     parser.add_argument("--serve", type=Path)
-    parser.add_argument("--port", type=int, default=8040)
+    parser.add_argument("--port", type=int)
+    parser.add_argument(
+        "--tray",
+        action="store_true",
+        help="start the installed Windows shell using its configured tray preference",
+    )
     parser.add_argument("--diagnostics-file", type=Path)
     parser.add_argument("--ui-diagnostics-file", type=Path)
     parser.add_argument("--ui-diagnostics-language", choices=("en", "it"), default="en")
@@ -1056,6 +1225,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ui-diagnostics-height", type=int, default=600)
     parser.add_argument("--bootstrap-instance", type=Path)
     parser.add_argument("--instance-name", default="My Provelume")
+    parser.add_argument("--validate-port", type=int)
+    parser.add_argument("--initialize-shell-settings", action="store_true")
+    parser.add_argument("--remove-login-startup", action="store_true")
+    parser.add_argument("--install-port", type=int, default=DEFAULT_LOCAL_PORT)
+    parser.add_argument("--install-language", choices=("en", "it"), default="en")
+    parser.add_argument(
+        "--install-tray",
+        choices=("enabled", "disabled"),
+        default="enabled",
+    )
+    parser.add_argument(
+        "--install-login-startup",
+        choices=("enabled", "disabled"),
+        default="disabled",
+    )
     return parser
 
 
@@ -1068,6 +1252,9 @@ def main(arguments: list[str] | None = None) -> int:
             options.diagnostics_file,
             options.ui_diagnostics_file,
             options.bootstrap_instance,
+            options.validate_port,
+            True if options.initialize_shell_settings else None,
+            True if options.remove_login_startup else None,
         )
     )
     if selected_modes > 1:
@@ -1090,20 +1277,77 @@ def main(arguments: list[str] | None = None) -> int:
             name=options.instance_name,
         )
         return 0
+    if options.validate_port is not None:
+        try:
+            result = probe_port(options.validate_port)
+        except ShellSettingsError:
+            return 2
+        return 0 if result["available"] else 2
+    if options.initialize_shell_settings:
+        selected = settings_path()
+        if selected.exists():
+            try:
+                existing = load_settings(selected)
+                configure_login_startup(
+                    existing.login_startup,
+                    command=sys.executable,
+                )
+            except (OSError, ShellSettingsError):
+                return 2
+            return 0
+        try:
+            port = validate_port(options.install_port)
+            if not probe_port(port)["available"]:
+                return 2
+            login_startup = options.install_login_startup == "enabled"
+            configure_login_startup(
+                login_startup,
+                command=sys.executable,
+            )
+            try:
+                save_settings(
+                    LauncherSettings(
+                        instance_path=str(Path.home() / "Documents" / "Provelume"),
+                        language=options.install_language,
+                        endpoint_port=port,
+                        last_good_port=port,
+                        tray_enabled=options.install_tray == "enabled",
+                        login_startup=login_startup,
+                    )
+                )
+            except (OSError, ShellSettingsError):
+                with suppress(OSError, ShellSettingsError):
+                    configure_login_startup(False, command=sys.executable)
+                raise
+        except (OSError, ShellSettingsError):
+            return 2
+        return 0
+    if options.remove_login_startup:
+        try:
+            configure_login_startup(False, command=sys.executable)
+        except (OSError, ShellSettingsError):
+            return 2
+        return 0
     if options.serve is not None:
-        if not 1 <= options.port <= 65535:
-            raise SystemExit("port must be between 1 and 65535")
-        app = create_app(options.serve)
+        try:
+            selected_port = effective_port(
+                explicit_port=options.port,
+                persisted=load_settings(),
+            )["port"]
+            validate_port(selected_port)
+        except ShellSettingsError as exc:
+            raise SystemExit(str(exc)) from exc
+        app = create_app(options.serve, effective_port=selected_port)
         uvicorn.run(
             app,
             host="127.0.0.1",
-            port=options.port,
+            port=selected_port,
             log_level="warning",
             log_config=None,
             access_log=False,
         )
         return 0
-    return run_ui()
+    return run_ui(start_hidden=options.tray)
 
 
 if __name__ == "__main__":

@@ -1,8 +1,15 @@
 from importlib.util import find_spec
+from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
-datas = collect_data_files("provelume")
+SOURCE_ROOT = Path(SPECPATH).resolve().parents[1]
+ICON = SOURCE_ROOT / "assets" / "windows" / "provelume.ico"
+VERSION_INFO = SOURCE_ROOT / "packaging" / "windows" / "version_info.txt"
+if not ICON.is_file() or not VERSION_INFO.is_file():
+    raise RuntimeError("Versioned Windows icon or executable metadata is missing.")
+
+datas = collect_data_files("provelume") + [(str(ICON), "assets")]
 hiddenimports = collect_submodules("uvicorn")
 pydantic_core_spec = find_spec("pydantic_core._pydantic_core")
 if pydantic_core_spec is None or pydantic_core_spec.origin is None:
@@ -40,6 +47,8 @@ executable = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=str(ICON),
+    version=str(VERSION_INFO),
 )
 
 collection = COLLECT(

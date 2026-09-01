@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "product": "Provelume",
+  "source": "assets/windows/provelume.svg",
+  "generator": "scripts/generate_windows_icon.py",
+  "output": "assets/windows/provelume.ico",
+  "sizes": [16, 20, 24, 32, 40, 48, 64, 128, 256],
+  "external_resources": false,
+  "accessible_text_replacement": false,
+  "fallback_order": ["versioned_asset", "executable_resource", "controlled_system_icon"]
+}

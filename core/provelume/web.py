@@ -28,8 +28,16 @@ from .qualification_activity import attach_qualification_routes
 from .retention_model import DISPOSITION_FILTERS
 from .scheduler_model import SchedulerBusyError, SchedulerError
 from .service import ProvelumeInstance
+from .shell_activity import attach_shell_routes
+from .shell_settings import (
+    LOCAL_HOST,
+    ShellSettingsManager,
+    default_settings,
+    settings_path,
+    validate_port,
+)
 from .transcript_activity import attach_transcript_routes
-from .web_security import LocalWebSecurityMiddleware
+from .web_security import LocalWebSecurityMiddleware, loopback_host
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 TEMPLATES = Jinja2Templates(directory=str(PACKAGE_ROOT / "templates"))
@@ -56,139 +64,184 @@ def _navigation(
     t: Callable[[str], str],
     security_t: Callable[[str], str],
 ) -> list[dict[str, Any]]:
-    return [
+    items = [
         {
             "href": f"/?lang={language}",
             "label": t("nav.home"),
             "current": current_path == "/",
+            "group": "knowledge",
         },
         {
             "href": f"/browse?lang={language}",
             "label": t("nav.browse"),
             "current": (current_path == "/browse" or current_path.startswith("/documents/")),
+            "group": "knowledge",
         },
         {
             "href": f"/search?lang={language}",
             "label": t("nav.search"),
             "current": current_path == "/search",
+            "group": "knowledge",
         },
         {
             "href": f"/inbox?lang={language}",
             "label": t("nav.inbox"),
             "current": current_path.startswith("/inbox"),
+            "group": "knowledge",
         },
         {
             "href": f"/sources?lang={language}",
             "label": t("nav.sources"),
             "current": current_path.startswith("/sources"),
+            "group": "knowledge",
         },
         {
             "href": f"/connectors?lang={language}",
             "label": t("nav.connectors"),
             "current": current_path.startswith("/connectors"),
+            "group": "configuration",
         },
         {
             "href": f"/bundles?lang={language}",
             "label": t("nav.bundles"),
             "current": current_path.startswith("/bundles"),
+            "group": "knowledge",
         },
         {
             "href": f"/duplicates?lang={language}",
             "label": t("nav.duplicates"),
             "current": current_path.startswith("/duplicates"),
+            "group": "knowledge",
         },
         {
             "href": f"/assurance?lang={language}",
             "label": t("nav.assurance"),
             "current": current_path.startswith("/assurance"),
+            "group": "maintenance",
         },
         {
             "href": f"/rebuild?lang={language}",
             "label": t("nav.rebuild"),
             "current": current_path.startswith("/rebuild"),
+            "group": "maintenance",
         },
         {
             "href": f"/maintenance?lang={language}",
             "label": t("nav.maintenance"),
             "current": current_path.startswith("/maintenance"),
+            "group": "maintenance",
         },
         {
             "href": f"/operations?lang={language}",
             "label": t("nav.operations"),
             "current": current_path.startswith("/operations"),
+            "group": "status",
         },
         {
             "href": f"/scheduler?lang={language}",
             "label": t("nav.scheduler"),
             "current": current_path.startswith("/scheduler"),
+            "group": "status",
         },
         {
             "href": f"/ocr?lang={language}",
             "label": t("nav.ocr"),
             "current": current_path.startswith("/ocr"),
+            "group": "knowledge",
         },
         {
             "href": f"/email?lang={language}",
             "label": t("nav.email"),
             "current": current_path.startswith("/email"),
+            "group": "knowledge",
         },
         {
             "href": f"/google?lang={language}",
             "label": t("nav.google"),
             "current": current_path.startswith("/google"),
+            "group": "knowledge",
         },
         {
             "href": f"/transcripts?lang={language}",
             "label": t("nav.transcripts"),
             "current": current_path.startswith("/transcripts"),
+            "group": "knowledge",
         },
         {
             "href": f"/qualification?lang={language}",
             "label": t("nav.qualification"),
             "current": current_path.startswith("/qualification"),
+            "group": "status",
         },
         {
             "href": f"/settings?lang={language}",
             "label": t("nav.settings"),
-            "current": current_path.startswith("/settings"),
+            "current": current_path in {"/settings", "/settings/folders"},
+            "group": "configuration",
+        },
+        {
+            "href": f"/settings/shell?lang={language}",
+            "label": t("nav.shell"),
+            "current": current_path == "/settings/shell",
+            "group": "configuration",
         },
         {
             "href": f"/knowledge-health?lang={language}",
             "label": t("nav.health"),
             "current": current_path == "/knowledge-health",
+            "group": "status",
         },
         {
             "href": f"/security/installation?lang={language}",
             "label": security_t("nav.verify_installation"),
             "current": current_path == "/security/installation",
+            "group": "support",
         },
         {
             "href": f"/security/network?lang={language}",
             "label": t("nav.network"),
             "current": current_path == "/security/network",
+            "group": "status",
         },
         {
             "href": f"/security?lang={language}",
             "label": t("nav.security"),
             "current": current_path == "/security",
+            "group": "support",
         },
         {
             "href": f"/about?lang={language}",
             "label": t("nav.about"),
             "current": current_path == "/about",
+            "group": "support",
         },
     ]
+    groups = []
+    for group_name in ("knowledge", "status", "configuration", "maintenance", "support"):
+        group_items = [item for item in items if item["group"] == group_name]
+        groups.append(
+            {
+                "id": group_name,
+                "label": t(f"nav.group.{group_name}"),
+                "current": any(item["current"] for item in group_items),
+                "links": group_items,
+            }
+        )
+    return groups
 
 
 def _base_context(request: Request, language: str) -> dict[str, Any]:
     t = translator(language)
     security_t = installation_translator(language)
+    manager = getattr(request.app.state, "shell_settings_manager", None)
+    theme = manager.load().settings.theme if manager is not None else "system"
     return {
         "request": request,
         "lang": language,
         "t": t,
         "security_t": security_t,
         "navigation": _navigation(language, request.url.path, t, security_t),
+        "theme": theme,
         "language_urls": {
             selected: _language_url(request, selected) for selected in sorted(SUPPORTED_LANGUAGES)
         },
@@ -215,6 +268,9 @@ def create_app(
     *,
     release_bundle: Path | str | None = None,
     expected_manifest_sha256: str | None = None,
+    shell_settings_file: Path | str | None = None,
+    effective_host: str = LOCAL_HOST,
+    effective_port: int | None = None,
 ) -> FastAPI:
     if isinstance(release_bundle, str) and not release_bundle.strip():
         release_bundle = None
@@ -230,6 +286,12 @@ def create_app(
         installation_verification = verify_current_installation()
 
     instance = ProvelumeInstance(instance_root)
+    selected_settings_path = Path(shell_settings_file) if shell_settings_file else settings_path()
+    shell_manager = ShellSettingsManager(selected_settings_path, default_settings())
+    selected_port = validate_port(
+        shell_manager.load().settings.endpoint_port if effective_port is None else effective_port
+    )
+    selected_host = loopback_host(effective_host)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -272,6 +334,7 @@ def create_app(
     app.state.scheduler_runtime_error = None
     app.state.installation_verification = installation_verification
     app.state.release_evidence_configured = release_evidence_configured
+    app.state.shell_settings_manager = shell_manager
     app.mount("/static", StaticFiles(directory=str(PACKAGE_ROOT / "static")), name="static")
     attach_api(
         app,
@@ -286,6 +349,15 @@ def create_app(
     attach_google_routes(app, instance, TEMPLATES, _context)
     attach_transcript_routes(app, instance, TEMPLATES, _context)
     attach_qualification_routes(app, instance, TEMPLATES, _context)
+    attach_shell_routes(
+        app,
+        instance,
+        TEMPLATES,
+        _context,
+        shell_manager,
+        effective_host=selected_host,
+        effective_port=selected_port,
+    )
 
     @app.get("/")
     def home(request: Request):

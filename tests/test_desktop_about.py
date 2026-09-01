@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -119,7 +120,7 @@ def test_launcher_settings_round_trip_and_malformed_fallback(tmp_path: Path) -> 
 
     path.write_text('{"schema_version": true}', encoding="utf-8")
     fallback = load_settings(path)
-    assert fallback.schema_version == 1
+    assert fallback.schema_version == 2
     assert fallback.update_channel == "preview"
     assert fallback.check_on_start is False
 
@@ -175,6 +176,10 @@ def test_desktop_diagnostics_and_headless_instance_bootstrap(tmp_path: Path) -> 
     assert diagnostics["desktop_shell"] is True
     assert diagnostics["network_used"] is False
     assert diagnostics["about"]["version"] == "0.8.0"
+    assert diagnostics["windows_identity"]["process_app_user_model_id"] in {
+        "not_applicable",
+        "configured",
+    }
 
     root = tmp_path / "Instance with spaces"
     assert main(["--bootstrap-instance", str(root), "--instance-name", "Desktop Demo"]) == 0
@@ -183,7 +188,21 @@ def test_desktop_diagnostics_and_headless_instance_bootstrap(tmp_path: Path) -> 
 
     output = tmp_path / "diagnostics.json"
     assert main(["--diagnostics-file", str(output)]) == 0
-    assert json.loads(output.read_text())["settings_schema_version"] == 1
+    assert json.loads(output.read_text())["settings_schema_version"] == 2
+
+
+def test_login_startup_tray_mode_is_forwarded_to_the_native_shell(monkeypatch) -> None:
+    observed: list[bool] = []
+
+    def fake_run_ui(*, start_hidden: bool = False) -> int:
+        observed.append(start_hidden)
+        return 0
+
+    monkeypatch.setattr("provelume.desktop.run_ui", fake_run_ui)
+
+    assert main([]) == 0
+    assert main(["--tray"]) == 0
+    assert observed == [False, True]
 
 
 def test_windowed_backend_does_not_require_console_logging(
@@ -195,7 +214,7 @@ def test_windowed_backend_does_not_require_console_logging(
     app = object()
     observed: list[tuple[object, dict[str, object]]] = []
 
-    monkeypatch.setattr("provelume.desktop.create_app", lambda _root: app)
+    monkeypatch.setattr("provelume.desktop.create_app", lambda _root, **_kwargs: app)
     monkeypatch.setattr(
         "provelume.desktop.uvicorn.run",
         lambda selected, **kwargs: observed.append((selected, kwargs)),
@@ -391,6 +410,44 @@ def test_failed_or_terminated_backend_keeps_an_actionable_state(monkeypatch) -> 
     assert shell.server_ready is False
 
 
+def test_backend_teardown_kills_and_reaps_a_child_that_ignores_terminate() -> None:
+    class HangingProcess(_Process):
+        def __init__(self):
+            super().__init__()
+            self.waits = 0
+
+        def terminate(self) -> None:
+            self.terminated = True
+
+        def wait(self, timeout: float | None = None) -> int:
+            self.waits += 1
+            if not self.killed:
+                raise subprocess.TimeoutExpired("synthetic", timeout)
+            self.exit_code = -9
+            return -9
+
+    process = HangingProcess()
+    shell = DesktopShell.__new__(DesktopShell)
+    shell.closed = False
+    shell.server = process
+    shell.server_port = 44851
+    shell.server_ready = True
+    shell.instance_available = True
+    shell.status = _Value("running")
+    shell.text = {"stopping": "stopping", "stopped": "stopped", "server_failed": "failed"}
+    shell.open_button = _Button()
+    shell.stop_button = _Button()
+
+    shell.stop_server()
+
+    assert process.terminated is True
+    assert process.killed is True
+    assert process.waits == 2
+    assert shell.server is None
+    assert shell.server_port is None
+    assert shell.stop_button.state == "disabled"
+
+
 @pytest.mark.parametrize(
     ("screen", "expected"),
     (
@@ -404,6 +461,7 @@ def test_window_dimensions_fit_reduced_work_areas(screen, expected) -> None:
 
 
 def test_en_it_launcher_copy_covers_every_transient_state() -> None:
+    assert set(STRINGS["en"]) == set(STRINGS["it"])
     required = {
         "starting",
         "running",
@@ -420,6 +478,7 @@ def test_en_it_launcher_copy_covers_every_transient_state() -> None:
         "unsigned_notice",
         "install_notice",
         "missing_instance",
+        "already_running",
     }
     for language in ("en", "it"):
         assert required <= STRINGS[language].keys()
