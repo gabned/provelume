@@ -66,5 +66,5 @@ Exact-head run `33547788896`, Windows Core job `99989493670`, completed the full
 in 286.30 seconds, then failed only because pytest still traversed the volume root of the artificial
 `tmp_path` target on `C:` despite explicit `--rootdir`. Automatic orchestration never accepts such a
 target: it runs only for the bare repository suite. The harness now selects a tracked, non-recursive
-node ID under the versioned root while continuing to prove two-child dispatch, empty-shard success,
+node ID under the versioned root while continuing to prove bounded child dispatch, empty-shard success,
 bounded completion and cleanup.

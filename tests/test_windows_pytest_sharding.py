@@ -89,8 +89,8 @@ def test_two_process_harness_completes_bounded_and_cleans_children() -> None:
     )
     output = completed.stdout + completed.stderr
     assert completed.returncode == 0, output
-    assert "windows-shard index=0/2" in output
-    assert "windows-shard index=1/2" in output
+    for index in range(SHARD_COUNT):
+        assert f"windows-shard index={index}/{SHARD_COUNT}" in output
     assert "windows-shards completed=True" in output
 
 

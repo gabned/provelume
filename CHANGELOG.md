@@ -106,7 +106,7 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - added read-only shell API inspection plus CSRF/nonce/revision-protected local Browser mutation,
   portable shell preference backup/restore without Instance/provider data, system/light/dark theme,
   grouped EN/IT navigation, forced-colors/reduced-motion/reflow and accessibility regressions;
-- added the permanent exact-head Windows shell smoke and deterministic complete two-shard Windows
+- added the permanent exact-head Windows shell smoke and deterministic complete four-shard Windows
   Core orchestration with bounded timing/process-tree diagnostics, addressing the cumulative serial
   filesystem budget evidenced by all three non-green S06 post-merge Windows attempts without
   changing the protected CI timeout, hiding slow tests or reducing union coverage;

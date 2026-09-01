@@ -115,7 +115,7 @@ markup, URLs, formulas, escape sequences and script-like values inert.
 ### Windows Core budget
 
 The protected Public CI workflow and its 10-minute job remain unchanged. Only the bare Windows full
-suite is partitioned into two concurrent subprocesses using `SHA-256(nodeid) mod 2`. The partitions
+suite is partitioned into four concurrent subprocesses using `SHA-256(module path) mod 4`. The partitions
 are stable, disjoint and complete; targeted invocations are untouched. Each subprocess receives an
 isolated state directory. The parent has a 420-second bounded deadline, replays at most 2 MiB per
 shard, reports only shard index/count/duration/exit code, and terminates the process tree on timeout.
