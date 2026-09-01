@@ -154,9 +154,7 @@ def test_roadmap_records_published_history_and_active_lectio_development() -> No
     assert "S04 completed by #149/#150" in roadmap
     assert "`0.9/S05` transcript profiles is delivered" in roadmap
     assert "owner PR #152" in roadmap
-    assert (
-        "`0.9/S06` cross-source qualification and correction findings is the active" in roadmap
-    )
+    assert "`0.9/S06` cross-source qualification and correction findings is delivered" in roadmap
     assert "`0.9/S07` remains forecast-only" in roadmap
 
 

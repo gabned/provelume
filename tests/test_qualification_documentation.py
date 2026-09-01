@@ -62,8 +62,10 @@ def test_adr_api_release_roadmap_and_changelog_bind_s06_without_publication() ->
     ):
         assert endpoint in api
     assert "There are no qualification `POST`, `PATCH`, `DELETE`" in api
-    assert "CURRENT_SLICE: 0.9/S06" in release
-    assert "CURRENT_SLICE_ISSUE: #153" in release
+    assert "DELIVERED_SLICES: 0.9/S01,0.9/S02,0.9/S03,0.9/S04,0.9/S05,0.9/S06" in release
+    assert "DELIVERED_SLICE_ISSUES: #5,#140,#143,#149,#151,#153" in release
+    assert "DELIVERED_SLICE_OWNER_PRS: #138,#141,#147,#150,#152,#154" in release
+    assert "CURRENT_SLICE: NONE" in release
     assert "CURRENT_PACKAGE_VERSION: 0.8.0" in release
     assert "NEXT_SLICE: 0.9/S07" in release
     assert "product/0.9-s06-cross-source-qualification" in release
