@@ -189,6 +189,10 @@ def test_windows_shell_smoke_is_bounded_sanitized_and_exact_head_aware() -> None
         "notification_added",
         "notification_updated",
         "notification_deleted",
+        "function Get-RegisteredUninstaller",
+        '"{E41A426B-F5FC-473F-A096-875017656A31}_is1"',
+        "Registered uninstaller points outside the expected installation root",
+        '$Evidence.checks.registered_final_uninstaller = "PASS"',
     ):
         assert token in smoke
     for token in (
@@ -201,6 +205,7 @@ def test_windows_shell_smoke_is_bounded_sanitized_and_exact_head_aware() -> None
     ):
         assert token in smoke
     assert "Start-Process -FilePath $InstallerPath -ArgumentList $Arguments -Wait" not in smoke
+    assert '$FinalUninstaller = Join-Path $InstallRoot "unins000.exe"' not in smoke
     assert "Invoke-WebRequest" not in smoke
     assert "Start-Sleep -Seconds" not in smoke
     workflow = (ROOT / ".github/workflows/windows-shell-smoke.yml").read_text(encoding="utf-8")

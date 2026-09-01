@@ -78,6 +78,36 @@ function Invoke-BoundedProcess {
     return $Process
 }
 
+function Get-RegisteredUninstaller {
+    param([string]$ExpectedInstallRoot)
+    $Registration =
+        "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\" +
+        "{E41A426B-F5FC-473F-A096-875017656A31}_is1"
+    $Command = [string](Get-ItemPropertyValue `
+        -Path $Registration `
+        -Name "UninstallString" `
+        -ErrorAction Stop)
+    if ($Command -match '^\s*"([^"]+)"') {
+        $Candidate = $Matches[1]
+    }
+    elseif ($Command -match '^\s*(\S+\.exe)(?:\s|$)') {
+        $Candidate = $Matches[1]
+    }
+    else {
+        throw "Registered uninstall command is not a bounded executable path."
+    }
+    $Resolved = [System.IO.Path]::GetFullPath($Candidate)
+    $RegisteredRoot = [System.IO.Path]::GetFullPath((Split-Path $Resolved -Parent))
+    $ExpectedRoot = [System.IO.Path]::GetFullPath($ExpectedInstallRoot)
+    if ($RegisteredRoot.TrimEnd("\") -ne $ExpectedRoot.TrimEnd("\")) {
+        throw "Registered uninstaller points outside the expected installation root."
+    }
+    if (-not (Test-Path -LiteralPath $Resolved -PathType Leaf)) {
+        throw "Registered uninstaller does not exist."
+    }
+    return $Resolved
+}
+
 function Invoke-Installer {
     param(
         [string]$Target,
@@ -466,7 +496,10 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     $Evidence.checks.default_44851_and_login_startup_opt_in = "PASS"
 
     Set-FailureCode "final_uninstall_failed"
-    $FinalUninstaller = Join-Path $InstallRoot "unins000.exe"
+    # Inno may advance the uninsNNN name when a rapid uninstall/reinstall overlaps the
+    # self-deleting cleanup window. The product registration is the current authoritative path.
+    $FinalUninstaller = Get-RegisteredUninstaller -ExpectedInstallRoot $InstallRoot
+    $Evidence.checks.registered_final_uninstaller = "PASS"
     $FinalUninstall = Invoke-BoundedProcess `
         -FilePath $FinalUninstaller `
         -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") `
