@@ -53,6 +53,9 @@ from .scheduler import SchedulerCoordinator, public_job_record, schedule_payload
 from .scheduler_model import SchedulerBusyError, SchedulerError
 from .source_reconciliation import SourceReconciliationManager
 from .storage import InstanceStore
+from .transcript_contract import TRANSCRIPT_JOB_KIND, TranscriptContractError
+from .transcript_jobs import TranscriptJobManager
+from .transcript_sources import TranscriptSourceManager
 from .web_acquisition import ManualWebAcquisitionManager
 from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTransport
 
@@ -82,6 +85,8 @@ class ProvelumeInstance:
         self.email = EmailJobManager(self.store)
         self.google_sources = GoogleSourceManager(self.store)
         self.google = GoogleJobManager(self.store)
+        self.transcript_sources = TranscriptSourceManager(self.store)
+        self.transcripts = TranscriptJobManager(self.store)
         try:
             recovery = self.scheduler.recover()
             self.scheduler_recovery = {**recovery, "deferred": False}
@@ -173,7 +178,7 @@ class ProvelumeInstance:
         schedule: Mapping[str, Any],
         retry: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
-        if job_kind in {OCR_JOB_KIND, EMAIL_JOB_KIND, GOOGLE_JOB_KIND}:
+        if job_kind in {OCR_JOB_KIND, EMAIL_JOB_KIND, GOOGLE_JOB_KIND, TRANSCRIPT_JOB_KIND}:
             raise SchedulerError(
                 "this job kind requires an exact persisted request through its dedicated controls"
             )
@@ -411,6 +416,245 @@ class ProvelumeInstance:
 
     def cancel_email_job(self, job_id: str) -> dict[str, Any]:
         return self.email.cancel(job_id)
+
+    def transcript_capability(
+        self,
+        source_id: str | None = None,
+        *,
+        local: bool = False,
+    ) -> dict[str, Any]:
+        return self.transcript_sources.capability(source_id, local=local)
+
+    def create_transcript_source(
+        self,
+        *,
+        name: str,
+        path: Path | str,
+        profile: str,
+        selection_kind: str,
+    ) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="transcript-source-create"
+            ):
+                result = self.transcript_sources.create(
+                    name=name,
+                    path=path,
+                    profile=profile,
+                    selection_kind=selection_kind,
+                )
+                self.transcripts.sync_policy(str(result["id"]))
+                return result
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError(
+                "transcript Source lifecycle lock is unavailable"
+            ) from exc
+
+    def list_transcript_sources(
+        self,
+        *,
+        local: bool = False,
+        include_removed: bool = True,
+    ) -> list[dict[str, Any]]:
+        if local:
+            return self.transcript_sources.list_local(include_removed=include_removed)
+        return self.transcript_sources.list_public(include_removed=include_removed)
+
+    def get_transcript_source(
+        self, source_id: str, *, local: bool = False
+    ) -> dict[str, Any] | None:
+        try:
+            return (
+                self.transcript_sources.local_view(source_id)
+                if local
+                else self.transcript_sources.public_view(source_id)
+            )
+        except TranscriptContractError as exc:
+            if exc.code == "transcript_source_missing":
+                return None
+            raise
+
+    def set_transcript_source_state(
+        self, source_id: str, state: str
+    ) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="transcript-source-state"
+            ):
+                result = self.transcript_sources.set_state(source_id, state)
+                self.transcripts.sync_policy(source_id)
+                return result
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError(
+                "transcript Source lifecycle lock is unavailable"
+            ) from exc
+
+    def reconfigure_transcript_source(
+        self,
+        source_id: str,
+        *,
+        path: Path | str,
+        profile: str,
+        selection_kind: str,
+    ) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="transcript-source-reconfigure"
+            ):
+                result = self.transcript_sources.reconfigure(
+                    source_id,
+                    path=path,
+                    profile=profile,
+                    selection_kind=selection_kind,
+                )
+                self.transcripts.reset_cursor(source_id)
+                self.transcripts.sync_policy(source_id)
+                return result
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError(
+                "transcript Source lifecycle lock is unavailable"
+            ) from exc
+
+    def configure_transcript_source_schedule(
+        self,
+        source_id: str,
+        *,
+        mode: str,
+        interval_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="transcript-source-schedule"
+            ):
+                result = self.transcript_sources.configure_schedule(
+                    source_id,
+                    mode=mode,
+                    interval_seconds=interval_seconds,
+                )
+                self.transcripts.sync_policy(source_id)
+                return result
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError(
+                "transcript Source lifecycle lock is unavailable"
+            ) from exc
+
+    def remove_transcript_source(self, source_id: str) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="transcript-source-remove"
+            ):
+                result = self.transcript_sources.remove(source_id)
+                self.transcripts.sync_policy(source_id)
+                return result
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError(
+                "transcript Source lifecycle lock is unavailable"
+            ) from exc
+
+    def transcript_source_checkpoint(self, source_id: str) -> dict[str, Any]:
+        return self.transcripts.source_checkpoint(source_id)
+
+    def reset_transcript_source_cursor(self, source_id: str) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="transcript-source-resync"
+            ):
+                return self.transcripts.reset_cursor(source_id)
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError(
+                "transcript Source lifecycle lock is unavailable"
+            ) from exc
+
+    def queue_transcript_intake(
+        self, source_id: str, *, request_key: str | None = None
+    ) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="transcript-intake-queue"
+            ):
+                return self.transcripts.queue(source_id, request_key=request_key)
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError(
+                "transcript intake lifecycle lock is unavailable"
+            ) from exc
+
+    def run_transcript_job(self, job_id: str) -> dict[str, Any] | None:
+        job = self.scheduler.journal.get_job(job_id)
+        if job is None:
+            return None
+        if job["job_kind"] != TRANSCRIPT_JOB_KIND:
+            raise TranscriptContractError(
+                "transcript_internal_error", "transcript job was not found"
+            )
+        result = self.scheduler.run_one(job_id=job_id)
+        return public_job_record(result) if result is not None else None
+
+    def list_transcript_jobs(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        return self.transcripts.list_jobs(limit=limit)
+
+    def get_transcript_job(self, job_id: str) -> dict[str, Any] | None:
+        return self.transcripts.get_job(job_id)
+
+    def cancel_transcript_job(self, job_id: str) -> dict[str, Any]:
+        return self.transcripts.cancel(job_id)
+
+    def retry_transcript_job(self, job_id: str) -> dict[str, Any]:
+        return self.transcripts.retry(job_id)
+
+    def list_transcript_revisions(
+        self, *, source_id: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        return self.transcripts.list_revisions(source_id=source_id, limit=limit)
+
+    def get_transcript_revision(
+        self, revision_id: str, *, include_content: bool = False
+    ) -> dict[str, Any] | None:
+        return self.transcripts.get_revision(
+            revision_id, include_content=include_content
+        )
+
+    def get_transcript_original(self, revision_id: str) -> tuple[dict[str, Any], bytes]:
+        return self.transcripts.original_bytes(revision_id)
+
+    def remove_transcript_derived(self, revision_id: str) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="transcript-derived-remove"
+            ):
+                return self.transcripts.remove_derived(revision_id)
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError(
+                "transcript derived-state lifecycle lock is unavailable"
+            ) from exc
+
+    def rebuild_transcript_derived(self, revision_id: str) -> dict[str, Any]:
+        try:
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="transcript-derived-rebuild"
+            ):
+                return self.transcripts.rebuild_derived(revision_id)
+        except InstanceLifecycleBusy as exc:
+            raise SchedulerBusyError("another Instance operation is active") from exc
+        except InstanceLifecycleError as exc:
+            raise SchedulerBusyError(
+                "transcript derived-state lifecycle lock is unavailable"
+            ) from exc
 
     def list_email_messages(
         self,

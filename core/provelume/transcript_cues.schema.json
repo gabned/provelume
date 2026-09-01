@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/transcript-cues-v1.schema.json",
+  "title": "Provelume inert transcript cue representation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "transcript_id",
+    "revision_id",
+    "source_id",
+    "cues",
+    "source_scoped",
+    "cross_source_merge",
+    "derived",
+    "complete",
+    "active_content_executed",
+    "remote_resources_fetched"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "transcript_cues"},
+    "transcript_id": {"type": "string", "pattern": "^trn_[0-9a-f]{32}$"},
+    "revision_id": {"type": "string", "pattern": "^trev_[0-9a-f]{32}$"},
+    "source_id": {"type": "string", "pattern": "^src_[0-9a-f]{32}$"},
+    "cues": {"type": "array", "maxItems": 100000, "items": {"$ref": "#/$defs/cue"}},
+    "source_scoped": {"const": true},
+    "cross_source_merge": {"const": false},
+    "derived": {"const": true},
+    "complete": {"const": true},
+    "active_content_executed": {"const": false},
+    "remote_resources_fetched": {"const": false}
+  },
+  "$defs": {
+    "warning": {
+      "enum": [
+        "cue_identifier_duplicate",
+        "cue_duplicate",
+        "cue_overlap",
+        "cue_out_of_order",
+        "speaker_label_ambiguous"
+      ]
+    },
+    "cue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "id",
+        "revision_id",
+        "ordinal",
+        "start_ms",
+        "end_ms",
+        "identifier",
+        "speaker_label",
+        "settings",
+        "text",
+        "text_sha256",
+        "warning_codes",
+        "identity_authoritative",
+        "speaker_identity_verified",
+        "media_existence_attested",
+        "active_content"
+      ],
+      "properties": {
+        "schema_version": {"const": 1},
+        "id": {"type": "string", "pattern": "^tcue_[0-9a-f]{32}$"},
+        "revision_id": {"type": "string", "pattern": "^trev_[0-9a-f]{32}$"},
+        "ordinal": {"type": "integer", "minimum": 1, "maximum": 100000},
+        "start_ms": {"type": "integer", "minimum": 0, "maximum": 31536000000},
+        "end_ms": {"type": "integer", "minimum": 1, "maximum": 31536000000},
+        "identifier": {"type": ["string", "null"], "maxLength": 1048576},
+        "speaker_label": {"type": ["string", "null"], "maxLength": 200},
+        "settings": {"type": ["string", "null"], "maxLength": 1048576},
+        "text": {"type": "string", "maxLength": 5242880},
+        "text_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "warning_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/warning"}
+        },
+        "identity_authoritative": {"const": false},
+        "speaker_identity_verified": {"const": false},
+        "media_existence_attested": {"const": false},
+        "active_content": {"const": "inert-text"}
+      }
+    }
+  }
+}

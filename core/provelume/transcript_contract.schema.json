@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/local-transcript-contract-v1.schema.json",
+  "title": "Provelume local transcript Source contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "connector_instance_id",
+    "profile",
+    "selection_kind",
+    "path",
+    "selection_sha256",
+    "state",
+    "lifecycle_state",
+    "schedule",
+    "adapter_id",
+    "adapter_version",
+    "config_revision",
+    "created_at",
+    "updated_at",
+    "removed_at"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "connector_instance_id": {
+      "type": "string",
+      "pattern": "^connector_instance_[0-9a-f]{32}$"
+    },
+    "profile": {"enum": ["srt-v1", "webvtt-v1"]},
+    "selection_kind": {"enum": ["file", "folder"]},
+    "path": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "selection_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "state": {"enum": ["enabled", "paused", "disabled"]},
+    "lifecycle_state": {"enum": ["active", "removed"]},
+    "schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "timezone",
+        "interval_seconds",
+        "calendar_time",
+        "weekdays",
+        "dst_policy",
+        "quiet_window",
+        "jitter_seconds",
+        "missed_run_policy"
+      ],
+      "properties": {
+        "mode": {"enum": ["manual", "interval"]},
+        "timezone": {"const": "UTC"},
+        "interval_seconds": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "integer", "minimum": 60, "maximum": 31536000}
+          ]
+        },
+        "calendar_time": {"type": "null"},
+        "weekdays": {"const": []},
+        "dst_policy": {"const": "earliest"},
+        "quiet_window": {"type": "null"},
+        "jitter_seconds": {"const": 0},
+        "missed_run_policy": {"const": "coalesce"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"mode": {"const": "manual"}}},
+          "then": {"properties": {"interval_seconds": {"type": "null"}}}
+        },
+        {
+          "if": {"properties": {"mode": {"const": "interval"}}},
+          "then": {"properties": {"interval_seconds": {"type": "integer"}}}
+        }
+      ]
+    },
+    "adapter_id": {"const": "provelume.local-transcript"},
+    "adapter_version": {"const": "1.0.0"},
+    "config_revision": {"type": "integer", "minimum": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "removed_at": {"type": ["string", "null"], "format": "date-time"}
+  }
+}

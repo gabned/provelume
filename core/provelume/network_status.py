@@ -378,6 +378,11 @@ def declared_network_status(
             else "connector.invalid"
         )
         definition = definitions.get(str(instance.get("definition_id")))
+        definition_network_access = (
+            definition.get("network_access")
+            if isinstance(definition, Mapping)
+            else None
+        )
         component_type = (
             str(definition.get("adapter_key"))
             if isinstance(definition, Mapping)
@@ -407,6 +412,7 @@ def declared_network_status(
             configured_enabled
             and lifecycle_state == "active"
             and network_mode == "explicit"
+            and definition_network_access != "none"
         )
         if network_mode not in {"disabled", "explicit"}:
             finding(
@@ -433,6 +439,12 @@ def declared_network_status(
                 component_id,
                 "Connector allowed origins are not safe HTTP(S) origins.",
             )
+        if definition_network_access == "none" and origins:
+            finding(
+                "local_component_external_declaration",
+                component_id,
+                "A no-network connector cannot declare external origins.",
+            )
         if enabled and not origins:
             finding(
                 "missing_external_endpoint",
@@ -454,6 +466,13 @@ def declared_network_status(
                 "invalid_external_endpoint",
                 component_id,
                 "Connector endpoint is not a member of its safe origin allowlist.",
+            )
+        if definition_network_access == "none" and declared_endpoint is not None:
+            declared_endpoint = None
+            finding(
+                "local_component_external_declaration",
+                component_id,
+                "A no-network connector cannot declare an external endpoint.",
             )
         categories, categories_valid = _data_categories(
             definition.get("data_categories")
@@ -477,13 +496,18 @@ def declared_network_status(
             category="connector",
             component_type=component_type,
             enabled=enabled,
-            network_capability="external" if definition is not None else "unknown",
+            network_capability=(
+                "local_only"
+                if definition_network_access == "none"
+                else "external" if definition is not None else "unknown"
+            ),
             declaration_state="declared" if definition is not None else "undeclared",
             endpoint=declared_endpoint,
             data_categories=categories,
         )
         component["allowed_origins"] = origins
         component["configured_enabled"] = configured_enabled
+        component["declared_network_access"] = definition_network_access or "unknown"
         component["lifecycle_state"] = lifecycle_state
         component["health"] = (
             "removed"

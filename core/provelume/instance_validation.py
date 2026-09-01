@@ -1805,12 +1805,14 @@ def inspect_instance(root: Path | str, *, deep: bool = True) -> dict[str, Any]:
         from .resource_statistics import resource_statistics_state_findings
         from .scheduler import scheduler_state_findings
         from .source_reconciliation import source_reconciliation_state_findings
+        from .transcript_jobs import transcript_state_findings
 
         errors.extend(folder_source_state_findings(store))
         errors.extend(maintenance_state_findings(store))
         errors.extend(scheduler_state_findings(store))
         errors.extend(source_reconciliation_state_findings(store))
         errors.extend(resource_statistics_state_findings(store))
+        errors.extend(transcript_state_findings(store, records))
         original_files = _validate_originals(
             store,
             records["originals"],

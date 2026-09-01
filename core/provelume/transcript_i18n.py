@@ -1,0 +1,108 @@
+from __future__ import annotations
+
+TRANSCRIPT_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "en": {
+        "nav.transcripts": "Transcripts",
+        "transcript.eyebrow": "Explicit offline profiles",
+        "transcript.title": "Local transcript intake",
+        "transcript.lead": (
+            "Preserve exact SRT or WebVTT bytes, then build inert, removable cue representations."
+        ),
+        "transcript.saved": "Transcript control applied",
+        "transcript.error": "Transcript control failed",
+        "transcript.local_only": "Mutating controls are available only from the loopback browser.",
+        "transcript.capability": "Closed profile matrix",
+        "transcript.limits": "Closed limits",
+        "transcript.create": "Create a disabled Source",
+        "transcript.name": "Local name",
+        "transcript.path": "Explicit file or folder",
+        "transcript.profile": "Versioned profile",
+        "transcript.selection": "Selection kind",
+        "transcript.create_action": "Create Source",
+        "transcript.sources": "ConnectorInstance / Source",
+        "transcript.no_sources": "No transcript Source is configured.",
+        "transcript.enable": "Enable",
+        "transcript.pause": "Pause",
+        "transcript.disable": "Disable",
+        "transcript.reconfigure": "Reconfigure while disabled",
+        "transcript.remove_source": "Remove Source",
+        "transcript.schedule": "Schedule",
+        "transcript.interval": "Interval seconds",
+        "transcript.save_schedule": "Save schedule",
+        "transcript.queue": "Refresh / import",
+        "transcript.resync": "Reset cursor / resync",
+        "transcript.checkpoint": "Checkpoint",
+        "transcript.jobs": "Bounded jobs",
+        "transcript.no_jobs": "No transcript job has been journaled.",
+        "transcript.run": "Execute",
+        "transcript.retry": "Retry",
+        "transcript.cancel": "Cancel",
+        "transcript.revisions": "Provider-neutral revisions",
+        "transcript.no_revisions": "No transcript revision has been acquired.",
+        "transcript.inspect": "Inspect representation",
+        "transcript.inspect_original": "Inspect exact-byte Original",
+        "transcript.remove_derived": "Remove representation",
+        "transcript.rebuild_derived": "Rebuild from Original",
+        "transcript.back": "Back to transcripts",
+        "transcript.cues": "Cues",
+        "transcript.text": "Derived text",
+        "transcript.inert": (
+            "Markup, scripts, links, embedded references and escape-like payloads "
+            "remain inert data. "
+            "No network, watcher, recursive discovery or source mutation is used."
+        ),
+    },
+    "it": {
+        "nav.transcripts": "Trascrizioni",
+        "transcript.eyebrow": "Profili offline espliciti",
+        "transcript.title": "Intake locale delle trascrizioni",
+        "transcript.lead": (
+            "Conserva i byte esatti SRT o WebVTT, poi crea rappresentazioni cue "
+            "inerti e rimovibili."
+        ),
+        "transcript.saved": "Controllo trascrizione applicato",
+        "transcript.error": "Controllo trascrizione non riuscito",
+        "transcript.local_only": "I controlli mutativi sono disponibili solo nel browser loopback.",
+        "transcript.capability": "Matrice chiusa dei profili",
+        "transcript.limits": "Limiti chiusi",
+        "transcript.create": "Crea una Source disabilitata",
+        "transcript.name": "Nome locale",
+        "transcript.path": "File o cartella espliciti",
+        "transcript.profile": "Profilo versionato",
+        "transcript.selection": "Tipo di selezione",
+        "transcript.create_action": "Crea Source",
+        "transcript.sources": "ConnectorInstance / Source",
+        "transcript.no_sources": "Nessuna Source transcript è configurata.",
+        "transcript.enable": "Abilita",
+        "transcript.pause": "Metti in pausa",
+        "transcript.disable": "Disabilita",
+        "transcript.reconfigure": "Riconfigura quando disabilitata",
+        "transcript.remove_source": "Rimuovi Source",
+        "transcript.schedule": "Pianificazione",
+        "transcript.interval": "Intervallo in secondi",
+        "transcript.save_schedule": "Salva pianificazione",
+        "transcript.queue": "Aggiorna / importa",
+        "transcript.resync": "Azzera cursore / risincronizza",
+        "transcript.checkpoint": "Checkpoint",
+        "transcript.jobs": "Job bounded",
+        "transcript.no_jobs": "Nessun job transcript è stato registrato.",
+        "transcript.run": "Esegui",
+        "transcript.retry": "Riprova",
+        "transcript.cancel": "Annulla",
+        "transcript.revisions": "Revisioni provider-neutral",
+        "transcript.no_revisions": "Nessuna revisione transcript è stata acquisita.",
+        "transcript.inspect": "Ispeziona rappresentazione",
+        "transcript.inspect_original": "Ispeziona Original exact-byte",
+        "transcript.remove_derived": "Rimuovi rappresentazione",
+        "transcript.rebuild_derived": "Ricostruisci dall'Original",
+        "transcript.back": "Torna alle trascrizioni",
+        "transcript.cues": "Cue",
+        "transcript.text": "Testo derivato",
+        "transcript.inert": (
+            "Markup, script, link, riferimenti incorporati e payload simili a escape restano dati "
+            "inerti. Non sono usati rete, watcher, discovery ricorsiva o mutazioni della sorgente."
+        ),
+    },
+}
+
+__all__ = ["TRANSCRIPT_TRANSLATIONS"]

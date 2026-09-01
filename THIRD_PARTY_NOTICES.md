@@ -68,3 +68,17 @@ application continues to carry its existing Python runtime; S03 adds no separate
 payload. [`packaging/email/qualified-local-components.cdx.json`](packaging/email/qualified-local-components.cdx.json)
 is the machine-readable inventory for this development qualification, not the SBOM of a published
 Provelume release. No `0.9.0` release artifact is created by S03.
+
+## Local transcript profiles — first-party parser in 0.9/S05
+
+The `0.9/S05` SRT and WebVTT baseline adds no Python dependency, native parser,
+provider SDK, media codec, model or remote service. Parsing is implemented by
+first-party bounded code behind a replaceable provider-neutral contract and uses only
+the CPython 3.12 standard library, under the Python Software Foundation License.
+The wheel and source distribution contain no transcript payload or private fixture.
+
+[`packaging/transcript/qualified-local-components.cdx.json`](packaging/transcript/qualified-local-components.cdx.json)
+records the runtime-provided standard-library boundary for permanent synthetic local
+conformance. It is not a published-release SBOM and makes no cloud-provider, audio,
+video, speech-to-text or real-data qualification claim. No `0.9.0` artifact is
+created by S05.

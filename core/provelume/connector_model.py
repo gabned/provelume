@@ -28,11 +28,13 @@ CONNECTOR_CAPABILITIES = (
     "revision_read",
     "scheduled_read",
     "source_selection",
+    "transcript_read",
 )
 CONNECTOR_AUTHORIZATION_MODES = ("none", "external_secret", "oauth2_pkce")
+CONNECTOR_DEFINITION_NETWORK_ACCESS = ("none", "explicit_only")
 CONNECTOR_NETWORK_MODES = ("disabled", "explicit")
 CONNECTOR_SECRET_REFERENCE_KINDS = ("environment", "system_keyring")
-CONNECTOR_SOURCE_KINDS = ("drive", "gmail", "web")
+CONNECTOR_SOURCE_KINDS = ("drive", "gmail", "transcript", "web")
 CONNECTOR_LIFECYCLE_STATES = ("active", "removed")
 MAX_CONNECTOR_DATA_CATEGORIES = 32
 MAX_CONNECTOR_ORIGINS = 32
@@ -424,8 +426,9 @@ def normalise_connector_definition_manifest(
         raise ConnectorError("connector adapter protocol version is unsupported")
     if value.get("multi_instance") is not True:
         raise ConnectorError("connector definitions must require multi-instance operation")
-    if value.get("network_access") != "explicit_only":
-        raise ConnectorError("connector network access must be explicit_only")
+    network_access = value.get("network_access")
+    if network_access not in CONNECTOR_DEFINITION_NETWORK_ACCESS:
+        raise ConnectorError("connector definition network access is unsupported")
 
     capabilities = _normalise_identifier_list(
         value.get("capabilities"),
@@ -473,7 +476,7 @@ def normalise_connector_definition_manifest(
         "source_kinds": source_kinds,
         "data_categories": data_categories,
         "multi_instance": True,
-        "network_access": "explicit_only",
+        "network_access": network_access,
     }
 
 

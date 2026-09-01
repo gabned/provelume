@@ -27,6 +27,7 @@ from .ocr_activity import attach_ocr_routes
 from .retention_model import DISPOSITION_FILTERS
 from .scheduler_model import SchedulerBusyError, SchedulerError
 from .service import ProvelumeInstance
+from .transcript_activity import attach_transcript_routes
 from .web_security import LocalWebSecurityMiddleware
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -134,6 +135,11 @@ def _navigation(
             "href": f"/google?lang={language}",
             "label": t("nav.google"),
             "current": current_path.startswith("/google"),
+        },
+        {
+            "href": f"/transcripts?lang={language}",
+            "label": t("nav.transcripts"),
+            "current": current_path.startswith("/transcripts"),
         },
         {
             "href": f"/settings?lang={language}",
@@ -272,6 +278,7 @@ def create_app(
     attach_ocr_routes(app, instance, TEMPLATES, _context)
     attach_email_routes(app, instance, TEMPLATES, _context)
     attach_google_routes(app, instance, TEMPLATES, _context)
+    attach_transcript_routes(app, instance, TEMPLATES, _context)
 
     @app.get("/")
     def home(request: Request):

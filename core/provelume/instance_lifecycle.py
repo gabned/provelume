@@ -378,6 +378,7 @@ class InstanceLifecycleManager:
                 or any(transaction_root.glob("manual-web-*"))
                 or any(transaction_root.glob("email-intake-*"))
                 or any(transaction_root.glob("google-intake-*"))
+                or any(transaction_root.glob("transcript-intake-*"))
             )
         )
         if has_registered_transactions:
@@ -385,6 +386,7 @@ class InstanceLifecycleManager:
                 ATOMIC_COMMIT_SCHEMA_VERSION,
                 EMAIL_INTAKE_TRANSACTION_PROFILE,
                 GOOGLE_INTAKE_TRANSACTION_PROFILE,
+                TRANSCRIPT_INTAKE_TRANSACTION_PROFILE,
                 AtomicRecoveryHandler,
                 recover_atomic_transactions,
             )
@@ -401,6 +403,9 @@ class InstanceLifecycleManager:
                         ),
                         AtomicRecoveryHandler(
                             profile=GOOGLE_INTAKE_TRANSACTION_PROFILE,
+                        ),
+                        AtomicRecoveryHandler(
+                            profile=TRANSCRIPT_INTAKE_TRANSACTION_PROFILE,
                         ),
                     ),
                 )

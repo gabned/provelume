@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/transcript-bundle-v1.schema.json",
+  "title": "Provelume transcript bundle manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "status",
+    "complete",
+    "job_id",
+    "source_id",
+    "connector_instance_id",
+    "transcript_id",
+    "revision_id",
+    "acquisition_id",
+    "document_id",
+    "version_id",
+    "original_id",
+    "original_sha256",
+    "original_size_bytes",
+    "locator_sha256",
+    "filesystem_identity_sha256",
+    "filesystem_mtime_ns",
+    "profile",
+    "format",
+    "encoding",
+    "bom",
+    "source_line_endings",
+    "parser",
+    "counts",
+    "warning_codes",
+    "representations",
+    "acquired_at",
+    "original_authoritative",
+    "derived",
+    "removable",
+    "rebuildable_from_original",
+    "filename_authoritative",
+    "path_authoritative",
+    "cue_identity_provider_neutral",
+    "speaker_identity_verified",
+    "media_existence_attested",
+    "active_content_executed",
+    "remote_resources_fetched",
+    "network_used",
+    "runtime_downloads",
+    "remote_fallback"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "transcript_bundle"},
+    "status": {"const": "complete"},
+    "complete": {"const": true},
+    "job_id": {"type": "string", "pattern": "^job_[0-9a-f]{32}$"},
+    "source_id": {"type": "string", "pattern": "^src_[0-9a-f]{32}$"},
+    "connector_instance_id": {
+      "type": "string",
+      "pattern": "^connector_instance_[0-9a-f]{32}$"
+    },
+    "transcript_id": {"type": "string", "pattern": "^trn_[0-9a-f]{32}$"},
+    "revision_id": {"type": "string", "pattern": "^trev_[0-9a-f]{32}$"},
+    "acquisition_id": {"type": "string", "pattern": "^acq_[0-9a-f]{32}$"},
+    "document_id": {"type": "string", "pattern": "^doc_[0-9a-f]{32}$"},
+    "version_id": {"type": "string", "pattern": "^ver_[0-9a-f]{32}$"},
+    "original_id": {"type": "string", "pattern": "^sha256_[0-9a-f]{64}$"},
+    "original_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "original_size_bytes": {"type": "integer", "minimum": 0},
+    "locator_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "filesystem_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "filesystem_mtime_ns": {"type": "integer"},
+    "profile": {"enum": ["srt-v1", "webvtt-v1"]},
+    "format": {"enum": ["srt", "webvtt"]},
+    "encoding": {"const": "utf-8"},
+    "bom": {"enum": [null, "utf-8-bom"]},
+    "source_line_endings": {"enum": ["none", "lf", "crlf", "cr", "mixed"]},
+    "parser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "protocol_version", "settings_sha256"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,127}$"},
+        "version": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,63}$"
+        },
+        "protocol_version": {"const": 1},
+        "settings_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cues", "text_characters", "warnings"],
+      "properties": {
+        "cues": {"type": "integer", "minimum": 1, "maximum": 100000},
+        "text_characters": {"type": "integer", "minimum": 0, "maximum": 50000000},
+        "warnings": {"type": "integer", "minimum": 0, "maximum": 10000}
+      }
+    },
+    "warning_codes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/warning"}
+    },
+    "representations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cues", "text"],
+      "properties": {
+        "cues": {"$ref": "#/$defs/representation"},
+        "text": {"$ref": "#/$defs/representation"}
+      }
+    },
+    "acquired_at": {"type": "string", "format": "date-time"},
+    "original_authoritative": {"const": true},
+    "derived": {"const": true},
+    "removable": {"const": true},
+    "rebuildable_from_original": {"const": true},
+    "filename_authoritative": {"const": false},
+    "path_authoritative": {"const": false},
+    "cue_identity_provider_neutral": {"const": true},
+    "speaker_identity_verified": {"const": false},
+    "media_existence_attested": {"const": false},
+    "active_content_executed": {"const": false},
+    "remote_resources_fetched": {"const": false},
+    "network_used": {"const": false},
+    "runtime_downloads": {"const": false},
+    "remote_fallback": {"const": false}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "warning": {
+      "enum": [
+        "utf8_bom_removed",
+        "line_endings_normalised",
+        "cue_identifier_duplicate",
+        "cue_duplicate",
+        "cue_overlap",
+        "cue_out_of_order",
+        "speaker_label_ambiguous",
+        "speaker_label_absent",
+        "webvtt_note_ignored"
+      ]
+    },
+    "representation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["storage_ref", "sha256", "size_bytes"],
+      "properties": {
+        "storage_ref": {
+          "type": "string",
+          "pattern": "^state/derived/transcripts/trev_[0-9a-f]{32}/[0-9a-f]{64}/[^/]+$"
+        },
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "size_bytes": {"type": "integer", "minimum": 0, "maximum": 268435456}
+      }
+    }
+  }
+}

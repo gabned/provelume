@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import html
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -213,6 +214,55 @@ class DocumentContentReader:
         title = str(document.get("title") or "Untitled document").replace("\n", " ")
         return f"# {title}\n\n{text.rstrip()}\n"
 
+    def _transcript_markdown(
+        self,
+        document: dict[str, Any],
+        version: dict[str, Any],
+    ) -> str | None:
+        artifacts = [
+            item
+            for item in self.store.list_derived_artifacts()
+            if item.get("version_id") == version.get("id")
+            and item.get("kind") == "transcript_text"
+            and item.get("generator") == "provelume.local_transcript"
+        ]
+        artifacts.sort(
+            key=lambda item: (str(item.get("created_at", "")), str(item.get("id", ""))),
+            reverse=True,
+        )
+        for artifact in artifacts:
+            try:
+                path = safe_instance_path(
+                    self.store.paths.root, str(artifact["storage_ref"])
+                )
+                data = path.read_bytes()
+                text = data.decode("utf-8")
+                manifest_relative = (
+                    Path(str(artifact["storage_ref"])).parent / "manifest.json"
+                )
+                manifest_path = safe_instance_path(
+                    self.store.paths.root, str(manifest_relative)
+                )
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except (KeyError, OSError, UnicodeError, ValueError, json.JSONDecodeError):
+                continue
+            if (
+                path.is_symlink()
+                or manifest_path.is_symlink()
+                or _sha256(data) != artifact.get("checksum")
+                or manifest.get("status") != "complete"
+                or manifest.get("complete") is not True
+                or manifest.get("version_id") != version.get("id")
+                or manifest.get("representations", {}).get("text", {}).get("storage_ref")
+                != artifact.get("storage_ref")
+                or manifest.get("representations", {}).get("text", {}).get("sha256")
+                != artifact.get("checksum")
+            ):
+                continue
+            title = str(document.get("title") or "Transcript").replace("\n", " ")
+            return f"# {title}\n\n{text.rstrip()}\n"
+        return None
+
     def verified_original(self, document_id: str) -> dict[str, Any] | None:
         """Read one current Original and verify every canonical byte binding."""
 
@@ -255,9 +305,15 @@ class DocumentContentReader:
         version = verified["version"]
         original = verified["original"]
         original_bytes = verified["data"]
+        is_transcript = any(
+            item.get("version_id") == version.get("id")
+            for item in self.store.list_canonical("transcript-revisions")
+        )
         text_original = None
-        if self._is_markdown(document, version) or str(version.get("media_type", "")).startswith(
-            "text/"
+        if (
+            is_transcript
+            or self._is_markdown(document, version)
+            or str(version.get("media_type", "")).startswith("text/")
         ):
             try:
                 text_original = original_bytes.decode("utf-8")
@@ -279,6 +335,10 @@ class DocumentContentReader:
             raw_markdown = self._extracted_markdown(document, version)
             if raw_markdown is not None:
                 source = "verified_email_body"
+        elif is_transcript:
+            raw_markdown = self._transcript_markdown(document, version)
+            if raw_markdown is not None:
+                source = "verified_transcript_text"
         elif self._is_markdown(document, version) and text_original is not None:
             raw_markdown = text_original
             source = "verified_original_markdown"

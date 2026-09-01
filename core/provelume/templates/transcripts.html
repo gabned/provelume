@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ t('transcript.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('transcript.eyebrow') }}</p>
+  <h1>{{ t('transcript.title') }}</h1>
+  <p class="lead">{{ t('transcript.lead') }}</p>
+</section>
+{% if saved %}<section class="panel"><p class="status ok">{{ t('transcript.saved') }}</p><p class="technical-note">{{ saved }}</p></section>{% endif %}
+{% if error %}<section class="panel"><p class="status warn">{{ t('transcript.error') }}</p><p>{{ error }}</p></section>{% endif %}
+{% if not editable %}<section class="panel"><p class="technical-note">{{ t('transcript.local_only') }}</p></section>{% endif %}
+
+<section class="panel">
+  <h2>{{ t('transcript.capability') }}</h2>
+  <p><strong>network: {{ capability.network_access }}</strong> · default enabled: {{ capability.default_enabled }} · active content: {{ capability.active_content_executed }}</p>
+  <ul class="document-list">{% for profile in capability.profiles %}<li><div><strong>{{ profile.id }}</strong><span>{{ profile.format }} · {{ profile.encoding }} · {{ profile.conformance }}</span><span>{{ profile.parser.id }} {{ profile.parser.version }}</span></div></li>{% endfor %}</ul>
+  <details><summary>{{ t('transcript.limits') }}</summary><pre>{{ capability.limits|tojson(indent=2) }}</pre></details>
+</section>
+
+{% if editable %}<section class="panel">
+  <h2>{{ t('transcript.create') }}</h2>
+  <form method="post" action="/transcripts?lang={{ lang }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="create-source">
+    <label>{{ t('transcript.name') }} <input name="name" maxlength="120" required></label>
+    <label>{{ t('transcript.path') }} <input name="path" maxlength="4096" aria-label="{{ t('transcript.path') }}" required></label>
+    <label>{{ t('transcript.profile') }} <select name="profile">{% for profile in transcript_profiles %}<option value="{{ profile }}">{{ profile }}</option>{% endfor %}</select></label>
+    <label>{{ t('transcript.selection') }} <select name="selection_kind">{% for kind in transcript_selection_kinds %}<option value="{{ kind }}">{{ kind }}</option>{% endfor %}</select></label>
+    <button type="submit">{{ t('transcript.create_action') }}</button>
+  </form>
+</section>{% endif %}
+
+<section class="panel"><h2>{{ t('transcript.sources') }}</h2><ul class="document-list">
+{% for source in sources %}<li><div><strong>{{ source.id }}</strong><span>{{ source.connector_instance_id }} · {{ source.profile }} · {{ source.selection_kind }} · {{ source.state }}</span>{% if source.path %}<span>{{ source.path }}</span>{% endif %}<span>{{ t('transcript.checkpoint') }}: {{ checkpoints[source.id].cursor_revision }} · {{ checkpoints[source.id].snapshot_sha256 or 'none' }} · complete={{ checkpoints[source.id].complete }}</span></div>
+{% if editable and source.lifecycle_state == 'active' %}
+<form method="post" action="/transcripts?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="source-state"><input type="hidden" name="source_id" value="{{ source.id }}"><button name="state" value="enabled">{{ t('transcript.enable') }}</button><button name="state" value="paused">{{ t('transcript.pause') }}</button><button name="state" value="disabled">{{ t('transcript.disable') }}</button></form>
+{% if source.state == 'disabled' %}<details><summary>{{ t('transcript.reconfigure') }}</summary><form method="post" action="/transcripts?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="reconfigure-source"><input type="hidden" name="source_id" value="{{ source.id }}"><input name="path" maxlength="4096" value="{{ source.path }}" aria-label="{{ t('transcript.path') }}" required><select name="profile">{% for profile in transcript_profiles %}<option value="{{ profile }}"{% if profile == source.profile %} selected{% endif %}>{{ profile }}</option>{% endfor %}</select><select name="selection_kind">{% for kind in transcript_selection_kinds %}<option value="{{ kind }}"{% if kind == source.selection_kind %} selected{% endif %}>{{ kind }}</option>{% endfor %}</select><button>{{ t('transcript.reconfigure') }}</button></form></details>{% endif %}
+<form method="post" action="/transcripts?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="source-schedule"><input type="hidden" name="source_id" value="{{ source.id }}"><select name="mode">{% for mode in transcript_schedule_modes %}<option value="{{ mode }}"{% if mode == source.schedule.mode %} selected{% endif %}>{{ mode }}</option>{% endfor %}</select><input name="interval_seconds" type="number" min="60" value="{{ source.schedule.interval_seconds or '' }}" aria-label="{{ t('transcript.interval') }}"><button>{{ t('transcript.save_schedule') }}</button></form>
+{% if source.state == 'enabled' %}<form method="post" action="/transcripts?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="queue"><input type="hidden" name="source_id" value="{{ source.id }}"><button>{{ t('transcript.queue') }}</button></form>{% endif %}
+<form method="post" action="/transcripts?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="source_id" value="{{ source.id }}"><button name="action" value="resync">{{ t('transcript.resync') }}</button><button name="action" value="remove-source">{{ t('transcript.remove_source') }}</button></form>
+{% endif %}</li>{% else %}<li class="empty">{{ t('transcript.no_sources') }}</li>{% endfor %}</ul></section>
+
+<section class="panel"><h2>{{ t('transcript.jobs') }}</h2><ul class="document-list">
+{% for job in jobs %}<li><div><strong>{{ job.status }} · {{ job.id }}</strong><span>{{ job.scope.id }} · {{ job.checkpoint.phase }} #{{ job.checkpoint.sequence }} · {{ job.progress.processed }}/{{ job.progress.skipped }}/{{ job.progress.errors }}</span>{% if job.intake_run %}<span>{{ job.intake_run.status }} · {{ job.intake_run.error_codes|join(', ') }}</span>{% endif %}</div>{% if editable %}<form method="post" action="/transcripts?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="job_id" value="{{ job.id }}">{% if job.status == 'queued' %}<button name="action" value="run">{{ t('transcript.run') }}</button>{% endif %}{% if job.status in ['succeeded','failed','cancelled','manual_intervention'] %}<button name="action" value="retry">{{ t('transcript.retry') }}</button>{% else %}<button name="action" value="cancel">{{ t('transcript.cancel') }}</button>{% endif %}</form>{% endif %}</li>{% else %}<li class="empty">{{ t('transcript.no_jobs') }}</li>{% endfor %}</ul></section>
+
+<section class="panel"><h2>{{ t('transcript.revisions') }}</h2><ul class="document-list">
+{% for revision in revisions %}<li><div><strong>{{ revision.id }}</strong><span>{{ revision.source_id }} · {{ revision.profile }} · {{ revision.original_sha256 }} · cues={{ revision.cue_count }} · warnings={{ revision.warning_count }} · {{ revision.derived_status }}</span></div><a href="/transcripts/revisions/{{ revision.id }}?lang={{ lang }}">{{ t('transcript.inspect') }}</a>{% if editable %}<form method="post" action="/transcripts?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="revision_id" value="{{ revision.id }}"><button name="action" value="remove-derived">{{ t('transcript.remove_derived') }}</button><button name="action" value="rebuild-derived">{{ t('transcript.rebuild_derived') }}</button></form>{% endif %}</li>{% else %}<li class="empty">{{ t('transcript.no_revisions') }}</li>{% endfor %}</ul></section>
+<section class="notice info"><p>{{ t('transcript.inert') }}</p></section>
+{% endblock %}

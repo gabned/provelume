@@ -148,6 +148,7 @@ def test_connector_declarations_are_network_transparent_and_secret_free(
         "type": "fixture-web",
         "enabled": True,
         "network_capability": "external",
+        "declared_network_access": "explicit_only",
         "declaration_state": "declared",
         "endpoint": "https://service.example.test",
         "data_categories": ["source.content", "source.metadata"],

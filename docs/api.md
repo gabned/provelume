@@ -255,6 +255,41 @@ permanent authorized exact-head smoke exists. See the
 [English](architecture/google-readonly-adapters.md) and
 [Italian](architecture/google-readonly-adapters.it.md) contracts.
 
+## Local transcript profiles
+
+The unreleased `0.9/S05` read model is grouped below `/api/v1/transcripts`:
+
+- `GET /api/v1/transcripts/capability` — the closed `srt-v1`/`webvtt-v1` matrix, parser
+  provenance, exact encoding policy, no-network boundary and effective limits;
+- `GET /api/v1/transcripts/sources` and `/sources/{source_id}` — path/name-redacted explicit
+  ConnectorInstance/Source lifecycle, profile, selection kind, schedule and configuration
+  revision;
+- `GET /api/v1/transcripts/sources/{source_id}/checkpoint` — Source-confined cursor revision,
+  snapshot checksum, counts and resync/completeness state;
+- `GET /api/v1/transcripts/jobs` and `/jobs/{job_id}` — bounded scheduler state plus sanitized
+  intake progress and closed error codes;
+- `GET /api/v1/transcripts/revisions` and `/revisions/{revision_id}` — provider-neutral
+  Original/Document/Version/Acquisition bindings and derived status; `include_content=true`
+  explicitly adds verified inert cue/text content;
+- `GET /api/v1/transcripts/revisions/{revision_id}/original` — checksum/size-verified exact bytes
+  as an opaque download.
+
+Lists, summaries, jobs and checkpoints contain no transcript text, filename, path, private title or
+speaker label. The revision record itself contains no profile, format, parser or provider field;
+those remain in the checksum-bound derivation recipe/manifest. Cue identifiers, timing and speaker
+labels are unverified derived observations. The Original endpoint returns `409` on an integrity
+failure rather than returning unverified bytes.
+
+Every route is read-only. No request can select a path, upload transcript bytes, enable a Source,
+queue/run/retry/cancel intake, reset a cursor or remove/rebuild a representation. Those actions use
+the application service, the explicit `transcript-*` CLI family or the CSRF-protected loopback
+`/transcripts` Browser. Unsupported/malformed/ambiguous input fails visibly without profile or
+encoding fallback. The local adapter declares `network_access: none` and performs no provider
+request, runtime download, remote resource load or source mutation.
+
+See the [English](architecture/transcript-profiles.md) and
+[Italian](architecture/transcript-profiles.it.md) contracts.
+
 ## Managed folder Sources
 
 - `GET /api/v1/sources` and `GET /api/v1/sources/{source_id}` include a path-redacted `folder`
