@@ -42,6 +42,8 @@ Frozen GUI-mode diagnostics, native tray qualification and Instance bootstrap ar
 an explicit 30-second process wait and separate synthetic output paths. Installer and uninstaller
 waits are bounded to 90 and 60 seconds respectively; expiry forces termination and fails the current
 stage. No asynchronous process may overwrite the primary sanitized qualification evidence.
+The frozen loopback service has a separate 30-second readiness deadline. Evidence records only the
+bounded attempt count and numeric exit code; process output and paths are never serialized.
 
 For a pull request the workflow explicitly checks out and records
 `github.event.pull_request.head.sha`; it never substitutes GitHub's synthetic test-merge ref for the
