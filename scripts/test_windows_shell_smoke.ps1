@@ -32,6 +32,11 @@ $Evidence = [ordered]@{
     private_content_logged = $false
 }
 
+function Set-FailureCode {
+    param([string]$Code)
+    $Evidence.failure_code = $Code
+}
+
 function Get-FreeLoopbackPort {
     $Probe = [System.Net.Sockets.TcpListener]::new(
         [System.Net.IPAddress]::Loopback,
@@ -83,10 +88,12 @@ try {
         -Artifact $InstallerPath -AllowUnsignedDevelopment | Out-Null
     $Evidence.checks.installer_explicitly_unsigned = "PASS"
 
+    Set-FailureCode "occupied_port_collision_not_rejected"
     $OccupiedListener = [System.Net.Sockets.TcpListener]::new(
         [System.Net.IPAddress]::Loopback,
         0
     )
+    $OccupiedListener.Server.ExclusiveAddressUse = $true
     $OccupiedListener.Start()
     try {
         $OccupiedPort = ([System.Net.IPEndPoint]$OccupiedListener.LocalEndpoint).Port
@@ -109,6 +116,7 @@ try {
     }
     $Evidence.checks.occupied_port_fail_closed_and_rolled_back = "PASS"
 
+    Set-FailureCode "configured_port_install_failed"
     $ConfiguredPort = Get-FreeLoopbackPort
     if ($ConfiguredPort -eq 44851) {
         $ConfiguredPort = Get-FreeLoopbackPort
@@ -138,6 +146,7 @@ try {
     $Evidence.configured_port = $ConfiguredPort
     $Evidence.checks.custom_port_and_separate_startup_preferences = "PASS"
 
+    Set-FailureCode "windows_identity_validation_failed"
     $VersionInfo = (Get-Item -LiteralPath $Executable).VersionInfo
     if (
         $VersionInfo.ProductName -ne "Provelume" -or
@@ -196,6 +205,7 @@ try {
         -Artifact $Uninstaller -AllowUnsignedDevelopment | Out-Null
     $Evidence.checks.exact_identity_and_unsigned_boundary = "PASS"
 
+    Set-FailureCode "native_tray_lifecycle_failed"
     $NativeTrayEvidencePath = Join-Path `
         (Split-Path $InstallerPath -Parent) `
         "native-tray-evidence.json"
@@ -232,6 +242,7 @@ try {
     $Evidence.native_tray = $NativeTray
     $Evidence.checks.installed_native_tray_add_update_delete_and_actions = "PASS"
 
+    Set-FailureCode "instance_or_service_lifecycle_failed"
     & $Executable --bootstrap-instance $InstanceRoot --instance-name "Synthetic S07"
     if ($LASTEXITCODE -ne 0) {
         throw "Synthetic Instance bootstrap failed."
@@ -377,11 +388,14 @@ try {
     $Evidence.checks.no_firewall_modification = "PASS"
 
     $Evidence.status = "PASS"
+    $Evidence.failure_code = $null
 }
 catch {
     $Failed = $true
     $Evidence.status = "FAIL"
-    $Evidence.failure_code = "windows_shell_smoke_failed"
+    if ($null -eq $Evidence.failure_code) {
+        $Evidence.failure_code = "windows_shell_smoke_failed"
+    }
 }
 finally {
     if ($null -ne $Service -and -not $Service.HasExited) {

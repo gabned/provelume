@@ -26,7 +26,9 @@ and installer. The shell smoke invokes the installed frozen executable to exerci
 `WindowsTray` notification-area add, update, bounded actions and delete path, then repeats exact
 installed metadata/icon/signature checks. It emits one bounded JSON file with commit, port, PASS
 codes and booleans only. A sanitized `qualification_incomplete` record remains uploadable if an
-earlier step fails.
+earlier step fails. The collision fixture requests exclusive ownership before listening so Windows
+cannot admit a second exclusive probe, and bounded stage-specific failure codes identify the failed
+contract without serializing exception text, paths or private content.
 
 The S06 timeout finding remains historical evidence: run `33520782921`, jobs `99899187383`,
 `99902830064`, `99906749116`, all non-green at the 10-minute job limit. S07 can close that finding
