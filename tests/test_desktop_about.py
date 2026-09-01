@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import subprocess
 from pathlib import Path
 
@@ -190,6 +191,18 @@ def test_desktop_diagnostics_and_headless_instance_bootstrap(tmp_path: Path) -> 
     output = tmp_path / "diagnostics.json"
     assert main(["--diagnostics-file", str(output)]) == 0
     assert json.loads(output.read_text())["settings_schema_version"] == 2
+
+
+def test_installer_validate_port_mode_rejects_reserved_and_occupied_ports() -> None:
+    assert main(["--validate-port", "80"]) == 2
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        occupied_port = listener.getsockname()[1]
+        assert main(["--validate-port", str(occupied_port)]) == 2
 
 
 def test_login_startup_tray_mode_is_forwarded_to_the_native_shell(monkeypatch) -> None:
