@@ -39,7 +39,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
-| Active development | `0.9.0` | OCR, email, Google file and transcript intake | #137; S01 completed by #5/#138; S02 completed by #140/#141; S03 completed by #143/#144 | `Lectio` |
+| Active development | `0.9.0` | OCR, email, Google file and transcript intake | #137; S01 completed by #5/#138; S02 completed by #140/#141; S03 completed by #143/#147 | `Lectio` |
 | Forecast | `0.10.0` | Multimedia, universal content representations and component inventory | issue just in time | `Perceptio` |
 | Forecast | `0.11.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.12.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
@@ -265,7 +265,7 @@ OCR execution was already available in S01. `0.9/S02` is completed by owner
 Tesseract/PDFium/Pillow execution, durable derived bundle and explicit control surfaces while
 retaining `0.8.0` public identity. `0.9/S03` is completed by owner
 [#143](https://github.com/gabned/provelume/issues/143) and
-[PR #144](https://github.com/gabned/provelume/pull/144): it adds explicit
+[PR #147](https://github.com/gabned/provelume/pull/147): it adds explicit
 local EML/Maildir Sources, exact message and attachment Originals, bounded replaceable MIME parsing,
 Source-scoped identity/thread observations, durable intake and removable email representations.
 `0.9/S04` is the next forecast only and has no operational issue, branch or owner pull request.
@@ -959,7 +959,7 @@ and document bundles; `0.9/S03` email identity and intake; `0.9/S04` Gmail/Drive
 **Current status:** parent tracker #137 remains open. `0.9/S01` was completed by the pre-existing
 #5 and owner PR #138. `0.9/S02` is completed by #140 and owner PR #141; it implements bounded
 local execution and derived document bundles without publishing `0.9.0`. `0.9/S03` is completed by
-#143 and owner PR #144; it implements bounded local EML/Maildir identity and intake without
+#143 and owner PR #147; it implements bounded local EML/Maildir identity and intake without
 publishing `0.9.0`. `0.9/S04` is the next forecast only. S04–S06 have no operational issues,
 branches or owner pull requests.
 
