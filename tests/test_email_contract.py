@@ -148,16 +148,27 @@ def test_capability_matrix_is_exact_and_mbox_is_unsupported(
     assert caught.value.code == "email_profile_unsupported"
 
 
-def test_maildir_is_not_advertised_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_only_the_smoke_tested_windows_target_is_advertised(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(
         "provelume.email_contract.qualified_runtime_target",
-        lambda: "windows-11-x86_64-cpython312",
+        lambda: "windows-2025server-x86_64-cpython312",
     )
     assert capability_report("eml", "eml-file-v1").available
     maildir = capability_report("maildir", "maildir-cur-new-v1")
     assert not maildir.available
     assert maildir.state == "runtime-unqualified"
     assert maildir.reason == "email_runtime_unqualified"
+
+    monkeypatch.setattr(
+        "provelume.email_contract.qualified_runtime_target",
+        lambda: "windows-11-x86_64-cpython312",
+    )
+    eml = capability_report("eml", "eml-file-v1")
+    assert not eml.available
+    assert eml.state == "runtime-unqualified"
+    assert eml.reason == "email_runtime_unqualified"
 
 
 def test_unqualified_or_unknown_capability_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -219,7 +230,7 @@ def test_machine_readable_contract_matches_python_contract() -> None:
     assert EMAIL_PROFILE_QUALIFIED_TARGETS == {
         "eml-file-v1": (
             "ubuntu-24.04-x86_64-cpython312",
-            "windows-x86_64-cpython312",
+            "windows-2025server-x86_64-cpython312",
         ),
         "maildir-cur-new-v1": ("ubuntu-24.04-x86_64-cpython312",),
     }
