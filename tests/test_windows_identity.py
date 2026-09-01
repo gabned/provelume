@@ -140,6 +140,8 @@ def test_windows_shell_smoke_is_bounded_sanitized_and_exact_head_aware() -> None
         'Set-FailureCode "occupied_port_collision_not_rejected"',
         'Set-FailureCode "occupied_port_installer_returned_success"',
         'Set-FailureCode "occupied_port_fixture_expired"',
+        'Set-FailureCode "occupied_port_source_probe_disagreed"',
+        "source_probe_observed_occupied_port",
         'Set-FailureCode "occupied_port_left_runtime"',
         'Set-FailureCode "occupied_port_left_preferences"',
         "collision_installer_exit_code",

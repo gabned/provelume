@@ -125,6 +125,16 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
         if (-not (Test-Path $HolderReady) -or $OccupiedHolder.HasExited) {
             throw "Exclusive Python collision fixture did not become ready."
         }
+        & python -c @'
+from provelume.shell_settings import probe_port
+import sys
+sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
+'@ $OccupiedPort
+        if ($LASTEXITCODE -ne 0) {
+            Set-FailureCode "occupied_port_source_probe_disagreed"
+            throw "Source endpoint probe did not observe the exclusive collision fixture."
+        }
+        $Evidence.checks.source_probe_observed_occupied_port = "PASS"
         $CollisionInstall = Invoke-Installer `
             -Target $CollisionRoot `
             -Port $OccupiedPort `
