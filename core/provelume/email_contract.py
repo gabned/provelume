@@ -37,7 +37,7 @@ EMAIL_CAPABILITY_STATES = (
 )
 EMAIL_QUALIFIED_TARGETS = (
     "ubuntu-24.04-x86_64-cpython312",
-    "windows-x86_64-cpython312",
+    "windows-2025server-x86_64-cpython312",
 )
 EMAIL_PROFILE_QUALIFIED_TARGETS = MappingProxyType(
     {
@@ -309,8 +309,6 @@ def qualified_runtime_target() -> str:
 
 
 def _runtime_is_qualified(profile: str, target: str) -> bool:
-    if profile == "eml-file-v1" and target.startswith("windows-"):
-        return target.endswith("-x86_64-cpython312")
     return target in EMAIL_PROFILE_QUALIFIED_TARGETS.get(profile, ())
 
 
