@@ -27,7 +27,7 @@
         },
         {
           "name": "provelume:qualified_matrix",
-          "value": "eml:ubuntu-24.04-x86_64+windows-x86_64;maildir:ubuntu-24.04-x86_64;python:3.12"
+          "value": "eml:ubuntu-24.04-x86_64+windows-server-2025-x86_64;maildir:ubuntu-24.04-x86_64;python:3.12"
         }
       ]
     }
