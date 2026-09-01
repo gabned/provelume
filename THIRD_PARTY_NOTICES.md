@@ -79,6 +79,6 @@ The wheel and source distribution contain no transcript payload or private fixtu
 
 [`packaging/transcript/qualified-local-components.cdx.json`](packaging/transcript/qualified-local-components.cdx.json)
 records the runtime-provided standard-library boundary for permanent synthetic local
-conformance. It is not a published-release SBOM and makes no cloud-provider, audio,
-video, speech-to-text or real-data qualification claim. No `0.9.0` artifact is
-created by S05.
+conformance. It is not the aggregate release SBOM and makes no cloud-provider, audio,
+video, speech-to-text or real-data qualification claim. S05 itself created no release artifact;
+the baseline is included in the later `0.9.0` release boundary.

@@ -4,13 +4,13 @@
   "version": 1,
   "metadata": {
     "component": {
-      "bom-ref": "provelume-0.9-s05-development",
+      "bom-ref": "provelume-0.9.0-s05-baseline",
       "name": "Provelume local transcript profile baseline",
       "type": "application",
-      "version": "0.8.0+0.9.S05-development",
+      "version": "0.9.0",
       "properties": [
-        {"name": "provelume:release_identity", "value": "0.8.0"},
-        {"name": "provelume:published_release", "value": "false"},
+        {"name": "provelume:release_identity", "value": "0.9.0"},
+        {"name": "provelume:published_release", "value": "true"},
         {"name": "provelume:new_runtime_dependencies", "value": "0"},
         {"name": "provelume:network_required", "value": "false"},
         {
@@ -39,7 +39,7 @@
   ],
   "dependencies": [
     {
-      "ref": "provelume-0.9-s05-development",
+      "ref": "provelume-0.9.0-s05-baseline",
       "dependsOn": ["pkg:generic/cpython-stdlib@3.12"]
     }
   ]

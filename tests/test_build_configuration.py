@@ -96,6 +96,7 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert 'notes="docs/releases/${VERSION}.md"' in publication
     assert 'Public release notes are missing: ${notes}' in publication
     assert '--notes-file "$notes"' in publication
+    assert '--title "Provelume ${VERSION} “Lectio”"' in publication
     assert "--generate-notes" not in publication
     assert "windows-package:" in release
     assert "scripts/build_windows_installer.ps1" in release
@@ -204,7 +205,7 @@ def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:
         (root / "core" / "provelume" / "build_info.json").read_text(encoding="utf-8")
     )
 
-    assert package_version == "0.8.0"
+    assert package_version == "0.9.0"
     assert init_match is not None
     assert init_match.group(1) == package_version
     assert value == {
@@ -218,3 +219,30 @@ def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:
         "tag": None,
         "version": package_version,
     }
+
+
+def test_lectio_release_metadata_is_aligned_without_signing_claim() -> None:
+    root = Path(__file__).resolve().parents[1]
+    version = "0.9.0"
+    manifests = (
+        "packaging/email/local-email-intake.json",
+        "packaging/google/google-readonly-adapters.json",
+        "packaging/qualification/cross-source-qualification.json",
+        "packaging/transcript/local-transcript-profiles.json",
+    )
+    for relative in manifests:
+        payload = json.loads((root / relative).read_text(encoding="utf-8"))
+        assert payload["release_identity"] == version
+
+    metadata = (root / "packaging/windows/version_info.txt").read_text(encoding="utf-8")
+    assert "filevers=(0, 9, 0, 0)" in metadata
+    assert "prodvers=(0, 9, 0, 0)" in metadata
+    assert "StringStruct('FileVersion', '0.9.0')" in metadata
+    assert "StringStruct('ProductVersion', '0.9.0')" in metadata
+
+    release = (root / "docs/releases/0.9.0.md").read_text(encoding="utf-8")
+    qualification = (root / "docs/qualification/0.9.0.md").read_text(encoding="utf-8")
+    assert "PUBLISHED_TAG: v0.9.0" in release
+    assert "real authenticated Gmail/Drive remains unqualified" in release
+    assert "explicitly unsigned" in release
+    assert "Unknown publisher" in qualification

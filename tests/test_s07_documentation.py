@@ -41,7 +41,7 @@ def test_windows_guide_covers_install_upgrade_uninstall_transfer_and_signing_blo
     guide = _read("docs/windows-shell.md")
     for token in (
         "Install",
-        "Upgrade and uninstall",
+        "Upgrade, rollback and uninstall",
         "system tray",
         "set-endpoint",
         "reset-endpoint",
@@ -53,7 +53,7 @@ def test_windows_guide_covers_install_upgrade_uninstall_transfer_and_signing_blo
         "exact SHA-256",
     ):
         assert token in guide
-    assert "does not announce or publish `0.9.0`" in guide
+    assert "published with the `0.9.0 — Lectio` preview" in guide
 
 
 def test_accessibility_en_it_theme_navigation_and_inert_content_are_documented() -> None:
@@ -98,9 +98,9 @@ def test_api_privacy_packaging_and_qualification_matrix_remain_truthful() -> Non
     assert "PENDING_CANDIDATE_PR" not in release
     assert "#156" in release and "#156" in roadmap
     assert "#155" in release and "#155" in roadmap
-    assert "release-preparation" in release
-    assert "does not authorize `0.9.0` publication" in roadmap
-    assert "no tag" in changelog.casefold()
+    assert "release workstream #158" in release.casefold()
+    assert "Release workstream" in roadmap
+    assert "## 0.9.0 - 2026-09-01" in changelog
 
 
 def test_roadmap_does_not_offer_implicit_free_or_random_port_fallback() -> None:

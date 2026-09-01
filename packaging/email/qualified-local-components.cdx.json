@@ -4,18 +4,18 @@
   "version": 1,
   "metadata": {
     "component": {
-      "bom-ref": "provelume-0.9-s03-development",
+      "bom-ref": "provelume-0.9.0-s03-baseline",
       "name": "Provelume local email intake baseline",
       "type": "application",
-      "version": "0.8.0+0.9.S03-development",
+      "version": "0.9.0",
       "properties": [
         {
           "name": "provelume:release_identity",
-          "value": "0.8.0"
+          "value": "0.9.0"
         },
         {
           "name": "provelume:published_release",
-          "value": "false"
+          "value": "true"
         },
         {
           "name": "provelume:new_runtime_dependencies",
@@ -79,7 +79,7 @@
   ],
   "dependencies": [
     {
-      "ref": "provelume-0.9-s03-development",
+      "ref": "provelume-0.9.0-s03-baseline",
       "dependsOn": [
         "pkg:generic/cpython-email@3.12"
       ]

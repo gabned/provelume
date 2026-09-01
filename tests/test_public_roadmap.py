@@ -28,7 +28,7 @@ EXPECTED_CONTRACT = {
 }
 
 FORECAST_VERSIONS = (
-    tuple(f"0.{minor}.0" for minor in range(9, 24))
+    tuple(f"0.{minor}.0" for minor in range(10, 24))
     + tuple(f"1.{minor}.0" for minor in range(0, 5))
 )
 LATIN_RELEASE_NAMES = {
@@ -112,17 +112,19 @@ def test_release_plan_contract_rejects_unsupported_lines(extra_field: str) -> No
         _contract_fields(malformed)
 
 
-def test_release_candidate_aligns_package_identity() -> None:
+def test_lectio_release_aligns_package_identity() -> None:
     with (ROOT / "pyproject.toml").open("rb") as handle:
         package_version = tomllib.load(handle)["project"]["version"]
     init_source = _read(ROOT / "core" / "provelume" / "__init__.py")
 
-    assert package_version == EXPECTED_CONTRACT["CURRENT_PACKAGE_VERSION"]
-    assert package_version == EXPECTED_CONTRACT["PLANNED_VERSION"]
+    release = _read(ROOT / "docs" / "releases" / "0.9.0.md")
+    assert package_version == "0.9.0"
+    assert "CURRENT_PACKAGE_VERSION: 0.9.0" in release
+    assert "PACKAGE_VERSION_UPDATE: APPLIED" in release
     assert f'__version__ = "{package_version}"' in init_source
 
 
-def test_roadmap_records_published_history_and_active_lectio_development() -> None:
+def test_roadmap_records_published_history_and_lectio_preview() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     for version in (
@@ -137,26 +139,27 @@ def test_roadmap_records_published_history_and_active_lectio_development() -> No
         "0.6.1",
         "0.7.0",
         "0.8.0",
+        "0.9.0",
     ):
         assert roadmap.count(f"| Published preview | `{version}` |") == 1
-    assert roadmap.count("| Active development | `0.9.0` |") == 1
+    assert roadmap.count("| Active development | `0.9.0` |") == 0
     assert roadmap.count("| Active implementation |") == 0
     assert re.search(r"^\| Release preparation \| `", roadmap, re.MULTILINE) is None
     assert "| Next forecast | `0.9.0` |" not in roadmap
-    assert "#137; S01 completed by #5/#138; S02 completed by #140/" in roadmap
+    assert "#137; S01–S07 completed by #138/#141/#147/#150/#152/#154/#156" in roadmap
     assert "#95 (completed)" in roadmap
     assert "#102 (completed)" in roadmap
     assert "#105 (completed)" in roadmap
-    assert "Published package and embedded identity are aligned to `0.8.0`" in roadmap
+    assert "Published package and embedded identity are aligned to `0.9.0`" in roadmap
     assert "Issues #122, #124, #126, #128 and\n#130 completed" in roadmap
     assert "`0.9/S03` is completed by owner" in roadmap
     assert "`0.9/S04` is completed by" in roadmap
-    assert "S04 completed by #149/#150" in roadmap
+    assert "S01–S07 completed by #138/#141/#147/#150/#152/#154/#156" in roadmap
     assert "`0.9/S05` transcript profiles is delivered" in roadmap
     assert "owner PR #152" in roadmap
     assert "`0.9/S06` cross-source qualification and correction findings is delivered" in roadmap
-    assert "`0.9/S07` is implemented through [#155]" in roadmap
-    assert "creates no S08" in roadmap
+    assert "`0.9/S07` was implemented through [#155]" in roadmap
+    assert "introduces\nno S08" in roadmap
 
 
 def test_every_release_has_a_unique_latin_name_and_concise_outcome() -> None:
@@ -185,11 +188,11 @@ def test_public_website_updates_follow_release_evidence() -> None:
         "website build identity from the latest\npublished Core release",
         "`facts.json`,\n`llms.txt`",
         "immediate bounded website workstream",
-        "published Core `0.8.0`",
-        "website-only correction can begin now",
+        "published Core `0.9.0`",
+        "website-only correction can begin after verified publication",
         "After every verified Core tag and asset publication",
         "`planned`, `preview`, `release candidate` and `available`",
-        "| Now, published `0.8.0` |",
+        "| Now, published `0.9.0` |",
         "| Published `0.10.0` |",
         "| Published `0.11.0` |",
         "| Published `0.12.0` |",
@@ -232,6 +235,7 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
     assert heading_positions == sorted(heading_positions)
     assert "## 0.7.0 - 2026-08-29" in changelog
     assert "## 0.8.0 - 2026-08-30" in changelog
+    assert "## 0.9.0 - 2026-09-01" in changelog
     assert "## 0.6.1 - 2026-08-29" in changelog
     assert "## 0.6.0 - 2026-08-28" in changelog
     assert "## 0.5.1 - 2026-08-28" in changelog
@@ -461,7 +465,7 @@ def test_watched_folder_ocr_and_automation_forecast_is_explicit() -> None:
         "recoverable maintenance |"
     ) == 1
     assert roadmap.count(
-        "| Active development | `0.9.0` | OCR, email, Google file and transcript intake |"
+        "| Published preview | `0.9.0` | OCR, email, Google file and transcript intake |"
     ) == 1
     for required_contract in (
         "**disabled/offline**",
@@ -526,7 +530,7 @@ def test_release_quality_and_adoption_gates_are_mandatory_and_aligned() -> None:
     for required_contract in (
         "## Personal use and dissemination contract",
         "Forecast means unavailable",
-        "Current published `0.8.0`",
+        "Current published `0.9.0`",
         "First recommended personal daily-use beta",
         "non-technical desktop-preview gate",
         "broad release-candidate qualification",
@@ -870,10 +874,9 @@ def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
     readme = _read(ROOT / "README.md")
 
     assert "[public roadmap](docs/roadmap.md)" in readme
-    assert "[0.8.0 release plan](docs/releases/0.8.0.md)" in readme
-    assert "[0.7.0 release plan](docs/releases/0.7.0.md)" in readme
+    assert "[0.9.0 release record](docs/releases/0.9.0.md)" in readme
     assert "[`v0.8.0`](https://github.com/gabned/provelume/releases/tag/v0.8.0)" in readme
-    assert "is the latest published\nprerelease" in readme
+    assert "Lectio is the current public\nprerelease" in readme
     assert "[Windows preview guide](docs/windows-preview.md)" in readme
     assert "configure-inbox" in readme
     assert "external Drop folder" in readme

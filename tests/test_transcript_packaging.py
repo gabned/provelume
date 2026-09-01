@@ -31,13 +31,13 @@ def test_transcript_baseline_adds_no_dependency_model_provider_or_runtime_downlo
     assert all("srt" not in item.casefold() for item in dependencies)
 
 
-def test_profile_matrix_is_closed_versioned_synthetic_and_unpublished() -> None:
+def test_profile_matrix_is_closed_versioned_synthetic_and_release_aligned() -> None:
     manifest = _json(
         ROOT / "packaging" / "transcript" / "local-transcript-profiles.json"
     )
     assert manifest["slice"] == "0.9/S05"
-    assert manifest["release_identity"] == "0.8.0"
-    assert manifest["development_line"] == "0.9.0-Lectio-unreleased"
+    assert manifest["release_identity"] == "0.9.0"
+    assert manifest["development_line"] == "0.9.0-Lectio"
     baseline = manifest["baseline"]
     assert isinstance(baseline, dict)
     assert baseline["default_enabled"] is False
@@ -81,7 +81,7 @@ def test_component_manifest_records_only_runtime_stdlib_and_notices() -> None:
     assert bom["components"][0]["licenses"] == [{"license": {"id": "PSF-2.0"}}]
     notices = (ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
     assert "first-party parser in 0.9/S05" in notices
-    assert "No `0.9.0` artifact is" in notices
+    assert "baseline is included in the later `0.9.0` release boundary" in notices
 
 
 def test_workflow_is_permanent_exact_checkout_and_has_no_release_or_download_step() -> None:

@@ -2,8 +2,8 @@
   "schema_version": 1,
   "slice": "0.9/S05",
   "status": "permanent-conformance-contract",
-  "release_identity": "0.8.0",
-  "development_line": "0.9.0-Lectio-unreleased",
+  "release_identity": "0.9.0",
+  "development_line": "0.9.0-Lectio",
   "baseline": {
     "default_enabled": false,
     "explicit_file_or_folder_selection": true,

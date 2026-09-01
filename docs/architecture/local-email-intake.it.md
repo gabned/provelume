@@ -1,13 +1,12 @@
 # Identità e intake email locale
 
-Stato: implementato per `0.9/S03`, attivo ma non pubblicato, tramite
+Stato: implementato per `0.9/S03` tramite
 [#143](https://github.com/gabned/provelume/issues/143) e
-[PR #144](https://github.com/gabned/provelume/pull/144).
-Package, identità incorporata, tag e release pubblicata restano `0.8.0 — Vigilia`.
+[PR #147](https://github.com/gabned/provelume/pull/147), e pubblicato in `0.9.0 — Lectio`.
 
 La qualifica è vincolata all'owner head invariato dallo smoke permanente EML/Maildir e dai workflow
-richiesti. È una qualifica locale di sviluppo, non una dichiarazione di supporto pubblicata per
-`0.9.0`.
+richiesti. È una qualifica locale limitata, non una dichiarazione per piattaforme, profili o
+provider non elencati.
 
 ## Che cosa realizza questo slice
 

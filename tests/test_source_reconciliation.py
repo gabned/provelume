@@ -1023,6 +1023,6 @@ def test_public_source_reconciliation_contract_is_explicit() -> None:
         "portable export/import",
     ):
         assert required in contract
-    assert "[#128](https://github.com/gabned/provelume/issues/128)" in readme
-    assert "Package and embedded build identity" in readme
-    assert "are aligned to `0.8.0`" in readme
+    assert "[0.9.0 release record](docs/releases/0.9.0.md)" in readme
+    assert "package, embedded identity" in readme
+    assert "Windows metadata" in readme

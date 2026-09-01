@@ -173,6 +173,6 @@ jobs:
           fi
           gh release create "$TAG" "$release"/* \
             --verify-tag \
-            --title "Provelume ${VERSION}" \
+            --title "Provelume ${VERSION} “Lectio”" \
             --notes-file "$notes" \
             "${flags[@]}"

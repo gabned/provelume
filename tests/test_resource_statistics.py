@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import stat
 import zipfile
 from contextlib import suppress
@@ -643,6 +642,7 @@ def test_public_resource_statistics_contract_is_explicit() -> None:
         "no automatic retention",
     ):
         assert required in contract
-    assert "[#130](https://github.com/gabned/provelume/issues/130)" in readme
+    assert "[0.9.0 release record](docs/releases/0.9.0.md)" in readme
     assert "maintenance/resource-statistics" in api
-    assert re.search(r"Package and embedded build identity\s+are aligned to `0\.8\.0`", readme)
+    assert "tag, package, embedded identity" in readme
+    assert "Windows metadata" in readme

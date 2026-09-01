@@ -501,7 +501,7 @@ def test_google_packaging_distinguishes_preview_from_real_qualification() -> Non
         (root / "packaging" / "google" / "google-readonly-adapters.json").read_text()
     )
     assert contract["properties"]["real_google_qualified"] == {"const": False}
-    assert evidence["release_identity"] == "0.8.0"
+    assert evidence["release_identity"] == "0.9.0"
     assert evidence["status"] == "local-conformance-preview"
     assert evidence["real_google_qualified"] is False
     assert evidence["public_ci"] == {

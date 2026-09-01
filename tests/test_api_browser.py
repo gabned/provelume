@@ -49,7 +49,7 @@ def test_read_only_api_contract(tmp_path: Path) -> None:
 
     about = client.get("/api/v1/about")
     assert about.status_code == 200
-    assert about.json()["version"] == "0.8.0"
+    assert about.json()["version"] == "0.9.0"
     assert about.json()["runtime"]["packaging"] == "python_package"
     assert about.json()["updates"]["check_on_start_default"] is False
     assert about.json()["updates"]["instance_content_sent"] is False
