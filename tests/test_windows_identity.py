@@ -168,15 +168,25 @@ def test_windows_shell_smoke_is_bounded_sanitized_and_exact_head_aware() -> None
         'Set-FailureCode "native_tray_lifecycle_failed"',
         "WaitForExit(5000)",
         "--native-tray-smoke-file",
-        '$DiagnosticsProcess = Start-Process -FilePath $Executable',
-        '$NativeTrayProcess = Start-Process -FilePath $Executable',
-        '$BootstrapProcess = Start-Process -FilePath $Executable',
+        '$DiagnosticsProcess = Invoke-BoundedProcess',
+        '$NativeTrayProcess = Invoke-BoundedProcess',
+        '$BootstrapProcess = Invoke-BoundedProcess',
         '"installed-shell-diagnostics.json"',
         "notification_added",
         "notification_updated",
         "notification_deleted",
     ):
         assert token in smoke
+    for token in (
+        "function Invoke-BoundedProcess",
+        "$Process.WaitForExit($TimeoutMilliseconds)",
+        "$Process.WaitForExit(5000)",
+        "$FrozenProcessTimeoutMilliseconds = 30000",
+        "$InstallerProcessTimeoutMilliseconds = 90000",
+        "$UninstallerProcessTimeoutMilliseconds = 60000",
+    ):
+        assert token in smoke
+    assert "Start-Process -FilePath $InstallerPath -ArgumentList $Arguments -Wait" not in smoke
     assert "Invoke-WebRequest" not in smoke
     assert "Start-Sleep -Seconds" not in smoke
     workflow = (ROOT / ".github/workflows/windows-shell-smoke.yml").read_text(encoding="utf-8")

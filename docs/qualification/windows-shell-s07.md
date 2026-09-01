@@ -39,8 +39,9 @@ bind in `PrepareToInstall`, before any file copy. The frozen launcher performs t
 atomic preference apply. The permanent smoke requires the occupied fixture to remain live, a non-zero
 installer exit, no installed runtime and no preference residue.
 Frozen GUI-mode diagnostics, native tray qualification and Instance bootstrap are each launched with
-an explicit bounded wait and separate synthetic output paths; no asynchronous process may overwrite
-the primary sanitized qualification evidence.
+an explicit 30-second process wait and separate synthetic output paths. Installer and uninstaller
+waits are bounded to 90 and 60 seconds respectively; expiry forces termination and fails the current
+stage. No asynchronous process may overwrite the primary sanitized qualification evidence.
 
 For a pull request the workflow explicitly checks out and records
 `github.event.pull_request.head.sha`; it never substitutes GitHub's synthetic test-merge ref for the

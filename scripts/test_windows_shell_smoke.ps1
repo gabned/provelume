@@ -18,6 +18,9 @@ $EvidencePath = Join-Path (Split-Path $InstallerPath -Parent) "windows-shell-evi
 $OriginalLocalAppData = $env:LOCALAPPDATA
 $Service = $null
 $Failed = $false
+$FrozenProcessTimeoutMilliseconds = 30000
+$InstallerProcessTimeoutMilliseconds = 90000
+$UninstallerProcessTimeoutMilliseconds = 60000
 $Evidence = [ordered]@{
     schema_version = 1
     status = "RUNNING"
@@ -52,6 +55,26 @@ function Get-FreeLoopbackPort {
     }
 }
 
+function Invoke-BoundedProcess {
+    param(
+        [string]$FilePath,
+        [string[]]$ArgumentList,
+        [int]$TimeoutMilliseconds
+    )
+    $Process = Start-Process `
+        -FilePath $FilePath `
+        -ArgumentList $ArgumentList `
+        -PassThru
+    if (-not $Process.WaitForExit($TimeoutMilliseconds)) {
+        if (-not $Process.HasExited) {
+            Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
+            $Process.WaitForExit(5000) | Out-Null
+        }
+        throw "Synthetic Windows child process exceeded its bounded runtime."
+    }
+    return $Process
+}
+
 function Invoke-Installer {
     param(
         [string]$Target,
@@ -66,7 +89,11 @@ function Invoke-Installer {
         "/LOCALPORT=$Port",
         "/TASKS=`"$Tasks`""
     )
-    return Start-Process -FilePath $InstallerPath -ArgumentList $Arguments -Wait -PassThru
+    $InstallerProcess = Invoke-BoundedProcess `
+        -FilePath $InstallerPath `
+        -ArgumentList $Arguments `
+        -TimeoutMilliseconds $InstallerProcessTimeoutMilliseconds
+    return $InstallerProcess
 }
 
 try {
@@ -235,10 +262,10 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     $DiagnosticsPath = Join-Path `
         (Split-Path $InstallerPath -Parent) `
         "installed-shell-diagnostics.json"
-    $DiagnosticsProcess = Start-Process -FilePath $Executable -ArgumentList @(
-        "--diagnostics-file",
-        "`"$DiagnosticsPath`""
-    ) -Wait -PassThru
+    $DiagnosticsProcess = Invoke-BoundedProcess `
+        -FilePath $Executable `
+        -ArgumentList @("--diagnostics-file", "`"$DiagnosticsPath`"") `
+        -TimeoutMilliseconds $FrozenProcessTimeoutMilliseconds
     if ($DiagnosticsProcess.ExitCode -ne 0 -or -not (Test-Path $DiagnosticsPath)) {
         throw "Installed shell diagnostics failed."
     }
@@ -265,10 +292,10 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     $NativeTrayEvidencePath = Join-Path `
         (Split-Path $InstallerPath -Parent) `
         "native-tray-evidence.json"
-    $NativeTrayProcess = Start-Process -FilePath $Executable -ArgumentList @(
-        "--native-tray-smoke-file",
-        "`"$NativeTrayEvidencePath`""
-    ) -Wait -PassThru
+    $NativeTrayProcess = Invoke-BoundedProcess `
+        -FilePath $Executable `
+        -ArgumentList @("--native-tray-smoke-file", "`"$NativeTrayEvidencePath`"") `
+        -TimeoutMilliseconds $FrozenProcessTimeoutMilliseconds
     if ($NativeTrayProcess.ExitCode -ne 0 -or -not (Test-Path $NativeTrayEvidencePath)) {
         throw "Installed native tray lifecycle failed."
     }
@@ -302,12 +329,15 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     $Evidence.checks.installed_native_tray_add_update_delete_and_actions = "PASS"
 
     Set-FailureCode "instance_or_service_lifecycle_failed"
-    $BootstrapProcess = Start-Process -FilePath $Executable -ArgumentList @(
-        "--bootstrap-instance",
-        "`"$InstanceRoot`"",
-        "--instance-name",
-        "`"Synthetic S07`""
-    ) -Wait -PassThru
+    $BootstrapProcess = Invoke-BoundedProcess `
+        -FilePath $Executable `
+        -ArgumentList @(
+            "--bootstrap-instance",
+            "`"$InstanceRoot`"",
+            "--instance-name",
+            "`"Synthetic S07`""
+        ) `
+        -TimeoutMilliseconds $FrozenProcessTimeoutMilliseconds
     if ($BootstrapProcess.ExitCode -ne 0) {
         throw "Synthetic Instance bootstrap failed."
     }
@@ -381,11 +411,10 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     }
     $Evidence.checks.loopback_no_network_single_service_and_cleanup = "PASS"
 
-    $Uninstall = Start-Process -FilePath $Uninstaller -ArgumentList @(
-        "/VERYSILENT",
-        "/SUPPRESSMSGBOXES",
-        "/NORESTART"
-    ) -Wait -PassThru
+    $Uninstall = Invoke-BoundedProcess `
+        -FilePath $Uninstaller `
+        -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") `
+        -TimeoutMilliseconds $UninstallerProcessTimeoutMilliseconds
     if ($Uninstall.ExitCode -ne 0 -or (Test-Path $Executable)) {
         throw "Configured-port uninstall did not complete cleanly."
     }
@@ -419,11 +448,10 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     $Evidence.checks.default_44851_and_login_startup_opt_in = "PASS"
 
     $FinalUninstaller = Join-Path $InstallRoot "unins000.exe"
-    $FinalUninstall = Start-Process -FilePath $FinalUninstaller -ArgumentList @(
-        "/VERYSILENT",
-        "/SUPPRESSMSGBOXES",
-        "/NORESTART"
-    ) -Wait -PassThru
+    $FinalUninstall = Invoke-BoundedProcess `
+        -FilePath $FinalUninstaller `
+        -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") `
+        -TimeoutMilliseconds $UninstallerProcessTimeoutMilliseconds
     if ($FinalUninstall.ExitCode -ne 0) {
         throw "Final uninstall failed."
     }
