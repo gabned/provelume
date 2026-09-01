@@ -30,6 +30,7 @@ $Evidence = [ordered]@{
     default_port = 44851
     configured_port = $null
     collision_installer_exit_code = $null
+    final_uninstall_exit_code = $null
     service_exit_code = $null
     service_ready_attempts = 0
     checks = [ordered]@{}
@@ -470,6 +471,7 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
         -FilePath $FinalUninstaller `
         -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") `
         -TimeoutMilliseconds $UninstallerProcessTimeoutMilliseconds
+    $Evidence.final_uninstall_exit_code = $FinalUninstall.ExitCode
     if ($FinalUninstall.ExitCode -ne 0) {
         throw "Final uninstall failed."
     }
