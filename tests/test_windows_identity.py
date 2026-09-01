@@ -81,12 +81,24 @@ def test_installer_endpoint_tray_login_upgrade_and_uninstall_contract_is_explici
     assert 'Name: "traydefault"' in installer
     assert 'Name: "loginstartup"' in installer
     assert "ExistingShellSettings" in installer
+    assert "function PrepareToInstall(var NeedsRestart: Boolean): String;" in installer
+    assert "NeedsRestart := False" in installer
+    assert "[Net.Sockets.Socket]::new" in installer
+    assert "[Net.IPAddress]::Loopback" in installer
+    assert "$socket.ExclusiveAddressUse=$true" in installer
+    assert "IntToStr(SelectedPort)" in installer
+    assert "Result := ExpandConstant('{cm:EndpointPreflightUnavailable}')" in installer
+    assert installer.index("function PrepareToInstall") < installer.index(
+        "procedure CurStepChanged"
+    )
     assert "--remove-login-startup" in installer
     assert "Launcher state and Instance data intentionally live elsewhere" in installer
     lowered = installer.casefold()
     assert "new-netfirewallrule" not in lowered
     assert "netsh" not in lowered
     assert "0.0.0.0" not in lowered
+    assert "-executionpolicy" not in lowered
+    assert "portpage.values[0] +" not in lowered
 
 
 def test_signing_path_is_fail_closed_and_unsigned_development_is_truthful() -> None:

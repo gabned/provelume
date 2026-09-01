@@ -91,6 +91,8 @@ english.PortInvalid=Enter an integer from 1024 through 65535. Ports 1-1023 are r
 italian.PortInvalid=Inserisci un intero da 1024 a 65535. Le porte 1-1023 sono riservate.
 english.EndpointUnavailable=The selected loopback port is occupied or the shell settings could not be applied. Setup will roll back; no random port was selected.
 italian.EndpointUnavailable=La porta loopback scelta è occupata o non è stato possibile applicare le impostazioni shell. L'installazione verrà ripristinata; non è stata scelta una porta casuale.
+english.EndpointPreflightUnavailable=The selected loopback port is occupied or could not be validated. Setup will stop before copying files; no random port was selected.
+italian.EndpointPreflightUnavailable=La porta loopback scelta è occupata o non è stato possibile validarla. L'installazione si fermerà prima di copiare file; non è stata scelta una porta casuale.
 
 [Code]
 var
@@ -129,6 +131,49 @@ begin
       Result := False;
     end;
   end;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ExitCode: Integer;
+  PowerShell: String;
+  ProbeCommand: String;
+  SelectedPort: Integer;
+begin
+  NeedsRestart := False;
+  Result := '';
+  if ExistingShellSettings then
+    exit;
+  SelectedPort := StrToIntDef(PortPage.Values[0], -1);
+  if (SelectedPort < 1024) or (SelectedPort > 65535) then
+  begin
+    Result := ExpandConstant('{cm:PortInvalid}');
+    exit;
+  end;
+  PowerShell := ExpandConstant(
+    '{sys}\WindowsPowerShell\v1.0\powershell.exe');
+  { The parsed integer's decimal form is the only dynamic command value. }
+  { Host, path and unvalidated wizard text cannot reach this socket probe. }
+  ProbeCommand :=
+    '-NoLogo -NoProfile -NonInteractive -Command "' +
+    '$socket=$null;$code=1;try{' +
+    '$socket=[Net.Sockets.Socket]::new(' +
+    '[Net.Sockets.AddressFamily]::InterNetwork,' +
+    '[Net.Sockets.SocketType]::Stream,' +
+    '[Net.Sockets.ProtocolType]::Tcp);' +
+    '$socket.ExclusiveAddressUse=$true;' +
+    '$socket.Bind([Net.IPEndPoint]::new(' +
+    '[Net.IPAddress]::Loopback,' + IntToStr(SelectedPort) + '));' +
+    '$code=0}catch{$code=1}finally{' +
+    'if($null -ne $socket){$socket.Dispose()}};exit $code"';
+  if not Exec(
+    PowerShell,
+    ProbeCommand,
+    '',
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ExitCode) or (ExitCode <> 0) then
+    Result := ExpandConstant('{cm:EndpointPreflightUnavailable}');
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
