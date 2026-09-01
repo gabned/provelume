@@ -39,7 +39,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
-| Active development | `0.9.0` | OCR, email, Google file and transcript intake | #137; S01 completed by #5/#138; S02 completed by #140/#141; S03 completed by #143/#147; S04 completed by #149/#150; S05 completed by #151/#152; S06 completed by #153/#154; S07 candidate #155 | `Lectio` |
+| Active development | `0.9.0` | OCR, email, Google file and transcript intake | #137; S01 completed by #5/#138; S02 completed by #140/#141; S03 completed by #143/#147; S04 completed by #149/#150; S05 completed by #151/#152; S06 completed by #153/#154; S07 owner #155/#156 | `Lectio` |
 | Forecast | `0.10.0` | Multimedia, universal content representations and component inventory | issue just in time | `Perceptio` |
 | Forecast | `0.11.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |

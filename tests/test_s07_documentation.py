@@ -95,7 +95,8 @@ def test_api_privacy_packaging_and_qualification_matrix_remain_truthful() -> Non
     assert "never\nauthorize network access" in privacy
     assert "not a claim that a candidate or release has passed" in matrix
     assert "failure, cancellation or timeout" in matrix
-    assert "PENDING_CANDIDATE_PR" in release
+    assert "PENDING_CANDIDATE_PR" not in release
+    assert "#156" in release and "#156" in roadmap
     assert "#155" in release and "#155" in roadmap
     assert "release-preparation" in release
     assert "does not authorize `0.9.0` publication" in roadmap
