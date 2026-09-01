@@ -160,6 +160,15 @@ def test_replay_unchanged_bytes_new_revision_and_source_isolation(tmp_path: Path
     assert [item["sequence"] for item in versions] == [1, 2]
     assert documents[0]["current_version_id"] == versions[1]["id"]
 
+    selected.write_bytes(_srt())
+    _revert_queue, revert_job = _run(instance, first_source, request_key="revert-to-a")
+    assert revert_job["progress"] == {"processed": 0, "skipped": 1, "errors": 0}
+    reverted_document = instance.store.read_canonical(
+        "documents", first_revision["document_id"]
+    )
+    assert reverted_document is not None
+    assert reverted_document["current_version_id"] == versions[0]["id"]
+
     other_file = tmp_path / "other.srt"
     other_file.write_bytes(_srt("new exact bytes"))
     other = instance.create_transcript_source(
@@ -339,6 +348,10 @@ def test_running_cancellation_and_expired_lease_recovery_are_bounded_and_resumab
         cancelled_instance.transcripts.execute(claimed)
     assert stopped.value.code == "transcript_cancelled"
     assert cancelled_instance.list_transcript_revisions() == []
+    cancelled_detail = cancelled_instance.get_transcript_job(cancel_job_id)
+    assert cancelled_detail is not None
+    assert cancelled_detail["intake_run"]["status"] == "cancelled"
+    assert cancelled_detail["intake_run"]["error_codes"] == ["transcript_cancelled"]
 
     recovery_root = tmp_path / "recovery"
     recovery_root.mkdir()

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -9,6 +10,7 @@ from fastapi.testclient import TestClient
 
 import provelume.transcript_activity as transcript_activity
 from provelume.cli import main
+from provelume.markdown_viewer import DocumentContentReader
 from provelume.service import ProvelumeInstance
 from provelume.web import create_app
 
@@ -173,3 +175,54 @@ def test_original_api_fails_with_conflict_on_integrity_mismatch(tmp_path: Path) 
     response = client.get(f"/api/v1/transcripts/revisions/{revision_id}/original")
     assert response.status_code == 409
     assert response.json()["detail"] == "transcript_derived_invalid"
+
+
+def test_document_viewer_selects_newest_complete_transcript_derivation(
+    tmp_path: Path,
+) -> None:
+    root, _transcript, _source_id, revision_id = _seed(tmp_path)
+    instance = ProvelumeInstance(root)
+    revision = instance.get_transcript_revision(revision_id)
+    assert revision is not None
+    original_artifact = next(
+        item
+        for item in instance.store.list_derived_artifacts()
+        if item["kind"] == "transcript_text"
+    )
+    replacement = dict(original_artifact)
+    replacement["id"] = "derived_" + "f" * 32
+    replacement["created_at"] = "9999-12-31T23:59:59Z"
+    replacement_path = (
+        root
+        / "state/derived/transcripts"
+        / revision_id
+        / ("f" * 64)
+        / "transcript.txt"
+    )
+    replacement_path.parent.mkdir(parents=True)
+    replacement_path.write_text("newest replacement text", encoding="utf-8")
+    replacement["storage_ref"] = str(replacement_path.relative_to(root))
+    replacement["checksum"] = hashlib.sha256(replacement_path.read_bytes()).hexdigest()
+    manifest = {
+        "status": "complete",
+        "complete": True,
+        "version_id": replacement["version_id"],
+        "representations": {
+            "text": {
+                "storage_ref": replacement["storage_ref"],
+                "sha256": replacement["checksum"],
+            }
+        },
+    }
+    (replacement_path.parent / "manifest.json").write_text(
+        json.dumps(manifest), encoding="utf-8"
+    )
+    instance.store._atomic_json(
+        instance.store.paths.derived_artifacts / f"{replacement['id']}.json",
+        replacement,
+    )
+
+    content = DocumentContentReader(instance.store).get(str(revision["document_id"]))
+    assert content is not None
+    assert content["source"] == "verified_transcript_text"
+    assert "newest replacement text" in content["markdown"]

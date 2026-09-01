@@ -901,6 +901,29 @@ class TranscriptJobManager:
             and recipe_path.is_file()
         ):
             recheck()
+            if existing_document != as_record(document):
+                transaction = AtomicInstanceCommit(
+                    self.store,
+                    InstanceLifecycleManager(self.store).control_root / "transactions",
+                    profile=TRANSCRIPT_INTAKE_TRANSACTION_PROFILE,
+                    owner_id=job_id,
+                    error_type=TranscriptContractErrorAdapter,
+                    integrity_error_type=TranscriptContractErrorAdapter,
+                    limit_error_type=TranscriptContractErrorAdapter,
+                )
+                transaction.add(
+                    self._record_path("documents", document.id),
+                    _json_bytes(document),
+                    immutable=False,
+                )
+                recheck()
+                try:
+                    transaction.commit()
+                except AtomicCommitError as exc:
+                    raise TranscriptContractError(
+                        "transcript_internal_error",
+                        "transcript current-version promotion failed",
+                    ) from exc
             return "skipped", plan.revision_id
         revision = {
             "schema_version": TRANSCRIPT_CONTRACT_SCHEMA_VERSION,
@@ -1073,6 +1096,13 @@ class TranscriptJobManager:
         )
         for candidate in snapshot.candidates:
             if self._cancel_requested(job_id):
+                self._write_run(
+                    job_id,
+                    request,
+                    status="cancelled",
+                    progress=progress,
+                    error_codes=[*errors, "transcript_cancelled"],
+                )
                 raise TranscriptContractError(
                     "transcript_cancelled", "transcript intake was cancelled"
                 )

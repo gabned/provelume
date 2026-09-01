@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import html
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -225,19 +226,42 @@ class DocumentContentReader:
             and item.get("kind") == "transcript_text"
             and item.get("generator") == "provelume.local_transcript"
         ]
-        if len(artifacts) != 1:
-            return None
-        artifact = artifacts[0]
-        try:
-            path = safe_instance_path(self.store.paths.root, str(artifact["storage_ref"]))
-            data = path.read_bytes()
-            text = data.decode("utf-8")
-        except (KeyError, OSError, UnicodeError, ValueError):
-            return None
-        if path.is_symlink() or _sha256(data) != artifact.get("checksum"):
-            return None
-        title = str(document.get("title") or "Transcript").replace("\n", " ")
-        return f"# {title}\n\n{text.rstrip()}\n"
+        artifacts.sort(
+            key=lambda item: (str(item.get("created_at", "")), str(item.get("id", ""))),
+            reverse=True,
+        )
+        for artifact in artifacts:
+            try:
+                path = safe_instance_path(
+                    self.store.paths.root, str(artifact["storage_ref"])
+                )
+                data = path.read_bytes()
+                text = data.decode("utf-8")
+                manifest_relative = (
+                    Path(str(artifact["storage_ref"])).parent / "manifest.json"
+                )
+                manifest_path = safe_instance_path(
+                    self.store.paths.root, str(manifest_relative)
+                )
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except (KeyError, OSError, UnicodeError, ValueError, json.JSONDecodeError):
+                continue
+            if (
+                path.is_symlink()
+                or manifest_path.is_symlink()
+                or _sha256(data) != artifact.get("checksum")
+                or manifest.get("status") != "complete"
+                or manifest.get("complete") is not True
+                or manifest.get("version_id") != version.get("id")
+                or manifest.get("representations", {}).get("text", {}).get("storage_ref")
+                != artifact.get("storage_ref")
+                or manifest.get("representations", {}).get("text", {}).get("sha256")
+                != artifact.get("checksum")
+            ):
+                continue
+            title = str(document.get("title") or "Transcript").replace("\n", " ")
+            return f"# {title}\n\n{text.rstrip()}\n"
+        return None
 
     def verified_original(self, document_id: str) -> dict[str, Any] | None:
         """Read one current Original and verify every canonical byte binding."""
