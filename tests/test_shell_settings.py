@@ -132,6 +132,7 @@ def test_occupied_port_is_rejected_without_mutating_configuration(tmp_path: Path
     before = manager.path.read_bytes()
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
         listener.bind((LOCAL_HOST, 0))
+        listener.listen(1)
         port = listener.getsockname()[1]
         with pytest.raises(ShellPortUnavailable):
             manager.set_port(port, expected_revision=0)
