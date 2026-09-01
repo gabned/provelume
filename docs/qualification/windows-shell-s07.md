@@ -54,3 +54,8 @@ The S06 timeout finding remains historical evidence: run `33520782921`, jobs `99
 `99902830064`, `99906749116`, all non-green at the 10-minute job limit. S07 can close that finding
 only after the unchanged candidate head completes Windows Core positively and no child process,
 socket or file lock remains.
+
+The permanent Public CI matrix runs the two complete `SHA-256(nodeid) mod 2` Windows partitions on
+independent `windows-latest` runners under the existing 10-minute per-job limit. The union is the
+full suite; no test is skipped. The prior same-runner orchestration remains a bounded local harness,
+not the hosted candidate gate.
