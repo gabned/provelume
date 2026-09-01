@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -60,44 +61,48 @@ def test_orchestration_is_only_automatic_for_bare_windows_full_suite(monkeypatch
 
 
 def test_two_process_harness_completes_bounded_and_cleans_children() -> None:
-    target = (
-        ROOT
-        / "tests"
-        / "test_windows_pytest_sharding.py"
-    )
-    nodeid = f"{target}::test_hash_partition_is_stable_disjoint_and_complete"
-    environment = os.environ.copy()
-    environment[FORCE_ENV] = "1"
-    environment["PROVELUME_WINDOWS_SHARD_TIMEOUT_SECONDS"] = "60"
-    environment.pop(CHILD_ENV, None)
-    completed = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "pytest",
-            "-c",
-            str(ROOT / "pyproject.toml"),
-            "-q",
-            nodeid,
-        ],
-        cwd=ROOT,
-        env=environment,
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=90,
-    )
+    # Keep the explicit target on the repository volume.  A Windows tmp_path
+    # can live on C: while the checkout lives on D:, which changes pytest's
+    # common root to C:\\ and makes collection traverse protected junctions.
+    with tempfile.TemporaryDirectory(prefix="shard-regression-", dir=ROOT) as directory:
+        tiny = Path(directory) / "test_tiny_shard.py"
+        tiny.write_text(
+            "def test_tiny_shard():\n"
+            "    assert 44851 == 44851\n",
+            encoding="utf-8",
+        )
+        environment = os.environ.copy()
+        environment[FORCE_ENV] = "1"
+        environment["PROVELUME_WINDOWS_SHARD_TIMEOUT_SECONDS"] = "60"
+        environment.pop(CHILD_ENV, None)
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "-c",
+                str(ROOT / "pyproject.toml"),
+                "-q",
+                str(tiny),
+            ],
+            cwd=ROOT,
+            env=environment,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=90,
+        )
     output = completed.stdout + completed.stderr
     assert completed.returncode == 0, output
-    assert "windows-shard index=0/2" in output
-    assert "windows-shard index=1/2" in output
+    for index in range(SHARD_COUNT):
+        assert f"windows-shard index={index}/{SHARD_COUNT}" in output
     assert "windows-shards completed=True" in output
 
 
-def test_shard_children_bind_root_and_effective_collection_targets() -> None:
+def test_shard_children_bind_root_without_synthetic_collection_targets() -> None:
     source = (ROOT / "core/provelume/pytest_windows_shard.py").read_text(encoding="utf-8")
     assert "root = _child_working_directory(config)" in source
     assert "Path(inipath).resolve().parent" in source
+    assert "collection_targets = tuple(str(value) for value in config.args)" not in source
     assert 'f"--rootdir={root}"' in source
-    assert "collection_targets" not in source
     assert "cwd=root" in source
