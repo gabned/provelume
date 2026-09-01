@@ -125,6 +125,15 @@ def _replay(path: Path) -> str:
     return (prefix + data).decode("utf-8", errors="replace")
 
 
+def _child_working_directory(config) -> Path:
+    inipath = config.inipath
+    return (
+        Path(inipath).resolve().parent
+        if inipath is not None
+        else Path(config.rootpath).resolve()
+    )
+
+
 @pytest.hookimpl(tryfirst=True)
 def pytest_cmdline_main(config) -> int | None:
     args = tuple(str(value) for value in config.invocation_params.args)
@@ -139,12 +148,7 @@ def pytest_cmdline_main(config) -> int | None:
     # such as ``C:\\Documents and Settings``.  Anchor children to the versioned
     # configuration directory instead; fall back to rootpath only when no
     # configuration file exists.
-    inipath = config.inipath
-    root = (
-        Path(inipath).resolve().parent
-        if inipath is not None
-        else Path(config.rootpath).resolve()
-    )
+    root = _child_working_directory(config)
     collection_targets = tuple(str(value) for value in config.args)
     child_args = args + tuple(value for value in collection_targets if value not in args)
     with tempfile.TemporaryDirectory(prefix="provelume-windows-shards-") as temporary:

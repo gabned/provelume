@@ -4,17 +4,30 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 from provelume.pytest_windows_shard import (
     CHILD_ENV,
     DISABLE_ENV,
     FORCE_ENV,
     SHARD_COUNT,
+    _child_working_directory,
     _should_orchestrate,
     shard_for_nodeid,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_child_working_directory_prefers_versioned_config_over_volume_root(
+    tmp_path: Path,
+) -> None:
+    config_dir = tmp_path / "repository"
+    config_dir.mkdir()
+    config_file = config_dir / "pyproject.toml"
+    config_file.write_text("[tool.pytest.ini_options]\n", encoding="utf-8")
+    fake = SimpleNamespace(inipath=config_file, rootpath=Path(config_file.anchor))
+    assert _child_working_directory(fake) == config_dir.resolve()
 
 
 def test_hash_partition_is_stable_disjoint_and_complete() -> None:
@@ -80,6 +93,7 @@ def test_two_process_harness_completes_bounded_and_cleans_children(tmp_path: Pat
 
 def test_shard_children_bind_root_and_effective_collection_targets() -> None:
     source = (ROOT / "core/provelume/pytest_windows_shard.py").read_text(encoding="utf-8")
-    assert "root = Path(config.rootpath).resolve()" in source
+    assert "root = _child_working_directory(config)" in source
+    assert "Path(inipath).resolve().parent" in source
     assert "collection_targets = tuple(str(value) for value in config.args)" in source
     assert "cwd=root" in source
