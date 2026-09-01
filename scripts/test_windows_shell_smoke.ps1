@@ -30,6 +30,8 @@ $Evidence = [ordered]@{
     default_port = 44851
     configured_port = $null
     collision_installer_exit_code = $null
+    service_exit_code = $null
+    service_ready_attempts = 0
     checks = [ordered]@{}
     native_tray = $null
     network_used_by_harness = $false
@@ -349,8 +351,16 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
         $ConfiguredPort
     ) -PassThru
     $Ready = $false
-    for ($Attempt = 1; $Attempt -le 60; $Attempt++) {
+    $ServiceReadyDeadline = [DateTime]::UtcNow.AddSeconds(30)
+    for (
+        $Attempt = 1;
+        -not $Ready -and [DateTime]::UtcNow -lt $ServiceReadyDeadline;
+        $Attempt++
+    ) {
+        $Evidence.service_ready_attempts = $Attempt
         if ($Service.HasExited) {
+            $Evidence.service_exit_code = $Service.ExitCode
+            Set-FailureCode "loopback_service_exited_before_ready"
             break
         }
         try {
@@ -363,7 +373,7 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
             }
         }
         catch {
-            Start-Sleep -Milliseconds 150
+            Start-Sleep -Milliseconds 250
         }
     }
     if (-not $Ready) {
