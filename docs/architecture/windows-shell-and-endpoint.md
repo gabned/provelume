@@ -41,7 +41,8 @@ other path.
 - Explicit override: process-only `--port`, highest precedence.
 - Persisted override: validated, reversible and retained over upgrade.
 - Missing, legacy or corrupt endpoint: default `44851` with a warning where applicable.
-- Occupied port: visible failure; configuration is not changed during preflight.
+- Occupied port: a fail-closed installer loopback bind stops before file copy; installed code
+  rechecks before atomic apply, and configuration is not changed during preflight.
 - Race after preflight: service startup fails, may restore the exact previous known port, and waits
   for an explicit restart.
 - Successful startup: clears `restart_required` and records the same port as known good.

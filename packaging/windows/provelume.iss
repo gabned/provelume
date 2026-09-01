@@ -98,9 +98,11 @@ italian.EndpointPreflightUnavailable=La porta loopback scelta è occupata o non 
 var
   PortPage: TInputQueryWizardPage;
   ExistingShellSettings: Boolean;
+  ValidatedInstallPort: Integer;
 
 procedure InitializeWizard;
 begin
+  ValidatedInstallPort := 44851;
   ExistingShellSettings := FileExists(
     ExpandConstant('{localappdata}\Provelume\launcher.json'));
   PortPage := CreateInputQueryPage(
@@ -174,6 +176,8 @@ begin
     ewWaitUntilTerminated,
     ExitCode) or (ExitCode <> 0) then
     Result := ExpandConstant('{cm:EndpointPreflightUnavailable}');
+  if Result = '' then
+    ValidatedInstallPort := SelectedPort;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -198,7 +202,22 @@ begin
     LoginValue := 'enabled'
   else
     LoginValue := 'disabled';
-  Arguments := '--initialize-shell-settings --install-port ' + PortPage.Values[0] +
+  if not ExistingShellSettings then
+  begin
+    Arguments := '--validate-port ' + IntToStr(ValidatedInstallPort);
+    if not Exec(
+      ExpandConstant('{app}\Provelume.exe'),
+      Arguments,
+      '',
+      SW_HIDE,
+      ewWaitUntilTerminated,
+      ExitCode) or (ExitCode <> 0) then
+    begin
+      RaiseException(ExpandConstant('{cm:EndpointUnavailable}'));
+    end;
+  end;
+  Arguments := '--initialize-shell-settings --install-port ' +
+    IntToStr(ValidatedInstallPort) +
     ' --install-language ' + LanguageCode + ' --install-tray ' + TrayValue +
     ' --install-login-startup ' + LoginValue;
   if not Exec(

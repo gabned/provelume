@@ -39,7 +39,8 @@ e nessun altro percorso.
 - Override esplicito: `--port` vale solo per il processo e ha precedenza massima.
 - Override persistito: validato, reversibile e preservato durante upgrade.
 - Endpoint assente, legacy o corrotto: `44851`, con warning quando pertinente.
-- Porta occupata: errore visibile e nessuna modifica durante il preflight.
+- Porta occupata: un bind loopback fail-closed dell'installer si ferma prima della copia; il codice
+  installato ricontrolla prima dell'apply atomico e il preflight non modifica la configurazione.
 - Race dopo il preflight: l'avvio fallisce, può ripristinare l'esatto valore noto precedente e
   attende un riavvio esplicito.
 - Avvio riuscito: azzera `restart_required` e promuove la stessa porta a valore noto valido.

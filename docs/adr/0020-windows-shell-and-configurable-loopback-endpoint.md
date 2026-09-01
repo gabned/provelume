@@ -76,13 +76,16 @@ Precedence is:
 2. a valid persisted schema-2 port;
 3. `44851` for missing, legacy or corrupt endpoint state.
 
-On a new install, the advanced page accepts an explicit bounded port and the installed executable
-performs a final occupied-port check. Failure aborts and rolls back setup; it does not propose or
-select another port. Upgrade skips the page and preserves existing settings. CLI and the protected
-local Browser validate availability before persistence. A port change records the previous known
-value and requires an explicit restart. Successful startup promotes the configured value to known
-good. Failed startup may restore that exact previous value but does not restart or choose a value
-automatically. Concurrent/stale changes fail visibly.
+On a new install, the advanced page accepts an explicit bounded port. Immediately before file copy,
+Setup runs a fail-closed IPv4-loopback socket bind using only the already parsed decimal port; an
+occupied port, an unavailable system probe or a non-zero probe result stops Setup before runtime or
+preferences are written. The installed executable repeats the occupied-port check before its atomic
+settings apply, closing the preflight-to-apply race. Failure aborts and rolls back setup; it does not
+propose or select another port. Upgrade skips the page and preserves existing settings. CLI and the
+protected local Browser validate availability before persistence. A port change records the previous
+known value and requires an explicit restart. Successful startup promotes the configured value to
+known good. Failed startup may restore that exact previous value but does not restart or choose a
+value automatically. Concurrent/stale changes fail visibly.
 
 The API adds only `GET /api/v1/shell`, returning effective endpoint, service state, sanitized
 configuration, capabilities, schemas, limits, warnings and provenance. It has no mutation route.

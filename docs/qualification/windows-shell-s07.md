@@ -31,6 +31,13 @@ earlier step fails. The collision fixture uses a bounded child CPython socket wi
 synthetic readiness marker, remains alive for at most 120 seconds, fails separately if it expires
 before installer validation, and always terminates the holder. Bounded stage-specific failure codes
 identify the failed contract without serializing exception text, paths or private content.
+For a fresh installation, Inno invokes the frozen executable's closed `--validate-port` mode before
+initializing preferences; an unavailable selection raises the localized setup error. Upgrades with
+existing compatible settings preserve them and do not probe a potentially running configured service.
+The installer first probes the already parsed decimal port with a fail-closed IPv4-loopback socket
+bind in `PrepareToInstall`, before any file copy. The frozen launcher performs the second check before
+atomic preference apply. The permanent smoke requires the occupied fixture to remain live, a non-zero
+installer exit, no installed runtime and no preference residue.
 
 For a pull request the workflow explicitly checks out and records
 `github.event.pull_request.head.sha`; it never substitutes GitHub's synthetic test-merge ref for the

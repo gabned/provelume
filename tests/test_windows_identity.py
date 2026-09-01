@@ -76,6 +76,8 @@ def test_installer_endpoint_tray_login_upgrade_and_uninstall_contract_is_explici
     assert "SelectedPort < 1024" in installer
     assert "SelectedPort > 65535" in installer
     assert "--initialize-shell-settings" in installer
+    assert "Arguments := '--validate-port ' + IntToStr(ValidatedInstallPort)" in installer
+    assert "if not ExistingShellSettings then" in installer
     assert "--install-tray" in installer
     assert "--install-login-startup" in installer
     assert 'Name: "traydefault"' in installer
@@ -87,6 +89,8 @@ def test_installer_endpoint_tray_login_upgrade_and_uninstall_contract_is_explici
     assert "[Net.IPAddress]::Loopback" in installer
     assert "$socket.ExclusiveAddressUse=$true" in installer
     assert "IntToStr(SelectedPort)" in installer
+    assert "ValidatedInstallPort := SelectedPort" in installer
+    assert "IntToStr(ValidatedInstallPort)" in installer
     assert "Result := ExpandConstant('{cm:EndpointPreflightUnavailable}')" in installer
     assert installer.index("function PrepareToInstall") < installer.index(
         "procedure CurStepChanged"
@@ -98,7 +102,7 @@ def test_installer_endpoint_tray_login_upgrade_and_uninstall_contract_is_explici
     assert "netsh" not in lowered
     assert "0.0.0.0" not in lowered
     assert "-executionpolicy" not in lowered
-    assert "portpage.values[0] +" not in lowered
+    assert "--install-port ' + portpage.values[0]" not in lowered
 
 
 def test_signing_path_is_fail_closed_and_unsigned_development_is_truthful() -> None:

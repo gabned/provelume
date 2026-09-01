@@ -9,7 +9,10 @@ The per-user installer shows the Provelume identity and uses the versioned icon.
 is optional. **Use the system tray by default** is selected; **Start at Windows login** is a
 separate unchecked task. A new install uses `44851`. The advanced endpoint page may accept one
 explicit port from 1024 to 65535. Final installed-code validation rejects an occupied port and
-rolls setup back; setup never opens the firewall, changes the host or chooses another port.
+rolls setup back. Before copying files, Setup also performs a fail-closed bind to IPv4 loopback with
+the already validated decimal port. Failure to run that system probe is treated like a collision;
+the installed launcher repeats the check before atomically applying preferences to cover a race.
+Setup never opens the firewall, changes the host or chooses another port.
 
 Existing compatible launcher settings cause the endpoint page to be skipped. Upgrade replaces
 only runtime files and reconciles the existing login preference. It does not rewrite the endpoint,
