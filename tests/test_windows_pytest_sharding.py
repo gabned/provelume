@@ -76,3 +76,10 @@ def test_two_process_harness_completes_bounded_and_cleans_children(tmp_path: Pat
     assert "windows-shard index=0/2" in output
     assert "windows-shard index=1/2" in output
     assert "windows-shards completed=True" in output
+
+
+def test_shard_children_bind_root_and_effective_collection_targets() -> None:
+    source = (ROOT / "core/provelume/pytest_windows_shard.py").read_text(encoding="utf-8")
+    assert "root = Path(config.rootpath).resolve()" in source
+    assert "collection_targets = tuple(str(value) for value in config.args)" in source
+    assert "cwd=root" in source

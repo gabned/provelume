@@ -132,6 +132,21 @@ def pytest_cmdline_main(config) -> int | None:
         return None
     started = time.monotonic()
     timeout = _timeout_seconds()
+    # An explicit test target may live on another Windows drive (pytest's
+    # ``tmp_path`` commonly does).  In that case pytest can derive a volume
+    # root as ``rootpath`` even though ``-c`` points at the repository config.
+    # Starting child collection there makes pytest encounter protected junctions
+    # such as ``C:\\Documents and Settings``.  Anchor children to the versioned
+    # configuration directory instead; fall back to rootpath only when no
+    # configuration file exists.
+    inipath = config.inipath
+    root = (
+        Path(inipath).resolve().parent
+        if inipath is not None
+        else Path(config.rootpath).resolve()
+    )
+    collection_targets = tuple(str(value) for value in config.args)
+    child_args = args + tuple(value for value in collection_targets if value not in args)
     with tempfile.TemporaryDirectory(prefix="provelume-windows-shards-") as temporary:
         temporary_root = Path(temporary)
         processes: list[subprocess.Popen[Any]] = []
@@ -155,12 +170,13 @@ def pytest_cmdline_main(config) -> int | None:
                     sys.executable,
                     "-m",
                     "pytest",
-                    *args,
+                    *child_args,
                     f"--provelume-shard-index={index}",
                     f"--provelume-shard-count={SHARD_COUNT}",
                 ]
                 process = subprocess.Popen(
                     command,
+                    cwd=root,
                     stdin=subprocess.DEVNULL,
                     stdout=handle,
                     stderr=subprocess.STDOUT,
