@@ -689,7 +689,7 @@ def test_ai_classification_is_closed_reviewable_and_reconcilable() -> None:
         "treated as untrusted data rather than\ninstructions",
         "receive no ambient tools or connector secrets",
         "indirect prompt-injection tests",
-        "watched-folder acquisition, exact Original preservation, extraction/OCR",
+        "watched-folder acquisition, exact Original\npreservation, extraction/OCR",
         "higher processing level never\nauthorizes canonical classification",
     ):
         assert required_contract in roadmap
