@@ -4,12 +4,19 @@ import hashlib
 import json
 import re
 from collections.abc import Mapping
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 from .connector_model import canonical_connector_errors
+from .domain import (
+    EMAIL_EVIDENCE_SCHEMA_VERSION,
+    email_attachment_evidence_id,
+    email_message_evidence_id,
+    email_message_observation_id,
+)
 from .hierarchy_model import (
     canonical_hierarchy_errors,
     classification_provenance_errors,
@@ -29,6 +36,106 @@ from .web_transport import WebTransportError, canonical_web_origin, canonical_we
 VALIDATION_REPORT_SCHEMA_VERSION = 1
 _INSTANCE_ID = re.compile(r"inst_[0-9a-f]{32}\Z")
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+_SOURCE_ID = re.compile(r"src_[0-9a-f]{32}\Z")
+_ACQUISITION_ID = re.compile(r"acq_[0-9a-f]{32}\Z")
+_DOCUMENT_ID = re.compile(r"doc_[0-9a-f]{32}\Z")
+_VERSION_ID = re.compile(r"ver_[0-9a-f]{32}\Z")
+_ORIGINAL_ID = re.compile(r"sha256_[0-9a-f]{64}\Z")
+_DERIVED_ID = re.compile(r"derived_[0-9a-f]{32}\Z")
+_EMAIL_MESSAGE_ID = re.compile(r"emsg_[0-9a-f]{64}\Z")
+_EMAIL_OBSERVATION_ID = re.compile(r"eobs_[0-9a-f]{64}\Z")
+_EMAIL_ATTACHMENT_ID = re.compile(r"eatt_[0-9a-f]{64}\Z")
+_EMAIL_PART_ID = re.compile(r"epart_[0-9a-f]{64}\Z")
+_TECHNICAL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,119}\Z")
+
+_DERIVED_ARTIFACT_FIELDS = {
+    "id",
+    "version_id",
+    "kind",
+    "generator",
+    "generator_version",
+    "storage_ref",
+    "checksum",
+    "created_at",
+}
+_EMAIL_BUNDLE_FIELDS = {
+    "schema_version",
+    "kind",
+    "status",
+    "job",
+    "derivation_key",
+    "message",
+    "timestamps",
+    "envelope",
+    "declared_identity",
+    "body",
+    "mime_tree",
+    "attachments",
+    "thread_observation",
+    "parser",
+    "adapter",
+    "platform",
+    "warnings",
+    "identity_warnings",
+    "original_authoritative",
+    "derived",
+    "removable",
+    "rebuildable_from_original",
+    "active_content_executed",
+    "remote_fetch",
+    "network_used",
+    "runtime_downloads",
+    "remote_fallback",
+    "complete",
+}
+
+_EMAIL_MESSAGE_FIELDS = {
+    "schema_version",
+    "id",
+    "source_id",
+    "document_id",
+    "version_id",
+    "original_id",
+    "original_sha256",
+    "size_bytes",
+    "adapter_id",
+    "adapter_version",
+    "parser_id",
+    "parser_version",
+    "contract_version",
+    "settings_sha256",
+    "first_acquired_at",
+}
+_EMAIL_OBSERVATION_FIELDS = {
+    "schema_version",
+    "id",
+    "source_id",
+    "message_id",
+    "acquisition_id",
+    "container_identity_sha256",
+    "container_snapshot_sha256",
+    "locator_sha256",
+    "filesystem_identity_sha256",
+    "filesystem_mtime_ns",
+    "observed_at",
+    "acquired_at",
+    "adapter_id",
+    "adapter_version",
+    "settings_sha256",
+}
+_EMAIL_ATTACHMENT_FIELDS = {
+    "schema_version",
+    "id",
+    "source_id",
+    "parent_message_id",
+    "parent_document_id",
+    "parent_version_id",
+    "part_identity_sha256",
+    "original_id",
+    "original_sha256",
+    "size_bytes",
+    "accepted_at",
+}
 
 
 def _finding(code: str, message: str, *, path: str | None = None) -> dict[str, str]:
@@ -58,6 +165,838 @@ def _load_json(path: Path) -> tuple[dict[str, Any] | None, str | None]:
     if not isinstance(value, dict):
         return None, "expected a JSON object"
     return value, None
+
+
+def _valid_instant(value: Any) -> bool:
+    if not isinstance(value, str) or not value or value != value.strip():
+        return False
+    try:
+        selected = datetime.fromisoformat(value)
+    except ValueError:
+        return False
+    return selected.tzinfo is not None and selected.utcoffset() is not None
+
+
+def _valid_technical_value(value: Any) -> bool:
+    return isinstance(value, str) and _TECHNICAL_ID.fullmatch(value) is not None
+
+
+def _derived_json_records(
+    directory: Path,
+    *,
+    errors: list[dict[str, str]] | None = None,
+    path_prefix: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    records: dict[str, dict[str, Any]] = {}
+    if not directory.is_dir():
+        return records
+    for path in sorted(directory.glob("*.json")):
+        value, problem = _load_json(path)
+        if problem is None and value is not None:
+            records[path.stem] = value
+        elif errors is not None and path_prefix is not None:
+            errors.append(
+                _finding(
+                    "derived_state_record_invalid",
+                    "Derived state metadata is not a valid JSON object",
+                    path=f"{path_prefix}/{path.name}",
+                )
+            )
+    return records
+
+
+def _email_bundle_body_problem(
+    store: InstanceStore,
+    value: Any,
+    version_id: str,
+    artifacts: Mapping[str, Mapping[str, Any]],
+    derived_edges: set[tuple[str, str, str, str, str]],
+) -> str | None:
+    expected = {
+        "status",
+        "selection_rule",
+        "part_id",
+        "media_type",
+        "charset",
+        "sha256",
+        "character_count",
+        "storage_ref",
+        "authoritative",
+        "derived",
+    }
+    if (
+        not isinstance(value, Mapping)
+        or set(value) != expected
+        or value.get("status") not in {"available", "unavailable"}
+        or not isinstance(value.get("selection_rule"), str)
+        or type(value.get("character_count")) is not int
+        or int(value.get("character_count", -1)) < 0
+        or value.get("authoritative") is not False
+        or value.get("derived") is not True
+    ):
+        return "email bundle body evidence is invalid"
+    if value["status"] == "unavailable":
+        if (
+            value.get("part_id") is not None
+            or value.get("media_type") is not None
+            or value.get("charset") is not None
+            or value.get("sha256") is not None
+            or value.get("storage_ref") is not None
+            or value.get("character_count") != 0
+        ):
+            return "unavailable email body has unexpected derived content"
+        return None
+    storage_ref = value.get("storage_ref")
+    digest = value.get("sha256")
+    part_id = value.get("part_id")
+    if (
+        not isinstance(storage_ref, str)
+        or _SHA256.fullmatch(str(digest)) is None
+        or _EMAIL_PART_ID.fullmatch(str(part_id)) is None
+        or value.get("media_type") != "text/plain"
+        or not isinstance(value.get("charset"), str)
+    ):
+        return "available email body identity is invalid"
+    matches = [
+        artifact
+        for artifact in artifacts.values()
+        if artifact.get("version_id") == version_id
+        and artifact.get("kind") == "extracted_text"
+        and artifact.get("generator") == "provelume.local_email"
+        and artifact.get("storage_ref") == storage_ref
+    ]
+    if len(matches) != 1:
+        return "email body artifact binding is missing or ambiguous"
+    artifact = matches[0]
+    artifact_id = str(artifact.get("id"))
+    if (
+        set(artifact) != _DERIVED_ARTIFACT_FIELDS
+        or _DERIVED_ID.fullmatch(artifact_id) is None
+        or artifact.get("generator_version") != "1"
+        or artifact.get("checksum") != digest
+        or not _valid_instant(artifact.get("created_at"))
+        or (
+            "version",
+            version_id,
+            "extracted_to",
+            "derived_artifact",
+            artifact_id,
+        )
+        not in derived_edges
+    ):
+        return "email body artifact metadata or provenance is invalid"
+    try:
+        path = safe_instance_path(store.paths.root, storage_ref)
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 8 * 1024 * 1024:
+            return "email body artifact is unavailable or oversized"
+        payload = path.read_bytes()
+        text = payload.decode("utf-8")
+    except (OSError, UnicodeError, UnsafePathError):
+        return "email body artifact is unavailable or invalid"
+    if (
+        hashlib.sha256(payload).hexdigest() != digest
+        or len(text) != value.get("character_count")
+    ):
+        return "email body artifact checksum or character count does not match"
+    return None
+
+
+def _email_bundle_attachment_problem(
+    value: Any,
+    message_id: str,
+    attachments: Mapping[str, Mapping[str, Any]],
+) -> str | None:
+    if not isinstance(value, list) or len(value) > 1000:
+        return "email bundle attachment list is invalid"
+    expected = {
+        "id",
+        "part_id",
+        "part_path",
+        "part_identity_sha256",
+        "original_id",
+        "sha256",
+        "size_bytes",
+        "media_type",
+        "disposition",
+        "content_id",
+        "filename",
+        "filename_is_untrusted",
+        "original_authoritative",
+        "ocr",
+    }
+    seen: set[str] = set()
+    for row in value:
+        if not isinstance(row, Mapping) or set(row) != expected:
+            return "email bundle attachment fields are invalid"
+        attachment_id = str(row.get("id"))
+        evidence = attachments.get(attachment_id)
+        size = row.get("size_bytes")
+        ocr = row.get("ocr")
+        if (
+            attachment_id in seen
+            or _EMAIL_ATTACHMENT_ID.fullmatch(attachment_id) is None
+            or evidence is None
+            or evidence.get("parent_message_id") != message_id
+            or row.get("original_id") != evidence.get("original_id")
+            or row.get("sha256") != evidence.get("original_sha256")
+            or row.get("size_bytes") != evidence.get("size_bytes")
+            or row.get("part_identity_sha256")
+            != evidence.get("part_identity_sha256")
+            or _EMAIL_PART_ID.fullmatch(str(row.get("part_id"))) is None
+            or _SHA256.fullmatch(str(row.get("part_identity_sha256"))) is None
+            or _SHA256.fullmatch(str(row.get("sha256"))) is None
+            or type(size) is not int
+            or int(size) < 0
+            or not isinstance(row.get("part_path"), str)
+            or not isinstance(row.get("media_type"), str)
+            or row.get("filename_is_untrusted") is not (
+                row.get("filename") is not None
+            )
+            or row.get("original_authoritative") is not True
+            or not isinstance(ocr, Mapping)
+            or set(ocr)
+            != {
+                "eligible",
+                "media_type_supported",
+                "signature_matches",
+                "configured_mode",
+                "execution_requested",
+                "execution_started",
+            }
+            or any(
+                type(ocr.get(field)) is not bool
+                for field in (
+                    "eligible",
+                    "media_type_supported",
+                    "signature_matches",
+                    "execution_requested",
+                    "execution_started",
+                )
+            )
+            or ocr.get("eligible")
+            is not (ocr.get("media_type_supported") and ocr.get("signature_matches"))
+            or ocr.get("execution_requested") is not False
+            or ocr.get("execution_started") is not False
+        ):
+            return "email bundle attachment evidence is invalid"
+        seen.add(attachment_id)
+    return None
+
+
+def _email_bundle_problem(
+    store: InstanceStore,
+    artifact_id: str,
+    artifact: Mapping[str, Any],
+    message_id: str,
+    message: Mapping[str, Any],
+    observations: Mapping[str, Mapping[str, Any]],
+    attachments: Mapping[str, Mapping[str, Any]],
+    artifacts: Mapping[str, Mapping[str, Any]],
+    derived_edges: set[tuple[str, str, str, str, str]],
+) -> str | None:
+    version_id = str(message.get("version_id"))
+    storage_ref = artifact.get("storage_ref")
+    checksum = artifact.get("checksum")
+    if (
+        set(artifact) != _DERIVED_ARTIFACT_FIELDS
+        or artifact.get("id") != artifact_id
+        or _DERIVED_ID.fullmatch(artifact_id) is None
+        or artifact.get("version_id") != version_id
+        or artifact.get("kind") != "email_message_bundle"
+        or artifact.get("generator") != "provelume.local_email"
+        or artifact.get("generator_version") != "1"
+        or not isinstance(storage_ref, str)
+        or _SHA256.fullmatch(str(checksum)) is None
+        or not _valid_instant(artifact.get("created_at"))
+        or (
+            "email_message",
+            message_id,
+            "represented_by",
+            "derived_artifact",
+            artifact_id,
+        )
+        not in derived_edges
+    ):
+        return "email bundle artifact metadata is invalid"
+    try:
+        manifest_path = safe_instance_path(store.paths.root, storage_ref)
+        relative = manifest_path.relative_to(store.paths.root).as_posix()
+        manifest_bytes = manifest_path.read_bytes()
+    except (OSError, UnsafePathError, ValueError):
+        return "email bundle manifest is unavailable or unsafe"
+    if manifest_path.is_symlink() or hashlib.sha256(manifest_bytes).hexdigest() != checksum:
+        return "email bundle manifest checksum does not match"
+    try:
+        manifest_value = json.loads(manifest_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return "email bundle manifest is not valid UTF-8 JSON"
+    if not isinstance(manifest_value, Mapping) or set(manifest_value) != _EMAIL_BUNDLE_FIELDS:
+        return "email bundle manifest fields are invalid"
+    manifest = manifest_value
+    derivation = manifest.get("derivation_key")
+    expected_ref = f"state/derived/email-messages/{message_id}/{derivation}/manifest.json"
+    if (
+        manifest.get("schema_version") != 1
+        or manifest.get("kind") != "email_message_bundle"
+        or manifest.get("status") != "complete"
+        or manifest.get("complete") is not True
+        or _SHA256.fullmatch(str(derivation)) is None
+        or relative != expected_ref
+        or storage_ref != expected_ref
+        or manifest.get("original_authoritative") is not True
+        or manifest.get("derived") is not True
+        or manifest.get("removable") is not True
+        or manifest.get("rebuildable_from_original") is not True
+        or manifest.get("active_content_executed") is not False
+        or manifest.get("remote_fetch") is not False
+        or manifest.get("network_used") is not False
+        or manifest.get("runtime_downloads") is not False
+        or manifest.get("remote_fallback") is not False
+    ):
+        return "email bundle completion or safety flags are invalid"
+    message_record = manifest.get("message")
+    job_record = manifest.get("job")
+    if (
+        not isinstance(job_record, Mapping)
+        or set(job_record) != {"id", "state"}
+        or re.fullmatch(r"job_[0-9a-f]{32}", str(job_record.get("id"))) is None
+        or job_record.get("state") != "message-complete"
+    ):
+        return "email bundle job binding is invalid"
+    if not isinstance(message_record, Mapping):
+        return "email bundle message binding is missing"
+    observation_id = str(message_record.get("observation_id", ""))
+    observation = observations.get(observation_id)
+    if (
+        observation is None
+        or message_record.get("id") != message_id
+        or message_record.get("source_id") != message.get("source_id")
+        or message_record.get("acquisition_id") != observation.get("acquisition_id")
+        or message_record.get("document_id") != message.get("document_id")
+        or message_record.get("version_id") != version_id
+        or message_record.get("original_id") != message.get("original_id")
+        or message_record.get("original_sha256") != message.get("original_sha256")
+        or message_record.get("original_size_bytes") != message.get("size_bytes")
+        or message_record.get("container_identity_sha256")
+        != observation.get("container_identity_sha256")
+        or message_record.get("container_snapshot_sha256")
+        != observation.get("container_snapshot_sha256")
+        or message_record.get("locator_sha256") != observation.get("locator_sha256")
+        or message_record.get("filesystem_identity_sha256")
+        != observation.get("filesystem_identity_sha256")
+        or message_record.get("filesystem_mtime_ns")
+        != observation.get("filesystem_mtime_ns")
+    ):
+        return "email bundle message or observation binding is invalid"
+    timestamps = manifest.get("timestamps")
+    if (
+        not isinstance(timestamps, Mapping)
+        or timestamps.get("filesystem_observed_at") != observation.get("observed_at")
+        or timestamps.get("acquired_at") != observation.get("acquired_at")
+    ):
+        return "email bundle timestamps do not match its observation"
+    parser = manifest.get("parser")
+    if (
+        not isinstance(parser, Mapping)
+        or not _valid_technical_value(parser.get("id"))
+        or not _valid_technical_value(parser.get("version"))
+        or type(parser.get("protocol_version")) is not int
+        or int(parser.get("protocol_version", 0)) < 1
+        or _SHA256.fullmatch(str(parser.get("settings_sha256"))) is None
+        or not isinstance(parser.get("limits"), Mapping)
+    ):
+        return "email bundle parser evidence is invalid"
+    adapter = manifest.get("adapter")
+    if (
+        not isinstance(adapter, Mapping)
+        or adapter.get("adapter_id") != observation.get("adapter_id")
+        or adapter.get("adapter_version") != observation.get("adapter_version")
+        or adapter.get("network_access") != "none"
+    ):
+        return "email bundle adapter evidence is invalid"
+    body_problem = _email_bundle_body_problem(
+        store,
+        manifest.get("body"),
+        version_id,
+        artifacts,
+        derived_edges,
+    )
+    if body_problem is not None:
+        return body_problem
+    attachment_problem = _email_bundle_attachment_problem(
+        manifest.get("attachments"),
+        message_id,
+        attachments,
+    )
+    if attachment_problem is not None:
+        return attachment_problem
+    thread = manifest.get("thread_observation")
+    if (
+        not isinstance(thread, Mapping)
+        or thread.get("authoritative") is not False
+        or thread.get("source_scoped") is not True
+    ):
+        return "email bundle thread observation is invalid"
+    try:
+        if manifest_path.read_bytes() != manifest_bytes:
+            return "email bundle manifest changed during validation"
+    except OSError:
+        return "email bundle manifest changed during validation"
+    return None
+
+
+def _validate_email_evidence(
+    store: InstanceStore,
+    records: Mapping[str, Mapping[str, Mapping[str, Any]]],
+    errors: list[dict[str, str]],
+) -> None:
+    sources = records["sources"]
+    acquisitions = records["acquisitions"]
+    documents = records["documents"]
+    versions = records["versions"]
+    originals = records["originals"]
+    valid_messages: dict[str, Mapping[str, Any]] = {}
+    observed_edges = {
+        (
+            str(edge.get("from_kind")),
+            str(edge.get("from_id")),
+            str(edge.get("relation")),
+            str(edge.get("to_kind")),
+            str(edge.get("to_id")),
+        )
+        for edge in records["provenance"].values()
+    }
+
+    for record_id, message in records["email-messages"].items():
+        path = f"knowledge/email-messages/{record_id}.json"
+        size = message.get("size_bytes")
+        digest = message.get("original_sha256")
+        source_id = message.get("source_id")
+        document_id = message.get("document_id")
+        version_id = message.get("version_id")
+        original_id = message.get("original_id")
+        structurally_valid = (
+            set(message) == _EMAIL_MESSAGE_FIELDS
+            and message.get("schema_version") == EMAIL_EVIDENCE_SCHEMA_VERSION
+            and _EMAIL_MESSAGE_ID.fullmatch(record_id) is not None
+            and _SOURCE_ID.fullmatch(str(source_id)) is not None
+            and _DOCUMENT_ID.fullmatch(str(document_id)) is not None
+            and _VERSION_ID.fullmatch(str(version_id)) is not None
+            and _ORIGINAL_ID.fullmatch(str(original_id)) is not None
+            and _SHA256.fullmatch(str(digest)) is not None
+            and type(size) is int
+            and size >= 0
+            and _valid_technical_value(message.get("adapter_id"))
+            and _valid_technical_value(message.get("adapter_version"))
+            and _valid_technical_value(message.get("parser_id"))
+            and _valid_technical_value(message.get("parser_version"))
+            and _valid_technical_value(message.get("contract_version"))
+            and _SHA256.fullmatch(str(message.get("settings_sha256"))) is not None
+            and _valid_instant(message.get("first_acquired_at"))
+        )
+        if not structurally_valid:
+            errors.append(
+                _finding(
+                    "email_message_record_invalid",
+                    "Email message evidence has invalid or unsupported fields",
+                    path=path,
+                )
+            )
+            continue
+        if original_id != f"sha256_{digest}" or record_id != email_message_evidence_id(
+            str(source_id), str(digest), int(size)
+        ):
+            errors.append(
+                _finding(
+                    "email_message_identity_invalid",
+                    "Email message evidence identity does not match its bound bytes",
+                    path=path,
+                )
+            )
+            continue
+
+        source = sources.get(str(source_id))
+        document = documents.get(str(document_id))
+        version = versions.get(str(version_id))
+        original = originals.get(str(original_id))
+        if (
+            source is None
+            or source.get("kind") != "email"
+            or document is None
+            or document.get("source_id") != source_id
+            or document.get("locator") != f"email-message:{record_id}"
+            or document.get("title") != f"Local email message {record_id}"
+            or document.get("media_type") != "message/rfc822"
+            or document.get("current_version_id") != version_id
+            or version is None
+            or version.get("document_id") != document_id
+            or version.get("original_id") != original_id
+            or version.get("content_hash") != digest
+            or version.get("size_bytes") != size
+            or version.get("media_type") != "message/rfc822"
+            or version.get("sequence") != 1
+            or version.get("acquired_at") != message.get("first_acquired_at")
+            or original is None
+            or original.get("sha256") != digest
+            or original.get("size_bytes") != size
+        ):
+            errors.append(
+                _finding(
+                    "email_message_reference_invalid",
+                    "Email message evidence has an invalid canonical reference",
+                    path=path,
+                )
+            )
+            continue
+        valid_messages[record_id] = message
+
+    valid_observations: dict[str, Mapping[str, Any]] = {}
+    acquisition_observations: dict[str, int] = {}
+    for record_id, observation in records["email-observations"].items():
+        path = f"knowledge/email-observations/{record_id}.json"
+        source_id = observation.get("source_id")
+        message_id = observation.get("message_id")
+        acquisition_id = observation.get("acquisition_id")
+        mtime = observation.get("filesystem_mtime_ns")
+        structurally_valid = (
+            set(observation) == _EMAIL_OBSERVATION_FIELDS
+            and observation.get("schema_version") == EMAIL_EVIDENCE_SCHEMA_VERSION
+            and _EMAIL_OBSERVATION_ID.fullmatch(record_id) is not None
+            and _SOURCE_ID.fullmatch(str(source_id)) is not None
+            and _EMAIL_MESSAGE_ID.fullmatch(str(message_id)) is not None
+            and _ACQUISITION_ID.fullmatch(str(acquisition_id)) is not None
+            and all(
+                _SHA256.fullmatch(str(observation.get(field))) is not None
+                for field in (
+                    "container_identity_sha256",
+                    "container_snapshot_sha256",
+                    "locator_sha256",
+                    "filesystem_identity_sha256",
+                    "settings_sha256",
+                )
+            )
+            and type(mtime) is int
+            and mtime >= 0
+            and _valid_instant(observation.get("observed_at"))
+            and _valid_instant(observation.get("acquired_at"))
+            and _valid_technical_value(observation.get("adapter_id"))
+            and _valid_technical_value(observation.get("adapter_version"))
+        )
+        if not structurally_valid:
+            errors.append(
+                _finding(
+                    "email_observation_record_invalid",
+                    "Email observation evidence has invalid or unsupported fields",
+                    path=path,
+                )
+            )
+            continue
+        message = valid_messages.get(str(message_id))
+        if message is None or record_id != email_message_observation_id(
+            str(source_id),
+            str(observation.get("adapter_id")),
+            str(observation.get("adapter_version")),
+            str(observation.get("container_identity_sha256")),
+            str(observation.get("container_snapshot_sha256")),
+            str(observation.get("locator_sha256")),
+            str(message.get("original_sha256")),
+            int(message.get("size_bytes", -1)),
+            str(observation.get("settings_sha256")),
+        ):
+            errors.append(
+                _finding(
+                    "email_observation_identity_invalid",
+                    "Email observation identity does not match its bounded evidence",
+                    path=path,
+                )
+            )
+            continue
+        acquisition = acquisitions.get(str(acquisition_id))
+        original_id = message.get("original_id")
+        valid_acquisition = (
+            source_id == message.get("source_id")
+            and acquisition is not None
+            and acquisition.get("source_id") == source_id
+            and acquisition.get("document_id") == message.get("document_id")
+            and acquisition.get("version_id") == message.get("version_id")
+            and acquisition.get("content_hash") == message.get("original_sha256")
+            and acquisition.get("original_id") == original_id
+            and acquisition.get("locator")
+            == f"email-locator:sha256:{observation.get('locator_sha256')}"
+            and acquisition.get("observed_at") == observation.get("observed_at")
+            and acquisition.get("acquisition_kind") == "local_email"
+            and acquisition.get("outcome") in {"created", "unchanged"}
+            and acquisition.get("media_type") == "message/rfc822"
+            and acquisition.get("response_size_bytes") == message.get("size_bytes")
+            and acquisition.get("error") is None
+            and acquisition.get("connector_instance_id") is None
+            and acquisition.get("requested_url") is None
+            and acquisition.get("final_url") is None
+            and acquisition.get("retrieved_at") is None
+            and acquisition.get("http_status") is None
+            and acquisition.get("content_encoding") is None
+            and acquisition.get("authorized_origins") is None
+            and acquisition.get("replay_of_acquisition_id") is None
+            and acquisition.get("derived_status") is None
+            and acquisition.get("derived_artifact_id") is None
+            and type(acquisition.get("exact_duplicate")) is bool
+            and acquisition.get("exact_duplicate")
+            is (acquisition.get("outcome") == "unchanged")
+        )
+        required_edges = {
+            ("source", str(source_id), "observed", "acquisition", str(acquisition_id)),
+            (
+                "acquisition",
+                str(acquisition_id),
+                "captured",
+                "original",
+                str(original_id),
+            ),
+            (
+                "acquisition",
+                str(acquisition_id),
+                "matched",
+                "version",
+                str(message.get("version_id")),
+            ),
+            (
+                "original",
+                str(original_id),
+                "materialized_as",
+                "version",
+                str(message.get("version_id")),
+            ),
+            (
+                "version",
+                str(message.get("version_id")),
+                "version_of",
+                "document",
+                str(message.get("document_id")),
+            ),
+            (
+                "acquisition",
+                str(acquisition_id),
+                "observed_as",
+                "email_message",
+                str(message_id),
+            ),
+        }
+        if not valid_acquisition:
+            errors.append(
+                _finding(
+                    "email_observation_reference_invalid",
+                    "Email observation has an invalid local Acquisition binding",
+                    path=path,
+                )
+            )
+            continue
+        if not required_edges.issubset(observed_edges):
+            errors.append(
+                _finding(
+                    "email_observation_provenance_incomplete",
+                    "Email observation Acquisition provenance is incomplete",
+                    path=path,
+                )
+            )
+            continue
+        valid_observations[record_id] = observation
+        acquisition_key = str(acquisition_id)
+        acquisition_observations[acquisition_key] = (
+            acquisition_observations.get(acquisition_key, 0) + 1
+        )
+
+    for acquisition_id, acquisition in acquisitions.items():
+        if acquisition.get("acquisition_kind") != "local_email":
+            continue
+        count = acquisition_observations.get(acquisition_id, 0)
+        if count != 1:
+            errors.append(
+                _finding(
+                    "email_acquisition_observation_invalid",
+                    "Local email Acquisition must bind exactly one valid observation",
+                    path=f"knowledge/acquisitions/{acquisition_id}.json",
+                )
+            )
+
+    observed_message_ids = {
+        str(item.get("message_id")) for item in valid_observations.values()
+    }
+    for message_id in valid_messages:
+        if message_id not in observed_message_ids:
+            errors.append(
+                _finding(
+                    "email_message_observation_missing",
+                    "Email message evidence has no valid container observation",
+                    path=f"knowledge/email-messages/{message_id}.json",
+                )
+            )
+
+    valid_attachments: dict[str, Mapping[str, Any]] = {}
+    for record_id, attachment in records["email-attachments"].items():
+        path = f"knowledge/email-attachments/{record_id}.json"
+        source_id = attachment.get("source_id")
+        parent_message_id = attachment.get("parent_message_id")
+        parent_document_id = attachment.get("parent_document_id")
+        parent_version_id = attachment.get("parent_version_id")
+        part_identity = attachment.get("part_identity_sha256")
+        original_id = attachment.get("original_id")
+        digest = attachment.get("original_sha256")
+        size = attachment.get("size_bytes")
+        structurally_valid = (
+            set(attachment) == _EMAIL_ATTACHMENT_FIELDS
+            and attachment.get("schema_version") == EMAIL_EVIDENCE_SCHEMA_VERSION
+            and _EMAIL_ATTACHMENT_ID.fullmatch(record_id) is not None
+            and _SOURCE_ID.fullmatch(str(source_id)) is not None
+            and _EMAIL_MESSAGE_ID.fullmatch(str(parent_message_id)) is not None
+            and _DOCUMENT_ID.fullmatch(str(parent_document_id)) is not None
+            and _VERSION_ID.fullmatch(str(parent_version_id)) is not None
+            and _SHA256.fullmatch(str(part_identity)) is not None
+            and _ORIGINAL_ID.fullmatch(str(original_id)) is not None
+            and _SHA256.fullmatch(str(digest)) is not None
+            and type(size) is int
+            and size >= 0
+            and _valid_instant(attachment.get("accepted_at"))
+        )
+        if not structurally_valid:
+            errors.append(
+                _finding(
+                    "email_attachment_record_invalid",
+                    "Email attachment evidence has invalid or unsupported fields",
+                    path=path,
+                )
+            )
+            continue
+        if original_id != f"sha256_{digest}" or record_id != email_attachment_evidence_id(
+            str(source_id),
+            str(parent_message_id),
+            str(part_identity),
+            str(digest),
+            int(size),
+        ):
+            errors.append(
+                _finding(
+                    "email_attachment_identity_invalid",
+                    "Email attachment evidence identity does not match its occurrence",
+                    path=path,
+                )
+            )
+            continue
+        parent = valid_messages.get(str(parent_message_id))
+        original = originals.get(str(original_id))
+        if (
+            parent is None
+            or parent.get("source_id") != source_id
+            or parent.get("document_id") != parent_document_id
+            or parent.get("version_id") != parent_version_id
+            or original is None
+            or original.get("sha256") != digest
+            or original.get("size_bytes") != size
+        ):
+            errors.append(
+                _finding(
+                    "email_attachment_reference_invalid",
+                    "Email attachment evidence has an invalid parent or Original reference",
+                    path=path,
+                )
+            )
+            continue
+        required_edges = {
+            (
+                "email_message",
+                str(parent_message_id),
+                "contained",
+                "email_attachment",
+                record_id,
+            ),
+            (
+                "email_attachment",
+                record_id,
+                "materialized_as",
+                "original",
+                str(original_id),
+            ),
+        }
+        if not required_edges.issubset(observed_edges):
+            errors.append(
+                _finding(
+                    "email_attachment_provenance_incomplete",
+                    "Email attachment provenance is incomplete",
+                    path=path,
+                )
+            )
+            continue
+        valid_attachments[record_id] = attachment
+
+    artifacts = _derived_json_records(
+        store.paths.derived_artifacts,
+        errors=errors,
+        path_prefix="state/derived/artifacts",
+    )
+    derived_provenance = _derived_json_records(
+        store.paths.derived_provenance,
+        errors=errors,
+        path_prefix="state/derived/provenance",
+    )
+    derived_edges = {
+        (
+            str(edge.get("from_kind")),
+            str(edge.get("from_id")),
+            str(edge.get("relation")),
+            str(edge.get("to_kind")),
+            str(edge.get("to_id")),
+        )
+        for edge in derived_provenance.values()
+    }
+    bundles_by_version: dict[str, list[tuple[str, Mapping[str, Any]]]] = {}
+    for artifact_id, artifact in artifacts.items():
+        if artifact.get("kind") != "email_message_bundle":
+            continue
+        bundles_by_version.setdefault(str(artifact.get("version_id")), []).append(
+            (artifact_id, artifact)
+        )
+    for message_id, message in valid_messages.items():
+        version_id = str(message.get("version_id"))
+        bundles = bundles_by_version.pop(version_id, [])
+        if len(bundles) > 1:
+            errors.append(
+                _finding(
+                    "email_bundle_ambiguous",
+                    "Email message has more than one active derived bundle",
+                    path=f"knowledge/email-messages/{message_id}.json",
+                )
+            )
+            continue
+        if not bundles:
+            continue
+        artifact_id, artifact = bundles[0]
+        problem = _email_bundle_problem(
+            store,
+            artifact_id,
+            artifact,
+            message_id,
+            message,
+            valid_observations,
+            valid_attachments,
+            artifacts,
+            derived_edges,
+        )
+        if problem is not None:
+            errors.append(
+                _finding(
+                    "email_bundle_invalid",
+                    problem,
+                    path=f"state/derived/artifacts/{artifact_id}.json",
+                )
+            )
+    for bundles in bundles_by_version.values():
+        for artifact_id, _artifact in bundles:
+            errors.append(
+                _finding(
+                    "email_bundle_orphaned",
+                    "Email bundle does not bind a valid email message Version",
+                    path=f"state/derived/artifacts/{artifact_id}.json",
+                )
+            )
 
 
 def _canonical_records(
@@ -135,6 +1074,7 @@ def _canonical_records(
 
 
 def _validate_references(
+    store: InstanceStore,
     records: Mapping[str, Mapping[str, Mapping[str, Any]]],
     errors: list[dict[str, str]],
 ) -> None:
@@ -385,6 +1325,7 @@ def _validate_references(
                 )
             )
 
+    _validate_email_evidence(store, records, errors)
     for code, message, path in canonical_connector_errors(
         records["connector-definitions"],
         records["connector-instances"],
@@ -623,7 +1564,7 @@ def inspect_instance(root: Path | str, *, deep: bool = True) -> dict[str, Any]:
                     )
                 )
         records = _canonical_records(store, errors)
-        _validate_references(records, errors)
+        _validate_references(store, records, errors)
         from .folder_sources import folder_source_state_findings
         from .maintenance import maintenance_state_findings
         from .resource_statistics import resource_statistics_state_findings

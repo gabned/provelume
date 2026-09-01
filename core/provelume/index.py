@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 from .derived import materialize_extracted_text
 from .domain import as_record
 from .extractors import ExtractionError, extract_web_readable_text, extractor_for
+from .paths import safe_instance_path
 from .retention_model import effective_dispositions
 from .storage import InstanceStore, utc_now
 
@@ -23,6 +24,116 @@ GENERATION_METADATA_TABLE = "provelume_generation_metadata"
 _GENERATION_ID = re.compile(r"generation_[0-9a-f]{32}\Z")
 _JOB_ID = re.compile(r"job_[0-9a-f]{32}\Z")
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+_DERIVED_ID = re.compile(r"derived_[0-9a-f]{32}\Z")
+
+
+def _email_message_for_version(
+    store: InstanceStore,
+    version_id: str,
+) -> dict[str, Any] | None:
+    matches = [
+        item
+        for item in store.list_canonical("email-messages")
+        if item.get("version_id") == version_id
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
+def verified_email_text_artifact(
+    store: InstanceStore,
+    version_id: str,
+) -> tuple[dict[str, Any], str] | None:
+    """Return only a checksum-bound, passive S03 body representation.
+
+    Email Originals are never passed to a generic extractor or renderer.  The body
+    must be bound by the complete inert email manifest and the exact local-email
+    artifact identity before it can enter search or the document viewer.
+    """
+
+    message = _email_message_for_version(store, version_id)
+    if message is None:
+        return None
+    artifacts = [
+        item
+        for item in store.list_derived_artifacts()
+        if item.get("version_id") == version_id
+    ]
+    text_matches = [
+        item
+        for item in artifacts
+        if item.get("kind") == "extracted_text"
+        and item.get("generator") == "provelume.local_email"
+        and item.get("generator_version") == "1"
+    ]
+    bundle_matches = [
+        item
+        for item in artifacts
+        if item.get("kind") == "email_message_bundle"
+        and item.get("generator") == "provelume.local_email"
+        and item.get("generator_version") == "1"
+    ]
+    if len(text_matches) != 1 or len(bundle_matches) != 1:
+        return None
+    text_artifact = text_matches[0]
+    bundle_artifact = bundle_matches[0]
+    text_id = str(text_artifact.get("id", ""))
+    text_ref = text_artifact.get("storage_ref")
+    if (
+        _DERIVED_ID.fullmatch(text_id) is None
+        or not isinstance(text_ref, str)
+        or text_ref != f"state/derived/text/{text_id}.txt"
+        or _SHA256.fullmatch(str(text_artifact.get("checksum", ""))) is None
+    ):
+        return None
+    try:
+        text_path = safe_instance_path(store.paths.root, text_ref)
+        manifest_path = safe_instance_path(
+            store.paths.root, str(bundle_artifact["storage_ref"])
+        )
+        if (
+            text_path.is_symlink()
+            or manifest_path.is_symlink()
+            or not text_path.is_file()
+            or not manifest_path.is_file()
+            or text_path.stat().st_size > 8 * 1024 * 1024
+            or manifest_path.stat().st_size > 8 * 1024 * 1024
+        ):
+            return None
+        text_bytes = text_path.read_bytes()
+        manifest_bytes = manifest_path.read_bytes()
+        text = text_bytes.decode("utf-8")
+        manifest = json.loads(manifest_bytes.decode("utf-8"))
+    except (KeyError, OSError, UnicodeError, ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(manifest, dict):
+        return None
+    body = manifest.get("body")
+    binding = manifest.get("message")
+    if (
+        hashlib.sha256(text_bytes).hexdigest() != text_artifact.get("checksum")
+        or hashlib.sha256(manifest_bytes).hexdigest()
+        != bundle_artifact.get("checksum")
+        or manifest.get("kind") != "email_message_bundle"
+        or manifest.get("status") != "complete"
+        or manifest.get("complete") is not True
+        or manifest.get("active_content_executed") is not False
+        or manifest.get("remote_fetch") is not False
+        or manifest.get("network_used") is not False
+        or not isinstance(binding, dict)
+        or binding.get("id") != message.get("id")
+        or binding.get("version_id") != version_id
+        or binding.get("original_sha256") != message.get("original_sha256")
+        or not isinstance(body, dict)
+        or body.get("status") != "available"
+        or body.get("media_type") != "text/plain"
+        or body.get("storage_ref") != text_ref
+        or body.get("sha256") != text_artifact.get("checksum")
+        or body.get("character_count") != len(text)
+        or body.get("authoritative") is not False
+        or body.get("derived") is not True
+    ):
+        return None
+    return text_artifact, text
 
 
 def _connection(path: Path) -> sqlite3.Connection:
@@ -45,6 +156,9 @@ def _ensure_extracted(
     *,
     recover_missing_derived: bool,
 ) -> dict[str, Any] | None:
+    if _email_message_for_version(store, str(version["id"])) is not None:
+        verified = verified_email_text_artifact(store, str(version["id"]))
+        return verified[0] if verified is not None else None
     artifact = store.derived_artifact_for_version(version["id"])
     if artifact is not None:
         return artifact
@@ -290,15 +404,21 @@ def _insert_document(
     version = store.read_canonical("versions", document["current_version_id"])
     if version is None:
         return False
-    artifact = _ensure_extracted(
-        store,
-        version,
-        document["locator"],
-        recover_missing_derived=recover_missing_derived,
-    )
-    if artifact is None:
-        return False
-    text = store.read_derived_text(artifact)
+    email_text = verified_email_text_artifact(store, str(version["id"]))
+    if _email_message_for_version(store, str(version["id"])) is not None:
+        if email_text is None:
+            return False
+        _artifact, text = email_text
+    else:
+        artifact = _ensure_extracted(
+            store,
+            version,
+            document["locator"],
+            recover_missing_derived=recover_missing_derived,
+        )
+        if artifact is None:
+            return False
+        text = store.read_derived_text(artifact)
     connection.execute(
         "INSERT INTO search("
         "document_id, version_id, source_id, media_type, acquired_at, title, content"
@@ -492,9 +612,17 @@ def search_index_content_matches(store: InstanceStore) -> bool:
             )
             if version is None:
                 return False
-            artifact = store.derived_artifact_for_version(str(version["id"]))
-            if artifact is None:
-                continue
+            email_message = _email_message_for_version(store, str(version["id"]))
+            email_text = verified_email_text_artifact(store, str(version["id"]))
+            if email_message is not None:
+                if email_text is None:
+                    continue
+                _artifact, text = email_text
+            else:
+                artifact = store.derived_artifact_for_version(str(version["id"]))
+                if artifact is None:
+                    continue
+                text = store.read_derived_text(artifact)
             expected.append(
                 (
                     document["id"],
@@ -503,7 +631,7 @@ def search_index_content_matches(store: InstanceStore) -> bool:
                     document["media_type"],
                     version["acquired_at"],
                     document["title"],
-                    store.read_derived_text(artifact),
+                    text,
                 )
             )
     except (KeyError, OSError, UnicodeError, ValueError):

@@ -37,6 +37,12 @@ development under [#137](https://github.com/gabned/provelume/issues/137). Lectio
 [#140](https://github.com/gabned/provelume/issues/140) and
 [PR #141](https://github.com/gabned/provelume/pull/141) implement bounded local Tesseract execution,
 PDF/image page preparation and removable document bundles in the unreleased source tree.
+S03 owner [#143](https://github.com/gabned/provelume/issues/143) and
+[PR #147](https://github.com/gabned/provelume/pull/147)
+implement an explicit, provider-neutral local email baseline for exact-byte EML and Maildir intake.
+Its exact-head permanent smoke qualifies EML on Ubuntu 24.04 and Windows x86-64 with CPython 3.12,
+and Maildir only on Ubuntu 24.04 x86-64 with CPython 3.12. Every other combination remains
+unqualified. `0.9/S04` is forecast only and is not activated.
 Package and embedded build identity are aligned to `0.8.0`, `v0.8.0` and the exact published
 commit.
 
@@ -77,6 +83,13 @@ The active source tree can:
   modes/languages/pages, bounded PDF/TIFF/image preparation, local Tesseract process execution,
   durable jobs and removable/rebuildable page-provenance bundles while shipping no OCR engine,
   renderer, decoder or language pack;
+- configure a disabled-by-default local email Source for exactly one EML file or one bounded
+  `cur`/`new` Maildir profile, preserve exact message and accepted-attachment Originals, and build a
+  removable, rebuildable email representation through a replaceable CPython 3.12 `email` parser
+  seam without using `mailbox` for authoritative byte reads;
+- keep email identity and deduplication cryptographic and Source-scoped, treat `Message-ID`, reply
+  headers and observed threads as non-authoritative evidence, and expose durable explicit intake
+  with no account discovery, remote provider, active HTML, implicit OCR or cross-Source merge;
 - expose a read-only versioned Knowledge API with FastAPI;
 - provide an EN/IT Knowledge Browser for browse, search, safe rendered/raw/Original document
   viewing, versions, provenance, Inbox, bundles, duplicates, assurance, rebuild reports,
@@ -134,14 +147,18 @@ representations remain derived state and can be recreated from preserved origina
 of those derived copies.
 
 The published `0.8.0` Vigilia preview creates no scheduler policy or job on install, upgrade or
-startup and does not contain the unreleased OCR execution baseline. Folder refresh, maintenance and
-the active-source S02 OCR path require explicit local configuration and run only while the current
-runtime is active. Native filesystem-event watchers, always-on desktop agents, email/Google Drive
-intake, semantic/vector search and AI classification remain later work. S02 performs no cloud call,
-runtime download or remote fallback and keeps every OCR result derived and unverified. See the
+startup and does not contain the unreleased OCR or email execution baselines. Folder refresh,
+maintenance, S02 OCR and S03 local email intake require explicit local configuration and run only
+while the current runtime is active. Native filesystem-event watchers, always-on desktop agents,
+Gmail/Google Drive and other remote-mailbox intake, semantic/vector search and AI classification
+remain later work. S02 and S03 perform no cloud call, runtime download or remote fallback and keep
+their generated representations derived. See the
 [English OCR contract](docs/architecture/local-ocr-contract.md), the
 [Italian OCR contract](docs/architecture/local-ocr-contract.it.md) and
-[ADR 0015](docs/adr/0015-bounded-local-ocr-execution.md).
+[ADR 0015](docs/adr/0015-bounded-local-ocr-execution.md), plus the
+[English email guide](docs/architecture/local-email-intake.md),
+[Italian email guide](docs/architecture/local-email-intake.it.md) and
+[ADR 0016](docs/adr/0016-local-email-identity-and-intake.md).
 
 ## Quick start
 
@@ -173,6 +190,22 @@ or downloads them at runtime:
 
 See the [local OCR execution guide](docs/architecture/local-ocr-contract.md) for the exact qualified
 matrix, queue/cancel/remove/rebuild controls, uncertainty boundary and known limits.
+
+The unreleased S03 local email path also starts disabled and performs no discovery or hidden scan.
+Create one exact EML Source, enable it separately, then queue and run one durable job:
+
+```bash
+.venv/bin/provelume email-source-create .local/demo --name "Local message" \
+  --path /path/to/message.eml --profile eml-file-v1
+.venv/bin/provelume email-source-state .local/demo SOURCE_ID enabled
+.venv/bin/provelume email-intake-queue .local/demo SOURCE_ID
+.venv/bin/provelume email-intake-run .local/demo JOB_ID
+```
+
+The create/queue responses supply the opaque IDs for the next command. Use
+`maildir-cur-new-v1` only with an explicit Maildir root on a qualified target. See the
+[local email intake guide](docs/architecture/local-email-intake.md) for platform targets, limits,
+safe-content behavior, retry/cancel and derived removal/rebuild.
 
 Configure a custom Inbox name and local folders. Relative paths resolve from the Instance root;
 absolute paths may live elsewhere on the local filesystem:

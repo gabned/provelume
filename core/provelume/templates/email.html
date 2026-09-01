@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ t('email.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('email.eyebrow') }}</p>
+  <h1>{{ t('email.title') }}</h1>
+  <p class="lead">{{ t('email.lead') }}</p>
+</section>
+{% if saved %}<section class="panel"><p class="status ok">{{ t('email.saved') }}</p><p class="technical-note">{{ saved }}</p></section>{% endif %}
+{% if error %}<section class="panel"><p class="status warn">{{ t('email.error') }}</p><p>{{ error }}</p></section>{% endif %}
+{% if not editable %}<section class="panel"><p class="technical-note">{{ t('email.local_only') }}</p></section>{% endif %}
+
+<section class="panel">
+  <h2>{{ t('email.capability') }}</h2>
+  <p><strong>{{ t('email.available') }}: {{ capability.available }}</strong> · network: {{ capability.network_access }}</p>
+  <p class="technical-note">{{ t('email.runtime') }}</p>
+  <h3>{{ t('email.attachment_ocr') }}</h3>
+  <p><strong>{{ capability.attachment_ocr.state }}</strong> · {{ t('email.available') }}: {{ capability.attachment_ocr.available }}</p>
+  <p class="technical-note">{{ t('email.ocr_separate') }}</p>
+  <ul class="document-list">
+  {% for profile in capability.profiles %}
+    <li><div><strong>{{ profile.profile }}</strong><span>{{ profile.mailbox_format }} · {{ t('email.available') }}: {{ profile.available }} · {{ t('email.reason') }}: {{ profile.reason or 'none' }}</span><span>{{ profile.current_target }}</span></div><details><summary>{{ t('email.limits') }}</summary><pre>{{ profile.limits|tojson(indent=2) }}</pre></details></li>
+  {% endfor %}
+  </ul>
+</section>
+
+{% if editable %}
+<section class="panel">
+  <h2>{{ t('email.create') }}</h2>
+  <form method="post" action="/email?lang={{ lang }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="action" value="create-source">
+    <label>{{ t('email.name') }} <input name="name" maxlength="120" required></label>
+    <label>{{ t('email.path') }} <input name="path" maxlength="4096" required></label>
+    <label>{{ t('email.profile') }} <select name="profile">{% for profile in email_profiles %}<option value="{{ profile }}">{{ profile }}</option>{% endfor %}</select></label>
+    <button type="submit">{{ t('email.create_action') }}</button>
+  </form>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h2>{{ t('email.sources') }}</h2>
+  <ul class="document-list">
+  {% for source in sources %}
+    <li><div><strong>{{ source.name }}</strong><span>{{ source.id }} · {{ source.profile }} · {{ source.state }} · {{ source.lifecycle_state }}</span><span>{{ source.path }}</span></div>
+    {% if editable and source.lifecycle_state == 'active' %}
+      <form method="post" action="/email?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="source-state"><input type="hidden" name="source_id" value="{{ source.id }}"><button name="state" value="enabled" type="submit">{{ t('email.enable') }}</button><button name="state" value="paused" type="submit">{{ t('email.pause') }}</button><button name="state" value="disabled" type="submit">{{ t('email.disable') }}</button></form>
+      <form method="post" action="/email?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="source-schedule"><input type="hidden" name="source_id" value="{{ source.id }}"><select name="mode">{% for mode in email_schedule_modes %}<option value="{{ mode }}"{% if source.schedule.mode == mode %} selected{% endif %}>{{ mode }}</option>{% endfor %}</select><input name="interval_seconds" type="number" min="60" value="{{ source.schedule.interval_seconds or '' }}" aria-label="{{ t('email.interval') }}"><button type="submit">{{ t('email.save_schedule') }}</button></form>
+      {% if source.state == 'enabled' %}<form method="post" action="/email?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="queue"><input type="hidden" name="source_id" value="{{ source.id }}"><button type="submit">{{ t('email.queue') }}</button></form>{% endif %}
+      <form method="post" action="/email?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="remove-source"><input type="hidden" name="source_id" value="{{ source.id }}"><button type="submit">{{ t('email.remove_source') }}</button></form>
+    {% endif %}</li>
+  {% else %}<li class="empty">{{ t('email.no_sources') }}</li>{% endfor %}
+  </ul>
+</section>
+
+<section class="panel">
+  <h2>{{ t('email.jobs') }}</h2>
+  <ul class="document-list">
+  {% for item in jobs %}
+    {% set job = item.job if item.job else item %}
+    <li><div><strong>{{ job.status }} · {{ job.id }}</strong><span>{{ job.checkpoint.phase }} #{{ job.checkpoint.sequence }} · {{ job.progress.processed }}/{{ job.progress.skipped }}/{{ job.progress.errors }}</span>{% if item.intake_run %}<span>{{ item.intake_run.status }}</span>{% endif %}</div>{% if editable and job.status == 'queued' %}<form method="post" action="/email?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="run"><input type="hidden" name="job_id" value="{{ job.id }}"><button type="submit">{{ t('email.run') }}</button></form>{% endif %}{% if editable and job.status not in ['succeeded', 'failed', 'manual_intervention', 'cancelled'] %}<form method="post" action="/email?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="cancel"><input type="hidden" name="job_id" value="{{ job.id }}"><button type="submit">{{ t('email.cancel') }}</button></form>{% endif %}</li>
+  {% else %}<li class="empty">{{ t('email.no_jobs') }}</li>{% endfor %}
+  </ul>
+</section>
+
+<section class="panel"><h2>{{ t('email.messages') }}</h2><ul class="document-list">
+{% for message in messages %}<li><div><strong>{{ message.id }}</strong><span>{{ message.source_id }} · {{ message.original_sha256 }} · {{ message.size_bytes }}</span></div><a href="/email/messages/{{ message.id }}?lang={{ lang }}">{{ t('email.inspect') }}</a>{% if editable %}<form method="post" action="/email?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="message_id" value="{{ message.id }}"><button name="action" value="remove-derived" type="submit">{{ t('email.remove_derived') }}</button><button name="action" value="rebuild-derived" type="submit">{{ t('email.rebuild_derived') }}</button></form>{% endif %}</li>{% else %}<li class="empty">{{ t('email.no_messages') }}</li>{% endfor %}
+</ul></section>
+
+<section class="panel"><h2>{{ t('email.threads') }}</h2><ul class="document-list">
+{% for thread in threads %}<li><div><strong>{{ thread.id }}</strong><span>{{ thread.source_id }} · {{ thread.message_count }}</span></div><a href="/email/threads/{{ thread.id }}?lang={{ lang }}">{{ t('email.inspect') }}</a></li>{% else %}<li class="empty">{{ t('email.no_threads') }}</li>{% endfor %}
+</ul></section>
+
+<section class="panel"><h2>{{ t('email.attachments') }}</h2><ul class="document-list">
+{% for attachment in attachments %}<li><div><strong>{{ attachment.id }}</strong><span>{{ attachment.parent_message_id }} · {{ attachment.original_sha256 }} · {{ attachment.size_bytes }}</span></div><a href="/email/attachments/{{ attachment.id }}?lang={{ lang }}">{{ t('email.inspect') }}</a></li>{% else %}<li class="empty">{{ t('email.no_attachments') }}</li>{% endfor %}
+</ul></section>
+
+<section class="notice info"><p>{{ t('email.passive') }}</p></section>
+{% endblock %}

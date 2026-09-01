@@ -25,6 +25,21 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - qualified only Ubuntu 24.04 x86-64/Python 3.12 with external Tesseract 5.x `eng`, pypdfium2
   5.13.0/PDFium 153.0.7999.0 and Pillow 12.3.0 across PDF, TIFF, PNG, JPEG and BMP, while keeping
   those components out of wheel, sdist and Windows installer.
+- implemented `0.9/S03` with explicit disabled-by-default `eml-file-v1` and
+  `maildir-cur-new-v1` Sources, a custom bounded exact-byte reader and replaceable CPython 3.12
+  `email` parser seam; no account discovery, watcher, provider access or hidden intake is added;
+- preserved exact message and accepted-attachment Originals with atomic provenance-bound derived
+  email representations, Source-scoped cryptographic deduplication, non-authoritative
+  `Message-ID`/reply/thread evidence and removal/rebuild without canonical mutation;
+- integrated local email intake with durable leases, heartbeat, message/attachment checkpoints,
+  bounded retry, cancellation, crash recovery and stale-snapshot rejection, plus path- and
+  content-redacted receipts;
+- added local service/CLI and protected EN/IT loopback Browser controls with read-only API views,
+  separate attachment OCR eligibility and no HTTP upload, active-content rendering, remote fetch,
+  implicit OCR or cross-Source merge;
+- qualified EML on Ubuntu 24.04 and Windows x86-64 with CPython 3.12 and Maildir only on Ubuntu
+  24.04 x86-64 with CPython 3.12 through the permanent real-parser smoke on the unchanged owner
+  head; mbox stays unsupported and no runtime dependency or provider payload is added.
 
 ### Changed
 

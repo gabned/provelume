@@ -39,6 +39,29 @@ pypdfium2/PDFium or Pillow while probing or processing a document. Operator inst
 explicit CI provisioning step may use package repositories; that traffic is outside OCR runtime.
 Enabling OCR therefore does not enable `network.external_access` and does not add a provider origin.
 
+The unreleased `0.9/S03` local email path has the same explicit offline boundary. Creating a local
+email Source stores one operator-selected EML file or Maildir path in local configuration, leaves
+the Source disabled and performs no probe, enumeration or intake. Capability discovery, exact-byte
+reads, MIME parsing, body selection, attachment extraction, durable replay, derived removal/rebuild
+and read-only inspection set `network_access: none`, make no DNS or socket call and have no remote
+fallback. Enabling the Source or scheduling explicit local intake does not enable
+`network.external_access` or add a provider origin.
+
+Email HTML and MIME observations are untrusted input. Provelume does not render active HTML, follow
+links, resolve `cid:` references, submit forms, load remote CSS, images, avatars or tracking pixels,
+execute attachments or expand archives. There is no HTML-to-text fallback in the S03 baseline: when
+an acceptable bounded `text/plain` body is unavailable, the exact HTML remains only in the message
+Original and the derived body is explicitly unavailable. Attachment OCR eligibility is descriptive
+only and never enables, queues or runs OCR.
+
+The configured physical path is excluded from read-only API views, scheduler receipts and operation
+records. The local CLI and CSRF-protected Browser configuration view may show the escaped path to
+the operator. Operational records also omit subject, body, addresses, filenames and caller text,
+retaining only opaque IDs, counts and closed codes. Explicit local detail views may show derived
+message observations to the operator but never execute their content.
+Gmail, Google Drive, IMAP, POP, SMTP, account/credential discovery and every remote-mailbox fallback
+remain absent; Gmail/Drive are only the unactivated `0.9/S04` forecast.
+
 Connector definitions and instances introduced by `0.7/S01` are explicit local declarations.
 `0.7/S02` adds independent enabled/removed lifecycle state: a disabled or tombstoned connector is
 never counted as an enabled external component even when its retained policy says `explicit`.

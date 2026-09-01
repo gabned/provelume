@@ -7,6 +7,7 @@ from typing import Any
 
 from .activity_i18n import ACTIVITY_TRANSLATIONS
 from .connector_i18n import CONNECTOR_TRANSLATIONS
+from .email_i18n import EMAIL_TRANSLATIONS
 from .folder_settings_i18n import FOLDER_SETTINGS_TRANSLATIONS
 from .folder_source_i18n import FOLDER_SOURCE_TRANSLATIONS
 from .maintenance_i18n import MAINTENANCE_TRANSLATIONS
@@ -27,6 +28,7 @@ def catalog(language: str) -> dict[str, str]:
     result = {str(key): str(text) for key, text in value.items()}
     result.update(ACTIVITY_TRANSLATIONS.get(selected, {}))
     result.update(CONNECTOR_TRANSLATIONS.get(selected, {}))
+    result.update(EMAIL_TRANSLATIONS.get(selected, {}))
     result.update(REBUILD_TRANSLATIONS.get(selected, {}))
     result.update(FOLDER_SETTINGS_TRANSLATIONS.get(selected, {}))
     result.update(FOLDER_SOURCE_TRANSLATIONS.get(selected, {}))

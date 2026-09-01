@@ -6,6 +6,12 @@ import re
 from typing import Any
 from uuid import uuid4
 
+from .domain import (
+    EMAIL_EVIDENCE_SCHEMA_VERSION,
+    email_attachment_evidence_id,
+    email_message_evidence_id,
+    email_message_observation_id,
+)
 from .operations import OperationLedger
 from .paths import safe_instance_path
 from .storage import InstanceStore
@@ -121,6 +127,9 @@ class OriginalAssuranceManager:
             "documents",
             "versions",
             "acquisitions",
+            "email-messages",
+            "email-observations",
+            "email-attachments",
         ):
             records, issues = safe_canonical_records(self.store, kind)
             result[kind] = self._mapping(records)
@@ -325,6 +334,155 @@ class OriginalAssuranceManager:
                     )
                 )
 
+    def _verify_email_messages(
+        self,
+        records: dict[str, dict[str, dict[str, Any]]],
+        findings: list[dict[str, Any]],
+    ) -> None:
+        for message_id, message in sorted(records["email-messages"].items()):
+            source_id = str(message.get("source_id", ""))
+            document_id = str(message.get("document_id", ""))
+            version_id = str(message.get("version_id", ""))
+            original_id = str(message.get("original_id", ""))
+            digest = str(message.get("original_sha256", ""))
+            try:
+                size = int(message.get("size_bytes"))
+            except (TypeError, ValueError):
+                size = -1
+            source = records["sources"].get(source_id)
+            document = records["documents"].get(document_id)
+            version = records["versions"].get(version_id)
+            original = records["originals"].get(original_id)
+            if (
+                message.get("schema_version") != EMAIL_EVIDENCE_SCHEMA_VERSION
+                or message_id
+                != email_message_evidence_id(source_id, digest, size)
+                or original_id != f"sha256_{digest}"
+                or source is None
+                or source.get("kind") != "email"
+                or document is None
+                or document.get("source_id") != source_id
+                or version is None
+                or version.get("document_id") != document_id
+                or version.get("original_id") != original_id
+                or version.get("content_hash") != digest
+                or version.get("size_bytes") != size
+                or original is None
+                or original.get("sha256") != digest
+                or original.get("size_bytes") != size
+            ):
+                findings.append(
+                    self._finding(
+                        "error",
+                        "email_message_evidence_invalid",
+                        f"Email message evidence is invalid: {message_id}",
+                        {"email_message_id": message_id},
+                    )
+                )
+
+    def _verify_email_observations(
+        self,
+        records: dict[str, dict[str, dict[str, Any]]],
+        findings: list[dict[str, Any]],
+    ) -> None:
+        for observation_id, observation in sorted(
+            records["email-observations"].items()
+        ):
+            source_id = str(observation.get("source_id", ""))
+            message_id = str(observation.get("message_id", ""))
+            acquisition_id = str(observation.get("acquisition_id", ""))
+            message = records["email-messages"].get(message_id)
+            acquisition = records["acquisitions"].get(acquisition_id)
+            try:
+                size = int(message.get("size_bytes")) if message is not None else -1
+            except (TypeError, ValueError):
+                size = -1
+            valid = (
+                observation.get("schema_version") == EMAIL_EVIDENCE_SCHEMA_VERSION
+                and message is not None
+                and observation_id
+                == email_message_observation_id(
+                    source_id,
+                    str(observation.get("adapter_id", "")),
+                    str(observation.get("adapter_version", "")),
+                    str(observation.get("container_identity_sha256", "")),
+                    str(observation.get("container_snapshot_sha256", "")),
+                    str(observation.get("locator_sha256", "")),
+                    str(message.get("original_sha256", "")),
+                    size,
+                    str(observation.get("settings_sha256", "")),
+                )
+                and message.get("source_id") == source_id
+                and acquisition is not None
+                and acquisition.get("source_id") == source_id
+                and acquisition.get("document_id") == message.get("document_id")
+                and acquisition.get("version_id") == message.get("version_id")
+                and acquisition.get("content_hash") == message.get("original_sha256")
+                and acquisition.get("original_id") == message.get("original_id")
+            )
+            if not valid:
+                findings.append(
+                    self._finding(
+                        "error",
+                        "email_observation_evidence_invalid",
+                        f"Email observation evidence is invalid: {observation_id}",
+                        {"email_observation_id": observation_id},
+                    )
+                )
+
+    def _verify_email_attachments(
+        self,
+        records: dict[str, dict[str, dict[str, Any]]],
+        original_refs: dict[str, int],
+        findings: list[dict[str, Any]],
+    ) -> None:
+        for attachment_id, attachment in sorted(
+            records["email-attachments"].items()
+        ):
+            source_id = str(attachment.get("source_id", ""))
+            parent_message_id = str(attachment.get("parent_message_id", ""))
+            parent_document_id = str(attachment.get("parent_document_id", ""))
+            parent_version_id = str(attachment.get("parent_version_id", ""))
+            part_identity = str(attachment.get("part_identity_sha256", ""))
+            original_id = str(attachment.get("original_id", ""))
+            digest = str(attachment.get("original_sha256", ""))
+            try:
+                size = int(attachment.get("size_bytes"))
+            except (TypeError, ValueError):
+                size = -1
+            parent = records["email-messages"].get(parent_message_id)
+            original = records["originals"].get(original_id)
+            valid = (
+                attachment.get("schema_version") == EMAIL_EVIDENCE_SCHEMA_VERSION
+                and attachment_id
+                == email_attachment_evidence_id(
+                    source_id,
+                    parent_message_id,
+                    part_identity,
+                    digest,
+                    size,
+                )
+                and original_id == f"sha256_{digest}"
+                and parent is not None
+                and parent.get("source_id") == source_id
+                and parent.get("document_id") == parent_document_id
+                and parent.get("version_id") == parent_version_id
+                and original is not None
+                and original.get("sha256") == digest
+                and original.get("size_bytes") == size
+            )
+            if not valid:
+                findings.append(
+                    self._finding(
+                        "error",
+                        "email_attachment_evidence_invalid",
+                        f"Email attachment evidence is invalid: {attachment_id}",
+                        {"email_attachment_id": attachment_id},
+                    )
+                )
+                continue
+            original_refs[original_id] += 1
+
     def check(self) -> dict[str, Any]:
         operation = self.operations.start(
             "assurance.originals",
@@ -350,6 +508,9 @@ class OriginalAssuranceManager:
                         "documents",
                         "versions",
                         "acquisitions",
+                        "email-messages",
+                        "email-observations",
+                        "email-attachments",
                     )
                 },
             )
@@ -363,6 +524,9 @@ class OriginalAssuranceManager:
             )
             self._verify_documents(records, findings)
             self._verify_acquisitions(records, version_acquisitions, findings)
+            self._verify_email_messages(records, findings)
+            self._verify_email_observations(records, findings)
+            self._verify_email_attachments(records, original_refs, findings)
             for original_id, count in sorted(original_refs.items()):
                 if count == 0:
                     findings.append(
@@ -410,6 +574,9 @@ class OriginalAssuranceManager:
                 "documents": len(records["documents"]),
                 "versions": len(records["versions"]),
                 "acquisitions": len(records["acquisitions"]),
+                "email_messages": len(records["email-messages"]),
+                "email_observations": len(records["email-observations"]),
+                "email_attachments": len(records["email-attachments"]),
                 "findings": len(findings),
                 "attention_findings": attention,
                 "findings_truncated": omitted,

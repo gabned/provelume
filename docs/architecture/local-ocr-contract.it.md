@@ -222,5 +222,6 @@ nessun deskew/preprocessing avanzato automatico, nessun adapter baseline per lay
 QR e nessun supporto oltre la matrice esatta provata. `0.9.0` non è pubblicata: lo slice non crea
 tag, release o asset.
 
-`0.9/S03` resta soltanto il prossimo forecast per identità e intake email. Non è attivato e non ha
-issue operativa, branch o PR.
+`0.9/S03` è implementato separatamente tramite issue #143 e la relativa owner PR senza modificare
+il contratto OCR S02. `0.9/S04` resta soltanto il prossimo forecast e non è attivato da questo
+documento.

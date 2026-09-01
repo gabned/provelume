@@ -259,6 +259,52 @@ def declared_network_status(
             )
         )
 
+    email_sources = config.get("email_sources")
+    if email_sources is not None and not isinstance(email_sources, Mapping):
+        finding(
+            "invalid_component_registry",
+            "registry.email_sources",
+            "The configured email Sources registry is not a mapping.",
+        )
+        email_sources = {}
+    for source_id, raw_item in sorted(
+        _mapping(email_sources).items(), key=lambda item: str(item[0])
+    ):
+        component_id = f"email_source.{source_id}"
+        item = _mapping(raw_item)
+        state = item.get("state")
+        lifecycle = item.get("lifecycle_state")
+        if state not in {"enabled", "paused", "disabled"}:
+            finding(
+                "invalid_enabled_flag",
+                component_id,
+                "The email Source state is invalid and is treated as disabled.",
+            )
+        if lifecycle not in {"active", "removed"}:
+            finding(
+                "undeclared_component_type",
+                component_id,
+                "The email Source lifecycle declaration is invalid.",
+            )
+        if item.get("endpoint") not in (None, "") or item.get("data_categories") is not None:
+            finding(
+                "local_component_external_declaration",
+                component_id,
+                "A local email Source cannot declare an endpoint or network data categories.",
+            )
+        components.append(
+            _component(
+                component_id=component_id,
+                category="source",
+                component_type="local_email",
+                enabled=state == "enabled" and lifecycle == "active",
+                network_capability="local_only",
+                declaration_state="declared",
+                endpoint=None,
+                data_categories=[],
+            )
+        )
+
     for category in ("connectors", "providers"):
         registry = config.get(category)
         if registry is not None and not isinstance(registry, Mapping):

@@ -54,3 +54,17 @@ and release CycloneDX SBOM, publish exact checksums, and prove an offline instal
 networking denied. The S02 Windows model therefore remains explicit external local installation;
 there is no offline installer component yet. Provelume's public or commercial license does not
 replace any third-party term.
+
+## Qualified local email baseline — runtime standard library in 0.9/S03
+
+The `0.9/S03` EML and Maildir baseline adds no Python dependency, native parser, provider SDK,
+language pack or remote service. MIME parsing uses the `email` package supplied by the qualified
+CPython 3.12 runtime, under the Python Software Foundation License, behind a replaceable Provelume
+parser interface. Exact message bytes are read by Provelume's bounded local adapters before parsing;
+the Python `mailbox` package was evaluated but is not used for message reading or delimitation.
+
+The wheel and source distribution do not copy the CPython standard library. The Windows frozen
+application continues to carry its existing Python runtime; S03 adds no separate email component or
+payload. [`packaging/email/qualified-local-components.cdx.json`](packaging/email/qualified-local-components.cdx.json)
+is the machine-readable inventory for this development qualification, not the SBOM of a published
+Provelume release. No `0.9.0` release artifact is created by S03.
