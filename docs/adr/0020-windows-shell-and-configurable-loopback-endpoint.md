@@ -114,20 +114,15 @@ markup, URLs, formulas, escape sequences and script-like values inert.
 
 ### Windows Core budget
 
-The protected Public CI 10-minute per-job limit remains unchanged. Only the bare Windows full suite
-is partitioned using `SHA-256(nodeid) mod 2`. The two stable, disjoint and complete partitions run
-on separate hosted Windows runners so filesystem and CPU contention cannot turn two approximately
-five-minute shards into a shared-runner timeout; targeted invocations are untouched. Each shard
-receives an isolated state directory. The local parent harness retains its 420-second bounded
-deadline, replays at most 2 MiB per shard, reports only shard index/count/duration/exit code, and
-terminates the process tree on timeout.
+The protected Public CI workflow and its 10-minute job remain unchanged. Only the bare Windows full
+suite is partitioned into two concurrent subprocesses using `SHA-256(nodeid) mod 2`. The partitions
+are stable, disjoint and complete; targeted invocations are untouched. Each subprocess receives an
+isolated state directory. The parent has a 420-second bounded deadline, replays at most 2 MiB per
+shard, reports only shard index/count/duration/exit code, and terminates the process tree on timeout.
 No test is marked skipped or removed from the union. A permanent Windows shell workflow separately
 builds and exercises the exact-head installer, identity, collision rollback, loopback service,
 the installed frozen executable's real Win32 notification add/update/action/delete lifecycle, the
 deterministic service harness, cleanup and unsigned boundary.
-Public CI assigns the same two stable partitions to separate `windows-latest` runners. This preserves
-the unchanged 10-minute job bound while avoiding hosted-runner CPU contention observed when both
-complete partitions ran concurrently inside one runner.
 
 ## Consequences
 

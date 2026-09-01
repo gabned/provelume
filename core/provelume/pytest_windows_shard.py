@@ -30,7 +30,11 @@ def pytest_addoption(parser) -> None:
 
 
 def shard_for_nodeid(nodeid: str, count: int) -> int:
-    digest = hashlib.sha256(nodeid.encode("utf-8")).digest()
+    # Keep every test from one source module on the same runner.  Sharding
+    # individual nodeids duplicates module-scoped setup and file-backed
+    # fixtures in both Windows children, erasing the parallel speedup.
+    source = nodeid.split("::", 1)[0].replace("\\", "/")
+    digest = hashlib.sha256(source.encode("utf-8")).digest()
     return int.from_bytes(digest[:8], "big") % count
 
 
