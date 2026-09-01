@@ -42,12 +42,12 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Active development | `0.9.0` | OCR, email, Google file and transcript intake | #137; S01 completed by #5/#138; S02 completed by #140/#141; S03 completed by #143/#147 | `Lectio` |
 | Forecast | `0.10.0` | Multimedia, universal content representations and component inventory | issue just in time | `Perceptio` |
 | Forecast | `0.11.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
-| Forecast | `0.12.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
-| Forecast | `0.13.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
-| Forecast | `0.14.0` | Knowledge navigation, statistics, relations and deterministic discovery | issue just in time | `Itinerarium` |
-| Forecast | `0.15.0` | Knowledge API v1, read-only MCP and client connections | issue just in time | `Interfacies` |
-| Forecast | `0.16.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
-| Forecast | `0.17.0` | AI classification, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
+| Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
+| Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
+| Forecast | `0.14.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
+| Forecast | `0.15.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
+| Forecast | `0.16.0` | Knowledge navigation, statistics, relations and deterministic discovery | issue just in time | `Itinerarium` |
+| Forecast | `0.17.0` | Knowledge API v1, read-only MCP and client connections | issue just in time | `Interfacies` |
 | Forecast | `0.18.0` | Semantic, hybrid and grounded RAG retrieval | issue just in time | `Sensus` |
 | Forecast | `0.19.0` | Self-hosted, Synology and QNAP operations | issue just in time | `Domus` |
 | Forecast | `0.20.0` | Windows and macOS background agents and bootstrap completion | issue just in time | `Excubitor` |
@@ -94,20 +94,20 @@ names do not replace SemVer, package identity, tags or the immutable published r
   attributable and rebuildable, and no source-side Markdown sidecar appears by default.
 - **`0.11.0` — `Cura`.** Unifies capture, mobile access, review and operations/maintenance queues
   in one Action Center. Interrupted work and every destructive choice remain explicit.
-- **`0.12.0` — `Entitas`.** Adds evidence-linked objects, claims, decisions, tasks, calendar items
+- **`0.12.0` — `Custodia`.** Adds a replaceable AI gateway with local, remote and fallback policy
+  by scope. Privacy, redaction, budgets and network use remain visible and user-controlled.
+- **`0.13.0` — `Iudicium`.** Adds guarded AI classification, decision receipts, user-readable
+  autonomy levels, review rules and provider evaluation. The end-to-end intake flow resists prompt
+  injection and keeps every catalog action reviewable or reversible.
+- **`0.14.0` — `Entitas`.** Adds evidence-linked objects, claims, decisions, tasks, calendar items
   and relations. Derived structure remains traceable to exact Originals and canonical records.
-- **`0.13.0` — `Concordia`.** Adds productivity connectors, guarded task synchronization and
+- **`0.15.0` — `Concordia`.** Adds productivity connectors, guarded task synchronization and
   optional one-way Git, local-folder and rsync mirrors. No mirror provider becomes canonical
   storage or a runtime requirement.
-- **`0.14.0` — `Itinerarium`.** Adds navigation, backlinks, health, local statistics and capacity
+- **`0.16.0` — `Itinerarium`.** Adds navigation, backlinks, health, local statistics and capacity
   views. Deterministic discovery and legacy import remain explainable and fully reconcilable.
-- **`0.15.0` — `Interfacies`.** Stabilizes Knowledge API v1 plus desktop, mobile and read-only MCP
+- **`0.17.0` — `Interfacies`.** Stabilizes Knowledge API v1 plus desktop, mobile and read-only MCP
   client profiles. ChatGPT and optional native clients need neither Git sync nor public exposure.
-- **`0.16.0` — `Custodia`.** Adds a replaceable AI gateway with local, remote and fallback policy
-  by scope. Privacy, redaction, budgets and network use remain visible and user-controlled.
-- **`0.17.0` — `Iudicium`.** Adds guarded AI classification, receipts, review rules and provider
-  evaluation. The end-to-end intake flow resists prompt injection and keeps every catalog action
-  reviewable or reversible.
 - **`0.18.0` — `Sensus`.** Adds semantic, hybrid and grounded RAG retrieval across canonical
   knowledge. Chunks, embeddings and indexes remain derived and rebuildable, while every context
   passage stays bound to exact source evidence.
@@ -151,12 +151,12 @@ planning or publication change whenever release scope or order moves.
 | `0.9.0` | Document-heavy personal pilot for scans, OCR and richer intake; uncertainty and unsupported formats still require review. | Document-heavy testers selected against the published format/language matrix. |
 | `0.10.0` | Personal photo, audio and video archive pilot with local transcription, OCR and time/region citations where supported. | Multimedia testers who accept explicit model, codec, performance and privacy limits. |
 | `0.11.0` | First recommended personal daily-use beta: coherent Capture, Action Center, recovery and mobile-PWA journeys within the qualified perimeter. | Controlled public beta, with feedback, support and security-reporting paths open. |
-| `0.12.0` | Personal use of evidence-linked claims, decisions, tasks and events after export/import qualification. | Existing beta group; no broader claim until object migration and review UX are proven. |
-| `0.13.0` | Personal productivity connectors and one-way mirrors with explicit write/deletion boundaries. | Connector and NAS-mirror evaluators; provider-specific limitations remain visible. |
-| `0.14.0` | Easier daily navigation, statistics, timeline/gallery/map views and legacy migration without requiring AI. | Broaden the controlled beta only after accessibility, capacity and migration evidence passes. |
-| `0.15.0` | Personal API/MCP and client connections with revocable read-only profiles. | Developer and client preview with versioned conformance examples. |
-| `0.16.0` | Optional local or remote AI use with explicit routing, cost and redaction policy; deterministic operation remains complete without AI. | Privacy-routing evaluators, not general AI marketing. |
-| `0.17.0` | Personal AI-assisted classification and reviewed rules; earliest candidate for replacing a private reference workflow, never an equivalence claim. | Advanced evaluators after prompt-injection, receipt and rollback evidence. |
+| `0.12.0` | Optional local or remote AI use with explicit routing, cost and redaction policy; deterministic operation remains complete without AI. | Privacy-routing evaluators, not general AI marketing. |
+| `0.13.0` | Personal AI-assisted classification with plain-language autonomy levels and reviewed rules; earliest candidate for replacing a private reference workflow, never an equivalence claim. | Advanced evaluators after confidence calibration, prompt-injection, receipt, review and rollback evidence. |
+| `0.14.0` | Personal use of evidence-linked claims, decisions, tasks and events after export/import qualification. | Existing beta group; no broader claim until object migration and review UX are proven. |
+| `0.15.0` | Personal productivity connectors and one-way mirrors with explicit write/deletion boundaries. | Connector and NAS-mirror evaluators; provider-specific limitations remain visible. |
+| `0.16.0` | Easier daily navigation, statistics, timeline/gallery/map views and legacy migration without requiring AI. | Broaden the controlled beta only after accessibility, capacity and migration evidence passes. |
+| `0.17.0` | Personal API/MCP and client connections with revocable read-only-by-default profiles plus separately guarded proposal/confirm controls. | Developer and client preview with versioned conformance examples and explicit authority profiles. |
 | `0.18.0` | Personal grounded semantic search and answer-with-sources where cited evidence is sufficient. | AI/RAG evaluators after permission isolation, citation and rebuild qualification. |
 | `0.19.0` | Dependable always-on personal self-hosting on qualified Linux, Synology or QNAP profiles. | Self-hosted and NAS users after published backup, restore and rollback drills. |
 | `0.20.0` | Desktop power-user operation while the main interface is closed, with visible pause and resource controls. | Windows/macOS power-user preview within the exact platform matrix. |
@@ -229,8 +229,10 @@ The larger editorial updates belong at these evidence gates:
 | Published `0.9.0` | Add OCR/input-format, language, quality and local/cloud privacy matrices. | Invite document-heavy users with an explicit supported-format perimeter. |
 | Published `0.10.0` | Add multimedia/format support, model and codec matrices plus the component, license and update-status catalogue. | Invite multimedia testers without implying that every preserved format is extractable or AI-ready. |
 | Published `0.11.0` | Rework the primary use-case path around Capture, Action Center, Operations and mobile PWA onboarding. | Begin a controlled public beta: this is the first coherent daily-use experience. |
-| Published `0.13.0` | Add an integrations/mirrors chooser for Git, local folders and rsync with one-way and deletion boundaries. | Reach users who need portable publication or NAS mirrors without implying mandatory GitHub. |
-| Published `0.15.0` | Publish Knowledge API, MCP, ChatGPT, client-permission and mobile/native conformance guides. | Begin developer/client dissemination with copyable, versioned connection examples. |
+| Published `0.12.0` | Explain optional local/remote AI routing, data-scope controls, redaction, cost and network policy without claiming classification. | Invite privacy-routing evaluators while preserving a complete no-AI path. |
+| Published `0.13.0` | Add AI classification evidence, the “How much can Provelume decide?” autonomy chooser, review queues, receipts and reversibility examples. | Invite advanced classification evaluators only inside the published confidence, risk and scope boundaries. |
+| Published `0.15.0` | Add an integrations/mirrors chooser for Git, local folders and rsync with one-way and deletion boundaries. | Reach users who need portable publication or NAS mirrors without implying mandatory GitHub. |
+| Published `0.17.0` | Publish Knowledge API, read-only-by-default MCP, guarded proposal/confirm, ChatGPT, client-permission and mobile/native conformance guides. | Begin developer/client dissemination with copyable, versioned connection and authority examples. |
 | Published `0.18.0` | Add grounded RAG, citation, privacy-routing, index-health and evaluation explanations. | Reach AI/RAG evaluators only after citation and permission-isolation evidence exists. |
 | Published `0.19.0` | Add Linux, Synology and QNAP deployment, backup/restore and support-matrix pages. | Broaden to self-hosted and NAS users after published restore evidence. |
 | Published `0.21.0` | Add a download centre for signed Windows and notarized macOS installers, channels and updater policies. | Start broad non-technical desktop-preview distribution after rollback qualification. |
@@ -555,7 +557,7 @@ service-worker offline behavior and the PWA share target. Any explicitly support
 fallback disables those capabilities visibly. No connection choice requires a Provelume cloud
 relay.
 
-`0.15.0` freezes mobile client profiles and conformance fixtures so optional native iOS and Android
+`0.17.0` freezes mobile client profiles and conformance fixtures so optional native iOS and Android
 companions or third-party clients can replace the reference paths without changing Core. Native
 app-store distribution is a separately qualified delivery decision, not a prerequisite for the
 PWA, API or self-hosted product. Device loss or revocation stops future access without deleting
@@ -572,7 +574,7 @@ Provelume manifest verification proves a restorable backup.
 
 RAG is a versioned retrieval interface over canonical Provelume knowledge, not another canonical
 store, an opaque chat history or a requirement to publish documents to Git. Deterministic
-full-text retrieval is available first; `0.15.0` freezes its API/MCP contract and `0.18.0` adds
+full-text retrieval is available first; `0.17.0` freezes its API/MCP contract and `0.18.0` adds
 semantic and hybrid ranking behind that same contract. A Git or filesystem mirror may remain an
 independently selected client context, but direct API/MCP retrieval is the authoritative path for
 current permissions, provenance and index freshness.
@@ -597,7 +599,7 @@ open an evidence citation and retrieve an authorized document section. A retriev
 query/profile identity, filters, authorized candidate/result identities, index generations,
 selected evidence and token/size budget without copying private content into operational logs.
 ChatGPT, a local model or another client may generate from that context. An optional
-`answer-with-sources` operation in `0.18.0` uses the `0.16.0` AI gateway and the same receipt; it is
+`answer-with-sources` operation in `0.18.0` uses the `0.12.0` AI gateway and the same receipt; it is
 read-only, cites every supported assertion, distinguishes insufficient or conflicting evidence
 and never converts an answer into classification or another durable write.
 
@@ -925,7 +927,7 @@ pretends uncertain handwriting is verified text.
 
 Native OCR and image/PDF processing run behind bounded resource, decompression, page, pixel and
 time limits with hostile/corrupt fixtures. Local OCR is the offline baseline. A later remote OCR or
-vision provider must pass through the `0.16.0` AI/privacy gateway and cannot become a silent
+vision provider must pass through the `0.12.0` AI/privacy gateway and cannot become a silent
 fallback.
 
 The release also includes provider-neutral email, file and transcript Sources. The local email
@@ -934,14 +936,32 @@ discovery or hidden activity. It preserves exact message and accepted-attachment
 building a removable representation, treats `Message-ID`, reply headers, addresses, dates,
 filenames and Source-scoped threads as non-authoritative observations, and performs exact
 cryptographic deduplication without cross-Source merge. EML targets Ubuntu 24.04 x86-64 and Windows
-x86-64 on CPython 3.12; Maildir targets only Ubuntu 24.04 x86-64 on CPython 3.12; each combination
-requires positive exact-head smoke before it is called qualified. mbox remains unsupported.
+Server 2025 x86-64 on CPython 3.12; Maildir targets only Ubuntu 24.04 x86-64 on CPython 3.12; each
+combination requires positive exact-head smoke before it is called qualified. mbox remains
+unsupported.
 
 Later Lectio slices add a Google connector preview with independently consented read-only Gmail and
 Drive capabilities; file/revision identity with deduplication; bounded export of supported
 Google-native files with export format and provenance preserved; external secret references;
 transcript profile mapping into canonical documents; and provider cursor state kept inside each
 adapter. Local email attachment OCR eligibility is visible but never enables or starts OCR.
+
+The final Windows-shell quality slice corrects product identity before publication. One
+multi-resolution icon family must agree across the executable, installer, uninstaller, Start-menu
+and desktop shortcuts, taskbar, main window and the later tray surface, including clean install,
+upgrade and Windows icon-cache regression evidence. Product/company/version metadata must be
+truthful, but this release remains visibly unsigned: authenticated Windows publisher identity is a
+separate `0.21.0` signing outcome and cannot be simulated with installer metadata.
+
+The local desktop endpoint uses `44851` as Provelume's stable default loopback port. A normal
+installation keeps that value without prompting when it is available; advanced installer settings
+allow an explicit override. If the port is occupied, setup proposes a validated free alternative,
+shows it to the user and persists the accepted value across restart and upgrade. The same setting
+can later be changed through a controlled availability check and runtime restart. Provelume never
+randomizes the port on each start and never presents port obscurity as a security control:
+loopback-only binding, Host validation and the later explicit authenticated-HTTPS boundary govern
+exposure. Shortcuts, status, diagnostics and browser launch always resolve the persisted endpoint
+rather than assuming a compiled port.
 
 **Exit gate:** local OCR can be removed and rebuilt without changing canonical knowledge; existing
 trustworthy text is not needlessly degraded; low-confidence pages remain visibly uncertain;
@@ -954,7 +974,9 @@ decisions and tasks derived from communications or transcripts.
 
 **Suggested slices:** `0.9/S01` OCR contract, licensing and packaging; `0.9/S02` bounded local OCR
 and document bundles; `0.9/S03` email identity and intake; `0.9/S04` Gmail/Drive adapters;
-`0.9/S05` transcript profiles; `0.9/S06` cross-source qualification and correction findings.
+`0.9/S05` transcript profiles; `0.9/S06` cross-source qualification and correction findings;
+`0.9/S07` Windows shell identity, configurable local endpoint and final EN/IT usability,
+accessibility, documentation, security and release-quality qualification.
 
 **Current status:** parent tracker #137 remains open. `0.9/S01` was completed by the pre-existing
 #5 and owner PR #138. `0.9/S02` is completed by #140 and owner PR #141; it implements bounded
@@ -1019,7 +1041,7 @@ ExifTool and ZXing-C++. Each remains behind a public contract and receives an ac
 version lock, license/notices, SBOM/model manifest, platform/support matrix and hostile-input
 qualification. PaddleOCR remains a later alternative adapter rather than a silent new baseline.
 
-Remote speech, vision, OCR or multimodal inference is excluded until the `0.16.0` gateway can
+Remote speech, vision, OCR or multimodal inference is excluded until the `0.12.0` gateway can
 enforce local-only, consent, minimization, redaction, budget and provider policy. Deterministic
 metadata, local extraction and exact Originals remain useful with every AI/model adapter disabled.
 
@@ -1084,6 +1106,16 @@ hierarchical Area/Project placement, create a reusable non-destructive routing r
 duplicate occurrence, or choose new-version/separate/related handling for probable duplicates.
 Destructive and identity-changing decisions never become automatic rules.
 
+The shared control asks **“How much can Provelume decide?”** instead of exposing model jargon.
+Every capability uses the same accessible modes: **Only me / Solo io** (`disabled`), **Suggest
+only / Suggerisci soltanto** (`proposal-only`), **Ask me before applying / Chiedimi prima di
+applicare** (`confirm-each`) and **Act within my rules / Agisci entro le mie regole**
+(`controlled-automatic`). EN/IT labels, explanations and consequences are primary; an optional
+cool-to-warm visual scale may reinforce the progression but color, degrees or position never carry
+meaning alone. The selected level is capability- and scope-specific rather than one global switch.
+Model sampling temperature is a technical reproducibility parameter, not confidence and never a
+grant of authority.
+
 The review surface also provides synchronized page/image/audio/video evidence for OCR and
 transcript corrections, including low-confidence navigation, keyboard editing, segment merge/split,
 speaker-label proposals and before/after diff. Corrections remain versioned annotations bound to
@@ -1104,6 +1136,24 @@ diagnostic bundle. Estimated item count, bytes, temporary disk need and expected
 boundary precede heavy work. Repair remains a distinct preview/backup/confirmation operation, and
 capacity warnings can pause new ingestion without deleting Originals, derived state, logs or old
 backups automatically.
+
+The EN/IT information architecture separates everyday knowledge work from service and
+maintenance controls. Primary navigation is compact and journey-based: Overview, Knowledge,
+Capture, Search and Needs attention. A secondary Management surface groups Sources & Connectors,
+Operations & Maintenance, Diagnostics, Settings and About. Icons accompany visible text labels
+rather than replacing them; responsive overflow, semantic landmarks, current-location state,
+keyboard order and screen-reader names remain equivalent across desktop and mobile layouts.
+
+Appearance is an explicit persisted choice with System as the default plus Light and Dark modes.
+System follows the host preference without a wrong-theme startup flash; all three modes qualify
+focus, contrast, empty/loading/degraded/error states, diagrams, evidence views and EN/IT parity.
+
+Cura also brings forward a minimal Windows tray lifecycle needed for coherent personal daily use,
+without claiming the complete cross-platform agent promised by `0.20.0`. Users can independently
+choose whether closing the window keeps Provelume running and whether it starts at Windows login.
+The first close explains the selected behavior; the tray exposes Open, Status, Pause, Settings and
+Exit, and Exit stops the local runtime. Disabled background mode performs no hidden activity, and
+closing or minimizing the interface never silently changes the persisted policy.
 
 Queue notifications are separately configurable as disabled, in-application only, host desktop/
 browser/mobile PWA or a later explicitly configured provider channel. Notification previews omit
@@ -1133,11 +1183,102 @@ scraping or impersonating a personal WhatsApp account.
 Maintenance schedules, job control and interruption recovery; `0.11/S03`
 classification/duplicate/version-conflict decisions and reusable safe routing; `0.11/S04` mobile
 PWA capture, device pairing and offline retry; `0.11/S05` iOS, Android, Drive-drop and Telegram
-reference paths; `0.11/S06` mobile retrieval, authorization and end-to-end assurance fixtures.
+reference paths; `0.11/S06` mobile retrieval and authorization; `0.11/S07` EN/IT information
+architecture, System/Light/Dark appearance, minimal Windows tray and end-to-end usability,
+accessibility and assurance fixtures.
 
-### 0.12.0 — Knowledge Objects v1
+### 0.12.0 — AI Gateway and Privacy Routing
 
-**Depends on:** `0.11.0` review flow.
+**Depends on:** `0.10.0` representation contracts, the `0.11.0` Action Center and `0.2.0`
+network transparency.
+
+**Outcome:** introduce inference as a replaceable adapter, never as the foundation of canonical
+knowledge.
+
+**Includes:** capability-based provider registry; deterministic fake adapter and at least one
+optional OpenAI-compatible adapter; a bounded agent document-context contract that selects
+normalized Markdown, page map and minimum required assets by default and retrieves source pages or
+the Original only when permitted and needed; external secret references; source/data-category/
+local-only policy; no silent cloud fallback; bounded budget, retry and cancellation; explicit
+provider and network disclosure before execution.
+
+Users may select disabled/local-only, a specific local model endpoint, a specific remote provider
+or an explicit ordered fallback at Instance, Source, Area or Project scope. A fallback may narrow
+but never override a local-only or denied-data rule. Provider/model allowlists, per-job and periodic
+budgets, content minimization/redaction preview, metered-network policy and an operator-visible
+estimate remain independent controls. Optional remote OCR/vision also uses this gateway and never
+silently replaces the local `0.9.0` OCR path.
+
+Provider sampling parameters, including technical temperature where supported, are versioned in
+the adapter and evaluation receipt. They may be fixed or bounded for reproducibility, but are not
+shown as an accuracy score and cannot raise an autonomy level, lower a review requirement or
+authorize a canonical write.
+
+**Exit gate:** local-only fails closed, provider substitution leaves canonical knowledge intact,
+and denied data never reaches a provider in policy tests.
+
+### 0.13.0 — AI Classification, Controlled Autonomy, Receipts and Evaluation
+
+**Depends on:** the `0.12.0` gateway and the `0.11.0` Action Center.
+
+**Outcome:** complete the user-controlled folder-to-knowledge path by making AI-assisted
+classification attributable, reviewable, safely applicable and replaceable.
+
+**Includes:** privacy-aware receipts with capability/model/policy/template/source/output identity;
+versioned templates; additional optional adapters behind the same capability contract; document,
+metadata and hierarchical-classification proposals delivered through the same Action Center;
+immutable
+separation between extracted Markdown and AI-authored output; sanitized conformance/evaluation fixtures;
+provider replacement tests; configurable receipt retention with minimum provenance.
+
+Classification maps the internal `disabled`, `proposal-only`, `confirm-each` and
+`controlled-automatic` policies to the plain-language autonomy levels established by Cura. Every
+proposal is bound to the exact Document Version/Original hash and may select only current
+allowlisted Area, Project, Collection and document-type identities through a closed schema. It
+includes reason, evidence references and confidence calibrated through qualified task/profile
+fixtures rather than raw or self-reported model certainty; stale or conflicting proposals
+fail before mutation.
+
+Confidence alone never grants authority. Controlled automation requires all of: an allowlisted
+reversible action class, an evaluated confidence threshold, an explicit Source/Area/Project scope,
+a maximum impact/risk class, a current reviewed rule with expiry and no ambiguity, conflict or
+policy denial. If any condition fails, the item returns to the Action Center. Initial durable
+writes and every new, changed or broadened rule require review. A corrected, confirmed
+non-destructive rule may later route matching items automatically within its exact scope,
+threshold and expiry, with pause, dry-run, undo/compensation and a visible operation receipt.
+
+The autonomy choice is separate for classification and for derived document work. OCR,
+transcription, representation building, indexing and summarization may run automatically only as
+rebuildable derived jobs inside their own resource/privacy policy; a higher processing level never
+authorizes canonical classification. Destructive actions, permanent purge, retention decisions,
+external provider writes, sending, identity merges and unsupported transformations remain outside
+controlled automation.
+
+Extracted/OCR text, document metadata and linked content are treated as untrusted data rather than
+instructions. Classification adapters receive no ambient tools or connector secrets; embedded
+prompt-like content cannot broaden scope, change policy, select a provider or authorize a write.
+Closed-output validation, adversarial document fixtures, indirect prompt-injection tests and
+content-leakage checks fail closed before an Action Center proposal exists.
+
+The initial end-to-end reference workflow proves watched-folder acquisition, exact Original
+preservation, extraction/OCR, privacy-routed inference, review or confirmed-rule application and
+hierarchy/library rebuild as independently selectable steps. Later connector and client releases
+extend the same receipts without becoming prerequisites for classification.
+
+**Exit gate:** the same fixture can be evaluated across adapters; every durable proposal and
+applied classification is traceable to source, policy and exact input; prompt injection cannot
+create or broaden a proposal; disabling AI stops inference without stopping deterministic
+ingestion; the complete folder-to-knowledge workflow can be paused, retried and reconciled without
+duplicate knowledge or Original loss; and logs contain neither secrets nor raw private content.
+
+**Suggested slices:** `0.13/S01` receipts/templates/confidence evaluation; `0.13/S02` closed
+classification proposals; `0.13/S03` plain-language autonomy policy, review rules and guarded
+application; `0.13/S04` derived-processing autonomy plus adversarial isolation; `0.13/S05`
+complete folder-to-knowledge qualification.
+
+### 0.14.0 — Knowledge Objects v1
+
+**Depends on:** the `0.11.0` review flow and the `0.13.0` classification/receipt contract.
 
 **Outcome:** move beyond document-only knowledge with explicit canonical objects and evidence.
 
@@ -1146,15 +1287,16 @@ Decisions with state and rationale; the stable Project/Collection identities int
 filesystem library promoted without replacement into the object model; provider-independent
 Task/Outcome and CalendarEvent/Commitment; typed versioned Relations;
 stable references independent of paths or GitHub; portable schema migration; minimal service/write
-API and review workflow.
+API and review workflow. Object, Claim and Relation proposals extend the existing AI receipt and
+Action Center contract but cannot create canonical facts automatically.
 
 **Exit gate:** objects round-trip through export/import, retain provenance through document
 version changes and never replace the authoritative original.
 
-### 0.13.0 — Productivity and Git Connectors with Guarded Sync Preview
+### 0.15.0 — Productivity and Git Connectors with Guarded Sync Preview
 
 **Depends on:** the `0.7.0` connector contract, `0.8.0` refresh engine, `0.11.0` review
-queue and `0.12.0` provider-independent Task and CalendarEvent objects.
+queue and `0.14.0` provider-independent Task and CalendarEvent objects.
 
 **Outcome:** connect common personal productivity and Git mirror systems without making Google,
 iCalendar, Asana, Tududi, GitHub or another host part of canonical knowledge or granting
@@ -1199,7 +1341,7 @@ Remote failure, non-fast-forward state or rejected credentials leave canonical k
 last valid mirror untouched. Remote deletion never causes local deletion, and local archive/purge
 never rewrites remote history. Bidirectional multi-master Git synchronization remains excluded; a
 remote repository may instead be imported through the explicit legacy-import boundary in
-`0.14.0`.
+`0.16.0`.
 
 A provider-independent filesystem mirror capability qualifies a local-folder target and an
 `rsync` over SSH reference profile beside Git. It publishes only from an atomically completed
@@ -1238,14 +1380,15 @@ mandatory backup; or a mandatory 1.0 commitment for additional adapters such as 
 contracts; implement shared mirror identity/staging/dry-run first, then Git publication, hosted
 profiles and the local/rsync one-way adapter without mixing them with task write-back.
 
-This independently releasable outcome originally took the former `0.12.0` slot and moved every
-later forecast through the then-current `0.22.0` release candidate. The Perceptio insertion above
-now moves it to `0.13.0` and shifts every later unreleased release through `0.23.0`. Published
-history, stable `1.0.0`, scope and relative order remain unchanged.
+This planning revision advances `0.12.0 Custodia` and `0.13.0 Iudicium` ahead of Knowledge Objects,
+connectors, navigation and client APIs so the first coherent daily-use beta can gain optional,
+user-controlled document classification earlier. `Entitas`, `Concordia`, `Itinerarium` and
+`Interfacies` move to `0.14.0`–`0.17.0`; `0.18.0 Sensus`, the release candidate, stable `1.0.0`,
+published history and patch-release policy remain unchanged.
 
-### 0.14.0 — Knowledge Navigation, Statistics, Relations and Deterministic Discovery
+### 0.16.0 — Knowledge Navigation, Statistics, Relations and Deterministic Discovery
 
-**Depends on:** `0.10.0` representation anchors and `0.12.0` objects.
+**Depends on:** `0.10.0` representation anchors and `0.14.0` objects.
 
 **Outcome:** make documents and objects coherently navigable, measurable and diagnosable before
 introducing embeddings.
@@ -1294,7 +1437,7 @@ reconcilable without duplicate Documents or lost source bytes.
 before the generic legacy-import profile; qualify import through synthetic folder/sidecar/link
 fixtures in a separate final slice.
 
-### 0.15.0 — Knowledge API v1, Read-only MCP and Client Connections
+### 0.17.0 — Knowledge API v1, Read-only MCP and Client Connections
 
 **Depends on:** stable object and discovery contracts.
 
@@ -1333,88 +1476,26 @@ Git mirror and MCP are independent choices: a user may use direct MCP only, Git 
 or neither. No client connection requires publishing knowledge to GitHub or exposing a private
 Instance directly to the public Internet.
 
+An optional, separately authorized MCP profile may submit a classification proposal or confirm an
+already visible proposal through the same optimistic-concurrency, scope and approval boundary. It
+never turns the default read-only profile into implicit write authority and cannot create or
+broaden autonomy rules, select a provider, bypass Action Center review or authorize destructive or
+external actions.
+
 **Exit gate:** at least two clients plus the mobile profile pass the same conformance fixtures; an
 authenticated private connection can be revoked without restarting or corrupting the Instance;
 citations resolve to the exact authorized Version evidence; and no interface exposes unauthorized
-knowledge, local paths, secrets or writes.
+knowledge, local paths or secrets or permits a write outside its declared profile.
 
-**Suggested slices:** freeze the API and evidence references first, add local read-only
-search/context/citation MCP second, then qualify remote authentication, mobile/native profiles and
-private transport without adding write authority.
-
-### 0.16.0 — AI Gateway and Privacy Routing
-
-**Depends on:** `0.15.0` contracts and `0.2.0` network transparency.
-
-**Outcome:** introduce inference as a replaceable adapter, never as the foundation of canonical
-knowledge.
-
-**Includes:** capability-based provider registry; deterministic fake adapter and at least one
-optional OpenAI-compatible adapter; a bounded agent document-context contract that selects
-normalized Markdown, page map and minimum required assets by default and retrieves source pages or
-the Original only when permitted and needed; external secret references; source/data-category/
-local-only policy; no silent cloud fallback; bounded budget, retry and cancellation; explicit
-provider and network disclosure before execution.
-
-Users may select disabled/local-only, a specific local model endpoint, a specific remote provider
-or an explicit ordered fallback at Instance, Source, Area or Project scope. A fallback may narrow
-but never override a local-only or denied-data rule. Provider/model allowlists, per-job and periodic
-budgets, content minimization/redaction preview, metered-network policy and an operator-visible
-estimate remain independent controls. Optional remote OCR/vision also uses this gateway and never
-silently replaces the local `0.9.0` OCR path.
-
-**Exit gate:** local-only fails closed, provider substitution leaves canonical knowledge intact,
-and denied data never reaches a provider in policy tests.
-
-### 0.17.0 — AI Classification, Receipts, Provider Adapters and Evaluation
-
-**Depends on:** `0.16.0` gateway.
-
-**Outcome:** complete the user-controlled folder-to-knowledge path by making AI-assisted
-classification attributable, reviewable, safely applicable and replaceable.
-
-**Includes:** privacy-aware receipts with capability/model/policy/template/source/output identity;
-versioned templates; additional optional adapters behind the same capability contract; structured
-object and classification proposals delivered through the same Action Center; immutable separation
-between extracted Markdown and AI-authored output; sanitized conformance/evaluation fixtures;
-provider replacement tests; configurable receipt retention with minimum provenance.
-
-Classification has explicit disabled, proposal-only, confirm-each and controlled-automatic modes.
-Every proposal is bound to the exact Document Version/Original hash and may select only current
-allowlisted Area, Project, Collection, tag and relation identities through a closed schema. It
-includes reason, evidence references and calibrated confidence; stale proposals fail before
-mutation. Initial durable writes and every new or broadened rule require review. A corrected,
-confirmed non-destructive rule may later route matching items automatically within its exact scope,
-threshold and expiry, with pause, dry-run, undo/compensation and a visible operation receipt.
-Destructive actions, permanent purge, external provider writes and identity merges remain outside
-automatic classification.
-
-Extracted/OCR text, document metadata and linked content are treated as untrusted data rather than
-instructions. Classification adapters receive no ambient tools or connector secrets; embedded
-prompt-like content cannot broaden scope, change policy, select a provider or authorize a write.
-Closed-output validation, adversarial document fixtures, indirect prompt-injection tests and
-content-leakage checks fail closed before an Action Center proposal exists.
-
-An optional guarded MCP profile may submit a classification proposal or confirm an already visible
-proposal through the same optimistic-concurrency and approval boundary; it never turns the
-`0.15.0` read-only profile into implicit write authority. The end-to-end reference workflow proves
-watched-folder acquisition, exact Original preservation, extraction/OCR, privacy-routed inference,
-review or confirmed-rule application, hierarchy/library rebuild, direct MCP retrieval and optional
-one-way Git publication as independently selectable steps.
-
-**Exit gate:** the same fixture can be evaluated across adapters; every durable proposal and
-applied classification is traceable to source, policy and exact input; prompt injection cannot
-create or broaden a proposal; disabling AI stops inference without stopping deterministic
-ingestion; the complete folder-to-knowledge workflow can be paused, retried and reconciled without
-duplicate knowledge or Original loss; and logs contain neither secrets nor raw private content.
-
-**Suggested slices:** `0.17/S01` receipts/templates/evaluation; `0.17/S02` closed classification
-proposals; `0.17/S03` review, rule and guarded-apply modes; `0.17/S04` adversarial isolation and
-optional write-scoped MCP; `0.17/S05` complete folder-to-knowledge qualification.
+**Suggested slices:** freeze the API and evidence references first; add local read-only
+search/context/citation MCP second; then qualify remote authentication, mobile/native profiles and
+private transport; add the separately permissioned classification proposal/confirm profile only
+after the default read-only conformance path passes.
 
 ### 0.18.0 — Semantic, Hybrid and Grounded RAG Retrieval
 
-**Depends on:** `0.10.0` representation anchors and the `0.17.0` gateway and receipts.
+**Depends on:** `0.10.0` representation anchors, the `0.12.0` gateway, `0.13.0` receipts and the
+`0.17.0` client contract.
 
 **Outcome:** add semantic and grounded RAG retrieval through the stable client contract while
 keeping every chunk, embedding and index entirely derived and replaceable.
@@ -1516,9 +1597,9 @@ compatibility detection; complete create/open/start/stop/status/browser/diagnost
 redacted logs; spaces, Unicode, case and path-normalization fixtures; lifecycle-aware failure
 recovery; uninstall that preserves the Instance; and a final desktop support matrix.
 
-Windows retains migration from the `0.4.0` preview installation, UNC/network-share support, a
-per-user background agent and tray surface, with an explicitly qualified elevated-service option
-only if needed. macOS adds an application/menu-bar surface and per-user LaunchAgent, Keychain
+Windows retains migration from the `0.4.0` preview installation, UNC/network-share support and the
+`0.11.0` minimal tray preferences, then matures them into a fully qualified per-user background agent and tray surface, with an explicitly qualified elevated-service option only if needed.
+macOS adds an application/menu-bar surface and per-user LaunchAgent, Keychain
 credential references, explicit selected-folder access, removable/network-volume handling and an
 Apple Silicon baseline; any Intel support remains an explicit matrix entry rather than an
 assumption.
@@ -1566,6 +1647,11 @@ auto-update switch:
 - **Controlled automatic install:** a separate opt-in policy, enabled only after signing, backup,
   health-check and rollback gates are established, with a maintenance window and no forced
   downgrade or channel switch.
+
+On Windows, Authenticode signs both the application and installer with the authenticated
+publisher identity displayed by the operating system. Product metadata alone never claims to
+remove the truthful Unknown publisher state; clean install, upgrade, uninstaller, signature-chain,
+timestamp, revocation and SmartScreen-facing evidence are qualified together.
 
 All online modes disclose the contacted catalogue and the minimal version/platform metadata sent;
 no Instance content is transmitted. Every mode supports Stable/Preview/Dev channel selection,
