@@ -92,14 +92,38 @@ try {
     $Evidence.checks.installer_explicitly_unsigned = "PASS"
 
     Set-FailureCode "occupied_port_collision_not_rejected"
-    $OccupiedListener = [System.Net.Sockets.TcpListener]::new(
-        [System.Net.IPAddress]::Loopback,
-        0
-    )
-    $OccupiedListener.Server.ExclusiveAddressUse = $true
-    $OccupiedListener.Start()
+    $OccupiedPort = Get-FreeLoopbackPort
+    $HolderScript = Join-Path (Split-Path $InstallerPath -Parent) "hold-port.py"
+    $HolderReady = Join-Path (Split-Path $InstallerPath -Parent) "hold-port.ready"
+    @'
+import pathlib
+import socket
+import sys
+import time
+
+port = int(sys.argv[1])
+ready = pathlib.Path(sys.argv[2])
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+    if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+    listener.bind(("127.0.0.1", port))
+    listener.listen(1)
+    ready.write_text("READY\n", encoding="ascii")
+    time.sleep(30)
+'@ | Set-Content -LiteralPath $HolderScript -Encoding utf8NoBOM
+    $OccupiedHolder = Start-Process -FilePath python -ArgumentList @(
+        $HolderScript,
+        $OccupiedPort,
+        $HolderReady
+    ) -PassThru
     try {
-        $OccupiedPort = ([System.Net.IPEndPoint]$OccupiedListener.LocalEndpoint).Port
+        $ReadyDeadline = [DateTime]::UtcNow.AddSeconds(5)
+        while (-not (Test-Path $HolderReady) -and [DateTime]::UtcNow -lt $ReadyDeadline) {
+            Start-Sleep -Milliseconds 50
+        }
+        if (-not (Test-Path $HolderReady) -or $OccupiedHolder.HasExited) {
+            throw "Exclusive Python collision fixture did not become ready."
+        }
         $CollisionInstall = Invoke-Installer `
             -Target $CollisionRoot `
             -Port $OccupiedPort `
@@ -109,7 +133,11 @@ try {
         }
     }
     finally {
-        $OccupiedListener.Stop()
+        if (-not $OccupiedHolder.HasExited) {
+            Stop-Process -Id $OccupiedHolder.Id -Force -ErrorAction SilentlyContinue
+            $OccupiedHolder.WaitForExit(5000) | Out-Null
+        }
+        Remove-Item -LiteralPath $HolderScript, $HolderReady -Force -ErrorAction SilentlyContinue
     }
     if (Test-Path (Join-Path $CollisionRoot "Provelume.exe")) {
         throw "Failed occupied-port setup left an installed executable."

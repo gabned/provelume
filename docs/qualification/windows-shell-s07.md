@@ -26,9 +26,10 @@ and installer. The shell smoke invokes the installed frozen executable to exerci
 `WindowsTray` notification-area add, update, bounded actions and delete path, then repeats exact
 installed metadata/icon/signature checks. It emits one bounded JSON file with commit, port, PASS
 codes and booleans only. A sanitized `qualification_incomplete` record remains uploadable if an
-earlier step fails. The collision fixture requests exclusive ownership before listening so Windows
-cannot admit a second exclusive probe, and bounded stage-specific failure codes identify the failed
-contract without serializing exception text, paths or private content.
+earlier step fails. The collision fixture uses a bounded child CPython socket with the same
+`SO_EXCLUSIVEADDRUSE`, IPv4 loopback bind and listen sequence as the application probe, waits for a
+synthetic readiness marker, and always terminates the holder. Bounded stage-specific failure codes
+identify the failed contract without serializing exception text, paths or private content.
 
 For a pull request the workflow explicitly checks out and records
 `github.event.pull_request.head.sha`; it never substitutes GitHub's synthetic test-merge ref for the
