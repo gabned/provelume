@@ -150,7 +150,8 @@ def test_roadmap_records_published_history_and_active_lectio_development() -> No
     assert "Published package and embedded identity are aligned to `0.8.0`" in roadmap
     assert "Issues #122, #124, #126, #128 and\n#130 completed" in roadmap
     assert "`0.9/S03` is completed by owner" in roadmap
-    assert "`0.9/S04` is the next forecast only" in roadmap
+    assert "`0.9/S04` is the current owner implementation" in roadmap
+    assert "`0.9/S05` transcript profiles is the next forecast only" in roadmap
 
 
 def test_every_release_has_a_unique_latin_name_and_concise_outcome() -> None:

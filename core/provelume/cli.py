@@ -13,6 +13,7 @@ from .build_info import current_build_info
 from .connector_cli import add_connector_commands, handle_connector_command
 from .email_cli import add_email_commands, handle_email_command
 from .folder_source_cli import add_folder_source_commands, handle_folder_source_command
+from .google_cli import add_google_commands, handle_google_command
 from .hierarchy_cli import add_hierarchy_commands, handle_hierarchy_command
 from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES, IngestionRetryError
 from .installation import verify_current_installation
@@ -122,15 +123,11 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument(
         "--release-bundle",
         type=Path,
-        help=(
-            "optional trusted local release bundle verified once when the server starts"
-        ),
+        help=("optional trusted local release bundle verified once when the server starts"),
     )
     serve.add_argument(
         "--expected-manifest-sha256",
-        help=(
-            "optional release-manifest SHA-256 obtained through a separate channel"
-        ),
+        help=("optional release-manifest SHA-256 obtained through a separate channel"),
     )
 
     verify_installation = subparsers.add_parser(
@@ -156,6 +153,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_maintenance_commands(subparsers)
     add_ocr_commands(subparsers)
     add_email_commands(subparsers)
+    add_google_commands(subparsers)
     return parser
 
 
@@ -188,6 +186,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     email_result = handle_email_command(args)
     if email_result is not None:
         return email_result
+    google_result = handle_google_command(args)
+    if google_result is not None:
+        return google_result
 
     if args.command == "verify-installation":
         if args.release_bundle is None and args.expected_manifest_sha256 is None:

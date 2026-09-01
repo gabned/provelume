@@ -249,18 +249,16 @@ class SchedulerStore:
         receipt = validate_receipt_record(value)
         self.receipts.mkdir(parents=True, exist_ok=True)
         path = self.receipts / f"{receipt['id']}.json"
-        encoded = (
-            json.dumps(receipt, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
-        ).encode("utf-8")
+        encoded = (json.dumps(receipt, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode(
+            "utf-8"
+        )
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
         try:
             descriptor = os.open(path, flags, 0o600)
         except FileExistsError as exc:
             current = self._read_json(path)
             if current != receipt:
-                raise SchedulerConflictError(
-                    "terminal job receipt is immutable"
-                ) from exc
+                raise SchedulerConflictError("terminal job receipt is immutable") from exc
             return receipt
         try:
             with os.fdopen(descriptor, "wb") as handle:
@@ -321,10 +319,7 @@ class SchedulerStore:
     def _all_jobs(self) -> list[dict[str, Any]]:
         if not self._readable_directory(self.jobs):
             return []
-        return [
-            validate_job_record(self._read_json(path))
-            for path in self.jobs.glob("*.json")
-        ]
+        return [validate_job_record(self._read_json(path)) for path in self.jobs.glob("*.json")]
 
     def get_receipt(self, receipt_id: str) -> dict[str, Any] | None:
         if not record_identifier(receipt_id, "receipt"):
@@ -348,8 +343,7 @@ class SchedulerStore:
         if not self._readable_directory(self.receipts):
             return []
         return [
-            validate_receipt_record(self._read_json(path))
-            for path in self.receipts.glob("*.json")
+            validate_receipt_record(self._read_json(path)) for path in self.receipts.glob("*.json")
         ]
 
     @staticmethod
@@ -636,9 +630,7 @@ class SchedulerStore:
                     attempts[-1] = {
                         **attempts[-1],
                         "completed_at": receipt["completed_at"],
-                        "outcome": (
-                            "succeeded" if receipt["status"] == "succeeded" else "failed"
-                        ),
+                        "outcome": ("succeeded" if receipt["status"] == "succeeded" else "failed"),
                         "error_class": receipt["error_class"],
                         "error_code": receipt["error_code"],
                     }
@@ -658,9 +650,7 @@ class SchedulerStore:
             if job["status"] == "retry_wait":
                 retry_at = job.get("retry_not_before")
                 clock_reversed = now < utc_instant(job["updated_at"])
-                if retry_at is not None and (
-                    utc_instant(retry_at) <= now or clock_reversed
-                ):
+                if retry_at is not None and (utc_instant(retry_at) <= now or clock_reversed):
                     job = {
                         **job,
                         "status": "queued",
@@ -696,10 +686,9 @@ class SchedulerStore:
                 recovery_state = "resumable"
             else:
                 recovery_state = "restart_only"
-            terminal_recovery = (
-                recovery_state == "manual_intervention"
-                or int(job["attempt"]) >= int(job["retry"]["max_attempts"])
-            )
+            terminal_recovery = recovery_state == "manual_intervention" or int(
+                job["attempt"]
+            ) >= int(job["retry"]["max_attempts"])
             attempts = [dict(item) for item in job["attempts"]]
             error_code = (
                 "committed_checkpoint_needs_review"
@@ -715,9 +704,7 @@ class SchedulerStore:
                     **attempts[-1],
                     "completed_at": instant_text(now),
                     "outcome": "failed" if terminal_recovery else "retry",
-                    "error_class": (
-                        "manual_intervention" if terminal_recovery else "transient"
-                    ),
+                    "error_class": ("manual_intervention" if terminal_recovery else "transient"),
                     "error_code": error_code,
                 }
             if terminal_recovery:
@@ -920,11 +907,7 @@ class SchedulerStore:
     ) -> dict[str, Any] | None:
         selected_worker = validate_worker_id(worker_id)
         selected_now = utc_instant(now)
-        if (
-            type(lease_seconds) is not int
-            or lease_seconds < 1
-            or lease_seconds > MAX_LEASE_SECONDS
-        ):
+        if type(lease_seconds) is not int or lease_seconds < 1 or lease_seconds > MAX_LEASE_SECONDS:
             raise SchedulerError("lease duration is outside the supported range")
         kinds = tuple(allowed_kinds)
         if not kinds or any(kind not in EXECUTABLE_JOB_KINDS for kind in kinds):
@@ -1009,11 +992,7 @@ class SchedulerStore:
         now: datetime | str | None = None,
     ) -> dict[str, Any]:
         selected_now = utc_instant(now)
-        if (
-            type(lease_seconds) is not int
-            or lease_seconds < 1
-            or lease_seconds > MAX_LEASE_SECONDS
-        ):
+        if type(lease_seconds) is not int or lease_seconds < 1 or lease_seconds > MAX_LEASE_SECONDS:
             raise SchedulerError("lease duration is outside the supported range")
         with self.hold():
             job = self.get_job(job_id)
@@ -1022,9 +1001,7 @@ class SchedulerStore:
             self._owned(job, lease_token, selected_now)
             lease = dict(job["lease"])
             lease["heartbeat_at"] = instant_text(selected_now)
-            lease["expires_at"] = instant_text(
-                selected_now + timedelta(seconds=lease_seconds)
-            )
+            lease["expires_at"] = instant_text(selected_now + timedelta(seconds=lease_seconds))
             return self._write_job(
                 {**job, "lease": lease, "updated_at": instant_text(selected_now)}
             )
@@ -1050,10 +1027,7 @@ class SchedulerStore:
             self._owned(job, lease_token, selected_now)
             if type(sequence) is not int or sequence != int(job["checkpoint"]["sequence"]) + 1:
                 raise SchedulerConflictError("checkpoint sequence must advance by exactly one")
-            if any(
-                selected_progress[key] < int(job["progress"][key])
-                for key in selected_progress
-            ):
+            if any(selected_progress[key] < int(job["progress"][key]) for key in selected_progress):
                 raise SchedulerConflictError("checkpoint progress cannot move backward")
             return self._write_job(
                 {
@@ -1181,9 +1155,8 @@ class SchedulerStore:
                 raise SchedulerNotFoundError("scheduler job not found")
             self._owned(job, lease_token, selected_now)
             attempts = [dict(item) for item in job["attempts"]]
-            retry_available = (
-                error_class == "transient"
-                and int(job["attempt"]) < int(job["retry"]["max_attempts"])
+            retry_available = error_class == "transient" and int(job["attempt"]) < int(
+                job["retry"]["max_attempts"]
             )
             if attempts and attempts[-1]["outcome"] == "running":
                 attempts[-1] = {
@@ -1200,9 +1173,7 @@ class SchedulerStore:
                         **job,
                         "status": "retry_wait",
                         "updated_at": instant_text(selected_now),
-                        "retry_not_before": instant_text(
-                            selected_now + timedelta(seconds=delay)
-                        ),
+                        "retry_not_before": instant_text(selected_now + timedelta(seconds=delay)),
                         "lease": None,
                         "progress": selected_progress,
                         "attempts": attempts,
@@ -1359,6 +1330,87 @@ class SchedulerCoordinator:
         self,
         job: Mapping[str, Any],
     ) -> tuple[bool, dict[str, int], str, str, bool, bool]:
+        if job["job_kind"] == "google.intake":
+            from .google_contract import GoogleContractError
+            from .google_jobs import GoogleJobManager
+
+            lease_token = str(job["lease"]["token"])
+            checkpoint_now = getattr(self, "_execution_checkpoint_now", None)
+
+            def checkpoint(progress: dict[str, int]) -> Mapping[str, Any]:
+                self.journal.heartbeat(str(job["id"]), lease_token, now=checkpoint_now)
+                current = self.journal.get_job(str(job["id"]))
+                if current is None:
+                    raise GoogleContractError(
+                        "google_internal_error", "Google scheduler job disappeared"
+                    )
+                return self.journal.checkpoint(
+                    str(job["id"]),
+                    lease_token,
+                    sequence=int(current["checkpoint"]["sequence"]) + 1,
+                    phase="executing",
+                    progress=progress,
+                    now=checkpoint_now,
+                )
+
+            manager_factory = getattr(self, "_google_manager_factory", GoogleJobManager)
+            manager = manager_factory(self.store)
+            try:
+                progress = manager.execute(job, checkpoint=checkpoint)
+            except GoogleContractError as exc:
+                source_id = str(job["scope"]["id"])
+                if exc.code in {
+                    "google_authorization_expired",
+                    "google_authorization_required",
+                }:
+                    try:
+                        source = manager.sources.source_record(source_id)
+                        manager.sources.mark_reauthorization_required(
+                            str(source["connector_instance_id"]),
+                            str(source["capability"]),
+                            code=exc.code,
+                        )
+                    except GoogleContractError:
+                        pass
+                    error_class = "manual_intervention"
+                elif exc.code == "google_cursor_invalidated":
+                    manager.sources.reset_cursor(source_id)
+                    error_class = "manual_intervention"
+                elif exc.code == "google_cancelled":
+                    error_class = "cancelled"
+                elif exc.code in {
+                    "google_rate_limited",
+                    "google_retryable_failure",
+                    "google_internal_error",
+                }:
+                    error_class = "transient"
+                else:
+                    error_class = "permanent"
+                return (
+                    False,
+                    self._progress(errors=1),
+                    error_class,
+                    exc.code,
+                    True,
+                    False,
+                )
+            except OSError:
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "transient",
+                    "local_io",
+                    True,
+                    False,
+                )
+            return (
+                True,
+                progress,
+                "",
+                "",
+                True,
+                bool(progress.get("processed", 0)),
+            )
         if job["job_kind"] == "email.intake":
             from .email_contract import EmailContractError
             from .email_jobs import EmailJobManager
@@ -1439,9 +1491,7 @@ class SchedulerCoordinator:
             def checkpoint(progress: dict[str, int]) -> Mapping[str, Any]:
                 current = self.journal.get_job(str(job["id"]))
                 if current is None:
-                    raise OcrContractError(
-                        "ocr_internal_error", "OCR scheduler job disappeared"
-                    )
+                    raise OcrContractError("ocr_internal_error", "OCR scheduler job disappeared")
                 return self.journal.checkpoint(
                     str(job["id"]),
                     lease_token,
@@ -2180,10 +2230,7 @@ def scheduler_state_findings(store: InstanceStore) -> list[dict[str, str]]:
         if job["receipt_ref"] is not None:
             receipt_id = Path(str(job["receipt_ref"])).stem
             receipt = receipts.get(receipt_id)
-            if (
-                receipt is None
-                or not _receipt_matches_terminal_job(receipt, job)
-            ):
+            if receipt is None or not _receipt_matches_terminal_job(receipt, job):
                 findings.append(
                     {
                         "code": "scheduler_receipt_missing",
@@ -2201,10 +2248,10 @@ def scheduler_state_findings(store: InstanceStore) -> list[dict[str, str]]:
                     "path": f"state/scheduler/receipts/{receipt['id']}.json",
                 }
             )
-        elif (
-            job["receipt_ref"]
-            != f"state/scheduler/receipts/{receipt['id']}.json"
-            or not _receipt_matches_terminal_job(receipt, job)
+        elif job[
+            "receipt_ref"
+        ] != f"state/scheduler/receipts/{receipt['id']}.json" or not _receipt_matches_terminal_job(
+            receipt, job
         ):
             findings.append(
                 {

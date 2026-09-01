@@ -170,9 +170,7 @@ class EmailJobManager:
     def _read_json(self, path: Path, *, limit: int = 2 * 1024 * 1024) -> dict[str, Any]:
         try:
             if path.is_symlink() or not path.is_file() or path.stat().st_size > limit:
-                raise EmailContractError(
-                    "email_internal_error", "email intake state is invalid"
-                )
+                raise EmailContractError("email_internal_error", "email intake state is invalid")
             value = json.loads(path.read_text(encoding="utf-8"))
         except EmailContractError:
             raise
@@ -181,9 +179,7 @@ class EmailJobManager:
                 "email_internal_error", "email intake state is unreadable"
             ) from exc
         if not isinstance(value, dict):
-            raise EmailContractError(
-                "email_internal_error", "email intake state must be an object"
-            )
+            raise EmailContractError("email_internal_error", "email intake state must be an object")
         return value
 
     def _write_json(self, path: Path, value: Mapping[str, Any]) -> None:
@@ -363,8 +359,7 @@ class EmailJobManager:
             if (
                 request.get("job_id") != job_id
                 or request.get("source_id") != source_id
-                or request.get("container_identity_sha256")
-                != snapshot.container_identity_sha256
+                or request.get("container_identity_sha256") != snapshot.container_identity_sha256
                 or request.get("container_snapshot_sha256") != snapshot.snapshot_sha256
                 or request.get("settings_sha256") != settings_fingerprint(limits)
             ):
@@ -374,9 +369,7 @@ class EmailJobManager:
             return request, adapter, snapshot
 
         if job.get("reason") not in {"scheduled", "coalesced", "catch_up"}:
-            raise EmailContractError(
-                "email_internal_error", "email intake request is missing"
-            )
+            raise EmailContractError("email_internal_error", "email intake request is missing")
         request, adapter, snapshot = self._snapshot_request(job_id, source_id)
         self._write_immutable_json(path, request)
         return request, adapter, snapshot
@@ -386,12 +379,11 @@ class EmailJobManager:
         if not path.exists():
             return False
         value = self._read_json(path, limit=64 * 1024)
-        if set(value) != {"schema_version", "job_id", "requested_at"} or value.get(
-            "job_id"
-        ) != job_id:
-            raise EmailContractError(
-                "email_internal_error", "email cancellation marker is invalid"
-            )
+        if (
+            set(value) != {"schema_version", "job_id", "requested_at"}
+            or value.get("job_id") != job_id
+        ):
+            raise EmailContractError("email_internal_error", "email cancellation marker is invalid")
         return True
 
     def _manifests(self) -> list[dict[str, Any]]:
@@ -407,10 +399,7 @@ class EmailJobManager:
                 payload = path.read_bytes()
             except (KeyError, OSError, UnsafePathError):
                 continue
-            if (
-                path.is_symlink()
-                or hashlib.sha256(payload).hexdigest() != artifact.get("checksum")
-            ):
+            if path.is_symlink() or hashlib.sha256(payload).hexdigest() != artifact.get("checksum"):
                 continue
             try:
                 value = json.loads(payload.decode("utf-8"))
@@ -484,9 +473,7 @@ class EmailJobManager:
         rows: list[dict[str, Any]] = []
         values: list[tuple[EmailAttachmentEvidence, bytes, Original]] = []
         for attachment in parsed.attachments:
-            part_identity = attachment_part_identity(
-                attachment.part_id, attachment.part_path
-            )
+            part_identity = attachment_part_identity(attachment.part_id, attachment.part_path)
             attachment_id = email_attachment_evidence_id(
                 source_id,
                 message_id,
@@ -513,9 +500,7 @@ class EmailJobManager:
                 accepted_at=accepted_at,
             )
             media_supported = attachment.media_type in OCR_SUPPORTED_INPUTS
-            signature_matches = _signature_matches(
-                attachment.media_type, attachment.data[:16]
-            )
+            signature_matches = _signature_matches(attachment.media_type, attachment.data[:16])
             rows.append(
                 {
                     "id": attachment_id,
@@ -558,6 +543,12 @@ class EmailJobManager:
         original_id: str,
         settings_sha256: str,
         attachment_rows: Sequence[Mapping[str, Any]],
+        adapter_id: str = EMAIL_ADAPTER_ID,
+        adapter_version: str = EMAIL_ADAPTER_VERSION,
+        network_access: str = "none",
+        provider_observation: Mapping[str, Any] | None = None,
+        network_used: bool = False,
+        remote_fetch: bool = False,
     ) -> EmailDerivedPlan:
         arguments = {
             "parsed": parsed,
@@ -577,18 +568,19 @@ class EmailJobManager:
             "filesystem_identity_sha256": observed.filesystem.fingerprint(),
             "filesystem_mtime_ns": observed.filesystem.mtime_ns,
             "adapter": {
-                "adapter_id": EMAIL_ADAPTER_ID,
-                "adapter_version": EMAIL_ADAPTER_VERSION,
-                "network_access": "none",
+                "adapter_id": adapter_id,
+                "adapter_version": adapter_version,
+                "network_access": network_access,
             },
             "settings_sha256": settings_sha256,
             "attachments": attachment_rows,
+            "provider_observation": provider_observation,
+            "network_used": network_used,
+            "remote_fetch": remote_fetch,
         }
         preliminary = build_email_bundle(**arguments)
         manifests = [
-            item
-            for item in self._manifests()
-            if item.get("message", {}).get("id") != message_id
+            item for item in self._manifests() if item.get("message", {}).get("id") != message_id
         ]
         _threads, observations = observed_threads([*manifests, preliminary.manifest])
         thread = observations.get(message_id)
@@ -608,14 +600,24 @@ class EmailJobManager:
         settings_sha256: str,
         recheck: Callable[[], Any],
         attachment_checkpoint: Callable[[str, int], None] | None = None,
+        adapter_id: str = EMAIL_ADAPTER_ID,
+        adapter_version: str = EMAIL_ADAPTER_VERSION,
+        acquisition_kind: str = "local_email",
+        document_title_prefix: str = "Local email message",
+        network_access: str = "none",
+        provider_observation: Mapping[str, Any] | None = None,
+        network_used: bool = False,
+        remote_fetch: bool = False,
+        extra_canonical_records: Sequence[tuple[str, Mapping[str, Any]]] = (),
+        transaction_profile=EMAIL_INTAKE_TRANSACTION_PROFILE,
     ) -> tuple[str, str]:
         message_id = email_message_evidence_id(
             observed.source_id, observed.sha256, observed.size_bytes
         )
         observation_id = email_message_observation_id(
             observed.source_id,
-            EMAIL_ADAPTER_ID,
-            EMAIL_ADAPTER_VERSION,
+            adapter_id,
+            adapter_version,
             observed.container_identity_sha256,
             observed.snapshot_sha256,
             observed.locator_sha256,
@@ -630,9 +632,7 @@ class EmailJobManager:
         acquisition_id = _acquisition_id(observation_id)
         document_id = _document_id(message_id)
         version_id = _version_id(document_id)
-        original = _original_record(
-            observed.sha256, observed.size_bytes, created_at=acquired_at
-        )
+        original = _original_record(observed.sha256, observed.size_bytes, created_at=acquired_at)
         existing_message = self.store.read_canonical("email-messages", message_id)
         first_acquired_at = (
             str(existing_message["first_acquired_at"])
@@ -648,8 +648,8 @@ class EmailJobManager:
             original_id=original.id,
             original_sha256=observed.sha256,
             size_bytes=observed.size_bytes,
-            adapter_id=EMAIL_ADAPTER_ID,
-            adapter_version=EMAIL_ADAPTER_VERSION,
+            adapter_id=adapter_id,
+            adapter_version=adapter_version,
             parser_id=EMAIL_PARSER_ID,
             parser_version=EMAIL_PARSER_VERSION,
             contract_version=EMAIL_CONTRACT_VERSION,
@@ -673,8 +673,8 @@ class EmailJobManager:
             filesystem_mtime_ns=observed.filesystem.mtime_ns,
             observed_at=observed.observed_at,
             acquired_at=acquired_at,
-            adapter_id=EMAIL_ADAPTER_ID,
-            adapter_version=EMAIL_ADAPTER_VERSION,
+            adapter_id=adapter_id,
+            adapter_version=adapter_version,
             settings_sha256=settings_sha256,
         )
         acquisition = Acquisition(
@@ -687,7 +687,7 @@ class EmailJobManager:
             document_id=document_id,
             version_id=version_id,
             error=None,
-            acquisition_kind="local_email",
+            acquisition_kind=acquisition_kind,
             media_type="message/rfc822",
             original_id=original.id,
             response_size_bytes=observed.size_bytes,
@@ -697,7 +697,7 @@ class EmailJobManager:
             id=document_id,
             source_id=observed.source_id,
             locator=f"email-message:{message_id}",
-            title=f"Local email message {message_id}",
+            title=f"{document_title_prefix} {message_id}",
             media_type="message/rfc822",
             created_at=first_acquired_at,
             current_version_id=version_id,
@@ -732,13 +732,19 @@ class EmailJobManager:
             original_id=original.id,
             settings_sha256=settings_sha256,
             attachment_rows=attachment_rows,
+            adapter_id=adapter_id,
+            adapter_version=adapter_version,
+            network_access=network_access,
+            provider_observation=provider_observation,
+            network_used=network_used,
+            remote_fetch=remote_fetch,
         )
 
         recheck()
         transaction = AtomicInstanceCommit(
             self.store,
             InstanceLifecycleManager(self.store).control_root / "transactions",
-            profile=EMAIL_INTAKE_TRANSACTION_PROFILE,
+            profile=transaction_profile,
             owner_id=job_id,
         )
         transaction.add(original.storage_ref, observed.data, immutable=True)
@@ -750,14 +756,23 @@ class EmailJobManager:
             self._stage_record(transaction, "email-messages", message)
         self._stage_record(transaction, "acquisitions", acquisition)
         self._stage_record(transaction, "email-observations", observation)
+        for kind, record in extra_canonical_records:
+            record_id = str(record.get("id", ""))
+            if not record_id or "/" in kind or ".." in kind:
+                raise EmailContractError(
+                    "email_internal_error", "extra email evidence identity is invalid"
+                )
+            transaction.add(
+                f"knowledge/{kind}/{record_id}.json",
+                _json_record(record),
+                immutable=True,
+            )
 
         for index, (evidence, data, child_original) in enumerate(attachment_values):
             transaction.add(child_original.storage_ref, data, immutable=True)
             if self.store.read_canonical("originals", child_original.id) is None:
                 self._stage_record(transaction, "originals", child_original)
-            existing_attachment = self.store.read_canonical(
-                "email-attachments", evidence.id
-            )
+            existing_attachment = self.store.read_canonical("email-attachments", evidence.id)
             if existing_attachment is None:
                 self._stage_record(transaction, "email-attachments", evidence)
             elif existing_attachment != asdict(evidence):
@@ -921,12 +936,8 @@ class EmailJobManager:
         error_codes: Sequence[str] = (),
     ) -> dict[str, Any]:
         if status not in _EMAIL_RUN_STATUSES:
-            raise EmailContractError(
-                "email_internal_error", "email intake run status is invalid"
-            )
-        selected_codes = [
-            code for code in dict.fromkeys(error_codes) if code in EMAIL_ERROR_CODES
-        ]
+            raise EmailContractError("email_internal_error", "email intake run status is invalid")
+        selected_codes = [code for code in dict.fromkeys(error_codes) if code in EMAIL_ERROR_CODES]
         value = {
             "schema_version": EMAIL_JOB_SCHEMA_VERSION,
             "job_id": job_id,
@@ -955,9 +966,7 @@ class EmailJobManager:
             or job.get("status") != "running"
             or not isinstance(job.get("lease"), Mapping)
         ):
-            raise EmailContractError(
-                "email_internal_error", "email scheduler job is not claimed"
-            )
+            raise EmailContractError("email_internal_error", "email scheduler job is not claimed")
         job_id = str(job["id"])
         request, adapter, snapshot = self._request_for_job(job)
         limits = EmailLimits.from_mapping(request["limits"])
@@ -996,8 +1005,7 @@ class EmailJobManager:
         decoded_bytes = sum(
             int(item.get("decoded_bytes", 0))
             for item in work["items"].values()
-            if isinstance(item, Mapping)
-            and item.get("status") in {"processed", "skipped"}
+            if isinstance(item, Mapping) and item.get("status") in {"processed", "skipped"}
         )
         errors = [
             str(item["error_code"])
@@ -1035,9 +1043,7 @@ class EmailJobManager:
                     progress=progress,
                     error_codes=[*errors, "email_timeout"],
                 )
-                raise EmailContractError(
-                    "email_timeout", "email intake job deadline was exceeded"
-                )
+                raise EmailContractError("email_timeout", "email intake job deadline was exceeded")
             locator_key = str(candidate.locator_sha256)
             prior = work["items"].get(locator_key)
             if isinstance(prior, Mapping) and prior.get("status") in {
@@ -1052,9 +1058,7 @@ class EmailJobManager:
                     errors.remove(prior_error)
             try:
                 observed = adapter.read_exact(candidate, limits=limits)
-                item_key = _item_idempotency_key(
-                    observed, settings_sha256=settings_sha256
-                )
+                item_key = _item_idempotency_key(observed, settings_sha256=settings_sha256)
                 message_deadline = min(
                     deadline,
                     time.monotonic() + limits.max_seconds_per_message,
@@ -1064,10 +1068,7 @@ class EmailJobManager:
                     limits=limits,
                     deadline=message_deadline,
                 )
-                if (
-                    parsed.total_decoded_bytes
-                    > limits.max_decoded_bytes_per_run - decoded_bytes
-                ):
+                if parsed.total_decoded_bytes > limits.max_decoded_bytes_per_run - decoded_bytes:
                     raise EmailContractError(
                         "email_decoded_limit_exceeded",
                         "email run decoded-byte limit was exceeded",
@@ -1157,9 +1158,7 @@ class EmailJobManager:
                 "job_id": job_id,
                 "requested_at": utc_now(),
             }
-            self._write_immutable_json(
-                self.cancellations / f"{job_id}.json", marker
-            )
+            self._write_immutable_json(self.cancellations / f"{job_id}.json", marker)
             return {
                 "schema_version": EMAIL_JOB_SCHEMA_VERSION,
                 "job_id": job_id,
@@ -1200,9 +1199,7 @@ class EmailJobManager:
 
     def _bundle_for_message(self, message_id: str) -> dict[str, Any] | None:
         matches = [
-            item
-            for item in self._manifests()
-            if item.get("message", {}).get("id") == message_id
+            item for item in self._manifests() if item.get("message", {}).get("id") == message_id
         ]
         if len(matches) > 1:
             matches.sort(
@@ -1329,9 +1326,7 @@ class EmailJobManager:
                 if isinstance(row, Mapping) and isinstance(row.get("id"), str):
                     result[str(row["id"])] = {
                         **dict(row),
-                        "message_id": (
-                            message.get("id") if isinstance(message, Mapping) else None
-                        ),
+                        "message_id": (message.get("id") if isinstance(message, Mapping) else None),
                     }
         return result
 
@@ -1428,9 +1423,7 @@ class EmailJobManager:
     def remove_derived(self, message_id: str) -> dict[str, Any]:
         message = self.store.read_canonical("email-messages", message_id)
         if message is None:
-            raise EmailContractError(
-                "email_derived_invalid", "email message was not found"
-            )
+            raise EmailContractError("email_derived_invalid", "email message was not found")
         manifest = self._bundle_for_message(message_id)
         artifacts, edges = self._derived_records_for_message(message)
         if not artifacts:
@@ -1585,9 +1578,7 @@ class EmailJobManager:
         }
         preliminary = build_email_bundle(**arguments)
         manifests = [
-            item
-            for item in self._manifests()
-            if item.get("message", {}).get("id") != message["id"]
+            item for item in self._manifests() if item.get("message", {}).get("id") != message["id"]
         ]
         _threads, observations = observed_threads([*manifests, preliminary.manifest])
         thread = observations.get(str(message["id"]))
@@ -1601,9 +1592,7 @@ class EmailJobManager:
     def rebuild_derived(self, message_id: str) -> dict[str, Any]:
         message = self.store.read_canonical("email-messages", message_id)
         if message is None:
-            raise EmailContractError(
-                "email_derived_invalid", "email message was not found"
-            )
+            raise EmailContractError("email_derived_invalid", "email message was not found")
         if self._bundle_for_message(message_id) is not None:
             return {
                 "schema_version": EMAIL_JOB_SCHEMA_VERSION,
@@ -1624,8 +1613,7 @@ class EmailJobManager:
             ) from exc
         if (
             len(original_bytes) != message["size_bytes"]
-            or hashlib.sha256(original_bytes).hexdigest()
-            != message["original_sha256"]
+            or hashlib.sha256(original_bytes).hexdigest() != message["original_sha256"]
         ):
             raise EmailContractError(
                 "email_derived_invalid", "email Original failed rebuild verification"
@@ -1710,9 +1698,7 @@ class EmailJobManager:
             "message_id": message_id,
             "status": "rebuilt",
             "bundle_artifact_id": plan.bundle_artifact.id,
-            "body_artifact_id": (
-                plan.text_artifact.id if plan.text_artifact is not None else None
-            ),
+            "body_artifact_id": (plan.text_artifact.id if plan.text_artifact is not None else None),
             "originals_changed": 0,
             "canonical_records_changed": 0,
             "network_used": False,

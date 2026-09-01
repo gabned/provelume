@@ -11,6 +11,9 @@ from .email_jobs import EMAIL_JOB_KIND, EmailJobManager
 from .email_sources import EmailSourceManager
 from .folder_source_model import SOURCE_LIFECYCLE_STATES, FolderSourceError
 from .folder_sources import FolderSourceManager
+from .google_contract import GOOGLE_JOB_KIND, GoogleContractError
+from .google_jobs import GoogleJobManager
+from .google_sources import GoogleSourceManager
 from .hierarchy import HierarchyManager
 from .index import (
     index_status,
@@ -77,6 +80,8 @@ class ProvelumeInstance:
         self.ocr = OcrJobManager(self.store)
         self.email_sources = EmailSourceManager(self.store)
         self.email = EmailJobManager(self.store)
+        self.google_sources = GoogleSourceManager(self.store)
+        self.google = GoogleJobManager(self.store)
         try:
             recovery = self.scheduler.recover()
             self.scheduler_recovery = {**recovery, "deferred": False}
@@ -168,7 +173,7 @@ class ProvelumeInstance:
         schedule: Mapping[str, Any],
         retry: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
-        if job_kind in {OCR_JOB_KIND, EMAIL_JOB_KIND}:
+        if job_kind in {OCR_JOB_KIND, EMAIL_JOB_KIND, GOOGLE_JOB_KIND}:
             raise SchedulerError(
                 "this job kind requires an exact persisted request through its dedicated controls"
             )
@@ -298,9 +303,7 @@ class ProvelumeInstance:
         profile: str,
     ) -> dict[str, Any]:
         try:
-            with InstanceLifecycleManager(self.store)._hold(
-                purpose="email-source-create"
-            ):
+            with InstanceLifecycleManager(self.store)._hold(purpose="email-source-create"):
                 return self.email_sources.create(name=name, path=path, profile=profile)
         except InstanceLifecycleBusy as exc:
             raise SchedulerBusyError("another Instance operation is active") from exc
@@ -336,9 +339,7 @@ class ProvelumeInstance:
 
     def set_email_source_state(self, source_id: str, state: str) -> dict[str, Any]:
         try:
-            with InstanceLifecycleManager(self.store)._hold(
-                purpose="email-source-state"
-            ):
+            with InstanceLifecycleManager(self.store)._hold(purpose="email-source-state"):
                 result = self.email_sources.set_state(source_id, state)
                 self.email.sync_policy(source_id)
                 return result
@@ -355,9 +356,7 @@ class ProvelumeInstance:
         interval_seconds: int | None = None,
     ) -> dict[str, Any]:
         try:
-            with InstanceLifecycleManager(self.store)._hold(
-                purpose="email-source-schedule"
-            ):
+            with InstanceLifecycleManager(self.store)._hold(purpose="email-source-schedule"):
                 result = self.email_sources.configure_schedule(
                     source_id,
                     mode=mode,
@@ -372,9 +371,7 @@ class ProvelumeInstance:
 
     def remove_email_source(self, source_id: str) -> dict[str, Any]:
         try:
-            with InstanceLifecycleManager(self.store)._hold(
-                purpose="email-source-remove"
-            ):
+            with InstanceLifecycleManager(self.store)._hold(purpose="email-source-remove"):
                 result = self.email_sources.remove(source_id)
                 self.email.sync_policy(source_id)
                 return result
@@ -448,6 +445,125 @@ class ProvelumeInstance:
     def get_email_attachment(self, attachment_id: str) -> dict[str, Any] | None:
         return self.email.get_attachment(attachment_id)
 
+    def create_google_instance(self, *, name: str, account_identity: str) -> dict[str, Any]:
+        return self.google_sources.create_instance(name=name, account_identity=account_identity)
+
+    def list_google_instances(self) -> list[dict[str, Any]]:
+        return self.google_sources.list_instances()
+
+    def get_google_instance(self, instance_id: str) -> dict[str, Any]:
+        return self.google_sources.instance_view(instance_id)
+
+    def set_google_connector_state(self, instance_id: str, *, enabled: bool) -> dict[str, Any]:
+        return (
+            self.connectors.enable_instance(instance_id)
+            if enabled
+            else self.connectors.disable_instance(instance_id)
+        )
+
+    def authorize_google_capability(
+        self,
+        instance_id: str,
+        capability: str,
+        *,
+        credential_reference: Mapping[str, str],
+        consent: bool,
+    ) -> dict[str, Any]:
+        return self.google_sources.authorize_capability(
+            instance_id,
+            capability,
+            credential_reference=credential_reference,
+            consent=consent,
+        )
+
+    def set_google_capability_state(
+        self, instance_id: str, capability: str, *, state: str
+    ) -> dict[str, Any]:
+        return self.google_sources.set_capability_state(instance_id, capability, state)
+
+    def revoke_google_capability(self, instance_id: str, capability: str) -> dict[str, Any]:
+        return self.google_sources.revoke_capability(instance_id, capability)
+
+    def create_google_source(
+        self,
+        instance_id: str,
+        *,
+        name: str,
+        capability: str,
+        selection_kind: str,
+        selectors: Sequence[str],
+    ) -> dict[str, Any]:
+        result = self.google_sources.create_source(
+            instance_id,
+            name=name,
+            capability=capability,
+            selection_kind=selection_kind,
+            selectors=selectors,
+        )
+        self.google.sync_policy(str(result["id"]))
+        return result
+
+    def list_google_sources(self) -> list[dict[str, Any]]:
+        return self.google_sources.list_sources()
+
+    def get_google_source(self, source_id: str) -> dict[str, Any]:
+        return self.google_sources.source_view(source_id)
+
+    def set_google_source_state(self, source_id: str, *, state: str) -> dict[str, Any]:
+        result = self.google_sources.set_source_state(source_id, state)
+        self.google.sync_policy(source_id)
+        return result
+
+    def configure_google_source_schedule(
+        self,
+        source_id: str,
+        *,
+        mode: str,
+        interval_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        result = self.google_sources.configure_schedule(
+            source_id, mode=mode, interval_seconds=interval_seconds
+        )
+        self.google.sync_policy(source_id)
+        return result
+
+    def reset_google_source_cursor(self, source_id: str) -> dict[str, Any]:
+        return self.google_sources.reset_cursor(source_id)
+
+    def remove_google_source(self, source_id: str) -> dict[str, Any]:
+        result = self.google_sources.remove_source(source_id)
+        self.google.sync_policy(source_id)
+        return result
+
+    def queue_google_intake(
+        self, source_id: str, *, request_key: str | None = None
+    ) -> dict[str, Any]:
+        return self.google.queue(source_id, request_key=request_key)
+
+    def run_google_job(self, job_id: str) -> dict[str, Any] | None:
+        job = self.scheduler.journal.get_job(job_id)
+        if job is None:
+            return None
+        if job["job_kind"] != GOOGLE_JOB_KIND:
+            raise GoogleContractError("google_internal_error", "Google job was not found")
+        result = self.scheduler.run_one(job_id=job_id)
+        return public_job_record(result) if result is not None else None
+
+    def list_google_jobs(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        return self.google.list_jobs(limit=limit)
+
+    def get_google_job(self, job_id: str) -> dict[str, Any] | None:
+        return self.google.get_job(job_id)
+
+    def cancel_google_job(self, job_id: str) -> dict[str, Any]:
+        return self.google.cancel(job_id)
+
+    def list_google_gmail_observations(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        return self.google.list_gmail_observations(limit=limit)
+
+    def list_google_drive_revisions(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        return self.google.list_drive_revisions(limit=limit)
+
     def remove_email_derived(self, message_id: str) -> dict[str, Any]:
         try:
             with InstanceLifecycleManager(self.store)._hold(purpose="email-derived-remove"):
@@ -459,9 +575,7 @@ class ProvelumeInstance:
 
     def rebuild_email_derived(self, message_id: str) -> dict[str, Any]:
         try:
-            with InstanceLifecycleManager(self.store)._hold(
-                purpose="email-derived-rebuild"
-            ):
+            with InstanceLifecycleManager(self.store)._hold(purpose="email-derived-rebuild"):
                 return self.email.rebuild_derived(message_id)
         except InstanceLifecycleBusy as exc:
             raise SchedulerBusyError("another Instance operation is active") from exc
@@ -506,9 +620,7 @@ class ProvelumeInstance:
         if job is None:
             return None
         if job["job_kind"] != OCR_JOB_KIND:
-            raise OcrContractError(
-                "ocr_contract_violation", "OCR job was not found"
-            )
+            raise OcrContractError("ocr_contract_violation", "OCR job was not found")
         result = self.scheduler.run_one(job_id=job_id)
         return public_job_record(result) if result is not None else None
 
@@ -636,9 +748,7 @@ class ProvelumeInstance:
         maximum_instance_bytes_critical: int | None = None,
     ) -> dict[str, Any]:
         try:
-            with InstanceLifecycleManager(self.store)._hold(
-                purpose="resource-threshold-configure"
-            ):
+            with InstanceLifecycleManager(self.store)._hold(purpose="resource-threshold-configure"):
                 return self.resource_statistics.configure_thresholds(
                     {
                         "minimum_free_bytes_warning": minimum_free_bytes_warning,
@@ -650,9 +760,7 @@ class ProvelumeInstance:
         except InstanceLifecycleBusy as exc:
             raise MaintenanceError("another Instance operation is active") from exc
         except InstanceLifecycleError as exc:
-            raise MaintenanceError(
-                "resource threshold lifecycle lock is unavailable"
-            ) from exc
+            raise MaintenanceError("resource threshold lifecycle lock is unavailable") from exc
 
     def _maintenance_scope(
         self,
@@ -662,9 +770,7 @@ class ProvelumeInstance:
     ) -> dict[str, str]:
         if action["scope_kind"] == "instance":
             if source_id is not None:
-                raise MaintenanceError(
-                    "Instance maintenance actions cannot select a Source"
-                )
+                raise MaintenanceError("Instance maintenance actions cannot select a Source")
             return {
                 "kind": "instance",
                 "id": str(self.store.read_config()["instance"]["id"]),
@@ -672,15 +778,11 @@ class ProvelumeInstance:
         if action["scope_kind"] != "source":
             raise MaintenanceError("maintenance action scope is unsupported")
         if source_id is None:
-            raise MaintenanceError(
-                "Source maintenance actions require an exact managed Source"
-            )
+            raise MaintenanceError("Source maintenance actions require an exact managed Source")
         try:
             self.folder_sources.public_view(source_id)
         except FolderSourceError as exc:
-            raise MaintenanceError(
-                "maintenance Source is not a managed filesystem Source"
-            ) from exc
+            raise MaintenanceError("maintenance Source is not a managed filesystem Source") from exc
         return {"kind": "source", "id": source_id}
 
     def create_maintenance_policy(
@@ -718,9 +820,7 @@ class ProvelumeInstance:
         kind = str(action["scheduler_job_kind"])
         scope = self._maintenance_scope(action, source_id=source_id)
         try:
-            with InstanceLifecycleManager(self.store)._hold(
-                purpose="maintenance-run-now"
-            ):
+            with InstanceLifecycleManager(self.store)._hold(purpose="maintenance-run-now"):
                 matches = [
                     policy
                     for policy in self.scheduler.journal.list_policies()
@@ -811,8 +911,7 @@ class ProvelumeInstance:
             if policy is not None:
                 if (
                     policy["job_kind"] != "source.refresh"
-                    or policy["scope"]
-                    != {"kind": "source", "id": str(source["id"])}
+                    or policy["scope"] != {"kind": "source", "id": str(source["id"])}
                     or policy["state"] != lifecycle_state
                 ):
                     raise FolderSourceError(
@@ -830,9 +929,7 @@ class ProvelumeInstance:
                     and item.get("scope") == {"kind": "source", "id": source["id"]}
                 ]
                 if len(matches) > 1:
-                    raise FolderSourceError(
-                        "folder Source has more than one refresh policy"
-                    )
+                    raise FolderSourceError("folder Source has more than one refresh policy")
                 policy = matches[0] if matches else None
             if policy is None:
                 policy = self.scheduler.journal.create_policy(
@@ -1139,9 +1236,7 @@ class ProvelumeInstance:
 
     def list_sources(self) -> list[dict[str, Any]]:
         documents = self.store.list_canonical("documents")
-        connector_sources = {
-            str(item["id"]): item for item in self.connectors.list_sources()
-        }
+        connector_sources = {str(item["id"]): item for item in self.connectors.list_sources()}
         result = []
         for source in self.store.list_canonical("sources"):
             source_path = self.store.source_path(source["id"])
@@ -1168,11 +1263,7 @@ class ProvelumeInstance:
                     **({"folder": folder} if folder is not None else {}),
                     "document_count": selected.get(
                         "document_count",
-                        sum(
-                            1
-                            for document in documents
-                            if document["source_id"] == source["id"]
-                        ),
+                        sum(1 for document in documents if document["source_id"] == source["id"]),
                     ),
                     "available": False if is_connector else available,
                     "availability_status": (
@@ -1295,10 +1386,7 @@ class ProvelumeInstance:
             selected_disposition = dispositions.get(str(document["id"]))
             if selected_disposition is None:
                 continue
-            if (
-                disposition != "all"
-                and selected_disposition["status"] != disposition
-            ):
+            if disposition != "all" and selected_disposition["status"] != disposition:
                 continue
             if source_id and document["source_id"] != source_id:
                 continue
@@ -1475,19 +1563,14 @@ class ProvelumeInstance:
         ids.update(item["id"] for item in acquisitions)
         ids.update(item["id"] for item in derived_artifacts)
         edges = self.store.list_canonical("provenance") + self.store.list_derived_provenance()
-        selected = [
-            edge
-            for edge in edges
-            if edge["from_id"] in ids and edge["to_id"] in ids
-        ]
+        selected = [edge for edge in edges if edge["from_id"] in ids and edge["to_id"] in ids]
         selected.extend(
             edge
             for edge in edges
             if edge.get("from_kind") == "document"
             and edge.get("from_id") == document_id
             and edge.get("to_kind") == "hierarchy_node"
-            and edge.get("relation")
-            in {"classified_primary_as", "classified_secondary_as"}
+            and edge.get("relation") in {"classified_primary_as", "classified_secondary_as"}
             and edge not in selected
         )
         return {
@@ -1521,9 +1604,7 @@ class ProvelumeInstance:
         )
 
     def media_types(self) -> list[str]:
-        return sorted(
-            {item["media_type"] for item in self.list_documents(disposition="all")}
-        )
+        return sorted({item["media_type"] for item in self.list_documents(disposition="all")})
 
     def instance_summary(self) -> dict[str, Any]:
         config = self.store.read_config()
@@ -1553,15 +1634,10 @@ class ProvelumeInstance:
             "versions": len(self.store.list_canonical("versions")),
             "hierarchy_nodes": len(hierarchy_nodes),
             "classifications": len(classifications),
-            "archived_documents": sum(
-                item["status"] == "archived" for item in dispositions
-            ),
-            "trashed_documents": sum(
-                item["status"] == "trashed" for item in dispositions
-            ),
+            "archived_documents": sum(item["status"] == "archived" for item in dispositions),
+            "trashed_documents": sum(item["status"] == "trashed" for item in dispositions),
             "library_excluded_documents": sum(
-                not item["projected"] and item["status"] != "trashed"
-                for item in dispositions
+                not item["projected"] and item["status"] != "trashed" for item in dispositions
             ),
             "index_status": health["index_status"],
             "knowledge_status": health["status"],
@@ -1569,18 +1645,14 @@ class ProvelumeInstance:
             "network": {
                 "external_access": bool(network.get("external_access", False)),
                 "update_checks": bool(network.get("update_checks", False)),
-                "configured_external_providers": connector_lifecycle[
-                    "active_instances"
-                ],
+                "configured_external_providers": connector_lifecycle["active_instances"],
             },
         }
 
     def network_status(self) -> dict[str, Any]:
         return declared_network_status(
             self.store.read_config(),
-            connector_definitions=self.store.list_canonical(
-                "connector-definitions"
-            ),
+            connector_definitions=self.store.list_canonical("connector-definitions"),
             connector_instances=self.store.list_canonical("connector-instances"),
         )
 

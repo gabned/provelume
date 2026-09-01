@@ -270,7 +270,10 @@ retaining `0.8.0` public identity. `0.9/S03` is completed by owner
 [PR #147](https://github.com/gabned/provelume/pull/147): it adds explicit
 local EML/Maildir Sources, exact message and attachment Originals, bounded replaceable MIME parsing,
 Source-scoped identity/thread observations, durable intake and removable email representations.
-`0.9/S04` is the next forecast only and has no operational issue, branch or owner pull request.
+`0.9/S04` is the current owner implementation under
+[#149](https://github.com/gabned/provelume/issues/149) on
+`product/0.9-s04-gmail-drive-adapters`; it adds replaceable read-only Gmail/Drive adapters while
+retaining the public `0.8.0` identity. `0.9/S05` transcript profiles is the next forecast only.
 
 ## Planning and delivery contract
 
@@ -940,11 +943,12 @@ Server 2025 x86-64 on CPython 3.12; Maildir targets only Ubuntu 24.04 x86-64 on 
 combination requires positive exact-head smoke before it is called qualified. mbox remains
 unsupported.
 
-Later Lectio slices add a Google connector preview with independently consented read-only Gmail and
-Drive capabilities; file/revision identity with deduplication; bounded export of supported
-Google-native files with export format and provenance preserved; external secret references;
-transcript profile mapping into canonical documents; and provider cursor state kept inside each
-adapter. Local email attachment OCR eligibility is visible but never enables or starts OCR.
+S04 adds a Google connector preview with independently consented read-only Gmail and Drive
+capabilities; file/revision identity with deduplication; bounded export of supported Google-native
+files with export format and provenance preserved; external secret references; and provider cursor
+state kept inside each Source adapter. Later Lectio slices add transcript profile mapping into
+canonical documents. Local email attachment OCR eligibility is visible but never enables or starts
+OCR.
 
 The final Windows-shell quality slice corrects product identity before publication. One
 multi-resolution icon family must agree across the executable, installer, uninstaller, Start-menu
@@ -982,8 +986,9 @@ accessibility, documentation, security and release-quality qualification.
 #5 and owner PR #138. `0.9/S02` is completed by #140 and owner PR #141; it implements bounded
 local execution and derived document bundles without publishing `0.9.0`. `0.9/S03` is completed by
 #143 and owner PR #147; it implements bounded local EML/Maildir identity and intake without
-publishing `0.9.0`. `0.9/S04` is the next forecast only. S04–S06 have no operational issues,
-branches or owner pull requests.
+publishing `0.9.0`. `0.9/S04` is owned by #149 and the current owner implementation branch; it adds
+read-only Gmail/Drive adapters without publishing `0.9.0`. `0.9/S05` is the next forecast only;
+S05–S06 have no operational issues, branches or owner pull requests.
 
 ### 0.10.0 — Multimedia, Universal Content Representations and Component Inventory
 

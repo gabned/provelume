@@ -377,12 +377,14 @@ class InstanceLifecycleManager:
                 not transaction_root.is_dir()
                 or any(transaction_root.glob("manual-web-*"))
                 or any(transaction_root.glob("email-intake-*"))
+                or any(transaction_root.glob("google-intake-*"))
             )
         )
         if has_registered_transactions:
             from .atomic_commit import (
                 ATOMIC_COMMIT_SCHEMA_VERSION,
                 EMAIL_INTAKE_TRANSACTION_PROFILE,
+                GOOGLE_INTAKE_TRANSACTION_PROFILE,
                 AtomicRecoveryHandler,
                 recover_atomic_transactions,
             )
@@ -396,6 +398,9 @@ class InstanceLifecycleManager:
                         _manual_web_recovery_handler(),
                         AtomicRecoveryHandler(
                             profile=EMAIL_INTAKE_TRANSACTION_PROFILE,
+                        ),
+                        AtomicRecoveryHandler(
+                            profile=GOOGLE_INTAKE_TRANSACTION_PROFILE,
                         ),
                     ),
                 )

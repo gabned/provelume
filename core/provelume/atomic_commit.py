@@ -148,6 +148,19 @@ EMAIL_INTAKE_TRANSACTION_PROFILE = AtomicCommitProfile(
     ),
 )
 
+GOOGLE_INTAKE_TRANSACTION_PROFILE = AtomicCommitProfile(
+    key="google-intake",
+    kind="google.intake",
+    owner_id_pattern=r"job_[0-9a-f]{32}\Z",
+    limits=AtomicCommitLimits(
+        max_entries=4096,
+        max_entry_bytes=256 * 1024 * 1024,
+        max_candidate_bytes=512 * 1024 * 1024,
+        max_preimage_bytes=128 * 1024 * 1024,
+        max_journal_payload_bytes=768 * 1024 * 1024,
+    ),
+)
+
 _ErrorType = type[Exception]
 _Replace = Callable[[Path, Path], None]
 _InterruptedHandler = Callable[[InstanceStore, str], None]
@@ -912,6 +925,7 @@ def recover_atomic_transactions(
 __all__ = [
     "ATOMIC_COMMIT_SCHEMA_VERSION",
     "EMAIL_INTAKE_TRANSACTION_PROFILE",
+    "GOOGLE_INTAKE_TRANSACTION_PROFILE",
     "MANUAL_WEB_TRANSACTION_PROFILE",
     "AtomicCommitError",
     "AtomicCommitIntegrityError",
