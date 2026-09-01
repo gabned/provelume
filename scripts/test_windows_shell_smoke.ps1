@@ -328,7 +328,7 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     $Evidence.native_tray = $NativeTray
     $Evidence.checks.installed_native_tray_add_update_delete_and_actions = "PASS"
 
-    Set-FailureCode "instance_or_service_lifecycle_failed"
+    Set-FailureCode "instance_bootstrap_failed"
     $BootstrapProcess = Invoke-BoundedProcess `
         -FilePath $Executable `
         -ArgumentList @(
@@ -341,6 +341,7 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     if ($BootstrapProcess.ExitCode -ne 0) {
         throw "Synthetic Instance bootstrap failed."
     }
+    Set-FailureCode "loopback_service_startup_failed"
     $Service = Start-Process -FilePath $Executable -ArgumentList @(
         "--serve",
         "`"$InstanceRoot`"",
@@ -368,6 +369,7 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     if (-not $Ready) {
         throw "Installed loopback service did not become ready within the bounded probe."
     }
+    Set-FailureCode "local_only_network_policy_failed"
     $NetworkStatus = Invoke-RestMethod `
         -Uri "http://127.0.0.1:$ConfiguredPort/api/v1/security/network" `
         -TimeoutSec 2
@@ -377,6 +379,7 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     ) {
         throw "Default installed Instance did not remain no-network/local-only."
     }
+    Set-FailureCode "loopback_listener_contract_failed"
     $Listeners = Get-NetTCPConnection -OwningProcess $Service.Id -State Listen
     if (
         $Listeners.Count -ne 1 -or
@@ -398,6 +401,7 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     if (Get-NetUDPEndpoint -OwningProcess $Service.Id -ErrorAction SilentlyContinue) {
         throw "Installed local-only service opened an unexpected UDP endpoint."
     }
+    Set-FailureCode "service_cleanup_failed"
     $Service.CloseMainWindow() | Out-Null
     Stop-Process -Id $Service.Id -ErrorAction SilentlyContinue
     $Service.WaitForExit(5000) | Out-Null
@@ -411,6 +415,7 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     }
     $Evidence.checks.loopback_no_network_single_service_and_cleanup = "PASS"
 
+    Set-FailureCode "configured_uninstall_failed"
     $Uninstall = Invoke-BoundedProcess `
         -FilePath $Uninstaller `
         -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") `
@@ -423,6 +428,7 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     }
     $Evidence.checks.uninstall_preserves_preferences_and_instance = "PASS"
 
+    Set-FailureCode "default_reinstall_failed"
     Remove-Item -LiteralPath $SettingsPath -Force
     $DefaultInstall = Invoke-Installer `
         -Target $InstallRoot `
@@ -447,6 +453,7 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     }
     $Evidence.checks.default_44851_and_login_startup_opt_in = "PASS"
 
+    Set-FailureCode "final_uninstall_failed"
     $FinalUninstaller = Join-Path $InstallRoot "unins000.exe"
     $FinalUninstall = Invoke-BoundedProcess `
         -FilePath $FinalUninstaller `
