@@ -143,6 +143,10 @@ def test_windows_shell_smoke_is_bounded_sanitized_and_exact_head_aware() -> None
     assert "Start-Sleep -Seconds" not in smoke
     workflow = (ROOT / ".github/workflows/windows-shell-smoke.yml").read_text(encoding="utf-8")
     assert "if: always()" in workflow
+    assert (
+        "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f" in workflow
+    )
+    assert "actions/upload-artifact@b7c566a772e6b6fb58ed0dc250532a479d7789f" not in workflow
 
 
 def test_native_tray_uses_pointer_safe_win32_handles_and_bounded_shutdown() -> None:
