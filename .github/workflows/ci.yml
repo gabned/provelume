@@ -123,23 +123,14 @@ jobs:
             --output .agent/change-control.json
 
   core-tests:
-    name: Core tests (${{ matrix.label }})
+    name: Core tests (${{ matrix.os }})
     if: github.event_name != 'pull_request_target'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            label: ubuntu-latest
-            pytest_args: ""
-          - os: windows-latest
-            label: windows-latest shard 1/2
-            pytest_args: --provelume-shard-index=0 --provelume-shard-count=2
-          - os: windows-latest
-            label: windows-latest shard 2/2
-            pytest_args: --provelume-shard-index=1 --provelume-shard-count=2
+        os: [ubuntu-latest, windows-latest]
 
     steps:
       - name: Checkout repository
@@ -160,7 +151,7 @@ jobs:
         run: python -m ruff check core tests scripts tools packaging
 
       - name: Test
-        run: python -m pytest -q ${{ matrix.pytest_args }}
+        run: python -m pytest -q
 
   windows-installer:
     name: Windows preview install and uninstall

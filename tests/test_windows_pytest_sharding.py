@@ -94,10 +94,10 @@ def test_two_process_harness_completes_bounded_and_cleans_children(tmp_path: Pat
     assert "windows-shards completed=True" in output
 
 
-def test_shard_children_bind_root_without_synthetic_collection_targets() -> None:
+def test_shard_children_bind_root_and_effective_collection_targets() -> None:
     source = (ROOT / "core/provelume/pytest_windows_shard.py").read_text(encoding="utf-8")
     assert "root = _child_working_directory(config)" in source
     assert "Path(inipath).resolve().parent" in source
-    assert "collection_targets = tuple(str(value) for value in config.args)" not in source
-    assert "child_args = args" in source
+    assert 'f"--rootdir={root}"' in source
+    assert "collection_targets" not in source
     assert "cwd=root" in source

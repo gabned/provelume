@@ -153,10 +153,6 @@ def pytest_cmdline_main(config) -> int | None:
     # configuration directory instead; fall back to rootpath only when no
     # configuration file exists.
     root = _child_working_directory(config)
-    # Preserve the invocation targets exactly as pytest received them.  Adding
-    # config.args duplicates explicit cross-drive Windows targets in pytest's
-    # normalized form and can turn the volume root into a collection target.
-    child_args = args
     with tempfile.TemporaryDirectory(prefix="provelume-windows-shards-") as temporary:
         temporary_root = Path(temporary)
         processes: list[subprocess.Popen[Any]] = []
@@ -180,7 +176,8 @@ def pytest_cmdline_main(config) -> int | None:
                     sys.executable,
                     "-m",
                     "pytest",
-                    *child_args,
+                    f"--rootdir={root}",
+                    *args,
                     f"--provelume-shard-index={index}",
                     f"--provelume-shard-count={SHARD_COUNT}",
                 ]

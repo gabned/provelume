@@ -55,12 +55,9 @@ The S06 timeout finding remains historical evidence: run `33520782921`, jobs `99
 only after the unchanged candidate head completes Windows Core positively and no child process,
 socket or file lock remains.
 
-Exact-head Public CI run `33545465451`, Windows Core job `99981743462`, failed at the 420-second
-shard-parent bound rather than the outer job timeout. Both two-way shards showed ordinary progress
-at roughly 70 percent, with no single failed test or stalled stack. The following candidate runs the
-same two stable complete partitions on independent Windows runners under the unchanged protected
-10-minute job; no test is skipped and bounded replay plus process-tree cleanup remain mandatory.
-Run `33546655565`, shard-1 job `99985718012`, completed the application partition but exposed the
-forced nested-harness regression: appending pytest's synthesized `config.args` reintroduced the
-Windows volume root and `Documents and Settings` permission error. Children now retain the explicit
-invocation arguments unchanged while binding `cwd` to the versioned configuration directory.
+Exact-head Public CI run `33546749679`, Windows Core job `99986033675`, completed both primary
+module-atomic shards in 377.27 seconds. Its sole failure was the forced nested cross-drive harness:
+the parent appended pytest's derived `config.args` volume root after the explicit temporary-file
+target, causing collection of the protected `C:\\Documents and Settings` junction. Child commands
+now pass the versioned config directory through explicit `--rootdir` and retain only the original
+argument vector, with the same cross-drive regression proving bounded completion and cleanup.
