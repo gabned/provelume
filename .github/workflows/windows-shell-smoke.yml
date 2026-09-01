@@ -30,6 +30,23 @@ jobs:
             throw "Checkout is not bound to the workflow head."
           }
 
+      - name: Initialize sanitized bounded evidence
+        shell: pwsh
+        run: |
+          $directory = "$env:RUNNER_TEMP\s07-installer"
+          New-Item -ItemType Directory -Force -Path $directory | Out-Null
+          [ordered]@{
+            schema_version = 1
+            status = "NOT_RUN"
+            failure_code = "qualification_incomplete"
+            exact_head = $env:GITHUB_SHA
+            checks = [ordered]@{}
+            network_used_by_harness = $false
+            private_content_logged = $false
+          } | ConvertTo-Json -Depth 4 | Set-Content `
+            -LiteralPath (Join-Path $directory "windows-shell-evidence.json") `
+            -Encoding utf8NoBOM
+
       - name: Set up CPython 3.12
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:

@@ -118,7 +118,8 @@ isolated state directory. The parent has a 420-second bounded deadline, replays 
 shard, reports only shard index/count/duration/exit code, and terminates the process tree on timeout.
 No test is marked skipped or removed from the union. A permanent Windows shell workflow separately
 builds and exercises the exact-head installer, identity, collision rollback, loopback service,
-tray harness, cleanup and unsigned boundary.
+the installed frozen executable's real Win32 notification add/update/action/delete lifecycle, the
+deterministic service harness, cleanup and unsigned boundary.
 
 ## Consequences
 

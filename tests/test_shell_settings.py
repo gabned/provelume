@@ -195,6 +195,19 @@ def test_corrupt_remote_host_and_oversized_settings_fail_to_safe_defaults(tmp_pa
     assert oversized.warning == "settings_invalid_using_safe_defaults"
 
 
+def test_empty_instance_path_in_schema_two_fails_to_safe_defaults(tmp_path: Path) -> None:
+    manager = _manager(tmp_path)
+    payload = manager.defaults.as_payload()
+    payload["instance_path"] = ""
+    manager.path.write_text(json.dumps(payload), encoding="utf-8")
+
+    loaded = manager.load()
+
+    assert loaded.warning == "settings_invalid_using_safe_defaults"
+    assert loaded.settings.instance_path == manager.defaults.instance_path
+    assert loaded.settings.instance_path != "."
+
+
 def test_crash_recovery_is_bounded_and_leaves_no_locked_temporary_writes(tmp_path: Path) -> None:
     manager = _manager(tmp_path)
     manager.path.parent.mkdir(parents=True, exist_ok=True)
@@ -376,6 +389,32 @@ def test_browser_shell_mutation_has_csrf_nonce_revision_and_read_only_api(tmp_pa
     assert duplicate.json()["detail"] == "invalid shell settings fields"
 
 
+def test_ipv6_loopback_service_endpoint_uses_bracketed_url_authority(tmp_path: Path) -> None:
+    instance_root = tmp_path / "instance"
+    ProvelumeInstance.initialise(instance_root)
+    client = TestClient(
+        create_app(
+            instance_root,
+            shell_settings_file=tmp_path / "launcher.json",
+            effective_host="::1",
+            effective_port=DEFAULT_LOCAL_PORT,
+        )
+    )
+
+    public = client.get("/api/v1/shell")
+    page = client.get("/settings/shell?lang=en")
+
+    assert public.status_code == page.status_code == 200
+    assert public.json()["service"] == {
+        "status": "running",
+        "host": "::1",
+        "port": DEFAULT_LOCAL_PORT,
+        "display": f"http://[::1]:{DEFAULT_LOCAL_PORT}",
+        "binding": "loopback_only",
+    }
+    assert f"http://[::1]:{DEFAULT_LOCAL_PORT}" in page.text
+
+
 def test_browser_theme_navigation_and_inert_markup_are_accessible(tmp_path: Path) -> None:
     instance_root = tmp_path / "instance"
     ProvelumeInstance.initialise(instance_root, name='<script>alert("x")</script>')
@@ -475,13 +514,22 @@ def test_tray_lifecycle_default_opt_out_single_instance_and_controlled_quit() ->
 
 def test_shell_preferences_never_modify_instance_canonical_or_provider_data(tmp_path: Path) -> None:
     instance = ProvelumeInstance.initialise(tmp_path / "instance")
-    before = (instance.root / "provelume.yml").read_bytes()
+    before = {
+        str(path.relative_to(instance.root)): (
+            None if path.is_dir() else path.read_bytes()
+        )
+        for path in instance.root.rglob("*")
+    }
     manager = _manager(tmp_path)
     manager.set_preferences(theme="light", tray_enabled=False, expected_revision=0)
 
-    assert (instance.root / "provelume.yml").read_bytes() == before
-    for name in ("Originals", "Documents", "Version", "Acquisition", "Source"):
-        assert not (instance.root / name).exists()
+    after = {
+        str(path.relative_to(instance.root)): (
+            None if path.is_dir() else path.read_bytes()
+        )
+        for path in instance.root.rglob("*")
+    }
+    assert after == before
 
 
 def test_shell_sources_contain_no_firewall_or_remote_bind_actions() -> None:

@@ -131,18 +131,24 @@ def test_windows_shell_smoke_is_bounded_sanitized_and_exact_head_aware() -> None
         "ExpectedCommit",
         "occupied_port_fail_closed_and_rolled_back",
         "shortcuts_and_app_user_model_id",
+        "installed_native_tray_add_update_delete_and_actions",
         "loopback_no_network_single_service_and_cleanup",
         "default_44851_and_login_startup_opt_in",
         "private_content_logged = $false",
         "network_used_by_harness = $false",
         'failure_code = "windows_shell_smoke_failed"',
         "WaitForExit(5000)",
+        "--native-tray-smoke-file",
+        "notification_added",
+        "notification_updated",
+        "notification_deleted",
     ):
         assert token in smoke
     assert "Invoke-WebRequest" not in smoke
     assert "Start-Sleep -Seconds" not in smoke
     workflow = (ROOT / ".github/workflows/windows-shell-smoke.yml").read_text(encoding="utf-8")
     assert "if: always()" in workflow
+    assert "qualification_incomplete" in workflow
     assert (
         "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f" in workflow
     )
@@ -161,7 +167,15 @@ def test_native_tray_uses_pointer_safe_win32_handles_and_bounded_shutdown() -> N
         "thread.join(timeout=5)",
         "daemon=True",
         "NIM_DELETE",
+        "notification_added",
+        "notification_updated",
+        "notification_deleted",
     ):
         assert token in tray
-    assert "CreateMutexW.restype = wintypes.HANDLE" in desktop
-    assert "CloseHandle.argtypes = [wintypes.HANDLE]" in desktop
+    for token in (
+        "CreateMutexW.restype = wintypes.HANDLE",
+        "CloseHandle.argtypes = [wintypes.HANDLE]",
+        "def write_native_tray_smoke",
+        "--native-tray-smoke-file",
+    ):
+        assert token in desktop

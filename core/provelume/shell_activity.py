@@ -42,6 +42,16 @@ SHELL_FORM_FIELDS = frozenset(
 )
 
 
+def _endpoint_display(host: str, port: int) -> str:
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        authority = host
+    else:
+        authority = f"[{address}]" if address.version == 6 else str(address)
+    return f"http://{authority}:{port}"
+
+
 def _loopback_request(request: Request) -> bool:
     if request.client is None:
         return False
@@ -103,7 +113,7 @@ def attach_shell_routes(
             "status": "running",
             "host": effective_host,
             "port": effective_port,
-            "display": f"http://{effective_host}:{effective_port}",
+            "display": _endpoint_display(effective_host, effective_port),
             "binding": "loopback_only",
         }
         installed_windows = os.name == "nt" and bool(getattr(sys, "frozen", False))

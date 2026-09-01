@@ -20,6 +20,7 @@ from provelume.desktop import (
     main,
     save_settings,
     startup_update_policy_enabled,
+    write_native_tray_smoke,
     write_ui_diagnostics,
 )
 from provelume.service import ProvelumeInstance
@@ -203,6 +204,47 @@ def test_login_startup_tray_mode_is_forwarded_to_the_native_shell(monkeypatch) -
     assert main([]) == 0
     assert main(["--tray"]) == 0
     assert observed == [False, True]
+
+
+def test_native_tray_smoke_mode_is_exclusive_and_returns_fail_closed_status(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    observed: list[Path] = []
+
+    def fake_native_smoke(path: Path) -> bool:
+        observed.append(path)
+        return len(observed) == 1
+
+    monkeypatch.setattr("provelume.desktop.write_native_tray_smoke", fake_native_smoke)
+    evidence = tmp_path / "native-tray.json"
+
+    assert main(["--native-tray-smoke-file", str(evidence)]) == 0
+    assert main(["--native-tray-smoke-file", str(evidence)]) == 2
+    with pytest.raises(SystemExit, match="select only one"):
+        main(
+            [
+                "--native-tray-smoke-file",
+                str(evidence),
+                "--diagnostics-file",
+                str(tmp_path / "diagnostics.json"),
+            ]
+        )
+    assert observed == [evidence, evidence]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="non-Windows fail-closed boundary")
+def test_native_tray_smoke_evidence_fails_closed_without_leaking_paths(tmp_path: Path) -> None:
+    evidence = tmp_path / "native-tray.json"
+
+    assert write_native_tray_smoke(evidence) is False
+    payload = json.loads(evidence.read_text(encoding="utf-8"))
+
+    assert payload["status"] == "FAIL"
+    assert payload["failure_code"] == "native_tray_requires_windows"
+    assert payload["network_used"] is False
+    assert payload["private_content_logged"] is False
+    assert str(tmp_path) not in evidence.read_text(encoding="utf-8")
 
 
 def test_windowed_backend_does_not_require_console_logging(

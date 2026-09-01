@@ -141,10 +141,16 @@ class WindowsTray:
         self._window: int | None = None
         self._thread_id: int | None = None
         self._stop_requested = threading.Event()
+        self._notification_added = False
+        self._notification_updated: bool | None = None
+        self._notification_deleted: bool | None = None
 
     def start(self) -> bool:
         if os.name != "nt":
             return False
+        self._notification_added = False
+        self._notification_updated = None
+        self._notification_deleted = None
         self._stop_requested.clear()
         self._ready.clear()
         self._thread = threading.Thread(
@@ -210,6 +216,26 @@ class WindowsTray:
         if thread is not None and thread is not threading.current_thread():
             thread.join(timeout=5)
         self.available = False
+
+    def exercise_action(self, command_id: int) -> None:
+        """Dispatch one bounded menu action for installed native smoke evidence."""
+
+        if command_id not in self._callbacks:
+            raise ValueError("unsupported tray action")
+        self._dispatch(command_id)
+
+    def lifecycle_evidence(self) -> dict[str, object]:
+        thread = self._thread
+        return {
+            "schema_version": 1,
+            "notification_added": self._notification_added,
+            "notification_updated": self._notification_updated is True,
+            "notification_deleted": self._notification_deleted is True,
+            "icon_source": self.icon_source,
+            "native_window_released": self._window is None,
+            "thread_stopped": thread is None or not thread.is_alive(),
+            "network_used": False,
+        }
 
     def _dispatch(self, command_id: int) -> None:
         callback = self._callbacks.get(command_id)
@@ -415,7 +441,17 @@ class WindowsTray:
             if notification is None:
                 return
             notification.szTip = tooltip()
-            shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(notification))
+            self._notification_updated = bool(
+                shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(notification))
+            )
+
+        def delete_notification() -> None:
+            nonlocal notification
+            if notification is None:
+                return
+            deleted = bool(shell32.Shell_NotifyIconW(NIM_DELETE, ctypes.byref(notification)))
+            self._notification_deleted = deleted or self._notification_deleted is True
+            notification = None
 
         def show_menu(window: int) -> None:
             value = self.state.normalized()
@@ -478,9 +514,7 @@ class WindowsTray:
                 self._dispatch(int(wparam) & 0xFFFF)
                 return 0
             if message == WM_CLOSE:
-                if notification is not None:
-                    shell32.Shell_NotifyIconW(NIM_DELETE, ctypes.byref(notification))
-                    notification = None
+                delete_notification()
                 user32.DestroyWindow(window)
                 return 0
             if message == WM_DESTROY:
@@ -539,22 +573,20 @@ class WindowsTray:
         notification.hIcon = icon
         notification.szTip = tooltip()
         added = bool(shell32.Shell_NotifyIconW(NIM_ADD, ctypes.byref(notification)))
+        self._notification_added = added
         self.available = added and not self._stop_requested.is_set()
         self.icon_source = icon_source
         self._ready.set()
         if not self.available:
             if added:
-                shell32.Shell_NotifyIconW(NIM_DELETE, ctypes.byref(notification))
-                notification = None
+                delete_notification()
             user32.DestroyWindow(window)
         else:
             message = wintypes.MSG()
             while user32.GetMessageW(ctypes.byref(message), None, 0, 0) > 0:
                 user32.TranslateMessage(ctypes.byref(message))
                 user32.DispatchMessageW(ctypes.byref(message))
-        if notification is not None:
-            shell32.Shell_NotifyIconW(NIM_DELETE, ctypes.byref(notification))
-            notification = None
+        delete_notification()
         if user32.IsWindow(window):
             user32.DestroyWindow(window)
         self._window = None

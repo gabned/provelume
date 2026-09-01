@@ -27,6 +27,7 @@ $Evidence = [ordered]@{
     default_port = 44851
     configured_port = $null
     checks = [ordered]@{}
+    native_tray = $null
     network_used_by_harness = $false
     private_content_logged = $false
 }
@@ -194,6 +195,42 @@ try {
     & (Join-Path $SourceRoot "scripts\verify_windows_signature.ps1") `
         -Artifact $Uninstaller -AllowUnsignedDevelopment | Out-Null
     $Evidence.checks.exact_identity_and_unsigned_boundary = "PASS"
+
+    $NativeTrayEvidencePath = Join-Path `
+        (Split-Path $InstallerPath -Parent) `
+        "native-tray-evidence.json"
+    & $Executable --native-tray-smoke-file $NativeTrayEvidencePath
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $NativeTrayEvidencePath)) {
+        throw "Installed native tray lifecycle failed."
+    }
+    $NativeTray = Get-Content -LiteralPath $NativeTrayEvidencePath -Raw | ConvertFrom-Json
+    if (
+        $NativeTray.status -ne "PASS" -or
+        $null -ne $NativeTray.failure_code -or
+        -not $NativeTray.frozen_executable -or
+        $NativeTray.windows_identity -ne "configured" -or
+        -not $NativeTray.labels_en_it_complete -or
+        ($NativeTray.action_sequence -join ",") -ne "open,settings,restart,quit" -or
+        -not $NativeTray.notification.notification_added -or
+        -not $NativeTray.notification.notification_updated -or
+        -not $NativeTray.notification.notification_deleted -or
+        -not $NativeTray.notification.native_window_released -or
+        -not $NativeTray.notification.thread_stopped -or
+        $NativeTray.notification.icon_source -notin @(
+            "versioned_asset",
+            "executable_resource"
+        ) -or
+        $NativeTray.notification.network_used -or
+        $NativeTray.network_used -or
+        $NativeTray.private_content_logged
+    ) {
+        throw "Installed native tray evidence is incomplete or non-sanitized."
+    }
+    if (Get-Process -Name Provelume -ErrorAction SilentlyContinue) {
+        throw "Installed native tray smoke left a Provelume process."
+    }
+    $Evidence.native_tray = $NativeTray
+    $Evidence.checks.installed_native_tray_add_update_delete_and_actions = "PASS"
 
     & $Executable --bootstrap-instance $InstanceRoot --instance-name "Synthetic S07"
     if ($LASTEXITCODE -ne 0) {

@@ -100,8 +100,14 @@ class LauncherSettings:
     schema_version: int = SHELL_SETTINGS_SCHEMA_VERSION
 
     def normalized(self) -> LauncherSettings:
+        if (
+            not isinstance(self.instance_path, str)
+            or not self.instance_path.strip()
+            or len(self.instance_path) > 4096
+        ):
+            raise ShellSettingsError("launcher instance path is invalid")
         instance_path = str(Path(self.instance_path).expanduser())
-        if not instance_path.strip() or len(instance_path) > 4096:
+        if len(instance_path) > 4096:
             raise ShellSettingsError("launcher instance path is invalid")
         endpoint_port = validate_port(self.endpoint_port)
         last_good_port = validate_port(self.last_good_port)

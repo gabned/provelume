@@ -38,7 +38,7 @@ from .shell_settings import (
 )
 from .updates import UpdateCandidate, UpdateError, check_for_updates, download_update
 from .web import create_app
-from .windows_tray import TrayState, WindowsTray
+from .windows_tray import TRAY_LABELS, TrayState, WindowsTray
 
 SETTINGS_SCHEMA_VERSION = SHELL_SETTINGS_SCHEMA_VERSION
 DESKTOP_DIAGNOSTICS_SCHEMA_VERSION = 2
@@ -214,6 +214,128 @@ def write_ui_diagnostics(
             with suppress(Exception):
                 root.destroy()
     return destination
+
+
+def write_native_tray_smoke(path: Path) -> bool:
+    """Exercise the frozen shell's real Win32 tray lifecycle and write safe evidence."""
+
+    destination = path.expanduser().resolve()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    payload: dict[str, Any] = {
+        "schema_version": 1,
+        "status": "FAIL",
+        "failure_code": "native_tray_not_started",
+        "frozen_executable": bool(getattr(sys, "frozen", False)),
+        "windows_identity": "not_checked",
+        "labels_en_it_complete": set(TRAY_LABELS["en"]) == set(TRAY_LABELS["it"]),
+        "action_sequence": [],
+        "notification": {
+            "schema_version": 1,
+            "notification_added": False,
+            "notification_updated": False,
+            "notification_deleted": False,
+            "icon_source": "unavailable",
+            "native_window_released": True,
+            "thread_stopped": True,
+            "network_used": False,
+        },
+        "network_used": False,
+        "private_content_logged": False,
+    }
+    root = None
+    tray: WindowsTray | None = None
+    actions: list[str] = []
+    try:
+        if os.name != "nt":
+            payload["failure_code"] = "native_tray_requires_windows"
+            raise RuntimeError("native tray smoke requires Windows")
+        if not bool(getattr(sys, "frozen", False)):
+            payload["failure_code"] = "native_tray_requires_frozen_executable"
+            raise RuntimeError("native tray smoke requires the frozen executable")
+        payload["failure_code"] = "windows_identity_not_configured"
+        payload["windows_identity"] = _configure_windows_identity()
+        if payload["windows_identity"] != "configured":
+            raise RuntimeError("Windows identity was not configured")
+
+        import tkinter as tk
+
+        payload["failure_code"] = "native_tray_window_unavailable"
+        root = tk.Tk()
+        root.withdraw()
+        tray = WindowsTray(
+            root,
+            state=TrayState(
+                language="en",
+                service_status="stopped",
+                endpoint=f"http://127.0.0.1:{DEFAULT_LOCAL_PORT}",
+            ),
+            open_interface=lambda: actions.append("open"),
+            open_settings=lambda: actions.append("settings"),
+            restart_service=lambda: actions.append("restart"),
+            quit_application=lambda: actions.append("quit"),
+            icon_path=_versioned_icon_path(),
+        )
+        if not tray.start():
+            raise RuntimeError("native notification icon was not created")
+
+        payload["failure_code"] = "native_tray_update_failed"
+        tray.update(
+            service_status="running",
+            endpoint=f"http://127.0.0.1:{DEFAULT_LOCAL_PORT}",
+        )
+        update_deadline = time.monotonic() + 2
+        while (
+            not tray.lifecycle_evidence()["notification_updated"]
+            and time.monotonic() < update_deadline
+        ):
+            time.sleep(0.02)
+        if not tray.lifecycle_evidence()["notification_updated"]:
+            raise RuntimeError("native notification icon was not updated")
+
+        payload["failure_code"] = "native_tray_actions_failed"
+        for command_id in (1, 2, 3, 4):
+            tray.exercise_action(command_id)
+        root.update_idletasks()
+        root.update()
+        if actions != ["open", "settings", "restart", "quit"]:
+            raise RuntimeError("native tray actions were not dispatched")
+
+        payload["failure_code"] = "native_tray_shutdown_failed"
+        tray.stop()
+        evidence = tray.lifecycle_evidence()
+        if not all(
+            evidence[name]
+            for name in (
+                "notification_added",
+                "notification_updated",
+                "notification_deleted",
+                "native_window_released",
+                "thread_stopped",
+            )
+        ) or evidence["icon_source"] not in {
+            "versioned_asset",
+            "executable_resource",
+        }:
+            raise RuntimeError("native tray resources were not released")
+        payload["status"] = "PASS"
+        payload["failure_code"] = None
+    except Exception:
+        # Fail closed without placing exception text, paths or platform details in evidence.
+        pass
+    finally:
+        if tray is not None:
+            with suppress(Exception):
+                tray.stop()
+            payload["notification"] = tray.lifecycle_evidence()
+        if root is not None:
+            with suppress(Exception):
+                root.destroy()
+        payload["action_sequence"] = actions
+        destination.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    return payload["status"] == "PASS"
 
 
 def _acquire_windows_mutex():
@@ -1213,6 +1335,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="start the installed Windows shell using its configured tray preference",
     )
     parser.add_argument("--diagnostics-file", type=Path)
+    parser.add_argument("--native-tray-smoke-file", type=Path)
     parser.add_argument("--ui-diagnostics-file", type=Path)
     parser.add_argument("--ui-diagnostics-language", choices=("en", "it"), default="en")
     parser.add_argument(
@@ -1250,6 +1373,7 @@ def main(arguments: list[str] | None = None) -> int:
         for value in (
             options.serve,
             options.diagnostics_file,
+            options.native_tray_smoke_file,
             options.ui_diagnostics_file,
             options.bootstrap_instance,
             options.validate_port,
@@ -1262,6 +1386,8 @@ def main(arguments: list[str] | None = None) -> int:
     if options.diagnostics_file is not None:
         write_diagnostics(options.diagnostics_file)
         return 0
+    if options.native_tray_smoke_file is not None:
+        return 0 if write_native_tray_smoke(options.native_tray_smoke_file) else 2
     if options.ui_diagnostics_file is not None:
         write_ui_diagnostics(
             options.ui_diagnostics_file,
