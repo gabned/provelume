@@ -1,5 +1,10 @@
 # Connector framework and local lifecycle
 
+> `0.9/S04` instantiates this provider-neutral boundary for Google Gmail and Drive. Each Google
+> identity remains a separate ConnectorInstance; Gmail and Drive authorization and every selected
+> Source remain independently controlled. See
+> [Google read-only adapters](google-readonly-adapters.md).
+
 Provelume `0.7/S01` introduces a provider-independent local configuration and conformance boundary.
 `0.7/S02` adds bounded multi-instance lifecycle mutations, path-redacted evidence and aligned
 service/CLI/read-only API/EN/IT Browser views. `0.7/S03` adds an installed-app OAuth 2.0/PKCE

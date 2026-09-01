@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ t('google.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">0.9 Lectio · Gmail / Drive</p>
+  <h1>{{ t('google.title') }}</h1>
+  <p class="lead">{{ t('google.lead') }}</p>
+</section>
+<section class="notice info"><p>{{ t('google.preview') }}</p></section>
+{% if saved %}<section class="panel"><p class="status ok">{{ t('google.saved') }}</p><p class="technical-note">{{ saved }}</p></section>{% endif %}
+{% if error %}<section class="panel"><p class="status warn">{{ t('google.error') }}</p><p>{{ error }}</p></section>{% endif %}
+{% if not editable %}<section class="panel"><p>{{ t('google.local_only') }}</p></section>{% endif %}
+
+{% if editable %}
+<section class="panel">
+  <h2>{{ t('google.create_identity') }}</h2>
+  <form method="post" action="/google?lang={{ lang }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="create-instance">
+    <label>Name <input name="name" maxlength="120" required></label>
+    <label>Google identity <input name="account_identity" maxlength="320" required></label>
+    <button type="submit">{{ t('google.create_identity') }}</button>
+  </form>
+</section>
+{% endif %}
+
+<section class="panel"><h2>{{ t('google.instances') }}</h2><ul class="document-list">
+{% for item in google_instances %}
+  <li><div><strong>{{ item.connector.name }}</strong><span>{{ item.connector.id }} · {{ item.connector.account_identity }} · connector={{ item.connector.enabled }}</span><span>{{ item.adapter.qualification }} · real_google_qualified={{ item.adapter.real_google_qualified }}</span></div>
+  {% if editable %}
+    <form method="post" action="/google?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="connector-state"><input type="hidden" name="connector_instance_id" value="{{ item.connector.id }}"><button name="state" value="enabled">Enable connector</button><button name="state" value="disabled">Disable connector</button></form>
+    {% for capability, status in item.capabilities.items() %}
+      <div><strong>{{ capability }}</strong> · {{ status.state }} · {{ status.authorization_status }} · scope={{ status.scope|join(', ') }} · effective_network={{ status.effective_network }}</div>
+      <form method="post" action="/google?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="authorize"><input type="hidden" name="connector_instance_id" value="{{ item.connector.id }}"><input type="hidden" name="capability" value="{{ capability }}"><select name="credential_kind"><option value="environment">environment</option><option value="system_keyring">system_keyring</option></select><input name="credential_name" maxlength="200" placeholder="external reference name" required><label><input type="checkbox" name="consent" value="yes" required> explicit read-only consent</label><button>Authorize / reauthorize</button></form>
+      <form method="post" action="/google?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="capability-state"><input type="hidden" name="connector_instance_id" value="{{ item.connector.id }}"><input type="hidden" name="capability" value="{{ capability }}"><button name="state" value="enabled">Enable</button><button name="state" value="disabled">Disable</button></form>
+      <form method="post" action="/google?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="revoke"><input type="hidden" name="connector_instance_id" value="{{ item.connector.id }}"><input type="hidden" name="capability" value="{{ capability }}"><button>Revoke</button></form>
+    {% endfor %}
+  {% endif %}</li>
+{% else %}<li class="empty">{{ t('google.empty') }}</li>{% endfor %}
+</ul></section>
+
+{% if editable and google_instances %}
+<section class="panel"><h2>{{ t('google.create_source') }}</h2>
+  <form method="post" action="/google?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="create-source">
+    <label>Identity <select name="connector_instance_id">{% for item in google_instances %}<option value="{{ item.connector.id }}">{{ item.connector.name }}</option>{% endfor %}</select></label>
+    <label>Name <input name="name" maxlength="120" required></label>
+    <label>Capability <select name="capability"><option value="gmail">gmail</option><option value="drive">drive</option></select></label>
+    <label>Selection <select name="selection_kind"><option value="mailbox">mailbox</option><option value="label">label</option><option value="file">file</option><option value="folder">folder</option></select></label>
+    <label>Explicit selectors, one per line <textarea name="selectors" maxlength="8192" required></textarea></label>
+    <button>{{ t('google.create_source') }}</button>
+  </form>
+</section>
+{% endif %}
+
+<section class="panel"><h2>{{ t('google.sources') }}</h2><ul class="document-list">
+{% for source in google_sources %}<li><div><strong>{{ source.name }}</strong><span>{{ source.id }} · {{ source.capability }} · {{ source.selection.kind }} ({{ source.selection.count }}) · {{ source.state }}</span><span>cursor #{{ source.cursor.revision }} · page {{ source.cursor.page_ordinal }} · {{ source.cursor.last_status }} · private cursor present={{ source.cursor.provider_cursor_present }}</span></div>
+{% if editable and source.lifecycle_state == 'active' %}
+  <form method="post" action="/google?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="source-state"><input type="hidden" name="source_id" value="{{ source.id }}"><button name="state" value="enabled">Enable</button><button name="state" value="paused">Pause</button><button name="state" value="disabled">Disable</button></form>
+  <form method="post" action="/google?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="source_id" value="{{ source.id }}"><button name="action" value="reset-source">Reset cursor</button><button name="action" value="remove-source">Remove</button></form>
+  <form method="post" action="/google?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="source-schedule"><input type="hidden" name="source_id" value="{{ source.id }}"><select name="mode"><option value="manual">manual</option><option value="interval">interval</option></select><input type="number" name="interval_seconds" min="60"><button>Save schedule</button></form>
+  {% if source.state == 'enabled' %}<form method="post" action="/google?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="queue"><input type="hidden" name="source_id" value="{{ source.id }}"><button>Queue read-only intake</button></form>{% endif %}
+{% endif %}</li>{% else %}<li class="empty">{{ t('google.empty') }}</li>{% endfor %}
+</ul></section>
+
+<section class="panel"><h2>{{ t('google.jobs') }}</h2><ul class="document-list">
+{% for job in google_jobs %}<li><div><strong>{{ job.id }} · {{ job.status }}</strong><span>{{ job.scope.id }} · {{ job.progress.processed }}/{{ job.progress.skipped }}/{{ job.progress.errors }}</span>{% if job.google_run %}<span>{{ job.google_run.status }} · network={{ job.google_run.network_used }} · provider_write={{ job.google_run.provider_write }}</span>{% endif %}</div>{% if editable and job.status == 'queued' %}<form method="post" action="/google?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="run"><input type="hidden" name="job_id" value="{{ job.id }}"><button>Run</button></form>{% endif %}{% if editable and job.status not in ['succeeded', 'failed', 'manual_intervention', 'cancelled'] %}<form method="post" action="/google?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="cancel"><input type="hidden" name="job_id" value="{{ job.id }}"><button>Cancel</button></form>{% endif %}</li>{% else %}<li class="empty">{{ t('google.empty') }}</li>{% endfor %}
+</ul></section>
+
+<section class="panel"><h2>{{ t('google.evidence') }}</h2><h3>Gmail observations</h3><pre>{{ google_gmail|tojson(indent=2) }}</pre><h3>Drive revisions</h3><pre>{{ google_drive|tojson(indent=2) }}</pre></section>
+{% endblock %}

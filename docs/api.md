@@ -223,6 +223,38 @@ completed acquisitions. mbox is rejected as unsupported. The EML/Maildir platfor
 as available only when its exact runtime probe is positive. See
 [`architecture/local-email-intake.md`](architecture/local-email-intake.md).
 
+## Google Gmail and Drive adapters
+
+The unreleased `0.9/S04` read model is grouped below `/api/v1/google`:
+
+- `GET /api/v1/google/capability` — local conformance profile, read-only/network boundary and the
+  explicit `real_google_qualified=false` claim;
+- `GET /api/v1/google/instances` and `/instances/{connector_instance_id}` — Google identities with
+  separately scoped Gmail/Drive authorization, enablement, revocation and health state;
+- `GET /api/v1/google/sources` and `/sources/{source_id}` — selection count/hash, capability,
+  schedule, lifecycle, cursor presence/checkpoint and health for each isolated Source;
+- `GET /api/v1/google/jobs` and `/jobs/{job_id}` — bounded scheduler and content-free adapter run
+  evidence;
+- `GET /api/v1/google/gmail-observations` — Source-scoped hashed, non-authoritative provider
+  observations linked to S03 email evidence;
+- `GET /api/v1/google/drive-revisions` — provider-neutral file/revision, format/export, checksum,
+  Original and provenance bindings.
+
+All routes are reads and never resolve a credential, contact Google, refresh a token, update a
+cursor or queue/cancel work. Raw selectors, provider cursors and external credential-reference
+names are redacted. `POST`, `PATCH` and `DELETE` are undefined and return 405.
+
+Local mutations require the `google-*` CLI commands or CSRF-protected loopback `/google` Browser.
+Identity creation, connector state, Gmail/Drive consent, capability state/revocation, Source
+creation/state/schedule/removal/cursor reset and job queue/run/cancel are separate explicit
+controls. A capability uses only its exact read-only scope and an external environment/keyring
+reference; no credential value is accepted by these surfaces.
+
+Public tests use a deterministic no-network fake. The REST adapter remains a preview until a
+permanent authorized exact-head smoke exists. See the
+[English](architecture/google-readonly-adapters.md) and
+[Italian](architecture/google-readonly-adapters.it.md) contracts.
+
 ## Managed folder Sources
 
 - `GET /api/v1/sources` and `GET /api/v1/sources/{source_id}` include a path-redacted `folder`

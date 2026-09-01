@@ -19,15 +19,20 @@ CONNECTOR_CONFORMANCE_PROFILE = "provelume.connector.v1"
 
 CONNECTOR_CAPABILITIES = (
     "conditional_metadata",
+    "gmail_read",
+    "google_native_export",
+    "drive_read",
     "external_secret_authorization",
     "manual_read",
     "oauth2_pkce_authorization",
+    "revision_read",
+    "scheduled_read",
     "source_selection",
 )
 CONNECTOR_AUTHORIZATION_MODES = ("none", "external_secret", "oauth2_pkce")
 CONNECTOR_NETWORK_MODES = ("disabled", "explicit")
 CONNECTOR_SECRET_REFERENCE_KINDS = ("environment", "system_keyring")
-CONNECTOR_SOURCE_KINDS = ("web",)
+CONNECTOR_SOURCE_KINDS = ("drive", "gmail", "web")
 CONNECTOR_LIFECYCLE_STATES = ("active", "removed")
 MAX_CONNECTOR_DATA_CATEGORIES = 32
 MAX_CONNECTOR_ORIGINS = 32

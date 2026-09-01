@@ -191,6 +191,9 @@ def build_email_bundle(
     attachments: Sequence[Mapping[str, Any]],
     identity_warnings: Sequence[str] = (),
     thread_observation: Mapping[str, Any] | None = None,
+    provider_observation: Mapping[str, Any] | None = None,
+    network_used: bool = False,
+    remote_fetch: bool = False,
 ) -> EmailDerivedPlan:
     """Build a complete inert representation without writing any Instance state."""
 
@@ -265,9 +268,7 @@ def build_email_bundle(
         },
         "envelope": {
             "headers": [_header_record(item) for item in parsed.headers],
-            "address_groups": [
-                _address_group_record(item) for item in parsed.address_groups
-            ],
+            "address_groups": [_address_group_record(item) for item in parsed.address_groups],
         },
         "declared_identity": {
             "message_ids": list(parsed.declared_message_ids),
@@ -287,6 +288,9 @@ def build_email_bundle(
                 "authoritative": False,
                 "source_scoped": True,
             }
+        ),
+        "provider_observation": (
+            dict(provider_observation) if provider_observation is not None else None
         ),
         "parser": {
             "id": parsed.parser_id,
@@ -309,12 +313,14 @@ def build_email_bundle(
         "removable": True,
         "rebuildable_from_original": True,
         "active_content_executed": False,
-        "remote_fetch": False,
-        "network_used": False,
+        "remote_fetch": bool(remote_fetch),
+        "network_used": bool(network_used),
         "runtime_downloads": False,
         "remote_fallback": False,
         "complete": True,
     }
+    if provider_observation is None:
+        manifest.pop("provider_observation")
     encoded = json_bytes(manifest)
     bundle_artifact = DerivedArtifact(
         id=artifact_id,
@@ -488,9 +494,7 @@ def observed_threads(
         grouped[(source_for[message_id], root(message_id))].append(message_id)
     threads: list[dict[str, Any]] = []
     for (source_id, root_id), message_ids in sorted(grouped.items()):
-        thread_digest = hashlib.sha256(
-            f"{source_id}\0{root_id}".encode()
-        ).hexdigest()
+        thread_digest = hashlib.sha256(f"{source_id}\0{root_id}".encode()).hexdigest()
         threads.append(
             {
                 "schema_version": EMAIL_BUNDLE_SCHEMA_VERSION,

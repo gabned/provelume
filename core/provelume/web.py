@@ -17,6 +17,7 @@ from .api import attach_api, reject_client_installation_evidence
 from .build_info import current_build_info
 from .email_activity import attach_email_routes
 from .folder_source_activity import attach_folder_source_routes
+from .google_activity import attach_google_routes
 from .i18n import SUPPORTED_LANGUAGES, translator
 from .installation import verify_current_installation
 from .installation_i18n import installation_translator
@@ -42,11 +43,7 @@ def _language(request: Request, instance: ProvelumeInstance) -> str:
 
 
 def _language_url(request: Request, language: str) -> str:
-    query = [
-        (key, value)
-        for key, value in request.query_params.multi_items()
-        if key != "lang"
-    ]
+    query = [(key, value) for key, value in request.query_params.multi_items() if key != "lang"]
     query.append(("lang", language))
     return f"{request.url.path}?{urlencode(query, doseq=True)}"
 
@@ -66,9 +63,7 @@ def _navigation(
         {
             "href": f"/browse?lang={language}",
             "label": t("nav.browse"),
-            "current": (
-                current_path == "/browse" or current_path.startswith("/documents/")
-            ),
+            "current": (current_path == "/browse" or current_path.startswith("/documents/")),
         },
         {
             "href": f"/search?lang={language}",
@@ -136,6 +131,11 @@ def _navigation(
             "current": current_path.startswith("/email"),
         },
         {
+            "href": f"/google?lang={language}",
+            "label": t("nav.google"),
+            "current": current_path.startswith("/google"),
+        },
+        {
             "href": f"/settings?lang={language}",
             "label": t("nav.settings"),
             "current": current_path.startswith("/settings"),
@@ -178,8 +178,7 @@ def _base_context(request: Request, language: str) -> dict[str, Any]:
         "security_t": security_t,
         "navigation": _navigation(language, request.url.path, t, security_t),
         "language_urls": {
-            selected: _language_url(request, selected)
-            for selected in sorted(SUPPORTED_LANGUAGES)
+            selected: _language_url(request, selected) for selected in sorted(SUPPORTED_LANGUAGES)
         },
     }
 
@@ -209,9 +208,7 @@ def create_app(
         release_bundle = None
     if isinstance(expected_manifest_sha256, str):
         expected_manifest_sha256 = expected_manifest_sha256.strip() or None
-    release_evidence_configured = (
-        release_bundle is not None or expected_manifest_sha256 is not None
-    )
+    release_evidence_configured = release_bundle is not None or expected_manifest_sha256 is not None
     if release_evidence_configured:
         installation_verification = verify_current_installation(
             release_bundle=release_bundle,
@@ -274,6 +271,7 @@ def create_app(
     attach_maintenance_routes(app, instance, TEMPLATES, _context)
     attach_ocr_routes(app, instance, TEMPLATES, _context)
     attach_email_routes(app, instance, TEMPLATES, _context)
+    attach_google_routes(app, instance, TEMPLATES, _context)
 
     @app.get("/")
     def home(request: Request):
@@ -387,11 +385,7 @@ def create_app(
         viewer_text = None
         rendered = None
         if content is not None:
-            viewer_text = (
-                content["original_text"]
-                if mode == "original"
-                else content["markdown"]
-            )
+            viewer_text = content["original_text"] if mode == "original" else content["markdown"]
             if mode == "rendered" and content["markdown"] is not None:
                 rendered = safe_markdown_html(content["markdown"])
         return TEMPLATES.TemplateResponse(

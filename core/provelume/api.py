@@ -13,9 +13,7 @@ from .maintenance_model import MaintenanceError, MaintenanceNotFoundError
 from .markdown_viewer import DocumentContentError
 from .service import ProvelumeInstance
 
-CLIENT_INSTALLATION_EVIDENCE_PARAMETERS = frozenset(
-    {"release_bundle", "expected_manifest_sha256"}
-)
+CLIENT_INSTALLATION_EVIDENCE_PARAMETERS = frozenset({"release_bundle", "expected_manifest_sha256"})
 
 
 def _not_found(kind: str, object_id: str) -> HTTPException:
@@ -76,9 +74,7 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             raise _not_found("connector Source", source_id)
         return result
 
-    @router.get(
-        "/connectors/{connector_instance_id}/sources/{source_id}/acquisitions"
-    )
+    @router.get("/connectors/{connector_instance_id}/sources/{source_id}/acquisitions")
     def get_manual_web_acquisitions(
         connector_instance_id: str,
         source_id: str,
@@ -93,8 +89,7 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
         )
 
     @router.get(
-        "/connectors/{connector_instance_id}/sources/{source_id}/acquisitions/"
-        "{acquisition_id}"
+        "/connectors/{connector_instance_id}/sources/{source_id}/acquisitions/{acquisition_id}"
     )
     def get_manual_web_acquisition(
         connector_instance_id: str,
@@ -272,6 +267,65 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
         if result is None:
             raise _not_found("email attachment", attachment_id)
         return result
+
+    @router.get("/google/capability")
+    def get_google_capability() -> dict[str, Any]:
+        return {
+            "schema_version": 1,
+            "profile": "provelume.google.readonly.v1",
+            "qualification": "local-conformance-preview",
+            "real_google_qualified": False,
+            "network_access": "explicit_only",
+            "provider_write": False,
+            "capabilities": ["gmail", "drive"],
+        }
+
+    @router.get("/google/instances")
+    def get_google_instances() -> list[dict[str, Any]]:
+        return instance.list_google_instances()
+
+    @router.get("/google/instances/{connector_instance_id}")
+    def get_google_instance(connector_instance_id: str) -> dict[str, Any]:
+        try:
+            return instance.get_google_instance(connector_instance_id)
+        except ValueError as exc:
+            raise _not_found("Google connector instance", connector_instance_id) from exc
+
+    @router.get("/google/sources")
+    def get_google_sources() -> list[dict[str, Any]]:
+        return instance.list_google_sources()
+
+    @router.get("/google/sources/{source_id}")
+    def get_google_source(source_id: str) -> dict[str, Any]:
+        try:
+            return instance.get_google_source(source_id)
+        except ValueError as exc:
+            raise _not_found("Google Source", source_id) from exc
+
+    @router.get("/google/jobs")
+    def get_google_jobs(
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_google_jobs(limit=limit)
+
+    @router.get("/google/jobs/{job_id}")
+    def get_google_job(job_id: str) -> dict[str, Any]:
+        result = instance.get_google_job(job_id)
+        if result is None:
+            raise _not_found("Google job", job_id)
+        return result
+
+    @router.get("/google/gmail-observations")
+    def get_google_gmail_observations(
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_google_gmail_observations(limit=limit)
+
+    @router.get("/google/drive-revisions")
+    def get_google_drive_revisions(
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
+        return instance.list_google_drive_revisions(limit=limit)
 
     @router.get("/maintenance")
     def get_maintenance_catalog() -> list[dict[str, Any]]:

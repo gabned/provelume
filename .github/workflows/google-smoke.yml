@@ -1,0 +1,45 @@
+name: Google adapters synthetic conformance smoke
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-conformance:
+    name: Synthetic conformance (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - name: Check out exact revision without credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up CPython 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Bootstrap without provider credentials or runtime downloads
+        run: python scripts/bootstrap.py
+
+      - name: Run deterministic no-network Google conformance on Linux
+        if: runner.os == 'Linux'
+        env:
+          PROVELUME_GOOGLE_CONFORMANCE: synthetic-no-network
+        run: .venv/bin/python -m pytest -q tests/test_google_jobs.py
+
+      - name: Run deterministic no-network Google conformance on Windows
+        if: runner.os == 'Windows'
+        env:
+          PROVELUME_GOOGLE_CONFORMANCE: synthetic-no-network
+        run: .venv\Scripts\python.exe -m pytest -q tests/test_google_jobs.py

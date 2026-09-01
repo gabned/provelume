@@ -79,6 +79,7 @@
       "items": {"$ref": "#/$defs/attachment"}
     },
     "thread_observation": {"$ref": "#/$defs/thread"},
+    "provider_observation": {"type": ["object", "null"]},
     "parser": {
       "type": "object",
       "additionalProperties": false,
@@ -97,9 +98,9 @@
       "additionalProperties": false,
       "required": ["adapter_id", "adapter_version", "network_access"],
       "properties": {
-        "adapter_id": {"const": "provelume.local-email"},
+        "adapter_id": {"enum": ["provelume.local-email", "provelume.google"]},
         "adapter_version": {"const": "1.0.0"},
-        "network_access": {"const": "none"}
+        "network_access": {"enum": ["none", "explicit_only"]}
       }
     },
     "platform": {"type": ["string", "null"]},
@@ -114,8 +115,8 @@
     "removable": {"const": true},
     "rebuildable_from_original": {"const": true},
     "active_content_executed": {"const": false},
-    "remote_fetch": {"const": false},
-    "network_used": {"const": false},
+    "remote_fetch": {"type": "boolean"},
+    "network_used": {"type": "boolean"},
     "runtime_downloads": {"const": false},
     "remote_fallback": {"const": false},
     "complete": {"const": true}

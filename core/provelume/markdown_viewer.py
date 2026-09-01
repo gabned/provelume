@@ -24,9 +24,7 @@ MARKDOWN_MEDIA_TYPES = frozenset(
         "text/x-markdown",
     }
 )
-_INLINE_LINK = re.compile(
-    r"(!?)\[([^\]\n]{0,500})\]\(([^)\n]{0,2000})\)"
-)
+_INLINE_LINK = re.compile(r"(!?)\[([^\]\n]{0,500})\]\(([^)\n]{0,2000})\)")
 _INLINE_CODE = re.compile(r"`([^`\n]+)`")
 _STRONG = re.compile(r"\*\*([^*\n]+)\*\*")
 _EMPHASIS = re.compile(r"(?<!\*)\*([^*\n]+)\*(?!\*)")
@@ -48,12 +46,14 @@ def _safe_inline(value: str) -> str:
     escaped = html.escape(value, quote=True)
     escaped = _INLINE_LINK.sub(
         lambda match: (
-            '<span class="blocked-resource">[Image blocked: '
-            if match.group(1)
-            else '<span class="blocked-link">'
-        )
-        + match.group(2)
-        + ("]</span>" if match.group(1) else "</span>"),
+            (
+                '<span class="blocked-resource">[Image blocked: '
+                if match.group(1)
+                else '<span class="blocked-link">'
+            )
+            + match.group(2)
+            + ("]</span>" if match.group(1) else "</span>")
+        ),
         escaped,
     )
     escaped = _INLINE_CODE.sub(r"<code>\1</code>", escaped)
@@ -88,9 +88,7 @@ def safe_markdown_html(value: str) -> Markup:
         if fence is not None:
             if line.lstrip().startswith(fence):
                 output.append(
-                    "<pre><code>"
-                    + html.escape("\n".join(code_lines), quote=True)
-                    + "</code></pre>"
+                    "<pre><code>" + html.escape("\n".join(code_lines), quote=True) + "</code></pre>"
                 )
                 code_lines.clear()
                 fence = None
@@ -136,9 +134,7 @@ def safe_markdown_html(value: str) -> Markup:
 
     if fence is not None:
         output.append(
-            "<pre><code>"
-            + html.escape("\n".join(code_lines), quote=True)
-            + "</code></pre>"
+            "<pre><code>" + html.escape("\n".join(code_lines), quote=True) + "</code></pre>"
         )
     flush_paragraph()
     close_list()
@@ -156,8 +152,7 @@ class DocumentContentReader:
     def _is_markdown(document: dict[str, Any], version: dict[str, Any]) -> bool:
         return (
             str(version.get("media_type", "")).casefold() in MARKDOWN_MEDIA_TYPES
-            or Path(str(document.get("locator", ""))).suffix.casefold()
-            in MARKDOWN_SUFFIXES
+            or Path(str(document.get("locator", ""))).suffix.casefold() in MARKDOWN_SUFFIXES
         )
 
     def _verified_original(
@@ -199,9 +194,7 @@ class DocumentContentReader:
             if verified is None:
                 return None
             _artifact, text = verified
-            title = str(document.get("title") or "Local email message").replace(
-                "\n", " "
-            )
+            title = str(document.get("title") or "Local email message").replace("\n", " ")
             return f"# {title}\n\n{text.rstrip()}\n"
         artifact = self.store.derived_artifact_for_version(
             str(version["id"]),
@@ -263,9 +256,9 @@ class DocumentContentReader:
         original = verified["original"]
         original_bytes = verified["data"]
         text_original = None
-        if self._is_markdown(document, version) or str(
-            version.get("media_type", "")
-        ).startswith("text/"):
+        if self._is_markdown(document, version) or str(version.get("media_type", "")).startswith(
+            "text/"
+        ):
             try:
                 text_original = original_bytes.decode("utf-8")
             except UnicodeDecodeError:
@@ -278,6 +271,10 @@ class DocumentContentReader:
             item.get("version_id") == version.get("id")
             for item in self.store.list_canonical("email-messages")
         )
+        is_google_drive = any(
+            item.get("version_id") == version.get("id")
+            for item in self.store.list_canonical("google-drive-revisions")
+        )
         if is_email:
             raw_markdown = self._extracted_markdown(document, version)
             if raw_markdown is not None:
@@ -285,7 +282,7 @@ class DocumentContentReader:
         elif self._is_markdown(document, version) and text_original is not None:
             raw_markdown = text_original
             source = "verified_original_markdown"
-        else:
+        elif not is_google_drive:
             bundle = self.bundles.get(str(version["id"]))
             if bundle is None and build_missing_bundle:
                 DocumentBundleManager(self.store).build_version(str(version["id"]))

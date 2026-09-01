@@ -72,6 +72,7 @@ _EMAIL_BUNDLE_FIELDS = {
     "mime_tree",
     "attachments",
     "thread_observation",
+    "provider_observation",
     "parser",
     "adapter",
     "platform",
@@ -88,6 +89,7 @@ _EMAIL_BUNDLE_FIELDS = {
     "remote_fallback",
     "complete",
 }
+_EMAIL_BUNDLE_FIELDS_LEGACY = _EMAIL_BUNDLE_FIELDS - {"provider_observation"}
 
 _EMAIL_MESSAGE_FIELDS = {
     "schema_version",
@@ -293,10 +295,7 @@ def _email_bundle_body_problem(
         text = payload.decode("utf-8")
     except (OSError, UnicodeError, UnsafePathError):
         return "email body artifact is unavailable or invalid"
-    if (
-        hashlib.sha256(payload).hexdigest() != digest
-        or len(text) != value.get("character_count")
-    ):
+    if hashlib.sha256(payload).hexdigest() != digest or len(text) != value.get("character_count"):
         return "email body artifact checksum or character count does not match"
     return None
 
@@ -340,8 +339,7 @@ def _email_bundle_attachment_problem(
             or row.get("original_id") != evidence.get("original_id")
             or row.get("sha256") != evidence.get("original_sha256")
             or row.get("size_bytes") != evidence.get("size_bytes")
-            or row.get("part_identity_sha256")
-            != evidence.get("part_identity_sha256")
+            or row.get("part_identity_sha256") != evidence.get("part_identity_sha256")
             or _EMAIL_PART_ID.fullmatch(str(row.get("part_id"))) is None
             or _SHA256.fullmatch(str(row.get("part_identity_sha256"))) is None
             or _SHA256.fullmatch(str(row.get("sha256"))) is None
@@ -349,9 +347,7 @@ def _email_bundle_attachment_problem(
             or int(size) < 0
             or not isinstance(row.get("part_path"), str)
             or not isinstance(row.get("media_type"), str)
-            or row.get("filename_is_untrusted") is not (
-                row.get("filename") is not None
-            )
+            or row.get("filename_is_untrusted") is not (row.get("filename") is not None)
             or row.get("original_authoritative") is not True
             or not isinstance(ocr, Mapping)
             or set(ocr)
@@ -430,7 +426,10 @@ def _email_bundle_problem(
         manifest_value = json.loads(manifest_bytes.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
         return "email bundle manifest is not valid UTF-8 JSON"
-    if not isinstance(manifest_value, Mapping) or set(manifest_value) != _EMAIL_BUNDLE_FIELDS:
+    if not isinstance(manifest_value, Mapping) or set(manifest_value) not in {
+        frozenset(_EMAIL_BUNDLE_FIELDS),
+        frozenset(_EMAIL_BUNDLE_FIELDS_LEGACY),
+    }:
         return "email bundle manifest fields are invalid"
     manifest = manifest_value
     derivation = manifest.get("derivation_key")
@@ -448,8 +447,8 @@ def _email_bundle_problem(
         or manifest.get("removable") is not True
         or manifest.get("rebuildable_from_original") is not True
         or manifest.get("active_content_executed") is not False
-        or manifest.get("remote_fetch") is not False
-        or manifest.get("network_used") is not False
+        or type(manifest.get("remote_fetch")) is not bool
+        or type(manifest.get("network_used")) is not bool
         or manifest.get("runtime_downloads") is not False
         or manifest.get("remote_fallback") is not False
     ):
@@ -484,8 +483,7 @@ def _email_bundle_problem(
         or message_record.get("locator_sha256") != observation.get("locator_sha256")
         or message_record.get("filesystem_identity_sha256")
         != observation.get("filesystem_identity_sha256")
-        or message_record.get("filesystem_mtime_ns")
-        != observation.get("filesystem_mtime_ns")
+        or message_record.get("filesystem_mtime_ns") != observation.get("filesystem_mtime_ns")
     ):
         return "email bundle message or observation binding is invalid"
     timestamps = manifest.get("timestamps")
@@ -507,13 +505,51 @@ def _email_bundle_problem(
     ):
         return "email bundle parser evidence is invalid"
     adapter = manifest.get("adapter")
+    adapter_id = observation.get("adapter_id")
+    expected_network = "explicit_only" if adapter_id == "provelume.google" else "none"
     if (
         not isinstance(adapter, Mapping)
-        or adapter.get("adapter_id") != observation.get("adapter_id")
+        or adapter.get("adapter_id") != adapter_id
         or adapter.get("adapter_version") != observation.get("adapter_version")
-        or adapter.get("network_access") != "none"
+        or adapter.get("network_access") != expected_network
+        or manifest.get("remote_fetch") != (adapter_id == "provelume.google")
+        or manifest.get("network_used") != (adapter_id == "provelume.google")
     ):
         return "email bundle adapter evidence is invalid"
+    provider_observation = manifest.get("provider_observation")
+    if adapter_id == "provelume.google":
+        if not isinstance(provider_observation, Mapping):
+            return "Google email provider observation is missing"
+        allowed = {
+            "provider_item_ref_sha256",
+            "provider_revision_ref_sha256",
+            "provider_thread_ref_sha256",
+            "provider_label_ref_sha256",
+            "provider_observed_at",
+            "authoritative",
+            "source_scoped",
+        }
+        if (
+            set(provider_observation) != allowed
+            or _SHA256.fullmatch(str(provider_observation.get("provider_item_ref_sha256"))) is None
+            or _SHA256.fullmatch(str(provider_observation.get("provider_revision_ref_sha256")))
+            is None
+            or (
+                provider_observation.get("provider_thread_ref_sha256") is not None
+                and _SHA256.fullmatch(str(provider_observation.get("provider_thread_ref_sha256")))
+                is None
+            )
+            or not isinstance(provider_observation.get("provider_label_ref_sha256"), list)
+            or any(
+                _SHA256.fullmatch(str(value)) is None
+                for value in provider_observation.get("provider_label_ref_sha256", [])
+            )
+            or provider_observation.get("authoritative") is not False
+            or provider_observation.get("source_scoped") is not True
+        ):
+            return "Google email provider observation is invalid"
+    elif provider_observation is not None:
+        return "local email bundle cannot retain provider observation"
     body_problem = _email_bundle_body_problem(
         store,
         manifest.get("body"),
@@ -619,13 +655,20 @@ def _validate_email_evidence(
         document = documents.get(str(document_id))
         version = versions.get(str(version_id))
         original = originals.get(str(original_id))
+        google_message = message.get("adapter_id") == "provelume.google"
+        expected_source_kind = "connector" if google_message else "email"
+        expected_title = (
+            f"Google Gmail message {record_id}"
+            if google_message
+            else f"Local email message {record_id}"
+        )
         if (
             source is None
-            or source.get("kind") != "email"
+            or source.get("kind") != expected_source_kind
             or document is None
             or document.get("source_id") != source_id
             or document.get("locator") != f"email-message:{record_id}"
-            or document.get("title") != f"Local email message {record_id}"
+            or document.get("title") != expected_title
             or document.get("media_type") != "message/rfc822"
             or document.get("current_version_id") != version_id
             or version is None
@@ -713,6 +756,11 @@ def _validate_email_evidence(
             continue
         acquisition = acquisitions.get(str(acquisition_id))
         original_id = message.get("original_id")
+        expected_acquisition_kind = (
+            "google_gmail_readonly"
+            if observation.get("adapter_id") == "provelume.google"
+            else "local_email"
+        )
         valid_acquisition = (
             source_id == message.get("source_id")
             and acquisition is not None
@@ -724,7 +772,7 @@ def _validate_email_evidence(
             and acquisition.get("locator")
             == f"email-locator:sha256:{observation.get('locator_sha256')}"
             and acquisition.get("observed_at") == observation.get("observed_at")
-            and acquisition.get("acquisition_kind") == "local_email"
+            and acquisition.get("acquisition_kind") == expected_acquisition_kind
             and acquisition.get("outcome") in {"created", "unchanged"}
             and acquisition.get("media_type") == "message/rfc822"
             and acquisition.get("response_size_bytes") == message.get("size_bytes")
@@ -740,8 +788,7 @@ def _validate_email_evidence(
             and acquisition.get("derived_status") is None
             and acquisition.get("derived_artifact_id") is None
             and type(acquisition.get("exact_duplicate")) is bool
-            and acquisition.get("exact_duplicate")
-            is (acquisition.get("outcome") == "unchanged")
+            and acquisition.get("exact_duplicate") is (acquisition.get("outcome") == "unchanged")
         )
         required_edges = {
             ("source", str(source_id), "observed", "acquisition", str(acquisition_id)),
@@ -818,9 +865,7 @@ def _validate_email_evidence(
                 )
             )
 
-    observed_message_ids = {
-        str(item.get("message_id")) for item in valid_observations.values()
-    }
+    observed_message_ids = {str(item.get("message_id")) for item in valid_observations.values()}
     for message_id in valid_messages:
         if message_id not in observed_message_ids:
             errors.append(
@@ -1008,9 +1053,7 @@ def _canonical_records(
         directory = store.paths.canonical_dir(kind)
         selected: dict[str, dict[str, Any]] = {}
         records[kind] = selected
-        if not directory.is_dir() and (
-            directory.exists() or directory.is_symlink()
-        ):
+        if not directory.is_dir() and (directory.exists() or directory.is_symlink()):
             errors.append(
                 _finding(
                     "canonical_directory_invalid",
@@ -1073,6 +1116,209 @@ def _canonical_records(
     return records
 
 
+def _validate_google_evidence(
+    store: InstanceStore,
+    records: Mapping[str, Mapping[str, Mapping[str, Any]]],
+    errors: list[dict[str, str]],
+) -> None:
+    sha_fields = {
+        "provider_item_ref_sha256",
+        "provider_revision_ref_sha256",
+        "provider_thread_ref_sha256",
+        "provider_file_ref_sha256",
+        "checksum_sha256",
+    }
+    gmail_fields = {
+        "schema_version",
+        "id",
+        "source_id",
+        "message_id",
+        "provider_item_ref_sha256",
+        "provider_revision_ref_sha256",
+        "provider_thread_ref_sha256",
+        "provider_label_ref_sha256",
+        "provider_observed_at",
+        "authoritative",
+        "source_scoped",
+        "accepted_at",
+    }
+    for record_id, value in records["google-gmail-observations"].items():
+        path = f"knowledge/google-gmail-observations/{record_id}.json"
+        valid_sha = all(
+            value.get(field) is None or _SHA256.fullmatch(str(value.get(field))) is not None
+            for field in sha_fields & set(value)
+        )
+        labels = value.get("provider_label_ref_sha256")
+        valid = (
+            set(value) == gmail_fields
+            and record_id.startswith("google_gmail_observation_")
+            and value.get("schema_version") == 1
+            and value.get("source_id") in records["sources"]
+            and value.get("message_id") in records["email-messages"]
+            and valid_sha
+            and isinstance(labels, list)
+            and labels == sorted(set(labels))
+            and all(_SHA256.fullmatch(str(item)) is not None for item in labels)
+            and value.get("authoritative") is False
+            and value.get("source_scoped") is True
+            and _valid_instant(value.get("accepted_at"))
+            and (
+                value.get("provider_observed_at") is None
+                or _valid_instant(value.get("provider_observed_at"))
+            )
+        )
+        if not valid:
+            errors.append(
+                _finding(
+                    "google_gmail_observation_invalid",
+                    "Google Gmail observation is not bounded and source-scoped",
+                    path=path,
+                )
+            )
+
+    file_fields = {
+        "schema_version",
+        "id",
+        "source_id",
+        "document_id",
+        "provider_file_ref_sha256",
+        "current_revision_id",
+        "provider_neutral_identity",
+        "updated_at",
+    }
+    revision_fields = {
+        "schema_version",
+        "id",
+        "source_id",
+        "document_id",
+        "version_id",
+        "original_id",
+        "acquisition_id",
+        "provider_file_ref_sha256",
+        "provider_revision_ref_sha256",
+        "sequence",
+        "source_format",
+        "export_format",
+        "google_native",
+        "media_type",
+        "checksum_sha256",
+        "size_bytes",
+        "provider_observed_at",
+        "accepted_at",
+        "exact_byte_original",
+        "provider_write",
+    }
+    for record_id, value in records["google-drive-files"].items():
+        path = f"knowledge/google-drive-files/{record_id}.json"
+        valid = (
+            set(value) == file_fields
+            and record_id.startswith("google_drive_file_")
+            and value.get("schema_version") == 1
+            and value.get("source_id") in records["sources"]
+            and value.get("document_id") in records["documents"]
+            and value.get("current_revision_id") in records["google-drive-revisions"]
+            and _SHA256.fullmatch(str(value.get("provider_file_ref_sha256"))) is not None
+            and value.get("provider_neutral_identity") is True
+            and _valid_instant(value.get("updated_at"))
+        )
+        if not valid:
+            errors.append(
+                _finding(
+                    "google_drive_file_invalid",
+                    "Google Drive file identity is not provider-neutral",
+                    path=path,
+                )
+            )
+    for record_id, value in records["google-drive-revisions"].items():
+        path = f"knowledge/google-drive-revisions/{record_id}.json"
+        original = records["originals"].get(str(value.get("original_id")))
+        source_format = value.get("source_format")
+        export_format = value.get("export_format")
+        google_native = value.get("google_native")
+        native_format_valid = isinstance(source_format, str) and (
+            (google_native is False and export_format is None)
+            or (
+                google_native is True
+                and source_format.startswith("application/vnd.google-apps.")
+                and isinstance(export_format, str)
+                and export_format == value.get("media_type")
+            )
+        )
+        valid = (
+            set(value) == revision_fields
+            and record_id.startswith("google_drive_revision_")
+            and value.get("schema_version") == 1
+            and value.get("source_id") in records["sources"]
+            and value.get("document_id") in records["documents"]
+            and value.get("version_id") in records["versions"]
+            and value.get("acquisition_id") in records["acquisitions"]
+            and original is not None
+            and original.get("sha256") == value.get("checksum_sha256")
+            and original.get("size_bytes") == value.get("size_bytes")
+            and all(
+                _SHA256.fullmatch(str(value.get(field))) is not None
+                for field in (
+                    "provider_file_ref_sha256",
+                    "provider_revision_ref_sha256",
+                    "checksum_sha256",
+                )
+            )
+            and type(value.get("sequence")) is int
+            and int(value.get("sequence", 0)) >= 1
+            and type(value.get("size_bytes")) is int
+            and int(value.get("size_bytes", -1)) >= 0
+            and native_format_valid
+            and value.get("exact_byte_original") is True
+            and value.get("provider_write") is False
+            and _valid_instant(value.get("accepted_at"))
+            and (
+                value.get("provider_observed_at") is None
+                or _valid_instant(value.get("provider_observed_at"))
+            )
+        )
+        if not valid:
+            errors.append(
+                _finding(
+                    "google_drive_revision_invalid",
+                    "Google Drive revision evidence or Original binding is invalid",
+                    path=path,
+                )
+            )
+
+    forbidden_keys = {
+        "access_token",
+        "authorization_header",
+        "client_secret",
+        "credential_value",
+        "refresh_token",
+        "token",
+    }
+
+    def secret_key_present(value: Any) -> bool:
+        if isinstance(value, Mapping):
+            return any(
+                str(key).casefold() in forbidden_keys or secret_key_present(item)
+                for key, item in value.items()
+            )
+        if isinstance(value, list):
+            return any(secret_key_present(item) for item in value)
+        return False
+
+    state_root = store.paths.state / "google-adapters"
+    if state_root.is_dir():
+        for path in sorted(state_root.rglob("*.json")):
+            value, problem = _load_json(path)
+            relative = path.relative_to(store.paths.root).as_posix()
+            if problem is not None or value is None or secret_key_present(value):
+                errors.append(
+                    _finding(
+                        "google_secret_material_invalid",
+                        "Google state contains unreadable or forbidden secret material",
+                        path=relative,
+                    )
+                )
+
+
 def _validate_references(
     store: InstanceStore,
     records: Mapping[str, Mapping[str, Mapping[str, Any]]],
@@ -1123,10 +1369,9 @@ def _validate_references(
                     path=path,
                 )
             )
-        elif (
-            version.get("content_hash") != original.get("sha256")
-            or version.get("size_bytes") != original.get("size_bytes")
-        ):
+        elif version.get("content_hash") != original.get("sha256") or version.get(
+            "size_bytes"
+        ) != original.get("size_bytes"):
             errors.append(
                 _finding(
                     "version_original_integrity_mismatch",
@@ -1179,8 +1424,7 @@ def _validate_references(
         if valid_authorized_origins:
             try:
                 valid_authorized_origins = all(
-                    isinstance(origin, str)
-                    and canonical_web_origin(origin) == origin
+                    isinstance(origin, str) and canonical_web_origin(origin) == origin
                     for origin in authorized_origins
                 ) and all(
                     canonical_web_origin(selected) in authorized_origins
@@ -1191,17 +1435,11 @@ def _validate_references(
         source_url_matches = False
         if source is not None:
             try:
-                source_url_matches = (
-                    canonical_web_url(source.get("external_id")) == requested_url
-                )
+                source_url_matches = canonical_web_url(source.get("external_id")) == requested_url
             except WebTransportError:
                 source_url_matches = False
         replay_id = acquisition.get("replay_of_acquisition_id")
-        replay = (
-            records["acquisitions"].get(replay_id)
-            if isinstance(replay_id, str)
-            else None
-        )
+        replay = records["acquisitions"].get(replay_id) if isinstance(replay_id, str) else None
         replay_valid = replay_id is None or (
             replay is not None
             and replay_id != record_id
@@ -1216,9 +1454,7 @@ def _validate_references(
             or source is None
             or source.get("kind") != "connector"
             or connector is None
-            or source.get("connector_instance_id") != acquisition.get(
-                "connector_instance_id"
-            )
+            or source.get("connector_instance_id") != acquisition.get("connector_instance_id")
             or acquisition.get("locator") != requested_url
             or acquisition.get("observed_at") != acquisition.get("retrieved_at")
             or acquisition.get("http_status") != 200
@@ -1227,14 +1463,12 @@ def _validate_references(
             or int(acquisition.get("response_size_bytes", -1)) < 0
             or acquisition.get("outcome")
             not in {"created", "unchanged", "version_created", "version_reused"}
-            or acquisition.get("derived_status")
-            not in {"created", "reused", "unavailable"}
+            or acquisition.get("derived_status") not in {"created", "reused", "unavailable"}
             or type(acquisition.get("exact_duplicate")) is not bool
             or not replay_valid
             or (derived_status == "unavailable" and derived_artifact_id is not None)
             or (
-                derived_status in {"created", "reused"}
-                and not isinstance(derived_artifact_id, str)
+                derived_status in {"created", "reused"} and not isinstance(derived_artifact_id, str)
             )
             or not source_url_matches
             or not valid_authorized_origins
@@ -1326,6 +1560,7 @@ def _validate_references(
             )
 
     _validate_email_evidence(store, records, errors)
+    _validate_google_evidence(store, records, errors)
     for code, message, path in canonical_connector_errors(
         records["connector-definitions"],
         records["connector-instances"],
@@ -1591,8 +1826,7 @@ def inspect_instance(root: Path | str, *, deep: bool = True) -> dict[str, Any]:
                     ensure_ascii=False,
                 ).encode("utf-8")
                 fingerprint_rows.append(
-                    f"knowledge/{kind}/{record_id}.json:"
-                    f"{hashlib.sha256(encoded).hexdigest()}"
+                    f"knowledge/{kind}/{record_id}.json:{hashlib.sha256(encoded).hexdigest()}"
                 )
 
     fingerprint = None

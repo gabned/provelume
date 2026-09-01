@@ -40,6 +40,21 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - qualified EML on Ubuntu 24.04 and Windows x86-64 with CPython 3.12 and Maildir only on Ubuntu
   24.04 x86-64 with CPython 3.12 through the permanent real-parser smoke on the unchanged owner
   head; mbox stays unsupported and no runtime dependency or provider payload is added.
+- implemented `0.9/S04` replaceable Gmail and Drive adapters with one ConnectorInstance per Google
+  identity, separate exact read-only scope/consent/revocation state per capability and explicit
+  mailbox/label or file/folder Sources without cross-Source merge;
+- reused the S03 exact-byte email pipeline for bounded Gmail messages, threads and attachments,
+  keeping provider IDs, labels, addresses and dates as hashed Source-scoped observations and adding
+  no send, label mutation, delete or write-back path;
+- preserved Drive binary bytes and supported bounded Google Docs/Sheets/Slides exports as exact
+  Originals with provider-neutral file/revision identity, source/export format, checksum and
+  provenance, while adding no update, delete, share or write-back path;
+- integrated per-Source cursor/checkpoint, paging, backfill bounds, retry/rate-limit, lease recovery,
+  visible OAuth expiry/cursor invalidation/remote-mutation failure and deterministic no-network
+  public CI, plus service/CLI, read-only API and protected EN/IT Browser controls;
+- recorded Google as `local-conformance-preview` with `real_google_qualified=false`: no real
+  credential enters the repository, workflows, fixtures, logs, backups or portable exports, and no
+  authenticated provider matrix is claimed without a permanent authorized exact-head smoke.
 
 ### Changed
 

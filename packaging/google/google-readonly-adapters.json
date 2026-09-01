@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "slice": "0.9/S04",
+  "release_identity": "0.8.0",
+  "status": "local-conformance-preview",
+  "real_google_qualified": false,
+  "qualification_reason": "No permanent, authorized, exact-head authenticated Google smoke is published.",
+  "adapters": [
+    {
+      "capability": "gmail",
+      "scope": "https://www.googleapis.com/auth/gmail.readonly",
+      "selection": ["mailbox", "label"],
+      "provider_write": false
+    },
+    {
+      "capability": "drive",
+      "scope": "https://www.googleapis.com/auth/drive.readonly",
+      "selection": ["file", "folder"],
+      "provider_write": false,
+      "google_native_exports": {
+        "application/vnd.google-apps.document": "application/pdf",
+        "application/vnd.google-apps.presentation": "application/pdf",
+        "application/vnd.google-apps.spreadsheet": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      }
+    }
+  ],
+  "public_ci": {
+    "adapter": "SyntheticGoogleAdapter",
+    "network": false,
+    "credentials": false,
+    "fixtures": "synthetic",
+    "claims_real_google_qualification": false
+  },
+  "distribution": {
+    "new_python_dependencies": [],
+    "new_native_components": [],
+    "new_provider_payloads": [],
+    "real_credentials": [],
+    "workflow_secrets": [],
+    "silent_runtime_download": false
+  }
+}

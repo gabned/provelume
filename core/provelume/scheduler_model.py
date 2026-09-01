@@ -8,6 +8,7 @@ from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .email_contract import EMAIL_ERROR_CODES
+from .google_contract import GOOGLE_ERROR_CODES
 from .ocr_contract import OCR_ERROR_CODES
 
 SCHEDULER_SCHEMA_VERSION = 1
@@ -23,13 +24,16 @@ SCHEDULER_JOB_KINDS = (
     "maintenance.resource_snapshot",
     "ocr.execute",
     "email.intake",
+    "google.intake",
 )
 USER_SCHEDULER_JOB_KINDS = tuple(
-    kind for kind in SCHEDULER_JOB_KINDS if kind not in {"ocr.execute", "email.intake"}
+    kind
+    for kind in SCHEDULER_JOB_KINDS
+    if kind not in {"ocr.execute", "email.intake", "google.intake"}
 )
 EXECUTABLE_JOB_KINDS = SCHEDULER_JOB_KINDS
 SOURCE_SCOPED_JOB_KINDS = frozenset(
-    {"source.refresh", "maintenance.source_reconcile", "email.intake"}
+    {"source.refresh", "maintenance.source_reconcile", "email.intake", "google.intake"}
 )
 POLICY_STATES = ("disabled", "enabled", "paused")
 SCHEDULE_MODES = ("manual", "interval", "calendar")
@@ -68,7 +72,7 @@ ERROR_CODES = (
     "source_reconciliation_failed",
     "source_reauthorization_required",
     "source_reconciliation_superseded",
-) + OCR_ERROR_CODES + EMAIL_ERROR_CODES
+) + OCR_ERROR_CODES + EMAIL_ERROR_CODES + GOOGLE_ERROR_CODES
 RECOVERY_STATES = ("none", "resumable", "restart_only", "manual_intervention")
 RUN_REASONS = ("manual", "scheduled", "coalesced", "catch_up")
 PROGRESS_KEYS = ("processed", "skipped", "errors")

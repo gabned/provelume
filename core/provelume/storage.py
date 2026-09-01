@@ -58,6 +58,9 @@ ADDITIVE_CANONICAL_KINDS = (
     "email-messages",
     "email-observations",
     "email-attachments",
+    "google-gmail-observations",
+    "google-drive-files",
+    "google-drive-revisions",
 )
 CANONICAL_KINDS = REQUIRED_CANONICAL_KINDS + ADDITIVE_CANONICAL_KINDS
 
