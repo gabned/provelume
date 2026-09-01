@@ -40,7 +40,7 @@ PDF/image page preparation and removable document bundles in the unreleased sour
 S03 owner [#143](https://github.com/gabned/provelume/issues/143) and
 [PR #147](https://github.com/gabned/provelume/pull/147)
 implement an explicit, provider-neutral local email baseline for exact-byte EML and Maildir intake.
-Its exact-head permanent smoke qualifies EML on Ubuntu 24.04 and Windows x86-64 with CPython 3.12,
+Its exact-head permanent smoke qualifies EML on Ubuntu 24.04 and Windows Server 2025 x86-64 with CPython 3.12,
 and Maildir only on Ubuntu 24.04 x86-64 with CPython 3.12. Every other combination remains
 unqualified. `0.9/S04` is forecast only and is not activated.
 Package and embedded build identity are aligned to `0.8.0`, `v0.8.0` and the exact published
