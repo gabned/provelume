@@ -273,8 +273,9 @@ Source-scoped identity/thread observations, durable intake and removable email r
 `0.9/S04` is completed by [#149](https://github.com/gabned/provelume/issues/149) and owner
 [PR #150](https://github.com/gabned/provelume/pull/150); it adds replaceable read-only Gmail/Drive
 adapters while retaining the public `0.8.0` identity. `0.9/S05` transcript profiles is the current
-merge-gated product candidate under [#151](https://github.com/gabned/provelume/issues/151), still
-without any `0.9.0` publication; `0.9/S06` is forecast-only.
+unreleased implementation delivered through [#151](https://github.com/gabned/provelume/issues/151)
+and owner [PR #152](https://github.com/gabned/provelume/pull/152), without any `0.9.0` publication;
+`0.9/S06` is forecast-only.
 
 ## Planning and delivery contract
 
@@ -991,9 +992,9 @@ local execution and derived document bundles without publishing `0.9.0`. `0.9/S0
 #143 and owner PR #147; it implements bounded local EML/Maildir identity and intake without
 publishing `0.9.0`. `0.9/S04` is completed by #149 and owner PR #150; it adds read-only Gmail/Drive
 adapters without publishing `0.9.0`. `0.9/S05` is the merge-gated product candidate owned by #151
-on `product/0.9-s05-transcript-profiles`; it does not publish `0.9.0`. One owner PR may be opened
-only after a true candidate head exists. `0.9/S06` remains forecast-only and has no issue, branch or
-owner pull request.
+and owner PR #152 on `product/0.9-s05-transcript-profiles`; it implements the closed local
+SRT/WebVTT profile matrix and does not publish `0.9.0`. `0.9/S06` remains forecast-only and has no
+issue, branch or owner pull request.
 
 ### 0.10.0 — Multimedia, Universal Content Representations and Component Inventory
 

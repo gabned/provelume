@@ -3,6 +3,7 @@
 - Status: accepted for unreleased `0.9/S05`
 - Date: 2026-09-01
 - Owner issue: [#151](https://github.com/gabned/provelume/issues/151)
+- Owner PR: [#152](https://github.com/gabned/provelume/pull/152)
 - Parent tracker: [#137](https://github.com/gabned/provelume/issues/137)
 - Public identity: `0.8.0`
 
