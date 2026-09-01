@@ -69,7 +69,7 @@ acquisita.
 Lo smoke permanente usa il parser reale selezionato e messaggi sintetici generati sui seguenti
 target esatti qualificati:
 
-| Profilo | Ubuntu 24.04 x86-64 / CPython 3.12 | Windows x86-64 / CPython 3.12 | Altri target |
+| Profilo | Ubuntu 24.04 x86-64 / CPython 3.12 | Windows Server 2025 x86-64 / CPython 3.12 | Altri target |
 | --- | --- | --- | --- |
 | `eml-file-v1` | qualificato | qualificato | non qualificato |
 | `maildir-cur-new-v1` | qualificato | non qualificato | non qualificato |
