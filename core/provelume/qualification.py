@@ -58,6 +58,39 @@ def _instant(value: str) -> datetime:
     return selected.astimezone(UTC)
 
 
+def _bounded_payload_sha256(path: Path, maximum: int) -> tuple[str | None, int, bool]:
+    """Hash a payload without ever reading beyond the configured bound into memory."""
+
+    total = 0
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while True:
+            remaining = maximum - total
+            chunk = handle.read(min(1024 * 1024, remaining + 1))
+            if not chunk:
+                return digest.hexdigest(), total, False
+            total += len(chunk)
+            if total > maximum:
+                return None, total, True
+            digest.update(chunk)
+
+
+def _closed_hex(value: Any, length: int) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == length
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _closed_id(value: Any, prefix: str, digest_length: int) -> bool:
+    return (
+        isinstance(value, str)
+        and value.startswith(prefix)
+        and _closed_hex(value[len(prefix) :], digest_length)
+    )
+
+
 def _source_profile(
     store: InstanceStore,
     source: Mapping[str, Any],
@@ -240,17 +273,10 @@ class QualificationManager:
                 path = safe_instance_path(
                     self.store.paths.root, str(artifact.get("storage_ref", ""))
                 )
-                total = 0
-                digest = hashlib.sha256()
-                with path.open("rb") as handle:
-                    while chunk := handle.read(1024 * 1024):
-                        total += len(chunk)
-                        if total > maximum:
-                            payload_fingerprint = "limit-exceeded"
-                            break
-                        digest.update(chunk)
-                    else:
-                        payload_fingerprint = f"sha256:{digest.hexdigest()}:{total}"
+                digest, total, exceeded = _bounded_payload_sha256(path, maximum)
+                payload_fingerprint = (
+                    "limit-exceeded" if exceeded else f"sha256:{digest}:{total}"
+                )
             except (OSError, ValueError):
                 pass
             rows.append(
@@ -682,7 +708,8 @@ class QualificationManager:
                 continue
             try:
                 path = safe_instance_path(self.store.paths.root, str(artifact.get("storage_ref")))
-                data = path.read_bytes()
+                with path.open("rb") as handle:
+                    data = handle.read(16 * 1024 * 1024 + 1)
                 if len(data) > 16 * 1024 * 1024:
                     continue
                 if hashlib.sha256(data).hexdigest() != artifact.get("checksum"):
@@ -690,8 +717,12 @@ class QualificationManager:
                 manifest = json.loads(data.decode("utf-8"))
             except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
                 continue
-            if isinstance(manifest, dict):
-                email_manifests.append(manifest)
+            if not isinstance(manifest, dict):
+                continue
+            source_id = str(manifest.get("message", {}).get("source_id"))
+            if source_id not in result:
+                continue
+            email_manifests.append(manifest)
             if len(email_manifests) >= min(limit, 500):
                 break
         for message in email_manifests:
@@ -724,10 +755,17 @@ class QualificationManager:
                         hashlib.sha256(f"participant\0{normalized}".encode()).hexdigest()
                     )
         transcripts = TranscriptJobManager(self.store)
-        for revision in transcripts.list_revisions(limit=min(limit, 500)):
+        transcript_revisions = [
+            revision
+            for revision in self.store.list_canonical("transcript-revisions")
+            if str(revision.get("source_id")) in result
+        ]
+        transcript_revisions.sort(
+            key=lambda item: (str(item.get("first_acquired_at")), str(item.get("id"))),
+            reverse=True,
+        )
+        for revision in transcript_revisions[: min(limit, 500)]:
             source_id = str(revision.get("source_id"))
-            if source_id not in result:
-                continue
             detail = transcripts.get_revision(str(revision["id"]), include_content=True)
             if detail is None:
                 continue
@@ -862,22 +900,50 @@ class QualificationManager:
                                 job=job,
                             )
                         )
-                    elif hashlib.sha256(path.read_bytes()).hexdigest() != artifact.get("checksum"):
-                        findings.append(
-                            self._finding(
-                                finding_type="representation-recipe-inconsistent",
-                                rows=[row],
-                                evidence={
-                                    "code": "derived-checksum-mismatch",
-                                    "artifact_kind": artifact.get("kind"),
-                                },
-                                rule_id="representation-integrity-v1",
-                                epistemic_state="incompatible",
-                                confidence_kind="deterministic-check",
-                                confidence_value=1.0,
-                                job=job,
+                    else:
+                        try:
+                            payload_checksum, _payload_bytes, payload_exceeded = (
+                                _bounded_payload_sha256(path, limits.max_temporary_bytes)
                             )
-                        )
+                        except OSError:
+                            payload_checksum = None
+                            payload_exceeded = False
+                        if payload_exceeded or payload_checksum is None:
+                            findings.append(
+                                self._finding(
+                                    finding_type="representation-not-reconstructible",
+                                    rows=[row],
+                                    evidence={
+                                        "code": (
+                                            "derived-payload-exceeds-limit"
+                                            if payload_exceeded
+                                            else "derived-payload-unavailable"
+                                        ),
+                                        "artifact_kind": artifact.get("kind"),
+                                    },
+                                    rule_id="representation-integrity-v1",
+                                    epistemic_state="incompatible",
+                                    confidence_kind="deterministic-check",
+                                    confidence_value=1.0,
+                                    job=job,
+                                )
+                            )
+                        elif payload_checksum != artifact.get("checksum"):
+                            findings.append(
+                                self._finding(
+                                    finding_type="representation-recipe-inconsistent",
+                                    rows=[row],
+                                    evidence={
+                                        "code": "derived-checksum-mismatch",
+                                        "artifact_kind": artifact.get("kind"),
+                                    },
+                                    rule_id="representation-integrity-v1",
+                                    epistemic_state="incompatible",
+                                    confidence_kind="deterministic-check",
+                                    confidence_value=1.0,
+                                    job=job,
+                                )
+                            )
             for acquisition in row.get("acquisition_times", []):
                 observed = acquisition.get("observed_at")
                 acquired = row.get("acquired_at")
@@ -1170,6 +1236,66 @@ class QualificationManager:
                 shutil.rmtree(stage, ignore_errors=True)
         return manifest
 
+    def _finish_locked(
+        self,
+        job_id: str,
+        token: str,
+        *,
+        status: str,
+        error_code: str | None,
+        result: Mapping[str, Any] | None,
+    ) -> dict[str, Any]:
+        job = self.get_job(job_id, public=False)
+        if job is None or not isinstance(job.get("lease"), Mapping):
+            raise QualificationError(
+                "qualification_lease_expired", "qualification lease is unavailable"
+            )
+        if job["lease"].get("token") != token:
+            raise QualificationError(
+                "qualification_lease_expired", "qualification lease ownership changed"
+            )
+        processed = int(job["checkpoint"]["cursor"])
+        if result is not None:
+            processed = int(result.get("finding_count", processed))
+        job.update(
+            {
+                "status": status,
+                "lease": None,
+                "cancel_requested": False,
+                "checkpoint": {
+                    "sequence": int(job["checkpoint"]["sequence"]) + 1,
+                    "phase": "committed" if status == "succeeded" else "failed",
+                    "cursor": processed,
+                },
+                "progress": {
+                    "processed": processed if status == "succeeded" else 0,
+                    "skipped": 0,
+                    "errors": 0 if status == "succeeded" else 1,
+                },
+                "error_code": error_code,
+                "result_ref": (
+                    f"state/{QUALIFICATION_STATE_KIND}/results/{job_id}/manifest.json"
+                    if result is not None
+                    else None
+                ),
+                "updated_at": utc_now(),
+            }
+        )
+        self._write_json(self._job_path(job_id), job)
+        if result is not None:
+            for source_id in job["source_ids"]:
+                cursor = self._source_cursor(source_id)
+                cursor.update(
+                    {
+                        "last_job_id": job_id,
+                        "last_snapshot_fingerprint": job["snapshot"]["fingerprint"],
+                        "last_success_at": result["completed_at"],
+                        "resync_required": False,
+                    }
+                )
+                self._write_json(self._source_path(source_id), cursor)
+        return self._public_job(job)
+
     def _finish(
         self,
         job_id: str,
@@ -1181,6 +1307,28 @@ class QualificationManager:
     ) -> dict[str, Any]:
         try:
             with self._hold("qualification-finish"):
+                return self._finish_locked(
+                    job_id,
+                    token,
+                    status=status,
+                    error_code=error_code,
+                    result=result,
+                )
+        except InstanceLifecycleBusy as exc:
+            raise QualificationError(
+                "qualification_conflict", "another Instance operation is active"
+            ) from exc
+
+    def _commit_success(
+        self,
+        job_id: str,
+        token: str,
+        findings: Sequence[Mapping[str, Any]],
+    ) -> dict[str, Any]:
+        """Recheck, publish and finish under one Instance mutation boundary."""
+
+        try:
+            with self._hold("qualification-commit"):
                 job = self.get_job(job_id, public=False)
                 if job is None or not isinstance(job.get("lease"), Mapping):
                     raise QualificationError(
@@ -1190,47 +1338,25 @@ class QualificationManager:
                     raise QualificationError(
                         "qualification_lease_expired", "qualification lease ownership changed"
                     )
-                processed = int(job["checkpoint"]["cursor"])
-                if result is not None:
-                    processed = int(result.get("finding_count", processed))
-                job.update(
-                    {
-                        "status": status,
-                        "lease": None,
-                        "cancel_requested": False,
-                        "checkpoint": {
-                            "sequence": int(job["checkpoint"]["sequence"]) + 1,
-                            "phase": "committed" if status == "succeeded" else "failed",
-                            "cursor": processed,
-                        },
-                        "progress": {
-                            "processed": processed if status == "succeeded" else 0,
-                            "skipped": 0,
-                            "errors": 0 if status == "succeeded" else 1,
-                        },
-                        "error_code": error_code,
-                        "result_ref": (
-                            f"state/{QUALIFICATION_STATE_KIND}/results/{job_id}/manifest.json"
-                            if result is not None
-                            else None
-                        ),
-                        "updated_at": utc_now(),
-                    }
+                if job.get("cancel_requested"):
+                    raise QualificationError(
+                        "qualification_cancelled", "qualification was cancelled"
+                    )
+                limits = QualificationLimits.from_mapping(job["snapshot"]["limits"])
+                current_snapshot = self._snapshot(job["source_ids"], limits)
+                if current_snapshot["fingerprint"] != job["snapshot"]["fingerprint"]:
+                    raise QualificationError(
+                        "qualification_input_changed",
+                        "qualification inputs changed before complete publication",
+                    )
+                result = self._publish_result(job, findings)
+                return self._finish_locked(
+                    job_id,
+                    token,
+                    status="succeeded",
+                    error_code=None,
+                    result=result,
                 )
-                self._write_json(self._job_path(job_id), job)
-                if result is not None:
-                    for source_id in job["source_ids"]:
-                        cursor = self._source_cursor(source_id)
-                        cursor.update(
-                            {
-                                "last_job_id": job_id,
-                                "last_snapshot_fingerprint": job["snapshot"]["fingerprint"],
-                                "last_success_at": result["completed_at"],
-                                "resync_required": False,
-                            }
-                        )
-                        self._write_json(self._source_path(source_id), cursor)
-                return self._public_job(job)
         except InstanceLifecycleBusy as exc:
             raise QualificationError(
                 "qualification_conflict", "another Instance operation is active"
@@ -1253,18 +1379,7 @@ class QualificationManager:
             self._checkpoint(job_id, token, len(job["snapshot"]["objects"]))
             if before_commit is not None:
                 before_commit()
-            current_job = self.get_job(job_id, public=False)
-            if current_job is None or current_job.get("cancel_requested"):
-                raise QualificationError("qualification_cancelled", "qualification was cancelled")
-            limits = QualificationLimits.from_mapping(job["snapshot"]["limits"])
-            current_snapshot = self._snapshot(job["source_ids"], limits)
-            if current_snapshot["fingerprint"] != job["snapshot"]["fingerprint"]:
-                raise QualificationError(
-                    "qualification_input_changed",
-                    "qualification inputs changed before complete publication",
-                )
-            result = self._publish_result(job, findings)
-            return self._finish(job_id, token, status="succeeded", error_code=None, result=result)
+            return self._commit_success(job_id, token, findings)
         except QualificationError as exc:
             status = "cancelled" if exc.code == "qualification_cancelled" else "failed"
             self._finish(job_id, token, status=status, error_code=exc.code, result=None)
@@ -1398,32 +1513,34 @@ class QualificationManager:
             raise QualificationError(
                 "qualification_invalid_decision", "qualification decision action is unsupported"
             )
-        finding = self._finding_index().get(selected_finding_id)
-        if finding is None:
-            raise QualificationError(
-                "qualification_not_found", "qualification finding was not found"
-            )
-        if finding.get("superseded"):
-            raise QualificationError(
-                "qualification_reference_stale", "qualification finding has been superseded"
-            )
-        if not self._finding_is_current(finding):
-            raise QualificationError(
-                "qualification_reference_stale", "qualification finding references stale input"
-            )
-        limits = QualificationLimits.from_mapping(finding["limits"])
         actor = normalise_actor_id(actor_id)
-        selected_reason = sanitise_reason(reason, limits)
-        selected_payload = normalise_decision_payload(action, payload)
-        finding_object_ids = {str(item["id"]) for item in finding["object_refs"]}
-        for object_id in selected_payload.get("object_ids", []):
-            if object_id not in finding_object_ids:
-                raise QualificationError(
-                    "qualification_reference_stale",
-                    "decision object reference is outside the finding",
-                )
         try:
             with self._hold("qualification-decision"):
+                finding = self._finding_index().get(selected_finding_id)
+                if finding is None:
+                    raise QualificationError(
+                        "qualification_not_found", "qualification finding was not found"
+                    )
+                if finding.get("superseded"):
+                    raise QualificationError(
+                        "qualification_reference_stale",
+                        "qualification finding has been superseded",
+                    )
+                if not self._finding_is_current(finding):
+                    raise QualificationError(
+                        "qualification_reference_stale",
+                        "qualification finding references stale input",
+                    )
+                limits = QualificationLimits.from_mapping(finding["limits"])
+                selected_reason = sanitise_reason(reason, limits)
+                selected_payload = normalise_decision_payload(action, payload)
+                finding_object_ids = {str(item["id"]) for item in finding["object_refs"]}
+                for object_id in selected_payload.get("object_ids", []):
+                    if object_id not in finding_object_ids:
+                        raise QualificationError(
+                            "qualification_reference_stale",
+                            "decision object reference is outside the finding",
+                        )
                 history = self._decisions(selected_finding_id)
                 if type(expected_revision) is not int or expected_revision != len(history):
                     raise QualificationError(
@@ -1562,15 +1679,42 @@ def qualification_state_findings(
     errors: list[dict[str, str]] = []
     manager = QualificationManager(store, recover=False)
     source_ids = set(records.get("sources", {}))
-    finding_ids = set(manager._finding_index())
-    for job in manager.list_jobs(limit=500):
-        path = f"state/{QUALIFICATION_STATE_KIND}/jobs/{job['id']}.json"
+    try:
+        finding_index = manager._finding_index()
+    except (QualificationError, KeyError, TypeError, ValueError):
+        # Corrupt decision rows must become validation findings, not abort validation before
+        # the per-record contract below can diagnose them.
+        finding_index = {}
+    job_paths = sorted(manager.jobs_root.glob("*.json")) if manager.jobs_root.exists() else []
+    for index, job_path in enumerate(job_paths):
+        if index >= 500:
+            errors.append(
+                {
+                    "code": "qualification_job_invalid",
+                    "message": "Qualification job validation limit was exceeded",
+                    "path": f"state/{QUALIFICATION_STATE_KIND}/jobs",
+                }
+            )
+            break
+        path = f"state/{QUALIFICATION_STATE_KIND}/jobs/{job_path.name}"
+        try:
+            job = manager._read_json(job_path)
+        except QualificationError:
+            errors.append(
+                {
+                    "code": "qualification_job_invalid",
+                    "message": "Qualification job state is unreadable or invalid",
+                    "path": path,
+                }
+            )
+            continue
         if (
             job.get("schema_version") != QUALIFICATION_SCHEMA_VERSION
             or job.get("kind") != "cross-source.qualification"
             or job.get("status") not in {"queued", "running", "succeeded", "failed", "cancelled"}
             or not set(job.get("source_ids", [])).issubset(source_ids)
-            or job.get("algorithm", {}).get("id") != QUALIFICATION_ALGORITHM_ID
+            or job.get("snapshot", {}).get("algorithm", {}).get("id")
+            != QUALIFICATION_ALGORITHM_ID
         ):
             errors.append(
                 {
@@ -1579,30 +1723,112 @@ def qualification_state_findings(
                     "path": path,
                 }
             )
+    invalid_decisions: set[str] = set()
+    decisions_by_finding: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
     for decision_id, decision in records.get(QUALIFICATION_DECISION_KIND, {}).items():
         path = f"knowledge/{QUALIFICATION_DECISION_KIND}/{decision_id}.json"
         try:
-            valid_finding_id = validate_finding_id(decision.get("finding_id")) is not None
-        except QualificationError:
-            valid_finding_id = False
-        valid = (
-            decision.get("schema_version") == QUALIFICATION_SCHEMA_VERSION
-            and decision.get("id") == decision_id
-            and valid_finding_id
-            and (
-                decision.get("finding_id") in finding_ids
-                or isinstance(decision.get("finding_identity_sha256"), str)
-                and len(decision["finding_identity_sha256"]) == 64
+            expected_fields = {
+                "schema_version",
+                "id",
+                "finding_id",
+                "finding_identity_sha256",
+                "revision",
+                "action",
+                "resulting_state",
+                "actor_id",
+                "reason",
+                "payload",
+                "provenance",
+                "created_at",
+            }
+            finding_id = validate_finding_id(decision.get("finding_id"))
+            action = str(decision.get("action"))
+            revision = decision.get("revision")
+            actor = normalise_actor_id(decision.get("actor_id"))
+            reason_limits = QualificationLimits(max_reason_characters=4000)
+            reason = sanitise_reason(decision.get("reason"), reason_limits)
+            payload = normalise_decision_payload(action, decision.get("payload"))
+            created_at = decision.get("created_at")
+            if not isinstance(created_at, str):
+                raise ValueError("decision timestamp is invalid")
+            _instant(created_at)
+            provenance = decision.get("provenance")
+            if not isinstance(provenance, Mapping):
+                raise ValueError("decision provenance is invalid")
+            expected_provenance_fields = {
+                "source_ids",
+                "qualification_job_id",
+                "snapshot_fingerprint",
+                "originals_modified",
+                "provider_objects_modified",
+                "source_observations_modified",
+                "automatic_propagation",
+            }
+            decision_sources = provenance.get("source_ids")
+            finding = finding_index.get(finding_id)
+            finding_identity = (
+                hashlib.sha256(
+                    _json_bytes(
+                        {
+                            "finding_type": finding["finding_type"],
+                            "object_refs": finding["object_refs"],
+                            "evidence": finding["evidence"],
+                        }
+                    )
+                ).hexdigest()
+                if finding is not None
+                else None
             )
-            and decision.get("action") in DECISION_ACTIONS
-            and decision.get("resulting_state") in WORKFLOW_STATES
-            and isinstance(decision.get("reason"), str)
-            and isinstance(decision.get("provenance"), Mapping)
-            and decision["provenance"].get("originals_modified") is False
-            and decision["provenance"].get("provider_objects_modified") is False
-            and decision["provenance"].get("automatic_propagation") is False
-        )
+            identity = {
+                "finding_id": finding_id,
+                "revision": revision,
+                "action": action,
+                "actor_id": actor,
+                "reason_sha256": hashlib.sha256(reason.encode()).hexdigest(),
+                "payload": payload,
+            }
+            valid = (
+                set(decision) == expected_fields
+                and decision.get("schema_version") == QUALIFICATION_SCHEMA_VERSION
+                and decision.get("id") == decision_id
+                and _closed_id(decision_id, "decision_", 64)
+                and decision_id == _stable_id("decision", identity)
+                and _closed_hex(decision.get("finding_identity_sha256"), 64)
+                and (
+                    finding_identity is None
+                    or decision.get("finding_identity_sha256") == finding_identity
+                )
+                and type(revision) is int
+                and revision >= 1
+                and action in DECISION_ACTIONS
+                and decision.get("resulting_state") == DECISION_RESULT_STATES.get(action)
+                and decision.get("actor_id") == actor
+                and decision.get("reason") == reason
+                and decision.get("payload") == payload
+                and set(provenance) == expected_provenance_fields
+                and isinstance(decision_sources, list)
+                and 1 <= len(decision_sources) <= 64
+                and len(set(decision_sources)) == len(decision_sources)
+                and all(_closed_id(item, "src_", 32) for item in decision_sources)
+                and set(decision_sources).issubset(source_ids)
+                and (
+                    finding is None
+                    or sorted(decision_sources) == sorted(finding.get("source_ids", []))
+                )
+                and _closed_id(
+                    provenance.get("qualification_job_id"), "qualification_job_", 64
+                )
+                and _closed_hex(provenance.get("snapshot_fingerprint"), 64)
+                and provenance.get("originals_modified") is False
+                and provenance.get("provider_objects_modified") is False
+                and provenance.get("source_observations_modified") is False
+                and provenance.get("automatic_propagation") is False
+            )
+        except (QualificationError, KeyError, TypeError, ValueError):
+            valid = False
         if not valid:
+            invalid_decisions.add(decision_id)
             errors.append(
                 {
                     "code": "qualification_decision_invalid",
@@ -1610,6 +1836,32 @@ def qualification_state_findings(
                     "path": path,
                 }
             )
+        else:
+            decisions_by_finding[finding_id].append(decision)
+    for history in decisions_by_finding.values():
+        ordered = sorted(history, key=lambda item: int(item["revision"]))
+        prior_ids: set[str] = set()
+        for expected_revision, decision in enumerate(ordered, start=1):
+            payload = decision["payload"]
+            target = payload.get(
+                "target_decision_id", payload.get("supersedes_decision_id")
+            )
+            if decision["revision"] != expected_revision or (
+                target is not None and target not in prior_ids
+            ):
+                decision_id = str(decision["id"])
+                if decision_id not in invalid_decisions:
+                    errors.append(
+                        {
+                            "code": "qualification_decision_invalid",
+                            "message": "Qualification decision history is invalid",
+                            "path": (
+                                f"knowledge/{QUALIFICATION_DECISION_KIND}/{decision_id}.json"
+                            ),
+                        }
+                    )
+                    invalid_decisions.add(decision_id)
+            prior_ids.add(str(decision["id"]))
     return errors
 
 
