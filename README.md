@@ -38,7 +38,7 @@ development under [#137](https://github.com/gabned/provelume/issues/137). Lectio
 [PR #141](https://github.com/gabned/provelume/pull/141) implement bounded local Tesseract execution,
 PDF/image page preparation and removable document bundles in the unreleased source tree.
 S03 owner [#143](https://github.com/gabned/provelume/issues/143) and
-[PR #144](https://github.com/gabned/provelume/pull/144)
+[PR #147](https://github.com/gabned/provelume/pull/147)
 implement an explicit, provider-neutral local email baseline for exact-byte EML and Maildir intake.
 Its exact-head permanent smoke qualifies EML on Ubuntu 24.04 and Windows x86-64 with CPython 3.12,
 and Maildir only on Ubuntu 24.04 x86-64 with CPython 3.12. Every other combination remains
