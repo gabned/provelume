@@ -178,6 +178,7 @@ def test_windows_shell_smoke_is_bounded_sanitized_and_exact_head_aware() -> None
         "[DateTime]::UtcNow.AddSeconds(30)",
         "service_exit_code",
         "service_ready_attempts",
+        '$Health.ok -eq $true',
         'Set-FailureCode "local_only_network_policy_failed"',
         'Set-FailureCode "loopback_listener_contract_failed"',
         'Set-FailureCode "service_cleanup_failed"',

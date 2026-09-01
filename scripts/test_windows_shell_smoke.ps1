@@ -367,10 +367,11 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
             $Health = Invoke-RestMethod `
                 -Uri "http://127.0.0.1:$ConfiguredPort/health" `
                 -TimeoutSec 1
-            if ($Health.status -eq "ok") {
+            if ($Health.ok -eq $true) {
                 $Ready = $true
                 break
             }
+            Start-Sleep -Milliseconds 250
         }
         catch {
             Start-Sleep -Milliseconds 250
