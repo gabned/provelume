@@ -358,15 +358,20 @@ def test_disabled_offline_read_model_never_opens_a_network_socket(
     def reject_network(*_args, **_kwargs):
         raise AssertionError(f"{platform_contract} offline read model attempted network access")
 
-    monkeypatch.setattr(socket, "create_connection", reject_network)
-    monkeypatch.setattr(socket.socket, "connect", reject_network)
-
-    service = instance.representation_read_model()
-    assert main(["representation-support", str(instance.root)]) == 0
-    cli = json.loads(capsys.readouterr().out)
     client = TestClient(create_app(instance.root))
-    api = client.get("/api/v1/representations/support")
-    browser = client.get("/representations")
+    with client:
+        # Start AnyIO's in-process ASGI transport before blocking application
+        # socket use. On Windows the event loop implements its private wake-up
+        # socketpair with a loopback connect; that transport detail is not an
+        # outbound request by the representation read model.
+        monkeypatch.setattr(socket, "create_connection", reject_network)
+        monkeypatch.setattr(socket.socket, "connect", reject_network)
+
+        service = instance.representation_read_model()
+        assert main(["representation-support", str(instance.root)]) == 0
+        cli = json.loads(capsys.readouterr().out)
+        api = client.get("/api/v1/representations/support")
+        browser = client.get("/representations")
 
     assert service["network_used"] is False
     assert cli["network_used"] is False
