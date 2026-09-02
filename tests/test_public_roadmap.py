@@ -159,7 +159,7 @@ def test_perceptio_plan_activates_development_without_version_or_release_change(
         "PARENT_TRACKER": "#160",
         "ACTIVATION_ISSUE": "#160",
         "ACTIVATION_BRANCH": "product/0.10.0-perceptio-activation",
-        "ACTIVATION_OWNER_PR": "PENDING",
+        "ACTIVATION_OWNER_PR": "#161",
         "CURRENT_SLICE": "NONE",
         "CURRENT_SLICE_ISSUE": "NONE",
         "CURRENT_SLICE_BRANCH": "NONE",
@@ -641,7 +641,7 @@ def test_perceptio_activation_is_consistent_across_public_planning_surfaces() ->
 
     assert "| Forecast | `0.10.0` |" not in roadmap
     assert roadmap.count("| Active development | `0.10.0` |") == 1
-    assert "#160; planning activation owner PR pending" in roadmap
+    assert "#160; planning activation PR #161" in roadmap
     assert "S01–S07 all start as `planned`" in roadmap
     assert "package/runtime identity remains\n`0.9.0`" in readme
     assert "[development plan](docs/releases/0.10.0.md)" in readme

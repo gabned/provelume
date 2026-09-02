@@ -40,7 +40,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
 | Published preview | `0.9.0` | OCR, email, Google file and transcript intake | #137 (completed); S01–S07 completed by #138/#141/#147/#150/#152/#154/#156; release #158 | `Lectio` |
-| Active development | `0.10.0` | Multimedia, universal content representations and component inventory | #160; planning activation owner PR pending | `Perceptio` |
+| Active development | `0.10.0` | Multimedia, universal content representations and component inventory | #160; planning activation PR #161 | `Perceptio` |
 | Forecast | `0.11.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
 | Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
@@ -1025,7 +1025,8 @@ Perceptio` under #160; every Perceptio slice remains planned and no implementati
 ### 0.10.0 — Multimedia, Universal Content Representations and Component Inventory
 
 **Current status:** active development planning under parent
-[#160](https://github.com/gabned/provelume/issues/160). The canonical, machine-readable planning
+[#160](https://github.com/gabned/provelume/issues/160) and planning owner
+[PR #161](https://github.com/gabned/provelume/pull/161). The canonical, machine-readable planning
 state and complete ordered slice contracts are in the
 [`0.10.0 — Perceptio` development plan](releases/0.10.0.md). S01–S07 all start as `planned`;
 there is no current slice, operational slice issue or implementation owner pull request. Package,

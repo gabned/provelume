@@ -32,7 +32,8 @@ qualified. The Windows artifacts are explicitly unsigned; descriptive `Neobeta` 
 not authenticate a publisher and does not resolve `Unknown publisher`.
 
 `0.10.0 — Perceptio` is now active development planning under parent
-[#160](https://github.com/gabned/provelume/issues/160). Its
+[#160](https://github.com/gabned/provelume/issues/160) and planning owner
+[PR #161](https://github.com/gabned/provelume/pull/161). Its
 [development plan](docs/releases/0.10.0.md) orders seven bounded slices for universal
 representation contracts, component visibility, photo/audio/video profiles, selected additional
 formats and final quality. Every slice remains `planned`; no Perceptio implementation issue or
