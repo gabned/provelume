@@ -8,7 +8,7 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.9.0 Lectio preview
+## Current status: 0.9.0 Lectio preview; 0.10.0 Perceptio planned development
 
 [`v0.9.0`](https://github.com/gabned/provelume/releases/tag/v0.9.0) Lectio is the current public
 prerelease. Its permanent verified release chain binds the tag, package, embedded identity,
@@ -21,8 +21,9 @@ Gmail/Drive adapters, local SRT/WebVTT transcript profiles, provider-neutral cro
 with reversible human decisions, and the Windows tray/configurable-loopback shell. Originals stay
 authoritative; derived representations remain attributable, removable and rebuildable.
 
-Parent tracker [#137](https://github.com/gabned/provelume/issues/137) records completed S01–S07.
-The release workstream is [#158](https://github.com/gabned/provelume/issues/158). See the
+Closed parent tracker [#137](https://github.com/gabned/provelume/issues/137) records completed
+S01–S07. The completed release workstream is
+[#158](https://github.com/gabned/provelume/issues/158). See the
 [0.9.0 release record](docs/releases/0.9.0.md), [public roadmap](docs/roadmap.md),
 [qualification matrix](docs/qualification/0.9.0.md), and
 [Windows preview guide](docs/windows-preview.md) for the exact supported perimeter and recovery
@@ -30,8 +31,17 @@ boundaries. Real authenticated Google remains unqualified, and Windows OCR is no
 qualified. The Windows artifacts are explicitly unsigned; descriptive `Neobeta` metadata does
 not authenticate a publisher and does not resolve `Unknown publisher`.
 
-The future lane now keeps Lectio at `0.9.0`, inserts `0.10.0 Perceptio` for photo/audio/video
-representations and component visibility, and shifts the previous forecasts forward through the
+`0.10.0 — Perceptio` is now active development planning under parent
+[#160](https://github.com/gabned/provelume/issues/160) and planning owner
+[PR #161](https://github.com/gabned/provelume/pull/161). Its
+[development plan](docs/releases/0.10.0.md) orders seven bounded slices for universal
+representation contracts, component visibility, photo/audio/video profiles, selected additional
+formats and final quality. Every slice remains `planned`; no Perceptio implementation issue or
+owner pull request is active, no capability is available, and package/runtime identity remains
+`0.9.0`.
+
+The future lane keeps Lectio at `0.9.0`, assigns `0.10.0 Perceptio` to photo/audio/video
+representations and component visibility, and keeps the later forecasts ordered through the
 `0.23.0` release candidate. It does not use `0.9.5` for feature work. The roadmap identifies
 `0.11.0` as the first planned coherent personal daily-use beta and controlled public-beta gate,
 `0.21.0` as the broad non-technical desktop-preview gate, and `1.0.0` as general distribution;

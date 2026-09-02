@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import tomllib
 from pathlib import Path
@@ -13,6 +14,7 @@ VINCULUM_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.7.0.md"
 BASE_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.5.0.md"
 CAPABILITY_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.6.0.md"
 CORRECTION_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.6.1.md"
+PERCEPTIO_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.10.0.md"
 
 EXPECTED_CONTRACT = {
     "RELEASE_PLAN_SCHEMA": "1",
@@ -91,6 +93,22 @@ def _contract_fields(plan: str) -> dict[str, str]:
     return fields
 
 
+def _machine_readable_fields(plan: str) -> dict[str, str]:
+    blocks = re.findall(r"^```text\n(.*?)\n```$", plan, re.MULTILINE | re.DOTALL)
+    if len(blocks) != 1:
+        raise AssertionError("planning document must contain exactly one text contract block")
+
+    fields: dict[str, str] = {}
+    for line in blocks[0].splitlines():
+        key, separator, value = line.partition(": ")
+        if not separator or re.fullmatch(r"[A-Z][A-Z0-9_]+", key) is None or not value:
+            raise AssertionError(f"invalid machine-readable planning field: {line!r}")
+        if key in fields:
+            raise AssertionError(f"duplicate machine-readable planning field: {key}")
+        fields[key] = value
+    return fields
+
+
 def test_release_plan_contract_is_complete_for_published_preview() -> None:
     assert _contract_fields(_read(RELEASE_PLAN_PATH)) == EXPECTED_CONTRACT
 
@@ -124,6 +142,96 @@ def test_lectio_release_aligns_package_identity() -> None:
     assert f'__version__ = "{package_version}"' in init_source
 
 
+def test_perceptio_plan_activates_development_without_version_or_release_change() -> None:
+    plan = _read(PERCEPTIO_RELEASE_PLAN_PATH)
+    fields = _machine_readable_fields(plan)
+
+    assert fields == {
+        "RELEASE_PLAN_SCHEMA": "1",
+        "RELEASE_STATE": "ACTIVE_DEVELOPMENT",
+        "PLANNED_VERSION": "0.10.0",
+        "CODENAME": "PERCEPTIO",
+        "MILESTONE_TITLE": "NONE",
+        "CURRENT_PACKAGE_VERSION": "0.9.0",
+        "PACKAGE_VERSION_UPDATE": "NOT_APPLIED",
+        "PUBLISHED_TAG": "NONE",
+        "PUBLISHED_RELEASE": "NONE",
+        "PARENT_TRACKER": "#160",
+        "ACTIVATION_ISSUE": "#160",
+        "ACTIVATION_BRANCH": "product/0.10.0-perceptio-activation",
+        "ACTIVATION_OWNER_PR": "#161",
+        "CURRENT_SLICE": "NONE",
+        "CURRENT_SLICE_ISSUE": "NONE",
+        "CURRENT_SLICE_BRANCH": "NONE",
+        "CURRENT_SLICE_OWNER_PR": "NONE",
+        "CURRENT_SLICE_STATE": "NONE",
+        "NEXT_SLICE": "0.10/S01",
+        "NEXT_SLICE_STATE": "PLANNED",
+        "PLANNED_SLICES": (
+            "0.10/S01,0.10/S02,0.10/S03,0.10/S04,0.10/S05,0.10/S06,0.10/S07"
+        ),
+        "LECTIO_TAG": "v0.9.0",
+        "LECTIO_COMMIT": "e08125a8600f9c4300d0d173613a03f8bbc31327",
+    }
+
+    with (ROOT / "pyproject.toml").open("rb") as handle:
+        assert tomllib.load(handle)["project"]["version"] == "0.9.0"
+    assert '__version__ = "0.9.0"' in _read(ROOT / "core" / "provelume" / "__init__.py")
+    build_info = json.loads(_read(ROOT / "core" / "provelume" / "build_info.json"))
+    assert build_info["version"] == "0.9.0"
+    windows_identity = _read(ROOT / "packaging" / "windows" / "version_info.txt")
+    assert "StringStruct('FileVersion', '0.9.0')" in windows_identity
+    assert "StringStruct('ProductVersion', '0.9.0')" in windows_identity
+
+
+def test_perceptio_slices_are_ordered_bounded_and_initially_planned() -> None:
+    plan = _read(PERCEPTIO_RELEASE_PLAN_PATH)
+    expected_slices = (
+        ("0.10/S01", "Universal representation and support-registry contract"),
+        ("0.10/S02", "Installed and release component inventory with EN/IT catalogue"),
+        ("0.10/S03", "Photo metadata, privacy, duplicate proposals and OCR profiles"),
+        ("0.10/S04", "Local audio transcription and time anchors"),
+        ("0.10/S05", "Video streams, subtitles, scenes, keyframes and frame OCR"),
+        ("0.10/S06", "Bounded additional file-family profiles"),
+        ("0.10/S07", "Correction and preview UX with final release qualification"),
+    )
+    positions: list[int] = []
+    required_fields = (
+        "- **User problem:**",
+        "- **Verifiable result:**",
+        "- **Dependencies:**",
+        "- **Surfaces:**",
+        "- **Explicit boundaries:**",
+        "- **Minimum qualification:**",
+        "- **Primary risk:**",
+        "- **Compatibility and migration:**",
+        "- **Windows and packaging:**",
+        "- **Completion criteria:**",
+        "- **Initial state:** `planned`",
+    )
+
+    for index, (identity, title) in enumerate(expected_slices):
+        heading = f"### {identity} — {title}"
+        assert plan.count(heading) == 1
+        start = plan.index(heading)
+        positions.append(start)
+        if index + 1 < len(expected_slices):
+            end = plan.index(f"### {expected_slices[index + 1][0]} —", start)
+        else:
+            end = plan.index("## Release-wide exit criteria", start)
+        section = plan[start:end]
+        for field in required_fields:
+            assert field in section, f"{identity} is missing {field}"
+
+    assert positions == sorted(positions)
+    assert plan.count("- **Initial state:** `planned`") == 7
+    assert "no S01 issue or owner PR" in plan
+    assert "recommended first implementation slice" in plan
+    assert "#157 stays closed `not planned`" in plan
+    assert "No operational issue exists for any slice at activation time" in plan
+    assert "no release, tag or S08 is created" in plan
+
+
 def test_roadmap_records_published_history_and_lectio_preview() -> None:
     roadmap = _read(ROADMAP_PATH)
 
@@ -146,7 +254,7 @@ def test_roadmap_records_published_history_and_lectio_preview() -> None:
     assert roadmap.count("| Active implementation |") == 0
     assert re.search(r"^\| Release preparation \| `", roadmap, re.MULTILINE) is None
     assert "| Next forecast | `0.9.0` |" not in roadmap
-    assert "#137; S01–S07 completed by #138/#141/#147/#150/#152/#154/#156" in roadmap
+    assert "#137 (completed); S01–S07 completed by #138/#141/#147/#150/#152/#154/#156" in roadmap
     assert "#95 (completed)" in roadmap
     assert "#102 (completed)" in roadmap
     assert "#105 (completed)" in roadmap
@@ -159,7 +267,7 @@ def test_roadmap_records_published_history_and_lectio_preview() -> None:
     assert "owner PR #152" in roadmap
     assert "`0.9/S06` cross-source qualification and correction findings is delivered" in roadmap
     assert "`0.9/S07` was implemented through [#155]" in roadmap
-    assert "introduces\nno S08" in roadmap
+    assert "introduced no S08" in roadmap
 
 
 def test_every_release_has_a_unique_latin_name_and_concise_outcome() -> None:
@@ -490,7 +598,7 @@ def test_multimedia_representations_and_component_catalogue_are_explicit() -> No
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.10.0` | Multimedia, universal content representations and "
+        "| Active development | `0.10.0` | Multimedia, universal content representations and "
         "component inventory |"
     ) == 1
     for required_contract in (
@@ -518,10 +626,31 @@ def test_multimedia_representations_and_component_catalogue_are_explicit() -> No
         "https://www.scenedetect.com/docs/latest/",
         "https://exiftool.org/",
         "https://github.com/zxing-cpp/zxing-cpp",
-        "local audio transcription and time anchors",
-        "video streams, subtitles, scenes, keyframes and frame OCR",
+        "Local audio transcription and time anchors",
+        "Video streams, subtitles, scenes, keyframes and frame OCR",
     ):
         assert required_contract in roadmap
+
+
+def test_perceptio_activation_is_consistent_across_public_planning_surfaces() -> None:
+    roadmap = _read(ROADMAP_PATH)
+    readme = _read(ROOT / "README.md")
+    changelog = _read(ROOT / "CHANGELOG.md")
+    lectio = _read(ROOT / "docs" / "releases" / "0.9.0.md")
+    perceptio = _read(PERCEPTIO_RELEASE_PLAN_PATH)
+
+    assert "| Forecast | `0.10.0` |" not in roadmap
+    assert roadmap.count("| Active development | `0.10.0` |") == 1
+    assert "#160; planning activation PR #161" in roadmap
+    assert "S01–S07 all start as `planned`" in roadmap
+    assert "package/runtime identity remains\n`0.9.0`" in readme
+    assert "[development plan](docs/releases/0.10.0.md)" in readme
+    assert "activated planning-only development for `0.10.0 — Perceptio`" in changelog
+    assert "CURRENT_PACKAGE_VERSION: 0.9.0" in perceptio
+    assert "PUBLISHED_TAG: NONE" in perceptio
+    assert "CURRENT_SLICE: NONE" in perceptio
+    assert "At this release checkpoint the next canonical\nforecast" in lectio
+    assert "Post-publication activation is recorded separately" in lectio
 
 
 def test_release_quality_and_adoption_gates_are_mandatory_and_aligned() -> None:
@@ -877,6 +1006,8 @@ def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
     assert "[0.9.0 release record](docs/releases/0.9.0.md)" in readme
     assert "[`v0.8.0`](https://github.com/gabned/provelume/releases/tag/v0.8.0)" in readme
     assert "Lectio is the current public\nprerelease" in readme
+    assert "[development plan](docs/releases/0.10.0.md)" in readme
+    assert "Every slice remains `planned`" in readme
     assert "[Windows preview guide](docs/windows-preview.md)" in readme
     assert "configure-inbox" in readme
     assert "external Drop folder" in readme
