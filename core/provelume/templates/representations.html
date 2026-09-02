@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ t('representations.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('representations.eyebrow') }}</p>
+  <h1>{{ t('representations.title') }}</h1>
+  <p class="lead">{{ t('representations.lead') }}</p>
+  <p class="technical-note">{{ t('representations.read_only') }}</p>
+</section>
+<section class="panel">
+  <h2>{{ t('representations.support') }}</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>{{ t('representations.profile') }}</th>
+        <th>{{ t('representations.operation') }}</th>
+        <th>{{ t('representations.declared') }}</th>
+        <th>{{ t('representations.effective') }}</th>
+        <th>{{ t('representations.implementation') }}</th>
+        <th>{{ t('representations.reason') }}</th>
+      </tr></thead>
+      <tbody>
+      {% for row in model.support.records %}
+        <tr>
+          <td><code>{{ row.profile_id }}</code></td>
+          <td>{{ row.operation }}</td>
+          <td>{{ row.declared_state }}</td>
+          <td>{{ row.effective_state }}</td>
+          <td>{% if row.implementation %}<code>{{ row.implementation.component }} / {{ row.implementation.adapter }} {{ row.implementation.version }}</code>{% else %}—{% endif %}</td>
+          <td>{{ row.reason or '—' }}{% if row.missing_component %} / <code>{{ row.missing_component }}</code>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<section class="panel">
+  <h2>{{ t('representations.bundles') }}</h2>
+  <ul class="document-list">
+  {% for bundle in model.representations %}
+    <li><strong><code>{{ bundle.representation_id }}</code></strong><span>{{ bundle.recipe.id }} {{ bundle.recipe.version }} · {{ bundle.lifecycle.state }}</span></li>
+  {% else %}
+    <li class="empty">{{ t('representations.empty') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+<section class="panel">
+  <h2>{{ t('representations.compatibility') }}</h2>
+  <ul class="document-list">
+  {% for profile in model.compatibility %}
+    <li><strong><code>{{ profile.support_profile_id }}</code></strong><span>{{ profile.source_contract }} · {{ profile.records_visible }} {{ t('representations.records') }}</span></li>
+  {% endfor %}
+  </ul>
+  <p class="technical-note">{{ t('representations.no_network') }}</p>
+</section>
+{% endblock %}

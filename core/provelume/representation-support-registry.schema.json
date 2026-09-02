@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/representation-support-registry-v1.json",
+  "title": "Provelume representation support registry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "registry_id", "operations", "reason_codes", "profiles"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "registry_id": {"const": "provelume.representation-support.v1"},
+    "operations": {
+      "const": ["preserve", "inspect", "extract", "preview", "local_enrich", "ai_enrich"]
+    },
+    "reason_codes": {
+      "const": ["component_missing", "disabled_by_configuration", "invalid_contract", "not_applicable", "not_declared", "not_implemented", "output_dependent", "profile_limited", "unsupported_platform"]
+    },
+    "profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/profile"}
+    }
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"},
+    "reason": {
+      "type": ["string", "null"],
+      "enum": [null, "component_missing", "disabled_by_configuration", "invalid_contract", "not_applicable", "not_declared", "not_implemented", "output_dependent", "profile_limited", "unsupported_platform"]
+    },
+    "implementation": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["component", "adapter", "version"],
+          "properties": {
+            "component": {"$ref": "#/$defs/identifier"},
+            "adapter": {"$ref": "#/$defs/identifier"},
+            "version": {"$ref": "#/$defs/identifier"}
+          }
+        }
+      ]
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared", "effective", "implementation", "limits", "reason", "missing_component"],
+      "properties": {
+        "declared": {"enum": ["supported", "optional", "unsupported"]},
+        "effective": {"enum": ["available", "degraded", "unavailable"]},
+        "implementation": {"$ref": "#/$defs/implementation"},
+        "limits": {"type": "object"},
+        "reason": {"$ref": "#/$defs/reason"},
+        "missing_component": {
+          "anyOf": [{"$ref": "#/$defs/identifier"}, {"type": "null"}]
+        },
+        "component_check": {"const": "ocr"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"effective": {"const": "available"}}},
+          "then": {
+            "properties": {
+              "reason": {"const": null},
+              "missing_component": {"const": null}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"effective": {"enum": ["degraded", "unavailable"]}}},
+          "then": {"properties": {"reason": {"type": "string"}}}
+        }
+      ]
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "label", "operations"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "version": {"$ref": "#/$defs/identifier"},
+        "label": {"type": "string", "minLength": 1, "maxLength": 200},
+        "operations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["preserve", "inspect", "extract", "preview", "local_enrich", "ai_enrich"],
+          "properties": {
+            "preserve": {"$ref": "#/$defs/operation"},
+            "inspect": {"$ref": "#/$defs/operation"},
+            "extract": {"$ref": "#/$defs/operation"},
+            "preview": {"$ref": "#/$defs/operation"},
+            "local_enrich": {"$ref": "#/$defs/operation"},
+            "ai_enrich": {
+              "allOf": [
+                {"$ref": "#/$defs/operation"},
+                {
+                  "properties": {
+                    "declared": {"const": "unsupported"},
+                    "effective": {"const": "unavailable"},
+                    "implementation": {"const": null},
+                    "reason": {"const": "not_implemented"},
+                    "missing_component": {"const": null}
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

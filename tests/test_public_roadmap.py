@@ -142,7 +142,7 @@ def test_lectio_release_aligns_package_identity() -> None:
     assert f'__version__ = "{package_version}"' in init_source
 
 
-def test_perceptio_plan_activates_development_without_version_or_release_change() -> None:
+def test_perceptio_plan_records_s01_without_version_or_release_change() -> None:
     plan = _read(PERCEPTIO_RELEASE_PLAN_PATH)
     fields = _machine_readable_fields(plan)
 
@@ -165,10 +165,15 @@ def test_perceptio_plan_activates_development_without_version_or_release_change(
         "CURRENT_SLICE_BRANCH": "NONE",
         "CURRENT_SLICE_OWNER_PR": "NONE",
         "CURRENT_SLICE_STATE": "NONE",
-        "NEXT_SLICE": "0.10/S01",
+        "DELIVERED_SLICE": "0.10/S01",
+        "DELIVERED_SLICE_ISSUE": "#162",
+        "DELIVERED_SLICE_BRANCH": "product/0.10-s01-universal-representation-contract",
+        "DELIVERED_SLICE_OWNER_PR": "#163",
+        "DELIVERED_SLICE_STATE": "COMPLETED_BY_MERGE",
+        "NEXT_SLICE": "0.10/S02",
         "NEXT_SLICE_STATE": "PLANNED",
         "PLANNED_SLICES": (
-            "0.10/S01,0.10/S02,0.10/S03,0.10/S04,0.10/S05,0.10/S06,0.10/S07"
+            "0.10/S02,0.10/S03,0.10/S04,0.10/S05,0.10/S06,0.10/S07"
         ),
         "LECTIO_TAG": "v0.9.0",
         "LECTIO_COMMIT": "e08125a8600f9c4300d0d173613a03f8bbc31327",
@@ -184,7 +189,7 @@ def test_perceptio_plan_activates_development_without_version_or_release_change(
     assert "StringStruct('ProductVersion', '0.9.0')" in windows_identity
 
 
-def test_perceptio_slices_are_ordered_bounded_and_initially_planned() -> None:
+def test_perceptio_slices_are_ordered_bounded_and_only_s01_delivered() -> None:
     plan = _read(PERCEPTIO_RELEASE_PLAN_PATH)
     expected_slices = (
         ("0.10/S01", "Universal representation and support-registry contract"),
@@ -207,7 +212,6 @@ def test_perceptio_slices_are_ordered_bounded_and_initially_planned() -> None:
         "- **Compatibility and migration:**",
         "- **Windows and packaging:**",
         "- **Completion criteria:**",
-        "- **Initial state:** `planned`",
     )
 
     for index, (identity, title) in enumerate(expected_slices):
@@ -222,11 +226,16 @@ def test_perceptio_slices_are_ordered_bounded_and_initially_planned() -> None:
         section = plan[start:end]
         for field in required_fields:
             assert field in section, f"{identity} is missing {field}"
+        expected_state = (
+            "- **Delivered state:** completed by merge of owner PR #163"
+            if identity == "0.10/S01"
+            else "- **Initial state:** `planned`"
+        )
+        assert expected_state in section
 
     assert positions == sorted(positions)
-    assert plan.count("- **Initial state:** `planned`") == 7
-    assert "no S01 issue or owner PR" in plan
-    assert "recommended first implementation slice" in plan
+    assert plan.count("- **Initial state:** `planned`") == 6
+    assert "owner PR #163 for #162" in plan
     assert "#157 stays closed `not planned`" in plan
     assert "No operational issue exists for any slice at activation time" in plan
     assert "no release, tag or S08 is created" in plan
@@ -642,13 +651,17 @@ def test_perceptio_activation_is_consistent_across_public_planning_surfaces() ->
     assert "| Forecast | `0.10.0` |" not in roadmap
     assert roadmap.count("| Active development | `0.10.0` |") == 1
     assert "#160; planning activation PR #161" in roadmap
-    assert "S01–S07 all start as `planned`" in roadmap
-    assert "package/runtime identity remains\n`0.9.0`" in readme
+    assert "S01 is delivered for #162 by owner PR #163" in roadmap
+    assert "S02 is only the\nnext planned slice and S03–S07 remain planned" in roadmap
+    assert "package/runtime/Windows identity remains `0.9.0`" in readme
     assert "[development plan](docs/releases/0.10.0.md)" in readme
     assert "activated planning-only development for `0.10.0 — Perceptio`" in changelog
     assert "CURRENT_PACKAGE_VERSION: 0.9.0" in perceptio
     assert "PUBLISHED_TAG: NONE" in perceptio
     assert "CURRENT_SLICE: NONE" in perceptio
+    assert "DELIVERED_SLICE: 0.10/S01" in perceptio
+    assert "DELIVERED_SLICE_OWNER_PR: #163" in perceptio
+    assert "NEXT_SLICE: 0.10/S02" in perceptio
     assert "At this release checkpoint the next canonical\nforecast" in lectio
     assert "Post-publication activation is recorded separately" in lectio
 
@@ -1007,7 +1020,7 @@ def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
     assert "[`v0.8.0`](https://github.com/gabned/provelume/releases/tag/v0.8.0)" in readme
     assert "Lectio is the current public\nprerelease" in readme
     assert "[development plan](docs/releases/0.10.0.md)" in readme
-    assert "Every slice remains `planned`" in readme
+    assert "S02 is only the next `planned` slice and S03–S07 remain planned" in readme
     assert "[Windows preview guide](docs/windows-preview.md)" in readme
     assert "configure-inbox" in readme
     assert "external Drop folder" in readme

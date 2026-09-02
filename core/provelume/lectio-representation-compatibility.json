@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "kind": "provelume.lectio-representation-compatibility",
+  "source_release": "0.9.0",
+  "target_contract": "provelume.representation-bundle.v1",
+  "migration": "view-only",
+  "profiles": [
+    {"compatibility_id": "document-extraction", "support_profile_id": "lectio-document-extraction-v1", "source_contract": "document_bundle/v1", "source_locations": ["state/derived/artifacts", "state/derived/bundles"], "view_kind": "derived-text"},
+    {"compatibility_id": "local-ocr", "support_profile_id": "lectio-local-ocr-v1", "source_contract": "ocr_document_bundle/v1", "source_locations": ["state/derived/ocr-bundles"], "view_kind": "derived-ocr"},
+    {"compatibility_id": "email-intake", "support_profile_id": "lectio-email-intake-v1", "source_contract": "email_message_bundle/v1", "source_locations": ["knowledge/email-messages", "state/derived/email"], "view_kind": "email-evidence"},
+    {"compatibility_id": "google-readonly", "support_profile_id": "lectio-google-readonly-v1", "source_contract": "provelume.google.readonly.v1", "source_locations": ["knowledge/google-gmail-observations", "knowledge/google-drive-revisions"], "view_kind": "provider-readonly-evidence"},
+    {"compatibility_id": "transcript-srt", "support_profile_id": "lectio-transcript-srt-v1", "source_contract": "transcript_bundle/srt-v1", "source_locations": ["knowledge/transcript-revisions", "state/derived/transcripts"], "view_kind": "time-anchored-text"},
+    {"compatibility_id": "transcript-webvtt", "support_profile_id": "lectio-transcript-webvtt-v1", "source_contract": "transcript_bundle/webvtt-v1", "source_locations": ["knowledge/transcript-revisions", "state/derived/transcripts"], "view_kind": "time-anchored-text"},
+    {"compatibility_id": "cross-source-findings", "support_profile_id": "lectio-cross-source-findings-v1", "source_contract": "qualification_finding/v1", "source_locations": ["state/qualification/findings", "knowledge/qualification-decisions"], "view_kind": "derived-finding"}
+  ],
+  "instance_schema_2_byte_unchanged": true,
+  "legacy_bundles_byte_unchanged": true,
+  "eager_migration": false,
+  "original_sidecar_markdown": false,
+  "network_used": false,
+  "ai_used": false
+}

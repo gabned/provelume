@@ -48,6 +48,7 @@ from .paths import UnsafePathError
 from .portable_transfer import PortableInstanceTransfer
 from .qualification import QualificationManager
 from .qualification_contract import QualificationLimits
+from .representations import RepresentationReadModel
 from .resource_statistics import ResourceStatisticsManager
 from .retention import DocumentRetentionManager
 from .retention_model import DISPOSITION_FILTERS, effective_dispositions
@@ -81,6 +82,7 @@ class ProvelumeInstance:
         self.maintenance = MaintenanceManager(self.store)
         self.source_reconciliation = SourceReconciliationManager(self.store)
         self.resource_statistics = ResourceStatisticsManager(self.store)
+        self.representations = RepresentationReadModel(self.store)
         self.scheduler = SchedulerCoordinator(self.store)
         self.ocr = OcrJobManager(self.store)
         self.email_sources = EmailSourceManager(self.store)
@@ -118,6 +120,25 @@ class ProvelumeInstance:
 
     def qualification_matrix(self) -> dict[str, Any]:
         return self.qualification.matrix()
+
+    def representation_support(self, *, profile_id: str | None = None) -> dict[str, Any]:
+        return self.representations.support.read(profile_id=profile_id)
+
+    def representation_read_model(
+        self,
+        *,
+        profile_id: str | None = None,
+        version_id: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        return self.representations.read(
+            profile_id=profile_id,
+            version_id=version_id,
+            limit=limit,
+        )
+
+    def get_representation(self, representation_id: str) -> dict[str, Any] | None:
+        return self.representations.get(representation_id)
 
     def qualification_limits(self) -> dict[str, Any]:
         return self.qualification.limits()

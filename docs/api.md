@@ -73,6 +73,25 @@ The same contract is exposed by `provelume about` and the local `/about` browser
 
 Physical source paths remain operator configuration and are not returned by these endpoints.
 
+## Universal representations and effective support
+
+- `GET /api/v1/representations/support?profile_id=...` — the packaged support registry resolved
+  against current local component/configuration evidence;
+- `GET /api/v1/representations?profile_id=...&version_id=...&limit=100` — the single read model
+  containing support rows, validated native bundles and view-only Lectio compatibility profiles;
+- `GET /api/v1/representations/{representation_id}` — one deeply validated native universal
+  representation bundle.
+
+Every profile has independent Preserve, Inspect, Extract, Preview, Local enrich and AI enrich
+rows. Declared and effective state are separate. Degraded/unavailable rows carry a closed reason
+and optional missing component. Preserve never implies preview, extraction, search or enrichment.
+`AI enrich` is always unavailable with `not_implemented` in `0.10/S01`.
+
+These endpoints, `provelume representation-support`, `provelume representations`, the application
+service and the local `/representations` Browser page use the same model. Reads perform no network
+request, component download, provider call, migration, rebuild, repair or Instance mutation. See
+[`architecture/universal-representations.md`](architecture/universal-representations.md).
+
 ## Connector lifecycle and read surfaces
 
 - `GET /api/v1/connectors` — definitions, isolated connector instances, selected Sources,
