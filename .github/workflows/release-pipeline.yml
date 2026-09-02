@@ -21,6 +21,9 @@ on:
       version:
         description: Verified package version.
         value: ${{ jobs.assemble.outputs.version }}
+      title:
+        description: Verified release title derived from package release metadata.
+        value: ${{ jobs.assemble.outputs.title }}
       tag:
         description: Verified semantic tag.
         value: ${{ jobs.assemble.outputs.tag }}
@@ -47,6 +50,7 @@ jobs:
       contents: read
     outputs:
       version: ${{ steps.identity.outputs.version }}
+      title: ${{ steps.identity.outputs.title }}
       tag: ${{ steps.identity.outputs.tag }}
       channel: ${{ steps.identity.outputs.channel }}
       commit: ${{ steps.identity.outputs.commit }}
@@ -85,7 +89,12 @@ jobs:
           import tomllib
 
           with open("pyproject.toml", "rb") as handle:
-              version = tomllib.load(handle)["project"]["version"]
+              configuration = tomllib.load(handle)
+          version = configuration["project"]["version"]
+          codename = configuration["tool"]["provelume"]["release"]["codename"]
+          if not isinstance(codename, str) or not re.fullmatch(r"[A-Z][A-Za-z]{1,31}", codename):
+              raise SystemExit("release codename must be one bounded capitalized ASCII word")
+          title = f"Provelume {version} “{codename}”"
           publish = os.environ["PUBLISH"].casefold() == "true"
           commit = os.environ["SOURCE_COMMIT"]
           if not re.fullmatch(r"[0-9a-f]{40}", commit):
@@ -107,6 +116,7 @@ jobs:
               channel = "development"
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"version={version}\n")
+              output.write(f"title={title}\n")
               output.write(f"tag={tag}\n")
               output.write(f"channel={channel}\n")
               output.write(f"commit={commit}\n")
@@ -464,6 +474,7 @@ jobs:
       actions: read
     outputs:
       version: ${{ needs.candidate.outputs.version }}
+      title: ${{ needs.candidate.outputs.title }}
       tag: ${{ needs.candidate.outputs.tag }}
       channel: ${{ needs.candidate.outputs.channel }}
       commit: ${{ needs.candidate.outputs.commit }}

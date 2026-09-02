@@ -30,6 +30,9 @@ dev = [
 provelume = "provelume.cli:main"
 provelume-desktop = "provelume.desktop:main"
 
+[tool.provelume.release]
+codename = "Lectio"
+
 [tool.hatch.build]
 reproducible = true
 

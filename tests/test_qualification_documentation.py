@@ -30,7 +30,7 @@ def test_english_italian_architecture_contracts_have_semantic_parity() -> None:
         "revert",
         "qualification_reference_stale",
         "/api/v1/qualification",
-        "0.8.0",
+        "0.9.0",
         "44851",
     }
     for token in required - {"44851"}:

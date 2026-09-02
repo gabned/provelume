@@ -1,8 +1,8 @@
 # Qualificazione cross-source e finding di correzione
 
-`0.9/S06` è sviluppo Lectio non pubblicato. Confronta Source esistenti selezionate esplicitamente
-e produce finding da revisionare; non le fonde, verifica o riscrive. Identità package, runtime ed
-embedded restano `0.8.0`. Non esiste merge automatico.
+`0.9/S06` è pubblicato con Lectio. Confronta Source esistenti selezionate esplicitamente e produce
+finding da revisionare; non le fonde, verifica o riscrive. Le identità package, runtime ed embedded
+sono `0.9.0`. Non esiste merge automatico.
 
 ## Confine di autorità e identità
 

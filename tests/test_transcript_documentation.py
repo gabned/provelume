@@ -32,7 +32,6 @@ def test_transcript_architecture_en_it_cover_the_same_contract_boundaries() -> N
         "Ubuntu 24.04",
         "Windows Server 2025",
         "CPython 3.12",
-        "0.8.0",
         "0.9.0",
         "44851",
     )

@@ -1,8 +1,8 @@
 # Cross-source qualification and correction findings
 
-`0.9/S06` is unreleased Lectio development. It compares explicitly selected existing Sources and
-produces review findings; it does not merge, verify or rewrite them. Package, runtime and embedded
-identity remain `0.8.0`. No automatic merge is available.
+`0.9/S06` is published with Lectio. It compares explicitly selected existing Sources and produces
+review findings; it does not merge, verify or rewrite them. Package, runtime and embedded identity
+are `0.9.0`. No automatic merge is available.
 
 ## Authority and identity boundary
 

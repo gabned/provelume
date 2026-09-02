@@ -1,7 +1,7 @@
 # Architettura della shell Windows e dell'endpoint locale
 
-Questo documento definisce in italiano il contratto architetturale dell'inedito `0.9/S07`.
-L'identità pubblica del prodotto resta `0.8.0`.
+Questo documento definisce in italiano il contratto architetturale di `0.9/S07`, pubblicato con
+Lectio. L'identità pubblica del prodotto è `0.9.0`.
 
 ## Confini
 
@@ -68,7 +68,7 @@ disponibile resta una finestra controllata e visibile.
 ## Identità, packaging e firma
 
 Il manifest collega SVG pubblico, generatore deterministico, ICO e nove dimensioni. PyInstaller
-incorpora icona e metadata veritieri `0.8.0`; Inno li usa per setup, uninstall e shortcut. Gli
+incorpora icona e metadata veritieri `0.9.0`; Inno li usa per setup, uninstall e shortcut. Gli
 shortcut e il processo usano `Provelume.Desktop` prima della creazione delle finestre.
 
 Gli artefatti S07 sono esplicitamente non firmati. Manifest e diagnostica riportano `unsigned` e

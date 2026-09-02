@@ -166,7 +166,7 @@ The bootstrap command creates `.venv` and installs Provelume plus developer chec
 
 On Windows, use `.venv\\Scripts\\provelume.exe` for the same commands. Open `http://127.0.0.1:8000/` after starting the server.
 
-For the unreleased S02 path, first install Tesseract, the selected local language packs,
+For the published Lectio S02 path, first install Tesseract, the selected local language packs,
 pypdfium2 5.13.0 and Pillow 12.3.0 explicitly. Then enable and probe OCR; Provelume never installs
 or downloads them at runtime:
 
@@ -179,7 +179,7 @@ or downloads them at runtime:
 See the [local OCR execution guide](docs/architecture/local-ocr-contract.md) for the exact qualified
 matrix, queue/cancel/remove/rebuild controls, uncertainty boundary and known limits.
 
-The unreleased S03 local email path also starts disabled and performs no discovery or hidden scan.
+The published Lectio S03 local email path also starts disabled and performs no discovery or hidden scan.
 Create one exact EML Source, enable it separately, then queue and run one durable job:
 
 ```bash
@@ -195,7 +195,7 @@ The create/queue responses supply the opaque IDs for the next command. Use
 [local email intake guide](docs/architecture/local-email-intake.md) for platform targets, limits,
 safe-content behavior, retry/cancel and derived removal/rebuild.
 
-The unreleased S05 transcript path likewise starts disabled. Choose exactly one SRT file or one
+The published Lectio S05 transcript path likewise starts disabled. Choose exactly one SRT file or one
 non-recursive SRT folder and its versioned profile, then enable and run explicitly:
 
 ```bash
@@ -227,7 +227,7 @@ A missing external folder fails visibly and is not silently recreated. Once Inbo
 Acquisitions exist, changing the managed-copy location requires a future verified relocation
 workflow; the display name and Drop folder can still change.
 
-Register an unreleased managed folder Source with portable interval watching, inspect its durable
+Register a managed folder Source with portable interval watching, inspect its durable
 state, or request one exact journaled refresh:
 
 ```bash
@@ -242,7 +242,7 @@ The observer waits for two stable metadata snapshots and five quiescent seconds 
 loss is visible and never deletes acquired knowledge. See the
 [durable folder Source contract](docs/architecture/durable-folder-sources.md).
 
-Inspect the unreleased maintenance catalogue, dry-run an exact reindex plan, or execute one
+Inspect the maintenance catalogue, dry-run an exact reindex plan, or execute one
 journaled incremental generation:
 
 ```bash
@@ -465,7 +465,7 @@ knowledge but not unacquired files waiting in an external Drop folder.
 See `docs/architecture/portable-instance.md`,
 `docs/architecture/portable-export-import.md`,
 `docs/architecture/canonical-derived-state.md` and
-`docs/architecture/configurable-folder-settings.md`, plus the unreleased
+`docs/architecture/configurable-folder-settings.md`, plus the published
 `docs/architecture/durable-folder-sources.md` contract.
 
 ## Knowledge API

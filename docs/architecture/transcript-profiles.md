@@ -1,8 +1,8 @@
 # Versioned local transcript profiles
 
-`0.9/S05` adds explicit local SRT and WebVTT intake behind provider-neutral contracts. This is
-unreleased `0.9.0 Lectio` development. Package, runtime, embedded identity, latest public tag and
-release remain `0.8.0`; S05 creates no tag, release, asset or version change.
+`0.9/S05` adds explicit local SRT and WebVTT intake behind provider-neutral contracts. Lectio
+publishes this bounded path with package, runtime and embedded identity `0.9.0` under tag
+`v0.9.0`.
 
 ## Closed profile matrix
 

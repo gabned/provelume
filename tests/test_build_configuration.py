@@ -14,6 +14,7 @@ def test_repository_pins_deterministic_build_inputs() -> None:
     assert configuration["build-system"]["requires"] == ["hatchling==1.31.0"]
     assert configuration["build-system"]["build-backend"] == "hatchling.build"
     assert configuration["tool"]["hatch"]["build"]["reproducible"] is True
+    assert configuration["tool"]["provelume"]["release"]["codename"] == "Lectio"
 
     release_requirements = {
         line.strip()
@@ -96,7 +97,12 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert 'notes="docs/releases/${VERSION}.md"' in publication
     assert 'Public release notes are missing: ${notes}' in publication
     assert '--notes-file "$notes"' in publication
-    assert '--title "Provelume ${VERSION} “Lectio”"' in publication
+    assert "title: ${{ needs.assure.outputs.title }}" in release_caller
+    assert "title: ${{ needs.candidate.outputs.title }}" in release
+    assert 'title = f"Provelume {version} “{codename}”"' in release
+    assert 'Release title does not match the exact source release metadata' in publication
+    assert '--title "$RELEASE_TITLE"' in publication
+    assert '“Lectio”' not in publication
     assert "--generate-notes" not in publication
     assert "windows-package:" in release
     assert "scripts/build_windows_installer.ps1" in release

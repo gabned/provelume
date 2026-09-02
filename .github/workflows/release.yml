@@ -164,6 +164,7 @@ jobs:
     uses: ./.github/workflows/release-publish.yml
     with:
       version: ${{ needs.assure.outputs.version }}
+      title: ${{ needs.assure.outputs.title }}
       tag: ${{ needs.assure.outputs.tag }}
       channel: ${{ needs.assure.outputs.channel }}
       commit: ${{ needs.assure.outputs.commit }}

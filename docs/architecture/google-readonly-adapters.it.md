@@ -1,8 +1,8 @@
 # Adapter Google Gmail e Drive in sola lettura
 
 `0.9/S04` aggiunge un adapter Google sostituibile dietro i contratti provider-neutral di
-connector, Source, email e documento. È sviluppo non pubblicato e mantiene package, runtime e
-identità embedded a `0.8.0`.
+connector, Source, email e documento. Lectio pubblica questo percorso limitato con package,
+runtime e identità embedded `0.9.0`.
 
 ## Autorità e isolamento
 
