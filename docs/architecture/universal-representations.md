@@ -94,4 +94,5 @@ EN/IT `/representations` Browser page. Every result records `network_used: false
 Backups already include durable `state/derived` artifacts. Portable export in both rebuild and
 include modes preserves `state_artifacts: include`; restore/import invokes deep Instance
 validation before commit. `representation_state_findings` makes a malformed bundle, unsafe
-location, missing output or checksum/size mismatch invalidate the staged Instance.
+location, missing output, checksum/size mismatch or altered removal receipt invalidate the staged
+Instance.

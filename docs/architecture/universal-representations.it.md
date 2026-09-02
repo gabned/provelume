@@ -95,4 +95,5 @@ EN/IT `/representations`. Ogni risultato dichiara `network_used: false` e `mutat
 I backup includono già gli artefatti durevoli in `state/derived`. L'export portabile conserva
 `state_artifacts: include` sia in modalità rebuild sia include; restore/import eseguono la deep
 validation prima del commit. `representation_state_findings` rende non valida la Instance di
-staging se trova bundle malformati, posizioni non sicure, output mancanti o hash/dimensioni errati.
+staging se trova bundle malformati, posizioni non sicure, output mancanti, hash/dimensioni errati o
+ricevute di rimozione alterate.

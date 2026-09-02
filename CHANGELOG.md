@@ -6,12 +6,13 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
-- activated `0.10/S01` under issue #162 on
+- delivered `0.10/S01` for issue #162 by owner PR #163 from
   `product/0.10-s01-universal-representation-contract`, adding the first-party versioned universal
   representation bundle, closed support registry and one offline service/CLI/API/Browser read
   model; Preserve, Inspect, Extract, Preview, Local enrich and unavailable `AI enrich` remain
   independent, while schema-2 and Lectio document/OCR/email/Google/transcript/finding data stay
-  byte-unchanged behind compatibility views;
+  byte-unchanged behind compatibility views; no later slice was activated and S02 remains only
+  `planned`;
 - added deterministic representation identity, exact Version/Original binding, recipe/output
   fingerprints, component/adapter evidence, warnings, lifecycle and derivation history, reversible
   corrections, exact page/time/region anchors, reserved slide/sheet/cell/member/symbol anchors,
@@ -19,7 +20,7 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   backup/restore/export/import qualification without implementing photo/audio/video or AI;
 - activated planning-only development for `0.10.0 — Perceptio` under parent #160, with seven
   ordered bounded slices, per-slice scope and qualification contracts, release-wide exit criteria
-  and S01 identified as the next recommended work without activating or implementing it;
+  and S01 identified at planning activation time as the next work without then implementing it;
 - kept package, runtime, embedded and Windows identity at published `0.9.0`, left `v0.9.0` and its
   release assets unchanged, retained #157 as closed `not planned`, created no S08 and kept AI/RAG,
   Action Center, remote/provider mutation, signing, runtime download and advanced resource/queue

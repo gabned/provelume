@@ -33,11 +33,12 @@ not authenticate a publisher and does not resolve `Unknown publisher`.
 
 `0.10.0 — Perceptio` is active, unpublished development under parent
 [#160](https://github.com/gabned/provelume/issues/160). Its public
-[development plan](docs/releases/0.10.0.md) orders seven bounded slices. `0.10/S01` is active
-through [#162](https://github.com/gabned/provelume/issues/162) to add one universal
-representation/support contract and a byte-unchanged Lectio compatibility view. It implements no
-photo/audio/video/AI capability. S02–S07 remain planned; no `v0.10.0` tag/release is present and
-package/runtime/Windows identity remains `0.9.0`.
+[development plan](docs/releases/0.10.0.md) orders seven bounded slices. `0.10/S01` is delivered
+for [#162](https://github.com/gabned/provelume/issues/162) by owner
+[PR #163](https://github.com/gabned/provelume/pull/163): one universal representation/support
+contract and a byte-unchanged Lectio compatibility view. It implements no photo/audio/video/AI
+capability. No slice is active; S02 is only the next `planned` slice and S03–S07 remain planned.
+No `v0.10.0` tag/release is present and package/runtime/Windows identity remains `0.9.0`.
 
 The local **Representations & support** surface keeps Preserve, Inspect, Extract, Preview, Local
 enrich and AI enrich independent. It reports declared/effective support, closed unavailable or

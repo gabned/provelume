@@ -27,7 +27,7 @@
           <td>{{ row.declared_state }}</td>
           <td>{{ row.effective_state }}</td>
           <td>{% if row.implementation %}<code>{{ row.implementation.component }} / {{ row.implementation.adapter }} {{ row.implementation.version }}</code>{% else %}—{% endif %}</td>
-          <td>{{ row.reason or row.missing_component or '—' }}</td>
+          <td>{{ row.reason or '—' }}{% if row.missing_component %} / <code>{{ row.missing_component }}</code>{% endif %}</td>
         </tr>
       {% endfor %}
       </tbody>

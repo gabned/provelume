@@ -7,6 +7,7 @@ import re
 import shutil
 import tempfile
 from collections.abc import Mapping, Sequence
+from datetime import datetime
 from enum import StrEnum
 from importlib.resources import files
 from pathlib import Path, PurePosixPath
@@ -132,7 +133,14 @@ class RepresentationContractError(ValueError):
 
 def canonical_json_bytes(value: Any) -> bytes:
     return (
-        json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n"
+        json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+        + "\n"
     ).encode("utf-8")
 
 
@@ -141,7 +149,12 @@ def _sha256(value: bytes) -> str:
 
 
 def _fingerprint(value: Any) -> str:
-    return _sha256(canonical_json_bytes(value))
+    try:
+        return _sha256(canonical_json_bytes(value))
+    except (TypeError, ValueError) as exc:
+        raise RepresentationContractError(
+            "representation_invalid", "representation value is not canonical JSON"
+        ) from exc
 
 
 def recipe_fingerprint(recipe_id: str, recipe_version: str, settings: Mapping[str, Any]) -> str:
@@ -192,6 +205,18 @@ def _digest(value: Any, name: str) -> str:
     if not isinstance(value, str) or _SHA256.fullmatch(value) is None:
         raise RepresentationContractError("representation_invalid", f"{name} is invalid")
     return value
+
+
+def _timestamp(value: Any, name: str) -> datetime:
+    if not isinstance(value, str) or not value:
+        raise RepresentationContractError("representation_invalid", f"{name} is invalid")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise RepresentationContractError("representation_invalid", f"{name} is invalid") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise RepresentationContractError("representation_invalid", f"{name} is invalid")
+    return parsed
 
 
 def _positive_integer(value: Any, name: str, ceiling: int) -> int:
@@ -402,9 +427,7 @@ def validate_representation_bundle(value: Any) -> dict[str, Any]:
             )
         _portable_relative_path(output["storage_ref"])
         _digest(output["sha256"], "output sha256")
-        size = _nonnegative_integer(
-            output["size_bytes"], "output size", limits["max_file_bytes"]
-        )
+        size = _nonnegative_integer(output["size_bytes"], "output size", limits["max_file_bytes"])
         total_size += size
         outputs.append(output)
     if total_size > limits["max_total_bytes"]:
@@ -469,14 +492,12 @@ def validate_representation_bundle(value: Any) -> dict[str, Any]:
         raise RepresentationContractError(
             "representation_invalid", "representation lifecycle state is invalid"
         )
-    if not isinstance(lifecycle["created_at"], str) or not lifecycle["created_at"]:
-        raise RepresentationContractError(
-            "representation_invalid", "representation creation time is invalid"
-        )
+    created_at = _timestamp(lifecycle["created_at"], "representation creation time")
     if lifecycle["state"] == "removed":
-        if not isinstance(lifecycle["removed_at"], str) or not lifecycle["removed_at"]:
+        removed_at = _timestamp(lifecycle["removed_at"], "representation removal time")
+        if removed_at < created_at:
             raise RepresentationContractError(
-                "representation_invalid", "removed representation needs a removal time"
+                "representation_invalid", "representation removal precedes creation"
             )
     elif lifecycle["removed_at"] is not None:
         raise RepresentationContractError(
@@ -762,6 +783,61 @@ def _resource_json(name: str) -> dict[str, Any]:
     return value
 
 
+def _validate_removal_receipt(value: Any) -> dict[str, Any]:
+    receipt = _expect_object(
+        value,
+        "representation removal receipt",
+        {
+            "schema_version",
+            "kind",
+            "representation_id",
+            "bundle_fingerprint",
+            "bundle",
+            "removed_outputs",
+            "original_mutated",
+            "canonical_records_mutated",
+            "provider_data_mutated",
+        },
+    )
+    selected_id = receipt["representation_id"]
+    if (
+        receipt["schema_version"] != 1
+        or receipt["kind"] != "representation-removal-receipt"
+        or not isinstance(selected_id, str)
+        or _REPRESENTATION_ID.fullmatch(selected_id) is None
+        or receipt["original_mutated"] is not False
+        or receipt["canonical_records_mutated"] is not False
+        or receipt["provider_data_mutated"] is not False
+    ):
+        raise RepresentationContractError(
+            "representation_invalid", "representation removal receipt identity is invalid"
+        )
+    _digest(receipt["bundle_fingerprint"], "removed bundle fingerprint")
+    removed = validate_representation_bundle(receipt["bundle"])
+    if removed["representation_id"] != selected_id or removed["lifecycle"]["state"] != "removed":
+        raise RepresentationContractError(
+            "representation_identity_mismatch", "removed representation identity does not match"
+        )
+    active = {
+        **removed,
+        "lifecycle": {**removed["lifecycle"], "state": "active", "removed_at": None},
+    }
+    validate_representation_bundle(active)
+    if _fingerprint(active) != receipt["bundle_fingerprint"]:
+        raise RepresentationContractError(
+            "representation_identity_mismatch", "removed bundle fingerprint does not match"
+        )
+    expected_outputs = [
+        {key: output[key] for key in ("id", "storage_ref", "sha256", "size_bytes")}
+        for output in removed["outputs"]
+    ]
+    if receipt["removed_outputs"] != expected_outputs:
+        raise RepresentationContractError(
+            "representation_identity_mismatch", "removed output evidence does not match"
+        )
+    return receipt
+
+
 class SupportRegistry:
     """Resolve declared and effective support without network access or mutation."""
 
@@ -793,7 +869,8 @@ class SupportRegistry:
     def read(self, *, profile_id: str | None = None) -> dict[str, Any]:
         source = _resource_json("representation-support-registry.json")
         if (
-            set(source) != {
+            set(source)
+            != {
                 "schema_version",
                 "registry_id",
                 "operations",
@@ -1202,6 +1279,7 @@ class RepresentationBundleManager:
             "canonical_records_mutated": False,
             "provider_data_mutated": False,
         }
+        _validate_removal_receipt(receipt)
         target = self.history / f"{selected_id}.json"
         descriptor, temporary_name = tempfile.mkstemp(prefix=f".{target.name}.", dir=self.history)
         try:
@@ -1220,8 +1298,9 @@ class RepresentationBundleManager:
         receipt_path = self.history / f"{selected_id}.json"
         try:
             receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-            removed = validate_representation_bundle(receipt["bundle"])
-        except (OSError, KeyError, json.JSONDecodeError, RepresentationContractError) as exc:
+            receipt = _validate_removal_receipt(receipt)
+            removed = receipt["bundle"]
+        except (OSError, json.JSONDecodeError, RepresentationContractError) as exc:
             raise RepresentationContractError(
                 "representation_not_found", "representation removal history was not found"
             ) from exc
@@ -1324,31 +1403,52 @@ class RepresentationReadModel:
 def representation_state_findings(store: InstanceStore) -> list[dict[str, str]]:
     manager = RepresentationBundleManager(store)
     findings: list[dict[str, str]] = []
-    if not manager.root.exists():
-        return findings
-    for path in sorted(manager.root.iterdir()):
-        relative = path.relative_to(store.paths.root).as_posix()
-        if (
-            path.is_symlink()
-            or not path.is_dir()
-            or _REPRESENTATION_ID.fullmatch(path.name) is None
-        ):
-            findings.append(
-                {
-                    "code": "representation_state_invalid",
-                    "message": "Representation state contains an invalid entry",
-                    "path": relative,
-                }
-            )
-            continue
-        if manager.get(path.name, deep=True) is None:
-            findings.append(
-                {
-                    "code": "representation_state_invalid",
-                    "message": "Representation bundle or output failed validation",
-                    "path": relative,
-                }
-            )
+    if manager.root.exists():
+        for path in sorted(manager.root.iterdir()):
+            relative = path.relative_to(store.paths.root).as_posix()
+            if (
+                path.is_symlink()
+                or not path.is_dir()
+                or _REPRESENTATION_ID.fullmatch(path.name) is None
+            ):
+                findings.append(
+                    {
+                        "code": "representation_state_invalid",
+                        "message": "Representation state contains an invalid entry",
+                        "path": relative,
+                    }
+                )
+                continue
+            if manager.get(path.name, deep=True) is None:
+                findings.append(
+                    {
+                        "code": "representation_state_invalid",
+                        "message": "Representation bundle or output failed validation",
+                        "path": relative,
+                    }
+                )
+    if manager.history.exists():
+        for path in sorted(manager.history.iterdir()):
+            relative = path.relative_to(store.paths.root).as_posix()
+            try:
+                if path.is_symlink() or not path.is_file() or path.suffix != ".json":
+                    raise RepresentationContractError(
+                        "representation_invalid", "representation history entry is invalid"
+                    )
+                receipt = _validate_removal_receipt(json.loads(path.read_text(encoding="utf-8")))
+                if path.name != f"{receipt['representation_id']}.json":
+                    raise RepresentationContractError(
+                        "representation_identity_mismatch",
+                        "representation history filename does not match",
+                    )
+            except (OSError, json.JSONDecodeError, RepresentationContractError):
+                findings.append(
+                    {
+                        "code": "representation_history_invalid",
+                        "message": "Representation removal history failed validation",
+                        "path": relative,
+                    }
+                )
     return findings
 
 

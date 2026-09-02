@@ -192,6 +192,10 @@ def test_schema_round_trip_identity_anchors_and_reversible_corrections(
             ),
             "representation_invalid",
         ),
+        (
+            lambda bundle: bundle["lifecycle"].update({"created_at": "2026-09-02T00:00:00"}),
+            "representation_invalid",
+        ),
         (lambda bundle: bundle["invariants"].update({"ai_used": True}), "representation_invalid"),
     ),
 )
@@ -455,6 +459,24 @@ def test_deep_validation_rejects_tampered_representation_without_original_mutati
     assert report["status"] == "invalid"
     assert "representation_state_invalid" in {item["code"] for item in report["errors"]}
     assert _snapshots(instance.store)[1] == originals_before
+
+
+def test_deep_validation_rejects_tampered_removal_history(tmp_path: Path) -> None:
+    instance, version_id = _seed(tmp_path)
+    bundle = _materialize(instance, version_id)
+    selected_id = str(bundle["representation_id"])
+    manager = RepresentationBundleManager(instance.store)
+    manager.remove(selected_id, removed_at="2026-09-02T00:01:00+00:00")
+    assert inspect_instance(instance.root, deep=True)["status"] == "valid"
+
+    receipt_path = manager.history / f"{selected_id}.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["original_mutated"] = True
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+
+    report = inspect_instance(instance.root, deep=True)
+    assert report["status"] == "invalid"
+    assert "representation_history_invalid" in {item["code"] for item in report["errors"]}
 
 
 def test_public_contract_files_are_first_party_and_json_valid() -> None:
