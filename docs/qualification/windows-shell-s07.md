@@ -68,3 +68,18 @@ in 286.30 seconds, then failed only because pytest still traversed the volume ro
 target: it runs only for the bare repository suite. The harness now selects a tracked, non-recursive
 node ID under the versioned root while continuing to prove two-child dispatch, empty-shard success,
 bounded completion and cleanup.
+
+## Completed S07 evidence
+
+The unchanged candidate `01e17f167208214ec845c9147488183445f56ae0` completed Public CI run
+`33549044415`; Windows Core job `99993649510` completed successfully in 356.44 seconds; Windows
+shell run `33549044597` succeeded; and cross-source, transcript, OCR, email, Google, verified
+release dry-run and trusted-base gates were positive. All findings were corrected with regression
+coverage and every review thread was resolved before squash merge.
+
+S07 squash-merged as `1c864fb71c8c408607f83565a260c60c95dd65e0`. Post-merge Public CI run
+`33549845082`, Windows Core job `99996321312`, Windows shell `33549845157`, cross-source
+`33549845118`, transcript `33549845120`, OCR `33549845061`, email `33549845139`, Google
+`33549845089` and verified release dry-run `33549845254` all completed successfully. These records
+qualify S07 only; `0.9.0` release preparation and publication require the separate exact-head and
+merge-commit matrix in [`0.9.0.md`](0.9.0.md).

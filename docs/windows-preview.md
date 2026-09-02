@@ -1,14 +1,9 @@
 # Windows product shell preview
 
-> Development note (unpublished): the S07 source tree adds the configurable loopback endpoint,
-> coherent icon/AppUserModelID, tray lifecycle, theme and final accessibility contracts described
-> in [`windows-shell.md`](windows-shell.md). These changes do not publish `0.9.0`; the latest public
-> installer and identity remain the immutable `0.8.0` prerelease described below.
-
-Provelume `0.8.0` is the published Vigilia Windows preview for explicitly configured scheduling,
-folder Sources, recoverable maintenance, Source reconciliation and local resource observations.
-Download `Provelume-Setup-0.8.0-x64.exe` only from the official
-[`v0.8.0` GitHub prerelease](https://github.com/gabned/provelume/releases/tag/v0.8.0) and run it as
+Provelume `0.9.0` is the Lectio Windows preview with the configurable loopback endpoint, coherent
+icon/AppUserModelID, tray lifecycle, theme and accessibility contracts described in
+[`windows-shell.md`](windows-shell.md). Download `Provelume-Setup-0.9.0-x64.exe` only from the
+official [`v0.9.0` GitHub prerelease](https://github.com/gabned/provelume/releases/tag/v0.9.0) and run it as
 the current user. Git and a separately installed Python are not required.
 
 ## What is installed
@@ -26,14 +21,14 @@ Three locations remain intentionally separate:
 | portable Instance and preserved originals | `%USERPROFILE%\\Documents\\Provelume` | no |
 
 An upgrade replaces only launcher/runtime files. The portable Instance is opened by the new
-runtime after installation. `0.8.0` adds scheduler, folder Source, maintenance, reconciliation and
-resource-observation state to the existing schema-2 Instance without a whole-Instance migration;
-the registered schema-1 to schema-2 migration from `0.6.0` remains available.
+runtime after installation. `0.9.0` adds derived OCR/email/transcript/qualification state plus
+connector and shell settings without making Originals non-authoritative. The registered schema-1
+to schema-2 migration from `0.6.0` remains available.
 
 The official release evidence installs the immutable public `0.7.0` executable,
 bootstrap a Unicode-path Instance and use the matching immutable public wheel to ingest synthetic
-canonical knowledge and an exact Original. Before installing `0.8.0`, the test fingerprints the
-complete Instance tree; the installer must preserve configuration, manifest, canonical records,
+canonical knowledge and an exact Original. Before installing `0.9.0`, the test fingerprints the
+complete Instance tree; the `0.9.0` installer must preserve configuration, manifest, canonical records,
 Original bytes and durable ingestion state byte-for-byte. First startup must expose the preserved
 knowledge while leaving policies, jobs, receipts, maintenance/reconciliation runs and resource
 snapshots empty. Stable AppId, launcher settings, startup, reinstall and uninstall remain verified.
@@ -86,7 +81,7 @@ integrity or signature verdict.
 6. Provelume requires another confirmation before starting the normal installer and closing the
    local server.
 
-No background check is enabled by default. `0.8.0` never applies an update silently.
+No background check is enabled by default. `0.9.0` never applies an update silently.
 
 ## Recovery and limitations
 
@@ -102,8 +97,17 @@ with metadata fetched through the same release transport is consistency evidence
 publisher authentication. Automatic rollback, interrupted-install recovery, offline update
 bundles and signed publisher identity remain later milestones.
 
-The S07 development source contains a fail-closed signing verifier and explicitly classifies the
-generated executable, installer and uninstaller as unsigned. Descriptive Publisher/version
+The Lectio release contains a fail-closed signing verifier and explicitly classifies the generated
+executable, installer and uninstaller as unsigned. Descriptive Publisher/version
 metadata does not eliminate `Unknown publisher`. Authentic qualification remains blocked on an
 authorized certificate, valid chain, expected publisher, valid timestamp and permanent
 verification of the exact artifact; no key or certificate is included here.
+
+## Rollback and removal
+
+Export shell preferences and make a verified Instance backup before upgrading. To roll back,
+uninstall `0.9.0`, install an earlier immutable official installer, and restore only a backup that
+was created by or proved compatible with that version into a separate directory. There is no
+silent schema downgrade. Uninstall removes program files, shortcuts and registration but preserves
+launcher settings, downloaded-update state and every Instance; delete those only as a separate,
+explicit data-removal decision.

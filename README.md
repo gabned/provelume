@@ -8,48 +8,27 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.8.0 Vigilia published preview
+## Current status: 0.9.0 Lectio preview
 
-[`v0.8.0`](https://github.com/gabned/provelume/releases/tag/v0.8.0) Vigilia is the latest published
-prerelease. It was built from commit
-[`d20e63079adf85829723cab86766266a8bc6cdcd`](https://github.com/gabned/provelume/commit/d20e63079adf85829723cab86766266a8bc6cdcd)
-by the permanent trusted [Official release workflow](https://github.com/gabned/provelume/actions/runs/33315580878).
-Vigilia adds an explicitly configured durable scheduler, folder Sources, recoverable local
-maintenance, Source reconciliation and content-free resource observations while keeping startup
-and upgrade default-disabled.
+[`v0.9.0`](https://github.com/gabned/provelume/releases/tag/v0.9.0) Lectio is the current public
+prerelease. Its permanent verified release chain binds the tag, package, embedded identity,
+Windows metadata, manifest, SBOM, checksums and provenance to one exact commit. The immutable
+[`v0.8.0`](https://github.com/gabned/provelume/releases/tag/v0.8.0) Vigilia prerelease remains
+available as the previous baseline and is never recreated or overwritten.
 
-Issues [#122](https://github.com/gabned/provelume/issues/122),
-[#124](https://github.com/gabned/provelume/issues/124),
-[#126](https://github.com/gabned/provelume/issues/126),
-[#128](https://github.com/gabned/provelume/issues/128) and
-[#130](https://github.com/gabned/provelume/issues/130), together with the
-[0.8.0 release plan](docs/releases/0.8.0.md), define this release. The
-[0.7.0 release plan](docs/releases/0.7.0.md) remains the published connector and safe-web-intake
-baseline.
-See the [public roadmap](docs/roadmap.md), the
-[configurable-folder contract](docs/architecture/configurable-folder-settings.md) and the
-[Windows preview guide](docs/windows-preview.md) for portability and trust boundaries.
+Lectio adds disabled-by-default local OCR, exact-byte local email intake, replaceable read-only
+Gmail/Drive adapters, local SRT/WebVTT transcript profiles, provider-neutral cross-source findings
+with reversible human decisions, and the Windows tray/configurable-loopback shell. Originals stay
+authoritative; derived representations remain attributable, removable and rebuildable.
 
-The roadmap records `0.8.0 Vigilia` as the published preview and `0.9.0 Lectio` as active
-development under [#137](https://github.com/gabned/provelume/issues/137). Lectio's S01 reused
-[#5](https://github.com/gabned/provelume/issues/5) through owner
-[PR #138](https://github.com/gabned/provelume/pull/138) to define the local OCR contract. S02 owner
-[#140](https://github.com/gabned/provelume/issues/140) and
-[PR #141](https://github.com/gabned/provelume/pull/141) implement bounded local Tesseract execution,
-PDF/image page preparation and removable document bundles in the unreleased source tree.
-S03 owner [#143](https://github.com/gabned/provelume/issues/143) and
-[PR #147](https://github.com/gabned/provelume/pull/147)
-implement an explicit, provider-neutral local email baseline for exact-byte EML and Maildir intake.
-Its exact-head permanent smoke qualifies EML on Ubuntu 24.04 and Windows Server 2025 x86-64 with CPython 3.12,
-and Maildir only on Ubuntu 24.04 x86-64 with CPython 3.12. Every other combination remains
-unqualified. S04 owner [#149](https://github.com/gabned/provelume/issues/149) and
-[PR #150](https://github.com/gabned/provelume/pull/150) implement the read-only Gmail/Drive preview;
-its permanent smoke is synthetic local conformance and does not qualify real Google. S05 owner
-[#151](https://github.com/gabned/provelume/issues/151) and
-[PR #152](https://github.com/gabned/provelume/pull/152) implement disabled, explicitly selected,
-no-network local SRT/WebVTT profiles in the unreleased source tree. S06 remains forecast-only.
-Package and embedded build identity are aligned to `0.8.0`, `v0.8.0` and the exact published
-commit.
+Parent tracker [#137](https://github.com/gabned/provelume/issues/137) records completed S01–S07.
+The release workstream is [#158](https://github.com/gabned/provelume/issues/158). See the
+[0.9.0 release record](docs/releases/0.9.0.md), [public roadmap](docs/roadmap.md),
+[qualification matrix](docs/qualification/0.9.0.md), and
+[Windows preview guide](docs/windows-preview.md) for the exact supported perimeter and recovery
+boundaries. Real authenticated Google remains unqualified, and Windows OCR is not bundled or
+qualified. The Windows artifacts are explicitly unsigned; descriptive `Neobeta` metadata does
+not authenticate a publisher and does not resolve `Unknown publisher`.
 
 The future lane now keeps Lectio at `0.9.0`, inserts `0.10.0 Perceptio` for photo/audio/video
 representations and component visibility, and shifts the previous forecasts forward through the
@@ -151,10 +130,10 @@ operating-system egress enforcement or zero runtime traffic. All extracted/searc
 representations remain derived state and can be recreated from preserved originals after deletion
 of those derived copies.
 
-The published `0.8.0` Vigilia preview creates no scheduler policy or job on install, upgrade or
-startup and does not contain the unreleased OCR, email, Google or transcript execution baselines.
-Folder refresh, maintenance, S02 OCR, S03 local email intake, S04 Google preview and S05 transcript
-profiles require explicit local configuration and run only while the current runtime is active.
+The published `0.9.0` Lectio preview creates no scheduler policy, connector, Source or job on
+install, upgrade or startup. Folder refresh, maintenance, OCR, local email intake, Google preview
+and transcript profiles require explicit local configuration and run only while the current
+runtime is active.
 Native filesystem-event watchers, always-on desktop agents, authenticated Google qualification,
 other remote-mailbox intake, semantic/vector search and AI classification remain later work. S02,
 S03 and S05 perform no cloud call, runtime download or remote fallback and keep their generated
@@ -187,7 +166,7 @@ The bootstrap command creates `.venv` and installs Provelume plus developer chec
 
 On Windows, use `.venv\\Scripts\\provelume.exe` for the same commands. Open `http://127.0.0.1:8000/` after starting the server.
 
-For the unreleased S02 path, first install Tesseract, the selected local language packs,
+For the published Lectio S02 path, first install Tesseract, the selected local language packs,
 pypdfium2 5.13.0 and Pillow 12.3.0 explicitly. Then enable and probe OCR; Provelume never installs
 or downloads them at runtime:
 
@@ -200,7 +179,7 @@ or downloads them at runtime:
 See the [local OCR execution guide](docs/architecture/local-ocr-contract.md) for the exact qualified
 matrix, queue/cancel/remove/rebuild controls, uncertainty boundary and known limits.
 
-The unreleased S03 local email path also starts disabled and performs no discovery or hidden scan.
+The published Lectio S03 local email path also starts disabled and performs no discovery or hidden scan.
 Create one exact EML Source, enable it separately, then queue and run one durable job:
 
 ```bash
@@ -216,7 +195,7 @@ The create/queue responses supply the opaque IDs for the next command. Use
 [local email intake guide](docs/architecture/local-email-intake.md) for platform targets, limits,
 safe-content behavior, retry/cancel and derived removal/rebuild.
 
-The unreleased S05 transcript path likewise starts disabled. Choose exactly one SRT file or one
+The published Lectio S05 transcript path likewise starts disabled. Choose exactly one SRT file or one
 non-recursive SRT folder and its versioned profile, then enable and run explicitly:
 
 ```bash
@@ -248,7 +227,7 @@ A missing external folder fails visibly and is not silently recreated. Once Inbo
 Acquisitions exist, changing the managed-copy location requires a future verified relocation
 workflow; the display name and Drop folder can still change.
 
-Register an unreleased managed folder Source with portable interval watching, inspect its durable
+Register a managed folder Source with portable interval watching, inspect its durable
 state, or request one exact journaled refresh:
 
 ```bash
@@ -263,7 +242,7 @@ The observer waits for two stable metadata snapshots and five quiescent seconds 
 loss is visible and never deletes acquired knowledge. See the
 [durable folder Source contract](docs/architecture/durable-folder-sources.md).
 
-Inspect the unreleased maintenance catalogue, dry-run an exact reindex plan, or execute one
+Inspect the maintenance catalogue, dry-run an exact reindex plan, or execute one
 journaled incremental generation:
 
 ```bash
@@ -408,9 +387,9 @@ Instance content and is never enabled in the background by the Core:
 .venv/bin/provelume check-updates --channel preview
 ```
 
-The published Windows `0.8.0` preview packages the same behavior behind a per-user installer and
+The published Windows `0.9.0` preview packages the same behavior behind a per-user installer and
 EN/IT launcher. Download it only from the official
-[`v0.8.0` prerelease](https://github.com/gabned/provelume/releases/tag/v0.8.0); it remains an
+[`v0.9.0` prerelease](https://github.com/gabned/provelume/releases/tag/v0.9.0); it remains an
 unsigned preview. See the [Windows preview guide](docs/windows-preview.md).
 
 Inspect one Instance's declared network policy and components, also without making a network request:
@@ -486,7 +465,7 @@ knowledge but not unacquired files waiting in an external Drop folder.
 See `docs/architecture/portable-instance.md`,
 `docs/architecture/portable-export-import.md`,
 `docs/architecture/canonical-derived-state.md` and
-`docs/architecture/configurable-folder-settings.md`, plus the unreleased
+`docs/architecture/configurable-folder-settings.md`, plus the published
 `docs/architecture/durable-folder-sources.md` contract.
 
 ## Knowledge API

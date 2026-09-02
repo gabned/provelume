@@ -39,7 +39,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.6.1` | Purge integrity and ingestion serialization correction | #102 (completed) | `Integritas` |
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
-| Active development | `0.9.0` | OCR, email, Google file and transcript intake | #137; S01 completed by #5/#138; S02 completed by #140/#141; S03 completed by #143/#147; S04 completed by #149/#150; S05 completed by #151/#152; S06 completed by #153/#154; S07 owner #155/#156 | `Lectio` |
+| Published preview | `0.9.0` | OCR, email, Google file and transcript intake | #137; S01–S07 completed by #138/#141/#147/#150/#152/#154/#156; release #158 | `Lectio` |
 | Forecast | `0.10.0` | Multimedia, universal content representations and component inventory | issue just in time | `Perceptio` |
 | Forecast | `0.11.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
@@ -147,8 +147,7 @@ planning or publication change whenever release scope or order moves.
 
 | Evidence gate | Personal use after verified publication | Dissemination after verified publication |
 | --- | --- | --- |
-| Current published `0.8.0` | Technical personal pilot for local files, search, watched folders and maintenance, with verified backups and no claim that it replaces an established knowledge system. | Small technical early-adopter group within the published Vigilia support perimeter. |
-| `0.9.0` | Document-heavy personal pilot for scans, OCR and richer intake; uncertainty and unsupported formats still require review. | Document-heavy testers selected against the published format/language matrix. |
+| Current published `0.9.0` | Document-heavy personal pilot for scans, OCR and richer intake; uncertainty and unsupported formats still require review. | Document-heavy testers selected against the published format/language matrix. |
 | `0.10.0` | Personal photo, audio and video archive pilot with local transcription, OCR and time/region citations where supported. | Multimedia testers who accept explicit model, codec, performance and privacy limits. |
 | `0.11.0` | First recommended personal daily-use beta: coherent Capture, Action Center, recovery and mobile-PWA journeys within the qualified perimeter. | Controlled public beta, with feedback, support and security-reporting paths open. |
 | `0.12.0` | Optional local or remote AI use with explicit routing, cost and redaction policy; deterministic operation remains complete without AI. | Privacy-routing evaluators, not general AI marketing. |
@@ -169,8 +168,8 @@ planning or publication change whenever release scope or order moves.
 | `1.3.0` | Optional shared review without weakening the personal single-user path. | Teams after concurrency, audit, export and permission-isolation evidence. |
 | `1.4.0` | Long-term personal archive checks and retention profiles with explicit legal limits. | Preservation and regulated-domain evaluators; no compliance claim without separate evidence. |
 
-The current answer is therefore explicit: `0.8.0` is usable now as a bounded technical personal
-preview; active `0.9.0` work is not available until publication; `0.11.0` is the first planned
+The current answer is therefore explicit: `0.9.0` is usable now as a bounded document-heavy
+personal preview; `0.10.0` remains an unactivated forecast; `0.11.0` is the first planned
 coherent personal daily-use beta and controlled public-beta gate; `0.21.0` is the broad
 non-technical desktop-preview gate; `0.23.0` is broad release-candidate qualification; and
 `1.0.0` is general distribution.
@@ -207,11 +206,10 @@ whether X identifies the site or Core. English and Italian pages, release links,
 visible last-verified date and known mismatch.
 
 An immediate bounded website workstream should align the homepage, Features, Public facts,
-Wishlist and machine-readable records with published Core `0.8.0`, including the completed
-`0.5.0`–`0.8.0` capabilities and an exact `v0.8.0` evidence link. It must label the active
-`0.9/S01` contract as unreleased and unavailable, and keep every later capability planned. This
-website-only correction can begin now and changes neither the Core package identity nor release
-history.
+Wishlist and machine-readable records with published Core `0.9.0`, including the completed
+`0.5.0`–`0.9.0` capabilities and an exact `v0.9.0` evidence link. It must keep every `0.10.0+`
+capability planned. This website-only correction can begin after verified publication and changes
+neither Core package identity nor release history.
 
 After every verified Core tag and asset publication, the website receives a bounded availability
 sync in the same delivery cycle: current version/release link, supported platforms and formats,
@@ -225,8 +223,7 @@ The larger editorial updates belong at these evidence gates:
 
 | Evidence gate | Website update | Appropriate audience action |
 | --- | --- | --- |
-| Now, published `0.8.0` | Correct version/build labels, Features, Facts, Wishlist and release links in EN/IT; add bounded scheduler, folder-Source, recovery and maintenance documentation. | Invite a small technical early-adopter group for the capabilities actually published in Vigilia; keep active Lectio work visibly unavailable until publication. |
-| Published `0.9.0` | Add OCR/input-format, language, quality and local/cloud privacy matrices. | Invite document-heavy users with an explicit supported-format perimeter. |
+| Now, published `0.9.0` | Correct version/build labels, Features, Facts, Wishlist and release links in EN/IT; add OCR/input-format, language, quality and local/cloud privacy matrices. | Invite document-heavy users with an explicit supported-format perimeter. |
 | Published `0.10.0` | Add multimedia/format support, model and codec matrices plus the component, license and update-status catalogue. | Invite multimedia testers without implying that every preserved format is extractable or AI-ready. |
 | Published `0.11.0` | Rework the primary use-case path around Capture, Action Center, Operations and mobile PWA onboarding. | Begin a controlled public beta: this is the first coherent daily-use experience. |
 | Published `0.12.0` | Explain optional local/remote AI routing, data-scope controls, redaction, cost and network policy without claiming classification. | Invite privacy-routing evaluators while preserving a complete no-AI path. |
@@ -247,7 +244,7 @@ performance and the declared analytics/form/third-party-resource posture. The si
 private Instance content, unpublished roadmap claims or release credentials, and a website outage
 cannot block installation or verification through the public repository.
 
-Published package and embedded identity are aligned to `0.8.0`. Issues #122, #124, #126, #128 and
+Published package and embedded identity are aligned to `0.9.0`. Issues #122, #124, #126, #128 and
 #130 completed `0.8/S01` through `0.8/S05`; their implementation PRs #123, #125, #127, #129 and
 #131 are merged on `main`. The release-blocking scheduler correction was completed through
 #133/#134, and release preparation was merged through #135.
@@ -256,7 +253,7 @@ The immutable [`v0.8.0`](https://github.com/gabned/provelume/releases/tag/v0.8.0
 commit `d20e63079adf85829723cab86766266a8bc6cdcd`. Official release workflow run
 [`33315580878`](https://github.com/gabned/provelume/actions/runs/33315580878) published the public
 prerelease with 22 unique, nonempty assets; API digests, `SHA256SUMS`, package identities and both
-offline bundle verifiers were observed successfully. `0.9.0 Lectio` is active development under
+offline bundle verifiers were observed successfully. `0.9.0 Lectio` is published under
 parent tracker [#137](https://github.com/gabned/provelume/issues/137). Its first bounded slice was
 completed through [#5](https://github.com/gabned/provelume/issues/5) and owner
 [PR #138](https://github.com/gabned/provelume/pull/138): it defines the local/offline contract,
@@ -279,9 +276,10 @@ through [#151](https://github.com/gabned/provelume/issues/151) and owner
 [#153](https://github.com/gabned/provelume/issues/153) and owner
 [PR #154](https://github.com/gabned/provelume/pull/154) on
 `product/0.9-s06-cross-source-qualification`, without publishing `0.9.0`.
-`0.9/S07` is implemented through [#155](https://github.com/gabned/provelume/issues/155) on the
-single `product/0.9-s07-windows-shell-endpoint-ux` candidate branch. It remains subject to exact-head
-candidate qualification and does not authorize `0.9.0` publication, a version change or S08.
+`0.9/S07` was implemented through [#155](https://github.com/gabned/provelume/issues/155) and owner
+[PR #156](https://github.com/gabned/provelume/pull/156). Separate release workstream
+[#158](https://github.com/gabned/provelume/issues/158) aligns and qualifies `0.9.0`; it introduces
+no S08. Issue #157 remains closed as not planned and owns no workstream.
 
 ## Planning and delivery contract
 
@@ -1004,7 +1002,7 @@ and document bundles; `0.9/S03` email identity and intake; `0.9/S04` Gmail/Drive
 `0.9/S07` Windows shell identity, configurable local endpoint and final EN/IT usability,
 accessibility, documentation, security and release-quality qualification.
 
-**Current status:** parent tracker #137 remains open. `0.9/S01` was completed by the pre-existing
+**Current status:** parent tracker #137 records the completed line. `0.9/S01` was completed by the pre-existing
 #5 and owner PR #138. `0.9/S02` is completed by #140 and owner PR #141; it implements bounded
 local execution and derived document bundles without publishing `0.9.0`. `0.9/S03` is completed by
 #143 and owner PR #147; it implements bounded local EML/Maildir identity and intake without
@@ -1012,12 +1010,11 @@ publishing `0.9.0`. `0.9/S04` is completed by #149 and owner PR #150; it adds re
 adapters without publishing `0.9.0`. `0.9/S05` is completed by #151 and owner PR #152; it
 implements the closed local SRT/WebVTT profile matrix and does not publish `0.9.0`. `0.9/S06` is
 delivered through #153 and owner PR #154 on
-`product/0.9-s06-cross-source-qualification` without publishing `0.9.0`. It keeps the public
-identity `0.8.0`. `0.9/S07` is implemented through #155 on
-`product/0.9-s07-windows-shell-endpoint-ux`; its single owner PR is created from the real candidate
-head and remains subject to every exact-head gate. S07 does not publish `0.9.0` and creates no S08.
-The next possible activity is the separate, explicitly authorized `0.9.0` release-preparation and
-publication workstream, not another product slice.
+`product/0.9-s06-cross-source-qualification` without publishing `0.9.0`. `0.9/S07` was implemented
+through #155 and owner PR #156 on `product/0.9-s07-windows-shell-endpoint-ux`; S07 created no S08.
+Release workstream #158 separately aligns and publishes `0.9.0` after exact-head and merge-commit
+qualification. The next canonical forecast is unactivated `0.10.0 — Perceptio`; #157 remains
+closed as not planned.
 
 ### 0.10.0 — Multimedia, Universal Content Representations and Component Inventory
 

@@ -13,7 +13,7 @@ def test_s07_adr_and_architecture_define_closed_endpoint_security_contract() -> 
     adr = _read("docs/adr/0020-windows-shell-and-configurable-loopback-endpoint.md")
     english = _read("docs/architecture/windows-shell-and-endpoint.md")
     italian = _read("docs/architecture/windows-shell-and-endpoint.it.md")
-    for document in (adr, english, italian):
+    for document in (english, italian):
         for token in (
             "44851",
             "127.0.0.1",
@@ -23,10 +23,12 @@ def test_s07_adr_and_architecture_define_closed_endpoint_security_contract() -> 
             "CSRF",
             "revision",
             "tray",
-            "0.8.0",
+            "0.9.0",
             "unsigned",
         ):
             assert token in document
+    assert "0.8.0" in adr
+    assert "unsigned" in adr
     assert "random port" in english
     assert "porta casuale" in italian
     assert "firewall" in english.casefold()
@@ -41,7 +43,7 @@ def test_windows_guide_covers_install_upgrade_uninstall_transfer_and_signing_blo
     guide = _read("docs/windows-shell.md")
     for token in (
         "Install",
-        "Upgrade and uninstall",
+        "Upgrade, rollback and uninstall",
         "system tray",
         "set-endpoint",
         "reset-endpoint",
@@ -53,7 +55,7 @@ def test_windows_guide_covers_install_upgrade_uninstall_transfer_and_signing_blo
         "exact SHA-256",
     ):
         assert token in guide
-    assert "does not announce or publish `0.9.0`" in guide
+    assert "published with the `0.9.0 — Lectio` preview" in guide
 
 
 def test_accessibility_en_it_theme_navigation_and_inert_content_are_documented() -> None:
@@ -98,9 +100,39 @@ def test_api_privacy_packaging_and_qualification_matrix_remain_truthful() -> Non
     assert "PENDING_CANDIDATE_PR" not in release
     assert "#156" in release and "#156" in roadmap
     assert "#155" in release and "#155" in roadmap
-    assert "release-preparation" in release
-    assert "does not authorize `0.9.0` publication" in roadmap
-    assert "no tag" in changelog.casefold()
+    assert "release workstream #158" in release.casefold()
+    assert "Release workstream" in roadmap
+    assert "## 0.9.0 - 2026-09-02" in changelog
+
+
+def test_published_lectio_surfaces_have_no_stale_development_identity() -> None:
+    paths = (
+        "docs/architecture/local-ocr-contract.md",
+        "docs/architecture/local-ocr-contract.it.md",
+        "docs/architecture/google-readonly-adapters.md",
+        "docs/architecture/google-readonly-adapters.it.md",
+        "docs/architecture/transcript-profiles.md",
+        "docs/architecture/transcript-profiles.it.md",
+        "docs/architecture/cross-source-qualification.md",
+        "docs/architecture/cross-source-qualification.it.md",
+        "docs/architecture/windows-shell-and-endpoint.md",
+        "docs/architecture/windows-shell-and-endpoint.it.md",
+    )
+    for path in paths:
+        document = _read(path)
+        assert "0.9.0" in document
+        assert "0.8.0" not in document
+        assert "unreleased" not in document.casefold()
+
+    readme = _read("README.md")
+    for phrase in (
+        "unreleased S02",
+        "unreleased S03",
+        "unreleased S05",
+        "unreleased managed folder Source",
+        "unreleased maintenance catalogue",
+    ):
+        assert phrase not in readme
 
 
 def test_roadmap_does_not_offer_implicit_free_or_random_port_fallback() -> None:

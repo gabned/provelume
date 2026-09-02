@@ -4,6 +4,16 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+No changes yet.
+
+## 0.9.0 - 2026-09-02
+
+Published as the [`v0.9.0` prerelease](https://github.com/gabned/provelume/releases/tag/v0.9.0)
+through the permanent verified release workflow. The tag, package/runtime identity, Windows
+metadata, release manifest, CycloneDX SBOM, checksums and provenance are bound to the same verified
+merge commit. Windows release artifacts are explicitly unsigned; `Unknown publisher` is not
+resolved, and authenticated real Google remains unqualified.
+
 ### Added
 
 - activated `0.9.0 — Lectio` with a public, disabled-by-default local OCR contract that keeps
@@ -74,7 +84,7 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   Server 2025 x86-64 on CPython 3.12;
 - kept plain text, proprietary/provider formats, non-UTF-8 encodings, cloud imports, audio/video,
   ASR/diarization, cross-Source linking, AI/RAG and real-provider qualification explicitly
-  unsupported; no `0.9.0` publication or identity change is made by S05.
+  unsupported; S05 itself made no publication or identity change.
 - implemented `0.9/S06` with a closed versioned qualification matrix for filesystem/document,
   OCR bundle, local email, synthetic Gmail/Drive and SRT/WebVTT Sources while keeping authenticated
   Gmail/Drive explicitly unqualified;
@@ -91,8 +101,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   backup/restore, portable export/import, schemas, packaging evidence and a permanent Ubuntu/
   Windows exact-head synthetic no-network smoke across all seven matrix profiles;
 - kept source text, names, subjects, titles, paths, speaker labels, provider identifiers, secrets
-  and lease tokens out of finding/job/receipt/diagnostic state; added no network, SDK, runtime
-  download, remote fallback, AI, provider write-back, publication or `0.8.0` identity change.
+  and lease tokens out of finding/job/receipt/diagnostic state; S06 added no network, SDK, runtime
+  download, remote fallback, AI, provider write-back, publication or identity change.
 - implemented the `0.9/S07` candidate with one reproducible multi-resolution Windows icon family,
   truthful `0.8.0` executable/installer/uninstaller metadata, `Provelume.Desktop` AppUserModelID,
   coherent shortcuts/taskbar/window/tray identity and explicit unsigned-development verification;
@@ -110,10 +120,17 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   Core orchestration with bounded timing/process-tree diagnostics, addressing the cumulative serial
   filesystem budget evidenced by all three non-green S06 post-merge Windows attempts without
   changing the protected CI timeout, hiding slow tests or reducing union coverage;
-- kept `0.9.0` unpublished and the public package/runtime/embedded identity at `0.8.0`; no tag,
-  release, release asset, signing credential, publisher-authentication claim or S08 is introduced.
+- kept S07 implementation separate from release preparation; no signing credential,
+  publisher-authentication claim or S08 was introduced.
 
 ### Changed
+
+- aligned package, runtime, embedded and Windows executable/installer/uninstaller identity to
+  `0.9.0`; completed release notes, installation/upgrade/rollback/uninstall guidance and the
+  release qualification matrix; and retained fail-closed unsigned/signing verification;
+- published only the permanent pipeline's byte-identical build/rebuild output with checksums,
+  manifest, SBOM, provenance and offline verifiers after exact-head candidate and merge-commit
+  qualification.
 
 - inserted `0.10.0 — Perceptio` for universal photo/audio/video representations, local-first media
   enrichment and complete component/model/license visibility; shifted every later unreleased

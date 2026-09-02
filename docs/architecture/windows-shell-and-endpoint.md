@@ -1,7 +1,7 @@
 # Windows shell and local endpoint architecture
 
-This document defines the English architecture contract implemented by unreleased `0.9/S07`.
-The public product identity remains `0.8.0`.
+This document defines the English architecture contract implemented by `0.9/S07` and published
+with Lectio. The public product identity is `0.9.0`.
 
 ## Boundaries
 
@@ -71,7 +71,7 @@ has started successfully; a controlled visible window remains when the tray is u
 ## Identity, packaging and signing
 
 `assets/windows/icon-manifest.json` binds the public SVG, deterministic generator, ICO and complete
-size list. PyInstaller embeds the ICO and truthfully fixed `0.8.0` version resources; Inno uses it
+size list. PyInstaller embeds the ICO and truthfully fixed `0.9.0` version resources; Inno uses it
 for setup/uninstall and explicit shortcut icon resources. Both shortcuts carry
 `Provelume.Desktop`. The process sets the same AppUserModelID before creating Tk windows.
 

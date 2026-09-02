@@ -32,7 +32,6 @@ def test_transcript_architecture_en_it_cover_the_same_contract_boundaries() -> N
         "Ubuntu 24.04",
         "Windows Server 2025",
         "CPython 3.12",
-        "0.8.0",
         "0.9.0",
         "44851",
     )
@@ -45,7 +44,7 @@ def test_transcript_architecture_en_it_cover_the_same_contract_boundaries() -> N
     assert "qualificazione provider reale" in italian
 
 
-def test_adr_release_plan_roadmap_changelog_and_api_keep_unreleased_boundary() -> None:
+def test_adr_release_plan_roadmap_changelog_and_api_keep_slice_boundary() -> None:
     adr = _read("docs/adr/0018-versioned-transcript-profiles.md")
     release = _read("docs/releases/0.9.0.md")
     roadmap = _read("docs/roadmap.md")
@@ -60,7 +59,7 @@ def test_adr_release_plan_roadmap_changelog_and_api_keep_unreleased_boundary() -
     assert "NEXT_SLICE: NONE" in release
     assert "CURRENT_SLICE_STATE: NONE" in release
     assert "does not publish `0.9.0`" in roadmap
-    assert "no `0.9.0` publication or identity change" in changelog
+    assert "S05 itself made no publication or identity change" in changelog
     assert "upload transcript bytes" in api
     assert "include_content=true" in api
 

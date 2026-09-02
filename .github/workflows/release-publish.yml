@@ -7,6 +7,10 @@ on:
         description: Verified package version.
         required: true
         type: string
+      title:
+        description: Verified release title derived from package release metadata.
+        required: true
+        type: string
       tag:
         description: Verified semantic release tag.
         required: true
@@ -153,6 +157,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
+          RELEASE_TITLE: ${{ inputs.title }}
           TAG: ${{ inputs.tag }}
           CHANNEL: ${{ inputs.channel }}
         run: |
@@ -160,6 +165,20 @@ jobs:
           release="$RUNNER_TEMP/provelume-verified-release"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo '::error::A GitHub Release already exists for this tag; refusing overwrite.'
+            exit 1
+          fi
+          expected_title="$(python - <<'PY'
+          import tomllib
+
+          with open("pyproject.toml", "rb") as handle:
+              configuration = tomllib.load(handle)
+          version = configuration["project"]["version"]
+          codename = configuration["tool"]["provelume"]["release"]["codename"]
+          print(f"Provelume {version} “{codename}”")
+          PY
+          )"
+          if [ "$RELEASE_TITLE" != "$expected_title" ]; then
+            echo '::error::Release title does not match the exact source release metadata.'
             exit 1
           fi
           flags=()
@@ -173,6 +192,6 @@ jobs:
           fi
           gh release create "$TAG" "$release"/* \
             --verify-tag \
-            --title "Provelume ${VERSION}" \
+            --title "$RELEASE_TITLE" \
             --notes-file "$notes" \
             "${flags[@]}"

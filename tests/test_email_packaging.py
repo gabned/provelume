@@ -26,11 +26,11 @@ def test_email_baseline_adds_no_distribution_dependency_or_payload() -> None:
     assert all("email" not in item.casefold() for item in dependencies)
 
 
-def test_email_qualification_inventory_is_explicit_and_unpublished() -> None:
+def test_email_qualification_inventory_is_explicit_and_release_aligned() -> None:
     manifest = _json(ROOT / "packaging" / "email" / "local-email-intake.json")
     assert manifest["slice"] == "0.9/S03"
     assert manifest["status"] == "qualified-local-baseline"
-    assert manifest["release_identity"] == "0.8.0"
+    assert manifest["release_identity"] == "0.9.0"
     baseline = manifest["baseline"]
     assert isinstance(baseline, dict)
     assert baseline["default_enabled"] is False

@@ -65,8 +65,8 @@ def test_executable_installer_shortcut_and_uninstaller_identity_are_declared() -
     assert "UninstallDisplayName=Provelume" in installer
     assert "FileDescription', 'Provelume Windows Shell'" in metadata
     assert "ProductName', 'Provelume'" in metadata
-    assert "FileVersion', '0.8.0'" in metadata
-    assert "ProductVersion', '0.8.0'" in metadata
+    assert "FileVersion', '0.9.0'" in metadata
+    assert "ProductVersion', '0.9.0'" in metadata
 
 
 def test_installer_endpoint_tray_login_upgrade_and_uninstall_contract_is_explicit() -> None:
@@ -189,6 +189,10 @@ def test_windows_shell_smoke_is_bounded_sanitized_and_exact_head_aware() -> None
         "notification_added",
         "notification_updated",
         "notification_deleted",
+        "function Get-RegisteredUninstaller",
+        '"{E41A426B-F5FC-473F-A096-875017656A31}_is1"',
+        "Registered uninstaller points outside the expected installation root",
+        '$Evidence.checks.registered_final_uninstaller = "PASS"',
     ):
         assert token in smoke
     for token in (
@@ -201,6 +205,7 @@ def test_windows_shell_smoke_is_bounded_sanitized_and_exact_head_aware() -> None
     ):
         assert token in smoke
     assert "Start-Process -FilePath $InstallerPath -ArgumentList $Arguments -Wait" not in smoke
+    assert '$FinalUninstaller = Join-Path $InstallRoot "unins000.exe"' not in smoke
     assert "Invoke-WebRequest" not in smoke
     assert "Start-Sleep -Seconds" not in smoke
     workflow = (ROOT / ".github/workflows/windows-shell-smoke.yml").read_text(encoding="utf-8")

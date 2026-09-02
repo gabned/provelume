@@ -664,10 +664,10 @@ def test_packaging_manifest_is_optional_offline_and_license_complete() -> None:
     assert manifest["redistribution"]["agpl_component_selected"] is False
 
 
-def test_s02_does_not_change_release_identity_or_add_ocr_dependencies() -> None:
+def test_lectio_release_identity_adds_no_ocr_dependencies() -> None:
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert pyproject["project"]["version"] == "0.8.0"
-    assert __version__ == "0.8.0"
+    assert pyproject["project"]["version"] == "0.9.0"
+    assert __version__ == "0.9.0"
     dependencies = pyproject["project"]["dependencies"]
     assert all(
         token not in dependency.casefold()
@@ -685,7 +685,7 @@ def test_s02_does_not_change_release_identity_or_add_ocr_dependencies() -> None:
     embedded = json.loads(
         (ROOT / "core" / "provelume" / "build_info.json").read_text(encoding="utf-8")
     )
-    assert embedded["version"] == "0.8.0"
+    assert embedded["version"] == "0.9.0"
 
 
 def test_notices_distinguish_selected_but_unbundled_components() -> None:

@@ -5,8 +5,8 @@ Stato: `0.9/S01` ha definito il contratto pubblico tramite
 [PR #138](https://github.com/gabned/provelume/pull/138). `0.9/S02 — Bounded local OCR and
 document bundles` lo implementa sotto la issue owner
 [#140](https://github.com/gabned/provelume/issues/140) e la
-[PR #141](https://github.com/gabned/provelume/pull/141). Lectio resta sviluppo non pubblicato:
-package, runtime e build identity incorporata rimangono `0.8.0`.
+[PR #141](https://github.com/gabned/provelume/pull/141). Lectio pubblica questo percorso limitato
+con package, runtime e build identity incorporata `0.9.0`.
 
 I record normativi sono:
 
@@ -219,9 +219,9 @@ esatto di binari/codec/pack, digest, licenze/notice, manifest/SBOM di release e 
 I limiti S02 includono OCR di testo stampato, page segmentation mode 3 di Tesseract, nessuna
 verifica semantica o correzione automatica, nessuna promessa qualificata sulla scrittura manuale,
 nessun deskew/preprocessing avanzato automatico, nessun adapter baseline per layout/tabelle/barcode/
-QR e nessun supporto oltre la matrice esatta provata. `0.9.0` non è pubblicata: lo slice non crea
-tag, release o asset.
+QR e nessun supporto oltre la matrice esatta provata. S02 non ha creato tag, release o asset; la
+baseline completata viene poi pubblicata in `0.9.0` senza ampliare la matrice.
 
 `0.9/S03` è implementato separatamente tramite issue #143 e la relativa owner PR senza modificare
-il contratto OCR S02. `0.9/S04` resta soltanto il prossimo forecast e non è attivato da questo
+il contratto OCR S02. `0.9/S04` è stato implementato separatamente e non è attivato da questo
 documento.

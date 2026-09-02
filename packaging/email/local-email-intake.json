@@ -2,8 +2,8 @@
   "schema_version": 1,
   "slice": "0.9/S03",
   "status": "qualified-local-baseline",
-  "release_identity": "0.8.0",
-  "development_line": "0.9.0-Lectio-unreleased",
+  "release_identity": "0.9.0",
+  "development_line": "0.9.0-Lectio",
   "baseline": {
     "default_enabled": false,
     "automatic_discovery": false,

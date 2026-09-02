@@ -4,14 +4,14 @@
   "version": 1,
   "metadata": {
     "component": {
-      "bom-ref": "provelume-0.9-s02-development",
+      "bom-ref": "provelume-0.9.0-s02-baseline",
       "name": "Provelume local OCR execution baseline",
       "type": "application",
-      "version": "0.8.0+0.9.S02-development",
+      "version": "0.9.0",
       "properties": [
         {
           "name": "provelume:release_identity",
-          "value": "0.8.0"
+          "value": "0.9.0"
         },
         {
           "name": "provelume:distribution_contains_optional_components",
@@ -201,7 +201,7 @@
   ],
   "dependencies": [
     {
-      "ref": "provelume-0.9-s02-development",
+      "ref": "provelume-0.9.0-s02-baseline",
       "dependsOn": [
         "pkg:github/tesseract-ocr/tesseract@5.5.3",
         "pkg:github/tesseract-ocr/tessdata_fast@87416418657359cb625c412a48b6e1d6d41c29bd?download_url=eng.traineddata",

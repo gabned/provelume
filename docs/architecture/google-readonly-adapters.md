@@ -1,8 +1,8 @@
 # Google Gmail and Drive read-only adapters
 
 `0.9/S04` adds a replaceable Google adapter behind the provider-neutral connector, Source, email
-and document contracts. It is unreleased development and keeps package, runtime and embedded
-identity at `0.8.0`.
+and document contracts. Lectio publishes this bounded path with package, runtime and embedded
+identity `0.9.0`.
 
 ## Authority and isolation
 

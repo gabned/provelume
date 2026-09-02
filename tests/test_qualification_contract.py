@@ -65,7 +65,7 @@ def test_contract_registries_cover_required_findings_and_human_states() -> None:
     assert limits.max_output_bytes == 32 * 1024 * 1024
 
 
-def test_schemas_packaging_and_distribution_are_closed_and_unpublished() -> None:
+def test_schemas_packaging_and_distribution_are_closed_and_release_aligned() -> None:
     for name in ("qualification_finding.schema.json", "qualification_decision.schema.json"):
         schema = json.loads((ROOT / "core" / "provelume" / name).read_text(encoding="utf-8"))
         assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
@@ -76,16 +76,16 @@ def test_schemas_packaging_and_distribution_are_closed_and_unpublished() -> None
         )
     )
     assert manifest["slice"] == "0.9/S06"
-    assert manifest["release_identity"] == "0.8.0"
+    assert manifest["release_identity"] == "0.9.0"
     assert manifest["permanent_smoke"]["real_provider_qualification"] is False
     assert manifest["distribution"]["new_python_dependencies"] == []
     assert manifest["integrity"]["automatic_merge"] is False
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert project["project"]["version"] == "0.8.0"
+    assert project["project"]["version"] == "0.9.0"
     bom = json.loads(
         (ROOT / "packaging" / "qualification" / "qualified-local-components.cdx.json").read_text(
             encoding="utf-8"
         )
     )
     assert bom["components"] == []
-    assert bom["metadata"]["component"]["version"] == "0.8.0+0.9.S06-development"
+    assert bom["metadata"]["component"]["version"] == "0.9.0"

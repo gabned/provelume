@@ -30,7 +30,7 @@ def test_english_italian_architecture_contracts_have_semantic_parity() -> None:
         "revert",
         "qualification_reference_stale",
         "/api/v1/qualification",
-        "0.8.0",
+        "0.9.0",
         "44851",
     }
     for token in required - {"44851"}:
@@ -42,7 +42,7 @@ def test_english_italian_architecture_contracts_have_semantic_parity() -> None:
     assert "merge" in italian.casefold()
 
 
-def test_adr_api_release_roadmap_and_changelog_bind_s06_without_publication() -> None:
+def test_adr_api_release_roadmap_and_changelog_bind_s06_into_lectio() -> None:
     adr = (ROOT / "docs" / "adr" / "0019-cross-source-qualification-and-corrections.md").read_text(
         encoding="utf-8"
     )
@@ -66,14 +66,14 @@ def test_adr_api_release_roadmap_and_changelog_bind_s06_without_publication() ->
     assert "DELIVERED_SLICE_ISSUES: #5,#140,#143,#149,#151,#153" in release
     assert "DELIVERED_SLICE_OWNER_PRS: #138,#141,#147,#150,#152,#154" in release
     assert "CURRENT_SLICE: NONE" in release
-    assert "CURRENT_PACKAGE_VERSION: 0.8.0" in release
+    assert "CURRENT_PACKAGE_VERSION: 0.9.0" in release
     assert "NEXT_SLICE: NONE" in release
-    assert "RELEASE_PREPARATION_IS_A_SEPARATE_UNAUTHORIZED_WORKSTREAM" in release
+    assert "NEXT_FORECAST_STATE: NOT_ACTIVATED" in release
     assert "product/0.9-s06-cross-source-qualification" in release
     assert "product/0.9-s06-cross-source-qualification" in roadmap
-    assert "`0.9/S07` is implemented through [#155]" in roadmap
+    assert "`0.9/S07` was implemented through [#155]" in roadmap
     assert "implemented `0.9/S06`" in changelog
-    assert "no `0.9.0` publication" in changelog
+    assert "## 0.9.0 - 2026-09-02" in changelog
 
 
 def test_browser_translation_catalogs_cover_every_qualification_key() -> None:

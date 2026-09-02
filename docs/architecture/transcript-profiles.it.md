@@ -1,8 +1,8 @@
 # Profili transcript locali versionati
 
-`0.9/S05` aggiunge intake locale esplicito di SRT e WebVTT dietro contratti provider-neutral. È
-sviluppo non pubblicato di `0.9.0 Lectio`. Package, runtime, identità embedded, ultimo tag pubblico
-e release restano `0.8.0`; S05 non crea tag, release, asset o cambio versione.
+`0.9/S05` aggiunge intake locale esplicito di SRT e WebVTT dietro contratti provider-neutral.
+Lectio pubblica questo percorso limitato con package, runtime e identità embedded `0.9.0` sotto il
+tag `v0.9.0`.
 
 ## Matrice chiusa dei profili
 

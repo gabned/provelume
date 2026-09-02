@@ -1,13 +1,12 @@
 # Local email identity and intake
 
-Status: implemented for active, unreleased `0.9/S03` under
+Status: implemented for `0.9/S03` under
 [#143](https://github.com/gabned/provelume/issues/143) and
-[PR #144](https://github.com/gabned/provelume/pull/144).
-Published package, embedded identity, tag and release remain `0.8.0 — Vigilia`.
+[PR #147](https://github.com/gabned/provelume/pull/147), and published in `0.9.0 — Lectio`.
 
 Qualification is bound to the unchanged owner head by the permanent EML/Maildir smoke and required
-repository workflows. It is a local development qualification, not a published `0.9.0` support
-claim.
+repository workflows. It is a bounded local qualification, not a claim for unlisted platforms,
+profiles or providers.
 
 ## What this slice does
 

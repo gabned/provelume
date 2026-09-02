@@ -5,8 +5,8 @@ Status: `0.9/S01` established the public contract through
 [PR #138](https://github.com/gabned/provelume/pull/138). `0.9/S02 — Bounded local OCR and
 document bundles` implements that contract under owner
 [#140](https://github.com/gabned/provelume/issues/140) and
-[PR #141](https://github.com/gabned/provelume/pull/141). Lectio remains unreleased development:
-the package, runtime and embedded build identity stay `0.8.0`.
+[PR #141](https://github.com/gabned/provelume/pull/141). Lectio publishes this bounded path with
+package, runtime and embedded build identity `0.9.0`.
 
 The normative records are:
 
@@ -216,8 +216,8 @@ inventory, digests, license/notice files, release manifest/SBOM entries and an o
 Known S02 limits include printed-text OCR only, Tesseract page-segmentation mode 3, no semantic
 verification or automatic correction, no qualified handwriting promise, no automatic deskew or
 advanced preprocessing, no baseline layout/table/barcode/QR adapter, and no supported platform or
-language beyond the exact matrix proved above. `0.9.0` is not published and no tag, release or
-asset is created by this slice.
+language beyond the exact matrix proved above. S02 created no tag, release or asset; the completed
+baseline is published later as part of `0.9.0` without broadening that matrix.
 
 `0.9/S03` is implemented separately by issue #143 and its owner PR without changing the S02 OCR
-contract. `0.9/S04` is only the next forecast and is not activated by this document.
+contract. `0.9/S04` was implemented separately and is not activated by this document.

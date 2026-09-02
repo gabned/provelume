@@ -1,7 +1,7 @@
 # Windows shell installation, endpoint and recovery guide
 
-This guide covers the unreleased S07 implementation. It does not announce or publish `0.9.0`;
-installed/package identity remains `0.8.0`.
+This guide covers the Windows shell published with the `0.9.0 — Lectio` preview. Package,
+executable, installer and uninstaller metadata all use `0.9.0`.
 
 ## Install
 
@@ -70,18 +70,25 @@ The portable file excludes Instance/source paths and content. Restore validates 
 size, symlink/reparse boundary and port availability, then applies once under the lock. Back up the
 portable Instance separately; shell transfer does not include Originals or canonical knowledge.
 
-## Upgrade and uninstall
+## Upgrade, rollback and uninstall
 
 Upgrade preserves compatible preferences and Instance data. Uninstall stops/removes the runtime,
 shortcuts, product registration and stale login Run entry. It deliberately leaves launcher
-preferences and every Instance. S07 offers no combined “delete my data” option; deletion requires
-separate explicit informed consent.
+preferences and every Instance. Lectio offers no combined “delete my data” option; deletion
+requires separate explicit informed consent.
+
+Before upgrading, make a verified Instance backup and export shell preferences separately. A
+rollback means uninstalling Lectio, installing an earlier immutable official installer and then
+opening only an Instance compatible with that earlier version. Provelume does not silently
+downgrade schemas or canonical records; if compatibility cannot be established, restore the
+matching verified backup into a separate directory. Never overwrite the current Instance as a
+rollback shortcut.
 
 ## Signing and Publisher blocker
 
-S07 artifacts are unsigned development artifacts. `Neobeta` in file or Add/Remove Programs
+Lectio Windows release artifacts are explicitly unsigned. `Neobeta` in file or Add/Remove Programs
 metadata is descriptive and does not authenticate the Windows publisher. `Unknown publisher` can
-remain. The future signed-release mode requires an authorized certificate, valid chain, expected
+remain. Signed-release mode requires an authorized certificate, valid chain, expected
 publisher, valid timestamp and verification of the exact SHA-256 artifact in permanent evidence.
 No private signing material belongs in this repository.
 
