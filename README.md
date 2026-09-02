@@ -31,14 +31,20 @@ boundaries. Real authenticated Google remains unqualified, and Windows OCR is no
 qualified. The Windows artifacts are explicitly unsigned; descriptive `Neobeta` metadata does
 not authenticate a publisher and does not resolve `Unknown publisher`.
 
-`0.10.0 — Perceptio` is now active development planning under parent
-[#160](https://github.com/gabned/provelume/issues/160) and planning owner
-[PR #161](https://github.com/gabned/provelume/pull/161). Its
-[development plan](docs/releases/0.10.0.md) orders seven bounded slices for universal
-representation contracts, component visibility, photo/audio/video profiles, selected additional
-formats and final quality. Every slice remains `planned`; no Perceptio implementation issue or
-owner pull request is active, no capability is available, and package/runtime identity remains
-`0.9.0`.
+`0.10.0 — Perceptio` is active, unpublished development under parent
+[#160](https://github.com/gabned/provelume/issues/160). Its public
+[development plan](docs/releases/0.10.0.md) orders seven bounded slices. `0.10/S01` is active
+through [#162](https://github.com/gabned/provelume/issues/162) to add one universal
+representation/support contract and a byte-unchanged Lectio compatibility view. It implements no
+photo/audio/video/AI capability. S02–S07 remain planned; no `v0.10.0` tag/release is present and
+package/runtime/Windows identity remains `0.9.0`.
+
+The local **Representations & support** surface keeps Preserve, Inspect, Extract, Preview, Local
+enrich and AI enrich independent. It reports declared/effective support, closed unavailable or
+degraded reasons and missing components through the same offline read model in service, CLI, API
+and EN/IT Browser. `AI enrich` is explicitly unavailable; see the
+[user guide](docs/representations.md) and
+[developer contract](docs/architecture/universal-representations.md).
 
 The future lane keeps Lectio at `0.9.0`, assigns `0.10.0 Perceptio` to photo/audio/video
 representations and component visibility, and keeps the later forecasts ordered through the

@@ -108,6 +108,12 @@ def _navigation(
             "group": "knowledge",
         },
         {
+            "href": f"/representations?lang={language}",
+            "label": t("nav.representations"),
+            "current": current_path.startswith("/representations"),
+            "group": "knowledge",
+        },
+        {
             "href": f"/duplicates?lang={language}",
             "label": t("nav.duplicates"),
             "current": current_path.startswith("/duplicates"),

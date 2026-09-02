@@ -1803,6 +1803,7 @@ def inspect_instance(root: Path | str, *, deep: bool = True) -> dict[str, Any]:
         from .folder_sources import folder_source_state_findings
         from .maintenance import maintenance_state_findings
         from .qualification import qualification_state_findings
+        from .representations import representation_state_findings
         from .resource_statistics import resource_statistics_state_findings
         from .scheduler import scheduler_state_findings
         from .source_reconciliation import source_reconciliation_state_findings
@@ -1811,6 +1812,7 @@ def inspect_instance(root: Path | str, *, deep: bool = True) -> dict[str, Any]:
         errors.extend(folder_source_state_findings(store))
         errors.extend(maintenance_state_findings(store))
         errors.extend(qualification_state_findings(store, records))
+        errors.extend(representation_state_findings(store))
         errors.extend(scheduler_state_findings(store))
         errors.extend(source_reconciliation_state_findings(store))
         errors.extend(resource_statistics_state_findings(store))

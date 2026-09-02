@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "registry_id": "provelume.representation-support.v1",
+  "operations": [
+    "preserve",
+    "inspect",
+    "extract",
+    "preview",
+    "local_enrich",
+    "ai_enrich"
+  ],
+  "reason_codes": [
+    "component_missing",
+    "disabled_by_configuration",
+    "invalid_contract",
+    "not_applicable",
+    "not_declared",
+    "not_implemented",
+    "output_dependent",
+    "profile_limited",
+    "unsupported_platform"
+  ],
+  "profiles": [
+    {
+      "id": "universal-original-v1",
+      "version": "1",
+      "label": "Universal exact Original",
+      "operations": {
+        "preserve": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "exact-byte-original", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "inspect": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_declared", "missing_component": null},
+        "extract": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_declared", "missing_component": null},
+        "preview": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_declared", "missing_component": null},
+        "local_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_declared", "missing_component": null},
+        "ai_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_implemented", "missing_component": null}
+      }
+    },
+    {
+      "id": "lectio-document-extraction-v1",
+      "version": "1",
+      "label": "Lectio document extraction",
+      "operations": {
+        "preserve": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "exact-byte-original", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "inspect": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "document-bundle", "version": "1"}, "limits": {"max_pages": 500}, "reason": null, "missing_component": null},
+        "extract": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "bounded-document-extractors", "version": "1"}, "limits": {"max_text_characters": 2000000}, "reason": null, "missing_component": null},
+        "preview": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "inert-markdown-viewer", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "local_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_applicable", "missing_component": null},
+        "ai_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_implemented", "missing_component": null}
+      }
+    },
+    {
+      "id": "lectio-local-ocr-v1",
+      "version": "1",
+      "label": "Lectio local OCR",
+      "operations": {
+        "preserve": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "exact-byte-original", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "inspect": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "ocr-contract", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "extract": {"declared": "optional", "effective": "unavailable", "component_check": "ocr", "implementation": {"component": "tesseract-cli", "adapter": "provelume.local-ocr", "version": "1"}, "limits": {"max_pages": 200}, "reason": "component_missing", "missing_component": "local-ocr-runtime"},
+        "preview": {"declared": "optional", "effective": "unavailable", "component_check": "ocr", "implementation": {"component": "provelume.core", "adapter": "ocr-bundle-view", "version": "1"}, "limits": {}, "reason": "output_dependent", "missing_component": "local-ocr-runtime"},
+        "local_enrich": {"declared": "optional", "effective": "unavailable", "component_check": "ocr", "implementation": {"component": "tesseract-cli", "adapter": "provelume.local-ocr", "version": "1"}, "limits": {"max_pages": 200}, "reason": "component_missing", "missing_component": "local-ocr-runtime"},
+        "ai_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_implemented", "missing_component": null}
+      }
+    },
+    {
+      "id": "lectio-email-intake-v1",
+      "version": "1",
+      "label": "Lectio local email intake",
+      "operations": {
+        "preserve": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "exact-email-bytes", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "inspect": {"declared": "supported", "effective": "available", "implementation": {"component": "python-stdlib-email", "adapter": "bounded-email", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "extract": {"declared": "supported", "effective": "available", "implementation": {"component": "python-stdlib-email", "adapter": "bounded-email", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "preview": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "inert-email-view", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "local_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_applicable", "missing_component": null},
+        "ai_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_implemented", "missing_component": null}
+      }
+    },
+    {
+      "id": "lectio-google-readonly-v1",
+      "version": "1",
+      "label": "Lectio Google read-only",
+      "operations": {
+        "preserve": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "google-readonly-original", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "inspect": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "google-readonly", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "extract": {"declared": "supported", "effective": "degraded", "implementation": {"component": "provelume.core", "adapter": "google-readonly", "version": "1"}, "limits": {}, "reason": "profile_limited", "missing_component": null},
+        "preview": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_declared", "missing_component": null},
+        "local_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_applicable", "missing_component": null},
+        "ai_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_implemented", "missing_component": null}
+      }
+    },
+    {
+      "id": "lectio-transcript-srt-v1",
+      "version": "1",
+      "label": "Lectio SRT transcript",
+      "operations": {
+        "preserve": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "exact-transcript-bytes", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "inspect": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "bounded-srt", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "extract": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "bounded-srt", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "preview": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "inert-transcript-view", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "local_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_applicable", "missing_component": null},
+        "ai_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_implemented", "missing_component": null}
+      }
+    },
+    {
+      "id": "lectio-transcript-webvtt-v1",
+      "version": "1",
+      "label": "Lectio WebVTT transcript",
+      "operations": {
+        "preserve": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "exact-transcript-bytes", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "inspect": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "bounded-webvtt", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "extract": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "bounded-webvtt", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "preview": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "inert-transcript-view", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "local_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_applicable", "missing_component": null},
+        "ai_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_implemented", "missing_component": null}
+      }
+    },
+    {
+      "id": "lectio-cross-source-findings-v1",
+      "version": "1",
+      "label": "Lectio cross-source findings",
+      "operations": {
+        "preserve": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_applicable", "missing_component": null},
+        "inspect": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "cross-source-qualification", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "extract": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "cross-source-qualification", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "preview": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "qualification-read-model", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "local_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_applicable", "missing_component": null},
+        "ai_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_implemented", "missing_component": null}
+      }
+    }
+  ]
+}

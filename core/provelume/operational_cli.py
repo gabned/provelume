@@ -15,6 +15,10 @@ from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES
 from .library_cli import add_library_commands, handle_library_command
 from .operations import OperationLedger
 from .rebuild_cli import add_rebuild_commands, handle_rebuild_command
+from .representation_cli import (
+    add_representation_commands,
+    handle_representation_command,
+)
 from .retention_cli import add_retention_commands, handle_retention_command
 from .review_cli import add_review_commands, handle_review_command
 from .storage import InstanceStore
@@ -89,6 +93,7 @@ def add_operational_commands(subparsers: Any) -> None:
 
     add_folder_settings_commands(subparsers)
     add_bundle_commands(subparsers)
+    add_representation_commands(subparsers)
     add_review_commands(subparsers)
     add_rebuild_commands(subparsers)
     add_library_commands(subparsers)
@@ -102,6 +107,9 @@ def handle_operational_command(args: argparse.Namespace) -> int | None:
     bundle_result = handle_bundle_command(args)
     if bundle_result is not None:
         return bundle_result
+    representation_result = handle_representation_command(args)
+    if representation_result is not None:
+        return representation_result
     review_result = handle_review_command(args)
     if review_result is not None:
         return review_result

@@ -96,3 +96,11 @@ network-event auditing remains future work and must feed the same surface withou
 configured capability into observed activity. Future update services and AI providers must likewise
 remain explicit choices and add their component type to the public declaration registry before they
 can be treated as understood.
+
+The `0.10/S01` representation support and inspection surfaces are also offline. They read one
+first-party packaged registry, current local configuration/component evidence, validated derived
+bundle metadata and byte-unchanged Lectio compatibility counts. They do not enumerate a provider,
+start OCR, download a component/model, create a preview, rebuild an output or repair state. Every
+service/CLI/API/Browser result records `network_used: false` and `mutated: false`. `AI enrich` is a
+closed unavailable row with `not_implemented`; no AI client, provider, model or network path is
+present. Native representation bundles also require `network_used: false` and `ai_used: false`.
