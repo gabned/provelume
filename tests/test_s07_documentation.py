@@ -100,7 +100,7 @@ def test_api_privacy_packaging_and_qualification_matrix_remain_truthful() -> Non
     assert "#155" in release and "#155" in roadmap
     assert "release workstream #158" in release.casefold()
     assert "Release workstream" in roadmap
-    assert "## 0.9.0 - 2026-09-01" in changelog
+    assert "## 0.9.0 - 2026-09-02" in changelog
 
 
 def test_roadmap_does_not_offer_implicit_free_or_random_port_fallback() -> None:

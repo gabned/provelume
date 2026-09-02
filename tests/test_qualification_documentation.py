@@ -73,7 +73,7 @@ def test_adr_api_release_roadmap_and_changelog_bind_s06_into_lectio() -> None:
     assert "product/0.9-s06-cross-source-qualification" in roadmap
     assert "`0.9/S07` was implemented through [#155]" in roadmap
     assert "implemented `0.9/S06`" in changelog
-    assert "## 0.9.0 - 2026-09-01" in changelog
+    assert "## 0.9.0 - 2026-09-02" in changelog
 
 
 def test_browser_translation_catalogs_cover_every_qualification_key() -> None:

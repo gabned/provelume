@@ -235,7 +235,7 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
     assert heading_positions == sorted(heading_positions)
     assert "## 0.7.0 - 2026-08-29" in changelog
     assert "## 0.8.0 - 2026-08-30" in changelog
-    assert "## 0.9.0 - 2026-09-01" in changelog
+    assert "## 0.9.0 - 2026-09-02" in changelog
     assert "## 0.6.1 - 2026-08-29" in changelog
     assert "## 0.6.0 - 2026-08-28" in changelog
     assert "## 0.5.1 - 2026-08-28" in changelog

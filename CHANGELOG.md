@@ -6,7 +6,7 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 No changes yet.
 
-## 0.9.0 - 2026-09-01
+## 0.9.0 - 2026-09-02
 
 Published as the [`v0.9.0` prerelease](https://github.com/gabned/provelume/releases/tag/v0.9.0)
 through the permanent verified release workflow. The tag, package/runtime identity, Windows
