@@ -4,7 +4,15 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
-No changes yet.
+### Changed
+
+- activated planning-only development for `0.10.0 — Perceptio` under parent #160, with seven
+  ordered bounded slices, per-slice scope and qualification contracts, release-wide exit criteria
+  and S01 identified as the next recommended work without activating or implementing it;
+- kept package, runtime, embedded and Windows identity at published `0.9.0`, left `v0.9.0` and its
+  release assets unchanged, retained #157 as closed `not planned`, created no S08 and kept AI/RAG,
+  Action Center, remote/provider mutation, signing, runtime download and advanced resource/queue
+  capabilities outside Perceptio.
 
 ## 0.9.0 - 2026-09-02
 
