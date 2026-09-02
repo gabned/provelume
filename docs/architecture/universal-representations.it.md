@@ -66,6 +66,11 @@ collisioni file/directory. I massimi v1 sono 1.000 output, 100.000 anchor, 10.00
 warning, 16 GiB per output, 512 GiB totali e rapporto di espansione 1.000x. Un bundle può scegliere
 limiti inferiori, mai superiori.
 
+I percorsi devono inoltre essere normalizzati NFC e la validazione runtime applica ogni limite
+inferiore scelto per percorso o segmento. La deep validation risolve Version e Original di ogni
+bundle nei record canonici e ricontrolla i byte dell'Original autorevole prima di accettare lo
+stato derivato.
+
 La rimozione elimina solo l'albero di output nativo dopo aver scritto una ricevuta derivata. Il
 rebuild accetta byte rigenerati solo se hash/dimensione e fingerprint del bundle attivo coincidono
 con la ricevuta. Un errore elimina il rebuild parziale e lascia invariati Original, record canonici

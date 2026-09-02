@@ -85,9 +85,21 @@
       "required": ["state", "created_at", "removed_at"],
       "properties": {
         "state": {"enum": ["active", "degraded", "removed"]},
-        "created_at": {"type": "string", "minLength": 1},
-        "removed_at": {"type": ["string", "null"]}
-      }
+        "created_at": {"type": "string", "format": "date-time"},
+        "removed_at": {
+          "anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"state": {"const": "removed"}}},
+          "then": {"properties": {"removed_at": {"type": "string"}}}
+        },
+        {
+          "if": {"properties": {"state": {"enum": ["active", "degraded"]}}},
+          "then": {"properties": {"removed_at": {"const": null}}}
+        }
+      ]
     },
     "availability": {
       "type": "object",
@@ -159,7 +171,61 @@
           "version_id": {"$ref": "#/$defs/identifier"},
           "representation_id": {"type": "string", "pattern": "^repr_[0-9a-f]{64}$"},
           "target": {"type": "object", "minProperties": 1}
-        }
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"kind": {"const": "page"}}},
+            "then": {
+              "properties": {
+                "target": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["page"],
+                  "properties": {"page": {"type": "integer", "minimum": 1}}
+                }
+              }
+            }
+          },
+          {
+            "if": {"properties": {"kind": {"const": "time"}}},
+            "then": {
+              "properties": {
+                "target": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["start_ms", "end_ms"],
+                  "properties": {
+                    "start_ms": {"type": "integer", "minimum": 0},
+                    "end_ms": {"type": "integer", "minimum": 0}
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {"properties": {"kind": {"const": "region"}}},
+            "then": {
+              "properties": {
+                "target": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["page", "x", "y", "width", "height"],
+                  "properties": {
+                    "page": {"type": "integer", "minimum": 1},
+                    "x": {"type": "number", "minimum": 0},
+                    "y": {"type": "number", "minimum": 0},
+                    "width": {"type": "number", "exclusiveMinimum": 0},
+                    "height": {"type": "number", "exclusiveMinimum": 0}
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {"properties": {"kind": {"enum": ["slide", "sheet", "cell", "member", "symbol"]}}},
+            "then": {"properties": {"target": {"const": {"reserved": true}}}}
+          }
+        ]
       }
     },
     "limits": {

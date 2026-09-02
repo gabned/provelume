@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import json
 import socket
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -173,6 +174,12 @@ def test_schema_round_trip_identity_anchors_and_reversible_corrections(
             "representation_path_unsafe",
         ),
         (
+            lambda bundle: bundle["outputs"][0].update(
+                {"storage_ref": "state/derived/representations/e\u0301.txt"}
+            ),
+            "representation_path_unsafe",
+        ),
+        (
             lambda bundle: bundle["outputs"][0].update({"size_bytes": "10"}),
             "representation_limit_exceeded",
         ),
@@ -191,6 +198,14 @@ def test_schema_round_trip_identity_anchors_and_reversible_corrections(
                 }
             ),
             "representation_invalid",
+        ),
+        (
+            lambda bundle: bundle["limits"].update({"max_path_chars": 1}),
+            "representation_path_unsafe",
+        ),
+        (
+            lambda bundle: bundle["limits"].update({"max_segment_chars": 1}),
+            "representation_path_unsafe",
         ),
         (
             lambda bundle: bundle["lifecycle"].update({"created_at": "2026-09-02T00:00:00"}),
@@ -222,7 +237,7 @@ def test_collision_and_reserved_anchor_claims_are_rejected(tmp_path: Path) -> No
 
     reserved = copy.deepcopy(bundle)
     selected = next(item for item in reserved["anchors"] if item["kind"] == "slide")
-    selected["target"] = {"slide": 1}
+    selected["target"] = {"reserved": True, "slide": 1}
     with pytest.raises(RepresentationContractError, match="explicitly reserved"):
         validate_representation_bundle(reserved)
 
@@ -359,6 +374,30 @@ def test_disabled_offline_read_model_never_opens_a_network_socket(
     assert browser.status_code == 200
 
 
+def test_enabled_ocr_support_probe_is_read_only(tmp_path: Path) -> None:
+    instance, _version_id = _seed(tmp_path)
+    settings = replace(instance.ocr.configured_settings(), mode="automatic")
+    instance.ocr.configure(settings)
+
+    def snapshot() -> list[tuple[str, int, bytes | None]]:
+        return [
+            (
+                path.relative_to(instance.root).as_posix(),
+                path.lstat().st_mode,
+                path.read_bytes() if path.is_file() else None,
+            )
+            for path in sorted(instance.root.rglob("*"))
+        ]
+
+    before = snapshot()
+    support = instance.representation_support(profile_id="lectio-local-ocr-v1")
+    after = snapshot()
+
+    assert support["network_used"] is False
+    assert support["mutated"] is False
+    assert after == before
+
+
 def test_lectio_compatibility_view_is_complete_and_byte_unchanged(tmp_path: Path) -> None:
     instance, _version_id = _seed(tmp_path)
     before = {
@@ -461,6 +500,42 @@ def test_deep_validation_rejects_tampered_representation_without_original_mutati
     assert _snapshots(instance.store)[1] == originals_before
 
 
+def test_deep_validation_rejects_bundle_without_canonical_version(tmp_path: Path) -> None:
+    instance, version_id = _seed(tmp_path)
+    existing = _materialize(instance, version_id)
+    fake = copy.deepcopy(existing)
+    fake["version"]["id"] = "ver_missing"
+    fake_id = representation_id(
+        version_id="ver_missing",
+        original_sha256=fake["version"]["original_sha256"],
+        recipe_sha256=fake["recipe"]["fingerprint"],
+        output_sha256=fake["output_fingerprint"],
+    )
+    fake["representation_id"] = fake_id
+    fake["provenance"]["derived_from_version_id"] = "ver_missing"
+    for output in fake["outputs"]:
+        output["storage_ref"] = (
+            f"state/derived/representations/{fake_id}/outputs/{Path(output['storage_ref']).name}"
+        )
+    for anchor in fake["anchors"]:
+        anchor["version_id"] = "ver_missing"
+        anchor["representation_id"] = fake_id
+    validate_representation_bundle(fake)
+
+    root = instance.root / "state" / "derived" / "representations" / fake_id
+    (root / "outputs").mkdir(parents=True)
+    for output in fake["outputs"]:
+        source = instance.root / existing["outputs"][0]["storage_ref"]
+        (root / "outputs" / Path(output["storage_ref"]).name).write_bytes(source.read_bytes())
+    (root / "bundle.json").write_bytes(canonical_json_bytes(fake))
+
+    manager = RepresentationBundleManager(instance.store)
+    assert manager.get(fake_id) is None
+    report = inspect_instance(instance.root, deep=True)
+    assert report["status"] == "invalid"
+    assert "representation_state_invalid" in {item["code"] for item in report["errors"]}
+
+
 def test_deep_validation_rejects_tampered_removal_history(tmp_path: Path) -> None:
     instance, version_id = _seed(tmp_path)
     bundle = _materialize(instance, version_id)
@@ -499,6 +574,8 @@ def test_public_contract_files_are_first_party_and_json_valid() -> None:
     )
     assert schema["properties"]["schema_version"]["const"] == 1
     assert "availability" in schema["required"]
+    reserved_anchor_rule = schema["properties"]["anchors"]["items"]["allOf"][-1]
+    assert reserved_anchor_rule["then"]["properties"]["target"]["const"] == {"reserved": True}
     assert registry_schema["properties"]["schema_version"]["const"] == 1
     assert registry_schema["properties"]["operations"]["const"] == list(SUPPORT_OPERATIONS)
     assert registry["operations"] == list(SUPPORT_OPERATIONS)
@@ -506,3 +583,8 @@ def test_public_contract_files_are_first_party_and_json_valid() -> None:
     assert compatibility["legacy_bundles_byte_unchanged"] is True
     assert compatibility["eager_migration"] is False
     assert compatibility["original_sidecar_markdown"] is False
+    browser_template = (root / "core/provelume/templates/representations.html").read_text(
+        encoding="utf-8"
+    )
+    assert "row.reason or '—'" in browser_template
+    assert "row.missing_component" in browser_template

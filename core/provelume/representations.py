@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import tempfile
+import unicodedata
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 from enum import StrEnum
@@ -235,8 +236,19 @@ def _nonnegative_integer(value: Any, name: str, ceiling: int) -> int:
     return value
 
 
-def _portable_relative_path(value: Any) -> str:
-    if not isinstance(value, str) or not value or "\\" in value or "\x00" in value:
+def _portable_relative_path(
+    value: Any,
+    *,
+    max_path_chars: int = MAX_REPRESENTATION_PATH_CHARS,
+    max_segment_chars: int = MAX_REPRESENTATION_SEGMENT_CHARS,
+) -> str:
+    if (
+        not isinstance(value, str)
+        or not value
+        or "\\" in value
+        or "\x00" in value
+        or unicodedata.normalize("NFC", value) != value
+    ):
         raise RepresentationContractError(
             "representation_path_unsafe", "representation output path is unsafe"
         )
@@ -245,14 +257,14 @@ def _portable_relative_path(value: Any) -> str:
         pure.is_absolute()
         or pure.as_posix() != value
         or any(part in {"", ".", ".."} for part in pure.parts)
-        or len(value) > MAX_REPRESENTATION_PATH_CHARS
+        or len(value) > max_path_chars
     ):
         raise RepresentationContractError(
             "representation_path_unsafe", "representation output path is unsafe"
         )
     for segment in pure.parts:
         if (
-            len(segment) > MAX_REPRESENTATION_SEGMENT_CHARS
+            len(segment) > max_segment_chars
             or segment.endswith((" ", "."))
             or any(ord(character) < 32 for character in segment)
             or any(character in _WINDOWS_FORBIDDEN for character in segment)
@@ -425,7 +437,11 @@ def validate_representation_bundle(value: Any) -> dict[str, Any]:
             raise RepresentationContractError(
                 "representation_invalid", "output media type is invalid"
             )
-        _portable_relative_path(output["storage_ref"])
+        _portable_relative_path(
+            output["storage_ref"],
+            max_path_chars=limits["max_path_chars"],
+            max_segment_chars=limits["max_segment_chars"],
+        )
         _digest(output["sha256"], "output sha256")
         size = _nonnegative_integer(output["size_bytes"], "output size", limits["max_file_bytes"])
         total_size += size
@@ -571,7 +587,7 @@ def validate_representation_bundle(value: Any) -> dict[str, Any]:
             raise RepresentationContractError(
                 "representation_invalid", "representation anchor is invalid"
             )
-        if anchor["kind"] in RESERVED_ANCHOR_KINDS and anchor["target"].get("reserved") is not True:
+        if anchor["kind"] in RESERVED_ANCHOR_KINDS and dict(anchor["target"]) != {"reserved": True}:
             raise RepresentationContractError(
                 "representation_invalid", "reserved anchor must remain explicitly reserved"
             )
@@ -845,10 +861,23 @@ class SupportRegistry:
         self.store = store
 
     def _ocr_state(self) -> tuple[str, str | None, str | None]:
+        from .ocr_contract import ocr_capability_report
         from .ocr_jobs import OcrJobManager
 
         try:
-            capability = OcrJobManager(self.store).capability()
+            manager = OcrJobManager(self.store)
+            settings = manager.configured_settings()
+            if settings.mode == "disabled":
+                capability = ocr_capability_report(settings)
+            else:
+                with tempfile.TemporaryDirectory(prefix="provelume-ocr-capability-") as directory:
+                    temporary_root = Path(directory)
+                    if os.name == "posix":
+                        os.chmod(temporary_root, 0o700)
+                    renderer = manager.renderer_factory(settings, temporary_root)
+                    renderer_capability = renderer.capability()
+                    adapter = manager.adapter_factory(settings, renderer_capability, temporary_root)
+                    capability = ocr_capability_report(settings, adapter, renderer)
         except (OSError, ValueError):
             return "unavailable", "component_missing", "local-ocr-runtime"
         state = str(capability.get("state", "adapter-unavailable"))
@@ -1050,6 +1079,13 @@ class RepresentationBundleManager:
             "original_size_bytes": len(data),
         }
 
+    def _authority_matches(self, bundle: Mapping[str, Any]) -> bool:
+        try:
+            authority = self._version(str(bundle["version"]["id"]))
+        except (KeyError, OSError, TypeError, ValueError):
+            return False
+        return authority == bundle["version"]
+
     @staticmethod
     def _output_name(value: str) -> str:
         selected = _portable_relative_path(value)
@@ -1215,6 +1251,8 @@ class RepresentationBundleManager:
             return None
         if bundle["representation_id"] != selected_id:
             return None
+        if not self._authority_matches(bundle):
+            return None
         expected_prefix = f"state/derived/representations/{selected_id}/outputs/"
         if any(
             not str(output["storage_ref"]).startswith(expected_prefix)
@@ -1304,6 +1342,11 @@ class RepresentationBundleManager:
             raise RepresentationContractError(
                 "representation_not_found", "representation removal history was not found"
             ) from exc
+        if not self._authority_matches(removed):
+            raise RepresentationContractError(
+                "representation_original_mismatch",
+                "removed representation authority no longer matches",
+            )
         active = {
             **removed,
             "lifecycle": {
@@ -1436,7 +1479,10 @@ def representation_state_findings(store: InstanceStore) -> list[dict[str, str]]:
                         "representation_invalid", "representation history entry is invalid"
                     )
                 receipt = _validate_removal_receipt(json.loads(path.read_text(encoding="utf-8")))
-                if path.name != f"{receipt['representation_id']}.json":
+                if (
+                    path.name != f"{receipt['representation_id']}.json"
+                    or not manager._authority_matches(receipt["bundle"])
+                ):
                     raise RepresentationContractError(
                         "representation_identity_mismatch",
                         "representation history filename does not match",
