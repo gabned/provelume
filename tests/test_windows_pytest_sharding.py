@@ -59,7 +59,7 @@ def test_orchestration_is_only_automatic_for_bare_windows_full_suite(monkeypatch
     assert _should_orchestrate(()) is False
 
 
-def test_three_process_harness_completes_bounded_and_cleans_children() -> None:
+def test_four_process_harness_completes_bounded_and_cleans_children() -> None:
     target = (
         ROOT
         / "tests"
@@ -89,10 +89,11 @@ def test_three_process_harness_completes_bounded_and_cleans_children() -> None:
     )
     output = completed.stdout + completed.stderr
     assert completed.returncode == 0, output
-    assert SHARD_COUNT == 3
-    assert "windows-shard index=0/3" in output
-    assert "windows-shard index=1/3" in output
-    assert "windows-shard index=2/3" in output
+    assert SHARD_COUNT == 4
+    assert "windows-shard index=0/4" in output
+    assert "windows-shard index=1/4" in output
+    assert "windows-shard index=2/4" in output
+    assert "windows-shard index=3/4" in output
     assert "windows-shards completed=True" in output
 
 
