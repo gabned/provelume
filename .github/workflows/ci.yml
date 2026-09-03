@@ -61,7 +61,7 @@ jobs:
             exit 1
           fi
 
-      - name: Validate Agent Protocol v1.2 through v1.4 contracts
+      - name: Validate Agent Protocol v1.2 through v1.4.1 contracts
         shell: bash
         run: |
           set -euo pipefail
@@ -79,11 +79,20 @@ jobs:
             echo "::error file=tools/agent_protocol_v1_4.py::Expected Git mode 100755, observed ${campaign_mode:-missing}."
             exit 1
           fi
+          continuation_mode="$(git ls-files -s -- tools/agent_protocol_v1_4_1.py | awk '{print $1}')"
+          if [ "$continuation_mode" != '100755' ]; then
+            echo "::error file=tools/agent_protocol_v1_4_1.py::Expected Git mode 100755, observed ${continuation_mode:-missing}."
+            exit 1
+          fi
           git check-ignore -q .agent/effect-report.json
           python tools/agent_protocol.py self-test
           python tools/agent_protocol_v1_4.py self-test
+          python tools/agent_protocol_v1_4_1.py self-test
+          python tools/agent_protocol_v1_4_1.py validate-conformance \
+            .github/agent-protocol/conformance-v1.4.1.json
           if grep -Eq '^(import|from) (requests|httpx|urllib|subprocess|socket)([ .]|$)' \
-            tools/agent_protocol.py tools/agent_protocol_v1_4.py; then
+            tools/agent_protocol.py tools/agent_protocol_v1_4.py \
+            tools/agent_protocol_v1_4_1.py; then
             echo '::error::Agent Protocol validation must remain offline and connector-input-only.'
             exit 1
           fi
