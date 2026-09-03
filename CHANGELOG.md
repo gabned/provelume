@@ -6,6 +6,14 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
+- activated `0.10/S02` through issue #166 and owner PR #168, adding one versioned installed and
+  release component inventory across first-party, Python, native-tool, codec, model,
+  language-pack and host-prerequisite classes; service, CLI, read-only API and accessible EN/IT
+  Browser use the same offline, path-redacted model and distinguish installed, missing, ahead,
+  incompatible, EOL and unverified evidence;
+- added bounded deterministic comparison with an explicitly supplied local CycloneDX release
+  SBOM while keeping catalogue/advisory checks unperformed, security/latest-known state truthful,
+  and install, update, runtime/model download, provider traffic and Instance mutation absent;
 - delivered `0.10/S01` for issue #162 by owner PR #163 from
   `product/0.10-s01-universal-representation-contract`, adding the first-party versioned universal
   representation bundle, closed support registry and one offline service/CLI/API/Browser read

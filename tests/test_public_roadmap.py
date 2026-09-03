@@ -160,21 +160,19 @@ def test_perceptio_plan_records_s01_without_version_or_release_change() -> None:
         "ACTIVATION_ISSUE": "#160",
         "ACTIVATION_BRANCH": "product/0.10.0-perceptio-activation",
         "ACTIVATION_OWNER_PR": "#161",
-        "CURRENT_SLICE": "NONE",
-        "CURRENT_SLICE_ISSUE": "NONE",
-        "CURRENT_SLICE_BRANCH": "NONE",
-        "CURRENT_SLICE_OWNER_PR": "NONE",
-        "CURRENT_SLICE_STATE": "NONE",
+        "CURRENT_SLICE": "0.10/S02",
+        "CURRENT_SLICE_ISSUE": "#166",
+        "CURRENT_SLICE_BRANCH": "product/0.10-s02-component-inventory",
+        "CURRENT_SLICE_OWNER_PR": "#168",
+        "CURRENT_SLICE_STATE": "ACTIVE",
         "DELIVERED_SLICE": "0.10/S01",
         "DELIVERED_SLICE_ISSUE": "#162",
         "DELIVERED_SLICE_BRANCH": "product/0.10-s01-universal-representation-contract",
         "DELIVERED_SLICE_OWNER_PR": "#163",
         "DELIVERED_SLICE_STATE": "COMPLETED_BY_MERGE",
-        "NEXT_SLICE": "0.10/S02",
+        "NEXT_SLICE": "0.10/S03",
         "NEXT_SLICE_STATE": "PLANNED",
-        "PLANNED_SLICES": (
-            "0.10/S02,0.10/S03,0.10/S04,0.10/S05,0.10/S06,0.10/S07"
-        ),
+        "PLANNED_SLICES": "0.10/S03,0.10/S04,0.10/S05,0.10/S06,0.10/S07",
         "LECTIO_TAG": "v0.9.0",
         "LECTIO_COMMIT": "e08125a8600f9c4300d0d173613a03f8bbc31327",
     }
@@ -226,15 +224,16 @@ def test_perceptio_slices_are_ordered_bounded_and_only_s01_delivered() -> None:
         section = plan[start:end]
         for field in required_fields:
             assert field in section, f"{identity} is missing {field}"
-        expected_state = (
-            "- **Delivered state:** completed by merge of owner PR #163"
-            if identity == "0.10/S01"
-            else "- **Initial state:** `planned`"
-        )
+        if identity == "0.10/S01":
+            expected_state = "- **Delivered state:** completed by merge of owner PR #163"
+        elif identity == "0.10/S02":
+            expected_state = "- **Active state:** issue #166 and owner PR #168"
+        else:
+            expected_state = "- **Initial state:** `planned`"
         assert expected_state in section
 
     assert positions == sorted(positions)
-    assert plan.count("- **Initial state:** `planned`") == 6
+    assert plan.count("- **Initial state:** `planned`") == 5
     assert "owner PR #163 for #162" in plan
     assert "#157 stays closed `not planned`" in plan
     assert "No operational issue exists for any slice at activation time" in plan
@@ -651,17 +650,17 @@ def test_perceptio_activation_is_consistent_across_public_planning_surfaces() ->
     assert "| Forecast | `0.10.0` |" not in roadmap
     assert roadmap.count("| Active development | `0.10.0` |") == 1
     assert "#160; planning activation PR #161" in roadmap
-    assert "S01 is delivered for #162 by owner PR #163" in roadmap
-    assert "S02 is only the\nnext planned slice and S03–S07 remain planned" in roadmap
+    assert "S02 #166 / owner PR #168" in roadmap
     assert "package/runtime/Windows identity remains `0.9.0`" in readme
     assert "[development plan](docs/releases/0.10.0.md)" in readme
     assert "activated planning-only development for `0.10.0 — Perceptio`" in changelog
     assert "CURRENT_PACKAGE_VERSION: 0.9.0" in perceptio
     assert "PUBLISHED_TAG: NONE" in perceptio
-    assert "CURRENT_SLICE: NONE" in perceptio
+    assert "CURRENT_SLICE: 0.10/S02" in perceptio
+    assert "CURRENT_SLICE_OWNER_PR: #168" in perceptio
     assert "DELIVERED_SLICE: 0.10/S01" in perceptio
     assert "DELIVERED_SLICE_OWNER_PR: #163" in perceptio
-    assert "NEXT_SLICE: 0.10/S02" in perceptio
+    assert "NEXT_SLICE: 0.10/S03" in perceptio
     assert "At this release checkpoint the next canonical\nforecast" in lectio
     assert "Post-publication activation is recorded separately" in lectio
 
@@ -1020,7 +1019,8 @@ def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
     assert "[`v0.8.0`](https://github.com/gabned/provelume/releases/tag/v0.8.0)" in readme
     assert "Lectio is the current public\nprerelease" in readme
     assert "[development plan](docs/releases/0.10.0.md)" in readme
-    assert "S02 is only the next `planned` slice and S03–S07 remain planned" in readme
+    assert "`0.10/S02` is active" in readme
+    assert "S03–S07 remain planned" in readme
     assert "[Windows preview guide](docs/windows-preview.md)" in readme
     assert "configure-inbox" in readme
     assert "external Drop folder" in readme
