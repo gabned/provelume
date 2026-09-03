@@ -6,6 +6,10 @@ from pathlib import Path
 from typing import Any
 
 from .bundle_cli import add_bundle_commands, handle_bundle_command
+from .component_inventory_cli import (
+    add_component_inventory_commands,
+    handle_component_inventory_command,
+)
 from .configured_inbox import InboxManager
 from .folder_settings_cli import (
     add_folder_settings_commands,
@@ -94,6 +98,7 @@ def add_operational_commands(subparsers: Any) -> None:
     add_folder_settings_commands(subparsers)
     add_bundle_commands(subparsers)
     add_representation_commands(subparsers)
+    add_component_inventory_commands(subparsers)
     add_review_commands(subparsers)
     add_rebuild_commands(subparsers)
     add_library_commands(subparsers)
@@ -110,6 +115,9 @@ def handle_operational_command(args: argparse.Namespace) -> int | None:
     representation_result = handle_representation_command(args)
     if representation_result is not None:
         return representation_result
+    component_result = handle_component_inventory_command(args)
+    if component_result is not None:
+        return component_result
     review_result = handle_review_command(args)
     if review_result is not None:
         return review_result

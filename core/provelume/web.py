@@ -114,6 +114,12 @@ def _navigation(
             "group": "knowledge",
         },
         {
+            "href": f"/components?lang={language}",
+            "label": t("nav.components"),
+            "current": current_path.startswith("/components"),
+            "group": "support",
+        },
+        {
             "href": f"/duplicates?lang={language}",
             "label": t("nav.duplicates"),
             "current": current_path.startswith("/duplicates"),

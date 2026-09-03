@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/component-inventory-v1.json",
+  "title": "Provelume component inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "catalogue_version", "platform", "network", "mutated", "class_coverage", "release_evidence", "summary", "components"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "catalogue_version": {"const": 1},
+    "platform": {"type": "string"},
+    "network": {"type": "object"},
+    "mutated": {"const": false},
+    "class_coverage": {"type": "array"},
+    "release_evidence": {"type": "object"},
+    "summary": {"type": "object"},
+    "components": {"type": "array", "maxItems": 1000}
+  }
+}

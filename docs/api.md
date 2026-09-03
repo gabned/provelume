@@ -62,6 +62,19 @@ network access remains a separate explicit Windows-launcher or `provelume check-
 
 The same contract is exposed by `provelume about` and the local `/about` browser page.
 
+## Installed and release components
+
+`GET /api/v1/components` returns the versioned component catalogue used by the local
+`/components` page and `provelume component-inventory`. It distinguishes installed, missing,
+ahead, incompatible, EOL and unverified state across first-party code, Python distributions,
+native tools, codecs, models, language packs and host prerequisites.
+
+The HTTP read never accepts a local path, executes an optional tool, contacts a catalogue or
+advisory service, or changes the Instance. Release-SBOM reconciliation is available only to the
+local operator through `provelume component-inventory --release-sbom PATH`; the input is a bounded
+CycloneDX document and the result reports exact mismatched component IDs without exposing its
+path. A check never installs or updates a component. See [`components.md`](components.md).
+
 ## Instance and sources
 
 - `GET /api/v1/instance` — Instance identity, schema/manifest versions, derived-state policy,
