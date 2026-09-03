@@ -579,8 +579,14 @@ def test_public_contract_files_are_first_party_and_json_valid() -> None:
     )
     assert schema["properties"]["schema_version"]["const"] == 1
     assert "availability" in schema["required"]
-    reserved_anchor_rule = schema["properties"]["anchors"]["items"]["allOf"][-1]
+    reserved_anchor_rule = schema["properties"]["anchors"]["items"]["allOf"][3]
     assert reserved_anchor_rule["then"]["properties"]["target"]["const"] == {"reserved": True}
+    activated = schema["properties"]["anchors"]["items"]["allOf"][4:]
+    assert [rule["if"]["properties"]["kind"]["const"] for rule in activated] == [
+        "sheet",
+        "cell",
+        "member",
+    ]
     assert registry_schema["properties"]["schema_version"]["const"] == 1
     assert registry_schema["properties"]["operations"]["const"] == list(SUPPORT_OPERATIONS)
     assert registry["operations"] == list(SUPPORT_OPERATIONS)
@@ -593,3 +599,21 @@ def test_public_contract_files_are_first_party_and_json_valid() -> None:
     )
     assert "row.reason or '—'" in browser_template
     assert "row.missing_component" in browser_template
+
+
+def test_activated_cell_anchor_requires_coordinate_to_match_row_and_column(
+    tmp_path: Path,
+) -> None:
+    instance, version_id = _seed(tmp_path)
+    bundle = _materialize(instance, version_id)
+    cell = next(item for item in bundle["anchors"] if item["kind"] == "cell")
+    cell["target"] = {
+        "schema_version": 1,
+        "profile": "csv",
+        "row": 1,
+        "column": 1,
+        "coordinate": "B1",
+    }
+    with pytest.raises(RepresentationContractError) as caught:
+        validate_representation_bundle(bundle)
+    assert caught.value.code == "representation_invalid"

@@ -1,0 +1,311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/file-family-profile-v1.json",
+  "title": "Provelume bounded CSV, XLSX and ZIP profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "profile_id",
+    "version_id",
+    "original_sha256",
+    "format",
+    "media_type",
+    "byte_length",
+    "parser",
+    "limits",
+    "profile",
+    "invariants"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "file-family-profile"},
+    "profile_id": {
+      "enum": [
+        "perceptio-csv-cell-v1",
+        "perceptio-xlsx-sheet-cell-v1",
+        "perceptio-zip-member-v1"
+      ]
+    },
+    "version_id": {"type": "string", "minLength": 1, "maxLength": 200},
+    "original_sha256": {"$ref": "#/$defs/sha256"},
+    "format": {"enum": ["CSV", "XLSX", "ZIP"]},
+    "media_type": {
+      "enum": [
+        "text/csv",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/zip"
+      ]
+    },
+    "byte_length": {"type": "integer", "minimum": 0, "maximum": 67108864},
+    "parser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component", "version", "license", "adapter", "adapter_version"],
+      "properties": {
+        "component": {"const": "runtime.cpython"},
+        "version": {"const": "3.12"},
+        "license": {"const": "PSF-2.0"},
+        "adapter": {"enum": ["bounded-csv", "bounded-xlsx", "bounded-zip"]},
+        "adapter_version": {"const": "1"}
+      }
+    },
+    "limits": {"type": "object"},
+    "profile": {"type": "object"},
+    "invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "derived",
+        "original_immutable",
+        "canonical_records_immutable",
+        "network_used",
+        "runtime_downloads",
+        "active_content_executed",
+        "formula_execution",
+        "source_writeback",
+        "host_archive_extraction"
+      ],
+      "properties": {
+        "derived": {"const": true},
+        "original_immutable": {"const": true},
+        "canonical_records_immutable": {"const": true},
+        "network_used": {"const": false},
+        "runtime_downloads": {"const": false},
+        "active_content_executed": {"const": false},
+        "formula_execution": {"const": false},
+        "source_writeback": {"const": false},
+        "host_archive_extraction": {"const": false}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"profile_id": {"const": "perceptio-csv-cell-v1"}}},
+      "then": {
+        "properties": {
+          "format": {"const": "CSV"},
+          "media_type": {"const": "text/csv"},
+          "byte_length": {"maximum": 16777216},
+          "parser": {"properties": {"adapter": {"const": "bounded-csv"}}},
+          "limits": {
+            "const": {
+              "max_input_bytes": 16777216,
+              "max_rows": 5000,
+              "max_columns": 200,
+              "max_cells": 100000,
+              "max_field_characters": 1000000
+            }
+          },
+          "profile": {"$ref": "#/$defs/csv_profile"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"profile_id": {"const": "perceptio-xlsx-sheet-cell-v1"}}
+      },
+      "then": {
+        "properties": {
+          "format": {"const": "XLSX"},
+          "media_type": {
+            "const": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          },
+          "parser": {"properties": {"adapter": {"const": "bounded-xlsx"}}},
+          "limits": {
+            "const": {
+              "max_input_bytes": 67108864,
+              "max_members": 3000,
+              "max_total_uncompressed_bytes": 134217728,
+              "max_sheets": 100,
+              "max_rows": 20000,
+              "max_cells": 99900,
+              "max_xml_depth": 64
+            }
+          },
+          "profile": {"$ref": "#/$defs/xlsx_profile"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"profile_id": {"const": "perceptio-zip-member-v1"}}},
+      "then": {
+        "properties": {
+          "format": {"const": "ZIP"},
+          "media_type": {"const": "application/zip"},
+          "parser": {"properties": {"adapter": {"const": "bounded-zip"}}},
+          "limits": {
+            "const": {
+              "max_input_bytes": 67108864,
+              "max_members": 1000,
+              "max_total_uncompressed_bytes": 52428800,
+              "max_member_bytes": 10485760,
+              "max_compression_ratio": 200,
+              "max_processing_seconds": 30
+            }
+          },
+          "profile": {"$ref": "#/$defs/zip_profile"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "csvProfile": {"$ref": "#/$defs/csv_profile"},
+    "xlsxProfile": {"$ref": "#/$defs/xlsx_profile"},
+    "zipProfile": {"$ref": "#/$defs/zip_profile"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "coordinate": {"type": "string", "pattern": "^[A-Z]{1,3}[1-9][0-9]{0,6}$"},
+    "csv_cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["row", "column", "coordinate", "value_kind", "display_value"],
+      "properties": {
+        "row": {"type": "integer", "minimum": 1, "maximum": 5000},
+        "column": {"type": "integer", "minimum": 1, "maximum": 200},
+        "coordinate": {"$ref": "#/$defs/coordinate"},
+        "value_kind": {"enum": ["empty", "text"]},
+        "display_value": {"type": "string", "maxLength": 1000000}
+      }
+    },
+    "csv_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["row", "cells"],
+      "properties": {
+        "row": {"type": "integer", "minimum": 1, "maximum": 5000},
+        "cells": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {"$ref": "#/$defs/csv_cell"}
+        }
+      }
+    },
+    "csv_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["delimiter", "quote_character", "row_count", "cell_count", "rows"],
+      "properties": {
+        "delimiter": {"enum": [",", ";", "\t", "|"]},
+        "quote_character": {"type": "string", "minLength": 1, "maxLength": 1},
+        "row_count": {"type": "integer", "minimum": 0, "maximum": 5000},
+        "cell_count": {"type": "integer", "minimum": 0, "maximum": 100000},
+        "rows": {"type": "array", "maxItems": 5000, "items": {"$ref": "#/$defs/csv_row"}}
+      }
+    },
+    "xlsx_cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row",
+        "column",
+        "coordinate",
+        "value_kind",
+        "display_value",
+        "formula_present"
+      ],
+      "properties": {
+        "row": {"type": "integer", "minimum": 1, "maximum": 1048576},
+        "column": {"type": "integer", "minimum": 1, "maximum": 16384},
+        "coordinate": {"$ref": "#/$defs/coordinate"},
+        "value_kind": {"enum": ["empty", "text", "number", "boolean", "error", "date-string"]},
+        "display_value": {"type": "string", "maxLength": 1000000},
+        "formula_present": {"type": "boolean"}
+      }
+    },
+    "xlsx_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["row", "cells"],
+      "properties": {
+        "row": {"type": "integer", "minimum": 1, "maximum": 1048576},
+        "cells": {
+          "type": "array",
+          "maxItems": 16384,
+          "items": {"$ref": "#/$defs/xlsx_cell"}
+        }
+      }
+    },
+    "xlsx_sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sheet_index", "sheet_name", "row_count", "cell_count", "rows"],
+      "properties": {
+        "sheet_index": {"type": "integer", "minimum": 1, "maximum": 100},
+        "sheet_name": {"type": "string", "minLength": 1, "maxLength": 255},
+        "row_count": {"type": "integer", "minimum": 0, "maximum": 20000},
+        "cell_count": {"type": "integer", "minimum": 0, "maximum": 99900},
+        "rows": {
+          "type": "array",
+          "maxItems": 20000,
+          "items": {"$ref": "#/$defs/xlsx_row"}
+        }
+      }
+    },
+    "xlsx_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sheet_count", "row_count", "cell_count", "shared_string_count", "sheets"],
+      "properties": {
+        "sheet_count": {"type": "integer", "minimum": 1, "maximum": 100},
+        "row_count": {"type": "integer", "minimum": 0, "maximum": 20000},
+        "cell_count": {"type": "integer", "minimum": 0, "maximum": 99900},
+        "shared_string_count": {"type": "integer", "minimum": 0, "maximum": 100000},
+        "sheets": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": {"$ref": "#/$defs/xlsx_sheet"}
+        }
+      }
+    },
+    "zip_member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "archive_index",
+        "path",
+        "sha256",
+        "media_type",
+        "compressed_size",
+        "uncompressed_size",
+        "compression_ratio",
+        "nested_archive",
+        "member_index"
+      ],
+      "properties": {
+        "archive_index": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "path": {"type": "string", "minLength": 1, "maxLength": 240},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "media_type": {"type": "string", "minLength": 3, "maxLength": 255},
+        "compressed_size": {"type": "integer", "minimum": 0, "maximum": 67108864},
+        "uncompressed_size": {"type": "integer", "minimum": 0, "maximum": 10485760},
+        "compression_ratio": {"type": "number", "minimum": 0, "maximum": 200},
+        "nested_archive": {"type": "boolean"},
+        "member_index": {"type": "integer", "minimum": 1, "maximum": 1000}
+      }
+    },
+    "zip_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "member_count",
+        "total_uncompressed_bytes",
+        "members",
+        "host_extraction",
+        "nested_expansion"
+      ],
+      "properties": {
+        "member_count": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "total_uncompressed_bytes": {"type": "integer", "minimum": 0, "maximum": 52428800},
+        "members": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {"$ref": "#/$defs/zip_member"}
+        },
+        "host_extraction": {"const": false},
+        "nested_expansion": {"const": false}
+      }
+    }
+  }
+}

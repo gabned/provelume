@@ -119,6 +119,23 @@ The API and `/video` Browser view are read-only. Queue, run, cancel, retry, remo
 explicit local service/CLI operations. Frame PNG and raw subtitle outputs are intentionally not
 served. Reads never execute FFmpeg, OCR or ASR and make no network request. See [`video.md`](video.md).
 
+## Bounded table and archive profiles
+
+- `GET /api/v1/file-families/support` — exactly three CSV, XLSX and ZIP profiles with parser,
+  license and closed limits;
+- `GET /api/v1/file-families?profile_id=...&version_id=...&limit=100` — validated profiles, typed
+  anchors and durable job summaries;
+- `GET /api/v1/file-families/{representation_id}` — one derived profile read model;
+- `GET /api/v1/file-families/{representation_id}/anchors/{anchor_id}` — one exact typed sheet,
+  cell or member anchor;
+- `GET /api/v1/file-families/{representation_id}/outputs/{profile.json|preview.json}` — one
+  checksum-verified inert JSON output.
+
+The API and `/file-families` Browser view are read-only. Queue, run, cancel, retry, remove and
+rebuild are explicit local service/CLI operations. Reads do not open source packages, execute
+formulas or active content, extract members, discover plugins or use the network. See
+[`file-families.md`](file-families.md).
+
 ## Connector lifecycle and read surfaces
 
 - `GET /api/v1/connectors` — definitions, isolated connector instances, selected Sources,

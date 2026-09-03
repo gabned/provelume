@@ -79,7 +79,8 @@ EFFECTIVE_SUPPORT_STATES = tuple(item.value for item in EffectiveSupportState)
 SUPPORT_REASON_CODES = tuple(item.value for item in SupportReason)
 REPRESENTATION_LIFECYCLE_STATES = tuple(item.value for item in RepresentationLifecycle)
 ANCHOR_KINDS = tuple(item.value for item in AnchorKind)
-RESERVED_ANCHOR_KINDS = ("slide", "sheet", "cell", "member", "symbol")
+RESERVED_ANCHOR_KINDS = ("slide", "symbol")
+ACTIVATED_ANCHOR_KINDS = ("sheet", "cell", "member")
 CORRECTION_KINDS = ("replace", "suppress", "restore", "relabel")
 
 MAX_REPRESENTATION_OUTPUTS = 1_000
@@ -99,6 +100,7 @@ _OUTPUT_ID = re.compile(r"rout_[0-9a-f]{64}\Z")
 _ANCHOR_ID = re.compile(r"ranc_[0-9a-f]{64}\Z")
 _CORRECTION_ID = re.compile(r"rcor_[0-9a-f]{64}\Z")
 _MEDIA_TYPE = re.compile(r"[a-z0-9][a-z0-9!#$&^_.+-]{0,126}/[a-z0-9][a-z0-9!#$&^_.+-]{0,126}\Z")
+_CELL_COORDINATE = re.compile(r"[A-Z]{1,3}[1-9][0-9]{0,6}\Z")
 _WINDOWS_FORBIDDEN = frozenset('<>:"|?*')
 _WINDOWS_RESERVED = {
     "aux",
@@ -218,6 +220,95 @@ def _timestamp(value: Any, name: str) -> datetime:
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise RepresentationContractError("representation_invalid", f"{name} is invalid")
     return parsed
+
+
+def _valid_anchor_label(value: Any, *, maximum: int = 255) -> bool:
+    return (
+        isinstance(value, str)
+        and 1 <= len(value) <= maximum
+        and unicodedata.normalize("NFC", value) == value
+        and not any(ord(character) < 32 for character in value)
+    )
+
+
+def _anchor_coordinate(row: int, column: int) -> str | None:
+    if row < 1 or row > 9_999_999 or column < 1 or column > 18_278:
+        return None
+    label = ""
+    selected = column
+    while selected:
+        selected, remainder = divmod(selected - 1, 26)
+        label = chr(65 + remainder) + label
+    return f"{label}{row}"
+
+
+def _valid_activated_anchor_target(kind: str, value: Mapping[str, Any]) -> bool:
+    """Validate additive v1 targets for anchor kinds reserved by S01."""
+
+    target = dict(value)
+    if target == {"reserved": True}:
+        return True
+    if kind == "sheet":
+        return (
+            set(target) == {"schema_version", "sheet_index", "sheet_name"}
+            and target["schema_version"] == 1
+            and type(target["sheet_index"]) is int
+            and target["sheet_index"] >= 1
+            and _valid_anchor_label(target["sheet_name"])
+        )
+    if kind == "cell":
+        profile = target.get("profile")
+        common = (
+            target.get("schema_version") == 1
+            and profile in {"csv", "xlsx"}
+            and type(target.get("row")) is int
+            and target["row"] >= 1
+            and type(target.get("column")) is int
+            and target["column"] >= 1
+            and isinstance(target.get("coordinate"), str)
+            and _CELL_COORDINATE.fullmatch(target["coordinate"]) is not None
+            and target["coordinate"] == _anchor_coordinate(target["row"], target["column"])
+        )
+        if not common:
+            return False
+        if profile == "csv":
+            return set(target) == {
+                "schema_version",
+                "profile",
+                "row",
+                "column",
+                "coordinate",
+            }
+        return (
+            set(target)
+            == {
+                "schema_version",
+                "profile",
+                "sheet_index",
+                "sheet_name",
+                "row",
+                "column",
+                "coordinate",
+            }
+            and type(target["sheet_index"]) is int
+            and target["sheet_index"] >= 1
+            and _valid_anchor_label(target["sheet_name"])
+        )
+    if kind == "member":
+        if (
+            set(target) != {"schema_version", "member_index", "path", "sha256"}
+            or target["schema_version"] != 1
+            or type(target["member_index"]) is not int
+            or target["member_index"] < 1
+        ):
+            return False
+        try:
+            return _portable_relative_path(target["path"]) == target["path"] and bool(
+                _digest(target["sha256"], "member sha256")
+            )
+        except RepresentationContractError:
+            return False
+    return False
 
 
 def _positive_integer(value: Any, name: str, ceiling: int) -> int:
@@ -590,6 +681,12 @@ def validate_representation_bundle(value: Any) -> dict[str, Any]:
         if anchor["kind"] in RESERVED_ANCHOR_KINDS and dict(anchor["target"]) != {"reserved": True}:
             raise RepresentationContractError(
                 "representation_invalid", "reserved anchor must remain explicitly reserved"
+            )
+        if anchor["kind"] in ACTIVATED_ANCHOR_KINDS and not _valid_activated_anchor_target(
+            str(anchor["kind"]), anchor["target"]
+        ):
+            raise RepresentationContractError(
+                "representation_invalid", "activated anchor target is invalid"
             )
         if anchor["kind"] == "page" and (
             set(anchor["target"]) != {"page"}

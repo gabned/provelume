@@ -17,6 +17,7 @@ from .api import attach_api, reject_client_installation_evidence
 from .audio_activity import attach_audio_routes
 from .build_info import current_build_info
 from .email_activity import attach_email_routes
+from .file_family_activity import attach_file_family_routes
 from .folder_source_activity import attach_folder_source_routes
 from .google_activity import attach_google_routes
 from .i18n import SUPPORTED_LANGUAGES, translator
@@ -132,6 +133,12 @@ def _navigation(
             "href": f"/video?lang={language}",
             "label": t("nav.video"),
             "current": current_path.startswith("/video"),
+            "group": "knowledge",
+        },
+        {
+            "href": f"/file-families?lang={language}",
+            "label": t("nav.file_families"),
+            "current": current_path.startswith("/file-families"),
             "group": "knowledge",
         },
         {
@@ -381,6 +388,7 @@ def create_app(
     attach_photo_routes(app, instance, TEMPLATES, _context)
     attach_audio_routes(app, instance, TEMPLATES, _context)
     attach_video_routes(app, instance, TEMPLATES, _context)
+    attach_file_family_routes(app, instance, TEMPLATES, _context)
     attach_email_routes(app, instance, TEMPLATES, _context)
     attach_google_routes(app, instance, TEMPLATES, _context)
     attach_transcript_routes(app, instance, TEMPLATES, _context)

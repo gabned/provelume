@@ -152,6 +152,45 @@
       }
     },
     {
+      "id": "perceptio-csv-cell-v1",
+      "version": "1",
+      "label": "Perceptio bounded CSV cell profile",
+      "operations": {
+        "preserve": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "exact-byte-original", "version": "1"}, "limits": {"max_input_bytes": 16777216}, "reason": null, "missing_component": null},
+        "inspect": {"declared": "supported", "effective": "available", "implementation": {"component": "runtime.cpython", "adapter": "bounded-csv", "version": "3.12"}, "limits": {"encodings": 2, "max_rows": 5000, "max_columns": 200}, "reason": null, "missing_component": null},
+        "extract": {"declared": "supported", "effective": "available", "implementation": {"component": "runtime.cpython", "adapter": "typed-csv-cells", "version": "3.12"}, "limits": {"max_cells": 100000}, "reason": null, "missing_component": null},
+        "preview": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "inert-tabular-view", "version": "1"}, "limits": {"active_content": false}, "reason": null, "missing_component": null},
+        "local_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_applicable", "missing_component": null},
+        "ai_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_implemented", "missing_component": null}
+      }
+    },
+    {
+      "id": "perceptio-xlsx-sheet-cell-v1",
+      "version": "1",
+      "label": "Perceptio bounded XLSX sheet and cell profile",
+      "operations": {
+        "preserve": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "exact-byte-original", "version": "1"}, "limits": {"max_input_bytes": 67108864}, "reason": null, "missing_component": null},
+        "inspect": {"declared": "supported", "effective": "available", "implementation": {"component": "runtime.cpython", "adapter": "bounded-ooxml", "version": "3.12"}, "limits": {"max_members": 3000, "max_sheets": 100, "max_xml_depth": 64}, "reason": null, "missing_component": null},
+        "extract": {"declared": "supported", "effective": "available", "implementation": {"component": "runtime.cpython", "adapter": "cached-xlsx-cells", "version": "3.12"}, "limits": {"max_rows": 20000, "max_cells": 99900, "formula_execution": false}, "reason": null, "missing_component": null},
+        "preview": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "inert-tabular-view", "version": "1"}, "limits": {"active_content": false}, "reason": null, "missing_component": null},
+        "local_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_applicable", "missing_component": null},
+        "ai_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_implemented", "missing_component": null}
+      }
+    },
+    {
+      "id": "perceptio-zip-member-v1",
+      "version": "1",
+      "label": "Perceptio bounded ZIP member profile",
+      "operations": {
+        "preserve": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "exact-byte-original", "version": "1"}, "limits": {"max_input_bytes": 67108864}, "reason": null, "missing_component": null},
+        "inspect": {"declared": "supported", "effective": "available", "implementation": {"component": "runtime.cpython", "adapter": "bounded-zip", "version": "3.12"}, "limits": {"max_members": 1000, "max_member_bytes": 10485760, "max_expansion_ratio": 200}, "reason": null, "missing_component": null},
+        "extract": {"declared": "supported", "effective": "available", "implementation": {"component": "runtime.cpython", "adapter": "hashed-zip-members", "version": "3.12"}, "limits": {"host_extraction": false, "nested_expansion": false}, "reason": null, "missing_component": null},
+        "preview": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "inert-member-view", "version": "1"}, "limits": {"active_content": false}, "reason": null, "missing_component": null},
+        "local_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_applicable", "missing_component": null},
+        "ai_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_implemented", "missing_component": null}
+      }
+    },
+    {
       "id": "lectio-cross-source-findings-v1",
       "version": "1",
       "label": "Lectio cross-source findings",

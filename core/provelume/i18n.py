@@ -9,6 +9,7 @@ from .activity_i18n import ACTIVITY_TRANSLATIONS
 from .audio_i18n import AUDIO_TRANSLATIONS
 from .connector_i18n import CONNECTOR_TRANSLATIONS
 from .email_i18n import EMAIL_TRANSLATIONS
+from .file_family_i18n import FILE_FAMILY_TRANSLATIONS
 from .folder_settings_i18n import FOLDER_SETTINGS_TRANSLATIONS
 from .folder_source_i18n import FOLDER_SOURCE_TRANSLATIONS
 from .google_i18n import GOOGLE_TRANSLATIONS
@@ -38,6 +39,7 @@ def catalog(language: str) -> dict[str, str]:
     result.update(AUDIO_TRANSLATIONS.get(selected, {}))
     result.update(CONNECTOR_TRANSLATIONS.get(selected, {}))
     result.update(EMAIL_TRANSLATIONS.get(selected, {}))
+    result.update(FILE_FAMILY_TRANSLATIONS.get(selected, {}))
     result.update(REBUILD_TRANSLATIONS.get(selected, {}))
     result.update(REPRESENTATION_TRANSLATIONS.get(selected, {}))
     result.update(FOLDER_SETTINGS_TRANSLATIONS.get(selected, {}))

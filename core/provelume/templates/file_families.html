@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ t('file_family.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('file_family.eyebrow') }}</p>
+  <h1>{{ t('file_family.title') }}</h1>
+  <p class="lead">{{ t('file_family.lead') }}</p>
+  <p class="technical-note">{{ t('file_family.privacy') }}</p>
+</section>
+<section class="panel">
+  <h2>{{ t('file_family.support') }}</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">{{ t('file_family.profile') }}</th><th scope="col">{{ t('file_family.parser') }}</th><th scope="col">{{ t('file_family.license') }}</th><th scope="col">{{ t('file_family.state') }}</th></tr></thead>
+      <tbody>
+      {% for profile in model.support.profiles %}
+        <tr><th scope="row"><code>{{ profile.profile_id }}</code></th><td>{{ profile.parser.component }} {{ profile.parser.version }}</td><td>{{ profile.parser.license }}</td><td><code>{{ profile.state }}</code></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<section class="panel">
+  <h2>{{ t('file_family.profiles') }}</h2>
+  {% for item in model.profiles %}
+  <article class="document-card">
+    <h3>{{ item.record.format }} · <code>{{ item.representation_id }}</code></h3>
+    {% for table in item.browser_tables %}
+    <div class="table-wrap">
+      <table>
+        <caption>{{ t('file_family.table') }} · {{ table.sheet_name }}</caption>
+        <thead><tr><th scope="col">{{ t('file_family.coordinate') }}</th><th scope="col">{{ t('file_family.value') }}</th><th scope="col">{{ t('file_family.kind') }}</th><th scope="col">{{ t('file_family.formula') }}</th></tr></thead>
+        <tbody>
+        {% for row in table.rows %}{% for cell in row.cells %}
+          <tr><th scope="row"><a href="/api/v1/file-families/{{ item.representation_id }}/anchors/{{ cell.anchor_id }}"><code>{{ cell.coordinate }}</code></a></th><td>{{ cell.display_value }}</td><td>{{ cell.value_kind }}</td><td>{% if cell.formula_present %}{{ t('file_family.yes') }}{% else %}{{ t('file_family.no') }}{% endif %}</td></tr>
+        {% endfor %}{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+    {% if item.browser_members %}
+    <div class="table-wrap">
+      <table>
+        <caption>{{ t('file_family.members') }}</caption>
+        <thead><tr><th scope="col">{{ t('file_family.path') }}</th><th scope="col">{{ t('file_family.size') }}</th><th scope="col">{{ t('file_family.ratio') }}</th><th scope="col">{{ t('file_family.media_type') }}</th><th scope="col">{{ t('file_family.hash') }}</th></tr></thead>
+        <tbody>
+        {% for member in item.browser_members %}
+          <tr><th scope="row"><a href="/api/v1/file-families/{{ item.representation_id }}/anchors/{{ member.anchor_id }}"><code>{{ member.path }}</code></a></th><td>{{ member.uncompressed_size }}</td><td>{{ member.compression_ratio }}</td><td>{{ member.media_type }}</td><td><code>{{ member.sha256 }}</code></td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </article>
+  {% else %}
+  <p class="empty">{{ t('file_family.empty') }}</p>
+  {% endfor %}
+</section>
+<section class="panel">
+  <h2>{{ t('file_family.jobs') }}</h2>
+  <ul class="document-list">
+  {% for job in model.jobs %}
+    <li><strong><code>{{ job.id }}</code></strong><span>{{ job.status }} · {{ job.checkpoint.phase }} · {{ job.profile_id }} · {{ job.version_id }}</span></li>
+  {% else %}
+    <li class="empty">{{ t('file_family.no_jobs') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}

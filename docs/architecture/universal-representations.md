@@ -49,8 +49,10 @@ first-party declarations.
 
 Every anchor repeats the exact Version and representation IDs. Page anchors contain a positive
 page number. Time anchors contain ordered non-negative millisecond bounds. Region anchors contain
-a page and positive rectangle. The reserved `slide`, `sheet`, `cell`, `member` and `symbol` kinds
-must carry only an explicit reservation and therefore make no format-support claim.
+a page and positive rectangle. `slide` and `symbol` remain reserved and carry only an explicit
+reservation. S06 additively activates closed target-v1 shapes for `sheet`, CSV/XLSX `cell` and ZIP
+`member`; the prior explicit reservation remains valid so existing schema-v1 bundles need no
+migration. A typed target is valid only for its declared profile and exact coordinates/path/hash.
 
 Corrections reference an anchor, bind before/after checksums and are always reversible. They are
 annotations on a derived representation, never a mutation of the Original, a canonical record or

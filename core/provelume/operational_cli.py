@@ -12,6 +12,7 @@ from .component_inventory_cli import (
     handle_component_inventory_command,
 )
 from .configured_inbox import InboxManager
+from .file_family_cli import add_file_family_commands, handle_file_family_command
 from .folder_settings_cli import (
     add_folder_settings_commands,
     handle_folder_settings_command,
@@ -104,6 +105,7 @@ def add_operational_commands(subparsers: Any) -> None:
     add_photo_commands(subparsers)
     add_audio_commands(subparsers)
     add_video_commands(subparsers)
+    add_file_family_commands(subparsers)
     add_component_inventory_commands(subparsers)
     add_review_commands(subparsers)
     add_rebuild_commands(subparsers)
@@ -130,6 +132,9 @@ def handle_operational_command(args: argparse.Namespace) -> int | None:
     video_result = handle_video_command(args)
     if video_result is not None:
         return video_result
+    file_family_result = handle_file_family_command(args)
+    if file_family_result is not None:
+        return file_family_result
     component_result = handle_component_inventory_command(args)
     if component_result is not None:
         return component_result
