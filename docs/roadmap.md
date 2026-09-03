@@ -41,6 +41,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
 | Published preview | `0.9.0` | OCR, email, Google file and transcript intake | #137 (completed); S01–S07 completed by #138/#141/#147/#150/#152/#154/#156; release #158 | `Lectio` |
 | Published preview | `0.10.0` | Multimedia, universal content representations and component inventory | #160 (completed); S01–S07 completed by #163/#168/#170/#172/#173/#175/#179/#182; release #183 | `Perceptio` |
+| Next forecast | `0.10.1` | Source onboarding, filtering and canonical brand correction | #187 (planned) | `Emendatio` |
 | Forecast | `0.11.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
 | Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
@@ -92,6 +93,8 @@ names do not replace SemVer, package identity, tags or the immutable published r
 - **`0.10.0` — `Perceptio`.** Adds portable representations for photos, audio, video and further
   file families plus a complete component inventory. Media enrichment remains local-first,
   attributable and rebuildable, and no source-side Markdown sidecar appears by default.
+- **`0.10.1` — `Emendatio`.** Corrects Folder Source enrollment and filtering, completes a
+  qualified read-only Google connection journey and unifies the desktop and website brand mark.
 - **`0.11.0` — `Cura`.** Unifies capture, mobile access, review and operations/maintenance queues
   in one Action Center. Interrupted work and every destructive choice remain explicit.
 - **`0.12.0` — `Custodia`.** Adds a replaceable AI gateway with local, remote and fallback policy
@@ -148,6 +151,7 @@ planning or publication change whenever release scope or order moves.
 | Evidence gate | Personal use after verified publication | Dissemination after verified publication |
 | --- | --- | --- |
 | Current published `0.10.0` | Personal photo, audio and video archive pilot with local transcription, OCR and time/region citations where supported; the `0.9.0` document-heavy perimeter remains available. | Multimedia testers who accept explicit model, codec, performance and privacy limits. |
+| `0.10.1` | Corrected Folder Sources and qualified read-only Gmail/Drive intake after verified publication; it remains a preview rather than the daily-use beta. | Existing preview testers needing local/network folders or Google intake, within the published provider and platform matrix. |
 | `0.11.0` | First recommended personal daily-use beta: coherent Capture, Action Center, recovery and mobile-PWA journeys within the qualified perimeter. | Controlled public beta, with feedback, support and security-reporting paths open. |
 | `0.12.0` | Optional local or remote AI use with explicit routing, cost and redaction policy; deterministic operation remains complete without AI. | Privacy-routing evaluators, not general AI marketing. |
 | `0.13.0` | Personal AI-assisted classification with plain-language autonomy levels and reviewed rules; earliest candidate for replacing a private reference workflow, never an equivalence claim. | Advanced evaluators after confidence calibration, prompt-injection, receipt, review and rollback evidence. |
@@ -168,8 +172,9 @@ planning or publication change whenever release scope or order moves.
 | `1.4.0` | Long-term personal archive checks and retention profiles with explicit legal limits. | Preservation and regulated-domain evaluators; no compliance claim without separate evidence. |
 
 The current answer is therefore explicit: `0.10.0` is usable now as a bounded personal multimedia
-archive preview while immutable `0.9.0` remains its document-heavy N-1 baseline; `0.11.0` is the
-first planned coherent personal daily-use beta and controlled public-beta gate; `0.21.0` is the broad
+archive preview while immutable `0.9.0` remains its document-heavy N-1 baseline; `0.10.1` is the
+next correction forecast and does not rewrite either release; `0.11.0` is the first planned
+coherent personal daily-use beta and controlled public-beta gate; `0.21.0` is the broad
 non-technical desktop-preview gate; `0.23.0` is broad release-candidate qualification; and
 `1.0.0` is general distribution.
 
@@ -395,6 +400,13 @@ Checking never runs `pip`, replaces a binary, downloads a model or upgrades an I
 Remediation links to the supported Provelume release/update path, and a component can be
 intentionally pinned while its newer upstream version is shown as incompatible or not yet
 approved.
+
+The same contract applies to external UI assets and frameworks. A selected icon library is
+vendored or reproducibly locked at an exact version, represented in the SBOM/component catalogue,
+and carries its upstream project and GitHub/release links, license/notices, hash and supported
+update route. Windows and Browser About/Components surfaces expose equivalent credits and links.
+No icon, font, script or stylesheet requires a CDN or runtime web connection; an optional update
+check only reports dated evidence and never changes installed assets.
 
 The initial technology direction is replaceable rather than a hidden stack commitment:
 
@@ -1138,6 +1150,61 @@ forecast moves forward atomically by one through the `0.23.0` release candidate 
 `1.0.0` remains unchanged. `0.9.x` stays reserved for corrections, security work and regressions
 belonging to Lectio; multimedia is not hidden in a `0.9.5` feature release.
 
+### 0.10.1 — Source Onboarding, Filtering and Canonical Brand Correction
+
+**Current status:** next forecast under planning issue
+[#187](https://github.com/gabned/provelume/issues/187). It is not activated and creates no package,
+tag, release or delivery claim.
+
+**Depends on:** the published `0.8.0` Folder Source contract, the `0.9.0` provider-neutral Google
+read-only adapter contract and the `0.10.0` component inventory.
+
+**Outcome:** correct three already visible preview gaps before Cura: make supported filesystem
+Sources enrollable and filterable, turn the Google conformance preview into an ordinary qualified
+read-only connection journey, and use one canonical Provelume brand mark across Core surfaces.
+
+**Includes:** one EN/IT Folder Source flow for local, removable, already-mounted network and
+qualified Windows UNC paths; actionable missing-mount, permission/authentication, mapped-session
+and unsupported-path diagnostics; and per-Source rules for ignored subfolders, exact files,
+extensions/types and bounded portable globs. A visible, versioned and editable developer-metadata
+preset ignores `.git/**`, `.github/**`, `.gitignore`, `.gitattributes` and `.gitmodules` by default.
+Users can preview matched and ignored counts with reasons and explicitly override the preset.
+Rules participate consistently in observation fingerprints, limits, ingestion, reconciliation,
+backup, portable transfer and redacted diagnostics; changing one never retroactively deletes or
+hides acquired knowledge.
+
+Google work provides a guided **Connect Google** installed-app OAuth flow rather than asking a
+user to pre-provision an access token in an environment variable or keyring. Gmail and Drive
+remain separately consented, enabled and revoked with their exact read-only scopes. Account,
+capability, selected mailbox/label/file/folder, bounded initial backfill, connection test, cursor,
+last success, expiry/reconnect and failure state are understandable and actionable in both the
+Windows-hosted Browser and direct Browser path. Credentials remain external to canonical state,
+logs, backups and portable exports. Publication requires an authorized real-account smoke on the
+exact release head; synthetic CI alone cannot set `real_google_qualified=true`.
+
+Brand work adopts the current public-site navy/blue/gold Provelume mark as the canonical symbol
+and derives deterministic SVG, ICO and PNG assets for Browser, launcher, executable, installer,
+uninstaller, shortcuts, taskbar, tray and About. Website synchronization remains a separately
+reviewed repository change after Core publication; neither build nor runtime depends on the site.
+Publisher signing remains `0.21.0` work.
+
+**Exit gate:** supported folder paths and ignore rules pass Windows and Linux EN/IT fixtures,
+including unavailable and denied network paths, without duplicate intake or historical deletion;
+Gmail and Drive each pass consent, read, bounded backfill, expiry, reconnect, revocation and
+network-disabled fixtures against an authorized account; every shipped Core icon is derived from
+the canonical source and survives install/upgrade/icon-cache checks; component, privacy, backup,
+accessibility and release evidence agree with the final artifact.
+
+**Not in this release:** SMB/NFS discovery or client implementation; stored share credentials;
+always-on network-volume recovery; arbitrary IMAP/POP/SMTP or other mailbox providers; Google
+send, label, move, delete, share or other provider writes; calendar; a mandatory cloud relay;
+automatic dependency updates; website runtime coupling; or broader product expansion.
+
+**Suggested slices:** `0.10.1/S01` Folder Source enrollment and ignore-rule contract;
+`0.10.1/S02` qualified Gmail/Drive connection journey; `0.10.1/S03` canonical brand assets and
+release qualification. Only one owner issue/PR is activated at a time and the order does not
+renumber or displace `0.11/S01`–`0.11/S07`.
+
 ### 0.11.0 — Unified Capture, Operations and Action Center
 
 **Depends on:** durable ingestion, hierarchical classification, Sources and the `0.8.0`
@@ -1208,8 +1275,13 @@ The EN/IT information architecture separates everyday knowledge work from servic
 maintenance controls. Primary navigation is compact and journey-based: Overview, Knowledge,
 Capture, Search and Needs attention. A secondary Management surface groups Sources & Connectors,
 Operations & Maintenance, Diagnostics, Settings and About. Icons accompany visible text labels
-rather than replacing them; responsive overflow, semantic landmarks, current-location state,
-keyboard order and screen-reader names remain equivalent across desktop and mobile layouts.
+rather than replacing them. Cura selects [Lucide](https://github.com/lucide-icons/lucide) as the
+preferred MIT-licensed shared UI icon system, using only a reproducibly vendored/locked subset
+under the component provenance contract; activation may replace it only through an ADR with equal
+license, accessibility, offline and update evidence. The Provelume brand mark remains a separate
+first-party asset. Responsive overflow, semantic landmarks, current-location state, keyboard
+order, screen-reader names, high contrast and reduced-motion behavior remain equivalent across
+desktop and mobile layouts.
 
 Appearance is an explicit persisted choice with System as the default plus Light and Dark modes.
 System follows the host preference without a wrong-theme startup flash; all three modes qualify
@@ -1251,8 +1323,8 @@ Maintenance schedules, job control and interruption recovery; `0.11/S03`
 classification/duplicate/version-conflict decisions and reusable safe routing; `0.11/S04` mobile
 PWA capture, device pairing and offline retry; `0.11/S05` iOS, Android, Drive-drop and Telegram
 reference paths; `0.11/S06` mobile retrieval and authorization; `0.11/S07` EN/IT information
-architecture, System/Light/Dark appearance, minimal Windows tray and end-to-end usability,
-accessibility and assurance fixtures.
+architecture, shared UI icon system, System/Light/Dark appearance, minimal Windows tray and
+end-to-end usability, accessibility and assurance fixtures.
 
 ### 0.12.0 — AI Gateway and Privacy Routing
 
@@ -1664,7 +1736,8 @@ compatibility detection; complete create/open/start/stop/status/browser/diagnost
 redacted logs; spaces, Unicode, case and path-normalization fixtures; lifecycle-aware failure
 recovery; uninstall that preserves the Instance; and a final desktop support matrix.
 
-Windows retains migration from the `0.4.0` preview installation, UNC/network-share support and the
+Windows retains migration from the `0.4.0` preview installation, matures the bounded `0.10.1`
+UNC/network-share enrollment and the
 `0.11.0` minimal tray preferences, then matures them into a fully qualified per-user background agent and tray surface, with an explicitly qualified elevated-service option only if needed.
 macOS adds an application/menu-bar surface and per-user LaunchAgent, Keychain
 credential references, explicit selected-folder access, removable/network-volume handling and an

@@ -30,7 +30,8 @@ EXPECTED_CONTRACT = {
 }
 
 FORECAST_VERSIONS = (
-    tuple(f"0.{minor}.0" for minor in range(11, 24))
+    ("0.10.1",)
+    + tuple(f"0.{minor}.0" for minor in range(11, 24))
     + tuple(f"1.{minor}.0" for minor in range(0, 5))
 )
 LATIN_RELEASE_NAMES = {
@@ -47,6 +48,7 @@ LATIN_RELEASE_NAMES = {
     "0.8.0": "Vigilia",
     "0.9.0": "Lectio",
     "0.10.0": "Perceptio",
+    "0.10.1": "Emendatio",
     "0.11.0": "Cura",
     "0.12.0": "Custodia",
     "0.13.0": "Iudicium",
@@ -292,7 +294,7 @@ def test_roadmap_records_published_history_and_lectio_preview() -> None:
 def test_every_release_has_a_unique_latin_name_and_concise_outcome() -> None:
     roadmap = _read(ROADMAP_PATH)
 
-    assert len(LATIN_RELEASE_NAMES) == 31
+    assert len(LATIN_RELEASE_NAMES) == 32
     assert len(set(LATIN_RELEASE_NAMES.values())) == len(LATIN_RELEASE_NAMES)
     for version, name in LATIN_RELEASE_NAMES.items():
         assert re.fullmatch(r"[A-Za-z]+", name)
@@ -348,7 +350,7 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
 
     for version in FORECAST_VERSIONS:
         release_row = re.compile(
-            rf"^\| (?:Active development|Forecast|Release candidate|Stable|"
+            rf"^\| (?:Active development|Next forecast|Forecast|Release candidate|Stable|"
             rf"Post-stable forecast) \| `{re.escape(version)}` \|",
             re.MULTILINE,
         )
@@ -368,6 +370,34 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
     assert "## 0.5.0 - 2026-08-28" in changelog
     assert "Forecast entries describe intended sequencing" in roadmap
     assert "issue just in time" in roadmap
+
+
+def test_0_10_1_correction_forecast_is_bounded_and_actionable() -> None:
+    roadmap = _read(ROADMAP_PATH)
+
+    for required_contract in (
+        "### 0.10.1 — Source Onboarding, Filtering and Canonical Brand Correction",
+        "[#187](https://github.com/gabned/provelume/issues/187)",
+        "qualified Windows UNC paths",
+        "`.git/**`, `.github/**`, `.gitignore`, `.gitattributes` and `.gitmodules`",
+        "changing one never retroactively deletes or\nhides acquired knowledge",
+        "guided **Connect Google** installed-app OAuth flow",
+        "synthetic CI alone cannot set `real_google_qualified=true`",
+        "Google\nsend, label, move, delete, share",
+        "public-site navy/blue/gold Provelume mark",
+        "[Lucide](https://github.com/lucide-icons/lucide)",
+        "Windows and Browser About/Components surfaces expose equivalent credits and links",
+        "No icon, font, script or stylesheet requires a CDN or runtime web connection",
+        "`0.10.1/S01` Folder Source enrollment and ignore-rule contract",
+        "`0.10.1/S02` qualified Gmail/Drive connection journey",
+        "`0.10.1/S03` canonical brand assets and\nrelease qualification",
+        "does not\nrenumber or displace `0.11/S01`–`0.11/S07`",
+    ):
+        assert required_contract in roadmap
+
+    assert "SMB/NFS discovery or client implementation" in roadmap
+    assert "always-on network-volume recovery" in roadmap
+    assert "matures the bounded `0.10.1`\nUNC/network-share enrollment" in roadmap
 
 
 def test_unreleased_forecast_changes_do_not_rewrite_published_changelog() -> None:
