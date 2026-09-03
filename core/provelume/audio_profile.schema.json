@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/audio-profile-v1.json",
+  "title": "Provelume bounded audio profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "kind", "profile_id", "version_id", "original_sha256",
+    "format", "media_type", "byte_length", "container", "tracks", "chapters",
+    "codec", "sample_rate_hz", "channels", "bits_per_sample", "sample_count",
+    "duration_ms", "metadata_records", "decode_state", "warnings", "waveform",
+    "transcript", "time_map", "corrections", "invariants"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "audio-profile"},
+    "profile_id": {"const": "perceptio-audio-v1"},
+    "version_id": {"$ref": "#/$defs/identifier"},
+    "original_sha256": {"$ref": "#/$defs/sha256"},
+    "format": {"enum": ["WAV", "FLAC", "MP3", "M4A", "AAC", "OGG"]},
+    "media_type": {"enum": ["audio/wav", "audio/flac", "audio/mpeg", "audio/mp4", "audio/aac", "audio/ogg"]},
+    "byte_length": {"type": "integer", "minimum": 1, "maximum": 268435456},
+    "container": {"type": "string", "minLength": 1, "maxLength": 100},
+    "tracks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {"$ref": "#/$defs/track"}
+    },
+    "chapters": {"type": "array", "maxItems": 4096, "items": {"type": "object"}},
+    "codec": {"type": "string", "minLength": 1, "maxLength": 100},
+    "sample_rate_hz": {"type": ["integer", "null"], "minimum": 1, "maximum": 384000},
+    "channels": {"type": ["integer", "null"], "minimum": 1, "maximum": 8},
+    "bits_per_sample": {"type": ["integer", "null"], "minimum": 1, "maximum": 64},
+    "sample_count": {"type": ["integer", "null"], "minimum": 0},
+    "duration_ms": {"type": ["integer", "null"], "minimum": 0, "maximum": 7200000},
+    "metadata_records": {"type": "integer", "minimum": 0, "maximum": 4096},
+    "decode_state": {"enum": ["qualified", "unavailable"]},
+    "warnings": {"type": "array", "uniqueItems": true, "items": {"type": "string", "maxLength": 100}},
+    "waveform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "recipe", "point_count", "peak_ppm", "rms_ppm"],
+      "properties": {
+        "state": {"enum": ["available", "unavailable"]},
+        "recipe": {"type": ["string", "null"]},
+        "point_count": {"type": "integer", "minimum": 0, "maximum": 2000},
+        "peak_ppm": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "rms_ppm": {"type": "integer", "minimum": 0, "maximum": 1000000}
+      }
+    },
+    "transcript": {"$ref": "#/$defs/transcript"},
+    "time_map": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchor_count", "segment_anchors", "word_anchors", "reopen_original"],
+      "properties": {
+        "anchor_count": {"type": "integer", "minimum": 0, "maximum": 100000},
+        "segment_anchors": {"type": "integer", "minimum": 0, "maximum": 20000},
+        "word_anchors": {"type": "integer", "minimum": 0, "maximum": 100000},
+        "reopen_original": {"const": true}
+      }
+    },
+    "corrections": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract", "source_text_mutated"],
+      "properties": {
+        "contract": {"const": "lectio-transcript-corrections-v1"},
+        "source_text_mutated": {"const": false}
+      }
+    },
+    "invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["derived", "original_immutable", "canonical_records_immutable", "network_used", "runtime_downloads", "remote_asr", "speaker_identity", "summary_or_classification", "source_writeback"],
+      "properties": {
+        "derived": {"const": true},
+        "original_immutable": {"const": true},
+        "canonical_records_immutable": {"const": true},
+        "network_used": {"const": false},
+        "runtime_downloads": {"const": false},
+        "remote_asr": {"const": false},
+        "speaker_identity": {"const": false},
+        "summary_or_classification": {"const": false},
+        "source_writeback": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "track": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "kind", "codec", "sample_rate_hz", "channels", "bits_per_sample"],
+      "properties": {
+        "index": {"type": "integer", "minimum": 0, "maximum": 7},
+        "kind": {"const": "audio"},
+        "codec": {"type": "string", "minLength": 1, "maxLength": 100},
+        "sample_rate_hz": {"type": ["integer", "null"], "minimum": 1, "maximum": 384000},
+        "channels": {"type": ["integer", "null"], "minimum": 1, "maximum": 8},
+        "bits_per_sample": {"type": ["integer", "null"], "minimum": 1, "maximum": 64}
+      }
+    },
+    "word": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "start_ms", "end_ms", "text", "confidence", "timestamp_qualified"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^aword_[0-9a-f]{64}$"},
+        "start_ms": {"type": "integer", "minimum": 0, "maximum": 7202000},
+        "end_ms": {"type": "integer", "minimum": 0, "maximum": 7202000},
+        "text": {"type": "string", "maxLength": 500},
+        "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "timestamp_qualified": {"const": true}
+      }
+    },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "start_ms", "end_ms", "text", "confidence", "warning_codes", "words", "speaker_identity"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^aseg_[0-9a-f]{64}$"},
+        "start_ms": {"type": "integer", "minimum": 0, "maximum": 7202000},
+        "end_ms": {"type": "integer", "minimum": 0, "maximum": 7202000},
+        "text": {"type": "string", "maxLength": 10000},
+        "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "warning_codes": {"type": "array", "items": {"enum": ["low_confidence"]}},
+        "words": {"type": "array", "maxItems": 100000, "items": {"$ref": "#/$defs/word"}},
+        "speaker_identity": {"type": "null"}
+      }
+    },
+    "transcript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "reason", "language", "engine", "model", "settings", "segments", "speaker_identity", "uncertainty_preserved"],
+      "properties": {
+        "state": {"enum": ["available", "unavailable"]},
+        "reason": {"type": ["string", "null"]},
+        "language": {"enum": ["auto", "en", "it"]},
+        "engine": {"type": ["object", "null"]},
+        "model": {"type": ["object", "null"]},
+        "settings": {"type": "object"},
+        "segments": {"type": "array", "maxItems": 20000, "items": {"$ref": "#/$defs/segment"}},
+        "speaker_identity": {"type": "null"},
+        "uncertainty_preserved": {"const": true}
+      }
+    }
+  }
+}

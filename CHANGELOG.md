@@ -6,6 +6,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
+- activated `0.10/S04` through issue #171 and owner PR #172, adding bounded local audio
+  inspection, deterministic WAV/PCM16 waveform evidence, optional pinned local whisper.cpp
+  transcription with exact time anchors, durable jobs and removable/rebuildable representations;
+- kept FLAC, MP3, AAC/ADTS, M4A/AAC, M4A/ALAC, OGG/Vorbis and OGG/Opus inspect-only until a
+  decoder is qualified, with no remote speech, download, speaker identity, summary,
+  classification or source write;
 - activated `0.10/S03` through issue #169 and owner PR #170, adding bounded JPEG/PNG/TIFF/BMP
   metadata, orientation/color, capture-time and always-redacted GPS/device evidence plus explicit
   local jobs and removable/rebuildable universal photo representations;

@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 from .about import current_about
 from .activity import attach_activity_routes
 from .api import attach_api, reject_client_installation_evidence
+from .audio_activity import attach_audio_routes
 from .build_info import current_build_info
 from .email_activity import attach_email_routes
 from .folder_source_activity import attach_folder_source_routes
@@ -118,6 +119,12 @@ def _navigation(
             "href": f"/photos?lang={language}",
             "label": t("nav.photos"),
             "current": current_path.startswith("/photos"),
+            "group": "knowledge",
+        },
+        {
+            "href": f"/audio?lang={language}",
+            "label": t("nav.audio"),
+            "current": current_path.startswith("/audio"),
             "group": "knowledge",
         },
         {
@@ -365,6 +372,7 @@ def create_app(
     attach_maintenance_routes(app, instance, TEMPLATES, _context)
     attach_ocr_routes(app, instance, TEMPLATES, _context)
     attach_photo_routes(app, instance, TEMPLATES, _context)
+    attach_audio_routes(app, instance, TEMPLATES, _context)
     attach_email_routes(app, instance, TEMPLATES, _context)
     attach_google_routes(app, instance, TEMPLATES, _context)
     attach_transcript_routes(app, instance, TEMPLATES, _context)

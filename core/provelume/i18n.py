@@ -6,6 +6,7 @@ from importlib.resources import files
 from typing import Any
 
 from .activity_i18n import ACTIVITY_TRANSLATIONS
+from .audio_i18n import AUDIO_TRANSLATIONS
 from .connector_i18n import CONNECTOR_TRANSLATIONS
 from .email_i18n import EMAIL_TRANSLATIONS
 from .folder_settings_i18n import FOLDER_SETTINGS_TRANSLATIONS
@@ -33,6 +34,7 @@ def catalog(language: str) -> dict[str, str]:
         raise ValueError(f"invalid UI catalog: {selected}")
     result = {str(key): str(text) for key, text in value.items()}
     result.update(ACTIVITY_TRANSLATIONS.get(selected, {}))
+    result.update(AUDIO_TRANSLATIONS.get(selected, {}))
     result.update(CONNECTOR_TRANSLATIONS.get(selected, {}))
     result.update(EMAIL_TRANSLATIONS.get(selected, {}))
     result.update(REBUILD_TRANSLATIONS.get(selected, {}))
