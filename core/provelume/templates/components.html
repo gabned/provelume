@@ -32,8 +32,8 @@
           <td><strong>{{ row.name }}</strong><br><code>{{ row.id }}</code></td>
           <td>{{ t('components.category.' ~ row.category) }}</td>
           <td>{{ row.purpose[lang] }}</td>
-          <td><code>{{ row.effective_version or '—' }}</code><br><small>{{ row.version_constraint or row.approved_version or '—' }}</small></td>
-          <td><strong>{{ t('components.status.' ~ row.status) }}</strong><br><small>{{ t('components.reason.' ~ row.status_reason) }}</small></td>
+          <td><code>{{ row.effective_version or '—' }}</code><br><small>{{ row.version_constraint or row.approved_version or '—' }}{% if row.pinned %} · {{ t('components.pinned') }}{% endif %}{% if row.latest_known_version %}<br>{{ t('components.latest') }}: {{ row.latest_known_version }} ({{ t('components.check.' ~ row.latest_check.status) }}){% endif %}</small></td>
+          <td><strong>{{ t('components.status.' ~ row.status) }}</strong><br><small>{{ t('components.reason.' ~ row.status_reason) }}<br>{{ t('components.security') }}: {{ t('components.security.' ~ row.security_status) }}</small></td>
           <td><code>{{ row.license }}</code></td>
           <td>{{ t('components.delivery.' ~ row.delivery) }}<br><small>{{ t('components.update.' ~ row.update_route) }}</small></td>
         </tr>

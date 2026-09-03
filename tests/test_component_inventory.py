@@ -60,6 +60,8 @@ def test_inventory_covers_component_classes_and_keeps_states_distinct() -> None:
         "host_prerequisite",
     }
     assert rows["provelume.core"]["status"] == "installed"
+    assert rows["provelume.core"]["pinned"] is True
+    assert rows["python.fastapi"]["pinned"] is False
     assert rows["runtime.cpython"]["status"] == "installed"
     assert rows["ocr.tesseract"]["status"] == "missing"
     assert rows["ocr.eng-traineddata"]["status"] == "unverified"
@@ -87,6 +89,37 @@ def test_ahead_eol_and_present_without_version_do_not_become_approved() -> None:
     assert rows["python.jinja2"]["status"] == "eol"
     assert rows["ocr.tesseract"]["status"] == "unverified"
     assert rows["ocr.tesseract"]["effective_version"] == "unknown"
+
+
+def test_dated_latest_and_security_evidence_can_be_current_or_stale() -> None:
+    result = _inventory(
+        upstream_evidence={
+            "python.fastapi": {
+                "latest_known_version": "0.142.0",
+                "status": "stale",
+                "checked_at": "2026-08-01T00:00:00+00:00",
+                "source": "allowlisted-catalogue-fixture",
+                "security_status": "action_required",
+            }
+        }
+    ).read()
+    row = next(item for item in result["components"] if item["id"] == "python.fastapi")
+    assert row["latest_known_version"] == "0.142.0"
+    assert row["latest_check"]["status"] == "stale"
+    assert row["security_status"] == "action_required"
+
+    with pytest.raises(ComponentInventoryError, match="cannot make claims"):
+        _inventory(
+            upstream_evidence={
+                "python.fastapi": {
+                    "latest_known_version": "0.142.0",
+                    "status": "not_checked",
+                    "checked_at": None,
+                    "source": None,
+                    "security_status": "unverified",
+                }
+            }
+        ).read()
 
 
 def test_installed_transitive_runtime_dependency_closure_enters_inventory_and_sbom(
@@ -246,4 +279,5 @@ def test_component_documentation_and_schema_are_packaged() -> None:
     assert schema["properties"]["components"]["items"] == {"$ref": "#/$defs/component"}
     assert schema["$defs"]["component"]["additionalProperties"] is False
     assert "status" in schema["$defs"]["component"]["required"]
+    assert "pinned" in schema["$defs"]["component"]["required"]
     assert "GITHUB_TOKEN" not in _inventory().export_bytes().decode("utf-8")

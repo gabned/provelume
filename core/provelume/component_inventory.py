@@ -7,6 +7,7 @@ import platform
 import re
 import shutil
 from collections.abc import Callable, Mapping, Sequence
+from datetime import datetime
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
@@ -341,6 +342,7 @@ class ComponentInventory:
         distribution_versions: Mapping[str, str] | None = None,
         distribution_dependencies: Mapping[str, Sequence[str]] | None = None,
         distribution_licenses: Mapping[str, str] | None = None,
+        upstream_evidence: Mapping[str, Mapping[str, Any]] | None = None,
         executable_present: Callable[[str], bool] | None = None,
         python_version: str | None = None,
         platform_name: str | None = None,
@@ -367,6 +369,7 @@ class ComponentInventory:
             if distribution_licenses is not None
             else None
         )
+        self._upstream_evidence = dict(upstream_evidence or {})
         self._executable_present = executable_present or (
             lambda name: shutil.which(name) is not None
         )
@@ -468,6 +471,75 @@ class ComponentInventory:
             )
         return records
 
+    def _latest_evidence(self, component_id: str) -> dict[str, Any]:
+        default = {
+            "latest_known_version": None,
+            "latest_check": {"status": "not_checked", "checked_at": None, "source": None},
+            "security_status": "unverified",
+        }
+        raw = self._upstream_evidence.get(component_id)
+        if raw is None:
+            return default
+        if set(raw) != {
+            "latest_known_version",
+            "status",
+            "checked_at",
+            "source",
+            "security_status",
+        }:
+            raise ComponentInventoryError(
+                "component_catalogue_invalid", "upstream evidence fields are invalid"
+            )
+        latest = raw["latest_known_version"]
+        status = raw["status"]
+        checked_at = raw["checked_at"]
+        source = raw["source"]
+        security = raw["security_status"]
+        if status not in CHECK_STATES or security not in {
+            "unverified",
+            "clear",
+            "action_required",
+        }:
+            raise ComponentInventoryError(
+                "component_catalogue_invalid", "upstream evidence state is invalid"
+            )
+        if status == "not_checked":
+            if (
+                any(value is not None for value in (latest, checked_at, source))
+                or security != "unverified"
+            ):
+                raise ComponentInventoryError(
+                    "component_catalogue_invalid", "unchecked upstream evidence cannot make claims"
+                )
+            return default
+        if not isinstance(latest, str) or _VERSION.fullmatch(latest) is None:
+            raise ComponentInventoryError(
+                "component_catalogue_invalid", "latest-known version is invalid"
+            )
+        if not isinstance(checked_at, str) or not isinstance(source, str) or not source.strip():
+            raise ComponentInventoryError(
+                "component_catalogue_invalid", "dated upstream evidence is incomplete"
+            )
+        try:
+            timestamp = datetime.fromisoformat(checked_at.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ComponentInventoryError(
+                "component_catalogue_invalid", "upstream evidence timestamp is invalid"
+            ) from exc
+        if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+            raise ComponentInventoryError(
+                "component_catalogue_invalid", "upstream evidence timestamp needs a timezone"
+            )
+        if source != source.strip() or "\n" in source or len(source) > 200:
+            raise ComponentInventoryError(
+                "component_catalogue_invalid", "upstream evidence source is invalid"
+            )
+        return {
+            "latest_known_version": latest,
+            "latest_check": {"status": status, "checked_at": checked_at, "source": source},
+            "security_status": security,
+        }
+
     def _observed_version(self, item: Mapping[str, Any]) -> tuple[str | None, str]:
         detection = item["detection"]
         kind = detection["kind"]
@@ -521,6 +593,7 @@ class ComponentInventory:
             item = dict(raw)
             version, evidence = self._observed_version(item)
             state, reason = self._state(item, version, evidence)
+            latest = self._latest_evidence(str(item["id"]))
             release_state = "not_required"
             if item["sbom_required"]:
                 release_state = "unavailable"
@@ -556,14 +629,14 @@ class ComponentInventory:
                     "required": item["required"],
                     "approved_version": item["approved_version"],
                     "version_constraint": item["version_constraint"],
+                    "pinned": bool(
+                        item["version_constraint"]
+                        and str(item["version_constraint"]).startswith("==")
+                    ),
                     "effective_version": version,
-                    "latest_known_version": None,
-                    "latest_check": {
-                        "status": "not_checked",
-                        "checked_at": None,
-                        "source": None,
-                    },
-                    "security_status": "unverified",
+                    "latest_known_version": latest["latest_known_version"],
+                    "latest_check": latest["latest_check"],
+                    "security_status": latest["security_status"],
                     "status": state,
                     "status_reason": reason,
                     "evidence": evidence,

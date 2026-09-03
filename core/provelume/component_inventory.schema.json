@@ -93,7 +93,7 @@
     "component": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "category", "name", "purpose", "dependency_relation", "delivery", "update_route", "origin", "license", "notices", "purl", "expected_sha256", "required", "approved_version", "version_constraint", "effective_version", "latest_known_version", "latest_check", "security_status", "status", "status_reason", "evidence", "release_evidence", "platforms", "local_path_redacted"],
+      "required": ["id", "category", "name", "purpose", "dependency_relation", "delivery", "update_route", "origin", "license", "notices", "purl", "expected_sha256", "required", "approved_version", "version_constraint", "pinned", "effective_version", "latest_known_version", "latest_check", "security_status", "status", "status_reason", "evidence", "release_evidence", "platforms", "local_path_redacted"],
       "properties": {
         "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,99}$"},
         "category": {"enum": ["first_party", "python_package", "native_tool", "codec", "model", "language_pack", "host_prerequisite"]},
@@ -110,6 +110,7 @@
         "required": {"type": "boolean"},
         "approved_version": {"$ref": "#/$defs/nullable_string"},
         "version_constraint": {"$ref": "#/$defs/nullable_string"},
+        "pinned": {"type": "boolean"},
         "effective_version": {"$ref": "#/$defs/nullable_string"},
         "latest_known_version": {"$ref": "#/$defs/nullable_string"},
         "latest_check": {"$ref": "#/$defs/latest_check"},
