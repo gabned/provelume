@@ -1591,7 +1591,7 @@ class AudioProfileManager:
                 output_payloads=payloads,
                 implementation={
                     "component": "provelume.core",
-                    "component_version": "0.9.0",
+                    "component_version": "0.10.0",
                     "adapter": "perceptio-audio-profile",
                     "adapter_version": "1",
                     "settings": {

@@ -4,6 +4,16 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+No changes yet.
+
+## 0.10.0 - 2026-09-03
+
+Published as the [`v0.10.0` prerelease](https://github.com/gabned/provelume/releases/tag/v0.10.0)
+through the permanent verified release workflow. The tag, package/runtime identity, Windows
+metadata, manifest, CycloneDX SBOM, checksums and provenance are bound to the same verified merge
+commit. Windows release artifacts remain explicitly unsigned; optional media components remain
+operator supplied, and authenticated provider or remote AI paths are not added.
+
 ### Changed
 
 - activated `0.10/S07` through issue #180 and owner PR #182, adding one offline read-only Perceptio projection shared

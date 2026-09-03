@@ -1,9 +1,9 @@
 # Pilot integrato Perceptio
 
 Perceptio è la superficie integrata, locale e di sola lettura per gli esatti profili foto, audio,
-video e CSV/XLSX/ZIP già ammessi dal piano `0.10.0`. Durante S07 resta un candidato non pubblicato:
-la presenza della pagina o dell’API non rende disponibile `0.10.0`. Identità del pacchetto, runtime
-incorporato e prodotto Windows restano `0.9.0` fino al confine di release separato.
+video e CSV/XLSX/ZIP pubblicati nella `0.10.0`. Identità del pacchetto, runtime incorporato e
+prodotto Windows sono `0.10.0`. Un normale checkout sorgente riporta comunque `candidate`: solo una
+build ufficiale con tag incorporato esattamente `v0.10.0` riporta `published` e disponibile.
 
 ## Un unico percorso dell’evidenza
 
@@ -43,7 +43,8 @@ Rimozione/ricostruzione delle rappresentazioni, backup/ripristino e trasferiment
 mantengono i contratti esistenti. La qualifica di release prova inoltre installazione pulita,
 upgrade dalla `0.9.0`, rollback e conservazione dei dati alla disinstallazione. Perceptio diventa
 disponibile soltanto quando PR di versione, commit `main`, verifica offline, tag immutabile
-`v0.10.0` e asset canonici coincidono.
+`v0.10.0` e asset canonici coincidono. Build di sviluppo o modificate localmente restano
+deliberatamente candidate.
 
-Vedi la [mappa di qualifica S07](qualification/perceptio-s07.md), il
-[piano di supporto](releases/0.10.0.md) e il [contratto privacy](privacy-network.md).
+Vedi la [qualifica release 0.10.0](qualification/0.10.0.md), il
+[record di release](releases/0.10.0.md) e il [contratto privacy](privacy-network.md).

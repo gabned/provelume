@@ -62,21 +62,33 @@ def test_windows_upgrade_uses_immutable_public_installer_baselines() -> None:
         'wheel_sha256 = "1beba35635fca2bcafa5d4f1a93d035592751f18785339705e1dbb3df7bf2a41"'
         in text
     )
-    assert 'releases/download/v0.7.0/Provelume-Setup-0.7.0-x64.exe' in text
+    assert 'version = "0.9.0"' in text
+    assert 'commit = "e08125a8600f9c4300d0d173613a03f8bbc31327"' in text
+    assert "size = 19161550" in text
+    assert (
+        'sha256 = "e94c0722a92179c00d93db61f1aa5f3aab565f56d8382651471b3778dd503d68"'
+        in text
+    )
+    assert "wheel_size = 643901" in text
+    assert (
+        'wheel_sha256 = "50eca9dc67672c79aa5570de0cad1454546d75a2b3fe5d6edae600bf73a5488f"'
+        in text
+    )
+    assert 'releases/download/v0.9.0/Provelume-Setup-0.9.0-x64.exe' in text
     assert 'provelume-$($IdentifiedBaseline.version)-py3-none-any.whl' in text
 
 
 def test_release_pipeline_uses_latest_immutable_public_installer() -> None:
     text = PIPELINE.read_text(encoding="utf-8")
 
-    assert "published 0.7.0 upgrade baseline" in text
-    assert 'Provelume-Setup-0.7.0-public.exe' in text
-    assert 'releases/download/v0.7.0/Provelume-Setup-0.7.0-x64.exe' in text
-    assert "Length -ne 18464821" in text
-    assert "46d7df0f94f3e9431685741594489ffcc99e0edf3f4880644c87e280fdecd5cb" in text
-    assert 'provelume-0.7.0-py3-none-any.whl' in text
-    assert "Length -ne 294593" in text
-    assert "1beba35635fca2bcafa5d4f1a93d035592751f18785339705e1dbb3df7bf2a41" in text
+    assert "published 0.9.0 upgrade baseline" in text
+    assert 'Provelume-Setup-0.9.0-public.exe' in text
+    assert 'releases/download/v0.9.0/Provelume-Setup-0.9.0-x64.exe' in text
+    assert "Length -ne 19161550" in text
+    assert "e94c0722a92179c00d93db61f1aa5f3aab565f56d8382651471b3778dd503d68" in text
+    assert 'provelume-0.9.0-py3-none-any.whl' in text
+    assert "Length -ne 643901" in text
+    assert "50eca9dc67672c79aa5570de0cad1454546d75a2b3fe5d6edae600bf73a5488f" in text
 
 
 def test_windows_upgrade_proves_schema_compatibility_for_public_baselines() -> None:
@@ -109,7 +121,7 @@ def test_windows_upgrade_proves_schema_compatibility_for_public_baselines() -> N
     assert "PostUninstallInstanceTreeSha256" in text
     assert "RuntimeBoundaryEvidence" in text
     assert '$ResourceSnapshotCount = @($ResourceSnapshots).Count' in text
-    assert "Published 0.7.0 synthetic source" in text
+    assert "Published $PreviousVersion synthetic source" in text
     assert "scheduler/policies" in text
     assert "api/v1/security/network" in text
     assert 'scheduler_refresh_network_delete_and_repair_default_disabled = "PASS"' in text

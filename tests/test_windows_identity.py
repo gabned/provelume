@@ -65,8 +65,8 @@ def test_executable_installer_shortcut_and_uninstaller_identity_are_declared() -
     assert "UninstallDisplayName=Provelume" in installer
     assert "FileDescription', 'Provelume Windows Shell'" in metadata
     assert "ProductName', 'Provelume'" in metadata
-    assert "FileVersion', '0.9.0'" in metadata
-    assert "ProductVersion', '0.9.0'" in metadata
+    assert "FileVersion', '0.10.0'" in metadata
+    assert "ProductVersion', '0.10.0'" in metadata
 
 
 def test_installer_endpoint_tray_login_upgrade_and_uninstall_contract_is_explicit() -> None:

@@ -126,7 +126,7 @@ def _qualification(registry_profile_ids: list[str]) -> dict[str, Any]:
         or value["schema_version"] != 1
         or value["qualification_id"] != "provelume.perceptio-s07.v1"
         or value["target_version"] != PERCEPTIO_TARGET_VERSION
-        or value["publication_state"] != "unpublished"
+        or value["publication_state"] != "candidate"
         or value["registry_profile_ids"] != registry_profile_ids
         or registry_profile_ids != list(PERCEPTIO_PROFILE_IDS)
         or value["families"] != [str(item["id"]) for item in _FAMILIES]
@@ -358,13 +358,24 @@ class PerceptioReadModel:
             dict.fromkeys(str(record["profile_id"]) for record in registry["records"])
         )
         build = current_build_info()
+        published = (
+            build["official"] is True
+            and build["identity_status"] == "official_metadata_present"
+            and build["version"] == PERCEPTIO_TARGET_VERSION
+            and build["tag"] == f"v{PERCEPTIO_TARGET_VERSION}"
+            and isinstance(build["commit"], str)
+        )
         return {
             "schema_version": PERCEPTIO_MODEL_VERSION,
             "model_id": "provelume.perceptio-read-model.v1",
             "target_version": PERCEPTIO_TARGET_VERSION,
             "publication": {
-                "state": "unpublished",
-                "availability": "unavailable_until_verified_publication",
+                "state": "published" if published else "candidate",
+                "availability": (
+                    "available_in_verified_release"
+                    if published
+                    else "unavailable_until_verified_publication"
+                ),
                 "current_package_version": build["version"],
                 "official_build": build["official"],
             },

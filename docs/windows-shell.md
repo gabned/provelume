@@ -1,7 +1,7 @@
 # Windows shell installation, endpoint and recovery guide
 
-This guide covers the Windows shell published with the `0.9.0 — Lectio` preview. Package,
-executable, installer and uninstaller metadata all use `0.9.0`.
+This guide covers the Windows shell published with the `0.10.0 — Perceptio` preview. Package,
+executable, installer and uninstaller metadata all use `0.10.0`.
 
 ## Install
 
@@ -74,11 +74,11 @@ portable Instance separately; shell transfer does not include Originals or canon
 
 Upgrade preserves compatible preferences and Instance data. Uninstall stops/removes the runtime,
 shortcuts, product registration and stale login Run entry. It deliberately leaves launcher
-preferences and every Instance. Lectio offers no combined “delete my data” option; deletion
+preferences and every Instance. Perceptio offers no combined “delete my data” option; deletion
 requires separate explicit informed consent.
 
 Before upgrading, make a verified Instance backup and export shell preferences separately. A
-rollback means uninstalling Lectio, installing an earlier immutable official installer and then
+rollback means uninstalling Perceptio, installing an earlier immutable official installer and then
 opening only an Instance compatible with that earlier version. Provelume does not silently
 downgrade schemas or canonical records; if compatibility cannot be established, restore the
 matching verified backup into a separate directory. Never overwrite the current Instance as a
@@ -86,7 +86,7 @@ rollback shortcut.
 
 ## Signing and Publisher blocker
 
-Lectio Windows release artifacts are explicitly unsigned. `Neobeta` in file or Add/Remove Programs
+Perceptio Windows release artifacts are explicitly unsigned. `Neobeta` in file or Add/Remove Programs
 metadata is descriptive and does not authenticate the Windows publisher. `Unknown publisher` can
 remain. Signed-release mode requires an authorized certificate, valid chain, expected
 publisher, valid timestamp and verification of the exact SHA-256 artifact in permanent evidence.

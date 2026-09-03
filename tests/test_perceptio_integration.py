@@ -133,9 +133,9 @@ def test_service_cli_api_browser_share_one_read_only_model(
     }
     expected = instance.perceptio_read_model(version_id=version_id)
     assert expected["publication"] == {
-        "state": "unpublished",
+        "state": "candidate",
         "availability": "unavailable_until_verified_publication",
-        "current_package_version": "0.9.0",
+        "current_package_version": "0.10.0",
         "official_build": False,
     }
     assert [item["family"] for item in expected["support"]] == [
@@ -192,6 +192,35 @@ def test_service_cli_api_browser_share_one_read_only_model(
     assert client.post("/api/v1/perceptio", json={}).status_code == 405
     deleted = client.delete(f"/api/v1/perceptio/representations/{representation_id}")
     assert deleted.status_code == 405
+
+
+def test_publication_state_requires_exact_official_build_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+
+    def identity(*, tag: str) -> dict[str, object]:
+        return {
+            "version": "0.10.0",
+            "tag": tag,
+            "commit": "a" * 40,
+            "official": True,
+            "identity_status": "official_metadata_present",
+        }
+
+    monkeypatch.setattr("provelume.perceptio.current_build_info", lambda: identity(tag="v0.9.0"))
+    candidate = instance.perceptio_read_model()["publication"]
+    assert candidate["state"] == "candidate"
+    assert candidate["availability"] == "unavailable_until_verified_publication"
+
+    monkeypatch.setattr("provelume.perceptio.current_build_info", lambda: identity(tag="v0.10.0"))
+    published = instance.perceptio_read_model()["publication"]
+    assert published == {
+        "state": "published",
+        "availability": "available_in_verified_release",
+        "current_package_version": "0.10.0",
+        "official_build": True,
+    }
 
 
 def test_reads_do_not_probe_family_or_registry_capabilities(
@@ -295,7 +324,7 @@ def test_english_italian_and_packaged_qualification_remain_exact() -> None:
         (root / "core/provelume/perceptio_qualification.json").read_text(encoding="utf-8")
     )
     assert qualification["target_version"] == "0.10.0"
-    assert qualification["publication_state"] == "unpublished"
+    assert qualification["publication_state"] == "candidate"
     assert qualification["registry_profile_ids"] == list(PERCEPTIO_PROFILE_IDS)
     assert [item["id"] for item in qualification["exit_gates"]] == [
         f"release-exit-{index:02d}" for index in range(1, 11)
@@ -306,7 +335,7 @@ def test_english_italian_and_packaged_qualification_remain_exact() -> None:
         (root / "core/provelume/perceptio_qualification.schema.json").read_text(encoding="utf-8")
     )
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
-    assert schema["properties"]["publication_state"] == {"const": "unpublished"}
+    assert schema["properties"]["publication_state"] == {"const": "candidate"}
     wheel_config = (root / "pyproject.toml").read_text(encoding="utf-8")
     assert 'packages = ["core/provelume"]' in wheel_config
     workflow = (root / ".github/workflows/perceptio-final-qualification.yml").read_text(

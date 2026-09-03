@@ -7,9 +7,9 @@
       "bom-ref": "provelume-0.10-s04-audio-baseline",
       "type": "application",
       "name": "Provelume local audio qualification baseline",
-      "version": "0.9.0",
+      "version": "0.10.0",
       "properties": [
-        {"name": "provelume:release_identity", "value": "0.9.0"},
+        {"name": "provelume:release_identity", "value": "0.10.0"},
         {"name": "provelume:distribution_contains_optional_components", "value": "false"},
         {"name": "provelume:qualified_matrix", "value": "ubuntu-24.04/x86_64/python-3.12; windows-2025/x86_64/python-3.12-degraded"}
       ]

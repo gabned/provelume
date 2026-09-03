@@ -1023,6 +1023,6 @@ def test_public_source_reconciliation_contract_is_explicit() -> None:
         "portable export/import",
     ):
         assert required in contract
-    assert "[0.9.0 release record](docs/releases/0.9.0.md)" in readme
+    assert "[0.10.0 release record](docs/releases/0.10.0.md)" in readme
     assert "package, embedded identity" in readme
     assert "Windows metadata" in readme

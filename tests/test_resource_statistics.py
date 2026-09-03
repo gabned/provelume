@@ -642,7 +642,7 @@ def test_public_resource_statistics_contract_is_explicit() -> None:
         "no automatic retention",
     ):
         assert required in contract
-    assert "[0.9.0 release record](docs/releases/0.9.0.md)" in readme
+    assert "[0.10.0 release record](docs/releases/0.10.0.md)" in readme
     assert "maintenance/resource-statistics" in api
     assert "tag, package, embedded identity" in readme
     assert "Windows metadata" in readme

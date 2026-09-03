@@ -55,7 +55,7 @@ def test_windows_guide_covers_install_upgrade_uninstall_transfer_and_signing_blo
         "exact SHA-256",
     ):
         assert token in guide
-    assert "published with the `0.9.0 — Lectio` preview" in guide
+    assert "published with the `0.10.0 — Perceptio` preview" in guide
 
 
 def test_accessibility_en_it_theme_navigation_and_inert_content_are_documented() -> None:

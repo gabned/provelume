@@ -8,49 +8,30 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.9.0 Lectio preview; 0.10.0 Perceptio active implementation
+## Current status: 0.10.0 Perceptio preview
 
-[`v0.9.0`](https://github.com/gabned/provelume/releases/tag/v0.9.0) Lectio is the current public
-prerelease. Its permanent verified release chain binds the tag, package, embedded identity,
+[`v0.10.0`](https://github.com/gabned/provelume/releases/tag/v0.10.0) Perceptio is the current
+public prerelease. Its permanent verified release chain binds the tag, package, embedded identity,
 Windows metadata, manifest, SBOM, checksums and provenance to one exact commit. The immutable
-[`v0.8.0`](https://github.com/gabned/provelume/releases/tag/v0.8.0) Vigilia prerelease remains
-available as the previous baseline and is never recreated or overwritten.
+[`v0.9.0`](https://github.com/gabned/provelume/releases/tag/v0.9.0) Lectio prerelease remains the
+previous and N-1 baseline and is never recreated or overwritten; its
+[0.9.0 release record](docs/releases/0.9.0.md) remains historical evidence.
 
-Lectio adds disabled-by-default local OCR, exact-byte local email intake, replaceable read-only
-Gmail/Drive adapters, local SRT/WebVTT transcript profiles, provider-neutral cross-source findings
-with reversible human decisions, and the Windows tray/configurable-loopback shell. Originals stay
-authoritative; derived representations remain attributable, removable and rebuildable.
+Perceptio adds one universal representation and support contract, an offline component inventory,
+bounded photo, audio, video, CSV, XLSX and ZIP profiles, and one integrated read-only EN/IT pilot.
+Exact Originals stay authoritative; derived evidence remains attributable, removable and
+rebuildable. Optional Pillow, whisper.cpp/model and FFmpeg components are not bundled or downloaded
+at runtime, and unsupported operations remain visible instead of falling back remotely.
 
-Closed parent tracker [#137](https://github.com/gabned/provelume/issues/137) records completed
-S01–S07. The completed release workstream is
-[#158](https://github.com/gabned/provelume/issues/158). See the
-[0.9.0 release record](docs/releases/0.9.0.md), [public roadmap](docs/roadmap.md),
-[qualification matrix](docs/qualification/0.9.0.md), and
-[Windows preview guide](docs/windows-preview.md) for the exact supported perimeter and recovery
-boundaries. Real authenticated Google remains unqualified, and Windows OCR is not bundled or
-qualified. The Windows artifacts are explicitly unsigned; descriptive `Neobeta` metadata does
-not authenticate a publisher and does not resolve `Unknown publisher`.
-
-`0.10.0 — Perceptio` is active, unpublished development under parent
-[#160](https://github.com/gabned/provelume/issues/160). Its public
-[development plan](docs/releases/0.10.0.md) orders seven bounded slices. `0.10/S01` is delivered
-for [#162](https://github.com/gabned/provelume/issues/162) by owner
-[PR #163](https://github.com/gabned/provelume/pull/163): one universal representation/support
-contract and a byte-unchanged Lectio compatibility view. `0.10/S02` is delivered for
-[#166](https://github.com/gabned/provelume/issues/166) through owner
-[PR #168](https://github.com/gabned/provelume/pull/168). `0.10/S03` is delivered through
-[#169](https://github.com/gabned/provelume/issues/169) and owner
-[PR #170](https://github.com/gabned/provelume/pull/170). `0.10/S04` is delivered through
-[#171](https://github.com/gabned/provelume/issues/171), owner
-[PR #172](https://github.com/gabned/provelume/pull/172) and qualifying correction
-[PR #173](https://github.com/gabned/provelume/pull/173). `0.10/S05` is delivered through
-[#174](https://github.com/gabned/provelume/issues/174) and owner
-[PR #175](https://github.com/gabned/provelume/pull/175). `0.10/S06` is delivered through
-[#177](https://github.com/gabned/provelume/issues/177) and owner
-[PR #179](https://github.com/gabned/provelume/pull/179). S07 is the one active integration and
-final-qualification slice under [#180](https://github.com/gabned/provelume/issues/180) and owner
-[PR #182](https://github.com/gabned/provelume/pull/182). No
-`v0.10.0` tag or release is present and package/runtime/Windows identity remains `0.9.0`.
+Parent tracker [#160](https://github.com/gabned/provelume/issues/160) records S01–S07 in their
+frozen order through issues #162, #166, #169, #171, #174, #177 and #180 and owner PRs #163, #168,
+#170, #172/#173, #175, #179 and #182. Release workstream
+[#183](https://github.com/gabned/provelume/issues/183) owns identity, qualification and
+publication. See the [0.10.0 release record](docs/releases/0.10.0.md),
+[public roadmap](docs/roadmap.md), [qualification matrix](docs/qualification/0.10.0.md), and
+[Windows preview guide](docs/windows-preview.md) for the exact support, recovery and unsigned
+publisher perimeter. No S08, authenticated provider path, AI/RAG, Action Center, remote binding,
+runtime downloader or signing claim is introduced.
 
 The local **Representations & support** surface keeps Preserve, Inspect, Extract, Preview, Local
 enrich and AI enrich independent. It reports declared/effective support, closed unavailable or
@@ -59,7 +40,7 @@ and EN/IT Browser. `AI enrich` is explicitly unavailable; see the
 [user guide](docs/representations.md) and
 [developer contract](docs/architecture/universal-representations.md).
 
-The candidate local **Components** catalogue distinguishes installed, missing, ahead,
+The local **Components** catalogue distinguishes installed, missing, ahead,
 incompatible, EOL and unverified state across first-party, Python, native, codec, model,
 language-pack and host-prerequisite classes. Service, CLI, API and EN/IT Browser use one offline,
 path-redacted model; an explicit local CycloneDX comparison never installs or updates anything.
@@ -71,23 +52,23 @@ anchors and exposes a sanitized PNG only when external Pillow 12.3.0 is present.
 ambient scan, source write, duplicate action, runtime download or network request; see the
 [photo guide](docs/photos.md).
 
-The active local **Video** profile preserves bounded MP4/MOV/MKV/WebM/AVI Originals and uses only
+The local **Video** profile preserves bounded MP4/MOV/MKV/WebM/AVI Originals and uses only
 an explicitly configured FFmpeg/ffprobe 9.0.1 pair for qualified Ubuntu inspection. It combines
 embedded subtitles, the S04 audio contract, deterministic bounded scenes/keyframes and OCR only
 for explicitly selected frames. Missing or unqualified components remain visible and safe; see
 the [video guide](docs/video.md).
 
-The active **Tables and archives** surface adds exactly three dependency-free higher-level
+The **Tables and archives** surface adds exactly three dependency-free higher-level
 profiles: bounded UTF-8 CSV cells, bounded XLSX sheets/cached cells and bounded ZIP members. Typed
 anchors reopen every displayed cell/member; no formula, macro, attachment or member executes and
 ZIP data is never extracted to the host. See the [file-family guide](docs/file-families.md).
 
-The active **Perceptio pilot** integrates those bounded family views through one offline,
+The **Perceptio pilot** integrates those bounded family views through one offline,
 read-only service/CLI/API/EN/IT Browser model. It keeps support, component identity, provenance,
 uncertainty, reversible correction annotations and exact anchors together without adding a parser,
 model or mutation route. See the [integrated pilot guide](docs/perceptio.md).
 
-The future lane keeps Lectio at `0.9.0`, assigns `0.10.0 Perceptio` to photo/audio/video
+The release lane preserves Lectio at `0.9.0`, publishes `0.10.0 Perceptio` for photo/audio/video
 representations and component visibility, and keeps the later forecasts ordered through the
 `0.23.0` release candidate. It does not use `0.9.5` for feature work. The roadmap identifies
 `0.11.0` as the first planned coherent personal daily-use beta and controlled public-beta gate,
@@ -189,7 +170,7 @@ operating-system egress enforcement or zero runtime traffic. All extracted/searc
 representations remain derived state and can be recreated from preserved originals after deletion
 of those derived copies.
 
-The published `0.9.0` Lectio preview creates no scheduler policy, connector, Source or job on
+The published `0.10.0` Perceptio preview creates no scheduler policy, connector, Source or job on
 install, upgrade or startup. Folder refresh, maintenance, OCR, local email intake, Google preview
 and transcript profiles require explicit local configuration and run only while the current
 runtime is active.
@@ -446,9 +427,9 @@ Instance content and is never enabled in the background by the Core:
 .venv/bin/provelume check-updates --channel preview
 ```
 
-The published Windows `0.9.0` preview packages the same behavior behind a per-user installer and
+The published Windows `0.10.0` preview packages the same behavior behind a per-user installer and
 EN/IT launcher. Download it only from the official
-[`v0.9.0` prerelease](https://github.com/gabned/provelume/releases/tag/v0.9.0); it remains an
+[`v0.10.0` prerelease](https://github.com/gabned/provelume/releases/tag/v0.10.0); it remains an
 unsigned preview. See the [Windows preview guide](docs/windows-preview.md).
 
 Inspect one Instance's declared network policy and components, also without making a network request:
