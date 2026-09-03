@@ -1,6 +1,6 @@
 # Perceptio 0.10/S07 qualification map
 
-Status: active candidate under #180. This record describes release gates; it does not claim that
+Status: active candidate under #180/#182. This record describes release gates; it does not claim that
 `0.10.0` is published or that an optional component is present.
 
 | Required evidence | Permanent evidence path | Closed result |

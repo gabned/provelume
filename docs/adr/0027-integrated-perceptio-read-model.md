@@ -3,7 +3,7 @@
 - Status: accepted for `0.10/S07`
 - Date: 2026-09-03
 - Parent: #160
-- Slice: #180
+- Slice: #180 / owner PR #182
 
 ## Decision
 

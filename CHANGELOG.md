@@ -6,7 +6,7 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
-- activated `0.10/S07` through issue #180, adding one offline read-only Perceptio projection shared
+- activated `0.10/S07` through issue #180 and owner PR #182, adding one offline read-only Perceptio projection shared
   by service, CLI, GET-only API and accessible EN/IT Browser over the already admitted photo,
   audio, video and exact CSV/XLSX/ZIP profiles;
 - kept provenance, effective support, component/adapter identity, warnings, reversible correction

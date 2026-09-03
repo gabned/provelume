@@ -48,7 +48,8 @@ contract and a byte-unchanged Lectio compatibility view. `0.10/S02` is delivered
 [PR #175](https://github.com/gabned/provelume/pull/175). `0.10/S06` is delivered through
 [#177](https://github.com/gabned/provelume/issues/177) and owner
 [PR #179](https://github.com/gabned/provelume/pull/179). S07 is the one active integration and
-final-qualification slice under [#180](https://github.com/gabned/provelume/issues/180). No
+final-qualification slice under [#180](https://github.com/gabned/provelume/issues/180) and owner
+[PR #182](https://github.com/gabned/provelume/pull/182). No
 `v0.10.0` tag or release is present and package/runtime/Windows identity remains `0.9.0`.
 
 The local **Representations & support** surface keeps Preserve, Inspect, Extract, Preview, Local

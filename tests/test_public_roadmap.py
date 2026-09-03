@@ -163,7 +163,7 @@ def test_perceptio_plan_records_s07_without_version_or_release_change() -> None:
         "CURRENT_SLICE": "0.10/S07",
         "CURRENT_SLICE_ISSUE": "#180",
         "CURRENT_SLICE_BRANCH": "product/0.10-s07-final-qualification",
-        "CURRENT_SLICE_OWNER_PR": "PENDING",
+        "CURRENT_SLICE_OWNER_PR": "#182",
         "CURRENT_SLICE_STATE": "ACTIVE",
         "DELIVERED_SLICE": "0.10/S06",
         "DELIVERED_SLICE_ISSUE": "#177",
@@ -237,7 +237,7 @@ def test_perceptio_slices_are_ordered_bounded_and_s07_is_active() -> None:
         elif identity == "0.10/S06":
             expected_state = "- **Delivered state:** completed by merge of owner PR #179"
         else:
-            expected_state = "- **Active state:** issue #180"
+            expected_state = "- **Active state:** issue #180 and owner PR #182"
         assert expected_state in section
 
     assert positions == sorted(positions)
@@ -657,14 +657,14 @@ def test_perceptio_activation_is_consistent_across_public_planning_surfaces() ->
 
     assert "| Forecast | `0.10.0` |" not in roadmap
     assert roadmap.count("| Active development | `0.10.0` |") == 1
-    assert "S06 is delivered under #177/#179; S07 is active under #180" in roadmap
+    assert "S06 is delivered under #177/#179; S07 is active under #180/#182" in roadmap
     assert "package/runtime/Windows identity remains `0.9.0`" in readme
     assert "[development plan](docs/releases/0.10.0.md)" in readme
     assert "activated planning-only development for `0.10.0 — Perceptio`" in changelog
     assert "CURRENT_PACKAGE_VERSION: 0.9.0" in perceptio
     assert "PUBLISHED_TAG: NONE" in perceptio
     assert "CURRENT_SLICE: 0.10/S07" in perceptio
-    assert "CURRENT_SLICE_OWNER_PR: PENDING" in perceptio
+    assert "CURRENT_SLICE_OWNER_PR: #182" in perceptio
     assert "DELIVERED_SLICE: 0.10/S06" in perceptio
     assert "DELIVERED_SLICE_OWNER_PR: #179" in perceptio
     assert "NEXT_SLICE: RELEASE_PREPARATION" in perceptio
