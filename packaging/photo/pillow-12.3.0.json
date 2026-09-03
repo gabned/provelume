@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "slice": "0.10/S03",
+  "profile_id": "perceptio-photo-v1",
+  "status": "qualified-optional-local-component",
+  "core_inspector": {
+    "component": "provelume.core",
+    "version": "0.9.0",
+    "formats": ["JPEG", "PNG", "TIFF", "BMP"],
+    "network_required": false,
+    "runtime_download": false,
+    "metadata_writeback": false
+  },
+  "selected_decoder": {
+    "id": "codec.pillow",
+    "name": "Pillow",
+    "version": "12.3.0",
+    "version_constraint": ">=12,<13",
+    "source": "https://github.com/python-pillow/Pillow/tree/12.3.0",
+    "license": "MIT-CMU",
+    "bundled_by_provelume": false,
+    "runtime_download": false,
+    "remote_fallback": false,
+    "qualified_linux_wheel": {
+      "filename": "pillow-12.3.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "size_bytes": 6940830,
+      "sha256": "78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91"
+    }
+  },
+  "derived_outputs": {
+    "metadata": "closed JSON photo profile with raw EXIF/IPTC/XMP and device values excluded",
+    "preview": "first-frame, orientation-normalized RGB PNG with source metadata stripped",
+    "similarity": "review-only dHash-64 v1 evidence; SHA-256 remains a separate exact class",
+    "ocr": "existing Lectio page evidence is referenced through universal page anchors",
+    "barcode_qr": "unavailable because no QR/barcode adapter is selected in this slice"
+  },
+  "limits": {
+    "max_input_bytes": 268435456,
+    "max_pixels": 80000000,
+    "max_decompressed_bytes": 335544320,
+    "max_decompression_ratio": 100,
+    "max_metadata_bytes": 4194304,
+    "max_preview_edge": 1600,
+    "max_preview_bytes": 33554432
+  },
+  "format_matrix": [
+    {"format": "JPEG", "core_inspect": "supported", "pillow_preview": "qualified-ubuntu-x86_64"},
+    {"format": "PNG", "core_inspect": "supported", "pillow_preview": "qualified-ubuntu-x86_64"},
+    {"format": "TIFF", "core_inspect": "supported", "pillow_preview": "qualified-ubuntu-x86_64-first-frame"},
+    {"format": "BMP", "core_inspect": "supported", "pillow_preview": "qualified-ubuntu-x86_64"},
+    {"format": "WEBP", "core_inspect": "preserve-only", "pillow_preview": "not-activated"},
+    {"format": "HEIC/HEIF", "core_inspect": "preserve-only", "pillow_preview": "not-selected"},
+    {"format": "AVIF", "core_inspect": "preserve-only", "pillow_preview": "not-selected"},
+    {"format": "RAW/DNG", "core_inspect": "preserve-only", "pillow_preview": "not-selected"}
+  ],
+  "platform_matrix": [
+    {
+      "platform": "ubuntu-24.04",
+      "architecture": "x86_64",
+      "python": "3.12",
+      "core_inspect": "qualified",
+      "decoder_preview": "qualified with the exact Linux wheel above",
+      "workflow": ".github/workflows/ocr-smoke.yml"
+    },
+    {
+      "platform": "windows-2025",
+      "architecture": "x86_64",
+      "python": "3.12",
+      "core_inspect": "qualified by public CI",
+      "decoder_preview": "external-local-unqualified and visibly unavailable when absent"
+    }
+  ],
+  "fixture_provenance": {
+    "kind": "deterministic-synthetic-camera-export",
+    "generator": "Pillow 12.3.0",
+    "seed": 20260903,
+    "contains_personal_content": false,
+    "contains_real_coordinates": false,
+    "repository_bytes": "generated only inside CI temporary storage"
+  },
+  "distribution": {
+    "wheel": "no Pillow wheel or codec library is included",
+    "sdist": "contract, adapter and manifest only",
+    "windows_installer": "no photo decoder payload is included",
+    "silent_install": false,
+    "automatic_update": false
+  }
+}

@@ -895,6 +895,20 @@ class SupportRegistry:
         reason = "unsupported_platform" if state == "version-incompatible" else "component_missing"
         return "unavailable", reason, missing
 
+    @staticmethod
+    def _photo_state() -> tuple[str, str | None, str | None]:
+        from .photo_profiles import PillowPhotoDecoder
+
+        capability = PillowPhotoDecoder().capability()
+        if capability.get("state") == "ready":
+            return "available", None, None
+        reason = (
+            "unsupported_platform"
+            if capability.get("state") == "incompatible"
+            else "component_missing"
+        )
+        return "unavailable", reason, "codec.pillow"
+
     def read(self, *, profile_id: str | None = None) -> dict[str, Any]:
         source = _resource_json("representation-support-registry.json")
         if (
@@ -916,6 +930,7 @@ class SupportRegistry:
                 "representation_invalid", "support registry identity is invalid"
             )
         ocr_state: tuple[str, str | None, str | None] | None = None
+        photo_state: tuple[str, str | None, str | None] | None = None
         records: list[dict[str, Any]] = []
         profile_ids: set[str] = set()
         for profile in source["profiles"]:
@@ -991,7 +1006,7 @@ class SupportRegistry:
                 if missing_component is not None:
                     _identifier(missing_component, "support missing component")
                 component_check = specification.get("component_check")
-                if component_check not in {None, "ocr"}:
+                if component_check not in {None, "ocr", "photo"}:
                     raise RepresentationContractError(
                         "representation_invalid", "support component check is invalid"
                     )
@@ -999,6 +1014,10 @@ class SupportRegistry:
                     if ocr_state is None:
                         ocr_state = self._ocr_state()
                     effective, reason, missing_component = ocr_state
+                if component_check == "photo":
+                    if photo_state is None:
+                        photo_state = self._photo_state()
+                    effective, reason, missing_component = photo_state
                 if operation == "ai_enrich":
                     if declared != "unsupported" or implementation is not None:
                         raise RepresentationContractError(
@@ -1109,6 +1128,9 @@ class RepresentationBundleManager:
         corrections: Sequence[Mapping[str, Any]] = (),
         previous_representation_ids: Sequence[str] = (),
         parent_representation_ids: Sequence[str] = (),
+        availability_state: str = "available",
+        availability_reason: str | None = None,
+        missing_component: str | None = None,
         created_at: str | None = None,
     ) -> dict[str, Any]:
         version = self._version(version_id)
@@ -1192,6 +1214,9 @@ class RepresentationBundleManager:
             corrections=corrections,
             previous_representation_ids=previous_representation_ids,
             parent_representation_ids=parent_representation_ids,
+            availability_state=availability_state,
+            availability_reason=availability_reason,
+            missing_component=missing_component,
             created_at=created_at or utc_now(),
         )
         # Storage paths do not participate recursively in the output fingerprint.

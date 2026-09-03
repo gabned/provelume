@@ -53,7 +53,11 @@ jobs:
           sha256sum /usr/share/doc/liblept5/copyright
           .venv/bin/python -m pip show pypdfium2 Pillow
 
-      - name: Run real local OCR and renderer smoke
+      - name: Run real local OCR, renderer and photo-profile smoke
         env:
           PROVELUME_REAL_OCR: "1"
-        run: .venv/bin/python -m pytest -q tests/test_ocr_real_smoke.py
+          PROVELUME_REAL_PHOTO: "1"
+        run: >-
+          .venv/bin/python -m pytest -q
+          tests/test_ocr_real_smoke.py
+          tests/test_photo_real_smoke.py

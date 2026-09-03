@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ t('photos.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('photos.eyebrow') }}</p>
+  <h1>{{ t('photos.title') }}</h1>
+  <p class="lead">{{ t('photos.lead') }}</p>
+  <p class="technical-note">{{ t('photos.read_only') }}</p>
+</section>
+<section class="panel">
+  <h2>{{ t('photos.support') }}</h2>
+  <dl class="detail-grid">
+    <div><dt>{{ t('photos.formats') }}</dt><dd>{{ model.support.baseline_formats | join(', ') }}</dd></div>
+    <div><dt>{{ t('photos.decoder') }}</dt><dd><code>{{ model.support.decoder.state }}</code>{% if model.support.decoder.version %} · {{ model.support.decoder.version }}{% endif %}</dd></div>
+    <div><dt>{{ t('photos.preview') }}</dt><dd><code>{{ model.support.preview.state }}</code></dd></div>
+    <div><dt>{{ t('photos.codes') }}</dt><dd><code>{{ model.support.barcode_qr.state }}</code></dd></div>
+  </dl>
+</section>
+<section class="panel">
+  <h2>{{ t('photos.privacy') }}</h2>
+  <p>{{ t('photos.privacy_detail') }}</p>
+</section>
+<section class="panel">
+  <h2>{{ t('photos.profiles') }}</h2>
+  {% for item in model.profiles %}
+  <article class="document-card">
+    <h3><code>{{ item.representation_id }}</code></h3>
+    {% if item.record.preview.state == 'available' %}
+      <img src="/api/v1/photos/{{ item.representation_id }}/preview" alt="{{ t('photos.sanitized_preview') }}" loading="lazy">
+    {% endif %}
+    <dl class="detail-grid">
+      <div><dt>{{ t('photos.dimensions') }}</dt><dd>{{ item.record.dimensions.display_width }} × {{ item.record.dimensions.display_height }} · {{ item.record.format }}</dd></div>
+      <div><dt>{{ t('photos.orientation') }}</dt><dd>{{ item.record.orientation.label }}</dd></div>
+      <div><dt>{{ t('photos.gps') }}</dt><dd>{{ item.record.gps.source_precision }} · {{ t('photos.redacted') }}</dd></div>
+      <div><dt>{{ t('photos.duplicates') }}</dt><dd>{{ item.record.duplicates.proposals | length }}</dd></div>
+      <div><dt>{{ t('photos.ocr') }}</dt><dd>{{ item.record.ocr_reuse.page_anchors | length }}</dd></div>
+      <div><dt>{{ t('photos.metadata') }}</dt><dd>EXIF {{ item.record.metadata.exif.present }} · IPTC {{ item.record.metadata.iptc.present }} · XMP {{ item.record.metadata.xmp.present }}</dd></div>
+    </dl>
+  </article>
+  {% else %}
+  <p class="empty">{{ t('photos.empty') }}</p>
+  {% endfor %}
+</section>
+<section class="panel">
+  <h2>{{ t('photos.jobs') }}</h2>
+  <ul class="document-list">
+  {% for job in model.jobs %}
+    <li><strong><code>{{ job.id }}</code></strong><span>{{ job.status }} · {{ job.version_id }}</span></li>
+  {% else %}
+    <li class="empty">{{ t('photos.no_jobs') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}
