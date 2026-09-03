@@ -436,6 +436,30 @@ def test_frame_extraction_bounds_both_portrait_axes(
     )
 
 
+def test_ffprobe_relies_on_bounded_devnull_stdin_without_unsupported_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    adapter = FFmpegAdapter()
+    fake_binary = tmp_path / "ffprobe"
+    fake_binary.write_bytes(b"fixture")
+    monkeypatch.setattr(adapter, "_require", lambda: (fake_binary, fake_binary))
+    captured: list[list[str]] = []
+
+    def fake_run(command, *, root, stdout_limit=0, produced=None):
+        captured.append(list(command))
+        return (
+            b'{"format":{"duration":"2.0"},"streams":[{"index":0,'
+            b'"codec_type":"video","codec_name":"h264","width":640,'
+            b'"height":360,"avg_frame_rate":"25/1"}],"chapters":[]}'
+        )
+
+    monkeypatch.setattr(adapter, "_run", fake_run)
+    inspected = adapter.inspect(_mp4(), format_name="MP4")
+    assert inspected["streams"][0]["qualified"] is True
+    assert "-nostdin" not in captured[0]
+    assert captured[0][captured[0].index("-protocol_whitelist") + 1] == "file"
+
+
 def test_profile_preserves_synchronised_citable_evidence_and_original(tmp_path: Path) -> None:
     instance, version_id = _seed(tmp_path)
     manager = _manager(instance)
@@ -573,7 +597,9 @@ def test_video_api_and_browser_are_read_only(tmp_path: Path) -> None:
     ).status_code == 404
 
 
-def test_backup_transfer_and_support_registry_preserve_video_profile(tmp_path: Path) -> None:
+def test_backup_transfer_and_support_registry_preserve_video_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     instance, version_id = _seed(tmp_path)
     selected_id = str(_manager(instance).create(version_id)["representation_id"])
     assert inspect_instance(instance.root, deep=True)["status"] == "valid"
@@ -596,6 +622,14 @@ def test_backup_transfer_and_support_registry_preserve_video_profile(tmp_path: P
     target.import_portable(portable)
     assert target.get_video(selected_id) is not None
 
+    for name in (
+        "PROVELUME_FFMPEG_PATH",
+        "PROVELUME_FFPROBE_PATH",
+        "PROVELUME_FFMPEG_VERSION",
+        "PROVELUME_FFMPEG_SHA256",
+        "PROVELUME_FFPROBE_SHA256",
+    ):
+        monkeypatch.delenv(name, raising=False)
     support = instance.representation_support(profile_id="perceptio-video-v1")
     records = {item["operation"]: item for item in support["records"]}
     assert records["preserve"]["effective_state"] == "available"

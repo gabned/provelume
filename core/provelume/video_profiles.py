@@ -695,7 +695,6 @@ class FFmpegAdapter:
                     str(ffprobe),
                     "-v",
                     "error",
-                    "-nostdin",
                     "-protocol_whitelist",
                     "file",
                     "-probesize",
