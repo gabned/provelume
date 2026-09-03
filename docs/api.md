@@ -505,6 +505,22 @@ User input is converted to literal FTS terms rather than accepted as raw SQLite 
 
 ## Privacy and network activity
 
+## Photo profiles
+
+- GET /api/v1/photos/support — closed format, decoder and QR/barcode availability;
+- GET /api/v1/photos — privacy-redacted derived profiles and local job state;
+- GET /api/v1/photos/{representation_id} — one exact profile;
+- GET /api/v1/photos/{representation_id}/preview — only a generated metadata-stripped PNG;
+- POST /api/v1/photos/jobs/{version_id} and POST /api/v1/photos/jobs/{job_id}/run — explicit
+  local queue/run;
+- DELETE /api/v1/photos/{representation_id} and
+  POST /api/v1/photos/{representation_id}/rebuild — derived-only lifecycle.
+
+No route serves the image Original, accepts an upload/path, scans a library, exports coordinates,
+writes metadata, executes a duplicate action, downloads a component or uses the network. Preview
+responses are image/png, nosniff, no-store and subject to the application no-script/no-object
+content policy. See [the photo guide](photos.md).
+
 `GET /api/v1/security/network` derives an effective network policy and component inventory from the
 local Instance configuration and canonical connector declarations. The same contract is available
 through `provelume network-status <instance>` and the EN/IT `/security/network` browser page.

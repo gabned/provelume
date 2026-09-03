@@ -46,6 +46,7 @@ from .oauth_authorization import InstalledAppAuthorizationManager, InstalledAppO
 from .ocr_contract import OcrContractError, OcrSettings
 from .ocr_jobs import OCR_JOB_KIND, OcrJobManager
 from .paths import UnsafePathError
+from .photo_profiles import PhotoProfileManager
 from .portable_transfer import PortableInstanceTransfer
 from .qualification import QualificationManager
 from .qualification_contract import QualificationLimits
@@ -85,6 +86,7 @@ class ProvelumeInstance:
         self.resource_statistics = ResourceStatisticsManager(self.store)
         self.components = ComponentInventory()
         self.representations = RepresentationReadModel(self.store)
+        self.photos = PhotoProfileManager(self.store)
         self.scheduler = SchedulerCoordinator(self.store)
         self.ocr = OcrJobManager(self.store)
         self.email_sources = EmailSourceManager(self.store)
@@ -144,6 +146,29 @@ class ProvelumeInstance:
 
     def get_representation(self, representation_id: str) -> dict[str, Any] | None:
         return self.representations.get(representation_id)
+
+    def photo_support(self) -> dict[str, Any]:
+        return self.photos.capability()
+
+    def queue_photo(self, version_id: str) -> dict[str, Any]:
+        return self.photos.queue(version_id)
+
+    def run_photo_job(self, job_id: str) -> dict[str, Any]:
+        return self.photos.run(job_id)
+
+    def photo_read_model(
+        self, *, version_id: str | None = None, limit: int = 100
+    ) -> dict[str, Any]:
+        return self.photos.read_model(version_id=version_id, limit=limit)
+
+    def get_photo(self, representation_id: str) -> dict[str, Any] | None:
+        return self.photos.get(representation_id)
+
+    def remove_photo(self, representation_id: str) -> dict[str, Any]:
+        return self.photos.remove(representation_id)
+
+    def rebuild_photo(self, representation_id: str) -> dict[str, Any]:
+        return self.photos.rebuild(representation_id)
 
     def qualification_limits(self) -> dict[str, Any]:
         return self.qualification.limits()

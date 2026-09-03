@@ -192,6 +192,27 @@
       "eol": false
     },
     {
+      "id": "codec.pillow",
+      "category": "codec",
+      "name": "Pillow image decoder",
+      "purpose": {"en": "Optional sanitized photo preview and perceptual-hash decoder", "it": "Decoder opzionale per anteprime foto sanificate e hash percettivi"},
+      "dependency_relation": "optional_runtime",
+      "delivery": "external_local",
+      "update_route": "external_operator",
+      "origin": "https://github.com/python-pillow/Pillow/tree/12.3.0",
+      "license": "MIT-CMU",
+      "notices": "Not redistributed; the qualified Linux wheel digest is recorded in packaging/photo/pillow-12.3.0.json",
+      "purl": "pkg:pypi/pillow@12.3.0",
+      "expected_sha256": null,
+      "required": false,
+      "approved_version": "12.3.0",
+      "version_constraint": "==12.3.0",
+      "platforms": ["linux", "windows", "darwin"],
+      "detection": {"kind": "distribution", "value": "Pillow"},
+      "sbom_required": false,
+      "eol": false
+    },
+    {
       "id": "ocr.tesseract",
       "category": "native_tool",
       "name": "Tesseract OCR",
@@ -238,7 +259,7 @@
     {"category": "first_party", "state": "inventoried"},
     {"category": "python_package", "state": "inventoried"},
     {"category": "native_tool", "state": "inventoried"},
-    {"category": "codec", "state": "not_selected"},
+    {"category": "codec", "state": "inventoried"},
     {"category": "model", "state": "not_selected"},
     {"category": "language_pack", "state": "inventoried"},
     {"category": "host_prerequisite", "state": "inventoried"}

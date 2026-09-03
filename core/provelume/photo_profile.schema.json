@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/photo-profile-v1.json",
+  "title": "Provelume bounded photo profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "profile_id", "version_id", "original_sha256", "format", "media_type", "dimensions", "orientation", "color", "metadata", "capture_time", "gps", "preview", "duplicates", "ocr_reuse", "codes", "invariants"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "photo-profile"},
+    "profile_id": {"const": "perceptio-photo-v1"},
+    "version_id": {"$ref": "#/$defs/identifier"},
+    "original_sha256": {"$ref": "#/$defs/sha256"},
+    "format": {"enum": ["JPEG", "PNG", "TIFF", "BMP"]},
+    "media_type": {"enum": ["image/jpeg", "image/png", "image/tiff", "image/bmp"]},
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["encoded_width", "encoded_height", "display_width", "display_height", "pixels"],
+      "properties": {
+        "encoded_width": {"type": "integer", "minimum": 1, "maximum": 80000000},
+        "encoded_height": {"type": "integer", "minimum": 1, "maximum": 80000000},
+        "display_width": {"type": "integer", "minimum": 1, "maximum": 80000000},
+        "display_height": {"type": "integer", "minimum": 1, "maximum": 80000000},
+        "pixels": {"type": "integer", "minimum": 1, "maximum": 80000000}
+      }
+    },
+    "orientation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exif_value", "label"],
+      "properties": {
+        "exif_value": {"type": ["integer", "null"], "minimum": 1, "maximum": 8},
+        "label": {"enum": ["unknown", "normal", "mirror-horizontal", "rotate-180", "mirror-vertical", "mirror-horizontal-rotate-270", "rotate-90", "mirror-horizontal-rotate-90", "rotate-270"]}
+      }
+    },
+    "color": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "bit_depth", "icc_profile_present", "icc_profile_sha256"],
+      "properties": {
+        "model": {"enum": ["unknown", "grayscale", "grayscale-alpha", "rgb", "rgba", "indexed", "ycbcr", "cmyk"]},
+        "bit_depth": {"type": ["integer", "null"], "minimum": 1, "maximum": 128},
+        "icc_profile_present": {"type": "boolean"},
+        "icc_profile_sha256": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]}
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exif", "iptc", "xmp", "device_fields_redacted"],
+      "properties": {
+        "exif": {"$ref": "#/$defs/metadataFamily"},
+        "iptc": {"$ref": "#/$defs/metadataFamily"},
+        "xmp": {"$ref": "#/$defs/metadataFamily"},
+        "device_fields_redacted": {"const": true}
+      }
+    },
+    "capture_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["present", "value", "source", "verified"],
+      "properties": {
+        "present": {"type": "boolean"},
+        "value": {"type": ["string", "null"]},
+        "source": {"type": ["string", "null"]},
+        "verified": {"const": false}
+      }
+    },
+    "gps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["present", "source_precision", "coordinates", "redacted", "default_export"],
+      "properties": {
+        "present": {"type": "boolean"},
+        "source_precision": {"enum": ["none", "unknown", "exact", "coarse"]},
+        "coordinates": {"type": "null"},
+        "redacted": {"const": true},
+        "default_export": {"const": "excluded"}
+      }
+    },
+    "preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "media_type", "metadata_stripped", "active_content", "decoder", "source_frames"],
+      "properties": {
+        "state": {"enum": ["available", "unavailable"]},
+        "media_type": {"type": ["string", "null"]},
+        "metadata_stripped": {"type": "boolean"},
+        "active_content": {"const": false},
+        "decoder": {"type": ["string", "null"]},
+        "source_frames": {"type": ["integer", "null"], "minimum": 1}
+      }
+    },
+    "duplicates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exact_algorithm", "perceptual_algorithm", "threshold", "perceptual_hash", "proposals", "automatic_action"],
+      "properties": {
+        "exact_algorithm": {"const": "sha256"},
+        "perceptual_algorithm": {"const": "dhash-64-v1"},
+        "threshold": {"const": 6},
+        "perceptual_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{16}$"},
+        "proposals": {"type": "array", "maxItems": 1000, "items": {"$ref": "#/$defs/duplicateProposal"}},
+        "automatic_action": {"const": "none"}
+      }
+    },
+    "ocr_reuse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bundle_ids", "page_anchors", "region_anchors", "source_unchanged"],
+      "properties": {
+        "bundle_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "page_anchors": {"type": "array", "uniqueItems": true, "items": {"type": "integer", "minimum": 1, "maximum": 200}},
+        "region_anchors": {"type": "array", "maxItems": 100000, "items": {"type": "object"}},
+        "source_unchanged": {"const": true}
+      }
+    },
+    "codes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "adapter", "observations", "payloads_redacted"],
+      "properties": {
+        "state": {"enum": ["available", "unavailable"]},
+        "adapter": {"type": ["string", "null"]},
+        "observations": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/codeObservation"}},
+        "payloads_redacted": {"const": true}
+      }
+    },
+    "invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["derived", "original_immutable", "canonical_records_immutable", "network_used", "ai_used", "metadata_writeback", "automatic_duplicate_action"],
+      "properties": {
+        "derived": {"const": true},
+        "original_immutable": {"const": true},
+        "canonical_records_immutable": {"const": true},
+        "network_used": {"const": false},
+        "ai_used": {"const": false},
+        "metadata_writeback": {"const": false},
+        "automatic_duplicate_action": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "metadataFamily": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["present", "bytes", "sha256", "raw_values_exported"],
+      "properties": {
+        "present": {"type": "boolean"},
+        "bytes": {"type": "integer", "minimum": 0, "maximum": 4194304},
+        "sha256": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]},
+        "raw_values_exported": {"const": false}
+      }
+    },
+    "duplicateProposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "candidate_version_id", "candidate_representation_id", "distance", "threshold", "advisory", "action"],
+      "properties": {
+        "kind": {"enum": ["exact", "perceptual"]},
+        "candidate_version_id": {"$ref": "#/$defs/identifier"},
+        "candidate_representation_id": {"type": "string", "pattern": "^repr_[0-9a-f]{64}$"},
+        "distance": {"type": "integer", "minimum": 0, "maximum": 64},
+        "threshold": {"type": "integer", "minimum": 0, "maximum": 6},
+        "advisory": {"const": true},
+        "action": {"const": "review"}
+      }
+    },
+    "codeObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "symbology", "payload_sha256", "payload_redacted", "region"],
+      "properties": {
+        "kind": {"enum": ["qr-code", "barcode"]},
+        "symbology": {"type": "string", "minLength": 1, "maxLength": 100},
+        "payload_sha256": {"$ref": "#/$defs/sha256"},
+        "payload_redacted": {"const": true},
+        "region": {"type": ["object", "null"]}
+      }
+    }
+  }
+}

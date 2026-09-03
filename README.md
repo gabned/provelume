@@ -36,10 +36,11 @@ not authenticate a publisher and does not resolve `Unknown publisher`.
 [development plan](docs/releases/0.10.0.md) orders seven bounded slices. `0.10/S01` is delivered
 for [#162](https://github.com/gabned/provelume/issues/162) by owner
 [PR #163](https://github.com/gabned/provelume/pull/163): one universal representation/support
-contract and a byte-unchanged Lectio compatibility view. It implements no photo/audio/video/AI
-capability. `0.10/S02` is active for
+contract and a byte-unchanged Lectio compatibility view. `0.10/S02` is delivered for
 [#166](https://github.com/gabned/provelume/issues/166) through owner
-[PR #168](https://github.com/gabned/provelume/pull/168); S03–S07 remain planned in their existing
+[PR #168](https://github.com/gabned/provelume/pull/168). `0.10/S03` is the one active slice for
+[#169](https://github.com/gabned/provelume/issues/169) through owner
+[PR #170](https://github.com/gabned/provelume/pull/170); S04–S07 remain planned in their existing
 order. No `v0.10.0` tag/release is present and package/runtime/Windows identity remains `0.9.0`.
 
 The local **Representations & support** surface keeps Preserve, Inspect, Extract, Preview, Local
@@ -54,6 +55,12 @@ incompatible, EOL and unverified state across first-party, Python, native, codec
 language-pack and host-prerequisite classes. Service, CLI, API and EN/IT Browser use one offline,
 path-redacted model; an explicit local CycloneDX comparison never installs or updates anything.
 See the [component guide](docs/components.md).
+
+The active local **Photos** profile identifies bounded JPEG/PNG/TIFF/BMP Originals, redacts GPS
+coordinates and device values, keeps exact/perceptual duplicate evidence separate, reuses OCR page
+anchors and exposes a sanitized PNG only when external Pillow 12.3.0 is present. It performs no
+ambient scan, source write, duplicate action, runtime download or network request; see the
+[photo guide](docs/photos.md).
 
 The future lane keeps Lectio at `0.9.0`, assigns `0.10.0 Perceptio` to photo/audio/video
 representations and component visibility, and keeps the later forecasts ordered through the

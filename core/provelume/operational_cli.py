@@ -18,6 +18,7 @@ from .folder_settings_cli import (
 from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES
 from .library_cli import add_library_commands, handle_library_command
 from .operations import OperationLedger
+from .photo_cli import add_photo_commands, handle_photo_command
 from .rebuild_cli import add_rebuild_commands, handle_rebuild_command
 from .representation_cli import (
     add_representation_commands,
@@ -98,6 +99,7 @@ def add_operational_commands(subparsers: Any) -> None:
     add_folder_settings_commands(subparsers)
     add_bundle_commands(subparsers)
     add_representation_commands(subparsers)
+    add_photo_commands(subparsers)
     add_component_inventory_commands(subparsers)
     add_review_commands(subparsers)
     add_rebuild_commands(subparsers)
@@ -115,6 +117,9 @@ def handle_operational_command(args: argparse.Namespace) -> int | None:
     representation_result = handle_representation_command(args)
     if representation_result is not None:
         return representation_result
+    photo_result = handle_photo_command(args)
+    if photo_result is not None:
+        return photo_result
     component_result = handle_component_inventory_command(args)
     if component_result is not None:
         return component_result
