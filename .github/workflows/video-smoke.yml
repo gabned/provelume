@@ -44,7 +44,6 @@ jobs:
             --disable-x86asm \
             --disable-network \
             --disable-autodetect \
-            --disable-x86asm \
             --disable-gpl \
             --disable-version3 \
             --disable-nonfree \
