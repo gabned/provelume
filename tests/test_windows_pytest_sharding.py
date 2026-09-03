@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 from provelume.pytest_windows_shard import (
     CHILD_ENV,
+    DEFAULT_SHARD_TIMEOUT_SECONDS,
     DISABLE_ENV,
     FORCE_ENV,
     SHARD_COUNT,
@@ -31,6 +32,14 @@ def test_child_working_directory_prefers_versioned_config_over_volume_root(
 
 
 def test_module_partition_is_stable_disjoint_complete_and_balanced() -> None:
+    assert DEFAULT_SHARD_TIMEOUT_SECONDS == 480
+    contract = (
+        ROOT / "docs" / "adr" / "0020-windows-shell-and-configurable-loopback-endpoint.md"
+    ).read_text(encoding="utf-8")
+    assert "four concurrent subprocesses" in contract
+    assert "whole source modules" in contract
+    assert "isolated state and\npytest-cache directories" in contract
+    assert "480-second bounded deadline" in contract
     nodeids = [
         f"tests/test_synthetic_{module}.py::test_case_{case}"
         for module, size in enumerate((31, 29, 23, 19, 17, 13, 11, 7))
@@ -108,5 +117,6 @@ def test_shard_children_bind_root_and_effective_collection_targets() -> None:
     assert "root = _child_working_directory(config)" in source
     assert "Path(inipath).resolve().parent" in source
     assert 'f"--rootdir={root}"' in source
+    assert 'f"cache_dir={state / \'pytest-cache\'}"' in source
     assert "collection_targets" not in source
     assert "cwd=root" in source

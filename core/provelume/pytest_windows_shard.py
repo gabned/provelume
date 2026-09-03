@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 
 SHARD_COUNT = 4
-DEFAULT_SHARD_TIMEOUT_SECONDS = 420
+DEFAULT_SHARD_TIMEOUT_SECONDS = 480
 MIN_SHARD_TIMEOUT_SECONDS = 60
 MAX_SHARD_TIMEOUT_SECONDS = 480
 MAX_REPLAY_BYTES = 2 * 1024 * 1024
@@ -194,6 +194,8 @@ def pytest_cmdline_main(config) -> int | None:
                     "-m",
                     "pytest",
                     f"--rootdir={root}",
+                    "-o",
+                    f"cache_dir={state / 'pytest-cache'}",
                     *args,
                     f"--provelume-shard-index={index}",
                     f"--provelume-shard-count={SHARD_COUNT}",
