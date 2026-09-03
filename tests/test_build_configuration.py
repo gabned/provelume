@@ -256,8 +256,11 @@ def test_perceptio_release_metadata_is_aligned_without_rewriting_lectio_history(
 
     release = (root / "docs/releases/0.10.0.md").read_text(encoding="utf-8")
     qualification = (root / "docs/qualification/0.10.0.md").read_text(encoding="utf-8")
+    api = (root / "docs/api.md").read_text(encoding="utf-8")
     assert "PUBLISHED_TAG: v0.10.0" in release
     assert "RELEASE_OWNER_PR: #185" in release
     assert "published `0.9.0`" in release
     assert "explicitly unsigned" in release
     assert "Unknown publisher" in qualification
+    assert "development builds report `candidate`" in api
+    assert "`v0.10.0` reports `published`" in api
