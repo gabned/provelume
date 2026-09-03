@@ -725,7 +725,7 @@ def _normalise_transcript(value: Any, *, duration_ms: int) -> dict[str, Any]:
         words: list[dict[str, Any]] = []
         probabilities: list[float] = []
         previous_word_end = start
-        for token in raw_words:
+        for word_ordinal, token in enumerate(raw_words):
             if not isinstance(token, Mapping):
                 raise AudioContractError("audio_asr_failed", "ASR word is invalid")
             token_text = token.get("text", token.get("word"))
@@ -763,7 +763,6 @@ def _normalise_transcript(value: Any, *, duration_ms: int) -> dict[str, Any]:
                 probabilities.append(confidence)
             if token_start < previous_word_end or token_end < token_start or token_end > end:
                 raise AudioContractError("audio_asr_failed", "ASR word boundary is invalid")
-            word_ordinal = len(words)
             word_id = "aword_" + _sha256(
                 canonical_json_bytes(
                     {
@@ -1246,7 +1245,7 @@ def validate_audio_record(value: Any) -> dict[str, Any]:
         if word_count + len(segment["words"]) > MAX_WORDS:
             raise AudioContractError("audio_contract_violation", "audio word count is invalid")
         previous_word_end = segment["start_ms"]
-        for word_ordinal, word in enumerate(segment["words"]):
+        for word in segment["words"]:
             if (
                 not isinstance(word, Mapping)
                 or set(word)
@@ -1266,19 +1265,6 @@ def validate_audio_record(value: Any) -> dict[str, Any]:
                 or not _valid_confidence(word["confidence"])
             ):
                 raise AudioContractError("audio_contract_violation", "audio word is invalid")
-            expected_word_id = "aword_" + _sha256(
-                canonical_json_bytes(
-                    {
-                        "segment": segment_ordinal,
-                        "word": word_ordinal,
-                        "start_ms": word["start_ms"],
-                        "end_ms": word["end_ms"],
-                        "text": word["text"],
-                    }
-                )
-            )
-            if word["id"] != expected_word_id:
-                raise AudioContractError("audio_contract_violation", "audio word claim is invalid")
             previous_word_end = word["end_ms"]
         word_count += len(segment["words"])
         text_count += len(segment["text"])

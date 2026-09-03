@@ -19,6 +19,7 @@ from provelume.audio_profiles import (
 )
 from provelume.instance_backup import create_backup, extract_backup, verify_backup
 from provelume.instance_validation import inspect_instance
+from provelume.representations import canonical_json_bytes
 from provelume.service import ProvelumeInstance
 from provelume.storage import InstanceStore
 from provelume.web import create_app
@@ -209,6 +210,16 @@ class LowConfidenceAdapter(FakeAdapter):
         assert isinstance(segments, list)
         segments[0]["confidence"] = 0.2
         segments[0]["words"][0]["confidence"] = 0.2
+        return result
+
+
+class SpecialTokenAdapter(FakeAdapter):
+    @staticmethod
+    def transcribe(wav_bytes: bytes, *, language: str, threads: int) -> dict[str, object]:
+        result = FakeAdapter.transcribe(wav_bytes, language=language, threads=threads)
+        segments = result["segments"]
+        assert isinstance(segments, list)
+        segments[0]["words"].insert(0, {"text": "<|0.00|>"})
         return result
 
 
@@ -427,6 +438,31 @@ def test_low_confidence_is_preserved_as_uncertain_evidence(tmp_path: Path) -> No
     assert segment["confidence"] == 0.2
     assert segment["warning_codes"] == ["low_confidence"]
     assert profile["record"]["transcript"]["uncertainty_preserved"] is True
+
+
+def test_special_tokens_preserve_the_v1_raw_word_ordinal(tmp_path: Path) -> None:
+    instance, version_id = _seed(tmp_path)
+    manager = AudioProfileManager(instance.store, asr_adapter=SpecialTokenAdapter())
+    selected = manager.create(version_id)
+    profile = manager.get(str(selected["representation_id"]))
+    assert profile is not None
+    word = profile["record"]["transcript"]["segments"][0]["words"][0]
+    expected = (
+        "aword_"
+        + hashlib.sha256(
+            canonical_json_bytes(
+                {
+                    "segment": 0,
+                    "word": 1,
+                    "start_ms": 0,
+                    "end_ms": 80,
+                    "text": "ciao",
+                }
+            )
+        ).hexdigest()
+    )
+    assert word["id"] == expected
+    assert validate_audio_record(profile["record"])["version_id"] == version_id
 
 
 def test_audio_api_and_browser_are_read_only_by_default(tmp_path: Path) -> None:
