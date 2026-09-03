@@ -1571,6 +1571,31 @@ class AudioProfileManager:
             version_id, language=language, threads=threads
         )
         available = asr.get("state") == "ready" and "transcript.json" in payloads
+        expected_outputs = {
+            name: {
+                "media_type": media_type,
+                "sha256": _sha256(payload),
+                "size_bytes": len(payload),
+            }
+            for name, (media_type, payload) in payloads.items()
+        }
+        for existing in self.bundles.list(
+            version_id=version_id, recipe_id=AUDIO_RECIPE_ID, limit=500
+        ):
+            actual_outputs = {
+                Path(str(output["storage_ref"])).name: {
+                    "media_type": output["media_type"],
+                    "sha256": output["sha256"],
+                    "size_bytes": output["size_bytes"],
+                }
+                for output in existing["outputs"]
+            }
+            if (
+                existing["recipe"]["version"] == AUDIO_RECIPE_VERSION
+                and existing["recipe"]["settings"] == settings
+                and actual_outputs == expected_outputs
+            ):
+                return existing
         try:
             return self.bundles.materialize(
                 version_id,

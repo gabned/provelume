@@ -24,7 +24,13 @@ from provelume.storage import InstanceStore
 from provelume.web import create_app
 
 
-def _wav(*, seconds: float = 0.1, channels: int = 1, rate: int = 16_000) -> bytes:
+def _wav(
+    *,
+    seconds: float = 0.1,
+    channels: int = 1,
+    rate: int = 16_000,
+    fixture: str = "music",
+) -> bytes:
     frames = int(seconds * rate)
     payload = io.BytesIO()
     with wave.open(payload, "wb") as output:
@@ -32,8 +38,25 @@ def _wav(*, seconds: float = 0.1, channels: int = 1, rate: int = 16_000) -> byte
         output.setsampwidth(2)
         output.setframerate(rate)
         samples = []
+        noise_state = 1
         for frame in range(frames):
-            value = int(1_000 * math.sin(2 * math.pi * 440 * frame / rate))
+            if fixture == "silence":
+                value = 0
+            elif fixture == "noise":
+                noise_state = (1_103_515_245 * noise_state + 12_345) & 0x7FFFFFFF
+                value = (noise_state % 4_001) - 2_000
+            elif fixture == "speech-like":
+                envelope = (frame % max(1, rate // 8)) / max(1, rate // 8)
+                value = int(
+                    700
+                    * envelope
+                    * (
+                        math.sin(2 * math.pi * 120 * frame / rate)
+                        + math.sin(2 * math.pi * 720 * frame / rate) / 2
+                    )
+                )
+            else:
+                value = int(1_000 * math.sin(2 * math.pi * 440 * frame / rate))
             samples.extend([value] * channels)
         output.writeframes(struct.pack(f"<{len(samples)}h", *samples))
     return payload.getvalue()
@@ -159,6 +182,36 @@ class FakeAdapter:
         }
 
 
+class MissingAdapter:
+    @staticmethod
+    def capability() -> dict[str, object]:
+        return {
+            "state": "unavailable",
+            "reason": "component_missing",
+            "qualified": False,
+            "adapter_id": "whisper.cpp-cli",
+            "version": None,
+            "binary_sha256": None,
+            "device": "cpu",
+            "model_id": "ggml-tiny-q5_1",
+            "model_sha256": None,
+            "quantization": "q5_1",
+            "network_used": False,
+            "runtime_downloads": False,
+        }
+
+
+class LowConfidenceAdapter(FakeAdapter):
+    @staticmethod
+    def transcribe(wav_bytes: bytes, *, language: str, threads: int) -> dict[str, object]:
+        result = FakeAdapter.transcribe(wav_bytes, language=language, threads=threads)
+        segments = result["segments"]
+        assert isinstance(segments, list)
+        segments[0]["confidence"] = 0.2
+        segments[0]["words"][0]["confidence"] = 0.2
+        return result
+
+
 def _seed(tmp_path: Path) -> tuple[ProvelumeInstance, str]:
     source = tmp_path / "source"
     source.mkdir()
@@ -178,6 +231,51 @@ def test_pcm16_wav_inspection_is_bounded_and_qualified() -> None:
     assert record["sample_rate_hz"] == 48_000
     assert record["decode_state"] == "qualified"
     assert 90 <= record["duration_ms"] <= 100
+
+
+@pytest.mark.parametrize("fixture", ["silence", "music", "noise", "speech-like"])
+def test_representative_pcm_fixtures_have_deterministic_bounded_waveforms(
+    tmp_path: Path, fixture: str
+) -> None:
+    source = tmp_path / fixture
+    source.mkdir()
+    (source / "fixture.wav").write_bytes(_wav(seconds=0.2, fixture=fixture))
+    instance = ProvelumeInstance.initialise(tmp_path / f"instance-{fixture}")
+    instance.ingest(source)
+    version_id = str(instance.store.list_canonical("documents")[0]["current_version_id"])
+    manager = AudioProfileManager(instance.store, asr_adapter=MissingAdapter())
+    first = manager.create(version_id)
+    second = manager.create(version_id)
+    assert first["representation_id"] == second["representation_id"]
+    selected = manager.get(str(first["representation_id"]))
+    assert selected is not None
+    assert 1 <= selected["record"]["waveform"]["point_count"] <= 2_000
+    assert selected["record"]["transcript"]["state"] == "unavailable"
+    if fixture == "silence":
+        assert selected["record"]["waveform"]["peak_ppm"] == 0
+        assert selected["record"]["waveform"]["rms_ppm"] == 0
+
+
+def test_empty_limit_duration_and_channel_boundaries_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    empty = inspect_audio_bytes(_wav(seconds=0))
+    assert empty["sample_count"] == 0
+    assert empty["duration_ms"] == 0
+
+    monkeypatch.setattr("provelume.audio_profiles.MAX_INPUT_BYTES", 64)
+    with pytest.raises(AudioContractError) as oversized:
+        inspect_audio_bytes(_wav())
+    assert oversized.value.code == "audio_input_limit_exceeded"
+    monkeypatch.setattr("provelume.audio_profiles.MAX_INPUT_BYTES", 256 * 1024 * 1024)
+    monkeypatch.setattr("provelume.audio_profiles.MAX_DURATION_MS", 1)
+    with pytest.raises(AudioContractError) as duration:
+        inspect_audio_bytes(_wav())
+    assert duration.value.code == "audio_duration_limit_exceeded"
+    monkeypatch.setattr("provelume.audio_profiles.MAX_DURATION_MS", 2 * 60 * 60 * 1_000)
+    with pytest.raises(AudioContractError) as channels:
+        inspect_audio_bytes(_wav(channels=9))
+    assert channels.value.code == "audio_channel_limit_exceeded"
 
 
 @pytest.mark.parametrize(
@@ -274,6 +372,11 @@ def test_audio_job_creates_citable_bundle_without_mutating_original(tmp_path: Pa
     assert profile is not None
     assert profile["record"]["transcript"]["segments"][0]["text"] == "ciao"
     assert profile["record"]["time_map"]["anchor_count"] == 2
+    bundle = manager.bundles.get(str(completed["representation_id"]))
+    assert bundle is not None
+    assert len(bundle["anchors"]) == 2
+    assert all(anchor["version_id"] == version_id for anchor in bundle["anchors"])
+    assert bundle["anchors"][0]["target"] == {"start_ms": 0, "end_ms": 80}
     assert validate_audio_record(profile["record"])["invariants"]["network_used"] is False
     assert (
         instance.store.original_bytes(
@@ -303,6 +406,27 @@ def test_cancel_retry_remove_and_rebuild_are_durable(tmp_path: Path) -> None:
     representation_id = str(completed["representation_id"])
     assert manager.remove(representation_id)["original_mutated"] is False
     assert manager.rebuild(representation_id)["representation_id"] == representation_id
+
+
+def test_audio_settings_have_distinct_derived_identities(tmp_path: Path) -> None:
+    instance, version_id = _seed(tmp_path)
+    manager = AudioProfileManager(instance.store, asr_adapter=FakeAdapter())
+    english = manager.create(version_id, language="en", threads=1)
+    italian = manager.create(version_id, language="it", threads=2)
+    assert english["representation_id"] != italian["representation_id"]
+    assert english["recipe"]["settings"] != italian["recipe"]["settings"]
+
+
+def test_low_confidence_is_preserved_as_uncertain_evidence(tmp_path: Path) -> None:
+    instance, version_id = _seed(tmp_path)
+    manager = AudioProfileManager(instance.store, asr_adapter=LowConfidenceAdapter())
+    selected = manager.create(version_id)
+    profile = manager.get(str(selected["representation_id"]))
+    assert profile is not None
+    segment = profile["record"]["transcript"]["segments"][0]
+    assert segment["confidence"] == 0.2
+    assert segment["warning_codes"] == ["low_confidence"]
+    assert profile["record"]["transcript"]["uncertainty_preserved"] is True
 
 
 def test_audio_api_and_browser_are_read_only_by_default(tmp_path: Path) -> None:

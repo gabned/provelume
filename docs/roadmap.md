@@ -40,7 +40,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
 | Published preview | `0.9.0` | OCR, email, Google file and transcript intake | #137 (completed); S01–S07 completed by #138/#141/#147/#150/#152/#154/#156; release #158 | `Lectio` |
-| Active development | `0.10.0` | Multimedia, universal content representations and component inventory | #160; S02 #166/#168 delivered; S03 #169 / owner PR #170 active | `Perceptio` |
+| Active development | `0.10.0` | Multimedia, universal content representations and component inventory | #160; S01–S03 delivered; S04 #171/#172 active | `Perceptio` |
 | Forecast | `0.11.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
 | Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
