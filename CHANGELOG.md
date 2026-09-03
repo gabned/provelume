@@ -6,6 +6,14 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
+- activated `0.10/S06` through issue #177, selecting exactly the bounded CSV cell, XLSX
+  sheet/cached-cell and ZIP member profiles over Python 3.12 standard-library parsers (PSF-2.0);
+- promoted the already reserved sheet/cell/member anchor kinds with additive typed-v1 targets,
+  durable jobs, remove/rebuild, read-only API and inert accessible EN/IT Browser previews while
+  retaining legacy reserved targets and leaving package/publication identity at `0.9.0`;
+- rejected unsafe encodings/paths/collisions, encrypted or excessive archives, external OOXML
+  relationships, macros, embedded active content and formula-only cells; no member extraction,
+  active-content execution, network, runtime download, dependency or fourth profile was added;
 - activated `0.10/S05` through issue #174 and owner PR #175, adding a bounded
   MP4/MOV/MKV/WebM/AVI profile with an
   exact external FFmpeg/ffprobe 9.0.1 pair, closed codec matrix, embedded subtitle evidence, S04

@@ -1,0 +1,66 @@
+name: Bounded file-family profile smoke
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu-x86_64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up CPython 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Record conformance runtime identity
+        run: |
+          set -euo pipefail
+          uname -a
+          uname -m
+          cat /etc/os-release
+          python -VV
+
+      - name: Bootstrap without parser downloads
+        run: python scripts/bootstrap.py
+
+      - name: Run bounded CSV, XLSX and ZIP conformance
+        run: .venv/bin/python -m pytest -q tests/test_file_family_profiles.py
+
+  windows-x86_64:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up CPython 3.12 x64
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+          architecture: x64
+
+      - name: Record conformance runtime identity
+        shell: pwsh
+        run: |
+          Get-ComputerInfo | Select-Object OsName, OsVersion, OsArchitecture
+          python -VV
+
+      - name: Bootstrap without parser downloads
+        run: python scripts/bootstrap.py
+
+      - name: Run bounded CSV, XLSX and ZIP conformance
+        run: .venv\Scripts\python.exe -m pytest -q tests/test_file_family_profiles.py

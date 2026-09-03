@@ -11,6 +11,7 @@ from .connectors import ConnectorManager
 from .email_contract import EmailContractError
 from .email_jobs import EMAIL_JOB_KIND, EmailJobManager
 from .email_sources import EmailSourceManager
+from .file_family_profiles import FileFamilyProfileManager
 from .folder_source_model import SOURCE_LIFECYCLE_STATES, FolderSourceError
 from .folder_sources import FolderSourceManager
 from .google_contract import GOOGLE_JOB_KIND, GoogleContractError
@@ -91,6 +92,7 @@ class ProvelumeInstance:
         self.photos = PhotoProfileManager(self.store)
         self.audio = AudioProfileManager(self.store)
         self.video = VideoProfileManager(self.store)
+        self.file_families = FileFamilyProfileManager(self.store)
         self.scheduler = SchedulerCoordinator(self.store)
         self.ocr = OcrJobManager(self.store)
         self.email_sources = EmailSourceManager(self.store)
@@ -253,6 +255,43 @@ class ProvelumeInstance:
 
     def rebuild_video(self, representation_id: str) -> dict[str, Any]:
         return self.video.rebuild(representation_id)
+
+    def file_family_support(self) -> dict[str, Any]:
+        return self.file_families.capability()
+
+    def queue_file_family(self, version_id: str, profile_id: str) -> dict[str, Any]:
+        return self.file_families.queue(version_id, profile_id)
+
+    def run_file_family_job(self, job_id: str) -> dict[str, Any]:
+        return self.file_families.run(job_id)
+
+    def cancel_file_family_job(self, job_id: str) -> dict[str, Any]:
+        return self.file_families.cancel(job_id)
+
+    def retry_file_family_job(self, job_id: str) -> dict[str, Any]:
+        return self.file_families.retry(job_id)
+
+    def file_family_read_model(
+        self,
+        *,
+        profile_id: str | None = None,
+        version_id: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        return self.file_families.read_model(
+            profile_id=profile_id,
+            version_id=version_id,
+            limit=limit,
+        )
+
+    def get_file_family(self, representation_id: str) -> dict[str, Any] | None:
+        return self.file_families.get(representation_id)
+
+    def remove_file_family(self, representation_id: str) -> dict[str, Any]:
+        return self.file_families.remove(representation_id)
+
+    def rebuild_file_family(self, representation_id: str) -> dict[str, Any]:
+        return self.file_families.rebuild(representation_id)
 
     def qualification_limits(self) -> dict[str, Any]:
         return self.qualification.limits()

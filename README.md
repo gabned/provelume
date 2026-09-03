@@ -43,10 +43,11 @@ contract and a byte-unchanged Lectio compatibility view. `0.10/S02` is delivered
 [PR #170](https://github.com/gabned/provelume/pull/170). `0.10/S04` is delivered through
 [#171](https://github.com/gabned/provelume/issues/171), owner
 [PR #172](https://github.com/gabned/provelume/pull/172) and qualifying correction
-[PR #173](https://github.com/gabned/provelume/pull/173). `0.10/S05` is the one active slice under
+[PR #173](https://github.com/gabned/provelume/pull/173). `0.10/S05` is delivered through
 [#174](https://github.com/gabned/provelume/issues/174) and owner
-[PR #175](https://github.com/gabned/provelume/pull/175); S06–S07 remain planned. No `v0.10.0`
-tag/release is present and package/runtime/Windows identity remains `0.9.0`.
+[PR #175](https://github.com/gabned/provelume/pull/175). `0.10/S06` is the one active slice under
+[#177](https://github.com/gabned/provelume/issues/177); S07 remains planned. No `v0.10.0` tag or
+release is present and package/runtime/Windows identity remains `0.9.0`.
 
 The local **Representations & support** surface keeps Preserve, Inspect, Extract, Preview, Local
 enrich and AI enrich independent. It reports declared/effective support, closed unavailable or
@@ -72,6 +73,11 @@ an explicitly configured FFmpeg/ffprobe 9.0.1 pair for qualified Ubuntu inspecti
 embedded subtitles, the S04 audio contract, deterministic bounded scenes/keyframes and OCR only
 for explicitly selected frames. Missing or unqualified components remain visible and safe; see
 the [video guide](docs/video.md).
+
+The active **Tables and archives** surface adds exactly three dependency-free higher-level
+profiles: bounded UTF-8 CSV cells, bounded XLSX sheets/cached cells and bounded ZIP members. Typed
+anchors reopen every displayed cell/member; no formula, macro, attachment or member executes and
+ZIP data is never extracted to the host. See the [file-family guide](docs/file-families.md).
 
 The future lane keeps Lectio at `0.9.0`, assigns `0.10.0 Perceptio` to photo/audio/video
 representations and component visibility, and keeps the later forecasts ordered through the

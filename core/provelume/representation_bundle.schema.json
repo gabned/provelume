@@ -222,8 +222,91 @@
             }
           },
           {
-            "if": {"properties": {"kind": {"enum": ["slide", "sheet", "cell", "member", "symbol"]}}},
+            "if": {"properties": {"kind": {"enum": ["slide", "symbol"]}}},
             "then": {"properties": {"target": {"const": {"reserved": true}}}}
+          },
+          {
+            "if": {"properties": {"kind": {"const": "sheet"}}},
+            "then": {
+              "properties": {
+                "target": {
+                  "oneOf": [
+                    {"const": {"reserved": true}},
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["schema_version", "sheet_index", "sheet_name"],
+                      "properties": {
+                        "schema_version": {"const": 1},
+                        "sheet_index": {"type": "integer", "minimum": 1},
+                        "sheet_name": {"type": "string", "minLength": 1, "maxLength": 255}
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {"properties": {"kind": {"const": "cell"}}},
+            "then": {
+              "properties": {
+                "target": {
+                  "oneOf": [
+                    {"const": {"reserved": true}},
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["schema_version", "profile", "row", "column", "coordinate"],
+                      "properties": {
+                        "schema_version": {"const": 1},
+                        "profile": {"const": "csv"},
+                        "row": {"type": "integer", "minimum": 1},
+                        "column": {"type": "integer", "minimum": 1},
+                        "coordinate": {"type": "string", "pattern": "^[A-Z]{1,3}[1-9][0-9]{0,6}$"}
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["schema_version", "profile", "sheet_index", "sheet_name", "row", "column", "coordinate"],
+                      "properties": {
+                        "schema_version": {"const": 1},
+                        "profile": {"const": "xlsx"},
+                        "sheet_index": {"type": "integer", "minimum": 1},
+                        "sheet_name": {"type": "string", "minLength": 1, "maxLength": 255},
+                        "row": {"type": "integer", "minimum": 1},
+                        "column": {"type": "integer", "minimum": 1},
+                        "coordinate": {"type": "string", "pattern": "^[A-Z]{1,3}[1-9][0-9]{0,6}$"}
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {"properties": {"kind": {"const": "member"}}},
+            "then": {
+              "properties": {
+                "target": {
+                  "oneOf": [
+                    {"const": {"reserved": true}},
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["schema_version", "member_index", "path", "sha256"],
+                      "properties": {
+                        "schema_version": {"const": 1},
+                        "member_index": {"type": "integer", "minimum": 1},
+                        "path": {"type": "string", "minLength": 1, "maxLength": 240},
+                        "sha256": {"$ref": "#/$defs/sha256"}
+                      }
+                    }
+                  ]
+                }
+              }
+            }
           }
         ]
       }

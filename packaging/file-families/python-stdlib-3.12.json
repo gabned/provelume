@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "component": "runtime.cpython",
+  "version": "3.12",
+  "license": "PSF-2.0",
+  "source": "https://www.python.org/downloads/release/python-31214/",
+  "runtime_downloads": false,
+  "network_required": false,
+  "modules": ["csv", "xml.etree.ElementTree", "zipfile"],
+  "profiles": [
+    "perceptio-csv-cell-v1",
+    "perceptio-xlsx-sheet-cell-v1",
+    "perceptio-zip-member-v1"
+  ]
+}

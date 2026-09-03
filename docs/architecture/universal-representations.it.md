@@ -50,8 +50,10 @@ first-party incluse nel pacchetto.
 
 Ogni anchor ripete gli ID esatti di Version e rappresentazione. Gli anchor pagina hanno un numero
 positivo. Gli anchor tempo hanno limiti ordinati e non negativi in millisecondi. Gli anchor regione
-contengono pagina e rettangolo positivo. I tipi riservati `slide`, `sheet`, `cell`, `member` e
-`symbol` devono contenere solo una riserva esplicita e non dichiarano supporto a formati.
+contengono pagina e rettangolo positivo. `slide` e `symbol` restano riservati e contengono solo una
+riserva esplicita. S06 attiva in modo additivo forme target-v1 chiuse per `sheet`, `cell` CSV/XLSX e
+`member` ZIP; la riserva esplicita precedente resta valida, quindi i bundle schema-v1 esistenti non
+richiedono migrazione. Un target tipizzato vale solo per profilo e coordinate/percorso/hash esatti.
 
 Le correzioni riferiscono un anchor, vincolano checksum prima/dopo e sono sempre reversibili. Sono
 annotazioni su una rappresentazione derivata, mai modifiche a Original, record canonici o dati del
