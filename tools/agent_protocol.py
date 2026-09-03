@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stateless Agent Protocol v1.2 contracts plus the v1.2.1 change-control overlay."""
+"""Stateless v1.2 gates, v1.2.1 change control, and active governance metadata."""
 from __future__ import annotations
 
 import argparse
@@ -15,7 +15,7 @@ PROTOCOL_VERSION = "1.2"
 SCHEMA_VERSION = 2
 CHANGE_CONTROL_VERSION = "1.2.1"
 CHANGE_CONTROL_SCHEMA_VERSION = 1
-GOVERNANCE_RELEASE = "1.3.0"
+GOVERNANCE_RELEASE = "1.4.0"
 REPOSITORY = "gabned/provelume"
 DEFAULT_BRANCH = "main"
 MAX_EVIDENCE_AGE = timedelta(minutes=15)
@@ -52,9 +52,12 @@ SAFE_PROTOCOL_PATHS = {
     "docs/agent-development-v1.2.md",
     "docs/agent-development-v1.2.1.md",
     "docs/agent-development-v1.3.0.md",
+    "docs/agent-development-v1.4.0.md",
     "tests/test_agent_protocol_v1_2.py",
     "tests/test_agent_protocol_v1_2_1.py",
+    "tests/test_agent_protocol_v1_4.py",
     "tools/agent_protocol.py",
+    "tools/agent_protocol_v1_4.py",
 }
 WORKSTREAM_CLASSES = {"PRODUCT", "PROTOCOL"}
 PROTECTED_PROTOCOL_EXACT = {
@@ -66,9 +69,12 @@ PROTECTED_PROTOCOL_EXACT = {
     "docs/agent-development-v1.2.md",
     "docs/agent-development-v1.2.1.md",
     "docs/agent-development-v1.3.0.md",
+    "docs/agent-development-v1.4.0.md",
     "tests/test_agent_protocol_v1_2.py",
     "tests/test_agent_protocol_v1_2_1.py",
+    "tests/test_agent_protocol_v1_4.py",
     "tools/agent_protocol.py",
+    "tools/agent_protocol_v1_4.py",
 }
 PROTECTED_PROTOCOL_PREFIXES = (
     ".github/agent-protocol/",

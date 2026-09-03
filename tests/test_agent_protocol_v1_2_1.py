@@ -275,7 +275,7 @@ def review_common() -> dict[str, object]:
 
 
 def test_v1_3_unrequested_codex_review_is_not_a_gate() -> None:
-    assert protocol.GOVERNANCE_RELEASE == "1.3.0"
+    assert protocol.GOVERNANCE_RELEASE == "1.4.0"
     assert protocol.PROTOCOL_VERSION == "1.2"
     result = protocol.evaluate_review_gate(
         source="NONE",
