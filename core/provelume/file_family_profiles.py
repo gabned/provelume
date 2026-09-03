@@ -721,7 +721,10 @@ def _parse_xlsx(
                 seen_cells.add(coordinate)
                 declared_row = row_node.get("r")
                 if declared_row is not None and (
-                    not declared_row.isdigit() or int(declared_row) != row
+                    not declared_row.isascii()
+                    or not declared_row.isdigit()
+                    or len(declared_row) > 7
+                    or int(declared_row) != row
                 ):
                     raise FileFamilyContractError(
                         "file_family_structure_invalid", "XLSX row and cell coordinates disagree"

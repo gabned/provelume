@@ -311,6 +311,14 @@ def test_xlsx_shared_string_index_is_bounded_before_integer_conversion() -> None
         _parse_xlsx(_zip(entries), cancelled=None)
     assert caught.value.code == "file_family_structure_invalid"
 
+    entries = _zip_entries(_xlsx())
+    entries["xl/worksheets/sheet1.xml"] = entries[
+        "xl/worksheets/sheet1.xml"
+    ].replace(b'<row r="1">', b'<row r="' + b"9" * 5_000 + b'">')
+    with pytest.raises(FileFamilyContractError) as oversized_row:
+        _parse_xlsx(_zip(entries), cancelled=None)
+    assert oversized_row.value.code == "file_family_structure_invalid"
+
 
 def test_xlsx_allows_safe_parent_relationship_targets() -> None:
     entries = _zip_entries(_xlsx())
