@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ t('components.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('components.eyebrow') }}</p>
+  <h1>{{ t('components.title') }}</h1>
+  <p class="lead">{{ t('components.lead') }}</p>
+  <p class="technical-note">{{ t('components.read_only') }}</p>
+</section>
+<section class="metric-grid" aria-label="{{ t('components.summary') }}">
+  <article><span>{{ t('components.total') }}</span><strong>{{ inventory.summary.total }}</strong></article>
+  <article><span>{{ t('components.installed') }}</span><strong>{{ inventory.summary.states.installed }}</strong></article>
+  <article><span>{{ t('components.missing') }}</span><strong>{{ inventory.summary.states.missing }}</strong></article>
+  <article><span>{{ t('components.unverified') }}</span><strong>{{ inventory.summary.states.unverified }}</strong></article>
+</section>
+<section class="panel">
+  <h2>{{ t('components.catalogue') }}</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>{{ t('components.component') }}</th>
+        <th>{{ t('components.category') }}</th>
+        <th>{{ t('components.purpose') }}</th>
+        <th>{{ t('components.version') }}</th>
+        <th>{{ t('components.status') }}</th>
+        <th>{{ t('components.license') }}</th>
+        <th>{{ t('components.delivery') }}</th>
+      </tr></thead>
+      <tbody>
+      {% for row in inventory.components %}
+        <tr>
+          <td><strong>{{ row.name }}</strong><br><code>{{ row.id }}</code></td>
+          <td>{{ t('components.category.' ~ row.category) }}</td>
+          <td>{{ row.purpose[lang] }}</td>
+          <td><code>{{ row.effective_version or '—' }}</code><br><small>{{ row.version_constraint or row.approved_version or '—' }}{% if row.pinned %} · {{ t('components.pinned') }}{% endif %}{% if row.latest_known_version %}<br>{{ t('components.latest') }}: {{ row.latest_known_version }} ({{ t('components.check.' ~ row.latest_check.status) }}){% endif %}</small></td>
+          <td><strong>{{ t('components.status.' ~ row.status) }}</strong><br><small>{{ t('components.reason.' ~ row.status_reason) }}<br>{{ t('components.security') }}: {{ t('components.security.' ~ row.security_status) }}</small></td>
+          <td><code>{{ row.license }}</code></td>
+          <td>{{ t('components.delivery.' ~ row.delivery) }}<br><small>{{ t('components.update.' ~ row.update_route) }}</small></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<section class="panel">
+  <h2>{{ t('components.evidence') }}</h2>
+  <p>{{ t('components.release_evidence') }}: <strong>{{ t('components.release.' ~ inventory.release_evidence.status) }}</strong></p>
+  <p>{{ t('components.no_network') }}</p>
+</section>
+{% endblock %}

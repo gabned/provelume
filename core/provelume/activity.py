@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query, Request
 
 from .bundle_activity import attach_bundle_routes
+from .component_inventory_activity import attach_component_inventory_routes
 from .configured_inbox import InboxManager
 from .connector_activity import attach_connector_routes
 from .folder_settings_activity import attach_folder_settings_routes
@@ -104,5 +105,6 @@ def attach_activity_routes(
     attach_connector_routes(app, instance, templates, context_factory)
     attach_bundle_routes(app, instance, templates, context_factory)
     attach_representation_routes(app, instance, templates, context_factory)
+    attach_component_inventory_routes(app, instance, templates, context_factory)
     attach_review_routes(app, instance, templates, context_factory)
     attach_rebuild_routes(app, instance, templates, context_factory)

@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from .component_inventory import ComponentInventory
 from .connectors import ConnectorManager
 from .email_contract import EmailContractError
 from .email_jobs import EMAIL_JOB_KIND, EmailJobManager
@@ -82,6 +83,7 @@ class ProvelumeInstance:
         self.maintenance = MaintenanceManager(self.store)
         self.source_reconciliation = SourceReconciliationManager(self.store)
         self.resource_statistics = ResourceStatisticsManager(self.store)
+        self.components = ComponentInventory()
         self.representations = RepresentationReadModel(self.store)
         self.scheduler = SchedulerCoordinator(self.store)
         self.ocr = OcrJobManager(self.store)
@@ -120,6 +122,9 @@ class ProvelumeInstance:
 
     def qualification_matrix(self) -> dict[str, Any]:
         return self.qualification.matrix()
+
+    def component_inventory(self) -> dict[str, Any]:
+        return self.components.read()
 
     def representation_support(self, *, profile_id: str | None = None) -> dict[str, Any]:
         return self.representations.support.read(profile_id=profile_id)

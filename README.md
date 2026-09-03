@@ -8,7 +8,7 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.9.0 Lectio preview; 0.10.0 Perceptio planned development
+## Current status: 0.9.0 Lectio preview; 0.10.0 Perceptio active implementation
 
 [`v0.9.0`](https://github.com/gabned/provelume/releases/tag/v0.9.0) Lectio is the current public
 prerelease. Its permanent verified release chain binds the tag, package, embedded identity,
@@ -37,8 +37,10 @@ not authenticate a publisher and does not resolve `Unknown publisher`.
 for [#162](https://github.com/gabned/provelume/issues/162) by owner
 [PR #163](https://github.com/gabned/provelume/pull/163): one universal representation/support
 contract and a byte-unchanged Lectio compatibility view. It implements no photo/audio/video/AI
-capability. No slice is active; S02 is only the next `planned` slice and S03–S07 remain planned.
-No `v0.10.0` tag/release is present and package/runtime/Windows identity remains `0.9.0`.
+capability. `0.10/S02` is active for
+[#166](https://github.com/gabned/provelume/issues/166) through owner
+[PR #168](https://github.com/gabned/provelume/pull/168); S03–S07 remain planned in their existing
+order. No `v0.10.0` tag/release is present and package/runtime/Windows identity remains `0.9.0`.
 
 The local **Representations & support** surface keeps Preserve, Inspect, Extract, Preview, Local
 enrich and AI enrich independent. It reports declared/effective support, closed unavailable or
@@ -46,6 +48,12 @@ degraded reasons and missing components through the same offline read model in s
 and EN/IT Browser. `AI enrich` is explicitly unavailable; see the
 [user guide](docs/representations.md) and
 [developer contract](docs/architecture/universal-representations.md).
+
+The candidate local **Components** catalogue distinguishes installed, missing, ahead,
+incompatible, EOL and unverified state across first-party, Python, native, codec, model,
+language-pack and host-prerequisite classes. Service, CLI, API and EN/IT Browser use one offline,
+path-redacted model; an explicit local CycloneDX comparison never installs or updates anything.
+See the [component guide](docs/components.md).
 
 The future lane keeps Lectio at `0.9.0`, assigns `0.10.0 Perceptio` to photo/audio/video
 representations and component visibility, and keeps the later forecasts ordered through the
@@ -96,6 +104,8 @@ The active source tree can:
   viewing, versions, provenance, Inbox, bundles, duplicates, assurance, rebuild reports,
   operations, settings and health;
 - report its embedded version/tag/commit/source identity offline through CLI, API and browser;
+- inspect installed and declared release components offline through one bilingual, path-redacted
+  catalogue, with an explicit bounded local CycloneDX comparison and no automatic update;
 - define provider-independent connector types and keep ConnectorDefinition, ConnectorInstance and
   Source as separate stable multi-instance identities;
 - create, inspect, update, disable and tombstone-remove connector instances and Sources while

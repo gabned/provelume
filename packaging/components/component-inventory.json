@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "profile_id": "provelume.component-inventory-v1",
+  "catalogue_resource": "provelume/component_catalogue.json",
+  "inventory_schema_resource": "provelume/component_inventory.schema.json",
+  "release_sbom": {
+    "format": "CycloneDX",
+    "source": "release-generated-from-built-artifacts",
+    "comparison": "explicit-local-read-only"
+  },
+  "component_classes": [
+    "first_party",
+    "python_package",
+    "native_tool",
+    "codec",
+    "model",
+    "language_pack",
+    "host_prerequisite"
+  ],
+  "runtime_network_default": "disabled",
+  "automatic_install": false,
+  "automatic_update": false,
+  "private_paths_exported": false,
+  "instance_content_exported": false
+}
