@@ -486,8 +486,8 @@ def _relationship_map(payloads: Mapping[str, bytes]) -> dict[str, tuple[str, str
                 or not target
                 or not relation_type
                 or target.startswith(("/", "\\"))
+                or "\\" in target
                 or PurePosixPath(target).as_posix() != target
-                or any(part in {"", ".", ".."} for part in PurePosixPath(target).parts)
             ):
                 raise FileFamilyContractError(
                     "file_family_structure_invalid", "OOXML relationship is invalid"
@@ -501,7 +501,12 @@ def _relationship_map(payloads: Mapping[str, bytes]) -> dict[str, tuple[str, str
                 )
             )
             resolved = posixpath.normpath(posixpath.join(posixpath.dirname(source), target))
-            resolved = _safe_member_path(resolved)
+            try:
+                resolved = _safe_member_path(resolved)
+            except FileFamilyContractError as exc:
+                raise FileFamilyContractError(
+                    "file_family_structure_invalid", "OOXML relationship escapes the package"
+                ) from exc
             current[relation_id] = (resolved, relation_type)
         if path == "xl/_rels/workbook.xml.rels":
             relationships = current
@@ -548,13 +553,17 @@ def _xlsx_display_value(
     else:
         raw = "" if value_node is None or value_node.text is None else value_node.text
         if cell_type == "s":
-            if not raw.isdigit():
+            if (
+                not raw.isascii()
+                or not raw.isdigit()
+                or len(raw) > len(str(XLSX_MAX_SHARED_STRINGS))
+            ):
                 raise FileFamilyContractError(
                     "file_family_structure_invalid", "XLSX shared-string reference is invalid"
                 )
             try:
                 display = shared_strings[int(raw)]
-            except IndexError as exc:
+            except (IndexError, ValueError) as exc:
                 raise FileFamilyContractError(
                     "file_family_structure_invalid", "XLSX shared-string reference is invalid"
                 ) from exc

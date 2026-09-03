@@ -57,6 +57,11 @@ def _mark_zip_encrypted(payload: bytes) -> bytes:
     return bytes(selected)
 
 
+def _zip_entries(payload: bytes) -> dict[str, bytes]:
+    with ZipFile(BytesIO(payload)) as archive:
+        return {item.filename: archive.read(item) for item in archive.infolist()}
+
+
 def _xlsx(
     *,
     formula: str = 'WEBSERVICE("https://invalid.example")',
@@ -285,6 +290,48 @@ def test_xml_active_declaration_is_rejected_beyond_the_prefix() -> None:
     with pytest.raises(FileFamilyContractError) as caught:
         _parse_xml(payload, label="late-doctype.xml")
     assert caught.value.code == "file_family_active_content"
+
+
+def test_xlsx_shared_string_index_is_bounded_before_integer_conversion() -> None:
+    entries = _zip_entries(_xlsx())
+    entries["xl/sharedStrings.xml"] = b"""<?xml version="1.0"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <si><t>bounded</t></si>
+</sst>"""
+    entries["xl/worksheets/sheet1.xml"] = (
+        """<?xml version="1.0"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData><row r="1"><c r="A1" t="s"><v>"""
+        + "9" * 5_000
+        + """</v></c></row></sheetData>
+</worksheet>"""
+    ).encode()
+
+    with pytest.raises(FileFamilyContractError) as caught:
+        _parse_xlsx(_zip(entries), cancelled=None)
+    assert caught.value.code == "file_family_structure_invalid"
+
+
+def test_xlsx_allows_safe_parent_relationship_targets() -> None:
+    entries = _zip_entries(_xlsx())
+    entries["xl/worksheets/_rels/sheet1.xml.rels"] = b"""<?xml version="1.0"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+    Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing"
+    Target="../drawings/drawing1.xml"/>
+</Relationships>"""
+    entries["xl/drawings/drawing1.xml"] = b"<drawing/>"
+
+    profile, _anchors, _preview = _parse_xlsx(_zip(entries), cancelled=None)
+    assert profile["sheet_count"] == 1
+
+    entries = _zip_entries(_xlsx())
+    entries["xl/_rels/workbook.xml.rels"] = entries[
+        "xl/_rels/workbook.xml.rels"
+    ].replace(b'Target="worksheets/sheet1.xml"', b'Target="../../escape.xml"')
+    with pytest.raises(FileFamilyContractError) as escaped:
+        _parse_xlsx(_zip(entries), cancelled=None)
+    assert escaped.value.code == "file_family_structure_invalid"
 
 
 def test_persisted_profile_validation_rejects_inconsistent_nested_evidence(
