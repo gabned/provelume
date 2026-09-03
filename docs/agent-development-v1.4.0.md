@@ -26,6 +26,8 @@ A **campaign** is a GitHub issue-backed plan containing one ordered slice or a
 release train. Its machine-readable snapshot may be retained in the owner issue
 or in ignored `.agent/` connector evidence. It is not committed as global state.
 The current slice continues to own exactly one branch and one pull request.
+Every snapshot carries the exact `#<number>` owner issue; initial authorization
+and the release checkpoint are bound back to that issue.
 
 Campaign execution follows these rules:
 
@@ -120,6 +122,9 @@ The only campaign checkpoint policy is `RELEASE_BOUNDARY`:
   train, published version, build SHA, checks, assets, and remaining inbox;
 - campaign completion requires that checkpoint;
 - the next train starts from the verified checkpoint, not from remembered chat.
+
+A `SINGLE_SLICE` campaign instead completes when its sole slice is terminal. It
+must remain unpublished and records no release checkpoint.
 
 This keeps Provelume's PR-local ownership and absence of `AGENT_STATUS.md` intact.
 Repositories that already use a committed checkpoint may map the same boundary

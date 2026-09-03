@@ -58,9 +58,26 @@ def test_merge_requires_exact_head_gate_event() -> None:
         "kind": "MERGE_ACTIVE_SLICE",
         "slice_id": "pilot/S01",
     }
+    value["next_action"]["summary"] = "Merge pilot/S01 after exact-head gates."
     value["observed_event"] = "PR_MERGED"
 
     with pytest.raises(protocol.ContractError, match="passed-gate evidence"):
+        protocol.validate_campaign(value)
+
+
+def test_merge_event_must_equal_the_active_head() -> None:
+    value = campaign()
+    value["slices"][0]["state"] = "ACTIVE"
+    value["slices"][0]["merge_sha"] = "NONE"
+    value["pending_action"] = {
+        "kind": "MERGE_ACTIVE_SLICE",
+        "slice_id": "pilot/S01",
+    }
+    value["next_action"]["summary"] = "Merge pilot/S01 after exact-head gates."
+    value["observed_event"] = "GATES_PASSED"
+    value["observed_event_ref"] = "9" * 40
+
+    with pytest.raises(protocol.ContractError, match="exact-head"):
         protocol.validate_campaign(value)
 
 
@@ -74,6 +91,7 @@ def test_authority_boundary_must_be_an_explicit_human_gate() -> None:
         "kind": "MERGE_ACTIVE_SLICE",
         "slice_id": "pilot/S01",
     }
+    value["next_action"]["summary"] = "Merge pilot/S01 after exact-head gates."
     value["observed_event"] = "GATES_PASSED"
     value["observed_event_ref"] = value["slices"][0]["head_sha"]
 
@@ -96,11 +114,25 @@ def test_closed_human_gate_requires_one_exact_prompt() -> None:
     value["stop_reason"] = "AUTHORITY_EXHAUSTED"
     value["next_action"] = {
         "type": "USER_ACTION_REQUIRED",
-        "summary": "Authorize merge of the exact reviewed head.",
+        "summary": "Authorize merge of pilot/S01 on the exact reviewed head.",
         "prompt": "Authorize merge of pilot/S01 on its unchanged reviewed head.",
     }
 
     protocol.validate_campaign(value)
+
+
+def test_authority_exhausted_cannot_stop_authorized_work() -> None:
+    value = campaign()
+    value["campaign_state"] = "HUMAN_GATE"
+    value["stop_reason"] = "AUTHORITY_EXHAUSTED"
+    value["next_action"] = {
+        "type": "USER_ACTION_REQUIRED",
+        "summary": "Authorize the already-authorized pilot/S02 start.",
+        "prompt": "Authorize pilot/S02.",
+    }
+
+    with pytest.raises(protocol.ContractError, match="beyond the envelope"):
+        protocol.validate_campaign(value)
 
 
 def test_stop_reason_registry_fails_closed() -> None:
@@ -116,6 +148,64 @@ def test_idea_inbox_accepts_only_unique_github_issues() -> None:
     value["idea_inbox"]["items"] = ["free-form idea"]
 
     with pytest.raises(protocol.ContractError, match="exact issue/PR"):
+        protocol.validate_campaign(value)
+
+
+def test_campaign_requires_an_exact_owner_issue() -> None:
+    value = campaign()
+    value["owner_issue"] = "remembered-in-chat"
+
+    with pytest.raises(protocol.ContractError, match="exact issue/PR"):
+        protocol.validate_campaign(value)
+
+
+def test_active_slice_cannot_skip_an_earlier_planned_slice() -> None:
+    value = campaign()
+    value["slices"][0] = {
+        "id": "pilot/S01",
+        "state": "PLANNED",
+        "issue": "#1",
+        "pr": "NONE",
+        "head_sha": "NONE",
+        "merge_sha": "NONE",
+    }
+    value["slices"][1] = {
+        "id": "pilot/S02",
+        "state": "ACTIVE",
+        "issue": "#3",
+        "pr": "#4",
+        "head_sha": "4" * 40,
+        "merge_sha": "NONE",
+    }
+    value["pending_action"] = {
+        "kind": "CONTINUE_ACTIVE_SLICE",
+        "slice_id": "pilot/S02",
+    }
+    value["next_action"]["summary"] = "Continue pilot/S02."
+
+    with pytest.raises(protocol.ContractError, match="first nonterminal"):
+        protocol.validate_campaign(value)
+
+
+def test_publication_event_must_equal_the_candidate_build() -> None:
+    value = campaign()
+    value["authority_envelope"] = "THROUGH_RELEASE"
+    value["slices"][1] = {
+        "id": "pilot/S02",
+        "state": "MERGED",
+        "issue": "#3",
+        "pr": "#4",
+        "head_sha": "4" * 40,
+        "merge_sha": "5" * 40,
+    }
+    value["train"]["publication_state"] = "CANDIDATE"
+    value["train"]["build_sha"] = "6" * 40
+    value["pending_action"] = {"kind": "PUBLISH_RELEASE", "slice_id": "NONE"}
+    value["observed_event"] = "RELEASE_CANDIDATE_MERGED"
+    value["observed_event_ref"] = "7" * 40
+    value["next_action"]["summary"] = "Publish the exact release candidate."
+
+    with pytest.raises(protocol.ContractError, match="exact-build"):
         protocol.validate_campaign(value)
 
 
@@ -154,6 +244,21 @@ def test_complete_train_requires_published_build_and_release_checkpoint() -> Non
 
     with pytest.raises(protocol.ContractError, match="published build"):
         protocol.validate_campaign(value)
+
+
+def test_single_slice_can_complete_without_a_release() -> None:
+    value = campaign()
+    value["campaign_mode"] = "SINGLE_SLICE"
+    value["campaign_state"] = "COMPLETE"
+    value["slices"] = [value["slices"][0]]
+    value["pending_action"] = {"kind": "NO_ACTION", "slice_id": "NONE"}
+    value["next_action"] = {
+        "type": "CAMPAIGN_COMPLETE",
+        "summary": "The bounded single-slice campaign is complete.",
+        "prompt": "NONE",
+    }
+
+    protocol.validate_campaign(value)
 
 
 def test_handoff_is_canonical_and_at_most_120_words() -> None:

@@ -120,6 +120,7 @@ CAMPAIGN_KEYS = {
     "protocol_version",
     "repository",
     "campaign_id",
+    "owner_issue",
     "campaign_mode",
     "campaign_state",
     "workstream_class",
@@ -294,6 +295,7 @@ def validate_slices(value: Any, mode: str) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     identifiers: set[str] = set()
     nonterminal_seen = False
+    planned_seen = False
     active_like = 0
     for index, raw in enumerate(value):
         item = exact_object(raw, f"slices[{index}]", SLICE_KEYS)
@@ -311,6 +313,10 @@ def validate_slices(value: Any, mode: str) -> list[dict[str, Any]]:
                 fail("terminal slices must form a strict campaign prefix")
         else:
             nonterminal_seen = True
+        if state == "PLANNED":
+            planned_seen = True
+        elif state in {"ACTIVE", "BLOCKED"} and planned_seen:
+            fail("the active or blocked slice must be the first nonterminal slice")
         if state in {"ACTIVE", "BLOCKED"}:
             active_like += 1
         if state == "PLANNED":
@@ -352,6 +358,27 @@ def expected_next_type(campaign: dict[str, Any]) -> str:
     return "AUTO_CONTINUE"
 
 
+def validate_human_stop(campaign: dict[str, Any]) -> None:
+    reason = campaign["stop_reason"]
+    kind = campaign["pending_action"]["kind"]
+    required_level = ACTION_LEVEL.get(kind)
+    authority = AUTHORITY_ENVELOPES[campaign["authority_envelope"]]
+    if reason == "AUTHORITY_EXHAUSTED" and (
+        required_level is None or required_level <= authority
+    ):
+        fail("AUTHORITY_EXHAUSTED requires an action beyond the envelope")
+    if reason == "PUBLICATION_NOT_AUTHORIZED" and (
+        kind != "PUBLISH_RELEASE"
+        or authority >= AUTHORITY_ENVELOPES["THROUGH_RELEASE"]
+    ):
+        fail("PUBLICATION_NOT_AUTHORIZED requires a blocked publication boundary")
+    if reason == "LEVEL_C_AUTHORIZATION" and (
+        kind != "VERIFY_PRODUCTION"
+        or authority >= AUTHORITY_ENVELOPES["THROUGH_PRODUCTION_B"]
+    ):
+        fail("LEVEL_C_AUTHORIZATION requires a production boundary")
+
+
 def validate_campaign(value: Any) -> dict[str, Any]:
     campaign = exact_object(value, "campaign", CAMPAIGN_KEYS)
     if campaign["schema_version"] != SCHEMA_VERSION:
@@ -361,6 +388,9 @@ def validate_campaign(value: Any) -> dict[str, Any]:
     if campaign["repository"] != REPOSITORY:
         fail("campaign repository mismatch")
     one_line(campaign["campaign_id"], "campaign_id", maximum=100)
+    owner_issue = issue_or_none(campaign["owner_issue"], "owner_issue")
+    if owner_issue == "NONE":
+        fail("campaign evidence requires an exact owner issue")
     mode = closed(campaign["campaign_mode"], "campaign_mode", CAMPAIGN_MODES)
     state = closed(campaign["campaign_state"], "campaign_state", CAMPAIGN_STATES)
     closed(
@@ -376,6 +406,11 @@ def validate_campaign(value: Any) -> dict[str, Any]:
     risk = closed(campaign["risk_profile"], "risk_profile", RISK_PROFILES)
     if risk not in LOCAL_RISK_PROFILES or authority == "THROUGH_PRODUCTION_B":
         fail("the Provelume Core profile has no production authority")
+    if campaign["workstream_class"] == "PROTOCOL" and (
+        risk != "NO_PRODUCTION"
+        or AUTHORITY_ENVELOPES[authority] > AUTHORITY_ENVELOPES["THROUGH_MERGE"]
+    ):
+        fail("a protocol campaign cannot acquire release or production authority")
     closed(
         campaign["auto_continuation"],
         "auto_continuation",
@@ -387,6 +422,8 @@ def validate_campaign(value: Any) -> dict[str, Any]:
     slices = validate_slices(campaign["slices"], mode)
     event = closed(campaign["observed_event"], "observed_event", OBSERVED_EVENTS)
     observed_ref = event_ref(campaign["observed_event_ref"])
+    if event == "INITIAL_AUTHORIZATION" and observed_ref != owner_issue:
+        fail("initial authorization must bind the exact owner issue")
     pending = exact_object(
         campaign["pending_action"],
         "pending_action",
@@ -420,6 +457,8 @@ def validate_campaign(value: Any) -> dict[str, Any]:
     if kind in slice_actions:
         if slice_id == "NONE":
             fail("slice actions require an exact slice_id")
+        if slice_id not in next_action["summary"]:
+            fail("a slice next action must name its exact slice_id")
     elif slice_id != "NONE":
         fail("release, wait and completion actions use slice_id NONE")
     if kind == "START_NEXT_SLICE":
@@ -440,7 +479,7 @@ def validate_campaign(value: Any) -> dict[str, Any]:
     ):
         fail("the pending action must bind the one active slice")
     if kind == "MERGE_ACTIVE_SLICE" and (
-        event != "GATES_PASSED" or SHA_PATTERN.fullmatch(observed_ref) is None
+        event != "GATES_PASSED" or observed_ref != active[0]["head_sha"]
     ):
         fail("merge continuation requires exact-head passed-gate evidence")
     release_actions = {
@@ -453,23 +492,34 @@ def validate_campaign(value: Any) -> dict[str, Any]:
     if kind in release_actions and unfinished:
         fail("release-boundary actions require all slices to be terminal")
     publication = train["publication_state"]
+    if kind in release_actions and (
+        campaign["workstream_class"] != "PRODUCT" or risk != "PUBLIC_ARTIFACT"
+    ):
+        fail("release-boundary actions require a public-artifact product campaign")
     if kind == "PREPARE_RELEASE" and publication != "UNPUBLISHED":
         fail("release preparation starts from an unpublished train")
     if kind == "PUBLISH_RELEASE" and (
-        publication != "CANDIDATE" or event != "RELEASE_CANDIDATE_MERGED"
+        publication != "CANDIDATE"
+        or event != "RELEASE_CANDIDATE_MERGED"
+        or observed_ref != train["build_sha"]
     ):
-        fail("publication needs a merged exact-build candidate")
+        fail("publication needs its merged exact-build candidate")
     if kind == "VERIFY_RELEASE" and (
-        publication != "PUBLISHED" or event != "RELEASE_PUBLISHED"
+        publication != "PUBLISHED"
+        or event != "RELEASE_PUBLISHED"
+        or observed_ref != f"release:v{train['published_version']}"
     ):
-        fail("release verification needs an observed publication event")
+        fail("release verification needs its exact publication event")
     if kind == "VERIFY_PRODUCTION" and risk != "REVERSIBLE_PRODUCTION":
         fail("production verification is outside the local Core risk profile")
     if kind == "RECORD_CHECKPOINT":
         if publication != "PUBLISHED" or checkpoint["state"] != "DUE":
             fail("checkpoint recording occurs once after publication verification")
-        if event != "RELEASE_VERIFIED":
-            fail("checkpoint recording needs an observed release verification")
+        if (
+            event != "RELEASE_VERIFIED"
+            or observed_ref != f"release:v{train['published_version']}"
+        ):
+            fail("checkpoint recording needs its exact release verification")
 
     if state == "BLOCKED":
         if stop not in BLOCKED_REASONS or not blocked:
@@ -477,6 +527,7 @@ def validate_campaign(value: Any) -> dict[str, Any]:
     elif state == "HUMAN_GATE":
         if stop not in HUMAN_GATE_REASONS:
             fail("HUMAN_GATE requires a closed human stop reason")
+        validate_human_stop(campaign)
     elif stop != "NONE":
         fail("only BLOCKED or HUMAN_GATE may carry a stop reason")
     if state == "WAITING_EVENT" and kind != "WAIT_FOR_EVENT":
@@ -484,8 +535,16 @@ def validate_campaign(value: Any) -> dict[str, Any]:
     if state == "COMPLETE":
         if kind != "NO_ACTION" or unfinished:
             fail("COMPLETE requires no unfinished slice and NO_ACTION")
-        if publication != "PUBLISHED" or checkpoint["state"] != "RECORDED":
+        if mode == "RELEASE_TRAIN" and (
+            publication != "PUBLISHED" or checkpoint["state"] != "RECORDED"
+        ):
             fail("a completed train needs a published build and release checkpoint")
+        if mode == "SINGLE_SLICE" and (
+            publication != "UNPUBLISHED" or checkpoint["state"] != "NOT_DUE"
+        ):
+            fail("a completed single-slice campaign must remain unreleased")
+    if checkpoint["state"] == "RECORDED" and checkpoint["reference"] != owner_issue:
+        fail("the release checkpoint must bind the campaign owner issue")
     if state in {"PLANNED", "ACTIVE"} and kind in {"WAIT_FOR_EVENT", "NO_ACTION"}:
         fail("executable campaign states need an executable pending action")
 
@@ -546,6 +605,8 @@ def validate_handoff(value: Any) -> dict[str, Any]:
         fail("a blocked handoff requires one user action")
     if outcome == "CAMPAIGN_COMPLETE" and next_type != "CAMPAIGN_COMPLETE":
         fail("campaign completion must be explicit")
+    if next_type == "CAMPAIGN_COMPLETE" and outcome != "CAMPAIGN_COMPLETE":
+        fail("only campaign completion may use CAMPAIGN_COMPLETE")
     return handoff
 
 
@@ -566,6 +627,7 @@ def sample_campaign() -> dict[str, Any]:
         "protocol_version": PROTOCOL_VERSION,
         "repository": REPOSITORY,
         "campaign_id": "pilot-1",
+        "owner_issue": "#164",
         "campaign_mode": "RELEASE_TRAIN",
         "campaign_state": "ACTIVE",
         "workstream_class": "PRODUCT",
