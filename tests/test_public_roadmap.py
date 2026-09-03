@@ -162,7 +162,7 @@ def test_perceptio_release_records_frozen_slices_and_public_identity() -> None:
         "PUBLISHED_RELEASE": "PRERELEASE",
         "PARENT_TRACKER": "#160",
         "RELEASE_ISSUE": "#183",
-        "RELEASE_OWNER_PR": "PENDING",
+        "RELEASE_OWNER_PR": "#185",
         "DELIVERED_SLICES": "0.10/S01,0.10/S02,0.10/S03,0.10/S04,0.10/S05,0.10/S06,0.10/S07",
         "DELIVERED_SLICE_ISSUES": "#162,#166,#169,#171,#174,#177,#180",
         "DELIVERED_SLICE_OWNER_PRS": "#163,#168,#170,#172,#173,#175,#179,#182",
