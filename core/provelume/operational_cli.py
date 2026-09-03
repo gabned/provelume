@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .audio_cli import add_audio_commands, handle_audio_command
 from .bundle_cli import add_bundle_commands, handle_bundle_command
 from .component_inventory_cli import (
     add_component_inventory_commands,
@@ -100,6 +101,7 @@ def add_operational_commands(subparsers: Any) -> None:
     add_bundle_commands(subparsers)
     add_representation_commands(subparsers)
     add_photo_commands(subparsers)
+    add_audio_commands(subparsers)
     add_component_inventory_commands(subparsers)
     add_review_commands(subparsers)
     add_rebuild_commands(subparsers)
@@ -120,6 +122,9 @@ def handle_operational_command(args: argparse.Namespace) -> int | None:
     photo_result = handle_photo_command(args)
     if photo_result is not None:
         return photo_result
+    audio_result = handle_audio_command(args)
+    if audio_result is not None:
+        return audio_result
     component_result = handle_component_inventory_command(args)
     if component_result is not None:
         return component_result

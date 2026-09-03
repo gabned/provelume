@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ t('audio.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('audio.eyebrow') }}</p>
+  <h1>{{ t('audio.title') }}</h1>
+  <p class="lead">{{ t('audio.lead') }}</p>
+  <p class="technical-note">{{ t('audio.privacy') }}</p>
+</section>
+<section class="panel">
+  <h2>{{ t('audio.support') }}</h2>
+  <dl class="detail-grid">
+    <div><dt>{{ t('audio.formats') }}</dt><dd>{{ model.support.candidate_formats | join(', ') }}</dd></div>
+    <div><dt>{{ t('audio.decode') }}</dt><dd>{{ model.support.qualified_decode_cells | join(', ') }}</dd></div>
+    <div><dt>{{ t('audio.asr') }}</dt><dd><code>{{ model.support.asr.state }}</code>{% if model.support.asr.version %} · {{ model.support.asr.version }}{% endif %}</dd></div>
+  </dl>
+</section>
+<section class="panel">
+  <h2>{{ t('audio.profiles') }}</h2>
+  {% for item in model.profiles %}
+  <article class="document-card">
+    <h3><code>{{ item.representation_id }}</code></h3>
+    <dl class="detail-grid">
+      <div><dt>{{ t('audio.duration') }}</dt><dd>{{ item.record.inspection.duration_ms or 'unknown' }} ms · {{ item.record.inspection.format }}/{{ item.record.inspection.codec }}</dd></div>
+      <div><dt>{{ t('audio.waveform') }}</dt><dd>{{ item.record.waveform.state }} · {{ item.record.waveform.point_count }}</dd></div>
+      <div><dt>{{ t('audio.transcript') }}</dt><dd>{{ item.record.transcript.state }}{% if item.record.transcript.language %} · {{ item.record.transcript.language }}{% endif %}</dd></div>
+      <div><dt>{{ t('audio.segments') }}</dt><dd>{{ item.record.transcript.segments | length }}</dd></div>
+      <div><dt>{{ t('audio.words') }}</dt><dd>{{ item.record.transcript.word_count }}</dd></div>
+    </dl>
+  </article>
+  {% else %}
+  <p class="empty">{{ t('audio.empty') }}</p>
+  {% endfor %}
+</section>
+<section class="panel">
+  <h2>{{ t('audio.jobs') }}</h2>
+  <ul class="document-list">
+  {% for job in model.jobs %}
+    <li><strong><code>{{ job.id }}</code></strong><span>{{ job.status }} · {{ job.checkpoint.phase }} · {{ job.version_id }}</span></li>
+  {% else %}
+    <li class="empty">{{ t('audio.no_jobs') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}

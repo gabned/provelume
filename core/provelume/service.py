@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from .audio_profiles import AudioProfileManager
 from .component_inventory import ComponentInventory
 from .connectors import ConnectorManager
 from .email_contract import EmailContractError
@@ -87,6 +88,7 @@ class ProvelumeInstance:
         self.components = ComponentInventory()
         self.representations = RepresentationReadModel(self.store)
         self.photos = PhotoProfileManager(self.store)
+        self.audio = AudioProfileManager(self.store)
         self.scheduler = SchedulerCoordinator(self.store)
         self.ocr = OcrJobManager(self.store)
         self.email_sources = EmailSourceManager(self.store)
@@ -169,6 +171,44 @@ class ProvelumeInstance:
 
     def rebuild_photo(self, representation_id: str) -> dict[str, Any]:
         return self.photos.rebuild(representation_id)
+
+    def audio_support(self) -> dict[str, Any]:
+        return self.audio.capability()
+
+    def queue_audio(
+        self,
+        version_id: str,
+        *,
+        language: str = "auto",
+        threads: int = 2,
+    ) -> dict[str, Any]:
+        return self.audio.queue(version_id, language=language, threads=threads)
+
+    def run_audio_job(self, job_id: str) -> dict[str, Any]:
+        return self.audio.run(job_id)
+
+    def cancel_audio_job(self, job_id: str) -> dict[str, Any]:
+        return self.audio.cancel(job_id)
+
+    def retry_audio_job(self, job_id: str) -> dict[str, Any]:
+        return self.audio.retry(job_id)
+
+    def audio_read_model(
+        self,
+        *,
+        version_id: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        return self.audio.read_model(version_id=version_id, limit=limit)
+
+    def get_audio(self, representation_id: str) -> dict[str, Any] | None:
+        return self.audio.get(representation_id)
+
+    def remove_audio(self, representation_id: str) -> dict[str, Any]:
+        return self.audio.remove(representation_id)
+
+    def rebuild_audio(self, representation_id: str) -> dict[str, Any]:
+        return self.audio.rebuild(representation_id)
 
     def qualification_limits(self) -> dict[str, Any]:
         return self.qualification.limits()
