@@ -1,0 +1,50 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "provelume-0.10-s04-audio-baseline",
+      "type": "application",
+      "name": "Provelume local audio qualification baseline",
+      "version": "0.9.0",
+      "properties": [
+        {"name": "provelume:release_identity", "value": "0.9.0"},
+        {"name": "provelume:distribution_contains_optional_components", "value": "false"},
+        {"name": "provelume:qualified_matrix", "value": "ubuntu-24.04/x86_64/python-3.12; windows-2025/x86_64/python-3.12-degraded"}
+      ]
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:github/ggml-org/whisper.cpp@v1.9.2",
+      "type": "application",
+      "name": "whisper.cpp CLI",
+      "version": "1.9.2",
+      "scope": "optional",
+      "purl": "pkg:github/ggml-org/whisper.cpp@v1.9.2",
+      "licenses": [{"license": {"id": "MIT"}}],
+      "externalReferences": [{"type": "vcs", "url": "https://github.com/ggml-org/whisper.cpp/tree/306c88f4d1286aec1bf96e544632897886af5501"}],
+      "properties": [
+        {"name": "provelume:bundled", "value": "false"},
+        {"name": "provelume:source_commit", "value": "306c88f4d1286aec1bf96e544632897886af5501"},
+        {"name": "provelume:binary_digest", "value": "required-per-explicit-installation"}
+      ]
+    },
+    {
+      "bom-ref": "whisper-tiny-multilingual-q5_1-d148abaa",
+      "type": "machine-learning-model",
+      "name": "Whisper tiny multilingual q5_1 GGML",
+      "version": "d148abaa5548d0deea3cf8075f0fd3376e483c8f",
+      "scope": "optional",
+      "hashes": [{"alg": "SHA-256", "content": "818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7"}],
+      "licenses": [{"license": {"id": "MIT"}}],
+      "externalReferences": [{"type": "distribution", "url": "https://huggingface.co/ggerganov/whisper.cpp/blob/d148abaa5548d0deea3cf8075f0fd3376e483c8f/ggml-model-whisper-tiny-q5_1.bin"}],
+      "properties": [
+        {"name": "provelume:bundled", "value": "false"},
+        {"name": "provelume:size_bytes", "value": "32152673"},
+        {"name": "provelume:quantization", "value": "q5_1"}
+      ]
+    }
+  ]
+}

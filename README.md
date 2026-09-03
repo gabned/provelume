@@ -38,10 +38,12 @@ for [#162](https://github.com/gabned/provelume/issues/162) by owner
 [PR #163](https://github.com/gabned/provelume/pull/163): one universal representation/support
 contract and a byte-unchanged Lectio compatibility view. `0.10/S02` is delivered for
 [#166](https://github.com/gabned/provelume/issues/166) through owner
-[PR #168](https://github.com/gabned/provelume/pull/168). `0.10/S03` is the one active slice for
-[#169](https://github.com/gabned/provelume/issues/169) through owner
-[PR #170](https://github.com/gabned/provelume/pull/170); S04–S07 remain planned in their existing
-order. No `v0.10.0` tag/release is present and package/runtime/Windows identity remains `0.9.0`.
+[PR #168](https://github.com/gabned/provelume/pull/168). `0.10/S03` is delivered through
+[#169](https://github.com/gabned/provelume/issues/169) and owner
+[PR #170](https://github.com/gabned/provelume/pull/170). `0.10/S04` is the one active slice under
+[#171](https://github.com/gabned/provelume/issues/171) and owner
+[PR #172](https://github.com/gabned/provelume/pull/172); S05–S07 remain planned. No `v0.10.0`
+tag/release is present and package/runtime/Windows identity remains `0.9.0`.
 
 The local **Representations & support** surface keeps Preserve, Inspect, Extract, Preview, Local
 enrich and AI enrich independent. It reports declared/effective support, closed unavailable or

@@ -11,7 +11,7 @@
   <h2>{{ t('audio.support') }}</h2>
   <dl class="detail-grid">
     <div><dt>{{ t('audio.formats') }}</dt><dd>{{ model.support.candidate_formats | join(', ') }}</dd></div>
-    <div><dt>{{ t('audio.decode') }}</dt><dd>{{ model.support.qualified_decode_cells | join(', ') }}</dd></div>
+    <div><dt>{{ t('audio.decode') }}</dt><dd>{{ model.support.decode_baseline }}</dd></div>
     <div><dt>{{ t('audio.asr') }}</dt><dd><code>{{ model.support.asr.state }}</code>{% if model.support.asr.version %} · {{ model.support.asr.version }}{% endif %}</dd></div>
   </dl>
 </section>
@@ -21,11 +21,11 @@
   <article class="document-card">
     <h3><code>{{ item.representation_id }}</code></h3>
     <dl class="detail-grid">
-      <div><dt>{{ t('audio.duration') }}</dt><dd>{{ item.record.inspection.duration_ms or 'unknown' }} ms · {{ item.record.inspection.format }}/{{ item.record.inspection.codec }}</dd></div>
+      <div><dt>{{ t('audio.duration') }}</dt><dd>{{ item.record.duration_ms or 'unknown' }} ms · {{ item.record.format }}/{{ item.record.codec }}</dd></div>
       <div><dt>{{ t('audio.waveform') }}</dt><dd>{{ item.record.waveform.state }} · {{ item.record.waveform.point_count }}</dd></div>
       <div><dt>{{ t('audio.transcript') }}</dt><dd>{{ item.record.transcript.state }}{% if item.record.transcript.language %} · {{ item.record.transcript.language }}{% endif %}</dd></div>
       <div><dt>{{ t('audio.segments') }}</dt><dd>{{ item.record.transcript.segments | length }}</dd></div>
-      <div><dt>{{ t('audio.words') }}</dt><dd>{{ item.record.transcript.word_count }}</dd></div>
+      <div><dt>{{ t('audio.words') }}</dt><dd>{{ item.record.time_map.word_anchors }}</dd></div>
     </dl>
   </article>
   {% else %}

@@ -142,7 +142,7 @@ def test_lectio_release_aligns_package_identity() -> None:
     assert f'__version__ = "{package_version}"' in init_source
 
 
-def test_perceptio_plan_records_s03_without_version_or_release_change() -> None:
+def test_perceptio_plan_records_s04_without_version_or_release_change() -> None:
     plan = _read(PERCEPTIO_RELEASE_PLAN_PATH)
     fields = _machine_readable_fields(plan)
 
@@ -160,19 +160,19 @@ def test_perceptio_plan_records_s03_without_version_or_release_change() -> None:
         "ACTIVATION_ISSUE": "#160",
         "ACTIVATION_BRANCH": "product/0.10.0-perceptio-activation",
         "ACTIVATION_OWNER_PR": "#161",
-        "CURRENT_SLICE": "0.10/S03",
-        "CURRENT_SLICE_ISSUE": "#169",
-        "CURRENT_SLICE_BRANCH": "product/0.10-s03-photo-profiles",
-        "CURRENT_SLICE_OWNER_PR": "#170",
+        "CURRENT_SLICE": "0.10/S04",
+        "CURRENT_SLICE_ISSUE": "#171",
+        "CURRENT_SLICE_BRANCH": "product/0.10-s04-local-audio-transcription",
+        "CURRENT_SLICE_OWNER_PR": "#172",
         "CURRENT_SLICE_STATE": "ACTIVE",
-        "DELIVERED_SLICE": "0.10/S02",
-        "DELIVERED_SLICE_ISSUE": "#166",
-        "DELIVERED_SLICE_BRANCH": "product/0.10-s02-component-inventory",
-        "DELIVERED_SLICE_OWNER_PR": "#168",
+        "DELIVERED_SLICE": "0.10/S03",
+        "DELIVERED_SLICE_ISSUE": "#169",
+        "DELIVERED_SLICE_BRANCH": "product/0.10-s03-photo-profiles",
+        "DELIVERED_SLICE_OWNER_PR": "#170",
         "DELIVERED_SLICE_STATE": "COMPLETED_BY_MERGE",
-        "NEXT_SLICE": "0.10/S04",
+        "NEXT_SLICE": "0.10/S05",
         "NEXT_SLICE_STATE": "PLANNED",
-        "PLANNED_SLICES": "0.10/S04,0.10/S05,0.10/S06,0.10/S07",
+        "PLANNED_SLICES": "0.10/S05,0.10/S06,0.10/S07",
         "LECTIO_TAG": "v0.9.0",
         "LECTIO_COMMIT": "e08125a8600f9c4300d0d173613a03f8bbc31327",
     }
@@ -651,18 +651,17 @@ def test_perceptio_activation_is_consistent_across_public_planning_surfaces() ->
 
     assert "| Forecast | `0.10.0` |" not in roadmap
     assert roadmap.count("| Active development | `0.10.0` |") == 1
-    assert "#160; S02 #166/#168 delivered" in roadmap
-    assert "S03 #169 / owner PR #170 active" in roadmap
+    assert "S04 is active under #171/#172" in roadmap
     assert "package/runtime/Windows identity remains `0.9.0`" in readme
     assert "[development plan](docs/releases/0.10.0.md)" in readme
     assert "activated planning-only development for `0.10.0 — Perceptio`" in changelog
     assert "CURRENT_PACKAGE_VERSION: 0.9.0" in perceptio
     assert "PUBLISHED_TAG: NONE" in perceptio
-    assert "CURRENT_SLICE: 0.10/S03" in perceptio
-    assert "CURRENT_SLICE_OWNER_PR: #170" in perceptio
-    assert "DELIVERED_SLICE: 0.10/S02" in perceptio
-    assert "DELIVERED_SLICE_OWNER_PR: #168" in perceptio
-    assert "NEXT_SLICE: 0.10/S04" in perceptio
+    assert "CURRENT_SLICE: 0.10/S04" in perceptio
+    assert "CURRENT_SLICE_OWNER_PR: #172" in perceptio
+    assert "DELIVERED_SLICE: 0.10/S03" in perceptio
+    assert "DELIVERED_SLICE_OWNER_PR: #170" in perceptio
+    assert "NEXT_SLICE: 0.10/S05" in perceptio
     assert "At this release checkpoint the next canonical\nforecast" in lectio
     assert "Post-publication activation is recorded separately" in lectio
 
@@ -1021,8 +1020,8 @@ def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
     assert "[`v0.8.0`](https://github.com/gabned/provelume/releases/tag/v0.8.0)" in readme
     assert "Lectio is the current public\nprerelease" in readme
     assert "[development plan](docs/releases/0.10.0.md)" in readme
-    assert "`0.10/S03` is the one active slice" in readme
-    assert "S04–S07 remain planned" in readme
+    assert "`0.10/S04` is the one active slice" in readme
+    assert "S05–S07 remain planned" in readme
     assert "[Windows preview guide](docs/windows-preview.md)" in readme
     assert "configure-inbox" in readme
     assert "external Drop folder" in readme

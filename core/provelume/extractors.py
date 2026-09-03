@@ -75,6 +75,24 @@ class PlainTextExtractor:
         )
 
 
+class AudioContainerExtractor:
+    """Admit exact audio bytes without pretending they contain canonical text."""
+
+    extensions = {".wav", ".flac", ".mp3", ".m4a", ".aac", ".ogg", ".opus"}
+
+    def supports(self, suffix: str) -> bool:
+        return suffix.lower() in self.extensions
+
+    def extract(self, data: bytes) -> ExtractionResult:
+        if not data:
+            raise ExtractionError("audio file is empty")
+        return ExtractionResult(
+            text="",
+            generator="provelume.audio-preserve",
+            generator_version="1",
+        )
+
+
 class PdfTextExtractor:
     extensions = {".pdf"}
 
@@ -637,6 +655,7 @@ class ZipArchiveExtractor:
 
 EXTRACTORS: tuple[Extractor, ...] = (
     PlainTextExtractor(),
+    AudioContainerExtractor(),
     PdfTextExtractor(),
     DocxTextExtractor(),
     CsvTextExtractor(),

@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "slice": "0.10/S04",
+  "profile_id": "perceptio-audio-v1",
+  "status": "qualified-optional-local-component",
+  "core_inspector": {
+    "component": "provelume.core",
+    "version": "0.9.0",
+    "candidate_formats": ["WAV", "FLAC", "MP3", "M4A", "AAC", "OGG"],
+    "qualified_decode": "WAV PCM signed 16-bit little-endian mono/stereo",
+    "network_required": false,
+    "runtime_download": false,
+    "source_writeback": false
+  },
+  "selected_engine": {
+    "id": "asr.whisper-cpp",
+    "name": "whisper.cpp CLI",
+    "version": "1.9.2",
+    "source_commit": "306c88f4d1286aec1bf96e544632897886af5501",
+    "source": "https://github.com/ggml-org/whisper.cpp/tree/306c88f4d1286aec1bf96e544632897886af5501",
+    "license": "MIT",
+    "bundled_by_provelume": false,
+    "runtime_download": false,
+    "remote_fallback": false,
+    "binary_identity": "operator supplies an absolute regular-file path and its exact SHA-256"
+  },
+  "selected_model": {
+    "id": "model.whisper-tiny-q5-1",
+    "name": "Whisper tiny multilingual q5_1 GGML",
+    "source_revision": "d148abaa5548d0deea3cf8075f0fd3376e483c8f",
+    "source": "https://huggingface.co/ggerganov/whisper.cpp/blob/d148abaa5548d0deea3cf8075f0fd3376e483c8f/ggml-model-whisper-tiny-q5_1.bin",
+    "filename": "ggml-tiny-q5_1.bin",
+    "size_bytes": 32152673,
+    "sha256": "818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7",
+    "quantization": "q5_1",
+    "languages": "multilingual",
+    "license": "MIT",
+    "bundled_by_provelume": false,
+    "runtime_download": false
+  },
+  "recipe": {
+    "decode": "validated WAV PCM16LE mono/stereo",
+    "resample": "integer-linear PCM16LE mono 16000 Hz v1",
+    "asr": "CPU, temperature 0, explicit auto/en/it language, 1-16 threads",
+    "waveform": "bounded channel aggregate with integer peak/RMS ppm",
+    "timestamps": "segment and qualified word offsets bound to exact Original"
+  },
+  "limits": {
+    "max_input_bytes": 268435456,
+    "max_duration_ms": 7200000,
+    "max_channels": 8,
+    "max_container_records": 4096,
+    "max_metadata_bytes": 4194304,
+    "max_waveform_points": 2000,
+    "max_segments": 20000,
+    "max_words": 100000,
+    "max_transcript_characters": 2000000,
+    "max_asr_seconds": 7200
+  },
+  "format_matrix": [
+    {"format": "WAV/PCM16LE/mono-stereo", "inspect": "qualified", "waveform": "qualified", "local_asr": "qualified-when-exact-components-configured"},
+    {"format": "FLAC", "inspect": "qualified-streaminfo", "waveform": "unavailable", "local_asr": "unavailable-codec-unqualified"},
+    {"format": "MP3", "inspect": "qualified-header-estimated-cbr-duration", "waveform": "unavailable", "local_asr": "unavailable-codec-unqualified"},
+    {"format": "M4A/AAC", "inspect": "qualified-bounded-container", "waveform": "unavailable", "local_asr": "unavailable-codec-unqualified"},
+    {"format": "OGG/Opus/Vorbis", "inspect": "qualified-single-logical-stream", "waveform": "unavailable", "local_asr": "unavailable-codec-unqualified"}
+  ],
+  "platform_matrix": [
+    {
+      "platform": "ubuntu-24.04",
+      "architecture": "x86_64",
+      "python": "3.12",
+      "core_profile": "qualified",
+      "engine_model": "permanent exact-source/exact-model smoke",
+      "workflow": ".github/workflows/audio-smoke.yml"
+    },
+    {
+      "platform": "windows-2025",
+      "architecture": "x86_64",
+      "python": "3.12",
+      "core_profile": "qualified by public CI",
+      "engine_model": "external-local and visibly unavailable when not configured",
+      "workflow": ".github/workflows/audio-smoke.yml"
+    }
+  ],
+  "fixture_provenance": {
+    "kind": "deterministic synthetic PCM speech/noise/silence contract fixtures",
+    "contains_personal_content": false,
+    "repository_binary_audio": false
+  },
+  "distribution": {
+    "wheel": "no engine, codec or model is included",
+    "sdist": "contract, adapter and manifest only",
+    "windows_installer": "no audio engine or model payload is included",
+    "silent_install": false,
+    "automatic_update": false
+  }
+}

@@ -9,6 +9,7 @@ import struct
 import subprocess
 import tempfile
 from collections.abc import Mapping
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -149,7 +150,7 @@ def _wav_chunks(data: bytes) -> list[tuple[bytes, int, int]]:
     if len(data) < 12:
         raise AudioContractError("audio_invalid_container", "WAV header is truncated")
     declared = int.from_bytes(data[4:8], "little") + 8
-    if declared > len(data) or declared < 12:
+    if declared != len(data) or declared < 12:
         raise AudioContractError("audio_invalid_container", "WAV size is invalid")
     chunks: list[tuple[bytes, int, int]] = []
     offset = 12
@@ -349,7 +350,10 @@ def _inspect_adts(data: bytes) -> dict[str, Any]:
     frames = 0
     rate: int | None = None
     channels: int | None = None
-    while offset + 7 <= len(data) and frames < MAX_CONTAINER_RECORDS:
+    # Every accepted frame advances by at least seven bytes, so MAX_INPUT_BYTES is
+    # the parser bound. A generic metadata-record cap would reject valid audio
+    # long before the advertised two-hour duration boundary.
+    while offset + 7 <= len(data):
         if data[offset] != 0xFF or data[offset + 1] & 0xF6 != 0xF0:
             raise AudioContractError("audio_invalid_container", "AAC ADTS frame is invalid")
         rate_index = (data[offset + 2] >> 2) & 0xF
@@ -369,7 +373,8 @@ def _inspect_adts(data: bytes) -> dict[str, Any]:
         rate, channels = current_rate, current_channels
         offset += length
         frames += 1
-    if offset != len(data) or frames == 0 or frames >= MAX_CONTAINER_RECORDS:
+        _duration((frames * 1_024 * 1_000) // current_rate)
+    if offset != len(data) or frames == 0:
         raise AudioContractError("audio_invalid_container", "AAC frame boundary is invalid")
     _channels(channels)
     samples = frames * 1_024
@@ -405,6 +410,20 @@ def _inspect_ogg(data: bytes) -> dict[str, Any]:
         end = table_end + payload_size
         if end > len(data):
             raise AudioContractError("audio_invalid_container", "Ogg page is truncated")
+        page = bytearray(data[offset:end])
+        expected_crc = int.from_bytes(page[22:26], "little")
+        page[22:26] = b"\x00\x00\x00\x00"
+        crc = 0
+        for byte in page:
+            crc ^= byte << 24
+            for _bit in range(8):
+                crc = (
+                    ((crc << 1) ^ 0x04C11DB7) & 0xFFFFFFFF
+                    if crc & 0x80000000
+                    else (crc << 1) & 0xFFFFFFFF
+                )
+        if crc != expected_crc:
+            raise AudioContractError("audio_invalid_container", "Ogg page checksum is invalid")
         serials.add(int.from_bytes(data[offset + 14 : offset + 18], "little"))
         granule = int.from_bytes(data[offset + 6 : offset + 14], "little")
         if granule != (1 << 64) - 1:
@@ -477,12 +496,29 @@ def _inspect_m4a(data: bytes) -> dict[str, Any]:
         raise AudioContractError("audio_invalid_container", "M4A needs ftyp and moov atoms")
     duration_ms: int | None = None
     tracks = 0
+    audio_payloads: list[bytes] = []
     for kind, start, size in atoms:
         if kind != b"moov":
             continue
         children = _mp4_atoms(data, start, start + size)
-        tracks += sum(child[0] == b"trak" for child in children)
         for child_kind, child_start, child_size in children:
+            if child_kind == b"trak":
+                track_end = child_start + child_size
+                for mdia_kind, mdia_start, mdia_size in _mp4_atoms(
+                    data, child_start, track_end
+                ):
+                    if mdia_kind != b"mdia":
+                        continue
+                    for media_kind, media_start, media_size in _mp4_atoms(
+                        data, mdia_start, mdia_start + mdia_size
+                    ):
+                        if (
+                            media_kind == b"hdlr"
+                            and media_size >= 12
+                            and data[media_start + 8 : media_start + 12] == b"soun"
+                        ):
+                            tracks += 1
+                            audio_payloads.append(data[child_start:track_end])
             if child_kind != b"mvhd" or child_size < 20:
                 continue
             version = data[child_start]
@@ -496,13 +532,12 @@ def _inspect_m4a(data: bytes) -> dict[str, Any]:
                 continue
             if timescale:
                 duration_ms = _duration((duration * 1_000) // timescale)
-    codec = (
-        "alac"
-        if b"alac" in data[: min(len(data), MAX_METADATA_BYTES)]
-        else "aac"
-        if b"mp4a" in data[: min(len(data), MAX_METADATA_BYTES)]
-        else "unknown"
-    )
+    if not audio_payloads:
+        raise AudioContractError("audio_unsupported_format", "M4A has no supported audio track")
+    bounded_audio = b"".join(audio_payloads)[:MAX_METADATA_BYTES]
+    codec = "alac" if b"alac" in bounded_audio else "aac" if b"mp4a" in bounded_audio else "unknown"
+    if codec == "unknown":
+        raise AudioContractError("audio_unsupported_format", "M4A audio codec is unsupported")
     return {
         "container": "iso-bmff",
         "codec": codec,
@@ -782,6 +817,7 @@ class WhisperCppAdapter:
         binary_path: Path | None = None,
         model_path: Path | None = None,
         declared_version: str | None = None,
+        expected_binary_sha256: str | None = None,
     ):
         binary = binary_path or (
             Path(os.environ["PROVELUME_WHISPER_CPP_PATH"])
@@ -796,6 +832,9 @@ class WhisperCppAdapter:
         self.binary_path = binary
         self.model_path = model
         self.declared_version = declared_version or os.environ.get("PROVELUME_WHISPER_CPP_VERSION")
+        self.expected_binary_sha256 = expected_binary_sha256 or os.environ.get(
+            "PROVELUME_WHISPER_CPP_SHA256"
+        )
 
     def capability(self) -> dict[str, Any]:
         base = {
@@ -811,15 +850,30 @@ class WhisperCppAdapter:
             "network_used": False,
             "runtime_downloads": False,
         }
-        if self.binary_path is None or self.model_path is None or self.declared_version is None:
+        if (
+            self.binary_path is None
+            or self.model_path is None
+            or self.declared_version is None
+            or self.expected_binary_sha256 is None
+        ):
             return {**base, "state": "unavailable", "reason": "component_missing"}
         if self.declared_version != WHISPER_CPP_VERSION:
             return {**base, "state": "incompatible", "reason": "version_mismatch"}
+        if _SHA256.fullmatch(self.expected_binary_sha256) is None:
+            return {**base, "state": "incompatible", "reason": "binary_identity_mismatch"}
         try:
             binary_sha, _binary_size = _file_sha256(self.binary_path, maximum=512 * 1024 * 1024)
             model_sha, model_size = _file_sha256(self.model_path, maximum=256 * 1024 * 1024)
         except AudioContractError:
             return {**base, "state": "unavailable", "reason": "component_missing"}
+        if binary_sha != self.expected_binary_sha256:
+            return {
+                **base,
+                "state": "incompatible",
+                "reason": "binary_identity_mismatch",
+                "binary_sha256": binary_sha,
+                "model_sha256": model_sha,
+            }
         if model_sha != WHISPER_MODEL_SHA256 or model_size != WHISPER_MODEL_SIZE:
             return {
                 **base,
@@ -1496,6 +1550,10 @@ class AudioProfileManager:
         self.store._atomic_json(self.jobs / f"{job_id}.json", job)
         settings = job["processing_identity"]["settings"]
         try:
+            if job["processing_identity"]["asr"] != self.asr_adapter.capability():
+                raise AudioContractError(
+                    "audio_asr_unavailable", "queued ASR identity changed before execution"
+                )
             bundle = self.create(
                 str(job["version_id"]),
                 language=str(settings["language"]),
@@ -1515,6 +1573,23 @@ class AudioProfileManager:
             )
             self.store._atomic_json(self.jobs / f"{job_id}.json", job)
             return job
+        current = self.get_job(job_id)
+        if current is not None and current.get("cancel_requested") is True:
+            with suppress(RepresentationContractError):
+                self.bundles.remove(str(bundle["representation_id"]))
+            current.update(
+                {
+                    "status": "cancelled",
+                    "completed_at": utc_now(),
+                    "representation_id": None,
+                    "checkpoint": {
+                        "phase": "cancelled",
+                        "sequence": int(current["checkpoint"]["sequence"]) + 1,
+                    },
+                }
+            )
+            self.store._atomic_json(self.jobs / f"{job_id}.json", current)
+            return current
         job.update(
             {
                 "status": "succeeded",
