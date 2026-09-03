@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 from provelume.pytest_windows_shard import (
     CHILD_ENV,
+    DEFAULT_SHARD_TIMEOUT_SECONDS,
     DISABLE_ENV,
     FORCE_ENV,
     SHARD_COUNT,
@@ -31,6 +32,7 @@ def test_child_working_directory_prefers_versioned_config_over_volume_root(
 
 
 def test_module_partition_is_stable_disjoint_complete_and_balanced() -> None:
+    assert DEFAULT_SHARD_TIMEOUT_SECONDS == 480
     nodeids = [
         f"tests/test_synthetic_{module}.py::test_case_{case}"
         for module, size in enumerate((31, 29, 23, 19, 17, 13, 11, 7))
