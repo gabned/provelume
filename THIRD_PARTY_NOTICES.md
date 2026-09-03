@@ -82,3 +82,16 @@ records the runtime-provided standard-library boundary for permanent synthetic l
 conformance. It is not the aggregate release SBOM and makes no cloud-provider, audio,
 video, speech-to-text or real-data qualification claim. S05 itself created no release artifact;
 the baseline is included in the later `0.9.0` release boundary.
+
+## Qualified optional local audio baseline — external in 0.10/S04
+
+The `0.10/S04` profile can invoke one explicitly configured local path: `whisper.cpp` 1.9.2 at
+source commit `306c88f4d1286aec1bf96e544632897886af5501` with the multilingual Whisper tiny `q5_1`
+GGML model. Both are licensed under MIT terms and remain **not bundled by Provelume**. The operator
+supplies absolute paths and exact binary/model identity; the installer and runtime never discover,
+download, update or remotely replace either component.
+
+[`packaging/audio/qualified-local-components.cdx.json`](packaging/audio/qualified-local-components.cdx.json)
+records this qualified optional path and its model checksum. It is not the aggregate release SBOM.
+The Python wheel, source distribution and Windows installer include only Provelume's bounded
+adapter, schema and manifest; they contain no speech engine, model, codec or private audio fixture.

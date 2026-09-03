@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import os
 import signal
 import subprocess
@@ -29,13 +28,26 @@ def pytest_addoption(parser) -> None:
     group.addoption("--provelume-shard-count", type=int, default=None)
 
 
-def shard_for_nodeid(nodeid: str, count: int) -> int:
-    # Keep every test from one source module on the same runner.  Sharding
-    # individual nodeids duplicates module-scoped setup and file-backed
-    # fixtures in both Windows children, erasing the parallel speedup.
-    source = nodeid.split("::", 1)[0].replace("\\", "/")
-    digest = hashlib.sha256(source.encode("utf-8")).digest()
-    return int.from_bytes(digest[:8], "big") % count
+def _source_for_nodeid(nodeid: str) -> str:
+    return nodeid.split("::", 1)[0].replace("\\", "/")
+
+
+def balanced_shard_assignments(nodeids: list[str], count: int) -> dict[str, int]:
+    """Assign whole source modules while balancing their collected test counts."""
+    if type(count) is not int or count < 1:
+        raise ValueError("invalid Provelume pytest shard count")
+    source_sizes: dict[str, int] = {}
+    for nodeid in nodeids:
+        source = _source_for_nodeid(nodeid)
+        source_sizes[source] = source_sizes.get(source, 0) + 1
+
+    loads = [0] * count
+    assignments: dict[str, int] = {}
+    for source, size in sorted(source_sizes.items(), key=lambda value: (-value[1], value[0])):
+        index = min(range(count), key=lambda candidate: (loads[candidate], candidate))
+        assignments[source] = index
+        loads[index] += size
+    return assignments
 
 
 def pytest_collection_modifyitems(config, items) -> None:
@@ -50,8 +62,13 @@ def pytest_collection_modifyitems(config, items) -> None:
         or not 0 <= index < count
     ):
         raise ValueError("invalid Provelume pytest shard selection")
-    selected = [item for item in items if shard_for_nodeid(item.nodeid, count) == index]
-    deselected = [item for item in items if shard_for_nodeid(item.nodeid, count) != index]
+    assignments = balanced_shard_assignments([item.nodeid for item in items], count)
+    selected = [
+        item for item in items if assignments[_source_for_nodeid(item.nodeid)] == index
+    ]
+    deselected = [
+        item for item in items if assignments[_source_for_nodeid(item.nodeid)] != index
+    ]
     items[:] = selected
     config.hook.pytest_deselected(items=deselected)
     config._provelume_shard_count = len(selected)

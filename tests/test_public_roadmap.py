@@ -229,13 +229,15 @@ def test_perceptio_slices_are_ordered_bounded_and_only_s01_delivered() -> None:
         elif identity == "0.10/S02":
             expected_state = "- **Delivered state:** completed by merge of owner PR #168"
         elif identity == "0.10/S03":
-            expected_state = "- **Active state:** issue #169 and owner PR #170"
+            expected_state = "- **Delivered state:** completed by merge of owner PR #170"
+        elif identity == "0.10/S04":
+            expected_state = "- **Active state:** issue #171 and owner PR #172"
         else:
             expected_state = "- **Initial state:** `planned`"
         assert expected_state in section
 
     assert positions == sorted(positions)
-    assert plan.count("- **Initial state:** `planned`") == 4
+    assert plan.count("- **Initial state:** `planned`") == 3
     assert "owner PR #163 for #162" in plan
     assert "#157 stays closed `not planned`" in plan
     assert "No operational issue exists for any slice at activation time" in plan

@@ -8,7 +8,7 @@ celle restano di sola ispezione e dichiarano forma d'onda e trascrizione non dis
     provelume audio-support INSTANCE
     provelume audio-queue INSTANCE VERSION_ID --language auto --threads 2
     provelume audio-run INSTANCE JOB_ID
-    provelume audios INSTANCE
+    provelume audio-profiles INSTANCE
 
 L'audio PCM produce `waveform.json` con al massimo 2.000 punti interi picco/RMS. Una ricetta intera
 deterministica lo ricampiona in PCM16LE mono a 16 kHz. Container, codec, canali, frequenza, durata,

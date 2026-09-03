@@ -27,7 +27,7 @@
       "maxItems": 8,
       "items": {"$ref": "#/$defs/track"}
     },
-    "chapters": {"type": "array", "maxItems": 4096, "items": {"type": "object"}},
+    "chapters": {"type": "array", "maxItems": 0},
     "codec": {"type": "string", "minLength": 1, "maxLength": 100},
     "sample_rate_hz": {"type": ["integer", "null"], "minimum": 1, "maximum": 384000},
     "channels": {"type": ["integer", "null"], "minimum": 1, "maximum": 8},
@@ -36,7 +36,7 @@
     "duration_ms": {"type": ["integer", "null"], "minimum": 0, "maximum": 7200000},
     "metadata_records": {"type": "integer", "minimum": 0, "maximum": 4096},
     "decode_state": {"enum": ["qualified", "unavailable"]},
-    "warnings": {"type": "array", "uniqueItems": true, "items": {"type": "string", "maxLength": 100}},
+    "warnings": {"type": "array", "uniqueItems": true, "items": {"enum": ["codec_unqualified", "duration_estimated_cbr", "duration_unavailable"]}},
     "waveform": {
       "type": "object",
       "additionalProperties": false,
@@ -126,7 +126,7 @@
         "end_ms": {"type": "integer", "minimum": 0, "maximum": 7202000},
         "text": {"type": "string", "maxLength": 10000},
         "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
-        "warning_codes": {"type": "array", "items": {"enum": ["low_confidence"]}},
+        "warning_codes": {"type": "array", "uniqueItems": true, "items": {"enum": ["low_confidence"]}},
         "words": {"type": "array", "maxItems": 100000, "items": {"$ref": "#/$defs/word"}},
         "speaker_identity": {"type": "null"}
       }
@@ -138,13 +138,67 @@
       "properties": {
         "state": {"enum": ["available", "unavailable"]},
         "reason": {"type": ["string", "null"]},
-        "language": {"enum": ["auto", "en", "it"]},
-        "engine": {"type": ["object", "null"]},
-        "model": {"type": ["object", "null"]},
-        "settings": {"type": "object"},
+        "language": {"type": "string", "pattern": "^(auto|[a-z]{2}(-[A-Z]{2})?)$"},
+        "engine": {"anyOf": [{"$ref": "#/$defs/engine"}, {"type": "null"}]},
+        "model": {"anyOf": [{"$ref": "#/$defs/model"}, {"type": "null"}]},
+        "settings": {"$ref": "#/$defs/settings"},
         "segments": {"type": "array", "maxItems": 20000, "items": {"$ref": "#/$defs/segment"}},
         "speaker_identity": {"type": "null"},
         "uncertainty_preserved": {"const": true}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"state": {"const": "unavailable"}}},
+          "then": {
+            "properties": {
+              "reason": {"enum": ["binary_identity_mismatch", "codec_unqualified", "component_missing", "model_identity_mismatch", "version_mismatch"]},
+              "engine": {"type": "null"},
+              "model": {"type": "null"},
+              "segments": {"maxItems": 0}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"state": {"const": "available"}}},
+          "then": {
+            "properties": {
+              "reason": {"type": "null"},
+              "engine": {"$ref": "#/$defs/engine"},
+              "model": {"$ref": "#/$defs/model"}
+            }
+          }
+        }
+      ]
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "binary_sha256"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "version": {"const": "1.9.2"},
+        "binary_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sha256", "quantization"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "quantization": {"const": "q5_1"}
+      }
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["language", "threads", "device", "quantization"],
+      "properties": {
+        "language": {"enum": ["auto", "en", "it"]},
+        "threads": {"type": "integer", "minimum": 1, "maximum": 16},
+        "device": {"const": "cpu"},
+        "quantization": {"const": "q5_1"}
       }
     }
   }

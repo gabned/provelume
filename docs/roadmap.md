@@ -40,7 +40,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
 | Published preview | `0.9.0` | OCR, email, Google file and transcript intake | #137 (completed); S01–S07 completed by #138/#141/#147/#150/#152/#154/#156; release #158 | `Lectio` |
-| Active development | `0.10.0` | Multimedia, universal content representations and component inventory | #160; S02 #166/#168 delivered; S03 #169 / owner PR #170 active | `Perceptio` |
+| Active development | `0.10.0` | Multimedia, universal content representations and component inventory | #160; S01–S03 delivered; S04 #171/#172 active | `Perceptio` |
 | Forecast | `0.11.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
 | Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
@@ -1020,9 +1020,9 @@ Release workstream #158 separately aligned and published `0.9.0` after exact-hea
 qualification; parent #137 is closed as completed. The next canonical development release is
 active unpublished `0.10.0 — Perceptio` under #160. S01 is delivered for #162 by owner PR #163
 from `product/0.10-s01-universal-representation-contract`; S02 is delivered for #166 by owner
-PR #168 from `product/0.10-s02-component-inventory`. S03 is the one active slice under #169 and
-owner PR #170; S04 is active under #171/#172 and S05–S07 remain planned. #157 remains closed as
-not planned and no S08 exists.
+PR #168 from `product/0.10-s02-component-inventory`; S03 is delivered under #169/#170. S04 is
+active under #171/#172 and S05–S07 remain planned. #157 remains closed as not planned and no S08
+exists.
 
 ### 0.10.0 — Multimedia, Universal Content Representations and Component Inventory
 
@@ -1035,7 +1035,7 @@ state and complete ordered slice contracts are in the
 `product/0.10-s01-universal-representation-contract` by owner
 [PR #163](https://github.com/gabned/provelume/pull/163). S02 is delivered for
 [#166](https://github.com/gabned/provelume/issues/166) by owner
-[PR #168](https://github.com/gabned/provelume/pull/168). S03 is active under
+[PR #168](https://github.com/gabned/provelume/pull/168). S03 is delivered under
 [#169](https://github.com/gabned/provelume/issues/169) and owner
 [PR #170](https://github.com/gabned/provelume/pull/170); S04 is active under #171/#172 and S05–S07
 remain planned. Package, runtime,
