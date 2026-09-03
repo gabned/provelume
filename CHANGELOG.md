@@ -6,7 +6,14 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
-- activated `0.10/S02` through issue #166 and owner PR #168, adding one versioned installed and
+- activated `0.10/S03` through issue #169 and owner PR #170, adding bounded JPEG/PNG/TIFF/BMP
+  metadata, orientation/color, capture-time and always-redacted GPS/device evidence plus explicit
+  local jobs and removable/rebuildable universal photo representations;
+- selected only external Pillow 12.3.0 for optional metadata-stripped PNG previews and review-only
+  dHash evidence, kept exact SHA-256 proposals separate, reused OCR page anchors and left
+  QR/barcode unavailable without a qualified adapter; no ambient scan, face/identity inference,
+  source write, default GPS export, duplicate action, runtime download or network path was added;
+- delivered `0.10/S02` through issue #166 and owner PR #168, adding one versioned installed and
   release component inventory across first-party, Python, native-tool, codec, model,
   language-pack and host-prerequisite classes; service, CLI, read-only API and accessible EN/IT
   Browser use the same offline, path-redacted model and distinguish installed, missing, ahead,
@@ -19,13 +26,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   representation bundle, closed support registry and one offline service/CLI/API/Browser read
   model; Preserve, Inspect, Extract, Preview, Local enrich and unavailable `AI enrich` remain
   independent, while schema-2 and Lectio document/OCR/email/Google/transcript/finding data stay
-  byte-unchanged behind compatibility views; no later slice was activated and S02 remains only
-  `planned`;
+  byte-unchanged behind compatibility views;
 - added deterministic representation identity, exact Version/Original binding, recipe/output
   fingerprints, component/adapter evidence, warnings, lifecycle and derivation history, reversible
   corrections, exact page/time/region anchors, reserved slide/sheet/cell/member/symbol anchors,
   bounded path/collision/size/expansion validation, equivalent remove/rebuild and deep
-  backup/restore/export/import qualification without implementing photo/audio/video or AI;
+  backup/restore/export/import qualification without implementing audio/video or AI;
 - activated planning-only development for `0.10.0 — Perceptio` under parent #160, with seven
   ordered bounded slices, per-slice scope and qualification contracts, release-wide exit criteria
   and S01 identified at planning activation time as the next work without then implementing it;

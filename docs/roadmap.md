@@ -40,7 +40,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
 | Published preview | `0.9.0` | OCR, email, Google file and transcript intake | #137 (completed); S01–S07 completed by #138/#141/#147/#150/#152/#154/#156; release #158 | `Lectio` |
-| Active development | `0.10.0` | Multimedia, universal content representations and component inventory | #160; planning activation PR #161; S02 #166 / owner PR #168 | `Perceptio` |
+| Active development | `0.10.0` | Multimedia, universal content representations and component inventory | #160; S02 #166/#168 delivered; S03 #169 / owner PR #170 active | `Perceptio` |
 | Forecast | `0.11.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
 | Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
@@ -1019,9 +1019,9 @@ through #155 and owner PR #156 on `product/0.9-s07-windows-shell-endpoint-ux`; S
 Release workstream #158 separately aligned and published `0.9.0` after exact-head and merge-commit
 qualification; parent #137 is closed as completed. The next canonical development release is
 active unpublished `0.10.0 — Perceptio` under #160. S01 is delivered for #162 by owner PR #163
-from `product/0.10-s01-universal-representation-contract`. No slice is active; S02 is only the
-next planned slice and S03–S07 remain planned. #157 remains closed as not planned and no S08
-exists.
+from `product/0.10-s01-universal-representation-contract`; S02 is delivered for #166 by owner
+PR #168 from `product/0.10-s02-component-inventory`. S03 is the one active slice under #169 and
+owner PR #170; S04–S07 remain planned. #157 remains closed as not planned and no S08 exists.
 
 ### 0.10.0 — Multimedia, Universal Content Representations and Component Inventory
 
@@ -1032,9 +1032,12 @@ state and complete ordered slice contracts are in the
 [`0.10.0 — Perceptio` development plan](releases/0.10.0.md). S01 is delivered for
 [#162](https://github.com/gabned/provelume/issues/162) on
 `product/0.10-s01-universal-representation-contract` by owner
-[PR #163](https://github.com/gabned/provelume/pull/163). No slice is active; S02 is only the next
-planned slice and S03–S07 remain planned. Package, runtime, embedded and Windows identity remain
-`0.9.0`; Perceptio is unpublished and unavailable.
+[PR #163](https://github.com/gabned/provelume/pull/163). S02 is delivered for
+[#166](https://github.com/gabned/provelume/issues/166) by owner
+[PR #168](https://github.com/gabned/provelume/pull/168). S03 is active under
+[#169](https://github.com/gabned/provelume/issues/169) and owner
+[PR #170](https://github.com/gabned/provelume/pull/170); S04–S07 remain planned. Package, runtime,
+embedded and Windows identity remain `0.9.0`; Perceptio is unpublished and unavailable.
 
 **Depends on:** the `0.8.0` durable job/resource foundation, the `0.9.0` OCR and richer-intake
 contracts, and the existing versioned document-bundle boundary.
@@ -1113,8 +1116,8 @@ claim that every preserved file is extractable, previewable or semantically sear
 | Identity | Title | Verifiable outcome | Explicit boundary | Initial state |
 | --- | --- | --- | --- | --- |
 | `0.10/S01` | Universal representation and support-registry contract | Versioned bundle, anchor and support-level contracts map existing profiles without rewriting them. | No media parser, engine, model, native payload, AI path or migration rewrite. | `completed` by #163 for #162 |
-| `0.10/S02` | Installed and release component inventory with EN/IT catalogue | Installed, manifest and release-SBOM evidence reconcile into a truthful local catalogue and export. | A check never installs or updates; offline never checks; no `latest` claim without dated evidence. | `planned` |
-| `0.10/S03` | Photo metadata, privacy, duplicate proposals and OCR profiles | Qualified photo representations expose safe metadata/preview, GPS policy, distinct similarity evidence and anchored OCR. | No photo-library discovery, face/identity inference, source write, default GPS sharing, merge or deletion. | `planned` |
+| `0.10/S02` | Installed and release component inventory with EN/IT catalogue | Installed, manifest and release-SBOM evidence reconcile into a truthful local catalogue and export. | A check never installs or updates; offline never checks; no `latest` claim without dated evidence. | `completed` by #168 for #166 |
+| `0.10/S03` | Photo metadata, privacy, duplicate proposals and OCR profiles | Qualified photo representations expose safe metadata/preview, GPS policy, distinct similarity evidence and anchored OCR. | No photo-library discovery, face/identity inference, source write, default GPS sharing, merge or deletion. | `active` under #169/#170 |
 | `0.10/S04` | Local audio transcription and time anchors | Qualified local audio profiles create attributable timestamped transcript/waveform representations. | No remote speech, model download, summary/classification or verified speaker identity; diarization is not baseline scope. | `planned` |
 | `0.10/S05` | Video streams, subtitles, scenes, keyframes and frame OCR | Qualified streams combine subtitle, audio, scene, keyframe and selected-frame OCR evidence. | No live capture, DRM bypass, continuous frame OCR, remote inference or generative media. | `planned` |
 | `0.10/S06` | Bounded additional file-family profiles | At most three activation-time-selected higher-level profiles enter the universal registry; other candidates stay Preserve/Inspect or defer. | No unbounded format sweep or execution of macros, formulas, scripts, notebooks, HTML or attachments. | `planned` |
@@ -1122,8 +1125,8 @@ claim that every preserved file is extractable, previewable or semantically sear
 
 For every slice, the linked development plan records the user problem, dependencies, affected
 surfaces, qualification minimum, primary risk, compatibility/migration effect, Windows/packaging
-effect and completion criteria. S01 is delivered by #163 for #162. No slice is active; S02 is only
-the next planned slice and no later slice has an operational issue or owner pull request.
+effect and completion criteria. S01 is delivered by #163 for #162 and S02 by #168 for #166. S03
+is the one active slice under #169/#170; S04–S07 have no operational issue or owner pull request.
 
 This independently releasable outcome takes the former `0.10.0` slot. Every later unreleased
 forecast moves forward atomically by one through the `0.23.0` release candidate while stable
