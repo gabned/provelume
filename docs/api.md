@@ -521,6 +521,18 @@ writes metadata, executes a duplicate action, downloads a component or uses the 
 responses are image/png, nosniff, no-store and subject to the application no-script/no-object
 content policy. See [the photo guide](photos.md).
 
+## Local audio profiles
+
+- `GET /api/v1/audio/support` — bounded format/decode matrix and exact local-ASR capability;
+- `GET /api/v1/audio` and `GET /api/v1/audio/{representation_id}` — derived profiles and jobs;
+- `GET /api/v1/audio/{representation_id}/outputs/{time-map.json|transcript.json|waveform.json}` —
+  integrity-checked inert JSON outputs.
+
+No route captures audio, serves an Original, accepts a path/upload, discovers a model, performs a
+runtime download, mutates jobs/representations, uses remote speech or assigns a speaker identity.
+Queue/run/cancel/retry/remove/rebuild remain service/CLI authority. Non-WAV decode cells stay
+visibly unavailable. See [the local audio guide](audio.md).
+
 `GET /api/v1/security/network` derives an effective network policy and component inventory from the
 local Instance configuration and canonical connector declarations. The same contract is available
 through `provelume network-status <instance>` and the EN/IT `/security/network` browser page.

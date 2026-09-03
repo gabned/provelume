@@ -50,6 +50,18 @@ AUDIO_ERROR_CODES = (
     "audio_contract_violation",
     "audio_job_state_invalid",
 )
+AUDIO_WARNING_CODES = {
+    "codec_unqualified",
+    "duration_estimated_cbr",
+    "duration_unavailable",
+}
+TRANSCRIPT_UNAVAILABLE_REASONS = {
+    "binary_identity_mismatch",
+    "codec_unqualified",
+    "component_missing",
+    "model_identity_mismatch",
+    "version_mismatch",
+}
 
 WHISPER_CPP_VERSION = "1.9.2"
 WHISPER_MODEL_ID = "ggml-tiny-q5_1"
@@ -163,7 +175,7 @@ def _wav_chunks(data: bytes) -> list[tuple[bytes, int, int]]:
             raise AudioContractError("audio_invalid_container", "WAV chunk is truncated")
         chunks.append((kind, start, size))
         offset = end + (size & 1)
-    if len(chunks) >= MAX_CONTAINER_RECORDS or offset > declared:
+    if len(chunks) >= MAX_CONTAINER_RECORDS or offset != declared:
         raise AudioContractError("audio_invalid_container", "WAV chunk limit is invalid")
     return chunks
 
@@ -386,7 +398,7 @@ def _inspect_adts(data: bytes) -> dict[str, Any]:
         "bits_per_sample": None,
         "sample_count": samples,
         "duration_ms": _duration((samples * 1_000) // int(rate)),
-        "metadata_records": frames,
+        "metadata_records": 0,
         "decode_state": "unavailable",
         "warnings": ["codec_unqualified"],
         "_pcm": None,
@@ -504,9 +516,7 @@ def _inspect_m4a(data: bytes) -> dict[str, Any]:
         for child_kind, child_start, child_size in children:
             if child_kind == b"trak":
                 track_end = child_start + child_size
-                for mdia_kind, mdia_start, mdia_size in _mp4_atoms(
-                    data, child_start, track_end
-                ):
+                for mdia_kind, mdia_start, mdia_size in _mp4_atoms(data, child_start, track_end):
                     if mdia_kind != b"mdia":
                         continue
                     for media_kind, media_start, media_size in _mp4_atoms(
@@ -714,7 +724,8 @@ def _normalise_transcript(value: Any, *, duration_ms: int) -> dict[str, Any]:
             raise AudioContractError("audio_asr_failed", "ASR words are invalid")
         words: list[dict[str, Any]] = []
         probabilities: list[float] = []
-        for word_ordinal, token in enumerate(raw_words):
+        previous_word_end = start
+        for token in raw_words:
             if not isinstance(token, Mapping):
                 raise AudioContractError("audio_asr_failed", "ASR word is invalid")
             token_text = token.get("text", token.get("word"))
@@ -750,8 +761,9 @@ def _normalise_transcript(value: Any, *, duration_ms: int) -> dict[str, Any]:
                     raise AudioContractError("audio_asr_failed", "ASR confidence is invalid")
                 confidence = round(float(probability), 6)
                 probabilities.append(confidence)
-            if token_start < start or token_end < token_start or token_end > end:
+            if token_start < previous_word_end or token_end < token_start or token_end > end:
                 raise AudioContractError("audio_asr_failed", "ASR word boundary is invalid")
+            word_ordinal = len(words)
             word_id = "aword_" + _sha256(
                 canonical_json_bytes(
                     {
@@ -773,6 +785,7 @@ def _normalise_transcript(value: Any, *, duration_ms: int) -> dict[str, Any]:
                     "timestamp_qualified": True,
                 }
             )
+            previous_word_end = token_end
             word_total += 1
             if word_total > MAX_WORDS:
                 raise AudioContractError("audio_asr_failed", "ASR word count is invalid")
@@ -950,9 +963,19 @@ class WhisperCppAdapter:
 def _validate_settings(language: str, threads: int) -> dict[str, Any]:
     if _LANGUAGE.fullmatch(language) is None or language not in {"auto", "en", "it"}:
         raise AudioContractError("audio_contract_violation", "audio language is unsupported")
-    if type(threads) is not int or threads < 1 or threads > 32:
+    if type(threads) is not int or threads < 1 or threads > 16:
         raise AudioContractError("audio_contract_violation", "ASR thread count is invalid")
     return {"language": language, "threads": threads, "device": "cpu", "quantization": "q5_1"}
+
+
+def _optional_bounded_int(value: Any, minimum: int, maximum: int) -> bool:
+    return value is None or (type(value) is int and minimum <= value <= maximum)
+
+
+def _valid_confidence(value: Any) -> bool:
+    return value is None or (
+        not isinstance(value, bool) and isinstance(value, (int, float)) and 0 <= float(value) <= 1
+    )
 
 
 def validate_audio_record(value: Any) -> dict[str, Any]:
@@ -1008,31 +1031,97 @@ def validate_audio_record(value: Any) -> dict[str, Any]:
     if type(record["byte_length"]) is not int or not 1 <= record["byte_length"] <= MAX_INPUT_BYTES:
         raise AudioContractError("audio_contract_violation", "audio byte length is invalid")
     if (
-        not isinstance(record["tracks"], list)
-        or not record["tracks"]
-        or len(record["tracks"]) > MAX_CHANNELS
+        not isinstance(record["container"], str)
+        or not 1 <= len(record["container"]) <= 100
+        or not isinstance(record["codec"], str)
+        or not 1 <= len(record["codec"]) <= 100
+        or record["chapters"] != []
+        or type(record["metadata_records"]) is not int
+        or not 0 <= record["metadata_records"] <= MAX_CONTAINER_RECORDS
+        or not _optional_bounded_int(record["sample_rate_hz"], 1, 384_000)
+        or not _optional_bounded_int(record["channels"], 1, MAX_CHANNELS)
+        or not _optional_bounded_int(record["bits_per_sample"], 1, 64)
+        or not _optional_bounded_int(
+            record["sample_count"], 0, (MAX_DURATION_MS * 384_000) // 1_000
+        )
+        or not _optional_bounded_int(record["duration_ms"], 0, MAX_DURATION_MS)
     ):
+        raise AudioContractError("audio_contract_violation", "audio stream values are invalid")
+    tracks = record["tracks"]
+    if not isinstance(tracks, list) or not tracks or len(tracks) > MAX_CHANNELS:
         raise AudioContractError("audio_contract_violation", "audio tracks are invalid")
-    _duration(record["duration_ms"])
-    _channels(record["channels"])
-    if record["decode_state"] not in {"qualified", "unavailable"} or not isinstance(
-        record["warnings"], list
+    for index, track in enumerate(tracks):
+        if (
+            not isinstance(track, Mapping)
+            or set(track)
+            != {
+                "index",
+                "kind",
+                "codec",
+                "sample_rate_hz",
+                "channels",
+                "bits_per_sample",
+            }
+            or track["index"] != index
+            or track["kind"] != "audio"
+            or not isinstance(track["codec"], str)
+            or not 1 <= len(track["codec"]) <= 100
+            or not _optional_bounded_int(track["sample_rate_hz"], 1, 384_000)
+            or not _optional_bounded_int(track["channels"], 1, MAX_CHANNELS)
+            or not _optional_bounded_int(track["bits_per_sample"], 1, 64)
+        ):
+            raise AudioContractError("audio_contract_violation", "audio track is invalid")
+    first_track = tracks[0]
+    if any(
+        first_track[key] != record[key]
+        for key in ("codec", "sample_rate_hz", "channels", "bits_per_sample")
     ):
-        raise AudioContractError("audio_contract_violation", "audio decode state is invalid")
+        raise AudioContractError("audio_contract_violation", "audio track summary is inconsistent")
+    warnings = record["warnings"]
+    qualified_decode = (
+        record["format"] == "WAV"
+        and record["codec"] == "pcm"
+        and record["bits_per_sample"] == 16
+        and record["channels"] in {1, 2}
+    )
+    if (
+        record["decode_state"] not in {"qualified", "unavailable"}
+        or not isinstance(warnings, list)
+        or not all(isinstance(item, str) for item in warnings)
+        or len(set(warnings)) != len(warnings)
+        or any(item not in AUDIO_WARNING_CODES for item in warnings)
+        or (record["decode_state"] == "qualified") != qualified_decode
+    ):
+        raise AudioContractError("audio_contract_violation", "audio decode claim is invalid")
     waveform = record["waveform"]
     if (
         not isinstance(waveform, Mapping)
         or set(waveform) != {"state", "recipe", "point_count", "peak_ppm", "rms_ppm"}
         or waveform["state"] not in {"available", "unavailable"}
+        or type(waveform["point_count"]) is not int
+        or not 0 <= waveform["point_count"] <= MAX_WAVEFORM_POINTS
+        or type(waveform["peak_ppm"]) is not int
+        or not 0 <= waveform["peak_ppm"] <= 1_000_000
+        or type(waveform["rms_ppm"]) is not int
+        or not 0 <= waveform["rms_ppm"] <= waveform["peak_ppm"]
     ):
         raise AudioContractError("audio_contract_violation", "audio waveform is invalid")
-    if (
-        type(waveform["point_count"]) is not int
-        or not 0 <= waveform["point_count"] <= MAX_WAVEFORM_POINTS
-    ):
-        raise AudioContractError(
-            "audio_contract_violation", "audio waveform point count is invalid"
-        )
+    if waveform["state"] == "available":
+        if (
+            record["decode_state"] != "qualified"
+            or waveform["recipe"] != "pcm16le-channel-aggregate-window-v1"
+            or waveform["point_count"] < 1
+        ):
+            raise AudioContractError("audio_contract_violation", "audio waveform claim is invalid")
+    elif waveform != {
+        "state": "unavailable",
+        "recipe": None,
+        "point_count": 0,
+        "peak_ppm": 0,
+        "rms_ppm": 0,
+    }:
+        raise AudioContractError("audio_contract_violation", "unavailable waveform is invalid")
+
     transcript = record["transcript"]
     if (
         not isinstance(transcript, Mapping)
@@ -1049,28 +1138,62 @@ def validate_audio_record(value: Any) -> dict[str, Any]:
             "uncertainty_preserved",
         }
         or transcript["state"] not in {"available", "unavailable"}
+        or not isinstance(transcript["language"], str)
+        or _LANGUAGE.fullmatch(transcript["language"]) is None
         or transcript["speaker_identity"] is not None
         or transcript["uncertainty_preserved"] is not True
     ):
         raise AudioContractError("audio_contract_violation", "audio transcript is invalid")
+    settings = transcript["settings"]
+    if (
+        not isinstance(settings, Mapping)
+        or set(settings) != {"language", "threads", "device", "quantization"}
+        or not isinstance(settings["language"], str)
+        or settings["device"] != "cpu"
+        or settings["quantization"] != "q5_1"
+    ):
+        raise AudioContractError("audio_contract_violation", "audio ASR settings are invalid")
+    _validate_settings(settings["language"], settings["threads"])
     segments = transcript["segments"]
     if not isinstance(segments, list) or len(segments) > MAX_SEGMENTS:
         raise AudioContractError(
             "audio_contract_violation", "audio transcript segments are invalid"
         )
     if transcript["state"] == "unavailable" and (
-        segments or not isinstance(transcript["reason"], str)
+        segments
+        or transcript["reason"] not in TRANSCRIPT_UNAVAILABLE_REASONS
+        or transcript["engine"] is not None
+        or transcript["model"] is not None
+        or transcript["language"] != settings["language"]
     ):
         raise AudioContractError("audio_contract_violation", "unavailable transcript is invalid")
-    if transcript["state"] == "available" and (
-        transcript["reason"] is not None
-        or not isinstance(transcript["engine"], Mapping)
-        or not isinstance(transcript["model"], Mapping)
-    ):
-        raise AudioContractError("audio_contract_violation", "available transcript is invalid")
+    if transcript["state"] == "available":
+        engine = transcript["engine"]
+        model = transcript["model"]
+        if (
+            transcript["reason"] is not None
+            or not isinstance(engine, Mapping)
+            or set(engine) != {"id", "version", "binary_sha256"}
+            or not isinstance(engine["id"], str)
+            or _IDENTIFIER.fullmatch(engine["id"]) is None
+            or engine["version"] != WHISPER_CPP_VERSION
+            or not isinstance(engine["binary_sha256"], str)
+            or _SHA256.fullmatch(engine["binary_sha256"]) is None
+            or not isinstance(model, Mapping)
+            or set(model) != {"id", "sha256", "quantization"}
+            or not isinstance(model["id"], str)
+            or _IDENTIFIER.fullmatch(model["id"]) is None
+            or not isinstance(model["sha256"], str)
+            or _SHA256.fullmatch(model["sha256"]) is None
+            or model["quantization"] != "q5_1"
+            or record["duration_ms"] is None
+        ):
+            raise AudioContractError("audio_contract_violation", "audio ASR identity is invalid")
+
     previous_end = 0
     word_count = 0
-    for segment in segments:
+    text_count = 0
+    for segment_ordinal, segment in enumerate(segments):
         if (
             not isinstance(segment, Mapping)
             or set(segment)
@@ -1085,31 +1208,94 @@ def validate_audio_record(value: Any) -> dict[str, Any]:
                 "speaker_identity",
             }
             or segment["speaker_identity"] is not None
-        ):
-            raise AudioContractError("audio_contract_violation", "audio segment is invalid")
-        if (
-            type(segment["start_ms"]) is not int
+            or not isinstance(segment["id"], str)
+            or re.fullmatch(r"aseg_[0-9a-f]{64}", segment["id"]) is None
+            or type(segment["start_ms"]) is not int
             or type(segment["end_ms"]) is not int
             or segment["start_ms"] < previous_end
             or segment["end_ms"] < segment["start_ms"]
-        ):
-            raise AudioContractError("audio_contract_violation", "audio segment time is invalid")
-        if (
-            not isinstance(segment["text"], str)
+            or segment["end_ms"] > int(record["duration_ms"] or 0) + 2_000
+            or not isinstance(segment["text"], str)
+            or len(segment["text"]) > 10_000
             or "\x00" in segment["text"]
             or not isinstance(segment["words"], list)
+            or not isinstance(segment["warning_codes"], list)
+            or not all(isinstance(code, str) for code in segment["warning_codes"])
+            or len(set(segment["warning_codes"])) != len(segment["warning_codes"])
+            or any(code != "low_confidence" for code in segment["warning_codes"])
+            or not _valid_confidence(segment["confidence"])
         ):
-            raise AudioContractError("audio_contract_violation", "audio segment content is invalid")
+            raise AudioContractError("audio_contract_violation", "audio segment is invalid")
+        expected_warning = (
+            ["low_confidence"]
+            if segment["confidence"] is not None and segment["confidence"] < 0.5
+            else []
+        )
+        expected_segment_id = "aseg_" + _sha256(
+            canonical_json_bytes(
+                {
+                    "ordinal": segment_ordinal,
+                    "start_ms": segment["start_ms"],
+                    "end_ms": segment["end_ms"],
+                    "text": segment["text"],
+                }
+            )
+        )
+        if segment["warning_codes"] != expected_warning or segment["id"] != expected_segment_id:
+            raise AudioContractError("audio_contract_violation", "audio segment claim is invalid")
+        if word_count + len(segment["words"]) > MAX_WORDS:
+            raise AudioContractError("audio_contract_violation", "audio word count is invalid")
+        previous_word_end = segment["start_ms"]
+        for word_ordinal, word in enumerate(segment["words"]):
+            if (
+                not isinstance(word, Mapping)
+                or set(word)
+                != {"id", "start_ms", "end_ms", "text", "confidence", "timestamp_qualified"}
+                or not isinstance(word["id"], str)
+                or re.fullmatch(r"aword_[0-9a-f]{64}", word["id"]) is None
+                or type(word["start_ms"]) is not int
+                or type(word["end_ms"]) is not int
+                or word["start_ms"] < previous_word_end
+                or word["end_ms"] < word["start_ms"]
+                or word["end_ms"] > segment["end_ms"]
+                or not isinstance(word["text"], str)
+                or not word["text"]
+                or len(word["text"]) > 500
+                or "\x00" in word["text"]
+                or word["timestamp_qualified"] is not True
+                or not _valid_confidence(word["confidence"])
+            ):
+                raise AudioContractError("audio_contract_violation", "audio word is invalid")
+            expected_word_id = "aword_" + _sha256(
+                canonical_json_bytes(
+                    {
+                        "segment": segment_ordinal,
+                        "word": word_ordinal,
+                        "start_ms": word["start_ms"],
+                        "end_ms": word["end_ms"],
+                        "text": word["text"],
+                    }
+                )
+            )
+            if word["id"] != expected_word_id:
+                raise AudioContractError("audio_contract_violation", "audio word claim is invalid")
+            previous_word_end = word["end_ms"]
         word_count += len(segment["words"])
+        text_count += len(segment["text"])
+        if text_count > MAX_TRANSCRIPT_CHARS:
+            raise AudioContractError("audio_contract_violation", "audio transcript is oversized")
         previous_end = segment["end_ms"]
-    if word_count > MAX_WORDS:
-        raise AudioContractError("audio_contract_violation", "audio word count is invalid")
     time_map = record["time_map"]
     if (
         not isinstance(time_map, Mapping)
         or set(time_map) != {"anchor_count", "segment_anchors", "word_anchors", "reopen_original"}
         or time_map["reopen_original"] is not True
-        or time_map["anchor_count"] != time_map["segment_anchors"] + time_map["word_anchors"]
+        or type(time_map["segment_anchors"]) is not int
+        or type(time_map["word_anchors"]) is not int
+        or type(time_map["anchor_count"]) is not int
+        or time_map["segment_anchors"] != len(segments)
+        or time_map["word_anchors"] != word_count
+        or time_map["anchor_count"] != len(segments) + word_count
     ):
         raise AudioContractError("audio_contract_violation", "audio time map is invalid")
     invariants = record["invariants"]

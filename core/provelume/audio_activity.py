@@ -7,17 +7,8 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 
-from .audio_profiles import AudioContractError
 from .paths import safe_instance_path
 from .service import ProvelumeInstance
-
-
-def _raise_http(exc: AudioContractError) -> None:
-    status = 404 if exc.code == "audio_not_found" else 409 if "job_state" in exc.code else 422
-    raise HTTPException(
-        status_code=status,
-        detail={"error_code": exc.code, "message": str(exc)},
-    ) from exc
 
 
 def attach_audio_routes(
@@ -36,38 +27,6 @@ def attach_audio_routes(
         limit: int = Query(default=100, ge=1, le=500),
     ) -> dict[str, Any]:
         return instance.audio_read_model(version_id=version_id, limit=limit)
-
-    @app.post("/api/v1/audio/jobs/{version_id}", status_code=202)
-    def api_queue_audio(
-        version_id: str,
-        language: str = "auto",
-        threads: int = Query(default=2, ge=1, le=16),
-    ) -> dict[str, Any]:
-        try:
-            return instance.queue_audio(version_id, language=language, threads=threads)
-        except AudioContractError as exc:
-            _raise_http(exc)
-
-    @app.post("/api/v1/audio/jobs/{job_id}/run")
-    def api_run_audio(job_id: str) -> dict[str, Any]:
-        try:
-            return instance.run_audio_job(job_id)
-        except AudioContractError as exc:
-            _raise_http(exc)
-
-    @app.post("/api/v1/audio/jobs/{job_id}/cancel")
-    def api_cancel_audio(job_id: str) -> dict[str, Any]:
-        try:
-            return instance.cancel_audio_job(job_id)
-        except AudioContractError as exc:
-            _raise_http(exc)
-
-    @app.post("/api/v1/audio/jobs/{job_id}/retry")
-    def api_retry_audio(job_id: str) -> dict[str, Any]:
-        try:
-            return instance.retry_audio_job(job_id)
-        except AudioContractError as exc:
-            _raise_http(exc)
 
     @app.get("/api/v1/audio/{representation_id}/outputs/{output_name}")
     def api_audio_output(representation_id: str, output_name: str) -> Response:
@@ -111,20 +70,6 @@ def attach_audio_routes(
         if selected is None:
             raise HTTPException(status_code=404, detail="audio representation not found")
         return selected
-
-    @app.delete("/api/v1/audio/{representation_id}")
-    def api_remove_audio(representation_id: str) -> dict[str, Any]:
-        try:
-            return instance.remove_audio(representation_id)
-        except AudioContractError as exc:
-            _raise_http(exc)
-
-    @app.post("/api/v1/audio/{representation_id}/rebuild")
-    def api_rebuild_audio(representation_id: str) -> dict[str, Any]:
-        try:
-            return instance.rebuild_audio(representation_id)
-        except AudioContractError as exc:
-            _raise_http(exc)
 
     @app.get("/audio")
     def audio_page(request: Request):

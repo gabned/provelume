@@ -65,6 +65,11 @@ def test_inventory_covers_component_classes_and_keeps_states_distinct() -> None:
     assert rows["runtime.cpython"]["status"] == "installed"
     assert rows["ocr.tesseract"]["status"] == "missing"
     assert rows["ocr.eng-traineddata"]["status"] == "unverified"
+    assert rows["asr.whisper-cpp"]["approved_version"] == "1.9.2"
+    assert rows["asr.whisper-cpp"]["status"] == "unverified"
+    assert rows["model.whisper-tiny-q5-1"]["expected_sha256"] == (
+        "818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7"
+    )
     assert all(row["local_path_redacted"] is True for row in rows.values())
     assert all(row["license"] and row["notices"] for row in rows.values())
     assert all(row["latest_known_version"] is None for row in rows.values())

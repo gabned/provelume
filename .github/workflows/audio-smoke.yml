@@ -43,7 +43,7 @@ jobs:
           set -euo pipefail
           curl --fail --location --proto '=https' --tlsv1.2 \
             --output .audio-whisper/ggml-tiny-q5_1.bin \
-            https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q5_1.bin
+            https://huggingface.co/ggerganov/whisper.cpp/resolve/d148abaa5548d0deea3cf8075f0fd3376e483c8f/ggml-tiny-q5_1.bin
           echo '818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7  .audio-whisper/ggml-tiny-q5_1.bin' | sha256sum --check --strict
           test "$(stat --format=%s .audio-whisper/ggml-tiny-q5_1.bin)" = "32152673"
 

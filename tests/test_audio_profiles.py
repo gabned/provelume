@@ -100,7 +100,7 @@ def _ogg_opus() -> bytes:
     return bytes(header)
 
 
-def _m4a() -> bytes:
+def _m4a(*, audio_track: bool = True) -> bytes:
     def atom(kind: bytes, payload: bytes) -> bytes:
         return (len(payload) + 8).to_bytes(4, "big") + kind + payload
 
@@ -108,7 +108,13 @@ def _m4a() -> bytes:
     mvhd = (
         b"\x00\x00\x00\x00" + b"\x00" * 8 + (1_000).to_bytes(4, "big") + (1_500).to_bytes(4, "big")
     )
-    moov = atom(b"moov", atom(b"mvhd", mvhd) + atom(b"trak", b""))
+    if audio_track:
+        handler = atom(b"hdlr", b"\x00" * 8 + b"soun" + b"\x00" * 8)
+        sample_description = atom(b"stsd", b"\x00" * 8 + b"mp4a")
+        track = atom(b"trak", atom(b"mdia", handler + atom(b"minf", sample_description)))
+    else:
+        track = atom(b"trak", b"")
+    moov = atom(b"moov", atom(b"mvhd", mvhd) + track)
     return ftyp + moov
 
 
@@ -181,6 +187,7 @@ def test_pcm16_wav_inspection_is_bounded_and_qualified() -> None:
         (_mp3(), "MP3", "mp3"),
         (_adts(), "AAC", "aac"),
         (_ogg_opus(), "OGG", "opus"),
+        (_m4a(), "M4A", "aac"),
     ],
 )
 def test_candidate_containers_are_inspected_but_not_silently_decoded(
@@ -195,7 +202,7 @@ def test_candidate_containers_are_inspected_but_not_silently_decoded(
 
 def test_m4a_without_an_audio_handler_is_rejected() -> None:
     with pytest.raises(AudioContractError) as failure:
-        inspect_audio_bytes(_m4a())
+        inspect_audio_bytes(_m4a(audio_track=False))
     assert failure.value.code == "audio_unsupported_format"
 
 
@@ -275,6 +282,16 @@ def test_audio_job_creates_citable_bundle_without_mutating_original(tmp_path: Pa
         == before
     )
 
+    malformed = dict(profile["record"])
+    malformed["time_map"] = {**malformed["time_map"], "word_anchors": 0}
+    with pytest.raises(AudioContractError):
+        validate_audio_record(malformed)
+
+    leaked = dict(profile["record"])
+    leaked["transcript"] = {**leaked["transcript"], "speaker_identity": "speaker-1"}
+    with pytest.raises(AudioContractError):
+        validate_audio_record(leaked)
+
 
 def test_cancel_retry_remove_and_rebuild_are_durable(tmp_path: Path) -> None:
     instance, version_id = _seed(tmp_path)
@@ -295,8 +312,11 @@ def test_audio_api_and_browser_are_read_only_by_default(tmp_path: Path) -> None:
     assert support.status_code == 200
     assert support.json()["network_used"] is False
     assert client.get("/audio").status_code == 200
-    queued = client.post(f"/api/v1/audio/jobs/{version_id}")
-    assert queued.status_code == 202
+    assert client.post(f"/api/v1/audio/jobs/{version_id}").status_code == 404
+    assert client.delete("/api/v1/audio/repr_missing").status_code == 405
+    paths = client.get("/openapi.json").json()["paths"]
+    assert "/api/v1/audio/jobs/{version_id}" not in paths
+    assert set(paths["/api/v1/audio/{representation_id}"]) == {"get"}
 
 
 def test_browser_renders_an_existing_flat_audio_record(tmp_path: Path) -> None:

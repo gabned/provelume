@@ -8,7 +8,7 @@ cells are inspect-only and report waveform/transcription as unavailable.
     provelume audio-support INSTANCE
     provelume audio-queue INSTANCE VERSION_ID --language auto --threads 2
     provelume audio-run INSTANCE JOB_ID
-    provelume audios INSTANCE
+    provelume audio-profiles INSTANCE
 
 PCM audio produces `waveform.json` with at most 2,000 integer peak/RMS points. A deterministic
 integer recipe resamples it to mono PCM16LE at 16 kHz. Container, codec, channel, sample-rate,

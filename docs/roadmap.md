@@ -1020,9 +1020,9 @@ Release workstream #158 separately aligned and published `0.9.0` after exact-hea
 qualification; parent #137 is closed as completed. The next canonical development release is
 active unpublished `0.10.0 — Perceptio` under #160. S01 is delivered for #162 by owner PR #163
 from `product/0.10-s01-universal-representation-contract`; S02 is delivered for #166 by owner
-PR #168 from `product/0.10-s02-component-inventory`. S03 is the one active slice under #169 and
-owner PR #170; S04 is active under #171/#172 and S05–S07 remain planned. #157 remains closed as
-not planned and no S08 exists.
+PR #168 from `product/0.10-s02-component-inventory`; S03 is delivered under #169/#170. S04 is
+active under #171/#172 and S05–S07 remain planned. #157 remains closed as not planned and no S08
+exists.
 
 ### 0.10.0 — Multimedia, Universal Content Representations and Component Inventory
 
@@ -1035,7 +1035,7 @@ state and complete ordered slice contracts are in the
 `product/0.10-s01-universal-representation-contract` by owner
 [PR #163](https://github.com/gabned/provelume/pull/163). S02 is delivered for
 [#166](https://github.com/gabned/provelume/issues/166) by owner
-[PR #168](https://github.com/gabned/provelume/pull/168). S03 is active under
+[PR #168](https://github.com/gabned/provelume/pull/168). S03 is delivered under
 [#169](https://github.com/gabned/provelume/issues/169) and owner
 [PR #170](https://github.com/gabned/provelume/pull/170); S04 is active under #171/#172 and S05–S07
 remain planned. Package, runtime,
