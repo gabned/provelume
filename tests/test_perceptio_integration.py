@@ -76,6 +76,7 @@ def _seed(tmp_path: Path) -> tuple[ProvelumeInstance, str, str]:
         "evidence.wav": _wav(),
         "evidence.mp4": _mp4(),
         "evidence.csv": b"name,value\n<script>alert(1)</script>,uncertain\n",
+        "other.csv": b"name,value\nother,unrelated\n",
     }
     for name, payload in payloads.items():
         (source / name).write_bytes(payload)
@@ -91,6 +92,8 @@ def _seed(tmp_path: Path) -> tuple[ProvelumeInstance, str, str]:
     version_id = versions["evidence.csv"]
     selected = instance.file_families.create(version_id, CSV_PROFILE_ID)
     representation_id = str(selected["representation_id"])
+    instance.file_families.queue(version_id, CSV_PROFILE_ID)
+    instance.file_families.queue(versions["other.csv"], CSV_PROFILE_ID)
 
     bundle_path = instance.perceptio.bundles.root / representation_id / "bundle.json"
     bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
@@ -142,6 +145,12 @@ def test_service_cli_api_browser_share_one_read_only_model(
         "file_family",
     ]
     assert len(expected["items"]) == 1
+    assert [job["family"] for job in expected["jobs"]] == ["file_family"]
+    assert all(job["record"]["version_id"] == version_id for job in expected["jobs"])
+    assert [row["job_count"] for row in expected["support"]] == [0, 0, 0, 1]
+    assert all(
+        row["evidence"]["capability_probe"] == "not_performed" for row in expected["support"]
+    )
     item = expected["items"][0]
     assert item["representation_id"] == representation_id
     assert item["surface"] == "table_archive_metadata"
@@ -153,9 +162,7 @@ def test_service_cli_api_browser_share_one_read_only_model(
     assert expected["privacy"]["network_used"] is False
     assert expected["invariants"]["mutated"] is False
 
-    assert main(
-        ["perceptio-status", str(instance.root), "--version-id", version_id]
-    ) == 0
+    assert main(["perceptio-status", str(instance.root), "--version-id", version_id]) == 0
     assert json.loads(capsys.readouterr().out) == expected
 
     client = TestClient(create_app(instance.root))
@@ -187,6 +194,30 @@ def test_service_cli_api_browser_share_one_read_only_model(
     assert deleted.status_code == 405
 
 
+def test_reads_do_not_probe_family_or_registry_capabilities(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    instance, version_id, _representation_id = _seed(tmp_path)
+
+    def forbidden_probe(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("Perceptio read performed an optional capability probe")
+
+    for manager in (
+        instance.photos,
+        instance.audio,
+        instance.video,
+        instance.file_families,
+    ):
+        monkeypatch.setattr(manager, "capability", forbidden_probe)
+        monkeypatch.setattr(manager, "read_model", forbidden_probe)
+    for name in ("_ocr_state", "_photo_state", "_audio_state", "_video_state"):
+        monkeypatch.setattr(instance.representations.support, name, forbidden_probe)
+
+    selected = instance.perceptio_read_model(version_id=version_id)
+    assert len(selected["items"]) == 1
+    assert selected["jobs"][0]["record"]["version_id"] == version_id
+
+
 def test_empty_degraded_unavailable_recovery_contract_and_closed_limits(tmp_path: Path) -> None:
     instance = ProvelumeInstance.initialise(tmp_path / "instance")
     model = instance.perceptio_read_model()
@@ -204,9 +235,7 @@ def test_empty_degraded_unavailable_recovery_contract_and_closed_limits(tmp_path
     assert model["qualification"]["recovery"]["backup_restore"] == "required"
     assert model["qualification"]["recovery"]["portable_transfer"] == "required"
     assert model["qualification"]["recovery"]["n_minus_one"] == "0.9.0"
-    assert model["qualification"]["recovery"]["rollback"] == (
-        "explicit_no_silent_schema_downgrade"
-    )
+    assert model["qualification"]["recovery"]["rollback"] == ("explicit_no_silent_schema_downgrade")
     for invalid in (0, 501, True):
         with pytest.raises(PerceptioError) as caught:
             instance.perceptio_read_model(limit=invalid)
@@ -229,9 +258,10 @@ def test_mixed_archive_backup_restore_and_portable_transfer_preserve_evidence(
     restored_root = tmp_path / "restored"
     extract_backup(backup["archive"], restored_root)
     restored = ProvelumeInstance(restored_root)
-    assert inspect_instance(restored_root, deep=True)["content_fingerprint"] == before[
-        "content_fingerprint"
-    ]
+    assert (
+        inspect_instance(restored_root, deep=True)["content_fingerprint"]
+        == before["content_fingerprint"]
+    )
     assert {item["family"] for item in restored.perceptio_read_model()["items"]} == {
         "photo",
         "audio",
@@ -245,9 +275,10 @@ def test_mixed_archive_backup_restore_and_portable_transfer_preserve_evidence(
     instance.export_portable(portable)
     target = ProvelumeInstance.initialise(tmp_path / "portable-target")
     assert target.import_portable(portable)["status"] == "imported"
-    assert inspect_instance(target.root, deep=True)["content_fingerprint"] == before[
-        "content_fingerprint"
-    ]
+    assert (
+        inspect_instance(target.root, deep=True)["content_fingerprint"]
+        == before["content_fingerprint"]
+    )
     transferred = target.get_perceptio_representation(corrected_id)
     assert transferred is not None and transferred["item"]["corrections"]["count"] == 1
 
@@ -272,17 +303,15 @@ def test_english_italian_and_packaged_qualification_remain_exact() -> None:
     assert qualification["privacy"]["active_content"] == "inert"
     assert qualification["resource_policy"]["bounded_profiles_only"] is True
     schema = json.loads(
-        (root / "core/provelume/perceptio_qualification.schema.json").read_text(
-            encoding="utf-8"
-        )
+        (root / "core/provelume/perceptio_qualification.schema.json").read_text(encoding="utf-8")
     )
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
     assert schema["properties"]["publication_state"] == {"const": "unpublished"}
     wheel_config = (root / "pyproject.toml").read_text(encoding="utf-8")
     assert 'packages = ["core/provelume"]' in wheel_config
-    workflow = (
-        root / ".github/workflows/perceptio-final-qualification.yml"
-    ).read_text(encoding="utf-8")
+    workflow = (root / ".github/workflows/perceptio-final-qualification.yml").read_text(
+        encoding="utf-8"
+    )
     assert "ubuntu-24.04" in workflow and "windows-2025" in workflow
     assert "tests/test_perceptio_integration.py" in workflow
     for path in (

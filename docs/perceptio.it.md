@@ -21,6 +21,10 @@ disponibilità, supporto, componente/adattatore, avvisi d’incertezza, annotazi
 reversibili, ancore esatte e output derivati. Anche dettaglio e ancore sono solo GET: nessuna rotta
 integrata avvia lavori, applica correzioni, rimuove output o modifica una Source.
 
+Le letture di stato usano dichiarazioni incluse nel pacchetto ed evidenze di profili/lavori già
+registrate. Non calcolano hash, non eseguono e non sondano codec, motori, binari o modelli
+opzionali; i comandi espliciti delle singole famiglie restano l’autorità per un nuovo probe locale.
+
 ## Stati, accessibilità e contenuti ostili
 
 Il contratto distingue stati riuscito, vuoto, caricamento, degradato, indisponibile, interrotto e

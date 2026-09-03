@@ -48,9 +48,7 @@ PERCEPTIO_PROFILE_IDS = (
     "perceptio-zip-member-v1",
     "lectio-cross-source-findings-v1",
 )
-PERCEPTIO_ERROR_CODES = frozenset(
-    {"perceptio_limit_invalid", "perceptio_qualification_invalid"}
-)
+PERCEPTIO_ERROR_CODES = frozenset({"perceptio_limit_invalid", "perceptio_qualification_invalid"})
 
 _FAMILIES: tuple[dict[str, Any], ...] = (
     {
@@ -132,8 +130,7 @@ def _qualification(registry_profile_ids: list[str]) -> dict[str, Any]:
         or value["registry_profile_ids"] != registry_profile_ids
         or registry_profile_ids != list(PERCEPTIO_PROFILE_IDS)
         or value["families"] != [str(item["id"]) for item in _FAMILIES]
-        or value["surfaces"]
-        != {str(item["id"]): str(item["surface"]) for item in _FAMILIES}
+        or value["surfaces"] != {str(item["id"]): str(item["surface"]) for item in _FAMILIES}
         or value["scenarios"] != list(PERCEPTIO_STATES)
         or value["platforms"]
         != {
@@ -146,9 +143,7 @@ def _qualification(registry_profile_ids: list[str]) -> dict[str, Any]:
             "languages": ["en", "it"],
             "keyboard": "native_controls",
             "screen_reader": "exact_artifact_release_gate",
-            "contrast_reflow_reduced_motion": (
-                "permanent_regression_and_exact_artifact_gate"
-            ),
+            "contrast_reflow_reduced_motion": ("permanent_regression_and_exact_artifact_gate"),
         }
         or value["privacy"]
         != {
@@ -227,25 +222,56 @@ class PerceptioReadModel:
         self.components = components or ComponentInventory()
         self.representations = representations or RepresentationReadModel(store)
 
-    def _source_models(self, *, version_id: str | None, limit: int) -> list[dict[str, Any]]:
-        return [
-            {
-                **_FAMILIES[0],
-                "model": self.photos.read_model(version_id=version_id, limit=limit),
-            },
-            {
-                **_FAMILIES[1],
-                "model": self.audio.read_model(version_id=version_id, limit=limit),
-            },
-            {
-                **_FAMILIES[2],
-                "model": self.video.read_model(version_id=version_id, limit=limit),
-            },
-            {
-                **_FAMILIES[3],
-                "model": self.file_families.read_model(version_id=version_id, limit=limit),
-            },
-        ]
+    def _source_models(
+        self,
+        *,
+        version_id: str | None,
+        limit: int,
+        registry: Mapping[str, Any],
+    ) -> list[dict[str, Any]]:
+        managers = (self.photos, self.audio, self.video, self.file_families)
+        result: list[dict[str, Any]] = []
+        registry_records = list(registry["records"])
+        for family, manager in zip(_FAMILIES, managers, strict=True):
+            profiles: list[dict[str, Any]] = []
+            for bundle in self.bundles.list(recipe_id=str(family["recipe_id"]), limit=500):
+                profile = manager.get(str(bundle["representation_id"]))
+                if profile is None:
+                    continue
+                record = profile["record"]
+                if version_id is not None and record["version_id"] != version_id:
+                    continue
+                profiles.append(profile)
+                if len(profiles) >= limit:
+                    break
+            jobs = [
+                copy.deepcopy(job)
+                for job in manager.list_jobs(limit=500)
+                if version_id is None or job.get("version_id") == version_id
+            ][:limit]
+            profile_ids = set(family["profile_ids"])
+            result.append(
+                {
+                    **family,
+                    "model": {
+                        "support": {
+                            "registry_id": registry["registry_id"],
+                            "profile_ids": list(family["profile_ids"]),
+                            "records": [
+                                copy.deepcopy(record)
+                                for record in registry_records
+                                if record["profile_id"] in profile_ids
+                            ],
+                            "capability_probe": "not_performed",
+                            "network_used": False,
+                            "mutated": False,
+                        },
+                        "profiles": profiles,
+                        "jobs": jobs,
+                    },
+                }
+            )
+        return result
 
     @staticmethod
     def _profile_id(family: Mapping[str, Any], record: Mapping[str, Any]) -> str:
@@ -295,7 +321,12 @@ class PerceptioReadModel:
 
     def read(self, *, version_id: str | None = None, limit: int = 100) -> dict[str, Any]:
         selected_limit = _limit(limit)
-        source_models = self._source_models(version_id=version_id, limit=selected_limit)
+        registry = self.representations.support.read(resolve_components=False)
+        source_models = self._source_models(
+            version_id=version_id,
+            limit=selected_limit,
+            registry=registry,
+        )
         items: list[dict[str, Any]] = []
         support: list[dict[str, Any]] = []
         jobs: list[dict[str, Any]] = []
@@ -313,9 +344,7 @@ class PerceptioReadModel:
                     "evidence": copy.deepcopy(model["support"]),
                 }
             )
-            jobs.extend(
-                {"family": family, "record": copy.deepcopy(job)} for job in model["jobs"]
-            )
+            jobs.extend({"family": family, "record": copy.deepcopy(job)} for job in model["jobs"])
             for profile in model["profiles"]:
                 if len(items) >= selected_limit:
                     break
@@ -325,7 +354,6 @@ class PerceptioReadModel:
                 items.append(self._item(source, profile, bundle))
 
         components = self.components.read()
-        registry = self.representations.support.read()
         registry_profile_ids = list(
             dict.fromkeys(str(record["profile_id"]) for record in registry["records"])
         )

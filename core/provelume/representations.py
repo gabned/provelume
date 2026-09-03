@@ -1034,7 +1034,12 @@ class SupportRegistry:
         )
         return "unavailable", reason, "codec.ffmpeg"
 
-    def read(self, *, profile_id: str | None = None) -> dict[str, Any]:
+    def read(
+        self,
+        *,
+        profile_id: str | None = None,
+        resolve_components: bool = True,
+    ) -> dict[str, Any]:
         source = _resource_json("representation-support-registry.json")
         if (
             set(source)
@@ -1137,19 +1142,19 @@ class SupportRegistry:
                     raise RepresentationContractError(
                         "representation_invalid", "support component check is invalid"
                     )
-                if component_check == "ocr":
+                if resolve_components and component_check == "ocr":
                     if ocr_state is None:
                         ocr_state = self._ocr_state()
                     effective, reason, missing_component = ocr_state
-                if component_check == "photo":
+                if resolve_components and component_check == "photo":
                     if photo_state is None:
                         photo_state = self._photo_state()
                     effective, reason, missing_component = photo_state
-                if component_check == "audio":
+                if resolve_components and component_check == "audio":
                     if audio_state is None:
                         audio_state = self._audio_state()
                     effective, reason, missing_component = audio_state
-                if component_check == "video":
+                if resolve_components and component_check == "video":
                     if video_state is None:
                         video_state = self._video_state()
                     effective, reason, missing_component = video_state

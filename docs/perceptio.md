@@ -25,6 +25,10 @@ Each result keeps the exact Version and representation identity beside:
 - reversible correction annotations and exact page/time/region/sheet/cell/member anchors;
 - derived outputs and a link back to the family-specific view.
 
+Status reads use packaged declarations and already stored profile/job evidence. They do not hash,
+execute or otherwise probe optional codecs, engines, binaries or models; explicit family
+capability commands remain the authority for a fresh local probe.
+
 The detail and anchor routes are also GET-only. No integrated endpoint queues work, applies a
 correction, removes an output or changes a Source.
 
