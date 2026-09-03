@@ -6,6 +6,15 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
+- activated `0.10/S07` through issue #180, adding one offline read-only Perceptio projection shared
+  by service, CLI, GET-only API and accessible EN/IT Browser over the already admitted photo,
+  audio, video and exact CSV/XLSX/ZIP profiles;
+- kept provenance, effective support, component/adapter identity, warnings, reversible correction
+  annotations and exact anchors together across happy, empty, loading, degraded, unavailable,
+  interrupted and recovery states, with hostile text escaped and GPS excluded by default;
+- added a permanent Ubuntu 24.04/Windows 2025 integration smoke and release-wide recovery,
+  packaging and N-1 qualification map without adding a family, parser, codec, model, provider,
+  network path, mutation, version, tag or publication claim;
 - activated `0.10/S06` through issue #177 and owner PR #179, selecting exactly the bounded CSV cell, XLSX
   sheet/cached-cell and ZIP member profiles over Python 3.12 standard-library parsers (PSF-2.0);
 - promoted the already reserved sheet/cell/member anchor kinds with additive typed-v1 targets,

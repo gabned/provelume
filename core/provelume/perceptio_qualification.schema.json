@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/perceptio-qualification-v1.json",
+  "title": "Provelume Perceptio S07 qualification declaration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "qualification_id", "target_version", "publication_state", "registry_profile_ids", "families", "surfaces", "scenarios", "platforms", "accessibility", "privacy", "recovery", "resource_policy", "exit_gates", "adoption"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "qualification_id": {"const": "provelume.perceptio-s07.v1"},
+    "target_version": {"const": "0.10.0"},
+    "publication_state": {"const": "unpublished"},
+    "registry_profile_ids": {"type": "array", "minItems": 14, "maxItems": 14, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 100}},
+    "families": {"const": ["photo", "audio", "video", "file_family"]},
+    "surfaces": {"const": {"photo": "gallery_metadata", "audio": "player_waveform_transcript", "video": "player_keyframe_subtitle_transcript", "file_family": "table_archive_metadata"}},
+    "scenarios": {"const": ["happy", "empty", "loading", "degraded", "unavailable", "interrupted", "recovery"]},
+    "platforms": {"const": {"ubuntu_24_04": "permanent_ci_required", "windows_2025": "permanent_ci_required", "codec_claims": "profile_matrix_only"}},
+    "accessibility": {"const": {"languages": ["en", "it"], "keyboard": "native_controls", "screen_reader": "exact_artifact_release_gate", "contrast_reflow_reduced_motion": "permanent_regression_and_exact_artifact_gate"}},
+    "privacy": {"const": {"offline": true, "source_writeback": false, "gps_default_export": "excluded", "active_content": "inert", "identity_inference": false}},
+    "recovery": {"const": {"remove_rebuild": "required", "backup_restore": "required", "portable_transfer": "required", "n_minus_one": "0.9.0", "rollback": "explicit_no_silent_schema_downgrade"}},
+    "resource_policy": {"const": {"bounded_profiles_only": true, "limits_fail_closed": true, "network_required": false, "publication_gate": "verified_release_boundary"}},
+    "exit_gates": {"type": "array", "minItems": 10, "maxItems": 10, "items": {"type": "object", "additionalProperties": false, "required": ["id", "evidence"], "properties": {"id": {"type": "string", "pattern": "^release-exit-(0[1-9]|10)$"}, "evidence": {"type": "string", "minLength": 1, "maxLength": 100}}}},
+    "adoption": {"const": {"audience": "controlled_personal_multimedia_pilot", "available_before_publication": false, "next_product_gate": "0.11.0"}}
+  }
+}

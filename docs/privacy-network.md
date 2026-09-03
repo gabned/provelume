@@ -104,3 +104,11 @@ start OCR, download a component/model, create a preview, rebuild an output or re
 service/CLI/API/Browser result records `network_used: false` and `mutated: false`. `AI enrich` is a
 closed unavailable row with `not_implemented`; no AI client, provider, model or network path is
 present. Native representation bundles also require `network_used: false` and `ai_used: false`.
+
+The `0.10/S07` Perceptio integration reads only the existing profile managers, validated universal
+bundles, packaged qualification declaration and offline component inventory. Its service, CLI,
+GET-only API and Browser results all report no network use and no mutation. It does not probe an
+optional tool, load a preview URL, resolve archive members, execute metadata or prompt-like text,
+apply a correction, export GPS, or create/rebuild/remove a representation. The integrated Browser
+escapes profile evidence and links only to local family and exact-anchor routes. Publication checks
+remain build-time release operations and cannot be initiated by this read model.
