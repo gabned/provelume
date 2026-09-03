@@ -6,7 +6,7 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
-- activated `0.10/S06` through issue #177, selecting exactly the bounded CSV cell, XLSX
+- activated `0.10/S06` through issue #177 and owner PR #179, selecting exactly the bounded CSV cell, XLSX
   sheet/cached-cell and ZIP member profiles over Python 3.12 standard-library parsers (PSF-2.0);
 - promoted the already reserved sheet/cell/member anchor kinds with additive typed-v1 targets,
   durable jobs, remove/rebuild, read-only API and inert accessible EN/IT Browser previews while
