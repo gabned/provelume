@@ -9,7 +9,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-
 PROTOCOL_VERSION = "1.4.0"
 SCHEMA_VERSION = 1
 REPOSITORY = "gabned/provelume"
@@ -325,9 +324,10 @@ def validate_slices(value: Any, mode: str) -> list[dict[str, Any]]:
         elif state == "MERGED":
             if "NONE" in {issue, pr, head, merge}:
                 fail("merged slices need issue, PR, head and merge identity")
-        elif state == "CANCELLED":
-            if issue == "NONE" or {pr, head, merge} != {"NONE"}:
-                fail("cancelled slices retain an issue and no PR/commit identity")
+        elif state == "CANCELLED" and (
+            issue == "NONE" or {pr, head, merge} != {"NONE"}
+        ):
+            fail("cancelled slices retain an issue and no PR/commit identity")
         result.append(item)
     if active_like > 1:
         fail("a campaign may have at most one active or blocked slice")
@@ -435,12 +435,14 @@ def validate_campaign(value: Any) -> dict[str, Any]:
                 fail("continuation after cancellation requires its exact issue event")
         elif event != "INITIAL_AUTHORIZATION":
             fail("the first slice starts only from initial authorization")
-    if kind in {"CONTINUE_ACTIVE_SLICE", "MERGE_ACTIVE_SLICE"}:
-        if len(active) != 1 or slice_id != active[0]["id"]:
-            fail("the pending action must bind the one active slice")
-    if kind == "MERGE_ACTIVE_SLICE":
-        if event != "GATES_PASSED" or SHA_PATTERN.fullmatch(observed_ref) is None:
-            fail("merge continuation requires exact-head passed-gate evidence")
+    if kind in {"CONTINUE_ACTIVE_SLICE", "MERGE_ACTIVE_SLICE"} and (
+        len(active) != 1 or slice_id != active[0]["id"]
+    ):
+        fail("the pending action must bind the one active slice")
+    if kind == "MERGE_ACTIVE_SLICE" and (
+        event != "GATES_PASSED" or SHA_PATTERN.fullmatch(observed_ref) is None
+    ):
+        fail("merge continuation requires exact-head passed-gate evidence")
     release_actions = {
         "PREPARE_RELEASE",
         "PUBLISH_RELEASE",
@@ -453,12 +455,14 @@ def validate_campaign(value: Any) -> dict[str, Any]:
     publication = train["publication_state"]
     if kind == "PREPARE_RELEASE" and publication != "UNPUBLISHED":
         fail("release preparation starts from an unpublished train")
-    if kind == "PUBLISH_RELEASE":
-        if publication != "CANDIDATE" or event != "RELEASE_CANDIDATE_MERGED":
-            fail("publication needs a merged exact-build candidate")
-    if kind == "VERIFY_RELEASE":
-        if publication != "PUBLISHED" or event != "RELEASE_PUBLISHED":
-            fail("release verification needs an observed publication event")
+    if kind == "PUBLISH_RELEASE" and (
+        publication != "CANDIDATE" or event != "RELEASE_CANDIDATE_MERGED"
+    ):
+        fail("publication needs a merged exact-build candidate")
+    if kind == "VERIFY_RELEASE" and (
+        publication != "PUBLISHED" or event != "RELEASE_PUBLISHED"
+    ):
+        fail("release verification needs an observed publication event")
     if kind == "VERIFY_PRODUCTION" and risk != "REVERSIBLE_PRODUCTION":
         fail("production verification is outside the local Core risk profile")
     if kind == "RECORD_CHECKPOINT":
