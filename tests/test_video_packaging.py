@@ -59,6 +59,7 @@ def test_video_schema_bom_workflow_docs_and_notices_agree() -> None:
     assert SOURCE_SHA256 in workflow
     assert "ffmpeg-9.0.1.tar.xz" in workflow
     assert "--disable-x86asm" in workflow
+    assert "Provision fixture generator only" in workflow
     assert "not bundled by Provelume" in notices
     for document in (english, italian):
         assert "PROVELUME_FFMPEG_SHA256" in document

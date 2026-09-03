@@ -56,6 +56,13 @@ jobs:
       - name: Bootstrap without runtime component downloads
         run: python scripts/bootstrap.py
 
+      - name: Provision fixture generator only
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ffmpeg
+          /usr/bin/ffmpeg -version | head -n 1
+
       - name: Create bounded realistic matrix fixtures
         run: |
           set -euo pipefail
