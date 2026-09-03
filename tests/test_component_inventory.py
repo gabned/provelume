@@ -89,6 +89,65 @@ def test_ahead_eol_and_present_without_version_do_not_become_approved() -> None:
     assert rows["ocr.tesseract"]["effective_version"] == "unknown"
 
 
+def test_installed_transitive_runtime_dependency_closure_enters_inventory_and_sbom(
+    tmp_path: Path,
+) -> None:
+    versions = {
+        **VERSIONS,
+        "starlette": "1.6.0",
+        "anyio": "4.15.0",
+        "pydantic": "2.13.5",
+    }
+    dependencies = {
+        "provelume": ["fastapi>=0.115", "pytest>=8; extra == 'dev'"],
+        "fastapi": ["starlette>=0.46", "pydantic>=2.9"],
+        "starlette": ["anyio>=3.6"],
+    }
+    inventory = ComponentInventory(
+        distribution_versions=versions,
+        distribution_dependencies=dependencies,
+        distribution_licenses={
+            "starlette": "BSD-3-Clause",
+            "anyio": "MIT",
+            "pydantic": "MIT",
+        },
+        executable_present=lambda _name: False,
+        python_version="3.12.13",
+        platform_name="linux",
+    )
+    rows = {row["id"]: row for row in inventory.read()["components"]}
+    assert set(rows).issuperset(
+        {
+            "python.transitive.starlette",
+            "python.transitive.anyio",
+            "python.transitive.pydantic",
+        }
+    )
+    assert not any("pytest" in identifier for identifier in rows)
+    assert rows["python.transitive.starlette"]["dependency_relation"] == "runtime_transitive"
+    assert rows["python.transitive.starlette"]["license"] == "BSD-3-Clause"
+
+    sbom = tmp_path / "transitive.cdx.json"
+    sbom.write_text(
+        json.dumps(
+            {
+                "bomFormat": "CycloneDX",
+                "components": [
+                    {
+                        "type": "library",
+                        "name": name,
+                        "version": version,
+                        "purl": f"pkg:pypi/{name}@{version}",
+                    }
+                    for name, version in versions.items()
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert inventory.read(release_sbom=sbom)["release_evidence"]["status"] == "matched"
+
+
 def test_release_sbom_reconciliation_is_bounded_and_deterministic(tmp_path: Path) -> None:
     sbom = tmp_path / "bom.cdx.json"
     sbom.write_text(
@@ -156,6 +215,12 @@ def test_cli_api_and_bilingual_browser_share_one_offline_read_model(
     assert italian.status_code == 200
     assert "Catalogo dei componenti" in italian.text
     assert "Non è stata eseguita" in italian.text
+    for untranslated in (
+        "first_party",
+        "installed_version_within_declared_contract",
+        "verified_release",
+    ):
+        assert untranslated not in italian.text
     assert str(tmp_path) not in english.text
     assert str(tmp_path) not in italian.text
     assert (root / "provelume.yml").read_bytes() == config_before
@@ -172,6 +237,13 @@ def test_component_documentation_and_schema_are_packaged() -> None:
         assert path.is_file()
     english = (root / "docs" / "components.md").read_text("utf-8")
     italian = (root / "docs" / "components.it.md").read_text("utf-8")
+    schema = json.loads(
+        (root / "core" / "provelume" / "component_inventory.schema.json").read_text("utf-8")
+    )
     assert "never installs or updates" in english
     assert "non installa né aggiorna" in italian
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["components"]["items"] == {"$ref": "#/$defs/component"}
+    assert schema["$defs"]["component"]["additionalProperties"] is False
+    assert "status" in schema["$defs"]["component"]["required"]
     assert "GITHUB_TOKEN" not in _inventory().export_bytes().decode("utf-8")

@@ -30,12 +30,12 @@
       {% for row in inventory.components %}
         <tr>
           <td><strong>{{ row.name }}</strong><br><code>{{ row.id }}</code></td>
-          <td>{{ row.category }}</td>
+          <td>{{ t('components.category.' ~ row.category) }}</td>
           <td>{{ row.purpose[lang] }}</td>
           <td><code>{{ row.effective_version or '—' }}</code><br><small>{{ row.version_constraint or row.approved_version or '—' }}</small></td>
-          <td><strong>{{ row.status }}</strong><br><small>{{ row.status_reason }}</small></td>
+          <td><strong>{{ t('components.status.' ~ row.status) }}</strong><br><small>{{ t('components.reason.' ~ row.status_reason) }}</small></td>
           <td><code>{{ row.license }}</code></td>
-          <td>{{ row.delivery }}<br><small>{{ row.update_route }}</small></td>
+          <td>{{ t('components.delivery.' ~ row.delivery) }}<br><small>{{ t('components.update.' ~ row.update_route) }}</small></td>
         </tr>
       {% endfor %}
       </tbody>
@@ -44,7 +44,7 @@
 </section>
 <section class="panel">
   <h2>{{ t('components.evidence') }}</h2>
-  <p>{{ t('components.release_evidence') }}: <strong>{{ inventory.release_evidence.status }}</strong></p>
+  <p>{{ t('components.release_evidence') }}: <strong>{{ t('components.release.' ~ inventory.release_evidence.status) }}</strong></p>
   <p>{{ t('components.no_network') }}</p>
 </section>
 {% endblock %}

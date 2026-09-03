@@ -10,6 +10,8 @@ provelume component-inventory
 
 Ogni voce indica categoria, scopo, relazione di dipendenza, modalità di distribuzione e
 aggiornamento, licenza/avvisi, contratto di versione, versione effettiva e stato dell'evidenza.
+L'inventario Python segue tutte le dipendenze runtime installate di Provelume, comprese quelle
+transitive presenti ed esclusi gli extra di sviluppo.
 `installed` significa soltanto che i metadati locali del runtime o della distribuzione rispettano
 il contratto dichiarato: non è una garanzia di sicurezza. `ahead`, `incompatible`, `eol`,
 `missing` e `unverified` restano stati distinti.
@@ -31,4 +33,3 @@ servizi advisory, provider o host di modelli e non installa né aggiorna nulla. 
 evidenza esplicita il confronto di release è correttamente `unavailable`. Versione più recente e
 stato di sicurezza restano `not_checked` e `unverified` finché non sarà qualificata una capacità
 di rete separata ed esplicita.
-

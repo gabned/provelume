@@ -8,12 +8,119 @@
   "properties": {
     "schema_version": {"const": 1},
     "catalogue_version": {"const": 1},
-    "platform": {"type": "string"},
-    "network": {"type": "object"},
+    "platform": {"type": "string", "minLength": 1},
+    "network": {"$ref": "#/$defs/network"},
     "mutated": {"const": false},
-    "class_coverage": {"type": "array"},
-    "release_evidence": {"type": "object"},
-    "summary": {"type": "object"},
-    "components": {"type": "array", "maxItems": 1000}
+    "class_coverage": {"type": "array", "minItems": 7, "maxItems": 7, "items": {"$ref": "#/$defs/class_coverage"}},
+    "release_evidence": {"$ref": "#/$defs/release_evidence"},
+    "summary": {"$ref": "#/$defs/summary"},
+    "components": {"type": "array", "minItems": 1, "maxItems": 1000, "items": {"$ref": "#/$defs/component"}}
+  },
+  "$defs": {
+    "nullable_string": {"type": ["string", "null"]},
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["used", "catalogue_check", "automatic_update"],
+      "properties": {
+        "used": {"const": false},
+        "catalogue_check": {"const": "not_performed"},
+        "automatic_update": {"const": false}
+      }
+    },
+    "class_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "state"],
+      "properties": {
+        "category": {"enum": ["first_party", "python_package", "native_tool", "codec", "model", "language_pack", "host_prerequisite"]},
+        "state": {"enum": ["inventoried", "not_selected", "unavailable"]}
+      }
+    },
+    "release_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "sbom_sha256", "mismatched_component_ids"],
+      "properties": {
+        "status": {"enum": ["unavailable", "matched", "mismatch"]},
+        "sbom_sha256": {"anyOf": [{"type": "null"}, {"type": "string", "pattern": "^[0-9a-f]{64}$"}]},
+        "mismatched_component_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,99}$"}}
+      }
+    },
+    "state_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ahead", "eol", "incompatible", "installed", "missing", "unsupported", "unverified"],
+      "properties": {
+        "ahead": {"type": "integer", "minimum": 0},
+        "eol": {"type": "integer", "minimum": 0},
+        "incompatible": {"type": "integer", "minimum": 0},
+        "installed": {"type": "integer", "minimum": 0},
+        "missing": {"type": "integer", "minimum": 0},
+        "unsupported": {"type": "integer", "minimum": 0},
+        "unverified": {"type": "integer", "minimum": 0}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "required", "states"],
+      "properties": {
+        "total": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "required": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "states": {"$ref": "#/$defs/state_counts"}
+      }
+    },
+    "purpose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["en", "it"],
+      "properties": {
+        "en": {"type": "string", "minLength": 1},
+        "it": {"type": "string", "minLength": 1}
+      }
+    },
+    "latest_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "checked_at", "source"],
+      "properties": {
+        "status": {"enum": ["not_checked", "current", "stale"]},
+        "checked_at": {"$ref": "#/$defs/nullable_string"},
+        "source": {"$ref": "#/$defs/nullable_string"}
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "category", "name", "purpose", "dependency_relation", "delivery", "update_route", "origin", "license", "notices", "purl", "expected_sha256", "required", "approved_version", "version_constraint", "effective_version", "latest_known_version", "latest_check", "security_status", "status", "status_reason", "evidence", "release_evidence", "platforms", "local_path_redacted"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,99}$"},
+        "category": {"enum": ["first_party", "python_package", "native_tool", "codec", "model", "language_pack", "host_prerequisite"]},
+        "name": {"type": "string", "minLength": 1},
+        "purpose": {"$ref": "#/$defs/purpose"},
+        "dependency_relation": {"type": "string", "minLength": 1},
+        "delivery": {"type": "string", "minLength": 1},
+        "update_route": {"type": "string", "minLength": 1},
+        "origin": {"type": "string", "minLength": 1},
+        "license": {"type": "string", "minLength": 1},
+        "notices": {"type": "string", "minLength": 1},
+        "purl": {"$ref": "#/$defs/nullable_string"},
+        "expected_sha256": {"anyOf": [{"type": "null"}, {"type": "string", "pattern": "^[0-9a-f]{64}$"}]},
+        "required": {"type": "boolean"},
+        "approved_version": {"$ref": "#/$defs/nullable_string"},
+        "version_constraint": {"$ref": "#/$defs/nullable_string"},
+        "effective_version": {"$ref": "#/$defs/nullable_string"},
+        "latest_known_version": {"$ref": "#/$defs/nullable_string"},
+        "latest_check": {"$ref": "#/$defs/latest_check"},
+        "security_status": {"enum": ["unverified", "clear", "action_required"]},
+        "status": {"enum": ["installed", "missing", "ahead", "incompatible", "eol", "unsupported", "unverified"]},
+        "status_reason": {"type": "string", "minLength": 1},
+        "evidence": {"type": "string", "minLength": 1},
+        "release_evidence": {"enum": ["not_required", "unavailable", "matched", "mismatch"]},
+        "platforms": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "local_path_redacted": {"const": true}
+      }
+    }
   }
 }

@@ -6,7 +6,7 @@ import json
 import platform
 import re
 import shutil
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
@@ -41,6 +41,7 @@ CLASS_COVERAGE_STATES = frozenset({"inventoried", "not_selected", "unavailable"}
 _VERSION = re.compile(r"[0-9]+(?:\.[0-9A-Za-z]+)*(?:[-+][0-9A-Za-z.-]+)?\Z")
 _CONSTRAINT = re.compile(r"(==|>=|<=|>|<)([0-9]+(?:\.[0-9A-Za-z]+)*)\Z")
 _COMPONENT_ID = re.compile(r"[a-z0-9][a-z0-9._-]{0,99}\Z")
+_REQUIREMENT_NAME = re.compile(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)")
 
 
 class ComponentInventoryError(ValueError):
@@ -312,8 +313,22 @@ def _load_sbom(path: Path) -> tuple[dict[str, set[str]], str]:
         version = row.get("version")
         for identity in (row.get("purl"), row.get("name")):
             if isinstance(identity, str) and identity and isinstance(version, str) and version:
-                inventory.setdefault(identity.casefold(), set()).add(version)
+                for key in _identity_keys(identity):
+                    inventory.setdefault(key, set()).add(version)
     return inventory, hashlib.sha256(raw).hexdigest()
+
+
+def _distribution_key(value: str) -> str:
+    return re.sub(r"[-_.]+", "-", value).casefold()
+
+
+def _identity_keys(value: str) -> set[str]:
+    selected = value.casefold()
+    keys = {selected, _distribution_key(selected)}
+    if selected.startswith("pkg:") and "@" in selected:
+        without_version = selected.split("@", 1)[0]
+        keys.update({without_version, _distribution_key(without_version)})
+    return keys
 
 
 class ComponentInventory:
@@ -324,6 +339,8 @@ class ComponentInventory:
         *,
         catalogue: Mapping[str, Any] | None = None,
         distribution_versions: Mapping[str, str] | None = None,
+        distribution_dependencies: Mapping[str, Sequence[str]] | None = None,
+        distribution_licenses: Mapping[str, str] | None = None,
         executable_present: Callable[[str], bool] | None = None,
         python_version: str | None = None,
         platform_name: str | None = None,
@@ -332,8 +349,22 @@ class ComponentInventory:
             _validate_catalogue(catalogue) if catalogue is not None else _load_packaged_catalogue()
         )
         self._versions = (
-            {key.casefold(): value for key, value in distribution_versions.items()}
+            {_distribution_key(key): value for key, value in distribution_versions.items()}
             if distribution_versions is not None
+            else None
+        )
+        if distribution_dependencies is not None:
+            self._dependencies = {
+                _distribution_key(key): tuple(value)
+                for key, value in distribution_dependencies.items()
+            }
+        elif distribution_versions is not None:
+            self._dependencies = {}
+        else:
+            self._dependencies = None
+        self._licenses = (
+            {_distribution_key(key): value for key, value in distribution_licenses.items()}
+            if distribution_licenses is not None
             else None
         )
         self._executable_present = executable_present or (
@@ -344,11 +375,98 @@ class ComponentInventory:
 
     def _distribution_version(self, name: str) -> str | None:
         if self._versions is not None:
-            return self._versions.get(name.casefold())
+            return self._versions.get(_distribution_key(name))
         try:
             return importlib.metadata.version(name)
         except importlib.metadata.PackageNotFoundError:
             return None
+
+    def _distribution_requirements(self, name: str) -> tuple[str, ...]:
+        if self._dependencies is not None:
+            return self._dependencies.get(_distribution_key(name), ())
+        try:
+            return tuple(importlib.metadata.requires(name) or ())
+        except importlib.metadata.PackageNotFoundError:
+            return ()
+
+    def _distribution_license(self, name: str) -> str:
+        if self._licenses is not None:
+            selected = self._licenses.get(_distribution_key(name), "NOASSERTION")
+        else:
+            try:
+                metadata = importlib.metadata.metadata(name)
+            except importlib.metadata.PackageNotFoundError:
+                return "NOASSERTION"
+            selected = metadata.get("License-Expression") or metadata.get("License")
+            if not selected:
+                classifiers = metadata.get_all("Classifier") or ()
+                selected = next(
+                    (
+                        value.rsplit("::", 1)[-1].strip()
+                        for value in classifiers
+                        if "License ::" in value
+                    ),
+                    "NOASSERTION",
+                )
+        normalized = " ".join(str(selected).split())
+        return normalized[:100] or "NOASSERTION"
+
+    def _runtime_components(self) -> list[dict[str, Any]]:
+        records = [dict(item) for item in self.catalogue["components"]]
+        known = {
+            _distribution_key(str(item["detection"]["value"]))
+            for item in records
+            if item["detection"]["kind"] == "distribution"
+        }
+        parents: dict[str, set[str]] = {}
+        queue = sorted(known)
+        visited: set[str] = set()
+        while queue:
+            parent = queue.pop(0)
+            if parent in visited or self._distribution_version(parent) is None:
+                continue
+            visited.add(parent)
+            for requirement in self._distribution_requirements(parent):
+                if "extra ==" in requirement or "extra==" in requirement:
+                    continue
+                match = _REQUIREMENT_NAME.match(requirement)
+                if match is None:
+                    continue
+                dependency = _distribution_key(match.group(1))
+                if self._distribution_version(dependency) is None:
+                    continue
+                parents.setdefault(dependency, set()).add(parent)
+                if dependency not in visited:
+                    queue.append(dependency)
+        for dependency in sorted(visited - known):
+            parent_names = ", ".join(sorted(parents.get(dependency, {"runtime"})))
+            records.append(
+                {
+                    "id": "python.transitive." + dependency,
+                    "category": "python_package",
+                    "name": dependency,
+                    "purpose": {
+                        "en": f"Installed transitive runtime dependency of {parent_names}",
+                        "it": f"Dipendenza runtime transitiva installata di {parent_names}",
+                    },
+                    "dependency_relation": "runtime_transitive",
+                    "delivery": "python_distribution",
+                    "update_route": "verified_release",
+                    "origin": "installed-distribution-metadata",
+                    "license": self._distribution_license(dependency),
+                    "notices": "Installed metadata; release SBOM remains authoritative",
+                    "purl": f"pkg:pypi/{dependency}",
+                    "expected_sha256": None,
+                    "required": True,
+                    "approved_version": None,
+                    "version_constraint": None,
+                    "platforms": ["any"],
+                    "detection": {"kind": "distribution", "value": dependency},
+                    "sbom_required": True,
+                    "eol": False,
+                }
+            )
+        return records
 
     def _observed_version(self, item: Mapping[str, Any]) -> tuple[str | None, str]:
         detection = item["detection"]
@@ -399,7 +517,7 @@ class ComponentInventory:
 
         records: list[dict[str, Any]] = []
         release_mismatches: list[str] = []
-        for raw in self.catalogue["components"]:
+        for raw in self._runtime_components():
             item = dict(raw)
             version, evidence = self._observed_version(item)
             state, reason = self._state(item, version, evidence)
@@ -408,9 +526,10 @@ class ComponentInventory:
                 release_state = "unavailable"
                 if sbom_inventory is not None:
                     identities = [
-                        selected.casefold()
+                        key
                         for selected in (item["purl"], item["detection"]["value"], item["name"])
                         if isinstance(selected, str)
+                        for key in _identity_keys(selected)
                     ]
                     seen_versions = set().union(
                         *(sbom_inventory.get(identity, set()) for identity in identities)

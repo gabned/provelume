@@ -8,7 +8,9 @@ provelume component-inventory
 ```
 
 Every record states its category, purpose, dependency relationship, delivery and update route,
-license/notices, declared version contract, effective version and evidence state. `installed`
+license/notices, declared version contract, effective version and evidence state. The installed
+Python inventory follows the runtime dependency closure from Provelume, including present
+transitive distributions and excluding development extras. `installed`
 means only that local distribution/runtime metadata agrees with the declared contract. It is not a
 security endorsement. `ahead`, `incompatible`, `eol`, `missing` and `unverified` remain distinct.
 
@@ -29,4 +31,3 @@ advisory service, provider or model host, and it never installs or updates anyth
 explicit evidence the release comparison is truthfully `unavailable`. Latest-known and security
 states remain `not_checked` and `unverified` until a separate explicit network capability is
 qualified.
-
