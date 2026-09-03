@@ -87,7 +87,10 @@ availability, provenance, warnings, reversible correction annotations, anchors a
 `GET /api/v1/perceptio/representations/{representation_id}/anchors/{anchor_id}` reopens one exact
 validated anchor. There are no POST, PUT, PATCH or DELETE routes under `/api/v1/perceptio`.
 Reading this model performs no work, correction, removal, migration, network access or writeback.
-Its publication state remains `unpublished` until the independent `0.10.0` release boundary.
+Tracked source and development builds report `candidate` and remain unavailable. Only an official
+build whose embedded package/tag identity is exactly `0.10.0` / `v0.10.0` reports `published` and
+available; local installation integrity and artifact provenance remain separate verification
+results.
 See [`perceptio.md`](perceptio.md).
 
 ## Instance and sources

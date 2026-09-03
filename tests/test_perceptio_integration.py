@@ -346,7 +346,11 @@ def test_english_italian_and_packaged_qualification_remain_exact() -> None:
     for path in (
         root / "docs/perceptio.md",
         root / "docs/perceptio.it.md",
+        root / "docs/api.md",
         root / "docs/qualification/perceptio-s07.md",
         root / "docs/adr/0027-integrated-perceptio-read-model.md",
     ):
         assert path.is_file() and "0.10" in path.read_text(encoding="utf-8")
+    api = (root / "docs/api.md").read_text(encoding="utf-8")
+    assert "development builds report `candidate`" in api
+    assert "`v0.10.0` reports `published`" in api
