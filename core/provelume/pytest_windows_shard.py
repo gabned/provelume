@@ -194,6 +194,8 @@ def pytest_cmdline_main(config) -> int | None:
                     "-m",
                     "pytest",
                     f"--rootdir={root}",
+                    "-o",
+                    f"cache_dir={state / 'pytest-cache'}",
                     *args,
                     f"--provelume-shard-index={index}",
                     f"--provelume-shard-count={SHARD_COUNT}",

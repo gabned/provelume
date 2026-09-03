@@ -117,9 +117,9 @@ markup, URLs, formulas, escape sequences and script-like values inert.
 The protected Public CI workflow and its 10-minute job remain unchanged. Only the bare Windows full
 suite is partitioned into four concurrent subprocesses by assigning whole source modules with a
 deterministic largest-first balance on collected test count. The partitions are stable, disjoint
-and complete; targeted invocations are untouched. Each subprocess receives an isolated state
-directory. The parent has a 480-second bounded deadline, replays at most 2 MiB per shard, reports
-only shard index/count/duration/exit code, and terminates the process tree on timeout.
+and complete; targeted invocations are untouched. Each subprocess receives isolated state and
+pytest-cache directories. The parent has a 480-second bounded deadline, replays at most 2 MiB per
+shard, reports only shard index/count/duration/exit code, and terminates the process tree on timeout.
 Child pytest processes receive an explicit `--rootdir` anchored to the versioned configuration
 directory and derived collection roots are never appended. The bounded harness selects a tracked,
 non-recursive node ID under that same root; cross-volume forced targets are not part of the bare

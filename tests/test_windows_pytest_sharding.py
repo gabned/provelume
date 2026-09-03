@@ -38,6 +38,7 @@ def test_module_partition_is_stable_disjoint_complete_and_balanced() -> None:
     ).read_text(encoding="utf-8")
     assert "four concurrent subprocesses" in contract
     assert "whole source modules" in contract
+    assert "isolated state and\npytest-cache directories" in contract
     assert "480-second bounded deadline" in contract
     nodeids = [
         f"tests/test_synthetic_{module}.py::test_case_{case}"
@@ -116,5 +117,6 @@ def test_shard_children_bind_root_and_effective_collection_targets() -> None:
     assert "root = _child_working_directory(config)" in source
     assert "Path(inipath).resolve().parent" in source
     assert 'f"--rootdir={root}"' in source
+    assert 'f"cache_dir={state / \'pytest-cache\'}"' in source
     assert "collection_targets" not in source
     assert "cwd=root" in source
