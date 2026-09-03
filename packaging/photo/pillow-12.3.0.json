@@ -15,7 +15,7 @@
     "id": "codec.pillow",
     "name": "Pillow",
     "version": "12.3.0",
-    "version_constraint": ">=12,<13",
+    "version_constraint": "==12.3.0",
     "source": "https://github.com/python-pillow/Pillow/tree/12.3.0",
     "license": "MIT-CMU",
     "bundled_by_provelume": false,

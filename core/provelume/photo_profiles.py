@@ -310,6 +310,8 @@ def _metadata_evidence(data: bytes, selected_format: str) -> dict[str, Any]:
     elif selected_format == "PNG":
         chunks = _png_chunks(data)
         header = chunks[0][1]
+        if len(header) != 13 or header[10] != 0 or header[11] != 0 or header[12] not in {0, 1}:
+            raise PhotoContractError("photo_invalid_metadata", "PNG IHDR structure is invalid")
         bit_depth = header[8]
         color_model = {
             0: "grayscale",
@@ -453,11 +455,7 @@ class PillowPhotoDecoder:
                 "version": None,
                 "qualified": False,
             }
-        try:
-            major = int(version.split(".", 1)[0])
-        except ValueError:
-            major = 0
-        state = "ready" if major == 12 else "incompatible"
+        state = "ready" if version == "12.3.0" else "incompatible"
         return {
             "state": state,
             "component": "codec.pillow",
@@ -501,8 +499,12 @@ class PillowPhotoDecoder:
                 ]
                 value = sum((1 << index) for index, bit in enumerate(bits) if bit)
                 perceptual_hash = f"{value:016x}"
-                preview = transposed.convert("RGB")
-                preview.thumbnail((MAX_PREVIEW_EDGE, MAX_PREVIEW_EDGE))
+                converted = transposed.convert("RGB")
+                converted.thumbnail((MAX_PREVIEW_EDGE, MAX_PREVIEW_EDGE))
+                # Pillow images may retain source EXIF/ICC in ``info`` across
+                # transforms. Reconstituting only pixel bytes creates an
+                # intentionally metadata-free object for the PNG encoder.
+                preview = Image.frombytes("RGB", converted.size, converted.tobytes())
                 output = io.BytesIO()
                 preview.save(output, format="PNG", optimize=False, compress_level=9)
                 payload = output.getvalue()
@@ -834,27 +836,31 @@ class PhotoProfileManager:
             )
         return version, original, data
 
+    def _record_for_bundle(self, bundle: Mapping[str, Any]) -> dict[str, Any] | None:
+        if bundle.get("recipe", {}).get("id") != PHOTO_RECIPE_ID:
+            return None
+        output = next(
+            (
+                item
+                for item in bundle["outputs"]
+                if Path(item["storage_ref"]).name == "metadata.json"
+            ),
+            None,
+        )
+        if output is None:
+            return None
+        try:
+            path = safe_instance_path(self.store.paths.root, str(output["storage_ref"]))
+            return validate_photo_record(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, ValueError, json.JSONDecodeError):
+            return None
+
     def _active_records(self) -> list[tuple[dict[str, Any], dict[str, Any]]]:
         result: list[tuple[dict[str, Any], dict[str, Any]]] = []
-        for bundle in self.bundles.list(limit=500):
-            if bundle.get("recipe", {}).get("id") != PHOTO_RECIPE_ID:
-                continue
-            output = next(
-                (
-                    item
-                    for item in bundle["outputs"]
-                    if Path(item["storage_ref"]).name == "metadata.json"
-                ),
-                None,
-            )
-            if output is None:
-                continue
-            try:
-                path = safe_instance_path(self.store.paths.root, str(output["storage_ref"]))
-                record = validate_photo_record(json.loads(path.read_text(encoding="utf-8")))
-            except (OSError, ValueError, json.JSONDecodeError):
-                continue
-            result.append((bundle, record))
+        for bundle in self.bundles.list(recipe_id=PHOTO_RECIPE_ID, limit=500):
+            record = self._record_for_bundle(bundle)
+            if record is not None:
+                result.append((bundle, record))
         return result
 
     def _duplicate_proposals(
@@ -1095,12 +1101,17 @@ class PhotoProfileManager:
 
     def queue(self, version_id: str) -> dict[str, Any]:
         self._source(version_id)
+        processing_identity = {
+            "decoder": self.decoder.capability(),
+            "code_adapter": self._code_capability(),
+        }
         identity = _sha256(
             canonical_json_bytes(
                 {
                     "version_id": version_id,
                     "recipe": PHOTO_RECIPE_ID,
                     "version": PHOTO_RECIPE_VERSION,
+                    "processing_identity": processing_identity,
                 }
             )
         )
@@ -1114,6 +1125,7 @@ class PhotoProfileManager:
             "id": job_id,
             "kind": "photo.profile",
             "version_id": version_id,
+            "processing_identity": processing_identity,
             "status": "queued",
             "requested_at": utc_now(),
             "started_at": None,
@@ -1161,6 +1173,18 @@ class PhotoProfileManager:
             job.update({"status": "failed", "completed_at": utc_now(), "error_code": exc.code})
             self.store._atomic_json(self.jobs / f"{job_id}.json", job)
             return job
+        except Exception as exc:
+            job.update(
+                {
+                    "status": "failed",
+                    "completed_at": utc_now(),
+                    "error_code": "photo_contract_violation",
+                }
+            )
+            self.store._atomic_json(self.jobs / f"{job_id}.json", job)
+            raise PhotoContractError(
+                "photo_contract_violation", "photo job failed within its closed boundary"
+            ) from exc
         job.update(
             {
                 "status": "succeeded",
@@ -1201,12 +1225,23 @@ class PhotoProfileManager:
         }
 
     def get(self, representation_id: str) -> dict[str, Any] | None:
-        for item in self.read_model(limit=500)["profiles"]:
-            if item["representation_id"] == representation_id:
-                return item
-        return None
+        bundle = self.bundles.get(representation_id, deep=True)
+        if bundle is None:
+            return None
+        record = self._record_for_bundle(bundle)
+        if record is None:
+            return None
+        return {
+            "representation_id": bundle["representation_id"],
+            "availability": bundle["availability"],
+            "record": record,
+            "outputs": bundle["outputs"],
+        }
 
     def remove(self, representation_id: str) -> dict[str, Any]:
+        bundle = self.bundles.get(representation_id, deep=True)
+        if bundle is None or bundle.get("recipe", {}).get("id") != PHOTO_RECIPE_ID:
+            raise PhotoContractError("photo_not_found", "photo representation was not found")
         try:
             return self.bundles.remove(representation_id)
         except RepresentationContractError as exc:

@@ -1297,7 +1297,13 @@ class RepresentationBundleManager:
                     return None
         return bundle
 
-    def list(self, *, version_id: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+    def list(
+        self,
+        *,
+        version_id: str | None = None,
+        recipe_id: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
         if limit < 1:
             return []
         result: list[dict[str, Any]] = []
@@ -1305,7 +1311,11 @@ class RepresentationBundleManager:
             return result
         for path in sorted(self.root.glob("repr_*/bundle.json")):
             bundle = self.get(path.parent.name, deep=True)
-            if bundle is None or (version_id is not None and bundle["version"]["id"] != version_id):
+            if (
+                bundle is None
+                or (version_id is not None and bundle["version"]["id"] != version_id)
+                or (recipe_id is not None and bundle["recipe"]["id"] != recipe_id)
+            ):
                 continue
             result.append(bundle)
             if len(result) >= min(limit, 500):

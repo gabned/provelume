@@ -206,7 +206,7 @@
       "expected_sha256": null,
       "required": false,
       "approved_version": "12.3.0",
-      "version_constraint": ">=12,<13",
+      "version_constraint": "==12.3.0",
       "platforms": ["linux", "windows", "darwin"],
       "detection": {"kind": "distribution", "value": "Pillow"},
       "sbom_required": false,

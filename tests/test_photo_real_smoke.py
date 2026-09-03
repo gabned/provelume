@@ -32,7 +32,12 @@ def test_real_pillow_baseline_sanitized_preview_and_unsupported_boundaries(
     source = tmp_path / "source"
     source.mkdir()
     formats = {
-        "photo.jpg": {"format": "JPEG", "quality": 95, "exif": exif},
+        "photo.jpg": {
+            "format": "JPEG",
+            "quality": 95,
+            "exif": exif,
+            "icc_profile": b"private-fixture-icc",
+        },
         "photo.png": {"format": "PNG"},
         "photo.tiff": {"format": "TIFF", "compression": "raw", "exif": exif},
         "photo.bmp": {"format": "BMP"},

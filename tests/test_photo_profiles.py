@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import copy
 import hashlib
+import importlib.metadata
 import json
 import socket
 import zlib
@@ -20,9 +21,11 @@ from provelume.photo_profiles import (
     PhotoContractError,
     PhotoDecodeResult,
     PhotoProfileManager,
+    PillowPhotoDecoder,
     inspect_photo_bytes,
     validate_photo_record,
 )
+from provelume.representations import RepresentationBundleManager
 from provelume.service import ProvelumeInstance
 from provelume.storage import CANONICAL_KINDS, InstanceStore
 from provelume.web import create_app
@@ -200,6 +203,17 @@ class FakeCodeAdapter:
         ]
 
 
+class UnavailableDecoder:
+    @staticmethod
+    def capability() -> dict[str, object]:
+        return {
+            "state": "unavailable",
+            "component": "codec.pillow",
+            "version": None,
+            "qualified": False,
+        }
+
+
 def _seed(tmp_path: Path, files: dict[str, bytes]) -> tuple[ProvelumeInstance, dict[str, str]]:
     source = tmp_path / "source"
     source.mkdir()
@@ -251,6 +265,13 @@ def test_malformed_metadata_pixel_decompression_and_metadata_limits_fail_closed(
         inspect_photo_bytes(b"<svg onload=alert(1)>")
     with pytest.raises(PhotoContractError, match="chunk"):
         inspect_photo_bytes(_png()[:-12])
+    malformed_ihdr = (
+        b"\x89PNG\r\n\x1a\n"
+        + _png_chunk(b"IHDR", (1).to_bytes(4, "big") * 2)
+        + _png_chunk(b"IEND", b"")
+    )
+    with pytest.raises(PhotoContractError, match="IHDR"):
+        inspect_photo_bytes(malformed_ihdr)
     with pytest.raises(PhotoContractError) as pixels:
         inspect_photo_bytes(_png(MAX_PIXELS + 1, 1))
     assert pixels.value.code == "photo_pixel_limit_exceeded"
@@ -264,6 +285,33 @@ def test_malformed_metadata_pixel_decompression_and_metadata_limits_fail_closed(
     with pytest.raises(PhotoContractError) as metadata:
         inspect_photo_bytes(oversized)
     assert metadata.value.code == "photo_invalid_metadata"
+
+
+def test_only_exact_qualified_pillow_version_is_ready(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    decoder = PillowPhotoDecoder()
+    monkeypatch.setattr(importlib.metadata, "version", lambda _name: "12.4.0")
+    assert decoder.capability()["state"] == "incompatible"
+    monkeypatch.setattr(importlib.metadata, "version", lambda _name: "12.3.0")
+    assert decoder.capability()["state"] == "ready"
+
+
+def test_malformed_png_job_fails_closed_and_remains_retryable(tmp_path: Path) -> None:
+    malformed = (
+        b"\x89PNG\r\n\x1a\n"
+        + _png_chunk(b"IHDR", (1).to_bytes(4, "big") * 2)
+        + _png_chunk(b"IEND", b"")
+    )
+    instance, versions = _seed(tmp_path, {"malformed.png": malformed})
+    manager = PhotoProfileManager(instance.store, decoder=FakeDecoder())
+    queued = manager.queue(versions["malformed.png"])
+
+    first = manager.run(queued["job"]["id"])
+    second = manager.run(queued["job"]["id"])
+
+    assert first["status"] == second["status"] == "failed"
+    assert first["error_code"] == second["error_code"] == "photo_invalid_metadata"
 
 
 def test_job_profile_preview_qr_ocr_anchor_and_remove_rebuild_are_derived(
@@ -361,6 +409,80 @@ def test_closed_record_rejects_gps_or_automatic_action_relaxation(tmp_path: Path
     automatic["duplicates"]["automatic_action"] = "delete"
     with pytest.raises(PhotoContractError, match="duplicate"):
         validate_photo_record(automatic)
+
+
+def test_remove_rejects_an_unrelated_universal_representation(tmp_path: Path) -> None:
+    instance, versions = _seed(tmp_path, {"photo.png": _png()})
+    version_id = versions["photo.png"]
+    universal = RepresentationBundleManager(instance.store)
+    unrelated = universal.materialize(
+        version_id,
+        recipe_id="provelume.unrelated-fixture",
+        recipe_version="1",
+        recipe_settings={},
+        output_payloads={"fixture.txt": ("text/plain", b"unrelated\n")},
+        implementation={
+            "component": "provelume.core",
+            "component_version": "0.9.0",
+            "adapter": "fixture",
+            "adapter_version": "1",
+            "settings": {"mode": "offline"},
+        },
+    )
+    manager = PhotoProfileManager(instance.store, decoder=FakeDecoder())
+
+    with pytest.raises(PhotoContractError) as caught:
+        manager.remove(unrelated["representation_id"])
+
+    assert caught.value.code == "photo_not_found"
+    assert universal.get(unrelated["representation_id"]) == unrelated
+
+
+def test_recipe_filter_and_direct_get_are_not_consumed_by_other_bundles(
+    tmp_path: Path,
+) -> None:
+    instance, versions = _seed(tmp_path, {"photo.png": _png()})
+    version_id = versions["photo.png"]
+    universal = RepresentationBundleManager(instance.store)
+    for index in range(3):
+        universal.materialize(
+            version_id,
+            recipe_id=f"provelume.unrelated-{index}",
+            recipe_version="1",
+            recipe_settings={},
+            output_payloads={f"fixture-{index}.txt": ("text/plain", str(index).encode())},
+            implementation={
+                "component": "provelume.core",
+                "component_version": "0.9.0",
+                "adapter": "fixture",
+                "adapter_version": "1",
+                "settings": {"mode": "offline"},
+            },
+        )
+    manager = PhotoProfileManager(instance.store, decoder=FakeDecoder())
+    photo = manager.create(version_id)
+
+    filtered = universal.list(recipe_id="provelume.photo-profile", limit=1)
+    assert [item["representation_id"] for item in filtered] == [photo["representation_id"]]
+    assert manager.get(photo["representation_id"]) is not None
+
+
+def test_job_identity_changes_when_optional_processing_capability_changes(
+    tmp_path: Path,
+) -> None:
+    instance, versions = _seed(tmp_path, {"photo.png": _png()})
+    version_id = versions["photo.png"]
+    unavailable = PhotoProfileManager(instance.store, decoder=UnavailableDecoder())
+    ready = PhotoProfileManager(instance.store, decoder=FakeDecoder())
+
+    first = unavailable.queue(version_id)
+    second = ready.queue(version_id)
+
+    assert first["scheduled"] is True
+    assert second["scheduled"] is True
+    assert first["job"]["id"] != second["job"]["id"]
+    assert first["job"]["processing_identity"]["decoder"]["state"] == "unavailable"
+    assert second["job"]["processing_identity"]["decoder"]["state"] == "ready"
 
 
 def test_service_cli_api_browser_and_preview_headers_share_safe_state(
