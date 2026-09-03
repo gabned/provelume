@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.com/schemas/video-profile-v1.json",
+  "title": "Provelume Perceptio bounded video profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "kind", "profile_id", "version_id", "original_sha256", "format",
+    "media_type", "byte_length", "container", "duration_ms", "streams", "chapters",
+    "encrypted", "subtitles", "transcript", "scenes", "keyframes", "frame_ocr",
+    "selection", "component", "invariants"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "video-profile"},
+    "profile_id": {"const": "perceptio-video-v1"},
+    "version_id": {"$ref": "#/$defs/id"},
+    "original_sha256": {"$ref": "#/$defs/sha256"},
+    "format": {"enum": ["MP4", "MOV", "MKV", "WEBM", "AVI"]},
+    "media_type": {"enum": ["video/mp4", "video/quicktime", "video/x-matroska", "video/webm", "video/x-msvideo"]},
+    "byte_length": {"type": "integer", "minimum": 1, "maximum": 536870912},
+    "container": {"type": "string", "minLength": 1, "maxLength": 100},
+    "duration_ms": {"type": "integer", "minimum": 0, "maximum": 7200000},
+    "streams": {"type": "array", "minItems": 1, "maxItems": 32, "items": {"$ref": "#/$defs/stream"}},
+    "chapters": {"type": "array", "maxItems": 128, "items": {"$ref": "#/$defs/chapter"}},
+    "encrypted": {"const": false},
+    "subtitles": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/subtitle"}},
+    "transcript": {"$ref": "#/$defs/transcript"},
+    "scenes": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/scene"}},
+    "keyframes": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/keyframe"}},
+    "frame_ocr": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/frame_ocr"}},
+    "selection": {
+      "type": "object", "additionalProperties": false,
+      "required": ["timestamps_ms", "continuous", "scene_recipe"],
+      "properties": {
+        "timestamps_ms": {"type": "array", "maxItems": 16, "uniqueItems": true, "items": {"type": "integer", "minimum": 0, "maximum": 7200000}},
+        "continuous": {"const": false},
+        "scene_recipe": {"const": "gray64x36-fixed-interval-mad-v1"}
+      }
+    },
+    "component": {"$ref": "#/$defs/component"},
+    "invariants": {
+      "const": {
+        "derived": true,
+        "original_immutable": true,
+        "canonical_records_immutable": true,
+        "network_used": false,
+        "runtime_downloads": false,
+        "remote_inference": false,
+        "continuous_frame_ocr": false,
+        "speaker_or_face_identity": false,
+        "summary_or_classification": false,
+        "source_writeback": false
+      }
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_sha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+    "stream": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "index", "kind", "codec", "language", "duration_ms", "width", "height", "frame_rate",
+        "variable_frame_rate", "profile", "level", "pixel_format", "rotation_degrees",
+        "color_range", "color_space", "color_transfer", "color_primaries", "hdr", "channels",
+        "sample_rate_hz", "attachment_name", "attachment_media_type", "default", "qualified"
+      ],
+      "properties": {
+        "index": {"type": "integer", "minimum": 0, "maximum": 1024},
+        "kind": {"enum": ["video", "audio", "subtitle", "attachment", "data"]},
+        "codec": {"type": "string", "minLength": 1, "maxLength": 100},
+        "language": {"type": "string", "pattern": "^[A-Za-z0-9-]{1,35}$"},
+        "duration_ms": {"type": ["integer", "null"], "minimum": 0, "maximum": 7200000},
+        "width": {"type": ["integer", "null"], "minimum": 1, "maximum": 7680},
+        "height": {"type": ["integer", "null"], "minimum": 1, "maximum": 7680},
+        "frame_rate": {"type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 120},
+        "variable_frame_rate": {"type": ["boolean", "null"]},
+        "profile": {"type": ["string", "null"], "minLength": 1, "maxLength": 200},
+        "level": {"type": ["string", "null"], "minLength": 1, "maxLength": 200},
+        "pixel_format": {"type": ["string", "null"], "minLength": 1, "maxLength": 200},
+        "rotation_degrees": {"type": ["integer", "null"], "minimum": -359, "maximum": 359},
+        "color_range": {"type": ["string", "null"], "minLength": 1, "maxLength": 200},
+        "color_space": {"type": ["string", "null"], "minLength": 1, "maxLength": 200},
+        "color_transfer": {"type": ["string", "null"], "minLength": 1, "maxLength": 200},
+        "color_primaries": {"type": ["string", "null"], "minLength": 1, "maxLength": 200},
+        "hdr": {"type": ["boolean", "null"]},
+        "channels": {"type": ["integer", "null"], "minimum": 1, "maximum": 64},
+        "sample_rate_hz": {"type": ["integer", "null"], "minimum": 1, "maximum": 768000},
+        "attachment_name": {"type": ["string", "null"], "minLength": 1, "maxLength": 255},
+        "attachment_media_type": {"type": ["string", "null"], "minLength": 1, "maxLength": 255},
+        "default": {"type": "boolean"},
+        "qualified": {"type": "boolean"}
+      }
+    },
+    "chapter": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "start_ms", "end_ms"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "start_ms": {"type": "integer", "minimum": 0, "maximum": 7200000},
+        "end_ms": {"type": "integer", "minimum": 0, "maximum": 7200000}
+      }
+    },
+    "cue": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "start_ms", "end_ms", "text", "status", "warning_codes"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "start_ms": {"type": "integer", "minimum": 0, "maximum": 7202000},
+        "end_ms": {"type": "integer", "minimum": 0, "maximum": 7202000},
+        "text": {"type": "string", "maxLength": 65536},
+        "status": {"const": "machine-unverified"},
+        "warning_codes": {"type": "array", "uniqueItems": true, "items": {"type": "string", "maxLength": 100}}
+      }
+    },
+    "subtitle": {
+      "type": "object", "additionalProperties": false,
+      "required": ["stream_index", "language", "format", "source_preserved", "cues", "warnings"],
+      "properties": {
+        "stream_index": {"type": "integer", "minimum": 0},
+        "language": {"type": "string", "maxLength": 35},
+        "format": {"const": "webvtt"},
+        "source_preserved": {"const": true},
+        "cues": {"type": "array", "maxItems": 10000, "items": {"$ref": "#/$defs/cue"}},
+        "warnings": {"type": "array", "uniqueItems": true, "items": {"type": "string", "maxLength": 100}}
+      }
+    },
+    "transcript": {
+      "type": "object", "additionalProperties": false,
+      "required": ["state", "reason", "audio_stream_index", "language", "engine", "model", "segments", "contract"],
+      "properties": {
+        "state": {"enum": ["available", "unavailable"]},
+        "reason": {"type": ["string", "null"], "maxLength": 100},
+        "audio_stream_index": {"type": ["integer", "null"], "minimum": 0},
+        "language": {"type": "string", "maxLength": 35},
+        "engine": {"type": ["object", "null"]},
+        "model": {"type": ["object", "null"]},
+        "segments": {"type": "array", "maxItems": 20000, "items": {"type": "object"}},
+        "contract": {"const": "perceptio-audio-v1"}
+      }
+    },
+    "scene": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "start_ms", "end_ms", "representative_ms", "score_ppm"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "start_ms": {"type": "integer", "minimum": 0, "maximum": 7200000},
+        "end_ms": {"type": "integer", "minimum": 0, "maximum": 7200000},
+        "representative_ms": {"type": "integer", "minimum": 0, "maximum": 7200000},
+        "score_ppm": {"type": "integer", "minimum": 0, "maximum": 1000000}
+      }
+    },
+    "keyframe": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "timestamp_ms", "frame_sha256", "output"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "timestamp_ms": {"type": "integer", "minimum": 0, "maximum": 7200000},
+        "frame_sha256": {"$ref": "#/$defs/sha256"},
+        "output": {"type": "string", "pattern": "^keyframe-[0-9]{3}\\.png$"}
+      }
+    },
+    "box": {
+      "type": "object", "additionalProperties": false,
+      "required": ["left", "top", "width", "height", "page_width", "page_height", "coordinate_space"],
+      "properties": {
+        "left": {"type": "integer", "minimum": 0},
+        "top": {"type": "integer", "minimum": 0},
+        "width": {"type": "integer", "minimum": 1},
+        "height": {"type": "integer", "minimum": 1},
+        "page_width": {"type": "integer", "minimum": 1},
+        "page_height": {"type": "integer", "minimum": 1},
+        "coordinate_space": {"const": "source-pixels"}
+      }
+    },
+    "region": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "text", "status", "confidence", "box"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "text": {"type": "string", "minLength": 1, "maxLength": 100000},
+        "status": {"enum": ["machine-unverified", "needs-review"]},
+        "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "box": {"$ref": "#/$defs/box"}
+      }
+    },
+    "frame_ocr": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "timestamp_ms", "frame_sha256", "state", "reason", "regions"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "timestamp_ms": {"type": "integer", "minimum": 0, "maximum": 7200000},
+        "frame_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "state": {"enum": ["available", "unavailable"]},
+        "reason": {"type": ["string", "null"], "maxLength": 100},
+        "regions": {"type": "array", "maxItems": 100000, "items": {"$ref": "#/$defs/region"}}
+      }
+    },
+    "component": {
+      "type": "object", "additionalProperties": false,
+      "required": ["adapter_id", "component", "version", "ffmpeg_sha256", "ffprobe_sha256", "qualified_platform", "source_sha256", "source_size_bytes", "network_used", "runtime_downloads", "qualified", "state", "reason"],
+      "properties": {
+        "adapter_id": {"const": "ffmpeg-cli-pair"},
+        "component": {"const": "codec.ffmpeg"},
+        "version": {"type": ["string", "null"]},
+        "ffmpeg_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "ffprobe_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "qualified_platform": {"const": "ubuntu-24.04-x86_64"},
+        "source_sha256": {"const": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635"},
+        "source_size_bytes": {"const": 12036420},
+        "network_used": {"const": false},
+        "runtime_downloads": {"const": false},
+        "qualified": {"type": "boolean"},
+        "state": {"enum": ["ready", "unavailable", "incompatible"]},
+        "reason": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

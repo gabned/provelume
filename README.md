@@ -40,9 +40,12 @@ contract and a byte-unchanged Lectio compatibility view. `0.10/S02` is delivered
 [#166](https://github.com/gabned/provelume/issues/166) through owner
 [PR #168](https://github.com/gabned/provelume/pull/168). `0.10/S03` is delivered through
 [#169](https://github.com/gabned/provelume/issues/169) and owner
-[PR #170](https://github.com/gabned/provelume/pull/170). `0.10/S04` is the one active slice under
-[#171](https://github.com/gabned/provelume/issues/171) and owner
-[PR #172](https://github.com/gabned/provelume/pull/172); S05–S07 remain planned. No `v0.10.0`
+[PR #170](https://github.com/gabned/provelume/pull/170). `0.10/S04` is delivered through
+[#171](https://github.com/gabned/provelume/issues/171), owner
+[PR #172](https://github.com/gabned/provelume/pull/172) and qualifying correction
+[PR #173](https://github.com/gabned/provelume/pull/173). `0.10/S05` is the one active slice under
+[#174](https://github.com/gabned/provelume/issues/174) and owner
+[PR #175](https://github.com/gabned/provelume/pull/175); S06–S07 remain planned. No `v0.10.0`
 tag/release is present and package/runtime/Windows identity remains `0.9.0`.
 
 The local **Representations & support** surface keeps Preserve, Inspect, Extract, Preview, Local
@@ -58,11 +61,17 @@ language-pack and host-prerequisite classes. Service, CLI, API and EN/IT Browser
 path-redacted model; an explicit local CycloneDX comparison never installs or updates anything.
 See the [component guide](docs/components.md).
 
-The active local **Photos** profile identifies bounded JPEG/PNG/TIFF/BMP Originals, redacts GPS
+The local **Photos** profile identifies bounded JPEG/PNG/TIFF/BMP Originals, redacts GPS
 coordinates and device values, keeps exact/perceptual duplicate evidence separate, reuses OCR page
 anchors and exposes a sanitized PNG only when external Pillow 12.3.0 is present. It performs no
 ambient scan, source write, duplicate action, runtime download or network request; see the
 [photo guide](docs/photos.md).
+
+The active local **Video** profile preserves bounded MP4/MOV/MKV/WebM/AVI Originals and uses only
+an explicitly configured FFmpeg/ffprobe 9.0.1 pair for qualified Ubuntu inspection. It combines
+embedded subtitles, the S04 audio contract, deterministic bounded scenes/keyframes and OCR only
+for explicitly selected frames. Missing or unqualified components remain visible and safe; see
+the [video guide](docs/video.md).
 
 The future lane keeps Lectio at `0.9.0`, assigns `0.10.0 Perceptio` to photo/audio/video
 representations and component visibility, and keeps the later forecasts ordered through the

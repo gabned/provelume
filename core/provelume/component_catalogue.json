@@ -255,6 +255,27 @@
       "eol": false
     },
     {
+      "id": "codec.ffmpeg",
+      "category": "codec",
+      "name": "FFmpeg and ffprobe CLI pair",
+      "purpose": {"en": "Optional bounded offline video inspection and frame extraction", "it": "Ispezione video offline ed estrazione fotogrammi opzionali e limitate"},
+      "dependency_relation": "optional_runtime",
+      "delivery": "external_local",
+      "update_route": "external_operator",
+      "origin": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz",
+      "license": "LGPL-2.1-or-later",
+      "notices": "Not redistributed; exact source, version and operator-provided binary digests are required by packaging/video/ffmpeg-9.0.1.json",
+      "purl": "pkg:generic/ffmpeg@9.0.1",
+      "expected_sha256": null,
+      "required": false,
+      "approved_version": "9.0.1",
+      "version_constraint": "==9.0.1",
+      "platforms": ["linux"],
+      "detection": {"kind": "external_evidence", "value": "video_capability"},
+      "sbom_required": false,
+      "eol": false
+    },
+    {
       "id": "ocr.tesseract",
       "category": "native_tool",
       "name": "Tesseract OCR",

@@ -62,6 +62,7 @@ from .storage import InstanceStore
 from .transcript_contract import TRANSCRIPT_JOB_KIND, TranscriptContractError
 from .transcript_jobs import TranscriptJobManager
 from .transcript_sources import TranscriptSourceManager
+from .video_profiles import VideoProfileManager
 from .web_acquisition import ManualWebAcquisitionManager
 from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTransport
 
@@ -89,6 +90,7 @@ class ProvelumeInstance:
         self.representations = RepresentationReadModel(self.store)
         self.photos = PhotoProfileManager(self.store)
         self.audio = AudioProfileManager(self.store)
+        self.video = VideoProfileManager(self.store)
         self.scheduler = SchedulerCoordinator(self.store)
         self.ocr = OcrJobManager(self.store)
         self.email_sources = EmailSourceManager(self.store)
@@ -209,6 +211,48 @@ class ProvelumeInstance:
 
     def rebuild_audio(self, representation_id: str) -> dict[str, Any]:
         return self.audio.rebuild(representation_id)
+
+    def video_support(self) -> dict[str, Any]:
+        return self.video.capability()
+
+    def queue_video(
+        self,
+        version_id: str,
+        *,
+        timestamps_ms: Sequence[int] = (),
+        transcript_language: str = "auto",
+    ) -> dict[str, Any]:
+        return self.video.queue(
+            version_id,
+            timestamps_ms=timestamps_ms,
+            transcript_language=transcript_language,
+        )
+
+    def run_video_job(self, job_id: str) -> dict[str, Any]:
+        return self.video.run(job_id)
+
+    def cancel_video_job(self, job_id: str) -> dict[str, Any]:
+        return self.video.cancel(job_id)
+
+    def retry_video_job(self, job_id: str) -> dict[str, Any]:
+        return self.video.retry(job_id)
+
+    def video_read_model(
+        self,
+        *,
+        version_id: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        return self.video.read_model(version_id=version_id, limit=limit)
+
+    def get_video(self, representation_id: str) -> dict[str, Any] | None:
+        return self.video.get(representation_id)
+
+    def remove_video(self, representation_id: str) -> dict[str, Any]:
+        return self.video.remove(representation_id)
+
+    def rebuild_video(self, representation_id: str) -> dict[str, Any]:
+        return self.video.rebuild(representation_id)
 
     def qualification_limits(self) -> dict[str, Any]:
         return self.qualification.limits()

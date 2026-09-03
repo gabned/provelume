@@ -28,6 +28,7 @@ from .representation_cli import (
 from .retention_cli import add_retention_commands, handle_retention_command
 from .review_cli import add_review_commands, handle_review_command
 from .storage import InstanceStore
+from .video_cli import add_video_commands, handle_video_command
 
 
 def _positive_int(value: str) -> int:
@@ -102,6 +103,7 @@ def add_operational_commands(subparsers: Any) -> None:
     add_representation_commands(subparsers)
     add_photo_commands(subparsers)
     add_audio_commands(subparsers)
+    add_video_commands(subparsers)
     add_component_inventory_commands(subparsers)
     add_review_commands(subparsers)
     add_rebuild_commands(subparsers)
@@ -125,6 +127,9 @@ def handle_operational_command(args: argparse.Namespace) -> int | None:
     audio_result = handle_audio_command(args)
     if audio_result is not None:
         return audio_result
+    video_result = handle_video_command(args)
+    if video_result is not None:
+        return video_result
     component_result = handle_component_inventory_command(args)
     if component_result is not None:
         return component_result

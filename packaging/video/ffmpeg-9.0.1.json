@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "slice": "0.10/S05",
+  "selected_pair": {
+    "component_id": "codec.ffmpeg",
+    "name": "FFmpeg and ffprobe CLI pair",
+    "version": "9.0.1",
+    "source_url": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz",
+    "source_sha256": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635",
+    "source_size_bytes": 12036420,
+    "license": "LGPL-2.1-or-later",
+    "qualified_platform": "ubuntu-24.04-x86_64",
+    "operator_supplied_paths": ["PROVELUME_FFMPEG_PATH", "PROVELUME_FFPROBE_PATH"],
+    "operator_supplied_hashes": ["PROVELUME_FFMPEG_SHA256", "PROVELUME_FFPROBE_SHA256"],
+    "declared_version_variable": "PROVELUME_FFMPEG_VERSION",
+    "bundled_by_provelume": false,
+    "path_discovery": false,
+    "runtime_downloads": false,
+    "network_protocols": false
+  },
+  "codec_matrix": [
+    {"container": "MP4", "video": ["h264"], "audio": ["aac"], "subtitle": ["mov_text"]},
+    {"container": "MOV", "video": ["h264"], "audio": ["aac", "pcm_s16le"], "subtitle": ["mov_text"]},
+    {"container": "MKV", "video": ["h264"], "audio": ["aac", "opus"], "subtitle": ["subrip", "webvtt"]},
+    {"container": "WEBM", "video": [], "audio": [], "subtitle": [], "higher_operations": "unavailable"},
+    {"container": "AVI", "video": ["mjpeg"], "audio": ["pcm_s16le"], "subtitle": []}
+  ],
+  "rejected_components": ["PyAV", "PySceneDetect"],
+  "windows": {"state": "preserve_inspect_only", "decoder": "unavailable", "reason": "unsupported_platform"},
+  "distribution": {
+    "python_wheel": false,
+    "source_distribution": false,
+    "windows_installer": false,
+    "silent_install": false,
+    "automatic_update": false
+  }
+}

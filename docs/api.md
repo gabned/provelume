@@ -105,6 +105,20 @@ service and the local `/representations` Browser page use the same model. Reads 
 request, component download, provider call, migration, rebuild, repair or Instance mutation. See
 [`architecture/universal-representations.md`](architecture/universal-representations.md).
 
+## Bounded video profiles
+
+- `GET /api/v1/video/support` — the closed MP4/MOV/MKV/WebM/AVI and codec/platform matrix plus
+  current local FFmpeg, ASR and selected-frame OCR availability;
+- `GET /api/v1/video?version_id=...&limit=100` — validated derived video profiles and durable job
+  summaries;
+- `GET /api/v1/video/{representation_id}` — one video read model;
+- `GET /api/v1/video/{representation_id}/outputs/{video.json|timeline.json|subtitles.json|transcript.json}`
+  — one checksum-verified inert JSON output when present.
+
+The API and `/video` Browser view are read-only. Queue, run, cancel, retry, remove and rebuild stay
+explicit local service/CLI operations. Frame PNG and raw subtitle outputs are intentionally not
+served. Reads never execute FFmpeg, OCR or ASR and make no network request. See [`video.md`](video.md).
+
 ## Connector lifecycle and read surfaces
 
 - `GET /api/v1/connectors` — definitions, isolated connector instances, selected Sources,

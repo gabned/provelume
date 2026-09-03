@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ t('video.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ t('video.eyebrow') }}</p>
+  <h1>{{ t('video.title') }}</h1>
+  <p class="lead">{{ t('video.lead') }}</p>
+  <p class="technical-note">{{ t('video.privacy') }}</p>
+</section>
+<section class="panel">
+  <h2>{{ t('video.support') }}</h2>
+  <dl class="detail-grid">
+    <div><dt>{{ t('video.formats') }}</dt><dd>{{ model.support.candidate_formats | join(', ') }}</dd></div>
+    <div><dt>{{ t('video.decoder') }}</dt><dd><code>{{ model.support.decoder.state }}</code>{% if model.support.decoder.version %} · {{ model.support.decoder.version }}{% endif %}</dd></div>
+    <div><dt>{{ t('video.asr') }}</dt><dd><code>{{ model.support.asr.state }}</code></dd></div>
+    <div><dt>{{ t('video.ocr') }}</dt><dd><code>{{ model.support.frame_ocr.state }}</code></dd></div>
+  </dl>
+</section>
+<section class="panel">
+  <h2>{{ t('video.profiles') }}</h2>
+  {% for item in model.profiles %}
+  <article class="document-card">
+    <h3><code>{{ item.representation_id }}</code></h3>
+    <dl class="detail-grid">
+      <div><dt>{{ t('video.duration') }}</dt><dd>{{ item.record.duration_ms }} ms · {{ item.record.format }}</dd></div>
+      <div><dt>{{ t('video.streams') }}</dt><dd>{{ item.record.streams | length }}</dd></div>
+      <div><dt>{{ t('video.subtitles') }}</dt><dd>{{ item.record.subtitles | length }}</dd></div>
+      <div><dt>{{ t('video.scenes') }}</dt><dd>{{ item.record.scenes | length }}</dd></div>
+      <div><dt>{{ t('video.frames') }}</dt><dd>{{ item.record.frame_ocr | length }}</dd></div>
+    </dl>
+  </article>
+  {% else %}
+  <p class="empty">{{ t('video.empty') }}</p>
+  {% endfor %}
+</section>
+<section class="panel">
+  <h2>{{ t('video.jobs') }}</h2>
+  <ul class="document-list">
+  {% for job in model.jobs %}
+    <li><strong><code>{{ job.id }}</code></strong><span>{{ job.status }} · {{ job.checkpoint.phase }} · {{ job.version_id }}</span></li>
+  {% else %}
+    <li class="empty">{{ t('video.no_jobs') }}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}
