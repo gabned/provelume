@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from provelume.instance_backup import create_backup, extract_backup, verify_backup
 from provelume.instance_validation import inspect_instance
+from provelume.ocr_contract import OcrContractError
 from provelume.service import ProvelumeInstance
 from provelume.storage import InstanceStore
 from provelume.video_profiles import (
@@ -260,6 +261,14 @@ class MissingOcrAdapter:
         return {"state": "unavailable", "reason": "component_missing"}
 
 
+class FailingOcrAdapter(FakeOcrAdapter):
+    @staticmethod
+    def recognise(
+        frame: bytes, *, version_id: str, original_sha256: str, ordinal: int
+    ) -> dict[str, object]:
+        raise OcrContractError("ocr_deadline_exceeded", "bounded OCR deadline")
+
+
 def _seed(tmp_path: Path) -> tuple[ProvelumeInstance, str]:
     source = tmp_path / "source"
     source.mkdir()
@@ -349,6 +358,28 @@ def test_probe_normalises_profile_vfr_rotation_hdr_and_attachments() -> None:
     assert attachment["qualified"] is False
 
 
+def test_webm_matrix_qualifies_only_declared_streams() -> None:
+    raw = {
+        "format": {"duration": "2.0"},
+        "streams": [
+            {
+                "index": 0,
+                "codec_type": "video",
+                "codec_name": "vp9",
+                "width": 640,
+                "height": 360,
+                "avg_frame_rate": "25/1",
+            },
+            {"index": 1, "codec_type": "audio", "codec_name": "opus"},
+            {"index": 2, "codec_type": "subtitle", "codec_name": "webvtt"},
+        ],
+        "chapters": [],
+    }
+    assert [
+        stream["qualified"] for stream in _normalise_probe(raw, format_name="WEBM")["streams"]
+    ] == [True, True, True]
+
+
 @pytest.mark.skipif(os.name != "posix", reason="executable fixture uses POSIX scripts")
 def test_ffmpeg_pair_requires_hash_and_reported_version(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -378,6 +409,31 @@ def test_ffmpeg_pair_requires_hash_and_reported_version(
         expected_ffprobe_sha256=hashlib.sha256(ffprobe.read_bytes()).hexdigest(),
     )
     assert drifted.capability()["reason"] == "version_mismatch"
+
+
+def test_frame_extraction_bounds_both_portrait_axes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    adapter = FFmpegAdapter()
+    fake_binary = tmp_path / "ffmpeg"
+    fake_binary.write_bytes(b"fixture")
+    monkeypatch.setattr(adapter, "_require", lambda: (fake_binary, fake_binary))
+    captured: list[list[str]] = []
+
+    def fake_run(command, *, root, stdout_limit=0, produced=None):
+        captured.append(list(command))
+        assert produced is not None
+        next(iter(produced)).write_bytes(b"P6\n1 1\n255\n\x00\x00\x00")
+        return b""
+
+    monkeypatch.setattr(adapter, "_run", fake_run)
+    assert adapter.frame(b"source", stream_index=0, timestamp_ms=0).startswith(
+        b"\x89PNG\r\n\x1a\n"
+    )
+    filter_value = captured[0][captured[0].index("-vf") + 1]
+    assert filter_value == (
+        "scale=1600:1600:force_original_aspect_ratio=decrease:force_divisible_by=2"
+    )
 
 
 def test_profile_preserves_synchronised_citable_evidence_and_original(tmp_path: Path) -> None:
@@ -444,6 +500,21 @@ def test_jobs_cancel_retry_remove_rebuild_and_identity_drift(tmp_path: Path) -> 
     failed = other.run(drift_job)
     assert failed["status"] == "failed"
     assert failed["error_code"] == "video_decoder_unavailable"
+
+
+def test_ocr_failure_leaves_job_recoverable(tmp_path: Path) -> None:
+    instance, version_id = _seed(tmp_path)
+    manager = VideoProfileManager(
+        instance.store,
+        video_adapter=FakeVideoAdapter(),
+        asr_adapter=FakeAsrAdapter(),
+        ocr_adapter=FailingOcrAdapter(),
+    )
+    job_id = str(manager.queue(version_id, timestamps_ms=[500])["job"]["id"])
+    failed = manager.run(job_id)
+    assert failed["status"] == "failed"
+    assert failed["error_code"] == "video_process_failed"
+    assert manager.retry(job_id)["status"] == "queued"
 
 
 def test_hostile_probe_boundaries_fail_closed() -> None:

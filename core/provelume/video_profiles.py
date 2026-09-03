@@ -309,7 +309,7 @@ def _codec_qualified(format_name: str, kind: str, codec: str) -> bool:
             "audio": {"aac", "opus"},
             "subtitle": {"subrip", "webvtt"},
         },
-        "WEBM": {"video": set(), "audio": set(), "subtitle": set()},
+        "WEBM": {"video": {"vp9"}, "audio": {"opus"}, "subtitle": {"webvtt"}},
         "AVI": {"video": {"mjpeg"}, "audio": {"pcm_s16le"}, "subtitle": set()},
     }
     return codec in matrix[format_name].get(kind, set())
@@ -743,7 +743,10 @@ class FFmpegAdapter:
                     "-frames:v",
                     "1",
                     "-vf",
-                    f"scale={MAX_FRAME_EDGE}:-2:force_original_aspect_ratio=decrease",
+                    (
+                        f"scale={MAX_FRAME_EDGE}:{MAX_FRAME_EDGE}:"
+                        "force_original_aspect_ratio=decrease:force_divisible_by=2"
+                    ),
                     "-an",
                     "-sn",
                     "-f",
@@ -1802,12 +1805,28 @@ class VideoProfileManager:
                 frame_cache[timestamp] = frame
                 frame_payloads[f"selected-frame-{ordinal:03d}.png"] = ("image/png", frame)
             if ocr_capability.get("state") == "ready":
-                page = self.ocr_adapter.recognise(
-                    frame,
-                    version_id=version_id,
-                    original_sha256=str(original["sha256"]),
-                    ordinal=ordinal,
-                )
+                try:
+                    page = self.ocr_adapter.recognise(
+                        frame,
+                        version_id=version_id,
+                        original_sha256=str(original["sha256"]),
+                        ordinal=ordinal,
+                    )
+                except OcrContractError as exc:
+                    if exc.code == "ocr_cancelled":
+                        code = "video_cancelled"
+                    elif exc.code in {
+                        "ocr_input_too_large",
+                        "ocr_page_limit_exceeded",
+                        "ocr_pixel_limit_exceeded",
+                        "ocr_decompression_limit_exceeded",
+                        "ocr_temporary_space_exceeded",
+                        "ocr_output_limit_exceeded",
+                    }:
+                        code = "video_output_limit_exceeded"
+                    else:
+                        code = "video_process_failed"
+                    raise VideoContractError(code, "selected-frame OCR failed safely") from exc
                 regions = []
                 for region_ordinal, span in enumerate(page.get("spans", []), start=1):
                     if span.get("box") is None:

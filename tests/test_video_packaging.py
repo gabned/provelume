@@ -26,6 +26,13 @@ def test_video_manifest_pins_one_external_unbundled_pair() -> None:
     assert selected["runtime_downloads"] is False
     assert distribution["windows_installer"] is False
     assert manifest["rejected_components"] == ["PyAV", "PySceneDetect"]
+    matrix = {item["container"]: item for item in manifest["codec_matrix"]}
+    assert matrix["WEBM"] == {
+        "container": "WEBM",
+        "video": ["vp9"],
+        "audio": ["opus"],
+        "subtitle": ["webvtt"],
+    }
 
     dependencies = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))[
         "project"
@@ -51,6 +58,7 @@ def test_video_schema_bom_workflow_docs_and_notices_agree() -> None:
     ]
     assert SOURCE_SHA256 in workflow
     assert "ffmpeg-9.0.1.tar.xz" in workflow
+    assert "--disable-x86asm" in workflow
     assert "not bundled by Provelume" in notices
     for document in (english, italian):
         assert "PROVELUME_FFMPEG_SHA256" in document

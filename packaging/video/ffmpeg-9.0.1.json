@@ -22,7 +22,7 @@
     {"container": "MP4", "video": ["h264"], "audio": ["aac"], "subtitle": ["mov_text"]},
     {"container": "MOV", "video": ["h264"], "audio": ["aac", "pcm_s16le"], "subtitle": ["mov_text"]},
     {"container": "MKV", "video": ["h264"], "audio": ["aac", "opus"], "subtitle": ["subrip", "webvtt"]},
-    {"container": "WEBM", "video": [], "audio": [], "subtitle": [], "higher_operations": "unavailable"},
+    {"container": "WEBM", "video": ["vp9"], "audio": ["opus"], "subtitle": ["webvtt"]},
     {"container": "AVI", "video": ["mjpeg"], "audio": ["pcm_s16le"], "subtitle": []}
   ],
   "rejected_components": ["PyAV", "PySceneDetect"],
