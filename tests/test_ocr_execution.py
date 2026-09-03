@@ -47,7 +47,8 @@ from provelume.service import ProvelumeInstance
 from provelume.web import create_app
 
 _PNG = base64.b64decode(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUB"
+    "AScY42YAAAAASUVORK5CYII="
 )
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -165,12 +166,19 @@ class FakeAdapter:
     def capability(self) -> OcrAdapterCapability:
         return _adapter_capability()
 
-    def recognise_page(self, request: OcrPageRequest, staged_page_path: Path) -> OcrPageResult:
+    def recognise_page(
+        self, request: OcrPageRequest, staged_page_path: Path
+    ) -> OcrPageResult:
         assert staged_page_path.is_file()
         self.calls.append(request.source_page.page_number)
-        if request.source_page.page_number == self.fail_page_once and not self.failed_once:
+        if (
+            request.source_page.page_number == self.fail_page_once
+            and not self.failed_once
+        ):
             self.failed_once = True
-            raise OcrContractError("ocr_adapter_failure", "synthetic adapter crash")
+            raise OcrContractError(
+                "ocr_adapter_failure", "synthetic adapter crash"
+            )
         capability = self.capability()
         page = request.source_page
         text = f"Page {page.page_number} local OCR"
@@ -231,7 +239,9 @@ def _fixture(
     instance.ingest_run(source)
     version_id = str(instance.store.list_canonical("versions")[0]["id"])
     renderer = FakeRenderer(page_count=page_count)
-    adapter = FakeAdapter(_renderer_capability(), fail_page_once=fail_page_once)
+    adapter = FakeAdapter(
+        _renderer_capability(), fail_page_once=fail_page_once
+    )
     manager = OcrJobManager(
         instance.store,
         renderer_factory=lambda settings, temporary: renderer,
@@ -262,7 +272,9 @@ def test_disabled_default_does_not_probe_or_create_ocr_state(tmp_path: Path) -> 
 def test_selected_page_job_is_idempotent_checkpointed_and_removable(
     tmp_path: Path,
 ) -> None:
-    instance, manager, renderer, adapter, version_id = _fixture(tmp_path, page_count=3)
+    instance, manager, renderer, adapter, version_id = _fixture(
+        tmp_path, page_count=3
+    )
     original = instance.store.list_canonical("originals")[0]
     original_before = instance.store.original_bytes(original["id"])
     canonical_before = instance.store.knowledge_fingerprint()
@@ -301,12 +313,16 @@ def test_selected_page_job_is_idempotent_checkpointed_and_removable(
     assert bundle["manifest"]["text_is_verified"] is False
     assert bundle["manifest"]["network_used"] is False
     bundle_schema = json.loads(
-        (ROOT / "core" / "provelume" / "ocr_bundle.schema.json").read_text(encoding="utf-8")
+        (ROOT / "core" / "provelume" / "ocr_bundle.schema.json").read_text(
+            encoding="utf-8"
+        )
     )
     assert set(bundle["manifest"]) == set(bundle_schema["required"])
     result_ref = bundle["manifest"]["pages"][0]["result_ref"]
     page_record = json.loads((instance.root / result_ref).read_text(encoding="utf-8"))
-    assert set(page_record) == set(bundle_schema["$defs"]["pageRecord"]["required"])
+    assert set(page_record) == set(
+        bundle_schema["$defs"]["pageRecord"]["required"]
+    )
     assert page_record["result"]["authoritative"] is False
     assert page_record["result"]["observations"] == {
         "barcode": [],
@@ -333,9 +349,8 @@ def test_selected_page_job_is_idempotent_checkpointed_and_removable(
     assert rebuilt_job != queued["job"]["id"]
     rebuilt_result = instance.scheduler.run_one(job_id=rebuilt_job)
     assert rebuilt_result is not None and rebuilt_result["status"] == "succeeded"
-    assert (
-        manager.list_bundles(version_id)[0]["manifest"]["derivation_key"]
-        == (queued["request"]["derivation_key"])
+    assert manager.list_bundles(version_id)[0]["manifest"]["derivation_key"] == (
+        queued["request"]["derivation_key"]
     )
 
 
@@ -483,9 +498,13 @@ def test_ocr_retry_resumes_page_checkpoint_without_duplicate_artifact(
         fail_page_once=2,
     )
     queued = manager.queue(version_id, mode="forced")
-    first_now = datetime.fromisoformat(str(queued["job"]["eligible_at"])).astimezone(UTC)
+    first_now = datetime.fromisoformat(
+        str(queued["job"]["eligible_at"])
+    ).astimezone(UTC)
 
-    first = instance.scheduler.run_one(job_id=queued["job"]["id"], now=first_now)
+    first = instance.scheduler.run_one(
+        job_id=queued["job"]["id"], now=first_now
+    )
 
     assert first is not None
     assert first["status"] == "retry_wait"
@@ -494,7 +513,9 @@ def test_ocr_retry_resumes_page_checkpoint_without_duplicate_artifact(
     retry_at = datetime.fromisoformat(str(first["retry_not_before"]))
     instance.scheduler.recover(now=retry_at)
 
-    second = instance.scheduler.run_one(job_id=queued["job"]["id"], now=retry_at)
+    second = instance.scheduler.run_one(
+        job_id=queued["job"]["id"], now=retry_at
+    )
 
     assert second is not None and second["status"] == "succeeded"
     assert second["attempt"] == 2
@@ -607,7 +628,9 @@ def test_ocr_cumulative_work_and_promotion_respect_temporary_budget(
         record,
         max_temp_bytes=1024 * 1024,
     )
-    committed_bytes = sum(path.stat().st_size for path in work.rglob("*") if path.is_file())
+    committed_bytes = sum(
+        path.stat().st_size for path in work.rglob("*") if path.is_file()
+    )
     cumulative_limit = committed_bytes + 1
     assert len(first) < cumulative_limit
 
@@ -645,7 +668,9 @@ def test_ocr_run_rejects_non_ocr_scheduler_job_without_executing(
         state="disabled",
         schedule=schedule_payload(mode="manual", timezone="UTC"),
     )
-    queued = instance.scheduler.journal.run_now(policy["id"], request_key="not-an-ocr-job")["job"]
+    queued = instance.scheduler.journal.run_now(
+        policy["id"], request_key="not-an-ocr-job"
+    )["job"]
 
     with pytest.raises(OcrContractError) as exc_info:
         instance.run_ocr_job(str(queued["id"]))
@@ -869,7 +894,9 @@ def _tesseract_request(settings: OcrSettings, image: Path) -> OcrPageRequest:
         ("missing", "ocr_engine_output_invalid"),
     ],
 )
-def test_fake_tesseract_cli_rejects_invalid_outputs(tmp_path: Path, mode: str, code: str) -> None:
+def test_fake_tesseract_cli_rejects_invalid_outputs(
+    tmp_path: Path, mode: str, code: str
+) -> None:
     executable = _fake_tesseract(tmp_path, mode)
     settings = OcrSettings(
         mode="forced",
@@ -878,7 +905,9 @@ def test_fake_tesseract_cli_rejects_invalid_outputs(tmp_path: Path, mode: str, c
     )
     image = tmp_path / "page;not-a-command.png"
     image.write_bytes(_PNG)
-    adapter = TesseractCliAdapter(settings, _renderer_capability(), tmp_path)
+    adapter = TesseractCliAdapter(
+        settings, _renderer_capability(), tmp_path
+    )
 
     with pytest.raises(OcrContractError) as exc_info:
         adapter.recognise_page(_tesseract_request(settings, image), image)
@@ -976,20 +1005,14 @@ def test_capability_distinguishes_missing_engine_renderer_version_and_language(
         def capability(self) -> OcrRendererCapability:
             return self._capability
 
-    assert (
-        ocr_capability_report(
-            OcrSettings(mode="forced"), missing_engine, Renderer(_renderer_capability())
-        )["state"]
-        == "engine-unavailable"
-    )
-    assert (
-        ocr_capability_report(
-            OcrSettings(mode="forced"),
-            FakeAdapter(_renderer_capability()),
-            Renderer(renderer_missing),
-        )["state"]
-        == "renderer-unavailable"
-    )
+    assert ocr_capability_report(
+        OcrSettings(mode="forced"), missing_engine, Renderer(_renderer_capability())
+    )["state"] == "engine-unavailable"
+    assert ocr_capability_report(
+        OcrSettings(mode="forced"),
+        FakeAdapter(_renderer_capability()),
+        Renderer(renderer_missing),
+    )["state"] == "renderer-unavailable"
 
     executable = _fake_tesseract(tmp_path, "valid")
     language_adapter = TesseractCliAdapter(
@@ -1014,7 +1037,9 @@ def test_ocr_cli_and_guarded_browser_control_surfaces(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     instance, manager, _renderer, _adapter, version_id = _fixture(tmp_path)
-    assert main(["ocr-configure", str(instance.root), "--mode", "disabled"]) == 0
+    assert main(
+        ["ocr-configure", str(instance.root), "--mode", "disabled"]
+    ) == 0
     configured = json.loads(capsys.readouterr().out)
     assert configured["mode"] == "disabled"
     assert main(["ocr-capability", str(instance.root)]) == 0
@@ -1032,16 +1057,15 @@ def test_ocr_cli_and_guarded_browser_control_surfaces(
     client = TestClient(app)
     page = client.get("/ocr")
     assert page.status_code == 200
-    token_match = re.search(r'name="csrf_token" value="([^"]+)"', page.text)
+    token_match = re.search(
+        r'name="csrf_token" value="([^"]+)"', page.text
+    )
     assert token_match is not None
     token = token_match.group(1)
-    assert (
-        client.post(
-            "/ocr",
-            data={"csrf_token": "wrong", "action": "configure"},
-        ).status_code
-        == 403
-    )
+    assert client.post(
+        "/ocr",
+        data={"csrf_token": "wrong", "action": "configure"},
+    ).status_code == 403
     configured_page = client.post(
         "/ocr",
         data={
@@ -1082,10 +1106,14 @@ def test_ocr_cli_and_guarded_browser_control_surfaces(
 
 def test_bundle_schema_reuses_the_public_contract_definitions() -> None:
     bundle_schema = json.loads(
-        (ROOT / "core" / "provelume" / "ocr_bundle.schema.json").read_text(encoding="utf-8")
+        (ROOT / "core" / "provelume" / "ocr_bundle.schema.json").read_text(
+            encoding="utf-8"
+        )
     )
     contract_schema = json.loads(
-        (ROOT / "core" / "provelume" / "ocr_contract.schema.json").read_text(encoding="utf-8")
+        (ROOT / "core" / "provelume" / "ocr_contract.schema.json").read_text(
+            encoding="utf-8"
+        )
     )
     assert bundle_schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
     assert bundle_schema["properties"]["schema_version"]["const"] == 1
