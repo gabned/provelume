@@ -54,7 +54,7 @@
         "missing_component": {
           "anyOf": [{"$ref": "#/$defs/identifier"}, {"type": "null"}]
         },
-        "component_check": {"enum": ["ocr", "photo", "audio"]}
+        "component_check": {"enum": ["ocr", "photo", "audio", "video"]}
       },
       "allOf": [
         {

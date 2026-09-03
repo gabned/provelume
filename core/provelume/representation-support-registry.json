@@ -139,6 +139,19 @@
       }
     },
     {
+      "id": "perceptio-video-v1",
+      "version": "1",
+      "label": "Perceptio bounded local video profile",
+      "operations": {
+        "preserve": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "exact-byte-original", "version": "1"}, "limits": {}, "reason": null, "missing_component": null},
+        "inspect": {"declared": "supported", "effective": "available", "implementation": {"component": "provelume.core", "adapter": "bounded-video-signature", "version": "1"}, "limits": {"max_input_bytes": 536870912, "candidate_containers": 5}, "reason": null, "missing_component": null},
+        "extract": {"declared": "optional", "effective": "unavailable", "component_check": "video", "implementation": {"component": "codec.ffmpeg", "adapter": "subtitle-audio-frame-extract", "version": "9.0.1"}, "limits": {"max_subtitle_streams": 8, "max_scenes": 64}, "reason": "component_missing", "missing_component": "codec.ffmpeg"},
+        "preview": {"declared": "optional", "effective": "unavailable", "component_check": "video", "implementation": {"component": "codec.ffmpeg", "adapter": "bounded-keyframe-png", "version": "9.0.1"}, "limits": {"max_edge": 1600, "max_pixels": 33177600}, "reason": "component_missing", "missing_component": "codec.ffmpeg"},
+        "local_enrich": {"declared": "optional", "effective": "unavailable", "component_check": "video", "implementation": {"component": "provelume.core", "adapter": "selected-frame-ocr-and-audio-asr", "version": "1"}, "limits": {"max_selected_frames": 16, "continuous_frame_ocr": false}, "reason": "component_missing", "missing_component": "codec.ffmpeg"},
+        "ai_enrich": {"declared": "unsupported", "effective": "unavailable", "implementation": null, "limits": {}, "reason": "not_implemented", "missing_component": null}
+      }
+    },
+    {
       "id": "lectio-cross-source-findings-v1",
       "version": "1",
       "label": "Lectio cross-source findings",

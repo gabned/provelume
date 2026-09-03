@@ -21,6 +21,7 @@ from .representation_i18n import REPRESENTATION_TRANSLATIONS
 from .scheduler_i18n import SCHEDULER_TRANSLATIONS
 from .shell_i18n import SHELL_TRANSLATIONS
 from .transcript_i18n import TRANSCRIPT_TRANSLATIONS
+from .video_i18n import VIDEO_TRANSLATIONS
 
 SUPPORTED_LANGUAGES = {"en", "it"}
 
@@ -49,6 +50,7 @@ def catalog(language: str) -> dict[str, str]:
     result.update(PHOTO_TRANSLATIONS.get(selected, {}))
     result.update(QUALIFICATION_TRANSLATIONS.get(selected, {}))
     result.update(TRANSCRIPT_TRANSLATIONS.get(selected, {}))
+    result.update(VIDEO_TRANSLATIONS.get(selected, {}))
     return result
 
 

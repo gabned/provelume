@@ -6,6 +6,14 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
+- activated `0.10/S05` through issue #174 and owner PR #175, adding a bounded
+  MP4/MOV/MKV/WebM/AVI profile with an
+  exact external FFmpeg/ffprobe 9.0.1 pair, closed codec matrix, embedded subtitle evidence, S04
+  audio-contract reuse, deterministic scene/keyframe sampling and OCR only at explicit timestamps;
+- added durable video jobs, exact time and paired time/region reopening, read-only API and EN/IT
+  Browser surfaces, remove/rebuild, backup/transfer and absent-safe Windows behavior without
+  bundling media binaries or adding live capture, DRM bypass, remote inference, continuous OCR,
+  identity inference, summary/classification, source write or runtime download;
 - activated `0.10/S04` through issue #171 and owner PR #172, adding bounded local audio
   inspection, deterministic WAV/PCM16 waveform evidence, optional pinned local whisper.cpp
   transcription with exact time anchors, durable jobs and removable/rebuildable representations;

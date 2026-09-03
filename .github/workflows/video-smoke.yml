@@ -1,0 +1,143 @@
+name: Local video profile smoke
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu-ffmpeg:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Fetch exact FFmpeg source
+        run: |
+          set -euo pipefail
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --output ffmpeg-9.0.1.tar.xz \
+            https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz
+          echo 'cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635  ffmpeg-9.0.1.tar.xz' | sha256sum --check --strict
+          test "$(stat --format=%s ffmpeg-9.0.1.tar.xz)" = "12036420"
+          tar --extract --xz --file ffmpeg-9.0.1.tar.xz
+      - name: Build the LGPL local pair
+        run: |
+          set -euo pipefail
+          cd ffmpeg-9.0.1
+          ./configure \
+            --prefix="$PWD/../.video-ffmpeg" \
+            --disable-doc \
+            --disable-debug \
+            --disable-x86asm \
+            --disable-network \
+            --disable-autodetect \
+            --disable-gpl \
+            --disable-version3 \
+            --disable-nonfree \
+            --disable-ffplay \
+            --disable-shared \
+            --enable-static
+          make -j2
+          make install
+
+      - name: Bootstrap without runtime component downloads
+        run: python scripts/bootstrap.py
+
+      - name: Provision fixture generator only
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ffmpeg
+          /usr/bin/ffmpeg -version | head -n 1
+
+      - name: Create bounded realistic matrix fixtures
+        run: |
+          set -euo pipefail
+          mkdir .video-fixtures
+          printf '1\n00:00:00,200 --> 00:00:01,200\nExact subtitle evidence\n' \
+            > .video-fixtures/evidence.srt
+          /usr/bin/ffmpeg -v error -nostdin -y \
+            -f lavfi -i 'testsrc2=size=640x360:rate=25:duration=2' \
+            -f lavfi -i 'sine=frequency=440:sample_rate=48000:duration=2' \
+            -f srt -i .video-fixtures/evidence.srt \
+            -map 0:v:0 -map 1:a:0 -map 2:s:0 \
+            -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -c:s mov_text \
+            .video-fixtures/bounded.mp4
+          /usr/bin/ffmpeg -v error -nostdin -y \
+            -f lavfi -i 'testsrc2=size=640x360:rate=25:duration=2' \
+            -f lavfi -i 'sine=frequency=440:sample_rate=48000:duration=2' \
+            -f srt -i .video-fixtures/evidence.srt \
+            -map 0:v:0 -map 1:a:0 -map 2:s:0 \
+            -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a pcm_s16le -c:s mov_text \
+            .video-fixtures/bounded.mov
+          /usr/bin/ffmpeg -v error -nostdin -y \
+            -f lavfi -i 'testsrc2=size=640x360:rate=25:duration=2' \
+            -f lavfi -i 'sine=frequency=440:sample_rate=48000:duration=2' \
+            -f srt -i .video-fixtures/evidence.srt \
+            -map 0:v:0 -map 1:a:0 -map 2:s:0 \
+            -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -c:s srt \
+            .video-fixtures/bounded.mkv
+          /usr/bin/ffmpeg -v error -nostdin -y \
+            -f lavfi -i 'testsrc2=size=640x360:rate=25:duration=2' \
+            -f lavfi -i 'sine=frequency=440:sample_rate=48000:duration=2' \
+            -map 0:v:0 -map 1:a:0 \
+            -c:v libvpx-vp9 -deadline realtime -cpu-used 8 -b:v 300k -c:a libopus \
+            .video-fixtures/bounded.webm
+          "$PWD/.video-ffmpeg/bin/ffmpeg" -v error -nostdin -y \
+            -f lavfi -i 'testsrc2=size=640x360:rate=25:duration=2' \
+            -f lavfi -i 'sine=frequency=440:sample_rate=48000:duration=2' \
+            -map 0:v:0 -map 1:a:0 -c:v mjpeg -q:v 8 -c:a pcm_s16le -threads 1 \
+            .video-fixtures/bounded.avi
+      - name: Bind exact offline video identities
+        run: |
+          set -euo pipefail
+          echo "PROVELUME_REAL_VIDEO=1" >> "$GITHUB_ENV"
+          echo "PROVELUME_FFMPEG_VERSION=9.0.1" >> "$GITHUB_ENV"
+          echo "PROVELUME_REAL_VIDEO_FIXTURE_ROOT=$PWD/.video-fixtures" >> "$GITHUB_ENV"
+          echo "PROVELUME_FFMPEG_PATH=$PWD/.video-ffmpeg/bin/ffmpeg" >> "$GITHUB_ENV"
+          echo "PROVELUME_FFPROBE_PATH=$PWD/.video-ffmpeg/bin/ffprobe" >> "$GITHUB_ENV"
+          echo "PROVELUME_FFMPEG_SHA256=$(sha256sum .video-ffmpeg/bin/ffmpeg | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          echo "PROVELUME_FFPROBE_SHA256=$(sha256sum .video-ffmpeg/bin/ffprobe | cut -d' ' -f1)" >> "$GITHUB_ENV"
+      - name: Run exact local pair and contract smoke
+        run: >-
+          .venv/bin/python -m pytest -q
+          tests/test_video_real_smoke.py
+          tests/test_video_profiles.py
+          tests/test_video_packaging.py
+
+  windows-degraded:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Bootstrap without video component downloads
+        run: python scripts/bootstrap.py
+
+      - name: Prove Preserve/Inspect and truthful absent decoder state
+        run: >-
+          .venv\Scripts\python.exe -m pytest -q
+          tests/test_video_profiles.py
+          tests/test_video_packaging.py
+          tests/test_video_real_smoke.py

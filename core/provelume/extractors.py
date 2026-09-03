@@ -93,6 +93,24 @@ class AudioContainerExtractor:
         )
 
 
+class VideoContainerExtractor:
+    """Admit exact video bytes without treating frames or subtitles as canonical text."""
+
+    extensions = {".mp4", ".mov", ".mkv", ".webm", ".avi"}
+
+    def supports(self, suffix: str) -> bool:
+        return suffix.lower() in self.extensions
+
+    def extract(self, data: bytes) -> ExtractionResult:
+        if not data:
+            raise ExtractionError("video file is empty")
+        return ExtractionResult(
+            text="",
+            generator="provelume.video-preserve",
+            generator_version="1",
+        )
+
+
 class PdfTextExtractor:
     extensions = {".pdf"}
 
@@ -656,6 +674,7 @@ class ZipArchiveExtractor:
 EXTRACTORS: tuple[Extractor, ...] = (
     PlainTextExtractor(),
     AudioContainerExtractor(),
+    VideoContainerExtractor(),
     PdfTextExtractor(),
     DocxTextExtractor(),
     CsvTextExtractor(),

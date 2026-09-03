@@ -95,3 +95,17 @@ download, update or remotely replace either component.
 records this qualified optional path and its model checksum. It is not the aggregate release SBOM.
 The Python wheel, source distribution and Windows installer include only Provelume's bounded
 adapter, schema and manifest; they contain no speech engine, model, codec or private audio fixture.
+
+## Qualified optional local video baseline — external in 0.10/S05
+
+The `0.10/S05` profile can invoke one explicitly configured FFmpeg/ffprobe 9.0.1 pair built from
+the official source archive. The pair is governed by FFmpeg's LGPL 2.1-or-later baseline when built
+without optional GPL or nonfree components and remains **not bundled by Provelume**. The operator
+supplies absolute paths, the declared version and exact hashes for both binaries; Provelume never
+discovers, downloads, updates or remotely replaces them.
+
+[`packaging/video/qualified-local-components.cdx.json`](packaging/video/qualified-local-components.cdx.json)
+records the qualified optional Ubuntu path and source checksum. It is not the aggregate release
+SBOM. The Python wheel, source distribution and Windows installer contain no FFmpeg binary, codec,
+model, media payload or private fixture. Any future redistribution must inventory the exact build
+configuration and all applicable component licenses first.

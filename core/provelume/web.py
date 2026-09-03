@@ -39,6 +39,7 @@ from .shell_settings import (
     validate_port,
 )
 from .transcript_activity import attach_transcript_routes
+from .video_activity import attach_video_routes
 from .web_security import LocalWebSecurityMiddleware, loopback_host
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -125,6 +126,12 @@ def _navigation(
             "href": f"/audio?lang={language}",
             "label": t("nav.audio"),
             "current": current_path.startswith("/audio"),
+            "group": "knowledge",
+        },
+        {
+            "href": f"/video?lang={language}",
+            "label": t("nav.video"),
+            "current": current_path.startswith("/video"),
             "group": "knowledge",
         },
         {
@@ -373,6 +380,7 @@ def create_app(
     attach_ocr_routes(app, instance, TEMPLATES, _context)
     attach_photo_routes(app, instance, TEMPLATES, _context)
     attach_audio_routes(app, instance, TEMPLATES, _context)
+    attach_video_routes(app, instance, TEMPLATES, _context)
     attach_email_routes(app, instance, TEMPLATES, _context)
     attach_google_routes(app, instance, TEMPLATES, _context)
     attach_transcript_routes(app, instance, TEMPLATES, _context)

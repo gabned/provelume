@@ -923,6 +923,20 @@ class SupportRegistry:
         )
         return "unavailable", reason, "asr.whisper-cpp"
 
+    @staticmethod
+    def _video_state() -> tuple[str, str | None, str | None]:
+        from .video_profiles import FFmpegAdapter
+
+        capability = FFmpegAdapter().capability()
+        if capability.get("state") == "ready":
+            return "available", None, None
+        reason = (
+            "unsupported_platform"
+            if capability.get("state") == "incompatible"
+            else "component_missing"
+        )
+        return "unavailable", reason, "codec.ffmpeg"
+
     def read(self, *, profile_id: str | None = None) -> dict[str, Any]:
         source = _resource_json("representation-support-registry.json")
         if (
@@ -946,6 +960,7 @@ class SupportRegistry:
         ocr_state: tuple[str, str | None, str | None] | None = None
         photo_state: tuple[str, str | None, str | None] | None = None
         audio_state: tuple[str, str | None, str | None] | None = None
+        video_state: tuple[str, str | None, str | None] | None = None
         records: list[dict[str, Any]] = []
         profile_ids: set[str] = set()
         for profile in source["profiles"]:
@@ -1021,7 +1036,7 @@ class SupportRegistry:
                 if missing_component is not None:
                     _identifier(missing_component, "support missing component")
                 component_check = specification.get("component_check")
-                if component_check not in {None, "ocr", "photo", "audio"}:
+                if component_check not in {None, "ocr", "photo", "audio", "video"}:
                     raise RepresentationContractError(
                         "representation_invalid", "support component check is invalid"
                     )
@@ -1037,6 +1052,10 @@ class SupportRegistry:
                     if audio_state is None:
                         audio_state = self._audio_state()
                     effective, reason, missing_component = audio_state
+                if component_check == "video":
+                    if video_state is None:
+                        video_state = self._video_state()
+                    effective, reason, missing_component = video_state
                 if operation == "ai_enrich":
                     if declared != "unsupported" or implementation is not None:
                         raise RepresentationContractError(

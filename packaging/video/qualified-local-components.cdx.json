@@ -1,0 +1,38 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:581dbcc4-c8b6-5d0b-9f9e-9f856f1ebf49",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "bom-ref": "pkg:pypi/provelume@0.9.0",
+      "name": "Provelume Core",
+      "version": "0.9.0"
+    },
+    "properties": [
+      {"name": "provelume:slice", "value": "0.10/S05"},
+      {"name": "provelume:scope", "value": "qualified-optional-local-video-components"},
+      {"name": "provelume:redistributed", "value": "false"}
+    ]
+  },
+  "components": [
+    {
+      "type": "application",
+      "bom-ref": "pkg:generic/ffmpeg@9.0.1",
+      "name": "FFmpeg and ffprobe CLI pair",
+      "version": "9.0.1",
+      "licenses": [{"license": {"id": "LGPL-2.1-or-later"}}],
+      "purl": "pkg:generic/ffmpeg@9.0.1",
+      "externalReferences": [
+        {"type": "distribution", "url": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz", "hashes": [{"alg": "SHA-256", "content": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635"}]}
+      ],
+      "properties": [
+        {"name": "provelume:source-size-bytes", "value": "12036420"},
+        {"name": "provelume:qualified-platform", "value": "ubuntu-24.04-x86_64"},
+        {"name": "provelume:operator-supplied-binary-hashes-required", "value": "true"},
+        {"name": "provelume:bundled", "value": "false"}
+      ]
+    }
+  ]
+}
