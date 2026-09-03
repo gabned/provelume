@@ -13,7 +13,7 @@ from provelume.pytest_windows_shard import (
     SHARD_COUNT,
     _child_working_directory,
     _should_orchestrate,
-    shard_for_nodeid,
+    balanced_shard_assignments,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,22 +30,28 @@ def test_child_working_directory_prefers_versioned_config_over_volume_root(
     assert _child_working_directory(fake) == config_dir.resolve()
 
 
-def test_hash_partition_is_stable_disjoint_and_complete() -> None:
-    nodeids = [f"tests/test_synthetic_{index}.py::test_case" for index in range(1000)]
-    partitions = [
-        {nodeid for nodeid in nodeids if shard_for_nodeid(nodeid, SHARD_COUNT) == index}
-        for index in range(SHARD_COUNT)
+def test_module_partition_is_stable_disjoint_complete_and_balanced() -> None:
+    nodeids = [
+        f"tests/test_synthetic_{module}.py::test_case_{case}"
+        for module, size in enumerate((31, 29, 23, 19, 17, 13, 11, 7))
+        for case in range(size)
     ]
-    assert set.union(*partitions) == set(nodeids)
-    assert not set.intersection(*partitions)
-    assert all(partitions)
-    assert shard_for_nodeid("tests/test_one.py::test_a", SHARD_COUNT) == (
-        shard_for_nodeid("tests/test_one.py::test_b", SHARD_COUNT)
-    )
-    assert shard_for_nodeid(nodeids[123], SHARD_COUNT) == shard_for_nodeid(
-        nodeids[123],
-        SHARD_COUNT,
-    )
+    forward = balanced_shard_assignments(nodeids, SHARD_COUNT)
+    reverse = balanced_shard_assignments(list(reversed(nodeids)), SHARD_COUNT)
+    assert forward == reverse
+    assert set(forward) == {nodeid.split("::", 1)[0] for nodeid in nodeids}
+    assert len(set(forward.values())) == SHARD_COUNT
+    module_zero_shards = {
+        forward[nodeid.split("::", 1)[0]]
+        for nodeid in nodeids
+        if nodeid.startswith("tests/test_synthetic_0.py::")
+    }
+    assert len(module_zero_shards) == 1
+
+    loads = [0] * SHARD_COUNT
+    for nodeid in nodeids:
+        loads[forward[nodeid.split("::", 1)[0]]] += 1
+    assert max(loads) - min(loads) <= 7
 
 
 def test_orchestration_is_only_automatic_for_bare_windows_full_suite(monkeypatch) -> None:
@@ -65,7 +71,7 @@ def test_four_process_harness_completes_bounded_and_cleans_children() -> None:
         / "tests"
         / "test_windows_pytest_sharding.py"
     )
-    nodeid = f"{target}::test_hash_partition_is_stable_disjoint_and_complete"
+    nodeid = f"{target}::test_module_partition_is_stable_disjoint_complete_and_balanced"
     environment = os.environ.copy()
     environment[FORCE_ENV] = "1"
     environment["PROVELUME_WINDOWS_SHARD_TIMEOUT_SECONDS"] = "60"
