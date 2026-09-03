@@ -263,4 +263,5 @@ def test_perceptio_release_metadata_is_aligned_without_rewriting_lectio_history(
     assert "explicitly unsigned" in release
     assert "Unknown publisher" in qualification
     assert "development builds report `candidate`" in api
-    assert "`v0.10.0` reports `published`" in api
+    assert "`external_release_verification_required`" in api
+    assert "never authenticates publication" in api

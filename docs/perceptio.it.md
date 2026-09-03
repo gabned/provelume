@@ -2,8 +2,10 @@
 
 Perceptio è la superficie integrata, locale e di sola lettura per gli esatti profili foto, audio,
 video e CSV/XLSX/ZIP pubblicati nella `0.10.0`. Identità del pacchetto, runtime incorporato e
-prodotto Windows sono `0.10.0`. Un normale checkout sorgente riporta comunque `candidate`: solo una
-build ufficiale con tag incorporato esattamente `v0.10.0` riporta `published` e disponibile.
+prodotto Windows sono `0.10.0`. Un normale checkout sorgente riporta `candidate`. Una build con
+identità incorporata esattamente `0.10.0` / `v0.10.0` riporta soltanto
+`official_metadata_present` e `external_release_verification_required`: i metadati sono descrittivi
+e non autenticano mai da soli pubblicazione o integrità dell’installazione.
 
 ## Un unico percorso dell’evidenza
 
@@ -42,9 +44,9 @@ limiti per profilo su byte, quantità, durata, pixel, espansione, processo, memo
 Rimozione/ricostruzione delle rappresentazioni, backup/ripristino e trasferimento portabile
 mantengono i contratti esistenti. La qualifica di release prova inoltre installazione pulita,
 upgrade dalla `0.9.0`, rollback e conservazione dei dati alla disinstallazione. Perceptio diventa
-disponibile soltanto quando PR di versione, commit `main`, verifica offline, tag immutabile
-`v0.10.0` e asset canonici coincidono. Build di sviluppo o modificate localmente restano
-deliberatamente candidate.
+pubblicato soltanto quando PR di versione, commit `main`, verifica offline, tag immutabile
+`v0.10.0` e asset canonici coincidono esternamente. Le build di sviluppo restano candidate; anche
+gli esatti metadati release incorporati richiedono la verifica separata di installazione e bundle.
 
 Vedi la [qualifica release 0.10.0](qualification/0.10.0.md), il
 [record di release](releases/0.10.0.md) e il [contratto privacy](privacy-network.md).

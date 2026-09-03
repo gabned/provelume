@@ -358,7 +358,7 @@ class PerceptioReadModel:
             dict.fromkeys(str(record["profile_id"]) for record in registry["records"])
         )
         build = current_build_info()
-        published = (
+        release_metadata_present = (
             build["official"] is True
             and build["identity_status"] == "official_metadata_present"
             and build["version"] == PERCEPTIO_TARGET_VERSION
@@ -370,14 +370,17 @@ class PerceptioReadModel:
             "model_id": "provelume.perceptio-read-model.v1",
             "target_version": PERCEPTIO_TARGET_VERSION,
             "publication": {
-                "state": "published" if published else "candidate",
+                "state": (
+                    "official_metadata_present" if release_metadata_present else "candidate"
+                ),
                 "availability": (
-                    "available_in_verified_release"
-                    if published
+                    "external_release_verification_required"
+                    if release_metadata_present
                     else "unavailable_until_verified_publication"
                 ),
                 "current_package_version": build["version"],
-                "official_build": build["official"],
+                "official_build_metadata": build["official"],
+                "verification": copy.deepcopy(build["verification"]),
             },
             "journey": {
                 "read_only": True,

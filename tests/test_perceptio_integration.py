@@ -136,7 +136,14 @@ def test_service_cli_api_browser_share_one_read_only_model(
         "state": "candidate",
         "availability": "unavailable_until_verified_publication",
         "current_package_version": "0.10.0",
-        "official_build": False,
+        "official_build_metadata": False,
+        "verification": {
+            "status": "not_performed",
+            "installation_integrity": "not_verified",
+            "artifact_provenance": "not_verified_locally",
+            "signature": "not_verified",
+            "network_used": False,
+        },
     }
     assert [item["family"] for item in expected["support"]] == [
         "photo",
@@ -194,7 +201,7 @@ def test_service_cli_api_browser_share_one_read_only_model(
     assert deleted.status_code == 405
 
 
-def test_publication_state_requires_exact_official_build_identity(
+def test_release_metadata_never_infers_verified_publication(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     instance = ProvelumeInstance.initialise(tmp_path / "instance")
@@ -206,6 +213,13 @@ def test_publication_state_requires_exact_official_build_identity(
             "commit": "a" * 40,
             "official": True,
             "identity_status": "official_metadata_present",
+            "verification": {
+                "status": "not_performed",
+                "installation_integrity": "not_verified",
+                "artifact_provenance": "not_verified_locally",
+                "signature": "not_verified",
+                "network_used": False,
+            },
         }
 
     monkeypatch.setattr("provelume.perceptio.current_build_info", lambda: identity(tag="v0.9.0"))
@@ -214,12 +228,19 @@ def test_publication_state_requires_exact_official_build_identity(
     assert candidate["availability"] == "unavailable_until_verified_publication"
 
     monkeypatch.setattr("provelume.perceptio.current_build_info", lambda: identity(tag="v0.10.0"))
-    published = instance.perceptio_read_model()["publication"]
-    assert published == {
-        "state": "published",
-        "availability": "available_in_verified_release",
+    release_metadata = instance.perceptio_read_model()["publication"]
+    assert release_metadata == {
+        "state": "official_metadata_present",
+        "availability": "external_release_verification_required",
         "current_package_version": "0.10.0",
-        "official_build": True,
+        "official_build_metadata": True,
+        "verification": {
+            "status": "not_performed",
+            "installation_integrity": "not_verified",
+            "artifact_provenance": "not_verified_locally",
+            "signature": "not_verified",
+            "network_used": False,
+        },
     }
 
 
@@ -353,4 +374,5 @@ def test_english_italian_and_packaged_qualification_remain_exact() -> None:
         assert path.is_file() and "0.10" in path.read_text(encoding="utf-8")
     api = (root / "docs/api.md").read_text(encoding="utf-8")
     assert "development builds report `candidate`" in api
-    assert "`v0.10.0` reports `published`" in api
+    assert "`external_release_verification_required`" in api
+    assert "never authenticates publication" in api

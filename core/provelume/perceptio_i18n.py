@@ -11,7 +11,10 @@ PERCEPTIO_TRANSLATIONS = {
         "perceptio.unpublished": (
             "This source candidate remains unavailable until verified publication of 0.10.0."
         ),
-        "perceptio.published": "Perceptio is available in this verified 0.10.0 release build.",
+        "perceptio.release_metadata": (
+            "This build contains exact v0.10.0 release metadata. Verify the installation and "
+            "release bundle separately; this page does not authenticate publication."
+        ),
         "perceptio.support": "Support and evidence",
         "perceptio.family": "Family",
         "perceptio.surface": "Journey surface",
@@ -60,8 +63,9 @@ PERCEPTIO_TRANSLATIONS = {
             "Questo candidato sorgente resta indisponibile fino alla pubblicazione verificata "
             "della 0.10.0."
         ),
-        "perceptio.published": (
-            "Perceptio è disponibile in questa build verificata della release 0.10.0."
+        "perceptio.release_metadata": (
+            "Questa build contiene gli esatti metadati release v0.10.0. Verifica separatamente "
+            "installazione e bundle: questa pagina non autentica la pubblicazione."
         ),
         "perceptio.support": "Supporto ed evidenze",
         "perceptio.family": "Famiglia",
