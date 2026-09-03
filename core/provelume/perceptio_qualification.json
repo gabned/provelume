@@ -2,7 +2,7 @@
   "schema_version": 1,
   "qualification_id": "provelume.perceptio-s07.v1",
   "target_version": "0.10.0",
-  "publication_state": "unpublished",
+  "publication_state": "candidate",
   "registry_profile_ids": [
     "universal-original-v1",
     "lectio-document-extraction-v1",

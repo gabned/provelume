@@ -9,7 +9,11 @@ PERCEPTIO_TRANSLATIONS = {
             "Review local photo, audio, video and bounded file evidence in one read-only journey."
         ),
         "perceptio.unpublished": (
-            "Perceptio remains unavailable as a release until verified publication of 0.10.0."
+            "This source candidate remains unavailable until verified publication of 0.10.0."
+        ),
+        "perceptio.release_metadata": (
+            "This build contains exact v0.10.0 release metadata. Verify the installation and "
+            "release bundle separately; this page does not authenticate publication."
         ),
         "perceptio.support": "Support and evidence",
         "perceptio.family": "Family",
@@ -56,8 +60,12 @@ PERCEPTIO_TRANSLATIONS = {
             "di sola lettura."
         ),
         "perceptio.unpublished": (
-            "Perceptio resta indisponibile come release fino alla pubblicazione verificata "
-            "di 0.10.0."
+            "Questo candidato sorgente resta indisponibile fino alla pubblicazione verificata "
+            "della 0.10.0."
+        ),
+        "perceptio.release_metadata": (
+            "Questa build contiene gli esatti metadati release v0.10.0. Verifica separatamente "
+            "installazione e bundle: questa pagina non autentica la pubblicazione."
         ),
         "perceptio.support": "Supporto ed evidenze",
         "perceptio.family": "Famiglia",

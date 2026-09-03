@@ -5,7 +5,7 @@
   <p class="eyebrow">{{ t('perceptio.eyebrow') }}</p>
   <h1 id="perceptio-title">{{ t('perceptio.title') }}</h1>
   <p class="lead">{{ t('perceptio.lead') }}</p>
-  <p class="technical-note" role="status"><strong>{{ model.publication.state }}</strong> · {{ t('perceptio.unpublished') }}</p>
+  <p class="technical-note" role="status"><strong>{{ model.publication.state }}</strong> · {% if model.publication.state == 'official_metadata_present' %}{{ t('perceptio.release_metadata') }}{% else %}{{ t('perceptio.unpublished') }}{% endif %}</p>
 </section>
 
 <section class="panel" aria-labelledby="journey-title">

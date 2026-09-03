@@ -81,7 +81,7 @@ def test_schemas_packaging_and_distribution_are_closed_and_release_aligned() -> 
     assert manifest["distribution"]["new_python_dependencies"] == []
     assert manifest["integrity"]["automatic_merge"] is False
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert project["project"]["version"] == "0.9.0"
+    assert project["project"]["version"] == "0.10.0"
     bom = json.loads(
         (ROOT / "packaging" / "qualification" / "qualified-local-components.cdx.json").read_text(
             encoding="utf-8"

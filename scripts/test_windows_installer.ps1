@@ -18,9 +18,9 @@ $ExpectedAppIdKey = "{E41A426B-F5FC-473F-A096-875017656A31}_is1"
 if ([string]::IsNullOrWhiteSpace($PreviousInstaller)) {
     $PreviousInstaller = Join-Path (
         Split-Path $InstallerPath -Parent
-    ) "Provelume-Setup-0.7.0-public.exe"
+    ) "Provelume-Setup-0.9.0-public.exe"
     Invoke-WebRequest `
-        -Uri "https://github.com/gabned/provelume/releases/download/v0.7.0/Provelume-Setup-0.7.0-x64.exe" `
+        -Uri "https://github.com/gabned/provelume/releases/download/v0.9.0/Provelume-Setup-0.9.0-x64.exe" `
         -OutFile $PreviousInstaller
 }
 $PreviousInstallerPath = (Resolve-Path $PreviousInstaller).Path
@@ -72,6 +72,14 @@ $ApprovedPreviousBaselines = @(
         sha256 = "46d7df0f94f3e9431685741594489ffcc99e0edf3f4880644c87e280fdecd5cb"
         wheel_size = 294593
         wheel_sha256 = "1beba35635fca2bcafa5d4f1a93d035592751f18785339705e1dbb3df7bf2a41"
+    },
+    @{
+        version = "0.9.0"
+        commit = "e08125a8600f9c4300d0d173613a03f8bbc31327"
+        size = 19161550
+        sha256 = "e94c0722a92179c00d93db61f1aa5f3aab565f56d8382651471b3778dd503d68"
+        wheel_size = 643901
+        wheel_sha256 = "50eca9dc67672c79aa5570de0cad1454546d75a2b3fe5d6edae600bf73a5488f"
     }
 )
 $IdentifiedBaseline = $ApprovedPreviousBaselines |
@@ -436,11 +444,11 @@ try {
         New-Item -ItemType Directory -Force -Path $BaselineSourceRoot | Out-Null
         [System.IO.File]::WriteAllText(
             (Join-Path $BaselineSourceRoot "preserved-knowledge.md"),
-            "# Preserved knowledge`n`nSynthetic 0.7.0 upgrade evidence.`n",
+            "# Preserved knowledge`n`nSynthetic $PreviousVersion upgrade evidence.`n",
             [System.Text.UTF8Encoding]::new($false)
         )
         & $BaselinePython -m provelume ingest $InstanceRoot $BaselineSourceRoot `
-            --name "Published 0.7.0 synthetic source"
+            --name "Published $PreviousVersion synthetic source"
         if ($LASTEXITCODE -ne 0) {
             throw "The immutable published baseline could not create canonical knowledge."
         }

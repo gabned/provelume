@@ -40,7 +40,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.7.0` | Connector framework and safe web intake | #105 (completed) | `Vinculum` |
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
 | Published preview | `0.9.0` | OCR, email, Google file and transcript intake | #137 (completed); S01–S07 completed by #138/#141/#147/#150/#152/#154/#156; release #158 | `Lectio` |
-| Active development | `0.10.0` | Multimedia, universal content representations and component inventory | #160; S01–S06 delivered; S07 #180/#182 active | `Perceptio` |
+| Published preview | `0.10.0` | Multimedia, universal content representations and component inventory | #160 (completed); S01–S07 completed by #163/#168/#170/#172/#173/#175/#179/#182; release #183 | `Perceptio` |
 | Forecast | `0.11.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
 | Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
@@ -147,8 +147,7 @@ planning or publication change whenever release scope or order moves.
 
 | Evidence gate | Personal use after verified publication | Dissemination after verified publication |
 | --- | --- | --- |
-| Current published `0.9.0` | Document-heavy personal pilot for scans, OCR and richer intake; uncertainty and unsupported formats still require review. | Document-heavy testers selected against the published format/language matrix. |
-| `0.10.0` | Personal photo, audio and video archive pilot with local transcription, OCR and time/region citations where supported. | Multimedia testers who accept explicit model, codec, performance and privacy limits. |
+| Current published `0.10.0` | Personal photo, audio and video archive pilot with local transcription, OCR and time/region citations where supported; the `0.9.0` document-heavy perimeter remains available. | Multimedia testers who accept explicit model, codec, performance and privacy limits. |
 | `0.11.0` | First recommended personal daily-use beta: coherent Capture, Action Center, recovery and mobile-PWA journeys within the qualified perimeter. | Controlled public beta, with feedback, support and security-reporting paths open. |
 | `0.12.0` | Optional local or remote AI use with explicit routing, cost and redaction policy; deterministic operation remains complete without AI. | Privacy-routing evaluators, not general AI marketing. |
 | `0.13.0` | Personal AI-assisted classification with plain-language autonomy levels and reviewed rules; earliest candidate for replacing a private reference workflow, never an equivalence claim. | Advanced evaluators after confidence calibration, prompt-injection, receipt, review and rollback evidence. |
@@ -168,10 +167,9 @@ planning or publication change whenever release scope or order moves.
 | `1.3.0` | Optional shared review without weakening the personal single-user path. | Teams after concurrency, audit, export and permission-isolation evidence. |
 | `1.4.0` | Long-term personal archive checks and retention profiles with explicit legal limits. | Preservation and regulated-domain evaluators; no compliance claim without separate evidence. |
 
-The current answer is therefore explicit: `0.9.0` is usable now as a bounded document-heavy
-personal preview; `0.10.0` is active development planning under #160, with every slice still
-planned, unpublished and unavailable; `0.11.0` is the first planned coherent personal daily-use
-beta and controlled public-beta gate; `0.21.0` is the broad
+The current answer is therefore explicit: `0.10.0` is usable now as a bounded personal multimedia
+archive preview while immutable `0.9.0` remains its document-heavy N-1 baseline; `0.11.0` is the
+first planned coherent personal daily-use beta and controlled public-beta gate; `0.21.0` is the broad
 non-technical desktop-preview gate; `0.23.0` is broad release-candidate qualification; and
 `1.0.0` is general distribution.
 
@@ -207,8 +205,8 @@ whether X identifies the site or Core. English and Italian pages, release links,
 visible last-verified date and known mismatch.
 
 An immediate bounded website workstream should align the homepage, Features, Public facts,
-Wishlist and machine-readable records with published Core `0.9.0`, including the completed
-`0.5.0`–`0.9.0` capabilities and an exact `v0.9.0` evidence link. It must keep every `0.10.0+`
+Wishlist and machine-readable records with published Core `0.10.0`, including the completed
+`0.5.0`–`0.10.0` capabilities and an exact `v0.10.0` evidence link. It must keep every `0.11.0+`
 capability planned. This website-only correction can begin after verified publication and changes
 neither Core package identity nor release history.
 
@@ -224,8 +222,7 @@ The larger editorial updates belong at these evidence gates:
 
 | Evidence gate | Website update | Appropriate audience action |
 | --- | --- | --- |
-| Now, published `0.9.0` | Correct version/build labels, Features, Facts, Wishlist and release links in EN/IT; add OCR/input-format, language, quality and local/cloud privacy matrices. | Invite document-heavy users with an explicit supported-format perimeter. |
-| Published `0.10.0` | Add multimedia/format support, model and codec matrices plus the component, license and update-status catalogue. | Invite multimedia testers without implying that every preserved format is extractable or AI-ready. |
+| Now, published `0.10.0` | Correct version/build labels, Features, Facts, Wishlist and release links in EN/IT; add multimedia/format, model, codec, component/license/update-status and local/cloud privacy matrices. | Invite multimedia testers without implying that every preserved format is extractable or AI-ready. |
 | Published `0.11.0` | Rework the primary use-case path around Capture, Action Center, Operations and mobile PWA onboarding. | Begin a controlled public beta: this is the first coherent daily-use experience. |
 | Published `0.12.0` | Explain optional local/remote AI routing, data-scope controls, redaction, cost and network policy without claiming classification. | Invite privacy-routing evaluators while preserving a complete no-AI path. |
 | Published `0.13.0` | Add AI classification evidence, the “How much can Provelume decide?” autonomy chooser, review queues, receipts and reversibility examples. | Invite advanced classification evaluators only inside the published confidence, risk and scope boundaries. |
@@ -245,7 +242,7 @@ performance and the declared analytics/form/third-party-resource posture. The si
 private Instance content, unpublished roadmap claims or release credentials, and a website outage
 cannot block installation or verification through the public repository.
 
-Published package and embedded identity are aligned to `0.9.0`. Issues #122, #124, #126, #128 and
+Published package and embedded identity are aligned to `0.10.0`. Issues #122, #124, #126, #128 and
 #130 completed `0.8/S01` through `0.8/S05`; their implementation PRs #123, #125, #127, #129 and
 #131 are merged on `main`. The release-blocking scheduler correction was completed through
 #133/#134, and release preparation was merged through #135.
@@ -281,9 +278,10 @@ through [#151](https://github.com/gabned/provelume/issues/151) and owner
 [PR #156](https://github.com/gabned/provelume/pull/156). Separate release workstream
 [#158](https://github.com/gabned/provelume/issues/158) aligned, qualified and published `0.9.0`;
 it introduced no S08. Parent #137 is closed as completed. Issue #157 remains closed as not planned
-and owns no workstream. Perceptio planning is now
-activated through parent [#160](https://github.com/gabned/provelume/issues/160), without activating
-an implementation slice or changing the published `0.9.0` identity.
+and owns no workstream. Perceptio was delivered in its frozen S01–S07 order through parent
+[#160](https://github.com/gabned/provelume/issues/160); release workstream
+[#183](https://github.com/gabned/provelume/issues/183) separately aligns, qualifies and publishes
+the `0.10.0` identity without creating S08.
 
 ## Planning and delivery contract
 
@@ -1017,20 +1015,22 @@ delivered through #153 and owner PR #154 on
 `product/0.9-s06-cross-source-qualification` without publishing `0.9.0`. `0.9/S07` was implemented
 through #155 and owner PR #156 on `product/0.9-s07-windows-shell-endpoint-ux`; S07 created no S08.
 Release workstream #158 separately aligned and published `0.9.0` after exact-head and merge-commit
-qualification; parent #137 is closed as completed. The next canonical development release is
-active unpublished `0.10.0 — Perceptio` under #160. S01 is delivered for #162 by owner PR #163
+qualification; parent #137 is closed as completed. `0.10.0 — Perceptio` was activated under #160.
+S01 is delivered for #162 by owner PR #163
 from `product/0.10-s01-universal-representation-contract`; S02 is delivered for #166 by owner
 PR #168 from `product/0.10-s02-component-inventory`; S03 is delivered under #169/#170. S04 is
 delivered under #171/#172 plus qualifying correction #173. S05 is delivered under #174/#175 and
-S06 is delivered under #177/#179; S07 is active under #180/#182. #157 remains closed as not planned and no S08 exists.
+S06 is delivered under #177/#179; S07 is delivered under #180/#182. Release workstream #183
+separately aligns and publishes `0.10.0` after exact-head and merge-commit qualification; parent
+#160 closes only after public-asset reconciliation. #157 remains closed as not planned and no S08
+exists.
 
 ### 0.10.0 — Multimedia, Universal Content Representations and Component Inventory
 
-**Current status:** active unpublished development under parent
-[#160](https://github.com/gabned/provelume/issues/160) and planning owner
-[PR #161](https://github.com/gabned/provelume/pull/161). The canonical, machine-readable planning
-state and complete ordered slice contracts are in the
-[`0.10.0 — Perceptio` development plan](releases/0.10.0.md). S01 is delivered for
+**Current status:** published preview under parent
+[#160](https://github.com/gabned/provelume/issues/160) and release workstream
+[#183](https://github.com/gabned/provelume/issues/183). The canonical release state and complete
+ordered slice contracts are in the [`0.10.0 — Perceptio` release record](releases/0.10.0.md). S01 is delivered for
 [#162](https://github.com/gabned/provelume/issues/162) on
 `product/0.10-s01-universal-representation-contract` by owner
 [PR #163](https://github.com/gabned/provelume/pull/163). S02 is delivered for
@@ -1038,9 +1038,9 @@ state and complete ordered slice contracts are in the
 [PR #168](https://github.com/gabned/provelume/pull/168). S03 is delivered under
 [#169](https://github.com/gabned/provelume/issues/169) and owner
 [PR #170](https://github.com/gabned/provelume/pull/170). S04 is delivered under #171/#172 plus
-qualifying correction #173; S05 is delivered under #174/#175, S06 under #177/#179 and S07 is
-active under #180/#182. Package, runtime, embedded and Windows identity remain `0.9.0`; Perceptio is
-unpublished and unavailable.
+qualifying correction #173; S05 is delivered under #174/#175, S06 under #177/#179 and S07 under
+#180/#182. Package, runtime, embedded and Windows identity are `0.10.0`; Perceptio is available
+only through the verified `v0.10.0` prerelease and remains bounded by its published matrix.
 
 **Depends on:** the `0.8.0` durable job/resource foundation, the `0.9.0` OCR and richer-intake
 contracts, and the existing versioned document-bundle boundary.
@@ -1114,9 +1114,9 @@ inference; surveillance/live capture; generative media; autonomous summaries, de
 classification; unreviewed speaker identity; a cloud requirement; automatic model downloads; or a
 claim that every preserved file is extractable, previewable or semantically searchable.
 
-**Planned bounded slices:**
+**Bounded release slices:**
 
-| Identity | Title | Verifiable outcome | Explicit boundary | Initial state |
+| Identity | Title | Verifiable outcome | Explicit boundary | Release state |
 | --- | --- | --- | --- | --- |
 | `0.10/S01` | Universal representation and support-registry contract | Versioned bundle, anchor and support-level contracts map existing profiles without rewriting them. | No media parser, engine, model, native payload, AI path or migration rewrite. | `completed` by #163 for #162 |
 | `0.10/S02` | Installed and release component inventory with EN/IT catalogue | Installed, manifest and release-SBOM evidence reconcile into a truthful local catalogue and export. | A check never installs or updates; offline never checks; no `latest` claim without dated evidence. | `completed` by #168 for #166 |
@@ -1124,14 +1124,14 @@ claim that every preserved file is extractable, previewable or semantically sear
 | `0.10/S04` | Local audio transcription and time anchors | Qualified local audio profiles create attributable timestamped transcript/waveform representations. | No remote speech, model download, summary/classification or verified speaker identity; diarization is not baseline scope. | `delivered` by #171/#172/#173 |
 | `0.10/S05` | Video streams, subtitles, scenes, keyframes and frame OCR | Qualified streams combine subtitle, audio, scene, keyframe and selected-frame OCR evidence. | No live capture, DRM bypass, continuous frame OCR, remote inference or generative media. | `delivered` by #174/#175 |
 | `0.10/S06` | Bounded additional file-family profiles | Exactly CSV cell, XLSX sheet/cached-cell and ZIP member profiles enter the universal registry; other candidates stay at current support or defer. | No fourth profile, unbounded format sweep or execution of macros, formulas, scripts, notebooks, HTML or attachments. | `delivered` by #177/#179 |
-| `0.10/S07` | Correction and preview UX with final release qualification | Mixed realistic archives pass coherent EN/IT UX, correction, accessibility, privacy, recovery, performance and adoption gates. | No new profile/engine/provider/AI/Action Center/signing capability and no version/tag/publication action. | `active` under #180/#182 |
+| `0.10/S07` | Correction and preview UX with final release qualification | Mixed realistic archives pass coherent EN/IT UX, correction, accessibility, privacy, recovery, performance and adoption gates. | No new profile/engine/provider/AI/Action Center/signing capability and no version/tag/publication action. | `delivered` by #180/#182 |
 
 For every slice, the linked development plan records the user problem, dependencies, affected
 surfaces, qualification minimum, primary risk, compatibility/migration effect, Windows/packaging
 effect and completion criteria. S01 is delivered by #163 for #162 and S02 by #168 for #166. S03
-was delivered by #169/#170; S04 was delivered by #171/#172/#173, S05 by #174/#175 and S06 by
-#177/#179. S07 is the one active slice under #180/#182 on
-`product/0.10-s07-final-qualification`.
+was delivered by #169/#170; S04 was delivered by #171/#172/#173, S05 by #174/#175, S06 by
+#177/#179 and S07 by #180/#182. Release workstream #183 owns only exact identity alignment,
+qualification, publication and reconciliation; no S08 is activated.
 
 This independently releasable outcome takes the former `0.10.0` slot. Every later unreleased
 forecast moves forward atomically by one through the `0.23.0` release candidate while stable

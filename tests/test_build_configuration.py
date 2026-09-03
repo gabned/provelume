@@ -14,7 +14,7 @@ def test_repository_pins_deterministic_build_inputs() -> None:
     assert configuration["build-system"]["requires"] == ["hatchling==1.31.0"]
     assert configuration["build-system"]["build-backend"] == "hatchling.build"
     assert configuration["tool"]["hatch"]["build"]["reproducible"] is True
-    assert configuration["tool"]["provelume"]["release"]["codename"] == "Lectio"
+    assert configuration["tool"]["provelume"]["release"]["codename"] == "Perceptio"
 
     release_requirements = {
         line.strip()
@@ -110,14 +110,14 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "provelume-windows-update.json" in release
     assert "Provelume-Setup-${VERSION}-x64.exe" in release
     assert "Attest unsigned Windows preview" in publication
-    assert "Provelume-Setup-0.7.0-public.exe" in release
+    assert "Provelume-Setup-0.9.0-public.exe" in release
     assert (
-        "46d7df0f94f3e9431685741594489ffcc99e0edf3f4880644c87e280fdecd5cb"
+        "e94c0722a92179c00d93db61f1aa5f3aab565f56d8382651471b3778dd503d68"
         in release
     )
-    assert "provelume-0.7.0-py3-none-any.whl" in release
+    assert "provelume-0.9.0-py3-none-any.whl" in release
     assert (
-        "1beba35635fca2bcafa5d4f1a93d035592751f18785339705e1dbb3df7bf2a41"
+        "50eca9dc67672c79aa5570de0cad1454546d75a2b3fe5d6edae600bf73a5488f"
         in release
     )
 
@@ -147,12 +147,12 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "ExpectedMigrationReceiptSha256" in windows_exercise
     assert "ExpectedMigrationBackupSha256" in windows_exercise
     assert "sys.path.insert" not in windows_exercise
-    assert "Provelume-Setup-0.7.0-public.exe" in windows_exercise
+    assert "Provelume-Setup-0.9.0-public.exe" in windows_exercise
     assert (
-        "46d7df0f94f3e9431685741594489ffcc99e0edf3f4880644c87e280fdecd5cb"
+        "e94c0722a92179c00d93db61f1aa5f3aab565f56d8382651471b3778dd503d68"
         in windows_exercise
     )
-    assert "Published 0.7.0 synthetic source" in windows_exercise
+    assert "Published $PreviousVersion synthetic source" in windows_exercise
     assert "BaselineInstanceTreeSha256" in windows_exercise
     assert "PostStartupInstanceTreeSha256" in windows_exercise
     assert "PostReinstallInstanceTreeSha256" in windows_exercise
@@ -211,7 +211,7 @@ def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:
         (root / "core" / "provelume" / "build_info.json").read_text(encoding="utf-8")
     )
 
-    assert package_version == "0.9.0"
+    assert package_version == "0.10.0"
     assert init_match is not None
     assert init_match.group(1) == package_version
     assert value == {
@@ -227,28 +227,41 @@ def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:
     }
 
 
-def test_lectio_release_metadata_is_aligned_without_signing_claim() -> None:
+def test_perceptio_release_metadata_is_aligned_without_rewriting_lectio_history() -> None:
     root = Path(__file__).resolve().parents[1]
-    version = "0.9.0"
-    manifests = (
+    current_version = "0.10.0"
+    lectio_manifests = (
         "packaging/email/local-email-intake.json",
         "packaging/google/google-readonly-adapters.json",
         "packaging/qualification/cross-source-qualification.json",
         "packaging/transcript/local-transcript-profiles.json",
     )
-    for relative in manifests:
+    for relative in lectio_manifests:
         payload = json.loads((root / relative).read_text(encoding="utf-8"))
-        assert payload["release_identity"] == version
+        assert payload["release_identity"] == "0.9.0"
+
+    perceptio_manifests = (
+        "packaging/photo/pillow-12.3.0.json",
+        "packaging/audio/whisper-cpp-1.9.2.json",
+    )
+    for relative in perceptio_manifests:
+        payload = json.loads((root / relative).read_text(encoding="utf-8"))
+        assert payload["core_inspector"]["version"] == current_version
 
     metadata = (root / "packaging/windows/version_info.txt").read_text(encoding="utf-8")
-    assert "filevers=(0, 9, 0, 0)" in metadata
-    assert "prodvers=(0, 9, 0, 0)" in metadata
-    assert "StringStruct('FileVersion', '0.9.0')" in metadata
-    assert "StringStruct('ProductVersion', '0.9.0')" in metadata
+    assert "filevers=(0, 10, 0, 0)" in metadata
+    assert "prodvers=(0, 10, 0, 0)" in metadata
+    assert "StringStruct('FileVersion', '0.10.0')" in metadata
+    assert "StringStruct('ProductVersion', '0.10.0')" in metadata
 
-    release = (root / "docs/releases/0.9.0.md").read_text(encoding="utf-8")
-    qualification = (root / "docs/qualification/0.9.0.md").read_text(encoding="utf-8")
-    assert "PUBLISHED_TAG: v0.9.0" in release
-    assert "real authenticated Gmail/Drive remains unqualified" in release
+    release = (root / "docs/releases/0.10.0.md").read_text(encoding="utf-8")
+    qualification = (root / "docs/qualification/0.10.0.md").read_text(encoding="utf-8")
+    api = (root / "docs/api.md").read_text(encoding="utf-8")
+    assert "PUBLISHED_TAG: v0.10.0" in release
+    assert "RELEASE_OWNER_PR: #185" in release
+    assert "published `0.9.0`" in release
     assert "explicitly unsigned" in release
     assert "Unknown publisher" in qualification
+    assert "development builds report `candidate`" in api
+    assert "`external_release_verification_required`" in api
+    assert "never authenticates publication" in api

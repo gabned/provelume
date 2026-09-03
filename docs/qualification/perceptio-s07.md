@@ -1,7 +1,8 @@
 # Perceptio 0.10/S07 qualification map
 
-Status: active candidate under #180/#182. This record describes release gates; it does not claim that
-`0.10.0` is published or that an optional component is present.
+Status: completed by #180/#182 and merged as `444cec893dc9a4f286f0fadacc5c0cc0a2c9a783`.
+This historical S07 record describes the final implementation-slice gates; publication is governed
+separately by #183 and the [0.10.0 release qualification](0.10.0.md).
 
 | Required evidence | Permanent evidence path | Closed result |
 | --- | --- | --- |

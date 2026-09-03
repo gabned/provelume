@@ -9,7 +9,7 @@
     "schema_version": {"const": 1},
     "qualification_id": {"const": "provelume.perceptio-s07.v1"},
     "target_version": {"const": "0.10.0"},
-    "publication_state": {"const": "unpublished"},
+    "publication_state": {"const": "candidate"},
     "registry_profile_ids": {"type": "array", "minItems": 14, "maxItems": 14, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 100}},
     "families": {"const": ["photo", "audio", "video", "file_family"]},
     "surfaces": {"const": {"photo": "gallery_metadata", "audio": "player_waveform_transcript", "video": "player_keyframe_subtitle_transcript", "file_family": "table_archive_metadata"}},

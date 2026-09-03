@@ -5,7 +5,7 @@
   "status": "qualified-optional-local-component",
   "core_inspector": {
     "component": "provelume.core",
-    "version": "0.9.0",
+    "version": "0.10.0",
     "candidate_formats": ["WAV", "FLAC", "MP3", "M4A", "AAC", "OGG"],
     "qualified_decode": "WAV PCM signed 16-bit little-endian mono/stereo",
     "network_required": false,

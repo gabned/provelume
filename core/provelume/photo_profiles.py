@@ -1085,7 +1085,7 @@ class PhotoProfileManager:
                 output_payloads=payloads,
                 implementation={
                     "component": "provelume.core",
-                    "component_version": "0.9.0",
+                    "component_version": "0.10.0",
                     "adapter": "perceptio-photo-profile",
                     "adapter_version": "1",
                     "settings": {"mode": "offline", "privacy": "redacted"},
