@@ -65,6 +65,27 @@ GitHub-required reviews remain mandatory as `REVIEW_REQUIREMENT_SOURCE: REPOSITO
 
 Any current technical finding blocks regardless of origin. Exact base/head/path binding, final-head CI, ancestry, mergeability, zero current threads, repository-required reviews, clean-room/deterministic-build/publication gates and post-merge reconciliation remain mandatory. Review governance cannot create, extend or reuse a waiver. See `docs/agent-development-v1.3.0.md`.
 
+## Agent Development Protocol v1.4.0 campaign execution
+
+`AGENT_DEVELOPMENT_PROTOCOL: 1.4.0`
+
+`LIFECYCLE_SCHEMA: 1.2`
+
+`CAMPAIGN_SCHEMA: 1`
+
+`HANDOFF_SCHEMA: 1`
+
+The v1.4.0 orchestration overlay preserves every v1.3 review gate and every v1.2/v1.2.1 lifecycle, effect, binding, change-control, release, publication and reconciliation gate. A campaign is issue-backed and contains one ordered slice or release train; each active slice still owns exactly one branch and one pull request, and Core still has no `AGENT_STATUS.md` or committed global lock.
+
+- Sequential auto-continuation may start the next ordered slice only after a real observed event and only inside the declared authority envelope. It never converts waiting or polling into evidence.
+- Authority is closed as `SOURCE_ONLY`, `THROUGH_MERGE`, `THROUGH_RELEASE`, or `THROUGH_PRODUCTION_B`. It is a ceiling, not a waiver; the Provelume Core profile rejects production authority.
+- Stop reasons, campaign states, pending actions and next-action types are closed registries validated by `tools/agent_protocol_v1_4.py`. Unknown values fail closed.
+- A release train, a published semantic version and an exact build SHA are separate identities. No train state may imply a tag, artifact publication or deployment.
+- Campaign scope remains frozen. New ideas go to GitHub issues only and are triaged at the verified release boundary.
+- The only checkpoint policy is `RELEASE_BOUNDARY`: slice merges update the owner issue; one checkpoint is recorded after release verification.
+- The human-facing handoff is at most 120 words and contains exactly one next action. An exact prompt appears only for `USER_ACTION_REQUIRED`; otherwise the agent continues or waits without asking.
+- See `docs/agent-development-v1.4.0.md` for the schema, local profile and cross-repository compatibility analysis.
+
 ## Delivery and release discipline
 
 - Start from the verified default-branch SHA and keep the pull-request delta minimal.
@@ -95,4 +116,6 @@ On Windows, use `.venv\Scripts\python.exe`. For release-chain changes, also exer
 
 ## Pull-request handoff
 
-A handoff must state the verified default SHA, required base SHA, owner pull request and head SHA, workstream class, observed path categories, intended version, checks run, remaining blocker codes, any `PROTOCOL_ESCALATION`, and whether any tag or release action remains. GitHub remains authoritative if that handoff later becomes stale.
+GitHub checks, reviews, issue/PR records and machine reports must retain the verified default SHA, required base SHA, owner pull request and head SHA, workstream class, observed path categories, intended version, checks run, remaining blocker codes, any `PROTOCOL_ESCALATION`, and whether any tag or release action remains.
+
+The human-facing handoff follows v1.4.0: at most 120 words, exactly one `Next action`, and one exact `Prompt` only when `USER_ACTION_REQUIRED` (otherwise `NONE`). Detailed evidence stays linked rather than repeated. GitHub remains authoritative if the handoff becomes stale.
