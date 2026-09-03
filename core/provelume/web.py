@@ -26,6 +26,7 @@ from .installation_i18n import installation_translator
 from .maintenance_activity import attach_maintenance_routes
 from .markdown_viewer import DocumentContentError, safe_markdown_html
 from .ocr_activity import attach_ocr_routes
+from .perceptio_activity import attach_perceptio_routes
 from .photo_activity import attach_photo_routes
 from .qualification_activity import attach_qualification_routes
 from .retention_model import DISPOSITION_FILTERS
@@ -115,6 +116,12 @@ def _navigation(
             "href": f"/representations?lang={language}",
             "label": t("nav.representations"),
             "current": current_path.startswith("/representations"),
+            "group": "knowledge",
+        },
+        {
+            "href": f"/perceptio?lang={language}",
+            "label": t("nav.perceptio"),
+            "current": current_path.startswith("/perceptio"),
             "group": "knowledge",
         },
         {
@@ -389,6 +396,7 @@ def create_app(
     attach_audio_routes(app, instance, TEMPLATES, _context)
     attach_video_routes(app, instance, TEMPLATES, _context)
     attach_file_family_routes(app, instance, TEMPLATES, _context)
+    attach_perceptio_routes(app, instance, TEMPLATES, _context)
     attach_email_routes(app, instance, TEMPLATES, _context)
     attach_google_routes(app, instance, TEMPLATES, _context)
     attach_transcript_routes(app, instance, TEMPLATES, _context)

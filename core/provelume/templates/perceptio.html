@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ t('perceptio.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero" aria-labelledby="perceptio-title">
+  <p class="eyebrow">{{ t('perceptio.eyebrow') }}</p>
+  <h1 id="perceptio-title">{{ t('perceptio.title') }}</h1>
+  <p class="lead">{{ t('perceptio.lead') }}</p>
+  <p class="technical-note" role="status"><strong>{{ model.publication.state }}</strong> · {{ t('perceptio.unpublished') }}</p>
+</section>
+
+<section class="panel" aria-labelledby="journey-title">
+  <h2 id="journey-title">{{ t('perceptio.journey') }}</h2>
+  <p>{{ t('perceptio.sequence') }}</p>
+  <p><strong>{{ t('perceptio.states') }}:</strong> {{ model.journey.states | join(' · ') }}</p>
+</section>
+
+<section class="panel" aria-labelledby="support-title">
+  <h2 id="support-title">{{ t('perceptio.support') }}</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">{{ t('perceptio.family') }}</th><th scope="col">{{ t('perceptio.surface') }}</th><th scope="col">{{ t('perceptio.profiles') }}</th><th scope="col">{{ t('perceptio.representations') }}</th><th scope="col">{{ t('perceptio.jobs') }}</th></tr></thead>
+      <tbody>
+      {% for family in model.support %}
+        <tr><th scope="row"><a href="{{ family.browser_path }}?lang={{ lang }}">{{ family.family }}</a></th><td><code>{{ family.surface }}</code></td><td>{{ family.profile_ids | join(', ') }}</td><td>{{ family.representation_count }}</td><td>{{ family.job_count }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p><strong>{{ t('perceptio.registry_profiles') }}:</strong> {{ model.registry.profile_ids | length }} · {{ model.registry.profile_ids | join(', ') }}</p>
+  <p><strong>{{ t('perceptio.component_state') }}:</strong> {{ model.components.summary.total }} total · {{ model.components.summary.required }} required · {{ model.components.release_evidence.status }}</p>
+</section>
+
+<section class="panel" aria-labelledby="items-title">
+  <h2 id="items-title">{{ t('perceptio.items') }}</h2>
+  {% for item in model['items'] %}
+  <article class="document-card" aria-labelledby="item-{{ loop.index }}">
+    <h3 id="item-{{ loop.index }}">{{ item.family }} · <code>{{ item.representation_id }}</code></h3>
+    <dl class="metadata-grid">
+      <div><dt>{{ t('perceptio.version') }}</dt><dd><code>{{ item.version_id }}</code></dd></div>
+      <div><dt>{{ t('perceptio.availability') }}</dt><dd><code>{{ item.availability.state }}</code>{% if item.availability.reason %} · {{ item.availability.reason }}{% endif %}</dd></div>
+      <div><dt>{{ t('perceptio.implementation') }}</dt><dd>{{ item.implementation.component }} {{ item.implementation.component_version }} · {{ item.implementation.adapter }} {{ item.implementation.adapter_version }}</dd></div>
+      <div><dt>{{ t('perceptio.outputs') }}</dt><dd>{{ item.outputs | length }}</dd></div>
+    </dl>
+    <p><a href="{{ item.links.browser }}?lang={{ lang }}">{{ t('perceptio.open') }}</a> · <a href="{{ item.links.api }}">API</a></p>
+    <details>
+      <summary>{{ t('perceptio.profile_evidence') }}</summary>
+      <pre>{{ item.record }}</pre>
+    </details>
+    <details>
+      <summary>{{ t('perceptio.uncertainty') }} ({{ item.uncertainty.count }})</summary>
+      <ul>{% for warning in item.uncertainty.warnings %}<li><code>{{ warning }}</code></li>{% else %}<li>{{ t('perceptio.no_warnings') }}</li>{% endfor %}</ul>
+    </details>
+    <details>
+      <summary>{{ t('perceptio.corrections') }} ({{ item.corrections.count }})</summary>
+      <ul>{% for correction in item.corrections.annotations %}<li><code>{{ correction.kind }}</code> · {{ correction.id }} · reversible={{ correction.reversible }}</li>{% else %}<li>{{ t('perceptio.no_corrections') }}</li>{% endfor %}</ul>
+    </details>
+    <details>
+      <summary>{{ t('perceptio.anchors') }} ({{ item.anchors.count }})</summary>
+      <ul>{% for anchor in item.anchors['items'] %}<li><a href="/api/v1/perceptio/representations/{{ item.representation_id }}/anchors/{{ anchor.id }}"><code>{{ anchor.kind }}</code> · {{ anchor.id }}</a></li>{% else %}<li>{{ t('perceptio.no_anchors') }}</li>{% endfor %}</ul>
+    </details>
+  </article>
+  {% else %}
+  <p class="empty">{{ t('perceptio.empty') }}</p>
+  {% endfor %}
+</section>
+
+<section class="panel" aria-labelledby="privacy-title">
+  <h2 id="privacy-title">{{ t('perceptio.privacy') }}</h2>
+  <p>{{ t('perceptio.privacy_text') }}</p>
+</section>
+<section class="panel" aria-labelledby="qualification-title">
+  <h2 id="qualification-title">{{ t('perceptio.qualification') }}</h2>
+  <p>{{ t('perceptio.qualification_text') }}</p>
+  <p><code>{{ model.qualification.platforms.ubuntu_24_04 }}</code> · <code>{{ model.qualification.platforms.windows_2025 }}</code> · N-1 {{ model.qualification.recovery.n_minus_one }}</p>
+</section>
+{% endblock %}

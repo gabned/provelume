@@ -11,6 +11,8 @@ from uuid import uuid4
 
 from .ocr_contract import OcrContractError
 
+_CAPTURE_CLEANUP_TIMEOUT_SECONDS = 1.0
+
 
 @dataclass(frozen=True, slots=True)
 class BoundedProcessResult:
@@ -100,6 +102,20 @@ def _terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait(timeout=1)
+
+
+def _unlink_capture(path: Path) -> None:
+    """Remove a closed process capture after bounded Windows handle release."""
+
+    deadline = time.monotonic() + _CAPTURE_CLEANUP_TIMEOUT_SECONDS
+    while True:
+        try:
+            path.unlink(missing_ok=True)
+            return
+        except PermissionError:
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(0.02)
 
 
 def run_bounded_process(
@@ -238,8 +254,8 @@ def run_bounded_process(
     finally:
         if process is not None and process.poll() is None:
             _terminate_process_tree(process)
-        stdout_path.unlink(missing_ok=True)
-        stderr_path.unlink(missing_ok=True)
+        _unlink_capture(stdout_path)
+        _unlink_capture(stderr_path)
 
 
 __all__ = [

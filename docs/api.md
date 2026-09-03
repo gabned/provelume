@@ -75,6 +75,21 @@ local operator through `provelume component-inventory --release-sbom PATH`; the 
 CycloneDX document and the result reports exact mismatched component IDs without exposing its
 path. A check never installs or updates a component. See [`components.md`](components.md).
 
+## Perceptio integrated pilot
+
+`GET /api/v1/perceptio` returns the same bounded projection as
+`provelume perceptio-status` and the local `/perceptio` Browser page. An optional `version_id`
+filters exact Version evidence; `limit` accepts only 1–500. The response integrates the already
+admitted photo, audio, video and CSV/XLSX/ZIP profiles with support, component/adapter identity,
+availability, provenance, warnings, reversible correction annotations, anchors and outputs.
+
+`GET /api/v1/perceptio/representations/{representation_id}` returns one admitted representation.
+`GET /api/v1/perceptio/representations/{representation_id}/anchors/{anchor_id}` reopens one exact
+validated anchor. There are no POST, PUT, PATCH or DELETE routes under `/api/v1/perceptio`.
+Reading this model performs no work, correction, removal, migration, network access or writeback.
+Its publication state remains `unpublished` until the independent `0.10.0` release boundary.
+See [`perceptio.md`](perceptio.md).
+
 ## Instance and sources
 
 - `GET /api/v1/instance` — Instance identity, schema/manifest versions, derived-state policy,

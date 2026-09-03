@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "qualification_id": "provelume.perceptio-s07.v1",
+  "target_version": "0.10.0",
+  "publication_state": "unpublished",
+  "registry_profile_ids": [
+    "universal-original-v1",
+    "lectio-document-extraction-v1",
+    "lectio-local-ocr-v1",
+    "lectio-email-intake-v1",
+    "lectio-google-readonly-v1",
+    "lectio-transcript-srt-v1",
+    "lectio-transcript-webvtt-v1",
+    "perceptio-photo-v1",
+    "perceptio-audio-v1",
+    "perceptio-video-v1",
+    "perceptio-csv-cell-v1",
+    "perceptio-xlsx-sheet-cell-v1",
+    "perceptio-zip-member-v1",
+    "lectio-cross-source-findings-v1"
+  ],
+  "families": ["photo", "audio", "video", "file_family"],
+  "surfaces": {
+    "photo": "gallery_metadata",
+    "audio": "player_waveform_transcript",
+    "video": "player_keyframe_subtitle_transcript",
+    "file_family": "table_archive_metadata"
+  },
+  "scenarios": ["happy", "empty", "loading", "degraded", "unavailable", "interrupted", "recovery"],
+  "platforms": {"ubuntu_24_04": "permanent_ci_required", "windows_2025": "permanent_ci_required", "codec_claims": "profile_matrix_only"},
+  "accessibility": {"languages": ["en", "it"], "keyboard": "native_controls", "screen_reader": "exact_artifact_release_gate", "contrast_reflow_reduced_motion": "permanent_regression_and_exact_artifact_gate"},
+  "privacy": {"offline": true, "source_writeback": false, "gps_default_export": "excluded", "active_content": "inert", "identity_inference": false},
+  "recovery": {"remove_rebuild": "required", "backup_restore": "required", "portable_transfer": "required", "n_minus_one": "0.9.0", "rollback": "explicit_no_silent_schema_downgrade"},
+  "resource_policy": {"bounded_profiles_only": true, "limits_fail_closed": true, "network_required": false, "publication_gate": "verified_release_boundary"},
+  "exit_gates": [
+    {"id": "release-exit-01", "evidence": "ordered_slices_and_review"},
+    {"id": "release-exit-02", "evidence": "closed_support_matrix"},
+    {"id": "release-exit-03", "evidence": "remove_rebuild_equivalence"},
+    {"id": "release-exit-04", "evidence": "anchors_corrections_history"},
+    {"id": "release-exit-05", "evidence": "hostile_resource_bounds"},
+    {"id": "release-exit-06", "evidence": "offline_no_download"},
+    {"id": "release-exit-07", "evidence": "privacy_active_content"},
+    {"id": "release-exit-08", "evidence": "component_sbom_agreement"},
+    {"id": "release-exit-09", "evidence": "ux_recovery_packaging_n_minus_one"},
+    {"id": "release-exit-10", "evidence": "separate_verified_publication"}
+  ],
+  "adoption": {"audience": "controlled_personal_multimedia_pilot", "available_before_publication": false, "next_product_gate": "0.11.0"}
+}

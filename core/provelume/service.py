@@ -48,6 +48,7 @@ from .oauth_authorization import InstalledAppAuthorizationManager, InstalledAppO
 from .ocr_contract import OcrContractError, OcrSettings
 from .ocr_jobs import OCR_JOB_KIND, OcrJobManager
 from .paths import UnsafePathError
+from .perceptio import PerceptioReadModel
 from .photo_profiles import PhotoProfileManager
 from .portable_transfer import PortableInstanceTransfer
 from .qualification import QualificationManager
@@ -93,6 +94,15 @@ class ProvelumeInstance:
         self.audio = AudioProfileManager(self.store)
         self.video = VideoProfileManager(self.store)
         self.file_families = FileFamilyProfileManager(self.store)
+        self.perceptio = PerceptioReadModel(
+            self.store,
+            photos=self.photos,
+            audio=self.audio,
+            video=self.video,
+            file_families=self.file_families,
+            components=self.components,
+            representations=self.representations,
+        )
         self.scheduler = SchedulerCoordinator(self.store)
         self.ocr = OcrJobManager(self.store)
         self.email_sources = EmailSourceManager(self.store)
@@ -292,6 +302,22 @@ class ProvelumeInstance:
 
     def rebuild_file_family(self, representation_id: str) -> dict[str, Any]:
         return self.file_families.rebuild(representation_id)
+
+    def perceptio_read_model(
+        self,
+        *,
+        version_id: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        return self.perceptio.read(version_id=version_id, limit=limit)
+
+    def get_perceptio_representation(self, representation_id: str) -> dict[str, Any] | None:
+        return self.perceptio.get(representation_id)
+
+    def get_perceptio_anchor(
+        self, representation_id: str, anchor_id: str
+    ) -> dict[str, Any] | None:
+        return self.perceptio.get_anchor(representation_id, anchor_id)
 
     def qualification_limits(self) -> dict[str, Any]:
         return self.qualification.limits()

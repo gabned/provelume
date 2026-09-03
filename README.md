@@ -45,10 +45,12 @@ contract and a byte-unchanged Lectio compatibility view. `0.10/S02` is delivered
 [PR #172](https://github.com/gabned/provelume/pull/172) and qualifying correction
 [PR #173](https://github.com/gabned/provelume/pull/173). `0.10/S05` is delivered through
 [#174](https://github.com/gabned/provelume/issues/174) and owner
-[PR #175](https://github.com/gabned/provelume/pull/175). `0.10/S06` is the one active slice under
+[PR #175](https://github.com/gabned/provelume/pull/175). `0.10/S06` is delivered through
 [#177](https://github.com/gabned/provelume/issues/177) and owner
-[PR #179](https://github.com/gabned/provelume/pull/179); S07 remains planned. No `v0.10.0` tag or
-release is present and package/runtime/Windows identity remains `0.9.0`.
+[PR #179](https://github.com/gabned/provelume/pull/179). S07 is the one active integration and
+final-qualification slice under [#180](https://github.com/gabned/provelume/issues/180) and owner
+[PR #182](https://github.com/gabned/provelume/pull/182). No
+`v0.10.0` tag or release is present and package/runtime/Windows identity remains `0.9.0`.
 
 The local **Representations & support** surface keeps Preserve, Inspect, Extract, Preview, Local
 enrich and AI enrich independent. It reports declared/effective support, closed unavailable or
@@ -79,6 +81,11 @@ The active **Tables and archives** surface adds exactly three dependency-free hi
 profiles: bounded UTF-8 CSV cells, bounded XLSX sheets/cached cells and bounded ZIP members. Typed
 anchors reopen every displayed cell/member; no formula, macro, attachment or member executes and
 ZIP data is never extracted to the host. See the [file-family guide](docs/file-families.md).
+
+The active **Perceptio pilot** integrates those bounded family views through one offline,
+read-only service/CLI/API/EN/IT Browser model. It keeps support, component identity, provenance,
+uncertainty, reversible correction annotations and exact anchors together without adding a parser,
+model or mutation route. See the [integrated pilot guide](docs/perceptio.md).
 
 The future lane keeps Lectio at `0.9.0`, assigns `0.10.0 Perceptio` to photo/audio/video
 representations and component visibility, and keeps the later forecasts ordered through the

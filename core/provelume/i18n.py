@@ -15,6 +15,7 @@ from .folder_source_i18n import FOLDER_SOURCE_TRANSLATIONS
 from .google_i18n import GOOGLE_TRANSLATIONS
 from .maintenance_i18n import MAINTENANCE_TRANSLATIONS
 from .ocr_i18n import OCR_TRANSLATIONS
+from .perceptio_i18n import PERCEPTIO_TRANSLATIONS
 from .photo_i18n import PHOTO_TRANSLATIONS
 from .qualification_i18n import QUALIFICATION_TRANSLATIONS
 from .rebuild_i18n import REBUILD_TRANSLATIONS
@@ -50,6 +51,7 @@ def catalog(language: str) -> dict[str, str]:
     result.update(SHELL_TRANSLATIONS.get(selected, {}))
     result.update(OCR_TRANSLATIONS.get(selected, {}))
     result.update(PHOTO_TRANSLATIONS.get(selected, {}))
+    result.update(PERCEPTIO_TRANSLATIONS.get(selected, {}))
     result.update(QUALIFICATION_TRANSLATIONS.get(selected, {}))
     result.update(TRANSCRIPT_TRANSLATIONS.get(selected, {}))
     result.update(VIDEO_TRANSLATIONS.get(selected, {}))

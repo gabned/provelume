@@ -786,6 +786,33 @@ def test_bounded_process_has_minimal_environment_limits_and_cancellation(
     assert produced_error.value.code == "ocr_output_limit_exceeded"
 
 
+def test_bounded_process_retries_delayed_capture_handle_release(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original_unlink = Path.unlink
+    attempts: dict[Path, int] = {}
+
+    def delayed_unlink(path: Path, *, missing_ok: bool = False) -> None:
+        if path.name.startswith(".process-"):
+            attempts[path] = attempts.get(path, 0) + 1
+            if attempts[path] == 1:
+                raise PermissionError("synthetic delayed capture handle release")
+        original_unlink(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", delayed_unlink)
+    result = run_bounded_process(
+        [sys.executable, "-c", "print('bounded')"],
+        temporary_directory=tmp_path,
+        timeout_seconds=5,
+        stdout_limit=100,
+        stderr_limit=100,
+    )
+
+    assert result.stdout.strip() == b"bounded"
+    assert attempts and all(count == 2 for count in attempts.values())
+    assert list(tmp_path.glob(".process-*")) == []
+
+
 def _fake_tesseract(tmp_path: Path, mode: str) -> Path:
     if os.name == "nt":
         pytest.skip("the shebang fake CLI is POSIX-only; Windows process cleanup is separate")

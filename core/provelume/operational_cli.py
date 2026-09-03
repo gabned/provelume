@@ -20,6 +20,7 @@ from .folder_settings_cli import (
 from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES
 from .library_cli import add_library_commands, handle_library_command
 from .operations import OperationLedger
+from .perceptio_cli import add_perceptio_commands, handle_perceptio_command
 from .photo_cli import add_photo_commands, handle_photo_command
 from .rebuild_cli import add_rebuild_commands, handle_rebuild_command
 from .representation_cli import (
@@ -106,6 +107,7 @@ def add_operational_commands(subparsers: Any) -> None:
     add_audio_commands(subparsers)
     add_video_commands(subparsers)
     add_file_family_commands(subparsers)
+    add_perceptio_commands(subparsers)
     add_component_inventory_commands(subparsers)
     add_review_commands(subparsers)
     add_rebuild_commands(subparsers)
@@ -135,6 +137,9 @@ def handle_operational_command(args: argparse.Namespace) -> int | None:
     file_family_result = handle_file_family_command(args)
     if file_family_result is not None:
         return file_family_result
+    perceptio_result = handle_perceptio_command(args)
+    if perceptio_result is not None:
+        return perceptio_result
     component_result = handle_component_inventory_command(args)
     if component_result is not None:
         return component_result

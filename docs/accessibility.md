@@ -22,3 +22,11 @@ live/error regions, explicit themes, forced-colors and reduced-motion CSS, nativ
 and inert hostile names. A manual release candidate still needs keyboard, Narrator/screen-reader,
 high-contrast, zoom/reflow and DPI evidence on the exact artifact; source tests alone are not a
 claim that such an artifact has passed.
+
+The `0.10/S07` Perceptio page applies the same baseline to its mixed-media journey. Family support
+uses a native table with row and column headers; exact identities and states remain textual;
+metadata, uncertainty, corrections and anchors use keyboard-operable native disclosure controls.
+The empty state remains a paragraph in the page structure. Malicious or prompt-like profile text
+is escaped rather than interpreted. EN and IT add the same semantic catalog keys, and the permanent
+Ubuntu/Windows Perceptio smoke checks those invariants. Final screen-reader, forced-colour,
+200% reflow and DPI observations remain exact-artifact release gates.
