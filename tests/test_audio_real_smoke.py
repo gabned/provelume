@@ -13,7 +13,7 @@ from provelume.audio_profiles import AudioProfileManager, WhisperCppAdapter
 from provelume.service import ProvelumeInstance
 
 
-def _speechless_wav(seconds: float = 0.5, rate: int = 16_000) -> bytes:
+def _speechless_wav(seconds: float = 10.0, rate: int = 16_000) -> bytes:
     frames = int(seconds * rate)
     payload = io.BytesIO()
     with wave.open(payload, "wb") as output:
