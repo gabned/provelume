@@ -544,6 +544,43 @@ def test_legacy_nonterminal_event_receipt_remains_compatible() -> None:
     assert protocol.validate_campaign_v2(value) == value
 
 
+def test_legacy_nonterminal_receipt_pair_remains_append_only_auditable() -> None:
+    before, after, _ = activate_second_slice()
+    receipt = after["receipts"][-1]
+    del receipt["github_event"]["conclusion"]
+    receipt["idempotency_key"] = protocol.receipt_idempotency_key(
+        campaign_id=after["campaign_id"],
+        operation=receipt["operation"],
+        github_event=receipt["github_event"],
+        previous_state_sha256=receipt["previous_state_sha256"],
+        successor_state_sha256=receipt["successor_state_sha256"],
+    )
+    receipt["receipt_sha256"] = protocol.receipt_sha256(receipt)
+
+    assert protocol.validate_append_only(before, after) == after
+
+
+def test_exact_issue_event_can_append_one_idea_without_changing_scope() -> None:
+    before = campaign()
+    after = deepcopy(before)
+    after["idea_inbox"]["items"].append("#199")
+
+    result = protocol.append_transition_receipt(
+        before,
+        after,
+        {
+            "kind": "ISSUE",
+            "action": "OPENED",
+            "repository": "gabned/provelume",
+            "reference": "#199",
+            "sha": "NONE",
+            "conclusion": "NOT_APPLICABLE",
+        },
+    )
+
+    assert result["idea_inbox"]["items"] == [*before["idea_inbox"]["items"], "#199"]
+
+
 def test_legacy_workflow_receipt_without_outcome_fails_closed() -> None:
     active, gated = gated_active_campaign()
     value = protocol.append_transition_receipt(
@@ -1044,6 +1081,146 @@ def test_release_publication_and_verification_use_distinct_github_events() -> No
     assert published["receipts"][-1]["github_event"]["kind"] == "RELEASE"
     assert verified["receipts"][-1]["github_event"]["kind"] == "WORKFLOW_RUN"
     protocol.validate_append_only(published, verified)
+
+
+def test_release_event_cannot_skip_verification_or_mutate_unrelated_state() -> None:
+    candidate = terminal_profile_campaign("gabned/provelume")
+    candidate["authority_envelope"] = "THROUGH_RELEASE"
+    candidate["risk_profile"] = "PUBLIC_ARTIFACT"
+    candidate["observed_event"] = "RELEASE_CANDIDATE_MERGED"
+    candidate["observed_event_ref"] = "7" * 40
+    candidate["pending_action"] = {"kind": "PUBLISH_RELEASE", "slice_id": "NONE"}
+    candidate["next_action"] = {
+        "type": "AUTO_CONTINUE",
+        "summary": "Publish the exact candidate as the target release.",
+        "prompt": "NONE",
+    }
+    candidate = initialize(
+        candidate,
+        {
+            "kind": "COMMIT",
+            "action": "CREATED",
+            "repository": "gabned/provelume",
+            "reference": "7" * 40,
+            "sha": "7" * 40,
+            "conclusion": "NOT_APPLICABLE",
+        },
+    )
+
+    forged = deepcopy(candidate)
+    forged["train"].update(
+        {
+            "publication_state": "PUBLISHED",
+            "published_version": "1.4.1",
+            "published_build_sha": "7" * 40,
+        }
+    )
+    forged["checkpoint"] = {
+        "policy": "RELEASE_BOUNDARY",
+        "state": "RECORDED",
+        "reference": forged["owner_issue"],
+    }
+    forged["campaign_state"] = "COMPLETE"
+    forged["observed_event"] = "RELEASE_PUBLISHED"
+    forged["observed_event_ref"] = "release:v1.4.1"
+    forged["pending_action"] = {"kind": "NO_ACTION", "slice_id": "NONE"}
+    forged["next_action"] = {
+        "type": "CAMPAIGN_COMPLETE",
+        "summary": "The release train is complete.",
+        "prompt": "NONE",
+    }
+
+    with pytest.raises(protocol.ContractError, match="unrelated campaign state"):
+        protocol.append_transition_receipt(
+            candidate,
+            forged,
+            {
+                "kind": "RELEASE",
+                "action": "PUBLISHED",
+                "repository": "gabned/provelume",
+                "reference": "release:v1.4.1",
+                "sha": "7" * 40,
+                "conclusion": "NOT_APPLICABLE",
+            },
+        )
+
+
+def test_upstream_verification_binds_the_recorded_published_version() -> None:
+    pending = terminal_profile_campaign("gabned/provelume.com")
+    pending["authority_envelope"] = "THROUGH_PRODUCTION_B"
+    pending["risk_profile"] = "REVERSIBLE_PRODUCTION"
+    pending["train"]["upstream"] = {
+        "repository": "gabned/provelume",
+        "published_version": "NONE",
+        "published_build_sha": "NONE",
+        "verification_state": "PENDING",
+    }
+    pending["pending_action"] = {
+        "kind": "VERIFY_UPSTREAM_RELEASE",
+        "slice_id": "NONE",
+    }
+    pending["next_action"] = {
+        "type": "AUTO_CONTINUE",
+        "summary": "Verify the recorded upstream release.",
+        "prompt": "NONE",
+    }
+    pending = initialize(
+        pending,
+        {
+            "kind": "WORKFLOW_RUN",
+            "action": "COMPLETED",
+            "repository": "gabned/provelume.com",
+            "reference": "run:460",
+            "sha": "7" * 40,
+            "conclusion": "SUCCESS",
+        },
+    )
+
+    verified = deepcopy(pending)
+    verified["train"]["upstream"].update(
+        {
+            "published_version": "0.9.0",
+            "published_build_sha": "8" * 40,
+            "verification_state": "VERIFIED",
+        }
+    )
+    verified["observed_event"] = "UPSTREAM_RELEASE_VERIFIED"
+    verified["observed_event_ref"] = "release:v0.9.0"
+    verified["pending_action"] = {"kind": "DEPLOY_PRODUCTION_B", "slice_id": "NONE"}
+    verified["next_action"] = {
+        "type": "AUTO_CONTINUE",
+        "summary": "Deploy the exact site candidate after upstream verification.",
+        "prompt": "NONE",
+    }
+
+    with pytest.raises(protocol.ContractError, match="not bound"):
+        protocol.append_transition_receipt(
+            pending,
+            verified,
+            {
+                "kind": "RELEASE",
+                "action": "PUBLISHED",
+                "repository": "gabned/provelume",
+                "reference": "release:v9.9.9",
+                "sha": "8" * 40,
+                "conclusion": "NOT_APPLICABLE",
+            },
+        )
+
+    verified["observed_event_ref"] = "release:v9.9.9"
+    with pytest.raises(protocol.ContractError, match="observed release reference"):
+        protocol.append_transition_receipt(
+            pending,
+            verified,
+            {
+                "kind": "RELEASE",
+                "action": "PUBLISHED",
+                "repository": "gabned/provelume",
+                "reference": "release:v0.9.0",
+                "sha": "8" * 40,
+                "conclusion": "NOT_APPLICABLE",
+            },
+        )
 
 
 def test_deployed_build_is_not_reported_as_only_a_candidate() -> None:

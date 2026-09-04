@@ -93,6 +93,17 @@ GitHub publication and later release verification are separate evidence:
 publication consumes the exact `RELEASE` event, while verification consumes an
 exact-head `WORKFLOW_RUN`, so neither receipt reuses the other event.
 
+The receipt's event also owns a closed mutation surface. Pull-request and gate
+events can change only their identified slice; `ISSUE/CLOSED` can cancel only
+its identified slice, while `ISSUE/OPENED` may append exactly its own reference
+to the idea inbox without changing frozen scope. Candidate, publication,
+upstream verification, deployment, and terminal verification events can change
+only their corresponding train or checkpoint fields plus orchestration status.
+One event therefore cannot cancel unrelated slices or invent later release,
+deployment, verification, or checkpoint state. Upstream verification also
+requires both the stored observation and release event to equal the recorded
+`release:v{published_version}` exactly.
+
 Workflow conclusions are a closed registry. `GATES_PASSED`, release
 verification, deployment, and production verification require `SUCCESS`, while
 `GATES_FAILED` requires a terminal non-success conclusion. A
@@ -105,9 +116,10 @@ evidence.
 
 Earlier schema v2 receipts without `conclusion` remain readable when the event
 kind is non-ambiguous. Missing workflow or successful-deployment conclusions
-fail closed. A deterministic schema 1 migration may preserve `UNKNOWN` only on
-its single `SCHEMA_MIGRATION` receipt and never converts it into passed-gate,
-deployment, or verification evidence.
+fail closed, while predecessor/successor pairs containing non-ambiguous legacy
+events remain append-only auditable. A deterministic schema 1 migration may
+preserve `UNKNOWN` only on its single `SCHEMA_MIGRATION` receipt and never
+converts it into passed-gate, deployment, or verification evidence.
 
 A schema v1 snapshot can name a passed or verified state without retaining the
 terminal workflow conclusion. Migration preserves that historical observation
@@ -158,8 +170,9 @@ The Maxithlon profile deliberately has no autonomous Level C envelope.
 `LEVEL_C_AUTHORIZATION` and one exact human prompt. The BrickMS and site
 production B profiles require `REVERSIBLE_PRODUCTION`. The site profile also
 requires exact upstream repository, published version, published build SHA, and
-`VERIFIED` state before its production B action. Core rejects every deployment
-identity and production action.
+`VERIFIED` state before its production B action; the proving release event must
+use the exact recorded `release:v{published_version}` reference. Core rejects
+every deployment identity and production action.
 
 The committed fixture
 `.github/agent-protocol/conformance-v1.4.1.json` records the four profiles and
