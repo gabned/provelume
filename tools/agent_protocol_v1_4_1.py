@@ -1663,14 +1663,6 @@ def validate_event_transition(
     """Restrict one receipt to the state owned by its exact GitHub event."""
 
     event = validate_github_event(github_event, allow_legacy=True)
-    allowed = {
-        "campaign_state",
-        "observed_event",
-        "observed_event_ref",
-        "pending_action",
-        "stop_reason",
-        "next_action",
-    }
     observed = successor["observed_event"]
     before_items = previous["idea_inbox"]["items"]
     after_items = successor["idea_inbox"]["items"]
@@ -1679,33 +1671,42 @@ def validate_event_transition(
         and event["action"] == "OPENED"
         and after_items == [*before_items, event["reference"]]
     ):
-        allowed.add("idea_inbox.items")
-    elif observed in {"PR_OPENED", "PR_SYNCHRONIZED", "PR_CLOSED", "PR_MERGED"}:
-        index = slice_index_for_event(previous, successor, event)
-        allowed.update({f"slices.{index}.state", f"slices.{index}.pull_requests"})
-    elif observed in {"SLICE_CANCELLED", "GATES_PASSED", "GATES_FAILED"}:
-        index = slice_index_for_event(previous, successor, event)
-        allowed.add(f"slices.{index}.state")
-    elif observed == "RELEASE_CANDIDATE_MERGED":
-        allowed.update({"train.publication_state", "train.candidate_build_sha"})
-    elif observed == "RELEASE_PUBLISHED":
-        allowed.update(
-            {
-                "train.publication_state",
-                "train.published_version",
-                "train.published_build_sha",
-            }
-        )
-    elif observed == "RELEASE_VERIFIED":
-        allowed.add("checkpoint")
-    elif observed == "UPSTREAM_RELEASE_VERIFIED":
-        allowed.add("train.upstream")
-    elif observed == "PRODUCTION_DEPLOYED":
-        allowed.add("train.deployed_build_sha")
-    elif observed == "PRODUCTION_VERIFIED":
-        allowed.add("checkpoint")
-    elif observed != "INITIAL_AUTHORIZATION":
-        fail("the observed event has no closed transition profile")
+        allowed = {"idea_inbox.items"}
+    else:
+        allowed = {
+            "campaign_state",
+            "observed_event",
+            "observed_event_ref",
+            "pending_action",
+            "stop_reason",
+            "next_action",
+        }
+        if observed in {"PR_OPENED", "PR_SYNCHRONIZED", "PR_CLOSED", "PR_MERGED"}:
+            index = slice_index_for_event(previous, successor, event)
+            allowed.update({f"slices.{index}.state", f"slices.{index}.pull_requests"})
+        elif observed in {"SLICE_CANCELLED", "GATES_PASSED", "GATES_FAILED"}:
+            index = slice_index_for_event(previous, successor, event)
+            allowed.add(f"slices.{index}.state")
+        elif observed == "RELEASE_CANDIDATE_MERGED":
+            allowed.update({"train.publication_state", "train.candidate_build_sha"})
+        elif observed == "RELEASE_PUBLISHED":
+            allowed.update(
+                {
+                    "train.publication_state",
+                    "train.published_version",
+                    "train.published_build_sha",
+                }
+            )
+        elif observed == "RELEASE_VERIFIED":
+            allowed.add("checkpoint")
+        elif observed == "UPSTREAM_RELEASE_VERIFIED":
+            allowed.add("train.upstream")
+        elif observed == "PRODUCTION_DEPLOYED":
+            allowed.add("train.deployed_build_sha")
+        elif observed == "PRODUCTION_VERIFIED":
+            allowed.add("checkpoint")
+        elif observed != "INITIAL_AUTHORIZATION":
+            fail("the observed event has no closed transition profile")
 
     state_before = {key: value for key, value in previous.items() if key != "receipts"}
     state_after = {key: value for key, value in successor.items() if key != "receipts"}
@@ -2158,9 +2159,12 @@ def self_test() -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
-    for command in ("validate-campaign", "validate-handoff", "validate-bundle"):
+    for command in ("validate-campaign", "validate-bundle"):
         child = subparsers.add_parser(command)
         child.add_argument("path", type=Path)
+    handoff_validation = subparsers.add_parser("validate-handoff")
+    handoff_validation.add_argument("path", type=Path)
+    handoff_validation.add_argument("--campaign", type=Path, required=True)
     conformance = subparsers.add_parser("validate-conformance")
     conformance.add_argument("path", type=Path)
     migration = subparsers.add_parser("migrate-campaign")
@@ -2194,11 +2198,14 @@ def main() -> int:
                 "schema_version": schema_version,
             }
         elif args.command == "validate-handoff":
-            handoff = validate_handoff(load_object(args.path))
+            handoff = load_object(args.path)
+            bundle = validate_bundle(
+                {"campaign": load_object(args.campaign), "handoff": handoff}
+            )
             result = {
                 "protocol_version": PROTOCOL_VERSION,
                 "result": "PASS",
-                "word_count": word_count(handoff["human_report"]),
+                "word_count": word_count(bundle["handoff"]["human_report"]),
             }
         elif args.command == "validate-bundle":
             bundle = validate_bundle(load_object(args.path))

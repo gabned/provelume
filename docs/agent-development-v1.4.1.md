@@ -134,6 +134,9 @@ including its receipt chain. `build_bundle()` validates or migrates the
 campaign, derives the handoff, binds its digest, renders the canonical report,
 and validates the two together. `validate_bundle()` rejects a changed outcome,
 release status, action, prompt, resume state, or campaign digest.
+The public `validate-handoff` command requires `--campaign <path>` and performs
+the same joint bundle validation; structural handoff validation alone is not a
+portable proof of conformance.
 
 The human report remains exactly five lines, no more than 120
 whitespace-delimited words, and contains exactly one `Next action`:
