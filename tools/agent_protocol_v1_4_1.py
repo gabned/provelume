@@ -992,12 +992,19 @@ def validate_last_receipt_binding(campaign: dict[str, Any]) -> None:
             action = "STATUS_SUCCEEDED"
         else:
             fail("production evidence requires a workflow run or deployment event")
+        expected_sha = (
+            train["deployed_build_sha"]
+            if observed == "PRODUCTION_VERIFIED"
+            else observed_ref
+        )
+        if observed == "PRODUCTION_VERIFIED" and observed_ref != expected_sha:
+            fail("production verification is not bound to the exact deployed build")
         expected = (
             kind,
             action,
             repo,
             github_event["reference"],
-            observed_ref,
+            expected_sha,
         )
     else:
         fail("the observed event has no closed GitHub receipt binding")
@@ -1060,6 +1067,25 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
         )
         if operation == "INITIALIZE" and previous_state != GENESIS_STATE_SHA256:
             fail("campaign initialization must start at the canonical genesis digest")
+        if operation == "INITIALIZE":
+            expected_event = (
+                "ISSUE",
+                "OPENED",
+                campaign["repository"],
+                campaign["owner_issue"],
+                "NONE",
+                "NOT_APPLICABLE",
+            )
+            observed_event = (
+                checked_event["kind"],
+                checked_event["action"],
+                checked_event["repository"],
+                checked_event["reference"],
+                checked_event["sha"],
+                checked_event["conclusion"],
+            )
+            if observed_event != expected_event:
+                fail("campaign initialization requires the exact owner issue event")
         if previous_successor is not None and previous_state != previous_successor:
             fail("receipt predecessor/successor state digests do not chain")
         if item["previous_receipt_sha256"] != previous_receipt:
@@ -1083,8 +1109,48 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
         previous_successor = successor_state
     if previous_successor != campaign_state_sha256(campaign):
         fail("the last receipt successor digest does not match campaign state")
+    if len(receipts) == 1 and receipts[0]["operation"] == "INITIALIZE":
+        validate_initial_campaign_state(campaign)
     validate_last_receipt_binding(campaign)
     return receipts
+
+
+def validate_initial_campaign_state(campaign: dict[str, Any]) -> None:
+    """Require a native schema-2 initialization to be uneffected and executable."""
+
+    train = campaign["train"]
+    checkpoint = campaign["checkpoint"]
+    if (
+        campaign["campaign_state"] not in {"PLANNED", "ACTIVE"}
+        or campaign["observed_event"] != "INITIAL_AUTHORIZATION"
+        or campaign["observed_event_ref"] != campaign["owner_issue"]
+        or campaign["stop_reason"] != "NONE"
+        or campaign["pending_action"]["kind"] != "START_NEXT_SLICE"
+        or campaign["next_action"]["type"] != "AUTO_CONTINUE"
+        or campaign["next_action"]["prompt"] != "NONE"
+        or checkpoint != {
+            "policy": "RELEASE_BOUNDARY",
+            "state": "NOT_DUE",
+            "reference": "NONE",
+        }
+        or train["publication_state"] != "UNPUBLISHED"
+        or train["published_version"] != "NONE"
+        or any(
+            train[key] != "NONE"
+            for key in (
+                "candidate_build_sha",
+                "deployed_build_sha",
+                "published_build_sha",
+            )
+        )
+        or train["upstream"]["published_version"] != "NONE"
+        or train["upstream"]["published_build_sha"] != "NONE"
+        or any(
+            item["state"] != "PLANNED" or item["pull_requests"]
+            for item in campaign["slices"]
+        )
+    ):
+        fail("INITIALIZE must establish a closed uneffected initial campaign state")
 
 
 def expected_next_type(campaign: dict[str, Any]) -> str:
@@ -1308,6 +1374,10 @@ def validate_campaign_v2(
         or publication != "CANDIDATE"
     ):
         fail("Level C deployment requires its critical exact candidate profile")
+    if kind == "DEPLOY_PRODUCTION_C" and (
+        state != "HUMAN_GATE" or stop != "LEVEL_C_AUTHORIZATION"
+    ):
+        fail("Level C deployment requires the closed human gate")
     if kind == "VERIFY_PRODUCTION" and (
         release_profile
         not in {

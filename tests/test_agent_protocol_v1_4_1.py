@@ -26,13 +26,22 @@ def campaign() -> dict[str, object]:
 def initialize(value: dict[str, object], event: dict[str, object]) -> dict[str, object]:
     value["receipts"] = []
     protocol.validate_campaign_v2(value, validate_receipt_chain=False)
+    operation = (
+        "INITIALIZE"
+        if value["observed_event"] == "INITIAL_AUTHORIZATION"
+        else "SCHEMA_MIGRATION"
+    )
     value["receipts"] = [
         protocol.build_receipt(
             sequence=1,
-            operation="INITIALIZE",
+            operation=operation,
             campaign_id=value["campaign_id"],
             github_event=event,
-            previous_state_sha256=protocol.GENESIS_STATE_SHA256,
+            previous_state_sha256=(
+                protocol.GENESIS_STATE_SHA256
+                if operation == "INITIALIZE"
+                else "f" * 64
+            ),
             successor_state_sha256=protocol.campaign_state_sha256(value),
             previous_receipt_sha256="NONE",
         )
@@ -187,6 +196,44 @@ def test_migration_retains_recorded_pr_without_inventing_overwritten_history() -
             "merge_sha": "b" * 40,
         }
     ]
+
+
+def test_initialize_rejects_an_effected_terminal_campaign() -> None:
+    value = terminal_profile_campaign("maxithlon/maxithlon")
+    value["campaign_state"] = "COMPLETE"
+    value["pending_action"] = {"kind": "NO_ACTION", "slice_id": "NONE"}
+    value["next_action"] = {
+        "type": "CAMPAIGN_COMPLETE",
+        "summary": "The fabricated campaign is complete.",
+        "prompt": "NONE",
+    }
+    value["checkpoint"] = {
+        "policy": "RELEASE_BOUNDARY",
+        "state": "RECORDED",
+        "reference": value["owner_issue"],
+    }
+    value["train"]["deployed_build_sha"] = value["train"]["candidate_build_sha"]
+    value["receipts"] = [
+        protocol.build_receipt(
+            sequence=1,
+            operation="INITIALIZE",
+            campaign_id=value["campaign_id"],
+            github_event={
+                "kind": "ISSUE",
+                "action": "OPENED",
+                "repository": "maxithlon/maxithlon",
+                "reference": value["owner_issue"],
+                "sha": "NONE",
+                "conclusion": "NOT_APPLICABLE",
+            },
+            previous_state_sha256=protocol.GENESIS_STATE_SHA256,
+            successor_state_sha256=protocol.campaign_state_sha256(value),
+            previous_receipt_sha256="NONE",
+        )
+    ]
+
+    with pytest.raises(protocol.ContractError, match="uneffected initial"):
+        protocol.validate_campaign_v2(value)
 
 
 def test_migration_revalidates_legacy_passed_gate_before_merge() -> None:
@@ -953,6 +1000,39 @@ def test_production_verification_requires_distinct_successful_evidence() -> None
     protocol.validate_append_only(deployed, result)
 
 
+def test_production_verification_binds_exact_deployed_build() -> None:
+    deployed, _ = deployed_brick_campaign()
+    verified = deepcopy(deployed)
+    verified["campaign_state"] = "COMPLETE"
+    verified["checkpoint"] = {
+        "policy": "RELEASE_BOUNDARY",
+        "state": "RECORDED",
+        "reference": verified["owner_issue"],
+    }
+    verified["observed_event"] = "PRODUCTION_VERIFIED"
+    verified["observed_event_ref"] = "8" * 40
+    verified["pending_action"] = {"kind": "NO_ACTION", "slice_id": "NONE"}
+    verified["next_action"] = {
+        "type": "CAMPAIGN_COMPLETE",
+        "summary": "Complete the falsely verified release train.",
+        "prompt": "NONE",
+    }
+
+    with pytest.raises(protocol.ContractError, match="exact deployed build"):
+        protocol.append_transition_receipt(
+            deployed,
+            verified,
+            {
+                "kind": "WORKFLOW_RUN",
+                "action": "COMPLETED",
+                "repository": "brickms/brickms",
+                "reference": "run:454",
+                "sha": "8" * 40,
+                "conclusion": "SUCCESS",
+            },
+        )
+
+
 def test_code_only_production_b_profile_accepts_only_reversible_deploy() -> None:
     value = terminal_profile_campaign("brickms/brickms")
     value["authority_envelope"] = "THROUGH_PRODUCTION_B"
@@ -1009,6 +1089,23 @@ def test_level_c_profile_requires_a_closed_human_gate() -> None:
         "prompt": "NONE",
     }
     value["receipts"] = []
+    with pytest.raises(protocol.ContractError, match="closed human gate"):
+        protocol.validate_campaign_v2(value, validate_receipt_chain=False)
+
+
+def test_level_c_deployment_is_rejected_in_blocked_state() -> None:
+    value = terminal_profile_campaign("maxithlon/maxithlon")
+    value["authority_envelope"] = "THROUGH_PRODUCTION_B"
+    value["risk_profile"] = "CRITICAL_PRODUCTION"
+    value["campaign_state"] = "BLOCKED"
+    value["pending_action"] = {"kind": "DEPLOY_PRODUCTION_C", "slice_id": "NONE"}
+    value["stop_reason"] = "GATE_FAILURE"
+    value["next_action"] = {
+        "type": "USER_ACTION_REQUIRED",
+        "summary": "Resolve the failed Level C gate.",
+        "prompt": "RESOLVE-LEVEL-C-GATE",
+    }
+
     with pytest.raises(protocol.ContractError, match="closed human gate"):
         protocol.validate_campaign_v2(value, validate_receipt_chain=False)
 

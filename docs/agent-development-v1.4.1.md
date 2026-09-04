@@ -83,6 +83,11 @@ predecessor digest must equal the previous successor, and each
 `previous_receipt_sha256` must equal the prior receipt digest. The final
 successor must equal the current campaign-state digest.
 
+Native `INITIALIZE` also binds the exact owner `ISSUE/OPENED` event and
+establishes an uneffected campaign: all slices planned with empty PR ledgers,
+no candidate, deployed or published build, no checkpoint, and exactly one
+executable next-slice action. Effects require later `STATE_TRANSITION` receipts.
+
 `append_transition_receipt()` accepts only an exact retained prefix, frozen
 campaign identity and slice order, a valid successor snapshot, and a new GitHub
 event. Replaying the already-applied final event against the unchanged state is
@@ -113,6 +118,8 @@ successful completed workflow run or `DEPLOYMENT/STATUS_SUCCEEDED`. Production
 verification consumes a second successful GitHub event. Event reuse is checked
 without the conclusion field, so rewriting only an outcome cannot create new
 evidence.
+The verification event must carry the exact recorded deployed build; an
+unrelated successful SHA cannot complete the train or record its checkpoint.
 
 Earlier schema v2 receipts without `conclusion` remain readable when the event
 kind is non-ambiguous. Missing workflow or successful-deployment conclusions
