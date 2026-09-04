@@ -581,6 +581,36 @@ def test_exact_issue_event_can_append_one_idea_without_changing_scope() -> None:
     assert result["idea_inbox"]["items"] == [*before["idea_inbox"]["items"], "#199"]
 
 
+def test_issue_event_cannot_mutate_campaign_control_state() -> None:
+    before = campaign()
+    after = deepcopy(before)
+    after["idea_inbox"]["items"].append("#199")
+    after["campaign_state"] = "WAITING_EVENT"
+    after["observed_event"] = "GATES_FAILED"
+    after["observed_event_ref"] = "run:999"
+    after["pending_action"] = {"kind": "WAIT_FOR_EVENT", "slice_id": "NONE"}
+    after["stop_reason"] = "NONE"
+    after["next_action"] = {
+        "type": "WAIT_EVENT",
+        "summary": "Wait for a fabricated workflow result.",
+        "prompt": "NONE",
+    }
+
+    with pytest.raises(protocol.ContractError, match="cannot mutate unrelated"):
+        protocol.append_transition_receipt(
+            before,
+            after,
+            {
+                "kind": "ISSUE",
+                "action": "OPENED",
+                "repository": "gabned/provelume",
+                "reference": "#199",
+                "sha": "NONE",
+                "conclusion": "NOT_APPLICABLE",
+            },
+        )
+
+
 def test_legacy_workflow_receipt_without_outcome_fails_closed() -> None:
     active, gated = gated_active_campaign()
     value = protocol.append_transition_receipt(
@@ -677,6 +707,33 @@ def test_joint_validation_rejects_handoff_drift() -> None:
 
     with pytest.raises(protocol.ContractError, match="generated and validated jointly"):
         protocol.validate_bundle(bundle)
+
+
+def test_validate_handoff_command_rejects_unbound_digest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    bundle = protocol.build_bundle(campaign(), delivered="The exact campaign is bound.")
+    bundle["handoff"]["campaign_sha256"] = "0" * 64
+    bundle["handoff"]["human_report"] = protocol.render_handoff(bundle["handoff"])
+    campaign_path = tmp_path / "campaign.json"
+    handoff_path = tmp_path / "handoff.json"
+    campaign_path.write_text(json.dumps(bundle["campaign"]), encoding="utf-8")
+    handoff_path.write_text(json.dumps(bundle["handoff"]), encoding="utf-8")
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "agent_protocol_v1_4_1.py",
+            "validate-handoff",
+            str(handoff_path),
+            "--campaign",
+            str(campaign_path),
+        ],
+    )
+
+    assert protocol.main() == 2
+    assert "digest does not match" in capsys.readouterr().out
 
 
 def test_handoff_limit_is_enforced_after_joint_generation() -> None:
