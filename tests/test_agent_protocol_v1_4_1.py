@@ -108,6 +108,7 @@ def profile_campaign(repository: str) -> dict[str, object]:
             "repository": repository,
             "reference": "#164",
             "sha": "NONE",
+            "conclusion": "NOT_APPLICABLE",
         },
     )
 
@@ -143,6 +144,7 @@ def activate_second_slice() -> tuple[dict[str, object], dict[str, object], dict[
         "repository": "gabned/provelume",
         "reference": "#4",
         "sha": "4" * 40,
+        "conclusion": "NOT_APPLICABLE",
     }
     return before, protocol.append_transition_receipt(before, after, event), event
 
@@ -265,6 +267,7 @@ def test_continuation_cannot_replace_a_retained_pr_ledger_entry() -> None:
                 "repository": "gabned/provelume",
                 "reference": "#5",
                 "sha": "5" * 40,
+                "conclusion": "NOT_APPLICABLE",
             },
         )
 
@@ -284,6 +287,7 @@ def test_open_pr_head_advances_through_a_github_backed_receipt() -> None:
             "repository": "gabned/provelume",
             "reference": "#4",
             "sha": "5" * 40,
+            "conclusion": "NOT_APPLICABLE",
         },
     )
 
@@ -306,6 +310,7 @@ def test_closed_owner_is_retained_before_a_correction_opens() -> None:
             "repository": "gabned/provelume",
             "reference": "#4",
             "sha": "4" * 40,
+            "conclusion": "NOT_APPLICABLE",
         },
     )
 
@@ -331,6 +336,7 @@ def test_closed_owner_is_retained_before_a_correction_opens() -> None:
             "repository": "gabned/provelume",
             "reference": "#5",
             "sha": "5" * 40,
+            "conclusion": "NOT_APPLICABLE",
         },
     )
 
@@ -395,8 +401,121 @@ def test_non_github_event_reference_fails_closed() -> None:
                 "repository": "gabned/provelume",
                 "reference": "timer:midnight",
                 "sha": "1" * 40,
+                "conclusion": "SUCCESS",
             },
         )
+
+
+def gated_active_campaign() -> tuple[dict[str, object], dict[str, object]]:
+    _, active, _ = activate_second_slice()
+    gated = deepcopy(active)
+    gated["observed_event"] = "GATES_PASSED"
+    gated["observed_event_ref"] = "4" * 40
+    gated["pending_action"] = {
+        "kind": "MERGE_ACTIVE_SLICE",
+        "slice_id": "pilot/S02",
+    }
+    gated["next_action"]["summary"] = "Merge pilot/S02 at its exact passed head."
+    return active, gated
+
+
+@pytest.mark.parametrize("conclusion", ["FAILURE", "CANCELLED"])
+def test_unsuccessful_workflow_cannot_satisfy_gates_passed(conclusion: str) -> None:
+    active, gated = gated_active_campaign()
+
+    with pytest.raises(protocol.ContractError, match="requires a successful"):
+        protocol.append_transition_receipt(
+            active,
+            gated,
+            {
+                "kind": "WORKFLOW_RUN",
+                "action": "COMPLETED",
+                "repository": "gabned/provelume",
+                "reference": "run:406",
+                "sha": "4" * 40,
+                "conclusion": conclusion,
+            },
+        )
+
+
+def test_successful_workflow_satisfies_gates_passed() -> None:
+    active, gated = gated_active_campaign()
+    result = protocol.append_transition_receipt(
+        active,
+        gated,
+        {
+            "kind": "WORKFLOW_RUN",
+            "action": "COMPLETED",
+            "repository": "gabned/provelume",
+            "reference": "run:407",
+            "sha": "4" * 40,
+            "conclusion": "SUCCESS",
+        },
+    )
+
+    assert result["receipts"][-1]["github_event"]["conclusion"] == "SUCCESS"
+
+
+def test_new_workflow_receipt_requires_an_exact_conclusion() -> None:
+    active, gated = gated_active_campaign()
+
+    with pytest.raises(protocol.ContractError, match="keys mismatch"):
+        protocol.append_transition_receipt(
+            active,
+            gated,
+            {
+                "kind": "WORKFLOW_RUN",
+                "action": "COMPLETED",
+                "repository": "gabned/provelume",
+                "reference": "run:408",
+                "sha": "4" * 40,
+            },
+        )
+
+
+def test_legacy_nonterminal_event_receipt_remains_compatible() -> None:
+    value = profile_campaign("gabned/provelume")
+    receipt = value["receipts"][0]
+    del receipt["github_event"]["conclusion"]
+    receipt["idempotency_key"] = protocol.receipt_idempotency_key(
+        campaign_id=value["campaign_id"],
+        operation=receipt["operation"],
+        github_event=receipt["github_event"],
+        previous_state_sha256=receipt["previous_state_sha256"],
+        successor_state_sha256=receipt["successor_state_sha256"],
+    )
+    receipt["receipt_sha256"] = protocol.receipt_sha256(receipt)
+
+    assert protocol.validate_campaign_v2(value) == value
+
+
+def test_legacy_workflow_receipt_without_outcome_fails_closed() -> None:
+    active, gated = gated_active_campaign()
+    value = protocol.append_transition_receipt(
+        active,
+        gated,
+        {
+            "kind": "WORKFLOW_RUN",
+            "action": "COMPLETED",
+            "repository": "gabned/provelume",
+            "reference": "run:409",
+            "sha": "4" * 40,
+            "conclusion": "SUCCESS",
+        },
+    )
+    receipt = value["receipts"][-1]
+    del receipt["github_event"]["conclusion"]
+    receipt["idempotency_key"] = protocol.receipt_idempotency_key(
+        campaign_id=value["campaign_id"],
+        operation=receipt["operation"],
+        github_event=receipt["github_event"],
+        previous_state_sha256=receipt["previous_state_sha256"],
+        successor_state_sha256=receipt["successor_state_sha256"],
+    )
+    receipt["receipt_sha256"] = protocol.receipt_sha256(receipt)
+
+    with pytest.raises(protocol.ContractError, match="exact terminal conclusion"):
+        protocol.validate_campaign_v2(value)
 
 
 def test_slice_count_mismatch_is_a_closed_contract_failure() -> None:
@@ -430,6 +549,7 @@ def test_slice_count_mismatch_is_a_closed_contract_failure() -> None:
                     "repository": "gabned/provelume",
                     "reference": "run:405",
                     "sha": "9" * 40,
+                    "conclusion": "SUCCESS",
                 },
             previous_state_sha256=protocol.campaign_state_sha256(before),
             successor_state_sha256=protocol.campaign_state_sha256(after),
@@ -511,6 +631,7 @@ def test_session_limit_cannot_replace_a_blocker_or_human_decision() -> None:
             "repository": "gabned/provelume",
             "reference": "run:400",
             "sha": "4" * 40,
+            "conclusion": "FAILURE",
         },
     )
     protocol.validate_append_only(before, active)
@@ -570,6 +691,119 @@ def terminal_profile_campaign(repository: str) -> dict[str, object]:
     return value
 
 
+def brick_production_candidate() -> dict[str, object]:
+    value = terminal_profile_campaign("brickms/brickms")
+    value["authority_envelope"] = "THROUGH_PRODUCTION_B"
+    value["risk_profile"] = "REVERSIBLE_PRODUCTION"
+    value["pending_action"] = {"kind": "DEPLOY_PRODUCTION_B", "slice_id": "NONE"}
+    value["next_action"] = {
+        "type": "AUTO_CONTINUE",
+        "summary": "Deploy the exact candidate through code-only production B.",
+        "prompt": "NONE",
+    }
+    return initialize(
+        value,
+        {
+            "kind": "WORKFLOW_RUN",
+            "action": "COMPLETED",
+            "repository": "brickms/brickms",
+            "reference": "run:450",
+            "sha": "7" * 40,
+            "conclusion": "SUCCESS",
+        },
+    )
+
+
+def deployed_brick_campaign() -> tuple[dict[str, object], dict[str, object]]:
+    candidate = brick_production_candidate()
+    deployed = deepcopy(candidate)
+    deployed["train"]["deployed_build_sha"] = "7" * 40
+    deployed["observed_event"] = "PRODUCTION_DEPLOYED"
+    deployed["observed_event_ref"] = "7" * 40
+    deployed["pending_action"] = {"kind": "VERIFY_PRODUCTION", "slice_id": "NONE"}
+    deployed["next_action"]["summary"] = "Verify the exact deployed build."
+    event = {
+        "kind": "DEPLOYMENT",
+        "action": "STATUS_SUCCEEDED",
+        "repository": "brickms/brickms",
+        "reference": "deployment:451",
+        "sha": "7" * 40,
+        "conclusion": "SUCCESS",
+    }
+    return protocol.append_transition_receipt(candidate, deployed, event), event
+
+
+def test_deployment_created_cannot_satisfy_production_deployed() -> None:
+    candidate = brick_production_candidate()
+    deployed = deepcopy(candidate)
+    deployed["train"]["deployed_build_sha"] = "7" * 40
+    deployed["observed_event"] = "PRODUCTION_DEPLOYED"
+    deployed["observed_event_ref"] = "7" * 40
+    deployed["pending_action"] = {"kind": "VERIFY_PRODUCTION", "slice_id": "NONE"}
+    deployed["next_action"]["summary"] = "Verify the exact deployed build."
+
+    with pytest.raises(protocol.ContractError, match="not bound"):
+        protocol.append_transition_receipt(
+            candidate,
+            deployed,
+            {
+                "kind": "DEPLOYMENT",
+                "action": "CREATED",
+                "repository": "brickms/brickms",
+                "reference": "deployment:451",
+                "sha": "7" * 40,
+                "conclusion": "NOT_APPLICABLE",
+            },
+        )
+
+
+def test_successful_deployment_status_satisfies_production_deployed() -> None:
+    deployed, event = deployed_brick_campaign()
+
+    assert deployed["receipts"][-1]["github_event"] == event
+
+
+def test_production_verification_requires_distinct_successful_evidence() -> None:
+    deployed, deployment_event = deployed_brick_campaign()
+    verified = deepcopy(deployed)
+    verified["checkpoint"]["state"] = "DUE"
+    verified["observed_event"] = "PRODUCTION_VERIFIED"
+    verified["observed_event_ref"] = "7" * 40
+    verified["pending_action"] = {"kind": "RECORD_CHECKPOINT", "slice_id": "NONE"}
+    verified["next_action"]["summary"] = "Record the verified release checkpoint."
+
+    with pytest.raises(protocol.ContractError, match="cannot be reused"):
+        protocol.append_transition_receipt(deployed, verified, deployment_event)
+
+    with pytest.raises(protocol.ContractError, match="requires a successful"):
+        protocol.append_transition_receipt(
+            deployed,
+            verified,
+            {
+                "kind": "WORKFLOW_RUN",
+                "action": "COMPLETED",
+                "repository": "brickms/brickms",
+                "reference": "run:452",
+                "sha": "7" * 40,
+                "conclusion": "FAILURE",
+            },
+        )
+
+    result = protocol.append_transition_receipt(
+        deployed,
+        verified,
+        {
+            "kind": "WORKFLOW_RUN",
+            "action": "COMPLETED",
+            "repository": "brickms/brickms",
+            "reference": "run:453",
+            "sha": "7" * 40,
+            "conclusion": "SUCCESS",
+        },
+    )
+    protocol.validate_append_only(deployed, result)
+
+
 def test_code_only_production_b_profile_accepts_only_reversible_deploy() -> None:
     value = terminal_profile_campaign("brickms/brickms")
     value["authority_envelope"] = "THROUGH_PRODUCTION_B"
@@ -589,6 +823,7 @@ def test_code_only_production_b_profile_accepts_only_reversible_deploy() -> None
             "repository": "brickms/brickms",
             "reference": "run:401",
             "sha": "7" * 40,
+            "conclusion": "SUCCESS",
         },
     )
 
@@ -613,6 +848,7 @@ def test_level_c_profile_requires_a_closed_human_gate() -> None:
             "repository": "maxithlon/maxithlon",
             "reference": "run:402",
             "sha": "7" * 40,
+            "conclusion": "SUCCESS",
         },
     )
 
@@ -656,6 +892,7 @@ def test_site_profile_requires_verified_upstream_before_production_b() -> None:
             "repository": "gabned/provelume.com",
             "reference": "run:403",
             "sha": "7" * 40,
+            "conclusion": "SUCCESS",
         },
     )
 
@@ -702,6 +939,7 @@ def test_release_publication_and_verification_use_distinct_github_events() -> No
             "repository": "gabned/provelume",
             "reference": "7" * 40,
             "sha": "7" * 40,
+            "conclusion": "NOT_APPLICABLE",
         },
     )
 
@@ -726,6 +964,7 @@ def test_release_publication_and_verification_use_distinct_github_events() -> No
             "repository": "gabned/provelume",
             "reference": "release:v1.4.1",
             "sha": "7" * 40,
+            "conclusion": "NOT_APPLICABLE",
         },
     )
 
@@ -743,6 +982,7 @@ def test_release_publication_and_verification_use_distinct_github_events() -> No
             "repository": "gabned/provelume",
             "reference": "run:404",
             "sha": "7" * 40,
+            "conclusion": "SUCCESS",
         },
     )
 
