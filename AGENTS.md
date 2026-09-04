@@ -109,8 +109,10 @@ schema 1; new or migrated evidence uses `tools/agent_protocol_v1_4_1.py`.
   predecessor/successor state digests, the prior receipt, and its own canonical
   digest. `GATES_PASSED`, release verification, deployment, and production
   verification require `SUCCESS`; `DEPLOYMENT/CREATED` is never deployment
-  evidence. Repeated reads and elapsed time are not events; `PR_CLOSED` retains
-  an unmerged attempt before any correction opens.
+  evidence. Each receipt may mutate only the campaign state owned by that exact
+  event, so publication cannot also invent verification, checkpoint, slice, or
+  deployment state. Repeated reads and elapsed time are not events; `PR_CLOSED`
+  retains an unmerged attempt before any correction opens.
 - Campaign and handoff are generated and validated together. The handoff binds
   the complete campaign digest, remains at most 120 words, and has one action.
 - `RESUME_REQUIRED` is reserved for `SESSION_LIMIT`; it carries no prompt,
@@ -121,7 +123,8 @@ schema 1; new or migrated evidence uses `tools/agent_protocol_v1_4_1.py`.
 - Train, target version, published version, candidate build, deployed build,
   published build, and any upstream published build remain separate identities.
   Publication uses its release event; later verification uses a distinct exact-head
-  workflow-run event.
+  workflow-run event. Upstream verification binds the exact recorded repository,
+  `release:v{published_version}` reference, and published build.
 - Schema 1→2 migration is deterministic and cannot invent overwritten history.
   A legacy success-dependent action waits for a newly observed exact-head
   `SUCCESS` workflow receipt before it can continue. Cross-repository fixtures

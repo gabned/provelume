@@ -955,7 +955,7 @@ def validate_last_receipt_binding(campaign: dict[str, Any]) -> None:
             "RELEASE",
             "PUBLISHED",
             upstream["repository"],
-            observed_ref,
+            f"release:v{upstream['published_version']}",
             upstream["published_build_sha"],
         )
     elif observed in {"PRODUCTION_DEPLOYED", "PRODUCTION_VERIFIED"}:
@@ -1433,7 +1433,7 @@ def infer_migration_event(value: dict[str, Any]) -> dict[str, Any]:
             "sha": build,
             "conclusion": "NOT_APPLICABLE",
         }
-    fail("legacy observed event cannot be bound to a real GitHub resource")
+    raise ContractError("legacy observed event cannot be bound to a real GitHub resource")
 
 
 def migrate_campaign(value: Any) -> dict[str, Any]:
@@ -1566,6 +1566,127 @@ def immutable_campaign_identity(value: dict[str, Any]) -> dict[str, Any]:
     return {key: deepcopy(value[key]) for key in keys}
 
 
+def changed_paths(before: Any, after: Any, *, prefix: str = "") -> set[str]:
+    if before == after:
+        return set()
+    if isinstance(before, dict) and isinstance(after, dict):
+        paths: set[str] = set()
+        for key in set(before) | set(after):
+            child = f"{prefix}.{key}" if prefix else key
+            if key not in before or key not in after:
+                paths.add(child)
+            else:
+                paths.update(changed_paths(before[key], after[key], prefix=child))
+        return paths
+    if isinstance(before, list) and isinstance(after, list):
+        paths = set()
+        for index in range(max(len(before), len(after))):
+            child = f"{prefix}.{index}" if prefix else str(index)
+            if index >= len(before) or index >= len(after):
+                paths.add(child)
+            else:
+                paths.update(changed_paths(before[index], after[index], prefix=child))
+        return paths
+    return {prefix}
+
+
+def path_is_allowed(path: str, allowed: set[str]) -> bool:
+    return any(path == item or path.startswith(f"{item}.") for item in allowed)
+
+
+def slice_index_for_event(
+    previous: dict[str, Any],
+    successor: dict[str, Any],
+    event: dict[str, Any],
+) -> int:
+    reference = event["reference"]
+    if event["kind"] == "PULL_REQUEST":
+        matches = {
+            index
+            for campaign in (previous, successor)
+            for index, item in enumerate(campaign["slices"])
+            if any(entry["pr"] == reference for entry in item["pull_requests"])
+        }
+    elif event["kind"] == "ISSUE":
+        matches = {
+            index
+            for campaign in (previous, successor)
+            for index, item in enumerate(campaign["slices"])
+            if item["issue"] == reference
+        }
+    else:
+        matches = {
+            index
+            for campaign in (previous, successor)
+            for index, item in enumerate(campaign["slices"])
+            if any(
+                entry["state"] == "OPEN" and entry["head_sha"] == event["sha"]
+                for entry in item["pull_requests"]
+            )
+        }
+    if len(matches) != 1:
+        fail("the GitHub event must identify exactly one mutable slice")
+    return matches.pop()
+
+
+def validate_event_transition(
+    previous: dict[str, Any],
+    successor: dict[str, Any],
+    github_event: dict[str, Any],
+) -> None:
+    """Restrict one receipt to the state owned by its exact GitHub event."""
+
+    event = validate_github_event(github_event)
+    allowed = {
+        "campaign_state",
+        "observed_event",
+        "observed_event_ref",
+        "pending_action",
+        "stop_reason",
+        "next_action",
+    }
+    observed = successor["observed_event"]
+    if observed in {"PR_OPENED", "PR_SYNCHRONIZED", "PR_CLOSED", "PR_MERGED"}:
+        index = slice_index_for_event(previous, successor, event)
+        allowed.update({f"slices.{index}.state", f"slices.{index}.pull_requests"})
+    elif observed in {"SLICE_CANCELLED", "GATES_PASSED", "GATES_FAILED"}:
+        index = slice_index_for_event(previous, successor, event)
+        allowed.add(f"slices.{index}.state")
+    elif observed == "RELEASE_CANDIDATE_MERGED":
+        allowed.update({"train.publication_state", "train.candidate_build_sha"})
+    elif observed == "RELEASE_PUBLISHED":
+        allowed.update(
+            {
+                "train.publication_state",
+                "train.published_version",
+                "train.published_build_sha",
+            }
+        )
+    elif observed == "RELEASE_VERIFIED":
+        allowed.add("checkpoint")
+    elif observed == "UPSTREAM_RELEASE_VERIFIED":
+        allowed.add("train.upstream")
+    elif observed == "PRODUCTION_DEPLOYED":
+        allowed.add("train.deployed_build_sha")
+    elif observed == "PRODUCTION_VERIFIED":
+        allowed.add("checkpoint")
+    elif observed != "INITIAL_AUTHORIZATION":
+        fail("the observed event has no closed transition profile")
+
+    state_before = {key: value for key, value in previous.items() if key != "receipts"}
+    state_after = {key: value for key, value in successor.items() if key != "receipts"}
+    unauthorized = sorted(
+        path
+        for path in changed_paths(state_before, state_after)
+        if not path_is_allowed(path, allowed)
+    )
+    if unauthorized:
+        fail(
+            "the GitHub event cannot mutate unrelated campaign state: "
+            + ", ".join(unauthorized)
+        )
+
+
 def append_transition_receipt(
     previous: Any,
     successor: Any,
@@ -1600,6 +1721,7 @@ def append_transition_receipt(
         )
     validate_campaign_v2(successor_value, validate_receipt_chain=False)
     checked_event = validate_github_event(deepcopy(github_event))
+    validate_event_transition(previous_value, successor_value, checked_event)
     previous_digest = campaign_state_sha256(previous_value)
     successor_digest = campaign_state_sha256(successor_value)
     last = previous_value["receipts"][-1]
@@ -1670,6 +1792,7 @@ def validate_append_only(previous: Any, successor: Any) -> dict[str, Any]:
             after_slice["pull_requests"],
             label=f"slice {before_slice['id']}",
         )
+    validate_event_transition(before, after, receipt["github_event"])
     return after
 
 
