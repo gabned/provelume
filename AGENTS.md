@@ -105,9 +105,12 @@ schema 1; new or migrated evidence uses `tools/agent_protocol_v1_4_1.py`.
   entries are never replaced by a correction. The current open entry may advance
   its head only through a distinct GitHub-backed `PR_SYNCHRONIZED` receipt.
 - Every schema 2 state change appends one idempotent receipt bound to a real,
-  closed GitHub event and action, predecessor/successor state digests, the prior
-  receipt, and its own canonical digest. Repeated reads and elapsed time are not
-  events; `PR_CLOSED` retains an unmerged attempt before any correction opens.
+  closed GitHub event, action, and applicable terminal conclusion,
+  predecessor/successor state digests, the prior receipt, and its own canonical
+  digest. `GATES_PASSED`, release verification, deployment, and production
+  verification require `SUCCESS`; `DEPLOYMENT/CREATED` is never deployment
+  evidence. Repeated reads and elapsed time are not events; `PR_CLOSED` retains
+  an unmerged attempt before any correction opens.
 - Campaign and handoff are generated and validated together. The handoff binds
   the complete campaign digest, remains at most 120 words, and has one action.
 - `RESUME_REQUIRED` is reserved for `SESSION_LIMIT`; it carries no prompt,
@@ -120,7 +123,9 @@ schema 1; new or migrated evidence uses `tools/agent_protocol_v1_4_1.py`.
   Publication uses its release event; later verification uses a distinct exact-head
   workflow-run event.
 - Schema 1→2 migration is deterministic and cannot invent overwritten history.
-  Cross-repository fixtures are read-only evidence, never authority or state.
+  A legacy success-dependent action waits for a newly observed exact-head
+  `SUCCESS` workflow receipt before it can continue. Cross-repository fixtures
+  are read-only evidence, never authority or state.
 - See `docs/agent-development-v1.4.1.md` for the complete contract and
   `.github/agent-protocol/conformance-v1.4.1.json` for the sanitized fixture.
 

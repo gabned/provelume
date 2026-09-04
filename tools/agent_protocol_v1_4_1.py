@@ -10,7 +10,7 @@ import json
 import re
 from copy import deepcopy
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 PROTOCOL_VERSION = "1.4.1"
 CAMPAIGN_SCHEMA_VERSION = 2
@@ -190,6 +190,34 @@ GITHUB_EVENT_ACTIONS = {
     "RELEASE": {"PUBLISHED"},
     "DEPLOYMENT": {"CREATED", "STATUS_SUCCEEDED"},
 }
+GITHUB_EVENT_CONCLUSIONS = {
+    "NOT_APPLICABLE",
+    "SUCCESS",
+    "FAILURE",
+    "CANCELLED",
+    "TIMED_OUT",
+    "ACTION_REQUIRED",
+    "NEUTRAL",
+    "SKIPPED",
+    "STALE",
+    "STARTUP_FAILURE",
+    "UNKNOWN",
+}
+UNSUCCESSFUL_GITHUB_CONCLUSIONS = {
+    "FAILURE",
+    "CANCELLED",
+    "TIMED_OUT",
+    "ACTION_REQUIRED",
+    "NEUTRAL",
+    "SKIPPED",
+    "STALE",
+    "STARTUP_FAILURE",
+}
+LEGACY_SUCCESS_DEPENDENT_ACTIONS = {
+    ("GATES_PASSED", "MERGE_ACTIVE_SLICE"),
+    ("RELEASE_VERIFIED", "RECORD_CHECKPOINT"),
+    ("PRODUCTION_VERIFIED", "RECORD_CHECKPOINT"),
+}
 STATE_MODELS = {"PR_LOCAL", "PERSISTENT_CHECKPOINT"}
 HUMAN_BOUNDARIES = {"NONE", "LEVEL_C_AUTHORIZATION"}
 
@@ -293,7 +321,8 @@ PULL_REQUEST_KEYS = {
 }
 PENDING_ACTION_KEYS = {"kind", "slice_id"}
 NEXT_ACTION_KEYS = {"type", "summary", "prompt"}
-GITHUB_EVENT_KEYS = {"kind", "action", "repository", "reference", "sha"}
+LEGACY_GITHUB_EVENT_KEYS = {"kind", "action", "repository", "reference", "sha"}
+GITHUB_EVENT_KEYS = {*LEGACY_GITHUB_EVENT_KEYS, "conclusion"}
 RECEIPT_KEYS = {
     "sequence",
     "operation",
@@ -357,7 +386,7 @@ class ContractError(ValueError):
     """Raised when connector-supplied protocol evidence is invalid."""
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     raise ContractError(message)
 
 
@@ -718,10 +747,31 @@ def validate_slices(value: Any, mode: str) -> list[dict[str, Any]]:
     return result
 
 
-def validate_github_event(value: Any) -> dict[str, Any]:
-    event = exact_object(value, "github_event", GITHUB_EVENT_KEYS)
+def validate_github_event(
+    value: Any,
+    *,
+    allow_legacy: bool = False,
+    allow_unknown_conclusion: bool = False,
+) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        fail("github_event must be an object")
+    if set(value) == LEGACY_GITHUB_EVENT_KEYS and allow_legacy:
+        event = deepcopy(value)
+        event["conclusion"] = (
+            "UNKNOWN"
+            if event.get("kind") == "WORKFLOW_RUN"
+            or event.get("action") == "STATUS_SUCCEEDED"
+            else "NOT_APPLICABLE"
+        )
+    else:
+        event = exact_object(value, "github_event", GITHUB_EVENT_KEYS)
     kind = closed(event["kind"], "github_event.kind", GITHUB_EVENT_KINDS)
-    closed(event["action"], "github_event.action", GITHUB_EVENT_ACTIONS[kind])
+    action = closed(event["action"], "github_event.action", GITHUB_EVENT_ACTIONS[kind])
+    conclusion = closed(
+        event["conclusion"],
+        "github_event.conclusion",
+        GITHUB_EVENT_CONCLUSIONS,
+    )
     repository(event["repository"], "github_event.repository")
     reference = one_line(event["reference"], "github_event.reference", maximum=120)
     event_sha = sha_or_none(event["sha"], "github_event.sha")
@@ -738,16 +788,36 @@ def validate_github_event(value: Any) -> dict[str, Any]:
     elif kind == "WORKFLOW_RUN":
         if RUN_PATTERN.fullmatch(reference) is None or event_sha == "NONE":
             fail("a workflow event requires run:<id> and an exact head SHA")
+        if conclusion == "UNKNOWN" and not allow_unknown_conclusion:
+            fail("a workflow event requires its exact terminal conclusion")
+        if conclusion in {"NOT_APPLICABLE", "UNKNOWN"} and not (
+            conclusion == "UNKNOWN" and allow_unknown_conclusion
+        ):
+            fail("a completed workflow event requires a terminal conclusion")
     elif kind == "DEPLOYMENT":
         if DEPLOYMENT_PATTERN.fullmatch(reference) is None or event_sha == "NONE":
             fail("a deployment event requires deployment:<id> and an exact SHA")
+        if action == "CREATED" and conclusion != "NOT_APPLICABLE":
+            fail("a created deployment event has no terminal conclusion")
+        if (
+            action == "STATUS_SUCCEEDED"
+            and conclusion != "SUCCESS"
+            and not (conclusion == "UNKNOWN" and allow_unknown_conclusion)
+        ):
+            fail("a successful deployment status requires SUCCESS")
     else:
         if not reference.startswith("release:v"):
             fail("a release event requires release:v<semantic-version>")
         semver(reference.removeprefix("release:v"), "github_event release")
         if event_sha == "NONE":
             fail("a release event requires an exact published build SHA")
+    if kind not in {"WORKFLOW_RUN", "DEPLOYMENT"} and conclusion != "NOT_APPLICABLE":
+        fail("this GitHub event kind requires conclusion NOT_APPLICABLE")
     return event
+
+
+def github_event_identity(value: dict[str, Any]) -> str:
+    return object_sha256({key: value[key] for key in LEGACY_GITHUB_EVENT_KEYS})
 
 
 def build_receipt(
@@ -761,7 +831,10 @@ def build_receipt(
     previous_receipt_sha256: str,
 ) -> dict[str, Any]:
     closed(operation, "receipt.operation", RECEIPT_OPERATIONS)
-    validate_github_event(github_event)
+    validate_github_event(
+        github_event,
+        allow_unknown_conclusion=operation == "SCHEMA_MIGRATION",
+    )
     sha256(previous_state_sha256, "receipt.previous_state_sha256")
     sha256(successor_state_sha256, "receipt.successor_state_sha256")
     if previous_receipt_sha256 != "NONE":
@@ -800,7 +873,10 @@ def validate_last_receipt_binding(campaign: dict[str, Any]) -> None:
     receipt = campaign["receipts"][-1]
     if receipt["operation"] == "SCHEMA_MIGRATION":
         return
-    github_event = receipt["github_event"]
+    github_event = validate_github_event(
+        receipt["github_event"],
+        allow_legacy=True,
+    )
     observed = campaign["observed_event"]
     observed_ref = campaign["observed_event_ref"]
     repo = campaign["repository"]
@@ -882,16 +958,23 @@ def validate_last_receipt_binding(campaign: dict[str, Any]) -> None:
             observed_ref,
             upstream["published_build_sha"],
         )
-    else:
+    elif observed in {"PRODUCTION_DEPLOYED", "PRODUCTION_VERIFIED"}:
+        kind = github_event["kind"]
+        if kind == "WORKFLOW_RUN":
+            action = "COMPLETED"
+        elif kind == "DEPLOYMENT":
+            action = "STATUS_SUCCEEDED"
+        else:
+            fail("production evidence requires a workflow run or deployment event")
         expected = (
-            github_event["kind"],
-            github_event["action"],
+            kind,
+            action,
             repo,
             github_event["reference"],
             observed_ref,
         )
-        if github_event["kind"] not in {"WORKFLOW_RUN", "DEPLOYMENT"}:
-            fail("production evidence requires a workflow run or deployment event")
+    else:
+        fail("the observed event has no closed GitHub receipt binding")
     observed_tuple = (
         github_event["kind"],
         github_event["action"],
@@ -901,6 +984,18 @@ def validate_last_receipt_binding(campaign: dict[str, Any]) -> None:
     )
     if observed_tuple != expected:
         fail("the last receipt is not bound to the current real GitHub event")
+    if observed in {
+        "GATES_PASSED",
+        "RELEASE_VERIFIED",
+        "PRODUCTION_DEPLOYED",
+        "PRODUCTION_VERIFIED",
+    } and github_event["conclusion"] != "SUCCESS":
+        fail(f"{observed} requires a successful GitHub event conclusion")
+    if (
+        observed == "GATES_FAILED"
+        and github_event["conclusion"] not in UNSUCCESSFUL_GITHUB_CONCLUSIONS
+    ):
+        fail("GATES_FAILED requires an unsuccessful GitHub event conclusion")
 
 
 def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
@@ -920,8 +1015,12 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
             fail("the first receipt must initialize or migrate the campaign")
         if index > 1 and operation != "STATE_TRANSITION":
             fail("only state transitions may follow the first receipt")
-        validate_github_event(item["github_event"])
-        event_identity = object_sha256(item["github_event"])
+        checked_event = validate_github_event(
+            item["github_event"],
+            allow_legacy=True,
+            allow_unknown_conclusion=operation == "SCHEMA_MIGRATION",
+        )
+        event_identity = github_event_identity(checked_event)
         if event_identity in github_events:
             fail("a real GitHub event cannot be reused by another receipt")
         github_events.add(event_identity)
@@ -1284,6 +1383,7 @@ def infer_migration_event(value: dict[str, Any]) -> dict[str, Any]:
             "repository": repo,
             "reference": ref,
             "sha": "NONE",
+            "conclusion": "NOT_APPLICABLE",
         }
     if SHA_PATTERN.fullmatch(ref):
         merged = [item for item in value["slices"] if item["merge_sha"] == ref]
@@ -1294,6 +1394,7 @@ def infer_migration_event(value: dict[str, Any]) -> dict[str, Any]:
                 "repository": repo,
                 "reference": merged[0]["pr"],
                 "sha": ref,
+                "conclusion": "NOT_APPLICABLE",
             }
         return {
             "kind": "COMMIT",
@@ -1301,6 +1402,7 @@ def infer_migration_event(value: dict[str, Any]) -> dict[str, Any]:
             "repository": repo,
             "reference": ref,
             "sha": ref,
+            "conclusion": "NOT_APPLICABLE",
         }
     if RUN_PATTERN.fullmatch(ref):
         heads = [
@@ -1317,6 +1419,7 @@ def infer_migration_event(value: dict[str, Any]) -> dict[str, Any]:
             "repository": repo,
             "reference": ref,
             "sha": build,
+            "conclusion": "UNKNOWN",
         }
     if ref.startswith("release:v"):
         build = value["train"]["build_sha"]
@@ -1328,6 +1431,7 @@ def infer_migration_event(value: dict[str, Any]) -> dict[str, Any]:
             "repository": repo,
             "reference": ref,
             "sha": build,
+            "conclusion": "NOT_APPLICABLE",
         }
     fail("legacy observed event cannot be bound to a real GitHub resource")
 
@@ -1414,6 +1518,24 @@ def migrate_campaign(value: Any) -> dict[str, Any]:
         "stop_reason": value["stop_reason"],
         "next_action": deepcopy(value["next_action"]),
     }
+    if (
+        value["observed_event"],
+        value["pending_action"]["kind"],
+    ) in LEGACY_SUCCESS_DEPENDENT_ACTIONS:
+        migrated["campaign_state"] = "WAITING_EVENT"
+        migrated["pending_action"] = {
+            "kind": "WAIT_FOR_EVENT",
+            "slice_id": "NONE",
+        }
+        migrated["stop_reason"] = "NONE"
+        migrated["next_action"] = {
+            "type": "WAIT_EVENT",
+            "summary": (
+                "Wait for a new exact-head successful workflow event before "
+                "continuing."
+            ),
+            "prompt": "NONE",
+        }
     validate_campaign_v2(migrated, validate_receipt_chain=False)
     receipt = build_receipt(
         sequence=1,
@@ -1482,11 +1604,24 @@ def append_transition_receipt(
     successor_digest = campaign_state_sha256(successor_value)
     last = previous_value["receipts"][-1]
     if previous_digest == successor_digest:
-        if checked_event == last["github_event"]:
+        last_event = validate_github_event(
+            last["github_event"],
+            allow_legacy=True,
+            allow_unknown_conclusion=last["operation"] == "SCHEMA_MIGRATION",
+        )
+        if (
+            github_event_identity(checked_event) == github_event_identity(last_event)
+            and checked_event["conclusion"] == last_event["conclusion"]
+        ):
             return previous_value
         fail("a new GitHub event cannot create a receipt without a state transition")
     for old_receipt in previous_value["receipts"]:
-        if old_receipt["github_event"] == checked_event:
+        old_event = validate_github_event(
+            old_receipt["github_event"],
+            allow_legacy=True,
+            allow_unknown_conclusion=old_receipt["operation"] == "SCHEMA_MIGRATION",
+        )
+        if github_event_identity(old_event) == github_event_identity(checked_event):
             fail("a real GitHub event cannot be reused for a different transition")
     new_receipt = build_receipt(
         sequence=len(previous_value["receipts"]) + 1,

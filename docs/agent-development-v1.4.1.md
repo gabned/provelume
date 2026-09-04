@@ -70,7 +70,8 @@ Every schema v2 campaign contains at least one receipt. A receipt records:
 - a contiguous sequence and closed operation (`INITIALIZE`,
   `SCHEMA_MIGRATION`, or `STATE_TRANSITION`);
 - one closed real GitHub resource event: issue, pull request, commit, workflow
-  run, release, or deployment, plus its closed action;
+  run, release, or deployment, plus its closed action and applicable terminal
+  conclusion;
 - SHA-256 of the predecessor and successor campaign state, where state excludes
   only the receipt list to avoid a circular digest;
 - the previous receipt digest, deterministic idempotency key, and its own
@@ -91,6 +92,28 @@ two receipts at once, or supplying time/polling text as an event fails closed.
 GitHub publication and later release verification are separate evidence:
 publication consumes the exact `RELEASE` event, while verification consumes an
 exact-head `WORKFLOW_RUN`, so neither receipt reuses the other event.
+
+Workflow conclusions are a closed registry. `GATES_PASSED`, release
+verification, deployment, and production verification require `SUCCESS`, while
+`GATES_FAILED` requires a terminal non-success conclusion. A
+`DEPLOYMENT/CREATED` event is non-terminal and cannot satisfy
+`PRODUCTION_DEPLOYED` or `PRODUCTION_VERIFIED`; deployment evidence is either a
+successful completed workflow run or `DEPLOYMENT/STATUS_SUCCEEDED`. Production
+verification consumes a second successful GitHub event. Event reuse is checked
+without the conclusion field, so rewriting only an outcome cannot create new
+evidence.
+
+Earlier schema v2 receipts without `conclusion` remain readable when the event
+kind is non-ambiguous. Missing workflow or successful-deployment conclusions
+fail closed. A deterministic schema 1 migration may preserve `UNKNOWN` only on
+its single `SCHEMA_MIGRATION` receipt and never converts it into passed-gate,
+deployment, or verification evidence.
+
+A schema v1 snapshot can name a passed or verified state without retaining the
+terminal workflow conclusion. Migration preserves that historical observation
+but replaces any success-dependent next action with `WAITING_EVENT`. Only a
+later, distinct exact-head `WORKFLOW_RUN/COMPLETED/SUCCESS` receipt may restore
+the merge or checkpoint action.
 
 ## Joint campaign and handoff
 
@@ -171,8 +194,9 @@ candidate is neither deployed nor published merely because its gates passed.
 
 `migrate_campaign()` first validates the exact v1.4.0 schema. It then:
 
-1. preserves campaign identity, order, states, authority, scope, checkpoint,
-   inbox, event, pending action, and handoff action;
+1. preserves campaign identity, order, authority, scope, checkpoint, inbox, and
+   event; a success-dependent pending action is closed to `WAITING_EVENT` until
+   new exact-head `SUCCESS` workflow evidence arrives;
 2. maps the singular recorded PR into the first `OWNER` ledger entry;
 3. maps legacy `build_sha` only to the identity justified by the legacy
    publication state;
