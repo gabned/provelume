@@ -213,6 +213,11 @@ UNSUCCESSFUL_GITHUB_CONCLUSIONS = {
     "STALE",
     "STARTUP_FAILURE",
 }
+LEGACY_SUCCESS_DEPENDENT_ACTIONS = {
+    ("GATES_PASSED", "MERGE_ACTIVE_SLICE"),
+    ("RELEASE_VERIFIED", "RECORD_CHECKPOINT"),
+    ("PRODUCTION_VERIFIED", "RECORD_CHECKPOINT"),
+}
 STATE_MODELS = {"PR_LOCAL", "PERSISTENT_CHECKPOINT"}
 HUMAN_BOUNDARIES = {"NONE", "LEVEL_C_AUTHORIZATION"}
 
@@ -1513,6 +1518,24 @@ def migrate_campaign(value: Any) -> dict[str, Any]:
         "stop_reason": value["stop_reason"],
         "next_action": deepcopy(value["next_action"]),
     }
+    if (
+        value["observed_event"],
+        value["pending_action"]["kind"],
+    ) in LEGACY_SUCCESS_DEPENDENT_ACTIONS:
+        migrated["campaign_state"] = "WAITING_EVENT"
+        migrated["pending_action"] = {
+            "kind": "WAIT_FOR_EVENT",
+            "slice_id": "NONE",
+        }
+        migrated["stop_reason"] = "NONE"
+        migrated["next_action"] = {
+            "type": "WAIT_EVENT",
+            "summary": (
+                "Wait for a new exact-head successful workflow event before "
+                "continuing."
+            ),
+            "prompt": "NONE",
+        }
     validate_campaign_v2(migrated, validate_receipt_chain=False)
     receipt = build_receipt(
         sequence=1,

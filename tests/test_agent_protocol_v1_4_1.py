@@ -189,6 +189,61 @@ def test_migration_retains_recorded_pr_without_inventing_overwritten_history() -
     ]
 
 
+def test_migration_revalidates_legacy_passed_gate_before_merge() -> None:
+    legacy = protocol.sample_campaign_v1()
+    legacy["slices"][1].update(
+        {
+            "state": "ACTIVE",
+            "pr": "#4",
+            "head_sha": "4" * 40,
+            "merge_sha": "NONE",
+        }
+    )
+    legacy["observed_event"] = "GATES_PASSED"
+    legacy["observed_event_ref"] = "4" * 40
+    legacy["pending_action"] = {
+        "kind": "MERGE_ACTIVE_SLICE",
+        "slice_id": "pilot/S02",
+    }
+    legacy["next_action"]["summary"] = "Merge pilot/S02 at its passed head."
+
+    migrated = protocol.migrate_campaign(legacy)
+
+    assert migrated["campaign_state"] == "WAITING_EVENT"
+    assert migrated["pending_action"] == {
+        "kind": "WAIT_FOR_EVENT",
+        "slice_id": "NONE",
+    }
+    assert migrated["next_action"]["type"] == "WAIT_EVENT"
+    assert migrated["observed_event"] == "GATES_PASSED"
+
+    ready = deepcopy(migrated)
+    ready["campaign_state"] = "ACTIVE"
+    ready["pending_action"] = {
+        "kind": "MERGE_ACTIVE_SLICE",
+        "slice_id": "pilot/S02",
+    }
+    ready["next_action"] = {
+        "type": "AUTO_CONTINUE",
+        "summary": "Merge pilot/S02 at its newly verified exact head.",
+        "prompt": "NONE",
+    }
+    ready = protocol.append_transition_receipt(
+        migrated,
+        ready,
+        {
+            "kind": "WORKFLOW_RUN",
+            "action": "COMPLETED",
+            "repository": "gabned/provelume",
+            "reference": "run:399",
+            "sha": "4" * 40,
+            "conclusion": "SUCCESS",
+        },
+    )
+
+    assert ready["pending_action"]["kind"] == "MERGE_ACTIVE_SLICE"
+
+
 def test_owner_and_correction_ledger_is_ordered_and_history_preserving() -> None:
     ledger = [
         {

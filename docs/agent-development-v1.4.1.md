@@ -109,6 +109,12 @@ fail closed. A deterministic schema 1 migration may preserve `UNKNOWN` only on
 its single `SCHEMA_MIGRATION` receipt and never converts it into passed-gate,
 deployment, or verification evidence.
 
+A schema v1 snapshot can name a passed or verified state without retaining the
+terminal workflow conclusion. Migration preserves that historical observation
+but replaces any success-dependent next action with `WAITING_EVENT`. Only a
+later, distinct exact-head `WORKFLOW_RUN/COMPLETED/SUCCESS` receipt may restore
+the merge or checkpoint action.
+
 ## Joint campaign and handoff
 
 Schema v2 handoffs carry `campaign_sha256`, the digest of the complete campaign
@@ -188,8 +194,9 @@ candidate is neither deployed nor published merely because its gates passed.
 
 `migrate_campaign()` first validates the exact v1.4.0 schema. It then:
 
-1. preserves campaign identity, order, states, authority, scope, checkpoint,
-   inbox, event, pending action, and handoff action;
+1. preserves campaign identity, order, authority, scope, checkpoint, inbox, and
+   event; a success-dependent pending action is closed to `WAITING_EVENT` until
+   new exact-head `SUCCESS` workflow evidence arrives;
 2. maps the singular recorded PR into the first `OWNER` ledger entry;
 3. maps legacy `build_sha` only to the identity justified by the legacy
    publication state;

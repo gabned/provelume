@@ -123,7 +123,9 @@ schema 1; new or migrated evidence uses `tools/agent_protocol_v1_4_1.py`.
   Publication uses its release event; later verification uses a distinct exact-head
   workflow-run event.
 - Schema 1→2 migration is deterministic and cannot invent overwritten history.
-  Cross-repository fixtures are read-only evidence, never authority or state.
+  A legacy success-dependent action waits for a newly observed exact-head
+  `SUCCESS` workflow receipt before it can continue. Cross-repository fixtures
+  are read-only evidence, never authority or state.
 - See `docs/agent-development-v1.4.1.md` for the complete contract and
   `.github/agent-protocol/conformance-v1.4.1.json` for the sanitized fixture.
 
