@@ -93,13 +93,15 @@ GitHub publication and later release verification are separate evidence:
 publication consumes the exact `RELEASE` event, while verification consumes an
 exact-head `WORKFLOW_RUN`, so neither receipt reuses the other event.
 
-The receipt's event also owns a closed mutation surface. Pull-request, issue,
-and gate events can change only their identified slice; candidate, publication,
+The receipt's event also owns a closed mutation surface. Pull-request and gate
+events can change only their identified slice; `ISSUE/CLOSED` can cancel only
+its identified slice, while `ISSUE/OPENED` may append exactly its own reference
+to the idea inbox without changing frozen scope. Candidate, publication,
 upstream verification, deployment, and terminal verification events can change
 only their corresponding train or checkpoint fields plus orchestration status.
 One event therefore cannot cancel unrelated slices or invent later release,
 deployment, verification, or checkpoint state. Upstream verification also
-requires the release reference to equal the recorded
+requires both the stored observation and release event to equal the recorded
 `release:v{published_version}` exactly.
 
 Workflow conclusions are a closed registry. `GATES_PASSED`, release
@@ -114,9 +116,10 @@ evidence.
 
 Earlier schema v2 receipts without `conclusion` remain readable when the event
 kind is non-ambiguous. Missing workflow or successful-deployment conclusions
-fail closed. A deterministic schema 1 migration may preserve `UNKNOWN` only on
-its single `SCHEMA_MIGRATION` receipt and never converts it into passed-gate,
-deployment, or verification evidence.
+fail closed, while predecessor/successor pairs containing non-ambiguous legacy
+events remain append-only auditable. A deterministic schema 1 migration may
+preserve `UNKNOWN` only on its single `SCHEMA_MIGRATION` receipt and never
+converts it into passed-gate, deployment, or verification evidence.
 
 A schema v1 snapshot can name a passed or verified state without retaining the
 terminal workflow conclusion. Migration preserves that historical observation

@@ -881,6 +881,29 @@ def validate_last_receipt_binding(campaign: dict[str, Any]) -> None:
     observed_ref = campaign["observed_event_ref"]
     repo = campaign["repository"]
     train = campaign["train"]
+    if (
+        receipt["operation"] == "STATE_TRANSITION"
+        and github_event["kind"] == "ISSUE"
+        and github_event["action"] == "OPENED"
+        and github_event["reference"] in campaign["idea_inbox"]["items"]
+    ):
+        expected = (
+            "ISSUE",
+            "OPENED",
+            repo,
+            github_event["reference"],
+            "NONE",
+        )
+        observed_tuple = (
+            github_event["kind"],
+            github_event["action"],
+            github_event["repository"],
+            github_event["reference"],
+            github_event["sha"],
+        )
+        if observed_tuple != expected:
+            fail("the idea receipt is not bound to its exact GitHub issue event")
+        return
     if observed == "INITIAL_AUTHORIZATION":
         expected = ("ISSUE", "OPENED", repo, campaign["owner_issue"], "NONE")
     elif observed in {"PR_OPENED", "PR_SYNCHRONIZED"}:
@@ -951,11 +974,14 @@ def validate_last_receipt_binding(campaign: dict[str, Any]) -> None:
         )
     elif observed == "UPSTREAM_RELEASE_VERIFIED":
         upstream = train["upstream"]
+        release_ref = f"release:v{upstream['published_version']}"
+        if observed_ref != release_ref:
+            fail("upstream observed release reference does not match published_version")
         expected = (
             "RELEASE",
             "PUBLISHED",
             upstream["repository"],
-            f"release:v{upstream['published_version']}",
+            release_ref,
             upstream["published_build_sha"],
         )
     elif observed in {"PRODUCTION_DEPLOYED", "PRODUCTION_VERIFIED"}:
@@ -1636,7 +1662,7 @@ def validate_event_transition(
 ) -> None:
     """Restrict one receipt to the state owned by its exact GitHub event."""
 
-    event = validate_github_event(github_event)
+    event = validate_github_event(github_event, allow_legacy=True)
     allowed = {
         "campaign_state",
         "observed_event",
@@ -1646,7 +1672,15 @@ def validate_event_transition(
         "next_action",
     }
     observed = successor["observed_event"]
-    if observed in {"PR_OPENED", "PR_SYNCHRONIZED", "PR_CLOSED", "PR_MERGED"}:
+    before_items = previous["idea_inbox"]["items"]
+    after_items = successor["idea_inbox"]["items"]
+    if (
+        event["kind"] == "ISSUE"
+        and event["action"] == "OPENED"
+        and after_items == [*before_items, event["reference"]]
+    ):
+        allowed.add("idea_inbox.items")
+    elif observed in {"PR_OPENED", "PR_SYNCHRONIZED", "PR_CLOSED", "PR_MERGED"}:
         index = slice_index_for_event(previous, successor, event)
         allowed.update({f"slices.{index}.state", f"slices.{index}.pull_requests"})
     elif observed in {"SLICE_CANCELLED", "GATES_PASSED", "GATES_FAILED"}:

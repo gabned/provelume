@@ -112,7 +112,9 @@ schema 1; new or migrated evidence uses `tools/agent_protocol_v1_4_1.py`.
   evidence. Each receipt may mutate only the campaign state owned by that exact
   event, so publication cannot also invent verification, checkpoint, slice, or
   deployment state. Repeated reads and elapsed time are not events; `PR_CLOSED`
-  retains an unmerged attempt before any correction opens.
+  retains an unmerged attempt before any correction opens. An exact
+  `ISSUE/OPENED` event may append only its own reference to the idea inbox;
+  non-ambiguous legacy receipts without `conclusion` remain auditable.
 - Campaign and handoff are generated and validated together. The handoff binds
   the complete campaign digest, remains at most 120 words, and has one action.
 - `RESUME_REQUIRED` is reserved for `SESSION_LIMIT`; it carries no prompt,
