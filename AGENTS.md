@@ -86,6 +86,44 @@ The v1.4.0 orchestration overlay preserves every v1.3 review gate and every v1.2
 - The human-facing handoff is at most 120 words and contains exactly one next action. An exact prompt appears only for `USER_ACTION_REQUIRED`; otherwise the agent continues or waits without asking.
 - See `docs/agent-development-v1.4.0.md` for the schema, local profile and cross-repository compatibility analysis.
 
+## Agent Development Protocol v1.4.1 auditable continuation
+
+`AGENT_DEVELOPMENT_PROTOCOL: 1.4.1`
+
+`LIFECYCLE_SCHEMA: 1.2`
+
+`CAMPAIGN_SCHEMA: 2`
+
+`HANDOFF_SCHEMA: 2`
+
+The v1.4.1 hardening preserves every v1.3 and earlier gate. The unchanged
+`tools/agent_protocol_v1_4.py` remains the compatibility validator for 1.4.0
+schema 1; new or migrated evidence uses `tools/agent_protocol_v1_4_1.py`.
+
+- Each slice retains an ordered `OWNER` then `CORRECTION` pull-request ledger.
+  Across one campaign, at most one ledger entry may be open; merged and closed
+  entries are never replaced by a correction. The current open entry may advance
+  its head only through a distinct GitHub-backed `PR_SYNCHRONIZED` receipt.
+- Every schema 2 state change appends one idempotent receipt bound to a real,
+  closed GitHub event and action, predecessor/successor state digests, the prior
+  receipt, and its own canonical digest. Repeated reads and elapsed time are not
+  events; `PR_CLOSED` retains an unmerged attempt before any correction opens.
+- Campaign and handoff are generated and validated together. The handoff binds
+  the complete campaign digest, remains at most 120 words, and has one action.
+- `RESUME_REQUIRED` is reserved for `SESSION_LIMIT`; it carries no prompt,
+  changes no campaign state, and is neither a blocker nor a human decision.
+- Release profiles are closed by repository: Core `GITHUB_ARTIFACT`, BrickMS
+  `CODE_ONLY_PRODUCTION_B`, Maxithlon `DEPLOYMENT_LEVEL_C`, and provelume.com
+  `UPSTREAM_RELEASE_VERIFIED`. Level C remains explicitly human-only.
+- Train, target version, published version, candidate build, deployed build,
+  published build, and any upstream published build remain separate identities.
+  Publication uses its release event; later verification uses a distinct exact-head
+  workflow-run event.
+- Schema 1→2 migration is deterministic and cannot invent overwritten history.
+  Cross-repository fixtures are read-only evidence, never authority or state.
+- See `docs/agent-development-v1.4.1.md` for the complete contract and
+  `.github/agent-protocol/conformance-v1.4.1.json` for the sanitized fixture.
+
 ## Delivery and release discipline
 
 - Start from the verified default-branch SHA and keep the pull-request delta minimal.
@@ -118,4 +156,4 @@ On Windows, use `.venv\Scripts\python.exe`. For release-chain changes, also exer
 
 GitHub checks, reviews, issue/PR records and machine reports must retain the verified default SHA, required base SHA, owner pull request and head SHA, workstream class, observed path categories, intended version, checks run, remaining blocker codes, any `PROTOCOL_ESCALATION`, and whether any tag or release action remains.
 
-The human-facing handoff follows v1.4.0: at most 120 words, exactly one `Next action`, and one exact `Prompt` only when `USER_ACTION_REQUIRED` (otherwise `NONE`). Detailed evidence stays linked rather than repeated. GitHub remains authoritative if the handoff becomes stale.
+The human-facing handoff follows v1.4.1: at most 120 words, exactly one `Next action`, and one exact `Prompt` only when `USER_ACTION_REQUIRED` (otherwise `NONE`). `RESUME_REQUIRED` is only a session-limit continuation and never a substitute for a blocker or human decision. Detailed evidence stays linked rather than repeated. GitHub remains authoritative if the handoff becomes stale.

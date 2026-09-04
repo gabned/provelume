@@ -15,7 +15,7 @@ PROTOCOL_VERSION = "1.2"
 SCHEMA_VERSION = 2
 CHANGE_CONTROL_VERSION = "1.2.1"
 CHANGE_CONTROL_SCHEMA_VERSION = 1
-GOVERNANCE_RELEASE = "1.4.0"
+GOVERNANCE_RELEASE = "1.4.1"
 REPOSITORY = "gabned/provelume"
 DEFAULT_BRANCH = "main"
 MAX_EVIDENCE_AGE = timedelta(minutes=15)
@@ -45,6 +45,7 @@ WAIVER_PATTERN = re.compile(
 POLICIES = {"NO_PRODUCTION", "REPOSITORY_POLICY"}
 SOURCES = {"LOCAL_GIT", "GITHUB_CONNECTOR"}
 SAFE_PROTOCOL_PATHS = {
+    ".github/agent-protocol/conformance-v1.4.1.json",
     ".github/workflows/ci.yml",
     ".github/pull_request_template.md",
     ".gitignore",
@@ -53,14 +54,18 @@ SAFE_PROTOCOL_PATHS = {
     "docs/agent-development-v1.2.1.md",
     "docs/agent-development-v1.3.0.md",
     "docs/agent-development-v1.4.0.md",
+    "docs/agent-development-v1.4.1.md",
     "tests/test_agent_protocol_v1_2.py",
     "tests/test_agent_protocol_v1_2_1.py",
     "tests/test_agent_protocol_v1_4.py",
+    "tests/test_agent_protocol_v1_4_1.py",
     "tools/agent_protocol.py",
     "tools/agent_protocol_v1_4.py",
+    "tools/agent_protocol_v1_4_1.py",
 }
 WORKSTREAM_CLASSES = {"PRODUCT", "PROTOCOL"}
 PROTECTED_PROTOCOL_EXACT = {
+    ".github/agent-protocol/conformance-v1.4.1.json",
     ".github/CODEOWNERS",
     ".github/pull_request_template.md",
     ".github/workflows/ci.yml",
@@ -70,11 +75,14 @@ PROTECTED_PROTOCOL_EXACT = {
     "docs/agent-development-v1.2.1.md",
     "docs/agent-development-v1.3.0.md",
     "docs/agent-development-v1.4.0.md",
+    "docs/agent-development-v1.4.1.md",
     "tests/test_agent_protocol_v1_2.py",
     "tests/test_agent_protocol_v1_2_1.py",
     "tests/test_agent_protocol_v1_4.py",
+    "tests/test_agent_protocol_v1_4_1.py",
     "tools/agent_protocol.py",
     "tools/agent_protocol_v1_4.py",
+    "tools/agent_protocol_v1_4_1.py",
 }
 PROTECTED_PROTOCOL_PREFIXES = (
     ".github/agent-protocol/",
