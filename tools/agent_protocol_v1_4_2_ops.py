@@ -33,7 +33,8 @@ PROVENANCE_PATH = "docs/agent-development-v1.4.2-provenance.md"
 TERMINAL = {"SUCCESS", "FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED",
             "NEUTRAL", "SKIPPED", "STALE", "STARTUP_FAILURE"}
 CI_EVENTS = {"pull_request", "pull_request_target", "push", "merge_group",
-             "workflow_dispatch", "workflow_run", "schedule", "release", "dynamic"}
+             "workflow_dispatch", "workflow_run", "schedule", "release", "dynamic",
+             "pull_request_review"}
 
 
 def require(condition: bool, message: str) -> None:
@@ -638,6 +639,13 @@ def validate_audit_input(value: Any, *, now: datetime | None = None) -> dict:
         require(bool(operations), "missing repository integration evidence")
         for operation in operations:
             e = validate_operations(operation, now=now)
+            integrations = [e] + [f[key] for f in e["late_findings"]
+                                  for key in ("origin", "correction")]
+            for integration in integrations:
+                references = re.findall(r"(?m)^CAMPAIGN_REF:[ \t]*([^\r\n]+?)[ \t]*$",
+                                        integration["pr"]["body"])
+                require(references == [a["campaign_ref"]],
+                        "integration operation does not bind the audited campaign")
             require(e["phase"] == "POST_MERGE" and e["pr"]["repository"] == r["repository"]
                     and e["merge"]["default_sha"] == r["default_sha"], "unreconciled repository")
         if r["repository"] == "gabned/nexus":
