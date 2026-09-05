@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import importlib.util
+from collections.abc import Callable
 from copy import deepcopy
 from pathlib import Path
-from typing import Callable
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(
