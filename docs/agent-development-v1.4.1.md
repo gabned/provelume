@@ -90,7 +90,10 @@ successor must equal the current campaign-state digest.
 Validation reconstructs the state after every receipt, verifies the snapshots
 against both digests, and applies the immutable-identity, ordered-ledger, frozen
 scope, exact-event binding, and event-owned mutation checks to every adjacent
-pair. Digest continuity alone is never transition evidence. A legacy final
+pair. Digest continuity alone is never transition evidence. A
+`SCHEMA_MIGRATION` receipt always carries both its exact schema v1 source and
+deterministic schema v2 result snapshots; omitting either fails closed even when
+the migration is the final receipt. A legacy final
 transition remains readable when its predecessor and current successor are
 uniquely reconstructible. After continuation, the next receipt's predecessor
 snapshot supplies that same legacy successor. Consecutive missing intermediate
@@ -120,8 +123,12 @@ exact-head `WORKFLOW_RUN`, so neither receipt reuses the other event.
 
 The receipt's event also owns a closed mutation surface. Pull-request and gate
 events can change only their identified slice; `ISSUE/CLOSED` can cancel only
-its identified slice, while `ISSUE/OPENED` may append exactly its own reference
-to the idea inbox without changing frozen scope. Candidate, publication,
+its identified slice. `SLICE_ISSUE_OPENED` consumes exactly one
+`ISSUE/OPENED` event to assign its reference to one issue-less `PLANNED` slice
+and activate only that slice; it cannot rewrite a retained issue, choose an
+ambiguous slice, change a PR ledger, train, checkpoint, or inbox, or reuse the
+event. Outside that transition, `ISSUE/OPENED` may append exactly its own
+reference to the idea inbox without changing frozen scope. Candidate, publication,
 upstream verification, deployment, and terminal verification events can change
 only their corresponding train or checkpoint fields plus orchestration status.
 One event therefore cannot cancel unrelated slices or invent later release,
@@ -138,8 +145,12 @@ successful completed workflow run or `DEPLOYMENT/STATUS_SUCCEEDED`. Production
 verification consumes a second successful GitHub event. Event reuse is checked
 without the conclusion field, so rewriting only an outcome cannot create new
 evidence.
-The verification event must carry the exact recorded deployed build; an
-unrelated successful SHA cannot complete the train or record its checkpoint.
+Candidate qualification binds both `observed_event_ref` and the commit event's
+reference/SHA to `candidate_build_sha`. Deployment binds both
+`observed_event_ref` and the successful workflow or deployment event SHA to
+`deployed_build_sha`; terminal verification uses a distinct event carrying that
+same exact build. An unrelated successful SHA cannot qualify, deploy, complete,
+or checkpoint the train.
 
 Earlier schema v2 receipts without `conclusion` remain readable when the event
 kind is non-ambiguous. Missing workflow or successful-deployment conclusions

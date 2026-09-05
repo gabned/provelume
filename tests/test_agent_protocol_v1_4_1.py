@@ -246,6 +246,7 @@ def test_persisted_migration_revalidates_its_inferred_github_event() -> None:
 def test_initialize_rejects_an_effected_terminal_campaign() -> None:
     value = terminal_profile_campaign("maxithlon/maxithlon")
     value["campaign_state"] = "COMPLETE"
+    value["stop_reason"] = "NONE"
     value["pending_action"] = {"kind": "NO_ACTION", "slice_id": "NONE"}
     value["next_action"] = {
         "type": "CAMPAIGN_COMPLETE",
@@ -1258,52 +1259,173 @@ def terminal_profile_campaign(repository: str) -> dict[str, object]:
     value = profile_campaign(repository)
     value["campaign_mode"] = "RELEASE_TRAIN"
     value["workstream_class"] = "PRODUCT"
-    value["slices"] = [
+    if repository == "gabned/provelume":
+        value["authority_envelope"] = "THROUGH_RELEASE"
+        value["risk_profile"] = "PUBLIC_ARTIFACT"
+    elif repository == "maxithlon/maxithlon":
+        value["authority_envelope"] = "THROUGH_PRODUCTION_B"
+        value["risk_profile"] = "CRITICAL_PRODUCTION"
+    else:
+        value["authority_envelope"] = "THROUGH_PRODUCTION_B"
+        value["risk_profile"] = "REVERSIBLE_PRODUCTION"
+    value = initialize(
+        value,
         {
-            "id": "profile/S01",
-            "state": "MERGED",
-            "issue": "#165",
+            "kind": "ISSUE",
+            "action": "OPENED",
+            "repository": repository,
+            "reference": "#164",
+            "sha": "NONE",
+            "conclusion": "NOT_APPLICABLE",
+        },
+    )
+
+    opened = deepcopy(value)
+    opened["slices"][0].update(
+        {
+            "state": "ACTIVE",
             "pull_requests": [
                 {
                     "sequence": 1,
                     "role": "OWNER",
                     "pr": "#166",
-                    "state": "MERGED",
+                    "state": "OPEN",
                     "head_sha": "5" * 40,
-                    "merge_sha": "6" * 40,
+                    "merge_sha": "NONE",
                 }
             ],
         }
-    ]
-    value["train"]["publication_state"] = "CANDIDATE"
-    value["train"]["candidate_build_sha"] = "7" * 40
-    value["observed_event"] = "GATES_PASSED"
-    value["observed_event_ref"] = "7" * 40
-    value["receipts"] = []
-    return value
-
-
-def brick_production_candidate() -> dict[str, object]:
-    value = terminal_profile_campaign("brickms/brickms")
-    value["authority_envelope"] = "THROUGH_PRODUCTION_B"
-    value["risk_profile"] = "REVERSIBLE_PRODUCTION"
-    value["pending_action"] = {"kind": "DEPLOY_PRODUCTION_B", "slice_id": "NONE"}
-    value["next_action"] = {
-        "type": "AUTO_CONTINUE",
-        "summary": "Deploy the exact candidate through code-only production B.",
-        "prompt": "NONE",
+    )
+    opened["observed_event"] = "PR_OPENED"
+    opened["observed_event_ref"] = "#166"
+    opened["pending_action"] = {
+        "kind": "CONTINUE_ACTIVE_SLICE",
+        "slice_id": "profile/S01",
     }
-    return initialize(
+    opened["next_action"]["summary"] = "Continue profile/S01 on its exact owner PR."
+    opened = protocol.append_transition_receipt(
         value,
+        opened,
+        {
+            "kind": "PULL_REQUEST",
+            "action": "OPENED",
+            "repository": repository,
+            "reference": "#166",
+            "sha": "5" * 40,
+            "conclusion": "NOT_APPLICABLE",
+        },
+    )
+
+    gated = deepcopy(opened)
+    gated["observed_event"] = "GATES_PASSED"
+    gated["observed_event_ref"] = "5" * 40
+    gated["pending_action"] = {
+        "kind": "MERGE_ACTIVE_SLICE",
+        "slice_id": "profile/S01",
+    }
+    gated["next_action"]["summary"] = "Merge profile/S01 at its exact passed head."
+    gated = protocol.append_transition_receipt(
+        opened,
+        gated,
         {
             "kind": "WORKFLOW_RUN",
             "action": "COMPLETED",
-            "repository": "brickms/brickms",
-            "reference": "run:450",
-            "sha": "7" * 40,
+            "repository": repository,
+            "reference": "run:440",
+            "sha": "5" * 40,
             "conclusion": "SUCCESS",
         },
     )
+
+    merged = deepcopy(gated)
+    merged["campaign_state"] = "WAITING_EVENT"
+    merged["slices"][0]["state"] = "MERGED"
+    merged["slices"][0]["pull_requests"][0].update(
+        {"state": "MERGED", "merge_sha": "6" * 40}
+    )
+    merged["observed_event"] = "PR_MERGED"
+    merged["observed_event_ref"] = "6" * 40
+    merged["pending_action"] = {"kind": "WAIT_FOR_EVENT", "slice_id": "NONE"}
+    merged["next_action"] = {
+        "type": "WAIT_EVENT",
+        "summary": "Wait for the exact qualified candidate commit.",
+        "prompt": "NONE",
+    }
+    merged = protocol.append_transition_receipt(
+        gated,
+        merged,
+        {
+            "kind": "PULL_REQUEST",
+            "action": "MERGED",
+            "repository": repository,
+            "reference": "#166",
+            "sha": "6" * 40,
+            "conclusion": "NOT_APPLICABLE",
+        },
+    )
+
+    candidate = deepcopy(merged)
+    candidate["train"]["publication_state"] = "CANDIDATE"
+    candidate["train"]["candidate_build_sha"] = "7" * 40
+    candidate["observed_event"] = "RELEASE_CANDIDATE_MERGED"
+    candidate["observed_event_ref"] = "7" * 40
+    candidate["campaign_state"] = "ACTIVE"
+    candidate["stop_reason"] = "NONE"
+    if repository == "gabned/provelume":
+        candidate["pending_action"] = {"kind": "PUBLISH_RELEASE", "slice_id": "NONE"}
+        candidate["next_action"] = {
+            "type": "AUTO_CONTINUE",
+            "summary": "Publish the exact candidate as the target release.",
+            "prompt": "NONE",
+        }
+    elif repository == "gabned/provelume.com":
+        candidate["pending_action"] = {
+            "kind": "VERIFY_UPSTREAM_RELEASE",
+            "slice_id": "NONE",
+        }
+        candidate["next_action"] = {
+            "type": "AUTO_CONTINUE",
+            "summary": "Verify the exact upstream release before site deployment.",
+            "prompt": "NONE",
+        }
+    elif repository == "maxithlon/maxithlon":
+        candidate["campaign_state"] = "HUMAN_GATE"
+        candidate["pending_action"] = {
+            "kind": "DEPLOY_PRODUCTION_C",
+            "slice_id": "NONE",
+        }
+        candidate["stop_reason"] = "LEVEL_C_AUTHORIZATION"
+        candidate["next_action"] = {
+            "type": "USER_ACTION_REQUIRED",
+            "summary": "Authorize the exact candidate for deployment Level C.",
+            "prompt": "CONFIRM-PRODUCTION-RELEASE 1.4.1",
+        }
+    else:
+        candidate["pending_action"] = {
+            "kind": "DEPLOY_PRODUCTION_B",
+            "slice_id": "NONE",
+        }
+        candidate["next_action"] = {
+            "type": "AUTO_CONTINUE",
+            "summary": "Deploy the exact candidate through code-only production B.",
+            "prompt": "NONE",
+        }
+    return protocol.append_transition_receipt(
+        merged,
+        candidate,
+        {
+            "kind": "COMMIT",
+            "action": "CREATED",
+            "repository": repository,
+            "reference": "7" * 40,
+            "sha": "7" * 40,
+            "conclusion": "NOT_APPLICABLE",
+        },
+    )
+
+
+def brick_production_candidate() -> dict[str, object]:
+    return terminal_profile_campaign("brickms/brickms")
 
 
 def deployed_brick_campaign() -> tuple[dict[str, object], dict[str, object]]:
@@ -1440,17 +1562,7 @@ def test_code_only_production_b_profile_accepts_only_reversible_deploy() -> None
         "prompt": "NONE",
     }
 
-    initialize(
-        value,
-        {
-            "kind": "WORKFLOW_RUN",
-            "action": "COMPLETED",
-            "repository": "brickms/brickms",
-            "reference": "run:401",
-            "sha": "7" * 40,
-            "conclusion": "SUCCESS",
-        },
-    )
+    protocol.validate_campaign_v2(value)
 
 
 def test_level_c_profile_requires_a_closed_human_gate() -> None:
@@ -1465,17 +1577,7 @@ def test_level_c_profile_requires_a_closed_human_gate() -> None:
         "summary": "Authorize the exact candidate for deployment Level C.",
         "prompt": "CONFIRM-PRODUCTION-RELEASE 1.4.1",
     }
-    initialize(
-        value,
-        {
-            "kind": "WORKFLOW_RUN",
-            "action": "COMPLETED",
-            "repository": "maxithlon/maxithlon",
-            "reference": "run:402",
-            "sha": "7" * 40,
-            "conclusion": "SUCCESS",
-        },
-    )
+    protocol.validate_campaign_v2(value)
 
     value["campaign_state"] = "ACTIVE"
     value["stop_reason"] = "NONE"
@@ -1520,23 +1622,35 @@ def test_site_profile_requires_verified_upstream_before_production_b() -> None:
     with pytest.raises(protocol.ContractError, match="cannot precede"):
         protocol.validate_campaign_v2(value, validate_receipt_chain=False)
 
-    value["train"]["upstream"] = {
+    pending = terminal_profile_campaign("gabned/provelume.com")
+    verified = deepcopy(pending)
+    verified["train"]["upstream"] = {
         "repository": "gabned/provelume",
         "published_version": "0.9.0",
         "published_build_sha": "8" * 40,
         "verification_state": "VERIFIED",
     }
-    initialize(
-        value,
+    verified["observed_event"] = "UPSTREAM_RELEASE_VERIFIED"
+    verified["observed_event_ref"] = "release:v0.9.0"
+    verified["pending_action"] = {"kind": "DEPLOY_PRODUCTION_B", "slice_id": "NONE"}
+    verified["next_action"] = {
+        "type": "AUTO_CONTINUE",
+        "summary": "Deploy the exact site candidate after upstream verification.",
+        "prompt": "NONE",
+    }
+    verified = protocol.append_transition_receipt(
+        pending,
+        verified,
         {
-            "kind": "WORKFLOW_RUN",
-            "action": "COMPLETED",
-            "repository": "gabned/provelume.com",
-            "reference": "run:403",
-            "sha": "7" * 40,
-            "conclusion": "SUCCESS",
+            "kind": "RELEASE",
+            "action": "PUBLISHED",
+            "repository": "gabned/provelume",
+            "reference": "release:v0.9.0",
+            "sha": "8" * 40,
+            "conclusion": "NOT_APPLICABLE",
         },
     )
+    protocol.validate_campaign_v2(verified)
 
 
 def test_train_separates_candidate_deployed_and_published_builds() -> None:
@@ -1573,17 +1687,7 @@ def test_release_publication_and_verification_use_distinct_github_events() -> No
         "summary": "Publish the exact candidate as the target release.",
         "prompt": "NONE",
     }
-    candidate = initialize(
-        candidate,
-        {
-            "kind": "COMMIT",
-            "action": "CREATED",
-            "repository": "gabned/provelume",
-            "reference": "7" * 40,
-            "sha": "7" * 40,
-            "conclusion": "NOT_APPLICABLE",
-        },
-    )
+    protocol.validate_campaign_v2(candidate)
 
     published = deepcopy(candidate)
     published["train"].update(
@@ -1645,17 +1749,7 @@ def test_release_event_cannot_skip_verification_or_mutate_unrelated_state() -> N
         "summary": "Publish the exact candidate as the target release.",
         "prompt": "NONE",
     }
-    candidate = initialize(
-        candidate,
-        {
-            "kind": "COMMIT",
-            "action": "CREATED",
-            "repository": "gabned/provelume",
-            "reference": "7" * 40,
-            "sha": "7" * 40,
-            "conclusion": "NOT_APPLICABLE",
-        },
-    )
+    protocol.validate_campaign_v2(candidate)
 
     forged = deepcopy(candidate)
     forged["train"].update(
@@ -1711,20 +1805,10 @@ def test_upstream_verification_binds_the_recorded_published_version() -> None:
     }
     pending["next_action"] = {
         "type": "AUTO_CONTINUE",
-        "summary": "Verify the recorded upstream release.",
+        "summary": "Verify the exact upstream release before site deployment.",
         "prompt": "NONE",
     }
-    pending = initialize(
-        pending,
-        {
-            "kind": "WORKFLOW_RUN",
-            "action": "COMPLETED",
-            "repository": "gabned/provelume.com",
-            "reference": "run:460",
-            "sha": "7" * 40,
-            "conclusion": "SUCCESS",
-        },
-    )
+    protocol.validate_campaign_v2(pending)
 
     verified = deepcopy(pending)
     verified["train"]["upstream"].update(

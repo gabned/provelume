@@ -118,9 +118,13 @@ schema 1; new or migrated evidence uses `tools/agent_protocol_v1_4_1.py`.
   evidence. Each receipt may mutate only the campaign state owned by that exact
   event, so publication cannot also invent verification, checkpoint, slice, or
   deployment state. Repeated reads and elapsed time are not events; `PR_CLOSED`
-  retains an unmerged attempt before any correction opens. An exact
-  `ISSUE/OPENED` event may append only its own reference to the idea inbox;
-  non-ambiguous legacy receipts without `conclusion` remain auditable.
+  retains an unmerged attempt before any correction opens. `SLICE_ISSUE_OPENED`
+  binds one exact `ISSUE/OPENED` event to one issue-less `PLANNED` slice, assigns
+  only that issue, and activates only that slice. Otherwise an exact
+  `ISSUE/OPENED` event may append only its own reference to the idea inbox.
+  Every `SCHEMA_MIGRATION` receipt retains both exact migration snapshots;
+  a snapshotless receipt fails closed even when it is the terminal receipt.
+  Non-ambiguous legacy receipts without `conclusion` remain auditable.
 - Campaign and handoff are generated and validated together. The handoff binds
   the complete campaign digest, remains at most 120 words, and has one action.
 - `RESUME_REQUIRED` is reserved for `SESSION_LIMIT`; it carries no prompt,
@@ -130,9 +134,11 @@ schema 1; new or migrated evidence uses `tools/agent_protocol_v1_4_1.py`.
   `UPSTREAM_RELEASE_VERIFIED`. Level C remains explicitly human-only.
 - Train, target version, published version, candidate build, deployed build,
   published build, and any upstream published build remain separate identities.
-  Publication uses its release event; later verification uses a distinct exact-head
-  workflow-run event. Upstream verification binds the exact recorded repository,
-  `release:v{published_version}` reference, and published build.
+  Candidate qualification and deployment each bind both the stored observed
+  reference and the GitHub event SHA to the exact corresponding train build.
+  Publication uses its release event; later verification uses a distinct
+  exact-head workflow-run event. Upstream verification binds the exact recorded
+  repository, `release:v{published_version}` reference, and published build.
 - Schema 1→2 migration is deterministic and cannot invent overwritten history.
   A legacy success-dependent action waits for a newly observed exact-head
   `SUCCESS` workflow receipt before it can continue. Cross-repository fixtures
