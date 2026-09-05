@@ -202,6 +202,9 @@ def validate_ci(value: Any, repository: str, head: str, *, now: datetime | None 
                         "unknown job status")
                 require(job["conclusion"] in (TERMINAL if job["status"] == "COMPLETED"
                                                else {"NONE"}), "invalid job conclusion")
+            if a["status"] == "COMPLETED":
+                require(all(j["status"] == "COMPLETED" for j in jobs),
+                        "terminal attempt contains a live job")
             if a["conclusion"] == "SUCCESS":
                 require(bool(jobs) and all(j["status"] == "COMPLETED" and
                         j["conclusion"] in {"SUCCESS", "SKIPPED", "NEUTRAL"} for j in jobs),

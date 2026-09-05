@@ -1176,6 +1176,7 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
     reconstructed: dict[str, Any] | None = None
     idempotency_keys: set[str] = set()
     github_events: set[str] = set()
+    ci_history: dict[tuple[str, int, str], dict[str, Any]] = {}
 
     def snapshot_campaign(value: Any, label: str) -> dict[str, Any]:
         snapshot = exact_object(
@@ -1349,6 +1350,17 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
             validate_operational_transition(
                 after, checked_event, item["operational_evidence"], archived=True,
             )
+            evidence = item["operational_evidence"]
+            if evidence is not None:
+                operations = load_operations_module()
+                pr = evidence["pr"]
+                identity = (pr["repository"], pr["number"], pr["head_sha"])
+                if identity in ci_history:
+                    operations.validate_ci_append_only(
+                        ci_history[identity], evidence["ci"],
+                        now=operations.timestamp(pr["observed_at"]),
+                    )
+                ci_history[identity] = evidence["ci"]
             reconstructed = after
         if operation != "STATE_TRANSITION" and item["operational_evidence"] is not None:
             fail("initialization/migration cannot invent operational evidence")

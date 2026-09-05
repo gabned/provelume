@@ -398,6 +398,69 @@ def test_gate_transition_requires_persisted_attempt_bound_operational_evidence()
         protocol.validate_campaign_v2(result)
 
 
+@pytest.mark.parametrize("conclusion", ["FAILURE", "CANCELLED", "TIMED_OUT"])
+@pytest.mark.parametrize("status", ["QUEUED", "IN_PROGRESS"])
+def test_terminal_attempt_cannot_freeze_live_jobs(conclusion, status):
+    value = ci()
+    first = attempt(1, conclusion)
+    value["runs"][0].update(latest_attempt=2, attempts=[first, attempt(2)])
+    ops.validate_ci(value, REPO, HEAD)
+    first["jobs"][0].update(status=status, conclusion="NONE")
+    with pytest.raises(ValueError, match="terminal attempt contains a live job"):
+        ops.validate_ci(value, REPO, HEAD)
+
+
+@pytest.mark.parametrize("damage", ["drop_run", "rewrite_job"])
+def test_receipt_chain_retains_ci_history_even_after_resealing(damage):
+    legacy = protocol.sample_campaign_v1()
+    legacy.update(workstream_class="PROTOCOL", risk_profile="NO_PRODUCTION",
+                  observed_event="GATES_PASSED", observed_event_ref=HEAD)
+    legacy["slices"][1].update(state="ACTIVE", pr="#12", head_sha=HEAD, merge_sha="NONE")
+    legacy["pending_action"] = {"kind": "MERGE_ACTIVE_SLICE", "slice_id": "pilot/S02"}
+    before = protocol.migrate_campaign(legacy)
+    gates = deepcopy(before)
+    gates.update(campaign_state="ACTIVE",
+                 pending_action={"kind": "MERGE_ACTIVE_SLICE", "slice_id": "pilot/S02"},
+                 next_action={"type": "AUTO_CONTINUE", "summary": "Merge pilot/S02.",
+                              "prompt": "NONE"})
+    evidence = operations()
+    evidence.update(phase="PRE_MERGE", merge=None, post_merge_ci=None)
+    older = deepcopy(evidence["ci"]["runs"][0])
+    older["run_id"] = 99
+    evidence["ci"]["runs"].insert(0, older)
+    event = {"kind": "WORKFLOW_RUN", "action": "COMPLETED", "repository": REPO,
+             "reference": "run:100", "sha": HEAD, "conclusion": "SUCCESS", "run_attempt": 1}
+    gates = protocol.append_transition_receipt(before, gates, event,
+                                               operational_evidence=evidence)
+    merged = deepcopy(gates)
+    merged.update(campaign_state="WAITING_EVENT", observed_event="PR_MERGED",
+                  observed_event_ref=MERGE,
+                  pending_action={"kind": "WAIT_FOR_EVENT", "slice_id": "NONE"},
+                  next_action={"type": "WAIT_EVENT", "summary": "Wait for the next event.",
+                               "prompt": "NONE"})
+    merged["slices"][1]["state"] = "MERGED"
+    merged["slices"][1]["pull_requests"][-1].update(state="MERGED", merge_sha=MERGE)
+    post = operations()
+    post["ci"] = deepcopy(evidence["ci"])
+    merge_event = {"kind": "PULL_REQUEST", "action": "MERGED", "repository": REPO,
+                   "reference": "#12", "sha": MERGE, "conclusion": "NOT_APPLICABLE"}
+    result = protocol.append_transition_receipt(gates, merged, merge_event,
+                                                operational_evidence=post)
+    protocol.validate_campaign_v2(result)
+    damaged = deepcopy(post)
+    if damage == "drop_run":
+        damaged["ci"]["runs"].pop(0)
+    else:
+        damaged["ci"]["runs"][0]["attempts"][0]["jobs"][0]["name"] = "rewritten"
+    with pytest.raises(ValueError, match="dropped a run|terminal attempt rewritten"):
+        protocol.append_transition_receipt(gates, merged, merge_event,
+                                           operational_evidence=damaged)
+    result["receipts"][-1]["operational_evidence"] = damaged
+    result["receipts"][-1]["receipt_sha256"] = protocol.receipt_sha256(result["receipts"][-1])
+    with pytest.raises(ValueError, match="dropped a run|terminal attempt rewritten"):
+        protocol.validate_campaign_v2(result)
+
+
 def test_workflow_identity_distinguishes_attempts_and_rejects_missing_attempt():
     first = {"kind": "WORKFLOW_RUN", "action": "COMPLETED", "repository": REPO,
              "reference": "run:100", "sha": HEAD, "conclusion": "SUCCESS", "run_attempt": 1}
