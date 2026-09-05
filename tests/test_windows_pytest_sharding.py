@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -122,8 +123,16 @@ def test_shard_children_bind_root_and_effective_collection_targets() -> None:
     assert "cwd=root" in source
 
 
-def test_failed_unicode_shard_replays_all_results_on_cp1252_console(tmp_path: Path) -> None:
-    target = tmp_path / "test_unicode_failure.py"
+def test_failed_unicode_shard_replays_all_results_on_cp1252_console() -> None:
+    # Keep this encoding fixture beside its pytest configuration. Windows CI
+    # places the repository and the default temporary directory on different
+    # drives, which can cause collection errors before the deliberate failure.
+    with tempfile.TemporaryDirectory(prefix="provelume-unicode-", dir=ROOT) as temporary:
+        _check_failed_unicode_shard(Path(temporary))
+
+
+def _check_failed_unicode_shard(directory: Path) -> None:
+    target = directory / "test_unicode_failure.py"
     target.write_text(
         'def test_failure():\n    assert False, "navy/blue/gold — 漢字 \\ufffd"\n',
         encoding="utf-8",
@@ -141,7 +150,7 @@ def test_failed_unicode_shard_replays_all_results_on_cp1252_console(tmp_path: Pa
     )
     output = completed.stdout + completed.stderr
     assert completed.returncode == 1, output
-    assert "1 failed" in output
+    assert "1 failed" in output, output
     assert "UnicodeEncodeError" not in output
     assert "navy/blue/gold" in output
     assert r"\u6f22\u5b57" in output
