@@ -334,6 +334,7 @@ RECEIPT_KEYS = {
     "receipt_sha256",
 }
 INITIALIZE_RECEIPT_KEYS = {*RECEIPT_KEYS, "initial_state"}
+STATEFUL_RECEIPT_KEYS = {*RECEIPT_KEYS, "previous_state", "successor_state"}
 HANDOFF_KEYS = {
     "schema_version",
     "protocol_version",
@@ -831,6 +832,8 @@ def build_receipt(
     successor_state_sha256: str,
     previous_receipt_sha256: str,
     initial_state: dict[str, Any] | None = None,
+    previous_state: dict[str, Any] | None = None,
+    successor_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     closed(operation, "receipt.operation", RECEIPT_OPERATIONS)
     validate_github_event(
@@ -858,7 +861,7 @@ def build_receipt(
         "receipt_sha256": "",
     }
     if operation == "INITIALIZE":
-        if initial_state is None:
+        if initial_state is None or previous_state is not None or successor_state is not None:
             fail("INITIALIZE requires its reconstructible initial state")
         snapshot = exact_object(
             initial_state,
@@ -870,6 +873,43 @@ def build_receipt(
         receipt["initial_state"] = deepcopy(snapshot)
     elif initial_state is not None:
         fail("only INITIALIZE may carry an initial state")
+    elif operation == "STATE_TRANSITION":
+        if previous_state is None or successor_state is None:
+            fail("STATE_TRANSITION requires reconstructible state snapshots")
+        before = exact_object(
+            previous_state,
+            "receipt.previous_state",
+            CAMPAIGN_KEYS - {"receipts"},
+        )
+        after = exact_object(
+            successor_state,
+            "receipt.successor_state",
+            CAMPAIGN_KEYS - {"receipts"},
+        )
+        if object_sha256(before) != previous_state_sha256:
+            fail("receipt previous state does not match its predecessor digest")
+        if object_sha256(after) != successor_state_sha256:
+            fail("receipt successor state does not match its successor digest")
+        receipt["previous_state"] = deepcopy(before)
+        receipt["successor_state"] = deepcopy(after)
+    elif previous_state is not None or successor_state is not None:
+        if (
+            operation != "SCHEMA_MIGRATION"
+            or previous_state is None
+            or successor_state is None
+        ):
+            fail("state snapshots must be supplied as one closed pair")
+        if object_sha256(previous_state) != previous_state_sha256:
+            fail("migration source does not match its predecessor digest")
+        after = exact_object(
+            successor_state,
+            "receipt.successor_state",
+            CAMPAIGN_KEYS - {"receipts"},
+        )
+        if object_sha256(after) != successor_state_sha256:
+            fail("migration result does not match its successor digest")
+        receipt["previous_state"] = deepcopy(previous_state)
+        receipt["successor_state"] = deepcopy(after)
     receipt["receipt_sha256"] = receipt_sha256(receipt)
     return receipt
 
@@ -884,8 +924,9 @@ def find_pr_for_merge(slices: list[dict[str, Any]], merge_sha: str) -> str | Non
     return matches[0] if len(matches) == 1 else None
 
 
-def validate_last_receipt_binding(campaign: dict[str, Any]) -> None:
-    receipt = campaign["receipts"][-1]
+def validate_receipt_binding(
+    campaign: dict[str, Any], receipt: dict[str, Any]
+) -> None:
     if receipt["operation"] == "SCHEMA_MIGRATION":
         return
     github_event = validate_github_event(
@@ -1031,7 +1072,7 @@ def validate_last_receipt_binding(campaign: dict[str, Any]) -> None:
         github_event["sha"],
     )
     if observed_tuple != expected:
-        fail("the last receipt is not bound to the current real GitHub event")
+        fail("the receipt is not bound to its exact real GitHub event")
     if observed in {
         "GATES_PASSED",
         "RELEASE_VERIFIED",
@@ -1046,25 +1087,43 @@ def validate_last_receipt_binding(campaign: dict[str, Any]) -> None:
         fail("GATES_FAILED requires an unsuccessful GitHub event conclusion")
 
 
+def validate_last_receipt_binding(campaign: dict[str, Any]) -> None:
+    validate_receipt_binding(campaign, campaign["receipts"][-1])
+
+
 def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
     receipts = campaign["receipts"]
     if not isinstance(receipts, list) or not receipts:
         fail("a schema v2 campaign requires at least one transition receipt")
     previous_receipt = "NONE"
     previous_successor: str | None = None
+    reconstructed: dict[str, Any] | None = None
     idempotency_keys: set[str] = set()
     github_events: set[str] = set()
+
+    def snapshot_campaign(value: Any, label: str) -> dict[str, Any]:
+        snapshot = exact_object(
+            deepcopy(value),
+            label,
+            CAMPAIGN_KEYS - {"receipts"},
+        )
+        result = {**snapshot, "receipts": []}
+        validate_campaign_v2(result, validate_receipt_chain=False)
+        return result
+
     for index, raw in enumerate(receipts, start=1):
         if not isinstance(raw, dict):
             fail(f"receipts[{index - 1}] must be an object")
         operation_hint = raw.get("operation")
         if operation_hint == "INITIALIZE" and set(raw) == RECEIPT_KEYS:
             fail("INITIALIZE lacks its reconstructible initial state")
-        expected_receipt_keys = (
-            INITIALIZE_RECEIPT_KEYS
-            if operation_hint == "INITIALIZE"
-            else RECEIPT_KEYS
-        )
+        stateful = set(raw) == STATEFUL_RECEIPT_KEYS
+        if operation_hint == "INITIALIZE":
+            expected_receipt_keys = INITIALIZE_RECEIPT_KEYS
+        elif stateful:
+            expected_receipt_keys = STATEFUL_RECEIPT_KEYS
+        else:
+            expected_receipt_keys = RECEIPT_KEYS
         item = exact_object(
             raw,
             f"receipts[{index - 1}]",
@@ -1141,6 +1200,74 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
                     and current_slice["issue"] != initial_slice["issue"]
                 ):
                     fail("INITIALIZE retained slice issue was rewritten")
+            reconstructed = initial_campaign
+        elif operation == "SCHEMA_MIGRATION":
+            if stateful:
+                if object_sha256(item["previous_state"]) != previous_state:
+                    fail("migration source does not match its predecessor digest")
+                legacy = load_legacy_module()
+                try:
+                    legacy.validate_campaign(deepcopy(item["previous_state"]))
+                except legacy.ContractError as exc:
+                    raise ContractError(f"migration source is invalid: {exc}") from exc
+                reconstructed = snapshot_campaign(
+                    item["successor_state"],
+                    "receipt.successor_state",
+                )
+            elif index == len(receipts):
+                reconstructed = snapshot_campaign(
+                    campaign_state_payload(campaign),
+                    "campaign state",
+                )
+            elif (
+                isinstance(receipts[index], dict)
+                and set(receipts[index]) == STATEFUL_RECEIPT_KEYS
+            ):
+                reconstructed = snapshot_campaign(
+                    receipts[index]["previous_state"],
+                    "next receipt.previous_state",
+                )
+            else:
+                fail(
+                    "legacy migration successor state cannot be reconstructed "
+                    "before another receipt"
+                )
+            if campaign_state_sha256(reconstructed) != successor_state:
+                fail("migration result does not match its successor digest")
+        else:
+            if stateful:
+                before = snapshot_campaign(
+                    item["previous_state"],
+                    "receipt.previous_state",
+                )
+                after = snapshot_campaign(
+                    item["successor_state"],
+                    "receipt.successor_state",
+                )
+            else:
+                if index != len(receipts) or reconstructed is None:
+                    fail(
+                        "legacy intermediate transition lacks reconstructible "
+                        "state snapshots"
+                    )
+                before = reconstructed
+                after = snapshot_campaign(
+                    campaign_state_payload(campaign),
+                    "campaign state",
+                )
+            if campaign_state_sha256(before) != previous_state:
+                fail("receipt snapshot does not match its predecessor digest")
+            if campaign_state_sha256(after) != successor_state:
+                fail("receipt snapshot does not match its successor digest")
+            if (
+                reconstructed is not None
+                and campaign_state_payload(before)
+                != campaign_state_payload(reconstructed)
+            ):
+                fail("adjacent receipt state snapshots do not chain")
+            validate_transition_pair(before, after, checked_event)
+            validate_receipt_binding(after, item)
+            reconstructed = after
         if previous_successor is not None and previous_state != previous_successor:
             fail("receipt predecessor/successor state digests do not chain")
         if item["previous_receipt_sha256"] != previous_receipt:
@@ -1164,6 +1291,11 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
         previous_successor = successor_state
     if previous_successor != campaign_state_sha256(campaign):
         fail("the last receipt successor digest does not match campaign state")
+    if (
+        reconstructed is None
+        or campaign_state_payload(reconstructed) != campaign_state_payload(campaign)
+    ):
+        fail("the reconstructed receipt chain does not match campaign state")
     validate_last_receipt_binding(campaign)
     return receipts
 
@@ -1695,6 +1827,8 @@ def migrate_campaign(value: Any) -> dict[str, Any]:
         previous_state_sha256=object_sha256(value),
         successor_state_sha256=campaign_state_sha256(migrated),
         previous_receipt_sha256="NONE",
+        previous_state=deepcopy(value),
+        successor_state=campaign_state_payload(migrated),
     )
     migrated["receipts"] = [receipt]
     validate_campaign_v2(migrated)
@@ -1855,27 +1989,28 @@ def validate_event_transition(
         )
 
 
-def append_transition_receipt(
-    previous: Any,
-    successor: Any,
-    github_event: Any,
-) -> dict[str, Any]:
-    previous_value = validate_campaign_v2(deepcopy(previous))
-    successor_value = exact_object(deepcopy(successor), "campaign", CAMPAIGN_KEYS)
-    if successor_value["receipts"] != previous_value["receipts"]:
-        fail("successor must retain the exact receipt prefix before append")
-    if immutable_campaign_identity(successor_value) != immutable_campaign_identity(
-        previous_value
-    ):
+def validate_transition_pair(
+    previous: dict[str, Any],
+    successor: dict[str, Any],
+    github_event: dict[str, Any],
+) -> None:
+    """Validate one fully reconstructed adjacent campaign transition."""
+
+    validate_campaign_v2(previous, validate_receipt_chain=False)
+    validate_campaign_v2(successor, validate_receipt_chain=False)
+    if immutable_campaign_identity(successor) != immutable_campaign_identity(previous):
         fail("a continuation receipt cannot rewrite campaign identity or authority")
-    if [item["id"] for item in successor_value["slices"]] != [
-        item["id"] for item in previous_value["slices"]
+    if [item["id"] for item in successor["slices"]] != [
+        item["id"] for item in previous["slices"]
     ]:
         fail("a continuation receipt cannot reorder or replace frozen slice scope")
     for before_slice, after_slice in zip(
-        previous_value["slices"], successor_value["slices"], strict=True
+        previous["slices"], successor["slices"], strict=True
     ):
-        if before_slice["issue"] != "NONE" and after_slice["issue"] != before_slice["issue"]:
+        if (
+            before_slice["issue"] != "NONE"
+            and after_slice["issue"] != before_slice["issue"]
+        ):
             fail("a continuation receipt cannot rewrite a retained slice issue")
         if (
             before_slice["state"] in TERMINAL_SLICE_STATES
@@ -1887,9 +2022,20 @@ def append_transition_receipt(
             after_slice["pull_requests"],
             label=f"slice {before_slice['id']}",
         )
-    validate_campaign_v2(successor_value, validate_receipt_chain=False)
+    validate_event_transition(previous, successor, github_event)
+
+
+def append_transition_receipt(
+    previous: Any,
+    successor: Any,
+    github_event: Any,
+) -> dict[str, Any]:
+    previous_value = validate_campaign_v2(deepcopy(previous))
+    successor_value = exact_object(deepcopy(successor), "campaign", CAMPAIGN_KEYS)
+    if successor_value["receipts"] != previous_value["receipts"]:
+        fail("successor must retain the exact receipt prefix before append")
     checked_event = validate_github_event(deepcopy(github_event))
-    validate_event_transition(previous_value, successor_value, checked_event)
+    validate_transition_pair(previous_value, successor_value, checked_event)
     previous_digest = campaign_state_sha256(previous_value)
     successor_digest = campaign_state_sha256(successor_value)
     last = previous_value["receipts"][-1]
@@ -1921,6 +2067,8 @@ def append_transition_receipt(
         previous_state_sha256=previous_digest,
         successor_state_sha256=successor_digest,
         previous_receipt_sha256=last["receipt_sha256"],
+        previous_state=campaign_state_payload(previous_value),
+        successor_state=campaign_state_payload(successor_value),
     )
     successor_value["receipts"].append(new_receipt)
     validate_campaign_v2(successor_value)
@@ -1941,26 +2089,7 @@ def validate_append_only(previous: Any, successor: Any) -> dict[str, Any]:
         fail("continuation receipt predecessor digest does not match prior campaign")
     if receipt["successor_state_sha256"] != campaign_state_sha256(after):
         fail("continuation receipt successor digest does not match next campaign")
-    if immutable_campaign_identity(before) != immutable_campaign_identity(after):
-        fail("continuation changed immutable campaign identity or authority")
-    if [item["id"] for item in before["slices"]] != [
-        item["id"] for item in after["slices"]
-    ]:
-        fail("continuation reordered or replaced frozen slice scope")
-    for before_slice, after_slice in zip(before["slices"], after["slices"], strict=True):
-        if before_slice["issue"] != "NONE" and after_slice["issue"] != before_slice["issue"]:
-            fail("continuation rewrote a retained slice issue")
-        if (
-            before_slice["state"] in TERMINAL_SLICE_STATES
-            and after_slice["state"] != before_slice["state"]
-        ):
-            fail("continuation reopened a terminal slice")
-        validate_pull_request_history(
-            before_slice["pull_requests"],
-            after_slice["pull_requests"],
-            label=f"slice {before_slice['id']}",
-        )
-    validate_event_transition(before, after, receipt["github_event"])
+    validate_transition_pair(before, after, receipt["github_event"])
     return after
 
 

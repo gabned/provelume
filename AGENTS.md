@@ -107,7 +107,11 @@ schema 1; new or migrated evidence uses `tools/agent_protocol_v1_4_1.py`.
 - Every schema 2 state change appends one idempotent receipt bound to a real,
   closed GitHub event, action, and applicable terminal conclusion,
   predecessor/successor state digests, the prior receipt, and its own canonical
-  digest. `GATES_PASSED`, release verification, deployment, and production
+  digest. Every new transition also persists the exact predecessor and successor
+  state snapshots; validation reconstructs the whole chain and applies the
+  event-owned mutation contract to every adjacent pair. An intermediate legacy
+  transition without a uniquely reconstructible state fails closed.
+  `GATES_PASSED`, release verification, deployment, and production
   verification require `SUCCESS`; `DEPLOYMENT/CREATED` is never deployment
   evidence. Each receipt may mutate only the campaign state owned by that exact
   event, so publication cannot also invent verification, checkpoint, slice, or
