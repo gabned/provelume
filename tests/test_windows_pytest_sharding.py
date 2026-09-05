@@ -111,6 +111,8 @@ def test_four_process_harness_completes_bounded_and_cleans_children() -> None:
     assert "windows-shard index=2/4" in output
     assert "windows-shard index=3/4" in output
     assert "windows-shards completed=True" in output
+    assert "test_module_partition_is_stable_disjoint_complete_and_balanced PASSED" in output
+    assert "slowest" in output
 
 
 def test_shard_children_bind_root_and_effective_collection_targets() -> None:

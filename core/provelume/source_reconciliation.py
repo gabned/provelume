@@ -11,6 +11,7 @@ from .folder_sources import FolderSourceManager
 from .ingest import IngestionLimitError, _iter_files
 from .paths import UnsafePathError, normalise_locator
 from .scheduler_model import SchedulerError, instant_text
+from .source_exclusions import decision, policy_for_source
 from .source_reconciliation_model import (
     MAX_RECONCILIATION_FILES,
     MAX_RECONCILIATION_PLAN_ITEMS,
@@ -87,6 +88,7 @@ class SourceReconciliationManager:
                 "max_file_bytes": folder["max_file_bytes"],
                 "max_files": folder["max_files"],
                 "kind": item["kind"],
+                "exclusions": policy_for_source(self.store, selected_id),
             }
         )
         return folder, configuration_fingerprint, folder["source_class"] == "network"
@@ -231,7 +233,10 @@ class SourceReconciliationManager:
             raise SourceReconciliationStateError(
                 "Source reconciliation Source path is missing"
             )
-        files = _iter_files(path, min(max_files, MAX_RECONCILIATION_FILES))
+        files = _iter_files(
+            self.folder_sources.selected_for_read(path), min(max_files, MAX_RECONCILIATION_FILES),
+            policy_for_source(self.store, source_id),
+        )
         rows: list[dict[str, Any]] = []
         total_bytes = 0
         for locator, selected_path in files:
@@ -424,6 +429,12 @@ class SourceReconciliationManager:
                 network_used,
             )
 
+        policy = policy_for_source(self.store, selected_id)
+        # Exclusion is not evidence of disappearance. Keep the canonical records,
+        # but remove ignored locators from the current filesystem comparison.
+        canonical_rows = [
+            row for row in canonical_rows if decision(policy, row["locator"])["included"]
+        ]
         canonical_by_locator = {str(row["locator"]): row for row in canonical_rows}
         observed_locators = {str(row["locator"]) for row in observed}
         unmatched_locators = set(canonical_by_locator) - observed_locators

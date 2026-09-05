@@ -199,6 +199,11 @@ def pytest_cmdline_main(config) -> int | None:
                     "-o",
                     f"cache_dir={state / 'pytest-cache'}",
                     *args,
+                    # Retain the active test and slowest completed cases when
+                    # the unchanged aggregate deadline interrupts a quiet run.
+                    # Full collection, partitioning and output bounds are unchanged.
+                    "-vv",
+                    "--durations=10",
                     f"--provelume-shard-index={index}",
                     f"--provelume-shard-count={SHARD_COUNT}",
                 ]

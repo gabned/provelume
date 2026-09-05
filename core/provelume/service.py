@@ -12,6 +12,7 @@ from .email_contract import EmailContractError
 from .email_jobs import EMAIL_JOB_KIND, EmailJobManager
 from .email_sources import EmailSourceManager
 from .file_family_profiles import FileFamilyProfileManager
+from .folder_source_exclusions import FolderSourceExclusionManager
 from .folder_source_model import SOURCE_LIFECYCLE_STATES, FolderSourceError
 from .folder_sources import FolderSourceManager
 from .google_contract import GOOGLE_JOB_KIND, GoogleContractError
@@ -85,6 +86,7 @@ class ProvelumeInstance:
         self.library = LibraryProjectionManager(self.store)
         self.content = DocumentContentReader(self.store)
         self.folder_sources = FolderSourceManager(self.store)
+        self.folder_exclusions = FolderSourceExclusionManager(self.store)
         self.maintenance = MaintenanceManager(self.store)
         self.source_reconciliation = SourceReconciliationManager(self.store)
         self.resource_statistics = ResourceStatisticsManager(self.store)
@@ -1415,6 +1417,21 @@ class ProvelumeInstance:
         self, path: Path | str, *, source_class: str = "local", language: str = "en",
     ) -> dict[str, Any]:
         return self.folder_sources.validate_path(path, source_class=source_class, language=language)
+
+    def folder_source_exclusions(self, source_id: str) -> dict[str, Any]:
+        return self.folder_exclusions.get(source_id)
+
+    def preview_folder_source_exclusions(
+        self, source_id: str, policy: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return self.folder_exclusions.preview(source_id, policy)
+
+    def apply_folder_source_exclusions(
+        self, source_id: str, policy: Mapping[str, Any], *, preview_fingerprint: str,
+    ) -> dict[str, Any]:
+        return self.folder_exclusions.apply(
+            source_id, policy, preview_fingerprint=preview_fingerprint,
+        )
 
     def register_folder_source(
         self,

@@ -212,4 +212,11 @@ def attach_folder_source_routes(
         )
 
 
+    from .folder_source_exclusion_activity import attach_exclusion_routes
+
+    attach_exclusion_routes(
+        app, instance, templates, context_factory, source_fields, _loopback_request, csrf_token,
+    )
+
+
 __all__ = ["attach_folder_source_routes"]

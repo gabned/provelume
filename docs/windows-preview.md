@@ -66,6 +66,14 @@ unsupported paths and bounded validation timeout. Registration validates again a
 does not create a Source for an unavailable mount. Reconnecting at the configured
 location retains the Source identity and previously acquired records.
 
+**Sources → Exclusions** shows the Source's versioned safe defaults and individual
+rules. Edit a rule, disable it or add an explicit include, inspect **Preview**, then
+choose **Apply**. The Windows-hosted and direct local Browser use the same EN/IT
+controls and bounded filesystem selection. Excluded subfolder descendants are not
+enumerated or counted individually; a changed Source snapshot requires a new
+preview. Rules govern future intake and preserve existing Originals, canonical
+records and their reindexable content. See [per-Source exclusions](architecture/source-exclusions.md).
+
 Scheduled work runs only while the current local runtime is active. A network-class folder is a
 path the operating system has already mounted; Provelume does not discover shares or negotiate
 network credentials. Reconciliation, validation and resource observations do not authorize

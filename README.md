@@ -17,6 +17,9 @@ canonical Core/Windows brand with integrated qualification. See the
 [Emendatio development plan](docs/releases/0.10.1.md) for the ordered four slices
 and qualification requirements. Package identity stays `0.10.0` until separate
 release preparation; these corrections are not yet published.
+S01 enrollment is integrated through [#211](https://github.com/gabned/provelume/pull/211).
+S02 [per-Source exclusions](docs/architecture/source-exclusions.md) is the active slice
+under [#212](https://github.com/gabned/provelume/issues/212).
 0.11.0 — Cura remains unactivated.
 
 ## Current status: 0.10.0 Perceptio preview

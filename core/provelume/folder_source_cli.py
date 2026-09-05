@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .folder_source_enrollment import FolderSourceEnrollmentError, diagnostic_message
+from .folder_source_exclusion_i18n import exclusion_message
 from .folder_source_model import (
     SOURCE_CLASSES,
     SOURCE_LIFECYCLE_STATES,
@@ -14,11 +15,15 @@ from .folder_source_model import (
 from .scheduler import schedule_payload
 from .scheduler_model import DST_POLICIES, MISSED_RUN_POLICIES, SCHEDULE_MODES, SchedulerError
 from .service import ProvelumeInstance
+from .source_exclusions import ExclusionError
 
 FOLDER_SOURCE_COMMANDS = frozenset(
     {
         "folder-source-register",
         "folder-source-validate",
+        "folder-source-exclusions",
+        "folder-source-exclusions-preview",
+        "folder-source-exclusions-apply",
         "folder-sources",
         "folder-source",
         "folder-source-observe",
@@ -43,6 +48,20 @@ def _non_negative(value: str) -> int:
 
 
 def add_folder_source_commands(subparsers: Any) -> None:
+    for command in (
+        "folder-source-exclusions", "folder-source-exclusions-preview",
+        "folder-source-exclusions-apply",
+    ):
+        exclusions = subparsers.add_parser(
+            command, help="Inspect, preview or apply Source exclusions",
+        )
+        exclusions.add_argument("instance", type=Path)
+        exclusions.add_argument("source_id")
+        exclusions.add_argument("--lang", choices=("en", "it"), default="en")
+        if command != "folder-source-exclusions":
+            exclusions.add_argument("--policy-file", type=Path, required=command.endswith("-apply"))
+        if command.endswith("-apply"):
+            exclusions.add_argument("--preview-fingerprint", required=True)
     validate = subparsers.add_parser(
         "folder-source-validate", help="Check an explicit folder path without enrolling a Source",
     )
@@ -125,6 +144,26 @@ def handle_folder_source_command(args: argparse.Namespace) -> int | None:
         return None
     try:
         instance = ProvelumeInstance(args.instance)
+        if args.command.startswith("folder-source-exclusions"):
+            if args.command == "folder-source-exclusions":
+                _print(instance.folder_source_exclusions(args.source_id))
+            else:
+                policy = None
+                if args.policy_file is not None:
+                    with args.policy_file.open("rb") as handle:
+                        encoded = handle.read(65537)
+                    if len(encoded) > 65536:
+                        raise ExclusionError("Policy file exceeds its size bound.")
+                    policy = json.loads(encoded)
+                    if isinstance(policy, dict) and "policy" in policy:
+                        policy = policy["policy"]
+                if args.command.endswith("-preview"):
+                    _print(instance.preview_folder_source_exclusions(args.source_id, policy))
+                else:
+                    _print(instance.apply_folder_source_exclusions(
+                        args.source_id, policy, preview_fingerprint=args.preview_fingerprint,
+                    ))
+            return 0
         if args.command == "folder-source-validate":
             result = instance.validate_folder_source_path(
                 args.path, source_class=args.source_class, language=args.lang,
@@ -185,6 +224,10 @@ def handle_folder_source_command(args: argparse.Namespace) -> int | None:
             _print(result)
             job = result.get("job")
             return 0 if isinstance(job, dict) and job.get("status") == "succeeded" else 2
+    except ExclusionError as exc:
+        _print({"status": "error", "diagnostic_code": exc.code,
+                "error": exclusion_message(exc.code, getattr(args, "lang", "en"))})
+        return 2
     except FolderSourceEnrollmentError as exc:
         _print({"status": "error", "diagnostic_code": exc.code,
                 "error": diagnostic_message(exc.code, getattr(args, "lang", "en"))})

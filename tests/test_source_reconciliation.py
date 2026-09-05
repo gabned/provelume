@@ -242,8 +242,9 @@ def test_disappearing_child_is_superseded_not_a_missing_source(
     def enumerate_then_remove(
         selected_source: Path,
         max_files: int,
+        exclusions=None,
     ) -> list[tuple[str, Path]]:
-        files = original_iter(selected_source, max_files)
+        files = original_iter(selected_source, max_files, exclusions)
         (source / "vanishing.txt").unlink()
         return files
 
@@ -259,6 +260,7 @@ def test_disappearing_child_is_superseded_not_a_missing_source(
     def disappear_during_enumeration(
         _selected_source: Path,
         _max_files: int,
+        _exclusions=None,
     ) -> list[tuple[str, Path]]:
         raise FileNotFoundError("synthetic child enumeration race")
 

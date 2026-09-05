@@ -41,6 +41,13 @@ from .ingest import (
 from .ingestion_runs import IngestionLedger
 from .paths import UnsafePathError
 from .scheduler_model import SchedulerError, instant_text, utc_instant
+from .source_exclusions import (
+    ExclusionError,
+    default_policy,
+    fingerprint,
+    normalize_policy,
+    policy_for_source,
+)
 from .storage import InstanceStore, utc_now
 
 
@@ -131,7 +138,18 @@ class FolderSourceManager:
         folder = normalise_folder_config(item.get("folder"))
         if not isinstance(item.get("path"), str):
             raise FolderSourceError("folder Source path is missing")
+        if "exclusions" in item:
+            try:
+                normalize_policy(item["exclusions"])
+            except ExclusionError as exc:
+                raise FolderSourceError("Invalid folder Source exclusion policy.") from exc
         return source, dict(item), folder
+
+    def selected_for_read(self, path: Path) -> Path:
+        try:
+            return self._selected_path(path)
+        except FolderSourceError as exc:
+            raise UnsafePathError("The Source overlaps reserved Instance storage.") from exc
 
     def is_managed(self, source_id: str) -> bool:
         try:
@@ -231,6 +249,7 @@ class FolderSourceManager:
             "name": selected_name,
             "path": checked.configured_path,
             "folder": folder,
+            "exclusions": preserved.get("exclusions", default_policy()),
         }
         self.store.write_config(config)
         self._write_observer(new_observer_record(source_id, lifecycle_state=lifecycle_state))
@@ -310,8 +329,9 @@ class FolderSourceManager:
         path = self.store.source_path(source_id)
         if path is None:
             raise FolderSourceError("folder Source path is missing")
-        selected = path.expanduser().resolve(strict=True)
-        files = _iter_files(selected, max_files)
+        selected = self.selected_for_read(path).resolve(strict=True)
+        policy = policy_for_source(self.store, source_id)
+        files = _iter_files(selected, max_files, policy)
         rows: list[str] = []
         total_bytes = 0
         for locator, file_path in files:
@@ -324,7 +344,7 @@ class FolderSourceManager:
                     separators=(",", ":"),
                 )
             )
-        digest = hashlib.sha256("\n".join(rows).encode("utf-8")).hexdigest()
+        digest = fingerprint({"exclusions": policy, "files": rows})
         return digest, len(files), total_bytes
 
     def _failure_observation(
@@ -751,6 +771,8 @@ class FolderSourceManager:
 
     def public_view(self, source_id: str) -> dict[str, Any]:
         source, _item, folder = self._configured(source_id)
+        exclusions = policy_for_source(self.store, source_id)
+        assert exclusions is not None
         observer = self._read_observer(
             source_id,
             lifecycle_state=str(folder["lifecycle_state"]),
@@ -773,6 +795,11 @@ class FolderSourceManager:
             "name": source["name"],
             "kind": "filesystem",
             "managed_folder": True,
+            "exclusions": {
+                "schema_version": exclusions["schema_version"], "revision": exclusions["revision"],
+                "enabled": exclusions["enabled"], "rule_count": len(exclusions["rules"]),
+                "fingerprint": fingerprint(exclusions),
+            },
             "source_class": folder["source_class"],
             "lifecycle_state": folder["lifecycle_state"],
             "quiescence_seconds": folder["quiescence_seconds"],
