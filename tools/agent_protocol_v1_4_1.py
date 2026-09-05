@@ -333,6 +333,7 @@ RECEIPT_KEYS = {
     "idempotency_key",
     "receipt_sha256",
 }
+INITIALIZE_RECEIPT_KEYS = {*RECEIPT_KEYS, "initial_state"}
 HANDOFF_KEYS = {
     "schema_version",
     "protocol_version",
@@ -829,6 +830,7 @@ def build_receipt(
     previous_state_sha256: str,
     successor_state_sha256: str,
     previous_receipt_sha256: str,
+    initial_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     closed(operation, "receipt.operation", RECEIPT_OPERATIONS)
     validate_github_event(
@@ -855,6 +857,19 @@ def build_receipt(
         ),
         "receipt_sha256": "",
     }
+    if operation == "INITIALIZE":
+        if initial_state is None:
+            fail("INITIALIZE requires its reconstructible initial state")
+        snapshot = exact_object(
+            initial_state,
+            "receipt.initial_state",
+            CAMPAIGN_KEYS - {"receipts"},
+        )
+        if object_sha256(snapshot) != successor_state_sha256:
+            fail("INITIALIZE initial state does not match its successor digest")
+        receipt["initial_state"] = deepcopy(snapshot)
+    elif initial_state is not None:
+        fail("only INITIALIZE may carry an initial state")
     receipt["receipt_sha256"] = receipt_sha256(receipt)
     return receipt
 
@@ -992,12 +1007,19 @@ def validate_last_receipt_binding(campaign: dict[str, Any]) -> None:
             action = "STATUS_SUCCEEDED"
         else:
             fail("production evidence requires a workflow run or deployment event")
+        expected_sha = (
+            train["deployed_build_sha"]
+            if observed == "PRODUCTION_VERIFIED"
+            else observed_ref
+        )
+        if observed == "PRODUCTION_VERIFIED" and observed_ref != expected_sha:
+            fail("production verification is not bound to the exact deployed build")
         expected = (
             kind,
             action,
             repo,
             github_event["reference"],
-            observed_ref,
+            expected_sha,
         )
     else:
         fail("the observed event has no closed GitHub receipt binding")
@@ -1033,7 +1055,21 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
     idempotency_keys: set[str] = set()
     github_events: set[str] = set()
     for index, raw in enumerate(receipts, start=1):
-        item = exact_object(raw, f"receipts[{index - 1}]", RECEIPT_KEYS)
+        if not isinstance(raw, dict):
+            fail(f"receipts[{index - 1}] must be an object")
+        operation_hint = raw.get("operation")
+        if operation_hint == "INITIALIZE" and set(raw) == RECEIPT_KEYS:
+            fail("INITIALIZE lacks its reconstructible initial state")
+        expected_receipt_keys = (
+            INITIALIZE_RECEIPT_KEYS
+            if operation_hint == "INITIALIZE"
+            else RECEIPT_KEYS
+        )
+        item = exact_object(
+            raw,
+            f"receipts[{index - 1}]",
+            expected_receipt_keys,
+        )
         if item["sequence"] != index:
             fail("receipt sequences must be contiguous and append-only")
         operation = closed(item["operation"], "receipt.operation", RECEIPT_OPERATIONS)
@@ -1060,6 +1096,51 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
         )
         if operation == "INITIALIZE" and previous_state != GENESIS_STATE_SHA256:
             fail("campaign initialization must start at the canonical genesis digest")
+        if operation == "INITIALIZE":
+            expected_event = (
+                "ISSUE",
+                "OPENED",
+                campaign["repository"],
+                campaign["owner_issue"],
+                "NONE",
+                "NOT_APPLICABLE",
+            )
+            observed_event = (
+                checked_event["kind"],
+                checked_event["action"],
+                checked_event["repository"],
+                checked_event["reference"],
+                checked_event["sha"],
+                checked_event["conclusion"],
+            )
+            if observed_event != expected_event:
+                fail("campaign initialization requires the exact owner issue event")
+            initial_state = exact_object(
+                item["initial_state"],
+                "receipt.initial_state",
+                CAMPAIGN_KEYS - {"receipts"},
+            )
+            initial_campaign = {**deepcopy(initial_state), "receipts": []}
+            validate_campaign_v2(initial_campaign, validate_receipt_chain=False)
+            validate_initial_campaign_state(initial_campaign)
+            if object_sha256(initial_state) != successor_state:
+                fail("INITIALIZE initial state does not match its successor digest")
+            if immutable_campaign_identity(
+                initial_campaign
+            ) != immutable_campaign_identity(campaign):
+                fail("INITIALIZE identity does not match the enclosing campaign")
+            if [entry["id"] for entry in initial_campaign["slices"]] != [
+                entry["id"] for entry in campaign["slices"]
+            ]:
+                fail("INITIALIZE slice order does not match the enclosing campaign")
+            for initial_slice, current_slice in zip(
+                initial_campaign["slices"], campaign["slices"], strict=True
+            ):
+                if (
+                    initial_slice["issue"] != "NONE"
+                    and current_slice["issue"] != initial_slice["issue"]
+                ):
+                    fail("INITIALIZE retained slice issue was rewritten")
         if previous_successor is not None and previous_state != previous_successor:
             fail("receipt predecessor/successor state digests do not chain")
         if item["previous_receipt_sha256"] != previous_receipt:
@@ -1085,6 +1166,45 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
         fail("the last receipt successor digest does not match campaign state")
     validate_last_receipt_binding(campaign)
     return receipts
+
+
+def validate_initial_campaign_state(campaign: dict[str, Any]) -> None:
+    """Require a native schema-2 initialization to be uneffected and executable."""
+
+    train = campaign["train"]
+    checkpoint = campaign["checkpoint"]
+    if (
+        campaign["campaign_state"] not in {"PLANNED", "ACTIVE"}
+        or campaign["observed_event"] != "INITIAL_AUTHORIZATION"
+        or campaign["observed_event_ref"] != campaign["owner_issue"]
+        or campaign["stop_reason"] != "NONE"
+        or campaign["pending_action"]["kind"] != "START_NEXT_SLICE"
+        or campaign["next_action"]["type"] != "AUTO_CONTINUE"
+        or campaign["next_action"]["prompt"] != "NONE"
+        or campaign["idea_inbox"]["items"]
+        or checkpoint != {
+            "policy": "RELEASE_BOUNDARY",
+            "state": "NOT_DUE",
+            "reference": "NONE",
+        }
+        or train["publication_state"] != "UNPUBLISHED"
+        or train["published_version"] != "NONE"
+        or any(
+            train[key] != "NONE"
+            for key in (
+                "candidate_build_sha",
+                "deployed_build_sha",
+                "published_build_sha",
+            )
+        )
+        or train["upstream"]["published_version"] != "NONE"
+        or train["upstream"]["published_build_sha"] != "NONE"
+        or any(
+            item["state"] != "PLANNED" or item["pull_requests"]
+            for item in campaign["slices"]
+        )
+    ):
+        fail("INITIALIZE must establish a closed uneffected initial campaign state")
 
 
 def expected_next_type(campaign: dict[str, Any]) -> str:
@@ -1308,6 +1428,10 @@ def validate_campaign_v2(
         or publication != "CANDIDATE"
     ):
         fail("Level C deployment requires its critical exact candidate profile")
+    if kind == "DEPLOY_PRODUCTION_C" and (
+        state != "HUMAN_GATE" or stop != "LEVEL_C_AUTHORIZATION"
+    ):
+        fail("Level C deployment requires the closed human gate")
     if kind == "VERIFY_PRODUCTION" and (
         release_profile
         not in {
@@ -1589,7 +1713,16 @@ def immutable_campaign_identity(value: dict[str, Any]) -> dict[str, Any]:
         "release_profile",
         "auto_continuation",
     }
-    return {key: deepcopy(value[key]) for key in keys}
+    identity = {key: deepcopy(value[key]) for key in keys}
+    identity["idea_inbox_policy"] = {
+        key: deepcopy(value["idea_inbox"][key]) for key in ("mode", "scope")
+    }
+    identity["train_identity"] = {
+        "train_id": deepcopy(value["train"]["train_id"]),
+        "target_version": deepcopy(value["train"]["target_version"]),
+        "upstream_repository": deepcopy(value["train"]["upstream"]["repository"]),
+    }
+    return identity
 
 
 def changed_paths(before: Any, after: Any, *, prefix: str = "") -> set[str]:

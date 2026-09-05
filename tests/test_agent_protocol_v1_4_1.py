@@ -26,15 +26,28 @@ def campaign() -> dict[str, object]:
 def initialize(value: dict[str, object], event: dict[str, object]) -> dict[str, object]:
     value["receipts"] = []
     protocol.validate_campaign_v2(value, validate_receipt_chain=False)
+    operation = (
+        "INITIALIZE"
+        if value["observed_event"] == "INITIAL_AUTHORIZATION"
+        else "SCHEMA_MIGRATION"
+    )
+    receipt_args = {}
+    if operation == "INITIALIZE":
+        receipt_args["initial_state"] = protocol.campaign_state_payload(value)
     value["receipts"] = [
         protocol.build_receipt(
             sequence=1,
-            operation="INITIALIZE",
+            operation=operation,
             campaign_id=value["campaign_id"],
             github_event=event,
-            previous_state_sha256=protocol.GENESIS_STATE_SHA256,
+            previous_state_sha256=(
+                protocol.GENESIS_STATE_SHA256
+                if operation == "INITIALIZE"
+                else "f" * 64
+            ),
             successor_state_sha256=protocol.campaign_state_sha256(value),
             previous_receipt_sha256="NONE",
+            **receipt_args,
         )
     ]
     protocol.validate_campaign_v2(value)
@@ -73,6 +86,7 @@ def profile_campaign(repository: str) -> dict[str, object]:
         "state": "NOT_DUE",
         "reference": "NONE",
     }
+    value["idea_inbox"]["items"] = []
     value["train"] = {
         "train_id": value["campaign_id"],
         "target_version": "1.4.1",
@@ -187,6 +201,193 @@ def test_migration_retains_recorded_pr_without_inventing_overwritten_history() -
             "merge_sha": "b" * 40,
         }
     ]
+
+
+def test_initialize_rejects_an_effected_terminal_campaign() -> None:
+    value = terminal_profile_campaign("maxithlon/maxithlon")
+    value["campaign_state"] = "COMPLETE"
+    value["pending_action"] = {"kind": "NO_ACTION", "slice_id": "NONE"}
+    value["next_action"] = {
+        "type": "CAMPAIGN_COMPLETE",
+        "summary": "The fabricated campaign is complete.",
+        "prompt": "NONE",
+    }
+    value["checkpoint"] = {
+        "policy": "RELEASE_BOUNDARY",
+        "state": "RECORDED",
+        "reference": value["owner_issue"],
+    }
+    value["train"]["deployed_build_sha"] = value["train"]["candidate_build_sha"]
+    value["receipts"] = [
+        protocol.build_receipt(
+            sequence=1,
+            operation="INITIALIZE",
+            campaign_id=value["campaign_id"],
+            github_event={
+                "kind": "ISSUE",
+                "action": "OPENED",
+                "repository": "maxithlon/maxithlon",
+                "reference": value["owner_issue"],
+                "sha": "NONE",
+                "conclusion": "NOT_APPLICABLE",
+            },
+            previous_state_sha256=protocol.GENESIS_STATE_SHA256,
+            successor_state_sha256=protocol.campaign_state_sha256(value),
+            previous_receipt_sha256="NONE",
+            initial_state=protocol.campaign_state_payload(value),
+        )
+    ]
+
+    with pytest.raises(protocol.ContractError, match="uneffected initial"):
+        protocol.validate_campaign_v2(value)
+
+
+def test_initialize_rejects_a_preloaded_idea_inbox() -> None:
+    value = profile_campaign("gabned/provelume")
+    value["idea_inbox"]["items"] = ["#999"]
+    receipt = value["receipts"][0]
+    receipt["initial_state"] = protocol.campaign_state_payload(value)
+    receipt["successor_state_sha256"] = protocol.campaign_state_sha256(value)
+    receipt["idempotency_key"] = protocol.receipt_idempotency_key(
+        campaign_id=value["campaign_id"],
+        operation=receipt["operation"],
+        github_event=receipt["github_event"],
+        previous_state_sha256=receipt["previous_state_sha256"],
+        successor_state_sha256=receipt["successor_state_sha256"],
+    )
+    receipt["receipt_sha256"] = protocol.receipt_sha256(receipt)
+
+    with pytest.raises(protocol.ContractError, match="uneffected initial"):
+        protocol.validate_campaign_v2(value)
+
+
+def test_multi_receipt_chain_revalidates_the_committed_initial_state() -> None:
+    before = profile_campaign("gabned/provelume")
+    after = deepcopy(before)
+    after["idea_inbox"]["items"].append("#199")
+    value = protocol.append_transition_receipt(
+        before,
+        after,
+        {
+            "kind": "ISSUE",
+            "action": "OPENED",
+            "repository": "gabned/provelume",
+            "reference": "#199",
+            "sha": "NONE",
+            "conclusion": "NOT_APPLICABLE",
+        },
+    )
+    first, second = value["receipts"]
+    first["initial_state"]["idea_inbox"]["items"] = ["#999"]
+    first["successor_state_sha256"] = protocol.object_sha256(first["initial_state"])
+    first["idempotency_key"] = protocol.receipt_idempotency_key(
+        campaign_id=value["campaign_id"],
+        operation=first["operation"],
+        github_event=first["github_event"],
+        previous_state_sha256=first["previous_state_sha256"],
+        successor_state_sha256=first["successor_state_sha256"],
+    )
+    first["receipt_sha256"] = protocol.receipt_sha256(first)
+    second["previous_state_sha256"] = first["successor_state_sha256"]
+    second["previous_receipt_sha256"] = first["receipt_sha256"]
+    second["idempotency_key"] = protocol.receipt_idempotency_key(
+        campaign_id=value["campaign_id"],
+        operation=second["operation"],
+        github_event=second["github_event"],
+        previous_state_sha256=second["previous_state_sha256"],
+        successor_state_sha256=second["successor_state_sha256"],
+    )
+    second["receipt_sha256"] = protocol.receipt_sha256(second)
+
+    with pytest.raises(protocol.ContractError, match="uneffected initial"):
+        protocol.validate_campaign_v2(value)
+
+
+def test_multi_receipt_chain_preserves_initialized_identity_and_scope() -> None:
+    before = profile_campaign("gabned/provelume")
+    after = deepcopy(before)
+    after["idea_inbox"]["items"].append("#199")
+    value = protocol.append_transition_receipt(
+        before,
+        after,
+        {
+            "kind": "ISSUE",
+            "action": "OPENED",
+            "repository": "gabned/provelume",
+            "reference": "#199",
+            "sha": "NONE",
+            "conclusion": "NOT_APPLICABLE",
+        },
+    )
+    value["campaign_id"] = "rewritten-campaign"
+    for receipt in value["receipts"]:
+        receipt["idempotency_key"] = protocol.receipt_idempotency_key(
+            campaign_id=value["campaign_id"],
+            operation=receipt["operation"],
+            github_event=receipt["github_event"],
+            previous_state_sha256=receipt["previous_state_sha256"],
+            successor_state_sha256=receipt["successor_state_sha256"],
+        )
+        receipt["receipt_sha256"] = protocol.receipt_sha256(receipt)
+        if receipt["sequence"] == 2:
+            receipt["previous_receipt_sha256"] = value["receipts"][0][
+                "receipt_sha256"
+            ]
+            receipt["receipt_sha256"] = protocol.receipt_sha256(receipt)
+    value["receipts"][-1]["successor_state_sha256"] = (
+        protocol.campaign_state_sha256(value)
+    )
+    last = value["receipts"][-1]
+    last["idempotency_key"] = protocol.receipt_idempotency_key(
+        campaign_id=value["campaign_id"],
+        operation=last["operation"],
+        github_event=last["github_event"],
+        previous_state_sha256=last["previous_state_sha256"],
+        successor_state_sha256=last["successor_state_sha256"],
+    )
+    last["receipt_sha256"] = protocol.receipt_sha256(last)
+
+    with pytest.raises(protocol.ContractError, match="identity does not match"):
+        protocol.validate_campaign_v2(value)
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (("train_id", "rewritten-train"), ("target_version", "9.9.9")),
+)
+def test_multi_receipt_chain_preserves_initialized_train_identity(
+    field: str,
+    replacement: str,
+) -> None:
+    before = profile_campaign("gabned/provelume")
+    after = deepcopy(before)
+    after["idea_inbox"]["items"].append("#199")
+    value = protocol.append_transition_receipt(
+        before,
+        after,
+        {
+            "kind": "ISSUE",
+            "action": "OPENED",
+            "repository": "gabned/provelume",
+            "reference": "#199",
+            "sha": "NONE",
+            "conclusion": "NOT_APPLICABLE",
+        },
+    )
+    value["train"][field] = replacement
+    last = value["receipts"][-1]
+    last["successor_state_sha256"] = protocol.campaign_state_sha256(value)
+    last["idempotency_key"] = protocol.receipt_idempotency_key(
+        campaign_id=value["campaign_id"],
+        operation=last["operation"],
+        github_event=last["github_event"],
+        previous_state_sha256=last["previous_state_sha256"],
+        successor_state_sha256=last["successor_state_sha256"],
+    )
+    last["receipt_sha256"] = protocol.receipt_sha256(last)
+
+    with pytest.raises(protocol.ContractError, match="identity does not match"):
+        protocol.validate_campaign_v2(value)
 
 
 def test_migration_revalidates_legacy_passed_gate_before_merge() -> None:
@@ -953,6 +1154,39 @@ def test_production_verification_requires_distinct_successful_evidence() -> None
     protocol.validate_append_only(deployed, result)
 
 
+def test_production_verification_binds_exact_deployed_build() -> None:
+    deployed, _ = deployed_brick_campaign()
+    verified = deepcopy(deployed)
+    verified["campaign_state"] = "COMPLETE"
+    verified["checkpoint"] = {
+        "policy": "RELEASE_BOUNDARY",
+        "state": "RECORDED",
+        "reference": verified["owner_issue"],
+    }
+    verified["observed_event"] = "PRODUCTION_VERIFIED"
+    verified["observed_event_ref"] = "8" * 40
+    verified["pending_action"] = {"kind": "NO_ACTION", "slice_id": "NONE"}
+    verified["next_action"] = {
+        "type": "CAMPAIGN_COMPLETE",
+        "summary": "Complete the falsely verified release train.",
+        "prompt": "NONE",
+    }
+
+    with pytest.raises(protocol.ContractError, match="exact deployed build"):
+        protocol.append_transition_receipt(
+            deployed,
+            verified,
+            {
+                "kind": "WORKFLOW_RUN",
+                "action": "COMPLETED",
+                "repository": "brickms/brickms",
+                "reference": "run:454",
+                "sha": "8" * 40,
+                "conclusion": "SUCCESS",
+            },
+        )
+
+
 def test_code_only_production_b_profile_accepts_only_reversible_deploy() -> None:
     value = terminal_profile_campaign("brickms/brickms")
     value["authority_envelope"] = "THROUGH_PRODUCTION_B"
@@ -1009,6 +1243,23 @@ def test_level_c_profile_requires_a_closed_human_gate() -> None:
         "prompt": "NONE",
     }
     value["receipts"] = []
+    with pytest.raises(protocol.ContractError, match="closed human gate"):
+        protocol.validate_campaign_v2(value, validate_receipt_chain=False)
+
+
+def test_level_c_deployment_is_rejected_in_blocked_state() -> None:
+    value = terminal_profile_campaign("maxithlon/maxithlon")
+    value["authority_envelope"] = "THROUGH_PRODUCTION_B"
+    value["risk_profile"] = "CRITICAL_PRODUCTION"
+    value["campaign_state"] = "BLOCKED"
+    value["pending_action"] = {"kind": "DEPLOY_PRODUCTION_C", "slice_id": "NONE"}
+    value["stop_reason"] = "GATE_FAILURE"
+    value["next_action"] = {
+        "type": "USER_ACTION_REQUIRED",
+        "summary": "Resolve the failed Level C gate.",
+        "prompt": "RESOLVE-LEVEL-C-GATE",
+    }
+
     with pytest.raises(protocol.ContractError, match="closed human gate"):
         protocol.validate_campaign_v2(value, validate_receipt_chain=False)
 
