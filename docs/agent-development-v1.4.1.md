@@ -57,11 +57,13 @@ are contiguous, PR references are unique, and merged entries retain exact head
 and merge SHAs. Closed, unmerged attempts remain `CLOSED`; they are not removed.
 Only the final ledger entry may be `OPEN`, and a campaign may contain at most
 one open owner or correction PR across all slices. A correction therefore
-extends history instead of replacing it. A new commit on that one open PR
-updates only its `head_sha` through a distinct `PR_SYNCHRONIZED` receipt; the PR
-number and role remain immutable, and its final head is recorded before the
-entry can become `MERGED` or `CLOSED`. An unmerged close uses `PR_CLOSED`; the
-next correction is then appended without deleting the closed attempt.
+extends history instead of replacing it. `PR_OPENED` appends exactly the new
+open entry and cannot update an existing one. A new commit on that one open PR
+updates only its `head_sha` through a distinct `PR_SYNCHRONIZED` receipt; that
+event cannot append an entry, and the PR number and role remain immutable. The
+final head is recorded before the entry can become `MERGED` or `CLOSED`. An
+unmerged close uses `PR_CLOSED`; the next correction is then appended without
+deleting the closed attempt.
 
 ## Append-only transition receipts
 
