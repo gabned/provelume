@@ -112,7 +112,9 @@ def paths(value: Any) -> list[str]:
 
 def validate_pr(value: Any, now: datetime | None = None) -> dict:
     p = obj(value, "repository number base_sha head_sha tree_sha body changed_paths "
-            "paths_complete file_patches source observed_at", "PR")
+            "paths_complete file_patches state draft mergeable source observed_at", "PR")
+    require(p["state"] in {"OPEN", "CLOSED"} and type(p["draft"]) is bool and
+            (p["mergeable"] is None or type(p["mergeable"]) is bool), "invalid PR state")
     require(p["repository"] in PROFILES, "unknown repository")
     number(p["number"], "PR number")
     for key in ("base_sha", "head_sha", "tree_sha"):
@@ -403,11 +405,14 @@ def validate_operations(
     require(r["unresolved_threads"] == [] and r["current_findings"] == [],
             "unresolved current finding or thread")
     if e["phase"] == "POST_MERGE":
+        require(p["state"] == "CLOSED" and not p["draft"], "merged PR state mismatch")
         m = validate_merge(e["merge"], p, now)
         validate_ci(e["post_merge_ci"], p["repository"], m["default_sha"], now=now)
         require(e["post_merge_ci"]["policy_ref"] == m["default_sha"],
                 "post-merge CI policy is not bound to the audited default")
     else:
+        require(p["state"] == "OPEN" and not p["draft"] and p["mergeable"] is True,
+                "pre-merge PR must be open, ready and mergeable")
         require(e["merge"] is None and e["post_merge_ci"] is None,
                 "pre-merge input cannot claim reconciliation")
     findings = array(e["late_findings"], "late findings")

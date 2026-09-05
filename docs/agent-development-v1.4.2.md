@@ -70,6 +70,16 @@ Polling and automatic retries remain disabled.
 
 ## PR identity, exceptions and merge
 
+The PR observation includes `state`, `draft` and `mergeable`. Pre-merge gates
+require an open, non-draft PR with observed mergeability exactly true; unknown
+mergeability cannot authorize a merge. Post-merge evidence requires a closed,
+non-draft PR plus the retained actual merge proof.
+
+Campaign receipt replay uses the latest retained connector observation as its
+clock anchor. Creation checks both the live clock and that same frozen window,
+so sequential PR/CI/review/merge reads remain replayable without allowing stale
+evidence to authorize a new action.
+
 The PR snapshot carries exact repository, number, base, head, tree, complete
 changed paths and patches. Its body must contain one matching `BASE_SHA`,
 `HEAD_SHA`, `TREE_SHA` and `CHANGED_PATHS_COMPLETE: TRUE` declaration.

@@ -957,8 +957,23 @@ def validate_operational_transition(
             fail("Protocol gates and merge transitions require operational evidence")
         # Archived receipts prove conditions at observation time. A new transition
         # always validates against the current clock before its digest is written.
-        now = operations.timestamp(evidence["pr"]["observed_at"]) if archived else None
+        def observation_times(value: Any) -> list[Any]:
+            if isinstance(value, dict):
+                own = [operations.timestamp(value["observed_at"])] if (
+                    value.get("source") == "GITHUB_CONNECTOR" and "observed_at" in value
+                ) else []
+                return own + [stamp for child in value.values()
+                              for stamp in observation_times(child)]
+            if isinstance(value, list):
+                return [stamp for child in value for stamp in observation_times(child)]
+            return []
+
+        anchor = max(observation_times(evidence))
+        now = anchor if archived else None
         checked = operations.validate_operations(evidence, now=now)
+        # Creation and frozen replay must validate the same observation window.
+        if not archived:
+            operations.validate_operations(evidence, now=anchor)
         p = checked["pr"]
         if p["repository"] != successor["repository"]:
             fail("operational evidence belongs to another repository")
