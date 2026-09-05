@@ -119,6 +119,14 @@ Post-merge evidence requires observed merged/closed state, the actual merge
 commit, accepted tree, squash or merge parents and ancestry from the current
 default commit. A provisional GitHub merge SHA is insufficient. Applicable
 post-merge CI must bind that observed default commit.
+Before merging, the collector must compare the freshly observed default SHA with
+the accepted PR base, not only the PR API's retained base field. If they differ,
+reconstruct the candidate on the current default and require new exact-head CI.
+An integration whose actual tree or parent differs from accepted evidence is not
+a qualified operation. Retain that actual merge and its anomaly without rewriting
+its former head/base, then qualify the current tree through a separate correction.
+Only qualified integration operations may certify the final default; retained
+terminal ledgers can also preserve merged attempts that did not meet those gates.
 Its policy reference also binds that current default; an older policy cannot
 omit checks added by the audited default. All latest observed applicable workflows
 must succeed; the required set is a minimum inventory, not a waiver for other runs.
