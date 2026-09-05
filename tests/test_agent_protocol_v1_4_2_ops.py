@@ -50,6 +50,30 @@ def test_audit_requires_exact_campaign_on_every_integration(repository, damage):
         ops.generate_audit(value)
 
 
+@pytest.mark.parametrize("part", ["origin", "correction"])
+@pytest.mark.parametrize("damage", ["missing", "different", "duplicate"])
+def test_audit_binds_retained_late_finding_integrations(part, damage):
+    value = audit()
+    finding = resolved_finding()
+    value["repositories"][0]["operations"][0]["late_findings"] = [finding]
+    receipt = ops.generate_audit(value)
+    pr_value = finding[part]["pr"]
+    marker = "CAMPAIGN_REF: " + value["campaign_ref"] + "\n"
+    if damage == "missing":
+        pr_value["body"] = pr_value["body"].replace(marker, "")
+    elif damage == "different":
+        pr_value["body"] = pr_value["body"].replace("/issues/200", "/issues/199")
+    else:
+        pr_value["body"] += marker
+    with pytest.raises(ValueError, match="audited campaign"):
+        ops.generate_audit(value)
+
+    receipt["evidence"] = value
+    receipt["evidence_sha256"] = ops.digest(value)
+    with pytest.raises(ValueError, match="audited campaign"):
+        ops.validate_audit(receipt)
+
+
 def test_review_trigger_retains_independent_ci_identity():
     value = ci()
     review = deepcopy(value["runs"][0])

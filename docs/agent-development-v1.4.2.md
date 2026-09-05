@@ -123,6 +123,8 @@ the evidence and recomputing the outer digest still fails validation.
 Every integration operation in the final audit must declare exactly one
 `CAMPAIGN_REF` in its observed PR body, equal to the audited campaign URL.
 Missing, duplicate or unrelated references cannot certify campaign completion.
+The same check covers the retained original and corrective integrations inside
+every late finding, including frozen audit replay.
 
 A late finding records both the original merged PR/build and a separately
 reconciled corrective PR. A resolved label alone is insufficient: the observed
