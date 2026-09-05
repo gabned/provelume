@@ -347,18 +347,19 @@ def test_dynamic_trigger_cannot_relabel_repository_workflows(workflow, event):
         ops.validate_ci(value, REPO, HEAD)
 
 
-@pytest.mark.parametrize("amendment", [False, True, "version-prefix"])
-def test_scope_authorization_binds_actual_patch_and_head(amendment):
+@pytest.mark.parametrize("continuation", [False, True, "version-prefix"])
+def test_scope_authorization_binds_actual_patch_and_head(continuation):
     value = operations("brickms/brickms")
     p = value["pr"]
     p["changed_paths"].insert(0, "CHANGELOG.md")
     patch = ("diff --git a/CHANGELOG.md b/CHANGELOG.md\n--- a/CHANGELOG.md\n"
              "+++ b/CHANGELOG.md\n@@ -1,0 +2 @@\n+" "- Protocol 1.4.2 canonical sync.\n")
-    if amendment:
-        patch = patch.replace("@@ -1,0 +2 @@\n", "@@ -2 +2 @@\n-"
-                              "- Protocol 1.4.2 previous canonical sync.\n")
-    if amendment == "version-prefix":
-        patch = patch.replace("Protocol 1.4.2", "0.309 Agent Development Protocol v1.3.0 "
+    if continuation:
+        patch = ("diff --git a/CHANGELOG.md b/CHANGELOG.md\n--- a/CHANGELOG.md\n"
+                 "+++ b/CHANGELOG.md\n@@ -2 +2,2 @@\n - Protocol 1.4.2 canonical sync.\n"
+                 "+  Agent Development Protocol v1.3.0 / Protocol v1.4.2: correction.\n")
+    if continuation == "version-prefix":
+        patch = patch.replace(" - Protocol 1.4.2", " - 0.309 Agent Development Protocol v1.3.0 "
                               "governance adopts canonical Protocol v1.4.2")
     p["file_patches"]["CHANGELOG.md"] = patch
     approval = {"repository": p["repository"], "pr": 12, "base_sha": BASE, "head_sha": HEAD,
@@ -374,17 +375,23 @@ def test_scope_authorization_binds_actual_patch_and_head(amendment):
                         "authorization_ref":
                             "codex-goal:11111111-2222-3333-4444-555555555555:1788613263"}
     ops.validate_scope(session_approval, p, value["baseline_paths"])
-    if amendment:
-        for removed in ("Product release 2.0", "Protocol 1.4.1 old entry",
-                        "0.310 Protocol 1.4.2 changed version"):
-            old_line = next(line for line in patch.splitlines() if line.startswith("-- "))
-            bad_patch = patch.replace(old_line, "-- " + removed)
+    if continuation:
+        for context in (" - Product release 2.0", " - Protocol 1.4.1 old entry", " "):
+            old_line = next(line for line in patch.splitlines() if line.startswith(" - "))
+            bad_patch = patch.replace(old_line, context)
             p["file_patches"]["CHANGELOG.md"] = bad_patch
             bad_approval = {**approval, "patch": bad_patch,
                             "patch_sha256": hashlib.sha256(bad_patch.encode()).hexdigest()}
-            with pytest.raises(ValueError, match="entry identity"):
+            with pytest.raises(ValueError, match="continuation must follow"):
                 ops.validate_scope(bad_approval, p, value["baseline_paths"])
         p["file_patches"]["CHANGELOG.md"] = patch
+    deleted_patch = patch + "-- Protocol 1.4.2 old text\n"
+    p["file_patches"]["CHANGELOG.md"] = deleted_patch
+    with pytest.raises(ValueError, match="append exactly one"):
+        ops.validate_scope({**approval, "patch": deleted_patch,
+                            "patch_sha256": hashlib.sha256(deleted_patch.encode()).hexdigest()},
+                           p, value["baseline_paths"])
+    p["file_patches"]["CHANGELOG.md"] = patch
     p["file_patches"]["CHANGELOG.md"] += "+unapproved text\n"
     with pytest.raises(ValueError, match="observed exact-head patch"):
         ops.validate_scope(approval, p, value["baseline_paths"])
@@ -877,15 +884,20 @@ def test_late_finding_rejects_unproven_resolution_or_rewritten_history(damage):
         ops.validate_operations(value)
 
 
-def test_synchronizer_rolls_back_an_interrupted_write(tmp_path, monkeypatch):
+@pytest.mark.parametrize("read_only", [False, pytest.param(
+    True, marks=pytest.mark.skipif(os.name == "nt", reason="POSIX read-only replacement"))])
+def test_synchronizer_rolls_back_an_interrupted_write(tmp_path, monkeypatch, read_only):
     source, target = tmp_path / "source", tmp_path / "target"
     commit, _ = canonical_checkout(source)
     target.mkdir()
     original = target / PROTOCOL_PATH
     original.parent.mkdir()
     original.write_bytes(b"previous vendor")
+    if read_only:
+        original.chmod(0o400)
     original_mode = stat.S_IMODE(original.stat().st_mode)
     replace = ops.os.replace
+    write_bytes = Path.write_bytes
     calls = 0
 
     def interrupt(source_path, destination):
@@ -895,7 +907,15 @@ def test_synchronizer_rolls_back_an_interrupted_write(tmp_path, monkeypatch):
             raise OSError("synthetic interruption")
         return replace(source_path, destination)
 
+    def enforce_read_only(destination, data):
+        # Exercise non-root behavior even on a privileged POSIX test runner.
+        if destination.exists() and not destination.stat().st_mode & stat.S_IWUSR:
+            raise PermissionError("cannot reopen a read-only destination")
+        return write_bytes(destination, data)
+
     monkeypatch.setattr(ops.os, "replace", interrupt)
+    if read_only:
+        monkeypatch.setattr(Path, "write_bytes", enforce_read_only)
     with pytest.raises(OSError, match="synthetic interruption"):
         ops.sync_vendor(source, target, commit)
     assert original.read_bytes() == b"previous vendor"

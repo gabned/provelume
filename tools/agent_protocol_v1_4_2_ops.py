@@ -343,16 +343,17 @@ def validate_scope(
     require(lines[:3] == ["diff --git a/CHANGELOG.md b/CHANGELOG.md",
                          "--- a/CHANGELOG.md", "+++ b/CHANGELOG.md"], "wrong patch target")
     additions = [line[1:] for line in lines[3:] if line.startswith("+")]
-    removals = [line[1:] for line in lines[3:] if line.startswith("-")]
-    require(len(additions) == 1 and additions[0].startswith("- ") and
-            "Protocol" in additions[0] and len(removals) <= 1,
-            "exception must add or amend exactly one technical Protocol changelog line")
-    if removals:
-        identity = r"^(- .*?\bProtocol\b.*?\bv?1\.4\.2\b)(?=[ :;,.]|$)"
-        before, after = re.match(identity, removals[0]), re.match(identity, additions[0])
-        require(before is not None and after is not None and before[1] == after[1],
-                "amendment must preserve the existing Protocol 1.4.2 entry identity")
-    require(all(line.startswith(("@@ ", " ", "+", "-")) for line in lines[3:]), "invalid patch")
+    require(len(additions) == 1 and "Protocol" in additions[0] and
+            not any(line.startswith("-") for line in lines[3:]),
+            "exception must append exactly one technical Protocol changelog line")
+    if not additions[0].startswith("- "):
+        index = lines.index("+" + additions[0], 3)
+        identity = r"^ - .*?\bProtocol\b.*?\bv?1\.4\.2\b(?=[ :;,.]|$)"
+        require(additions[0].startswith("  Agent Development Protocol ") and
+                re.search(r"\bProtocol v?1\.4\.2\b", additions[0]) is not None and
+                index > 3 and re.match(identity, lines[index - 1]) is not None,
+                "continuation must follow the existing Protocol 1.4.2 entry")
+    require(all(line.startswith(("@@ ", " ", "+")) for line in lines[3:]), "invalid patch")
 
 
 def validate_merge(value: Any, pr: dict, now: datetime | None = None) -> dict:
@@ -621,9 +622,11 @@ def sync_vendor(source: Path, target: Path, commit: str, *, check: bool = False)
                     if originals[name] is None:
                         destinations[name].unlink()
                     else:
-                        destinations[name].write_bytes(originals[name])
+                        restored = Path(tmp) / ("restore-" + str(len(applied)))
+                        restored.write_bytes(originals[name])
                         if os.name != "nt":
-                            destinations[name].chmod(original_modes[name])
+                            restored.chmod(original_modes[name])
+                        os.replace(restored, destinations[name])
                 raise
     return {"result": "PASS", "manifest": m, "changed_paths": changed, "check_only": check}
 
