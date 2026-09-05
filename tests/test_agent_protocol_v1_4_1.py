@@ -226,6 +226,23 @@ def test_persisted_migration_revalidates_the_deterministic_projection() -> None:
         protocol.validate_campaign_v2(value)
 
 
+def test_persisted_migration_revalidates_its_inferred_github_event() -> None:
+    value = protocol.migrate_campaign(protocol.sample_campaign_v1())
+    receipt = value["receipts"][0]
+    receipt["github_event"]["reference"] = "#999"
+    receipt["idempotency_key"] = protocol.receipt_idempotency_key(
+        campaign_id=value["campaign_id"],
+        operation=receipt["operation"],
+        github_event=receipt["github_event"],
+        previous_state_sha256=receipt["previous_state_sha256"],
+        successor_state_sha256=receipt["successor_state_sha256"],
+    )
+    receipt["receipt_sha256"] = protocol.receipt_sha256(receipt)
+
+    with pytest.raises(protocol.ContractError, match="inferred GitHub event"):
+        protocol.validate_campaign_v2(value)
+
+
 def test_initialize_rejects_an_effected_terminal_campaign() -> None:
     value = terminal_profile_campaign("maxithlon/maxithlon")
     value["campaign_state"] = "COMPLETE"
@@ -691,7 +708,7 @@ def test_persisted_chain_revalidates_each_intermediate_event_transition() -> Non
         protocol.validate_campaign_v2(forged)
 
 
-def test_legacy_intermediate_transition_without_state_fails_closed() -> None:
+def test_legacy_intermediate_transition_reconstructs_from_next_snapshot() -> None:
     _, opened, _ = activate_second_slice()
     closed = deepcopy(opened)
     closed["slices"][1]["pull_requests"][0]["state"] = "CLOSED"
@@ -717,6 +734,38 @@ def test_legacy_intermediate_transition_without_state_fails_closed() -> None:
     final = legacy["receipts"][2]
     final["previous_receipt_sha256"] = intermediate["receipt_sha256"]
     final["receipt_sha256"] = protocol.receipt_sha256(final)
+
+    assert protocol.validate_campaign_v2(legacy) == legacy
+
+
+def test_ambiguous_legacy_intermediate_transition_fails_closed() -> None:
+    _, opened, _ = activate_second_slice()
+    closed = deepcopy(opened)
+    closed["slices"][1]["pull_requests"][0]["state"] = "CLOSED"
+    closed["observed_event"] = "PR_CLOSED"
+    closed = protocol.append_transition_receipt(
+        opened,
+        closed,
+        {
+            "kind": "PULL_REQUEST",
+            "action": "CLOSED",
+            "repository": "gabned/provelume",
+            "reference": "#4",
+            "sha": "4" * 40,
+            "conclusion": "NOT_APPLICABLE",
+        },
+    )
+
+    legacy = deepcopy(closed)
+    first_transition = legacy["receipts"][1]
+    del first_transition["previous_state"]
+    del first_transition["successor_state"]
+    first_transition["receipt_sha256"] = protocol.receipt_sha256(first_transition)
+    final_transition = legacy["receipts"][2]
+    del final_transition["previous_state"]
+    del final_transition["successor_state"]
+    final_transition["previous_receipt_sha256"] = first_transition["receipt_sha256"]
+    final_transition["receipt_sha256"] = protocol.receipt_sha256(final_transition)
 
     with pytest.raises(protocol.ContractError, match="legacy intermediate transition"):
         protocol.validate_campaign_v2(legacy)

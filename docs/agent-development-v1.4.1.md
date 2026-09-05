@@ -89,8 +89,10 @@ Validation reconstructs the state after every receipt, verifies the snapshots
 against both digests, and applies the immutable-identity, ordered-ledger, frozen
 scope, exact-event binding, and event-owned mutation checks to every adjacent
 pair. Digest continuity alone is never transition evidence. A legacy final
-transition remains readable only when its predecessor and current successor are
-uniquely reconstructible; a missing intermediate state fails closed.
+transition remains readable when its predecessor and current successor are
+uniquely reconstructible. After continuation, the next receipt's predecessor
+snapshot supplies that same legacy successor. Consecutive missing intermediate
+states remain ambiguous and fail closed.
 
 Native `INITIALIZE` also binds the exact owner `ISSUE/OPENED` event and
 establishes an uneffected campaign: all slices planned with empty PR ledgers,

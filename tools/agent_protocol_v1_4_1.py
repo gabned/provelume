@@ -1222,6 +1222,9 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
                     reconstructed
                 ):
                     fail("migration result is not the deterministic schema 1 projection")
+                expected_event = expected_migration["receipts"][0]["github_event"]
+                if item["github_event"] != expected_event:
+                    fail("migration receipt is not bound to its inferred GitHub event")
             elif index == len(receipts):
                 reconstructed = snapshot_campaign(
                     campaign_state_payload(campaign),
@@ -1253,15 +1256,24 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
                     "receipt.successor_state",
                 )
             else:
-                if index != len(receipts) or reconstructed is None:
+                if reconstructed is None:
+                    fail("legacy transition predecessor state cannot be reconstructed")
+                if index == len(receipts):
+                    successor_snapshot = campaign_state_payload(campaign)
+                elif (
+                    isinstance(receipts[index], dict)
+                    and set(receipts[index]) == STATEFUL_RECEIPT_KEYS
+                ):
+                    successor_snapshot = receipts[index]["previous_state"]
+                else:
                     fail(
                         "legacy intermediate transition lacks reconstructible "
                         "state snapshots"
                     )
                 before = reconstructed
                 after = snapshot_campaign(
-                    campaign_state_payload(campaign),
-                    "campaign state",
+                    successor_snapshot,
+                    "reconstructed legacy successor state",
                 )
             if campaign_state_sha256(before) != previous_state:
                 fail("receipt snapshot does not match its predecessor digest")
