@@ -56,6 +56,9 @@ Workflow identity includes its trigger, expressed as `workflow@event` in the
 required set. In particular, successful `pull_request_target` scope checks cannot
 replace failing `pull_request` candidate tests from the same workflow file.
 The run retains its separate `workflow` and closed `event` fields.
+GitHub-managed checks can report `dynamic` (for example Code Quality); retain
+that observed trigger and workflow path with the same attempt/history gates.
+Do not omit it from the CI inventory or relabel it as a repository workflow.
 
 `validate-wait` accepts only a freshly observed live run and the exact connector
 handle ending in `/actions/runs/{id}/attempts/{attempt}`. Its deadline is bounded

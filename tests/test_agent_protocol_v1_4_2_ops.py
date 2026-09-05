@@ -228,6 +228,28 @@ def test_pr_identity_rejects_invalid_declarations_and_renderer_repairs(damage):
     assert ops.render_pr_identity(fixed) == fixed
 
 
+def test_github_managed_dynamic_ci_retains_attempts_and_supersession():
+    value = ci()
+    managed = deepcopy(value["runs"][0])
+    managed.update(run_id=101, workflow="dynamic/github-code-quality/codeql", event="dynamic")
+    value["runs"].append(managed)
+    value["required_workflows"].append(managed["workflow"] + "@dynamic")
+    ops.validate_ci(value, REPO, HEAD)
+    prior = deepcopy(value)
+    managed.update(latest_attempt=2, attempts=[attempt(), attempt(2, "FAILURE")])
+    with pytest.raises(ValueError, match="latest applicable"):
+        ops.validate_ci(value, REPO, HEAD)
+    ops.validate_ci_append_only(prior, value)
+    managed["attempts"][0]["jobs"][0]["name"] = "rewritten"
+    with pytest.raises(ValueError, match="terminal attempt rewritten"):
+        ops.validate_ci_append_only(prior, value)
+    newer = deepcopy(prior["runs"][-1])
+    newer.update(run_id=102, attempts=[attempt(1, "NONE")])
+    prior["runs"].append(newer)
+    with pytest.raises(ValueError, match="latest applicable"):
+        ops.validate_ci(prior, REPO, HEAD)
+
+
 def test_scope_authorization_binds_actual_patch_and_head():
     value = operations("brickms/brickms")
     p = value["pr"]
