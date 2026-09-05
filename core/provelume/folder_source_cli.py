@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .folder_source_enrollment import FolderSourceEnrollmentError, diagnostic_message
 from .folder_source_model import (
     SOURCE_CLASSES,
     SOURCE_LIFECYCLE_STATES,
@@ -17,6 +18,7 @@ from .service import ProvelumeInstance
 FOLDER_SOURCE_COMMANDS = frozenset(
     {
         "folder-source-register",
+        "folder-source-validate",
         "folder-sources",
         "folder-source",
         "folder-source-observe",
@@ -41,12 +43,20 @@ def _non_negative(value: str) -> int:
 
 
 def add_folder_source_commands(subparsers: Any) -> None:
+    validate = subparsers.add_parser(
+        "folder-source-validate", help="Check an explicit folder path without enrolling a Source",
+    )
+    validate.add_argument("instance", type=Path)
+    validate.add_argument("path")
+    validate.add_argument("--class", dest="source_class", choices=SOURCE_CLASSES, default="local")
+    validate.add_argument("--lang", choices=("en", "it"), default="en")
     register = subparsers.add_parser(
         "folder-source-register",
         help="Register one explicit local, removable or mounted-network folder Source",
     )
     register.add_argument("instance", type=Path)
-    register.add_argument("path", type=Path)
+    register.add_argument("path")
+    register.add_argument("--lang", choices=("en", "it"), default="en")
     register.add_argument("--name", required=True)
     register.add_argument("--class", dest="source_class", choices=SOURCE_CLASSES, default="local")
     register.add_argument("--state", choices=SOURCE_LIFECYCLE_STATES, default="enabled")
@@ -115,6 +125,12 @@ def handle_folder_source_command(args: argparse.Namespace) -> int | None:
         return None
     try:
         instance = ProvelumeInstance(args.instance)
+        if args.command == "folder-source-validate":
+            result = instance.validate_folder_source_path(
+                args.path, source_class=args.source_class, language=args.lang,
+            )
+            _print(result)
+            return 0 if result["can_enroll"] else 2
         if args.command == "folder-source-register":
             schedule = schedule_payload(
                 mode=args.mode,
@@ -169,6 +185,10 @@ def handle_folder_source_command(args: argparse.Namespace) -> int | None:
             _print(result)
             job = result.get("job")
             return 0 if isinstance(job, dict) and job.get("status") == "succeeded" else 2
+    except FolderSourceEnrollmentError as exc:
+        _print({"status": "error", "diagnostic_code": exc.code,
+                "error": diagnostic_message(exc.code, getattr(args, "lang", "en"))})
+        return 2
     except (FolderSourceError, OSError, SchedulerError, ValueError) as exc:
         _print({"status": "error", "error": str(exc)})
         return 2

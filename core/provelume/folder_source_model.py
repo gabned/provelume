@@ -22,6 +22,14 @@ SOURCE_PHASES = (
     "attention",
 )
 SOURCE_ERROR_CODES = (
+    "path_unavailable",
+    "mount_unavailable",
+    "network_unreachable",
+    "permission_denied",
+    "windows_session_required",
+    "mapped_drive_unavailable",
+    "unsupported_platform",
+    "unsupported_path",
     "configuration_invalid",
     "input_io_error",
     "input_unreadable",

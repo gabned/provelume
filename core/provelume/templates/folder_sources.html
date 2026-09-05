@@ -7,22 +7,24 @@
   <p class="lead">{{ t('sources.lead') }}</p>
 </section>
 {% if saved %}<section class="panel"><p class="status ok">{{ t('sources.saved') }}</p><p class="technical-note">{{ saved }}</p></section>{% endif %}
-{% if error %}<section class="panel"><p class="status warn">{{ t('sources.error') }}</p><p>{{ error }}</p></section>{% endif %}
+{% if error %}<section class="panel" role="alert"><p class="status warn">{{ t('sources.error') }}</p><p>{{ error }}</p></section>{% endif %}
+{% if validation %}<section class="panel" role="status" aria-live="polite"><p class="status {{ 'ok' if validation.can_enroll else 'warn' }}">{{ validation.message }}</p></section>{% endif %}
 {% if editable %}
 <section class="panel">
   <h2>{{ t('sources.register') }}</h2>
   <form method="post" action="/sources?lang={{ lang }}" class="settings-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <input type="hidden" name="action" value="register">
-    <label><span>{{ t('sources.name') }}</span><input name="name" maxlength="120" required></label>
-    <label><span>{{ t('sources.path') }}</span><input name="path" required></label>
-    <label><span>{{ t('sources.class') }}</span><select name="source_class"><option value="local">local</option><option value="removable">removable</option><option value="network">network</option></select></label>
-    <label><span>{{ t('sources.state') }}</span><select name="state"><option value="enabled">enabled</option><option value="paused">paused</option></select></label>
-    <label><span>{{ t('sources.quiescence') }}</span><input name="quiescence_seconds" type="number" min="0" value="5" required></label>
-    <label><span>{{ t('sources.stable') }}</span><input name="stable_observations" type="number" min="1" value="2" required></label>
-    <label><span>{{ t('sources.watch') }}</span><input name="watch_interval_seconds" type="number" min="60" value="60"></label>
-    <label><span>{{ t('sources.timezone') }}</span><input name="timezone" value="UTC" required></label>
-    <button type="submit">{{ t('sources.submit') }}</button>
+    <label><span>{{ t('sources.name') }}</span><input name="name" maxlength="120" value="{{ form.get('name', '') }}" required></label>
+    <label><span>{{ t('sources.path') }}</span><input name="path" maxlength="4096" value="{{ form.get('path', '') }}" aria-describedby="source-path-help" required></label>
+    <p id="source-path-help">{{ t('sources.path_help') }}</p>
+    <label><span>{{ t('sources.class') }}</span><select name="source_class">{% for choice in ['local', 'removable', 'network'] %}<option value="{{ choice }}" {% if form.get('source_class', 'local') == choice %}selected{% endif %}>{{ t('sources.class_' + choice) }}</option>{% endfor %}</select></label>
+    <label><span>{{ t('sources.state') }}</span><select name="state">{% for choice in ['enabled', 'paused'] %}<option value="{{ choice }}" {% if form.get('state', 'enabled') == choice %}selected{% endif %}>{{ t('sources.' + choice) }}</option>{% endfor %}</select></label>
+    <label><span>{{ t('sources.quiescence') }}</span><input name="quiescence_seconds" type="number" min="0" value="{{ form.get('quiescence_seconds', '5') }}" required></label>
+    <label><span>{{ t('sources.stable') }}</span><input name="stable_observations" type="number" min="1" value="{{ form.get('stable_observations', '2') }}" required></label>
+    <label><span>{{ t('sources.watch') }}</span><input name="watch_interval_seconds" type="number" min="60" value="{{ form.get('watch_interval_seconds', '60') }}"></label>
+    <label><span>{{ t('sources.timezone') }}</span><input name="timezone" value="{{ form.get('timezone', 'UTC') }}" required></label>
+    <button type="submit" name="action" value="validate" formnovalidate>{{ t('sources.validate') }}</button>
+    <button type="submit" name="action" value="register">{{ t('sources.submit') }}</button>
   </form>
 </section>
 {% else %}
@@ -39,6 +41,7 @@
         {% if editable %}<span class="hash">{{ source.path }}</span>{% endif %}
         <span>{{ t('sources.files') }}: {{ source.observer.file_count }} · {{ t('sources.bytes') }}: {{ source.observer.total_bytes }}</span>
         <span>{{ t('sources.policy') }}: {{ source.policy_id or t('common.none') }}</span>
+        {% if source.diagnostic_message %}<span role="status">{{ source.diagnostic_message }}</span>{% endif %}
       </div>
       {% if editable %}
       <div class="status-row">

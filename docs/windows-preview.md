@@ -57,6 +57,15 @@ local, removable or already-mounted network folder Source and choose manual, bou
 local-calendar observation. The schedule, timezone, DST behavior, quiet window, retry and
 missed-run policy remain visible and independently enabled or paused.
 
+In Emendatio development, use **Validate path** before **Register Source**. Windows
+UNC paths such as `\\server\share\folder` use the network class. Open the same path
+in Explorer under the same Windows user/session first. If a mapped drive is missing,
+map it in Provelume's session or select the UNC path; elevation can change drive
+visibility. EN/IT diagnostics distinguish reachability, permissions, authentication,
+unsupported paths and bounded validation timeout. Registration validates again and
+does not create a Source for an unavailable mount. Reconnecting at the configured
+location retains the Source identity and previously acquired records.
+
 Scheduled work runs only while the current local runtime is active. A network-class folder is a
 path the operating system has already mounted; Provelume does not discover shares or negotiate
 network credentials. Reconciliation, validation and resource observations do not authorize

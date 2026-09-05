@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
@@ -9,6 +10,16 @@ from typing import Any
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from .domain import Source
+from .folder_source_enrollment import (
+    DIAGNOSTICS,
+    EnrollmentCheck,
+    FolderSourceEnrollmentError,
+    classify_path,
+    diagnose_os_error,
+    diagnostic_message,
+    qualify_folder_path,
+    windows_drive_visible,
+)
 from .folder_source_model import (
     FOLDER_SOURCE_SCHEMA_VERSION,
     MAX_FOLDER_PATH_CHARS,
@@ -28,7 +39,7 @@ from .ingest import (
     _run_ingestion_filesystem_locked,
 )
 from .ingestion_runs import IngestionLedger
-from .paths import UnsafePathError, portable_config_path
+from .paths import UnsafePathError
 from .scheduler_model import SchedulerError, instant_text, utc_instant
 from .storage import InstanceStore, utc_now
 
@@ -83,6 +94,30 @@ class FolderSourceManager:
             except ValueError:
                 continue
             raise FolderSourceError("folder Source overlaps reserved Instance storage")
+        # Resolved spelling alone cannot identify bind mounts or Windows UNC
+        # aliases of local storage. Compare filesystem identity only for the
+        # selected path/ancestors and already-known Instance storage; no discovery.
+        identities: dict[Path, tuple[int, int] | None] = {}
+
+        def identity(path: Path) -> tuple[int, int] | None:
+            if path not in identities:
+                try:
+                    metadata = path.stat()
+                    identities[path] = (
+                        (metadata.st_dev, metadata.st_ino) if metadata.st_ino else None
+                    )
+                except FileNotFoundError:
+                    identities[path] = None
+            return identities[path]
+
+        candidate_identity = identity(candidate)
+        if candidate_identity is not None and any(
+            identity(path) == candidate_identity for path in (instance_root, *instance_root.parents)
+        ):
+            raise FolderSourceError("folder Source cannot contain the Instance root")
+        reserved_identities = {item for path in reserved if (item := identity(path)) is not None}
+        if any(identity(path) in reserved_identities for path in (candidate, *candidate.parents)):
+            raise FolderSourceError("folder Source overlaps reserved Instance storage")
         return candidate
 
     def _configured(self, source_id: str) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
@@ -105,6 +140,20 @@ class FolderSourceManager:
             return False
         return True
 
+    def check_enrollment(self, path: Path | str, *, source_class: str = "local") -> EnrollmentCheck:
+        sources = self.store.read_config().get("sources") or {}
+        if not isinstance(sources, Mapping):
+            raise FolderSourceError("Instance Sources configuration must be an object")
+        return qualify_folder_path(
+            path, source_class=source_class, instance_root=self.store.paths.root,
+            resolver=self._selected_path, configured_sources=sources,
+        )
+
+    def validate_path(
+        self, path: Path | str, *, source_class: str = "local", language: str = "en",
+    ) -> dict[str, Any]:
+        return self.check_enrollment(path, source_class=source_class).public(language)
+
     def register(
         self,
         path: Path | str,
@@ -118,7 +167,6 @@ class FolderSourceManager:
         max_files: int = 1000,
     ) -> dict[str, Any]:
         selected_name = self._name(name)
-        selected_path = self._selected_path(path)
         folder = folder_config_payload(
             source_class=source_class,
             lifecycle_state=lifecycle_state,
@@ -127,12 +175,12 @@ class FolderSourceManager:
             max_file_bytes=max_file_bytes,
             max_files=max_files,
         )
-        if source_class == "local" and not selected_path.exists():
-            raise FolderSourceError("local folder Source must exist when registered")
-        if selected_path.exists() and not (selected_path.is_file() or selected_path.is_dir()):
-            raise FolderSourceError("folder Source path is not a regular file or directory")
-
-        source_id = self.store.find_source_for_path(selected_path)
+        # Always revalidate at enrollment; a previous preview cannot authorize
+        # enrollment after a mount disappears. The worker never mutates state.
+        checked = self.check_enrollment(path, source_class=source_class)
+        if checked.code != "ok":
+            raise FolderSourceEnrollmentError(checked.code)
+        source_id = checked.existing_source_id
         if source_id is None:
             source_id = f"src_{uuid4().hex}"
             source = Source(
@@ -181,7 +229,7 @@ class FolderSourceManager:
             **preserved,
             "kind": "filesystem",
             "name": selected_name,
-            "path": portable_config_path(self.store.paths.root, selected_path),
+            "path": checked.configured_path,
             "folder": folder,
         }
         self.store.write_config(config)
@@ -309,6 +357,26 @@ class FolderSourceManager:
             }
         )
 
+    def _diagnose_path_error(
+        self, error: OSError, item: Mapping[str, Any], folder: Mapping[str, Any],
+    ):
+        try:
+            kind = classify_path(str(item["path"]))
+            # Same-volume Windows paths are stored relative to the Instance.
+            # Recover the absolute spelling without resolving an unavailable mount.
+            selected = Path(str(item["path"]))
+            if not selected.is_absolute():
+                selected = self.store.paths.root / selected
+            selected = Path(os.path.abspath(selected))
+            if kind == "native":
+                kind = classify_path(selected)
+        except FolderSourceEnrollmentError as exc:
+            return exc.code
+        return diagnose_os_error(
+            error, source_class=str(folder["source_class"]), path_kind=kind,
+            drive_visible=windows_drive_visible(selected) if kind == "windows_drive" else None,
+        )
+
     def observe(
         self,
         source_id: str,
@@ -341,21 +409,21 @@ class FolderSourceManager:
                 source_id,
                 max_files=int(folder["max_files"]),
             )
-        except FileNotFoundError:
+        except FileNotFoundError as exc:
             return self._failure_observation(
                 observer,
                 now_text=now_text,
                 availability="missing",
                 phase="missing",
-                error_code=None,
+                error_code=self._diagnose_path_error(exc, _item, folder),
             )
-        except PermissionError:
+        except PermissionError as exc:
             return self._failure_observation(
                 observer,
                 now_text=now_text,
                 availability="attention",
                 phase="attention",
-                error_code="input_unreadable",
+                error_code=self._diagnose_path_error(exc, _item, folder),
             )
         except IngestionLimitError:
             return self._failure_observation(
@@ -373,13 +441,13 @@ class FolderSourceManager:
                 phase="attention",
                 error_code="unsafe_path",
             )
-        except OSError:
+        except OSError as exc:
             return self._failure_observation(
                 observer,
                 now_text=now_text,
                 availability="attention",
                 phase="attention",
-                error_code="input_io_error",
+                error_code=self._diagnose_path_error(exc, _item, folder),
             )
 
         clock_reversed = False
@@ -687,9 +755,21 @@ class FolderSourceManager:
             source_id,
             lifecycle_state=str(folder["lifecycle_state"]),
         )
+        code = observer["last_error_code"]
+        if code == "input_unreadable":
+            code = "permission_denied"
+        elif code == "input_io_error":
+            code = (
+                "network_unreachable" if folder["source_class"] == "network" else "path_unavailable"
+            )
         return {
             "schema_version": FOLDER_SOURCE_SCHEMA_VERSION,
             "id": source_id,
+            # Identity is separate from mutable observed-content fingerprints.
+            # Canonical IDs survive reconnect, reconciliation and portable state.
+            "identity_fingerprint": hashlib.sha256(
+                f"provelume:folder-source:1:{source_id}".encode("ascii")
+            ).hexdigest(),
             "name": source["name"],
             "kind": "filesystem",
             "managed_folder": True,
@@ -701,6 +781,8 @@ class FolderSourceManager:
             "max_files": folder["max_files"],
             "policy_id": folder["policy_id"],
             "observer": observer,
+            "diagnostic_code": code,
+            "diagnostic_message": diagnostic_message(code) if code in DIAGNOSTICS else None,
             "network_access": "mounted_filesystem"
             if folder["source_class"] == "network"
             else "none",
@@ -709,8 +791,12 @@ class FolderSourceManager:
 
     def local_view(self, source_id: str) -> dict[str, Any]:
         result = self.public_view(source_id)
-        path = self.store.source_path(source_id)
-        return {**result, "path": str(path) if path is not None else None}
+        _source, item, _folder = self._configured(source_id)
+        path = Path(item["path"])
+        if not path.is_absolute():
+            path = self.store.paths.root / path
+        # Displaying durable configuration must not touch a disconnected volume.
+        return {**result, "path": os.path.abspath(path)}
 
     def list_public(self) -> list[dict[str, Any]]:
         result = []

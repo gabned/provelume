@@ -4,6 +4,10 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+- Added read-only EN/IT Folder Source path validation before enrollment, including
+  explicit Windows UNC support, bounded filesystem probes, actionable mount/session/
+  permission diagnostics and stable Source identity across reconnect and transfer.
+  Network access uses the existing operating-system mount and authenticated session.
 - Activated the bounded `0.10.1 — Emendatio` development plan with four ordered
   slices; package and published identity remain `0.10.0` until release preparation.
 - Preserved Unicode failure diagnostics and failure exit codes across all Windows
