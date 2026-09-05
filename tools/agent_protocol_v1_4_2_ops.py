@@ -175,6 +175,10 @@ def validate_ci(value: Any, repository: str, head: str, *, now: datetime | None 
         text(r["workflow"], "workflow identity")
         require("@" not in r["workflow"] and r["event"] in CI_EVENTS,
                 "unknown or ambiguous workflow trigger")
+        require((r["event"] == "dynamic") == r["workflow"].startswith("dynamic/"),
+                "dynamic trigger requires its GitHub-managed workflow path")
+        if r["event"] == "dynamic":
+            path(r["workflow"])
         attempts = array(r["attempts"], "attempts")
         require(number(r["latest_attempt"], "latest attempt") == len(attempts),
                 "attempt history incomplete or latest attempt hidden")

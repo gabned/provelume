@@ -250,6 +250,19 @@ def test_github_managed_dynamic_ci_retains_attempts_and_supersession():
         ops.validate_ci(prior, REPO, HEAD)
 
 
+@pytest.mark.parametrize("workflow,event", [
+    ("ci.yml", "dynamic"),
+    ("dynamic/github-code-quality/codeql", "pull_request"),
+    ("dynamic/../ci.yml", "dynamic"),
+])
+def test_dynamic_trigger_cannot_relabel_repository_workflows(workflow, event):
+    value = ci()
+    value["runs"][0].update(workflow=workflow, event=event)
+    value["required_workflows"] = [workflow + "@" + event]
+    with pytest.raises(ValueError, match="dynamic trigger|unsafe path"):
+        ops.validate_ci(value, REPO, HEAD)
+
+
 def test_scope_authorization_binds_actual_patch_and_head():
     value = operations("brickms/brickms")
     p = value["pr"]
