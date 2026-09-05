@@ -1214,6 +1214,14 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
                     item["successor_state"],
                     "receipt.successor_state",
                 )
+                expected_migration = migrate_campaign(
+                    deepcopy(item["previous_state"]),
+                    _validate_result=False,
+                )
+                if campaign_state_payload(expected_migration) != campaign_state_payload(
+                    reconstructed
+                ):
+                    fail("migration result is not the deterministic schema 1 projection")
             elif index == len(receipts):
                 reconstructed = snapshot_campaign(
                     campaign_state_payload(campaign),
@@ -1718,7 +1726,9 @@ def infer_migration_event(value: dict[str, Any]) -> dict[str, Any]:
     raise ContractError("legacy observed event cannot be bound to a real GitHub resource")
 
 
-def migrate_campaign(value: Any) -> dict[str, Any]:
+def migrate_campaign(
+    value: Any, *, _validate_result: bool = True
+) -> dict[str, Any]:
     if isinstance(value, dict) and value.get("schema_version") == CAMPAIGN_SCHEMA_VERSION:
         validate_campaign_v2(value)
         return deepcopy(value)
@@ -1831,7 +1841,8 @@ def migrate_campaign(value: Any) -> dict[str, Any]:
         successor_state=campaign_state_payload(migrated),
     )
     migrated["receipts"] = [receipt]
-    validate_campaign_v2(migrated)
+    if _validate_result:
+        validate_campaign_v2(migrated)
     return migrated
 
 

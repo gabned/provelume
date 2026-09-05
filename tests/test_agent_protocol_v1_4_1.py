@@ -207,6 +207,25 @@ def test_migration_retains_recorded_pr_without_inventing_overwritten_history() -
     ]
 
 
+def test_persisted_migration_revalidates_the_deterministic_projection() -> None:
+    value = protocol.migrate_campaign(protocol.sample_campaign_v1())
+    value["next_action"]["summary"] = "Start pilot/S02 from fabricated migration state."
+    receipt = value["receipts"][0]
+    receipt["successor_state"] = protocol.campaign_state_payload(value)
+    receipt["successor_state_sha256"] = protocol.campaign_state_sha256(value)
+    receipt["idempotency_key"] = protocol.receipt_idempotency_key(
+        campaign_id=value["campaign_id"],
+        operation=receipt["operation"],
+        github_event=receipt["github_event"],
+        previous_state_sha256=receipt["previous_state_sha256"],
+        successor_state_sha256=receipt["successor_state_sha256"],
+    )
+    receipt["receipt_sha256"] = protocol.receipt_sha256(receipt)
+
+    with pytest.raises(protocol.ContractError, match="deterministic schema 1 projection"):
+        protocol.validate_campaign_v2(value)
+
+
 def test_initialize_rejects_an_effected_terminal_campaign() -> None:
     value = terminal_profile_campaign("maxithlon/maxithlon")
     value["campaign_state"] = "COMPLETE"
