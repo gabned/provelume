@@ -143,5 +143,21 @@ def test_public_roadmap_activates_four_bounded_emendatio_slices() -> None:
     assert "Per-Source exclusions, safe defaults and ingestion preview" in section
     assert "Guided read-only Google connection journey" in section
     assert "Canonical Provelume brand correction and integrated qualification" in section
-    assert "Lucide" not in section
-    assert "0.11/S07" not in section
+    rows = [line.split("|") for line in section.splitlines() if line.startswith("| `0.10.1/S")]
+    assert len(rows) == 4
+    outcomes = "\n".join(row[3] for row in rows)
+    assert "Lucide" not in outcomes
+    assert "0.11/S07" not in outcomes
+    assert "No new tray feature, general UI icon framework, Lucide rollout" in rows[3][4]
+    assert "Lucide remains `0.11/S07`" in section
+
+
+def test_activation_status_distinguishes_campaign_and_repository_protocol() -> None:
+    plan = RELEASE_PLAN.read_text(encoding="utf-8")
+    assert "CAMPAIGN_PROTOCOL_VERSION: 1.4.1" in plan
+    assert "tools/agent_protocol_v1_4_1.py" in plan
+    assert "repository protocol" in plan
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "## In development: 0.10.1 Emendatio" in readme
+    assert "docs/releases/0.10.1.md" in readme
+    assert "0.11.0 — Cura remains unactivated" in readme

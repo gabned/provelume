@@ -182,6 +182,8 @@ def pytest_cmdline_main(config) -> int | None:
                 handle = log.open("wb")
                 environment = os.environ.copy()
                 environment[CHILD_ENV] = "1"
+                # Shard logs are decoded as UTF-8 regardless of the host console.
+                environment["PYTHONIOENCODING"] = "utf-8"
                 environment.pop(FORCE_ENV, None)
                 state = temporary_root / f"state-{index}"
                 state.mkdir()
@@ -244,6 +246,11 @@ def pytest_cmdline_main(config) -> int | None:
             )
             output = _replay(log)
             if output:
+                # A redirected Windows parent may still use cp1252. Preserve
+                # unrepresentable diagnostics as escapes without hiding failure
+                # or aborting replay of the remaining shards.
+                encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+                output = output.encode(encoding, errors="backslashreplace").decode(encoding)
                 print(output, end="" if output.endswith("\n") else "\n")
         total = time.monotonic() - started
         print(

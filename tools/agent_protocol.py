@@ -15,7 +15,7 @@ PROTOCOL_VERSION = "1.2"
 SCHEMA_VERSION = 2
 CHANGE_CONTROL_VERSION = "1.2.1"
 CHANGE_CONTROL_SCHEMA_VERSION = 1
-GOVERNANCE_RELEASE = "1.4.1"
+GOVERNANCE_RELEASE = "1.4.2"
 REPOSITORY = "gabned/provelume"
 DEFAULT_BRANCH = "main"
 MAX_EVIDENCE_AGE = timedelta(minutes=15)
@@ -45,6 +45,10 @@ WAIVER_PATTERN = re.compile(
 POLICIES = {"NO_PRODUCTION", "REPOSITORY_POLICY"}
 SOURCES = {"LOCAL_GIT", "GITHUB_CONNECTOR"}
 SAFE_PROTOCOL_PATHS = {
+    "docs/agent-development-v1.4.2.md",
+    "tests/test_agent_protocol_v1_4_2_ops.py",
+    "tools/agent_protocol_v1_4_2.py",
+    "tools/agent_protocol_v1_4_2_ops.py",
     ".github/agent-protocol/conformance-v1.4.1.json",
     ".github/workflows/ci.yml",
     ".github/pull_request_template.md",

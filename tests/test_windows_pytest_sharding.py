@@ -120,3 +120,32 @@ def test_shard_children_bind_root_and_effective_collection_targets() -> None:
     assert 'f"cache_dir={state / \'pytest-cache\'}"' in source
     assert "collection_targets" not in source
     assert "cwd=root" in source
+
+
+def test_failed_unicode_shard_replays_all_results_on_cp1252_console(tmp_path: Path) -> None:
+    target = tmp_path / "test_unicode_failure.py"
+    target.write_text(
+        'def test_failure():\n    assert False, "navy/blue/gold — 漢字 \\ufffd"\n',
+        encoding="utf-8",
+    )
+    environment = os.environ.copy()
+    environment[FORCE_ENV] = "1"
+    environment["PYTHONIOENCODING"] = "cp1252:strict"
+    environment["PROVELUME_WINDOWS_SHARD_TIMEOUT_SECONDS"] = "60"
+    environment.pop(CHILD_ENV, None)
+    completed = subprocess.run(
+        [sys.executable, "-m", "pytest", "-c", str(ROOT / "pyproject.toml"),
+         "-q", str(target)],
+        cwd=ROOT, env=environment, check=False, capture_output=True,
+        encoding="cp1252", timeout=90,
+    )
+    output = completed.stdout + completed.stderr
+    assert completed.returncode == 1, output
+    assert "1 failed" in output
+    assert "UnicodeEncodeError" not in output
+    assert "navy/blue/gold" in output
+    assert r"\u6f22\u5b57" in output
+    assert r"\ufffd" in output
+    for index in range(SHARD_COUNT):
+        assert f"windows-shard index={index}/4" in output
+    assert "windows-shards completed=True count=4" in output

@@ -4,7 +4,10 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
-No changes yet.
+- Activated the bounded `0.10.1 — Emendatio` development plan with four ordered
+  slices; package and published identity remain `0.10.0` until release preparation.
+- Preserved Unicode failure diagnostics and failure exit codes across all Windows
+  test shards, including redirected legacy-encoding consoles.
 
 ## 0.10.0 - 2026-09-03
 
