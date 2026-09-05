@@ -54,8 +54,8 @@ def attempt(index=1, conclusion="SUCCESS"):
 def ci(repository=REPO, head=HEAD):
     return {"repository": repository, "head_sha": head, **observed(),
             "applicability": "REQUIRED", "policy_ref": BASE, "runs_complete": True,
-            "required_workflows": ["ci.yml"], "runs": [
-                {"run_id": 100, "workflow": "ci.yml", "head_sha": head,
+            "required_workflows": ["ci.yml@pull_request"], "runs": [
+                {"run_id": 100, "workflow": "ci.yml", "event": "pull_request", "head_sha": head,
                  "latest_attempt": 1, "attempts": [attempt()]}]}
 
 
@@ -160,6 +160,19 @@ def test_new_run_invalidates_old_green():
     value["runs"].append(newer)
     with pytest.raises(ValueError, match="latest applicable"):
         ops.validate_ci(value, REPO, HEAD)
+
+
+def test_trusted_base_success_cannot_hide_same_workflow_candidate_failure():
+    value = ci()
+    value["runs"][0]["attempts"] = [attempt(conclusion="FAILURE")]
+    trusted = deepcopy(value["runs"][0])
+    trusted.update(run_id=101, event="pull_request_target", attempts=[attempt()])
+    value["runs"].append(trusted)
+    value["required_workflows"].append("ci.yml@pull_request_target")
+    with pytest.raises(ValueError, match="latest applicable"):
+        ops.validate_ci(value, REPO, HEAD)
+    value["runs"][0]["attempts"] = [attempt()]
+    ops.validate_ci(value, REPO, HEAD)
 
 
 @pytest.mark.parametrize("damage", ["pagination", "attempt_gap", "partial_jobs", "wrong_head"])
@@ -324,6 +337,12 @@ def test_gate_transition_requires_persisted_attempt_bound_operational_evidence()
         protocol.append_transition_receipt(before, after, event)
     evidence = operations()
     evidence.update(phase="PRE_MERGE", merge=None, post_merge_ci=None)
+    newer = deepcopy(evidence["ci"]["runs"][0])
+    newer["run_id"] = 101
+    evidence["ci"]["runs"].append(newer)
+    with pytest.raises(ValueError, match="superseded workflow"):
+        protocol.append_transition_receipt(before, after, event, operational_evidence=evidence)
+    evidence["ci"]["runs"].pop()
     result = protocol.append_transition_receipt(before, after, event,
                                                 operational_evidence=evidence)
     assert result["receipts"][-1]["operational_evidence"] == evidence

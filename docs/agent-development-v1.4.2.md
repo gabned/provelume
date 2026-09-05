@@ -52,6 +52,11 @@ applicable workflow must succeed; an older green cannot cover a new pending or
 failed run. A retained failure followed by an explicitly observed success is
 valid history; validation never launches a rerun.
 
+Workflow identity includes its trigger, expressed as `workflow@event` in the
+required set. In particular, successful `pull_request_target` scope checks cannot
+replace failing `pull_request` candidate tests from the same workflow file.
+The run retains its separate `workflow` and closed `event` fields.
+
 `validate-wait` accepts only a freshly observed live run and the exact connector
 handle ending in `/actions/runs/{id}/attempts/{attempt}`. Its deadline is bounded
 to one hour. Expiry requests observation of that same handle and makes no

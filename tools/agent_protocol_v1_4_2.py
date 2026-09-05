@@ -973,6 +973,9 @@ def validate_operational_transition(
                     if f"run:{r['run_id']}" == event["reference"]]
             if len(runs) != 1 or runs[0]["latest_attempt"] != event["run_attempt"]:
                 fail("gate receipt does not bind the latest observed workflow attempt")
+            if any(r["workflow"] == runs[0]["workflow"] and r["event"] == runs[0]["event"]
+                   and r["run_id"] > runs[0]["run_id"] for r in checked["ci"]["runs"]):
+                fail("gate receipt binds a superseded workflow run")
         else:
             if checked["phase"] != "POST_MERGE" or (
                 checked["merge"]["merge_sha"] != event["sha"]

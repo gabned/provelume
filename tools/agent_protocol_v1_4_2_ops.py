@@ -30,6 +30,8 @@ MANIFEST_PATH = ".github/agent-protocol/vendor-v1.4.2.json"
 PROVENANCE_PATH = "docs/agent-development-v1.4.2-provenance.md"
 TERMINAL = {"SUCCESS", "FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED",
             "NEUTRAL", "SKIPPED", "STALE", "STARTUP_FAILURE"}
+CI_EVENTS = {"pull_request", "pull_request_target", "push", "merge_group",
+             "workflow_dispatch", "workflow_run", "schedule", "release"}
 
 
 def require(condition: bool, message: str) -> None:
@@ -154,6 +156,8 @@ def validate_ci(value: Any, repository: str, head: str, *, now: datetime | None 
     require(required == sorted(set(required)), "duplicate or unordered required workflow")
     for name in required:
         text(name, "workflow identity")
+        require("@" in name and name.rsplit("@", 1)[1] in CI_EVENTS,
+                "required workflow must include its trigger identity")
     runs = array(c["runs"], "runs")
     require(c["applicability"] in {"REQUIRED", "NOT_APPLICABLE"}, "unknown CI applicability")
     if c["applicability"] == "NOT_APPLICABLE":
@@ -164,11 +168,13 @@ def validate_ci(value: Any, repository: str, head: str, *, now: datetime | None 
     ids: set[int] = set()
     latest: dict[str, dict] = {}
     for raw in runs:
-        r = obj(raw, "run_id workflow head_sha latest_attempt attempts", "run")
+        r = obj(raw, "run_id workflow event head_sha latest_attempt attempts", "run")
         run_id = number(r["run_id"], "run id")
         require(run_id not in ids and r["head_sha"] == head, "duplicate run or wrong head")
         ids.add(run_id)
         text(r["workflow"], "workflow identity")
+        require("@" not in r["workflow"] and r["event"] in CI_EVENTS,
+                "unknown or ambiguous workflow trigger")
         attempts = array(r["attempts"], "attempts")
         require(number(r["latest_attempt"], "latest attempt") == len(attempts),
                 "attempt history incomplete or latest attempt hidden")
@@ -200,9 +206,10 @@ def validate_ci(value: Any, repository: str, head: str, *, now: datetime | None 
                 require(bool(jobs) and all(j["status"] == "COMPLETED" and
                         j["conclusion"] in {"SUCCESS", "SKIPPED", "NEUTRAL"} for j in jobs),
                         "successful attempt conflicts with job evidence")
-        old = latest.get(r["workflow"])
+        workflow_key = f"{r['workflow']}@{r['event']}"
+        old = latest.get(workflow_key)
         if old is None or old["run_id"] < run_id:
-            latest[r["workflow"]] = r
+            latest[workflow_key] = r
     require(set(required) <= set(latest), "required workflow evidence missing")
     if require_success:
         require(all(r["attempts"][-1]["conclusion"] == "SUCCESS" for r in latest.values()),
@@ -225,7 +232,8 @@ def validate_ci_append_only(
     for before in previous["runs"]:
         require(before["run_id"] in after, "CI history dropped a run")
         new = after[before["run_id"]]
-        require(new["workflow"] == before["workflow"] and len(new["attempts"]) >=
+        require(new["workflow"] == before["workflow"] and new["event"] == before["event"] and
+                len(new["attempts"]) >=
                 len(before["attempts"]), "CI run identity/history rewritten")
         for index, attempt in enumerate(before["attempts"]):
             if attempt["status"] == "COMPLETED":
