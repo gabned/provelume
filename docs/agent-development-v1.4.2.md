@@ -116,6 +116,10 @@ the evidence and recomputing the outer digest still fails validation.
 
 ## Late findings and closure
 
+Every integration operation in the final audit must declare exactly one
+`CAMPAIGN_REF` in its observed PR body, equal to the audited campaign URL.
+Missing, duplicate or unrelated references cannot certify campaign completion.
+
 A late finding records both the original merged PR/build and a separately
 reconciled corrective PR. A resolved label alone is insufficient: the observed
 thread resolution must bind the original head and corrective head/merge.

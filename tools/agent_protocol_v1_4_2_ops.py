@@ -638,6 +638,10 @@ def validate_audit_input(value: Any, *, now: datetime | None = None) -> dict:
         require(bool(operations), "missing repository integration evidence")
         for operation in operations:
             e = validate_operations(operation, now=now)
+            references = re.findall(r"(?m)^CAMPAIGN_REF:[ \t]*([^\r\n]+?)[ \t]*$",
+                                    e["pr"]["body"])
+            require(references == [a["campaign_ref"]],
+                    "integration operation does not bind the audited campaign")
             require(e["phase"] == "POST_MERGE" and e["pr"]["repository"] == r["repository"]
                     and e["merge"]["default_sha"] == r["default_sha"], "unreconciled repository")
         if r["repository"] == "gabned/nexus":

@@ -33,6 +33,23 @@ BASE, HEAD, TREE, MERGE = (char * 40 for char in "abcd")
 PROTOCOL_PATH = "tools/agent_protocol_v1_4_2.py"
 
 
+@pytest.mark.parametrize("repository", list(ops.PROFILES))
+@pytest.mark.parametrize("damage", ["missing", "different", "duplicate"])
+def test_audit_requires_exact_campaign_on_every_integration(repository, damage):
+    value = audit()
+    row = next(row for row in value["repositories"] if row["repository"] == repository)
+    pr_value = row["operations"][0]["pr"]
+    marker = "CAMPAIGN_REF: " + value["campaign_ref"] + "\n"
+    if damage == "missing":
+        pr_value["body"] = pr_value["body"].replace(marker, "")
+    elif damage == "different":
+        pr_value["body"] = pr_value["body"].replace("/issues/200", "/issues/199")
+    else:
+        pr_value["body"] += marker
+    with pytest.raises(ValueError, match="audited campaign"):
+        ops.generate_audit(value)
+
+
 def observed():
     return {"source": "GITHUB_CONNECTOR",
             "observed_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")}
@@ -41,7 +58,8 @@ def observed():
 def pr(repository=REPO):
     return ops.render_pr_identity({
         "repository": repository, "number": 12, "base_sha": BASE, "head_sha": HEAD,
-        "tree_sha": TREE, "body": "WORKSTREAM_CLASS: PROTOCOL\n",
+        "tree_sha": TREE, "body": "WORKSTREAM_CLASS: PROTOCOL\n"
+                                 "CAMPAIGN_REF: https://github.com/gabned/provelume/issues/200\n",
         "state": "OPEN", "draft": False, "mergeable": True,
         "changed_paths": [PROTOCOL_PATH], "paths_complete": True,
         "file_patches": {PROTOCOL_PATH: "@@ -1 +1 @@\n-old\n+new\n"}, **observed(),
