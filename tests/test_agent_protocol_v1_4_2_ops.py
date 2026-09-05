@@ -50,6 +50,19 @@ def test_audit_requires_exact_campaign_on_every_integration(repository, damage):
         ops.generate_audit(value)
 
 
+def test_review_trigger_retains_independent_ci_identity():
+    value = ci()
+    review = deepcopy(value["runs"][0])
+    review.update(run_id=101, event="pull_request_review")
+    value["runs"].append(review)
+    value["required_workflows"].append("ci.yml@pull_request_review")
+    ops.validate_ci(value, REPO, HEAD)
+    review["attempts"][-1]["conclusion"] = "FAILURE"
+    review["attempts"][-1]["jobs"][0]["conclusion"] = "FAILURE"
+    with pytest.raises(ValueError, match="not successful"):
+        ops.validate_ci(value, REPO, HEAD)
+
+
 def observed():
     return {"source": "GITHUB_CONNECTOR",
             "observed_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")}

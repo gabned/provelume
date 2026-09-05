@@ -46,6 +46,10 @@ is checked against the current clock before its digest is generated.
 
 ## CI and waits
 
+The retained trigger inventory includes `pull_request_review`, used by BrickMS
+review governance. Its run/attempt history and success gate stay separate from
+the same workflow triggered by `pull_request`.
+
 Workflow event identity includes repository, run ID, exact head and
 `run_attempt`. Attempt histories start at 1 and are contiguous. A previous
 terminal attempt cannot be rewritten or removed. All workflow-run and job
