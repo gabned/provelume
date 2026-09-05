@@ -96,7 +96,8 @@ def observation(value: dict, now: datetime | None = None) -> None:
 
 
 def path(value: Any) -> str:
-    text(value, "path")
+    # Git names are atomic JSON strings, not lines of human-readable text.
+    require(isinstance(value, str) and bool(value) and "\0" not in value, "invalid path")
     require("\\" not in value and ":" not in value and not value.startswith("/"),
             "path must be repository-relative")
     require(all(part not in {"", ".", ".."} for part in value.split("/")), "unsafe path")
@@ -343,9 +344,16 @@ def validate_scope(
     require(lines[:3] == ["diff --git a/CHANGELOG.md b/CHANGELOG.md",
                          "--- a/CHANGELOG.md", "+++ b/CHANGELOG.md"], "wrong patch target")
     additions = [line[1:] for line in lines[3:] if line.startswith("+")]
-    require(len(additions) == 1 and additions[0].startswith("- ") and
-            "Protocol" in additions[0] and not any(line.startswith("-") for line in lines[3:]),
-            "exception must add exactly one technical Protocol changelog line")
+    require(len(additions) == 1 and "Protocol" in additions[0] and
+            not any(line.startswith("-") for line in lines[3:]),
+            "exception must append exactly one technical Protocol changelog line")
+    if not additions[0].startswith("- "):
+        index = lines.index("+" + additions[0], 3)
+        identity = r"^ - .*?\bProtocol\b.*?\bv?1\.4\.2\b(?=[ :;,.]|$)"
+        require(additions[0].startswith("  Agent Development Protocol ") and
+                re.search(r"\bProtocol v?1\.4\.2\b", additions[0]) is not None and
+                index > 3 and re.match(identity, lines[index - 1]) is not None,
+                "continuation must follow the existing Protocol 1.4.2 entry")
     require(all(line.startswith(("@@ ", " ", "+")) for line in lines[3:]), "invalid patch")
 
 
@@ -442,6 +450,8 @@ def validate_operations(
                 and cp["number"] != f["origin_pr"], "correction not reconciled in same repository")
         require(correction["merge"]["merge_sha"] != f["origin_merge_sha"],
                 "correction cannot reuse the original merge")
+        require(correction["merge"]["commit"] in origin["merge"]["ancestry"][:-1],
+                "correction must descend from the original merge in observed default ancestry")
         require(re.fullmatch(rf"https://github[.]com/{re.escape(p['repository'])}/pull/"
                              rf"{f['origin_pr']}#discussion_r[1-9][0-9]*", f["thread_ref"])
                 is not None, "finding thread is not bound to origin PR")
@@ -579,10 +589,10 @@ def sync_vendor(source: Path, target: Path, commit: str, *, check: bool = False)
             "canonical source changed during synchronization")
     planned.update(provenance_files(m))
     destinations = {name: safe_file(target, name) for name in planned}
-    modes = {name: int(VENDOR_FILES.get(name, "100644")[-3:], 8) for name in planned}
+    executable = {name: VENDOR_FILES.get(name, "100644") == "100755" for name in planned}
     changed = [name for name, dest in destinations.items()
                if not dest.exists() or dest.read_bytes() != planned[name] or
-               (os.name != "nt" and stat.S_IMODE(dest.stat().st_mode) != modes[name])]
+               (os.name != "nt" and bool(dest.stat().st_mode & stat.S_IXUSR) != executable[name])]
     if check:
         require(not changed, "canonical vendor/provenance drift: " + ", ".join(changed))
     elif changed:
@@ -597,22 +607,27 @@ def sync_vendor(source: Path, target: Path, commit: str, *, check: bool = False)
                     staged = Path(tmp) / str(index)
                     staged.write_bytes(planned[name])
                     if os.name != "nt":
-                        staged.chmod(modes[name])
+                        # Preserve checkout restrictions; Git tracks only owner execution.
+                        mode = original_modes.get(name, stat.S_IMODE(staged.stat().st_mode))
+                        mode = mode | stat.S_IXUSR if executable[name] else mode & ~stat.S_IXUSR
+                        staged.chmod(mode)
                     dest = destinations[name]
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     os.replace(staged, dest)
                     applied.append(name)
                     require(dest.read_bytes() == planned[name] and
-                            (os.name == "nt" or stat.S_IMODE(dest.stat().st_mode) == modes[name]),
+                            (os.name == "nt" or stat.S_IMODE(dest.stat().st_mode) == mode),
                             "installed vendor bytes/mode verification failed")
             except (OSError, ValueError):
                 for name in reversed(applied):
                     if originals[name] is None:
                         destinations[name].unlink()
                     else:
-                        destinations[name].write_bytes(originals[name])
+                        restored = Path(tmp) / ("restore-" + str(len(applied)))
+                        restored.write_bytes(originals[name])
                         if os.name != "nt":
-                            destinations[name].chmod(original_modes[name])
+                            restored.chmod(original_modes[name])
+                        os.replace(restored, destinations[name])
                 raise
     return {"result": "PASS", "manifest": m, "changed_paths": changed, "check_only": check}
 
