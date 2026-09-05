@@ -29,7 +29,9 @@ additional files receive executable-mode/offline checks and repository test cove
 
 ## Observation boundary
 
-These tools are offline validators. A JSON field saying `GITHUB_CONNECTOR` is
+Evidence validation is offline and executes no commands. The synchronizer alone
+reads local Git through fixed commands without a shell or network operation.
+A JSON field saying `GITHUB_CONNECTOR` is
 not authentication. The caller must collect complete observations through an
 authorized connector, including pagination, actual PR and commit objects,
 repository policy, CI attempts/jobs, review threads and maintainer identity.
@@ -121,14 +123,28 @@ Downstream generated manifest and provenance documents also require exact bytes,
 Git blobs and modes observed at their respective default commits. Core has no
 self-referential committed source manifest.
 
+`generate-audit` enforces live freshness. `validate-audit` verifies the protected
+digest and replays all nested observations against the receipt's original audit
+time, so archived proof remains verifiable without refreshing its timestamps.
+Generation also validates that original time anchor before emitting a receipt.
+Historical validation never establishes current readiness or authorizes a new action.
+
 ## Offline synchronization
 
 `sync-vendor SOURCE TARGET --commit COMMIT` copies the four explicitly listed
 validator files and generates a manifest and provenance document. It performs
 no network operation or product edit. `--check` reports drift without writes.
 Symlink targets and paths outside the selected repository are rejected. The
-caller must verify the source checkout/commit and Git file modes; the manifest
-does not independently authenticate the source checkout.
+source must be a clean Git root with the canonical Core origin and HEAD exactly
+equal to COMMIT. Committed blobs and modes must match the source files; ignored
+Git replacement objects cannot substitute content. The caller still verifies
+that COMMIT is the intended public canonical merge through its authorized connector.
+POSIX replacements apply and verify the declared permissions, and rollback
+restores prior bytes and permissions. Mode-only drift fails `--check`. Windows
+does not expose POSIX executable bits: the caller must stage and verify the
+declared Git modes in the target index/tree before publication on every platform.
+Git reads disable lazy fetching and all transports, including inherited transport
+permissions; a missing promisor object fails locally without contacting a remote.
 
 The new command interfaces are exposed by `tools/agent_protocol_v1_4_2.py`.
 Operational input shapes and positive/adversarial examples are executable in

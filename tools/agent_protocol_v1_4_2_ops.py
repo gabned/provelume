@@ -6,6 +6,8 @@ import hashlib
 import json
 import os
 import re
+import stat
+import subprocess
 import tempfile
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
@@ -472,11 +474,46 @@ def validate_operations(
 
 def manifest(source: Path, commit: str) -> dict:
     sha(commit)
+    source = source.resolve(strict=True)
+
+    def git(*args: str) -> bytes:
+        # Fixed read-only local commands; no fetch, hooks, filters or shell.
+        result = subprocess.run(
+            ["git", "--no-replace-objects", "-c", f"safe.directory={source.as_posix()}",
+             "-c", "core.fsmonitor=false",
+             "-c", "protocol.allow=never", "-C", str(source), *args],
+            capture_output=True, check=False,
+            env={**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_ALLOW_PROTOCOL": "",
+                 "GIT_OPTIONAL_LOCKS": "0"},
+        )
+        require(result.returncode == 0, "canonical Git source verification failed")
+        return result.stdout
+
+    require(Path(git("rev-parse", "--show-toplevel").decode().strip()).resolve() == source,
+            "source must be the canonical repository root")
+    require(git("rev-parse", "--verify", "HEAD^{commit}").decode().strip() == commit,
+            "source checkout differs from the canonical commit")
+    require(git("config", "--get", "remote.origin.url").decode().strip() in {
+        "https://github.com/gabned/provelume", "https://github.com/gabned/provelume.git",
+        "git@github.com:gabned/provelume.git", "ssh://git@github.com/gabned/provelume.git",
+    }, "source repository is not canonical Core")
+    require(not git("status", "--porcelain=v1", "--untracked-files=normal").strip(),
+            "canonical source checkout is dirty")
+    entries = {}
+    tree = git("ls-tree", "-r", "--full-tree", commit, "--", *VENDOR_FILES)
+    for line in tree.decode().splitlines():
+        metadata, name = line.split("\t", 1)
+        mode, kind, oid = metadata.split()
+        require(kind == "blob", "canonical source entry is not a blob")
+        entries[name] = (mode, oid)
     rows = []
     for relative, mode in VENDOR_FILES.items():
         target = safe_file(source, relative)
         require(target.is_file(), f"missing canonical file: {relative}")
         data = target.read_bytes()
+        require(entries.get(relative) == (mode, blob(data)) and
+                git("cat-file", "blob", f"{commit}:{relative}") == data,
+                f"source bytes/mode differ from canonical commit: {relative}")
         rows.append({"path": relative, "mode": mode, "sha256": hashlib.sha256(data).hexdigest(),
                      "git_blob": blob(data)})
     return {"protocol_version": VERSION, "source_repository": "gabned/provelume",
@@ -528,39 +565,52 @@ def provenance_files(m: dict) -> dict[str, bytes]:
 def sync_vendor(source: Path, target: Path, commit: str, *, check: bool = False) -> dict:
     m = manifest(source, commit)
     planned = {relative: safe_file(source, relative).read_bytes() for relative in VENDOR_FILES}
+    require(all(blob(planned[row["path"]]) == row["git_blob"] for row in m["files"]),
+            "canonical source changed during synchronization")
     planned.update(provenance_files(m))
     destinations = {name: safe_file(target, name) for name in planned}
+    modes = {name: int(VENDOR_FILES.get(name, "100644")[-3:], 8) for name in planned}
     changed = [name for name, dest in destinations.items()
-               if not dest.exists() or dest.read_bytes() != planned[name]]
+               if not dest.exists() or dest.read_bytes() != planned[name] or
+               (os.name != "nt" and stat.S_IMODE(dest.stat().st_mode) != modes[name])]
     if check:
         require(not changed, "canonical vendor/provenance drift: " + ", ".join(changed))
     elif changed:
         originals = {name: destinations[name].read_bytes() if destinations[name].exists()
                      else None for name in changed}
+        original_modes = {name: stat.S_IMODE(destinations[name].stat().st_mode)
+                          for name in changed if destinations[name].exists()}
         applied = []
         with tempfile.TemporaryDirectory(prefix=".protocol142-", dir=target) as tmp:
             try:
                 for index, name in enumerate(changed):
                     staged = Path(tmp) / str(index)
                     staged.write_bytes(planned[name])
+                    if os.name != "nt":
+                        staged.chmod(modes[name])
                     dest = destinations[name]
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     os.replace(staged, dest)
                     applied.append(name)
-            except OSError:
+                    require(dest.read_bytes() == planned[name] and
+                            (os.name == "nt" or stat.S_IMODE(dest.stat().st_mode) == modes[name]),
+                            "installed vendor bytes/mode verification failed")
+            except (OSError, ValueError):
                 for name in reversed(applied):
                     if originals[name] is None:
                         destinations[name].unlink()
                     else:
                         destinations[name].write_bytes(originals[name])
+                        if os.name != "nt":
+                            destinations[name].chmod(original_modes[name])
                 raise
     return {"result": "PASS", "manifest": m, "changed_paths": changed, "check_only": check}
 
 
-def validate_audit_input(value: Any) -> dict:
+def validate_audit_input(value: Any, *, now: datetime | None = None) -> dict:
     a = obj(value, "protocol_version campaign_ref canonical source observed_at repositories",
             "five-repository audit")
-    observation(a)
+    observation(a, now)
     require(a["protocol_version"] == VERSION, "wrong audit protocol")
     require(re.fullmatch(r"https://github[.]com/gabned/provelume/issues/[1-9][0-9]*",
                          a["campaign_ref"]) is not None, "unbound campaign")
@@ -580,7 +630,7 @@ def validate_audit_input(value: Any) -> dict:
         operations = array(r["operations"], "operation history")
         require(bool(operations), "missing repository integration evidence")
         for operation in operations:
-            e = validate_operations(operation)
+            e = validate_operations(operation, now=now)
             require(e["phase"] == "POST_MERGE" and e["pr"]["repository"] == r["repository"]
                     and e["merge"]["default_sha"] == r["default_sha"], "unreconciled repository")
         if r["repository"] == "gabned/nexus":
@@ -645,6 +695,8 @@ def validate_audit_input(value: Any) -> dict:
 
 def generate_audit(value: Any) -> dict:
     a = validate_audit_input(value)
+    # Generation and archive replay must agree on the same observation window.
+    validate_audit_input(a, now=timestamp(a["observed_at"]))
     return {"protocol_version": VERSION, "result": "PASS", "evidence": deepcopy(a),
             "evidence_sha256": digest(a)}
 
@@ -652,8 +704,8 @@ def generate_audit(value: Any) -> dict:
 def validate_audit(value: Any) -> dict:
     r = obj(value, "protocol_version result evidence evidence_sha256", "closure receipt")
     require(r["protocol_version"] == VERSION and r["result"] == "PASS", "invalid closure outcome")
-    validate_audit_input(r["evidence"])
     require(r["evidence_sha256"] == digest(r["evidence"]), "closure receipt rewritten")
+    validate_audit_input(r["evidence"], now=timestamp(r["evidence"]["observed_at"]))
     return r
 
 

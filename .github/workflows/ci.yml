@@ -93,11 +93,18 @@ jobs:
           python tools/agent_protocol_v1_4_2.py self-test
           python tools/agent_protocol_v1_4_1.py validate-conformance \
             .github/agent-protocol/conformance-v1.4.1.json
-          if grep -Eq '^(import|from) (requests|httpx|urllib|subprocess|socket)([ .]|$)' \
+          if grep -Eq '^(import|from) (requests|httpx|urllib|socket)([ .]|$)' \
             tools/agent_protocol.py tools/agent_protocol_v1_4.py \
             tools/agent_protocol_v1_4_1.py tools/agent_protocol_v1_4_2.py \
             tools/agent_protocol_v1_4_2_ops.py; then
             echo '::error::Agent Protocol validation must remain offline and connector-input-only.'
+            exit 1
+          fi
+          # Only the canonical synchronizer may read local Git via fixed commands.
+          if grep -Eq '^(import|from) subprocess([ .]|$)' \
+            tools/agent_protocol.py tools/agent_protocol_v1_4.py \
+            tools/agent_protocol_v1_4_1.py tools/agent_protocol_v1_4_2.py; then
+            echo '::error::Pure Protocol validators must not execute subprocesses.'
             exit 1
           fi
 
