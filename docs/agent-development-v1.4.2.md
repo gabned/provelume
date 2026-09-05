@@ -122,6 +122,10 @@ post-merge CI must bind that observed default commit.
 Before merging, the collector must compare the freshly observed default SHA with
 the accepted PR base, not only the PR API's retained base field. If they differ,
 reconstruct the candidate on the current default and require new exact-head CI.
+Each hashed operation requires an independent `default_branch` observation with
+repository, name, SHA, connector source and timestamp. The validator requires its
+SHA to equal the accepted base before merge and the ancestry default after merge;
+missing, stale, wrong-branch or mismatched observations cannot authorize gates.
 An integration whose actual tree or parent differs from accepted evidence is not
 a qualified operation. Retain that actual merge and its anomaly without rewriting
 its former head/base, then qualify the current tree through a separate correction.

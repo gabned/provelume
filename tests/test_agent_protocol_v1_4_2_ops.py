@@ -169,6 +169,8 @@ def operations(repository=REPO):
         p["file_patches"] = {"docs/protocol-registry.md": "+Protocol registry\n"}
     commit = {"sha": MERGE, "tree_sha": TREE, "parents": [BASE]}
     return {"protocol_version": "1.4.2", "phase": "POST_MERGE", "pr": p,
+            "default_branch": {"repository": repository, "name": ops.PROFILES[repository][0],
+                               "sha": MERGE, **observed()},
             "baseline_paths": p["changed_paths"].copy(), "scope_exception": None,
             "ci": ci(repository), "reviews": {
                 "repository": repository, "pr": 12, "head_sha": HEAD,
@@ -693,6 +695,7 @@ def test_gate_transition_requires_persisted_attempt_bound_operational_evidence(o
         protocol.append_transition_receipt(before, after, event)
     evidence = operations()
     evidence.update(phase="PRE_MERGE", merge=None, post_merge_ci=None)
+    evidence["default_branch"]["sha"] = BASE
     evidence["pr"]["state"] = "OPEN"
     evidence["pr"]["observed_at"] = (datetime.now(UTC) - timedelta(
         seconds=observation_delay)).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -706,6 +709,11 @@ def test_gate_transition_requires_persisted_attempt_bound_operational_evidence(o
                                                 operational_evidence=evidence)
     assert result["receipts"][-1]["operational_evidence"] == evidence
     protocol.validate_campaign_v2(result)
+    moved = deepcopy(result)
+    moved["receipts"][-1]["operational_evidence"]["default_branch"]["sha"] = MERGE
+    moved["receipts"][-1]["receipt_sha256"] = protocol.receipt_sha256(moved["receipts"][-1])
+    with pytest.raises(ValueError, match="accepted base differs"):
+        protocol.validate_campaign_v2(moved)
     # Recomputing the enclosing digest cannot turn missing evidence into proof.
     too_old = deepcopy(evidence)
     too_old["pr"]["observed_at"] = (datetime.now(UTC) - timedelta(
@@ -725,10 +733,43 @@ def test_gate_transition_requires_persisted_attempt_bound_operational_evidence(o
 def test_pre_merge_requires_observed_ready_mergeable_pr(state, draft, mergeable):
     value = operations()
     value.update(phase="PRE_MERGE", merge=None, post_merge_ci=None)
+    value["default_branch"]["sha"] = BASE
     value["pr"].update(state="OPEN", draft=False, mergeable=True)
     ops.validate_operations(value)
     value["pr"].update(state=state, draft=draft, mergeable=mergeable)
     with pytest.raises(ValueError, match="open, ready and mergeable"):
+        ops.validate_operations(value)
+
+
+@pytest.mark.parametrize("damage", ["missing", "moved", "repository", "name", "stale", "source"])
+def test_pre_merge_requires_independent_current_default_observation(damage):
+    value = operations()
+    value.update(phase="PRE_MERGE", merge=None, post_merge_ci=None)
+    value["pr"]["state"] = "OPEN"
+    value["default_branch"]["sha"] = BASE
+    ops.validate_operations(value)
+    default = value["default_branch"]
+    if damage == "missing":
+        del value["default_branch"]
+    elif damage == "moved":
+        default["sha"] = MERGE
+    elif damage == "repository":
+        default["repository"] = "gabned/provelume.com"
+    elif damage == "name":
+        default["name"] = "unrelated-branch"
+    elif damage == "stale":
+        default["observed_at"] = (datetime.now(UTC) - timedelta(minutes=16)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ")
+    else:
+        default["source"] = "UNVERIFIED"
+    with pytest.raises(ValueError):
+        ops.validate_operations(value)
+
+
+def test_post_merge_default_observation_binds_the_reconciled_ancestry():
+    value = operations()
+    value["default_branch"]["sha"] = BASE
+    with pytest.raises(ValueError, match="reconciliation differs"):
         ops.validate_operations(value)
 
 
@@ -759,6 +800,7 @@ def test_receipt_chain_retains_ci_history_even_after_resealing(damage):
                               "prompt": "NONE"})
     evidence = operations()
     evidence.update(phase="PRE_MERGE", merge=None, post_merge_ci=None)
+    evidence["default_branch"]["sha"] = BASE
     evidence["pr"]["state"] = "OPEN"
     older = deepcopy(evidence["ci"]["runs"][0])
     older["run_id"] = 99
@@ -815,6 +857,7 @@ def resolved_finding():
     correction_merge = "e" * 40
     correction["merge"]["merge_sha"] = correction_merge
     correction["merge"]["default_sha"] = correction_merge
+    correction["default_branch"]["sha"] = correction_merge
     correction["merge"]["commit"]["sha"] = correction_merge
     correction["pr"]["base_sha"] = MERGE
     correction["pr"]["body"] = correction["pr"]["body"].replace(BASE, MERGE)
@@ -824,6 +867,7 @@ def resolved_finding():
     correction["merge"]["ancestry"][0]["parents"] = [MERGE]
     correction["post_merge_ci"] = ci(REPO, correction_merge)
     origin["merge"]["default_sha"] = correction_merge
+    origin["default_branch"]["sha"] = correction_merge
     origin["merge"]["ancestry"].insert(0, deepcopy(correction["merge"]["commit"]))
     origin["post_merge_ci"] = ci(REPO, correction_merge)
     prior = [{"pr": 12, "head_sha": HEAD, "merge_sha": MERGE, "state": "MERGED"}]
@@ -850,6 +894,7 @@ def test_late_finding_requires_correction_after_origin(damage):
     finding = resolved_finding()
     origin, correction = finding["origin"], finding["correction"]
     origin["merge"]["default_sha"] = MERGE
+    origin["default_branch"]["sha"] = MERGE
     origin["merge"]["ancestry"] = [deepcopy(origin["merge"]["commit"])]
     origin["post_merge_ci"] = ci(REPO, MERGE)
     if damage == "sibling":
