@@ -351,6 +351,45 @@ def test_multi_receipt_chain_preserves_initialized_identity_and_scope() -> None:
         protocol.validate_campaign_v2(value)
 
 
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (("train_id", "rewritten-train"), ("target_version", "9.9.9")),
+)
+def test_multi_receipt_chain_preserves_initialized_train_identity(
+    field: str,
+    replacement: str,
+) -> None:
+    before = profile_campaign("gabned/provelume")
+    after = deepcopy(before)
+    after["idea_inbox"]["items"].append("#199")
+    value = protocol.append_transition_receipt(
+        before,
+        after,
+        {
+            "kind": "ISSUE",
+            "action": "OPENED",
+            "repository": "gabned/provelume",
+            "reference": "#199",
+            "sha": "NONE",
+            "conclusion": "NOT_APPLICABLE",
+        },
+    )
+    value["train"][field] = replacement
+    last = value["receipts"][-1]
+    last["successor_state_sha256"] = protocol.campaign_state_sha256(value)
+    last["idempotency_key"] = protocol.receipt_idempotency_key(
+        campaign_id=value["campaign_id"],
+        operation=last["operation"],
+        github_event=last["github_event"],
+        previous_state_sha256=last["previous_state_sha256"],
+        successor_state_sha256=last["successor_state_sha256"],
+    )
+    last["receipt_sha256"] = protocol.receipt_sha256(last)
+
+    with pytest.raises(protocol.ContractError, match="identity does not match"):
+        protocol.validate_campaign_v2(value)
+
+
 def test_migration_revalidates_legacy_passed_gate_before_merge() -> None:
     legacy = protocol.sample_campaign_v1()
     legacy["slices"][1].update(

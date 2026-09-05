@@ -1713,7 +1713,16 @@ def immutable_campaign_identity(value: dict[str, Any]) -> dict[str, Any]:
         "release_profile",
         "auto_continuation",
     }
-    return {key: deepcopy(value[key]) for key in keys}
+    identity = {key: deepcopy(value[key]) for key in keys}
+    identity["idea_inbox_policy"] = {
+        key: deepcopy(value["idea_inbox"][key]) for key in ("mode", "scope")
+    }
+    identity["train_identity"] = {
+        "train_id": deepcopy(value["train"]["train_id"]),
+        "target_version": deepcopy(value["train"]["target_version"]),
+        "upstream_repository": deepcopy(value["train"]["upstream"]["repository"]),
+    }
+    return identity
 
 
 def changed_paths(before: Any, after: Any, *, prefix: str = "") -> set[str]:

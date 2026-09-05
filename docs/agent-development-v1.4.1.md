@@ -91,6 +91,8 @@ snapshot, whose digest must equal the first successor in every later receipt
 chain; the idea inbox is empty so every idea requires its own `ISSUE/OPENED`
 transition. The snapshot's immutable campaign identity, ordered slice IDs and
 retained slice issues must match the enclosing campaign for the entire chain.
+Immutable identity includes the train ID and target version, the inbox policy,
+and the profile-bound upstream repository.
 Effects require later `STATE_TRANSITION` receipts.
 
 `append_transition_receipt()` accepts only an exact retained prefix, frozen
