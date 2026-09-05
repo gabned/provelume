@@ -42,6 +42,7 @@ def pr(repository=REPO):
     return ops.render_pr_identity({
         "repository": repository, "number": 12, "base_sha": BASE, "head_sha": HEAD,
         "tree_sha": TREE, "body": "WORKSTREAM_CLASS: PROTOCOL\n",
+        "state": "OPEN", "draft": False, "mergeable": True,
         "changed_paths": [PROTOCOL_PATH], "paths_complete": True,
         "file_patches": {PROTOCOL_PATH: "@@ -1 +1 @@\n-old\n+new\n"}, **observed(),
     })
@@ -65,6 +66,7 @@ def ci(repository=REPO, head=HEAD):
 
 def operations(repository=REPO):
     p = pr(repository)
+    p["state"] = "CLOSED"
     if repository == "gabned/nexus":
         p["changed_paths"] = ["docs/protocol-registry.md"]
         p["file_patches"] = {"docs/protocol-registry.md": "+Protocol registry\n"}
@@ -526,7 +528,8 @@ def test_archived_closure_preserves_integrity_without_live_freshness():
         ops.validate_audit(receipt)
 
 
-def test_gate_transition_requires_persisted_attempt_bound_operational_evidence():
+@pytest.mark.parametrize("observation_delay", [0, 90])
+def test_gate_transition_requires_persisted_attempt_bound_operational_evidence(observation_delay):
     legacy = protocol.sample_campaign_v1()
     legacy.update(workstream_class="PROTOCOL", risk_profile="NO_PRODUCTION",
                   observed_event="GATES_PASSED", observed_event_ref=HEAD)
@@ -544,6 +547,9 @@ def test_gate_transition_requires_persisted_attempt_bound_operational_evidence()
         protocol.append_transition_receipt(before, after, event)
     evidence = operations()
     evidence.update(phase="PRE_MERGE", merge=None, post_merge_ci=None)
+    evidence["pr"]["state"] = "OPEN"
+    evidence["pr"]["observed_at"] = (datetime.now(UTC) - timedelta(
+        seconds=observation_delay)).strftime("%Y-%m-%dT%H:%M:%SZ")
     newer = deepcopy(evidence["ci"]["runs"][0])
     newer["run_id"] = 101
     evidence["ci"]["runs"].append(newer)
@@ -555,10 +561,29 @@ def test_gate_transition_requires_persisted_attempt_bound_operational_evidence()
     assert result["receipts"][-1]["operational_evidence"] == evidence
     protocol.validate_campaign_v2(result)
     # Recomputing the enclosing digest cannot turn missing evidence into proof.
+    too_old = deepcopy(evidence)
+    too_old["pr"]["observed_at"] = (datetime.now(UTC) - timedelta(
+        minutes=16)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with pytest.raises(ValueError, match="stale"):
+        protocol.append_transition_receipt(before, after, event, operational_evidence=too_old)
     result["receipts"][-1]["operational_evidence"] = None
     result["receipts"][-1]["receipt_sha256"] = protocol.receipt_sha256(result["receipts"][-1])
     with pytest.raises(ValueError, match="require operational evidence"):
         protocol.validate_campaign_v2(result)
+
+
+@pytest.mark.parametrize("state,draft,mergeable", [
+    ("CLOSED", False, True), ("OPEN", True, True),
+    ("OPEN", False, False), ("OPEN", False, None),
+])
+def test_pre_merge_requires_observed_ready_mergeable_pr(state, draft, mergeable):
+    value = operations()
+    value.update(phase="PRE_MERGE", merge=None, post_merge_ci=None)
+    value["pr"].update(state="OPEN", draft=False, mergeable=True)
+    ops.validate_operations(value)
+    value["pr"].update(state=state, draft=draft, mergeable=mergeable)
+    with pytest.raises(ValueError, match="open, ready and mergeable"):
+        ops.validate_operations(value)
 
 
 @pytest.mark.parametrize("conclusion", ["FAILURE", "CANCELLED", "TIMED_OUT"])
@@ -588,6 +613,7 @@ def test_receipt_chain_retains_ci_history_even_after_resealing(damage):
                               "prompt": "NONE"})
     evidence = operations()
     evidence.update(phase="PRE_MERGE", merge=None, post_merge_ci=None)
+    evidence["pr"]["state"] = "OPEN"
     older = deepcopy(evidence["ci"]["runs"][0])
     older["run_id"] = 99
     evidence["ci"]["runs"].insert(0, older)
