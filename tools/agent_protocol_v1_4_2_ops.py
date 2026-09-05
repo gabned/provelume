@@ -405,6 +405,8 @@ def validate_operations(
     if e["phase"] == "POST_MERGE":
         m = validate_merge(e["merge"], p, now)
         validate_ci(e["post_merge_ci"], p["repository"], m["default_sha"], now=now)
+        require(e["post_merge_ci"]["policy_ref"] == m["default_sha"],
+                "post-merge CI policy is not bound to the audited default")
     else:
         require(e["merge"] is None and e["post_merge_ci"] is None,
                 "pre-merge input cannot claim reconciliation")
