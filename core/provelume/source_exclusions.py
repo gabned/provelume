@@ -29,7 +29,7 @@ TYPE_EXTENSIONS = {
     "text": (".txt", ".md", ".markdown", ".csv"),
     "document": (".pdf", ".docx", ".xlsx"),
     "image": (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".webp", ".bmp", ".gif"),
-    "audio": (".wav", ".mp3", ".m4a", ".flac", ".ogg", ".aac"),
+    "audio": (".wav", ".mp3", ".m4a", ".flac", ".ogg", ".aac", ".opus"),
     "video": (".mp4", ".mov", ".mkv", ".avi", ".webm"),
     "email": (".eml",),
     "archive": (".zip",),
@@ -334,7 +334,7 @@ def scan(source: Path, max_files: int, policy: Mapping[str, Any] | None) -> dict
                 if len(rows) < MAX_PREVIEW_ROWS:
                     rows.append({"locator": locator, "kind": "directory", **selected_decision})
                 return
-            if candidate.is_symlink():
+            if candidate.is_symlink() or candidate.is_junction():
                 counts["unfollowed_links"] += 1
                 # Directory links are never followed, including cycles inside the root.
                 if len(rows) < MAX_PREVIEW_ROWS:

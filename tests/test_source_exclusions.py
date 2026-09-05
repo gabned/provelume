@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -114,6 +115,7 @@ def test_visible_defaults_preview_counts_without_reading_document_bytes(setup, m
         ("extension", "TXT", "nested/NOTE.TXT", False),
         ("type", "image", "photo.JPG", False),
         ("type", "audio", "sound.MP3", False),
+        ("type", "audio", "sound.OPUS", False),
         ("glob", "**/*.txt", "nested/deep/note.txt", False),
         ("glob", "**/*.txt", "note.txt", False),
         ("glob", "nested/*.txt", "nested/deep/note.txt", True),
@@ -165,6 +167,57 @@ def test_exact_override_keeps_unrelated_excluded_subtrees_pruned(setup, monkeypa
     assert preview["counts"]["excluded_directories"] == 2
     assert any(row["locator"] == ".git/private.md" for row in preview["rows"])
     assert not any(row["locator"].startswith(".git/objects/") for row in preview["rows"])
+
+
+def test_audio_type_exclusion_keeps_opus_out_of_preview_and_refresh(setup):
+    instance, folder, source_id = setup
+    (folder / "sound.opus").write_bytes(b"synthetic OPUS exclusion fixture")
+    policy = changed(instance, source_id, rule("type", "audio"))
+    preview = instance.preview_folder_source_exclusions(source_id, policy)
+    selected = next(row for row in preview["rows"] if row["locator"] == "sound.opus")
+    assert selected["included"] is False and selected["reason"] == "excluded"
+    assert preview["counts"]["included_files"] == 2
+    apply(instance, source_id, policy)
+    assert instance.refresh_folder_source(source_id)["job"]["status"] == "succeeded"
+    assert {item["locator"] for item in instance.store.list_canonical("acquisitions")} == {
+        "note.md",
+        "nested/note.txt",
+    }
+
+
+def test_directory_junction_detection_prevents_subtree_traversal(setup, monkeypatch):
+    instance, folder, source_id = setup
+    junction = folder / "junction"
+    junction.mkdir()
+    (junction / "must-not-read.txt").write_text("not followed", encoding="utf-8")
+    original = Path.is_junction
+    monkeypatch.setattr(Path, "is_junction", lambda path: path == junction or original(path))
+    preview = instance.preview_folder_source_exclusions(source_id)
+    assert preview["counts"]["included_files"] == 2
+    assert preview["counts"]["unfollowed_links"] == 1
+    assert any(row["reason"] == "directory_link_not_followed" for row in preview["rows"])
+    assert not any(row["locator"].startswith("junction/") for row in preview["rows"])
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Permanent Windows NTFS junction qualification")
+def test_real_windows_junction_is_not_followed(setup):
+    instance, folder, source_id = setup
+    junction, target = folder / "junction", folder / "nested"
+    subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(junction), str(target)],
+        check=True,
+        capture_output=True,
+    )
+    try:
+        assert junction.is_junction()
+        preview = instance.preview_folder_source_exclusions(source_id)
+        assert preview["counts"]["included_files"] == 2
+        assert preview["counts"]["unfollowed_links"] == 1
+        assert any(row["reason"] == "directory_link_not_followed" for row in preview["rows"])
+        assert instance.refresh_folder_source(source_id)["job"]["status"] == "succeeded"
+        assert len(instance.store.list_canonical("acquisitions")) == 2
+    finally:
+        junction.rmdir()
 
 
 def test_normalization_serialization_and_rule_bounds_are_deterministic():
