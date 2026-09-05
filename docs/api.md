@@ -449,6 +449,20 @@ Unlike the inventory GETs, this explicit probe opens the selected filesystem roo
 within a bounded worker; it creates no Source/policy and reads no document bytes.
 It is not an enrollment or network-credential API.
 
+`GET /api/v1/folder-sources/{source_id}/exclusions` returns the stored/visible
+schema-1 policy, revision and deterministic fingerprint without enumerating files.
+`POST /api/v1/folder-sources/{source_id}/exclusions/preview` is a read-only,
+loopback/CSRF-protected metadata preview using the same 24 KiB form boundary.
+It accepts `revision`, `operation` (`inspect`, `defaults`, `state`, `upsert`,
+`remove`) and the applicable individual-rule fields `rule_id`, `kind`, `pattern`,
+`rule_action`, `rule_enabled` or policy `enabled`; booleans are `true`/`false`.
+It reports bounded counts, explained relative-path rows and a preview fingerprint.
+Unknown/duplicate fields and stale revisions fail closed. A preview has no write
+effect. Apply is an explicit local service/CLI or `/sources/{source_id}/exclusions`
+Browser action; there is no API apply endpoint. EN/IT messages and complete rule,
+traversal, retention and retry semantics are in
+[`architecture/source-exclusions.md`](architecture/source-exclusions.md).
+
 ## Maintenance catalogue and reindex generations
 
 - `GET /api/v1/maintenance` — the complete closed catalogue, exact availability boundaries and

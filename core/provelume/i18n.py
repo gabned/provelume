@@ -11,6 +11,7 @@ from .connector_i18n import CONNECTOR_TRANSLATIONS
 from .email_i18n import EMAIL_TRANSLATIONS
 from .file_family_i18n import FILE_FAMILY_TRANSLATIONS
 from .folder_settings_i18n import FOLDER_SETTINGS_TRANSLATIONS
+from .folder_source_exclusion_i18n import EXCLUSION_TRANSLATIONS
 from .folder_source_i18n import FOLDER_SOURCE_TRANSLATIONS
 from .google_i18n import GOOGLE_TRANSLATIONS
 from .maintenance_i18n import MAINTENANCE_TRANSLATIONS
@@ -45,6 +46,7 @@ def catalog(language: str) -> dict[str, str]:
     result.update(REPRESENTATION_TRANSLATIONS.get(selected, {}))
     result.update(FOLDER_SETTINGS_TRANSLATIONS.get(selected, {}))
     result.update(FOLDER_SOURCE_TRANSLATIONS.get(selected, {}))
+    result.update(EXCLUSION_TRANSLATIONS.get(selected, {}))
     result.update(GOOGLE_TRANSLATIONS.get(selected, {}))
     result.update(MAINTENANCE_TRANSLATIONS.get(selected, {}))
     result.update(SCHEDULER_TRANSLATIONS.get(selected, {}))

@@ -4,6 +4,11 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+- Added visible, versioned per-Source exclusions with editable safe defaults, explicit
+  include overrides and bounded read-only ingestion previews in EN/IT. One policy
+  governs scan, watched refresh and reconciliation, survives backup and portable
+  transfer, and preserves previously acquired Originals and canonical records.
+
 - Added read-only EN/IT Folder Source path validation before enrollment, including
   explicit Windows UNC support, bounded filesystem probes, actionable mount/session/
   permission diagnostics and stable Source identity across reconnect and transfer.

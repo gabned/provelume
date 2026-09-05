@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import mimetypes
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from uuid import NAMESPACE_URL, uuid4, uuid5
@@ -19,6 +19,13 @@ from .ingestion_runs import (
 )
 from .instance_lifecycle import InstanceLifecycleManager
 from .paths import UnsafePathError, normalise_locator
+from .source_exclusions import (
+    ExclusionError,
+    ExclusionLimitError,
+    decision,
+    policy_for_source,
+    scan,
+)
 from .storage import InstanceStore, utc_now
 
 DEFAULT_MAX_FILE_BYTES = 25 * 1024 * 1024
@@ -76,7 +83,14 @@ def _stable_version_id(document_id: str, digest: str) -> str:
     return f"ver_{uuid5(NAMESPACE_URL, f'provelume:{document_id}:{digest}').hex}"
 
 
-def _iter_files(source: Path, max_files: int) -> list[tuple[str, Path]]:
+def _iter_files(
+    source: Path, max_files: int, exclusions: Mapping | None = None,
+) -> list[tuple[str, Path]]:
+    if exclusions is not None:
+        try:
+            return scan(source, max_files, exclusions)["files"]
+        except ExclusionLimitError as exc:
+            raise IngestionLimitError(str(exc)) from exc
     source = source.expanduser().resolve(strict=True)
     if source.is_file():
         root = source.parent
@@ -471,8 +485,15 @@ def _run_ingestion_filesystem_locked(
 
     try:
         canonical_source_path = configured_source_path.expanduser().resolve(strict=True)
-        files = _iter_files(canonical_source_path, max_files)
-    except (IngestionLimitError, OSError, UnsafePathError) as exc:
+        policy = policy_for_source(store, source_id)
+        if policy is not None:
+            from .folder_sources import FolderSourceManager
+
+            canonical_source_path = FolderSourceManager(store).selected_for_read(
+                canonical_source_path,
+            )
+        files = _iter_files(canonical_source_path, max_files, policy)
+    except (ExclusionError, IngestionLimitError, OSError, UnsafePathError) as exc:
         closed = _close_run(
             ledger,
             run,
@@ -619,12 +640,25 @@ def _retry_ingestion_run_locked(
         raise IngestionRetryError(f"ingestion run has no failed or interrupted items: {run_id}")
 
     source_id = str(previous["source_id"])
+    policy = policy_for_source(store, source_id)
     source_path = store.source_path(source_id)
     if source_path is None:
         raise IngestionRetryError(f"ingestion Source is not configured: {source_id}")
     max_file_bytes = int(previous["max_file_bytes"])
     max_files = int(previous["max_files"])
     existing = ledger.get_run(retry_run_id) if retry_run_id is not None else None
+    if existing is None or existing.get("status") == "running":
+        if not reconcile_only and any(
+            not decision(policy, str(item["locator"]))["included"] for item in retryable
+        ):
+            raise IngestionRetryError(
+                "Retry items are excluded by the current Source policy; use a new Source refresh "
+                "or explicitly change the rule through its preview."
+            )
+        if policy is not None and not reconcile_only:
+            from .folder_sources import FolderSourceManager
+
+            source_path = FolderSourceManager(store).selected_for_read(source_path)
     if existing is not None:
         if (
             existing.get("source_id") != source_id
