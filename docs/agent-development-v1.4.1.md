@@ -74,6 +74,8 @@ Every schema v2 campaign contains at least one receipt. A receipt records:
   conclusion;
 - SHA-256 of the predecessor and successor campaign state, where state excludes
   only the receipt list to avoid a circular digest;
+- for every new state transition, the exact predecessor and successor state
+  snapshots whose canonical bytes produce those two digests;
 - the previous receipt digest, deterministic idempotency key, and its own
   canonical digest.
 
@@ -82,6 +84,15 @@ receipt starts at the canonical digest of its exact schema v1 input. Each later
 predecessor digest must equal the previous successor, and each
 `previous_receipt_sha256` must equal the prior receipt digest. The final
 successor must equal the current campaign-state digest.
+
+Validation reconstructs the state after every receipt, verifies the snapshots
+against both digests, and applies the immutable-identity, ordered-ledger, frozen
+scope, exact-event binding, and event-owned mutation checks to every adjacent
+pair. Digest continuity alone is never transition evidence. A legacy final
+transition remains readable when its predecessor and current successor are
+uniquely reconstructible. After continuation, the next receipt's predecessor
+snapshot supplies that same legacy successor. Consecutive missing intermediate
+states remain ambiguous and fail closed.
 
 Native `INITIALIZE` also binds the exact owner `ISSUE/OPENED` event and
 establishes an uneffected campaign: all slices planned with empty PR ledgers,
@@ -232,7 +243,8 @@ candidate is neither deployed nor published merely because its gates passed.
    publication state;
 4. assigns the repository's closed release profile;
 5. emits one deterministic `SCHEMA_MIGRATION` receipt bound to the legacy
-   GitHub resource and predecessor/successor digests.
+   GitHub resource, exact legacy source and migrated state snapshots, and their
+   predecessor/successor digests.
 
 No timestamp, network response, random value, or local path enters the result.
 Repeated migration of the same v1 input produces identical bytes; migrating an
