@@ -112,6 +112,7 @@ OBSERVED_EVENTS = {
     "PR_SYNCHRONIZED",
     "PR_CLOSED",
     "PR_MERGED",
+    "SLICE_ISSUE_OPENED",
     "SLICE_CANCELLED",
     "GATES_PASSED",
     "GATES_FAILED",
@@ -892,13 +893,9 @@ def build_receipt(
             fail("receipt successor state does not match its successor digest")
         receipt["previous_state"] = deepcopy(before)
         receipt["successor_state"] = deepcopy(after)
-    elif previous_state is not None or successor_state is not None:
-        if (
-            operation != "SCHEMA_MIGRATION"
-            or previous_state is None
-            or successor_state is None
-        ):
-            fail("state snapshots must be supplied as one closed pair")
+    elif operation == "SCHEMA_MIGRATION":
+        if previous_state is None or successor_state is None:
+            fail("SCHEMA_MIGRATION requires its exact source and result snapshots")
         if object_sha256(previous_state) != previous_state_sha256:
             fail("migration source does not match its predecessor digest")
         after = exact_object(
@@ -910,6 +907,8 @@ def build_receipt(
             fail("migration result does not match its successor digest")
         receipt["previous_state"] = deepcopy(previous_state)
         receipt["successor_state"] = deepcopy(after)
+    elif previous_state is not None or successor_state is not None:
+        fail("state snapshots must be supplied as one closed pair")
     receipt["receipt_sha256"] = receipt_sha256(receipt)
     return receipt
 
@@ -937,7 +936,9 @@ def validate_receipt_binding(
     observed_ref = campaign["observed_event_ref"]
     repo = campaign["repository"]
     train = campaign["train"]
-    if (
+    if observed == "SLICE_ISSUE_OPENED":
+        expected = ("ISSUE", "OPENED", repo, observed_ref, "NONE")
+    elif (
         receipt["operation"] == "STATE_TRANSITION"
         and github_event["kind"] == "ISSUE"
         and github_event["action"] == "OPENED"
@@ -960,7 +961,7 @@ def validate_receipt_binding(
         if observed_tuple != expected:
             fail("the idea receipt is not bound to its exact GitHub issue event")
         return
-    if observed == "INITIAL_AUTHORIZATION":
+    elif observed == "INITIAL_AUTHORIZATION":
         expected = ("ISSUE", "OPENED", repo, campaign["owner_issue"], "NONE")
     elif observed in {"PR_OPENED", "PR_SYNCHRONIZED"}:
         open_entries = [
@@ -1011,7 +1012,10 @@ def validate_receipt_binding(
             observed_ref,
         )
     elif observed == "RELEASE_CANDIDATE_MERGED":
-        expected = ("COMMIT", "CREATED", repo, observed_ref, observed_ref)
+        candidate = train["candidate_build_sha"]
+        if observed_ref != candidate:
+            fail("candidate qualification is not bound to the exact candidate build")
+        expected = ("COMMIT", "CREATED", repo, candidate, candidate)
     elif observed == "RELEASE_PUBLISHED":
         expected = (
             "RELEASE",
@@ -1048,13 +1052,12 @@ def validate_receipt_binding(
             action = "STATUS_SUCCEEDED"
         else:
             fail("production evidence requires a workflow run or deployment event")
-        expected_sha = (
-            train["deployed_build_sha"]
-            if observed == "PRODUCTION_VERIFIED"
-            else observed_ref
-        )
-        if observed == "PRODUCTION_VERIFIED" and observed_ref != expected_sha:
-            fail("production verification is not bound to the exact deployed build")
+        expected_sha = train["deployed_build_sha"]
+        if observed_ref != expected_sha:
+            action_name = (
+                "deployment" if observed == "PRODUCTION_DEPLOYED" else "verification"
+            )
+            fail(f"production {action_name} is not bound to the exact deployed build")
         expected = (
             kind,
             action,
@@ -1202,47 +1205,30 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
                     fail("INITIALIZE retained slice issue was rewritten")
             reconstructed = initial_campaign
         elif operation == "SCHEMA_MIGRATION":
-            if stateful:
-                if object_sha256(item["previous_state"]) != previous_state:
-                    fail("migration source does not match its predecessor digest")
-                legacy = load_legacy_module()
-                try:
-                    legacy.validate_campaign(deepcopy(item["previous_state"]))
-                except legacy.ContractError as exc:
-                    raise ContractError(f"migration source is invalid: {exc}") from exc
-                reconstructed = snapshot_campaign(
-                    item["successor_state"],
-                    "receipt.successor_state",
-                )
-                expected_migration = migrate_campaign(
-                    deepcopy(item["previous_state"]),
-                    _validate_result=False,
-                )
-                if campaign_state_payload(expected_migration) != campaign_state_payload(
-                    reconstructed
-                ):
-                    fail("migration result is not the deterministic schema 1 projection")
-                expected_event = expected_migration["receipts"][0]["github_event"]
-                if item["github_event"] != expected_event:
-                    fail("migration receipt is not bound to its inferred GitHub event")
-            elif index == len(receipts):
-                reconstructed = snapshot_campaign(
-                    campaign_state_payload(campaign),
-                    "campaign state",
-                )
-            elif (
-                isinstance(receipts[index], dict)
-                and set(receipts[index]) == STATEFUL_RECEIPT_KEYS
+            if not stateful:
+                fail("SCHEMA_MIGRATION requires its exact source and result snapshots")
+            if object_sha256(item["previous_state"]) != previous_state:
+                fail("migration source does not match its predecessor digest")
+            legacy = load_legacy_module()
+            try:
+                legacy.validate_campaign(deepcopy(item["previous_state"]))
+            except legacy.ContractError as exc:
+                raise ContractError(f"migration source is invalid: {exc}") from exc
+            reconstructed = snapshot_campaign(
+                item["successor_state"],
+                "receipt.successor_state",
+            )
+            expected_migration = migrate_campaign(
+                deepcopy(item["previous_state"]),
+                _validate_result=False,
+            )
+            if campaign_state_payload(expected_migration) != campaign_state_payload(
+                reconstructed
             ):
-                reconstructed = snapshot_campaign(
-                    receipts[index]["previous_state"],
-                    "next receipt.previous_state",
-                )
-            else:
-                fail(
-                    "legacy migration successor state cannot be reconstructed "
-                    "before another receipt"
-                )
+                fail("migration result is not the deterministic schema 1 projection")
+            expected_event = expected_migration["receipts"][0]["github_event"]
+            if item["github_event"] != expected_event:
+                fail("migration receipt is not bound to its inferred GitHub event")
             if campaign_state_sha256(reconstructed) != successor_state:
                 fail("migration result does not match its successor digest")
         else:
@@ -1986,6 +1972,35 @@ def validate_pull_request_event_delta(
             fail("PR_SYNCHRONIZED may update only the existing open entry head_sha")
 
 
+def validate_slice_issue_opened_delta(
+    previous: dict[str, Any],
+    successor: dict[str, Any],
+    event: dict[str, Any],
+    index: int,
+) -> None:
+    """Assign one real issue to one issue-less planned slice and activate it."""
+
+    if campaign_state_payload(previous) == campaign_state_payload(successor):
+        # Exact final-event replay is handled by append_transition_receipt().
+        return
+    before = previous["slices"][index]
+    after = successor["slices"][index]
+    if (
+        event["kind"] != "ISSUE"
+        or event["action"] != "OPENED"
+        or before["state"] != "PLANNED"
+        or before["issue"] != "NONE"
+        or before["pull_requests"]
+        or after["state"] != "ACTIVE"
+        or after["issue"] != event["reference"]
+        or after["pull_requests"] != before["pull_requests"]
+    ):
+        fail(
+            "SLICE_ISSUE_OPENED must assign its exact issue to one issue-less "
+            "planned slice and activate only that slice"
+        )
+
+
 def validate_event_transition(
     previous: dict[str, Any],
     successor: dict[str, Any],
@@ -2017,6 +2032,10 @@ def validate_event_transition(
             if observed in {"PR_OPENED", "PR_SYNCHRONIZED"}:
                 validate_pull_request_event_delta(previous, successor, event, index)
             allowed.update({f"slices.{index}.state", f"slices.{index}.pull_requests"})
+        elif observed == "SLICE_ISSUE_OPENED":
+            index = slice_index_for_event(previous, successor, event)
+            validate_slice_issue_opened_delta(previous, successor, event, index)
+            allowed.update({f"slices.{index}.issue", f"slices.{index}.state"})
         elif observed in {"SLICE_CANCELLED", "GATES_PASSED", "GATES_FAILED"}:
             index = slice_index_for_event(previous, successor, event)
             allowed.add(f"slices.{index}.state")
