@@ -210,12 +210,16 @@ def test_source_identity_survives_reconnect_restart_and_reconciliation(instance,
     )
     source = instance.register_folder_source(folder, **options)
     source_id = source["id"]
-    instance.refresh_folder_source(source_id, request_key="seed")
+    assert (
+        instance.refresh_folder_source(source_id, request_key="seed")["job"]["status"]
+        == "succeeded"
+    )
     original = instance.folder_sources.public_view(source_id)
     canonical = {
         kind: instance.store.list_canonical(kind)
         for kind in ("sources", "acquisitions", "originals", "documents", "versions")
     }
+    assert len(canonical["acquisitions"]) == len(canonical["documents"]) == 1
     folder.rename(detached)
     observed = instance.observe_folder_source(source_id)
     assert observed["last_error_code"] == "mount_unavailable"
@@ -387,7 +391,10 @@ def test_real_windows_unc_enrollment_reconnect_and_instance_alias_safety(instanc
     before = instance.validate_folder_source_path(unc, source_class="network")
     assert before["can_enroll"] and before["path_kind"] == "unc"
     source = instance.register_folder_source(unc, **options)
-    instance.refresh_folder_source(source["id"], request_key="unc-seed")
+    refreshed = instance.refresh_folder_source(source["id"], request_key="unc-seed")
+    assert refreshed["job"]["status"] == "succeeded"
+    acquisitions = instance.store.list_canonical("acquisitions")
+    assert len(acquisitions) == len(instance.store.list_canonical("documents")) == 1
     detached = tmp_path / "UNC detached"
     folder.rename(detached)
     try:
@@ -395,6 +402,7 @@ def test_real_windows_unc_enrollment_reconnect_and_instance_alias_safety(instanc
     finally:
         detached.rename(folder)
     assert instance.register_folder_source(unc, **options)["id"] == source["id"]
+    assert instance.store.list_canonical("acquisitions") == acquisitions
     assert (
         instance.folder_sources.public_view(source["id"])["identity_fingerprint"]
         == source["identity_fingerprint"]
