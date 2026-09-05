@@ -275,9 +275,13 @@ def validate_scope(
     require(set(initial) <= set(pr["changed_paths"]), "baseline contains absent paths")
     if pr["repository"] != "gabned/nexus":
         exact = {"AGENTS.md", ".github/pull_request_template.md", ".github/workflows/ci.yml",
-                 "tools/agent-check", "docs/runbooks/agent-development.md"}
+                 "tools/agent-check", "tools/agent-protocol",
+                 "scripts/agent/change_control_contract_v1_2_1.py",
+                 "scripts/agent/change_control_v1_2_1.py",
+                 "docs/runbooks/agent-development.md"}
         prefixes = ("tools/agent_protocol", "tests/test_agent_protocol_",
-                    "tests/agent_protocol_", "docs/agent-development-v",
+                    "tests/agent_protocol_", "tests/agent_change_control_",
+                    "docs/agent-development-v", "docs/runbooks/agent-development-v",
                     ".github/agent-protocol/")
         require(all(name in exact or name.startswith(prefixes) for name in initial),
                 "baseline includes a non-Protocol surface")
