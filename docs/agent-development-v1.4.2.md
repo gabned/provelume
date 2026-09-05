@@ -93,6 +93,9 @@ changed paths and patches. Its body must contain one matching `BASE_SHA`,
 `HEAD_SHA`, `TREE_SHA` and `CHANGED_PATHS_COMPLETE: TRUE` declaration.
 `render-pr-identity` replaces these declarations deterministically; it cannot
 invent missing repository observations.
+Changed paths and patch keys preserve valid Git whitespace/newline names as
+atomic JSON strings without trimming or splitting. NUL, absolute paths, traversal
+and noncanonical separators remain rejected; transport does not waive scope gates.
 
 An authorized technical changelog exception binds the verified human maintainer,
 authorization reference, PR, base/head, full path digest and exact patch digest.

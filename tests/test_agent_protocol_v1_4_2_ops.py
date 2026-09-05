@@ -33,6 +33,25 @@ BASE, HEAD, TREE, MERGE = (char * 40 for char in "abcd")
 PROTOCOL_PATH = "tools/agent_protocol_v1_4_2.py"
 
 
+@pytest.mark.parametrize("suffix", ["\nnotes.md", "\r\nnotes.md", "\tnotes.md", "notes.md\n"])
+def test_operation_paths_preserve_git_whitespace_names(suffix):
+    value = operations("gabned/provelume.com")
+    name = "docs/agent-development-v1.4.2-" + suffix
+    value["pr"]["changed_paths"] = [name]
+    value["pr"]["file_patches"] = {name: "+Protocol documentation\n"}
+    value["baseline_paths"] = [name]
+    decoded = json.loads(ops.canonical(value))
+    assert ops.validate_operations(decoded)["pr"]["changed_paths"] == [name]
+    assert list(decoded["pr"]["file_patches"]) == [name]
+
+
+@pytest.mark.parametrize("name", ["", "docs/\0name", "../docs/name", "docs/../name",
+                                  "/docs/name", "C:/docs/name", "docs\\name", "docs//name"])
+def test_git_path_transport_retains_safety_checks(name):
+    with pytest.raises(ValueError):
+        ops.paths([name])
+
+
 @pytest.mark.parametrize("repository", list(ops.PROFILES))
 @pytest.mark.parametrize("damage", ["missing", "different", "duplicate"])
 def test_audit_requires_exact_campaign_on_every_integration(repository, damage):

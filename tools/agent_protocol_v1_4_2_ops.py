@@ -96,7 +96,8 @@ def observation(value: dict, now: datetime | None = None) -> None:
 
 
 def path(value: Any) -> str:
-    text(value, "path")
+    # Git names are atomic JSON strings, not lines of human-readable text.
+    require(isinstance(value, str) and bool(value) and "\0" not in value, "invalid path")
     require("\\" not in value and ":" not in value and not value.startswith("/"),
             "path must be repository-relative")
     require(all(part not in {"", ".", ".."} for part in value.split("/")), "unsafe path")
