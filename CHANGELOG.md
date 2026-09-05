@@ -17,6 +17,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   slices; package and published identity remain `0.10.0` until release preparation.
 - Preserved Unicode failure diagnostics and failure exit codes across all Windows
   test shards, including redirected legacy-encoding consoles.
+- Retained active test identities and slowest-case timings in bounded Windows
+  shard output, keeping the complete suite and its 480-second deadline unchanged.
 
 ## 0.10.0 - 2026-09-03
 
