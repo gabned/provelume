@@ -430,12 +430,24 @@ See the [English](architecture/transcript-profiles.md) and
 - `GET /api/v1/sources` and `GET /api/v1/sources/{source_id}` include a path-redacted `folder`
   view for managed filesystem Sources;
 - `GET /api/v1/folder-sources` lists only managed folder Sources with lifecycle, policy,
-  availability, quiescence, fingerprint/count and last-run evidence.
+  availability, quiescence, content fingerprint/count, stable identity fingerprint,
+  closed diagnostic code/message and last-run evidence.
 
 These routes never enumerate a mount and expose no configured path. Registration, observation,
 enable/pause and refresh remain local service/CLI authority; the loopback `/sources` Browser adds
 the same explicit controls behind a per-process CSRF token. See
 [`architecture/durable-folder-sources.md`](architecture/durable-folder-sources.md).
+
+`POST /api/v1/folder-sources/validate` is a loopback-only, read-only path probe.
+It requires the local `/sources` CSRF token and an URL-encoded body containing only
+`csrf_token`, `path` and optional `source_class`. Duplicate fields, unsupported fields
+and bodies above 24 KiB are rejected. It returns `can_enroll`, a closed diagnostic
+code, an EN/IT message, path kind, Source class and any existing Source ID, never the
+path or OS exception. `?lang=it` selects Italian. A successful probe returns 200;
+failed qualification returns 400. Remote requests return 403 and GET is unsupported.
+Unlike the inventory GETs, this explicit probe opens the selected filesystem root
+within a bounded worker; it creates no Source/policy and reads no document bytes.
+It is not an enrollment or network-credential API.
 
 ## Maintenance catalogue and reindex generations
 

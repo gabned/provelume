@@ -8,7 +8,10 @@ from typing import Any
 from urllib.parse import parse_qs
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
+from .folder_source_enrollment import DIAGNOSTICS, FolderSourceEnrollmentError, diagnostic_message
 from .folder_source_model import FolderSourceError
 from .scheduler import schedule_payload
 from .scheduler_model import SchedulerError
@@ -37,12 +40,19 @@ def attach_folder_source_routes(
 ) -> None:
     csrf_token = secrets.token_urlsafe(32)
 
-    def values(request: Request, *, saved: str | None = None, error: str | None = None):
+    def values(
+        request: Request,
+        *,
+        saved: str | None = None,
+        error: str | None = None,
+        form: dict[str, str] | None = None,
+        validation: dict[str, Any] | None = None,
+    ):
         editable = _loopback_request(request)
         sources = instance.folder_sources.list_public()
         if editable:
             sources = [instance.folder_sources.local_view(str(source["id"])) for source in sources]
-        return context_factory(
+        context = context_factory(
             request,
             instance,
             sources=sources,
@@ -50,7 +60,16 @@ def attach_folder_source_routes(
             csrf_token=csrf_token if editable else None,
             saved=saved,
             error=error,
+            form=form or {},
+            validation=validation,
         )
+        for source in sources:
+            if source.get("diagnostic_code") in DIAGNOSTICS:
+                source["diagnostic_message"] = diagnostic_message(
+                    source["diagnostic_code"],
+                    context["lang"],
+                )
+        return context
 
     @app.get("/api/v1/folder-sources")
     def api_folder_sources() -> list[dict[str, Any]]:
@@ -64,8 +83,7 @@ def attach_folder_source_routes(
             context=values(request),
         )
 
-    @app.post("/sources")
-    async def mutate_folder_sources(request: Request):
+    async def source_fields(request: Request) -> dict[str, list[str]]:
         if not _loopback_request(request):
             raise HTTPException(
                 status_code=403,
@@ -74,9 +92,11 @@ def attach_folder_source_routes(
         content_type = request.headers.get("content-type", "").split(";", 1)[0].strip()
         if content_type != "application/x-www-form-urlencoded":
             raise HTTPException(status_code=415, detail="unsupported Source content type")
-        body = await request.body()
-        if len(body) > MAX_SOURCE_BODY_BYTES:
-            raise HTTPException(status_code=413, detail="Source request is too large")
+        body = bytearray()
+        async for chunk in request.stream():
+            if len(body) + len(chunk) > MAX_SOURCE_BODY_BYTES:
+                raise HTTPException(status_code=413, detail="Source request is too large")
+            body.extend(chunk)
         try:
             fields = parse_qs(
                 body.decode("utf-8"),
@@ -86,11 +106,47 @@ def attach_folder_source_routes(
             )
         except (UnicodeDecodeError, ValueError) as exc:
             raise HTTPException(status_code=400, detail="invalid Source request") from exc
+        if any(len(items) != 1 for items in fields.values()):
+            raise HTTPException(status_code=400, detail="duplicate Source field")
         supplied_token = fields.get("csrf_token", [""])[0]
         if not hmac.compare_digest(supplied_token, csrf_token):
             raise HTTPException(status_code=403, detail="invalid Source token")
+        return fields
+
+    @app.post("/api/v1/folder-sources/validate")
+    async def api_validate_folder_source(request: Request):
+        fields = await source_fields(request)
+        if set(fields) - {"csrf_token", "path", "source_class"}:
+            raise HTTPException(status_code=400, detail="unsupported validation field")
+        language = values(request)["lang"]
+        result = await run_in_threadpool(
+            instance.validate_folder_source_path,
+            fields.get("path", [""])[0],
+            source_class=fields.get("source_class", ["local"])[0],
+            language=language,
+        )
+        return JSONResponse(result, status_code=200 if result["can_enroll"] else 400)
+
+    @app.post("/sources")
+    async def mutate_folder_sources(request: Request):
+        fields = await source_fields(request)
+        form = {key: items[0] for key, items in fields.items() if key != "csrf_token"}
         action = fields.get("action", [""])[0]
         try:
+            if action == "validate":
+                context = values(request, form=form)
+                result = await run_in_threadpool(
+                    instance.validate_folder_source_path,
+                    fields.get("path", [""])[0],
+                    source_class=fields.get("source_class", ["local"])[0],
+                    language=context["lang"],
+                )
+                return templates.TemplateResponse(
+                    request=request,
+                    name="folder_sources.html",
+                    status_code=200 if result["can_enroll"] else 400,
+                    context={**context, "validation": result},
+                )
             if action == "register":
                 watch_text = fields.get("watch_interval_seconds", [""])[0].strip()
                 schedule = (
@@ -106,7 +162,8 @@ def attach_folder_source_routes(
                         timezone=fields.get("timezone", ["UTC"])[0],
                     )
                 )
-                result = instance.register_folder_source(
+                result = await run_in_threadpool(
+                    instance.register_folder_source,
                     fields.get("path", [""])[0],
                     name=fields.get("name", [""])[0],
                     source_class=fields.get("source_class", ["local"])[0],
@@ -133,11 +190,20 @@ def attach_folder_source_routes(
                 else:
                     raise FolderSourceError("unsupported folder Source action")
         except (FolderSourceError, OSError, SchedulerError, ValueError) as exc:
+            context = values(request, form=form)
+            error = (
+                diagnostic_message(exc.code, context["lang"])
+                if isinstance(
+                    exc,
+                    FolderSourceEnrollmentError,
+                )
+                else str(exc)
+            )
             return templates.TemplateResponse(
                 request=request,
                 name="folder_sources.html",
                 status_code=400,
-                context=values(request, error=str(exc)),
+                context={**context, "error": error},
             )
         return templates.TemplateResponse(
             request=request,

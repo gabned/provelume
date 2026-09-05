@@ -17,6 +17,61 @@ linked policy. A missing removable or network mount is observable state, not aut
 the mount, remove the Source or delete any Acquisition, Original, Document, Version or provenance
 record.
 
+## Emendatio enrollment qualification
+
+`0.10.1/S01` adds a read-only validation step to the service, CLI and EN/IT local
+Browser. Select an existing local folder, a connected removable volume, a network
+volume already mounted by the operating system, or an explicit Windows UNC path
+such as `\\server\share\folder` on a Windows-hosted Instance. UNC requires the
+`network` class and both server and share. A single regular file remains supported.
+URLs, device paths, drive-relative Windows paths, alternate streams, special files
+and paths overlapping reserved Instance storage are rejected before enrollment.
+Windows selectors on other hosts report the unsupported platform; they are never
+silently registered as relative POSIX paths. Filesystem identity also guards an
+Instance reached through a different mount or Windows share alias.
+
+```bash
+provelume folder-source-validate INSTANCE /path/to/folder --class removable --lang en
+```
+
+In the local Browser, **Validate path** / **Verifica percorso** preserves the entered
+name, path, class and schedule without creating a Source or policy. Registration
+always validates again; a previous successful preview cannot authorize enrollment
+after a mount disappears. Invalid schedules likewise fail before canonical writes.
+The check opens only the selected directory or regular file to test read access;
+it neither recursively scans nor reads document bytes. It has a five-second caller
+deadline and at most two read-only filesystem workers per process. A blocked OS
+request can outlive that deadline, but cannot later enroll, retry or recover a
+Source. Further requests report busy until a slot is released. Browser validation
+runs outside the event loop so an unavailable mount does not block other pages.
+
+Closed, path-redacted EN/IT diagnostics distinguish unavailable local paths,
+disconnected removable mounts, unreachable network paths, permission denial,
+Windows authentication/session failures, invisible mapped drives, unsupported
+selectors, reserved storage and timeout/busy checks. Authenticate or mount through
+the operating system using the same user/session as Provelume; a mapped drive in
+another or elevated session may be invisible. Retry explicitly after correction.
+Provelume does not discover shares, collect passwords, change networking or recover
+volumes in the background.
+
+The public `identity_fingerprint` is SHA-256 over a versioned domain and the durable
+Source ID. It is separate from the observer's content/metadata fingerprints. Opening
+the same normalized configured path after reconnect reuses that Source and policy;
+restart, reconciliation, backup/restore and portable transfer preserve this identity.
+Loss of a mount changes availability and diagnostics, never historical Originals
+or canonical records. Read views use stored configuration without probing mounts.
+Moving a source to a different configured location is not automatic reassignment
+of its identity. The existing transfer contract retains external path configuration
+but never packages an external mount or its credentials.
+
+Regressions cover all three classes, rejected selectors, synthetic Windows error
+codes/session visibility, resource limits, failed validation without writes, reconnect
+and transfer. The permanent Windows matrix additionally exercises an existing local
+administrative UNC share, actual file ingestion, disappearance/reappearance and an
+Instance alias. That test must succeed on Windows; synthetic cases do not substitute
+for its exact-head result. It creates no shares or credentials and changes no LAN
+or firewall configuration.
+
 ## Durable observation state
 
 Configuration remains additive under Instance schema 2:

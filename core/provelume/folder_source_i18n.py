@@ -12,6 +12,16 @@ FOLDER_SOURCE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "sources.register": "Register a folder Source",
         "sources.name": "Name",
         "sources.path": "Filesystem path",
+        "sources.path_help": (
+            "Select a path readable by the Instance host. On Windows, a network Source may "
+            "use \\\\server\\share\\folder in the same authenticated Windows session."
+        ),
+        "sources.validate": "Validate path",
+        "sources.class_local": "Local folder",
+        "sources.class_removable": "Removable volume",
+        "sources.class_network": "Mounted network volume or Windows UNC",
+        "sources.enabled": "Enabled",
+        "sources.paused": "Paused",
         "sources.class": "Source class",
         "sources.state": "Initial state",
         "sources.quiescence": "Quiescence seconds",
@@ -50,6 +60,17 @@ FOLDER_SOURCE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "sources.register": "Registra una Source da cartella",
         "sources.name": "Nome",
         "sources.path": "Percorso filesystem",
+        "sources.path_help": (
+            "Seleziona un percorso leggibile dall'host dell'Instance. Su Windows una Source "
+            "di rete può usare \\\\server\\share\\cartella nella stessa sessione "
+            "Windows autenticata."
+        ),
+        "sources.validate": "Verifica percorso",
+        "sources.class_local": "Cartella locale",
+        "sources.class_removable": "Volume rimovibile",
+        "sources.class_network": "Volume di rete montato o UNC Windows",
+        "sources.enabled": "Abilitata",
+        "sources.paused": "In pausa",
         "sources.class": "Classe Source",
         "sources.state": "Stato iniziale",
         "sources.quiescence": "Secondi di quiescenza",

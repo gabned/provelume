@@ -58,7 +58,7 @@ from .resource_statistics import ResourceStatisticsManager
 from .retention import DocumentRetentionManager
 from .retention_model import DISPOSITION_FILTERS, effective_dispositions
 from .scheduler import SchedulerCoordinator, public_job_record, schedule_payload
-from .scheduler_model import SchedulerBusyError, SchedulerError
+from .scheduler_model import SchedulerBusyError, SchedulerError, normalise_schedule
 from .source_reconciliation import SourceReconciliationManager
 from .storage import InstanceStore
 from .transcript_contract import TRANSCRIPT_JOB_KIND, TranscriptContractError
@@ -1411,6 +1411,11 @@ class ProvelumeInstance:
             executed = public_job_record(current) if current is not None else None
         return {"queued": queued, "job": executed}
 
+    def validate_folder_source_path(
+        self, path: Path | str, *, source_class: str = "local", language: str = "en",
+    ) -> dict[str, Any]:
+        return self.folder_sources.validate_path(path, source_class=source_class, language=language)
+
     def register_folder_source(
         self,
         path: Path | str,
@@ -1424,7 +1429,9 @@ class ProvelumeInstance:
         max_files: int = DEFAULT_MAX_FILES,
         schedule: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
-        selected_schedule = schedule or schedule_payload(mode="manual", timezone="UTC")
+        selected_schedule = normalise_schedule(
+            schedule if schedule is not None else schedule_payload(mode="manual", timezone="UTC")
+        )
         with InstanceLifecycleManager(self.store)._hold(purpose="folder-source-register"):
             source = self.folder_sources.register(
                 path,
