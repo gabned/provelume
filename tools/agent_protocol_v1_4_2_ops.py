@@ -291,6 +291,7 @@ def validate_scope(
                  "scripts/agent/change_control_contract_v1_2_1.py",
                  "scripts/agent/change_control_v1_2_1.py",
                  "scripts/agent/agent_change_control_v1_2_1_profile.py",
+                 "scripts/agent/protocol-v1-2.py",
                  "docs/runbooks/agent-development.md"}
         prefixes = ("tools/agent_protocol", "tests/test_agent_protocol_",
                     "tests/agent_protocol_", "tests/agent_change_control_",

@@ -74,6 +74,19 @@ def test_audit_binds_retained_late_finding_integrations(part, damage):
         ops.validate_audit(receipt)
 
 
+def test_native_brick_lifecycle_validator_is_a_protocol_surface():
+    value = pr("brickms/brickms")
+    native = "scripts/agent/protocol-v1-2.py"
+    value["changed_paths"] = [native]
+    value["file_patches"] = {native: "+exact Protocol metadata paths\n"}
+    ops.validate_scope(None, value, [native])
+    other = "scripts/agent/protocol-v1-2-product.py"
+    value["changed_paths"] = [other]
+    value["file_patches"] = {other: "+unrelated path\n"}
+    with pytest.raises(ValueError, match="non-Protocol surface"):
+        ops.validate_scope(None, value, [other])
+
+
 def test_review_trigger_retains_independent_ci_identity():
     value = ci()
     review = deepcopy(value["runs"][0])
