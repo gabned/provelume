@@ -56,7 +56,8 @@ def attempt(index=1, conclusion="SUCCESS"):
 
 def ci(repository=REPO, head=HEAD):
     return {"repository": repository, "head_sha": head, **observed(),
-            "applicability": "REQUIRED", "policy_ref": BASE, "runs_complete": True,
+            "applicability": "REQUIRED", "policy_ref": BASE if head == HEAD else head,
+            "runs_complete": True,
             "required_workflows": ["ci.yml@pull_request"], "runs": [
                 {"run_id": 100, "workflow": "ci.yml", "event": "pull_request", "head_sha": head,
                  "latest_attempt": 1, "attempts": [attempt()]}]}
@@ -317,6 +318,18 @@ def test_merge_requires_actual_accepted_commit(damage):
         merge["ancestry"] = []
     with pytest.raises(ValueError):
         ops.validate_operations(value)
+
+
+def test_post_merge_ci_policy_binds_the_audited_default():
+    value = operations()
+    ops.validate_operations(value)
+    value["post_merge_ci"]["policy_ref"] = BASE
+    with pytest.raises(ValueError, match="policy is not bound to the audited default"):
+        ops.validate_operations(value)
+    receipt_input = audit()
+    receipt_input["repositories"][0]["operations"][0]["post_merge_ci"]["policy_ref"] = BASE
+    with pytest.raises(ValueError, match="policy is not bound to the audited default"):
+        ops.generate_audit(receipt_input)
 
 
 @pytest.mark.parametrize("damage", ["missing_repo", "duplicate_repo", "source", "vendor_commit",

@@ -95,6 +95,9 @@ Post-merge evidence requires observed merged/closed state, the actual merge
 commit, accepted tree, squash or merge parents and ancestry from the current
 default commit. A provisional GitHub merge SHA is insufficient. Applicable
 post-merge CI must bind that observed default commit.
+Its policy reference also binds that current default; an older policy cannot
+omit checks added by the audited default. All latest observed applicable workflows
+must succeed; the required set is a minimum inventory, not a waiver for other runs.
 
 For Protocol campaigns, `GATES_PASSED` and `PR_MERGED` receipts require operational
 evidence embedded in the receipt digest. The validator binds the evidence to
