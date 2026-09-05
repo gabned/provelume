@@ -77,6 +77,15 @@ The authorized patch must equal the observed patch and add exactly one technical
 Protocol line to `CHANGELOG.md`. It cannot waive another gate or authorize
 product edits. Frozen baseline paths cannot contain paths absent from the PR.
 
+Authorization can come from an actual GitHub maintainer comment or an existing
+explicit user instruction. The latter retains the authoritative goal's thread ID,
+creation timestamp and verbatim instruction, using a `codex-goal:THREAD:CREATED_AT`
+reference. This is a provenance identifier, not a web link or a fabricated GitHub
+comment. The caller must verify that the instruction covers the proposed exception;
+the receipt binds that existing authority to the exact current patch. It cannot
+expand authority, waive gates or require a duplicate approval for work already
+authorized. `authorization_source` is `GITHUB_COMMENT` or `USER_INSTRUCTION`.
+
 Post-merge evidence requires observed merged/closed state, the actual merge
 commit, accepted tree, squash or merge parents and ancestry from the current
 default commit. A provisional GitHub merge SHA is insufficient. Applicable
@@ -103,6 +112,11 @@ and vendor drift block closure. The canonical source must be an audited Core
 merge. Observed vendor bytes bind their default commits and must match the
 canonical SHA-256, Git blob and mode. The registry supplies its locally selected
 path, blob and final provenance; private paths/content are never fixtures in Core.
+The registry path must be part of its actual integration, and its content must
+identify all four executable repositories, final defaults and integration PRs.
+Downstream generated manifest and provenance documents also require exact bytes,
+Git blobs and modes observed at their respective default commits. Core has no
+self-referential committed source manifest.
 
 ## Offline synchronization
 

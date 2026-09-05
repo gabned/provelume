@@ -146,6 +146,33 @@ schema 1; new or migrated evidence uses `tools/agent_protocol_v1_4_1.py`.
 - See `docs/agent-development-v1.4.1.md` for the complete contract and
   `.github/agent-protocol/conformance-v1.4.1.json` for the sanitized fixture.
 
+## Agent Development Protocol v1.4.2 verified operations
+
+`AGENT_DEVELOPMENT_PROTOCOL: 1.4.2`
+
+For new Protocol campaigns, use `tools/agent_protocol_v1_4_2.py` and its sibling
+`tools/agent_protocol_v1_4_2_ops.py`. Keep historical 1.4.0/1.4.1 records on their
+matching validators; never relabel their evidence. Lifecycle remains 1.2 and
+campaign/handoff schema remains 2, discriminated by the protocol version.
+
+- Preserve all earlier gates. Workflow observations bind exact heads, run IDs,
+  attempts and triggers; a successful trusted-base scope run cannot replace
+  candidate tests. Retain complete immutable attempt and terminal-job histories.
+- Protocol gate and merge transitions require operational evidence inside the
+  receipt digest. Actual merged state, tree, parents and default ancestry are
+  mandatory; a provisional merge SHA never proves integration.
+- An existing explicit user authorization may be bound to its exact covered
+  delta; never fabricate a human GitHub comment or expand the approved scope.
+  Technical changelog exceptions cannot waive another repository gate.
+- Wait only on a freshly observed live handle with a bounded deadline. Expiry
+  requests observation of the same handle and never authorizes a transition,
+  rerun, polling loop or completion claim.
+- Late findings retain original and corrective merges plus thread-resolution
+  evidence. Cross-repository distribution closes only after the complete
+  five-repository audit, including default-commit vendor and document provenance.
+- Follow `docs/agent-development-v1.4.2.md`. Generated snapshots remain ignored;
+  public fixtures contain no private registry paths, data or implementation.
+
 ## Delivery and release discipline
 
 - Start from the verified default-branch SHA and keep the pull-request delta minimal.
@@ -178,4 +205,4 @@ On Windows, use `.venv\Scripts\python.exe`. For release-chain changes, also exer
 
 GitHub checks, reviews, issue/PR records and machine reports must retain the verified default SHA, required base SHA, owner pull request and head SHA, workstream class, observed path categories, intended version, checks run, remaining blocker codes, any `PROTOCOL_ESCALATION`, and whether any tag or release action remains.
 
-The human-facing handoff follows v1.4.1: at most 120 words, exactly one `Next action`, and one exact `Prompt` only when `USER_ACTION_REQUIRED` (otherwise `NONE`). `RESUME_REQUIRED` is only a session-limit continuation and never a substitute for a blocker or human decision. Detailed evidence stays linked rather than repeated. GitHub remains authoritative if the handoff becomes stale.
+The human-facing handoff follows v1.4.2: at most 120 words, exactly one `Next action`, and one exact `Prompt` only when `USER_ACTION_REQUIRED` (otherwise `NONE`). `RESUME_REQUIRED` is only a session-limit continuation and never a substitute for a blocker or human decision. Detailed evidence stays linked rather than repeated. GitHub remains authoritative if the handoff becomes stale.

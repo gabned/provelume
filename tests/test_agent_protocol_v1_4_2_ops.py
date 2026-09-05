@@ -90,6 +90,8 @@ def audit():
                      for f in files]}
     ref = "https://github.com/gabned/provelume/issues/200"
     registry_content = f"Protocol 1.4.2\nCanonical {MERGE}\nCampaign {ref}\n"
+    registry_content += "\n".join(f"https://github.com/{repo}/pull/12 {MERGE}"
+                                  for repo in ops.PROFILES if repo != "gabned/nexus")
     rows = []
     for repo, (branch, profile) in ops.PROFILES.items():
         registry = repo == "gabned/nexus"
@@ -97,6 +99,10 @@ def audit():
                      "default_sha": MERGE, "operations": [operations(repo)],
                      "vendor_manifest": None if registry else deepcopy(canonical),
                      "vendor_files": [] if registry else deepcopy(files),
+                     "provenance_files": [] if registry or repo == REPO else [
+                         {"path": path, "mode": "100644", "commit_sha": MERGE,
+                          "content": content.decode(), "git_blob": ops.blob(content)}
+                         for path, content in ops.provenance_files(canonical).items()],
                      "registry": {"path": "docs/protocol-registry.md", "commit_sha": MERGE,
                                   "content": registry_content,
                                   "git_blob": ops.blob(registry_content.encode())}
@@ -233,9 +239,15 @@ def test_scope_authorization_binds_actual_patch_and_head():
                 "paths_sha256": ops.digest(p["changed_paths"]), "patch": patch,
                 "patch_sha256": hashlib.sha256(patch.encode()).hexdigest(),
                 "actor": "example-maintainer", "actor_role": "VERIFIED_HUMAN_MAINTAINER",
+                "authorization_source": "GITHUB_COMMENT",
+                "authorization_text": "Approve the single technical Protocol changelog line.",
                 "authorization_ref": "https://github.com/brickms/brickms/pull/12#issuecomment-1",
                 "decision": "APPROVED", **observed()}
     ops.validate_scope(approval, p, value["baseline_paths"])
+    session_approval = {**approval, "authorization_source": "USER_INSTRUCTION",
+                        "authorization_ref":
+                            "codex-goal:11111111-2222-3333-4444-555555555555:1788613263"}
+    ops.validate_scope(session_approval, p, value["baseline_paths"])
     p["file_patches"]["CHANGELOG.md"] += "+unapproved text\n"
     with pytest.raises(ValueError, match="observed exact-head patch"):
         ops.validate_scope(approval, p, value["baseline_paths"])
@@ -292,6 +304,38 @@ def test_audit_fails_closed_on_incomplete_or_conflicting_evidence(damage):
         row["operations"][0]["reviews"]["current_findings"] = ["unresolved"]
     else:
         value["observed_at"] = "2020-01-01T00:00:00Z"
+    with pytest.raises(ValueError):
+        ops.generate_audit(value)
+
+
+@pytest.mark.parametrize("damage", ["missing", "bytes", "commit", "blob", "mode"])
+def test_audit_requires_committed_canonical_documentation(damage):
+    value = audit()
+    row = value["repositories"][1]
+    if damage == "missing":
+        row["provenance_files"].pop()
+    elif damage == "bytes":
+        row["provenance_files"][0]["content"] += "changed"
+    elif damage == "commit":
+        row["provenance_files"][0]["commit_sha"] = BASE
+    elif damage == "blob":
+        row["provenance_files"][0]["git_blob"] = BASE
+    else:
+        row["provenance_files"][0]["mode"] = "100755"
+    with pytest.raises(ValueError):
+        ops.generate_audit(value)
+
+
+@pytest.mark.parametrize("damage", ["path", "integration"])
+def test_registry_must_describe_the_audited_integrations(damage):
+    value = audit()
+    registry = value["repositories"][-1]["registry"]
+    if damage == "path":
+        registry["path"] = "docs/unrelated.md"
+    else:
+        registry["content"] = registry["content"].replace(
+            "https://github.com/brickms/brickms/pull/12", "omitted")
+        registry["git_blob"] = ops.blob(registry["content"].encode())
     with pytest.raises(ValueError):
         ops.generate_audit(value)
 
