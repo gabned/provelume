@@ -343,10 +343,16 @@ def validate_scope(
     require(lines[:3] == ["diff --git a/CHANGELOG.md b/CHANGELOG.md",
                          "--- a/CHANGELOG.md", "+++ b/CHANGELOG.md"], "wrong patch target")
     additions = [line[1:] for line in lines[3:] if line.startswith("+")]
+    removals = [line[1:] for line in lines[3:] if line.startswith("-")]
     require(len(additions) == 1 and additions[0].startswith("- ") and
-            "Protocol" in additions[0] and not any(line.startswith("-") for line in lines[3:]),
-            "exception must add exactly one technical Protocol changelog line")
-    require(all(line.startswith(("@@ ", " ", "+")) for line in lines[3:]), "invalid patch")
+            "Protocol" in additions[0] and len(removals) <= 1,
+            "exception must add or amend exactly one technical Protocol changelog line")
+    if removals:
+        identity = r"^(- .*?\bProtocol\b.*?\b1\.4\.2\b)(?=[ :;,.]|$)"
+        before, after = re.match(identity, removals[0]), re.match(identity, additions[0])
+        require(before is not None and after is not None and before[1] == after[1],
+                "amendment must preserve the existing Protocol 1.4.2 entry identity")
+    require(all(line.startswith(("@@ ", " ", "+", "-")) for line in lines[3:]), "invalid patch")
 
 
 def validate_merge(value: Any, pr: dict, now: datetime | None = None) -> dict:
@@ -442,6 +448,8 @@ def validate_operations(
                 and cp["number"] != f["origin_pr"], "correction not reconciled in same repository")
         require(correction["merge"]["merge_sha"] != f["origin_merge_sha"],
                 "correction cannot reuse the original merge")
+        require(correction["merge"]["commit"] in origin["merge"]["ancestry"][:-1],
+                "correction must descend from the original merge in observed default ancestry")
         require(re.fullmatch(rf"https://github[.]com/{re.escape(p['repository'])}/pull/"
                              rf"{f['origin_pr']}#discussion_r[1-9][0-9]*", f["thread_ref"])
                 is not None, "finding thread is not bound to origin PR")
@@ -579,10 +587,10 @@ def sync_vendor(source: Path, target: Path, commit: str, *, check: bool = False)
             "canonical source changed during synchronization")
     planned.update(provenance_files(m))
     destinations = {name: safe_file(target, name) for name in planned}
-    modes = {name: int(VENDOR_FILES.get(name, "100644")[-3:], 8) for name in planned}
+    executable = {name: VENDOR_FILES.get(name, "100644") == "100755" for name in planned}
     changed = [name for name, dest in destinations.items()
                if not dest.exists() or dest.read_bytes() != planned[name] or
-               (os.name != "nt" and stat.S_IMODE(dest.stat().st_mode) != modes[name])]
+               (os.name != "nt" and bool(dest.stat().st_mode & stat.S_IXUSR) != executable[name])]
     if check:
         require(not changed, "canonical vendor/provenance drift: " + ", ".join(changed))
     elif changed:
@@ -597,13 +605,16 @@ def sync_vendor(source: Path, target: Path, commit: str, *, check: bool = False)
                     staged = Path(tmp) / str(index)
                     staged.write_bytes(planned[name])
                     if os.name != "nt":
-                        staged.chmod(modes[name])
+                        # Preserve checkout restrictions; Git tracks only owner execution.
+                        mode = original_modes.get(name, stat.S_IMODE(staged.stat().st_mode))
+                        mode = mode | stat.S_IXUSR if executable[name] else mode & ~stat.S_IXUSR
+                        staged.chmod(mode)
                     dest = destinations[name]
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     os.replace(staged, dest)
                     applied.append(name)
                     require(dest.read_bytes() == planned[name] and
-                            (os.name == "nt" or stat.S_IMODE(dest.stat().st_mode) == modes[name]),
+                            (os.name == "nt" or stat.S_IMODE(dest.stat().st_mode) == mode),
                             "installed vendor bytes/mode verification failed")
             except (OSError, ValueError):
                 for name in reversed(applied):

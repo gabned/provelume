@@ -347,12 +347,16 @@ def test_dynamic_trigger_cannot_relabel_repository_workflows(workflow, event):
         ops.validate_ci(value, REPO, HEAD)
 
 
-def test_scope_authorization_binds_actual_patch_and_head():
+@pytest.mark.parametrize("amendment", [False, True])
+def test_scope_authorization_binds_actual_patch_and_head(amendment):
     value = operations("brickms/brickms")
     p = value["pr"]
     p["changed_paths"].insert(0, "CHANGELOG.md")
     patch = ("diff --git a/CHANGELOG.md b/CHANGELOG.md\n--- a/CHANGELOG.md\n"
              "+++ b/CHANGELOG.md\n@@ -1,0 +2 @@\n+" "- Protocol 1.4.2 canonical sync.\n")
+    if amendment:
+        patch = patch.replace("@@ -1,0 +2 @@\n", "@@ -2 +2 @@\n-"
+                              "- Protocol 1.4.2 previous canonical sync.\n")
     p["file_patches"]["CHANGELOG.md"] = patch
     approval = {"repository": p["repository"], "pr": 12, "base_sha": BASE, "head_sha": HEAD,
                 "paths_sha256": ops.digest(p["changed_paths"]), "patch": patch,
@@ -367,6 +371,16 @@ def test_scope_authorization_binds_actual_patch_and_head():
                         "authorization_ref":
                             "codex-goal:11111111-2222-3333-4444-555555555555:1788613263"}
     ops.validate_scope(session_approval, p, value["baseline_paths"])
+    if amendment:
+        for removed in ("Product release 2.0", "Protocol 1.4.1 old entry",
+                        "0.310 Protocol 1.4.2 changed version"):
+            bad_patch = patch.replace("Protocol 1.4.2 previous canonical sync.", removed)
+            p["file_patches"]["CHANGELOG.md"] = bad_patch
+            bad_approval = {**approval, "patch": bad_patch,
+                            "patch_sha256": hashlib.sha256(bad_patch.encode()).hexdigest()}
+            with pytest.raises(ValueError, match="entry identity"):
+                ops.validate_scope(bad_approval, p, value["baseline_paths"])
+        p["file_patches"]["CHANGELOG.md"] = patch
     p["file_patches"]["CHANGELOG.md"] += "+unapproved text\n"
     with pytest.raises(ValueError, match="observed exact-head patch"):
         ops.validate_scope(approval, p, value["baseline_paths"])
@@ -569,14 +583,38 @@ def test_synchronizer_applies_and_repairs_executable_modes(tmp_path):
     target.mkdir()
     ops.sync_vendor(source, target, commit)
     for name, mode in ops.VENDOR_FILES.items():
-        assert stat.S_IMODE((target / name).stat().st_mode) == int(mode[-3:], 8)
+        assert bool((target / name).stat().st_mode & stat.S_IXUSR) == (mode == "100755")
     executable = target / PROTOCOL_PATH
     executable.chmod(0o644)
     with pytest.raises(ValueError, match="drift"):
         ops.sync_vendor(source, target, commit, check=True)
     assert stat.S_IMODE(executable.stat().st_mode) == 0o644
     assert PROTOCOL_PATH in ops.sync_vendor(source, target, commit)["changed_paths"]
-    assert stat.S_IMODE(executable.stat().st_mode) == 0o755
+    assert stat.S_IMODE(executable.stat().st_mode) == 0o744
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX checkout permissions")
+def test_synchronizer_preserves_restrictive_permissions(tmp_path):
+    source, target = tmp_path / "source", tmp_path / "target"
+    commit, _ = canonical_checkout(source)
+    target.mkdir()
+    previous_umask = os.umask(0o077)
+    try:
+        ops.sync_vendor(source, target, commit)
+    finally:
+        os.umask(previous_umask)
+    names = [*ops.VENDOR_FILES, ops.MANIFEST_PATH, ops.PROVENANCE_PATH]
+    modes = {name: 0o700 if ops.VENDOR_FILES.get(name) == "100755" else 0o600
+             for name in names}
+    for name, mode in modes.items():
+        assert stat.S_IMODE((target / name).stat().st_mode) == mode
+    assert ops.sync_vendor(source, target, commit, check=True)["changed_paths"] == []
+    assert ops.sync_vendor(source, target, commit)["changed_paths"] == []
+    for name in names:
+        (target / name).write_bytes(b"stale")
+    ops.sync_vendor(source, target, commit)
+    for name, mode in modes.items():
+        assert stat.S_IMODE((target / name).stat().st_mode) == mode
 
 
 def test_archived_closure_preserves_integrity_without_live_freshness():
@@ -748,8 +786,16 @@ def resolved_finding():
     correction["merge"]["merge_sha"] = correction_merge
     correction["merge"]["default_sha"] = correction_merge
     correction["merge"]["commit"]["sha"] = correction_merge
+    correction["pr"]["base_sha"] = MERGE
+    correction["pr"]["body"] = correction["pr"]["body"].replace(BASE, MERGE)
+    correction["ci"]["policy_ref"] = MERGE
+    correction["merge"]["commit"]["parents"] = [MERGE]
     correction["merge"]["ancestry"][0]["sha"] = correction_merge
+    correction["merge"]["ancestry"][0]["parents"] = [MERGE]
     correction["post_merge_ci"] = ci(REPO, correction_merge)
+    origin["merge"]["default_sha"] = correction_merge
+    origin["merge"]["ancestry"].insert(0, deepcopy(correction["merge"]["commit"]))
+    origin["post_merge_ci"] = ci(REPO, correction_merge)
     prior = [{"pr": 12, "head_sha": HEAD, "merge_sha": MERGE, "state": "MERGED"}]
     ref = f"https://github.com/{REPO}/pull/12#discussion_r1"
     return {"id": "synthetic-finding", "origin_pr": 12, "origin_merge_sha": MERGE,
@@ -765,6 +811,46 @@ def resolved_finding():
 def test_late_finding_resolution_retains_original_and_correction():
     value = operations()
     value["late_findings"] = [resolved_finding()]
+    assert ops.validate_operations(value) == value
+
+
+@pytest.mark.parametrize("damage", ["stale_origin", "sibling", "reversed"])
+def test_late_finding_requires_correction_after_origin(damage):
+    value = operations()
+    finding = resolved_finding()
+    origin, correction = finding["origin"], finding["correction"]
+    origin["merge"]["default_sha"] = MERGE
+    origin["merge"]["ancestry"] = [deepcopy(origin["merge"]["commit"])]
+    origin["post_merge_ci"] = ci(REPO, MERGE)
+    if damage == "sibling":
+        correction["pr"]["base_sha"] = BASE
+        correction["pr"]["body"] = correction["pr"]["body"].replace(MERGE, BASE)
+        correction["ci"]["policy_ref"] = BASE
+        correction["merge"]["commit"]["parents"] = [BASE]
+        correction["merge"]["ancestry"][0]["parents"] = [BASE]
+    elif damage == "reversed":
+        origin, correction = correction, origin
+        finding.update(origin=origin, correction=correction, origin_pr=13,
+                       origin_merge_sha=origin["merge"]["merge_sha"])
+    value["late_findings"] = [finding]
+    with pytest.raises(ValueError, match="correction must descend"):
+        ops.validate_operations(value)
+
+
+def test_late_finding_accepts_intervening_default_commits():
+    value = operations()
+    finding = resolved_finding()
+    intermediate = "f" * 40
+    correction = finding["correction"]
+    correction["pr"]["base_sha"] = intermediate
+    correction["pr"]["body"] = correction["pr"]["body"].replace(MERGE, intermediate)
+    correction["ci"]["policy_ref"] = intermediate
+    correction["merge"]["commit"]["parents"] = [intermediate]
+    correction["merge"]["ancestry"][0]["parents"] = [intermediate]
+    chain = finding["origin"]["merge"]["ancestry"]
+    chain[0] = deepcopy(correction["merge"]["commit"])
+    chain.insert(1, {"sha": intermediate, "tree_sha": TREE, "parents": [MERGE]})
+    value["late_findings"] = [finding]
     assert ops.validate_operations(value) == value
 
 

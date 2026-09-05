@@ -97,7 +97,10 @@ invent missing repository observations.
 An authorized technical changelog exception binds the verified human maintainer,
 authorization reference, PR, base/head, full path digest and exact patch digest.
 The authorized patch must equal the observed patch and add exactly one technical
-Protocol line to `CHANGELOG.md`. It cannot waive another gate or authorize
+Protocol line to `CHANGELOG.md`, or amend that single existing 1.4.2 entry while
+preserving its identity through the Protocol version, including any product-version
+prefix. An amendment also requires existing explicit authority covering its exact
+delta; it cannot remove another entry. It cannot waive another gate or authorize
 product edits. Frozen baseline paths cannot contain paths absent from the PR.
 
 Authorization can come from an actual GitHub maintainer comment or an existing
@@ -133,8 +136,16 @@ every late finding, including frozen audit replay.
 A late finding records both the original merged PR/build and a separately
 reconciled corrective PR. A resolved label alone is insufficient: the observed
 thread resolution must bind the original head and corrective head/merge.
+The original merge's freshly observed default ancestry must contain the exact
+corrective commit before the original endpoint. This proves correction follows
+origin, allows intervening commits, and rejects older or unrelated merges.
 The prior terminal ledger must be an exact prefix of the retained ledger;
 the correction is appended, without reopening or replacing an old entry.
+
+Vendor synchronization compares the Git-significant owner executable bit on POSIX,
+not a fixed full permission mask. Updates preserve other existing permission bits;
+new files respect the process umask. Restrictive 0700/0600 checkouts remain valid
+and synchronization does not broaden their group or other permissions.
 
 `generate-audit` validates exactly five repositories and emits a digest-bound
 receipt accepted directly by `validate-audit`. Each repository supplies its
