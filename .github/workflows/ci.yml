@@ -61,7 +61,7 @@ jobs:
             exit 1
           fi
 
-      - name: Validate Agent Protocol v1.2 through v1.4.1 contracts
+      - name: Validate Agent Protocol v1.2 through v1.4.2 contracts
         shell: bash
         run: |
           set -euo pipefail
@@ -85,14 +85,18 @@ jobs:
             exit 1
           fi
           git check-ignore -q .agent/effect-report.json
+          test "$(git ls-files -s -- tools/agent_protocol_v1_4_2.py | awk '{print $1}')" = '100755'
+          test "$(git ls-files -s -- tools/agent_protocol_v1_4_2_ops.py | awk '{print $1}')" = '100644'
           python tools/agent_protocol.py self-test
           python tools/agent_protocol_v1_4.py self-test
           python tools/agent_protocol_v1_4_1.py self-test
+          python tools/agent_protocol_v1_4_2.py self-test
           python tools/agent_protocol_v1_4_1.py validate-conformance \
             .github/agent-protocol/conformance-v1.4.1.json
           if grep -Eq '^(import|from) (requests|httpx|urllib|subprocess|socket)([ .]|$)' \
             tools/agent_protocol.py tools/agent_protocol_v1_4.py \
-            tools/agent_protocol_v1_4_1.py; then
+            tools/agent_protocol_v1_4_1.py tools/agent_protocol_v1_4_2.py \
+            tools/agent_protocol_v1_4_2_ops.py; then
             echo '::error::Agent Protocol validation must remain offline and connector-input-only.'
             exit 1
           fi
