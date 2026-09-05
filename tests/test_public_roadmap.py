@@ -374,30 +374,31 @@ def test_release_forecast_is_complete_ordered_and_not_changelog_history() -> Non
 
 def test_0_10_1_correction_forecast_is_bounded_and_actionable() -> None:
     roadmap = _read(ROADMAP_PATH)
+    section = roadmap.split(
+        "### 0.10.1 — Source Onboarding, Filtering and Canonical Brand Correction",
+        1,
+    )[1].split("### 0.11.0 — Unified Capture, Operations and Action Center", 1)[0]
 
     for required_contract in (
-        "### 0.10.1 — Source Onboarding, Filtering and Canonical Brand Correction",
-        "[#187](https://github.com/gabned/provelume/issues/187)",
-        "qualified Windows UNC paths",
+        "[#198](https://github.com/gabned/provelume/issues/198)",
+        "[#187](https://github.com/gabned/provelume/issues/187) remains closed planning-only",
+        "Package/runtime/embedded/Windows identity remains `0.10.0`",
+        "`0.10.1/S01` | Source enrollment and Windows network-path qualification",
+        "`0.10.1/S02` | Per-Source exclusions, safe defaults and ingestion preview",
+        "`0.10.1/S03` | Guided read-only Google connection journey",
+        "`0.10.1/S04` | Canonical Provelume brand correction and integrated qualification",
         "`.git/**`, `.github/**`, `.gitignore`, `.gitattributes` and `.gitmodules`",
-        "changing one never retroactively deletes or\nhides acquired knowledge",
-        "guided **Connect Google** installed-app OAuth flow",
-        "synthetic CI alone cannot set `real_google_qualified=true`",
-        "Google\nsend, label, move, delete, share",
-        "public-site navy/blue/gold Provelume mark",
-        "[Lucide](https://github.com/lucide-icons/lucide)",
-        "Windows and Browser About/Components surfaces expose equivalent credits and links",
-        "No icon, font, script or stylesheet requires a CDN or runtime web connection",
-        "`0.10.1/S01` Folder Source enrollment and ignore-rule contract",
-        "`0.10.1/S02` qualified Gmail/Drive connection journey",
-        "`0.10.1/S03` canonical brand assets and\nrelease qualification",
-        "does not\nrenumber or displace `0.11/S01`–`0.11/S07`",
+        "Synthetic fixtures never substitute for the required final",
+        "No new tray feature, general UI icon framework, Lucide rollout",
+        "Every real finding\nreceives a regression or the capability is narrowed",
     ):
-        assert required_contract in roadmap
+        assert required_contract in section
 
-    assert "SMB/NFS discovery or client implementation" in roadmap
-    assert "always-on network-volume recovery" in roadmap
-    assert "matures the bounded `0.10.1`\nUNC/network-share enrollment" in roadmap
+    assert "SMB/NFS client" in section
+    assert "background network-volume recovery" in section
+    assert "Google writes or Calendar" in section
+    assert "Lucide remains `0.11/S07`" in section
+    assert "0.10.1/S05" not in section
 
 
 def test_unreleased_forecast_changes_do_not_rewrite_published_changelog() -> None:

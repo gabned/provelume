@@ -41,7 +41,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
 | Published preview | `0.9.0` | OCR, email, Google file and transcript intake | #137 (completed); S01–S07 completed by #138/#141/#147/#150/#152/#154/#156; release #158 | `Lectio` |
 | Published preview | `0.10.0` | Multimedia, universal content representations and component inventory | #160 (completed); S01–S07 completed by #163/#168/#170/#172/#173/#175/#179/#182; release #183 | `Perceptio` |
-| Next forecast | `0.10.1` | Source onboarding, filtering and canonical brand correction | #187 (planned) | `Emendatio` |
+| Active development | `0.10.1` | Source onboarding, filtering and canonical brand correction | #198 (active; #187 planning-only) | `Emendatio` |
 | Forecast | `0.11.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
 | Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
 | Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
@@ -94,7 +94,8 @@ names do not replace SemVer, package identity, tags or the immutable published r
   file families plus a complete component inventory. Media enrichment remains local-first,
   attributable and rebuildable, and no source-side Markdown sidecar appears by default.
 - **`0.10.1` — `Emendatio`.** Corrects Folder Source enrollment and filtering, completes a
-  qualified read-only Google connection journey and unifies the desktop and website brand mark.
+  qualified read-only Google connection journey and unifies Core/Windows around one canonical
+  first-party Provelume brand identity.
 - **`0.11.0` — `Cura`.** Unifies capture, mobile access, review and operations/maintenance queues
   in one Action Center. Interrupted work and every destructive choice remain explicit.
 - **`0.12.0` — `Custodia`.** Adds a replaceable AI gateway with local, remote and fallback policy
@@ -135,7 +136,7 @@ names do not replace SemVer, package identity, tags or the immutable published r
 - **`1.2.0` — `Mobilitas`.** Adds optional native mobile companions with encrypted offline
   collections and explicit synchronization policy. Core and the responsive PWA remain complete
   product paths without an app store or cloud relay.
-- **`1.3.0` — `Cooperatio`.** Adds comments, assignments, review and shared-workspace workflows on
+- **`1.3.0` — `Cooperatio`.** Adds comments, assignments and shared-workspace workflows on
   the public tenant and permission contracts. Personal single-user operation remains the default.
 - **`1.4.0` — `Conservatio`.** Adds preservation profiles, fixity schedules, signature validation,
   governed retention and migration evidence. It never turns a technical check into a legal claim.
@@ -172,9 +173,9 @@ planning or publication change whenever release scope or order moves.
 | `1.4.0` | Long-term personal archive checks and retention profiles with explicit legal limits. | Preservation and regulated-domain evaluators; no compliance claim without separate evidence. |
 
 The current answer is therefore explicit: `0.10.0` is usable now as a bounded personal multimedia
-archive preview while immutable `0.9.0` remains its document-heavy N-1 baseline; `0.10.1` is the
-next correction forecast and does not rewrite either release; `0.11.0` is the first planned
-coherent personal daily-use beta and controlled public-beta gate; `0.21.0` is the broad
+archive preview while immutable `0.9.0` remains its document-heavy N-1 baseline; `0.10.1` is in
+active correction development under #198 and does not rewrite either release; `0.11.0` is the first
+planned coherent personal daily-use beta and controlled public-beta gate; `0.21.0` is the broad
 non-technical desktop-preview gate; `0.23.0` is broad release-candidate qualification; and
 `1.0.0` is general distribution.
 
@@ -286,7 +287,9 @@ it introduced no S08. Parent #137 is closed as completed. Issue #157 remains clo
 and owns no workstream. Perceptio was delivered in its frozen S01–S07 order through parent
 [#160](https://github.com/gabned/provelume/issues/160); release workstream
 [#183](https://github.com/gabned/provelume/issues/183) separately aligns, qualifies and publishes
-the `0.10.0` identity without creating S08.
+the `0.10.0` identity without creating S08. Emendatio is activated separately by
+[#198](https://github.com/gabned/provelume/issues/198); historical planning issue #187 remains
+closed planning-only evidence and is not its parent tracker.
 
 ## Planning and delivery contract
 
@@ -1152,58 +1155,74 @@ belonging to Lectio; multimedia is not hidden in a `0.9.5` feature release.
 
 ### 0.10.1 — Source Onboarding, Filtering and Canonical Brand Correction
 
-**Current status:** next forecast under planning issue
-[#187](https://github.com/gabned/provelume/issues/187). It is not activated and creates no package,
-tag, release or delivery claim.
+**Current status:** active development under parent activation issue
+[#198](https://github.com/gabned/provelume/issues/198). Historical issue
+[#187](https://github.com/gabned/provelume/issues/187) remains closed planning-only evidence and is
+not reused as the parent tracker. The release uses Protocol 1.4.1 campaign schema 2 and the
+`GITHUB_ARTIFACT` profile. Package/runtime/embedded/Windows identity remains `0.10.0` until a
+separate release-preparation owner PR after S01–S04 are verified merged.
 
 **Depends on:** the published `0.8.0` Folder Source contract, the `0.9.0` provider-neutral Google
-read-only adapter contract and the `0.10.0` component inventory.
+read-only adapter contract and the published `0.10.0` component/Windows baseline.
 
-**Outcome:** correct three already visible preview gaps before Cura: make supported filesystem
-Sources enrollable and filterable, turn the Google conformance preview into an ordinary qualified
-read-only connection journey, and use one canonical Provelume brand mark across Core surfaces.
+**Outcome:** correct four concrete preview gaps before Cura: qualify supported filesystem Source
+enrollment including Windows network paths; make per-Source exclusions visible and predictable;
+turn the Google conformance preview into an ordinary qualified read-only connection journey; and
+use one canonical first-party Provelume brand identity across existing Core/Windows surfaces.
 
-**Includes:** one EN/IT Folder Source flow for local, removable, already-mounted network and
-qualified Windows UNC paths; actionable missing-mount, permission/authentication, mapped-session
-and unsupported-path diagnostics; and per-Source rules for ignored subfolders, exact files,
-extensions/types and bounded portable globs. A visible, versioned and editable developer-metadata
-preset ignores `.git/**`, `.github/**`, `.gitignore`, `.gitattributes` and `.gitmodules` by default.
-Users can preview matched and ignored counts with reasons and explicitly override the preset.
-Rules participate consistently in observation fingerprints, limits, ingestion, reconciliation,
-backup, portable transfer and redacted diagnostics; changing one never retroactively deletes or
-hides acquired knowledge.
+**Bounded release slices:**
 
-Google work provides a guided **Connect Google** installed-app OAuth flow rather than asking a
-user to pre-provision an access token in an environment variable or keyring. Gmail and Drive
-remain separately consented, enabled and revoked with their exact read-only scopes. Account,
-capability, selected mailbox/label/file/folder, bounded initial backfill, connection test, cursor,
-last success, expiry/reconnect and failure state are understandable and actionable in both the
-Windows-hosted Browser and direct Browser path. Credentials remain external to canonical state,
-logs, backups and portable exports. Publication requires an authorized real-account smoke on the
-exact release head; synthetic CI alone cannot set `real_google_qualified=true`.
+| Identity | Title | Verifiable outcome | Explicit boundary | Release state |
+| --- | --- | --- | --- | --- |
+| `0.10.1/S01` | Source enrollment and Windows network-path qualification | One EN/IT enrollment path validates local, removable, mounted-network and explicitly qualified UNC paths, exposes actionable reachability/session/permission diagnostics and keeps Source identity stable through reconnect/reconciliation. | No share discovery, SMB/NFS client, stored share credentials, firewall/LAN binding change or background network-volume recovery. | `planned` under #198 |
+| `0.10.1/S02` | Per-Source exclusions, safe defaults and ingestion preview | Visible, versioned, editable and disableable exact/subfolder/extension/glob rules include the `.git`/`.github` safe preset, deterministic preview/reasons and scan/watch/reconcile/reindex plus backup/export/import parity. | Rule changes never retroactively delete Originals/canonical records; deletion stays an explicit lifecycle action. | `planned` under #198 |
+| `0.10.1/S03` | Guided read-only Google connection journey | Ordinary `Connect Google` separately consents Gmail/Drive read-only, tests connection state, bounds backfill/retry/revoke/reconnect and keeps credentials outside canonical/log/backup/export state. | No writes, Calendar, sending, IMAP/POP/SMTP or provider expansion; final capability qualification requires an authorized real account on exact head. | `planned` under #198 |
+| `0.10.1/S04` | Canonical Provelume brand correction and integrated qualification | One first-party navy/blue/gold source deterministically derives existing Core/Windows SVG/PNG/ICO surfaces and the slice integrates S01–S04 qualification including clean install and real `0.10.0` upgrade. | No new tray feature, general UI icon framework, Lucide rollout, signing/notarization/publisher verification or `0.11.0+` capability. | `planned` under #198 |
 
-Brand work adopts the current public-site navy/blue/gold Provelume mark as the canonical symbol
-and derives deterministic SVG, ICO and PNG assets for Browser, launcher, executable, installer,
-uninstaller, shortcuts, taskbar, tray and About. Website synchronization remains a separately
-reviewed repository change after Core publication; neither build nor runtime depends on the site.
-Publisher signing remains `0.21.0` work.
+S01 validates before enrollment and distinguishes unavailable mount/path, permission, Windows
+authentication/session, mapped-drive visibility and unsupported-path failures across applicable
+Windows-hosted, Browser, API/service and CLI surfaces. Stable Source fingerprint/identity prevents
+a second inconsistent Source after reconnect. Real and synthetic UNC/mounted-network qualification
+is required within the permanent platform matrix.
 
-**Exit gate:** supported folder paths and ignore rules pass Windows and Linux EN/IT fixtures,
-including unavailable and denied network paths, without duplicate intake or historical deletion;
-Gmail and Drive each pass consent, read, bounded backfill, expiry, reconnect, revocation and
-network-disabled fixtures against an authorized account; every shipped Core icon is derived from
-the canonical source and survives install/upgrade/icon-cache checks; component, privacy, backup,
-accessibility and release evidence agree with the final artifact.
+S02 makes `.git/**`, `.github/**`, `.gitignore`, `.gitattributes` and `.gitmodules` a visible
+versioned default profile rather than an invisible hard-coded rule. Users can preview matched and
+ignored counts with reasons, override or disable defaults, and use bounded portable globs after
+normalization/traversal checks. Rules serialize deterministically, participate in initial scan,
+watched refresh, reconciliation and reindex, obey complexity limits, survive backup/export/import
+and explain every ignore decision without retroactive canonical deletion.
 
-**Not in this release:** SMB/NFS discovery or client implementation; stored share credentials;
-always-on network-volume recovery; arbitrary IMAP/POP/SMTP or other mailbox providers; Google
-send, label, move, delete, share or other provider writes; calendar; a mandatory cloud relay;
-automatic dependency updates; website runtime coupling; or broader product expansion.
+S03 uses the current installed-app OAuth/PKCE boundary with least-privilege, separately understood
+Gmail and Drive consent. Connected, expired, revoked and reconnect-required states, cancellation,
+retry, disconnect/revoke, bounded initial backfill and explicit offline/no-network behavior remain
+actionable in the Windows-hosted and direct Browser journeys over the same Source/read model.
+Tokens, refresh tokens and unnecessary identifiers never enter canonical state, logs, diagnostics,
+backup, export or portable transfer. Synthetic fixtures never substitute for the required final
+real-account exact-head qualification.
 
-**Suggested slices:** `0.10.1/S01` Folder Source enrollment and ignore-rule contract;
-`0.10.1/S02` qualified Gmail/Drive connection journey; `0.10.1/S03` canonical brand assets and
-release qualification. Only one owner issue/PR is activated at a time and the order does not
-renumber or displace `0.11/S01`–`0.11/S07`.
+S04 identifies the existing public first-party navy/blue/gold Provelume mark without writing the
+website repository, keeps one canonical Core source and deterministically derives the SVG, PNG
+multi-resolution and Windows ICO family needed by existing executable, window, installer,
+uninstaller, shortcut, Start menu, taskbar, About and already-existing tray surfaces. Clean
+install, real upgrade from published `0.10.0`, uninstall/rollback, Windows icon-cache/scaling and
+applicable appearance modes are qualified before integrated release preparation. Authenticode,
+notarization and verified publisher identity remain `0.21.0 — Renovatio` work.
+
+**Exit gate:** the bounded local/removable/network/UNC matrix and its failure states, restart and
+duplicate prevention; exclusion preview and scan/watch/reconcile/reindex consistency; authenticated
+Gmail/Drive connect/reconnect/revoke/cancel/backfill/privacy/read-only/offline behavior; and clean
+install plus real `0.10.0` upgrade/uninstall/rollback and existing Windows brand surfaces all pass
+on exact heads. Ruff, full pytest, permanent Ubuntu/Windows matrices, accessibility, EN/IT parity,
+security/privacy, deterministic rebuild, SBOM/provenance, clean-room, backup/restore, portable
+transfer, offline verification and resource bounds remain release-wide gates. Every real finding
+receives a regression or the capability is narrowed; gates are never weakened.
+
+**Not in this release:** Action Center; advanced queue/tray UX; menu redesign or #167 click-outside
+behavior; system-locale preference redesign; reset settings; Lucide or the general UI icon
+framework; AI/RAG/embeddings/classification/autonomy controls; cloud OCR or remote-AI fallback;
+new providers; Google writes or Calendar; complete background agent; NAS/self-hosting expansion;
+signing; automatic updater; or any other `0.11.0+` capability. #167 remains future-roadmap
+evidence and Lucide remains `0.11/S07`.
 
 ### 0.11.0 — Unified Capture, Operations and Action Center
 

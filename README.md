@@ -8,6 +8,17 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
+## In development: 0.10.1 Emendatio
+
+The bounded correction train [#198](https://github.com/gabned/provelume/issues/198)
+is in development: Folder Source enrollment and Windows network paths; per-Source
+exclusions and ingestion preview; guided read-only Google connections; and the
+canonical Core/Windows brand with integrated qualification. See the
+[Emendatio development plan](docs/releases/0.10.1.md) for the ordered four slices
+and qualification requirements. Package identity stays `0.10.0` until separate
+release preparation; these corrections are not yet published.
+0.11.0 — Cura remains unactivated.
+
 ## Current status: 0.10.0 Perceptio preview
 
 [`v0.10.0`](https://github.com/gabned/provelume/releases/tag/v0.10.0) Perceptio is the current
