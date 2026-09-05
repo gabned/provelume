@@ -5,6 +5,9 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
+import stat
+import subprocess
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -375,27 +378,106 @@ def test_registry_must_describe_the_audited_integrations(damage):
         ops.generate_audit(value)
 
 
-def test_synchronizer_is_deterministic_and_check_mode_never_writes(tmp_path):
-    source, target = tmp_path / "source", tmp_path / "target"
+def canonical_checkout(source):
     source.mkdir()
-    target.mkdir()
-    for name in ops.VENDOR_FILES:
+    def git(*args):
+        return subprocess.check_output(["git", "-C", str(source), *args],
+                                       stderr=subprocess.DEVNULL).decode().strip()
+    git("init")
+    git("config", "core.autocrlf", "false")
+    git("remote", "add", "origin", "https://github.com/gabned/provelume.git")
+    for name, mode in ops.VENDOR_FILES.items():
         f = source / name
         f.parent.mkdir(exist_ok=True)
         f.write_bytes(name.encode())
+        git("add", "--", name)
+        git("update-index", "--chmod=" + ("+x" if mode == "100755" else "-x"), "--", name)
+        if os.name != "nt":
+            f.chmod(int(mode[-3:], 8))
+    git("-c", "user.name=Protocol test", "-c", "user.email=protocol@example.invalid",
+        "commit", "-m", "Synthetic canonical fixture")
+    return git("rev-parse", "HEAD"), git
+
+
+def test_synchronizer_is_deterministic_and_check_mode_never_writes(tmp_path):
+    source, target = tmp_path / "source", tmp_path / "target"
+    commit, _ = canonical_checkout(source)
+    target.mkdir()
     untouched = target / "VERSION"
     untouched.write_bytes(b"product-version\n")
     with pytest.raises(ValueError, match="drift"):
-        ops.sync_vendor(source, target, MERGE, check=True)
+        ops.sync_vendor(source, target, commit, check=True)
     assert list(target.iterdir()) == [untouched]
-    ops.sync_vendor(source, target, MERGE)
-    assert ops.sync_vendor(source, target, MERGE, check=True)["changed_paths"] == []
-    assert ops.sync_vendor(source, target, MERGE)["changed_paths"] == []
+    ops.sync_vendor(source, target, commit)
+    assert ops.sync_vendor(source, target, commit, check=True)["changed_paths"] == []
+    assert ops.sync_vendor(source, target, commit)["changed_paths"] == []
     assert untouched.read_bytes() == b"product-version\n"
     (target / PROTOCOL_PATH).write_bytes(b"drift")
     with pytest.raises(ValueError, match="drift"):
-        ops.sync_vendor(source, target, MERGE, check=True)
+        ops.sync_vendor(source, target, commit, check=True)
     assert (target / PROTOCOL_PATH).read_bytes() == b"drift"
+
+
+@pytest.mark.parametrize("damage", ["dirty", "wrong_commit", "wrong_repository", "hidden_drift"])
+def test_synchronizer_rejects_unbound_source_before_writing(tmp_path, damage):
+    source, target = tmp_path / "source", tmp_path / "target"
+    commit, git = canonical_checkout(source)
+    target.mkdir()
+    if damage == "wrong_commit":
+        commit = BASE
+    elif damage == "wrong_repository":
+        git("remote", "set-url", "origin", "https://github.com/example/unrelated.git")
+    else:
+        if damage == "hidden_drift":
+            git("update-index", "--assume-unchanged", "--", PROTOCOL_PATH)
+        (source / PROTOCOL_PATH).write_bytes(b"uncommitted bytes")
+    with pytest.raises(ValueError, match="source|canonical"):
+        ops.sync_vendor(source, target, commit)
+    assert list(target.iterdir()) == []
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX executable modes; Git modes checked on Windows")
+def test_synchronizer_applies_and_repairs_executable_modes(tmp_path):
+    source, target = tmp_path / "source", tmp_path / "target"
+    commit, _ = canonical_checkout(source)
+    target.mkdir()
+    ops.sync_vendor(source, target, commit)
+    for name, mode in ops.VENDOR_FILES.items():
+        assert stat.S_IMODE((target / name).stat().st_mode) == int(mode[-3:], 8)
+    executable = target / PROTOCOL_PATH
+    executable.chmod(0o644)
+    with pytest.raises(ValueError, match="drift"):
+        ops.sync_vendor(source, target, commit, check=True)
+    assert stat.S_IMODE(executable.stat().st_mode) == 0o644
+    assert PROTOCOL_PATH in ops.sync_vendor(source, target, commit)["changed_paths"]
+    assert stat.S_IMODE(executable.stat().st_mode) == 0o755
+
+
+def test_archived_closure_preserves_integrity_without_live_freshness():
+    value = audit()
+    old = "2025-01-01T00:00:00Z"
+    def archive(obj):
+        if isinstance(obj, dict):
+            if "observed_at" in obj:
+                obj["observed_at"] = old
+            for item in obj.values():
+                archive(item)
+        elif isinstance(obj, list):
+            for item in obj:
+                archive(item)
+    archive(value)
+    receipt = {"protocol_version": "1.4.2", "result": "PASS", "evidence": value,
+               "evidence_sha256": ops.digest(value)}
+    assert ops.validate_audit(receipt) == receipt
+    with pytest.raises(ValueError, match="stale"):
+        ops.generate_audit(value)
+    receipt["evidence"]["repositories"][0]["operations"][0]["ci"]["observed_at"] = \
+        "2025-01-02T00:00:00Z"
+    with pytest.raises(ValueError, match="rewritten"):
+        ops.validate_audit(receipt)
+    receipt["evidence_sha256"] = ops.digest(receipt["evidence"])
+    with pytest.raises(ValueError, match="stale"):
+        ops.validate_audit(receipt)
 
 
 def test_gate_transition_requires_persisted_attempt_bound_operational_evidence():
@@ -557,15 +639,12 @@ def test_late_finding_rejects_unproven_resolution_or_rewritten_history(damage):
 
 def test_synchronizer_rolls_back_an_interrupted_write(tmp_path, monkeypatch):
     source, target = tmp_path / "source", tmp_path / "target"
-    source.mkdir()
+    commit, _ = canonical_checkout(source)
     target.mkdir()
-    for name in ops.VENDOR_FILES:
-        f = source / name
-        f.parent.mkdir(exist_ok=True)
-        f.write_bytes(name.encode())
     original = target / PROTOCOL_PATH
     original.parent.mkdir()
     original.write_bytes(b"previous vendor")
+    original_mode = stat.S_IMODE(original.stat().st_mode)
     replace = ops.os.replace
     calls = 0
 
@@ -578,8 +657,9 @@ def test_synchronizer_rolls_back_an_interrupted_write(tmp_path, monkeypatch):
 
     monkeypatch.setattr(ops.os, "replace", interrupt)
     with pytest.raises(OSError, match="synthetic interruption"):
-        ops.sync_vendor(source, target, MERGE)
+        ops.sync_vendor(source, target, commit)
     assert original.read_bytes() == b"previous vendor"
+    assert stat.S_IMODE(original.stat().st_mode) == original_mode
     assert [p for p in target.rglob("*") if p.is_file()] == [original]
 
 
