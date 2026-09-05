@@ -31,7 +31,7 @@ PROVENANCE_PATH = "docs/agent-development-v1.4.2-provenance.md"
 TERMINAL = {"SUCCESS", "FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED",
             "NEUTRAL", "SKIPPED", "STALE", "STARTUP_FAILURE"}
 CI_EVENTS = {"pull_request", "pull_request_target", "push", "merge_group",
-             "workflow_dispatch", "workflow_run", "schedule", "release"}
+             "workflow_dispatch", "workflow_run", "schedule", "release", "dynamic"}
 
 
 def require(condition: bool, message: str) -> None:
@@ -175,6 +175,10 @@ def validate_ci(value: Any, repository: str, head: str, *, now: datetime | None 
         text(r["workflow"], "workflow identity")
         require("@" not in r["workflow"] and r["event"] in CI_EVENTS,
                 "unknown or ambiguous workflow trigger")
+        require((r["event"] == "dynamic") == r["workflow"].startswith("dynamic/"),
+                "dynamic trigger requires its GitHub-managed workflow path")
+        if r["event"] == "dynamic":
+            path(r["workflow"])
         attempts = array(r["attempts"], "attempts")
         require(number(r["latest_attempt"], "latest attempt") == len(attempts),
                 "attempt history incomplete or latest attempt hidden")
