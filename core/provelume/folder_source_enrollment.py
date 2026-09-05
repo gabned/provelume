@@ -191,6 +191,18 @@ def diagnose_os_error(
     return "path_unavailable"
 
 
+def windows_drive_visible(value: Path | str) -> bool | None:
+    """Inspect this Windows session's drive namespace without opening a mount."""
+    drive = PureWindowsPath(str(value)).drive.upper()
+    listdrives = getattr(os, "listdrives", None)
+    if not re.fullmatch(r"[A-Z]:", drive) or listdrives is None:
+        return None
+    try:
+        return drive in {PureWindowsPath(item).drive.upper() for item in listdrives()}
+    except OSError:
+        return None
+
+
 @dataclass(frozen=True)
 class EnrollmentCheck:
     code: str
@@ -270,12 +282,7 @@ def qualify_folder_path(
         except FolderSourceError:
             result = EnrollmentCheck("unsafe_path", kind, source_class)
         except OSError as exc:
-            visible = None
-            if kind == "windows_drive":
-                try:
-                    visible = Path(PureWindowsPath(str(value)).anchor).exists()
-                except OSError:
-                    visible = False
+            visible = windows_drive_visible(value) if kind == "windows_drive" else None
             code = diagnose_os_error(
                 exc, source_class=source_class, path_kind=kind, drive_visible=visible
             )

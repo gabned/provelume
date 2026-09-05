@@ -18,6 +18,7 @@ from .folder_source_enrollment import (
     diagnose_os_error,
     diagnostic_message,
     qualify_folder_path,
+    windows_drive_visible,
 )
 from .folder_source_model import (
     FOLDER_SOURCE_SCHEMA_VERSION,
@@ -356,13 +357,25 @@ class FolderSourceManager:
             }
         )
 
-    @staticmethod
-    def _diagnose_path_error(error: OSError, item: Mapping[str, Any], folder: Mapping[str, Any]):
+    def _diagnose_path_error(
+        self, error: OSError, item: Mapping[str, Any], folder: Mapping[str, Any],
+    ):
         try:
             kind = classify_path(str(item["path"]))
+            # Same-volume Windows paths are stored relative to the Instance.
+            # Recover the absolute spelling without resolving an unavailable mount.
+            selected = Path(str(item["path"]))
+            if not selected.is_absolute():
+                selected = self.store.paths.root / selected
+            selected = Path(os.path.abspath(selected))
+            if kind == "native":
+                kind = classify_path(selected)
         except FolderSourceEnrollmentError as exc:
             return exc.code
-        return diagnose_os_error(error, source_class=str(folder["source_class"]), path_kind=kind)
+        return diagnose_os_error(
+            error, source_class=str(folder["source_class"]), path_kind=kind,
+            drive_visible=windows_drive_visible(selected) if kind == "windows_drive" else None,
+        )
 
     def observe(
         self,

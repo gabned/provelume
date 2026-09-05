@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import provelume.folder_source_enrollment as enrollment
+import provelume.folder_sources as folder_sources_module
 from provelume.cli import main
 from provelume.folder_source_enrollment import (
     DIAGNOSTICS,
@@ -164,6 +165,53 @@ def test_read_permission_is_checked_before_any_enrollment(instance, tmp_path, mo
     assert result["diagnostic_code"] == "permission_denied"
     assert "private path" not in json.dumps(result)
     assert instance.store.list_canonical("sources") == []
+
+
+@pytest.mark.parametrize(
+    "visible,code", [(False, "mapped_drive_unavailable"), (True, "network_unreachable")]
+)
+def test_observation_diagnoses_disappeared_mapped_drive_for_relative_config(
+    instance,
+    tmp_path,
+    monkeypatch,
+    visible,
+    code,
+):
+    folder = tmp_path / "mapped"
+    folder.mkdir()
+    source = instance.register_folder_source(folder, name="Mapped", source_class="network")
+    stored = instance.store.read_config()["sources"][source["id"]]["path"]
+    assert not Path(stored).is_absolute()
+    folder.rmdir()
+    checked = []
+
+    def visibility(path):
+        assert Path(path).is_absolute()
+        checked.append(path)
+        return visible
+
+    monkeypatch.setattr(folder_sources_module, "classify_path", lambda value: "windows_drive")
+    monkeypatch.setattr(folder_sources_module, "windows_drive_visible", visibility)
+    observed = instance.observe_folder_source(source["id"])
+    assert observed["last_error_code"] == code
+    assert observed["availability"] == "missing" and len(checked) == 1
+    view = instance.folder_sources.public_view(source["id"])
+    assert view["diagnostic_code"] == code
+    assert view["identity_fingerprint"] == source["identity_fingerprint"]
+    assert len(instance.store.list_canonical("sources")) == 1
+
+
+def test_drive_visibility_uses_session_namespace_without_opening_mounts(monkeypatch):
+    monkeypatch.setattr(enrollment.os, "listdrives", lambda: ["C:\\", "M:\\"], raising=False)
+    assert enrollment.windows_drive_visible("m:\\folder") is True
+    assert enrollment.windows_drive_visible("Z:\\folder") is False
+    assert enrollment.windows_drive_visible("\\\\server\\share") is None
+
+    def failed():
+        raise OSError("No drive namespace evidence")
+
+    monkeypatch.setattr(enrollment.os, "listdrives", failed)
+    assert enrollment.windows_drive_visible("Z:\\folder") is None
 
 
 def test_timed_out_workers_are_bounded_read_only_and_cannot_enroll_late(
