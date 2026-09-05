@@ -74,6 +74,10 @@ Polling and automatic retries remain disabled.
 
 ## PR identity, exceptions and merge
 
+The supported Protocol surfaces include BrickMS's existing
+`scripts/agent/protocol-v1-2.py`, so exact metadata-path updates can preserve
+its native NO_PRODUCTION effect gate. Similar unlisted paths remain rejected.
+
 The PR observation includes `state`, `draft` and `mergeable`. Pre-merge gates
 require an open, non-draft PR with observed mergeability exactly true; unknown
 mergeability cannot authorize a merge. Post-merge evidence requires a closed,
