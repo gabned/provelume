@@ -237,7 +237,7 @@ jobs:
           PY
 
       - name: Upload release candidate evidence
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: provelume-release-candidate-${{ github.run_id }}
           path: |
@@ -355,7 +355,7 @@ jobs:
             --commit "$SOURCE_COMMIT"
 
       - name: Upload separate-runner rebuild evidence
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: provelume-release-rebuild-${{ github.run_id }}
           path: |
@@ -457,7 +457,7 @@ jobs:
             -ExpectedChannel "${{ needs.candidate.outputs.channel }}"
 
       - name: Upload Windows package evidence
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: provelume-windows-package-${{ github.run_id }}
           path: ${{ runner.temp }}/provelume-windows-output/
@@ -720,7 +720,7 @@ jobs:
             --json >/dev/null
 
       - name: Upload verified release bundle
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: provelume-verified-release-bundle-${{ github.run_id }}
           path: ${{ runner.temp }}/provelume-release-bundle/
