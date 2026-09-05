@@ -347,7 +347,7 @@ def test_dynamic_trigger_cannot_relabel_repository_workflows(workflow, event):
         ops.validate_ci(value, REPO, HEAD)
 
 
-@pytest.mark.parametrize("amendment", [False, True])
+@pytest.mark.parametrize("amendment", [False, True, "version-prefix"])
 def test_scope_authorization_binds_actual_patch_and_head(amendment):
     value = operations("brickms/brickms")
     p = value["pr"]
@@ -357,6 +357,9 @@ def test_scope_authorization_binds_actual_patch_and_head(amendment):
     if amendment:
         patch = patch.replace("@@ -1,0 +2 @@\n", "@@ -2 +2 @@\n-"
                               "- Protocol 1.4.2 previous canonical sync.\n")
+    if amendment == "version-prefix":
+        patch = patch.replace("Protocol 1.4.2", "0.309 Agent Development Protocol v1.3.0 "
+                              "governance adopts canonical Protocol v1.4.2")
     p["file_patches"]["CHANGELOG.md"] = patch
     approval = {"repository": p["repository"], "pr": 12, "base_sha": BASE, "head_sha": HEAD,
                 "paths_sha256": ops.digest(p["changed_paths"]), "patch": patch,
@@ -374,7 +377,8 @@ def test_scope_authorization_binds_actual_patch_and_head(amendment):
     if amendment:
         for removed in ("Product release 2.0", "Protocol 1.4.1 old entry",
                         "0.310 Protocol 1.4.2 changed version"):
-            bad_patch = patch.replace("Protocol 1.4.2 previous canonical sync.", removed)
+            old_line = next(line for line in patch.splitlines() if line.startswith("-- "))
+            bad_patch = patch.replace(old_line, "-- " + removed)
             p["file_patches"]["CHANGELOG.md"] = bad_patch
             bad_approval = {**approval, "patch": bad_patch,
                             "patch_sha256": hashlib.sha256(bad_patch.encode()).hexdigest()}

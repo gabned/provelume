@@ -348,7 +348,7 @@ def validate_scope(
             "Protocol" in additions[0] and len(removals) <= 1,
             "exception must add or amend exactly one technical Protocol changelog line")
     if removals:
-        identity = r"^(- .*?\bProtocol\b.*?\b1\.4\.2\b)(?=[ :;,.]|$)"
+        identity = r"^(- .*?\bProtocol\b.*?\bv?1\.4\.2\b)(?=[ :;,.]|$)"
         before, after = re.match(identity, removals[0]), re.match(identity, additions[0])
         require(before is not None and after is not None and before[1] == after[1],
                 "amendment must preserve the existing Protocol 1.4.2 entry identity")
