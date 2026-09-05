@@ -102,8 +102,9 @@ schema 1; new or migrated evidence uses `tools/agent_protocol_v1_4_1.py`.
 
 - Each slice retains an ordered `OWNER` then `CORRECTION` pull-request ledger.
   Across one campaign, at most one ledger entry may be open; merged and closed
-  entries are never replaced by a correction. The current open entry may advance
-  its head only through a distinct GitHub-backed `PR_SYNCHRONIZED` receipt.
+  entries are never replaced by a correction. `PR_OPENED` may only append its
+  new open ledger entry. The current open entry may advance only its `head_sha`
+  through a distinct GitHub-backed `PR_SYNCHRONIZED` receipt.
 - Every schema 2 state change appends one idempotent receipt bound to a real,
   closed GitHub event, action, and applicable terminal conclusion,
   predecessor/successor state digests, the prior receipt, and its own canonical

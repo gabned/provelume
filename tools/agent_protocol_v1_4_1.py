@@ -1945,6 +1945,47 @@ def slice_index_for_event(
     return matches.pop()
 
 
+def validate_pull_request_event_delta(
+    previous: dict[str, Any],
+    successor: dict[str, Any],
+    event: dict[str, Any],
+    index: int,
+) -> None:
+    """Bind PR_OPENED and PR_SYNCHRONIZED to distinct ledger mutations."""
+
+    before = previous["slices"][index]["pull_requests"]
+    after = successor["slices"][index]["pull_requests"]
+    if campaign_state_payload(previous) == campaign_state_payload(successor):
+        # Exact final-event replay is handled by append_transition_receipt().
+        return
+
+    observed = successor["observed_event"]
+    if observed == "PR_OPENED":
+        if (
+            len(after) != len(before) + 1
+            or after[:-1] != before
+            or after[-1]["state"] != "OPEN"
+            or after[-1]["pr"] != event["reference"]
+            or after[-1]["head_sha"] != event["sha"]
+        ):
+            fail("PR_OPENED must append exactly its new open ledger entry")
+        return
+
+    if observed == "PR_SYNCHRONIZED":
+        frozen = {"sequence", "role", "pr", "state", "merge_sha"}
+        if (
+            not before
+            or len(after) != len(before)
+            or after[:-1] != before[:-1]
+            or before[-1]["state"] != "OPEN"
+            or after[-1]["state"] != "OPEN"
+            or any(before[-1][key] != after[-1][key] for key in frozen)
+            or before[-1]["head_sha"] == after[-1]["head_sha"]
+            or after[-1]["head_sha"] != event["sha"]
+        ):
+            fail("PR_SYNCHRONIZED may update only the existing open entry head_sha")
+
+
 def validate_event_transition(
     previous: dict[str, Any],
     successor: dict[str, Any],
@@ -1973,6 +2014,8 @@ def validate_event_transition(
         }
         if observed in {"PR_OPENED", "PR_SYNCHRONIZED", "PR_CLOSED", "PR_MERGED"}:
             index = slice_index_for_event(previous, successor, event)
+            if observed in {"PR_OPENED", "PR_SYNCHRONIZED"}:
+                validate_pull_request_event_delta(previous, successor, event, index)
             allowed.update({f"slices.{index}.state", f"slices.{index}.pull_requests"})
         elif observed in {"SLICE_CANCELLED", "GATES_PASSED", "GATES_FAILED"}:
             index = slice_index_for_event(previous, successor, event)

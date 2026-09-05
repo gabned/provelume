@@ -592,6 +592,56 @@ def test_open_pr_head_advances_through_a_github_backed_receipt() -> None:
     protocol.validate_append_only(before, after)
 
 
+def test_pr_synchronized_cannot_append_a_ledger_entry() -> None:
+    before, opened, _ = activate_second_slice()
+    successor = deepcopy(before)
+    successor["slices"][1] = deepcopy(opened["slices"][1])
+    for key in (
+        "campaign_state",
+        "observed_event_ref",
+        "pending_action",
+        "stop_reason",
+        "next_action",
+    ):
+        successor[key] = deepcopy(opened[key])
+    successor["observed_event"] = "PR_SYNCHRONIZED"
+
+    with pytest.raises(protocol.ContractError, match="PR_SYNCHRONIZED"):
+        protocol.append_transition_receipt(
+            before,
+            successor,
+            {
+                "kind": "PULL_REQUEST",
+                "action": "SYNCHRONIZED",
+                "repository": "gabned/provelume",
+                "reference": "#4",
+                "sha": "4" * 40,
+                "conclusion": "NOT_APPLICABLE",
+            },
+        )
+
+
+def test_pr_opened_cannot_masquerade_as_a_head_update() -> None:
+    _, before, _ = activate_second_slice()
+    successor = deepcopy(before)
+    successor["slices"][1]["pull_requests"][0]["head_sha"] = "5" * 40
+    successor["observed_event"] = "PR_OPENED"
+
+    with pytest.raises(protocol.ContractError, match="PR_OPENED"):
+        protocol.append_transition_receipt(
+            before,
+            successor,
+            {
+                "kind": "PULL_REQUEST",
+                "action": "OPENED",
+                "repository": "gabned/provelume",
+                "reference": "#4",
+                "sha": "5" * 40,
+                "conclusion": "NOT_APPLICABLE",
+            },
+        )
+
+
 def test_closed_owner_is_retained_before_a_correction_opens() -> None:
     _, opened, _ = activate_second_slice()
     closed = deepcopy(opened)
