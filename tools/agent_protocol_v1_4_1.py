@@ -1125,6 +1125,22 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
             validate_initial_campaign_state(initial_campaign)
             if object_sha256(initial_state) != successor_state:
                 fail("INITIALIZE initial state does not match its successor digest")
+            if immutable_campaign_identity(
+                initial_campaign
+            ) != immutable_campaign_identity(campaign):
+                fail("INITIALIZE identity does not match the enclosing campaign")
+            if [entry["id"] for entry in initial_campaign["slices"]] != [
+                entry["id"] for entry in campaign["slices"]
+            ]:
+                fail("INITIALIZE slice order does not match the enclosing campaign")
+            for initial_slice, current_slice in zip(
+                initial_campaign["slices"], campaign["slices"], strict=True
+            ):
+                if (
+                    initial_slice["issue"] != "NONE"
+                    and current_slice["issue"] != initial_slice["issue"]
+                ):
+                    fail("INITIALIZE retained slice issue was rewritten")
         if previous_successor is not None and previous_state != previous_successor:
             fail("receipt predecessor/successor state digests do not chain")
         if item["previous_receipt_sha256"] != previous_receipt:

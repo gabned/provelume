@@ -303,6 +303,54 @@ def test_multi_receipt_chain_revalidates_the_committed_initial_state() -> None:
         protocol.validate_campaign_v2(value)
 
 
+def test_multi_receipt_chain_preserves_initialized_identity_and_scope() -> None:
+    before = profile_campaign("gabned/provelume")
+    after = deepcopy(before)
+    after["idea_inbox"]["items"].append("#199")
+    value = protocol.append_transition_receipt(
+        before,
+        after,
+        {
+            "kind": "ISSUE",
+            "action": "OPENED",
+            "repository": "gabned/provelume",
+            "reference": "#199",
+            "sha": "NONE",
+            "conclusion": "NOT_APPLICABLE",
+        },
+    )
+    value["campaign_id"] = "rewritten-campaign"
+    for receipt in value["receipts"]:
+        receipt["idempotency_key"] = protocol.receipt_idempotency_key(
+            campaign_id=value["campaign_id"],
+            operation=receipt["operation"],
+            github_event=receipt["github_event"],
+            previous_state_sha256=receipt["previous_state_sha256"],
+            successor_state_sha256=receipt["successor_state_sha256"],
+        )
+        receipt["receipt_sha256"] = protocol.receipt_sha256(receipt)
+        if receipt["sequence"] == 2:
+            receipt["previous_receipt_sha256"] = value["receipts"][0][
+                "receipt_sha256"
+            ]
+            receipt["receipt_sha256"] = protocol.receipt_sha256(receipt)
+    value["receipts"][-1]["successor_state_sha256"] = (
+        protocol.campaign_state_sha256(value)
+    )
+    last = value["receipts"][-1]
+    last["idempotency_key"] = protocol.receipt_idempotency_key(
+        campaign_id=value["campaign_id"],
+        operation=last["operation"],
+        github_event=last["github_event"],
+        previous_state_sha256=last["previous_state_sha256"],
+        successor_state_sha256=last["successor_state_sha256"],
+    )
+    last["receipt_sha256"] = protocol.receipt_sha256(last)
+
+    with pytest.raises(protocol.ContractError, match="identity does not match"):
+        protocol.validate_campaign_v2(value)
+
+
 def test_migration_revalidates_legacy_passed_gate_before_merge() -> None:
     legacy = protocol.sample_campaign_v1()
     legacy["slices"][1].update(
