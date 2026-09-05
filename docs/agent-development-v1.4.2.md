@@ -126,6 +126,7 @@ self-referential committed source manifest.
 `generate-audit` enforces live freshness. `validate-audit` verifies the protected
 digest and replays all nested observations against the receipt's original audit
 time, so archived proof remains verifiable without refreshing its timestamps.
+Generation also validates that original time anchor before emitting a receipt.
 Historical validation never establishes current readiness or authorizes a new action.
 
 ## Offline synchronization
@@ -142,6 +143,8 @@ POSIX replacements apply and verify the declared permissions, and rollback
 restores prior bytes and permissions. Mode-only drift fails `--check`. Windows
 does not expose POSIX executable bits: the caller must stage and verify the
 declared Git modes in the target index/tree before publication on every platform.
+Git reads disable lazy fetching and all transports, including inherited transport
+permissions; a missing promisor object fails locally without contacting a remote.
 
 The new command interfaces are exposed by `tools/agent_protocol_v1_4_2.py`.
 Operational input shapes and positive/adversarial examples are executable in

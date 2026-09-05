@@ -436,6 +436,39 @@ def test_synchronizer_rejects_unbound_source_before_writing(tmp_path, damage):
     assert list(target.iterdir()) == []
 
 
+def test_missing_promisor_blob_never_starts_a_fetch(tmp_path, monkeypatch):
+    source, target = tmp_path / "source", tmp_path / "target"
+    commit, git = canonical_checkout(source)
+    target.mkdir()
+    oid = git("rev-parse", "HEAD:" + PROTOCOL_PATH)
+    git("config", "remote.origin.promisor", "true")
+    git("config", "remote.origin.partialclonefilter", "blob:none")
+    missing = source / ".git" / "objects" / oid[:2] / oid[2:]
+    assert missing.is_relative_to(source)
+    missing.chmod(stat.S_IREAD | stat.S_IWRITE)
+    missing.unlink()
+    trace = tmp_path / "git-trace.log"
+    monkeypatch.setenv("GIT_TRACE", trace.as_posix())
+    monkeypatch.setenv("GIT_ALLOW_PROTOCOL", "https:file")
+    with pytest.raises(ValueError, match="Git source verification failed"):
+        ops.sync_vendor(source, target, commit)
+    text = trace.read_text(encoding="utf-8")
+    assert " fetch " not in text
+    assert "git-upload-pack" not in text and "remote-https" not in text
+    assert list(target.iterdir()) == []
+
+
+def test_audit_generation_and_replay_share_the_observation_anchor():
+    value = audit()
+    value["observed_at"] = (datetime.now(UTC) - timedelta(minutes=10)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ")
+    with pytest.raises(ValueError, match="stale"):
+        ops.generate_audit(value)
+    value["observed_at"] = observed()["observed_at"]
+    receipt = ops.generate_audit(value)
+    assert ops.validate_audit(receipt) == receipt
+
+
 @pytest.mark.skipif(os.name == "nt", reason="POSIX executable modes; Git modes checked on Windows")
 def test_synchronizer_applies_and_repairs_executable_modes(tmp_path):
     source, target = tmp_path / "source", tmp_path / "target"

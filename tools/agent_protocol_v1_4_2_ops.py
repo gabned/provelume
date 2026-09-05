@@ -481,7 +481,10 @@ def manifest(source: Path, commit: str) -> dict:
         result = subprocess.run(
             ["git", "--no-replace-objects", "-c", f"safe.directory={source.as_posix()}",
              "-c", "core.fsmonitor=false",
-             "-C", str(source), *args], capture_output=True, check=False,
+             "-c", "protocol.allow=never", "-C", str(source), *args],
+            capture_output=True, check=False,
+            env={**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_ALLOW_PROTOCOL": "",
+                 "GIT_OPTIONAL_LOCKS": "0"},
         )
         require(result.returncode == 0, "canonical Git source verification failed")
         return result.stdout
@@ -692,6 +695,8 @@ def validate_audit_input(value: Any, *, now: datetime | None = None) -> dict:
 
 def generate_audit(value: Any) -> dict:
     a = validate_audit_input(value)
+    # Generation and archive replay must agree on the same observation window.
+    validate_audit_input(a, now=timestamp(a["observed_at"]))
     return {"protocol_version": VERSION, "result": "PASS", "evidence": deepcopy(a),
             "evidence_sha256": digest(a)}
 
