@@ -31,6 +31,9 @@ def initialize(value: dict[str, object], event: dict[str, object]) -> dict[str, 
         if value["observed_event"] == "INITIAL_AUTHORIZATION"
         else "SCHEMA_MIGRATION"
     )
+    receipt_args = {}
+    if operation == "INITIALIZE":
+        receipt_args["initial_state"] = protocol.campaign_state_payload(value)
     value["receipts"] = [
         protocol.build_receipt(
             sequence=1,
@@ -44,6 +47,7 @@ def initialize(value: dict[str, object], event: dict[str, object]) -> dict[str, 
             ),
             successor_state_sha256=protocol.campaign_state_sha256(value),
             previous_receipt_sha256="NONE",
+            **receipt_args,
         )
     ]
     protocol.validate_campaign_v2(value)
@@ -82,6 +86,7 @@ def profile_campaign(repository: str) -> dict[str, object]:
         "state": "NOT_DUE",
         "reference": "NONE",
     }
+    value["idea_inbox"]["items"] = []
     value["train"] = {
         "train_id": value["campaign_id"],
         "target_version": "1.4.1",
@@ -229,8 +234,70 @@ def test_initialize_rejects_an_effected_terminal_campaign() -> None:
             previous_state_sha256=protocol.GENESIS_STATE_SHA256,
             successor_state_sha256=protocol.campaign_state_sha256(value),
             previous_receipt_sha256="NONE",
+            initial_state=protocol.campaign_state_payload(value),
         )
     ]
+
+    with pytest.raises(protocol.ContractError, match="uneffected initial"):
+        protocol.validate_campaign_v2(value)
+
+
+def test_initialize_rejects_a_preloaded_idea_inbox() -> None:
+    value = profile_campaign("gabned/provelume")
+    value["idea_inbox"]["items"] = ["#999"]
+    receipt = value["receipts"][0]
+    receipt["initial_state"] = protocol.campaign_state_payload(value)
+    receipt["successor_state_sha256"] = protocol.campaign_state_sha256(value)
+    receipt["idempotency_key"] = protocol.receipt_idempotency_key(
+        campaign_id=value["campaign_id"],
+        operation=receipt["operation"],
+        github_event=receipt["github_event"],
+        previous_state_sha256=receipt["previous_state_sha256"],
+        successor_state_sha256=receipt["successor_state_sha256"],
+    )
+    receipt["receipt_sha256"] = protocol.receipt_sha256(receipt)
+
+    with pytest.raises(protocol.ContractError, match="uneffected initial"):
+        protocol.validate_campaign_v2(value)
+
+
+def test_multi_receipt_chain_revalidates_the_committed_initial_state() -> None:
+    before = profile_campaign("gabned/provelume")
+    after = deepcopy(before)
+    after["idea_inbox"]["items"].append("#199")
+    value = protocol.append_transition_receipt(
+        before,
+        after,
+        {
+            "kind": "ISSUE",
+            "action": "OPENED",
+            "repository": "gabned/provelume",
+            "reference": "#199",
+            "sha": "NONE",
+            "conclusion": "NOT_APPLICABLE",
+        },
+    )
+    first, second = value["receipts"]
+    first["initial_state"]["idea_inbox"]["items"] = ["#999"]
+    first["successor_state_sha256"] = protocol.object_sha256(first["initial_state"])
+    first["idempotency_key"] = protocol.receipt_idempotency_key(
+        campaign_id=value["campaign_id"],
+        operation=first["operation"],
+        github_event=first["github_event"],
+        previous_state_sha256=first["previous_state_sha256"],
+        successor_state_sha256=first["successor_state_sha256"],
+    )
+    first["receipt_sha256"] = protocol.receipt_sha256(first)
+    second["previous_state_sha256"] = first["successor_state_sha256"]
+    second["previous_receipt_sha256"] = first["receipt_sha256"]
+    second["idempotency_key"] = protocol.receipt_idempotency_key(
+        campaign_id=value["campaign_id"],
+        operation=second["operation"],
+        github_event=second["github_event"],
+        previous_state_sha256=second["previous_state_sha256"],
+        successor_state_sha256=second["successor_state_sha256"],
+    )
+    second["receipt_sha256"] = protocol.receipt_sha256(second)
 
     with pytest.raises(protocol.ContractError, match="uneffected initial"):
         protocol.validate_campaign_v2(value)

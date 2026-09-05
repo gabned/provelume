@@ -86,7 +86,10 @@ successor must equal the current campaign-state digest.
 Native `INITIALIZE` also binds the exact owner `ISSUE/OPENED` event and
 establishes an uneffected campaign: all slices planned with empty PR ledgers,
 no candidate, deployed or published build, no checkpoint, and exactly one
-executable next-slice action. Effects require later `STATE_TRANSITION` receipts.
+executable next-slice action. Its receipt carries the canonical initial-state
+snapshot, whose digest must equal the first successor in every later receipt
+chain; the idea inbox is empty so every idea requires its own `ISSUE/OPENED`
+transition. Effects require later `STATE_TRANSITION` receipts.
 
 `append_transition_receipt()` accepts only an exact retained prefix, frozen
 campaign identity and slice order, a valid successor snapshot, and a new GitHub

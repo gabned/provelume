@@ -333,6 +333,7 @@ RECEIPT_KEYS = {
     "idempotency_key",
     "receipt_sha256",
 }
+INITIALIZE_RECEIPT_KEYS = {*RECEIPT_KEYS, "initial_state"}
 HANDOFF_KEYS = {
     "schema_version",
     "protocol_version",
@@ -829,6 +830,7 @@ def build_receipt(
     previous_state_sha256: str,
     successor_state_sha256: str,
     previous_receipt_sha256: str,
+    initial_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     closed(operation, "receipt.operation", RECEIPT_OPERATIONS)
     validate_github_event(
@@ -855,6 +857,19 @@ def build_receipt(
         ),
         "receipt_sha256": "",
     }
+    if operation == "INITIALIZE":
+        if initial_state is None:
+            fail("INITIALIZE requires its reconstructible initial state")
+        snapshot = exact_object(
+            initial_state,
+            "receipt.initial_state",
+            CAMPAIGN_KEYS - {"receipts"},
+        )
+        if object_sha256(snapshot) != successor_state_sha256:
+            fail("INITIALIZE initial state does not match its successor digest")
+        receipt["initial_state"] = deepcopy(snapshot)
+    elif initial_state is not None:
+        fail("only INITIALIZE may carry an initial state")
     receipt["receipt_sha256"] = receipt_sha256(receipt)
     return receipt
 
@@ -1040,7 +1055,21 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
     idempotency_keys: set[str] = set()
     github_events: set[str] = set()
     for index, raw in enumerate(receipts, start=1):
-        item = exact_object(raw, f"receipts[{index - 1}]", RECEIPT_KEYS)
+        if not isinstance(raw, dict):
+            fail(f"receipts[{index - 1}] must be an object")
+        operation_hint = raw.get("operation")
+        if operation_hint == "INITIALIZE" and set(raw) == RECEIPT_KEYS:
+            fail("INITIALIZE lacks its reconstructible initial state")
+        expected_receipt_keys = (
+            INITIALIZE_RECEIPT_KEYS
+            if operation_hint == "INITIALIZE"
+            else RECEIPT_KEYS
+        )
+        item = exact_object(
+            raw,
+            f"receipts[{index - 1}]",
+            expected_receipt_keys,
+        )
         if item["sequence"] != index:
             fail("receipt sequences must be contiguous and append-only")
         operation = closed(item["operation"], "receipt.operation", RECEIPT_OPERATIONS)
@@ -1086,6 +1115,16 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
             )
             if observed_event != expected_event:
                 fail("campaign initialization requires the exact owner issue event")
+            initial_state = exact_object(
+                item["initial_state"],
+                "receipt.initial_state",
+                CAMPAIGN_KEYS - {"receipts"},
+            )
+            initial_campaign = {**deepcopy(initial_state), "receipts": []}
+            validate_campaign_v2(initial_campaign, validate_receipt_chain=False)
+            validate_initial_campaign_state(initial_campaign)
+            if object_sha256(initial_state) != successor_state:
+                fail("INITIALIZE initial state does not match its successor digest")
         if previous_successor is not None and previous_state != previous_successor:
             fail("receipt predecessor/successor state digests do not chain")
         if item["previous_receipt_sha256"] != previous_receipt:
@@ -1109,8 +1148,6 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
         previous_successor = successor_state
     if previous_successor != campaign_state_sha256(campaign):
         fail("the last receipt successor digest does not match campaign state")
-    if len(receipts) == 1 and receipts[0]["operation"] == "INITIALIZE":
-        validate_initial_campaign_state(campaign)
     validate_last_receipt_binding(campaign)
     return receipts
 
@@ -1128,6 +1165,7 @@ def validate_initial_campaign_state(campaign: dict[str, Any]) -> None:
         or campaign["pending_action"]["kind"] != "START_NEXT_SLICE"
         or campaign["next_action"]["type"] != "AUTO_CONTINUE"
         or campaign["next_action"]["prompt"] != "NONE"
+        or campaign["idea_inbox"]["items"]
         or checkpoint != {
             "policy": "RELEASE_BOUNDARY",
             "state": "NOT_DUE",
