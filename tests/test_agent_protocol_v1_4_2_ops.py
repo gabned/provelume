@@ -1183,3 +1183,30 @@ def test_work_authority_cannot_waive_the_exact_patch_gate():
         pytest.raises(ValueError, match="actual|exact-head"),
     ):
         ops.validate_scope(approval, p, baseline)
+
+
+@pytest.mark.parametrize("instruction,authorized_request", [
+    ("Authorize Protocol.\nKeep all gates.",
+     "Implement source support.\nMerge only after qualification."),
+    ("  Yes, I authorize.\r\n", "  Protocol only.\r\nNo production.\r\n"),
+])
+def test_work_multiline_instruction_and_request_remain_verbatim(instruction, authorized_request):
+    p, baseline, approval, record = work_authority_fixture()
+    record.update(instruction=instruction, authorized_request=authorized_request)
+    approval.update(authorization_text=instruction,
+                    authorization_ref="work-instruction:sha256:" + ops.digest(record))
+    retained = deepcopy(record)
+    with ops.trusted_work_instructions([record]):
+        ops.validate_scope(approval, p, baseline)
+    assert record == retained
+    for source in ("USER_INSTRUCTION", "GITHUB_COMMENT"):
+        with pytest.raises(ValueError, match="invalid text"):
+            ops.validate_scope({**approval, "authorization_source": source}, p, baseline)
+
+
+@pytest.mark.parametrize("value", ["", " \r\n\t", "x" * 10001, None, 3])
+def test_work_multiline_instruction_still_requires_bounded_nonempty_text(value):
+    _, _, _, record = work_authority_fixture()
+    for key in ("instruction", "authorized_request"):
+        with pytest.raises(ValueError), ops.trusted_work_instructions([{**record, key: value}]):
+            pass

@@ -141,6 +141,14 @@ def tree_identity(entries: dict[str, dict], *, verify: bool, hashes_out: dict | 
     return hashes[""]
 
 
+def require_representable_trees(entries: dict[str, dict]) -> None:
+    # Git's file-path diff/index cannot represent nested empty trees. A source
+    # adapter must not claim a complete path delta after silently dropping them.
+    parents = {name.rpartition("/")[0] for name in entries}
+    require(all(row["type"] != "tree" or name in parents for name, row in entries.items()),
+            "empty source subtrees require a qualified path-delta adapter")
+
+
 def validate_snapshot(snapshot: Any, repository: str, commit: str) -> dict[str, dict]:
     require(REPOSITORY.fullmatch(repository) is not None, "invalid repository")
     valid_sha(commit)
@@ -154,6 +162,7 @@ def validate_snapshot(snapshot: Any, repository: str, commit: str) -> dict[str, 
     require(isinstance(tree, dict) and tree.get("truncated") is False, "incomplete tree")
     require(tree.get("sha") == snapshot["tree_sha"], "root tree identity mismatch")
     entries = validate_entries(tree.get("tree"))
+    require_representable_trees(entries)
     require(tree_identity(entries, verify=True) == snapshot["tree_sha"], "root tree hash mismatch")
     return entries
 
@@ -215,6 +224,7 @@ def inventory(root: Path) -> dict[str, dict]:
                 }
             require(len(entries) <= MAX_ENTRIES, "source entry limit exceeded")
     # Compute every directory exactly once; avoid quadratic subtree rescans.
+    require_representable_trees(entries)
     hashes: dict[str, str] = {}
     tree_identity(entries, verify=False, hashes_out=hashes)
     for name, entry in entries.items():
@@ -371,7 +381,21 @@ def verify_live_anchor(snapshot: dict, observations: dict, *, now: datetime | No
     require(metadata <= before <= commit <= after, "observation order mismatch")
 
 
-def verify_receipt(receipt: dict, delta: dict, *, suite: str, command_digest: str) -> None:
+def canonical_input(snapshot_path: Path, anchor_path: Path, *, now: datetime | None = None) -> dict:
+    snapshot, anchor = read_json(snapshot_path), read_json(anchor_path)
+    require(snapshot.get("repository") == "gabned/provelume",
+            "canonical vendor repository mismatch")
+    validate_snapshot(snapshot, "gabned/provelume", snapshot.get("commit_sha"))
+    verify_live_anchor(snapshot, anchor, now=now)
+    return {"repository": snapshot["repository"], "commit_sha": snapshot["commit_sha"],
+            "tree_sha": snapshot["tree_sha"], "snapshot_sha256": digest(snapshot),
+            "anchor_sha256": digest(anchor)}
+
+
+def verify_receipt(
+    receipt: dict, delta: dict, *, suite: str, command_digest: str,
+    canonical_snapshot: Path | None = None, canonical_anchor: Path | None = None,
+) -> None:
     """A locally produced check receipt is not an external gate/CI receipt."""
     require(receipt.get("schema") == "agent-work-check/v1", "check receipt schema mismatch")
     require(
@@ -396,6 +420,18 @@ def verify_receipt(receipt: dict, delta: dict, *, suite: str, command_digest: st
         "incomplete or interrupted check receipt",
     )
     require(receipt.get("push_qualified") is False, "local test cannot qualify publication")
+    require("canonical_source" in receipt, "check receipt lacks canonical input binding")
+    require((canonical_snapshot is None) == (canonical_anchor is None),
+            "canonical snapshot and anchor must be supplied together")
+    if receipt["canonical_source"] is None:
+        require(canonical_snapshot is None, "unexpected canonical input for ordinary check")
+    else:
+        require(canonical_snapshot is not None,
+                "canonical check requires retained independent inputs")
+        checked_at = datetime.fromisoformat(receipt["started_at"].replace("Z", "+00:00"))
+        require(checked_at.tzinfo is not None, "check start timestamp needs timezone")
+        expected = canonical_input(canonical_snapshot, canonical_anchor, now=checked_at)
+        require(receipt["canonical_source"] == expected, "canonical check input identity changed")
 
 
 def main() -> int:

@@ -48,6 +48,16 @@ class PortableContractTests(unittest.TestCase):
         }
         self.assertEqual(adapter.validate_snapshot(snapshot, "example/public", "a" * 40), {})
 
+    def test_nested_empty_tree_is_an_explicit_capability_gap(self):
+        entries = {"empty": {"path": "empty", "mode": "040000", "type": "tree",
+                             "sha": "4b825dc642cb6eb9a060e54bf8d69288fbee4904"}}
+        tree = adapter.tree_identity(entries, verify=True)
+        snapshot = {"schema": adapter.SCHEMA, "repository": "example/public",
+                    "commit_sha": "a" * 40, "tree_sha": tree,
+                    "tree": {"sha": tree, "truncated": False, "tree": list(entries.values())}}
+        with self.assertRaisesRegex(adapter.EvidenceError, "empty source subtrees"):
+            adapter.validate_snapshot(snapshot, "example/public", "a" * 40)
+
 
 # Only the POSIX materializer is supported. Windows still verifies the portable
 # object contract above and proves that unsupported mode inference fails closed.
@@ -120,6 +130,28 @@ class SourceTests(unittest.TestCase):
     def test_extra_empty_directory(self):
         (self.root / "extra").mkdir()
         self.blocked()
+
+    def test_empty_directory_changes_cannot_claim_complete_delta(self):
+        candidate = self.parent / "candidate"
+        shutil.copytree(self.root, candidate)
+        empty = candidate / "empty"
+        empty.mkdir()
+        with self.assertRaisesRegex(adapter.EvidenceError, "empty source subtrees"):
+            adapter.candidate_delta(self.snapshot, self.root, candidate, self.repo, self.commit)
+        empty.rename(candidate / "renamed-empty")
+        with self.assertRaisesRegex(adapter.EvidenceError, "empty source subtrees"):
+            adapter.candidate_delta(self.snapshot, self.root, candidate, self.repo, self.commit)
+        (candidate / "renamed-empty").rmdir()
+        (self.root / "empty").mkdir()
+        entries = copy.deepcopy(self.entries)
+        entries["empty"] = {"path": "empty", "type": "tree", "mode": "040000",
+                            "sha": "4b825dc642cb6eb9a060e54bf8d69288fbee4904"}
+        tree = adapter.tree_identity(entries, verify=True)
+        snapshot = copy.deepcopy(self.snapshot)
+        snapshot["tree_sha"] = snapshot["tree"]["sha"] = tree
+        snapshot["tree"]["tree"] = list(entries.values())
+        with self.assertRaisesRegex(adapter.EvidenceError, "empty source subtrees"):
+            adapter.candidate_delta(snapshot, self.root, candidate, self.repo, self.commit)
 
     def test_no_implicit_ignored_directory(self):
         (self.root / ".agent").mkdir()
@@ -320,6 +352,7 @@ class SourceTests(unittest.TestCase):
             "launch_error": None,
             "source_error": None,
             "adapter_exit_code": 0,
+            "canonical_source": None,
         }
         adapter.verify_receipt(receipt, delta, suite="PROTOCOL", command_digest="a" * 64)
         for key, value in [

@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -91,6 +92,62 @@ class CheckTests(unittest.TestCase):
         with self.assertRaisesRegex(source.EvidenceError, "supplied together"):
             self.run_fixture(canonical_snapshot=self.snapshot)
         self.assertFalse((self.parent / "result").exists())
+
+    def canonical_fixture(self):
+        snapshot = json.loads(self.snapshot.read_text())
+        snapshot["repository"] = "gabned/provelume"
+        canonical = self.parent / "canonical.json"
+        canonical.write_text(json.dumps(snapshot))
+        stamp = datetime.now(UTC).isoformat()
+        prefix = "https://api.github.com/repos/gabned/provelume"
+        ref = {"ref": "refs/heads/main",
+               "object": {"type": "commit", "sha": snapshot["commit_sha"]}}
+        def observation(path, response):
+            return {"url": prefix + path, "observed_at": stamp, "response": response}
+        anchor = {"default_branch": "main",
+            "repository": observation("", {"full_name": snapshot["repository"],
+                                           "default_branch": "main"}),
+            "before": observation("/git/ref/heads/main", ref),
+            "commit": observation("/git/commits/" + snapshot["commit_sha"],
+                {"sha": snapshot["commit_sha"], "tree": {"sha": snapshot["tree_sha"]}}),
+            "after": observation("/git/ref/heads/main", ref)}
+        anchor_path = self.parent / "canonical-anchor.json"
+        anchor_path.write_text(json.dumps(anchor))
+        return canonical, anchor_path
+
+    def test_canonical_identity_and_inputs_are_required_to_verify_success(self):
+        canonical, anchor = self.canonical_fixture()
+        (self.candidate / "tools/agent-check").write_text("echo canonical-fixture\nexit 0\n")
+        result, code = self.run_fixture(canonical_snapshot=canonical, canonical_anchor=anchor)
+        self.assertEqual(code, 0)
+        self.assertEqual(result["canonical_source"]["repository"], "gabned/provelume")
+        delta = source.candidate_delta(source.read_json(self.snapshot), self.base, self.candidate,
+                                       "brickms/brickms", "a" * 40)
+        args = {"suite": "PROTOCOL_ONLY", "command_digest": result["command_digest"]}
+        with self.assertRaisesRegex(source.EvidenceError, "retained independent inputs"):
+            source.verify_receipt(result, delta, **args)
+        source.verify_receipt(result, delta, canonical_snapshot=canonical,
+                              canonical_anchor=anchor, **args)
+        changed = json.loads(anchor.read_text())
+        changed["extra_observation"] = "changed after execution"
+        anchor.write_text(json.dumps(changed))
+        with self.assertRaisesRegex(source.EvidenceError, "input identity changed"):
+            source.verify_receipt(result, delta, canonical_snapshot=canonical,
+                                  canonical_anchor=anchor, **args)
+        canonical.unlink()
+        with self.assertRaises(OSError):
+            source.verify_receipt(result, delta, canonical_snapshot=canonical,
+                                  canonical_anchor=anchor, **args)
+
+    def test_canonical_inputs_cannot_change_during_a_successful_child(self):
+        import shlex
+        canonical, anchor = self.canonical_fixture()
+        (self.candidate / "tools/agent-check").write_text(
+            "printf '{}' > " + shlex.quote(str(anchor)) + "\nexit 0\n")
+        result, code = self.run_fixture(canonical_snapshot=canonical, canonical_anchor=anchor)
+        self.assertEqual(result["exit_code"], 0)
+        self.assertEqual(code, 2)
+        self.assertIsNotNone(result["source_error"])
 
     def test_vendor_update_rejects_noncanonical_repository(self):
         with self.assertRaisesRegex(source.EvidenceError, "canonical vendor repository"):

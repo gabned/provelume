@@ -69,6 +69,13 @@ def number(value: Any, label: str) -> int:
     return value
 
 
+def instruction_text(value: Any, label: str) -> str:
+    """Bound a real instruction while preserving all verbatim whitespace."""
+    require(isinstance(value, str) and bool(value.strip()) and len(value) <= 10000,
+            f"{label}: expected bounded nonempty instruction")
+    return value
+
+
 def sha(value: Any, length: int = 40) -> str:
     require(isinstance(value, str) and re.fullmatch(f"[0-9a-f]{{{length}}}", value) is not None,
             "invalid commit/blob/digest")
@@ -100,8 +107,9 @@ def work_instruction_records(value: Any) -> dict[str, dict]:
                    "workstream_class effect_policy", "Work instruction")
         require(item["schema"] == "agent-work-instruction/v1" and
                 item["source"] == "CURRENT_USER_CONVERSATION", "invalid instruction source")
-        for key in ("actor", "instruction", "authorized_request"):
-            require(len(text(item[key], key)) <= 10000, "instruction text limit")
+        require(len(text(item["actor"], "actor")) <= 10000, "instruction actor limit")
+        for key in ("instruction", "authorized_request"):
+            instruction_text(item[key], key)
         require(item["repository"] in PROFILES, "unknown instruction repository")
         number(item["pr"], "instruction PR")
         for key in ("base_sha", "head_sha"):
@@ -369,7 +377,10 @@ def validate_scope(
     require(s["actor_role"] == "VERIFIED_HUMAN_MAINTAINER" and s["decision"] == "APPROVED",
             "scope requires verified explicit human authorization")
     text(s["actor"], "maintainer")
-    text(s["authorization_text"], "verbatim authorization instruction")
+    if s["authorization_source"] == "WORK_USER_INSTRUCTION":
+        instruction_text(s["authorization_text"], "verbatim Work instruction")
+    else:
+        text(s["authorization_text"], "verbatim authorization instruction")
     if s["authorization_source"] == "GITHUB_COMMENT":
         pattern = (rf"https://github[.]com/{re.escape(pr['repository'])}/"
                    rf"(?:pull|issues)/{pr['number']}#issuecomment-[1-9][0-9]*")

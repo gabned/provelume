@@ -66,7 +66,7 @@ evidence, runtime, caches and generated state must live outside it. File bytes
 and directory names are verified without Git. Valid UTF-8 whitespace and
 newline names are preserved; traversal, NUL and noncanonical paths are rejected.
 The initial materializer supports regular files/directories on POSIX. Symlinks,
-submodules, unresolved LFS pointers and platforms unable to prove modes fail
+submodules, nested empty trees, unresolved LFS pointers and platforms unable to prove modes fail
 with an explicit capability gap. They are never silently omitted or expanded.
 Materialization creates a new private directory and preserves existing work.
 
@@ -159,6 +159,11 @@ and request, actor, repository, PR, exact base/head, complete-path digest and
 technical-patch digest. Its scope is fixed to PROTOCOL, THROUGH_MERGE and
 NO_PRODUCTION. It contains no inferred task ID or creation time.
 
+Instruction/request strings may contain line breaks and surrounding whitespace;
+their original bytes are preserved within the bounded nonempty-string contract.
+Actor identifiers and the existing non-Work instruction formats retain their
+original single-line validation.
+
 The reference `work-instruction:sha256:<digest>` addresses those exact canonical
 bytes. A digest proves integrity, never user identity or approval. The record
 must be supplied independently by that authorized host, under ignored external
@@ -221,3 +226,12 @@ canonical commit and every updated vendor byte/mode to that independent tree;
 the existence of a candidate manifest is insufficient. Without these inputs,
 the baseline vendor identity remains mandatory. This does not permit unmerged
 canonical bytes or relax current-head scope, full checks or review.
+
+For canonical vendor checks, the receipt additionally binds the canonical
+repository, commit, tree and digests of both snapshot and live-anchor evidence.
+The supervisor verifies those inputs again after execution. Receipt verification
+requires the independently retained snapshot/anchor files and compares their
+content identities, not just their command-line paths. Missing, replaced or
+modified canonical input cannot validate a successful check. Archived freshness
+is evaluated at the recorded actual check start; it never represents a new
+live observation or replaces the host's current-main observation before action.

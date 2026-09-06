@@ -37,15 +37,14 @@ def run_check(
     source.require(workstream in {"PROTOCOL", "PRODUCT"}, "explicit supported workstream required")
     source.require(suite in {"PROTOCOL_ONLY", "FULL"}, "explicit canonical suite required")
     source.require(type(timeout) is int and 1 <= timeout <= 3600, "bounded check timeout required")
+    started_clock = datetime.now(UTC)
+    canonical_source = None
     source.require((canonical_snapshot is None) == (canonical_anchor is None),
                    "canonical vendor snapshot and live anchor must be supplied together")
     if canonical_snapshot is not None:
         source.require(workstream == "PROTOCOL", "canonical vendor adoption requires PROTOCOL")
-        canonical = source.read_json(canonical_snapshot)
-        source.require(canonical.get("repository") == "gabned/provelume",
-                       "canonical vendor repository mismatch")
-        source.validate_snapshot(canonical, "gabned/provelume", canonical.get("commit_sha"))
-        source.verify_live_anchor(canonical, source.read_json(canonical_anchor))
+        canonical_source = source.canonical_input(canonical_snapshot, canonical_anchor,
+                                                  now=started_clock)
     baseline, candidate = baseline.resolve(), candidate.resolve()
     source.require(baseline != candidate, "baseline and candidate must be separate")
     source.require(
@@ -92,7 +91,7 @@ def run_check(
         "PYTHONDONTWRITEBYTECODE": "1",
         "COMPOSER_HOME": str(output / "composer-home"),
     }
-    started = datetime.now(UTC).isoformat()
+    started = started_clock.isoformat()
     timed_out = False
     launch_error = None
     exit_code = None
@@ -128,6 +127,12 @@ def run_check(
     try:
         after = source.tree_identity(source.inventory(candidate), verify=True)
         source.verify_source(snapshot, baseline, snapshot["repository"], snapshot["commit_sha"])
+        if canonical_source is not None:
+            # Replay freshness at the actual check start; do not manufacture a
+            # new observation after a long process. Exact input bytes must stay.
+            source.require(source.canonical_input(canonical_snapshot, canonical_anchor,
+                                                  now=started_clock) == canonical_source,
+                           "canonical check input changed during execution")
     except (source.EvidenceError, OSError) as exc:
         source_error = str(exc)
     unchanged = source_error is None and after == delta["candidate_tree_sha"]
@@ -136,6 +141,7 @@ def run_check(
         "repository": snapshot["repository"],
         "base_commit_sha": snapshot["commit_sha"],
         "candidate_tree_sha": delta["candidate_tree_sha"],
+        "canonical_source": canonical_source,
         "candidate_tree_after": after,
         "source_unchanged": unchanged,
         "suite": suite,
