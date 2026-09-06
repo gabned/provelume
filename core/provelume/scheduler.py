@@ -1450,6 +1450,7 @@ class SchedulerCoordinator:
                 elif exc.code in {
                     "google_rate_limited",
                     "google_retryable_failure",
+                    "google_secure_store_unavailable",
                     "google_internal_error",
                 }:
                     error_class = "transient"

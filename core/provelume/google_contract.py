@@ -60,6 +60,7 @@ GOOGLE_ERROR_CODES = (
     "google_rate_limited",
     "google_remote_mutation",
     "google_retryable_failure",
+    "google_secure_store_unavailable",
     "google_source_disabled",
     "google_source_paused",
     "google_source_removed",

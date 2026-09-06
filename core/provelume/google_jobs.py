@@ -736,6 +736,10 @@ class GoogleJobManager:
         job = self.scheduler.get_job(job_id)
         if job and run["status"] == "running" and job["status"] != "running":
             run = {**run, "status": job["status"]}
+            attempts = job.get("attempts", [])
+            code = attempts[-1].get("error_code") if attempts else None
+            if code in GOOGLE_ERROR_CODES:
+                run["error_codes"] = list(dict.fromkeys([*run["error_codes"], code]))
         return run
 
     def get_job(self, job_id: str) -> dict[str, Any] | None:

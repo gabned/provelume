@@ -95,6 +95,8 @@ class GoogleCapabilityAuthority:
                 {
                     **record,
                     "account_binding_sha256": binding,
+                    "guided_provisional": False,
+                    "guided_provisional_until": None,
                     "capabilities": {**record["capabilities"], self.capability: updated},
                     "updated_at": utc_now(),
                 }

@@ -258,5 +258,9 @@ def resolve_google_credential(reference, *, vault=None, transport=None) -> str:
                 "google_retryable_failure", "Google connection is unavailable"
             ) from None
         raise GoogleAuthorizationError(expired=True) from None
-    except (GoogleCredentialError, KeyError, TypeError):
+    except GoogleCredentialError:
+        raise GoogleAdapterError(
+            "google_secure_store_unavailable", "Google system credential store is unavailable"
+        ) from None
+    except (KeyError, TypeError):
         raise GoogleAuthorizationError(expired=True) from None

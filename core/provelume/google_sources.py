@@ -194,12 +194,19 @@ class GoogleSourceManager:
             "updated_at": record["updated_at"],
         }
 
-    def list_instances(self, *, local: bool = False) -> list[dict[str, Any]]:
+    def list_instances(
+        self, *, local: bool = False, include_removed: bool = False
+    ) -> list[dict[str, Any]]:
         if not self.instances.exists():
             return []
-        return [
+        values = [
             self.instance_view(path.stem, local=local)
             for path in sorted(self.instances.glob("connector_instance_*.json"))
+        ]
+        return [
+            value
+            for value in values
+            if include_removed or value["connector"]["lifecycle_state"] != "removed"
         ]
 
     def authorize_capability(

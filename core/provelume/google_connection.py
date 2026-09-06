@@ -107,6 +107,35 @@ class GoogleConnectionManager:
             if time.monotonic() >= session["deadline"]:
                 self._oauth[session["capability"]].cancel(session["instance_id"])
                 self._sessions.pop(key, None)
+                self._discard_provisional(session["instance_id"])
+        # Recover abandoned requests after process restart, on an explicit control action.
+        for connection in self.sources.list_instances():
+            identity = connection["connector"]["id"]
+            record = self.sources._instance_record(identity)
+            deadline = record.get("guided_provisional_until")
+            if (
+                record.get("guided_provisional") is True
+                and isinstance(deadline, (int, float))
+                and deadline <= time.time()
+            ):
+                self._discard_provisional(identity)
+
+    def _discard_provisional(self, instance_id):
+        if any(value["instance_id"] == instance_id for value in self._sessions.values()):
+            return
+        with InstanceLifecycleManager(self.store)._hold(purpose="google-provisional-cleanup"):
+            record = self.sources._instance_record(instance_id)
+            if (
+                record.get("guided_provisional") is not True
+                or any(
+                    item["authorization_status"] == "authorized"
+                    for item in record["capabilities"].values()
+                )
+                or self.sources.list_sources(connector_instance_id=instance_id)
+            ):
+                return
+            # Existing lifecycle tombstone retains audit metadata without an active Google card.
+            self.sources.connectors.remove_instance(instance_id)
 
     def begin(self, *, capability, redirect_uri, consent, instance_id=None, name="Google"):
         selected = normalise_capability(capability)
@@ -126,8 +155,21 @@ class GoogleConnectionManager:
                     name=name, account_identity=f"google-local:{uuid4().hex}"
                 )
                 instance_id = result["connector"]["id"]
+                record = self.sources._instance_record(instance_id)
+                self.sources._write_instance_record(
+                    {
+                        **record,
+                        "guided_provisional": True,
+                        "guided_provisional_until": time.time() + 300,
+                    }
+                )
                 self.sources.connectors.enable_instance(instance_id)
             record = self.sources._instance_record(instance_id)
+            if record.get("guided_provisional") and any(
+                value["instance_id"] == instance_id and value["capability"] != selected
+                for value in self._sessions.values()
+            ):
+                raise GoogleConnectionError("google_connection_busy")
             expected_binding = record.get("account_binding_sha256")
             if not expected_binding and self.sources.list_sources(
                 connector_instance_id=instance_id
@@ -151,9 +193,13 @@ class GoogleConnectionManager:
                 transport=self.transport,
                 expected_binding=expected_binding,
             )
-            result = self._oauth[selected].begin(
-                instance_id, adapter, redirect_uri=redirect, consent=True
-            )
+            try:
+                result = self._oauth[selected].begin(
+                    instance_id, adapter, redirect_uri=redirect, consent=True
+                )
+            except Exception:
+                self._discard_provisional(instance_id)
+                raise
             state = parse_qs(urlsplit(result["authorization_uri"]).query)["state"][0]
             key = hashlib.sha256(state.encode()).hexdigest()
             self._sessions[key] = {
@@ -193,6 +239,14 @@ class GoogleConnectionManager:
             if not hmac.compare_digest(redirect_uri, session["redirect_uri"]):
                 raise GoogleConnectionError("google_callback_invalid")
             self._sessions.pop(key)
+        try:
+            return self._complete_session(session, fields, state, redirect_uri)
+        except Exception:
+            self._oauth[session["capability"]].cancel(session["instance_id"])
+            self._discard_provisional(session["instance_id"])
+            raise
+
+    def _complete_session(self, session, fields, state, redirect_uri):
         selected = session["capability"]
         instance_id = session["instance_id"]
         adapter = session["adapter"]
@@ -248,6 +302,7 @@ class GoogleConnectionManager:
             for key, session in tuple(self._sessions.items()):
                 if (session["instance_id"], session["capability"]) == (instance_id, selected):
                     self._sessions.pop(key)
+            self._discard_provisional(instance_id)
         return {"status": "google_consent_cancelled", "cancelled": count}
 
     def test(self, instance_id, capability):

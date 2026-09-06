@@ -104,10 +104,14 @@ The permanent Core matrix runs the new tests on Ubuntu and Windows; the existing
 Google smoke continues to verify the historical adapter contract. Synthetic observations are
 never relabelled as real-account evidence.
 
-For final real-account qualification, use the Windows artifact built by the permanent CI
-workflow dispatched on the accepted exact branch head, or its exact development wheel. Verify
-the embedded commit against the accepted PR head. The PR merge-ref artifact is a different
-build and cannot substitute for that head.
+For final real-account qualification, use a development wheel built twice from the verified
+GitHub tree of the accepted exact head with the repository's pinned build inputs and
+`scripts/deterministic_build.py`. Verify its digest and embedded commit against the accepted
+PR head. Install it into an isolated Python 3.12 environment on the account-owning computer
+and start `provelume-desktop` or `provelume serve <instance>`. The permanent Windows shell
+workflow separately verifies the installed executable at that same exact head. The Public CI
+PR merge-ref artifact is a different build and cannot substitute for the accepted head.
+Neither this development wheel nor its human observations constitute a published release.
 
 Prepare an authorized test account containing at least one harmless Gmail message and one
 small file directly in My Drive; the real evidence must include acquired items, not only an

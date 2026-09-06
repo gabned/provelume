@@ -18,6 +18,17 @@ from .oauth_authorization import OAuthAuthorizationError
 from .scheduler_model import SchedulerError
 
 HEADERS = {"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"}
+CALLBACK_ERRORS = {
+    "google_account_mismatch",
+    "google_callback_invalid",
+    "google_connection_busy",
+    "google_connection_failed",
+    "google_consent_cancelled",
+    "google_network_disabled",
+    "google_reconnect_required",
+    "google_scope_mismatch",
+    "google_secure_store_unavailable",
+}
 
 
 def attach_google_connection_routes(app, instance, templates, context_factory, *, redirect_uri):
@@ -46,7 +57,8 @@ def attach_google_connection_routes(app, instance, templates, context_factory, *
 
     @app.get("/google/connect")
     def page(request: Request):
-        return render(request)
+        notice = request.query_params.get("notice")
+        return render(request, error=notice if notice in CALLBACK_ERRORS else None)
 
     @app.get("/api/v1/google/connection")
     def read_model():
@@ -205,5 +217,9 @@ def attach_google_connection_routes(app, instance, templates, context_factory, *
         try:
             await run_in_threadpool(manager.complete, query, redirect_uri=redirect_uri)
         except failures as exc:
-            return render(request, error=diagnostic(exc), status=400)
+            code = diagnostic(exc)
+            notice = code if code in CALLBACK_ERRORS else "google_callback_invalid"
+            return RedirectResponse(
+                f"/google/connect?notice={notice}", status_code=303, headers=HEADERS
+            )
         return RedirectResponse("/google/connect", status_code=303, headers=HEADERS)

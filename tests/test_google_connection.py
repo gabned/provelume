@@ -599,3 +599,132 @@ def test_connection_translation_inventory_has_semantic_parity():
         assert connection_translator("it")(key) == pair[1]
     for key in ("consent", "revoke_help", "network_consent", "bounds", "google_account_mismatch"):
         assert TEXT[key][0] != TEXT[key][1]
+
+
+def test_locked_store_is_retryable_for_test_and_intake_without_losing_grant(journey, monkeypatch):
+    from provelume.google_adapters import GoogleApiAdapter
+    from provelume.google_contract import GoogleAdapterError
+    from provelume.google_jobs import GoogleJobManager
+
+    instance, manager, vault, transport = journey
+    _, connected = connect(manager, transport)
+    identity, source_id = connected["instance_id"], connected["source_id"]
+    manager.sources.set_capability_state(identity, "gmail", "enabled")
+    manager.sources.set_source_state(source_id, "enabled")
+    before = manager.sources.capability_record(identity, "gmail")
+    saved_read = vault.read
+
+    def locked(slot):
+        if slot.startswith("google_grant_"):
+            raise GoogleCredentialError("google_secure_store_unavailable")
+        return saved_read(slot)
+
+    monkeypatch.setattr(vault, "read", locked)
+    with pytest.raises(GoogleAdapterError) as caught:
+        manager.test(identity, "gmail")
+    assert caught.value.code == "google_secure_store_unavailable"
+    assert manager.sources.capability_record(identity, "gmail") == before
+    adapter = GoogleApiAdapter(
+        credential_resolver=lambda ref: resolve_google_credential(
+            ref, vault=vault, transport=transport
+        )
+    )
+    instance.scheduler._google_manager_factory = lambda store: GoogleJobManager(
+        store, adapter=adapter
+    )
+    queued = instance.google.queue(source_id, guided=True)
+    result = instance.run_google_job(queued["job"]["id"])
+    assert result["status"] == "retry_wait"
+    observed = instance.google.get_job(queued["job"]["id"])
+    assert observed["google_run"]["error_codes"] == ["google_secure_store_unavailable"]
+    assert manager.sources.capability_record(identity, "gmail") == before
+    assert instance.store.list_canonical("email-messages") == []
+    monkeypatch.setattr(vault, "read", saved_read)
+    assert manager.test(identity, "gmail")["status"] == "google_connected"
+    assert manager.sources.capability_record(identity, "gmail") == before
+
+
+def test_failed_callback_always_redirects_browser_to_clean_diagnostic_url(tmp_path):
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    app = create_app(instance.store.paths.root, effective_port=18765)
+    manager = app.state.provelume.google_connection
+    manager.vault, manager.transport = MemoryVault(), FakeGoogle()
+    manager.configure(json.dumps(CLIENT))
+    manager.set_network(enabled=True, consent=True)
+    request = manager.begin(capability="gmail", consent=True, redirect_uri=REDIRECT)
+    manager.transport.fail = "google_connection_failed"
+    client = TestClient(app, base_url="http://127.0.0.1:18765")
+    response = client.get(
+        "/google/oauth/callback?" + callback(request).decode(), follow_redirects=False
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == "/google/connect?notice=google_connection_failed"
+    assert response.headers["referrer-policy"] == "no-referrer"
+    page = client.get(response.headers["location"])
+    assert page.status_code == 200 and 'role="alert"' in page.text
+    assert "synthetic-authorization-code" not in str(page.url) + page.text
+    assert "code=" not in str(page.url) and "state=" not in str(page.url)
+
+
+@pytest.mark.parametrize("failure", ["denied", "expired", "exchange", "cancel", "restart"])
+def test_failed_new_consent_removes_only_its_provisional_google_card(journey, failure):
+    instance, manager, vault, transport = journey
+    request = manager.begin(capability="gmail", consent=True, redirect_uri=REDIRECT)
+    identity = request["instance_id"]
+    assert len(manager.view()["connections"]) == 1
+    if failure == "denied":
+        query = callback(request).replace(
+            b"code=synthetic-authorization-code", b"error=access_denied"
+        )
+        with pytest.raises(GoogleConnectionError):
+            manager.complete(query, redirect_uri=REDIRECT)
+    elif failure == "expired":
+        for session in manager._sessions.values():
+            session["deadline"] = 0
+        with pytest.raises(GoogleConnectionError):
+            manager.complete(callback(request), redirect_uri=REDIRECT)
+    elif failure == "exchange":
+        transport.fail = "google_connection_failed"
+        with pytest.raises(GoogleConnectionError):
+            manager.complete(callback(request), redirect_uri=REDIRECT)
+    elif failure == "cancel":
+        manager.cancel(identity, "gmail")
+    else:
+        record = manager.sources._instance_record(identity)
+        manager.sources._write_instance_record({**record, "guided_provisional_until": 0})
+        manager = GoogleConnectionManager(instance.store, vault=vault, transport=transport)
+        new = manager.begin(capability="gmail", consent=True, redirect_uri=REDIRECT)
+        manager.cancel(new["instance_id"], "gmail")
+    assert manager.view()["connections"] == []
+    assert manager.sources.list_instances() == []
+    assert instance.connectors.get_instance(identity)["lifecycle_state"] == "removed"
+    assert manager.sources.list_sources() == []
+    assert not any(key.startswith("google_grant_") for key in vault.values)
+
+
+def test_failed_request_preparation_cleans_up_new_provisional_connection(journey, monkeypatch):
+    from provelume.oauth_authorization import OAuthAdapterError
+
+    _, manager, _, _ = journey
+
+    def fail(*args):
+        raise OAuthAdapterError("synthetic preparation failure")
+
+    monkeypatch.setattr(
+        "provelume.google_oauth.GoogleInstalledAppAdapter.build_authorization_uri", fail
+    )
+    with pytest.raises(OAuthAdapterError):
+        manager.begin(capability="gmail", consent=True, redirect_uri=REDIRECT)
+    assert manager.view()["connections"] == []
+
+
+def test_cancelled_reconnect_preserves_established_connection_and_source(journey):
+    _, manager, _, transport = journey
+    _, original = connect(manager, transport)
+    identity = original["instance_id"]
+    before = manager.sources._instance_record(identity)
+    manager.begin(capability="gmail", consent=True, redirect_uri=REDIRECT, instance_id=identity)
+    manager.cancel(identity, "gmail")
+    assert manager.sources._instance_record(identity) == before
+    assert manager.sources.list_sources()[0]["id"] == original["source_id"]
+    assert len(manager.view()["connections"]) == 1

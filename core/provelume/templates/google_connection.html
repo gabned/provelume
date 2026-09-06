@@ -52,6 +52,7 @@
 <section class="panel"><h2>{{ gt('jobs') }}</h2><a href="/google/connect?lang={{ lang }}">{{ gt('refresh') }}</a>
 {% for job in jobs %}<section><h3>{{ gt(job.google_run.status if job.google_run else job.status) }}</h3>
 {% if job.google_run %}<dl>{% for key, value in job.google_run.progress.items() %}<dt>{{ gt(key) }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>{% endif %}
+{% if job.google_run %}{% for code in job.google_run.error_codes %}<p role="status">{{ gt(code) }}</p>{% endfor %}{% endif %}
 {% if editable and job.status in ['queued', 'running', 'retry_wait'] %}<form method="post" action="/google/connect?lang={{ lang }}">{{ hidden('cancel-job') }}<input type="hidden" name="job_id" value="{{ job.id }}"><button>{{ gt('cancel') }}</button></form>{% endif %}
 </section>{% endfor %}</section>
 {% if editable %}<section class="panel"><details><summary>{{ gt('setup') }}</summary><p>{{ gt('setup_help') }}</p>
