@@ -705,6 +705,11 @@ def test_gate_transition_requires_persisted_attempt_bound_operational_evidence(o
     with pytest.raises(ValueError, match="superseded workflow"):
         protocol.append_transition_receipt(before, after, event, operational_evidence=evidence)
     evidence["ci"]["runs"].pop()
+    legacy_evidence = deepcopy(evidence)
+    del legacy_evidence["default_branch"]
+    with pytest.raises(ValueError, match="missing or extra fields"):
+        protocol.append_transition_receipt(before, after, event,
+                                           operational_evidence=legacy_evidence)
     result = protocol.append_transition_receipt(before, after, event,
                                                 operational_evidence=evidence)
     assert result["receipts"][-1]["operational_evidence"] == evidence
@@ -786,7 +791,8 @@ def test_terminal_attempt_cannot_freeze_live_jobs(conclusion, status):
 
 
 @pytest.mark.parametrize("damage", ["drop_run", "rewrite_job"])
-def test_receipt_chain_retains_ci_history_even_after_resealing(damage):
+@pytest.mark.parametrize("legacy_history", [False, True])
+def test_receipt_chain_retains_ci_history_even_after_resealing(damage, legacy_history):
     legacy = protocol.sample_campaign_v1()
     legacy.update(workstream_class="PROTOCOL", risk_profile="NO_PRODUCTION",
                   observed_event="GATES_PASSED", observed_event_ref=HEAD)
@@ -809,6 +815,12 @@ def test_receipt_chain_retains_ci_history_even_after_resealing(damage):
              "reference": "run:100", "sha": HEAD, "conclusion": "SUCCESS", "run_attempt": 1}
     gates = protocol.append_transition_receipt(before, gates, event,
                                                operational_evidence=evidence)
+    if legacy_history:
+        # Synthetic immutable receipt in the pre-default-observation 1.4.2 shape.
+        del gates["receipts"][-1]["operational_evidence"]["default_branch"]
+        gates["receipts"][-1]["receipt_sha256"] = protocol.receipt_sha256(gates["receipts"][-1])
+        protocol.validate_campaign_v2(gates)
+    retained = ops.canonical(gates["receipts"])
     merged = deepcopy(gates)
     merged.update(campaign_state="WAITING_EVENT", observed_event="PR_MERGED",
                   observed_event_ref=MERGE,
@@ -823,7 +835,20 @@ def test_receipt_chain_retains_ci_history_even_after_resealing(damage):
                    "reference": "#12", "sha": MERGE, "conclusion": "NOT_APPLICABLE"}
     result = protocol.append_transition_receipt(gates, merged, merge_event,
                                                 operational_evidence=post)
+    assert ops.canonical(result["receipts"][:-1]) == retained
     protocol.validate_campaign_v2(result)
+    legacy_post = deepcopy(post)
+    del legacy_post["default_branch"]
+    with pytest.raises(ValueError, match="missing or extra fields"):
+        protocol.append_transition_receipt(gates, merged, merge_event,
+                                           operational_evidence=legacy_post)
+    archived_post = deepcopy(result)
+    del archived_post["receipts"][-1]["operational_evidence"]["default_branch"]
+    archived_post["receipts"][-1]["receipt_sha256"] = protocol.receipt_sha256(
+        archived_post["receipts"][-1])
+    frozen = ops.canonical(archived_post)
+    protocol.validate_campaign_v2(archived_post)
+    assert ops.canonical(archived_post) == frozen
     damaged = deepcopy(post)
     if damage == "drop_run":
         damaged["ci"]["runs"].pop(0)
@@ -848,6 +873,26 @@ def test_workflow_identity_distinguishes_attempts_and_rejects_missing_attempt():
     del first["run_attempt"]
     with pytest.raises(ValueError):
         protocol.validate_github_event(first)
+
+
+def test_legacy_campaign_replay_does_not_relax_final_audit():
+    value = audit()
+    receipt = ops.generate_audit(value)
+    del value["repositories"][0]["operations"][0]["default_branch"]
+    with pytest.raises(ValueError, match="missing or extra fields"):
+        ops.generate_audit(value)
+    receipt["evidence"] = value
+    receipt["evidence_sha256"] = ops.digest(value)
+    with pytest.raises(ValueError, match="missing or extra fields"):
+        ops.validate_audit(receipt)
+
+
+def test_archived_operation_compatibility_requires_an_explicit_anchor():
+    value = operations()
+    del value["default_branch"]
+    with pytest.raises(ValueError, match="observation anchor"):
+        ops.validate_operations(value, archived_receipt=True)
+    assert ops.validate_operations(value, archived_receipt=True, now=datetime.now(UTC)) == value
 
 
 def resolved_finding():

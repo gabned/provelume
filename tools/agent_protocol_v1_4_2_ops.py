@@ -393,19 +393,26 @@ def validate_merge(value: Any, pr: dict, now: datetime | None = None) -> dict:
 
 def validate_operations(
     value: Any, *, nested: bool = False, now: datetime | None = None,
+    archived_receipt: bool = False,
 ) -> dict:
-    e = obj(value, "protocol_version phase pr default_branch baseline_paths scope_exception ci "
+    require(not archived_receipt or now is not None, "archived receipt requires observation anchor")
+    legacy = archived_receipt and isinstance(value, dict) and "default_branch" not in value
+    fields = "" if legacy else "default_branch "
+    e = obj(value, "protocol_version phase pr " + fields + "baseline_paths scope_exception ci "
             "reviews merge post_merge_ci late_findings late_findings_complete effect_policy",
             "operations")
     require(e["protocol_version"] == VERSION and e["effect_policy"] == "NO_PRODUCTION",
             "wrong version or operational scope")
     require(e["phase"] in {"PRE_MERGE", "POST_MERGE"}, "unknown operational phase")
     p = validate_pr(e["pr"], now)
-    default = obj(e["default_branch"], "repository name sha source observed_at", "default branch")
-    observation(default, now)
-    sha(default["sha"])
-    require((default["repository"], default["name"]) ==
-            (p["repository"], PROFILES[p["repository"]][0]), "default branch identity mismatch")
+    default = None
+    if not legacy:
+        default = obj(e["default_branch"], "repository name sha source observed_at",
+                      "default branch")
+        observation(default, now)
+        sha(default["sha"])
+        require((default["repository"], default["name"]) ==
+                (p["repository"], PROFILES[p["repository"]][0]), "default branch identity mismatch")
     validate_scope(e["scope_exception"], p, e["baseline_paths"], now)
     validate_ci(e["ci"], p["repository"], p["head_sha"], now=now)
     require(e["ci"]["policy_ref"] == p["base_sha"], "CI policy is not bound to trusted base")
@@ -424,12 +431,14 @@ def validate_operations(
     if e["phase"] == "POST_MERGE":
         require(p["state"] == "CLOSED" and not p["draft"], "merged PR state mismatch")
         m = validate_merge(e["merge"], p, now)
-        require(default["sha"] == m["default_sha"], "reconciliation differs from observed default")
+        require(legacy or default["sha"] == m["default_sha"],
+                "reconciliation differs from observed default")
         validate_ci(e["post_merge_ci"], p["repository"], m["default_sha"], now=now)
         require(e["post_merge_ci"]["policy_ref"] == m["default_sha"],
                 "post-merge CI policy is not bound to the audited default")
     else:
-        require(default["sha"] == p["base_sha"], "accepted base differs from observed default")
+        require(legacy or default["sha"] == p["base_sha"],
+                "accepted base differs from observed default")
         require(p["state"] == "OPEN" and not p["draft"] and p["mergeable"] is True,
                 "pre-merge PR must be open, ready and mergeable")
         require(e["merge"] is None and e["post_merge_ci"] is None,
@@ -446,13 +455,15 @@ def validate_operations(
         require(f["state"] == "RESOLVED", "late finding remains open")
         number(f["origin_pr"], "original PR")
         sha(f["origin_merge_sha"])
-        origin = validate_operations(f["origin"], nested=True, now=now)
+        origin = validate_operations(f["origin"], nested=True, now=now,
+                                     archived_receipt=archived_receipt)
         require(origin["phase"] == "POST_MERGE" and
                 origin["pr"]["repository"] == p["repository"] and
                 origin["pr"]["number"] == f["origin_pr"] and
                 origin["merge"]["merge_sha"] == f["origin_merge_sha"],
                 "finding origin is not an observed merged PR/build")
-        correction = validate_operations(f["correction"], nested=True, now=now)
+        correction = validate_operations(f["correction"], nested=True, now=now,
+                                         archived_receipt=archived_receipt)
         cp = correction["pr"]
         require(correction["phase"] == "POST_MERGE" and cp["repository"] == p["repository"]
                 and cp["number"] != f["origin_pr"], "correction not reconciled in same repository")

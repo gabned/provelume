@@ -970,7 +970,7 @@ def validate_operational_transition(
 
         anchor = max(observation_times(evidence))
         now = anchor if archived else None
-        checked = operations.validate_operations(evidence, now=now)
+        checked = operations.validate_operations(evidence, now=now, archived_receipt=archived)
         # Creation and frozen replay must validate the same observation window.
         if not archived:
             operations.validate_operations(evidence, now=anchor)

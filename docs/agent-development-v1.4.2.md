@@ -126,6 +126,13 @@ Each hashed operation requires an independent `default_branch` observation with
 repository, name, SHA, connector source and timestamp. The validator requires its
 SHA to equal the accepted base before merge and the ancestry default after merge;
 missing, stale, wrong-branch or mismatched observations cannot authorize gates.
+Immutable campaign receipts written by the earlier 1.4.2 implementation retain
+their exact legacy operation shape without `default_branch`. Only read-only
+campaign receipt replay accepts that closed shape at its original observation
+anchor; it does not add or invent a default observation. Every new gate/merge
+transition and every final audit still requires the current shape. A campaign
+can append a newly evidenced transition while preserving its prior receipts
+byte-for-byte. Current-shape archived records retain all default checks.
 An integration whose actual tree or parent differs from accepted evidence is not
 a qualified operation. Retain that actual merge and its anomaly without rewriting
 its former head/base, then qualify the current tree through a separate correction.
