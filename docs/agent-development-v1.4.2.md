@@ -76,7 +76,10 @@ Polling and automatic retries remain disabled.
 
 The supported Protocol surfaces include BrickMS's existing
 `scripts/agent/protocol-v1-2.py`, so exact metadata-path updates can preserve
-its native NO_PRODUCTION effect gate. Similar unlisted paths remain rejected.
+its native NO_PRODUCTION effect gate. The `gabned/provelume.com` profile also
+recognizes exactly `tools/agent-preflight`, its existing native Protocol
+preflight entrypoint. These exceptions apply only to their respective
+repositories; similar unlisted paths and product surfaces remain rejected.
 
 The PR observation includes `state`, `draft` and `mergeable`. Pre-merge gates
 require an open, non-draft PR with observed mergeability exactly true; unknown
