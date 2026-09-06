@@ -18,8 +18,10 @@ canonical Core/Windows brand with integrated qualification. See the
 and qualification requirements. Package identity stays `0.10.0` until separate
 release preparation; these corrections are not yet published.
 S01 enrollment is integrated through [#211](https://github.com/gabned/provelume/pull/211).
-S02 [per-Source exclusions](docs/architecture/source-exclusions.md) is the active slice
-under [#212](https://github.com/gabned/provelume/issues/212).
+S02 [per-Source exclusions](docs/architecture/source-exclusions.md) is integrated through
+[#213](https://github.com/gabned/provelume/pull/213).
+S03 [guided Google connections](docs/architecture/google-connection-journey.md) is active
+under [#214](https://github.com/gabned/provelume/issues/214).
 0.11.0 — Cura remains unactivated.
 
 ## Current status: 0.10.0 Perceptio preview

@@ -4,6 +4,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+- Added the EN/IT Connect Google journey for separately consented Gmail and Drive
+  read-only access using the existing installed-app PKCE boundary, external system
+  credential storage, connection tests, reconnect and explicit local/project revocation.
+  Initial intake is bounded and resumes retained Source checkpoints; synthetic and
+  Windows platform qualification do not substitute for real-account exact-head evidence.
+
 - Added visible, versioned per-Source exclusions with editable safe defaults, explicit
   include overrides and bounded read-only ingestion previews in EN/IT. One policy
   governs scan, watched refresh and reconciliation, survives backup and portable

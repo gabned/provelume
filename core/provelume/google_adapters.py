@@ -41,6 +41,10 @@ def _environment_secret(reference: Mapping[str, str]) -> str:
         if not isinstance(value, str) or not value.strip():
             raise GoogleAuthorizationError(expired=True)
         return value.strip()
+    if selected["name"].startswith("google_grant_"):
+        from .google_oauth import resolve_google_credential
+
+        return resolve_google_credential(selected)
     try:
         import keyring  # type: ignore[import-not-found]
     except ImportError as exc:

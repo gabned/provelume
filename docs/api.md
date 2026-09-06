@@ -668,3 +668,15 @@ HTTP clients cannot select or change a server-local release directory or expecte
 endpoint rejects `release_bundle` and `expected_manifest_sha256` query parameters with `400`
 and only returns the cached startup result. This keeps the unauthenticated read-only surface
 from becoming a path-probing or repeated bundle-processing interface.
+
+## Guided Google connection (Emendatio development)
+
+`GET /api/v1/google/connection` returns the common Windows-hosted/Browser read model:
+connection and capability state, retained Source identity and bounded cursor diagnostics. It
+never resolves credentials or tests the network. Mutations at this API return 405.
+
+`/google/connect` provides the EN/IT ordinary journey with loopback-only, CSRF-protected,
+bounded form controls and the fixed installed-app callback at `/google/oauth/callback`.
+The exact callback origin/port comes from the configured server endpoint, never a Host header.
+See the [connection contract](architecture/google-connection-journey.md) for separate consent,
+external credential storage, network policy, local versus project revocation and human evidence.

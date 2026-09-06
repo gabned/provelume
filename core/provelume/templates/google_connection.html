@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ gt('title') }} · Provelume{% endblock %}
+{% block content %}
+<header class="page-header"><h1>{{ gt('title') }}</h1><p>{{ gt('lead') }}</p></header>
+{% if message %}<p class="notice" role="status">{{ gt(message) }}</p>{% endif %}
+{% if error %}<p class="notice error" role="alert">{{ gt(error) }}</p>{% endif %}
+{% if not connection.network_enabled %}<p role="status">{{ gt('google_network_disabled') }}</p>{% endif %}
+{% if not editable %}<p>{{ gt('local_only') }}</p>{% endif %}
+{% macro hidden(action, identity='', capability='') %}
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="{{ action }}">
+{% if identity %}<input type="hidden" name="instance_id" value="{{ identity }}">{% endif %}
+{% if capability %}<input type="hidden" name="capability" value="{{ capability }}">{% endif %}
+{% endmacro %}
+{% if editable %}
+<section class="panel"><details><summary>{{ gt('network') }}</summary>
+<form method="post" action="/google/connect?lang={{ lang }}">{{ hidden('network') }}
+<input type="hidden" name="enabled" value="{{ 'no' if connection.network_enabled else 'yes' }}">
+<label><input type="checkbox" name="consent" value="yes" required> {{ gt('network_consent') }}</label>
+<button>{{ gt('disable_network') if connection.network_enabled else gt('enable_network') }}</button>
+</form></details></section>
+<section class="panel"><h2>{{ gt('connect') }}</h2>
+<form method="post" action="/google/connect?lang={{ lang }}">
+{{ hidden('connect') }}
+<label>{{ gt('name') }} <input name="name" maxlength="120" value="Google" required></label>
+<label>{{ gt('service') }} <select name="capability"><option value="gmail">{{ gt('gmail') }}</option><option value="drive">{{ gt('drive') }}</option></select></label>
+<label><input type="checkbox" name="consent" value="yes" required> {{ gt('consent') }}</label>
+<button type="submit">{{ gt('connect') }}</button></form></section>
+{% endif %}
+{% for connection in connection.connections %}
+<section class="panel"><h2>{{ connection.name }}</h2>
+{% for capability in connection.capabilities %}
+<section><h3>{{ gt(capability.name) }} — {{ gt(capability.status) }}</h3>
+{% if editable %}
+<form method="post" action="/google/connect?lang={{ lang }}">{{ hidden('connect', connection.id, capability.name) }}
+<label><input type="checkbox" name="consent" value="yes" required> {{ gt('consent') }}</label>
+<button>{{ gt('reconnect') if capability.status != 'disconnected' else gt('connect') }}</button></form>
+{% for action, label in [('test', 'test'), ('cancel-consent', 'cancel_consent'), ('disconnect', 'disconnect')] %}
+<form method="post" action="/google/connect?lang={{ lang }}">{{ hidden(action, connection.id, capability.name) }}<button>{{ gt(label) }}</button></form>
+{% endfor %}
+<details><summary>{{ gt('revoke') }}</summary><p>{{ gt('revoke_help') }}</p>
+<form method="post" action="/google/connect?lang={{ lang }}">{{ hidden('revoke-project', connection.id, capability.name) }}
+<label><input type="checkbox" name="consent" value="yes" required> {{ gt('revoke_consent') }}</label><button>{{ gt('revoke') }}</button></form></details>
+{% endif %}</section>
+{% endfor %}</section>
+{% endfor %}
+<section class="panel"><h2>{{ gt('sources') }}</h2><p>{{ gt('bounds') }}</p>
+{% for source in connection.sources %}<section><h3>{{ source.name }}</h3>
+{% if editable %}<form method="post" action="/google/connect?lang={{ lang }}">
+{{ hidden('continue' if source.cursor.last_attempt_at else 'start') }}<input type="hidden" name="source_id" value="{{ source.id }}">
+<button>{{ gt('continue') if source.cursor.last_attempt_at else gt('start') }}</button></form>{% endif %}
+</section>{% endfor %}</section>
+<section class="panel"><h2>{{ gt('jobs') }}</h2><a href="/google/connect?lang={{ lang }}">{{ gt('refresh') }}</a>
+{% for job in jobs %}<section><h3>{{ gt(job.google_run.status if job.google_run else job.status) }}</h3>
+{% if job.google_run %}<dl>{% for key, value in job.google_run.progress.items() %}<dt>{{ gt(key) }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>{% endif %}
+{% if editable and job.status in ['queued', 'running', 'retry_wait'] %}<form method="post" action="/google/connect?lang={{ lang }}">{{ hidden('cancel-job') }}<input type="hidden" name="job_id" value="{{ job.id }}"><button>{{ gt('cancel') }}</button></form>{% endif %}
+</section>{% endfor %}</section>
+{% if editable %}<section class="panel"><details><summary>{{ gt('setup') }}</summary><p>{{ gt('setup_help') }}</p>
+<form method="post" action="/google/connect?lang={{ lang }}" autocomplete="off">{{ hidden('configure') }}
+<label>{{ gt('client_json') }} <textarea name="client_json" maxlength="16384" required autocomplete="off" spellcheck="false"></textarea></label>
+<button>{{ gt('save_client') }}</button></form></details></section>{% endif %}
+<a href="/google?lang={{ lang }}">{{ gt('advanced') }}</a>
+{% endblock %}

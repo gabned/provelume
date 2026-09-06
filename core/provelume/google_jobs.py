@@ -13,6 +13,7 @@ from .atomic_commit import (
     AtomicCommitError,
     AtomicInstanceCommit,
 )
+from .build_info import current_build_info
 from .domain import (
     Acquisition,
     Document,
@@ -182,8 +183,12 @@ class GoogleJobManager:
             "real_google_qualified": False,
         }
 
-    def queue(self, source_id: str, *, request_key: str | None = None) -> dict[str, Any]:
-        limits = GoogleLimits()
+    def queue(
+        self, source_id: str, *, request_key: str | None = None, guided: bool = False
+    ) -> dict[str, Any]:
+        limits = GoogleLimits(max_pages_per_run=2, max_items_per_page=25,
+                              max_items_per_run=50, max_total_bytes_per_run=64 * 1024 * 1024
+                              ) if guided else GoogleLimits()
         provisional = self._request_record("job_" + "0" * 32, source_id, limits)
         policy = self.sync_policy(source_id)
         identity = hashlib.sha256(
@@ -193,6 +198,7 @@ class GoogleJobManager:
                     "capability": provisional["capability_fingerprint"],
                     "cursor_revision": provisional["cursor_revision"],
                     "request_key": request_key,
+                    "limits": limits.as_record(),
                 },
                 sort_keys=True,
                 separators=(",", ":"),
@@ -225,6 +231,7 @@ class GoogleJobManager:
             "request": {
                 key: request[key]
                 for key in (
+                    "limits",
                     "source_id",
                     "connector_instance_id",
                     "capability",
@@ -316,6 +323,11 @@ class GoogleJobManager:
             "network_used": True,
             "provider_write": False,
             "private_content_recorded": False,
+            "build_commit": current_build_info().get("commit"),
+            "limits": dict(request["limits"]),
+            "execution_adapter": (
+                "google_rest" if type(self.adapter) is GoogleApiAdapter else "synthetic"
+            ),
             "real_google_qualified": False,
         }
         self._write_json(self.runs / f"{job_id}.json", value)
@@ -590,20 +602,22 @@ class GoogleJobManager:
                 )
                 raise GoogleContractError("google_cancelled", "Google intake was cancelled")
             if pages >= limits.max_pages_per_run:
-                raise GoogleContractError(
-                    "google_backfill_limit_exceeded", "Google page bound was reached"
-                )
+                break
             remaining_bytes = limits.max_total_bytes_per_run - total_bytes
-            if remaining_bytes <= 0:
-                raise GoogleContractError(
-                    "google_payload_limit_exceeded", "Google run byte bound was reached"
-                )
+            remaining_items = limits.max_items_per_run - len(work["items"])
+            if remaining_bytes <= 0 or remaining_items <= 0:
+                break
+            instance, capability, source = self.sources.effective_execution_context(
+                str(request["source_id"])
+            )
             page = self.adapter.fetch_page(
                 instance=instance,
                 capability=capability,
                 source=source,
                 cursor=cursor,
-                limits=replace(limits, max_total_bytes_per_run=remaining_bytes),
+                limits=replace(limits, max_total_bytes_per_run=remaining_bytes,
+                               max_item_bytes=min(limits.max_item_bytes, remaining_bytes),
+                               max_items_per_page=min(limits.max_items_per_page, remaining_items)),
             )
             pages += 1
             fingerprint = page.fingerprint()
@@ -621,6 +635,12 @@ class GoogleJobManager:
                 previous_fingerprints.append(fingerprint)
             session_fingerprints = previous_fingerprints
             for item in page.items:
+                if self._cancel_requested(job_id):
+                    raise GoogleContractError("google_cancelled", "Google intake was cancelled")
+                self.sources.effective_execution_context(str(request["source_id"]))
+                key = self._item_key(str(request["source_id"]), item)
+                if work["items"].get(key, {}).get("status") in {"processed", "skipped"}:
+                    continue
                 if len(work["items"]) >= limits.max_items_per_run:
                     raise GoogleContractError(
                         "google_backfill_limit_exceeded", "Google item bound was reached"
@@ -634,9 +654,6 @@ class GoogleJobManager:
                     raise GoogleContractError(
                         "google_payload_limit_exceeded", "Google run byte bound was reached"
                     )
-                key = self._item_key(str(request["source_id"]), item)
-                if work["items"].get(key, {}).get("status") in {"processed", "skipped"}:
-                    continue
                 try:
                     if request["capability"] == "gmail":
                         status, canonical_id = self._commit_gmail(
@@ -684,7 +701,9 @@ class GoogleJobManager:
             cursor = next_cursor
             if cursor is None:
                 break
-        status = "completed_with_errors" if progress["errors"] else "completed"
+        status = "continuation_available" if cursor is not None else (
+            "completed_with_errors" if progress["errors"] else "completed"
+        )
         self._write_run(job_id, request, status=status, progress=progress, error_codes=errors)
         return progress
 
@@ -711,7 +730,13 @@ class GoogleJobManager:
 
     def _run_for_job(self, job_id: str) -> dict[str, Any] | None:
         path = self.runs / f"{job_id}.json"
-        return self._read_json(path) if path.is_file() else None
+        if not path.is_file():
+            return None
+        run = self._read_json(path)
+        job = self.scheduler.get_job(job_id)
+        if job and run["status"] == "running" and job["status"] != "running":
+            run = {**run, "status": job["status"]}
+        return run
 
     def get_job(self, job_id: str) -> dict[str, Any] | None:
         job = self.scheduler.get_job(job_id)

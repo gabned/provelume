@@ -20,6 +20,7 @@ from .email_activity import attach_email_routes
 from .file_family_activity import attach_file_family_routes
 from .folder_source_activity import attach_folder_source_routes
 from .google_activity import attach_google_routes
+from .google_connection_activity import attach_google_connection_routes
 from .i18n import SUPPORTED_LANGUAGES, translator
 from .installation import verify_current_installation
 from .installation_i18n import installation_translator
@@ -203,7 +204,7 @@ def _navigation(
             "group": "knowledge",
         },
         {
-            "href": f"/google?lang={language}",
+            "href": f"/google/connect?lang={language}",
             "label": t("nav.google"),
             "current": current_path.startswith("/google"),
             "group": "knowledge",
@@ -399,6 +400,11 @@ def create_app(
     attach_perceptio_routes(app, instance, TEMPLATES, _context)
     attach_email_routes(app, instance, TEMPLATES, _context)
     attach_google_routes(app, instance, TEMPLATES, _context)
+    callback_host = "[::1]" if selected_host == "::1" else "127.0.0.1"
+    attach_google_connection_routes(
+        app, instance, TEMPLATES, _context,
+        redirect_uri=f"http://{callback_host}:{selected_port}/google/oauth/callback",
+    )
     attach_transcript_routes(app, instance, TEMPLATES, _context)
     attach_qualification_routes(app, instance, TEMPLATES, _context)
     attach_shell_routes(

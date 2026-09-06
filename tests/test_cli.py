@@ -116,7 +116,7 @@ def test_cli_serve_configures_release_evidence_at_startup(
             },
         )
     ]
-    assert served == [(app, {"host": "127.0.0.1", "port": 8042})]
+    assert served == [(app, {"host": "127.0.0.1", "port": 8042, "access_log": False})]
 
 
 @pytest.mark.parametrize(

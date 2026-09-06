@@ -1459,7 +1459,7 @@ class SchedulerCoordinator:
                     False,
                     self._progress(errors=1),
                     error_class,
-                    exc.code,
+                    "cancelled_by_user" if exc.code == "google_cancelled" else exc.code,
                     True,
                     False,
                 )

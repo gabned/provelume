@@ -122,14 +122,18 @@ def test_emendatio_release_plan_keeps_identity_deferred() -> None:
     assert "CURRENT_PACKAGE_VERSION: 0.10.0" in text
     assert "PACKAGE_VERSION_UPDATE: DEFERRED_TO_RELEASE_PREPARATION" in text
     assert "PARENT_TRACKER: #198" in text
-    assert "CURRENT_SLICE: 0.10.1/S02" in text
+    assert "CURRENT_SLICE: 0.10.1/S03" in text
     assert "S01_STATE: MERGED" in text
     assert "S01_OWNER_PR: #211" in text
     assert "S01_MERGE_SHA: 26dee0fd74b43d39e46afe0e5a258130849ee97c" in text
     assert "S01_ISSUE: #210" in text
-    assert "S02_STATE: ACTIVE" in text
+    assert "S02_STATE: MERGED" in text
     assert "S02_ISSUE: #212" in text
-    assert "NEXT_SLICE: 0.10.1/S03" in text
+    assert "S02_OWNER_PR: #213" in text
+    assert "S02_MERGE_SHA: ac211c4767d3cffdeb48fd5ee17300c107946062" in text
+    assert "S03_STATE: ACTIVE" in text
+    assert "S03_ISSUE: #214" in text
+    assert "NEXT_SLICE: 0.10.1/S04" in text
     assert "S04_STATE: PLANNED" in text
     assert "NEXT_FORECAST_STATE: NOT_ACTIVATED" in text
 

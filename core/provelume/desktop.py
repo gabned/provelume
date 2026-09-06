@@ -1336,6 +1336,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--diagnostics-file", type=Path)
     parser.add_argument("--native-tray-smoke-file", type=Path)
+    parser.add_argument("--google-credential-smoke-file", type=Path)
     parser.add_argument("--ui-diagnostics-file", type=Path)
     parser.add_argument("--ui-diagnostics-language", choices=("en", "it"), default="en")
     parser.add_argument(
@@ -1374,6 +1375,7 @@ def main(arguments: list[str] | None = None) -> int:
             options.serve,
             options.diagnostics_file,
             options.native_tray_smoke_file,
+            options.google_credential_smoke_file,
             options.ui_diagnostics_file,
             options.bootstrap_instance,
             options.validate_port,
@@ -1388,6 +1390,10 @@ def main(arguments: list[str] | None = None) -> int:
         return 0
     if options.native_tray_smoke_file is not None:
         return 0 if write_native_tray_smoke(options.native_tray_smoke_file) else 2
+    if options.google_credential_smoke_file is not None:
+        from .google_credentials import write_windows_credential_smoke
+
+        return 0 if write_windows_credential_smoke(options.google_credential_smoke_file) else 2
     if options.ui_diagnostics_file is not None:
         write_ui_diagnostics(
             options.ui_diagnostics_file,

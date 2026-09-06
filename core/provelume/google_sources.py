@@ -382,6 +382,12 @@ class GoogleSourceManager:
             external_id=f"google:{selected}:{normalised_kind}:sha256:{selection_sha256}",
         )
         source_id = str(connector_source["id"])
+        existing_path = self.sources / f"{source_id}.json"
+        if existing_path.is_file():
+            existing = self.source_record(source_id)
+            if existing["selection_sha256"] != selection_sha256:
+                raise GoogleContractError("google_input_changed", "Google Source selection changed")
+            return self.source_view(source_id, local=True)
         self.connectors.disable_source(connector_instance_id, source_id)
         now = utc_now()
         record = {

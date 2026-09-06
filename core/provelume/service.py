@@ -15,6 +15,7 @@ from .file_family_profiles import FileFamilyProfileManager
 from .folder_source_exclusions import FolderSourceExclusionManager
 from .folder_source_model import SOURCE_LIFECYCLE_STATES, FolderSourceError
 from .folder_sources import FolderSourceManager
+from .google_connection import GoogleConnectionManager
 from .google_contract import GOOGLE_JOB_KIND, GoogleContractError
 from .google_jobs import GoogleJobManager
 from .google_sources import GoogleSourceManager
@@ -111,6 +112,7 @@ class ProvelumeInstance:
         self.email = EmailJobManager(self.store)
         self.google_sources = GoogleSourceManager(self.store)
         self.google = GoogleJobManager(self.store)
+        self.google_connection = GoogleConnectionManager(self.store)
         self.transcript_sources = TranscriptSourceManager(self.store)
         self.transcripts = TranscriptJobManager(self.store)
         self.qualification = QualificationManager(self.store)
