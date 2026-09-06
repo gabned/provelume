@@ -9,6 +9,8 @@ import re
 import stat
 import subprocess
 import tempfile
+from contextlib import contextmanager
+from contextvars import ContextVar
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePosixPath
@@ -35,6 +37,9 @@ TERMINAL = {"SUCCESS", "FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED",
 CI_EVENTS = {"pull_request", "pull_request_target", "push", "merge_group",
              "workflow_dispatch", "workflow_run", "schedule", "release", "dynamic",
              "pull_request_review"}
+_WORK_INSTRUCTIONS: ContextVar[dict | None] = ContextVar(
+    "protocol143_trusted_work_instructions", default=None,
+)
 
 
 def require(condition: bool, message: str) -> None:
@@ -64,6 +69,13 @@ def number(value: Any, label: str) -> int:
     return value
 
 
+def instruction_text(value: Any, label: str) -> str:
+    """Bound a real instruction while preserving all verbatim whitespace."""
+    require(isinstance(value, str) and bool(value.strip()) and len(value) <= 10000,
+            f"{label}: expected bounded nonempty instruction")
+    return value
+
+
 def sha(value: Any, length: int = 40) -> str:
     require(isinstance(value, str) and re.fullmatch(f"[0-9a-f]{{{length}}}", value) is not None,
             "invalid commit/blob/digest")
@@ -77,6 +89,50 @@ def canonical(value: Any) -> bytes:
 
 def digest(value: Any) -> str:
     return hashlib.sha256(canonical(value)).hexdigest()
+
+
+def work_instruction_records(value: Any) -> dict[str, dict]:
+    """Validate caller-selected authority, never discover approval in PR evidence.
+
+    The caller must independently observe the actual user instruction and decide
+    that it covers this exact delta. Content addressing is integrity, not identity
+    or permission. No Work task UUID or creation timestamp is inferred.
+    """
+    records = array(value, "trusted Work instructions")
+    require(len(records) <= 1000, "trusted Work instruction limit")
+    result = {}
+    for raw in records:
+        item = obj(raw, "schema source actor instruction authorized_request repository pr "
+                   "base_sha head_sha paths_sha256 patch_sha256 authority_envelope "
+                   "workstream_class effect_policy", "Work instruction")
+        require(item["schema"] == "agent-work-instruction/v1" and
+                item["source"] == "CURRENT_USER_CONVERSATION", "invalid instruction source")
+        require(len(text(item["actor"], "actor")) <= 10000, "instruction actor limit")
+        for key in ("instruction", "authorized_request"):
+            instruction_text(item[key], key)
+        require(item["repository"] in PROFILES, "unknown instruction repository")
+        number(item["pr"], "instruction PR")
+        for key in ("base_sha", "head_sha"):
+            sha(item[key])
+        for key in ("paths_sha256", "patch_sha256"):
+            sha(item[key], 64)
+        require(item["authority_envelope"] == "THROUGH_MERGE" and
+                item["workstream_class"] == "PROTOCOL" and
+                item["effect_policy"] == "NO_PRODUCTION", "instruction exceeds Protocol scope")
+        identity = digest(item)
+        require(identity not in result, "duplicate trusted Work instruction")
+        result[identity] = deepcopy(item)
+    return result
+
+
+@contextmanager
+def trusted_work_instructions(records: Any):
+    """Scope explicit host authority outside candidate-controlled observations."""
+    token = _WORK_INSTRUCTIONS.set(work_instruction_records(records))
+    try:
+        yield
+    finally:
+        _WORK_INSTRUCTIONS.reset(token)
 
 
 def blob(data: bytes) -> str:
@@ -321,7 +377,10 @@ def validate_scope(
     require(s["actor_role"] == "VERIFIED_HUMAN_MAINTAINER" and s["decision"] == "APPROVED",
             "scope requires verified explicit human authorization")
     text(s["actor"], "maintainer")
-    text(s["authorization_text"], "verbatim authorization instruction")
+    if s["authorization_source"] == "WORK_USER_INSTRUCTION":
+        instruction_text(s["authorization_text"], "verbatim Work instruction")
+    else:
+        text(s["authorization_text"], "verbatim authorization instruction")
     if s["authorization_source"] == "GITHUB_COMMENT":
         pattern = (rf"https://github[.]com/{re.escape(pr['repository'])}/"
                    rf"(?:pull|issues)/{pr['number']}#issuecomment-[1-9][0-9]*")
@@ -331,6 +390,19 @@ def validate_scope(
         # against the retained instruction; this receipt binds its exact delta.
         pattern = (r"codex-goal:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
                    r"[0-9a-f]{4}-[0-9a-f]{12}:[1-9][0-9]*")
+    elif s["authorization_source"] == "WORK_USER_INSTRUCTION":
+        prefix = "work-instruction:sha256:"
+        require(isinstance(s["authorization_ref"], str) and
+                s["authorization_ref"].startswith(prefix), "invalid Work instruction reference")
+        identity = sha(s["authorization_ref"][len(prefix):], 64)
+        record = (_WORK_INSTRUCTIONS.get() or {}).get(identity)
+        require(record is not None and digest(record) == identity,
+                "Work instruction requires independently supplied caller authority")
+        for key in ("repository", "pr", "base_sha", "head_sha", "paths_sha256", "patch_sha256",
+                    "actor"):
+            require(record[key] == s[key], "Work instruction does not bind exact authorized delta")
+        require(record["instruction"] == s["authorization_text"], "Work instruction text mismatch")
+        pattern = r"work-instruction:sha256:[0-9a-f]{64}"
     else:
         raise ValueError("unknown authorization source")
     require(re.fullmatch(pattern, s["authorization_ref"]) is not None,

@@ -173,6 +173,29 @@ campaign/handoff schema remains 2, discriminated by the protocol version.
 - Follow `docs/agent-development-v1.4.2.md`. Generated snapshots remain ignored;
   public fixtures contain no private registry paths, data or implementation.
 
+## Agent Development Protocol v1.4.3 Work representations
+
+`AGENT_DEVELOPMENT_PROTOCOL: 1.4.3`
+
+Read `docs/agent-development-v1.4.3-work.md` when using a Work connector source
+or Work instruction provenance. The source overlay recognizes complete verified
+trees plus an actually authorized connector, subject to explicit local adoption
+and every existing pre-publication gate. Source-only integrity never qualifies
+a push. Core retains its canonical full Python/Git checks and PR-local ownership.
+The full pytest suite also runs the collector's offline Node conformance tests
+using the runtime supplied by Work/CI; absence is a concrete failed prerequisite.
+
+Operational receipts still use the 1.4.2 engine/discriminator and unchanged
+lifecycle 1.2 and schema 2. An explicit `WORK_USER_INSTRUCTION` authority record
+may be selected only from the real current user's instruction, independently of
+candidate-controlled evidence, through `trusted_work_instructions` or the
+`--work-instructions` CLI input. It binds actor/repository/PR/base/head/path/patch;
+an empty trusted set blocks it. Never fabricate a task ID, timestamp, approval
+comment or waiver. Earlier reference formats and all earlier gates remain.
+
+This common adoption grants no PRODUCT continuation, downstream adoption,
+production authority or complete distribution claim by itself.
+
 ## Delivery and release discipline
 
 - Start from the verified default-branch SHA and keep the pull-request delta minimal.
