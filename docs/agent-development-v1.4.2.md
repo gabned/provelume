@@ -126,6 +126,25 @@ Each hashed operation requires an independent `default_branch` observation with
 repository, name, SHA, connector source and timestamp. The validator requires its
 SHA to equal the accepted base before merge and the ancestry default after merge;
 missing, stale, wrong-branch or mismatched observations cannot authorize gates.
+Immutable campaign receipts written by the earlier 1.4.2 implementation retain
+their exact legacy operation shape without `default_branch`. Read-only replay
+accepts that closed shape only when the complete receipt digest is pinned in an
+independent trusted pre-upgrade history allowlist and its canonical hash matches.
+Absence of the new proof alone never identifies a receipt as legacy. Replay uses
+the original observation anchor and does not invent a default. Every new gate/merge
+transition and every final audit still requires the current shape. A campaign
+can append a newly evidenced transition while preserving its prior receipts
+byte-for-byte. Current-shape archived records retain all default checks.
+
+Capture the allowlist from an independently verified, immutable pre-upgrade
+checkpoint, never from the candidate being validated or from modified/resealed
+evidence. Supply `--legacy-receipts trusted-policy.json` before the CLI command;
+the policy contains only `{"receipt_sha256s": ["<verified 64-hex receipt digest>"]}`.
+Python callers use `with trusted_legacy_receipts(verified_digests):` around replay,
+continuation or bundle validation. The policy is scoped to that call and never
+serialized into the campaign or synthesized from a missing field. If verified
+history is unavailable, legacy replay blocks until that source is recovered.
+This compatibility policy cannot waive current action, scope or final-audit gates.
 An integration whose actual tree or parent differs from accepted evidence is not
 a qualified operation. Retain that actual merge and its anomaly without rewriting
 its former head/base, then qualify the current tree through a separate correction.
