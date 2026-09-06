@@ -24,6 +24,9 @@ CONFORMANCE_SCHEMA_VERSION = 1
 _LEGACY_RECEIPT_DIGESTS: ContextVar[frozenset[str]] = ContextVar(
     "protocol142_trusted_legacy_receipts", default=frozenset(),
 )
+_WORK_INSTRUCTIONS: ContextVar[dict | None] = ContextVar(
+    "protocol143_trusted_work_instructions", default=None,
+)
 
 SHA_PATTERN = re.compile(r"[0-9a-f]{40}")
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
@@ -961,7 +964,19 @@ def load_operations_module() -> Any:
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    module._WORK_INSTRUCTIONS.set(deepcopy(_WORK_INSTRUCTIONS.get()))
     return module
+
+
+@contextmanager
+def trusted_work_instructions(records: Any):
+    """Retain independently observed exact-scope user authority for Work receipts."""
+    checked = load_operations_module().work_instruction_records(records)
+    token = _WORK_INSTRUCTIONS.set(checked)
+    try:
+        yield
+    finally:
+        _WORK_INSTRUCTIONS.reset(token)
 
 
 def validate_operational_transition(
@@ -2645,6 +2660,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--legacy-receipts", type=Path,
                         help="trusted out-of-band pre-upgrade receipt digest allowlist")
+    parser.add_argument("--work-instructions", type=Path,
+                        help="trusted host input from actual user instructions, never PR evidence")
     subparsers = parser.add_subparsers(dest="command", required=True)
     for command in ("validate-campaign", "validate-bundle"):
         child = subparsers.add_parser(command)
@@ -2678,7 +2695,14 @@ def main() -> int:
     subparsers.add_parser("self-test")
     args = parser.parse_args()
     policy_token = None
+    work_token = None
     try:
+        if args.work_instructions is not None:
+            policy = exact_object(load_object(args.work_instructions), "Work instruction policy",
+                                  {"instructions"})
+            work_token = _WORK_INSTRUCTIONS.set(
+                load_operations_module().work_instruction_records(policy["instructions"]),
+            )
         if args.legacy_receipts is not None:
             policy = exact_object(load_object(args.legacy_receipts), "legacy receipt policy",
                                   {"receipt_sha256s"})
@@ -2753,6 +2777,8 @@ def main() -> int:
         print(json.dumps({"error": str(exc), "result": "BLOCKED"}, sort_keys=True))
         return 2
     finally:
+        if work_token is not None:
+            _WORK_INSTRUCTIONS.reset(work_token)
         if policy_token is not None:
             _LEGACY_RECEIPT_DIGESTS.reset(policy_token)
     print(json.dumps(result, sort_keys=True))

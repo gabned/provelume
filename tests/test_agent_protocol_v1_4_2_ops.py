@@ -1089,3 +1089,97 @@ def test_operational_gate_rejects_partial_or_untrusted_policy(key):
         value[key] = False
     with pytest.raises(ValueError):
         ops.validate_operations(value)
+
+
+def work_authority_fixture():
+    """Synthetic approval input; never an operational maintainer instruction."""
+    value = operations("brickms/brickms")
+    p = value["pr"]
+    p["changed_paths"].insert(0, "CHANGELOG.md")
+    patch = ("diff --git a/CHANGELOG.md b/CHANGELOG.md\n--- a/CHANGELOG.md\n"
+             "+++ b/CHANGELOG.md\n@@ -1,0 +2 @@\n+"
+             "- Agent Development Protocol v1.3.0 / Protocol 1.4.3 source support.\n")
+    p["file_patches"]["CHANGELOG.md"] = patch
+    approval = {
+        "repository": p["repository"], "pr": p["number"], "base_sha": BASE, "head_sha": HEAD,
+        "paths_sha256": ops.digest(p["changed_paths"]), "patch": patch,
+        "patch_sha256": hashlib.sha256(patch.encode()).hexdigest(),
+        "actor": "example-maintainer", "actor_role": "VERIFIED_HUMAN_MAINTAINER",
+        "authorization_source": "WORK_USER_INSTRUCTION",
+        "authorization_text": "Yes, I authorize the described Protocol work.",
+        "decision": "APPROVED", **observed(),
+    }
+    record = {key: approval[key] for key in (
+        "repository", "pr", "base_sha", "head_sha", "paths_sha256", "patch_sha256", "actor",
+    )}
+    record.update(
+        schema="agent-work-instruction/v1", source="CURRENT_USER_CONVERSATION",
+        instruction=approval["authorization_text"],
+        authorized_request="Implement and merge the isolated Protocol adapter under all gates.",
+        authority_envelope="THROUGH_MERGE", workstream_class="PROTOCOL",
+        effect_policy="NO_PRODUCTION",
+    )
+    approval["authorization_ref"] = "work-instruction:sha256:" + ops.digest(record)
+    return p, value["baseline_paths"], approval, record
+
+
+def test_work_approval_requires_independent_host_input_and_does_not_leak():
+    p, baseline, approval, record = work_authority_fixture()
+    with pytest.raises(ValueError, match="independently supplied caller authority"):
+        ops.validate_scope(approval, p, baseline)
+    with ops.trusted_work_instructions([record]):
+        ops.validate_scope(approval, p, baseline)
+    with pytest.raises(ValueError, match="independently supplied caller authority"):
+        ops.validate_scope(approval, p, baseline)
+
+
+@pytest.mark.parametrize("key,value", [
+    ("repository", "gabned/provelume"), ("pr", 13), ("base_sha", HEAD), ("head_sha", BASE),
+    ("paths_sha256", "0" * 64), ("patch_sha256", "0" * 64), ("actor", "other-maintainer"),
+    ("instruction", "A different instruction."),
+])
+def test_work_approval_cannot_cross_bind_a_different_authorized_delta(key, value):
+    p, baseline, approval, record = work_authority_fixture()
+    record[key] = value
+    approval["authorization_ref"] = "work-instruction:sha256:" + ops.digest(record)
+    with ops.trusted_work_instructions([record]), pytest.raises(ValueError):
+        ops.validate_scope(approval, p, baseline)
+
+
+@pytest.mark.parametrize("key,value", [
+    ("source", "PULL_REQUEST_BODY"), ("authority_envelope", "THROUGH_PRODUCTION_B"),
+    ("workstream_class", "PRODUCT"), ("effect_policy", "REPOSITORY_POLICY"),
+])
+def test_work_policy_cannot_infer_authority_or_expand_it(key, value):
+    _, _, _, record = work_authority_fixture()
+    record[key] = value
+    with pytest.raises(ValueError), ops.trusted_work_instructions([record]):
+        pass
+
+
+def test_work_policy_is_copied_and_old_references_remain_distinct():
+    p, baseline, approval, record = work_authority_fixture()
+    with ops.trusted_work_instructions([record]):
+        record["actor"] = "mutated-after-selection"
+        ops.validate_scope(approval, p, baseline)
+        for source in ("USER_INSTRUCTION", "GITHUB_COMMENT"):
+            with pytest.raises(ValueError, match="authorization reference"):
+                ops.validate_scope({**approval, "authorization_source": source}, p, baseline)
+
+
+def test_campaign_validator_passes_only_explicitly_scoped_host_authority():
+    p, baseline, approval, record = work_authority_fixture()
+    with protocol.trusted_work_instructions([record]):
+        protocol.load_operations_module().validate_scope(approval, p, baseline)
+    with pytest.raises(ValueError, match="independently supplied caller authority"):
+        protocol.load_operations_module().validate_scope(approval, p, baseline)
+
+
+def test_work_authority_cannot_waive_the_exact_patch_gate():
+    p, baseline, approval, record = work_authority_fixture()
+    p["file_patches"]["CHANGELOG.md"] += "+unapproved second line\n"
+    with (
+        ops.trusted_work_instructions([record]),
+        pytest.raises(ValueError, match="actual|exact-head"),
+    ):
+        ops.validate_scope(approval, p, baseline)
