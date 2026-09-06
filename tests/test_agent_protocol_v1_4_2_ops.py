@@ -1210,3 +1210,14 @@ def test_work_multiline_instruction_still_requires_bounded_nonempty_text(value):
     for key in ("instruction", "authorized_request"):
         with pytest.raises(ValueError), ops.trusted_work_instructions([{**record, key: value}]):
             pass
+
+
+def test_site_native_preflight_scope_is_repository_specific():
+    value = {"repository": "gabned/provelume.com", "changed_paths": ["tools/agent-preflight"]}
+    ops.validate_scope(None, value, ["tools/agent-preflight"])
+    for repo in ("gabned/provelume", "brickms/brickms", "maxithlon/maxithlon"):
+        with pytest.raises(ValueError, match="non-Protocol surface"):
+            ops.validate_scope(None, {**value, "repository": repo}, ["tools/agent-preflight"])
+    for path in ("tools/agent-preflight-extra", "tools/unrelated", "public/index.php"):
+        with pytest.raises(ValueError, match="non-Protocol surface"):
+            ops.validate_scope(None, {**value, "changed_paths": [path]}, [path])
