@@ -792,7 +792,9 @@ def test_terminal_attempt_cannot_freeze_live_jobs(conclusion, status):
 
 @pytest.mark.parametrize("damage", ["drop_run", "rewrite_job"])
 @pytest.mark.parametrize("legacy_history", [False, True])
-def test_receipt_chain_retains_ci_history_even_after_resealing(damage, legacy_history):
+def test_receipt_chain_retains_ci_history_even_after_resealing(
+    damage, legacy_history, tmp_path, monkeypatch,
+):
     legacy = protocol.sample_campaign_v1()
     legacy.update(workstream_class="PROTOCOL", risk_profile="NO_PRODUCTION",
                   observed_event="GATES_PASSED", observed_event_ref=HEAD)
@@ -819,7 +821,21 @@ def test_receipt_chain_retains_ci_history_even_after_resealing(damage, legacy_hi
         # Synthetic immutable receipt in the pre-default-observation 1.4.2 shape.
         del gates["receipts"][-1]["operational_evidence"]["default_branch"]
         gates["receipts"][-1]["receipt_sha256"] = protocol.receipt_sha256(gates["receipts"][-1])
+    trusted_history = [gates["receipts"][-1]["receipt_sha256"]] if legacy_history else []
+    with protocol.trusted_legacy_receipts(trusted_history):
         protocol.validate_campaign_v2(gates)
+    if legacy_history:
+        with pytest.raises(ValueError, match="missing or extra fields"):
+            protocol.validate_campaign_v2(gates)
+        snapshot = tmp_path / "verified-pre-upgrade.json"
+        policy = tmp_path / "trusted-policy.json"
+        snapshot.write_bytes(ops.canonical(gates))
+        policy.write_text(json.dumps({"receipt_sha256s": trusted_history}), encoding="utf-8")
+        monkeypatch.setattr("sys.argv", ["protocol", "--legacy-receipts", str(policy),
+                                         "validate-campaign", str(snapshot)])
+        assert protocol.main() == 0
+        with pytest.raises(ValueError, match="missing or extra fields"):
+            protocol.validate_campaign_v2(gates)
     retained = ops.canonical(gates["receipts"])
     merged = deepcopy(gates)
     merged.update(campaign_state="WAITING_EVENT", observed_event="PR_MERGED",
@@ -833,33 +849,57 @@ def test_receipt_chain_retains_ci_history_even_after_resealing(damage, legacy_hi
     post["ci"] = deepcopy(evidence["ci"])
     merge_event = {"kind": "PULL_REQUEST", "action": "MERGED", "repository": REPO,
                    "reference": "#12", "sha": MERGE, "conclusion": "NOT_APPLICABLE"}
-    result = protocol.append_transition_receipt(gates, merged, merge_event,
-                                                operational_evidence=post)
+    with protocol.trusted_legacy_receipts(trusted_history):
+        result = protocol.append_transition_receipt(gates, merged, merge_event,
+                                                    operational_evidence=post)
     assert ops.canonical(result["receipts"][:-1]) == retained
-    protocol.validate_campaign_v2(result)
+    with protocol.trusted_legacy_receipts(trusted_history):
+        protocol.validate_campaign_v2(result)
     legacy_post = deepcopy(post)
     del legacy_post["default_branch"]
-    with pytest.raises(ValueError, match="missing or extra fields"):
+    with protocol.trusted_legacy_receipts(trusted_history), pytest.raises(
+        ValueError, match="missing or extra fields",
+    ):
         protocol.append_transition_receipt(gates, merged, merge_event,
                                            operational_evidence=legacy_post)
     archived_post = deepcopy(result)
     del archived_post["receipts"][-1]["operational_evidence"]["default_branch"]
     archived_post["receipts"][-1]["receipt_sha256"] = protocol.receipt_sha256(
         archived_post["receipts"][-1])
+    with protocol.trusted_legacy_receipts(trusted_history), pytest.raises(
+        ValueError, match="missing or extra fields",
+    ):
+        protocol.validate_campaign_v2(archived_post)
+    # A separate verified pre-upgrade snapshot can also contain a legacy merge.
+    # Its full identity is pinned outside the replayed candidate, never inferred.
+    old_merge_history = [*trusted_history, archived_post["receipts"][-1]["receipt_sha256"]]
     frozen = ops.canonical(archived_post)
-    protocol.validate_campaign_v2(archived_post)
+    with protocol.trusted_legacy_receipts(old_merge_history):
+        protocol.validate_campaign_v2(archived_post)
     assert ops.canonical(archived_post) == frozen
+    changed_legacy = deepcopy(archived_post)
+    changed_legacy["receipts"][-1]["operational_evidence"]["pr"]["body"] += "\nChanged text."
+    changed_legacy["receipts"][-1]["receipt_sha256"] = protocol.receipt_sha256(
+        changed_legacy["receipts"][-1])
+    with protocol.trusted_legacy_receipts(old_merge_history), pytest.raises(
+        ValueError, match="missing or extra fields",
+    ):
+        protocol.validate_campaign_v2(changed_legacy)
     damaged = deepcopy(post)
     if damage == "drop_run":
         damaged["ci"]["runs"].pop(0)
     else:
         damaged["ci"]["runs"][0]["attempts"][0]["jobs"][0]["name"] = "rewritten"
-    with pytest.raises(ValueError, match="dropped a run|terminal attempt rewritten"):
+    with protocol.trusted_legacy_receipts(trusted_history), pytest.raises(
+        ValueError, match="dropped a run|terminal attempt rewritten",
+    ):
         protocol.append_transition_receipt(gates, merged, merge_event,
                                            operational_evidence=damaged)
     result["receipts"][-1]["operational_evidence"] = damaged
     result["receipts"][-1]["receipt_sha256"] = protocol.receipt_sha256(result["receipts"][-1])
-    with pytest.raises(ValueError, match="dropped a run|terminal attempt rewritten"):
+    with protocol.trusted_legacy_receipts(trusted_history), pytest.raises(
+        ValueError, match="dropped a run|terminal attempt rewritten",
+    ):
         protocol.validate_campaign_v2(result)
 
 
@@ -893,6 +933,12 @@ def test_archived_operation_compatibility_requires_an_explicit_anchor():
     with pytest.raises(ValueError, match="observation anchor"):
         ops.validate_operations(value, archived_receipt=True)
     assert ops.validate_operations(value, archived_receipt=True, now=datetime.now(UTC)) == value
+
+
+@pytest.mark.parametrize("value", [None, "a" * 64, ["bad"], ["a" * 64, "a" * 64]])
+def test_trusted_legacy_policy_rejects_invalid_or_ambiguous_identities(value):
+    with pytest.raises(ValueError), protocol.trusted_legacy_receipts(value):
+        pass
 
 
 def resolved_finding():
