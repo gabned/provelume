@@ -88,8 +88,10 @@ python3 -B /accepted/core/tools/agent_protocol_work_recovery.py sync-adopter \
 `--check` returns the complete planned changed paths without writing. Remove it to
 apply the same plan. The synchronizer uses the unchanged canonical operational
 manifest/provenance functions, verifies the Work dependency blobs/modes and updates
-both literal vendor-test pins and generated current sections of the existing
-AGENTS/runbook files. Earlier sections and receipts remain unchanged. Edited current
+the literal manifest and Work pins and generated current sections of the existing
+AGENTS/runbook files. BrickMS keeps its Work pin in the execution adapter and its
+inventory assertion in the vendor test; both are synchronized. Earlier sections
+and receipts remain unchanged. Edited current
 generated sections require explicit reconciliation instead of silent replacement.
 Repeating the same accepted synchronization is a no-op.
 

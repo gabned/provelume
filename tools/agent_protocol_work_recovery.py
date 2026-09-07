@@ -327,12 +327,20 @@ def adoption_plan(canonical, target, commit, repository, *, work=None):
     guard = "tests/agent_protocol_v1_4_2_vendor_test.py"
     text = source.read_regular(regular(target, guard)).decode()
     text = replace_assignment(text, "EXPECTED_MANIFEST", manifest)
-    text = replace_assignment(text, "WORK_ADAPTER_PIN", pin)
-    planned[guard] = text.encode()
     if repository == "brickms/brickms":
+        old_count = '    assert len(local.WORK_ADAPTER_PIN["files"]) == 6'
+        new_count = '    assert len(local.WORK_ADAPTER_PIN["files"]) == 8'
+        source.require(
+            text.splitlines().count(old_count) + text.splitlines().count(new_count) == 1,
+            "one exact BrickMS dependency inventory assertion required",
+        )
+        text = text.replace(old_count, new_count)
         adapter_path = "scripts/agent/protocol-v1-2.py"
         adapter_text = source.read_regular(regular(target, adapter_path)).decode()
         planned[adapter_path] = replace_assignment(adapter_text, "WORK_ADAPTER_PIN", pin).encode()
+    else:
+        text = replace_assignment(text, "WORK_ADAPTER_PIN", pin)
+    planned[guard] = text.encode()
     runbook = (
         "docs/agent-development-v1.4.2.md"
         if repository == "gabned/provelume.com"

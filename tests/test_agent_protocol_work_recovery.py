@@ -360,16 +360,20 @@ def test_brick_adoption_updates_the_execution_adapter_pin_together(adoption):
     adapter.parent.mkdir(parents=True)
     adapter.write_text("WORK_ADAPTER_PIN = {}\n")
     adapter.chmod(0o755)
+    guard = target / "tests/agent_protocol_v1_4_2_vendor_test.py"
+    guard.write_text(
+        'EXPECTED_MANIFEST = {}\ndef check(local):\n'
+        '    assert len(local.WORK_ADAPTER_PIN["files"]) == 6\n'
+    )
     runbook = target / "docs/runbooks/agent-development-v1.4.2.md"
     runbook.parent.mkdir()
     runbook.write_text("# Historical guide\n")
     result = recovery.sync_adopter(canonical, target, sha, "brickms/brickms")
     assert "scripts/agent/protocol-v1-2.py" in result["changed_paths"]
-    guard = target / "tests/agent_protocol_v1_4_2_vendor_test.py"
-    line = next(
-        line for line in guard.read_text().splitlines() if line.startswith("WORK_ADAPTER_PIN = ")
-    )
-    assert adapter.read_text().strip() == line
+    assert sha in adapter.read_text() and sha in guard.read_text()
+    assert 'assert len(local.WORK_ADAPTER_PIN["files"]) == 8' in guard.read_text()
+    assert "agent_protocol_work_recovery.py" in adapter.read_text()
+    assert recovery.sync_adopter(canonical, target, sha, "brickms/brickms")["changed_paths"] == []
     if os.name != "nt":
         assert adapter.stat().st_mode & stat.S_IXUSR
 
