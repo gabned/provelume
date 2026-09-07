@@ -120,6 +120,23 @@ advertised connector. No file is excluded and no alternative transport is guesse
 
 ## Acceptance
 
+The pinned recovery conformance file is a standalone standard-library unittest
+suite. Execute it with `python3 -I -B tests/test_agent_protocol_work_recovery.py`
+inside the isolated dependency tree; importing or copying it is not a test run.
+Stage the eight hash-verified Work files together with all four operational
+siblings verified against the accepted canonical manifest, including their Git
+blob identities and executable modes. Recheck copied bytes before execution.
+The isolated tree must contain only these explicitly verified dependencies.
+No pytest installation, unverified module or application source is needed.
+
+Work runners execute source, check and recovery suites explicitly and propagate
+every nonzero exit. Core also runs the same recovery cases under its full suite,
+plus an isolated subprocess regression that proves all 33 cases execute and an
+injected recovery defect fails. The Core-only effect-profile assertion stays in
+the Core contract tests; no recovery case is omitted downstream. Each adopter
+must qualify its own runner and retain the original and corrective integrations
+for any late finding before the final audit can close.
+
 Synthetic tests cover loss of the original workspace, preserved raw instruction
 and observation bytes, corrupt archives, unsafe paths/links, duplicate members,
 expansion limits, failed persistence, changed current documentation, interrupted

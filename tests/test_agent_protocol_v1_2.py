@@ -101,9 +101,7 @@ def test_unclassified_path_fails_closed_under_no_production_policy() -> None:
     )
     assert report["effect"] == "PRODUCTION"
     assert report["bind_allowed"] is False
-    assert report["matches"] == [
-        {"identifier": "UNCLASSIFIED_PATH", "path": "compose.yml"}
-    ]
+    assert report["matches"] == [{"identifier": "UNCLASSIFIED_PATH", "path": "compose.yml"}]
 
 
 def test_verification_recomputes_effect_and_authorization() -> None:
@@ -131,11 +129,7 @@ def test_verification_recomputes_effect_and_authorization() -> None:
 
 def test_rename_connector_evidence_includes_both_paths() -> None:
     paths = protocol.connector_paths(
-        {
-            "changed_files": [
-                {"previous_path": "core/old.py", "filename": "docs/new.md"}
-            ]
-        }
+        {"changed_files": [{"previous_path": "core/old.py", "filename": "docs/new.md"}]}
     )
     assert paths == ["core/old.py", "docs/new.md"]
 
@@ -204,3 +198,45 @@ def test_reconciliation_accepts_newer_default_tip_without_inferring_release() ->
     assert reconciled["result"] == "UNKNOWN"
     assert reconciled["observational_only"] is True
     assert reconciled["production_action_performed"] is False
+
+
+def test_recovery_effect_profile_is_exact_and_keeps_unknown_paths_closed():
+    for path in (
+        "docs/agent-development-v1.4.5-work.md",
+        "tests/test_agent_protocol_work_recovery.py",
+        "tools/agent_protocol_work_recovery.py",
+    ):
+        assert protocol.classify_path(path) == ("NO_PRODUCTION", None)
+        assert protocol.classify_path(path + ".extra")[0] == "PRODUCTION"
+
+
+def test_recovery_conformance_runs_in_isolation_and_propagates_failure(tmp_path):
+    import shutil
+    import subprocess
+    import sys
+
+    from tools import agent_protocol_work_recovery as recovery
+
+    root = Path(__file__).resolve().parents[1]
+    for name in (*recovery.WORK_FILES, *recovery.ops.VENDOR_FILES):
+        target = tmp_path / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(root / name, target)
+        target.chmod(0o755 if recovery.ops.VENDOR_FILES.get(name) == "100755" else 0o644)
+    command = [
+        sys.executable,
+        "-I",
+        "-B",
+        str(tmp_path / "tests/test_agent_protocol_work_recovery.py"),
+    ]
+    result = subprocess.run(command, cwd=tmp_path, capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Ran 33 tests" in result.stderr
+
+    helper = tmp_path / "tools/agent_protocol_work_recovery.py"
+    original = helper.read_text()
+    assert '"authority": "NOT_GRANTED"' in original
+    helper.write_text(original.replace('"authority": "NOT_GRANTED"', '"authority": "APPROVED"'))
+    broken = subprocess.run(command, cwd=tmp_path, capture_output=True, text=True, timeout=120)
+    assert broken.returncode != 0
+    assert "FAILED" in broken.stderr
