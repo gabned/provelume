@@ -13,6 +13,11 @@ CONTENT_SECURITY_POLICY = (
     "manifest-src 'self'; media-src 'self'; object-src 'none'; script-src 'none'; "
     "style-src 'self'; worker-src 'none'"
 )
+# Browsers apply form-action to the redirects following a form submission too.
+# Only the explicit Google connection page may navigate to Google's consent host.
+GOOGLE_CONNECTION_SECURITY_POLICY = CONTENT_SECURITY_POLICY.replace(
+    "form-action 'self';", "form-action 'self' https://accounts.google.com;"
+)
 SECURITY_HEADERS = {
     "Content-Security-Policy": CONTENT_SECURITY_POLICY,
     "Cross-Origin-Opener-Policy": "same-origin",
@@ -101,5 +106,11 @@ class LocalWebSecurityMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
         for name, value in SECURITY_HEADERS.items():
             response.headers[name] = value
+        if (
+            trusted_request_host(request.headers.get("host", ""))
+            and request.url.path == "/google/connect"
+            and response.status_code in {200, 303}
+        ):
+            response.headers["Content-Security-Policy"] = GOOGLE_CONNECTION_SECURITY_POLICY
         response.headers["Cache-Control"] = "no-store"
         return response

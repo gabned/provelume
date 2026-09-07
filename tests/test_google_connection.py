@@ -26,6 +26,7 @@ from provelume.google_oauth import (
 from provelume.oauth_authorization import OAuthAuthorizationError
 from provelume.service import ProvelumeInstance
 from provelume.web import create_app
+from provelume.web_security import CONTENT_SECURITY_POLICY, GOOGLE_CONNECTION_SECURITY_POLICY
 
 REDIRECT = "http://127.0.0.1:18765/google/oauth/callback"
 CLIENT = {
@@ -423,6 +424,18 @@ def test_ordinary_http_connect_callback_reconnect_and_evidence_binding(
     manager.configure(json.dumps(CLIENT))
     client = TestClient(app, base_url="http://127.0.0.1:18765")
     page = client.get("/google/connect?lang=it")
+    assert page.headers["content-security-policy"] == GOOGLE_CONNECTION_SECURITY_POLICY
+    directives = dict(
+        part.strip().split(" ", 1) for part in GOOGLE_CONNECTION_SECURITY_POLICY.split(";")
+    )
+    assert directives["form-action"] == "'self' https://accounts.google.com"
+    assert directives["connect-src"] == directives["style-src"] == "'self'"
+    assert directives["script-src"] == "'none'"
+    for path in ("/", "/google", "/api/v1/google/connection"):
+        assert client.get(path).headers["content-security-policy"] == CONTENT_SECURITY_POLICY
+    rejected = client.get("/google/connect", headers={"host": "example.invalid"})
+    assert rejected.status_code == 400
+    assert rejected.headers["content-security-policy"] == CONTENT_SECURITY_POLICY
     csrf = re.search(r'name="csrf_token" value="([^"]+)"', page.text)[1]
     assert (
         client.post(
@@ -445,6 +458,8 @@ def test_ordinary_http_connect_callback_reconnect_and_evidence_binding(
             follow_redirects=False,
         )
         assert response.status_code == 303
+        assert response.headers["content-security-policy"] == GOOGLE_CONNECTION_SECURITY_POLICY
+        assert response.headers["location"].split("?", 1)[0] == AUTHORIZATION_ENDPOINT
         query = parse_qs(urlsplit(response.headers["location"]).query)
         response = client.get(
             "/google/oauth/callback?"
@@ -458,6 +473,7 @@ def test_ordinary_http_connect_callback_reconnect_and_evidence_binding(
             follow_redirects=False,
         )
         assert response.status_code == 303 and response.headers["location"] == "/google/connect"
+        assert response.headers["content-security-policy"] == CONTENT_SECURITY_POLICY
         assert response.headers["referrer-policy"] == "no-referrer"
         view = client.get("/api/v1/google/connection").json()
         identities.append(view["connections"][0]["id"])
