@@ -6,6 +6,8 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
+import shutil
 import stat
 import subprocess
 from copy import deepcopy
@@ -705,6 +707,11 @@ def test_gate_transition_requires_persisted_attempt_bound_operational_evidence(o
     with pytest.raises(ValueError, match="superseded workflow"):
         protocol.append_transition_receipt(before, after, event, operational_evidence=evidence)
     evidence["ci"]["runs"].pop()
+    legacy_evidence = deepcopy(evidence)
+    del legacy_evidence["default_branch"]
+    with pytest.raises(ValueError, match="missing or extra fields"):
+        protocol.append_transition_receipt(before, after, event,
+                                           operational_evidence=legacy_evidence)
     result = protocol.append_transition_receipt(before, after, event,
                                                 operational_evidence=evidence)
     assert result["receipts"][-1]["operational_evidence"] == evidence
@@ -786,7 +793,10 @@ def test_terminal_attempt_cannot_freeze_live_jobs(conclusion, status):
 
 
 @pytest.mark.parametrize("damage", ["drop_run", "rewrite_job"])
-def test_receipt_chain_retains_ci_history_even_after_resealing(damage):
+@pytest.mark.parametrize("legacy_history", [False, True])
+def test_receipt_chain_retains_ci_history_even_after_resealing(
+    damage, legacy_history, tmp_path, monkeypatch,
+):
     legacy = protocol.sample_campaign_v1()
     legacy.update(workstream_class="PROTOCOL", risk_profile="NO_PRODUCTION",
                   observed_event="GATES_PASSED", observed_event_ref=HEAD)
@@ -809,6 +819,26 @@ def test_receipt_chain_retains_ci_history_even_after_resealing(damage):
              "reference": "run:100", "sha": HEAD, "conclusion": "SUCCESS", "run_attempt": 1}
     gates = protocol.append_transition_receipt(before, gates, event,
                                                operational_evidence=evidence)
+    if legacy_history:
+        # Synthetic immutable receipt in the pre-default-observation 1.4.2 shape.
+        del gates["receipts"][-1]["operational_evidence"]["default_branch"]
+        gates["receipts"][-1]["receipt_sha256"] = protocol.receipt_sha256(gates["receipts"][-1])
+    trusted_history = [gates["receipts"][-1]["receipt_sha256"]] if legacy_history else []
+    with protocol.trusted_legacy_receipts(trusted_history):
+        protocol.validate_campaign_v2(gates)
+    if legacy_history:
+        with pytest.raises(ValueError, match="missing or extra fields"):
+            protocol.validate_campaign_v2(gates)
+        snapshot = tmp_path / "verified-pre-upgrade.json"
+        policy = tmp_path / "trusted-policy.json"
+        snapshot.write_bytes(ops.canonical(gates))
+        policy.write_text(json.dumps({"receipt_sha256s": trusted_history}), encoding="utf-8")
+        monkeypatch.setattr("sys.argv", ["protocol", "--legacy-receipts", str(policy),
+                                         "validate-campaign", str(snapshot)])
+        assert protocol.main() == 0
+        with pytest.raises(ValueError, match="missing or extra fields"):
+            protocol.validate_campaign_v2(gates)
+    retained = ops.canonical(gates["receipts"])
     merged = deepcopy(gates)
     merged.update(campaign_state="WAITING_EVENT", observed_event="PR_MERGED",
                   observed_event_ref=MERGE,
@@ -821,20 +851,57 @@ def test_receipt_chain_retains_ci_history_even_after_resealing(damage):
     post["ci"] = deepcopy(evidence["ci"])
     merge_event = {"kind": "PULL_REQUEST", "action": "MERGED", "repository": REPO,
                    "reference": "#12", "sha": MERGE, "conclusion": "NOT_APPLICABLE"}
-    result = protocol.append_transition_receipt(gates, merged, merge_event,
-                                                operational_evidence=post)
-    protocol.validate_campaign_v2(result)
+    with protocol.trusted_legacy_receipts(trusted_history):
+        result = protocol.append_transition_receipt(gates, merged, merge_event,
+                                                    operational_evidence=post)
+    assert ops.canonical(result["receipts"][:-1]) == retained
+    with protocol.trusted_legacy_receipts(trusted_history):
+        protocol.validate_campaign_v2(result)
+    legacy_post = deepcopy(post)
+    del legacy_post["default_branch"]
+    with protocol.trusted_legacy_receipts(trusted_history), pytest.raises(
+        ValueError, match="missing or extra fields",
+    ):
+        protocol.append_transition_receipt(gates, merged, merge_event,
+                                           operational_evidence=legacy_post)
+    archived_post = deepcopy(result)
+    del archived_post["receipts"][-1]["operational_evidence"]["default_branch"]
+    archived_post["receipts"][-1]["receipt_sha256"] = protocol.receipt_sha256(
+        archived_post["receipts"][-1])
+    with protocol.trusted_legacy_receipts(trusted_history), pytest.raises(
+        ValueError, match="missing or extra fields",
+    ):
+        protocol.validate_campaign_v2(archived_post)
+    # A separate verified pre-upgrade snapshot can also contain a legacy merge.
+    # Its full identity is pinned outside the replayed candidate, never inferred.
+    old_merge_history = [*trusted_history, archived_post["receipts"][-1]["receipt_sha256"]]
+    frozen = ops.canonical(archived_post)
+    with protocol.trusted_legacy_receipts(old_merge_history):
+        protocol.validate_campaign_v2(archived_post)
+    assert ops.canonical(archived_post) == frozen
+    changed_legacy = deepcopy(archived_post)
+    changed_legacy["receipts"][-1]["operational_evidence"]["pr"]["body"] += "\nChanged text."
+    changed_legacy["receipts"][-1]["receipt_sha256"] = protocol.receipt_sha256(
+        changed_legacy["receipts"][-1])
+    with protocol.trusted_legacy_receipts(old_merge_history), pytest.raises(
+        ValueError, match="missing or extra fields",
+    ):
+        protocol.validate_campaign_v2(changed_legacy)
     damaged = deepcopy(post)
     if damage == "drop_run":
         damaged["ci"]["runs"].pop(0)
     else:
         damaged["ci"]["runs"][0]["attempts"][0]["jobs"][0]["name"] = "rewritten"
-    with pytest.raises(ValueError, match="dropped a run|terminal attempt rewritten"):
+    with protocol.trusted_legacy_receipts(trusted_history), pytest.raises(
+        ValueError, match="dropped a run|terminal attempt rewritten",
+    ):
         protocol.append_transition_receipt(gates, merged, merge_event,
                                            operational_evidence=damaged)
     result["receipts"][-1]["operational_evidence"] = damaged
     result["receipts"][-1]["receipt_sha256"] = protocol.receipt_sha256(result["receipts"][-1])
-    with pytest.raises(ValueError, match="dropped a run|terminal attempt rewritten"):
+    with protocol.trusted_legacy_receipts(trusted_history), pytest.raises(
+        ValueError, match="dropped a run|terminal attempt rewritten",
+    ):
         protocol.validate_campaign_v2(result)
 
 
@@ -848,6 +915,32 @@ def test_workflow_identity_distinguishes_attempts_and_rejects_missing_attempt():
     del first["run_attempt"]
     with pytest.raises(ValueError):
         protocol.validate_github_event(first)
+
+
+def test_legacy_campaign_replay_does_not_relax_final_audit():
+    value = audit()
+    receipt = ops.generate_audit(value)
+    del value["repositories"][0]["operations"][0]["default_branch"]
+    with pytest.raises(ValueError, match="missing or extra fields"):
+        ops.generate_audit(value)
+    receipt["evidence"] = value
+    receipt["evidence_sha256"] = ops.digest(value)
+    with pytest.raises(ValueError, match="missing or extra fields"):
+        ops.validate_audit(receipt)
+
+
+def test_archived_operation_compatibility_requires_an_explicit_anchor():
+    value = operations()
+    del value["default_branch"]
+    with pytest.raises(ValueError, match="observation anchor"):
+        ops.validate_operations(value, archived_receipt=True)
+    assert ops.validate_operations(value, archived_receipt=True, now=datetime.now(UTC)) == value
+
+
+@pytest.mark.parametrize("value", [None, "a" * 64, ["bad"], ["a" * 64, "a" * 64]])
+def test_trusted_legacy_policy_rejects_invalid_or_ambiguous_identities(value):
+    with pytest.raises(ValueError), protocol.trusted_legacy_receipts(value):
+        pass
 
 
 def resolved_finding():
@@ -998,3 +1091,235 @@ def test_operational_gate_rejects_partial_or_untrusted_policy(key):
         value[key] = False
     with pytest.raises(ValueError):
         ops.validate_operations(value)
+
+
+def work_authority_fixture():
+    """Synthetic approval input; never an operational maintainer instruction."""
+    value = operations("brickms/brickms")
+    p = value["pr"]
+    p["changed_paths"].insert(0, "CHANGELOG.md")
+    patch = ("diff --git a/CHANGELOG.md b/CHANGELOG.md\n--- a/CHANGELOG.md\n"
+             "+++ b/CHANGELOG.md\n@@ -1,0 +2 @@\n+"
+             "- Agent Development Protocol v1.3.0 / Protocol 1.4.3 source support.\n")
+    p["file_patches"]["CHANGELOG.md"] = patch
+    approval = {
+        "repository": p["repository"], "pr": p["number"], "base_sha": BASE, "head_sha": HEAD,
+        "paths_sha256": ops.digest(p["changed_paths"]), "patch": patch,
+        "patch_sha256": hashlib.sha256(patch.encode()).hexdigest(),
+        "actor": "example-maintainer", "actor_role": "VERIFIED_HUMAN_MAINTAINER",
+        "authorization_source": "WORK_USER_INSTRUCTION",
+        "authorization_text": "Yes, I authorize the described Protocol work.",
+        "decision": "APPROVED", **observed(),
+    }
+    record = {key: approval[key] for key in (
+        "repository", "pr", "base_sha", "head_sha", "paths_sha256", "patch_sha256", "actor",
+    )}
+    record.update(
+        schema="agent-work-instruction/v1", source="CURRENT_USER_CONVERSATION",
+        instruction=approval["authorization_text"],
+        authorized_request="Implement and merge the isolated Protocol adapter under all gates.",
+        authority_envelope="THROUGH_MERGE", workstream_class="PROTOCOL",
+        effect_policy="NO_PRODUCTION",
+    )
+    approval["authorization_ref"] = "work-instruction:sha256:" + ops.digest(record)
+    return p, value["baseline_paths"], approval, record
+
+
+def test_work_approval_requires_independent_host_input_and_does_not_leak():
+    p, baseline, approval, record = work_authority_fixture()
+    with pytest.raises(ValueError, match="independently supplied caller authority"):
+        ops.validate_scope(approval, p, baseline)
+    with ops.trusted_work_instructions([record]):
+        ops.validate_scope(approval, p, baseline)
+    with pytest.raises(ValueError, match="independently supplied caller authority"):
+        ops.validate_scope(approval, p, baseline)
+
+
+@pytest.mark.parametrize("key,value", [
+    ("repository", "gabned/provelume"), ("pr", 13), ("base_sha", HEAD), ("head_sha", BASE),
+    ("paths_sha256", "0" * 64), ("patch_sha256", "0" * 64), ("actor", "other-maintainer"),
+    ("instruction", "A different instruction."),
+])
+def test_work_approval_cannot_cross_bind_a_different_authorized_delta(key, value):
+    p, baseline, approval, record = work_authority_fixture()
+    record[key] = value
+    approval["authorization_ref"] = "work-instruction:sha256:" + ops.digest(record)
+    with ops.trusted_work_instructions([record]), pytest.raises(ValueError):
+        ops.validate_scope(approval, p, baseline)
+
+
+@pytest.mark.parametrize("key,value", [
+    ("source", "PULL_REQUEST_BODY"), ("authority_envelope", "THROUGH_PRODUCTION_B"),
+    ("workstream_class", "PRODUCT"), ("effect_policy", "REPOSITORY_POLICY"),
+])
+def test_work_policy_cannot_infer_authority_or_expand_it(key, value):
+    _, _, _, record = work_authority_fixture()
+    record[key] = value
+    with pytest.raises(ValueError), ops.trusted_work_instructions([record]):
+        pass
+
+
+def test_work_policy_is_copied_and_old_references_remain_distinct():
+    p, baseline, approval, record = work_authority_fixture()
+    with ops.trusted_work_instructions([record]):
+        record["actor"] = "mutated-after-selection"
+        ops.validate_scope(approval, p, baseline)
+        for source in ("USER_INSTRUCTION", "GITHUB_COMMENT"):
+            with pytest.raises(ValueError, match="authorization reference"):
+                ops.validate_scope({**approval, "authorization_source": source}, p, baseline)
+
+
+def test_campaign_validator_passes_only_explicitly_scoped_host_authority():
+    p, baseline, approval, record = work_authority_fixture()
+    with protocol.trusted_work_instructions([record]):
+        protocol.load_operations_module().validate_scope(approval, p, baseline)
+    with pytest.raises(ValueError, match="independently supplied caller authority"):
+        protocol.load_operations_module().validate_scope(approval, p, baseline)
+
+
+def test_work_authority_cannot_waive_the_exact_patch_gate():
+    p, baseline, approval, record = work_authority_fixture()
+    p["file_patches"]["CHANGELOG.md"] += "+unapproved second line\n"
+    with (
+        ops.trusted_work_instructions([record]),
+        pytest.raises(ValueError, match="actual|exact-head"),
+    ):
+        ops.validate_scope(approval, p, baseline)
+
+
+@pytest.mark.parametrize("instruction,authorized_request", [
+    ("Authorize Protocol.\nKeep all gates.",
+     "Implement source support.\nMerge only after qualification."),
+    ("  Yes, I authorize.\r\n", "  Protocol only.\r\nNo production.\r\n"),
+])
+def test_work_multiline_instruction_and_request_remain_verbatim(instruction, authorized_request):
+    p, baseline, approval, record = work_authority_fixture()
+    record.update(instruction=instruction, authorized_request=authorized_request)
+    approval.update(authorization_text=instruction,
+                    authorization_ref="work-instruction:sha256:" + ops.digest(record))
+    retained = deepcopy(record)
+    with ops.trusted_work_instructions([record]):
+        ops.validate_scope(approval, p, baseline)
+    assert record == retained
+    for source in ("USER_INSTRUCTION", "GITHUB_COMMENT"):
+        with pytest.raises(ValueError, match="invalid text"):
+            ops.validate_scope({**approval, "authorization_source": source}, p, baseline)
+
+
+@pytest.mark.parametrize("value", ["", " \r\n\t", "x" * 10001, None, 3])
+def test_work_multiline_instruction_still_requires_bounded_nonempty_text(value):
+    _, _, _, record = work_authority_fixture()
+    for key in ("instruction", "authorized_request"):
+        with pytest.raises(ValueError), ops.trusted_work_instructions([{**record, key: value}]):
+            pass
+
+
+def test_site_native_preflight_scope_is_repository_specific():
+    value = {"repository": "gabned/provelume.com", "changed_paths": ["tools/agent-preflight"]}
+    ops.validate_scope(None, value, ["tools/agent-preflight"])
+    for repo in ("gabned/provelume", "brickms/brickms", "maxithlon/maxithlon"):
+        with pytest.raises(ValueError, match="non-Protocol surface"):
+            ops.validate_scope(None, {**value, "repository": repo}, ["tools/agent-preflight"])
+    for path in ("tools/agent-preflight-extra", "tools/unrelated", "public/index.php"):
+        with pytest.raises(ValueError, match="non-Protocol surface"):
+            ops.validate_scope(None, {**value, "changed_paths": [path]}, [path])
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Work shell bootstrap uses POSIX quoting")
+@pytest.mark.parametrize("optimization", ["0", "1"])
+def test_documented_quickstart_in_fresh_host(tmp_path, monkeypatch, optimization):
+    monkeypatch.setenv("PYTHONOPTIMIZE", optimization)
+    node = shutil.which("node")
+    assert node, "Node is required for Work conformance"
+    guide = (ROOT / "docs/agent-development-v1.4.3-work.md").read_text()
+    snippet = re.search(r"```javascript\n(.*?)\n```", guide, re.S).group(1)
+    # Apostrophes, spaces and shell metacharacters must remain literal paths.
+    canonical = tmp_path / "canonical ' $()"
+    (canonical / "tools").mkdir(parents=True)
+    module = canonical / "tools/agent_protocol_work_collect.mjs"
+    shutil.copyfile(ROOT / "tools/agent_protocol_work_collect.mjs", module)
+    evidence = tmp_path / "evidence ' $()"
+    snippet = snippet.replace('"/absolute/canonical-core"', json.dumps(str(canonical)))
+    snippet = snippet.replace('"/absolute/evidence/new-work-startup"', json.dumps(str(evidence)))
+    snippet = snippet.replace('"gabned/provelume"', '"example/public"')
+    harness = r"""
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {execSync} from 'node:child_process';
+import {readFileSync, writeFileSync, mkdirSync, existsSync, rmSync} from 'node:fs';
+import {dirname, join} from 'node:path';
+const [snippet, evidence, module] = JSON.parse(readFileSync(0, 'utf8'));
+const objectId = (kind, bytes) => createHash('sha1')
+  .update(Buffer.from(`${kind} ${bytes.length}\0`)).update(bytes).digest('hex');
+const bytes = Buffer.from([0, 128, 255, 10]);
+const blob = objectId('blob', bytes);
+const root = objectId('tree', Buffer.concat([
+  Buffer.from('100644 binary.dat\0'), Buffer.from(blob, 'hex')]));
+const base = objectId('commit', Buffer.from(`tree ${root}\n\nsynthetic fixture\n`));
+const repo = 'example/public';
+const replies = {
+  '': {full_name:repo, default_branch:'main'},
+  '/git/ref/heads/main': {ref:'refs/heads/main', object:{type:'commit', sha:base}},
+  [`/git/commits/${base}`]: {sha:base, tree:{sha:root}},
+  [`/git/trees/${root}?recursive=1`]: {sha:root, truncated:false,
+    tree:[{path:'binary.dat', mode:'100644', type:'blob', sha:blob, size:bytes.length}]},
+  '/branches/main': {name:'main', commit:{sha:base}, protected:false},
+  '/rulesets?includes_parents=true&per_page=100&page=1': [],
+  '/pulls?state=open&per_page=100&page=1': [],
+  '/actions/runs?per_page=20&page=1': {workflow_runs:[]},
+};
+let calls = 0;
+const tools = {
+  exec_command: async ({cmd}) => {
+    try { return {exit_code:0, output:execSync(cmd, {encoding:'utf8', stdio:'pipe'})}; }
+    catch (error) { return {exit_code:error.status, output:String(error.stderr)}; }
+  },
+  apply_patch: async patch => {
+    const pattern = /^\*\*\* Begin Patch\n\*\*\* Add File: ([^\n]+)\n\+([^\n]+)\n\*\*\* End Patch$/;
+    const match = pattern.exec(patch);
+    assert.ok(match, 'expected one complete JSON record');
+    assert.ok(match[1].startsWith(evidence + '/'));
+    mkdirSync(dirname(match[1]), {recursive:true});
+    writeFileSync(match[1], match[2] + '\n', {flag:'wx'});
+  },
+  mcp__codex_apps__github_fetch: async ({url}) => {
+    calls++;
+    const prefix = `https://api.github.com/repos/${repo}`;
+    assert.ok(url.startsWith(prefix));
+    const response = replies[url.slice(prefix.length)];
+    assert.notEqual(response, undefined, url);
+    return {isError:false, structuredContent:{content:JSON.stringify(response)}};
+  },
+  mcp__codex_apps__github_fetch_file: async args => {
+    calls++;
+    assert.deepEqual(args,
+      {repository_full_name:repo, path:'binary.dat', ref:base, encoding:'base64'});
+    return {isError:false,
+      structuredContent:{sha:blob, encoding:'base64', content:bytes.toString('base64')}};
+  },
+};
+const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+const execute = () => new AsyncFunction('tools', snippet)(tools);
+await execute();
+const record = name => JSON.parse(readFileSync(join(evidence, name + '.json'), 'utf8'));
+assert.equal(record('snapshot').commit_sha, base);
+assert.equal(record('snapshot').tree_sha, root);
+assert.equal(record('local_preflight'), 'NOT_RUN');
+assert.equal(record('push_qualified'), false);
+assert.deepEqual(Buffer.from(record('records/' + blob).content, 'base64'), bytes);
+assert.ok(record('acquisition').observations.some(row => row.tool === 'github_fetch_file'));
+const completedCalls = calls;
+await assert.rejects(execute(), /verified collector bootstrap failed/);
+assert.equal(calls, completedCalls, 'existing evidence fails before connector access');
+rmSync(evidence, {recursive:true});
+writeFileSync(module, readFileSync(module, 'utf8') + '\n// tampered\n');
+await assert.rejects(execute(), /verified collector bootstrap failed/);
+assert.equal(calls, completedCalls, 'digest mismatch fails before connector access');
+assert.equal(existsSync(evidence), false);
+"""
+    result = subprocess.run(
+        [node, "--input-type=module", "-e", harness],
+        input=json.dumps([snippet, str(evidence), str(module)]),
+        text=True, capture_output=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

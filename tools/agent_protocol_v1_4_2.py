@@ -8,6 +8,8 @@ import hashlib
 import importlib.util
 import json
 import re
+from contextlib import contextmanager
+from contextvars import ContextVar
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, NoReturn
@@ -19,6 +21,12 @@ LEGACY_PROTOCOL_VERSION = "1.4.0"
 LEGACY_CAMPAIGN_SCHEMA_VERSION = 1
 LIFECYCLE_SCHEMA_VERSION = "1.2"
 CONFORMANCE_SCHEMA_VERSION = 1
+_LEGACY_RECEIPT_DIGESTS: ContextVar[frozenset[str]] = ContextVar(
+    "protocol142_trusted_legacy_receipts", default=frozenset(),
+)
+_WORK_INSTRUCTIONS: ContextVar[dict | None] = ContextVar(
+    "protocol143_trusted_work_instructions", default=None,
+)
 
 SHA_PATTERN = re.compile(r"[0-9a-f]{40}")
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
@@ -499,6 +507,25 @@ def receipt_sha256(value: dict[str, Any]) -> str:
     return object_sha256(receipt_payload(value))
 
 
+def legacy_receipt_digests(value: Any) -> frozenset[str]:
+    if not isinstance(value, (list, tuple, set, frozenset)):
+        fail("trusted legacy receipt identities must be an explicit collection")
+    checked = frozenset(sha256(item, "trusted legacy receipt") for item in value)
+    if len(checked) != len(value):
+        fail("duplicate trusted legacy receipt identity")
+    return checked
+
+
+@contextmanager
+def trusted_legacy_receipts(digests: Any):
+    """Scope an out-of-band allowlist captured from verified pre-upgrade history."""
+    token = _LEGACY_RECEIPT_DIGESTS.set(legacy_receipt_digests(digests))
+    try:
+        yield
+    finally:
+        _LEGACY_RECEIPT_DIGESTS.reset(token)
+
+
 def receipt_idempotency_key(
     *,
     campaign_id: str,
@@ -937,11 +964,24 @@ def load_operations_module() -> Any:
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    module._WORK_INSTRUCTIONS.set(deepcopy(_WORK_INSTRUCTIONS.get()))
     return module
+
+
+@contextmanager
+def trusted_work_instructions(records: Any):
+    """Retain independently observed exact-scope user authority for Work receipts."""
+    checked = load_operations_module().work_instruction_records(records)
+    token = _WORK_INSTRUCTIONS.set(checked)
+    try:
+        yield
+    finally:
+        _WORK_INSTRUCTIONS.reset(token)
 
 
 def validate_operational_transition(
     successor: dict[str, Any], event: dict[str, Any], evidence: Any, *, archived: bool = False,
+    trusted_legacy: bool = False,
 ) -> None:
     """Bind mandatory Protocol merge proof to the immutable campaign receipt."""
     required = successor["workstream_class"] == "PROTOCOL" and successor["observed_event"] in {
@@ -970,7 +1010,9 @@ def validate_operational_transition(
 
         anchor = max(observation_times(evidence))
         now = anchor if archived else None
-        checked = operations.validate_operations(evidence, now=now)
+        checked = operations.validate_operations(
+            evidence, now=now, archived_receipt=archived and trusted_legacy,
+        )
         # Creation and frozen replay must validate the same observation window.
         if not archived:
             operations.validate_operations(evidence, now=anchor)
@@ -1364,6 +1406,8 @@ def validate_receipts(campaign: dict[str, Any]) -> list[dict[str, Any]]:
             validate_receipt_binding(after, item)
             validate_operational_transition(
                 after, checked_event, item["operational_evidence"], archived=True,
+                trusted_legacy=(item["receipt_sha256"] in _LEGACY_RECEIPT_DIGESTS.get() and
+                                item["receipt_sha256"] == receipt_sha256(item)),
             )
             evidence = item["operational_evidence"]
             if evidence is not None:
@@ -2614,6 +2658,10 @@ def self_test() -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--legacy-receipts", type=Path,
+                        help="trusted out-of-band pre-upgrade receipt digest allowlist")
+    parser.add_argument("--work-instructions", type=Path,
+                        help="trusted host input from actual user instructions, never PR evidence")
     subparsers = parser.add_subparsers(dest="command", required=True)
     for command in ("validate-campaign", "validate-bundle"):
         child = subparsers.add_parser(command)
@@ -2646,7 +2694,21 @@ def main() -> int:
     sync.add_argument("--check", action="store_true")
     subparsers.add_parser("self-test")
     args = parser.parse_args()
+    policy_token = None
+    work_token = None
     try:
+        if args.work_instructions is not None:
+            policy = exact_object(load_object(args.work_instructions), "Work instruction policy",
+                                  {"instructions"})
+            work_token = _WORK_INSTRUCTIONS.set(
+                load_operations_module().work_instruction_records(policy["instructions"]),
+            )
+        if args.legacy_receipts is not None:
+            policy = exact_object(load_object(args.legacy_receipts), "legacy receipt policy",
+                                  {"receipt_sha256s"})
+            policy_token = _LEGACY_RECEIPT_DIGESTS.set(
+                legacy_receipt_digests(policy["receipt_sha256s"]),
+            )
         if args.command in {"validate-operations", "generate-audit", "validate-audit",
                             "validate-wait", "render-pr-identity", "sync-vendor"}:
             operations = load_operations_module()
@@ -2714,6 +2776,11 @@ def main() -> int:
     except (ValueError, OSError) as exc:
         print(json.dumps({"error": str(exc), "result": "BLOCKED"}, sort_keys=True))
         return 2
+    finally:
+        if work_token is not None:
+            _WORK_INSTRUCTIONS.reset(work_token)
+        if policy_token is not None:
+            _LEGACY_RECEIPT_DIGESTS.reset(policy_token)
     print(json.dumps(result, sort_keys=True))
     return 0
 

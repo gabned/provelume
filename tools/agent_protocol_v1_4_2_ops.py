@@ -9,6 +9,8 @@ import re
 import stat
 import subprocess
 import tempfile
+from contextlib import contextmanager
+from contextvars import ContextVar
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePosixPath
@@ -35,6 +37,9 @@ TERMINAL = {"SUCCESS", "FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED",
 CI_EVENTS = {"pull_request", "pull_request_target", "push", "merge_group",
              "workflow_dispatch", "workflow_run", "schedule", "release", "dynamic",
              "pull_request_review"}
+_WORK_INSTRUCTIONS: ContextVar[dict | None] = ContextVar(
+    "protocol143_trusted_work_instructions", default=None,
+)
 
 
 def require(condition: bool, message: str) -> None:
@@ -64,6 +69,13 @@ def number(value: Any, label: str) -> int:
     return value
 
 
+def instruction_text(value: Any, label: str) -> str:
+    """Bound a real instruction while preserving all verbatim whitespace."""
+    require(isinstance(value, str) and bool(value.strip()) and len(value) <= 10000,
+            f"{label}: expected bounded nonempty instruction")
+    return value
+
+
 def sha(value: Any, length: int = 40) -> str:
     require(isinstance(value, str) and re.fullmatch(f"[0-9a-f]{{{length}}}", value) is not None,
             "invalid commit/blob/digest")
@@ -77,6 +89,50 @@ def canonical(value: Any) -> bytes:
 
 def digest(value: Any) -> str:
     return hashlib.sha256(canonical(value)).hexdigest()
+
+
+def work_instruction_records(value: Any) -> dict[str, dict]:
+    """Validate caller-selected authority, never discover approval in PR evidence.
+
+    The caller must independently observe the actual user instruction and decide
+    that it covers this exact delta. Content addressing is integrity, not identity
+    or permission. No Work task UUID or creation timestamp is inferred.
+    """
+    records = array(value, "trusted Work instructions")
+    require(len(records) <= 1000, "trusted Work instruction limit")
+    result = {}
+    for raw in records:
+        item = obj(raw, "schema source actor instruction authorized_request repository pr "
+                   "base_sha head_sha paths_sha256 patch_sha256 authority_envelope "
+                   "workstream_class effect_policy", "Work instruction")
+        require(item["schema"] == "agent-work-instruction/v1" and
+                item["source"] == "CURRENT_USER_CONVERSATION", "invalid instruction source")
+        require(len(text(item["actor"], "actor")) <= 10000, "instruction actor limit")
+        for key in ("instruction", "authorized_request"):
+            instruction_text(item[key], key)
+        require(item["repository"] in PROFILES, "unknown instruction repository")
+        number(item["pr"], "instruction PR")
+        for key in ("base_sha", "head_sha"):
+            sha(item[key])
+        for key in ("paths_sha256", "patch_sha256"):
+            sha(item[key], 64)
+        require(item["authority_envelope"] == "THROUGH_MERGE" and
+                item["workstream_class"] == "PROTOCOL" and
+                item["effect_policy"] == "NO_PRODUCTION", "instruction exceeds Protocol scope")
+        identity = digest(item)
+        require(identity not in result, "duplicate trusted Work instruction")
+        result[identity] = deepcopy(item)
+    return result
+
+
+@contextmanager
+def trusted_work_instructions(records: Any):
+    """Scope explicit host authority outside candidate-controlled observations."""
+    token = _WORK_INSTRUCTIONS.set(work_instruction_records(records))
+    try:
+        yield
+    finally:
+        _WORK_INSTRUCTIONS.reset(token)
 
 
 def blob(data: bytes) -> str:
@@ -295,6 +351,8 @@ def validate_scope(
                  "docs/runbooks/agent-development.md"}
         if pr["repository"] == "brickms/brickms":
             exact.add("scripts/agent/protocol-v1-2.py")
+        if pr["repository"] == "gabned/provelume.com":
+            exact.add("tools/agent-preflight")
         prefixes = ("tools/agent_protocol", "tests/test_agent_protocol_",
                     "tests/agent_protocol_", "tests/agent_change_control_",
                     "docs/agent-development-v", "docs/runbooks/agent-development-v",
@@ -321,7 +379,10 @@ def validate_scope(
     require(s["actor_role"] == "VERIFIED_HUMAN_MAINTAINER" and s["decision"] == "APPROVED",
             "scope requires verified explicit human authorization")
     text(s["actor"], "maintainer")
-    text(s["authorization_text"], "verbatim authorization instruction")
+    if s["authorization_source"] == "WORK_USER_INSTRUCTION":
+        instruction_text(s["authorization_text"], "verbatim Work instruction")
+    else:
+        text(s["authorization_text"], "verbatim authorization instruction")
     if s["authorization_source"] == "GITHUB_COMMENT":
         pattern = (rf"https://github[.]com/{re.escape(pr['repository'])}/"
                    rf"(?:pull|issues)/{pr['number']}#issuecomment-[1-9][0-9]*")
@@ -331,6 +392,19 @@ def validate_scope(
         # against the retained instruction; this receipt binds its exact delta.
         pattern = (r"codex-goal:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
                    r"[0-9a-f]{4}-[0-9a-f]{12}:[1-9][0-9]*")
+    elif s["authorization_source"] == "WORK_USER_INSTRUCTION":
+        prefix = "work-instruction:sha256:"
+        require(isinstance(s["authorization_ref"], str) and
+                s["authorization_ref"].startswith(prefix), "invalid Work instruction reference")
+        identity = sha(s["authorization_ref"][len(prefix):], 64)
+        record = (_WORK_INSTRUCTIONS.get() or {}).get(identity)
+        require(record is not None and digest(record) == identity,
+                "Work instruction requires independently supplied caller authority")
+        for key in ("repository", "pr", "base_sha", "head_sha", "paths_sha256", "patch_sha256",
+                    "actor"):
+            require(record[key] == s[key], "Work instruction does not bind exact authorized delta")
+        require(record["instruction"] == s["authorization_text"], "Work instruction text mismatch")
+        pattern = r"work-instruction:sha256:[0-9a-f]{64}"
     else:
         raise ValueError("unknown authorization source")
     require(re.fullmatch(pattern, s["authorization_ref"]) is not None,
@@ -393,19 +467,26 @@ def validate_merge(value: Any, pr: dict, now: datetime | None = None) -> dict:
 
 def validate_operations(
     value: Any, *, nested: bool = False, now: datetime | None = None,
+    archived_receipt: bool = False,
 ) -> dict:
-    e = obj(value, "protocol_version phase pr default_branch baseline_paths scope_exception ci "
+    require(not archived_receipt or now is not None, "archived receipt requires observation anchor")
+    legacy = archived_receipt and isinstance(value, dict) and "default_branch" not in value
+    fields = "" if legacy else "default_branch "
+    e = obj(value, "protocol_version phase pr " + fields + "baseline_paths scope_exception ci "
             "reviews merge post_merge_ci late_findings late_findings_complete effect_policy",
             "operations")
     require(e["protocol_version"] == VERSION and e["effect_policy"] == "NO_PRODUCTION",
             "wrong version or operational scope")
     require(e["phase"] in {"PRE_MERGE", "POST_MERGE"}, "unknown operational phase")
     p = validate_pr(e["pr"], now)
-    default = obj(e["default_branch"], "repository name sha source observed_at", "default branch")
-    observation(default, now)
-    sha(default["sha"])
-    require((default["repository"], default["name"]) ==
-            (p["repository"], PROFILES[p["repository"]][0]), "default branch identity mismatch")
+    default = None
+    if not legacy:
+        default = obj(e["default_branch"], "repository name sha source observed_at",
+                      "default branch")
+        observation(default, now)
+        sha(default["sha"])
+        require((default["repository"], default["name"]) ==
+                (p["repository"], PROFILES[p["repository"]][0]), "default branch identity mismatch")
     validate_scope(e["scope_exception"], p, e["baseline_paths"], now)
     validate_ci(e["ci"], p["repository"], p["head_sha"], now=now)
     require(e["ci"]["policy_ref"] == p["base_sha"], "CI policy is not bound to trusted base")
@@ -424,12 +505,14 @@ def validate_operations(
     if e["phase"] == "POST_MERGE":
         require(p["state"] == "CLOSED" and not p["draft"], "merged PR state mismatch")
         m = validate_merge(e["merge"], p, now)
-        require(default["sha"] == m["default_sha"], "reconciliation differs from observed default")
+        require(legacy or default["sha"] == m["default_sha"],
+                "reconciliation differs from observed default")
         validate_ci(e["post_merge_ci"], p["repository"], m["default_sha"], now=now)
         require(e["post_merge_ci"]["policy_ref"] == m["default_sha"],
                 "post-merge CI policy is not bound to the audited default")
     else:
-        require(default["sha"] == p["base_sha"], "accepted base differs from observed default")
+        require(legacy or default["sha"] == p["base_sha"],
+                "accepted base differs from observed default")
         require(p["state"] == "OPEN" and not p["draft"] and p["mergeable"] is True,
                 "pre-merge PR must be open, ready and mergeable")
         require(e["merge"] is None and e["post_merge_ci"] is None,
@@ -446,13 +529,15 @@ def validate_operations(
         require(f["state"] == "RESOLVED", "late finding remains open")
         number(f["origin_pr"], "original PR")
         sha(f["origin_merge_sha"])
-        origin = validate_operations(f["origin"], nested=True, now=now)
+        origin = validate_operations(f["origin"], nested=True, now=now,
+                                     archived_receipt=archived_receipt)
         require(origin["phase"] == "POST_MERGE" and
                 origin["pr"]["repository"] == p["repository"] and
                 origin["pr"]["number"] == f["origin_pr"] and
                 origin["merge"]["merge_sha"] == f["origin_merge_sha"],
                 "finding origin is not an observed merged PR/build")
-        correction = validate_operations(f["correction"], nested=True, now=now)
+        correction = validate_operations(f["correction"], nested=True, now=now,
+                                         archived_receipt=archived_receipt)
         cp = correction["pr"]
         require(correction["phase"] == "POST_MERGE" and cp["repository"] == p["repository"]
                 and cp["number"] != f["origin_pr"], "correction not reconciled in same repository")

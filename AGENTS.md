@@ -173,6 +173,87 @@ campaign/handoff schema remains 2, discriminated by the protocol version.
 - Follow `docs/agent-development-v1.4.2.md`. Generated snapshots remain ignored;
   public fixtures contain no private registry paths, data or implementation.
 
+## Agent Development Protocol v1.4.3 Work representations
+
+`AGENT_DEVELOPMENT_PROTOCOL: 1.4.3`
+
+Read `docs/agent-development-v1.4.3-work.md` when using a Work connector source
+or Work instruction provenance. The source overlay recognizes complete verified
+trees plus an actually authorized connector, subject to explicit local adoption
+and every existing pre-publication gate. Source-only integrity never qualifies
+a push. Core retains its canonical full Python/Git checks and PR-local ownership.
+The full pytest suite also runs the collector's offline Node conformance tests
+using the runtime supplied by Work/CI; absence is a concrete failed prerequisite.
+
+Operational receipts still use the 1.4.2 engine/discriminator and unchanged
+lifecycle 1.2 and schema 2. An explicit `WORK_USER_INSTRUCTION` authority record
+may be selected only from the real current user's instruction, independently of
+candidate-controlled evidence, through `trusted_work_instructions` or the
+`--work-instructions` CLI input. It binds actor/repository/PR/base/head/path/patch;
+an empty trusted set blocks it. Never fabricate a task ID, timestamp, approval
+comment or waiver. Earlier reference formats and all earlier gates remain.
+
+This common adoption grants no PRODUCT continuation, downstream adoption,
+production authority or complete distribution claim by itself.
+
+## Agent Development Protocol v1.4.4 Work startup
+
+`AGENT_DEVELOPMENT_PROTOCOL: 1.4.4`
+
+For the advertised Work connector tools, use `createWorkConnector` and
+`collectWorkSession` from the existing `tools/agent_protocol_work_collect.mjs`.
+The generic blob tools may return decoded text; the typed file capability must
+request `encoding: base64` at the observed immutable commit. Follow the 1.4.4
+quick start in `docs/agent-development-v1.4.3-work.md`. Do not write per-session
+transport shims, invent raw blob envelopes or infer bytes from decoded text.
+
+One call collects source plus fresh bounded observations; local preflight and
+canonical full checks are still separate required executions. On interruption,
+reuse only independently rehashed blob-cache entries and retain earlier output.
+Missing/truncated binary bytes fail explicitly. Core uses its native full
+Python/Git checks. Downstream use requires an accepted local dependency pin.
+The operational engine stays 1.4.2, lifecycle 1.2 and campaign/handoff schema 2;
+historical validators/receipts, authority and all existing gates remain intact.
+
+## Agent Development Protocol v1.4.5 Work recovery
+
+`AGENT_DEVELOPMENT_PROTOCOL: 1.4.5`
+
+Read `docs/agent-development-v1.4.5-work.md` for incremental observation capture,
+explicit recovery archives and coherent adopter synchronization. The current Work
+bootstrap persists each response before continuing and propagates storage failures.
+Save recovery artifacts through the host's durable file capability and retain the
+archive identity/digest separately; a temporary ZIP is not a completed handoff.
+
+Recovery verifies historical bytes only. Never select authority from candidate
+content, refresh an old timestamp, promote a cached check or execute restored
+scripts. Independently confirm original user authority, rehash source/cache bytes,
+reobserve live gates and run the same native preflight/full checks. Complete native
+Git/bundle recovery remains valid without claiming unsupported connector transport.
+
+Synchronize adopter Work pins, operational manifest/provenance and current guides
+from one accepted Core revision with the canonical `sync-adopter` entrypoint.
+Historical receipts/sections remain unchanged. This overlay preserves engine 1.4.2,
+lifecycle 1.2, schema 2 and every earlier scope/effect/CI/review/production boundary;
+it does not grant downstream adoption or product continuation by itself.
+
+## Agent Development Protocol v1.4.6 evidence reuse
+
+`AGENT_DEVELOPMENT_PROTOCOL: 1.4.6`
+
+Use `createEvidenceCollector` from the existing Work collector and follow
+`docs/agent-development-v1.4.6-work.md`. Only exact Git commit/tree objects and
+complete terminal CI attempt/job histories are reusable. Live default anchors,
+PR identity/files, policy, reviews and workflow inventories remain fresh.
+The source commit anchor remains a real new read even when its tree is reused.
+
+Cache restore requires an independently retained SHA-256, verified host provenance
+and original timestamps. Neither a digest nor cached success establishes authority
+or a passed current gate. Retain every failed attempt; never retry automatically.
+Measure connector reads separately from tokens, model time and usage credits.
+The eight-file dependency inventory, full native checks, engine 1.4.2, lifecycle
+1.2, schema 2 and every earlier gate and production boundary remain unchanged.
+
 ## Delivery and release discipline
 
 - Start from the verified default-branch SHA and keep the pull-request delta minimal.
