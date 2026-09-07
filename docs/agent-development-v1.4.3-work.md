@@ -8,29 +8,64 @@ decoded text for a blob URL, not GitHub's raw base64 JSON envelope. Passing that
 text to the old collector produces `lossless blob unavailable`. Successful
 vendor distribution does not establish cold-session source acquisition.
 
-Use the existing collector's explicit tool adapter, with the actual authorized
-host functions (tool namespace prefixes are supplied by that host):
+Use this complete bootstrap in Work's JavaScript host. Set the two absolute
+paths to the already verified accepted dependency and a **new** evidence directory;
+set the actual repository. The provided host exposes `tools.exec_command`,
+`tools.apply_patch` and the advertised GitHub tools. Work's isolate has no native
+filesystem/module loader, so this recipe verifies the acquired collector bytes
+before loading its exports. It does not replace the collector's transport logic.
+The pinned digest below identifies the unchanged 1.4.4 collector.
 
 ```javascript
+const canonicalRoot = "/absolute/canonical-core";
+const evidenceRoot = "/absolute/evidence/new-work-startup";
+const repository = "gabned/provelume";
+const shellQuote = value => "'" + value.replace(/'/g, "'\\''") + "'";
+const bootstrap = [
+  "import hashlib,pathlib,sys",
+  "data=pathlib.Path(sys.argv[1]).read_bytes()",
+  "assert hashlib.sha256(data).hexdigest()=='53b75d2c873829fecf8ebcc6a1a15748c651d9a1c9486dcdde617b16a888c2db'",
+  "pathlib.Path(sys.argv[2]).mkdir(parents=True,exist_ok=False)",
+  "sys.stdout.write(data.decode('utf-8'))",
+].join(";");
+const loaded = await tools.exec_command({
+  cmd: "python3 -B -c " + shellQuote(bootstrap) + " " +
+    shellQuote(canonicalRoot + "/tools/agent_protocol_work_collect.mjs") + " " + shellQuote(evidenceRoot),
+  max_output_tokens: 12000,
+});
+if (loaded.exit_code !== 0) throw Error("verified collector bootstrap failed");
+const {createWorkConnector, collectWorkSession} = new Function(
+  loaded.output.replace(/^export /gm, "") + "\nreturn {createWorkConnector, collectWorkSession};",
+)();
+const saveRecord = async (relative, value) => {
+  await tools.apply_patch("*** Begin Patch\n*** Add File: " + evidenceRoot + "/" + relative +
+    "\n+" + JSON.stringify(value) + "\n*** End Patch");
+};
 const connector = createWorkConnector({
-  fetch: args => tools.github_fetch(args),
-  fetchFile: args => tools.github_fetch_file(args),
+  fetch: args => tools.mcp__codex_apps__github_fetch(args),
+  fetchFile: args => tools.mcp__codex_apps__github_fetch_file(args),
 });
 const session = await collectWorkSession({
-  repository, ...connector, saveBlob, hasBlob,
+  repository, ...connector,
+  saveBlob: (sha, record) => saveRecord("records/" + sha + ".json", record),
   activePr: null, // select the actual PRODUCT owner when one exists
 });
+for (const [name, value] of Object.entries(session)) await saveRecord(name + ".json", value);
 ```
 
-`createWorkConnector` and `collectWorkSession` are exports of
-`tools/agent_protocol_work_collect.mjs`, loaded from verified accepted dependency
-bytes. `saveBlob(sha, response)` retains each base64 JSON record outside source,
-decodes it with the canonical `decode_blob(response)` verifier, and stores the
-verified raw bytes as `<blob-directory>/<sha>` for the materializer.
-`hasBlob(sha)` is optional and must independently rehash the cached Git blob
-before returning true. Omitting it gives a cold acquisition.
-Never reconstruct the complete source from memory, partial application archives
-or arbitrary decoded strings. No terminal credentials or HTTP fallback exists.
+This cold-start example defines every variable except the actual provided host
+`tools`. It refuses an existing evidence directory and verifies the exact module
+bytes before evaluating them; no tokens, native Git emulation or HTTP fallback.
+On a host with native ES modules, an explicit import of the same verified file
+may load the two exports instead; do not assume they already exist in a new cell.
+
+`saveBlob` above retains each normalized base64 JSON record outside source.
+Before materialization, use the canonical `decode_blob(response)` verifier and
+store its verified raw bytes as `<blob-directory>/<sha>`. For a resume, supply
+`hasBlob(sha)` only after independently rehashing cached raw Git blobs; reuse the
+blob directory while giving each attempt a new evidence directory. Omitting
+`hasBlob` gives a cold acquisition. Never infer original bytes from decoded text,
+partial archives or memory. Local preflight and full checks below remain required.
 
 The adapter unwraps supported tool envelopes and uses typed file reads with an
 exact repository/path/commit and explicit base64 encoding. Each raw tool result
