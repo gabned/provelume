@@ -196,6 +196,25 @@ comment or waiver. Earlier reference formats and all earlier gates remain.
 This common adoption grants no PRODUCT continuation, downstream adoption,
 production authority or complete distribution claim by itself.
 
+## Agent Development Protocol v1.4.4 Work startup
+
+`AGENT_DEVELOPMENT_PROTOCOL: 1.4.4`
+
+For the advertised Work connector tools, use `createWorkConnector` and
+`collectWorkSession` from the existing `tools/agent_protocol_work_collect.mjs`.
+The generic blob tools may return decoded text; the typed file capability must
+request `encoding: base64` at the observed immutable commit. Follow the 1.4.4
+quick start in `docs/agent-development-v1.4.3-work.md`. Do not write per-session
+transport shims, invent raw blob envelopes or infer bytes from decoded text.
+
+One call collects source plus fresh bounded observations; local preflight and
+canonical full checks are still separate required executions. On interruption,
+reuse only independently rehashed blob-cache entries and retain earlier output.
+Missing/truncated binary bytes fail explicitly. Core uses its native full
+Python/Git checks. Downstream use requires an accepted local dependency pin.
+The operational engine stays 1.4.2, lifecycle 1.2 and campaign/handoff schema 2;
+historical validators/receipts, authority and all existing gates remain intact.
+
 ## Delivery and release discipline
 
 - Start from the verified default-branch SHA and keep the pull-request delta minimal.

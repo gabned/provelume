@@ -1,5 +1,78 @@
 # Protocol 1.4.3: verifiable Work sources and host authority
 
+## Current operational entrypoint — 1.4.4
+
+The historical 1.4.3 contract below is preserved. Version 1.4.4 fixes its host
+integration: Work's generic `github_fetch` and `github_fetch_blob` can return
+decoded text for a blob URL, not GitHub's raw base64 JSON envelope. Passing that
+text to the old collector produces `lossless blob unavailable`. Successful
+vendor distribution does not establish cold-session source acquisition.
+
+Use the existing collector's explicit tool adapter, with the actual authorized
+host functions (tool namespace prefixes are supplied by that host):
+
+```javascript
+const connector = createWorkConnector({
+  fetch: args => tools.github_fetch(args),
+  fetchFile: args => tools.github_fetch_file(args),
+});
+const session = await collectWorkSession({
+  repository, ...connector, saveBlob, hasBlob,
+  activePr: null, // select the actual PRODUCT owner when one exists
+});
+```
+
+`createWorkConnector` and `collectWorkSession` are exports of
+`tools/agent_protocol_work_collect.mjs`, loaded from verified accepted dependency
+bytes. `saveBlob(sha, response)` retains each base64 JSON record outside source,
+decodes it with the canonical `decode_blob(response)` verifier, and stores the
+verified raw bytes as `<blob-directory>/<sha>` for the materializer.
+`hasBlob(sha)` is optional and must independently rehash the cached Git blob
+before returning true. Omitting it gives a cold acquisition.
+Never reconstruct the complete source from memory, partial application archives
+or arbitrary decoded strings. No terminal credentials or HTTP fallback exists.
+
+The adapter unwraps supported tool envelopes and uses typed file reads with an
+exact repository/path/commit and explicit base64 encoding. Each raw tool result
+and its actual arguments remain in acquisition observations. The derived blob
+record takes size from the independent tree; it is not labelled a raw GitHub
+response. SHA identity, encoding, base64 shape and byte count are checked before
+saving. Empty content is valid only for a zero-byte tree entry. Missing or
+truncated binary content is a capability gap, never repaired or silently skipped.
+All blobs, including cache hits, still undergo canonical offline blob/subtree/
+root/mode verification. The generic raw-JSON collector interface remains valid
+for hosts that actually expose that response shape; no automatic retry occurs.
+
+Persist `session.snapshot`, `session.anchor` and `session.observations` outside
+source. Materialize and verify with the unchanged `agent_protocol_work_source.py`,
+then run the repository's accepted local preflight and full-check entrypoints.
+For BrickMS, retain the materialized tree as an immutable baseline and copy it
+to a separate candidate directory before invoking the candidate's
+`scripts/agent/protocol-v1-2.py work-preflight`. Pass the baseline path through
+`--baseline`; executing that script from the baseline itself fails the existing
+separation check. The full PROTOCOL wrapper validates a real proposed Protocol
+delta, including the required technical changelog entry; an empty delta is not
+a qualified adoption. Do not add a dummy change merely to test the baseline.
+`session.local_preflight` is always `NOT_RUN`: collection is not execution.
+The wrapper also rejects a moved default between acquisition and observations.
+Policy/review/CI UNKNOWN remains UNKNOWN and cannot authorize publication.
+Active-PR supplementary identity/ancestry proof required by the local preflight
+must still be collected. This wrapper does not create owners or update checkpoints.
+
+For an interrupted acquisition, keep the saved blobs, begin a fresh session call,
+rehash cache entries and recollect source/default/policy observations. No old
+15-minute authority window or local check receipt is renewed by resuming.
+This avoids repeated downloads without adding another campaign or state store.
+Operational receipts retain the 1.4.2 engine and discriminator. Use its existing
+`render-pr-identity` and repository review-body validator before publication;
+do not hand-author SHA declarations or treat example review fields as approvals.
+
+Acceptance requires synthetic transport/error/tampering regressions and an
+actual cold-source acquisition followed by native preflight and full checks in
+each adopted profile. Until local acceptance, PRODUCT keeps its previous stop.
+Historical missing execution logs remain EVIDENCE_GAP. No product release,
+deployment, broader profile, weaker test gate or retroactive receipt is implied.
+
 This common overlay defines an authorized Work host plus a completely verified
 source tree as an alternative representation of the preliminary source
 obligations below. Repository-local adoption must name the exact canonical

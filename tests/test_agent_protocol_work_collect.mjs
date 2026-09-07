@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {collectSource, collectPreflight} from "../tools/agent_protocol_work_collect.mjs";
+import {collectSource, collectPreflight, collectWorkSession,
+  createWorkConnector, connectorPayload} from "../tools/agent_protocol_work_collect.mjs";
 
 const repo = "example/public", base = "a".repeat(40), root = "b".repeat(40), blob = "c".repeat(40);
 const ref = {ref:"refs/heads/main", object:{type:"commit", sha:base}};
@@ -99,4 +100,94 @@ test("open PR pagination is bounded and never claimed complete at cap",async()=>
 test("only selected PR gets detail and missing threads remain UNKNOWN",async()=>{
   const h=preflightHost({"/pulls/1":{number:1,state:"open"},"/pulls/1/reviews?per_page=100&page=1":[]});
   const r=await collectPreflight({...h,activePr:1});assert.equal(r.active_pull_request.threads.status,"UNKNOWN");
+});
+
+function toolHost(overrides = {}) {
+  const h = preflightHost(overrides), files = [];
+  const connector = createWorkConnector({
+    fetch: async ({url}) => ({isError:false, structuredContent:{content:JSON.stringify(await h.fetchJson(url))}}),
+    fetchFile: async args => {
+      files.push(args);
+      return {isError:false, structuredContent:{sha:blob, encoding:"base64", content:"eA==\n"}};
+    },
+  });
+  return {...h, ...connector, files};
+}
+test("real tool envelope uses pinned file base64 instead of decoded blob GET", async()=>{
+  const h=toolHost({[`/git/blobs/${blob}`]:{content:"x"}});
+  const result=await collectWorkSession(h);
+  assert.deepEqual(h.files,[{repository_full_name:repo,path:"readme",ref:base,encoding:"base64"}]);
+  assert.equal(h.calls.some(p=>p.startsWith("/git/blobs/")),false);
+  assert.equal(h.saves[0].response.size,1);
+  assert.equal(result.local_preflight,"NOT_RUN");
+  assert.equal(result.push_qualified,false);
+  const observation=result.acquisition.observations.find(o=>o.tool==="github_fetch_file");
+  assert.equal(observation.response.structuredContent.content,"eA==\n");
+  assert.equal(observation.arguments.ref,base);
+});
+test("decoded blob GET cannot masquerade as lossless data", async()=>{
+  await assert.rejects(collectSource(host({[`/git/blobs/${blob}`]:{content:"x"}})),/github_fetch_file/);
+});
+test("typed binary transport preserves all byte values and empty files", async()=>{
+  for (const bytes of [Buffer.from([]),Buffer.from(Array.from({length:256},(_,i)=>i))]) {
+    const h=toolHost({[`/git/trees/${root}?recursive=1`]:{sha:root,truncated:false,tree:[{...entries[0],size:bytes.length}]}});
+    h.fetchFile=async()=>({structuredContent:{result:{sha:blob,encoding:"base64",content:bytes.toString("base64")}}});
+    await collectSource(h);
+    assert.deepEqual(Buffer.from(h.saves[0].response.content,"base64"),bytes);
+  }
+});
+test("wrong SHA, decoded text, missing or truncated bytes and malformed base64 never save",async()=>{
+  const good={sha:blob,encoding:"base64",content:"eA=="};
+  for (const payload of [ {...good,sha:base}, {...good,encoding:"utf-8",content:"x"},
+    {...good,content:""}, {...good,content:"eA"}, {...good,content:"eA== "},
+    {...good,content:"===="}, {...good,size:2}, {sha:blob,encoding:"base64"} ]) {
+    const h=toolHost(); h.fetchFile=async()=>({structuredContent:payload});
+    await assert.rejects(collectSource(h),/lossless|base64/);
+    assert.equal(h.saves.length,0);
+  }
+});
+test("error envelopes never unwrap successful-looking nested source",async()=>{
+  for (const result of [
+    {isError:true,structuredContent:{sha:blob,encoding:"base64",content:"eA=="}},
+    {structuredContent:{error:"denied",result:{content:"{}"}}},
+    {structuredContent:{result:{status:403,content:"{}"}}},
+  ]) assert.throws(()=>connectorPayload(result),/failed/);
+  const h=toolHost(); h.fetchFile=async()=>{throw Error("denied")};
+  await assert.rejects(collectSource(h),/denied/);
+  assert.equal(h.saves.length,0);
+  assert.equal(h.calls.some(p=>p.startsWith("/git/blobs/")),false);
+});
+test("typed source reads obey the same call budget",async()=>{
+  const h=toolHost(); await assert.rejects(collectSource({...h,maxCalls:4}),/budget/);
+  assert.equal(h.files.length,0);
+});
+test("valid whitespace paths are retained literally in typed arguments",async()=>{
+  const path="space #?\n.txt";
+  const h=toolHost({[`/git/trees/${root}?recursive=1`]:{sha:root,truncated:false,tree:[{...entries[0],path}]}});
+  await collectSource(h); assert.equal(h.files[0].path,path);
+});
+test("unsafe source paths fail before typed reads",async()=>{
+  for (const path of ["../x","/x","a//x","a/./x","a\\x","a\0x"]) {
+    const h=toolHost({[`/git/trees/${root}?recursive=1`]:{sha:root,truncated:false,tree:[{...entries[0],path}]}});
+    await assert.rejects(collectSource(h),/source path/); assert.equal(h.files.length,0);
+  }
+});
+test("restart reuses saved blobs but recollects default and policy observations",async()=>{
+  const first=toolHost(); await collectWorkSession(first);
+  const second=toolHost({"/rulesets?includes_parents=true&per_page=100&page=1":new Error("denied")});
+  second.hasBlob=async sha=>sha===first.saves[0].sha;
+  const result=await collectWorkSession(second);
+  assert.equal(second.files.length,0);
+  assert.equal(result.acquisition.cached_blobs,1);
+  assert.equal(result.observations.rulesets.status,"UNKNOWN");
+  assert.equal(result.local_preflight,"NOT_RUN");
+});
+test("move between acquisition and observations blocks session result",async()=>{
+  const h=toolHost({"/branches/main":{name:"main",commit:{sha:blob}}});
+  await assert.rejects(collectWorkSession(h),/default moved/);
+});
+test("host capabilities and JSON result are explicit",async()=>{
+  assert.throws(()=>createWorkConnector({fetch:async()=>{}}),/requires/);
+  const c=createWorkConnector({fetch:async()=>({structuredContent:{content:"plain text"}}),fetchFile:async()=>{}});
+  await assert.rejects(c.fetchJson("unused"),SyntaxError);
 });
