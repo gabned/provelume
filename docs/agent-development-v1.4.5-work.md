@@ -93,6 +93,15 @@ AGENTS/runbook files. Earlier sections and receipts remain unchanged. Edited cur
 generated sections require explicit reconciliation instead of silent replacement.
 Repeating the same accepted synchronization is a no-op.
 
+For an adopter using its existing Work source route, keep the immutable baseline
+and candidate without Git metadata. Add `--work-snapshot /external/source.json`,
+`--work-baseline /external/baseline` and `--work-anchor /external/fresh-anchor.json`
+together. The synchronizer verifies the complete baseline and candidate inventory,
+repository identity and fresh default anchor before planning writes. The canonical
+Core dependency still uses its verified native checkout. This explicit route does
+not create Git metadata or grant connector authentication. Repeating a synchronization
+still requires a fresh anchor and the unchanged independently verified baseline.
+
 Writes are staged per file and rolled back on a reported error. This is not a
 multi-file filesystem transaction across host termination: after a killed process,
 inspect the Git diff and rerun the complete plan before checks/publication. No ref,

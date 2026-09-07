@@ -9,6 +9,7 @@ import shutil
 import stat
 import subprocess
 import zipfile
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -113,6 +114,54 @@ def test_archive_rejects_unsafe_manifest_paths_before_output(evidence, tmp_path,
 def test_archive_rejects_case_aliased_parent_directories():
     with pytest.raises(ValueError, match="case-aliased directory"):
         recovery.entries(["A/one", "a/two"])
+
+
+@pytest.mark.skipif(os.name != "posix", reason="existing Work source route requires POSIX modes")
+def test_work_adoption_preserves_baseline_and_rejects_moved_default(adoption, tmp_path):
+    canonical, native, sha = adoption
+    baseline, candidate = tmp_path / "baseline", tmp_path / "candidate"
+    shutil.copytree(native, baseline, ignore=shutil.ignore_patterns(".git"))
+    shutil.copytree(baseline, candidate)
+    entries = recovery.source.inventory(baseline)
+    tree = recovery.source.tree_identity(entries, verify=True)
+    repo, base = "gabned/provelume.com", "a" * 40
+    snapshot = {
+        "schema": recovery.source.SCHEMA,
+        "repository": repo,
+        "commit_sha": base,
+        "tree_sha": tree,
+        "tree": {"sha": tree, "truncated": False, "tree": list(entries.values())},
+    }
+    prefix = "https://api.github.com/repos/" + repo
+
+    def observation(endpoint, response):
+        return {
+            "url": prefix + endpoint,
+            "observed_at": datetime.now(UTC).isoformat(),
+            "response": response,
+        }
+
+    ref = {"ref": "refs/heads/main", "object": {"type": "commit", "sha": base}}
+    anchor = {
+        "default_branch": "main",
+        "repository": observation("", {"full_name": repo, "default_branch": "main"}),
+        "before": observation("/git/ref/heads/main", ref),
+        "commit": observation("/git/commits/" + base, {"sha": base, "tree": {"sha": tree}}),
+        "after": observation("/git/ref/heads/main", ref),
+    }
+    work = snapshot, baseline, anchor
+    result = recovery.sync_adopter(canonical, candidate, sha, repo, work=work)
+    assert result["changed_paths"] and not (candidate / ".git").exists()
+    recovery.source.verify_source(snapshot, baseline, repo, base)
+    assert recovery.sync_adopter(canonical, candidate, sha, repo, work=work)["changed_paths"] == []
+    before = {p: p.read_bytes() for p in candidate.rglob("*") if p.is_file()}
+    anchor["after"]["response"] = {
+        "ref": "refs/heads/main",
+        "object": {"type": "commit", "sha": "b" * 40},
+    }
+    with pytest.raises(ValueError, match="default branch moved"):
+        recovery.sync_adopter(canonical, candidate, sha, repo, work=work)
+    assert before == {p: p.read_bytes() for p in candidate.rglob("*") if p.is_file()}
 
 
 @pytest.mark.parametrize(

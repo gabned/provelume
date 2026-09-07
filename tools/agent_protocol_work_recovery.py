@@ -278,20 +278,26 @@ def replace_assignment(text, name, value):
     return "".join(lines)
 
 
-def adoption_plan(canonical, target, commit, repository):
+def adoption_plan(canonical, target, commit, repository, *, work=None):
     source.require(
         repository in ops.PROFILES and repository not in {"gabned/provelume", "gabned/nexus"},
         "executable adopter required",
     )
-    source.require(
-        git(target, "config", "--get", "remote.origin.url").decode().strip()
-        in {
-            f"https://github.com/{repository}",
-            f"https://github.com/{repository}.git",
-            f"git@github.com:{repository}.git",
-        },
-        "target repository mismatch",
-    )
+    if work is None:
+        source.require(
+            git(target, "config", "--get", "remote.origin.url").decode().strip()
+            in {
+                f"https://github.com/{repository}",
+                f"https://github.com/{repository}.git",
+                f"git@github.com:{repository}.git",
+            },
+            "target repository mismatch",
+        )
+    else:
+        snapshot, baseline, anchor = work
+        source.require(target.resolve() != baseline.resolve(), "distinct Work candidate required")
+        source.verify_live_anchor(snapshot, anchor)
+        source.candidate_delta(snapshot, baseline, target, repository, snapshot["commit_sha"])
     manifest = ops.manifest(canonical, commit)
     work = []
     for path in WORK_FILES:
@@ -368,9 +374,9 @@ def adoption_plan(canonical, target, commit, repository):
     return manifest, planned
 
 
-def sync_adopter(canonical, target, commit, repository, *, check=False):
+def sync_adopter(canonical, target, commit, repository, *, check=False, work=None):
     """One planned transaction; rollback on error, never publishes a ref or modifies history."""
-    manifest, planned = adoption_plan(canonical, target, commit, repository)
+    manifest, planned = adoption_plan(canonical, target, commit, repository, work=work)
     originals = {p: source.read_regular(regular(target, p)) for p in planned}
     modes = {p: stat.S_IMODE(regular(target, p).stat().st_mode) for p in planned}
     wanted = {
@@ -446,6 +452,9 @@ def main():
     sync.add_argument("--commit", required=True)
     sync.add_argument("--repository", required=True)
     sync.add_argument("--check", action="store_true")
+    sync.add_argument("--work-snapshot", type=Path)
+    sync.add_argument("--work-baseline", type=Path)
+    sync.add_argument("--work-anchor", type=Path)
     args = parser.parse_args()
     try:
         if args.command == "export":
@@ -461,8 +470,19 @@ def main():
                 "push_qualified": False,
             }
         else:
+            work = None
+            if any((args.work_snapshot, args.work_baseline, args.work_anchor)):
+                source.require(
+                    all((args.work_snapshot, args.work_baseline, args.work_anchor)),
+                    "complete Work source/baseline/anchor required",
+                )
+                work = (
+                    source.read_json(args.work_snapshot),
+                    args.work_baseline,
+                    source.read_json(args.work_anchor),
+                )
             result = sync_adopter(
-                args.source, args.target, args.commit, args.repository, check=args.check
+                args.source, args.target, args.commit, args.repository, check=args.check, work=work
             )
         print(json.dumps(result, indent=2))
         return 0
