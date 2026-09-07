@@ -296,6 +296,54 @@ def test_adoption_rollback_preserves_all_original_bytes(adoption, monkeypatch):
     assert before == {p: (target / p).read_bytes() for p in plan}
 
 
+def test_adoption_rechecks_vendor_bytes_after_manifest_read(adoption, monkeypatch):
+    canonical, target, sha = adoption
+    manifest = recovery.ops.manifest
+    before = {p: p.read_bytes() for p in target.rglob("*") if p.is_file()}
+
+    def changed(*args):
+        result = manifest(*args)
+        vendor = canonical / next(iter(recovery.ops.VENDOR_FILES))
+        vendor.write_bytes(vendor.read_bytes() + b"\n# changed after manifest\n")
+        return result
+
+    monkeypatch.setattr(recovery.ops, "manifest", changed)
+    with pytest.raises(ValueError, match="canonical source changed"):
+        recovery.sync_adopter(canonical, target, sha, "gabned/provelume.com")
+    assert before == {p: p.read_bytes() for p in target.rglob("*") if p.is_file()}
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX read-only destination replacement")
+def test_adoption_rollback_atomically_restores_read_only_destination(adoption, monkeypatch):
+    canonical, target, sha = adoption
+    preview = recovery.sync_adopter(canonical, target, sha, "gabned/provelume.com", check=True)
+    first = target / preview["changed_paths"][0]
+    first.chmod(0o400)
+    original = first.read_bytes()
+    replace, calls = recovery.os.replace, []
+
+    def fail_second(src, dst):
+        calls.append(Path(dst))
+        if len(calls) == 2:
+            raise OSError("injected second replacement")
+        replace(src, dst)
+
+    def no_inplace_write(path, data):
+        raise AssertionError("rollback must not write the destination in place")
+
+    monkeypatch.setattr(recovery.os, "replace", fail_second)
+    write_bytes = Path.write_bytes
+    monkeypatch.setattr(
+        Path,
+        "write_bytes",
+        lambda p, b: no_inplace_write(p, b) if p == first else write_bytes(p, b),
+    )
+    with pytest.raises(OSError, match="injected second"):
+        recovery.sync_adopter(canonical, target, sha, "gabned/provelume.com")
+    assert calls == [first, target / preview["changed_paths"][1], first]
+    assert first.read_bytes() == original and stat.S_IMODE(first.stat().st_mode) == 0o400
+
+
 def test_adoption_wrong_target_or_dirty_canonical_cannot_write(adoption):
     canonical, target, sha = adoption
     with pytest.raises(ValueError, match="target repository"):

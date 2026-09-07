@@ -319,6 +319,10 @@ def adoption_plan(canonical, target, commit, repository, *, work=None):
         )
     pin = {"source_repository": "gabned/provelume", "source_commit": commit, "files": work}
     planned = {p: source.read_regular(regular(canonical, p)) for p in ops.VENDOR_FILES}
+    source.require(
+        all(ops.blob(planned[row["path"]]) == row["git_blob"] for row in manifest["files"]),
+        "canonical source changed during synchronization",
+    )
     planned.update(ops.provenance_files(manifest))
     guard = "tests/agent_protocol_v1_4_2_vendor_test.py"
     text = source.read_regular(regular(target, guard)).decode()
@@ -397,7 +401,7 @@ def sync_adopter(canonical, target, commit, repository, *, check=False, work=Non
             "push_qualified": False,
         }
     applied = []
-    with tempfile.TemporaryDirectory(prefix="agent-adoption-") as temp:
+    with tempfile.TemporaryDirectory(prefix=".agent-adoption-", dir=target) as temp:
         try:
             for index, path in enumerate(changed):
                 dest = regular(target, path)
@@ -421,8 +425,14 @@ def sync_adopter(canonical, target, commit, repository, *, check=False, work=Non
         except BaseException:
             for path in reversed(applied):
                 dest = regular(target, path)
-                dest.write_bytes(originals[path])
-                dest.chmod(modes[path])
+                fd, name = tempfile.mkstemp(prefix=".agent-restore-", dir=dest.parent)
+                try:
+                    with os.fdopen(fd, "wb") as stream:
+                        stream.write(originals[path])
+                    os.chmod(name, modes[path])
+                    os.replace(name, dest)
+                finally:
+                    Path(name).unlink(missing_ok=True)
             raise
     return {
         "changed_paths": changed,
