@@ -15,10 +15,12 @@ from provelume.google_connection import GoogleConnectionManager
 from provelume.google_contract import GOOGLE_CAPABILITY_SCOPES, GoogleItem, GooglePage
 from provelume.google_credentials import GoogleCredentialError, GoogleCredentialVault
 from provelume.google_oauth import (
+    AUTHORIZATION_ENDPOINT,
     PROFILE_ENDPOINTS,
     REVOCATION_ENDPOINT,
     TOKEN_ENDPOINT,
     GoogleConnectionError,
+    desktop_client,
     resolve_google_credential,
 )
 from provelume.oauth_authorization import OAuthAuthorizationError
@@ -31,6 +33,10 @@ CLIENT = {
         "client_id": "123-desktop.apps.googleusercontent.com",
         "client_secret": "synthetic-client-secret",
         "project_id": "test-project",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "redirect_uris": ["http://localhost"],
     }
 }
 
@@ -117,6 +123,7 @@ def connect(manager, transport, capability="gmail", identity=None):
 def test_guided_pkce_separate_consent_and_reconnect_preserves_source(journey):
     instance, manager, vault, transport = journey
     request, first = connect(manager, transport)
+    assert request["authorization_uri"].split("?", 1)[0] == AUTHORIZATION_ENDPOINT
     identity = first["instance_id"]
     query = parse_qs(urlsplit(request["authorization_uri"]).query)
     assert query["code_challenge_method"] == ["S256"]
@@ -148,6 +155,41 @@ def test_guided_pkce_separate_consent_and_reconnect_preserves_source(journey):
     )
     assert not any(call[0] == REVOCATION_ENDPOINT for call in transport.calls)
     assert len([key for key in vault.values if key.startswith("google_grant_")]) == 1
+
+
+@pytest.mark.parametrize(
+    "auth_uri", [None, "https://accounts.google.com/o/oauth2/auth", AUTHORIZATION_ENDPOINT]
+)
+def test_desktop_client_accepts_google_download_metadata(auth_uri):
+    document = copy.deepcopy(CLIENT)
+    if auth_uri is None:
+        document["installed"].pop("auth_uri")
+    else:
+        document["installed"]["auth_uri"] = auth_uri
+    assert desktop_client(document) == {
+        key: CLIENT["installed"][key] for key in ("client_id", "client_secret", "project_id")
+    }
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("auth_uri", "https://example.invalid/o/oauth2/auth"),
+        ("auth_uri", "https://accounts.google.com.example.invalid/o/oauth2/auth"),
+        ("auth_uri", "http://accounts.google.com/o/oauth2/auth"),
+        ("auth_uri", "https://accounts.google.com/o/oauth2/auth?redirect_uri=https://example.invalid"),
+        ("auth_uri", "https://accounts.google.com/o/oauth2/auth/"),
+        ("auth_uri", "https://accounts.google.com/o/oauth2/v2/auth#fragment"),
+        ("auth_uri", None),
+        ("auth_uri", []),
+        ("token_uri", "https://example.invalid/token"),
+    ],
+)
+def test_desktop_client_rejects_untrusted_endpoint_metadata(field, value):
+    document = copy.deepcopy(CLIENT)
+    document["installed"][field] = value
+    with pytest.raises(GoogleConnectionError, match="google_client_invalid"):
+        desktop_client(document)
 
 
 @pytest.mark.parametrize("change", ["network", "scope", "cancel", "account", "expired"])

@@ -18,6 +18,12 @@ from .google_credentials import GoogleCredentialError, GoogleCredentialVault
 from .oauth_authorization import InstalledAppAuthorizationParameters, InstalledAppTokenExchange
 
 AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
+# Google Cloud downloads still use the legacy URL as client metadata. Both
+# exact values are accepted here; authorization always uses the fixed v2 URL.
+CLIENT_AUTHORIZATION_ENDPOINTS = (
+    "https://accounts.google.com/o/oauth2/auth",
+    AUTHORIZATION_ENDPOINT,
+)
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 REVOCATION_ENDPOINT = "https://oauth2.googleapis.com/revoke"
 PROFILE_ENDPOINTS = {
@@ -48,7 +54,7 @@ def desktop_client(value: Any) -> dict[str, str]:
         or any(ord(c) < 32 or ord(c) > 126 for c in secret)
         or not isinstance(project, str)
         or not re.fullmatch(r"[a-z0-9-]{1,100}", project)
-        or raw.get("auth_uri", AUTHORIZATION_ENDPOINT) != AUTHORIZATION_ENDPOINT
+        or raw.get("auth_uri", AUTHORIZATION_ENDPOINT) not in CLIENT_AUTHORIZATION_ENDPOINTS
         or raw.get("token_uri", TOKEN_ENDPOINT) != TOKEN_ENDPOINT
     ):
         raise GoogleConnectionError("google_client_invalid")

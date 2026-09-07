@@ -4,6 +4,10 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+- Fixed Google desktop-client setup rejecting the original JSON downloaded from
+  Google Cloud; legacy authorization metadata is accepted while OAuth continues
+  to use the fixed v2 endpoint and rejects arbitrary endpoints.
+
 - Added the EN/IT Connect Google journey for separately consented Gmail and Drive
   read-only access using the existing installed-app PKCE boundary, external system
   credential storage, connection tests, reconnect and explicit local/project revocation.
