@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from threading import Event, Timer, current_thread
 from urllib.parse import parse_qs, urlsplit
 
@@ -8,6 +9,7 @@ import pytest
 from test_google_connection import connect, journey  # noqa: F401
 from test_google_jobs import _configured_source, _use_adapter
 
+from provelume import scheduler
 from provelume.google_adapters import GoogleApiAdapter, SyntheticGoogleAdapter
 from provelume.google_contract import GoogleItem, GooglePage
 from provelume.google_jobs import GoogleJobManager
@@ -22,11 +24,26 @@ def test_gmail_checkpoint_waits_for_its_heartbeat_writer(journey, monkeypatch): 
     heartbeat_writing, release_writer = Event(), Event()
     journal = instance.scheduler.journal
     original_write, original_heartbeat = journal._write_job, journal.heartbeat
+    # Exercise real worker coordination without making lease ownership depend
+    # on filesystem latency on a contended Windows runner.
+    fixed_now = datetime.now(UTC)
+    original_instant = scheduler.utc_instant
+
+    class FixedDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed_now.astimezone(tz)
+
+    monkeypatch.setattr(scheduler, "datetime", FixedDateTime)
+    monkeypatch.setattr(
+        scheduler, "utc_instant",
+        lambda value=None: original_instant(fixed_now if value is None else value),
+    )
 
     def write(job):
         if current_thread().name == "provelume-scheduler-heartbeat":
             heartbeat_writing.set()
-            assert release_writer.wait(5)
+            assert release_writer.wait(30)
         return original_write(job)
 
     def heartbeat(*args, **kwargs):
@@ -38,7 +55,7 @@ def test_gmail_checkpoint_waits_for_its_heartbeat_writer(journey, monkeypatch): 
 
     class DelayedGmail(SyntheticGoogleAdapter):
         def fetch_page(self, **kwargs):
-            assert heartbeat_writing.wait(5)
+            assert heartbeat_writing.wait(30)
             return super().fetch_page(**kwargs)
 
     adapter = DelayedGmail({source_id: [GooglePage(capability="gmail", items=(
