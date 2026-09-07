@@ -24,10 +24,10 @@ const shellQuote = value => "'" + value.replace(/'/g, "'\\''") + "'";
 const bootstrap = [
   "import hashlib,pathlib,sys",
   "data=pathlib.Path(sys.argv[1]).read_bytes()",
-  "assert hashlib.sha256(data).hexdigest()=='53b75d2c873829fecf8ebcc6a1a15748c651d9a1c9486dcdde617b16a888c2db'",
+  "if hashlib.sha256(data).hexdigest()!='53b75d2c873829fecf8ebcc6a1a15748c651d9a1c9486dcdde617b16a888c2db': raise ValueError('collector digest mismatch')",
   "pathlib.Path(sys.argv[2]).mkdir(parents=True,exist_ok=False)",
   "sys.stdout.write(data.decode('utf-8'))",
-].join(";");
+].join("\n");
 const loaded = await tools.exec_command({
   cmd: "python3 -B -c " + shellQuote(bootstrap) + " " +
     shellQuote(canonicalRoot + "/tools/agent_protocol_work_collect.mjs") + " " + shellQuote(evidenceRoot),

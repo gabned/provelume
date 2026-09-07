@@ -1226,7 +1226,9 @@ def test_site_native_preflight_scope_is_repository_specific():
 
 
 @pytest.mark.skipif(os.name != "posix", reason="Work shell bootstrap uses POSIX quoting")
-def test_documented_quickstart_in_fresh_host(tmp_path):
+@pytest.mark.parametrize("optimization", ["0", "1"])
+def test_documented_quickstart_in_fresh_host(tmp_path, monkeypatch, optimization):
+    monkeypatch.setenv("PYTHONOPTIMIZE", optimization)
     node = shutil.which("node")
     assert node, "Node is required for Work conformance"
     guide = (ROOT / "docs/agent-development-v1.4.3-work.md").read_text()
