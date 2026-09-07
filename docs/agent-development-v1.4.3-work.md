@@ -324,6 +324,15 @@ References: [GitHub trees](https://docs.github.com/en/rest/git/trees),
 
 ## Source-bound local check supervisor
 
+The supervisor accepts the existing `CHECKPOINT_ONLY` class for the adopted
+BrickMS profile only, with `--suite FULL`. The delta must include
+`AGENT_STATUS.md` and may additionally include `CHANGELOG.md`; the unchanged
+repository-local baseline validators still enforce the lifecycle transition and
+technical append-only changelog contract. Application, Protocol implementation,
+workflow and vendor-adoption changes are rejected in this class. A local adapter
+must explicitly adopt this support before use; a successful supervisor result
+still cannot qualify publication or grant ownership, review or production rights.
+
 `tools/agent_protocol_work_check.py` invokes the selected existing canonical
 BrickMS check, preserves stdout/stderr and the actual process exit code in a
 new external evidence directory, and verifies source identity again afterward.
