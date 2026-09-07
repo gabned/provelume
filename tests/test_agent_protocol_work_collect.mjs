@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {createHash} from "node:crypto";
 import {collectSource, collectPreflight, collectWorkSession,
-  createWorkConnector, connectorPayload} from "../tools/agent_protocol_work_collect.mjs";
+  createWorkConnector, connectorPayload, createEvidenceCollector} from "../tools/agent_protocol_work_collect.mjs";
 
 test("source observations survive interruption before the next read", async()=>{
   const saved=[]; const h=host(); let calls=0;
@@ -253,4 +254,168 @@ test("preflight retains unavailable original responses without promoting them", 
   assert.deepEqual(saved.find(r=>r.url.includes("/rulesets")).response,raw);
   assert.equal(result.rulesets.status,"UNKNOWN");
   assert.equal(result.rulesets.observations[0].response,null);
+});
+
+const sha256 = async value => createHash("sha256").update(value).digest("hex");
+function evidenceHost() {
+  const h = preflightHost(), records = [];
+  let attempt = 1, status = "completed", conclusion = "failure";
+  const original = h.fetchJson;
+  h.fetchJson = async url => {
+    if (!url.includes("/actions/runs")) return original(url);
+    h.calls.push(url);
+    const run = {id:42, head_sha:base, run_attempt:attempt, status, conclusion, repository:{full_name:repo}};
+    if (url.includes("?head_sha=")) return {total_count:1, workflow_runs:[run]};
+    const n = Number(url.match(/attempts\/(\d+)/)?.[1]);
+    const detail = {...run, run_attempt:n, status:n < attempt ? "completed" : status,
+      conclusion:n < attempt ? "failure" : conclusion};
+    if (url.includes("/jobs?")) return {total_count:1, jobs:[
+      {id:n, run_id:42, head_sha:base, run_attempt:n, status:detail.status, conclusion:detail.conclusion}]};
+    return detail;
+  };
+  return {...h, records, persistObservation:async value=>records.push(structuredClone(value)),
+    setRun:(a, s, c)=>{attempt=a;status=s;conclusion=c;}};
+}
+test("immutable reuse saves a read, retains original time and isolates returned mutation", async()=>{
+  const h=evidenceHost(), c=await createEvidenceCollector(h);
+  const first=await c.readImmutable("commits",base);
+  first.observation.response.tree.sha=base;
+  const second=await c.readImmutable("commits",base);
+  assert.equal(second.observation.response.tree.sha,root);
+  assert.equal(second.observation.observed_at,"2026-09-06T00:00:00Z");
+  assert.equal(second.reused,true);
+  assert.equal(h.records.at(-1).schema,"agent-work-evidence-reuse/v1");
+  assert.deepEqual(c.metrics(),{connector_reads:1,reused_reads:1,read_reduction_percent:50});
+  for(const [kind,sha] of [["refs","main"],["commits","main"],["pulls",base]]) {
+    await assert.rejects(c.readImmutable(kind,sha),/immutable/);
+  }
+  assert.equal(c.metrics().connector_reads,1);
+});
+test("cache restore verifies independently retained digest and repository", async()=>{
+  const h=evidenceHost(), c=await createEvidenceCollector(h);
+  await c.readImmutable("commits",base);
+  const cacheSnapshot=c.snapshot(), expectedCacheSha256=await sha256(cacheSnapshot);
+  const resumed=await createEvidenceCollector({...h,cacheSnapshot,expectedCacheSha256,sha256,
+    now:()=>"2026-09-07T00:00:00Z"});
+  assert.equal((await resumed.readImmutable("commits",base)).reused,true);
+  assert.equal(resumed.metrics().connector_reads,0);
+  await assert.rejects(createEvidenceCollector({...h,cacheSnapshot:cacheSnapshot+" ",expectedCacheSha256,sha256}),/digest/);
+  await assert.rejects(createEvidenceCollector({...h,repository:"example/other",cacheSnapshot,expectedCacheSha256,sha256}),/identity/);
+  await assert.rejects(createEvidenceCollector({...h,cacheSnapshot,expectedCacheSha256}),/digest/);
+  assert.equal((await resumed.readImmutable("commits",base)).observation.observed_at,"2026-09-06T00:00:00Z");
+});
+test("valid outer hash cannot import live gates, wrong identities or duplicate cache keys",async()=>{
+  const h=evidenceHost(), c=await createEvidenceCollector(h);
+  await c.readImmutable("commits",base);
+  for(const mutate of [
+    s=>s.entries[0][0]="/branches/main",
+    s=>s.entries[0][1].response.sha=root,
+    s=>s.entries[0][1].observed_at="2099-01-01T00:00:00Z",
+    s=>s.entries.push(s.entries[0]),
+  ]) {
+    const state=JSON.parse(c.snapshot());mutate(state);const cacheSnapshot=JSON.stringify(state);
+    await assert.rejects(createEvidenceCollector({...h,cacheSnapshot,expectedCacheSha256:await sha256(cacheSnapshot),sha256}));
+  }
+});
+test("complete terminal histories reuse only beneath a freshly read exact head inventory",async()=>{
+  const h=evidenceHost(),c=await createEvidenceCollector(h);
+  const first=await c.collectRuns(base),second=await c.collectRuns(base);
+  assert.equal(first.histories[0].attempt.response.conclusion,"failure");
+  assert.equal(second.histories[0].reused,true);
+  assert.equal(second.push_qualified,false);
+  assert.equal(second.history_only,true);
+  assert.deepEqual(c.metrics(),{connector_reads:4,reused_reads:2,read_reduction_percent:100/3});
+});
+test("a new attempt preserves failed history and fetches its own jobs",async()=>{
+  const h=evidenceHost(),c=await createEvidenceCollector(h);
+  await c.collectRuns(base);
+  h.setRun(2,"completed","success");
+  const result=await c.collectRuns(base);
+  assert.equal(result.histories.length,2);
+  assert.equal(result.histories[0].attempt.response.conclusion,"failure");
+  assert.equal(result.histories[0].reused,true);
+  assert.equal(result.histories[1].reused,false);
+  assert.equal(result.histories[1].attempt.response.conclusion,"success");
+});
+test("live attempts never enter the cache and old green cannot hide current running state",async()=>{
+  const h=evidenceHost(),c=await createEvidenceCollector(h);
+  h.setRun(1,"completed","success");await c.collectRuns(base);
+  h.setRun(1,"in_progress",null);
+  const result=await c.collectRuns(base);
+  assert.equal(result.histories[0].reused,false);
+  assert.equal(result.histories[0].attempt.response.conclusion,null);
+  assert.equal(JSON.parse(c.snapshot()).entries.length,0);
+  await c.collectRuns(base);
+  assert.equal(c.metrics().reused_reads,0);
+});
+test("policy, default and review observations remain fresh with tree reuse enabled",async()=>{
+  const h=evidenceHost(),c=await createEvidenceCollector(h);
+  const first=await collectWorkSession({...h,readTree:c.readTree,hasBlob:async()=>true});
+  const next=await collectWorkSession({...h,readTree:c.readTree,hasBlob:async()=>true});
+  assert.equal(first.snapshot.tree_sha,next.snapshot.tree_sha);
+  assert.equal(c.metrics().reused_reads,1);
+  assert.equal(h.calls.filter(p=>p==="/rulesets?includes_parents=true&per_page=100&page=1").length,2);
+  assert.equal(h.calls.filter(p=>p===("/git/commits/"+base)).length,2);
+  assert.equal(h.calls.filter(p=>p==="/git/ref/heads/main").length,4);
+});
+test("moved source head blocks even with reusable trees",async()=>{
+  let refs=0;
+  const h=host({"/git/ref/heads/main":()=>++refs===1?ref:{...ref,object:{type:"commit",sha:root}}});
+  h.persistObservation=async()=>{};
+  const c=await createEvidenceCollector(h);
+  await assert.rejects(collectSource({...h,readTree:c.readTree}),/default moved/);
+});
+test("truncated trees are refetched and never installed as complete cache entries",async()=>{
+  const h=host({["/git/trees/"+root+"?recursive=1"]:{sha:root,truncated:true}});
+  h.persistObservation=async()=>{};
+  const c=await createEvidenceCollector(h);
+  assert.equal((await c.readTree(root,true)).reused,false);
+  assert.equal((await c.readTree(root,true)).reused,false);
+  assert.equal(JSON.parse(c.snapshot()).entries.length,0);
+});
+test("failed observation or reuse persistence stops without advancing cache metrics",async()=>{
+  const h=evidenceHost();let fail=true;
+  const c=await createEvidenceCollector({...h,persistObservation:async()=>{if(fail)throw Error("disk failed")}});
+  await assert.rejects(c.readImmutable("commits",base),/disk failed/);
+  assert.equal(JSON.parse(c.snapshot()).entries.length,0);
+  fail=false;await c.readImmutable("commits",base);
+  fail=true;await assert.rejects(c.readImmutable("commits",base),/disk failed/);
+  assert.equal(c.metrics().reused_reads,0);
+});
+test("missing or changing pagination never becomes a complete reusable history",async()=>{
+  for(const mutate of [
+    b=>{if(b.jobs)b.total_count=2},
+    b=>{if(b.jobs)b.jobs[0].head_sha=root},
+    b=>{if(b.jobs)b.jobs.push({...b.jobs[0]});if(b.jobs)b.total_count=2},
+    b=>{if(b.workflow_runs)b.total_count=2},
+    b=>{if(b.workflow_runs)b.workflow_runs[0].repository.full_name="other/repo"},
+  ]) {
+    const h=evidenceHost(),get=h.fetchJson;
+    h.fetchJson=async u=>{const b=await get(u);mutate(b);return b};
+    const c=await createEvidenceCollector({...h,maxPages:1});
+    await assert.rejects(c.collectRuns(base));
+    assert.equal(JSON.parse(c.snapshot()).entries.length,0);
+  }
+});
+test("restored CI bytes must satisfy original run and complete job identity",async()=>{
+  const h=evidenceHost(),c=await createEvidenceCollector(h);await c.collectRuns(base);
+  for(const mutate of [
+    s=>s.entries[0][1].attempt.response.status="in_progress",
+    s=>s.entries[0][1].jobs[0].response.total_count=2,
+    s=>s.entries[0][1].jobs[0].response.jobs[0].run_id=99,
+    s=>s.entries[0][1].jobs[0].response.jobs[0].head_sha=root,
+  ]) {
+    const state=JSON.parse(c.snapshot());mutate(state);const cacheSnapshot=JSON.stringify(state);
+    await assert.rejects(createEvidenceCollector({...h,cacheSnapshot,expectedCacheSha256:await sha256(cacheSnapshot),sha256}));
+  }
+});
+test("evidence budgets reject before extra connector access; UNKNOWN is never cached",async()=>{
+  const h=evidenceHost(),c=await createEvidenceCollector({...h,maxCalls:1});
+  await c.readImmutable("commits",base);
+  await assert.rejects(c.readTree(root),/budget/);
+  assert.equal(h.calls.length,1);
+  const denied=await createEvidenceCollector({...h,fetchJson:async()=>{throw Error("denied")}});
+  await assert.rejects(denied.collectRuns(base),/denied/);
+  assert.equal(h.records.at(-1).status,"UNKNOWN");
+  assert.equal(JSON.parse(denied.snapshot()).entries.length,0);
 });

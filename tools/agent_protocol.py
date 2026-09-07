@@ -45,6 +45,7 @@ WAIVER_PATTERN = re.compile(
 POLICIES = {"NO_PRODUCTION", "REPOSITORY_POLICY"}
 SOURCES = {"LOCAL_GIT", "GITHUB_CONNECTOR"}
 SAFE_PROTOCOL_PATHS = {
+    "docs/agent-development-v1.4.6-work.md",
     "docs/agent-development-v1.4.5-work.md",
     "tests/test_agent_protocol_work_recovery.py",
     "tools/agent_protocol_work_recovery.py",

@@ -237,6 +237,23 @@ Historical receipts/sections remain unchanged. This overlay preserves engine 1.4
 lifecycle 1.2, schema 2 and every earlier scope/effect/CI/review/production boundary;
 it does not grant downstream adoption or product continuation by itself.
 
+## Agent Development Protocol v1.4.6 evidence reuse
+
+`AGENT_DEVELOPMENT_PROTOCOL: 1.4.6`
+
+Use `createEvidenceCollector` from the existing Work collector and follow
+`docs/agent-development-v1.4.6-work.md`. Only exact Git commit/tree objects and
+complete terminal CI attempt/job histories are reusable. Live default anchors,
+PR identity/files, policy, reviews and workflow inventories remain fresh.
+The source commit anchor remains a real new read even when its tree is reused.
+
+Cache restore requires an independently retained SHA-256, verified host provenance
+and original timestamps. Neither a digest nor cached success establishes authority
+or a passed current gate. Retain every failed attempt; never retry automatically.
+Measure connector reads separately from tokens, model time and usage credits.
+The eight-file dependency inventory, full native checks, engine 1.4.2, lifecycle
+1.2, schema 2 and every earlier gate and production boundary remain unchanged.
+
 ## Delivery and release discipline
 
 - Start from the verified default-branch SHA and keep the pull-request delta minimal.
