@@ -215,6 +215,28 @@ Python/Git checks. Downstream use requires an accepted local dependency pin.
 The operational engine stays 1.4.2, lifecycle 1.2 and campaign/handoff schema 2;
 historical validators/receipts, authority and all existing gates remain intact.
 
+## Agent Development Protocol v1.4.5 Work recovery
+
+`AGENT_DEVELOPMENT_PROTOCOL: 1.4.5`
+
+Read `docs/agent-development-v1.4.5-work.md` for incremental observation capture,
+explicit recovery archives and coherent adopter synchronization. The current Work
+bootstrap persists each response before continuing and propagates storage failures.
+Save recovery artifacts through the host's durable file capability and retain the
+archive identity/digest separately; a temporary ZIP is not a completed handoff.
+
+Recovery verifies historical bytes only. Never select authority from candidate
+content, refresh an old timestamp, promote a cached check or execute restored
+scripts. Independently confirm original user authority, rehash source/cache bytes,
+reobserve live gates and run the same native preflight/full checks. Complete native
+Git/bundle recovery remains valid without claiming unsupported connector transport.
+
+Synchronize adopter Work pins, operational manifest/provenance and current guides
+from one accepted Core revision with the canonical `sync-adopter` entrypoint.
+Historical receipts/sections remain unchanged. This overlay preserves engine 1.4.2,
+lifecycle 1.2, schema 2 and every earlier scope/effect/CI/review/production boundary;
+it does not grant downstream adoption or product continuation by itself.
+
 ## Delivery and release discipline
 
 - Start from the verified default-branch SHA and keep the pull-request delta minimal.
