@@ -620,6 +620,12 @@ class GoogleJobManager:
                                max_items_per_page=min(limits.max_items_per_page, remaining_items)),
             )
             pages += 1
+            if len(page.items) + len(page.skipped_items) > min(
+                limits.max_items_per_page, remaining_items
+            ):
+                raise GoogleContractError(
+                    "google_payload_limit_exceeded", "Google page exceeds remaining item bound"
+                )
             fingerprint = page.fingerprint()
             ordinal = base_ordinal + pages
             previous_fingerprints = list(session_fingerprints)
@@ -634,6 +640,23 @@ class GoogleJobManager:
             ):
                 previous_fingerprints.append(fingerprint)
             session_fingerprints = previous_fingerprints
+            for skipped in page.skipped_items:
+                if self._cancel_requested(job_id):
+                    raise GoogleContractError("google_cancelled", "Google intake was cancelled")
+                self.sources.effective_execution_context(str(request["source_id"]))
+                key = hashlib.sha256(json.dumps(
+                    {"source_id": request["source_id"], **skipped.identity_record()},
+                    sort_keys=True, separators=(",", ":"),
+                ).encode()).hexdigest()
+                if key not in work["items"]:
+                    work["items"][key] = {
+                        "status": "skipped", "size_bytes": 0,
+                        "reason": "unsupported_google_native",
+                    }
+                    progress["skipped"] += 1
+                    self._write_work(job_id, work)
+                    if checkpoint is not None:
+                        checkpoint(progress)
             for item in page.items:
                 if self._cancel_requested(job_id):
                     raise GoogleContractError("google_cancelled", "Google intake was cancelled")

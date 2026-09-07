@@ -90,6 +90,19 @@ partial pages are not silently skipped. Already committed items remain idempoten
 Source/connector/global gates and cancellation are rechecked before item promotion. Source
 re-enrollment reuses existing selection state, preserving identity, cursor and schedule.
 
+Drive folders, shortcuts and unsupported Google-native types are counted as skipped
+metadata-only entries. They consume the same page/item budget, contribute to the
+page fingerprint and retain continuation even when a page contains no downloadable
+content. They create no Original and their provider IDs are not written to the work
+journal. Malformed metadata and byte-limit failures still fail closed. Folder
+contents and shortcut targets are never followed implicitly.
+
+The execution thread and its lease heartbeat serialize their short writes through
+the same scheduler journal before acquiring the existing OS lock. This prevents
+their own concurrent checkpoint/heartbeat from aborting execution and leaving a
+running job to exhaust lease recovery. Other processes still encounter the existing
+nonblocking OS lock; lease ownership and expiry checks remain enforced.
+
 ## Qualification and human evidence
 
 `tests/test_google_connection.py` covers the actual guided service/HTTP path with synthetic

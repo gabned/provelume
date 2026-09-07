@@ -8,7 +8,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from threading import Event, Thread
+from threading import Event, RLock, Thread
 from typing import Any
 from uuid import uuid4
 
@@ -162,6 +162,10 @@ class SchedulerStore:
         self.jobs = self.root / "jobs"
         self.receipts = self.root / "receipts"
         self.lock_path = store.paths.state / "locks" / SCHEDULER_LOCK_NAME
+        # The execution thread and its lease heartbeat share this journal.
+        # Serialize their short transactions before taking the nonblocking OS
+        # lock; our own heartbeat must not abort an otherwise healthy job.
+        self._writer_lock = RLock()
 
     @property
     def instance_id(self) -> str:
@@ -194,6 +198,11 @@ class SchedulerStore:
 
     @contextmanager
     def hold(self) -> Iterator[None]:
+        with self._writer_lock, self._hold_os_lock():
+            yield
+
+    @contextmanager
+    def _hold_os_lock(self) -> Iterator[None]:
         self._ensure_directories()
         flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0)
         try:
@@ -992,10 +1001,10 @@ class SchedulerStore:
         lease_seconds: int = DEFAULT_LEASE_SECONDS,
         now: datetime | str | None = None,
     ) -> dict[str, Any]:
-        selected_now = utc_instant(now)
         if type(lease_seconds) is not int or lease_seconds < 1 or lease_seconds > MAX_LEASE_SECONDS:
             raise SchedulerError("lease duration is outside the supported range")
         with self.hold():
+            selected_now = utc_instant(now)
             job = self.get_job(job_id)
             if job is None:
                 raise SchedulerNotFoundError("scheduler job not found")
@@ -1017,11 +1026,11 @@ class SchedulerStore:
         progress: Mapping[str, int],
         now: datetime | str | None = None,
     ) -> dict[str, Any]:
-        selected_now = utc_instant(now)
         selected_progress = validate_progress(progress)
         if phase not in {"prepared", "executing", "committed"}:
             raise SchedulerError("unsupported checkpoint phase")
         with self.hold():
+            selected_now = utc_instant(now)
             job = self.get_job(job_id)
             if job is None:
                 raise SchedulerNotFoundError("scheduler job not found")

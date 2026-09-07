@@ -4,6 +4,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+- Fixed bounded Google intake skipping unsupported Drive folders, shortcuts and
+  native formats as metadata-only observations, counting them against item limits
+  and retaining continuation checkpoints. Scheduler execution and lease heartbeat
+  writes now serialize within their shared journal to prevent self-contention
+  from abandoning a running intake job.
+
 - Fixed Google desktop-client setup rejecting the original JSON downloaded from
   Google Cloud; legacy authorization metadata is accepted while OAuth continues
   to use the fixed v2 endpoint and rejects arbitrary endpoints. The connection
