@@ -1,6 +1,6 @@
 # Protocol 1.4.3: verifiable Work sources and host authority
 
-## Current operational entrypoint — 1.4.5
+## Current operational entrypoint — 1.4.6
 
 The historical 1.4.3 contract below is preserved. Version 1.4.4 fixes its host
 integration: Work's generic `github_fetch` and `github_fetch_blob` can return
@@ -14,9 +14,10 @@ set the actual repository. The provided host exposes `tools.exec_command`,
 `tools.apply_patch` and the advertised GitHub tools. Work's isolate has no native
 filesystem/module loader, so this recipe verifies the acquired collector bytes
 before loading its exports. It does not replace the collector's transport logic.
-The pinned digest below identifies the 1.4.5 collector, including incremental
-observation persistence. See [durable recovery](agent-development-v1.4.5-work.md)
-for exporting and restoring evidence across workspace loss.
+The pinned digest below identifies the 1.4.6 collector, including incremental
+observation persistence and verified evidence reuse. See [durable recovery](agent-development-v1.4.5-work.md)
+for exporting and restoring evidence across workspace loss, and the
+[1.4.6 evidence guide](agent-development-v1.4.6-work.md) for operational CI collection.
 
 ```javascript
 const canonicalRoot = "/absolute/canonical-core";
@@ -26,7 +27,7 @@ const shellQuote = value => "'" + value.replace(/'/g, "'\\''") + "'";
 const bootstrap = [
   "import hashlib,pathlib,sys",
   "data=pathlib.Path(sys.argv[1]).read_bytes()",
-  "if hashlib.sha256(data).hexdigest()!='9f13a7164519c6685158d503df3e628833dbf1dd81e417964352c79480b30c1b': raise ValueError('collector digest mismatch')",
+  "if hashlib.sha256(data).hexdigest()!='e0872ac7189a4feb9a7df8f0cfcabb64e8a4992d4fe177d91318d9082bb8f541': raise ValueError('collector digest mismatch')",
   "pathlib.Path(sys.argv[2]).mkdir(parents=True,exist_ok=False)",
   "sys.stdout.write(data.decode('utf-8'))",
 ].join("\n");
@@ -36,8 +37,8 @@ const loaded = await tools.exec_command({
   max_output_tokens: 12000,
 });
 if (loaded.exit_code !== 0) throw Error("verified collector bootstrap failed");
-const {createWorkConnector, collectWorkSession} = new Function(
-  loaded.output.replace(/^export /gm, "") + "\nreturn {createWorkConnector, collectWorkSession};",
+const {createWorkConnector, collectWorkSession, createEvidenceCollector} = new Function(
+  loaded.output.replace(/^export /gm, "") + "\nreturn {createWorkConnector, collectWorkSession, createEvidenceCollector};",
 )();
 const saveRecord = async (relative, value) => {
   const result = await tools.apply_patch("*** Begin Patch\n*** Add File: " + evidenceRoot + "/" + relative +
@@ -49,11 +50,13 @@ const connector = createWorkConnector({
   fetch: args => tools.mcp__codex_apps__github_fetch(args),
   fetchFile: args => tools.mcp__codex_apps__github_fetch_file(args),
 });
+const persistObservation = record => saveRecord("observations/" +
+  String(observationNumber++).padStart(6, "0") + ".json", record);
+const evidence = await createEvidenceCollector({repository, ...connector, persistObservation});
 const session = await collectWorkSession({
-  repository, ...connector,
+  repository, ...connector, readTree: evidence.readTree,
   saveBlob: (sha, record) => saveRecord("records/" + sha + ".json", record),
-  persistObservation: record => saveRecord("observations/" +
-    String(observationNumber++).padStart(6, "0") + ".json", record),
+  persistObservation,
   activePr: null, // select the actual PRODUCT owner when one exists
 });
 for (const [name, value] of Object.entries(session)) await saveRecord(name + ".json", value);
@@ -63,7 +66,7 @@ This cold-start example defines every variable except the actual provided host
 `tools`. It refuses an existing evidence directory and verifies the exact module
 bytes before evaluating them; no tokens, native Git emulation or HTTP fallback.
 On a host with native ES modules, an explicit import of the same verified file
-may load the two exports instead; do not assume they already exist in a new cell.
+may load the three exports instead; do not assume they already exist in a new cell.
 
 `saveBlob` above retains each normalized base64 JSON record outside source.
 Before materialization, use the canonical `decode_blob(response)` verifier and

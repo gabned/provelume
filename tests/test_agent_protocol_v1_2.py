@@ -202,6 +202,7 @@ def test_reconciliation_accepts_newer_default_tip_without_inferring_release() ->
 
 def test_recovery_effect_profile_is_exact_and_keeps_unknown_paths_closed():
     for path in (
+        "docs/agent-development-v1.4.6-work.md",
         "docs/agent-development-v1.4.5-work.md",
         "tests/test_agent_protocol_work_recovery.py",
         "tools/agent_protocol_work_recovery.py",

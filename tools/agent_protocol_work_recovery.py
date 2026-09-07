@@ -346,21 +346,23 @@ def adoption_plan(canonical, target, commit, repository, *, work=None):
         if repository == "gabned/provelume.com"
         else "docs/runbooks/agent-development-v1.4.2.md"
     )
-    marker = "## Current Work recovery — Protocol 1.4.5"
+    marker = "## Current evidence reuse — Protocol 1.4.6"
     ownership = (
         "This authorized PROTOCOL adoption retains PR-local ownership and uses\n"
         if repository == "gabned/provelume.com"
         else "This authorized PROTOCOL adoption retains the valid product checkpoint and uses\n"
     )
     block = (
-        f"{marker}\n\nAGENT_DEVELOPMENT_PROTOCOL: 1.4.5\n\n"
+        f"{marker}\n\nAGENT_DEVELOPMENT_PROTOCOL: 1.4.6\n\n"
         f"Accepted Core: `{commit}`. This current section supersedes earlier Work\n"
         "startup/pin descriptions; historical receipts and their identities stay unchanged.\n"
+        "Use the canonical evidence collector for immutable Git objects and terminal CI\n"
+        "history; retain original timestamps and refresh every live inventory and gate.\n"
         "The eight Work dependency files, operational manifest and generated provenance\n"
         "are synchronized from the same accepted commit. Operational helper bytes/modes\n"
         "are verified independently; engine 1.4.2, lifecycle 1.2 and schema 2 remain.\n\n"
-        f"Follow the [canonical recovery guide](https://github.com/gabned/provelume/blob/{commit}/"
-        "docs/agent-development-v1.4.5-work.md). Persist each observation before continuing;\n"
+        f"Follow the [canonical evidence guide](https://github.com/gabned/provelume/blob/{commit}/"
+        "docs/agent-development-v1.4.6-work.md). Persist each observation before continuing;\n"
         "save and independently verify the explicit evidence archive outside the source tree.\n"
         "Restoration recovers historical bytes only: select actual user authority independently,\n"
         "then collect fresh default/policy/review/CI evidence and run unchanged native gates.\n"
