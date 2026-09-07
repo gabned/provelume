@@ -3,6 +3,59 @@ import assert from "node:assert/strict";
 import {collectSource, collectPreflight, collectWorkSession,
   createWorkConnector, connectorPayload} from "../tools/agent_protocol_work_collect.mjs";
 
+test("source observations survive interruption before the next read", async()=>{
+  const saved=[]; const h=host(); let calls=0;
+  const get=h.fetchJson;
+  h.fetchJson=async url=>{
+    assert.equal(saved.length,calls);
+    calls++;
+    if(calls===3) throw Error("interrupted");
+    return get(url);
+  };
+  h.persistObservation=async record=>saved.push(structuredClone(record));
+  await assert.rejects(collectSource(h),/interrupted/);
+  assert.equal(saved.length,3);
+  assert.equal(saved[2].status,"UNKNOWN");
+  assert.equal(saved[2].response,null);
+});
+test("persistence failure stops further connector reads", async()=>{
+  const h=host();h.persistObservation=async()=>{throw Error("storage failure")};
+  await assert.rejects(collectSource(h),/storage failure/);
+  assert.equal(h.calls.length,1);
+  const p=preflightHost();p.persistObservation=h.persistObservation;
+  await assert.rejects(collectPreflight(p),/storage failure/);
+  assert.equal(p.calls.length,1);
+});
+test("raw invalid typed response is durable before validation rejects it",async()=>{
+  const h=toolHost();const saved=[];
+  h.persistObservation=async r=>saved.push(structuredClone(r));
+  h.fetchFile=async()=>({structuredContent:{sha:blob,encoding:"base64",content:""}});
+  await assert.rejects(collectSource(h),/size mismatch/);
+  assert.equal(saved.at(-1).tool,"github_fetch_file");
+  assert.equal(saved.at(-1).response.structuredContent.content,"");
+  assert.equal(h.saves.length,0);
+});
+test("progress follows verified transport saving and cannot qualify a push",async()=>{
+  const h=host(),progress=[];
+  h.progress=async p=>{assert.equal(h.saves.length,1);progress.push(p)};
+  await collectSource(h);
+  assert.equal(progress.length,1);
+  assert.equal(progress[0].push_qualified,false);
+});
+test("resume retains old observation time and fetches a fresh policy",async()=>{
+  const saved=[],first=preflightHost();
+  first.persistObservation=async p=>saved.push(structuredClone(p));
+  await collectPreflight(first);
+  const before=structuredClone(saved);
+  const second=preflightHost({"/rulesets?includes_parents=true&per_page=100&page=1":new Error("denied")});
+  second.now=()=>"2026-09-07T00:00:00Z";
+  second.persistObservation=async p=>saved.push(structuredClone(p));
+  const resumed=await collectPreflight(second);
+  assert.deepEqual(saved.slice(0,before.length),before);
+  assert.equal(resumed.rulesets.status,"UNKNOWN");
+  assert.equal(resumed.push_qualified,false);
+});
+
 const repo = "example/public", base = "a".repeat(40), root = "b".repeat(40), blob = "c".repeat(40);
 const ref = {ref:"refs/heads/main", object:{type:"commit", sha:base}};
 const entries = [{path:"readme", type:"blob", mode:"100644", sha:blob, size:1}];
@@ -190,4 +243,14 @@ test("host capabilities and JSON result are explicit",async()=>{
   assert.throws(()=>createWorkConnector({fetch:async()=>{}}),/requires/);
   const c=createWorkConnector({fetch:async()=>({structuredContent:{content:"plain text"}}),fetchFile:async()=>{}});
   await assert.rejects(c.fetchJson("unused"),SyntaxError);
+});
+
+test("preflight retains unavailable original responses without promoting them", async()=>{
+  const raw={status:403,error:"denied",detail:"original response"};
+  const saved=[];
+  const h=host({"/rulesets?includes_parents=true&per_page=100&page=1":raw});
+  const result=await collectPreflight({...h,persistObservation:async record=>saved.push(record)});
+  assert.deepEqual(saved.find(r=>r.url.includes("/rulesets")).response,raw);
+  assert.equal(result.rulesets.status,"UNKNOWN");
+  assert.equal(result.rulesets.observations[0].response,null);
 });

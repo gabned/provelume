@@ -1,6 +1,6 @@
 # Protocol 1.4.3: verifiable Work sources and host authority
 
-## Current operational entrypoint — 1.4.4
+## Current operational entrypoint — 1.4.5
 
 The historical 1.4.3 contract below is preserved. Version 1.4.4 fixes its host
 integration: Work's generic `github_fetch` and `github_fetch_blob` can return
@@ -14,7 +14,9 @@ set the actual repository. The provided host exposes `tools.exec_command`,
 `tools.apply_patch` and the advertised GitHub tools. Work's isolate has no native
 filesystem/module loader, so this recipe verifies the acquired collector bytes
 before loading its exports. It does not replace the collector's transport logic.
-The pinned digest below identifies the unchanged 1.4.4 collector.
+The pinned digest below identifies the 1.4.5 collector, including incremental
+observation persistence. See [durable recovery](agent-development-v1.4.5-work.md)
+for exporting and restoring evidence across workspace loss.
 
 ```javascript
 const canonicalRoot = "/absolute/canonical-core";
@@ -24,7 +26,7 @@ const shellQuote = value => "'" + value.replace(/'/g, "'\\''") + "'";
 const bootstrap = [
   "import hashlib,pathlib,sys",
   "data=pathlib.Path(sys.argv[1]).read_bytes()",
-  "if hashlib.sha256(data).hexdigest()!='53b75d2c873829fecf8ebcc6a1a15748c651d9a1c9486dcdde617b16a888c2db': raise ValueError('collector digest mismatch')",
+  "if hashlib.sha256(data).hexdigest()!='9f13a7164519c6685158d503df3e628833dbf1dd81e417964352c79480b30c1b': raise ValueError('collector digest mismatch')",
   "pathlib.Path(sys.argv[2]).mkdir(parents=True,exist_ok=False)",
   "sys.stdout.write(data.decode('utf-8'))",
 ].join("\n");
@@ -38,9 +40,11 @@ const {createWorkConnector, collectWorkSession} = new Function(
   loaded.output.replace(/^export /gm, "") + "\nreturn {createWorkConnector, collectWorkSession};",
 )();
 const saveRecord = async (relative, value) => {
-  await tools.apply_patch("*** Begin Patch\n*** Add File: " + evidenceRoot + "/" + relative +
+  const result = await tools.apply_patch("*** Begin Patch\n*** Add File: " + evidenceRoot + "/" + relative +
     "\n+" + JSON.stringify(value) + "\n*** End Patch");
+  if (result?.isError) throw Error("evidence persistence failed");
 };
+let observationNumber = 0;
 const connector = createWorkConnector({
   fetch: args => tools.mcp__codex_apps__github_fetch(args),
   fetchFile: args => tools.mcp__codex_apps__github_fetch_file(args),
@@ -48,6 +52,8 @@ const connector = createWorkConnector({
 const session = await collectWorkSession({
   repository, ...connector,
   saveBlob: (sha, record) => saveRecord("records/" + sha + ".json", record),
+  persistObservation: record => saveRecord("observations/" +
+    String(observationNumber++).padStart(6, "0") + ".json", record),
   activePr: null, // select the actual PRODUCT owner when one exists
 });
 for (const [name, value] of Object.entries(session)) await saveRecord(name + ".json", value);

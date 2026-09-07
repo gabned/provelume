@@ -7,22 +7,31 @@
  */
 export async function collectSource({repository, fetchJson, saveBlob,
   fetchFile = null, hasBlob = async () => false,
-  now = () => new Date().toISOString(), maxCalls = 2000}) {
+  now = () => new Date().toISOString(), maxCalls = 2000,
+  persistObservation = null, progress = null}) {
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) throw Error("invalid repository");
   if (!Number.isInteger(maxCalls) || maxCalls < 1 || maxCalls > 10000) throw Error("invalid connector call budget");
   if (typeof fetchJson !== "function" || typeof saveBlob !== "function") throw Error("connector host capabilities required");
   if (fetchFile !== null && typeof fetchFile !== "function") throw Error("invalid file connector capability");
+  if (persistObservation !== null && typeof persistObservation !== "function") throw Error("invalid persistence capability");
+  if (progress !== null && typeof progress !== "function") throw Error("invalid progress capability");
   const prefix = `https://api.github.com/repos/${repository}`;
   let calls = 0;
   const observations = [];
   async function get(suffix) {
     if (++calls > maxCalls) throw Error("bounded connector call budget exhausted");
     const url = prefix + suffix;
-    const response = await fetchJson(url);
+    let response;
+    try { response = await fetchJson(url); }
+    catch (error) {
+      if (persistObservation) await persistObservation({url, observed_at:now(), status:"UNKNOWN", response:null});
+      throw error;
+    }
+    const observation = {url, observed_at: now(), response};
+    if (persistObservation) await persistObservation(observation);
     if (!response || typeof response !== "object" || response.error || Number(response.status) >= 400) {
       throw Error("connector observation unavailable; no inferred success");
     }
-    const observation = {url, observed_at: now(), response};
     observations.push(observation);
     return observation;
   }
@@ -80,8 +89,16 @@ export async function collectSource({repository, fetchJson, saveBlob,
     if (fetchFile) {
       if (++calls > maxCalls) throw Error("bounded connector call budget exhausted");
       const args = {repository_full_name: repository, path: entry.path, ref: commit, encoding: "base64"};
-      const response = await fetchFile(args);
-      observations.push({tool: "github_fetch_file", arguments: args, observed_at: now(), response});
+      let response;
+      try { response = await fetchFile(args); }
+      catch (error) {
+        if (persistObservation) await persistObservation({tool:"github_fetch_file", arguments:args,
+          observed_at:now(), status:"UNKNOWN", response:null});
+        throw error;
+      }
+      const observation = {tool: "github_fetch_file", arguments: args, observed_at: now(), response};
+      if (persistObservation) await persistObservation(observation);
+      observations.push(observation);
       blob = connectorPayload(response);
     } else {
       blob = (await get(`/git/blobs/${sha}`)).response;
@@ -92,6 +109,8 @@ export async function collectSource({repository, fetchJson, saveBlob,
     blob = checkedBase64(blob, entry);
     await saveBlob(sha, blob);
     downloaded++;
+    if (progress) await progress({phase:"SOURCE", calls, downloaded_blobs:downloaded,
+      cached_blobs:cached, total_blobs:blobs.size, push_qualified:false});
   }
   const after = await get(ref);
   if (after.response.object?.sha !== commit || after.response.object?.type !== "commit") throw Error("default moved during acquisition");
@@ -171,20 +190,27 @@ export async function collectWorkSession(options) {
  * Active PR review threads require the dedicated paginating connector tool.
  */
 export async function collectPreflight({repository, fetchJson, activePr = null,
-  fetchReviewThreads = null, now = () => new Date().toISOString(), maxPages = 20}) {
+  fetchReviewThreads = null, now = () => new Date().toISOString(), maxPages = 20,
+  persistObservation = null}) {
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) throw Error("invalid repository");
   if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 100) throw Error("invalid pagination budget");
   if (!(activePr === null || (Number.isInteger(activePr) && activePr > 0))) throw Error("invalid owner PR");
+  if (persistObservation !== null && typeof persistObservation !== "function") throw Error("invalid persistence capability");
   const prefix = `https://api.github.com/repos/${repository}`;
   async function get(suffix) {
     const url = prefix + suffix;
+    let observation;
     try {
       const response = await fetchJson(url);
-      if (!response || response.error || Number(response.status) >= 400) throw Error("unavailable");
-      return {url, observed_at: now(), status: "OBSERVED", response};
+      const status = !response || response.error || Number(response.status) >= 400 ? "UNKNOWN" : "OBSERVED";
+      observation = {url, observed_at: now(), status, response};
     } catch {
-      return {url, observed_at: now(), status: "UNKNOWN", response: null};
+      observation = {url, observed_at: now(), status: "UNKNOWN", response: null};
     }
+    // Persistence is outside the connector catch: a disk/host failure must stop
+    // collection, not be converted into a successfully saved UNKNOWN record.
+    if (persistObservation) await persistObservation(observation);
+    return observation.status === "UNKNOWN" ? {...observation, response:null} : observation;
   }
   async function pages(suffix) {
     const observations = [];
@@ -218,6 +244,8 @@ export async function collectPreflight({repository, fetchJson, activePr = null,
         threads = {status: response?.complete === true ? "OBSERVED" : "UNKNOWN", response, observed_at: now()};
       } catch { /* inaccessible thread details remain UNKNOWN */ }
     }
+    if (persistObservation) await persistObservation({tool:"github_list_pull_request_review_threads",
+      arguments:{repository_full_name:repository, pr_number:activePr}, observed_at:now(), ...threads});
     active = {number: activePr, pr, reviews, threads};
   }
   return {schema:"agent-work-preflight/v1", repository, generated_at:now(), repo,
