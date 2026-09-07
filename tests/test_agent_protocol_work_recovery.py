@@ -87,13 +87,32 @@ def rewrite(archive, mutate):
     return hashlib.sha256(archive.read_bytes()).hexdigest()
 
 
-@pytest.mark.parametrize("name", ["../escape", "/absolute", "a\\b", ".git/config", "C:drive"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "../escape",
+        "/absolute",
+        "a\\b",
+        ".git/config",
+        "C:drive",
+        "CON",
+        "nul.txt",
+        "a.",
+        "a ",
+        "a?b",
+    ],
+)
 def test_archive_rejects_unsafe_manifest_paths_before_output(evidence, tmp_path, name):
     _, archive, _ = evidence
     sha = rewrite(archive, lambda m, _: m["files"][0].update(path=name))
     with pytest.raises(ValueError):
         recovery.recovery_restore(archive, sha, tmp_path / "output")
     assert not (tmp_path / "output").exists()
+
+
+def test_archive_rejects_case_aliased_parent_directories():
+    with pytest.raises(ValueError, match="case-aliased directory"):
+        recovery.entries(["A/one", "a/two"])
 
 
 @pytest.mark.parametrize(
@@ -166,6 +185,7 @@ def adoption(tmp_path):
     for root, repo in ((canonical, "gabned/provelume"), (target, "gabned/provelume.com")):
         root.mkdir()
         command(root, "init", "-q")
+        command(root, "config", "core.autocrlf", "false")
         command(root, "config", "user.name", "Synthetic fixture")
         command(root, "config", "user.email", "fixture@example.invalid")
         command(root, "remote", "add", "origin", f"https://github.com/{repo}.git")
@@ -175,6 +195,10 @@ def adoption(tmp_path):
         shutil.copyfile(ROOT / path, dest)
         dest.chmod(0o755 if recovery.ops.VENDOR_FILES.get(path) == "100755" else 0o644)
     command(canonical, "add", ".")
+    for path, mode in recovery.ops.VENDOR_FILES.items():
+        command(
+            canonical, "update-index", "--chmod=" + ("+x" if mode == "100755" else "-x"), "--", path
+        )
     command(canonical, "commit", "-qm", "Synthetic canonical source")
     sha = command(canonical, "rev-parse", "HEAD")
     recovery.ops.sync_vendor(canonical, target, sha)
@@ -249,7 +273,8 @@ def test_brick_adoption_updates_the_execution_adapter_pin_together(adoption):
         line for line in guard.read_text().splitlines() if line.startswith("WORK_ADAPTER_PIN = ")
     )
     assert adapter.read_text().strip() == line
-    assert adapter.stat().st_mode & stat.S_IXUSR
+    if os.name != "nt":
+        assert adapter.stat().st_mode & stat.S_IXUSR
 
 
 def test_adoption_does_not_overwrite_edited_generated_guidance(adoption):

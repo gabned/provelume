@@ -55,10 +55,25 @@ def entries(names):
     )
     source.require(names == sorted(set(names)), "file list must be sorted and unique")
     folded = set()
+    prefixes = {}
     for name in names:
         source.valid_path(name)
         source.require(":" not in name and name.casefold() not in folded, "nonportable alias")
         folded.add(name.casefold())
+        parts = name.split("/")
+        for index, part in enumerate(parts, 1):
+            source.require(
+                not re.search(r'[<>:"|?*\x00-\x1f]', part)
+                and not part.endswith((".", " "))
+                and not re.fullmatch(
+                    r"(?:CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³])(?:\..*)?", part, re.I
+                ),
+                "nonportable path component",
+            )
+            prefix = "/".join(parts[:index])
+            key = prefix.casefold()
+            source.require(prefixes.get(key, prefix) == prefix, "case-aliased directory")
+            prefixes[key] = prefix
     source.require(
         not any(
             "/".join(n.split("/")[:i]).casefold() in folded
@@ -314,6 +329,11 @@ def adoption_plan(canonical, target, commit, repository):
         else "docs/runbooks/agent-development-v1.4.2.md"
     )
     marker = "## Current Work recovery — Protocol 1.4.5"
+    ownership = (
+        "This authorized PROTOCOL adoption retains PR-local ownership and uses\n"
+        if repository == "gabned/provelume.com"
+        else "This authorized PROTOCOL adoption retains the valid product checkpoint and uses\n"
+    )
     block = (
         f"{marker}\n\nAGENT_DEVELOPMENT_PROTOCOL: 1.4.5\n\n"
         f"Accepted Core: `{commit}`. This current section supersedes earlier Work\n"
@@ -328,7 +348,7 @@ def adoption_plan(canonical, target, commit, repository):
         "then collect fresh default/policy/review/CI evidence and run unchanged native gates.\n"
         "A complete verified native Git checkout/bundle remains valid when connector binary\n"
         "transport is unavailable. Missing bytes are never excluded or inferred.\n\n"
-        "This authorized PROTOCOL adoption retains the valid product checkpoint and uses\n"
+        f"{ownership}"
         "campaign issue/owner-PR ownership. Full local checks, exact scope/effect, CI, review,\n"
         "merge and post-merge verification remain required. No PRODUCT continuation,\n"
         "production effect or Level C authority follows from recovery or adoption.\n"
@@ -360,7 +380,8 @@ def sync_adopter(canonical, target, commit, repository, *, check=False):
     changed = [
         p
         for p in planned
-        if planned[p] != originals[p] or bool(modes[p] & stat.S_IXUSR) != (wanted[p] == "100755")
+        if planned[p] != originals[p]
+        or (os.name != "nt" and bool(modes[p] & stat.S_IXUSR) != (wanted[p] == "100755"))
     ]
     if check:
         return {
