@@ -1,14 +1,17 @@
 /** Read-only Work collector. Dependencies are supplied by the authorized host.
  * fetchJson(url): decoded JSON from the real GitHub connector GET tool.
- * saveBlob(sha, response): preserves the raw base64 blob response outside source.
+ * fetchFile(args): optional typed connector file tool; immutable ref + base64.
+ * saveBlob(sha, response): stores base64 bytes for mandatory offline verification.
  * hasBlob(sha): optional verified content-addressed cache; never skips final hashing.
  * This module has no token, HTTP client, publication or process API.
  */
 export async function collectSource({repository, fetchJson, saveBlob,
-  hasBlob = async () => false, now = () => new Date().toISOString(), maxCalls = 2000}) {
+  fetchFile = null, hasBlob = async () => false,
+  now = () => new Date().toISOString(), maxCalls = 2000}) {
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) throw Error("invalid repository");
   if (!Number.isInteger(maxCalls) || maxCalls < 1 || maxCalls > 10000) throw Error("invalid connector call budget");
   if (typeof fetchJson !== "function" || typeof saveBlob !== "function") throw Error("connector host capabilities required");
+  if (fetchFile !== null && typeof fetchFile !== "function") throw Error("invalid file connector capability");
   const prefix = `https://api.github.com/repos/${repository}`;
   let calls = 0;
   const observations = [];
@@ -58,6 +61,8 @@ export async function collectSource({repository, fetchJson, saveBlob,
   const blobs = new Map();
   let total = 0;
   for (const entry of tree.tree) {
+    if (typeof entry.path !== "string" || entry.path.includes("\\") || entry.path.includes("\0") ||
+        entry.path.split("/").some(part => ["", ".", ".."].includes(part))) throw Error("invalid source path");
     if (!((entry.type === "blob" && ["100644", "100755"].includes(entry.mode)) ||
           (entry.type === "tree" && entry.mode === "040000"))) throw Error("symlink/submodule adapter unavailable");
     if (!/^[0-9a-f]{40}$/.test(entry.sha || "")) throw Error("invalid tree object identity");
@@ -69,10 +74,22 @@ export async function collectSource({repository, fetchJson, saveBlob,
     }
   }
   let downloaded = 0, cached = 0;
-  for (const sha of blobs.keys()) {
+  for (const [sha, entry] of blobs) {
     if (await hasBlob(sha)) { cached++; continue; }
-    const blob = (await get(`/git/blobs/${sha}`)).response;
-    if (blob.sha !== sha || blob.encoding !== "base64") throw Error("lossless blob unavailable");
+    let blob;
+    if (fetchFile) {
+      if (++calls > maxCalls) throw Error("bounded connector call budget exhausted");
+      const args = {repository_full_name: repository, path: entry.path, ref: commit, encoding: "base64"};
+      const response = await fetchFile(args);
+      observations.push({tool: "github_fetch_file", arguments: args, observed_at: now(), response});
+      blob = connectorPayload(response);
+    } else {
+      blob = (await get(`/git/blobs/${sha}`)).response;
+    }
+    // A decoded-text tool result is not the raw GitHub blob API. Never guess an
+    // encoding or manufacture original bytes from it. Typed file reads preserve
+    // their actual envelope above; this size comes independently from the tree.
+    blob = checkedBase64(blob, entry);
     await saveBlob(sha, blob);
     downloaded++;
   }
@@ -84,6 +101,69 @@ export async function collectSource({repository, fetchJson, saveBlob,
     acquisition: {calls, downloaded_blobs: downloaded, cached_blobs: cached,
       observations, authentication: "AUTHORIZED_HOST_RESPONSIBILITY", push_qualified: false},
   };
+}
+
+/** Unwrap only supported tool envelopes; error content is never source data. */
+export function connectorPayload(result) {
+  let value = result;
+  for (let depth = 0; depth < 4; depth++) {
+    if (!value || typeof value !== "object" || value.isError === true || value.error ||
+        Number(value.status) >= 400) throw Error("connector tool failed; no fallback or inferred success");
+    if (value.structuredContent) { value = value.structuredContent; continue; }
+    if (value.result && typeof value.result === "object") { value = value.result; continue; }
+    return value;
+  }
+  throw Error("unsupported connector envelope");
+}
+
+function checkedBase64(blob, entry) {
+  if (blob.sha !== entry.sha || blob.encoding !== "base64" || typeof blob.content !== "string") {
+    throw Error(`lossless blob unavailable: ${entry.path}; use github_fetch_file with encoding=base64 and the exact commit ref`);
+  }
+  // GitHub inserts CR/LF into base64; other whitespace and malformed padding fail.
+  const encoded = blob.content.replace(/[\r\n]/g, "");
+  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded)) {
+    throw Error(`invalid base64: ${entry.path}`);
+  }
+  const size = encoded.length / 4 * 3 - (encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0);
+  if (size !== entry.size || (blob.size !== undefined && blob.size !== entry.size)) {
+    throw Error(`lossless blob size mismatch: ${entry.path}; empty/truncated content cannot be repaired`);
+  }
+  // Final Git blob/subtree/root rehashing by agent_protocol_work_source.py remains
+  // mandatory, including for cache hits. This normalization grants no authority.
+  return {sha: entry.sha, encoding: "base64", size: entry.size, content: blob.content};
+}
+
+/** Bind the advertised Work tools once. No tokens, HTTP fallback or tool discovery. */
+export function createWorkConnector({fetch, fetchFile}) {
+  if (typeof fetch !== "function" || typeof fetchFile !== "function") {
+    throw Error("Work requires github_fetch and github_fetch_file capabilities");
+  }
+  return {
+    fetchJson: async url => {
+      const value = connectorPayload(await fetch({url}));
+      if (typeof value.content !== "string") throw Error("connector JSON content unavailable");
+      const decoded = JSON.parse(value.content);
+      if (!decoded || typeof decoded !== "object") throw Error("connector returned non-JSON resource");
+      return decoded;
+    },
+    fetchFile,
+  };
+}
+
+/** One observational startup/resume call, followed by the native local preflight.
+ * Saved blobs survive interruption; hasBlob must verify bytes on every reuse.
+ * Never reuses policy/CI observations or local check success from a former call.
+ */
+export async function collectWorkSession(options) {
+  const source = await collectSource(options);
+  const observations = await collectPreflight(options);
+  if (observations.default_branch.status !== "OBSERVED" ||
+      observations.default_branch.response?.name !== source.anchor.default_branch ||
+      observations.default_branch.response?.commit?.sha !== source.snapshot.commit_sha) {
+    throw Error("default moved or unavailable before local preflight");
+  }
+  return {...source, observations, local_preflight: "NOT_RUN", push_qualified: false};
 }
 
 /** Bounded observational preflight. Unknown policy/Actions remain UNKNOWN.
