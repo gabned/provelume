@@ -34,8 +34,11 @@ def run_check(
     adapter_root: Path | None = None,
 ) -> tuple[dict, int]:
     source.require(os.name == "posix", "canonical Work check requires a POSIX execution host")
-    source.require(workstream in {"PROTOCOL", "PRODUCT"}, "explicit supported workstream required")
+    source.require(workstream in {"PROTOCOL", "PRODUCT", "CHECKPOINT_ONLY"},
+                   "explicit supported workstream required")
     source.require(suite in {"PROTOCOL_ONLY", "FULL"}, "explicit canonical suite required")
+    source.require(workstream != "CHECKPOINT_ONLY" or suite == "FULL",
+                   "checkpoint-only publication requires the full canonical check")
     source.require(type(timeout) is int and 1 <= timeout <= 3600, "bounded check timeout required")
     started_clock = datetime.now(UTC)
     canonical_source = None
@@ -64,6 +67,13 @@ def run_check(
         snapshot["repository"] == "brickms/brickms",
         "canonical check profile not adopted for this repository",
     )
+    if workstream == "CHECKPOINT_ONLY":
+        paths = {entry["path"] for entry in delta["changes"]}
+        source.require("AGENT_STATUS.md" in paths
+                       and paths <= {"AGENT_STATUS.md", "CHANGELOG.md"},
+                       "checkpoint-only delta must contain only checkpoint and optional changelog")
+        # The adopted local wrapper still verifies the transition, append-only
+        # changelog and baseline scope. This precheck cannot authorize them.
     command = [
         "bash",
         "tools/agent-check",
@@ -169,7 +179,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("snapshot", "baseline", "candidate", "output"):
         parser.add_argument("--" + name, type=Path, required=True)
-    parser.add_argument("--workstream", choices=["PROTOCOL", "PRODUCT"], required=True)
+    parser.add_argument("--workstream", choices=["PROTOCOL", "PRODUCT", "CHECKPOINT_ONLY"],
+                        required=True)
     parser.add_argument("--suite", choices=["PROTOCOL_ONLY", "FULL"], required=True)
     parser.add_argument("--canonical-snapshot", type=Path)
     parser.add_argument("--canonical-anchor", type=Path)
