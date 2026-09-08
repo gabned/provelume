@@ -29,6 +29,8 @@ The ordinary 1.4.7 path does not acquire rulesets or branch-protection settings.
 It requires neither their presence nor API access, and has no mode to require them.
 Use the accepted, versioned repository policy for required workflows and reviews.
 `validate_qualification` binds that independently selected policy to the operation.
+Required PR and post-merge workflow sets are separately bound to this policy.
+An explicit-review label cannot replace a repository review requirement.
 The document manifest's `repository_policy` is the Core policy; consumers retain
 their own required checks and stronger rules. A candidate policy cannot authorize
 its own change. No paid GitHub plan is a prerequisite.

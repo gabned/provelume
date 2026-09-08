@@ -153,7 +153,11 @@ def select_documents(root, manifest, expected_digest, *, workstream, phase, host
 def validate_qualification(operation, policy, expected_digest, *, now=None):
     """Apply the accepted repository policy without querying remote administration APIs."""
     require(digest(policy) == expected_digest, "changed trusted repository policy")
-    ops.obj(policy, "schema repository required_workflows review_requirement", "policy")
+    ops.obj(
+        policy,
+        "schema repository required_workflows post_merge_required_workflows review_requirement",
+        "policy",
+    )
     require(policy["schema"] == "agent-repository-policy/v1", "policy schema")
     require(policy["repository"] == operation["pr"]["repository"], "policy repository")
     required = policy["required_workflows"]
@@ -162,10 +166,25 @@ def validate_qualification(operation, policy, expected_digest, *, now=None):
         "closed required workflow inventory",
     )
     require(operation["ci"]["required_workflows"] == required, "required CI policy mismatch")
+    post_required = policy["post_merge_required_workflows"]
+    require(
+        isinstance(post_required, list)
+        and bool(post_required)
+        and post_required == sorted(set(post_required)),
+        "closed post-merge workflow inventory",
+    )
+    if operation["phase"] == "POST_MERGE":
+        require(
+            operation["post_merge_ci"]["required_workflows"] == post_required,
+            "required post-merge CI policy mismatch",
+        )
     require(policy["review_requirement"] in {"NONE", "REPOSITORY"}, "unknown review policy")
     require(
         operation["reviews"]["requirement"] == policy["review_requirement"]
-        or operation["reviews"]["requirement"] == "EXPLICIT_MAINTAINER",
+        or (
+            policy["review_requirement"] == "NONE"
+            and operation["reviews"]["requirement"] == "EXPLICIT_MAINTAINER"
+        ),
         "required review policy mismatch",
     )
     ops.validate_operations(operation, now=now)
@@ -245,8 +264,15 @@ def evidence_summary(observation, reference, *, now=None):
 
 def reconcile_checkpoint(cache, pr, merge, followups, *, now=None):
     """Derive a view from real merged identity; never rewrite cache or old receipts."""
-    ops.validate_pr(pr, now)
-    require(pr["state"] == "CLOSED" and not pr["draft"], "merged PR identity required")
+    # This read-only identity view also covers historical PRODUCT checkpoints.
+    # It grants no qualification and does not demand Protocol-only PR body fields
+    # or replay an entire product patch merely to establish an observed merge.
+    require(isinstance(pr, dict) and pr.get("repository") in ops.PROFILES, "checkpoint repository")
+    ops.number(pr.get("number"), "PR number")
+    for key in ("base_sha", "head_sha", "tree_sha"):
+        ops.sha(pr.get(key))
+    ops.observation(pr, now)
+    require(pr.get("state") == "CLOSED" and pr.get("draft") is False, "merged PR identity required")
     ops.validate_merge(merge, pr, now)
     require(isinstance(cache, dict) and isinstance(followups, list), "checkpoint inputs")
     open_items, seen = [], set()

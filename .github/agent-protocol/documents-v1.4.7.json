@@ -230,7 +230,7 @@
     {
       "id": "agent-development-v1.4.7",
       "path": "docs/agent-development-v1.4.7.md",
-      "sha256": "269524cbe196904ccb136c9bfbaca749917090d2cf47a735c4784999a20ba22a",
+      "sha256": "aaf068896b4e9b254c71bf9622c3a0b851d8dc7abf149e8016087f3e41cfb3b7",
       "role": "ALWAYS",
       "workstreams": [
         "PRODUCT",
@@ -259,6 +259,9 @@
       ".github/workflows/ci.yml@pull_request",
       ".github/workflows/ci.yml@pull_request_target"
     ],
-    "review_requirement": "NONE"
+    "review_requirement": "NONE",
+    "post_merge_required_workflows": [
+      ".github/workflows/ci.yml@push"
+    ]
   }
 }

@@ -66,6 +66,7 @@ def test_147_qualification_keeps_existing_gates_without_ruleset_input():
     value = operations()
     policy = {"schema": "agent-repository-policy/v1", "repository": REPO,
               "required_workflows": value["ci"]["required_workflows"],
+              "post_merge_required_workflows": value["post_merge_ci"]["required_workflows"].copy(),
               "review_requirement": "NONE"}
     result = new.validate_qualification(value, policy, new.digest(policy))
     assert result["result"] == "PASS" and result["ruleset_observation_required"] is False
@@ -73,12 +74,13 @@ def test_147_qualification_keeps_existing_gates_without_ruleset_input():
 
 
 @pytest.mark.parametrize("damage", ["head", "ci", "review", "threads", "scope", "ancestry",
-                                  "unknown", "policy", "stale"])
+                                  "unknown", "policy", "post_policy", "review_source", "stale"])
 def test_147_ruleset_removal_does_not_remove_other_gates(damage):
     new = execution147()
     value = operations()
     policy = {"schema": "agent-repository-policy/v1", "repository": REPO,
               "required_workflows": value["ci"]["required_workflows"].copy(),
+              "post_merge_required_workflows": value["post_merge_ci"]["required_workflows"].copy(),
               "review_requirement": "NONE"}
     if damage == "head":
         value["pr"]["head_sha"] = "f" * 40
@@ -97,6 +99,11 @@ def test_147_ruleset_removal_does_not_remove_other_gates(damage):
         value["ci"]["runs_complete"] = False
     elif damage == "policy":
         policy["required_workflows"] = ["missing.yml@pull_request"]
+    elif damage == "post_policy":
+        policy["post_merge_required_workflows"] = ["missing.yml@push"]
+    elif damage == "review_source":
+        policy["review_requirement"] = "REPOSITORY"
+        value["reviews"].update(requirement="EXPLICIT_MAINTAINER", state="SATISFIED")
     else:
         value["pr"]["observed_at"] = "2020-01-01T00:00:00Z"
     with pytest.raises(ValueError):
@@ -110,6 +117,19 @@ def test_147_merged_identity_overrides_draft_cache_without_claiming_closure():
     result = new.reconcile_checkpoint(cache, value["pr"], value["merge"], [])
     assert result["state"] == "MERGED" and result["cache_overridden"] is True
     assert result["closure"] == "QUALIFICATION_REQUIRED" and cache == {"state": "DRAFT"}
+
+
+def test_147_product_checkpoint_view_needs_identity_not_protocol_patch_or_body():
+    new = execution147()
+    value = operations("brickms/brickms")
+    identity = {key: value["pr"][key] for key in (
+        "repository", "number", "base_sha", "head_sha", "tree_sha", "state", "draft",
+        "source", "observed_at")}
+    view = new.reconcile_checkpoint({"state": "DRAFT"}, identity, value["merge"], [])
+    assert view["state"] == "MERGED" and view["closure"] == "QUALIFICATION_REQUIRED"
+    for key, bad in (("draft", None), ("head_sha", "UNKNOWN"), ("source", "CACHE")):
+        with pytest.raises(ValueError):
+            new.reconcile_checkpoint({}, {**identity, key: bad}, value["merge"], [])
 
 
 def test_147_late_finding_keeps_owner_and_origin_and_blocks_closure():
