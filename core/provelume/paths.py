@@ -43,4 +43,14 @@ def safe_instance_path(instance_root: Path, relative_ref: str) -> Path:
         candidate.relative_to(root)
     except ValueError as exc:
         raise UnsafePathError(f"path escapes instance root: {relative_ref!r}") from exc
-    return candidate
+    return native_path(candidate) if os.name == "nt" and len(str(candidate)) >= 248 else candidate
+
+
+def native_path(path: str | Path) -> Path:
+    """Use extended Windows paths for filesystem I/O without changing stored refs."""
+    value = os.path.abspath(path)
+    if os.name != "nt" or value.startswith("\\\\?\\"):
+        return Path(value)
+    if value.startswith("\\\\"):
+        return Path("\\\\?\\UNC\\" + value[2:])
+    return Path("\\\\?\\" + value)

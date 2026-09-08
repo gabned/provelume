@@ -138,3 +138,34 @@ def test_drive_unsupported_entries_count_towards_limits_and_resume(
     assert len(instance.store.list_canonical("originals")) == len(downloaded)
     evidence = "".join(p.read_text() for p in instance.google.work.glob("*.json"))
     assert "private-synthetic" not in evidence
+
+
+@pytest.mark.parametrize("code,expected,status", [
+    ("email_internal_error", "google_internal_error", "retry_wait"),
+])
+def test_gmail_commit_error_is_recorded_without_abandoned_lease(tmp_path, monkeypatch,
+                                                               code, expected, status):
+    from provelume.email_contract import EmailContractError
+    from provelume.email_jobs import EmailJobManager
+
+    instance, _, source_id = _configured_source(
+        tmp_path, capability="gmail", selection_kind="mailbox", selectors=["me"]
+    )
+    item = GoogleItem(capability="gmail", provider_item_id="synthetic",
+                      provider_revision_id="1", payload=b"Subject: synthetic\r\n\r\nBody",
+                      media_type="message/rfc822")
+    _use_adapter(instance, SyntheticGoogleAdapter({source_id: [
+        GooglePage(capability="gmail", items=(item,))
+    ]}))
+
+    def fail_commit(*args, **kwargs):
+        raise EmailContractError(code, "synthetic private detail")
+
+    monkeypatch.setattr(EmailJobManager, "_commit_message", fail_commit)
+    queued = instance.google.queue(source_id, guided=True)
+    result = instance.run_google_job(queued["job"]["id"])
+    assert result["status"] == status
+    job = instance.scheduler.journal.get_job(queued["job"]["id"])
+    assert job["lease"] is None
+    assert job["attempts"][0]["error_code"] == expected
+    assert "synthetic private detail" not in json.dumps(job)

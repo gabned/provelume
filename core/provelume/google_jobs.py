@@ -407,23 +407,31 @@ class GoogleJobManager:
         settings_sha256 = hashlib.sha256(
             json.dumps(limits.as_record(), sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
-        return self.email._commit_message(
-            job_id=job_id,
-            observed=observed,
-            parsed=parsed,
-            settings_sha256=settings_sha256,
-            recheck=lambda: None,
-            adapter_id=GOOGLE_ADAPTER_ID,
-            adapter_version=GOOGLE_ADAPTER_VERSION,
-            acquisition_kind="google_gmail_readonly",
-            document_title_prefix="Google Gmail message",
-            network_access="explicit_only",
-            provider_observation=provider_observation,
-            network_used=True,
-            remote_fetch=True,
-            extra_canonical_records=(("google-gmail-observations", canonical_observation),),
-            transaction_profile=GOOGLE_INTAKE_TRANSACTION_PROFILE,
-        )
+        try:
+            return self.email._commit_message(
+                job_id=job_id,
+                observed=observed,
+                parsed=parsed,
+                settings_sha256=settings_sha256,
+                recheck=lambda: None,
+                adapter_id=GOOGLE_ADAPTER_ID,
+                adapter_version=GOOGLE_ADAPTER_VERSION,
+                acquisition_kind="google_gmail_readonly",
+                document_title_prefix="Google Gmail message",
+                network_access="explicit_only",
+                provider_observation=provider_observation,
+                network_used=True,
+                remote_fetch=True,
+                extra_canonical_records=(("google-gmail-observations", canonical_observation),),
+                transaction_profile=GOOGLE_INTAKE_TRANSACTION_PROFILE,
+            )
+        except EmailContractError as exc:
+            raise GoogleContractError(
+                "google_internal_error" if exc.code == "email_internal_error"
+                else "google_payload_invalid",
+                "Gmail message could not be committed locally",
+            ) from exc
+
 
     def _commit_drive(
         self, job_id: str, source_id: str, item: GoogleItem, acquired_at: str
@@ -694,6 +702,8 @@ class GoogleJobManager:
                     }
                     progress[status] += 1
                 except GoogleContractError as exc:
+                    if exc.code == "google_internal_error":
+                        raise
                     work["items"][key] = {"status": "error", "error_code": exc.code}
                     progress["errors"] += 1
                     errors.append(exc.code)

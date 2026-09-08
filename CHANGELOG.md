@@ -4,6 +4,11 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+- Fixed Gmail intake on Windows failing to promote message evidence at long
+  filesystem paths. Native I/O uses extended Windows paths while stored references
+  remain portable and containment checks stay enforced. Email commit errors now
+  become closed Google errors with a recorded retry instead of abandoned leases.
+
 - Fixed bounded Google intake skipping unsupported Drive folders, shortcuts and
   native formats as metadata-only observations, counting them against item limits
   and retaining continuation checkpoints. Scheduler execution and lease heartbeat

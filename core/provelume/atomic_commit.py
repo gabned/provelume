@@ -12,8 +12,8 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from uuid import uuid4
 
-from .paths import normalise_locator, safe_instance_path
-from .storage import InstanceStore, utc_now
+from .paths import native_path, normalise_locator, safe_instance_path
+from .storage import InstanceStore, replace_file, utc_now
 
 ATOMIC_COMMIT_SCHEMA_VERSION = 1
 
@@ -205,7 +205,7 @@ class AtomicInstanceCommit:
         error_type: _ErrorType = AtomicCommitError,
         integrity_error_type: _ErrorType = AtomicCommitIntegrityError,
         limit_error_type: _ErrorType = AtomicCommitLimitError,
-        replace: _Replace = os.replace,
+        replace: _Replace = replace_file,
     ):
         for selected_error in (error_type, integrity_error_type, limit_error_type):
             if not isinstance(selected_error, type) or not issubclass(
@@ -460,7 +460,7 @@ def _instance_target(
             if current.is_symlink():
                 raise error_type()
         target = safe_instance_path(root, selected)
-        if target != lexical:
+        if native_path(target) != native_path(lexical):
             raise error_type()
     except (OSError, RuntimeError, ValueError):
         raise error_type() from None
