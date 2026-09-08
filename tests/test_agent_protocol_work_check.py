@@ -88,6 +88,37 @@ class CheckTests(unittest.TestCase):
         self.assertEqual((self.parent / "result/stderr.log").read_text(), "synthetic-error\n")
         self.assertFalse(result["push_qualified"])
 
+    def test_checkpoint_only_requires_full_and_closed_paths_before_launch(self):
+        for suite in ("PROTOCOL_ONLY", "FULL"):
+            with self.subTest(suite=suite), self.assertRaises(source.EvidenceError):
+                runner.run_check(self.snapshot, self.base, self.candidate,
+                                 self.parent / "result", workstream="CHECKPOINT_ONLY", suite=suite)
+            self.assertFalse((self.parent / "result").exists())
+        (self.candidate / "AGENT_STATUS.md").write_text("synthetic checkpoint\n")
+        (self.candidate / "application.py").write_text("synthetic product\n")
+        with self.assertRaisesRegex(source.EvidenceError, "only checkpoint"):
+            runner.run_check(self.snapshot, self.base, self.candidate,
+                             self.parent / "result", workstream="CHECKPOINT_ONLY", suite="FULL")
+        self.assertFalse((self.parent / "result").exists())
+
+    def test_checkpoint_only_preserves_local_failure_and_exact_class(self):
+        (self.candidate / "AGENT_STATUS.md").write_text("synthetic checkpoint\n")
+        result, code = runner.run_check(self.snapshot, self.base, self.candidate,
+                                       self.parent / "result",
+                                       workstream="CHECKPOINT_ONLY", suite="FULL")
+        self.assertEqual((result["exit_code"], code), (7, 2))
+        self.assertIn("CHECKPOINT_ONLY", result["command"])
+        self.assertEqual(result["command"][-1], "--full")
+        self.assertTrue(result["source_unchanged"])
+        self.assertFalse(result["push_qualified"])
+
+    def test_checkpoint_only_cannot_adopt_vendor(self):
+        with self.assertRaisesRegex(source.EvidenceError, "requires PROTOCOL"):
+            runner.run_check(self.snapshot, self.base, self.candidate,
+                             self.parent / "result", workstream="CHECKPOINT_ONLY", suite="FULL",
+                             canonical_snapshot=self.snapshot, canonical_anchor=self.snapshot)
+        self.assertFalse((self.parent / "result").exists())
+
     def test_vendor_update_requires_both_independent_inputs(self):
         with self.assertRaisesRegex(source.EvidenceError, "supplied together"):
             self.run_fixture(canonical_snapshot=self.snapshot)
