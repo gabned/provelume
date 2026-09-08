@@ -24,6 +24,10 @@ PR identity, CI history, ancestry and append-only receipts. Historical engines
 and records retain their version and meaning. The predecessor authority qualifies
 the successor; never evaluate a candidate using newly proposed rules as authority.
 New exact effect paths require a preceding accepted registration.
+The Core implementation also registers BrickMS's existing `tools/agent-preflight`
+for a subsequent adoption. That path is absent from this Core PR's delta: the
+predecessor validates the already registered Core policy module. Only after
+this Core change is accepted may the pilot use the added allowance.
 
 The ordinary 1.4.7 path does not acquire rulesets or branch-protection settings.
 It requires neither their presence nor API access, and has no mode to require them.
@@ -91,6 +95,11 @@ Full local checks still run through the accepted source-bound supervisor.
 Persist complete original observations outside source before continuing. Present
 `evidence_summary` output normally: identity, state, original timestamp, freshness,
 completeness, findings, uncertainty and an integrity-bound evidence reference.
+Finding and uncertainty entries use scalar text or evidence references.
+Nested responses/logs are rejected. The transport view is bounded at 8 KiB;
+excess detail must reference the complete original instead of being truncated.
+This is not a human-response word limit or a qualification gate. Full original
+observations remain recoverable and may be loaded for the actual decision.
 It always reports qualification NOT_EVALUATED. Load full payloads for diagnosis
 or decisions requiring them; do not repeatedly print repository/user metadata,
 encoded blobs, complete acquisition histories or whole job logs. Do not confuse

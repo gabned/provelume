@@ -253,7 +253,16 @@ def evidence_summary(observation, reference, *, now=None):
     )
     if endpoint:
         identity["repository"] = endpoint[1]
-    return {
+    annotations = {}
+    for field in ("findings", "uncertainties"):
+        values = observation.get(field, [])
+        require(isinstance(values, list), "summary annotations must be scalar text lists")
+        # Never copy nested tool responses or logs. Longer details belong in
+        # the integrity-bound original; the entire transport view is bounded.
+        annotations[field] = [
+            ops.text(value, "summary text or evidence reference") for value in values
+        ]
+    result = {
         "schema": "agent-evidence-summary/v1",
         "evidence": deepcopy(reference),
         "status": status,
@@ -266,12 +275,17 @@ def evidence_summary(observation, reference, *, now=None):
             for k in ("state", "draft", "merged", "status", "conclusion")
             if k in response
         },
-        "findings": deepcopy(observation.get("findings", [])),
+        "findings": annotations["findings"],
         "reused": observation.get("reused") is True,
-        "uncertainties": deepcopy(observation.get("uncertainties", [])),
+        "uncertainties": annotations["uncertainties"],
         "qualification": "NOT_EVALUATED",
         "push_qualified": False,
     }
+    require(
+        len(ops.canonical(result)) <= 8192,
+        "summary exceeds transport budget; reference the complete original evidence",
+    )
+    return result
 
 
 def reconcile_checkpoint(cache, pr, merge, followups, *, now=None):
@@ -411,6 +425,7 @@ def ci_plan(changed_paths, suites, *, complete, merge_equivalent=False):
 
 def storage_summary(artifacts, *, complete):
     """Actual bytes only; no inferred account billing or automatic deletion."""
+    require(type(complete) is bool, "artifact completeness must be an explicit boolean")
     require(isinstance(artifacts, list), "artifact inventory required")
     seen, total = set(), 0
     for row in artifacts:

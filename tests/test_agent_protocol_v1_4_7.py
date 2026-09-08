@@ -189,6 +189,19 @@ class ExecutionConformance(unittest.TestCase):
         )
         self.assertEqual(value["qualification"], "NOT_EVALUATED")
 
+    def test_summary_rejects_raw_nested_payloads_and_oversized_annotations(self):
+        for field in ("findings", "uncertainties"):
+            for value in ({"raw": "x" * 1048576}, "x" * 1048576):
+                observation = self.observation()
+                observation[field] = [value]
+                with self.subTest(field=field), self.assertRaises(ValueError):
+                    self.summary(observation)
+
+    def test_storage_completeness_requires_a_boolean(self):
+        for value in ("false", "true", None, 0, 1, [], {}):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "boolean"):
+                p.storage_summary([], complete=value)
+
     def test_stale_summary_retains_original_timestamp(self):
         value = self.observation()
         value["observed_at"] = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
