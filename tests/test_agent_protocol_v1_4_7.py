@@ -168,6 +168,27 @@ class ExecutionConformance(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "digest mismatch"):
             p.evidence_summary(original, {"id": "saved/original", "sha256": expected})
 
+    def test_raw_github_pr_summary_keeps_repository_base_and_head(self):
+        observation = self.observation()
+        observation["url"] = "https://api.github.com/repos/example/public/pulls/12"
+        observation["response"] = {
+            "number": 12,
+            "state": "open",
+            "base": {"sha": "a" * 40},
+            "head": {"sha": "b" * 40, "repo": {"noise": "omitted"}},
+        }
+        value = self.summary(observation)
+        self.assertEqual(
+            value["identity"],
+            {
+                "number": 12,
+                "repository": "example/public",
+                "base_sha": "a" * 40,
+                "head_sha": "b" * 40,
+            },
+        )
+        self.assertEqual(value["qualification"], "NOT_EVALUATED")
+
     def test_stale_summary_retains_original_timestamp(self):
         value = self.observation()
         value["observed_at"] = (datetime.now(UTC) - timedelta(hours=1)).isoformat()

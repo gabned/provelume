@@ -132,6 +132,22 @@ def test_147_product_checkpoint_view_needs_identity_not_protocol_patch_or_body()
             new.reconcile_checkpoint({}, {**identity, key: bad}, value["merge"], [])
 
 
+def test_147_resolved_followup_binds_the_correction_not_the_origin_merge():
+    new = execution147()
+    proof = resolved_finding()
+    value = deepcopy(proof["origin"])
+    value["late_findings"] = [proof]
+    finding = {"id": proof["id"], "owner": "issue:followup", "origin_head": HEAD,
+               "state": "RESOLVED", "evidence": proof["thread_ref"],
+               "resolution": {"operation": value, "thread_ref": proof["thread_ref"],
+                              "thread_resolved": True}}
+    result = new.reconcile_checkpoint({}, value["pr"], value["merge"], [finding])
+    assert result["followups"] == []
+    assert result["resolved_followups"][0]["correction_merge_sha"] == (
+        proof["correction"]["merge"]["merge_sha"])
+    assert result["closure"] == "QUALIFICATION_REQUIRED"
+
+
 def test_147_late_finding_keeps_owner_and_origin_and_blocks_closure():
     new = execution147()
     value = operations()

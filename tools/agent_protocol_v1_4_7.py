@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import re
 from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
@@ -237,6 +238,21 @@ def evidence_summary(observation, reference, *, now=None):
     )
     if failed or raw is None:
         status = "UNKNOWN"
+    identity = {
+        k: response[k]
+        for k in ("full_name", "number", "sha", "head_sha", "run_attempt", "id")
+        if isinstance(response.get(k), (str, int)) and not isinstance(response.get(k), bool)
+    }
+    for field in ("base", "head"):
+        nested = response.get(field)
+        if isinstance(nested, dict) and isinstance(nested.get("sha"), str):
+            identity[field + "_sha"] = nested["sha"]
+    endpoint = re.match(
+        r"^https://api[.]github[.]com/repos/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)(?:/|$)",
+        observation.get("url", ""),
+    )
+    if endpoint:
+        identity["repository"] = endpoint[1]
     return {
         "schema": "agent-evidence-summary/v1",
         "evidence": deepcopy(reference),
@@ -244,11 +260,7 @@ def evidence_summary(observation, reference, *, now=None):
         "freshness": freshness,
         "observed_at": stamp,
         "complete": observation.get("complete") is True,
-        "identity": {
-            k: response[k]
-            for k in ("full_name", "number", "sha", "head_sha", "run_attempt", "id")
-            if k in response
-        },
+        "identity": identity,
         "state": {
             k: response[k]
             for k in ("state", "draft", "merged", "status", "conclusion")
@@ -275,7 +287,7 @@ def reconcile_checkpoint(cache, pr, merge, followups, *, now=None):
     require(pr.get("state") == "CLOSED" and pr.get("draft") is False, "merged PR identity required")
     ops.validate_merge(merge, pr, now)
     require(isinstance(cache, dict) and isinstance(followups, list), "checkpoint inputs")
-    open_items, seen = [], set()
+    open_items, resolved_items, seen = [], [], set()
     for item in followups:
         ops.obj(item, "id owner origin_head state evidence resolution", "follow-up")
         identity = ops.text(item["id"], "finding id")
@@ -299,20 +311,35 @@ def reconcile_checkpoint(cache, pr, merge, followups, *, now=None):
             )
             ops.text(resolution["thread_ref"], "resolved thread")
             retained = resolution["operation"]["late_findings"]
-            require(
-                any(
+            matched = [
+                f
+                for f in retained
+                if (
                     f["id"] == identity
                     and f["thread_ref"] == resolution["thread_ref"]
                     and f["origin"]["pr"]["head_sha"] == pr["head_sha"]
-                    for f in retained
-                ),
+                    and f["origin_pr"] == pr["number"]
+                    and f["origin_merge_sha"] == merge["merge_sha"]
+                )
+            ]
+            require(
+                len(matched) == 1,
                 "complete origin/correction/thread proof required",
             )
-            correction = resolution["operation"]["merge"]["merge_sha"]
+            correction = matched[0]["correction"]["merge"]["merge_sha"]
             chain = [c["sha"] for c in merge["ancestry"]]
             require(
                 correction in chain and chain.index(correction) < chain.index(merge["merge_sha"]),
                 "correction must follow origin in default ancestry",
+            )
+            resolved_items.append(
+                {
+                    "id": identity,
+                    "owner": item["owner"],
+                    "correction_merge_sha": correction,
+                    "thread_ref": resolution["thread_ref"],
+                    "resolution_sha256": digest(resolution),
+                }
             )
     return {
         "schema": "agent-checkpoint-view/v1",
@@ -322,6 +349,7 @@ def reconcile_checkpoint(cache, pr, merge, followups, *, now=None):
         "merge_sha": merge["merge_sha"],
         "state": "MERGED",
         "followups": open_items,
+        "resolved_followups": resolved_items,
         "closure": "FOLLOW_UP_REQUIRED" if open_items else "QUALIFICATION_REQUIRED",
         "cache_sha256": digest(cache),
         "observed_merge_sha256": digest(merge),
