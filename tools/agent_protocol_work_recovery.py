@@ -29,6 +29,8 @@ source = sibling("agent_protocol_work_source")
 ops = sibling("agent_protocol_v1_4_2_ops")
 SCHEMA = "agent-work-recovery/v1"
 WORK_FILES = (
+    "tools/agent_protocol_v1_4_7.py",
+    "tests/test_agent_protocol_v1_4_7.py",
     "tools/agent_protocol_work_source.py",
     "tools/agent_protocol_work_check.py",
     "tools/agent_protocol_work_collect.mjs",
@@ -328,13 +330,15 @@ def adoption_plan(canonical, target, commit, repository, *, work=None):
     text = source.read_regular(regular(target, guard)).decode()
     text = replace_assignment(text, "EXPECTED_MANIFEST", manifest)
     if repository == "brickms/brickms":
-        old_count = '    assert len(local.WORK_ADAPTER_PIN["files"]) == 6'
-        new_count = '    assert len(local.WORK_ADAPTER_PIN["files"]) == 8'
+        old_counts = [f'    assert len(local.WORK_ADAPTER_PIN["files"]) == {n}'
+                      for n in (6, 8, 10)]
+        new_count = old_counts[-1]
         source.require(
-            text.splitlines().count(old_count) + text.splitlines().count(new_count) == 1,
+            sum(text.splitlines().count(line) for line in old_counts) == 1,
             "one exact BrickMS dependency inventory assertion required",
         )
-        text = text.replace(old_count, new_count)
+        for old_count in old_counts:
+            text = text.replace(old_count, new_count)
         adapter_path = "scripts/agent/protocol-v1-2.py"
         adapter_text = source.read_regular(regular(target, adapter_path)).decode()
         planned[adapter_path] = replace_assignment(adapter_text, "WORK_ADAPTER_PIN", pin).encode()
@@ -346,23 +350,25 @@ def adoption_plan(canonical, target, commit, repository, *, work=None):
         if repository == "gabned/provelume.com"
         else "docs/runbooks/agent-development-v1.4.2.md"
     )
-    marker = "## Current evidence reuse — Protocol 1.4.6"
+    marker = "## Current execution — Protocol 1.4.7"
     ownership = (
         "This authorized PROTOCOL adoption retains PR-local ownership and uses\n"
         if repository == "gabned/provelume.com"
         else "This authorized PROTOCOL adoption retains the valid product checkpoint and uses\n"
     )
     block = (
-        f"{marker}\n\nAGENT_DEVELOPMENT_PROTOCOL: 1.4.6\n\n"
+        f"{marker}\n\nAGENT_DEVELOPMENT_PROTOCOL: 1.4.7\n\n"
         f"Accepted Core: `{commit}`. This current section supersedes earlier Work\n"
         "startup/pin descriptions; historical receipts and their identities stay unchanged.\n"
         "Use the canonical evidence collector for immutable Git objects and terminal CI\n"
         "history; retain original timestamps and refresh every live inventory and gate.\n"
-        "The eight Work dependency files, operational manifest and generated provenance\n"
+        "Ordinary preflight v2 never reads rulesets; trusted repository policy supplies\n"
+        "the agent gates, and normal GitHub merge retains remote enforcement.\n"
+        "The ten Work dependency files, operational manifest and generated provenance\n"
         "are synchronized from the same accepted commit. Operational helper bytes/modes\n"
         "are verified independently; engine 1.4.2, lifecycle 1.2 and schema 2 remain.\n\n"
         f"Follow the [canonical evidence guide](https://github.com/gabned/provelume/blob/{commit}/"
-        "docs/agent-development-v1.4.6-work.md). Persist each observation before continuing;\n"
+        "docs/agent-development-v1.4.7.md). Persist each observation before continuing;\n"
         "save and independently verify the explicit evidence archive outside the source tree.\n"
         "Restoration recovers historical bytes only: select actual user authority independently,\n"
         "then collect fresh default/policy/review/CI evidence and run unchanged native gates.\n"

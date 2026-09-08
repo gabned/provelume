@@ -35,6 +35,95 @@ BASE, HEAD, TREE, MERGE = (char * 40 for char in "abcd")
 PROTOCOL_PATH = "tools/agent_protocol_v1_4_2.py"
 
 
+def execution147():
+    from tools import agent_protocol_v1_4_7
+    return agent_protocol_v1_4_7
+
+
+def test_147_repository_document_manifest_is_complete_and_current():
+    module = execution147()
+    root = Path(__file__).resolve().parents[1]
+    manifest = json.loads((root / ".github/agent-protocol/documents-v1.4.7.json").read_text())
+    inventory = {row["path"] for row in manifest["documents"]}
+    expected = {str(p.relative_to(root)) for p in (root / "docs").glob("agent-development-v*.md")}
+    assert inventory == {"AGENTS.md", *expected}
+    for phase in module.PHASES:
+        result = module.select_documents(
+            root, manifest, module.digest(manifest), workstream="PROTOCOL", phase=phase)
+        assert result["selection"] == "EXACT"
+        assert result["model_bytes"] < result["verified_inventory_bytes"]
+        selected = {row["path"] for row in result["documents"]}
+        assert {"AGENTS.md", "docs/agent-development-v1.4.7.md"} <= selected
+    result = module.select_documents(
+        root, manifest, module.digest(manifest), workstream="UNKNOWN", phase="START")
+    assert result["selection"] == "FULL_FALLBACK"
+    assert result["model_bytes"] == result["verified_inventory_bytes"]
+
+
+def test_147_qualification_keeps_existing_gates_without_ruleset_input():
+    new = execution147()
+    value = operations()
+    policy = {"schema": "agent-repository-policy/v1", "repository": REPO,
+              "required_workflows": value["ci"]["required_workflows"],
+              "review_requirement": "NONE"}
+    result = new.validate_qualification(value, policy, new.digest(policy))
+    assert result["result"] == "PASS" and result["ruleset_observation_required"] is False
+    assert result["merge_performed"] is False
+
+
+@pytest.mark.parametrize("damage", ["head", "ci", "review", "threads", "scope", "ancestry",
+                                  "unknown", "policy", "stale"])
+def test_147_ruleset_removal_does_not_remove_other_gates(damage):
+    new = execution147()
+    value = operations()
+    policy = {"schema": "agent-repository-policy/v1", "repository": REPO,
+              "required_workflows": value["ci"]["required_workflows"].copy(),
+              "review_requirement": "NONE"}
+    if damage == "head":
+        value["pr"]["head_sha"] = "f" * 40
+    elif damage == "ci":
+        value["ci"]["runs"][0]["attempts"][-1] = attempt(conclusion="FAILURE")
+    elif damage == "review":
+        value["reviews"]["requirement"] = "REPOSITORY"
+        value["reviews"]["state"] = "UNKNOWN"
+    elif damage == "threads":
+        value["reviews"]["unresolved_threads"] = ["thread"]
+    elif damage == "scope":
+        value["baseline_paths"] = ["core/product.py"]
+    elif damage == "ancestry":
+        value["merge"]["ancestry"] = []
+    elif damage == "unknown":
+        value["ci"]["runs_complete"] = False
+    elif damage == "policy":
+        policy["required_workflows"] = ["missing.yml@pull_request"]
+    else:
+        value["pr"]["observed_at"] = "2020-01-01T00:00:00Z"
+    with pytest.raises(ValueError):
+        new.validate_qualification(value, policy, new.digest(policy))
+
+
+def test_147_merged_identity_overrides_draft_cache_without_claiming_closure():
+    new = execution147()
+    value = operations()
+    cache = {"state": "DRAFT"}
+    result = new.reconcile_checkpoint(cache, value["pr"], value["merge"], [])
+    assert result["state"] == "MERGED" and result["cache_overridden"] is True
+    assert result["closure"] == "QUALIFICATION_REQUIRED" and cache == {"state": "DRAFT"}
+
+
+def test_147_late_finding_keeps_owner_and_origin_and_blocks_closure():
+    new = execution147()
+    value = operations()
+    finding = {"id": "finding-1", "owner": "issue:followup", "origin_head": HEAD,
+               "state": "OPEN", "evidence": "review:original", "resolution": None}
+    result = new.reconcile_checkpoint({}, value["pr"], value["merge"], [finding])
+    assert result["followups"] == [finding] and result["closure"] == "FOLLOW_UP_REQUIRED"
+    finding["state"] = "RESOLVED"
+    finding["resolution"] = {"operation": value, "thread_ref": "thread", "thread_resolved": True}
+    with pytest.raises(ValueError, match="origin/correction/thread"):
+        new.reconcile_checkpoint({}, value["pr"], value["merge"], [finding])
+
+
 @pytest.mark.parametrize("suffix", ["\nnotes.md", "\r\nnotes.md", "\tnotes.md", "notes.md\n"])
 def test_operation_paths_preserve_git_whitespace_names(suffix):
     value = operations("gabned/provelume.com")
@@ -1217,7 +1306,8 @@ def test_work_multiline_instruction_still_requires_bounded_nonempty_text(value):
 def test_site_native_preflight_scope_is_repository_specific():
     value = {"repository": "gabned/provelume.com", "changed_paths": ["tools/agent-preflight"]}
     ops.validate_scope(None, value, ["tools/agent-preflight"])
-    for repo in ("gabned/provelume", "brickms/brickms", "maxithlon/maxithlon"):
+    ops.validate_scope(None, {**value, "repository": "brickms/brickms"}, ["tools/agent-preflight"])
+    for repo in ("gabned/provelume", "maxithlon/maxithlon"):
         with pytest.raises(ValueError, match="non-Protocol surface"):
             ops.validate_scope(None, {**value, "repository": repo}, ["tools/agent-preflight"])
     for path in ("tools/agent-preflight-extra", "tools/unrelated", "public/index.php"):

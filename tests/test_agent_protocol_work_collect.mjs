@@ -53,7 +53,8 @@ test("resume retains old observation time and fetches a fresh policy",async()=>{
   second.persistObservation=async p=>saved.push(structuredClone(p));
   const resumed=await collectPreflight(second);
   assert.deepEqual(saved.slice(0,before.length),before);
-  assert.equal(resumed.rulesets.status,"UNKNOWN");
+  assert.equal(resumed.schema,"agent-work-preflight/v2");
+  assert.equal(second.calls.some(p=>p.includes("/rulesets")),false);
   assert.equal(resumed.push_qualified,false);
 });
 
@@ -143,9 +144,13 @@ test("observational preflight does not become CI qualification",async()=>{
   const r=await collectPreflight(preflightHost());assert.equal(r.open_pull_requests.complete,true);
   assert.equal(r.push_qualified,false);assert.equal(r.environments,"UNKNOWN_NOT_ACCESSED");
 });
-test("policy denied remains UNKNOWN",async()=>{
-  const r=await collectPreflight(preflightHost({"/rulesets?includes_parents=true&per_page=100&page=1":new Error("denied")}));
-  assert.equal(r.rulesets.status,"UNKNOWN");assert.equal(r.rulesets.complete,false);
+test("ruleset unavailability is outside the ordinary preflight contract",async()=>{
+  const h=preflightHost({"/rulesets?includes_parents=true&per_page=100&page=1":new Error("denied")});
+  const r=await collectPreflight(h);
+  assert.equal("rulesets" in r,false);
+  assert.equal(h.calls.some(p=>p.includes("/rulesets")),false);
+  assert.equal(r.policy_source,"TRUSTED_VERSIONED_REPOSITORY_POLICY");
+  assert.equal(r.remote_enforcement,"GITHUB_DECIDES_AT_NORMAL_MERGE");
 });
 test("open PR pagination is bounded and never claimed complete at cap",async()=>{
   const h=preflightHost({"/pulls?state=open&per_page=100&page=1":Array.from({length:100},(_,i)=>({number:i+1}))});
@@ -233,7 +238,8 @@ test("restart reuses saved blobs but recollects default and policy observations"
   const result=await collectWorkSession(second);
   assert.equal(second.files.length,0);
   assert.equal(result.acquisition.cached_blobs,1);
-  assert.equal(result.observations.rulesets.status,"UNKNOWN");
+  assert.equal("rulesets" in result.observations,false);
+  assert.equal(second.calls.some(p=>p.includes("/rulesets")),false);
   assert.equal(result.local_preflight,"NOT_RUN");
 });
 test("move between acquisition and observations blocks session result",async()=>{
@@ -249,11 +255,11 @@ test("host capabilities and JSON result are explicit",async()=>{
 test("preflight retains unavailable original responses without promoting them", async()=>{
   const raw={status:403,error:"denied",detail:"original response"};
   const saved=[];
-  const h=host({"/rulesets?includes_parents=true&per_page=100&page=1":raw});
+  const h=preflightHost({"/pulls?state=open&per_page=100&page=1":raw});
   const result=await collectPreflight({...h,persistObservation:async record=>saved.push(record)});
-  assert.deepEqual(saved.find(r=>r.url.includes("/rulesets")).response,raw);
-  assert.equal(result.rulesets.status,"UNKNOWN");
-  assert.equal(result.rulesets.observations[0].response,null);
+  assert.deepEqual(saved.find(r=>r.url.includes("/pulls?")).response,raw);
+  assert.equal(result.open_pull_requests.status,"UNKNOWN");
+  assert.equal(result.open_pull_requests.observations[0].response,null);
 });
 
 const sha256 = async value => createHash("sha256").update(value).digest("hex");
@@ -354,7 +360,7 @@ test("policy, default and review observations remain fresh with tree reuse enabl
   const next=await collectWorkSession({...h,readTree:c.readTree,hasBlob:async()=>true});
   assert.equal(first.snapshot.tree_sha,next.snapshot.tree_sha);
   assert.equal(c.metrics().reused_reads,1);
-  assert.equal(h.calls.filter(p=>p==="/rulesets?includes_parents=true&per_page=100&page=1").length,2);
+  assert.equal(h.calls.filter(p=>p.includes("/rulesets")).length,0);
   assert.equal(h.calls.filter(p=>p===("/git/commits/"+base)).length,2);
   assert.equal(h.calls.filter(p=>p==="/git/ref/heads/main").length,4);
 });

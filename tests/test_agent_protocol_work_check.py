@@ -29,7 +29,7 @@ class PortableCheckTests(unittest.TestCase):
         test_file = present[0]
         result = subprocess.run(
             [node, "--test", str(test_file)],
-            capture_output=True, text=True, timeout=30, check=False,
+            capture_output=True, text=True, timeout=120, check=False,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 

@@ -1,0 +1,264 @@
+{
+  "schema": "agent-documents/v1",
+  "protocol_version": "1.4.7",
+  "documents": [
+    {
+      "id": "AGENTS",
+      "path": "AGENTS.md",
+      "sha256": "1c3d1853cd72ad9fa96a34af09c111afbfd6a08153bceec02b23db635e439a3c",
+      "role": "ALWAYS",
+      "workstreams": [
+        "PRODUCT",
+        "PROTOCOL",
+        "CHECKPOINT_ONLY"
+      ],
+      "phases": [
+        "START",
+        "RESUME",
+        "IMPLEMENT",
+        "QUALIFY",
+        "POST_MERGE",
+        "CLOSE"
+      ],
+      "hosts": [
+        "WORK",
+        "GIT"
+      ],
+      "requires": []
+    },
+    {
+      "id": "agent-development-v1.2.1",
+      "path": "docs/agent-development-v1.2.1.md",
+      "sha256": "742d3ca3feb8f200804513e422f4ea6ac19eb429f2fec3e8e02922209904b479",
+      "role": "HISTORICAL",
+      "workstreams": [
+        "PRODUCT",
+        "PROTOCOL",
+        "CHECKPOINT_ONLY"
+      ],
+      "phases": [
+        "START",
+        "RESUME",
+        "IMPLEMENT",
+        "QUALIFY",
+        "POST_MERGE",
+        "CLOSE"
+      ],
+      "hosts": [
+        "WORK",
+        "GIT"
+      ],
+      "requires": []
+    },
+    {
+      "id": "agent-development-v1.2",
+      "path": "docs/agent-development-v1.2.md",
+      "sha256": "c0a27a7e8cbd3012e49ba0197b455a9d71c28f02411172302be0eb59d366fdf8",
+      "role": "HISTORICAL",
+      "workstreams": [
+        "PRODUCT",
+        "PROTOCOL",
+        "CHECKPOINT_ONLY"
+      ],
+      "phases": [
+        "START",
+        "RESUME",
+        "IMPLEMENT",
+        "QUALIFY",
+        "POST_MERGE",
+        "CLOSE"
+      ],
+      "hosts": [
+        "WORK",
+        "GIT"
+      ],
+      "requires": []
+    },
+    {
+      "id": "agent-development-v1.3.0",
+      "path": "docs/agent-development-v1.3.0.md",
+      "sha256": "f7fbcdd7aa1e71f7164a5a5a29fc760febbf0aa6450f4c6762cff61aef32a4fc",
+      "role": "HISTORICAL",
+      "workstreams": [
+        "PRODUCT",
+        "PROTOCOL",
+        "CHECKPOINT_ONLY"
+      ],
+      "phases": [
+        "START",
+        "RESUME",
+        "IMPLEMENT",
+        "QUALIFY",
+        "POST_MERGE",
+        "CLOSE"
+      ],
+      "hosts": [
+        "WORK",
+        "GIT"
+      ],
+      "requires": []
+    },
+    {
+      "id": "agent-development-v1.4.0",
+      "path": "docs/agent-development-v1.4.0.md",
+      "sha256": "9ae1af939b9617087dce0458a1f4570a3aeac6b230aee09c2abb367cc137341c",
+      "role": "HISTORICAL",
+      "workstreams": [
+        "PRODUCT",
+        "PROTOCOL",
+        "CHECKPOINT_ONLY"
+      ],
+      "phases": [
+        "START",
+        "RESUME",
+        "IMPLEMENT",
+        "QUALIFY",
+        "POST_MERGE",
+        "CLOSE"
+      ],
+      "hosts": [
+        "WORK",
+        "GIT"
+      ],
+      "requires": []
+    },
+    {
+      "id": "agent-development-v1.4.1",
+      "path": "docs/agent-development-v1.4.1.md",
+      "sha256": "ec822cdd3f690b7d7b71ec1addb7a45efcdcf575c9cb33824d3f72a9a94f7575",
+      "role": "HISTORICAL",
+      "workstreams": [
+        "PRODUCT",
+        "PROTOCOL",
+        "CHECKPOINT_ONLY"
+      ],
+      "phases": [
+        "START",
+        "RESUME",
+        "IMPLEMENT",
+        "QUALIFY",
+        "POST_MERGE",
+        "CLOSE"
+      ],
+      "hosts": [
+        "WORK",
+        "GIT"
+      ],
+      "requires": []
+    },
+    {
+      "id": "agent-development-v1.4.2",
+      "path": "docs/agent-development-v1.4.2.md",
+      "sha256": "28567d92d42d0def9abb88079ad47732dd5f203e4ab95119c6c305db0e32ed1a",
+      "role": "PROCEDURE",
+      "workstreams": [
+        "PRODUCT",
+        "PROTOCOL",
+        "CHECKPOINT_ONLY"
+      ],
+      "phases": [
+        "QUALIFY",
+        "POST_MERGE",
+        "CLOSE"
+      ],
+      "hosts": [
+        "WORK",
+        "GIT"
+      ],
+      "requires": []
+    },
+    {
+      "id": "agent-development-v1.4.3-work",
+      "path": "docs/agent-development-v1.4.3-work.md",
+      "sha256": "5a88b418755e105c785bc0060952b275d022f4af9a05c17757976984a5bb1ed9",
+      "role": "PROCEDURE",
+      "workstreams": [
+        "PRODUCT",
+        "PROTOCOL",
+        "CHECKPOINT_ONLY"
+      ],
+      "phases": [
+        "START",
+        "RESUME",
+        "IMPLEMENT"
+      ],
+      "hosts": [
+        "WORK"
+      ],
+      "requires": []
+    },
+    {
+      "id": "agent-development-v1.4.5-work",
+      "path": "docs/agent-development-v1.4.5-work.md",
+      "sha256": "f280156901ca67ad7dc961607bc7f439967823588af547543981c89e6faedda6",
+      "role": "PROCEDURE",
+      "workstreams": [
+        "PRODUCT",
+        "PROTOCOL",
+        "CHECKPOINT_ONLY"
+      ],
+      "phases": [
+        "RESUME",
+        "CLOSE"
+      ],
+      "hosts": [
+        "WORK"
+      ],
+      "requires": []
+    },
+    {
+      "id": "agent-development-v1.4.6-work",
+      "path": "docs/agent-development-v1.4.6-work.md",
+      "sha256": "6a8ee8b35b97be9fc3262d1d59a89f352826ee770a73cc447876e748001a2ed3",
+      "role": "PROCEDURE",
+      "workstreams": [
+        "PRODUCT",
+        "PROTOCOL",
+        "CHECKPOINT_ONLY"
+      ],
+      "phases": [
+        "START",
+        "RESUME",
+        "QUALIFY",
+        "POST_MERGE"
+      ],
+      "hosts": [
+        "WORK"
+      ],
+      "requires": []
+    },
+    {
+      "id": "agent-development-v1.4.7",
+      "path": "docs/agent-development-v1.4.7.md",
+      "sha256": "269524cbe196904ccb136c9bfbaca749917090d2cf47a735c4784999a20ba22a",
+      "role": "ALWAYS",
+      "workstreams": [
+        "PRODUCT",
+        "PROTOCOL",
+        "CHECKPOINT_ONLY"
+      ],
+      "phases": [
+        "START",
+        "RESUME",
+        "IMPLEMENT",
+        "QUALIFY",
+        "POST_MERGE",
+        "CLOSE"
+      ],
+      "hosts": [
+        "WORK",
+        "GIT"
+      ],
+      "requires": []
+    }
+  ],
+  "repository_policy": {
+    "schema": "agent-repository-policy/v1",
+    "repository": "gabned/provelume",
+    "required_workflows": [
+      ".github/workflows/ci.yml@pull_request",
+      ".github/workflows/ci.yml@pull_request_target"
+    ],
+    "review_requirement": "NONE"
+  }
+}
