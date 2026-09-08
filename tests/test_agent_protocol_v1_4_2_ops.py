@@ -1450,3 +1450,16 @@ assert.equal(existsSync(evidence), false);
         text=True, capture_output=True, timeout=30,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_147_brickms_checkpoint_workflow_registration_is_exact():
+    path = ".github/workflows/php-runtime-contract.yml"
+    pr = {"repository": "brickms/brickms", "changed_paths": [path]}
+    ops.validate_scope(None, pr, [path])
+    for repository, changed in (
+        ("gabned/provelume.com", path),
+        ("brickms/brickms", ".github/workflows/product-release.yml"),
+    ):
+        with pytest.raises(ValueError):
+            ops.validate_scope(
+                None, {"repository": repository, "changed_paths": [changed]}, [changed])

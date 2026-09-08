@@ -674,6 +674,7 @@ class DeliveryConformance(unittest.TestCase):
             identity=self.identity,
             issues=["#1"],
             steps=steps,
+            inapplicable={},
         )
         evidence = dict(
             scope_sha256=p.digest(scope),
@@ -695,6 +696,9 @@ class DeliveryConformance(unittest.TestCase):
         first = plan()
         self.assertEqual(first, plan())
         self.assertEqual(first["next_action"][0]["step"], "POST_DEPLOY")
+        evidence["steps"]["CERTIFY"] = "NOT_APPLICABLE"
+        with self.assertRaises(ValueError):
+            plan()
         evidence["steps"] = {k: "VERIFIED" for k in steps}
         self.assertTrue(plan([a["idempotency_key"] for a in first["remaining"]])["complete"])
         evidence["criteria"]["behavior"] = "PENDING"

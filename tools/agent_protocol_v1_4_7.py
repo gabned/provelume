@@ -863,7 +863,7 @@ def recovery_plan(operation, *, trusted_observations):
 def closure_plan(scope, evidence, *, trusted_scope, trusted_evidence, completed_keys):
     trusted_record(scope, trusted_scope, "delivery scope")
     trusted_record(evidence, trusted_evidence, "closure evidence")
-    ops.obj(scope, "repository release identity issues steps", "closure scope")
+    ops.obj(scope, "repository release identity issues steps inapplicable", "closure scope")
     release_identity(scope["identity"])
     require(
         scope["repository"] == scope["identity"]["repository"]
@@ -882,6 +882,13 @@ def closure_plan(scope, evidence, *, trusted_scope, trusted_evidence, completed_
     order = ["POST_DEPLOY", "CERTIFY", "CHECKPOINT", "ROADMAP", "ISSUES", "HANDOFF"]
     require(scope["steps"] == order, "complete delivery sequence required")
     require(
+        isinstance(scope["inapplicable"], dict)
+        and set(scope["inapplicable"]) <= set(order) - {"HANDOFF"},
+        "scope-bound applicability reasons required",
+    )
+    for reason in scope["inapplicable"].values():
+        ops.text(reason, "accepted applicability reason")
+    require(
         isinstance(scope["issues"], list) and scope["issues"] == sorted(set(scope["issues"])),
         "exact scope issues",
     )
@@ -894,6 +901,10 @@ def closure_plan(scope, evidence, *, trusted_scope, trusted_evidence, completed_
     for step in order:
         require(
             evidence["steps"][step] in {"VERIFIED", "PENDING", "NOT_APPLICABLE"}, "closure step"
+        )
+        require(
+            (evidence["steps"][step] == "NOT_APPLICABLE") == (step in scope["inapplicable"]),
+            "cannot skip an applicable delivery step",
         )
         key = digest({"scope": digest(scope), "step": step})
         if key in completed_keys:
