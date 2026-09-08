@@ -169,3 +169,23 @@ def test_gmail_commit_error_is_recorded_without_abandoned_lease(tmp_path, monkey
     assert job["lease"] is None
     assert job["attempts"][0]["error_code"] == expected
     assert "synthetic private detail" not in json.dumps(job)
+
+
+def test_gmail_long_bundle_remains_valid_and_portable(tmp_path):
+    root = tmp_path / ("nested-" + "p" * max(1, 100 - len(str(tmp_path))))
+    root.mkdir()
+    instance, _, source_id = _configured_source(
+        root, capability="gmail", selection_kind="mailbox", selectors=["me"]
+    )
+    item = GoogleItem(capability="gmail", provider_item_id="synthetic-long-path",
+                      provider_revision_id="1", payload=b"Subject: synthetic\r\n\r\nBody",
+                      media_type="message/rfc822")
+    _use_adapter(instance, SyntheticGoogleAdapter({source_id: [
+        GooglePage(capability="gmail", items=(item,))
+    ]}))
+    queued = instance.google.queue(source_id, guided=True)
+    assert instance.run_google_job(queued["job"]["id"])["status"] == "succeeded"
+    validation = instance.validate_instance(deep=True)
+    assert validation["status"] == "valid", validation["errors"]
+
+    instance.export_portable(tmp_path / "portable.zip")

@@ -28,7 +28,7 @@ from .instance_schema import (
     manifest_validation_errors,
 )
 from .ocr_contract import OcrContractError, ocr_settings_from_config
-from .paths import UnsafePathError, safe_instance_path
+from .paths import UnsafePathError, native_path, safe_instance_path
 from .retention_model import canonical_disposition_errors
 from .storage import CANONICAL_KINDS, REQUIRED_CANONICAL_KINDS, InstanceStore
 from .web_transport import WebTransportError, canonical_web_origin, canonical_web_url
@@ -416,7 +416,7 @@ def _email_bundle_problem(
         return "email bundle artifact metadata is invalid"
     try:
         manifest_path = safe_instance_path(store.paths.root, storage_ref)
-        relative = manifest_path.relative_to(store.paths.root).as_posix()
+        relative = native_path(manifest_path).relative_to(native_path(store.paths.root)).as_posix()
         manifest_bytes = manifest_path.read_bytes()
     except (OSError, UnsafePathError, ValueError):
         return "email bundle manifest is unavailable or unsafe"
