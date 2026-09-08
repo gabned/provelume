@@ -535,8 +535,21 @@ class GoogleJobManager:
             owner_id=job_id,
         )
         transaction.add(original.storage_ref, item.payload, immutable=True)
+        original_record = asdict(original)
+        existing_original = self.store.read_canonical("originals", original.id)
+        if existing_original is not None:
+            if (
+                set(existing_original) != set(original_record)
+                or any(existing_original[key] != original_record[key]
+                       for key in ("id", "sha256", "size_bytes", "storage_ref"))
+                or not isinstance(existing_original["created_at"], str)
+            ):
+                raise GoogleContractError(
+                    "google_internal_error", "Original evidence is inconsistent"
+                )
+            original_record = existing_original
         for kind, record, immutable in (
-            ("originals", asdict(original), True),
+            ("originals", original_record, True),
             ("documents", asdict(document), False),
             ("versions", asdict(version), True),
             ("acquisitions", asdict(acquisition), True),

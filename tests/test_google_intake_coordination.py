@@ -189,3 +189,26 @@ def test_gmail_long_bundle_remains_valid_and_portable(tmp_path):
     assert validation["status"] == "valid", validation["errors"]
 
     instance.export_portable(tmp_path / "portable.zip")
+
+
+def test_drive_reuses_exact_original_without_rewriting_first_acquisition(tmp_path):
+    instance, _, source_id = _configured_source(
+        tmp_path, capability="drive", selection_kind="folder", selectors=["root"]
+    )
+    folder = tmp_path / "local-input"
+    folder.mkdir()
+    payload = b"shared synthetic bytes"
+    (folder / "shared.txt").write_bytes(payload)
+    instance.ingest(folder)
+    before = instance.store.list_canonical("originals")
+    item = GoogleItem(capability="drive", provider_item_id="synthetic-file",
+                      provider_revision_id="1", payload=payload, media_type="text/plain")
+    _use_adapter(instance, SyntheticGoogleAdapter({source_id: [
+        GooglePage(capability="drive", items=(item,))
+    ]}))
+    queued = instance.google.queue(source_id, guided=True)
+    result = instance.run_google_job(queued["job"]["id"])
+    assert result["status"] == "succeeded"
+    assert result["progress"] == {"processed": 1, "skipped": 0, "errors": 0}
+    assert instance.store.list_canonical("originals") == before
+    assert len(instance.store.list_canonical("documents")) == 2
