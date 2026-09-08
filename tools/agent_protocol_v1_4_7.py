@@ -451,6 +451,575 @@ def storage_summary(artifacts, *, complete):
     }
 
 
+def checked_time(value):
+    require(isinstance(value, str), "timestamp required")
+    result = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    require(result.tzinfo is not None, "timezone required")
+    return result
+
+
+def trusted_record(record, trusted_digests, label):
+    """The host selects trust independently; a candidate cannot select this set."""
+    require(isinstance(record, dict), label + " object required")
+    require(digest(record) in trusted_digests, "untrusted " + label)
+    return record
+
+
+def exact_items(items):
+    require(isinstance(items, list) and bool(items), "nonempty batch required")
+    keys = []
+    for item in items:
+        ops.obj(item, "id kind language source text dependencies fallback", "catalog item")
+        require(item["kind"] in {"SOURCE", "TRANSLATION"}, "item kind")
+        for field in ("id", "language"):
+            ops.text(item[field], field)
+        for field in ("source", "text"):
+            require(isinstance(item[field], str) and item[field].strip(), "missing " + field)
+        require(item["fallback"] is False, "fallback is not a completed translation")
+        require(isinstance(item["dependencies"], dict), "dependency inventory required")
+        for key, value in item["dependencies"].items():
+            ops.text(key, "dependency id")
+            ops.sha(value, 64)
+        keys.append((item["id"], item["language"], item["kind"]))
+    require(keys == sorted(set(keys)), "items must be unique and sorted")
+    return [
+        {"id": i["id"], "language": i["language"], "kind": i["kind"], "sha256": digest(i)}
+        for i in items
+    ]
+
+
+def validate_editorial_batch(batch, checks, trusted_checks):
+    """Consumer checks implement locale/markup semantics; their full proof is bound."""
+    ops.obj(batch, "repository catalog release revision items", "catalog batch")
+    for key in ("repository", "catalog", "release", "revision"):
+        ops.text(batch[key], key)
+    identities = exact_items(batch["items"])
+    trusted_record(checks, trusted_checks, "consumer checks")
+    ops.obj(checks, "batch_sha256 checker provenance coverage results exceptions", "checks")
+    require(checks["batch_sha256"] == digest(batch), "checks bind different content")
+    for key in ("checker", "provenance"):
+        ops.text(checks[key], key)
+    require(checks["coverage"] == identities, "coverage incomplete or stale")
+    names = {
+        "coverage",
+        "placeholders",
+        "markup",
+        "escaping",
+        "pluralization",
+        "terminology",
+        "context",
+    }
+    require(
+        isinstance(checks["results"], dict) and set(checks["results"]) == names,
+        "complete consumer validation required",
+    )
+    require(all(v == "PASS" for v in checks["results"].values()), "invalid catalog")
+    require(isinstance(checks["exceptions"], list), "linguistic exceptions required")
+    for value in checks["exceptions"]:
+        ops.text(value, "linguistic ambiguity or limitation")
+    return identities
+
+
+def delegated_approval(
+    batch,
+    checks,
+    grant,
+    policy,
+    *,
+    trusted_grants,
+    trusted_checks,
+    policy_digest,
+    executor,
+    now=None,
+):
+    """Validate an adopted delegation. Never record this as a human review or publish."""
+    identities = validate_editorial_batch(batch, checks, trusted_checks)
+    require(digest(policy) == policy_digest, "changed accepted editorial policy")
+    ops.obj(policy, "repository delegated_editorial delegants", "editorial policy")
+    require(
+        policy["repository"] == batch["repository"] and policy["delegated_editorial"] is True,
+        "prior policy adoption required",
+    )
+    require(
+        isinstance(policy["delegants"], list) and bool(policy["delegants"]),
+        "authorized delegants required",
+    )
+    trusted_record(grant, trusted_grants, "delegation")
+    ops.obj(
+        grant,
+        "id purpose repository catalog release revision batch_sha256 items "
+        "checks_sha256 policy_sha256 delegant executor provenance not_before expires_at "
+        "revoked conditions accepted_exceptions",
+        "delegation",
+    )
+    require(grant["purpose"] == "DELEGATED_EDITORIAL_APPROVAL", "editorial consent required")
+    for key in ("repository", "catalog", "release", "revision"):
+        require(grant[key] == batch[key], "delegation outside " + key)
+    require(
+        grant["items"] == identities and grant["batch_sha256"] == digest(batch),
+        "delegation content or languages changed",
+    )
+    require(
+        grant["checks_sha256"] == digest(checks) and grant["policy_sha256"] == policy_digest,
+        "delegation conditions changed",
+    )
+    require(grant["delegant"] in policy["delegants"], "delegant role unavailable")
+    require(grant["executor"] == ops.text(executor, "executor"), "wrong executor")
+    for key in ("id", "provenance"):
+        ops.text(grant[key], key)
+    current = now or datetime.now(UTC)
+    require(
+        checked_time(grant["not_before"]) <= current < checked_time(grant["expires_at"]),
+        "delegation expired or not active",
+    )
+    require(grant["revoked"] is False, "delegation revoked")
+    require(
+        grant["conditions"] == {"valid_complete_batch": True, "no_publication": True},
+        "unsupported delegation conditions",
+    )
+    require(grant["accepted_exceptions"] == checks["exceptions"], "exceptions not accepted")
+    return {
+        "schema": "agent-editorial-approval/v1",
+        "state": "APPROVED_AUTOMATIC_DELEGATED",
+        "batch_sha256": digest(batch),
+        "items": identities,
+        "grant_sha256": digest(grant),
+        "delegant": grant["delegant"],
+        "executor": executor,
+        "provenance": grant["provenance"],
+        "human_review": False,
+        "publication_authorized": False,
+    }
+
+
+def preserved_approvals(previous_items, current_items, approvals):
+    """Per-item dependency hashes invalidate exactly the affected approval, never all."""
+    old = {tuple(r[k] for k in ("id", "language", "kind")): r for r in exact_items(previous_items)}
+    new = {tuple(r[k] for k in ("id", "language", "kind")): r for r in exact_items(current_items)}
+    require(isinstance(approvals, list), "approval inventory")
+    retained, invalidated, seen = [], [], set()
+    for row in approvals:
+        ops.obj(row, "item approval_reference", "prior approval")
+        item = row["item"]
+        key = tuple(item[k] for k in ("id", "language", "kind"))
+        require(key not in seen and old.get(key) == item, "invalid prior approval binding")
+        seen.add(key)
+        ops.text(row["approval_reference"], "existing approval reference")
+        (retained if new.get(key) == item else invalidated).append(deepcopy(row))
+    return {"retained": retained, "invalidated": invalidated, "new_approvals": []}
+
+
+def release_identity(identity):
+    ops.obj(
+        identity,
+        "repository release candidate_sha artifact_sha256 effects_sha256 "
+        "inputs_sha256 audience shared_impacts_sha256",
+        "release identity",
+    )
+    for key in ("repository", "release", "audience"):
+        ops.text(identity[key], key)
+    ops.sha(identity["candidate_sha"])
+    for key in ("artifact_sha256", "effects_sha256", "inputs_sha256", "shared_impacts_sha256"):
+        ops.sha(identity[key], 64)
+    return identity
+
+
+def authorization_reuse(
+    identity, conditions, grant, *, trusted_grants, now=None, prior_effects="NONE"
+):
+    release_identity(identity)
+    trusted_record(grant, trusted_grants, "production authorization")
+    ops.obj(
+        grant,
+        "id purpose identity allowed_conditions_sha256 not_before expires_at revoked "
+        "partial_retry procedure provenance",
+        "production authorization",
+    )
+    require(grant["purpose"] == "PRODUCTION", "editorial approval cannot authorize deployment")
+    require(
+        grant["identity"] == identity, "candidate, artifact, effects, audience or inputs changed"
+    )
+    require(
+        isinstance(grant["allowed_conditions_sha256"], list)
+        and bool(grant["allowed_conditions_sha256"]),
+        "operational conditions required",
+    )
+    for value in grant["allowed_conditions_sha256"]:
+        ops.sha(value, 64)
+    require(
+        digest(conditions) in grant["allowed_conditions_sha256"],
+        "operational change outside authorization",
+    )
+    require(grant["revoked"] is False, "authorization revoked")
+    current = now or datetime.now(UTC)
+    require(
+        checked_time(grant["not_before"]) <= current < checked_time(grant["expires_at"]),
+        "authorization expired or not active",
+    )
+    require(prior_effects in {"NONE", "PARTIAL", "COMPLETED", "UNKNOWN"}, "effect state")
+    require(type(grant["partial_retry"]) is bool, "partial retry must be explicit")
+    require(prior_effects not in {"UNKNOWN", "COMPLETED"}, "reconcile or verify; do not repeat")
+    if prior_effects == "PARTIAL":
+        require(grant["partial_retry"] is True, "partial retry needs covered recovery")
+    for key in ("id", "procedure", "provenance"):
+        ops.text(grant[key], key)
+    return {
+        "authorization": "COVERED",
+        "grant_sha256": digest(grant),
+        "identity_sha256": digest(identity),
+        "conditions_sha256": digest(conditions),
+        "production_readiness": "NOT_EVALUATED",
+        "operation_performed": False,
+    }
+
+
+def readiness(identity, observations, *, trusted_observations):
+    """Aggregate independent read-only diagnoses; this never invokes production."""
+    release_identity(identity)
+    phases = {
+        "CODE",
+        "DATA",
+        "CONFIGURATION",
+        "ARTIFACT",
+        "MIGRATIONS",
+        "WORKFLOW_INPUTS",
+        "AUTHORIZATION",
+        "EXECUTION",
+        "VERIFICATION",
+        "CERTIFICATION",
+    }
+    require(isinstance(observations, list), "readiness observations")
+    seen, blockers, states = set(), [], {}
+    for row in observations:
+        trusted_record(row, trusted_observations, "readiness observation")
+        ops.obj(
+            row,
+            "phase identity_sha256 status cause elements effects next_action "
+            "evidence event_at observed_at recorded_at",
+            "readiness observation",
+        )
+        phase = row["phase"]
+        require(phase in phases and phase not in seen, "duplicate or unknown phase")
+        seen.add(phase)
+        require(row["identity_sha256"] == digest(identity), "readiness candidate mismatch")
+        require(
+            row["status"] in {"PASS", "BLOCKED", "PENDING", "UNKNOWN", "NOT_APPLICABLE"},
+            "readiness status",
+        )
+        for field in ("cause", "effects", "next_action", "evidence"):
+            ops.text(row[field], field)
+        require(isinstance(row["elements"], list), "affected elements required")
+        for value in row["elements"]:
+            ops.text(value, "element")
+        require(
+            checked_time(row["event_at"])
+            <= checked_time(row["observed_at"])
+            <= checked_time(row["recorded_at"]),
+            "event/observation/recording order",
+        )
+        states[phase] = row["status"]
+        if row["status"] not in {"PASS", "NOT_APPLICABLE"}:
+            blockers.append(deepcopy(row))
+    for phase in sorted(phases - seen):
+        states[phase] = "UNKNOWN"
+        blockers.append({"phase": phase, "status": "UNKNOWN", "cause": "missing evidence"})
+    prepared = {"CODE", "DATA", "CONFIGURATION", "ARTIFACT", "MIGRATIONS", "WORKFLOW_INPUTS"}
+    return {
+        "schema": "agent-readiness/v1",
+        "identity_sha256": digest(identity),
+        "phases": states,
+        "blockers": blockers,
+        "ready_for_final_consent": all(states[k] == "PASS" for k in prepared),
+        "production_executed": states["EXECUTION"] == "PASS",
+        "certified": all(states[k] == "PASS" for k in phases),
+        "mutation_authorized": False,
+    }
+
+
+def human_intervention(request):
+    ops.obj(
+        request,
+        "kind reason rule_source action url navigation inputs expected_result "
+        "prepared_result agent_can_execute",
+        "human intervention",
+    )
+    require(
+        request["kind"] in {"AUTHORIZATION", "AUTHENTICATION", "CONFIGURATION", "MATERIAL"},
+        "intervention kind",
+    )
+    require(request["agent_can_execute"] is False, "do not ask for available autonomous work")
+    for key in ("reason", "rule_source", "action", "expected_result", "prepared_result"):
+        ops.text(request[key], key)
+    from urllib.parse import urlsplit
+
+    url = urlsplit(request["url"])
+    require(
+        url.scheme == "https"
+        and url.hostname
+        and not url.username
+        and not url.password
+        and not url.query,
+        "observed entry/deep link without secrets required",
+    )
+    require(
+        isinstance(request["navigation"], list) and isinstance(request["inputs"], dict),
+        "navigation and exact inputs required",
+    )
+    for value in request["navigation"]:
+        ops.text(value, "navigation")
+    return {**deepcopy(request), "after_done": "OBSERVE_RESULT_BOUNDED", "performed": False}
+
+
+def environment_plan(environment):
+    ops.obj(
+        environment,
+        "staging staging_result target audience server_authorization "
+        "shared_impacts ui_capabilities emergency_procedure",
+        "environment",
+    )
+    require(environment["staging"] in {"CONFIGURED", "ABSENT"}, "staging unknown")
+    require(environment["target"] in {"PRODUCTION", "USER_PC"}, "target")
+    require(environment["audience"] in {"STAFF", "ALL"}, "audience")
+    require(isinstance(environment["ui_capabilities"], dict), "early UI inventory required")
+    for phase in ("pre_deploy", "post_deploy"):
+        require(isinstance(environment["ui_capabilities"].get(phase), list), "UI phase inventory")
+    for key in ("shared_impacts", "emergency_procedure"):
+        ops.text(environment[key], key)
+    if environment["audience"] == "STAFF":
+        require(
+            environment["server_authorization"] == "VERIFIED", "hidden links are not access control"
+        )
+    if environment["staging"] == "CONFIGURED":
+        require(environment["staging_result"] == "PASS", "configured staging cannot be skipped")
+    else:
+        require(environment["staging_result"] == "NOT_APPLICABLE", "absent staging is not PASS")
+    return {
+        "target": environment["target"],
+        "audience": environment["audience"],
+        "staff_is_production": environment["target"] == "PRODUCTION",
+        "next": "PREPARE_BUILD_AND_INSTRUCTIONS"
+        if environment["target"] == "USER_PC"
+        else "QUALIFY_NORMAL_PRODUCTION",
+        "ui": deepcopy(environment["ui_capabilities"]),
+        "authorization_required": "EXISTING_BOUND_CONTRACT",
+        "rollback_assumed": False,
+    }
+
+
+def recovery_plan(operation, *, trusted_observations):
+    trusted_record(operation, trusted_observations, "effect reconciliation")
+    ops.obj(
+        operation,
+        "identity state completed remaining reconciled bookkeeping "
+        "procedure event_at observed_at recorded_at",
+        "recovery",
+    )
+    release_identity(operation["identity"])
+    require(
+        operation["state"] in {"BEFORE_EFFECTS", "PARTIAL", "MONITORING_FAILED", "UNKNOWN"},
+        "unknown failure class",
+    )
+    require(type(operation["reconciled"]) is bool, "reconciliation must be explicit")
+    require(operation["bookkeeping"] in {"PASS", "FAILED", "UNKNOWN"}, "bookkeeping")
+    for key in ("completed", "remaining"):
+        require(
+            isinstance(operation[key], list) and operation[key] == sorted(set(operation[key])),
+            "effect inventory",
+        )
+        for value in operation[key]:
+            ops.text(value, "effect id")
+    require(not set(operation["completed"]) & set(operation["remaining"]), "duplicate effect")
+    ops.text(operation["procedure"], "existing recovery procedure")
+    require(
+        checked_time(operation["event_at"])
+        <= checked_time(operation["observed_at"])
+        <= checked_time(operation["recorded_at"]),
+        "recovered event time order",
+    )
+    state = operation["state"]
+    if state == "BEFORE_EFFECTS":
+        require(not operation["completed"], "before-effects claim contradicts completed effects")
+    if state == "PARTIAL":
+        require(bool(operation["completed"]) and bool(operation["remaining"]), "partial inventory")
+    if state == "MONITORING_FAILED":
+        require(bool(operation["completed"]) and not operation["remaining"], "success inventory")
+    action = "RECONCILE_READ_ONLY"
+    remaining = []
+    if operation["bookkeeping"] != "PASS":
+        action = "REPAIR_BOOKKEEPING_BEFORE_DEPENDENT_MUTATIONS"
+    elif operation["reconciled"] and state != "UNKNOWN":
+        action = "VERIFY_COMPLETED" if state == "MONITORING_FAILED" else "QUALIFY_REMAINING_EFFECTS"
+        remaining = operation["remaining"]
+    return {
+        "next_action": action,
+        "eligible_for_qualification": remaining,
+        "never_repeat": operation["completed"],
+        "procedure": operation["procedure"],
+        "mutation_authorized": False,
+        "retroactive_approval": False,
+    }
+
+
+def closure_plan(scope, evidence, *, trusted_scope, trusted_evidence, completed_keys):
+    trusted_record(scope, trusted_scope, "delivery scope")
+    trusted_record(evidence, trusted_evidence, "closure evidence")
+    ops.obj(scope, "repository release identity issues steps", "closure scope")
+    release_identity(scope["identity"])
+    require(
+        scope["repository"] == scope["identity"]["repository"]
+        and scope["release"] == scope["identity"]["release"],
+        "scope identity",
+    )
+    ops.obj(evidence, "scope_sha256 identity_sha256 criteria issues steps", "closure evidence")
+    require(
+        evidence["scope_sha256"] == digest(scope)
+        and evidence["identity_sha256"] == digest(scope["identity"]),
+        "closure binding",
+    )
+    criteria = evidence["criteria"]
+    require(isinstance(criteria, dict) and bool(criteria), "acceptance criteria required")
+    require(all(v == "PASS" for v in criteria.values()), "unmet acceptance criteria")
+    order = ["POST_DEPLOY", "CERTIFY", "CHECKPOINT", "ROADMAP", "ISSUES", "HANDOFF"]
+    require(scope["steps"] == order, "complete delivery sequence required")
+    require(
+        isinstance(scope["issues"], list) and scope["issues"] == sorted(set(scope["issues"])),
+        "exact scope issues",
+    )
+    require(set(evidence["issues"]) == set(scope["issues"]), "issue scope mismatch")
+    for issue in scope["issues"]:
+        ops.text(issue, "scope issue")
+        require(evidence["issues"][issue] == "CRITERIA_MET", "issue requirements pending")
+    require(set(evidence["steps"]) == set(order), "complete delivery evidence")
+    actions = []
+    for step in order:
+        require(
+            evidence["steps"][step] in {"VERIFIED", "PENDING", "NOT_APPLICABLE"}, "closure step"
+        )
+        key = digest({"scope": digest(scope), "step": step})
+        if key in completed_keys:
+            require(evidence["steps"][step] == "VERIFIED", "receipt without observed completion")
+        elif evidence["steps"][step] == "PENDING":
+            actions.append({"step": step, "idempotency_key": key})
+    return {
+        "complete": not actions,
+        "next_action": actions[:1],
+        "remaining": actions,
+        "issues": scope["issues"],
+        "next_release_authorized": False,
+        "receipt_write_before_dependents": True,
+    }
+
+
+def review_inventory(pr, threads, comment_pages, review_pages):
+    """Prove completeness from REST counts and IDs, not an empty normalized list."""
+    require(isinstance(pr, dict) and type(pr.get("review_comments")) is int, "PR count missing")
+    require(isinstance(threads, list), "thread list required")
+
+    def complete_pages(pages):
+        require(
+            isinstance(pages, list) and bool(pages) and len(pages) <= 100,
+            "bounded pagination required",
+        )
+        require(
+            all(isinstance(page, list) and len(page) == 100 for page in pages[:-1])
+            and isinstance(pages[-1], list)
+            and len(pages[-1]) < 100,
+            "terminal REST page missing",
+        )
+        rows = [row for page in pages for row in page]
+        ids = [row.get("id") for row in rows]
+        require(
+            all(type(i) is int and i > 0 for i in ids) and len(ids) == len(set(ids)),
+            "missing or duplicate REST IDs",
+        )
+        return rows
+
+    comments = complete_pages(comment_pages)
+    reviews = complete_pages(review_pages)
+    require(len(comments) == pr["review_comments"], "PR count drift or incomplete comments")
+    ids, thread_ids, unresolved = [], set(), []
+    for thread in threads:
+        require(
+            thread.get("id") not in thread_ids and isinstance(thread.get("id"), str),
+            "thread identity",
+        )
+        thread_ids.add(thread["id"])
+        require(type(thread.get("is_resolved")) is bool, "unknown thread resolution")
+        require(
+            isinstance(thread.get("comments"), list) and bool(thread["comments"]),
+            "empty thread is not complete evidence",
+        )
+        ids.extend(c.get("database_id") for c in thread["comments"])
+        if not thread["is_resolved"]:
+            unresolved.append(thread["id"])
+    require(
+        len(ids) == len(set(ids)) and set(ids) == {c["id"] for c in comments},
+        "thread comments incomplete",
+    )
+    return {
+        "complete": True,
+        "unresolved": unresolved,
+        "reviews": reviews,
+        "evidence_sha256": digest([pr, threads, comment_pages, review_pages]),
+        "qualification": "NOT_EVALUATED",
+    }
+
+
+def classify_document_effects(changed_paths, registry, registry_digest):
+    require(digest(registry) == registry_digest, "untrusted document registry")
+    require(isinstance(registry, dict), "exact accepted path registry required")
+    allowed = {"PLANNING", "DOCUMENTATION", "POLICY", "RUNTIME"}
+    for path, role in registry.items():
+        ops.path(path)
+        require(role in allowed, "unknown document role")
+    paths = ops.paths(changed_paths)
+    require(bool(paths), "empty delta")
+    roles = {path: registry.get(path, "UNKNOWN") for path in paths}
+    # Preserve a known runtime effect even when another path needs classification.
+    known_effect = "PRODUCTION" if "RUNTIME" in roles.values() else "NO_PRODUCTION"
+    return {
+        "roles": roles,
+        "known_effect": known_effect,
+        "effect": "UNKNOWN" if "UNKNOWN" in roles.values() else known_effect,
+        "scope": "NOT_INFERRED",
+        "authorization": "NOT_INFERRED",
+    }
+
+
+def retention_plan(artifacts, policy, policy_digest):
+    require(digest(policy) == policy_digest, "untrusted retention policy")
+    ops.obj(policy, "minimum_days cache_authoritative deletion_authorized", "retention policy")
+    require(policy["cache_authoritative"] is False, "cache cannot be sole authoritative copy")
+    require(policy["deletion_authorized"] is False, "this planner never authorizes deletion")
+    require(isinstance(policy["minimum_days"], dict), "retention classes required")
+    for purpose, days in policy["minimum_days"].items():
+        require(
+            purpose in {"TRANSIENT", "FAILURE", "RELEASE", "ROLLBACK", "RECOVERY", "AUDIT"}
+            and type(days) is int
+            and days > 0,
+            "retention class or duration",
+        )
+    require(isinstance(artifacts, list), "artifact inventory")
+    seen = set()
+    for row in artifacts:
+        ops.obj(row, "id purpose retention_days durable_copy", "artifact retention")
+        require(row["id"] not in seen, "duplicate artifact")
+        seen.add(row["id"])
+        require(row["purpose"] in policy["minimum_days"], "missing purpose retention")
+        require(
+            type(row["retention_days"]) is int
+            and row["retention_days"] >= policy["minimum_days"][row["purpose"]],
+            "retention below recovery/audit policy",
+        )
+        require(row["durable_copy"] is True, "authoritative copy missing")
+    return {
+        "artifact_count": len(artifacts),
+        "policy_sha256": policy_digest,
+        "deletions": [],
+        "existing_artifacts_mutated": False,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -461,8 +1030,45 @@ def main():
     select.add_argument("--workstream", required=True)
     select.add_argument("--phase", required=True)
     select.add_argument("--host", default="WORK")
+    for command in (
+        "delegated-approval",
+        "authorization-reuse",
+        "readiness",
+        "recovery-plan",
+        "closure-plan",
+        "human-intervention",
+        "environment-plan",
+        "review-inventory",
+    ):
+        entry = sub.add_parser(command)
+        entry.add_argument("--input", type=Path, required=True)
+        entry.add_argument("--trusted", type=Path, required=True)
     args = parser.parse_args()
     try:
+        if args.command != "select-documents":
+            data = json.loads(args.input.read_text())
+            # Supplied explicitly by the host; never discover trust in candidate input.
+            trust = json.loads(args.trusted.read_text())
+            if args.command == "delegated-approval":
+                result = delegated_approval(**data, **trust)
+            elif args.command == "authorization-reuse":
+                result = authorization_reuse(**data, **trust)
+            elif args.command == "readiness":
+                result = readiness(**data, **trust)
+            elif args.command == "recovery-plan":
+                result = recovery_plan(**data, **trust)
+            elif args.command == "closure-plan":
+                result = closure_plan(**data, **trust)
+            else:
+                require(trust == {}, "unexpected trust arguments")
+                function = {
+                    "human-intervention": human_intervention,
+                    "environment-plan": environment_plan,
+                    "review-inventory": review_inventory,
+                }[args.command]
+                result = function(**data)
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0
         manifest = json.loads(args.manifest.read_text())
         result = select_documents(
             args.root,

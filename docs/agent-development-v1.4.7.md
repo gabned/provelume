@@ -56,6 +56,127 @@ Neither an emoji nor a comment without a verdict is an approval. A withdrawn
 requirement is not a clean review or waiver. Unknown, partial or stale evidence
 never becomes PASS through a summary or cached result.
 
+## Delegated decisions and concrete human intervention
+
+For a necessary operation beyond ordinary authority, identify the exact rule and
+source, check existing consent, finish preparation and independent permitted work,
+then request only the remaining decision against a reviewable result. Distinguish
+already authorized work, delegable decisions, prior policy adoption, user-only
+material action, and constraints that consent cannot override. Consent never
+creates credentials/roles, bypasses GitHub, or supersedes higher instructions.
+Project policy changes are explicit reviewed changes, not hidden gate exceptions.
+After consent, execute and verify within its binding without asking again.
+
+`human-intervention` records AUTHORIZATION, AUTHENTICATION, CONFIGURATION or MATERIAL,
+the rule/source, prepared result, exact action, observed HTTPS deep link (or entry
+and minimal navigation), inputs and expected result. The host verifies links and
+UI labels; the offline validator cannot establish their existence. Keep secrets
+out of messages. Do not ask for work the agent can perform. After “done”, observe
+the existing run/result through one bounded lookup; do not request already
+observable IDs. Combine independent requests when their dependencies remain clear.
+
+## Editorial delegation
+
+Generation, automatic verification, delegated automatic approval, actual human
+review and publication are distinct stages. `delegated-approval` emits only
+`APPROVED_AUTOMATIC_DELEGATED`, with `human_review: false` and no publication
+authority. It never updates a catalog or impersonates a reviewer.
+
+Before requesting consent, complete the authorized source/translation batch and
+obtain consumer-specific coverage, placeholder, markup, escaping, pluralization,
+terminology and contextual checks. Generic Protocol code does not claim linguistic
+competence or implement every consumer's string grammar. The trusted host selects
+the complete checker evidence by digest independently of candidate input. Its
+coverage enumerates every exact item, language and kind; its batch digest includes
+all text and dependency hashes. Missing, invalid, unchecked or fallback content
+cannot be approved. Summarize the batch and list ambiguities/linguistic limitations;
+the delegant explicitly accepts those exceptions, never an invalid string.
+
+A prior adopted consumer policy must permit delegation and identify authorized
+delegants. Bind the actual grant to project, catalog, release, revision, complete
+batch/item hashes, checks, accepted policy, delegant, executor, provenance,
+conditions and validity interval. Host trust is independent: select live grants
+and check revocation/roles at the decision boundary; do not trust a PR's digest
+allowlist or restored authority. Unknown revocation/access blocks. A policy or
+content change requires new binding, never automatic extension to future releases.
+
+Per-item approval reuse compares source, destination, context and dependency
+hashes; preserve valid unchanged approvals and invalidate only changed items and
+their actual dependents. Consumer adapters must enumerate transitive semantic
+dependencies before hashing. A recovered record cannot become prior consent.
+Editorial and production grants remain separate; request them together only when
+both prepared scopes are explicit. Existing consumer bans remain effective until
+their separate policy and implementation adoption. No real catalog is approved
+by this Protocol release; private release procedures are research inputs, not
+authorization to mutate them.
+
+## Release readiness, authorization and effects
+
+`readiness` keeps CODE, DATA, CONFIGURATION, ARTIFACT, MIGRATIONS, WORKFLOW_INPUTS,
+AUTHORIZATION, EXECUTION, VERIFICATION and CERTIFICATION separate. Before final
+consent prepare the candidate, exact CI, effect/migration manifest, artifact,
+workflow inputs and every independently observable prerequisite. CI success cannot
+prove productive data readiness. Use only existing authorized diagnostics for
+production-dependent facts, never introduce direct production access.
+
+Collect independent blockers together where safe; stop dependent or risky checks.
+Every diagnosis records phase, cause, affected elements, known effects, evidence
+and next action without secrets. Unknown stays unknown. Do not propose a generic
+rerun for missing configuration, data or approvals. A red monitoring workflow
+does not prove no effects occurred. Store actual event time, observation time and
+registration time separately; restored observations retain their original times.
+
+`authorization-reuse` binds code SHA, artifact, effect manifest, exact workflow
+inputs, audience and shared impacts independently. Operational conditions have an
+explicit set of authorized digests: the host must validate their semantics, not
+infer equivalence from an unchanged SHA. A failed run does not revoke all consent;
+a changed candidate/effect/audience/input does not inherit an exact grant. Explain
+the changed binding and provide the exact confirmation text when needed. Partial
+retry additionally needs explicit coverage and the established recovery procedure.
+This validator establishes coverage only, never readiness or platform permission.
+
+`recovery-plan` distinguishes BEFORE_EFFECTS, PARTIAL, MONITORING_FAILED after
+successful effects, and UNKNOWN. Reconcile uncertain outcomes before mutations;
+completed migrations/publications are never repeated by default. Preserve their
+idempotency receipts and qualify only remaining effects through existing recovery.
+Mandatory bookkeeping failure stops dependent mutations. Monitoring failure after
+completion calls for verification, not repetition. Use the existing emergency
+procedure; code rollback is not assumed to reverse database or publication state.
+
+## Environments, audience and complete delivery
+
+Inventory UI capabilities early and record pre-deploy versus post-deploy checks.
+With configured staging, require its successful verification before promotion;
+failure cannot silently turn into “no staging”. With staging absent, proceed
+through normal productive gates without a recurring waiver. USER_PC targets need
+a prepared build and exact instructions before a necessary material user test.
+STAFF is an audience, not a non-production environment: enforce server access,
+record shared impacts, verify, then separately qualify wider opening. Hidden links
+do not restrict access. Preserve valid visual deferrals within their exact runtime
+scope and duration; DEFERRED is never PASS and new visual changes need reassessment.
+
+An authorized delivery includes post-deploy verification, required certification,
+checkpoint reconciliation, roadmap state, closure of satisfied in-scope issues,
+and final handoff. A merged PR alone cannot close a release or broad tracker.
+`closure-plan` binds the original scope and acceptance evidence, emits the first
+pending step and stable idempotency keys, and checks observed completions against
+retained keys. Execution uses the existing ledger and APIs: persist successful
+receipts before dependent writes; reconcile uncertain writes before repeating.
+Do not duplicate comments, issue closures, receipts or checkpoint PRs. Unmet
+criteria retain explicit ownership. No next release is started by closure.
+
+## Trusted evidence inputs
+
+The public CLI commands use `--input` and a separate explicit `--trusted` file.
+The host derives trust from actual user instructions, accepted policy and fresh
+authorized observations, never from input/candidate content or self-signed JSON.
+Digests provide binding only. `review-inventory` can prove thread coverage by
+matching every normalized thread-comment database ID against complete REST comment
+pages and the actual PR review-comment count, plus complete review pages. Retain
+the original responses, reconcile drift, and use 100-item pages with an observed
+short terminal page. A normalized empty list or missing page metadata alone proves
+nothing. Review findings and requirements still use the existing review validator.
+
 ## Deterministic reading
 
 `AGENTS.md` is the entry and contains only Core boundaries plus routing. The
