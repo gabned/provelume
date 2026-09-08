@@ -45,7 +45,8 @@ def test_147_repository_document_manifest_is_complete_and_current():
     root = Path(__file__).resolve().parents[1]
     manifest = json.loads((root / ".github/agent-protocol/documents-v1.4.7.json").read_text())
     inventory = {row["path"] for row in manifest["documents"]}
-    expected = {str(p.relative_to(root)) for p in (root / "docs").glob("agent-development-v*.md")}
+    guides = (root / "docs").glob("agent-development-v*.md")
+    expected = {p.relative_to(root).as_posix() for p in guides}
     assert inventory == {"AGENTS.md", *expected}
     for phase in module.PHASES:
         result = module.select_documents(
