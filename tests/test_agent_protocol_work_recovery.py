@@ -524,7 +524,7 @@ class RecoveryConformance(unittest.TestCase):
         result = recovery.sync_adopter(canonical, target, sha, "brickms/brickms")
         assert "scripts/agent/protocol-v1-2.py" in result["changed_paths"]
         assert sha in adapter.read_text() and sha in guard.read_text()
-        assert 'assert len(local.WORK_ADAPTER_PIN["files"]) == 8' in guard.read_text()
+        assert 'assert len(local.WORK_ADAPTER_PIN["files"]) == 10' in guard.read_text()
         assert "agent_protocol_work_recovery.py" in adapter.read_text()
         assert (
             recovery.sync_adopter(canonical, target, sha, "brickms/brickms")["changed_paths"] == []

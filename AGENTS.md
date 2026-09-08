@@ -1,278 +1,51 @@
-# AGENTS.md — Provelume Core
+# Provelume Core agent entry
 
-These instructions apply to the entire `gabned/provelume` repository. They are public, repository-local, and complete without access to any private repository.
+AGENT_DEVELOPMENT_PROTOCOL: 1.4.7
+LIFECYCLE_SCHEMA: 1.2
+CAMPAIGN_SCHEMA: 2
 
-## Source of truth and boundaries
+These instructions apply to all of `gabned/provelume`. GitHub is the executable
+source of repository, branch, commit, PR, checks, tag and release identity.
 
-- GitHub is the executable source of truth for the default branch, commit SHAs, branches, issues, pull requests, checks, tags, releases, and release assets.
-- This repository contains the public clean-room Provelume Core and self-hosted Instance packaging. It must remain usable without Nexus, Provelume Cloud, GitHub at runtime, or an external AI provider.
-- Repository documentation defines public contracts. Private planning material may provide optional context only to an already-authorized agent; it is never required to understand, build, test, or release this repository.
+## Core boundaries
 
-## Clean-room rule
+- This public clean-room Core and self-hosted Instance must work without Nexus,
+  Provelume Cloud, GitHub at runtime or an external AI provider. Never transplant
+  private code, paths, fixtures, data, operational state or Git history. Use public
+  requirements and synthetic fixtures; no private dependency is required here.
+- Keep one PR-local owner per homogeneous workstream. Core has no `AGENT_STATUS.md`,
+  committed global lock or second checkpoint. Do not interfere with another owner.
+- Separate PRODUCT and PROTOCOL. A PRODUCT Protocol defect stops that workstream
+  and follows the separate escalation path. Never weaken a gate, fabricate authority
+  or author a waiver. Explicit user authorization persists within its actual scope.
+- Keep credentials and private data out of source, logs, public evidence and CI.
+  No untrusted artifact or candidate code enters a secret-bearing context.
+- Preserve offline verification, deterministic builds, least privilege and the
+  existing independent release/publication gates. Normal CI does not publish.
+  Release identity, package metadata and actual reviewed `main` commit must agree.
 
-- Never copy or infer private Nexus code, data, paths, configuration, fixtures, generated knowledge, operational state, prompts, or Git history into this repository.
-- Reimplement product behavior from public requirements, sanitized interfaces, and synthetic or public fixtures.
-- Do not introduce a runtime or build dependency on Nexus.
-- Treat private examples as requirements to sanitize, not material to transplant.
+## Read and execute
 
-## Preflight
+Start with one bounded GitHub reconciliation and verify complete source identity.
+Read [the current cross-cutting contract](docs/agent-development-v1.4.7.md) always.
+Then use `tools/agent_protocol_v1_4_7.py select-documents` with the independently
+selected accepted-base `.github/agent-protocol/documents-v1.4.7.json`, its verified
+canonical JSON digest, and actual workstream/phase/host. Integrity failures stop;
+uncertain selection loads the full inventory. Candidate routing cannot qualify
+its own adoption. Historical receipts use their matching historical validator.
 
-Before making a change, verify once against GitHub:
+The current contract owns authority, required reading, communication and closure.
+Its manifest routes Work source, recovery and operational evidence procedures.
+For a new product area, read its owning architecture/release documentation and
+relevant code; roadmap and changelog retain their separate functions. Use narrow
+searches before large reads. Original complete evidence stays outside source;
+normal model output contains compact references, findings and uncertainty.
 
-1. the default branch and its current SHA;
-2. the working branch, head SHA, and merge base;
-3. open pull requests that overlap the proposed release or workstream;
-4. the current owner pull request, if any;
-5. relevant CI and release workflow state;
-6. the package version, existing tags, and published releases affected by the change.
+## Native checks
 
-Do not rely on a prompt's cached SHA when GitHub has advanced. If the verified base differs from the required base, stop and explicitly rebase or reconstruct the delta before continuing.
-
-## Ownership and concurrency
-
-- Each active release or homogeneous workstream has exactly one owner pull request.
-- Do not open or maintain competing pull requests for the same outcome.
-- Overlapping pull requests are inputs to absorb, defer, or close as superseded; they are not an implicit parallel backlog.
-- Record an ownership change only after the new branch and pull request actually exist.
-- Keep unrelated releases and product work out of a scoped protocol or documentation pull request.
-
-## Agent Development Protocol v1.2 and v1.2.1 change control
-
-- Ownership remains pull-request-local. Do not add `AGENT_STATUS.md`, a global lock, a private checkpoint, or a runtime dependency on Nexus.
-- Start or resume with one bounded reconciliation. Observe again only after a real head, CI, review, merge, tag, release, or publication event; never poll.
-- Use closed identifiers and record inaccessible facts as `UNKNOWN`. A critical `UNKNOWN` blocks binding or merge and is never inferred as absent or successful.
-- Bind the exact base/head/path set through the report generated by `tools/agent_protocol.py`. Generated reports and connector snapshots stay under ignored `.agent/`.
-- A connector-only snapshot must not access credentials or production environments. Reconciliation is observational-only and cannot dispatch workflows, create tags, publish artifacts, or write runtime data.
-- Every pull request must contain exactly one closed `WORKSTREAM_CLASS: PRODUCT` or `WORKSTREAM_CLASS: PROTOCOL` marker. `PRODUCT` covers every non-protocol change, including release preparation; `PROTOCOL` covers only the protected repository-local agent surfaces.
-- Product and protocol paths never share a pull request. The v1.2.1 protected-path profile and mixed-scope guard in `tools/agent_protocol.py` fail closed on missing or invalid classification, mixed scope, incomplete path evidence and moved-head evidence.
-- The authoritative change-control job runs on `pull_request_target` from the trusted base revision with empty job permissions. It may fetch but never check out or execute the untrusted head. Candidate-branch CI is self-consistency evidence and cannot authorize its own scope.
-- If product work exposes a possible protocol defect, stop that workstream without editing a protocol surface and emit `PROTOCOL_ESCALATION` with a closed finding code. Resume only through a separate `PROTOCOL` pull request or an explicit human decision.
-- Finding and blocker codes are closed registries in `tools/agent_protocol.py`; agents must not invent synonyms or treat an unrecognized value as harmless.
-- An emergency waiver is exceptional, static in the pull-request body, human-only and bound to the exact owner PR, head SHA and waivable blocker codes. Agents may validate a waiver but must never author, activate, edit, renew or remove one. Any head movement invalidates it.
-- The v1.2.1 overlay does not change the v1.2 lifecycle, effect-report, binding or reconciliation schemas.
-- Before removing or consolidating workflows, record one classification: `KEEP`, `KEEP_AND_HARDEN`, `REPLACE`, or `REMOVE_AS_OBSOLETE`, and preserve all stronger repository-local checks and names.
-- See `docs/agent-development-v1.2.md` for the base contract and `docs/agent-development-v1.2.1.md` for its change-control overlay.
-
-## Agent Development Protocol v1.3.0 review governance
-
-`AGENT_DEVELOPMENT_PROTOCOL: 1.3.0`
-
-`LIFECYCLE_SCHEMA: 1.2`
-
-The v1.3.0 governance overlay preserves PR-local ownership, the absence of `AGENT_STATUS.md`, lifecycle/effect/reconciliation schema v1.2, clean-room boundaries and trusted-base change control. Codex review is opt-in only. Unless the exact current maintainer instruction contains `CODEX_REVIEW_REQUESTED: TRUE`, record `REVIEW_REQUIREMENT_SOURCE: NONE` and `CODEX_REVIEW_STATE: NOT_REQUESTED`; do not publish a Codex review trigger, search for an external reviewer or wait on Codex availability.
-
-GitHub-required reviews remain mandatory as `REVIEW_REQUIREMENT_SOURCE: REPOSITORY`. An explicit maintainer request is `EXPLICIT_MAINTAINER`: `PENDING`, `UNAVAILABLE`, `UNKNOWN` and `FINDINGS` block, and `CLEAN` is valid only on the unchanged exact head. A verified exact-head maintainer withdrawal is `WITHDRAWN`, not clean, approval or waiver. 👀 and `COMMENTED` without a verdict are not clean.
-
-Any current technical finding blocks regardless of origin. Exact base/head/path binding, final-head CI, ancestry, mergeability, zero current threads, repository-required reviews, clean-room/deterministic-build/publication gates and post-merge reconciliation remain mandatory. Review governance cannot create, extend or reuse a waiver. See `docs/agent-development-v1.3.0.md`.
-
-## Agent Development Protocol v1.4.0 campaign execution
-
-`AGENT_DEVELOPMENT_PROTOCOL: 1.4.0`
-
-`LIFECYCLE_SCHEMA: 1.2`
-
-`CAMPAIGN_SCHEMA: 1`
-
-`HANDOFF_SCHEMA: 1`
-
-The v1.4.0 orchestration overlay preserves every v1.3 review gate and every v1.2/v1.2.1 lifecycle, effect, binding, change-control, release, publication and reconciliation gate. A campaign is issue-backed and contains one ordered slice or release train; each active slice still owns exactly one branch and one pull request, and Core still has no `AGENT_STATUS.md` or committed global lock.
-
-- Sequential auto-continuation may start the next ordered slice only after a real observed event and only inside the declared authority envelope. It never converts waiting or polling into evidence.
-- Authority is closed as `SOURCE_ONLY`, `THROUGH_MERGE`, `THROUGH_RELEASE`, or `THROUGH_PRODUCTION_B`. It is a ceiling, not a waiver; the Provelume Core profile rejects production authority.
-- Stop reasons, campaign states, pending actions and next-action types are closed registries validated by `tools/agent_protocol_v1_4.py`. Unknown values fail closed.
-- A release train, a published semantic version and an exact build SHA are separate identities. No train state may imply a tag, artifact publication or deployment.
-- Campaign scope remains frozen. New ideas go to GitHub issues only and are triaged at the verified release boundary.
-- The only checkpoint policy is `RELEASE_BOUNDARY`: slice merges update the owner issue; one checkpoint is recorded after release verification.
-- The human-facing handoff is at most 120 words and contains exactly one next action. An exact prompt appears only for `USER_ACTION_REQUIRED`; otherwise the agent continues or waits without asking.
-- See `docs/agent-development-v1.4.0.md` for the schema, local profile and cross-repository compatibility analysis.
-
-## Agent Development Protocol v1.4.1 auditable continuation
-
-`AGENT_DEVELOPMENT_PROTOCOL: 1.4.1`
-
-`LIFECYCLE_SCHEMA: 1.2`
-
-`CAMPAIGN_SCHEMA: 2`
-
-`HANDOFF_SCHEMA: 2`
-
-The v1.4.1 hardening preserves every v1.3 and earlier gate. The unchanged
-`tools/agent_protocol_v1_4.py` remains the compatibility validator for 1.4.0
-schema 1; new or migrated evidence uses `tools/agent_protocol_v1_4_1.py`.
-
-- Each slice retains an ordered `OWNER` then `CORRECTION` pull-request ledger.
-  Across one campaign, at most one ledger entry may be open; merged and closed
-  entries are never replaced by a correction. `PR_OPENED` may only append its
-  new open ledger entry. The current open entry may advance only its `head_sha`
-  through a distinct GitHub-backed `PR_SYNCHRONIZED` receipt.
-- Every schema 2 state change appends one idempotent receipt bound to a real,
-  closed GitHub event, action, and applicable terminal conclusion,
-  predecessor/successor state digests, the prior receipt, and its own canonical
-  digest. Every new transition also persists the exact predecessor and successor
-  state snapshots; validation reconstructs the whole chain and applies the
-  event-owned mutation contract to every adjacent pair. An intermediate legacy
-  transition uses the following receipt's predecessor snapshot when available;
-  without a uniquely reconstructible state it fails closed.
-  `GATES_PASSED`, release verification, deployment, and production
-  verification require `SUCCESS`; `DEPLOYMENT/CREATED` is never deployment
-  evidence. Each receipt may mutate only the campaign state owned by that exact
-  event, so publication cannot also invent verification, checkpoint, slice, or
-  deployment state. Repeated reads and elapsed time are not events; `PR_CLOSED`
-  retains an unmerged attempt before any correction opens. `SLICE_ISSUE_OPENED`
-  binds one exact `ISSUE/OPENED` event to one issue-less `PLANNED` slice, assigns
-  only that issue, and activates only that slice. Otherwise an exact
-  `ISSUE/OPENED` event may append only its own reference to the idea inbox.
-  Every `SCHEMA_MIGRATION` receipt retains both exact migration snapshots;
-  a snapshotless receipt fails closed even when it is the terminal receipt.
-  Non-ambiguous legacy receipts without `conclusion` remain auditable.
-- Campaign and handoff are generated and validated together. The handoff binds
-  the complete campaign digest, remains at most 120 words, and has one action.
-- `RESUME_REQUIRED` is reserved for `SESSION_LIMIT`; it carries no prompt,
-  changes no campaign state, and is neither a blocker nor a human decision.
-- Release profiles are closed by repository: Core `GITHUB_ARTIFACT`, BrickMS
-  `CODE_ONLY_PRODUCTION_B`, Maxithlon `DEPLOYMENT_LEVEL_C`, and provelume.com
-  `UPSTREAM_RELEASE_VERIFIED`. Level C remains explicitly human-only.
-- Train, target version, published version, candidate build, deployed build,
-  published build, and any upstream published build remain separate identities.
-  Candidate qualification and deployment each bind both the stored observed
-  reference and the GitHub event SHA to the exact corresponding train build.
-  Publication uses its release event; later verification uses a distinct
-  exact-head workflow-run event. Upstream verification binds the exact recorded
-  repository, `release:v{published_version}` reference, and published build.
-- Schema 1→2 migration is deterministic and cannot invent overwritten history.
-  A legacy success-dependent action waits for a newly observed exact-head
-  `SUCCESS` workflow receipt before it can continue. Cross-repository fixtures
-  are read-only evidence, never authority or state.
-- See `docs/agent-development-v1.4.1.md` for the complete contract and
-  `.github/agent-protocol/conformance-v1.4.1.json` for the sanitized fixture.
-
-## Agent Development Protocol v1.4.2 verified operations
-
-`AGENT_DEVELOPMENT_PROTOCOL: 1.4.2`
-
-For new Protocol campaigns, use `tools/agent_protocol_v1_4_2.py` and its sibling
-`tools/agent_protocol_v1_4_2_ops.py`. Keep historical 1.4.0/1.4.1 records on their
-matching validators; never relabel their evidence. Lifecycle remains 1.2 and
-campaign/handoff schema remains 2, discriminated by the protocol version.
-
-- Preserve all earlier gates. Workflow observations bind exact heads, run IDs,
-  attempts and triggers; a successful trusted-base scope run cannot replace
-  candidate tests. Retain complete immutable attempt and terminal-job histories.
-- Protocol gate and merge transitions require operational evidence inside the
-  receipt digest. Actual merged state, tree, parents and default ancestry are
-  mandatory; a provisional merge SHA never proves integration.
-- An existing explicit user authorization may be bound to its exact covered
-  delta; never fabricate a human GitHub comment or expand the approved scope.
-  Technical changelog exceptions cannot waive another repository gate.
-- Wait only on a freshly observed live handle with a bounded deadline. Expiry
-  requests observation of the same handle and never authorizes a transition,
-  rerun, polling loop or completion claim.
-- Late findings retain original and corrective merges plus thread-resolution
-  evidence. Cross-repository distribution closes only after the complete
-  five-repository audit, including default-commit vendor and document provenance.
-- Follow `docs/agent-development-v1.4.2.md`. Generated snapshots remain ignored;
-  public fixtures contain no private registry paths, data or implementation.
-
-## Agent Development Protocol v1.4.3 Work representations
-
-`AGENT_DEVELOPMENT_PROTOCOL: 1.4.3`
-
-Read `docs/agent-development-v1.4.3-work.md` when using a Work connector source
-or Work instruction provenance. The source overlay recognizes complete verified
-trees plus an actually authorized connector, subject to explicit local adoption
-and every existing pre-publication gate. Source-only integrity never qualifies
-a push. Core retains its canonical full Python/Git checks and PR-local ownership.
-The full pytest suite also runs the collector's offline Node conformance tests
-using the runtime supplied by Work/CI; absence is a concrete failed prerequisite.
-
-Operational receipts still use the 1.4.2 engine/discriminator and unchanged
-lifecycle 1.2 and schema 2. An explicit `WORK_USER_INSTRUCTION` authority record
-may be selected only from the real current user's instruction, independently of
-candidate-controlled evidence, through `trusted_work_instructions` or the
-`--work-instructions` CLI input. It binds actor/repository/PR/base/head/path/patch;
-an empty trusted set blocks it. Never fabricate a task ID, timestamp, approval
-comment or waiver. Earlier reference formats and all earlier gates remain.
-
-This common adoption grants no PRODUCT continuation, downstream adoption,
-production authority or complete distribution claim by itself.
-
-## Agent Development Protocol v1.4.4 Work startup
-
-`AGENT_DEVELOPMENT_PROTOCOL: 1.4.4`
-
-For the advertised Work connector tools, use `createWorkConnector` and
-`collectWorkSession` from the existing `tools/agent_protocol_work_collect.mjs`.
-The generic blob tools may return decoded text; the typed file capability must
-request `encoding: base64` at the observed immutable commit. Follow the 1.4.4
-quick start in `docs/agent-development-v1.4.3-work.md`. Do not write per-session
-transport shims, invent raw blob envelopes or infer bytes from decoded text.
-
-One call collects source plus fresh bounded observations; local preflight and
-canonical full checks are still separate required executions. On interruption,
-reuse only independently rehashed blob-cache entries and retain earlier output.
-Missing/truncated binary bytes fail explicitly. Core uses its native full
-Python/Git checks. Downstream use requires an accepted local dependency pin.
-The operational engine stays 1.4.2, lifecycle 1.2 and campaign/handoff schema 2;
-historical validators/receipts, authority and all existing gates remain intact.
-
-## Agent Development Protocol v1.4.5 Work recovery
-
-`AGENT_DEVELOPMENT_PROTOCOL: 1.4.5`
-
-Read `docs/agent-development-v1.4.5-work.md` for incremental observation capture,
-explicit recovery archives and coherent adopter synchronization. The current Work
-bootstrap persists each response before continuing and propagates storage failures.
-Save recovery artifacts through the host's durable file capability and retain the
-archive identity/digest separately; a temporary ZIP is not a completed handoff.
-
-Recovery verifies historical bytes only. Never select authority from candidate
-content, refresh an old timestamp, promote a cached check or execute restored
-scripts. Independently confirm original user authority, rehash source/cache bytes,
-reobserve live gates and run the same native preflight/full checks. Complete native
-Git/bundle recovery remains valid without claiming unsupported connector transport.
-
-Synchronize adopter Work pins, operational manifest/provenance and current guides
-from one accepted Core revision with the canonical `sync-adopter` entrypoint.
-Historical receipts/sections remain unchanged. This overlay preserves engine 1.4.2,
-lifecycle 1.2, schema 2 and every earlier scope/effect/CI/review/production boundary;
-it does not grant downstream adoption or product continuation by itself.
-
-## Agent Development Protocol v1.4.6 evidence reuse
-
-`AGENT_DEVELOPMENT_PROTOCOL: 1.4.6`
-
-Use `createEvidenceCollector` from the existing Work collector and follow
-`docs/agent-development-v1.4.6-work.md`. Only exact Git commit/tree objects and
-complete terminal CI attempt/job histories are reusable. Live default anchors,
-PR identity/files, policy, reviews and workflow inventories remain fresh.
-The source commit anchor remains a real new read even when its tree is reused.
-
-Cache restore requires an independently retained SHA-256, verified host provenance
-and original timestamps. Neither a digest nor cached success establishes authority
-or a passed current gate. Retain every failed attempt; never retry automatically.
-Measure connector reads separately from tokens, model time and usage credits.
-The eight-file dependency inventory, full native checks, engine 1.4.2, lifecycle
-1.2, schema 2 and every earlier gate and production boundary remain unchanged.
-
-## Delivery and release discipline
-
-- Start from the verified default-branch SHA and keep the pull-request delta minimal.
-- Use the repository's permanent workflows. Remove `one-shot`, `apply-*`, temporary bootstrap/patching workflows, and other branch-mutating transitional mechanisms before merge. Do not remove supported local setup helpers such as `scripts/bootstrap.py`.
-- A pull request must not create an official release.
-- Create a semantic release tag only from the reviewed pull-request result commit already present on `main`, including an approved squash-merge commit; the tag, package version, changelog, and embedded identity must agree.
-- Candidate construction, rebuild, verification, and assembly remain read-only. Publication privileges belong only to the final trusted tag path.
-- Do not weaken clean-room, least-privilege, offline verification, deterministic-build, or cross-platform gates to make a check pass.
-- Check GitHub at preflight, after a real change, or immediately before an irreversible action. Do not poll CI, pull requests, or Actions continuously.
-
-## Local verification
-
-Use Python 3.12 or newer. Bootstrap the development environment when needed:
-
-```bash
-python scripts/bootstrap.py
-```
-
-For ordinary Core changes, run:
+Use Python 3.12 or newer and the supplied Node runtime. Reuse valid dependencies;
+when missing, run `python scripts/bootstrap.py`. Before publication run the full
+native checks on the unchanged candidate:
 
 ```bash
 .venv/bin/python -m ruff check core tests scripts tools
@@ -280,10 +53,8 @@ For ordinary Core changes, run:
 git diff --check
 ```
 
-On Windows, use `.venv\Scripts\python.exe`. For release-chain changes, also exercise the exact repository release dry-run and offline verifier paths defined by the checked-in workflows and release documentation; do not replace them with a weaker ad hoc test.
-
-## Pull-request handoff
-
-GitHub checks, reviews, issue/PR records and machine reports must retain the verified default SHA, required base SHA, owner pull request and head SHA, workstream class, observed path categories, intended version, checks run, remaining blocker codes, any `PROTOCOL_ESCALATION`, and whether any tag or release action remains.
-
-The human-facing handoff follows v1.4.2: at most 120 words, exactly one `Next action`, and one exact `Prompt` only when `USER_ACTION_REQUIRED` (otherwise `NONE`). `RESUME_REQUIRED` is only a session-limit continuation and never a substitute for a blocker or human decision. Detailed evidence stays linked rather than repeated. GitHub remains authoritative if the handoff becomes stale.
+On Windows use `.venv\Scripts\python.exe`. Release-chain changes additionally run
+the checked-in release dry-run/offline-verifier paths. Local success is not remote
+qualification. Use permanent workflows, complete exact-head CI/reviews, baseline
+scope/effect binding and normal expected-head GitHub merge. Reconcile actual merge
+identity and required post-merge checks before claiming delivery.
