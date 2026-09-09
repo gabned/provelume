@@ -351,6 +351,8 @@ def validate_scope(
                  "docs/runbooks/agent-development.md"}
         if pr["repository"] == "brickms/brickms":
             exact.add("scripts/agent/protocol-v1-2.py")
+            exact.add("tools/agent-preflight")
+            exact.add(".github/workflows/php-runtime-contract.yml")
         if pr["repository"] == "gabned/provelume.com":
             exact.add("tools/agent-preflight")
         prefixes = ("tools/agent_protocol", "tests/test_agent_protocol_",

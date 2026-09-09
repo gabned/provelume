@@ -239,7 +239,6 @@ export async function collectPreflight({repository, fetchJson, activePr = null,
   if (repo.status !== "OBSERVED" || repo.response.full_name !== repository || !repo.response.default_branch) throw Error("repository observation unavailable");
   const branch = repo.response.default_branch;
   const defaultBranch = await get(`/branches/${encodeURIComponent(branch)}`);
-  const rulesets = await pages("/rulesets?includes_parents=true");
   const openPullRequests = await pages("/pulls?state=open");
   const recentActions = await get("/actions/runs?per_page=20&page=1");
   let active = {status: "NOT_SELECTED", number: null};
@@ -259,8 +258,10 @@ export async function collectPreflight({repository, fetchJson, activePr = null,
       arguments:{repository_full_name:repository, pr_number:activePr}, observed_at:now(), ...threads});
     active = {number: activePr, pr, reviews, threads};
   }
-  return {schema:"agent-work-preflight/v1", repository, generated_at:now(), repo,
-    default_branch:defaultBranch, rulesets, open_pull_requests:openPullRequests,
+  return {schema:"agent-work-preflight/v2", repository, generated_at:now(), repo,
+    default_branch:defaultBranch, open_pull_requests:openPullRequests,
+    policy_source:"TRUSTED_VERSIONED_REPOSITORY_POLICY",
+    remote_enforcement:"GITHUB_DECIDES_AT_NORMAL_MERGE",
     active_pull_request:active, recent_actions:recentActions,
     recent_actions_scope:"BOUNDED_INVENTORY_NOT_CI_QUALIFICATION",
     environments:"UNKNOWN_NOT_ACCESSED", authentication:"AUTHORIZED_HOST_RESPONSIBILITY",

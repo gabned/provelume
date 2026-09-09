@@ -1,5 +1,34 @@
 # Agent Development Protocol 1.4.2
 
+## Pending 1.4.7 contract registration
+
+Campaign [#237](https://github.com/gabned/provelume/issues/237) first registers
+four exact future surfaces: `.github/agent-protocol/documents-v1.4.7.json`,
+`docs/agent-development-v1.4.7.md`, `tools/agent_protocol_v1_4_7.py`, and
+`tests/test_agent_protocol_v1_4_7.py`. Their roles are a versioned document
+inventory, the successor contract, its offline implementation, and permanent
+conformance. Registration creates none of those files and changes no current
+collection, required reading, review, CI, merge, release or consumer behavior.
+The existing trusted-base gates qualify this prerequisite. Only a later
+implementation based on its accepted merge may use these new effect paths.
+
+The authorized delivery covers Core and the BrickMS pilot; it is not a complete
+five-repository distribution. Existing PRODUCT owners remain separate. The
+successor must demonstrate ordinary operation without ruleset API calls while
+retaining independent authorization, exact-head CI/review, ownership, effect,
+ancestry, expected-head merge and remote GitHub denial handling. Historical
+evidence keeps its original contract and timestamps.
+
+Compare fixed startup, unchanged resume, candidate update, qualification,
+post-merge, checkpoint and ruleset-unavailable scenarios using bytes, reads,
+cache reuse, suites/durations and manual interventions. Label real runs, replay
+and synthetic fixtures independently. No token or financial extrapolation.
+Acceptance requires zero ordinary ruleset calls, no lost negative/unknown
+evidence, deterministic document selection with verified fallback, and measured
+reductions in repeated reads without weakening qualification. Any Actions or
+artifact-retention change needs a dependency/consumer inventory first; preserve
+release/recovery evidence and distinguish current storage from accrued usage.
+
 Protocol 1.4.2 adds operational evidence to the auditable continuation contract.
 The canonical implementation is developed in Core campaign
 [#200](https://github.com/gabned/provelume/issues/200). Distribution is complete

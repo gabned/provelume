@@ -12,6 +12,12 @@ on:
 permissions:
   contents: read
 
+# Superseded PR code runs have no publication authority. Keep trusted-base and
+# default-branch runs intact; every current head still completes the same checks.
+concurrency:
+  group: public-ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   clean-room:
     name: Clean-room and repository hygiene
