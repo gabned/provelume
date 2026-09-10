@@ -223,7 +223,9 @@ explicitly required for content-level release qualification.
 Previously acquired or validated repository state MUST be reused while still valid.
 Do not repeat repository-wide reads, unchanged file reads, binary downloads,
 duplicate GitHub queries, duplicate test runs or duplicate CI qualification unless
-state changed or a concrete inconsistency invalidates the prior evidence.
+state changed, a concrete inconsistency invalidates the prior evidence, or the
+applicable contract requires a fresh/non-reusable decision-boundary check. Mandatory
+freshness checks and local checks explicitly classified as non-reusable still run.
 
 If scope-first acquisition is insufficient, expand it incrementally and record the
 concrete dependency or gate requiring the expansion. Full repository acquisition is
