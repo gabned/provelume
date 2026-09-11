@@ -38,7 +38,13 @@ from .instance_schema import (
     manifest_validation_errors,
 )
 from .ocr_contract import default_ocr_config, ocr_settings_from_config
-from .paths import portable_config_path, resolve_config_path, safe_instance_path
+from .paths import native_path, portable_config_path, resolve_config_path, safe_instance_path
+
+
+def replace_file(source: str | Path, target: str | Path) -> None:
+    """Atomically replace a validated path, including long Windows destinations."""
+    os.replace(native_path(source), native_path(target))
+
 
 SCHEMA_VERSION = CURRENT_INSTANCE_SCHEMA_VERSION
 REQUIRED_CANONICAL_KINDS = (
@@ -418,7 +424,7 @@ class InstanceStore:
 
     @staticmethod
     def _read_json(path: Path) -> dict[str, Any]:
-        with path.open("r", encoding="utf-8") as handle:
+        with native_path(path).open("r", encoding="utf-8") as handle:
             value = json.load(handle)
         if not isinstance(value, dict):
             raise ValueError(f"expected JSON object in {path}")
@@ -433,6 +439,7 @@ class InstanceStore:
 
     @staticmethod
     def _atomic_bytes(path: Path, content: bytes) -> None:
+        path = native_path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
         try:
@@ -440,7 +447,7 @@ class InstanceStore:
                 handle.write(content)
                 handle.flush()
                 os.fsync(handle.fileno())
-            os.replace(temp_name, path)
+            replace_file(temp_name, path)
         finally:
             if os.path.exists(temp_name):
                 os.unlink(temp_name)

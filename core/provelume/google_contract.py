@@ -60,6 +60,7 @@ GOOGLE_ERROR_CODES = (
     "google_rate_limited",
     "google_remote_mutation",
     "google_retryable_failure",
+    "google_secure_store_unavailable",
     "google_source_disabled",
     "google_source_paused",
     "google_source_removed",
@@ -326,13 +327,49 @@ class GoogleItem:
 
 
 @dataclass(frozen=True, slots=True)
+class GoogleSkippedItem:
+    """Metadata-only observation of an unsupported Drive listing entry."""
+
+    provider_item_id: str = field(repr=False)
+    provider_revision_id: str = field(repr=False)
+    media_type: str
+
+    def __post_init__(self) -> None:
+        _text(self.provider_item_id, "provider item reference", maximum=2048)
+        _text(self.provider_revision_id, "provider revision reference", maximum=2048)
+        media_type = normalise_media_type(self.media_type)
+        if not media_type.startswith("application/vnd.google-apps.") or (
+            media_type in GOOGLE_NATIVE_EXPORTS
+        ):
+            raise GoogleContractError("google_payload_invalid", "invalid skipped Drive type")
+
+    def identity_record(self) -> dict[str, Any]:
+        return {
+            "capability": "drive",
+            "provider_item_ref_sha256": opaque_reference(
+                self.provider_item_id, namespace="google-drive-item"
+            ),
+            "provider_revision_ref_sha256": opaque_reference(
+                self.provider_revision_id, namespace="google-drive-revision"
+            ),
+            "media_type": normalise_media_type(self.media_type),
+            "reason": "unsupported_google_native",
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class GooglePage:
     capability: Literal["gmail", "drive"]
     items: tuple[GoogleItem, ...]
     next_cursor: str | None = field(default=None, repr=False)
+    skipped_items: tuple[GoogleSkippedItem, ...] = ()
 
     def __post_init__(self) -> None:
         normalise_capability(self.capability)
+        if self.skipped_items and (self.capability != "drive" or any(
+            not isinstance(item, GoogleSkippedItem) for item in self.skipped_items
+        )):
+            raise GoogleContractError("google_payload_invalid", "invalid skipped page entries")
         if any(item.capability != self.capability for item in self.items):
             raise GoogleContractError(
                 "google_payload_invalid", "Google page mixes capability item types"
@@ -342,6 +379,7 @@ class GooglePage:
 
     def fingerprint(self) -> str:
         payload = [item.identity_record() for item in self.items]
+        payload.extend(item.identity_record() for item in self.skipped_items)
         return hashlib.sha256(
             json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()

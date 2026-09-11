@@ -330,6 +330,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             effective_host=args.host,
             effective_port=selected_port,
         )
-        uvicorn.run(app, host=args.host, port=selected_port)
+        uvicorn.run(app, host=args.host, port=selected_port, access_log=False)
         return 0
     raise RuntimeError(f"unsupported command: {args.command}")

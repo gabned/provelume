@@ -13,6 +13,7 @@ from .atomic_commit import (
     AtomicCommitError,
     AtomicInstanceCommit,
 )
+from .build_info import current_build_info
 from .domain import (
     Acquisition,
     Document,
@@ -182,8 +183,12 @@ class GoogleJobManager:
             "real_google_qualified": False,
         }
 
-    def queue(self, source_id: str, *, request_key: str | None = None) -> dict[str, Any]:
-        limits = GoogleLimits()
+    def queue(
+        self, source_id: str, *, request_key: str | None = None, guided: bool = False
+    ) -> dict[str, Any]:
+        limits = GoogleLimits(max_pages_per_run=2, max_items_per_page=25,
+                              max_items_per_run=50, max_total_bytes_per_run=64 * 1024 * 1024
+                              ) if guided else GoogleLimits()
         provisional = self._request_record("job_" + "0" * 32, source_id, limits)
         policy = self.sync_policy(source_id)
         identity = hashlib.sha256(
@@ -193,6 +198,7 @@ class GoogleJobManager:
                     "capability": provisional["capability_fingerprint"],
                     "cursor_revision": provisional["cursor_revision"],
                     "request_key": request_key,
+                    "limits": limits.as_record(),
                 },
                 sort_keys=True,
                 separators=(",", ":"),
@@ -225,6 +231,7 @@ class GoogleJobManager:
             "request": {
                 key: request[key]
                 for key in (
+                    "limits",
                     "source_id",
                     "connector_instance_id",
                     "capability",
@@ -316,6 +323,11 @@ class GoogleJobManager:
             "network_used": True,
             "provider_write": False,
             "private_content_recorded": False,
+            "build_commit": current_build_info().get("commit"),
+            "limits": dict(request["limits"]),
+            "execution_adapter": (
+                "google_rest" if type(self.adapter) is GoogleApiAdapter else "synthetic"
+            ),
             "real_google_qualified": False,
         }
         self._write_json(self.runs / f"{job_id}.json", value)
@@ -395,23 +407,31 @@ class GoogleJobManager:
         settings_sha256 = hashlib.sha256(
             json.dumps(limits.as_record(), sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
-        return self.email._commit_message(
-            job_id=job_id,
-            observed=observed,
-            parsed=parsed,
-            settings_sha256=settings_sha256,
-            recheck=lambda: None,
-            adapter_id=GOOGLE_ADAPTER_ID,
-            adapter_version=GOOGLE_ADAPTER_VERSION,
-            acquisition_kind="google_gmail_readonly",
-            document_title_prefix="Google Gmail message",
-            network_access="explicit_only",
-            provider_observation=provider_observation,
-            network_used=True,
-            remote_fetch=True,
-            extra_canonical_records=(("google-gmail-observations", canonical_observation),),
-            transaction_profile=GOOGLE_INTAKE_TRANSACTION_PROFILE,
-        )
+        try:
+            return self.email._commit_message(
+                job_id=job_id,
+                observed=observed,
+                parsed=parsed,
+                settings_sha256=settings_sha256,
+                recheck=lambda: None,
+                adapter_id=GOOGLE_ADAPTER_ID,
+                adapter_version=GOOGLE_ADAPTER_VERSION,
+                acquisition_kind="google_gmail_readonly",
+                document_title_prefix="Google Gmail message",
+                network_access="explicit_only",
+                provider_observation=provider_observation,
+                network_used=True,
+                remote_fetch=True,
+                extra_canonical_records=(("google-gmail-observations", canonical_observation),),
+                transaction_profile=GOOGLE_INTAKE_TRANSACTION_PROFILE,
+            )
+        except EmailContractError as exc:
+            raise GoogleContractError(
+                "google_internal_error" if exc.code == "email_internal_error"
+                else "google_payload_invalid",
+                "Gmail message could not be committed locally",
+            ) from exc
+
 
     def _commit_drive(
         self, job_id: str, source_id: str, item: GoogleItem, acquired_at: str
@@ -421,7 +441,8 @@ class GoogleJobManager:
         provider_revision = str(identity["provider_revision_ref_sha256"])
         document_id = _stable_id("doc", f"google-drive-file:{source_id}:{provider_file}")
         version_id = _stable_id(
-            "ver", f"google-drive-revision:{source_id}:{provider_file}:{provider_revision}"
+            "ver",
+            f"google-drive-revision:{source_id}:{provider_file}:{provider_revision}:{item.payload_sha256}",
         )
         original = _original(item, acquired_at)
         acquisition_id = _stable_id(
@@ -515,8 +536,21 @@ class GoogleJobManager:
             owner_id=job_id,
         )
         transaction.add(original.storage_ref, item.payload, immutable=True)
+        original_record = asdict(original)
+        existing_original = self.store.read_canonical("originals", original.id)
+        if existing_original is not None:
+            if (
+                set(existing_original) != set(original_record)
+                or any(existing_original[key] != original_record[key]
+                       for key in ("id", "sha256", "size_bytes", "storage_ref"))
+                or not isinstance(existing_original["created_at"], str)
+            ):
+                raise GoogleContractError(
+                    "google_internal_error", "Original evidence is inconsistent"
+                )
+            original_record = existing_original
         for kind, record, immutable in (
-            ("originals", asdict(original), True),
+            ("originals", original_record, True),
             ("documents", asdict(document), False),
             ("versions", asdict(version), True),
             ("acquisitions", asdict(acquisition), True),
@@ -590,22 +624,30 @@ class GoogleJobManager:
                 )
                 raise GoogleContractError("google_cancelled", "Google intake was cancelled")
             if pages >= limits.max_pages_per_run:
-                raise GoogleContractError(
-                    "google_backfill_limit_exceeded", "Google page bound was reached"
-                )
+                break
             remaining_bytes = limits.max_total_bytes_per_run - total_bytes
-            if remaining_bytes <= 0:
-                raise GoogleContractError(
-                    "google_payload_limit_exceeded", "Google run byte bound was reached"
-                )
+            remaining_items = limits.max_items_per_run - len(work["items"])
+            if remaining_bytes <= 0 or remaining_items <= 0:
+                break
+            instance, capability, source = self.sources.effective_execution_context(
+                str(request["source_id"])
+            )
             page = self.adapter.fetch_page(
                 instance=instance,
                 capability=capability,
                 source=source,
                 cursor=cursor,
-                limits=replace(limits, max_total_bytes_per_run=remaining_bytes),
+                limits=replace(limits, max_total_bytes_per_run=remaining_bytes,
+                               max_item_bytes=min(limits.max_item_bytes, remaining_bytes),
+                               max_items_per_page=min(limits.max_items_per_page, remaining_items)),
             )
             pages += 1
+            if len(page.items) + len(page.skipped_items) > min(
+                limits.max_items_per_page, remaining_items
+            ):
+                raise GoogleContractError(
+                    "google_payload_limit_exceeded", "Google page exceeds remaining item bound"
+                )
             fingerprint = page.fingerprint()
             ordinal = base_ordinal + pages
             previous_fingerprints = list(session_fingerprints)
@@ -620,7 +662,30 @@ class GoogleJobManager:
             ):
                 previous_fingerprints.append(fingerprint)
             session_fingerprints = previous_fingerprints
+            for skipped in page.skipped_items:
+                if self._cancel_requested(job_id):
+                    raise GoogleContractError("google_cancelled", "Google intake was cancelled")
+                self.sources.effective_execution_context(str(request["source_id"]))
+                key = hashlib.sha256(json.dumps(
+                    {"source_id": request["source_id"], **skipped.identity_record()},
+                    sort_keys=True, separators=(",", ":"),
+                ).encode()).hexdigest()
+                if key not in work["items"]:
+                    work["items"][key] = {
+                        "status": "skipped", "size_bytes": 0,
+                        "reason": "unsupported_google_native",
+                    }
+                    progress["skipped"] += 1
+                    self._write_work(job_id, work)
+                    if checkpoint is not None:
+                        checkpoint(progress)
             for item in page.items:
+                if self._cancel_requested(job_id):
+                    raise GoogleContractError("google_cancelled", "Google intake was cancelled")
+                self.sources.effective_execution_context(str(request["source_id"]))
+                key = self._item_key(str(request["source_id"]), item)
+                if work["items"].get(key, {}).get("status") in {"processed", "skipped"}:
+                    continue
                 if len(work["items"]) >= limits.max_items_per_run:
                     raise GoogleContractError(
                         "google_backfill_limit_exceeded", "Google item bound was reached"
@@ -634,9 +699,6 @@ class GoogleJobManager:
                     raise GoogleContractError(
                         "google_payload_limit_exceeded", "Google run byte bound was reached"
                     )
-                key = self._item_key(str(request["source_id"]), item)
-                if work["items"].get(key, {}).get("status") in {"processed", "skipped"}:
-                    continue
                 try:
                     if request["capability"] == "gmail":
                         status, canonical_id = self._commit_gmail(
@@ -654,6 +716,8 @@ class GoogleJobManager:
                     }
                     progress[status] += 1
                 except GoogleContractError as exc:
+                    if exc.code == "google_internal_error":
+                        raise
                     work["items"][key] = {"status": "error", "error_code": exc.code}
                     progress["errors"] += 1
                     errors.append(exc.code)
@@ -684,7 +748,9 @@ class GoogleJobManager:
             cursor = next_cursor
             if cursor is None:
                 break
-        status = "completed_with_errors" if progress["errors"] else "completed"
+        status = "continuation_available" if cursor is not None else (
+            "completed_with_errors" if progress["errors"] else "completed"
+        )
         self._write_run(job_id, request, status=status, progress=progress, error_codes=errors)
         return progress
 
@@ -711,7 +777,17 @@ class GoogleJobManager:
 
     def _run_for_job(self, job_id: str) -> dict[str, Any] | None:
         path = self.runs / f"{job_id}.json"
-        return self._read_json(path) if path.is_file() else None
+        if not path.is_file():
+            return None
+        run = self._read_json(path)
+        job = self.scheduler.get_job(job_id)
+        if job and run["status"] == "running" and job["status"] != "running":
+            run = {**run, "status": job["status"]}
+            attempts = job.get("attempts", [])
+            code = attempts[-1].get("error_code") if attempts else None
+            if code in GOOGLE_ERROR_CODES:
+                run["error_codes"] = list(dict.fromkeys([*run["error_codes"], code]))
+        return run
 
     def get_job(self, job_id: str) -> dict[str, Any] | None:
         job = self.scheduler.get_job(job_id)

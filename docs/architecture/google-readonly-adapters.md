@@ -111,3 +111,11 @@ smoke proves an exact head against Google, packaging evidence reports
 
 See [ADR 0017](../adr/0017-google-readonly-adapters.md), the
 [Italian guide](google-readonly-adapters.it.md) and the [API guide](../api.md).
+
+## Emendatio guided journey
+
+`0.10.1/S03` adds the [ordinary Connect Google journey](google-connection-journey.md)
+through the existing installed-app PKCE engine. The original synthetic receipts and qualification
+claims above remain historical. Per-capability **local** revocation remains independent; the
+new explicitly confirmed **remote project** revocation reflects Google's broader account/project
+effect and does not claim independent remote Gmail-only or Drive-only revocation.

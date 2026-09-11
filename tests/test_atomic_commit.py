@@ -518,3 +518,19 @@ def test_manual_web_wrapper_maps_invalid_transaction_root(tmp_path: Path) -> Non
 
     with pytest.raises(ManualWebAtomicityError):
         recover_manual_web_transactions(store, control_root)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows replacement path limit")
+def test_atomic_commit_promotes_long_windows_destination(tmp_path):
+    store, control = _store(tmp_path)
+    relative = "state/derived/text/" + "a" * 180 + ".txt"
+    assert len(str(store.paths.root / relative)) >= 260
+    transaction = AtomicInstanceCommit(
+        store, control / "transactions", profile=_profile(), owner_id=JOB_ID
+    )
+    transaction.add(relative, b"synthetic", immutable=True)
+    transaction.commit()
+    from provelume.paths import safe_instance_path
+    assert safe_instance_path(store.paths.root, relative).read_bytes() == b"synthetic"
+    store._atomic_bytes(store.paths.root / relative, b"updated")
+    assert safe_instance_path(store.paths.root, relative).read_bytes() == b"updated"

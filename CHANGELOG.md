@@ -4,6 +4,29 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+- Fixed Gmail intake on Windows failing to promote message evidence at long
+  filesystem paths. Native I/O uses extended Windows paths while stored references
+  remain portable and containment checks stay enforced. Email commit errors now
+  become closed Google errors with a recorded retry instead of abandoned leases.
+
+- Fixed bounded Google intake skipping unsupported Drive folders, shortcuts and
+  native formats as metadata-only observations, counting them against item limits
+  and retaining continuation checkpoints. Scheduler execution and lease heartbeat
+  writes now serialize within their shared journal to prevent self-contention
+  from abandoning a running intake job.
+
+- Fixed Google desktop-client setup rejecting the original JSON downloaded from
+  Google Cloud; legacy authorization metadata is accepted while OAuth continues
+  to use the fixed v2 endpoint and rejects arbitrary endpoints. The connection
+  page permits its consent redirect to Google's authentication host without
+  broadening the browser policy on other pages.
+
+- Added the EN/IT Connect Google journey for separately consented Gmail and Drive
+  read-only access using the existing installed-app PKCE boundary, external system
+  credential storage, connection tests, reconnect and explicit local/project revocation.
+  Initial intake is bounded and resumes retained Source checkpoints; synthetic and
+  Windows platform qualification do not substitute for real-account exact-head evidence.
+
 - Added visible, versioned per-Source exclusions with editable safe defaults, explicit
   include overrides and bounded read-only ingestion previews in EN/IT. One policy
   governs scan, watched refresh and reconciliation, survives backup and portable

@@ -23,7 +23,7 @@ from .instance_schema import (
 )
 from .instance_validation import inspect_instance
 from .library_projection import LibraryProjectionManager
-from .paths import safe_instance_path
+from .paths import native_path, safe_instance_path
 from .storage import CANONICAL_KINDS, InstanceStore, utc_now
 
 PORTABLE_BUNDLE_SCHEMA_VERSION = 1
@@ -219,7 +219,7 @@ def _authoritative_paths(store: InstanceStore) -> set[str]:
     for original in store.list_canonical("originals"):
         reference = str(original["storage_ref"])
         target = safe_instance_path(store.paths.root, reference)
-        relative = target.relative_to(store.paths.root).as_posix()
+        relative = native_path(target).relative_to(native_path(store.paths.root)).as_posix()
         if not relative.startswith("originals/"):
             raise PortableTransferError(
                 "canonical Original storage must remain below originals/"
@@ -236,11 +236,12 @@ def _payload_files(
     rows: list[tuple[dict[str, Any], Path]] = []
     omitted_files = 0
     authoritative_paths = _authoritative_paths(store)
+    root = native_path(store.paths.root)
     for path in sorted(
-        store.paths.root.rglob("*"),
-        key=lambda candidate: candidate.relative_to(store.paths.root).as_posix(),
+        root.rglob("*"),
+        key=lambda candidate: candidate.relative_to(root).as_posix(),
     ):
-        relative = path.relative_to(store.paths.root).as_posix()
+        relative = path.relative_to(root).as_posix()
         if _is_unsafe_link(path):
             raise PortableTransferError(
                 f"Instance-internal link cannot be exported: {relative}"

@@ -23,6 +23,7 @@ from .google_contract import (
     GoogleLimits,
     GooglePage,
     GoogleRateLimitError,
+    GoogleSkippedItem,
     normalise_capability,
 )
 
@@ -41,6 +42,10 @@ def _environment_secret(reference: Mapping[str, str]) -> str:
         if not isinstance(value, str) or not value.strip():
             raise GoogleAuthorizationError(expired=True)
         return value.strip()
+    if selected["name"].startswith("google_grant_"):
+        from .google_oauth import resolve_google_credential
+
+        return resolve_google_credential(selected)
     try:
         import keyring  # type: ignore[import-not-found]
     except ImportError as exc:
@@ -109,7 +114,7 @@ class SyntheticGoogleAdapter:
         if index >= len(pages):
             return GooglePage(capability=source["capability"], items=())
         page = pages[index]
-        if len(page.items) > limits.max_items_per_page:
+        if len(page.items) + len(page.skipped_items) > limits.max_items_per_page:
             raise GoogleAdapterError(
                 "google_payload_limit_exceeded",
                 "Synthetic Google page exceeds the configured item limit",
@@ -124,6 +129,7 @@ class SyntheticGoogleAdapter:
             capability=page.capability,
             items=page.items,
             next_cursor=expected_cursor,
+            skipped_items=page.skipped_items,
         )
 
 
@@ -414,6 +420,7 @@ class GoogleApiAdapter:
                 "google_payload_limit_exceeded", "Drive file page exceeds its closed limit"
             )
         items: list[GoogleItem] = []
+        skipped_items: list[GoogleSkippedItem] = []
         page_bytes = 0
         for row in rows:
             if not isinstance(row, Mapping):
@@ -429,9 +436,8 @@ class GoogleApiAdapter:
             revision = str(row.get("headRevisionId") or row.get("version") or "unknown")
             export_format = GOOGLE_NATIVE_EXPORTS.get(media_type)
             if export_format is None and media_type.startswith("application/vnd.google-apps."):
-                raise GoogleAdapterError(
-                    "google_payload_invalid", "Drive Google-native format is unsupported"
-                )
+                skipped_items.append(GoogleSkippedItem(file_id, revision, media_type))
+                continue
             if export_format is None:
                 url = (
                     "https://www.googleapis.com/drive/v3/files/"
@@ -497,7 +503,8 @@ class GoogleApiAdapter:
         next_cursor = listing.get("nextPageToken")
         if next_cursor is not None and not isinstance(next_cursor, str):
             raise GoogleAdapterError("google_payload_invalid", "Drive page cursor is malformed")
-        return GooglePage(capability="drive", items=tuple(items), next_cursor=next_cursor)
+        return GooglePage(capability="drive", items=tuple(items), next_cursor=next_cursor,
+                          skipped_items=tuple(skipped_items))
 
     def fetch_page(
         self,

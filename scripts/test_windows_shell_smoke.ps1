@@ -321,6 +321,31 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
         -Artifact $Uninstaller -AllowUnsignedDevelopment | Out-Null
     $Evidence.checks.exact_identity_and_unsigned_boundary = "PASS"
 
+    Set-FailureCode "google_packaged_credential_store_failed"
+    $GoogleEvidencePath = Join-Path (Split-Path $InstallerPath -Parent) "google-vault-evidence.json"
+    $GoogleProcess = Invoke-BoundedProcess `
+        -FilePath $Executable `
+        -ArgumentList @("--google-credential-smoke-file", "`"$GoogleEvidencePath`"") `
+        -TimeoutMilliseconds $FrozenProcessTimeoutMilliseconds
+    if ($GoogleProcess.ExitCode -ne 0 -or -not (Test-Path $GoogleEvidencePath)) {
+        throw "Installed Google credential store qualification failed."
+    }
+    $GoogleVault = Get-Content -LiteralPath $GoogleEvidencePath -Raw | ConvertFrom-Json
+    if (
+        $GoogleVault.status -ne "PASS" -or
+        $GoogleVault.exact_head -ne $ExpectedCommit -or
+        -not $GoogleVault.frozen_executable -or
+        $GoogleVault.network_used -or $GoogleVault.private_content_logged -or
+        $GoogleVault.real_google_qualified -or
+        $GoogleVault.checks.encrypted_outside_instance -ne "PASS" -or
+        $GoogleVault.checks.reopened_current_user -ne "PASS" -or
+        $GoogleVault.checks.tamper_rejected -ne "PASS" -or
+        $GoogleVault.checks.credential_deleted -ne "PASS"
+    ) {
+        throw "Installed Google credential evidence is incomplete."
+    }
+    $Evidence.checks.installed_google_dpapi_lifecycle = "PASS"
+
     Set-FailureCode "native_tray_lifecycle_failed"
     $NativeTrayEvidencePath = Join-Path `
         (Split-Path $InstallerPath -Parent) `
@@ -422,6 +447,23 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
         throw "Default installed Instance did not remain no-network/local-only."
     }
     Set-FailureCode "loopback_listener_contract_failed"
+    $GoogleView = Invoke-RestMethod `
+        -Uri "http://127.0.0.1:$ConfiguredPort/api/v1/google/connection" -TimeoutSec 2
+    $GoogleEnglish = Invoke-RestMethod `
+        -Uri "http://127.0.0.1:$ConfiguredPort/google/connect?lang=en" -TimeoutSec 2
+    $GoogleItalian = Invoke-RestMethod `
+        -Uri "http://127.0.0.1:$ConfiguredPort/google/connect?lang=it" -TimeoutSec 2
+    if (
+        $GoogleView.network_enabled -or -not $GoogleView.read_only -or
+        $GoogleView.connections.Count -ne 0 -or
+        $GoogleEnglish -notmatch "Connect Google" -or
+        $GoogleItalian -notmatch "Connetti Google" -or
+        $GoogleEnglish -notmatch 'name="consent"' -or
+        $GoogleItalian -notmatch 'name="consent"'
+    ) {
+        throw "Installed Google Browser journey does not preserve the shared offline contract."
+    }
+    $Evidence.checks.installed_google_browser_en_it_offline = "PASS"
     $Listeners = Get-NetTCPConnection -OwningProcess $Service.Id -State Listen
     if (
         $Listeners.Count -ne 1 -or

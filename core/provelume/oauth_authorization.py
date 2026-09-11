@@ -129,6 +129,23 @@ class InstalledAppOAuthAdapter(Protocol):
     ) -> Mapping[str, Any]: ...
 
 
+class InstalledAppAuthorizationAuthority(Protocol):
+    """A capability's real policy and atomic grant boundary, independent of its adapter.
+
+    The default authority remains ConnectorManager. Capability authorities must bind
+    the connector, global network policy and capability revision in their fingerprint.
+    They cannot obtain policy from an OAuth callback or from an adapter response.
+    """
+
+    def authorization_policy(self, instance_id: str) -> Mapping[str, Any]: ...
+
+    def authorization_fingerprint(self, instance_id: str) -> str: ...
+
+    def complete_oauth_authorization(self, instance_id: str, **kwargs: Any) -> dict[str, Any]: ...
+
+    def revoke_oauth_authorization(self, instance_id: str, **kwargs: Any) -> dict[str, Any]: ...
+
+
 @dataclass(frozen=True, slots=True)
 class _AdapterContract:
     adapter_key: str
@@ -364,9 +381,12 @@ class InstalledAppAuthorizationManager:
         clock: Callable[[], datetime] | None = None,
         secret_factory: Callable[[int], str] | None = None,
         request_id_factory: Callable[[], str] | None = None,
+        authority: InstalledAppAuthorizationAuthority | None = None,
     ):
         self.store = store
         self.connectors = connectors
+        self.authority = authority or connectors
+        self._capability_authority = authority
         self.operations = OperationLedger(store)
         self._clock = clock or (lambda: datetime.now(UTC))
         self._secret_factory = secret_factory or secrets.token_urlsafe
@@ -374,6 +394,7 @@ class InstalledAppAuthorizationManager:
             lambda: f"oauth_request_{uuid4().hex}"
         )
         self._pending: dict[str, _PendingAuthorization] = {}
+        self._inflight: dict[str, _PendingAuthorization] = {}
         self._terminal: OrderedDict[str, str] = OrderedDict()
         self._state_lock = Lock()
         self._connector_locks: WeakValueDictionary[str, Lock] = WeakValueDictionary()
@@ -413,6 +434,22 @@ class InstalledAppAuthorizationManager:
         connector_instance_id: str,
         adapter: InstalledAppOAuthAdapter,
     ) -> tuple[dict[str, Any], _AdapterContract, tuple[str, ...]]:
+        if self._capability_authority is not None:
+            policy = dict(self._capability_authority.authorization_policy(connector_instance_id))
+            if policy.get("active") is not True or policy.get("enabled") is not True:
+                raise OAuthPolicyError("OAuth capability requires an active enabled connector")
+            if policy.get("effective_network") != "explicit":
+                raise OAuthPolicyError("OAuth capability is blocked by network policy")
+            contract = _adapter_contract(adapter)
+            if (contract.adapter_key, contract.adapter_version) != (
+                policy.get("adapter_key"), policy.get("adapter_version")
+            ):
+                raise OAuthAdapterError("OAuth adapter does not match capability authority")
+            if {contract.authorization_origin, contract.token_origin} - set(
+                policy.get("allowed_origins", ())
+            ):
+                raise OAuthPolicyError("OAuth endpoints are outside capability policy")
+            return policy, contract, _normalise_scopes(policy.get("scopes"))
         connector = self.connectors.get_instance(connector_instance_id)
         if connector is None:
             raise ConnectorNotFoundError(
@@ -511,13 +548,13 @@ class InstalledAppAuthorizationManager:
             now = self._now()
             with self._state_lock:
                 self._expire_pending(now)
-                if len(self._pending) >= MAX_PENDING_AUTHORIZATIONS:
+                if len(self._pending) + len(self._inflight) >= MAX_PENDING_AUTHORIZATIONS:
                     raise OAuthPolicyError("too many pending OAuth authorization requests")
             connector, contract, scopes = self._policy_contract(
                 connector_instance_id,
                 adapter,
             )
-            connector_record_sha256 = self.connectors.authorization_fingerprint(
+            connector_record_sha256 = self.authority.authorization_fingerprint(
                 connector_instance_id
             )
             selected_redirect = _normalise_loopback_redirect(redirect_uri)
@@ -551,7 +588,7 @@ class InstalledAppAuthorizationManager:
                 request=parameters,
             )
             if (
-                self.connectors.authorization_fingerprint(connector_instance_id)
+                self.authority.authorization_fingerprint(connector_instance_id)
                 != connector_record_sha256
             ):
                 raise OAuthPolicyError(
@@ -572,7 +609,7 @@ class InstalledAppAuthorizationManager:
             with self._state_lock:
                 self._expire_pending(self._now())
                 if (
-                    len(self._pending) >= MAX_PENDING_AUTHORIZATIONS
+                    len(self._pending) + len(self._inflight) >= MAX_PENDING_AUTHORIZATIONS
                     or request_id in self._pending
                     or request_id in self._terminal
                 ):
@@ -664,6 +701,7 @@ class InstalledAppAuthorizationManager:
                     raise OAuthStateMismatchError("OAuth authorization state does not match")
                 self._pending.pop(request_id, None)
                 self._terminate(request_id, "callback_consumed")
+                self._inflight[request_id] = pending
             if not hmac.compare_digest(selected["redirect_uri"], pending.redirect_uri):
                 raise OAuthCallbackError("OAuth callback redirect binding does not match")
             if selected["granted_scopes"] != pending.scopes:
@@ -675,7 +713,7 @@ class InstalledAppAuthorizationManager:
             if contract != pending.adapter or configured_scopes != pending.scopes:
                 raise OAuthCallbackError("OAuth adapter or policy changed during authorization")
             if (
-                self.connectors.authorization_fingerprint(connector_instance_id)
+                self.authority.authorization_fingerprint(connector_instance_id)
                 != pending.connector_record_sha256
             ):
                 raise OAuthCallbackError(
@@ -692,13 +730,17 @@ class InstalledAppAuthorizationManager:
                 pending.scopes,
             )
 
-            completed = self.connectors.complete_oauth_authorization(
-                connector_instance_id,
-                grant=grant,
-                authorized_at=now.isoformat(),
-                expected_record_sha256=pending.connector_record_sha256,
-            )
             with self._state_lock:
+                if self._terminal.get(request_id) != "callback_consumed":
+                    raise OAuthReplayError("OAuth authorization was cancelled during exchange")
+                if self._now() >= pending.expires_at:
+                    raise OAuthStateExpiredError("OAuth authorization expired during exchange")
+                completed = self.authority.complete_oauth_authorization(
+                    connector_instance_id,
+                    grant=grant,
+                    authorized_at=now.isoformat(),
+                    expected_record_sha256=pending.connector_record_sha256,
+                )
                 for sibling_id, sibling in tuple(self._pending.items()):
                     if sibling.connector_instance_id == connector_instance_id:
                         self._pending.pop(sibling_id, None)
@@ -738,7 +780,21 @@ class InstalledAppAuthorizationManager:
             self._fail_operation(operation, exc)
             raise
         finally:
+            if "request_id" in locals():
+                with self._state_lock:
+                    self._inflight.pop(request_id, None)
             connector_lock.release()
+
+    def cancel(self, connector_instance_id: str) -> int:
+        """Cancel pending/exchanging consent without revoking an existing grant."""
+        cancelled = 0
+        with self._state_lock:
+            for request_id, pending in tuple({**self._pending, **self._inflight}.items()):
+                if pending.connector_instance_id == connector_instance_id:
+                    self._pending.pop(request_id, None)
+                    self._terminate(request_id, "cancelled")
+                    cancelled += 1
+        return cancelled
 
     def revoke(self, connector_instance_id: str) -> dict[str, Any]:
         with self._connector_lock(connector_instance_id):
@@ -750,7 +806,7 @@ class InstalledAppAuthorizationManager:
                         self._pending.pop(request_id, None)
                         self._terminate(request_id, "revoked")
                         cancelled += 1
-            result = self.connectors.revoke_oauth_authorization(
+            result = self.authority.revoke_oauth_authorization(
                 connector_instance_id,
                 revoked_at=now.isoformat(),
             )
