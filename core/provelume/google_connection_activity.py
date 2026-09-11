@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hmac
 import secrets
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlencode
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -29,6 +29,12 @@ CALLBACK_ERRORS = {
     "google_scope_mismatch",
     "google_secure_store_unavailable",
 }
+CONTROL_MESSAGES = {
+    "google_client_saved", "google_network_enabled", "google_network_disabled",
+    "google_connected", "google_consent_cancelled", "google_disconnected",
+    "google_project_revoked", "google_cancelled", "google_queued",
+}
+CONTROL_ERRORS = {key for key in TEXT if key.startswith("google_")}
 
 
 def attach_google_connection_routes(app, instance, templates, context_factory, *, redirect_uri):
@@ -58,7 +64,16 @@ def attach_google_connection_routes(app, instance, templates, context_factory, *
     @app.get("/google/connect")
     def page(request: Request):
         notice = request.query_params.get("notice")
-        return render(request, error=notice if notice in CALLBACK_ERRORS else None)
+        message = request.query_params.get("message")
+        error = request.query_params.get("error")
+        return render(
+            request,
+            message=message if message in CONTROL_MESSAGES else None,
+            error=error if error in CONTROL_ERRORS else (
+                notice if notice in CALLBACK_ERRORS else None
+            ),
+            status=400 if error in CONTROL_ERRORS else 200,
+        )
 
     @app.get("/api/v1/google/connection")
     def read_model():
@@ -197,15 +212,26 @@ def attach_google_connection_routes(app, instance, templates, context_factory, *
     @app.post("/google/connect")
     async def control(request: Request):
         values = await fields(request)
+        language = context_factory(request, instance)["lang"]
+
+        def result_page(key, value):
+            query = urlencode({"lang": language, key: value})
+            return RedirectResponse(
+                f"/google/connect?{query}", status_code=303, headers=HEADERS
+            )
+
         try:
             result = await run_in_threadpool(action, values)
             if "authorization_uri" in result:
                 return RedirectResponse(
                     result["authorization_uri"], status_code=303, headers=HEADERS
                 )
-            return render(request, message=result["status"])
+            message = result["status"]
+            if message not in CONTROL_MESSAGES:
+                raise GoogleConnectionError("google_connection_failed")
+            return result_page("message", message)
         except failures as exc:
-            return render(request, error=diagnostic(exc), status=400)
+            return result_page("error", diagnostic(exc))
 
     @app.get("/google/oauth/callback")
     async def callback(request: Request):

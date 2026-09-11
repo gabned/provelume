@@ -27,6 +27,11 @@ service, Source identities and `/api/v1/google/connection` read model.
 5. Start, inspect progress, continue from the checkpoint, cancel or retry explicitly.
    Refreshing the page reads local state; it never tests Google or reads credentials.
 
+Completed controls redirect to a local GET result with a closed translated notice and
+the selected language. Reloading either a success or handled failure therefore cannot
+resubmit intake, connection tests or other controls. Credentials, Source identifiers
+and submitted client configuration are never included in result URLs.
+
 The ordinary Gmail selection is the authorized `me` mailbox. The ordinary Drive selection is
 files directly in My Drive (`root`); it does not silently recurse through folders. Existing
 advanced controls retain explicit mailbox/label and file/folder selection. No share discovery,
