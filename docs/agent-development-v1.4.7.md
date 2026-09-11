@@ -195,6 +195,58 @@ Verification reads bytes locally; only selected text enters model context. Repor
 those as different measurements. Workstream-specific product documentation still
 comes from the owning repository and relevant source area.
 
+### Scope-first / lazy repository acquisition
+
+Repository acquisition MUST be scope-first and lazy. An agent MUST NOT materialize,
+download, enumerate in depth, or read the complete repository unless a concrete
+task or mandatory gate strictly requires it.
+
+Default acquisition order:
+
+1. repository identity and default branch metadata;
+2. exact current head / expected head;
+3. applicable `AGENTS.md` and directly relevant governance files;
+4. owner/roadmap issue and relevant checkpoint/PR state;
+5. diff from the last known-valid or relevant baseline;
+6. paths/files directly implicated by the requested scope;
+7. additional files only when required by implementation, dependency tracing, test
+   failure or a concrete release gate.
+
+Binary assets, generated artifacts, vendor content, media, archives and other
+non-source blobs MUST NOT be downloaded or read by default. When only repository
+integrity or identity is required, prefer Git tree metadata, blob/tree SHA,
+path/mode/type metadata and exact-head comparison instead of blob contents. Binary
+contents MAY be acquired only when directly in scope, required for inspection or
+modification, needed to resolve a failing gate that metadata cannot resolve, or
+explicitly required for content-level release qualification.
+
+Previously acquired or validated repository state MUST be reused while still valid.
+Do not repeat repository-wide reads, unchanged file reads, binary downloads,
+duplicate GitHub queries, duplicate test runs or duplicate CI qualification unless
+state changed, a concrete inconsistency invalidates the prior evidence, or the
+applicable contract requires a fresh/non-reusable decision-boundary check. Mandatory
+freshness checks and local checks explicitly classified as non-reusable still run.
+
+If scope-first acquisition is insufficient, expand it incrementally and record the
+concrete dependency or gate requiring the expansion. Full repository acquisition is
+an exception, not a preflight default. Retrieved content MUST be minimized to what
+is necessary for the current decision or implementation step: do not place large
+unchanged repository contents, complete trees, binary representations or unrelated
+files into model context when hashes, metadata, targeted reads or diffs are enough.
+
+This rule strengthens, but does not weaken, exact-head qualification, release
+identity, evidence integrity, recovery, checkpoint discipline, complete delivery or
+required HUMAN GATEs. Older wording that appears to require complete repository
+materialization merely to establish verifiability means verifiable repository
+identity plus sufficient task-local source evidence, not unconditional retrieval of
+every blob.
+
+For adoption, this is a clarification of Protocol 1.4.7, not a new version or a
+consumer rollout. Repositories already declaring 1.4.7 apply it on their next normal
+agent execution unless a verbatim local Protocol copy genuinely requires later
+synchronization. Do not create application releases, version bumps, changelog
+entries or deployments solely to propagate this clarification.
+
 Old overlay documents are historical unless selected as a current component:
 the 1.4.2 operations guide owns operational schemas; the Work source guide owns
 source materialization/runtime execution; the recovery guide owns archive format
