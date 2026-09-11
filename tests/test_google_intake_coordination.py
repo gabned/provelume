@@ -212,3 +212,46 @@ def test_drive_reuses_exact_original_without_rewriting_first_acquisition(tmp_pat
     assert result["progress"] == {"processed": 1, "skipped": 0, "errors": 0}
     assert instance.store.list_canonical("originals") == before
     assert len(instance.store.list_canonical("documents")) == 2
+
+
+def test_drive_changed_export_bytes_preserve_immutable_versions(tmp_path):
+    instance, _, source_id = _configured_source(
+        tmp_path, capability="drive", selection_kind="folder", selectors=["root"]
+    )
+
+    def acquire(payload):
+        item = GoogleItem(
+            capability="drive", provider_item_id="synthetic-native-document",
+            provider_revision_id="same-provider-revision", payload=payload,
+            media_type="application/pdf",
+            source_format="application/vnd.google-apps.document",
+            export_format="application/pdf", google_native=True,
+        )
+        _use_adapter(instance, SyntheticGoogleAdapter({source_id: [
+            GooglePage(capability="drive", items=(item,))
+        ]}))
+        queued = instance.google.queue(source_id, guided=True)
+        return instance.run_google_job(queued["job"]["id"])
+
+    first_payload = b"%PDF-synthetic-export-one"
+    second_payload = b"%PDF-synthetic-export-two"
+    assert acquire(first_payload)["status"] == "succeeded"
+    first_version = instance.store.list_canonical("versions")[0]
+    result = acquire(second_payload)
+    assert result["status"] == "succeeded"
+    assert result["progress"] == {"processed": 1, "skipped": 0, "errors": 0}
+    versions = sorted(instance.store.list_canonical("versions"), key=lambda row: row["sequence"])
+    assert len(versions) == 2
+    assert versions[0] == first_version
+    assert versions[0]["id"] != versions[1]["id"]
+    assert [instance.store.original_bytes(row["original_id"]) for row in versions] == [
+        first_payload, second_payload,
+    ]
+    assert instance.store.list_canonical("documents")[0]["current_version_id"] == versions[1]["id"]
+    replay = acquire(second_payload)
+    assert replay["status"] == "succeeded"
+    assert replay["progress"] == {"processed": 0, "skipped": 1, "errors": 0}
+    assert sorted(
+        instance.store.list_canonical("versions"), key=lambda row: row["sequence"]
+    ) == versions
+    assert instance.validate_instance(deep=True)["status"] == "valid"

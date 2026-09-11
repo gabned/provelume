@@ -441,7 +441,8 @@ class GoogleJobManager:
         provider_revision = str(identity["provider_revision_ref_sha256"])
         document_id = _stable_id("doc", f"google-drive-file:{source_id}:{provider_file}")
         version_id = _stable_id(
-            "ver", f"google-drive-revision:{source_id}:{provider_file}:{provider_revision}"
+            "ver",
+            f"google-drive-revision:{source_id}:{provider_file}:{provider_revision}:{item.payload_sha256}",
         )
         original = _original(item, acquired_at)
         acquisition_id = _stable_id(

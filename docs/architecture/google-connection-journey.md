@@ -97,6 +97,11 @@ content. They create no Original and their provider IDs are not written to the w
 journal. Malformed metadata and byte-limit failures still fail closed. Folder
 contents and shortcut targets are never followed implicitly.
 
+Drive version identity includes the acquired payload digest. A Google-native export
+may return different bytes for the same provider revision; each distinct byte
+representation retains its own immutable version and Original. Identical replay
+reuses the existing observation, including observations acquired by earlier builds.
+
 The execution thread and its lease heartbeat serialize their short writes through
 the same scheduler journal before acquiring the existing OS lock. This prevents
 their own concurrent checkpoint/heartbeat from aborting execution and leaving a
