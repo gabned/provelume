@@ -33,10 +33,10 @@ WITHDRAWAL_REFERENCE_PATTERN = re.compile(
     r"#(?P<compact_pr>[1-9][0-9]*)@comment-[1-9][0-9]*)"
 )
 WORKSTREAM_CLASS_PATTERN = re.compile(
-    r"(?m)^WORKSTREAM_CLASS:[ \t]*([^\r\n]+?)[ \t]*$"
+    r"(?m)^WORKSTREAM_CLASS:[ \t]*([^\r\n]+?)[ \t]*\r?$"
 )
 PROTOCOL_ESCALATION_PATTERN = re.compile(
-    r"(?m)^PROTOCOL_ESCALATION:[ \t]*([^\r\n]+?)[ \t]*$"
+    r"(?m)^PROTOCOL_ESCALATION:[ \t]*([^\r\n]+?)[ \t]*\r?$"
 )
 WAIVER_PATTERN = re.compile(
     r"<!--\s*PROTOCOL_EMERGENCY_WAIVER\s*\n(.*?)\n"
