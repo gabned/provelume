@@ -4,7 +4,17 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
-No unreleased changes.
+### Improved
+
+- Expanded the Windows update-consent and local Information dialogs with the selected channel,
+  public network boundary, package/platform/build identity and explicit canonical repository and
+  release actions. Merely opening Information remains offline.
+
+### Fixed
+
+- Replaced the Windows launcher's generic update-service failure with bounded EN/IT diagnostics
+  that distinguish release stage, HTTP/rate-limit, TLS, timeout, DNS and connection failures
+  without exposing response bodies, local paths or Instance content.
 
 ## 0.10.1 - 2026-09-12
 

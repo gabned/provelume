@@ -104,7 +104,10 @@ Create available instead of silently creating a replacement. If a configured ext
 folder Source disappears, processing changes to visible missing/error state without creating a
 replacement directory or deleting acquired knowledge. If an update check or download fails, the
 installed runtime and Instance are unchanged. A partial file is not promoted to the final installer
-name. The user can retry or download a release asset manually.
+name. The launcher distinguishes catalogue, manifest, release-identity and installer-download
+failures and shows a bounded reason code for rate limiting, HTTP, TLS, timeout, DNS or connection
+problems. The user can retry or open the canonical GitHub release archive explicitly to download a
+release asset manually.
 
 The preview installer is not Authenticode-signed. Windows may show SmartScreen. SHA-256 agreement
 with metadata fetched through the same release transport is consistency evidence, not independent

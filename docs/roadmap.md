@@ -1232,7 +1232,7 @@ steps/backtracking, recovery success and language fallback/coverage during quali
 
 **SURFACE_URLS:** `Overview`; `Capture`; `Knowledge`; `Search`; `Needs attention`;
 `Management > Sources & Connectors`; `Management > Operations & Maintenance`;
-`Management > Diagnostics`; `Settings > Appearance & Language`; `About`
+`Management > Diagnostics`; `Settings > Appearance & Language`; `About & Credits`
 
 **Depends on:** durable ingestion, hierarchical classification, Sources and the `0.8.0`
 refresh/job foundation.
@@ -1311,8 +1311,14 @@ Capture, Search and Needs attention. Overview prioritizes continue-working, rece
 items requiring attention instead of leading with system metrics. Knowledge and Search use
 progressive disclosure so technical facets and dense filters remain available without dominating
 ordinary retrieval. A secondary Management surface groups Sources & Connectors, Operations &
-Maintenance, Diagnostics, Settings and About. Raw operation kinds/statuses receive user-readable
+Maintenance, Diagnostics, Settings and About & Credits. Raw operation kinds/statuses receive user-readable
 labels while retaining exact technical detail in the appropriate evidence view.
+
+About & Credits reuses the local Windows identity/link contract corrected by
+[#253](https://github.com/gabned/provelume/issues/253): product, version, channel, build identity,
+canonical repository and real release links stay distinct from network actions. It adds human
+credits, first-party attribution, licenses and repository-owned third-party notices without
+loading them from GitHub at runtime or presenting build metadata as publisher authentication.
 
 Cura selects [Lucide](https://github.com/lucide-icons/lucide) as the preferred MIT-licensed shared
 UI icon system, using only a reproducibly vendored/locked subset under the component provenance
@@ -1386,7 +1392,7 @@ scraping or impersonating a personal WhatsApp account.
 
 **Suggested slices:** `0.11/S01` UX baseline, screen/route inventory, primary-task analysis,
 target information architecture and vocabulary/glossary; `0.11/S02` shared shell/design system,
-progressive navigation and the local Preview interface preference with presentation-only rollback;
+About & Credits and the local Preview interface preference with presentation-only rollback;
 `0.11/S03` Action Center state model and local queues; `0.11/S04` Operations & Maintenance job
 control, interruption recovery and diagnostics; `0.11/S05` classification/duplicate/
 version-conflict review and reusable safe routing; `0.11/S06` Capture/PWA, device pairing,

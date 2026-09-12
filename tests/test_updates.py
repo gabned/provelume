@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import socket
+import ssl
+import urllib.error
 from pathlib import Path
 
 import pytest
@@ -305,8 +308,11 @@ def test_interrupted_download_removes_partial_file(tmp_path: Path, monkeypatch) 
         lambda *_args, **_kwargs: _InterruptedResponse(payload),
     )
 
-    with pytest.raises(OSError, match="interruption"):
+    with pytest.raises(UpdateError) as caught:
         download_update(_candidate(payload), tmp_path, client=client)
+    assert caught.value.code == "connection_error"
+    assert caught.value.stage == "installer_download"
+    assert caught.value.endpoint_origin == "https://github.com"
     assert not list(tmp_path.rglob("*.part"))
     assert not (tmp_path / _candidate(payload).installer_name).exists()
 
@@ -342,11 +348,94 @@ def test_update_transport_wraps_timeout_as_a_bounded_error(monkeypatch) -> None:
         raise TimeoutError("synthetic timeout")
 
     monkeypatch.setattr(client._opener, "open", timeout)
-    with pytest.raises(UpdateError, match="request failed"):
+    with pytest.raises(UpdateError, match="timed out") as caught:
         client.get_json(
             "https://api.github.com/repos/gabned/provelume/releases?per_page=30",
             maximum_bytes=MAX_MANIFEST_BYTES,
         )
+    assert caught.value.code == "timeout"
+    assert caught.value.endpoint_origin == "https://api.github.com"
+
+
+@pytest.mark.parametrize(
+    ("failure", "code", "status"),
+    (
+        (
+            urllib.error.HTTPError(
+                "https://api.github.com/repos/gabned/provelume/releases",
+                403,
+                "rate limited",
+                {},
+                None,
+            ),
+            "rate_limited",
+            403,
+        ),
+        (
+            urllib.error.URLError(ssl.SSLCertVerificationError("synthetic certificate")),
+            "tls_error",
+            None,
+        ),
+        (
+            urllib.error.URLError(socket.gaierror("synthetic DNS")),
+            "dns_error",
+            None,
+        ),
+        (urllib.error.URLError("synthetic connection"), "connection_error", None),
+    ),
+)
+def test_update_transport_classifies_failures_without_leaking_the_url(
+    monkeypatch,
+    failure,
+    code: str,
+    status: int | None,
+) -> None:
+    client = SafeHttpsClient()
+
+    def fail(*_args, **_kwargs):
+        raise failure
+
+    monkeypatch.setattr(client._opener, "open", fail)
+    with pytest.raises(UpdateError) as caught:
+        client.get_json(
+            "https://api.github.com/repos/gabned/provelume/releases?per_page=30",
+            maximum_bytes=MAX_MANIFEST_BYTES,
+        )
+    assert caught.value.code == code
+    assert caught.value.http_status == status
+    assert caught.value.endpoint_origin == "https://api.github.com"
+    assert "per_page" not in str(caught.value)
+
+
+def test_update_check_records_the_failed_public_stage() -> None:
+    class _Client:
+        def get_json(self, _url: str, *, maximum_bytes: int):
+            assert maximum_bytes > 0
+            raise UpdateError(
+                "synthetic bounded failure",
+                code="connection_error",
+                endpoint_origin="https://api.github.com",
+            )
+
+    with pytest.raises(UpdateError) as caught:
+        check_for_updates(current_version="0.10.0", channel="preview", client=_Client())
+    assert caught.value.stage == "release_catalog"
+    assert caught.value.code == "connection_error"
+
+
+def test_manifest_validation_failure_records_the_manifest_stage() -> None:
+    manifest = _manifest("0.4.0")
+    manifest["artifact"]["automatic_apply"] = True
+
+    with pytest.raises(UpdateError) as caught:
+        select_update_candidate(
+            [_release("0.4.0")],
+            current_version="0.3.0",
+            channel="preview",
+            fetch_manifest=lambda _url: manifest,
+            resolve_tag_commit=_resolve_tag_commit,
+        )
+    assert caught.value.stage == "release_manifest"
 
 
 @pytest.mark.parametrize(

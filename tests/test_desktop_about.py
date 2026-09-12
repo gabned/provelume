@@ -17,15 +17,17 @@ from provelume.desktop import (
     _window_dimensions,
     declare_startup_update_policy,
     diagnostics_payload,
+    format_update_failure,
     load_settings,
     main,
+    public_about_links,
     save_settings,
     startup_update_policy_enabled,
     write_native_tray_smoke,
     write_ui_diagnostics,
 )
 from provelume.service import ProvelumeInstance
-from provelume.updates import UpdateCandidate
+from provelume.updates import UpdateCandidate, UpdateError
 
 
 class _Value:
@@ -107,6 +109,35 @@ def test_about_is_local_and_describes_preview_update_boundary() -> None:
         "publisher_authentication": "not_established",
         "platform_signature": "not_verified",
     }
+
+
+def test_about_links_are_canonical_and_reject_untrusted_build_tags() -> None:
+    value = current_about()
+    value.update({"tag": "v0.10.1"})
+    assert public_about_links(value) == {
+        "repository": "https://github.com/gabned/provelume",
+        "releases": "https://github.com/gabned/provelume/releases",
+        "installed_release": "https://github.com/gabned/provelume/releases/tag/v0.10.1",
+    }
+
+    value["tag"] = "../../private"
+    assert "installed_release" not in public_about_links(value)
+
+
+def test_update_failures_are_actionable_localized_and_privacy_safe() -> None:
+    error = UpdateError(
+        "secret raw transport detail",
+        code="tls_error",
+        endpoint_origin="https://api.github.com",
+        stage="release_manifest",
+    )
+    rendered = format_update_failure(error, STRINGS["it"])
+
+    assert "connessione sicura" in rendered
+    assert "manifest della release" in rendered
+    assert "https://api.github.com" in rendered
+    assert "tls_error" in rendered
+    assert "secret raw transport detail" not in rendered
 
 
 def test_launcher_settings_round_trip_and_malformed_fallback(tmp_path: Path) -> None:
@@ -539,6 +570,13 @@ def test_en_it_launcher_copy_covers_every_transient_state() -> None:
         assert required <= STRINGS[language].keys()
         assert all(STRINGS[language][key].strip() for key in required)
         assert STRINGS[language]["network_notice"] != STRINGS[language]["install_notice"]
+        for host in (
+            "api.github.com",
+            "github.com",
+            "objects.githubusercontent.com",
+            "release-assets.githubusercontent.com",
+        ):
+            assert host in STRINGS[language]["network_notice"]
 
 
 @pytest.mark.skipif(os.name != "nt", reason="named Windows mutex")
