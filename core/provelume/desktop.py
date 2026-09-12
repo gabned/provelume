@@ -554,7 +554,8 @@ STRINGS = {
         "download_ready": "The verified installer is ready.",
         "network_notice": (
             "Provelume will make a standard HTTPS request to GitHub Releases.\n\n"
-            "Destination: api.github.com and, only for a matching release, github.com\n"
+            "Destinations: api.github.com, github.com and GitHub's asset redirect hosts "
+            "objects.githubusercontent.com and release-assets.githubusercontent.com\n"
             "Selected channel (applied locally): {channel}\n"
             "Purpose: read the release catalogue and verify its public manifest and tag.\n\n"
             "GitHub receives normal connection metadata and the generic Provelume update-client "
@@ -659,7 +660,8 @@ STRINGS = {
         "download_ready": "L'installer verificato è pronto.",
         "network_notice": (
             "Provelume effettuerà una normale richiesta HTTPS a GitHub Releases.\n\n"
-            "Destinazione: api.github.com e, solo per una release compatibile, github.com\n"
+            "Destinazioni: api.github.com, github.com e gli host di reindirizzamento asset di "
+            "GitHub objects.githubusercontent.com e release-assets.githubusercontent.com\n"
             "Canale selezionato (applicato in locale): {channel}\n"
             "Scopo: leggere il catalogo e verificare manifest pubblico e tag della release.\n\n"
             "GitHub riceve i normali metadati di connessione e lo User-Agent generico del client "
