@@ -4,6 +4,8 @@ import hashlib
 import json
 import os
 import re
+import socket
+import ssl
 import tempfile
 import urllib.error
 import urllib.parse
@@ -39,6 +41,30 @@ SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 class UpdateError(RuntimeError):
     """Raised when update metadata or an update artifact fails closed."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "update_error",
+        endpoint_origin: str | None = None,
+        stage: str | None = None,
+        http_status: int | None = None,
+    ):
+        super().__init__(message)
+        self.code = code
+        self.endpoint_origin = endpoint_origin
+        self.stage = stage
+        self.http_status = http_status
+
+    def at_stage(self, stage: str) -> UpdateError:
+        return UpdateError(
+            str(self),
+            code=self.code,
+            endpoint_origin=self.endpoint_origin,
+            stage=stage,
+            http_status=self.http_status,
+        )
 
 
 @dataclass(frozen=True, order=True, slots=True)
@@ -129,6 +155,7 @@ class SafeHttpsClient:
 
     def _open(self, url: str, *, accept: str):
         safe_url = _validated_https_url(url)
+        endpoint_origin = f"https://{urllib.parse.urlsplit(safe_url).hostname}"
         request = urllib.request.Request(
             safe_url,
             headers={
@@ -139,8 +166,57 @@ class SafeHttpsClient:
         )
         try:
             response = self._opener.open(request, timeout=self.timeout_seconds)
-        except (OSError, urllib.error.URLError) as exc:
-            raise UpdateError("update service request failed") from exc
+        except urllib.error.HTTPError as exc:
+            if exc.code in {403, 429}:
+                raise UpdateError(
+                    "GitHub temporarily limited the update request",
+                    code="rate_limited",
+                    endpoint_origin=endpoint_origin,
+                    http_status=exc.code,
+                ) from exc
+            raise UpdateError(
+                "the update service returned an HTTP error",
+                code="http_error",
+                endpoint_origin=endpoint_origin,
+                http_status=exc.code,
+            ) from exc
+        except TimeoutError as exc:
+            raise UpdateError(
+                "the update service request timed out",
+                code="timeout",
+                endpoint_origin=endpoint_origin,
+            ) from exc
+        except ssl.SSLError as exc:
+            raise UpdateError(
+                "the secure connection to the update service could not be verified",
+                code="tls_error",
+                endpoint_origin=endpoint_origin,
+            ) from exc
+        except urllib.error.URLError as exc:
+            reason = exc.reason
+            if isinstance(reason, TimeoutError):
+                code = "timeout"
+                message = "the update service request timed out"
+            elif isinstance(reason, ssl.SSLError) or "CERTIFICATE_VERIFY_FAILED" in str(reason):
+                code = "tls_error"
+                message = "the secure connection to the update service could not be verified"
+            elif isinstance(reason, socket.gaierror):
+                code = "dns_error"
+                message = "the GitHub update host could not be resolved"
+            else:
+                code = "connection_error"
+                message = "the update service could not be reached"
+            raise UpdateError(
+                message,
+                code=code,
+                endpoint_origin=endpoint_origin,
+            ) from exc
+        except OSError as exc:
+            raise UpdateError(
+                "the update service could not be reached",
+                code="connection_error",
+                endpoint_origin=endpoint_origin,
+            ) from exc
         _validated_https_url(response.geturl())
         if getattr(response, "status", 200) != 200:
             response.close()
@@ -420,21 +496,33 @@ def check_for_updates(
     client: SafeHttpsClient | None = None,
 ) -> dict[str, Any]:
     selected_client = client or SafeHttpsClient()
-    releases = selected_client.get_json(RELEASES_API, maximum_bytes=MAX_CATALOG_BYTES)
+    try:
+        releases = selected_client.get_json(RELEASES_API, maximum_bytes=MAX_CATALOG_BYTES)
+    except UpdateError as exc:
+        raise exc.at_stage("release_catalog") from exc
+
+    def fetch_manifest(url: str) -> Any:
+        try:
+            return selected_client.get_json(url, maximum_bytes=MAX_MANIFEST_BYTES)
+        except UpdateError as exc:
+            raise exc.at_stage("release_manifest") from exc
+
+    def resolve_tag_commit(tag: str) -> str:
+        try:
+            value = selected_client.get_json(
+                f"{TAG_COMMIT_API}/{tag}",
+                maximum_bytes=MAX_TAG_COMMIT_BYTES,
+            )
+        except UpdateError as exc:
+            raise exc.at_stage("release_identity") from exc
+        return _resolved_tag_commit(value)
+
     candidate = select_update_candidate(
         releases,
         current_version=current_version,
         channel=channel,
-        fetch_manifest=lambda url: selected_client.get_json(
-            url,
-            maximum_bytes=MAX_MANIFEST_BYTES,
-        ),
-        resolve_tag_commit=lambda tag: _resolved_tag_commit(
-            selected_client.get_json(
-                f"{TAG_COMMIT_API}/{tag}",
-                maximum_bytes=MAX_TAG_COMMIT_BYTES,
-            )
-        ),
+        fetch_manifest=fetch_manifest,
+        resolve_tag_commit=resolve_tag_commit,
     )
     return {
         "schema_version": UPDATE_SCHEMA_VERSION,
@@ -464,13 +552,16 @@ def download_update(
     name = _safe_asset_name(candidate.installer_name)
     target = destination_directory.expanduser().resolve() / name
     selected_client = client or SafeHttpsClient(timeout_seconds=60.0)
-    return selected_client.download(
-        candidate.installer_url,
-        destination=target,
-        expected_size=candidate.installer_size_bytes,
-        expected_sha256=candidate.installer_sha256,
-        progress=progress,
-    )
+    try:
+        return selected_client.download(
+            candidate.installer_url,
+            destination=target,
+            expected_size=candidate.installer_size_bytes,
+            expected_sha256=candidate.installer_sha256,
+            progress=progress,
+        )
+    except UpdateError as exc:
+        raise exc.at_stage("installer_download") from exc
 
 
 def candidates_from_rows(rows: Iterable[dict[str, Any]]) -> list[UpdateCandidate]:
