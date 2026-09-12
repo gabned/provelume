@@ -1825,8 +1825,8 @@ recovery; uninstall that preserves the Instance; and a final desktop support mat
 
 Windows retains migration from the `0.4.0` preview installation, matures the bounded `0.10.1`
 UNC/network-share enrollment and the
-`0.11.0` minimal tray preferences, then matures them into a fully qualified per-user background
-agent and tray surface, with an explicitly qualified elevated-service option only if needed.
+`0.11.0` minimal tray preferences, then matures them into a fully qualified per-user background agent and tray surface, with an
+explicitly qualified elevated-service option only if needed.
 [Planning #259](https://github.com/gabned/provelume/issues/259) owns the accepted addition without
 expanding the active Cura train.
 
