@@ -1224,7 +1224,7 @@ behavior; system-locale preference redesign; reset settings; Lucide or the gener
 framework; AI/RAG/embeddings/classification/autonomy controls; cloud OCR or remote-AI fallback;
 new providers; Google writes or Calendar; complete background agent; NAS/self-hosting expansion;
 signing; automatic updater; or any other `0.11.0+` capability. #167 remains future-roadmap
-evidence and Lucide remains in the forecast Cura shared-shell slice `0.11/S02`.
+evidence and Lucide remains `0.11/S02`.
 
 ### 0.11.0 — Daily-use UX, Unified Capture, Action Center and Multilingual Interface
 
