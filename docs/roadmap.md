@@ -42,7 +42,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.9.0` | OCR, email, Google file and transcript intake | #137 (completed); S01–S07 completed by #138/#141/#147/#150/#152/#154/#156; release #158 | `Lectio` |
 | Published preview | `0.10.0` | Multimedia, universal content representations and component inventory | #160 (completed); S01–S07 completed by #163/#168/#170/#172/#173/#175/#179/#182; release #183 | `Perceptio` |
 | Active development | `0.10.1` | Source onboarding, filtering and canonical brand correction | #198 (active; #187 planning-only) | `Emendatio` |
-| Forecast | `0.11.0` | Unified Capture, Operations and Action Center | issue just in time | `Cura` |
+| Forecast | `0.11.0` | Daily-use UX, Unified Capture, Action Center and multilingual interface | #247 planning; issue just in time for activation | `Cura` |
 | Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
 | Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
 | Forecast | `0.14.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
@@ -96,8 +96,10 @@ names do not replace SemVer, package identity, tags or the immutable published r
 - **`0.10.1` — `Emendatio`.** Corrects Folder Source enrollment and filtering, completes a
   qualified read-only Google connection journey and unifies Core/Windows around one canonical
   first-party Provelume brand identity.
-- **`0.11.0` — `Cura`.** Unifies capture, mobile access, review and operations/maintenance queues
-  in one Action Center. Interrupted work and every destructive choice remain explicit.
+- **`0.11.0` — `Cura`.** Reconstructs the local Browser around daily-use journeys, then unifies
+  capture, mobile access, review and operations/maintenance queues in one Action Center. It also
+  ships a governed offline-complete multilingual interface; interrupted work and every destructive
+  choice remain explicit.
 - **`0.12.0` — `Custodia`.** Adds a replaceable AI gateway with local, remote and fallback policy
   by scope. Privacy, redaction, budgets and network use remain visible and user-controlled.
 - **`0.13.0` — `Iudicium`.** Adds guarded AI classification, decision receipts, user-readable
@@ -1224,7 +1226,18 @@ new providers; Google writes or Calendar; complete background agent; NAS/self-ho
 signing; automatic updater; or any other `0.11.0+` capability. #167 remains future-roadmap
 evidence and Lucide remains `0.11/S07`.
 
-### 0.11.0 — Unified Capture, Operations and Action Center
+### 0.11.0 — Daily-use UX, Unified Capture, Action Center and Multilingual Interface
+
+**Forecast UX program:** [#247](https://github.com/gabned/provelume/issues/247). This planning issue
+neither activates Cura nor changes the active `0.10.1 — Emendatio` campaign.
+
+**BUSINESS_IMPACT:** MATERIAL — reduce time-to-first-value, navigation/recovery friction and
+language barriers at the first planned personal daily-use beta. Review primary-journey completion,
+steps/backtracking, recovery success and language fallback/coverage during qualification.
+
+**SURFACE_URLS:** `Overview`; `Capture`; `Knowledge`; `Search`; `Needs attention`;
+`Management > Sources & Connectors`; `Management > Operations & Maintenance`;
+`Management > Diagnostics`; `Settings > Appearance & Language`; `About`
 
 **Depends on:** durable ingestion, hierarchical classification, Sources and the `0.8.0`
 refresh/job foundation.
@@ -1260,10 +1273,9 @@ duplicate occurrence, or choose new-version/separate/related handling for probab
 Destructive and identity-changing decisions never become automatic rules.
 
 The shared control asks **“How much can Provelume decide?”** instead of exposing model jargon.
-Every capability uses the same accessible modes: **Only me / Solo io** (`disabled`), **Suggest
-only / Suggerisci soltanto** (`proposal-only`), **Ask me before applying / Chiedimi prima di
-applicare** (`confirm-each`) and **Act within my rules / Agisci entro le mie regole**
-(`controlled-automatic`). EN/IT labels, explanations and consequences are primary; an optional
+Every capability uses the same accessible modes: `disabled`, `proposal-only`, `confirm-each` and
+`controlled-automatic`. English and Italian own the reference wording and semantics; every shipped
+catalog provides equivalent localized labels, explanations and consequences. An optional
 cool-to-warm visual scale may reinforce the progression but color, degrees or position never carry
 meaning alone. The selected level is capability- and scope-specific rather than one global switch.
 Model sampling temperature is a technical reproducibility parameter, not confidence and never a
@@ -1290,21 +1302,61 @@ boundary precede heavy work. Repair remains a distinct preview/backup/confirmati
 capacity warnings can pause new ingestion without deleting Originals, derived state, logs or old
 backups automatically.
 
-The EN/IT information architecture separates everyday knowledge work from service and
+Cura begins with a task-based baseline of the existing local Browser. It measures the complete
+journeys for first Source setup, capture/import, known-item search, exploratory browsing,
+Original/representation/provenance inspection, failed/interrupted acquisition recovery and
+language/appearance/privacy/background settings. Evidence records completion, steps, backtracking,
+unclear language and happy, empty, loading, degraded, permission-denied, interrupted and
+session-expired states across keyboard/screen-reader, 200% zoom, desktop, reduced-width and
+mobile/PWA layouts.
+
+The multilingual information architecture separates everyday knowledge work from service and
 maintenance controls. Primary navigation is compact and journey-based: Overview, Knowledge,
-Capture, Search and Needs attention. A secondary Management surface groups Sources & Connectors,
-Operations & Maintenance, Diagnostics, Settings and About. Icons accompany visible text labels
-rather than replacing them. Cura selects [Lucide](https://github.com/lucide-icons/lucide) as the
-preferred MIT-licensed shared UI icon system, using only a reproducibly vendored/locked subset
-under the component provenance contract; activation may replace it only through an ADR with equal
-license, accessibility, offline and update evidence. The Provelume brand mark remains a separate
-first-party asset. Responsive overflow, semantic landmarks, current-location state, keyboard
-order, screen-reader names, high contrast and reduced-motion behavior remain equivalent across
-desktop and mobile layouts.
+Capture, Search and Needs attention. Overview prioritizes continue-working, recent knowledge and
+items requiring attention instead of leading with system metrics. Knowledge and Search use
+progressive disclosure so technical facets and dense filters remain available without dominating
+ordinary retrieval. A secondary Management surface groups Sources & Connectors, Operations &
+Maintenance, Diagnostics, Settings and About. Raw operation kinds/statuses receive user-readable
+labels while retaining exact technical detail in the appropriate evidence view.
+
+Cura selects [Lucide](https://github.com/lucide-icons/lucide) as the preferred MIT-licensed shared
+UI icon system, using only a reproducibly vendored/locked subset under the component provenance
+contract; activation may replace it only through an ADR with equal license, accessibility, offline
+and update evidence. Icons accompany visible text labels rather than replacing them, and the
+Provelume brand mark remains a separate first-party asset. Responsive overflow, semantic landmarks,
+current-location state, keyboard order, screen-reader names, high contrast and reduced-motion
+behavior remain equivalent across desktop and mobile layouts.
+
+The reconstructed shell first ships behind an explicit local `Preview interface` preference for
+maintainers/testers. Preview and current presentation share stable routes, authoritative backend
+contracts and canonical data. Selection is auditable/server-rendered, requires no account,
+telemetry or network call, survives restart/upgrade and offers presentation-only rollback. The
+new renderer becomes the default only after the primary journeys pass. The legacy renderer is
+removed later through a bounded cleanup after the new default is proven.
+
+Cura consolidates the currently fragmented Python/JSON UI strings behind one governed catalog and
+language registry. English (`en`) and Italian (`it`) remain complete reference catalogs; German
+(`de`), Spanish (`es`), French (`fr`), Portuguese (`pt`) and Romanian (`ro`) ship as
+complete repository-owned interface catalogs in the release artifacts. Ordinary language
+selection and switching require no network, GitHub, Cloud or runtime translation provider.
+
+`System` selects a supported host locale deterministically and unsupported locales fall back
+consistently to English; an explicit choice survives restart and upgrade. Qualification covers key
+parity, placeholders, markup/escaping, plural/select behavior, terminology, layout expansion,
+sorting/date/number presentation and unintended fallback on the primary journeys. Safety, privacy,
+deletion, network, credential and recovery copy requires real reviewed translation: generated
+drafts alone are not publication evidence. Catalog completeness and linguistic review remain
+separate recorded states. Later language packs stay repository-governed, data-only and unable to
+load executable code.
+
+The UI language matrix is independent from document language and from OCR, transcription,
+classification, local-model or external-provider support. A translated interface never implies
+that those capabilities support the same language.
 
 Appearance is an explicit persisted choice with System as the default plus Light and Dark modes.
 System follows the host preference without a wrong-theme startup flash; all three modes qualify
-focus, contrast, empty/loading/degraded/error states, diagrams, evidence views and EN/IT parity.
+focus, contrast, empty/loading/degraded/error states, diagrams, evidence views and every shipped
+catalog.
 
 Cura also brings forward a minimal Windows tray lifecycle needed for coherent personal daily use,
 without claiming the complete cross-platform agent promised by `0.20.0`. Users can independently
@@ -1337,13 +1389,21 @@ WhatsApp Cloud API integration; or autonomous classification and durable writes.
 WhatsApp remains a later candidate only through a dedicated Business number/API flow, never by
 scraping or impersonating a personal WhatsApp account.
 
-**Suggested slices:** `0.11/S01` Action Center state model and local queues; `0.11/S02` Operations &
-Maintenance schedules, job control and interruption recovery; `0.11/S03`
-classification/duplicate/version-conflict decisions and reusable safe routing; `0.11/S04` mobile
-PWA capture, device pairing and offline retry; `0.11/S05` iOS, Android, Drive-drop and Telegram
-reference paths; `0.11/S06` mobile retrieval and authorization; `0.11/S07` EN/IT information
-architecture, shared UI icon system, System/Light/Dark appearance, minimal Windows tray and
-end-to-end usability, accessibility and assurance fixtures.
+**Suggested slices:** `0.11/S01` UX baseline, screen/route inventory, primary-task analysis,
+target information architecture and vocabulary/glossary; `0.11/S02` shared shell/design system,
+progressive navigation and the local Preview interface preference with presentation-only rollback;
+`0.11/S03` Action Center state model and local queues; `0.11/S04` Operations & Maintenance job
+control, interruption recovery and diagnostics; `0.11/S05` classification/duplicate/
+version-conflict review and reusable safe routing; `0.11/S06` Capture/PWA, device pairing,
+offline outbox and idempotent retry; `0.11/S07` iOS, Android, Drive-drop and optional Telegram
+reference paths plus mobile retrieval and authorization; `0.11/S08` governed catalog
+consolidation and complete `de/es/fr/pt/ro` packs alongside `en/it`; `0.11/S09`
+System/Light/Dark appearance, minimal Windows tray, integrated usability/accessibility/security
+qualification and evidence-based default activation.
+
+Exact activation may refine these internal boundaries while preserving dependency order and
+homogeneous PR ownership. No Cura slice starts before Emendatio closes and a just-in-time Cura
+parent tracker is activated.
 
 ### 0.12.0 — AI Gateway and Privacy Routing
 
