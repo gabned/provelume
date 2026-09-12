@@ -94,6 +94,12 @@ No private signing material belongs in this repository.
 
 ## Errors and recovery
 
+- Update checks identify the public stage (`release catalogue`, `release manifest`, `release
+  identity` or `installer download`) and a bounded reason code. `rate_limited`, `http_error`,
+  `timeout`, `tls_error`, `dns_error` and `connection_error` distinguish actionable transport
+  failures without displaying response bodies, local paths or Instance content. For TLS errors,
+  first verify system date/time and any HTTPS-inspecting proxy or firewall; for DNS/connection
+  failures, verify that `api.github.com` and `github.com` are reachable. A rate limit is temporary.
 - `port_unavailable`: stop the conflicting local process or explicitly choose another bounded
   port; no automatic alternative is selected.
 - `stale_configuration`: reload current settings and deliberately resubmit.
@@ -107,3 +113,9 @@ No private signing material belongs in this repository.
 
 Diagnostics are bounded and sanitized. They include endpoint, checksums/status, counts, schema and
 unsigned state, never source content, URL query data, paths, credentials, CSRF tokens or nonces.
+
+The launcher's local Information dialog shows version, channel, package/platform, tag/commit,
+build-identity and update-trust state. It can open the canonical repository, release archive and,
+when the embedded tag is valid, the installed release. Opening the dialog is offline; only an
+explicit link action opens the system browser. Cura will reuse this contract in its planned
+About/Credits surface, including licenses and third-party notices.
