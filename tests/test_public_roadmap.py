@@ -945,7 +945,8 @@ def test_mobile_capture_is_bounded_and_review_first() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.11.0` | Daily-use UX, Unified Capture, Action Center and multilingual interface |"
+        "| Forecast | `0.11.0` | Daily-use UX, Unified Capture, Action Center "
+        "and multilingual interface |"
     ) == 1
     for required_contract in (
         "short-lived QR pairing",
