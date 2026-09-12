@@ -308,8 +308,11 @@ def test_interrupted_download_removes_partial_file(tmp_path: Path, monkeypatch) 
         lambda *_args, **_kwargs: _InterruptedResponse(payload),
     )
 
-    with pytest.raises(OSError, match="interruption"):
+    with pytest.raises(UpdateError) as caught:
         download_update(_candidate(payload), tmp_path, client=client)
+    assert caught.value.code == "connection_error"
+    assert caught.value.stage == "installer_download"
+    assert caught.value.endpoint_origin == "https://github.com"
     assert not list(tmp_path.rglob("*.part"))
     assert not (tmp_path / _candidate(payload).installer_name).exists()
 
@@ -418,6 +421,21 @@ def test_update_check_records_the_failed_public_stage() -> None:
         check_for_updates(current_version="0.10.0", channel="preview", client=_Client())
     assert caught.value.stage == "release_catalog"
     assert caught.value.code == "connection_error"
+
+
+def test_manifest_validation_failure_records_the_manifest_stage() -> None:
+    manifest = _manifest("0.4.0")
+    manifest["artifact"]["automatic_apply"] = True
+
+    with pytest.raises(UpdateError) as caught:
+        select_update_candidate(
+            [_release("0.4.0")],
+            current_version="0.3.0",
+            channel="preview",
+            fetch_manifest=lambda _url: manifest,
+            resolve_tag_commit=_resolve_tag_commit,
+        )
+    assert caught.value.stage == "release_manifest"
 
 
 @pytest.mark.parametrize(
