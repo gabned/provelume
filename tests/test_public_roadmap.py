@@ -377,7 +377,7 @@ def test_0_10_1_correction_forecast_is_bounded_and_actionable() -> None:
     section = roadmap.split(
         "### 0.10.1 — Source Onboarding, Filtering and Canonical Brand Correction",
         1,
-    )[1].split("### 0.11.0 — Unified Capture, Operations and Action Center", 1)[0]
+    )[1].split("### 0.11.0 — Daily-use UX, Unified Capture, Action Center and Multilingual Interface", 1)[0]
 
     for required_contract in (
         "[#198](https://github.com/gabned/provelume/issues/198)",
@@ -397,7 +397,7 @@ def test_0_10_1_correction_forecast_is_bounded_and_actionable() -> None:
     assert "SMB/NFS client" in section
     assert "background network-volume recovery" in section
     assert "Google writes or Calendar" in section
-    assert "Lucide remains `0.11/S07`" in section
+    assert "Lucide remains `0.11/S02`" in section
     assert "0.10.1/S05" not in section
 
 
