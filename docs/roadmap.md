@@ -190,7 +190,7 @@ The `After publication` row is a follow-up obligation, not an entry prerequisite
 
 | Moment | Required work and evidence |
 | --- | --- |
-| Before activation | Primary personal and operator journeys, non-technical language, EN/IT information architecture, accessibility risks, data/network flow, threat-model delta, support perimeter and documentation outline. |
+| Before activation | Primary personal and operator journeys, non-technical language, supported-language information architecture with EN/IT reference semantics, accessibility risks, data/network flow, threat-model delta, support perimeter and documentation outline. |
 | Every bounded slice | Happy, empty, loading, degraded, permission-denied, interrupted and recovery states; keyboard/mobile behavior where applicable; updated user/operator/developer documentation; negative/hostile-input tests; dependency, license and privacy review. |
 | Final quality slice | End-to-end usability sessions, WCAG-oriented accessibility checks, EN/IT semantic parity, migration/rollback and backup/restore drills, performance/resource budgets, security abuse cases, redacted diagnostics, support/format/component matrices and known limits. |
 | Release preparation | Exact version and artifact identity, SBOM/notices, signatures/checksums where supported, vulnerability/advisory evidence, clean-install and N-1 upgrade checks, release notes, website/facts parity and an updated personal-use/dissemination row. |
@@ -1224,7 +1224,7 @@ behavior; system-locale preference redesign; reset settings; Lucide or the gener
 framework; AI/RAG/embeddings/classification/autonomy controls; cloud OCR or remote-AI fallback;
 new providers; Google writes or Calendar; complete background agent; NAS/self-hosting expansion;
 signing; automatic updater; or any other `0.11.0+` capability. #167 remains future-roadmap
-evidence and Lucide remains `0.11/S07`.
+evidence and Lucide remains in the forecast Cura shared-shell slice `0.11/S02`.
 
 ### 0.11.0 — Daily-use UX, Unified Capture, Action Center and Multilingual Interface
 
