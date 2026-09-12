@@ -4,6 +4,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+- The release owner directed the `0.10.1` preview to include the canonical brand
+  while the material native Windows appearance observation remains deferred. The
+  automated resource, associated-pixel, EN/IT layout and lifecycle checks pass;
+  subjective setup/window/Start/taskbar/About/tray, scaling and appearance-mode
+  quality is not yet certified and will be recorded separately after publication.
+
 - Corrected the Core/Windows brand to the existing navy, blue and gold public
   Provelume mark. SVG, nine PNG sizes and ICO now derive from one source and ship
   in the wheel; Windows package checks bind complete executable icon resources.

@@ -51,6 +51,13 @@ visual deferral cannot certify the changed brand; missing material evidence is
 reported as pending, never PASS. Do not expand Windows support through a hosted
 runner result or silently reset shell/theme settings for a test.
 
+For the `0.10.1` preview, the release owner explicitly directed publication with
+this material observation deferred until after publication. The deferral is a
+known qualification limitation, not a successful observation: automated resource,
+pixel, layout and lifecycle checks remain PASS only within their stated scopes.
+The prepared exact-build instructions remain available for the later observation,
+whose result must be recorded independently without rewriting release history.
+
 ## Upgrade and integrated matrix
 
 The existing permanent installer test now defaults to the immutable public
