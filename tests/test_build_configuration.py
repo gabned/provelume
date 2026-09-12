@@ -110,14 +110,14 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "provelume-windows-update.json" in release
     assert "Provelume-Setup-${VERSION}-x64.exe" in release
     assert "Attest unsigned Windows preview" in publication
-    assert "Provelume-Setup-0.9.0-public.exe" in release
+    assert "Provelume-Setup-0.10.0-public.exe" in release
     assert (
-        "e94c0722a92179c00d93db61f1aa5f3aab565f56d8382651471b3778dd503d68"
+        "c197f021a0c45512eb760a83e59f177ce22d946e0239ddf311296b6c7dc0e954"
         in release
     )
-    assert "provelume-0.9.0-py3-none-any.whl" in release
+    assert "provelume-0.10.0-py3-none-any.whl" in release
     assert (
-        "50eca9dc67672c79aa5570de0cad1454546d75a2b3fe5d6edae600bf73a5488f"
+        "31c10a4f0b1ab93f16321d343800f000c41163b38fa28cab15a82715058f9860"
         in release
     )
 
@@ -147,7 +147,7 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     assert "ExpectedMigrationReceiptSha256" in windows_exercise
     assert "ExpectedMigrationBackupSha256" in windows_exercise
     assert "sys.path.insert" not in windows_exercise
-    assert "Provelume-Setup-0.9.0-public.exe" in windows_exercise
+    assert "Provelume-Setup-0.10.0-public.exe" in windows_exercise
     assert (
         "e94c0722a92179c00d93db61f1aa5f3aab565f56d8382651471b3778dd503d68"
         in windows_exercise
