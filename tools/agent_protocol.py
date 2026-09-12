@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import re
@@ -648,6 +649,31 @@ def event_pr_identity(event: dict[str, Any]) -> dict[str, str]:
         "head_sha": require_sha(head.get("sha"), "event head_sha"),
         "body": str(pull_request.get("body") or ""),
     }
+
+
+def bind_current_pr_body(
+    event: dict[str, Any], current_pr: dict[str, Any]
+) -> dict[str, Any]:
+    """Bind the current public PR body after proving its event identity."""
+    identity = event_pr_identity(event)
+    if not isinstance(current_pr, dict):
+        fail("current PR metadata must be an object")
+    if current_pr.get("number") != int(identity["owner_pr"].removeprefix("#")):
+        fail("current PR number does not match the event")
+    base = current_pr.get("base")
+    head = current_pr.get("head")
+    if not isinstance(base, dict) or not isinstance(head, dict):
+        fail("current PR metadata must contain base and head objects")
+    if base.get("sha") != identity["base_sha"]:
+        fail("current PR base does not match the event")
+    if head.get("sha") != identity["head_sha"]:
+        fail("current PR head does not match the event")
+    body = current_pr.get("body")
+    if not isinstance(body, str):
+        fail("current PR body must be a string")
+    bound = copy.deepcopy(event)
+    bound["pull_request"]["body"] = body
+    return bound
 
 
 def build_effect_report(
@@ -1562,6 +1588,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     change_control = commands.add_parser("change-control")
     change_control.add_argument("--event", type=Path, required=True)
+    change_control.add_argument("--current-pr", type=Path)
     change_control.add_argument("--name-status", type=Path, required=True)
     change_control.add_argument("--expected-base-sha", required=True)
     change_control.add_argument("--expected-head-sha", required=True)
@@ -1631,8 +1658,11 @@ def main() -> int:
             emit(report, args.output)
             return 0 if report["release_allowed"] else 1
         if args.command == "change-control":
+            event = load_object(args.event)
+            if args.current_pr is not None:
+                event = bind_current_pr_body(event, load_object(args.current_pr))
             report = build_change_control_report(
-                event=load_object(args.event),
+                event=event,
                 changed_paths=read_name_status(args.name_status),
                 expected_base_sha=args.expected_base_sha,
                 expected_head_sha=args.expected_head_sha,

@@ -147,8 +147,12 @@ jobs:
           test "$observed_head" = "$HEAD_SHA"
           mkdir -p .agent
           git diff --name-status -M -z "$BASE_SHA" "$HEAD_SHA" > .agent/name-status.z
+          curl --fail --silent --show-error --location \
+            "${GITHUB_API_URL}/repos/${REPOSITORY}/pulls/${PR_NUMBER}" \
+            > .agent/current-pr.json
           python tools/agent_protocol.py change-control \
             --event "$GITHUB_EVENT_PATH" \
+            --current-pr .agent/current-pr.json \
             --name-status .agent/name-status.z \
             --expected-base-sha "$BASE_SHA" \
             --expected-head-sha "$HEAD_SHA" \
