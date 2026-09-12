@@ -17,6 +17,19 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .publication import (
+    MAX_RECEIPT_BYTES,
+    READY_NAME,
+    RECEIPT_NAME,
+    PublicationError,
+    canonical_bytes,
+    decode_json,
+    parse_readiness,
+    read_metadata,
+    timestamp,
+    validate_delivery,
+)
+
 SOURCE_REPOSITORY = "gabned/provelume"
 RELEASES_API = "https://api.github.com/repos/gabned/provelume/releases?per_page=30"
 TAG_COMMIT_API = "https://api.github.com/repos/gabned/provelume/commits"
@@ -108,6 +121,10 @@ class UpdateCandidate:
     minimum_windows_build: int
     signature_status: str
     automatic_apply: bool
+    publication_required: bool = False
+    publication_ready: dict[str, Any] | None = None
+    publication_receipt_url: str | None = None
+    publication_manifest_url: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -346,10 +363,14 @@ def _windows_manifest(
         "artifact",
         "trust",
     }
+    if value.get("schema_version") == 2:
+        expected_fields.add("publication_required")
     if set(value) != expected_fields:
         raise UpdateError("Windows update manifest fields are incomplete or unsupported")
-    if type(value["schema_version"]) is not int or value["schema_version"] != 1:
+    if type(value["schema_version"]) is not int or value["schema_version"] not in {1, 2}:
         raise UpdateError("unsupported Windows update manifest schema")
+    if value["schema_version"] == 2 and value["publication_required"] is not True:
+        raise UpdateError("publication metadata is required for this update schema")
     if value["source_repository"] != SOURCE_REPOSITORY:
         raise UpdateError("Windows update manifest has an unexpected source repository")
     if value["version"] != version or value["tag"] != tag or value["channel"] != channel:
@@ -484,6 +505,56 @@ def select_update_candidate(
         if installer.size_bytes != artifact["size_bytes"]:
             raise UpdateError("release and manifest installer sizes differ")
         release_url = _validated_https_url(release.get("html_url"))
+        publication = {}
+        if manifest.get("publication_required") is True:
+            try:
+                if any(
+                    name not in assets
+                    for name in (READY_NAME, RECEIPT_NAME, "release-manifest.json")
+                ):
+                    raise PublicationError("publication finalization is pending")
+                ready = parse_readiness(fetch_manifest(assets[READY_NAME].url))
+                receipt = validate_delivery(
+                    canonical_bytes(fetch_manifest(assets[RECEIPT_NAME].url)),
+                    ready,
+                )
+                if any(
+                    receipt[key] != manifest[key]
+                    for key in (
+                        "source_repository",
+                        "version",
+                        "tag",
+                        "commit",
+                        "channel",
+                    )
+                ) or receipt["release_id"] != release.get("id"):
+                    raise PublicationError("publication identity differs from update")
+                if timestamp(receipt["published_at"]) != timestamp(release.get("published_at")):
+                    raise PublicationError("publication timestamp differs from release")
+                installer_identity = {
+                    key: artifact[key] for key in ("name", "sha256", "size_bytes")
+                }
+                if installer_identity not in receipt["artifacts"]:
+                    raise PublicationError("publication installer differs")
+                for field in ("receipt", "manifest", "kit"):
+                    row = ready[field]
+                    if (
+                        row["name"] not in assets
+                        or assets[row["name"]].size_bytes != row["size_bytes"]
+                    ):
+                        raise PublicationError("publication delivery assets are incomplete")
+                publication = {
+                    "publication_required": True,
+                    "publication_ready": ready,
+                    "publication_receipt_url": assets[RECEIPT_NAME].url,
+                    "publication_manifest_url": assets["release-manifest.json"].url,
+                }
+            except (PublicationError, ValueError) as exc:
+                raise UpdateError(
+                    "Publication finalization is pending or inconsistent",
+                    code="publication_pending",
+                    stage="release_manifest",
+                ) from exc
         return UpdateCandidate(
             version=str(version),
             tag=tag,
@@ -500,6 +571,7 @@ def select_update_candidate(
             minimum_windows_build=int(artifact["minimum_windows_build"]),
             signature_status=str(manifest["trust"]["platform_signature"]),
             automatic_apply=bool(artifact["automatic_apply"]),
+            **publication,
         )
     return None
 
@@ -568,13 +640,53 @@ def download_update(
     target = destination_directory.expanduser().resolve() / name
     selected_client = client or SafeHttpsClient(timeout_seconds=60.0)
     try:
-        return selected_client.download(
+        path = selected_client.download(
             candidate.installer_url,
             destination=target,
             expected_size=candidate.installer_size_bytes,
             expected_sha256=candidate.installer_sha256,
             progress=progress,
         )
+        if candidate.publication_required:
+            try:
+                ready = parse_readiness(candidate.publication_ready)
+                for field, url in (
+                    ("receipt", candidate.publication_receipt_url),
+                    ("manifest", candidate.publication_manifest_url),
+                ):
+                    row = ready[field]
+                    if row["size_bytes"] > MAX_RECEIPT_BYTES or not isinstance(url, str):
+                        raise PublicationError("publication delivery size or URL is invalid")
+                    selected_client.download(
+                        url,
+                        destination=path.parent / row["name"],
+                        expected_size=row["size_bytes"],
+                        expected_sha256=row["sha256"],
+                    )
+                receipt = validate_delivery(read_metadata(path.parent / RECEIPT_NAME), ready)
+                manifest = decode_json(read_metadata(path.parent / "release-manifest.json"))
+                if (
+                    any(
+                        receipt[key] != manifest.get(key)
+                        for key in (
+                            "source_repository",
+                            "version",
+                            "tag",
+                            "commit",
+                            "channel",
+                        )
+                    )
+                    or receipt["commit"] != candidate.commit
+                    or receipt["version"] != candidate.version
+                ):
+                    raise PublicationError("downloaded publication identity differs")
+            except (OSError, PublicationError) as exc:
+                raise UpdateError(
+                    "Publication metadata download is incomplete",
+                    code="publication_pending",
+                    stage="installer_download",
+                ) from exc
+        return path
     except UpdateError as exc:
         raise exc.at_stage("installer_download") from exc
 

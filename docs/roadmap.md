@@ -1327,13 +1327,17 @@ canonical repository and real release links stay distinct from network actions. 
 credits, first-party attribution, licenses and repository-owned third-party notices without
 loading them from GitHub at runtime or presenting build metadata as publisher authentication.
 
-Cura selects [Lucide](https://github.com/lucide-icons/lucide) as the preferred MIT-licensed shared
-UI icon system, using only a reproducibly vendored/locked subset under the component provenance
+Cura selects [Lucide](https://github.com/lucide-icons/lucide) as the shared UI icon system,
+using only a reproducibly vendored/locked subset under the component provenance
 contract; activation may replace it only through an ADR with equal license, accessibility, offline
 and update evidence. Icons accompany visible text labels rather than replacing them, and the
 Provelume brand mark remains a separate first-party asset. Responsive overflow, semantic landmarks,
 current-location state, keyboard order, screen-reader names, high contrast and reduced-motion
 behavior remain equivalent across desktop and mobile layouts.
+
+S02's [ADR 0028](adr/0028-cura-icons-and-provenance.md) corrects the planning shorthand
+"MIT-only": the selected 1.45.0 pin preserves Lucide ISC and Feather MIT notices as `ISC AND MIT`.
+The complete upstream license and exact subset hashes accompany the packaged assets and SBOM.
 
 The reconstructed shell first ships behind an explicit local `Preview interface` preference for
 maintainers/testers. Preview and current presentation share stable routes, authoritative backend

@@ -17,7 +17,7 @@
   <article class="panel">
     <h2>{{ t('about.installation') }}</h2>
     <dl>
-      <dt>{{ t('common.version') }}</dt><dd>{{ about.version }}</dd>
+      <dt>{{ t('common.version') }}</dt><dd>{{ about.version }} {% if interface_mode == 'preview' %}{% set publication = about.publication %}{% include 'cura/new_badge.html' %}{% endif %}</dd>
       <dt>{{ t('about.channel') }}</dt><dd>{{ about.channel }}</dd>
       <dt>{{ t('about.packaging') }}</dt><dd>{{ about.runtime.packaging }}</dd>
       <dt>{{ t('about.platform') }}</dt><dd>{{ about.runtime.platform }} · {{ about.runtime.architecture }}</dd>
@@ -42,5 +42,18 @@
       <p>{{ t('about.trust_boundary') }}</p>
     </section>
   </aside>
+</section>
+<section class="two-column security-layout">
+  <article class="panel">
+    <h2>{{ t('cura.credits') }}</h2>
+    <dl><dt>{{ t('cura.author') }}</dt><dd>{{ about.credits.author }}</dd><dt>{{ t('cura.developer') }}</dt><dd>{{ about.credits.developer }}</dd><dt>{{ t('cura.license') }}</dt><dd>{{ about.credits.license }}</dd></dl>
+    <p>{{ about.credits.copyright }}</p>
+    {% for name, text in about.credits.notice_texts.items() %}<details><summary>{{ name }}</summary><pre class="cura-notices">{{ text }}</pre></details>{% endfor %}
+  </article>
+  <article class="panel">
+    <h2>{{ t('cura.public_links') }}</h2><p>{{ t('cura.public_links_boundary') }}</p>
+    <ul>{% for key, href in about.public_links.items() %}<li><a href="{{ href }}" rel="noreferrer">{{ t('cura.' ~ key) }}</a></li>{% endfor %}</ul>
+    {% if about.publication.status == 'available' %}<dl><dt>{{ t('cura.publication_date') }}</dt><dd><time datetime="{{ about.publication.published_at }}">{{ about.publication.published_at }}</time></dd></dl>{% else %}<p class="muted">{{ t('cura.publication_missing') }}</p>{% endif %}
+  </article>
 </section>
 {% endblock %}

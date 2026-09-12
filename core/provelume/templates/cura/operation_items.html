@@ -1,0 +1,1 @@
+<ul class="document-list">{% for operation in attention_operations %}<li><a href="/operations/{{ operation.id }}?lang={{ lang }}"><strong>{{ operation.title }}</strong><span>{{ t('cura.operation.' ~ operation.status) }} · {{ operation.started_at[:10] }}</span></a></li>{% else %}<li class="empty">{{ t('cura.no_attention') }}</li>{% endfor %}</ul>

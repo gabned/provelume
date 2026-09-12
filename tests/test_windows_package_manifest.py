@@ -19,6 +19,8 @@ def test_windows_update_manifest_records_unsigned_preview_boundary(tmp_path: Pat
         commit="a" * 40,
     )
 
+    assert value["schema_version"] == 2
+    assert value["publication_required"] is True
     assert value["artifact"]["sha256"] == sha256_file(installer)
     assert value["artifact"]["automatic_apply"] is False
     assert value["artifact"]["minimum_windows_build"] == 19045

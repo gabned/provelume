@@ -74,6 +74,13 @@ try {
         Pop-Location
     }
 
+    & $BuildPython -I (Join-Path $SourceRoot "scripts\verify_cura_package_resources.py") `
+        --wheel $Wheel --frozen-root (Join-Path $Dist "Provelume\_internal\provelume") `
+        --output (Join-Path $Output "cura-package-resources.json")
+    if ($LASTEXITCODE -ne 0) {
+        throw "Cura package resource verification failed."
+    }
+
     $Executable = Join-Path $Dist "Provelume\Provelume.exe"
     if (-not (Test-Path $Executable)) {
         throw "PyInstaller did not produce Provelume.exe."
@@ -96,7 +103,7 @@ try {
     $DiagnosticsProcess = Start-Process -FilePath $Executable -ArgumentList @(
         "--diagnostics-file",
         "`"$Diagnostics`""
-    ) -Wait -PassThru
+    ) -Wait -PassThru -WindowStyle Hidden
     if ($DiagnosticsProcess.ExitCode -ne 0) {
         throw "Frozen desktop diagnostics failed with exit code $($DiagnosticsProcess.ExitCode)."
     }

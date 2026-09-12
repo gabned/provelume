@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ t('search.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb"><a href="/?lang={{ lang }}">{{ t('nav.home') }}</a><span>/</span><span>{{ t('nav.search') }}</span></nav>
+<h1>{{ t('search.title') }}</h1>
+<form class="search-form" method="get">
+  <input type="hidden" name="lang" value="{{ lang }}">
+  <label class="wide">{{ t('search.query') }}<input name="q" value="{{ q }}" maxlength="500"></label>
+  <label>{{ t('browse.source') }}<select name="source_id"><option value="">{{ t('browse.all') }}</option>{% for source in sources %}<option value="{{ source.id }}" {% if source.id == selected_source %}selected{% endif %}>{{ source.name }}</option>{% endfor %}</select></label>
+  <label>{{ t('browse.type') }}<select name="media_type"><option value="">{{ t('browse.all') }}</option>{% for value in media_types %}<option value="{{ value }}" {% if value == selected_media_type %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+<details class="cura-advanced"{% if date_from or date_to %} open{% endif %}>
+<summary>{{ t("cura.more_filters") }}</summary><div class="cura-advanced-fields">
+  <label>{{ t('search.date_from') }}<input type="date" name="date_from" value="{{ date_from or '' }}"></label>
+  <label>{{ t('search.date_to') }}<input type="date" name="date_to" value="{{ date_to or '' }}"></label>
+</div></details>
+  <button type="submit">{{ t('search.button') }}</button>
+</form>
+{% include "cura/active_filters.html" %}
+{% if not q %}<section class="panel"><h2>{{ t("cura.search_start") }}</h2><p class="muted">{{ t("cura.search_start_lead") }}</p></section>{% else %}<p class="cura-result-count" role="status">{{ results | length }} {{ t("cura.results") }}</p>{% endif %}
+{% if q %}<section class="panel"><ul class="document-list">{% for result in results %}<li id="result-{{ result.document_id }}"><a href="{{ document_link(result.document_id) }}"><strong>{{ result.title }}</strong><span>{{ result.snippet }}</span></a><div class="cura-result-actions"><a href="{{ document_link(result.document_id, provenance=True) }}">{{ t("document.provenance") }}</a><a href="/api/v1/documents/{{ result.document_id }}/original">{{ t("document.mode_download") }}</a></div></li>{% else %}<li class="empty">{{ t('search.empty') }}</li>{% endfor %}</ul></section>{% endif %}
+{% endblock %}

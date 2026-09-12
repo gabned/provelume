@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ t('cura.nav.knowledge') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb"><a href="/?lang={{ lang }}">{{ t('nav.home') }}</a><span>/</span><span>{{ t('nav.browse') }}</span>{% if selected_hierarchy_node %}{% for item in selected_hierarchy_node.breadcrumbs %}<span>/</span><a href="{{ filter_link(hierarchy_id=item.id) }}">{{ item.name }}</a>{% endfor %}{% elif selected_area %}<span>/</span><span>{{ t('browse.root') if selected_area == root_area_filter else selected_area }}</span>{% endif %}</nav>
+<h1>{{ t('cura.nav.knowledge') }}</h1><p class="lead">{{ t('cura.knowledge_lead') }}</p>
+<details class="panel cura-disclosure"><summary>{{ t('cura.special_views') }}</summary><ul class="cura-special-views">{% for item in knowledge_links %}<li><a href="{{ item.href }}">{{ item.label }}</a></li>{% endfor %}</ul></details>
+<details class="panel cura-disclosure"><summary>{{ t("hierarchy.title") }}</summary><div class="cura-disclosure-body">
+  <div class="panel-heading"><h2 id="hierarchy-heading">{{ t('hierarchy.title') }}</h2><span class="muted">{{ t('hierarchy.read_only') }}</span></div>
+  <ul class="hierarchy-list">
+  {% for node in hierarchy_nodes %}
+    <li><a href="{{ filter_link(hierarchy_id=node.id) }}"{% if node.id == selected_hierarchy %} aria-current="page"{% endif %}><strong>{{ node.breadcrumbs | map(attribute='name') | join(' / ') }}</strong><span>{{ t('hierarchy.kind.' ~ node.kind) }} · {{ node.document_counts.subtree }} {{ t('hierarchy.documents') }}</span></a></li>
+  {% else %}<li class="empty">{{ t('hierarchy.empty') }}</li>{% endfor %}
+  </ul>
+</div></details>
+<form class="filters" method="get">
+  <input type="hidden" name="lang" value="{{ lang }}">
+  <label>{{ t('browse.source') }}<select name="source_id"><option value="">{{ t('browse.all') }}</option>{% for source in sources %}<option value="{{ source.id }}" {% if source.id == selected_source %}selected{% endif %}>{{ source.name }}</option>{% endfor %}</select></label>
+  <label>{{ t('browse.type') }}<select name="media_type"><option value="">{{ t('browse.all') }}</option>{% for value in media_types %}<option value="{{ value }}" {% if value == selected_media_type %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+<details class="cura-advanced"{% if selected_area or selected_hierarchy or selected_disposition != 'active' %} open{% endif %}>
+<summary>{{ t("cura.more_filters") }}</summary><div class="cura-advanced-fields">
+  <label>{{ t('browse.area') }}<select name="area"><option value="">{{ t('browse.all') }}</option>{% for value in areas %}{% set option_value = root_area_filter if value == '' else value %}<option value="{{ option_value }}" {% if option_value == selected_area %}selected{% endif %}>{{ value or t('browse.root') }}</option>{% endfor %}</select></label>
+  <label>{{ t('browse.hierarchy') }}<select name="hierarchy_id"><option value="">{{ t('browse.all') }}</option>{% for node in hierarchy_nodes %}<option value="{{ node.id }}" {% if node.id == selected_hierarchy %}selected{% endif %}>{{ node.breadcrumbs | map(attribute='name') | join(' / ') }}</option>{% endfor %}</select></label>
+  <label>{{ t('browse.disposition') }}<select name="disposition"><option value="active"{% if selected_disposition == 'active' %} selected{% endif %}>{{ t('disposition.active') }}</option><option value="archived"{% if selected_disposition == 'archived' %} selected{% endif %}>{{ t('disposition.archived') }}</option><option value="trashed"{% if selected_disposition == 'trashed' %} selected{% endif %}>{{ t('disposition.trashed') }}</option><option value="all"{% if selected_disposition == 'all' %} selected{% endif %}>{{ t('browse.all') }}</option></select></label>
+</div></details>
+  <button type="submit">{{ t('cura.apply_filters') }}</button>
+</form>
+{% include "cura/active_filters.html" %}
+<p class="cura-result-count" role="status">{{ documents | length }} {{ t("cura.results") }}</p>
+<section class="panel">
+<ul class="document-list">
+{% for document in documents %}
+<li id="result-{{ document.id }}"><a href="{{ document_link(document.id) }}"><strong>{{ document.title }}</strong><span>{{ t('disposition.' ~ document.disposition.status) }} · {{ document.source_name }} · {{ document.locator }} · {{ document.current_version.acquired_at[:10] }}{% if document.classification %} · {{ document.classification.primary.breadcrumbs | join(' / ') }}{% endif %}</span></a><div class="cura-result-actions"><a href="{{ document_link(document.id, provenance=True) }}">{{ t("document.provenance") }}</a><a href="/api/v1/documents/{{ document.id }}/original">{{ t("document.mode_download") }}</a></div></li>
+{% else %}<li class="empty">{{ t('browse.empty') }}</li>{% endfor %}
+</ul>
+</section>
+{% endblock %}

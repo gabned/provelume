@@ -18,6 +18,13 @@ The inventory does not execute optional tools or search model directories. Execu
 reports presence without returning its path; model and language-pack claims require explicit
 evidence. No credential, private filesystem path or Instance content is included.
 
+Schema 2 adds the `ui_asset` category to the existing seven categories. The `ui.lucide`
+entry describes the 18-icon subset packaged with Provelume, version 1.45.0, with the
+complete upstream `ISC AND MIT` license. Its installed state requires exact manifest,
+SVG and license hashes from package resources. A missing or altered file remains
+missing or unverified. No icon service, executable or remote registry is consulted.
+See [ADR 0028](adr/0028-cura-icons-and-provenance.md) for the pin and update procedure.
+
 ## Release SBOM comparison
 
 A local operator can compare a downloaded or assembled CycloneDX release SBOM:
@@ -31,3 +38,7 @@ advisory service, provider or model host, and it never installs or updates anyth
 explicit evidence the release comparison is truthfully `unavailable`. Latest-known and security
 states remain `not_checked` and `unverified` until a separate explicit network capability is
 qualified.
+
+The release SBOM includes this same installed subset before its fingerprint is generated.
+Matching the version alone is insufficient: the commit, subset and license digests must
+also agree. A same-version altered subset is reported as a mismatch.

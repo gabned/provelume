@@ -18,6 +18,7 @@ from fastapi.responses import RedirectResponse
 from .service import ProvelumeInstance
 from .shell_settings import (
     DEFAULT_LOCAL_PORT,
+    INTERFACE_MODES,
     MAX_SETTINGS_REVISION,
     ShellSettingsError,
     ShellSettingsManager,
@@ -38,6 +39,7 @@ SHELL_FORM_FIELDS = frozenset(
         "login_startup",
         "theme",
         "language",
+        "interface_mode",
     }
 )
 
@@ -106,8 +108,11 @@ def attach_shell_routes(
     csrf_token = secrets.token_urlsafe(32)
     nonces = MutationNonces()
 
-    def view() -> dict[str, Any]:
-        loaded = manager.load()
+    def view(request: Request) -> dict[str, Any]:
+        loaded = getattr(request.state, "shell_settings_snapshot", None)
+        if loaded is None:
+            loaded = manager.load()
+            request.state.shell_settings_snapshot = loaded
         result = loaded.settings.public_view(warning=loaded.warning)
         result["service"] = {
             "status": "running",
@@ -121,6 +126,7 @@ def attach_shell_routes(
             "windows_tray": installed_windows,
             "login_startup": installed_windows,
             "theme": ["system", "light", "dark"],
+            "interface_mode": ["current", "preview"],
             "preference_transfer": True,
             "authenticode": "unsigned",
             "publisher_authentication": "not_established",
@@ -143,10 +149,11 @@ def attach_shell_routes(
             context=context_factory(
                 request,
                 instance,
-                shell=view(),
+                shell=view(request),
                 editable=editable,
                 csrf_token=csrf_token if editable else None,
                 mutation_nonce=nonces.issue() if editable else None,
+                interface_mutation_nonce=nonces.issue() if editable else None,
                 saved=saved,
                 reset=reset,
                 error_code=error_code,
@@ -154,8 +161,8 @@ def attach_shell_routes(
         )
 
     @app.get("/api/v1/shell")
-    def api_shell() -> dict[str, Any]:
-        return view()
+    def api_shell(request: Request) -> dict[str, Any]:
+        return view(request)
 
     @app.get("/settings/shell")
     def shell_settings_page(request: Request):
@@ -195,8 +202,14 @@ def attach_shell_routes(
         ):
             raise HTTPException(status_code=400, detail="invalid shell settings fields")
         action = values["action"][0]
-        if (
+        if action == "set-interface-mode":
+            if set(values) != {
+                "csrf_token", "mutation_nonce", "revision", "action", "interface_mode"
+            } or values["interface_mode"][0] not in INTERFACE_MODES:
+                raise HTTPException(status_code=400, detail="invalid shell settings fields")
+        elif (
             action not in {"save", "reset-port"}
+            or "interface_mode" in values
             or (
                 action == "save"
                 and not {"port", "theme", "language"}.issubset(values)
@@ -208,14 +221,6 @@ def attach_shell_routes(
             )
         ):
             raise HTTPException(status_code=400, detail="invalid shell settings fields")
-        supplied_token = values.get("csrf_token", [""])[0]
-        if not hmac.compare_digest(supplied_token, csrf_token):
-            raise HTTPException(status_code=403, detail="invalid shell settings token")
-        if not nonces.consume(values.get("mutation_nonce", [""])[0]):
-            raise HTTPException(
-                status_code=409,
-                detail="shell settings request is stale or replayed",
-            )
         revision_text = values["revision"][0]
         if (
             not revision_text
@@ -227,14 +232,29 @@ def attach_shell_routes(
         expected_revision = int(revision_text)
         if expected_revision > MAX_SETTINGS_REVISION:
             raise HTTPException(status_code=400, detail="invalid shell settings revision")
+        supplied_token = values["csrf_token"][0]
+        if not hmac.compare_digest(supplied_token.encode("utf-8"), csrf_token.encode("ascii")):
+            raise HTTPException(status_code=403, detail="invalid shell settings token")
+        if not nonces.consume(values["mutation_nonce"][0]):
+            raise HTTPException(
+                status_code=409,
+                detail="shell settings request is stale or replayed",
+            )
         try:
             if action == "reset-port":
-                manager.reset_port(expected_revision=expected_revision)
+                committed = manager.reset_port(expected_revision=expected_revision)
                 reset = True
+            elif action == "set-interface-mode":
+                committed = manager.set_interface_mode(
+                    values["interface_mode"][0],
+                    expected_revision=expected_revision,
+                    source="local_browser",
+                )
+                reset = False
             elif action == "save":
                 current = manager.load().settings
                 installed_windows = os.name == "nt" and bool(getattr(sys, "frozen", False))
-                manager.configure(
+                committed = manager.configure(
                     port=values.get("port", [str(DEFAULT_LOCAL_PORT)])[0],
                     tray_enabled=values.get("tray_enabled", [""])[0] == "on",
                     login_startup=(
@@ -252,8 +272,7 @@ def attach_shell_routes(
         except (OSError, ShellSettingsError, ValueError) as exc:
             code = getattr(exc, "code", "shell_settings_error")
             return page_context(request, error_code=code, status_code=400)
-        language = values.get("language", ["en"])[0]
-        selected_language = language if language in {"en", "it"} else "en"
+        selected_language = committed.language
         return RedirectResponse(
             url=(
                 f"/settings/shell?lang={selected_language}&status="

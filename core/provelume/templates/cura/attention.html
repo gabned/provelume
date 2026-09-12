@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block title %}{{ t('cura.nav.attention') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<p class="eyebrow">{{ t('cura.nav.overview') }}</p><h1>{{ t('cura.nav.attention') }}</h1>
+<p class="lead">{{ t('cura.attention_boundary') }}</p>
+<section class="panel"><h2>{{ t('cura.operations_attention') }}</h2>{% include 'cura/operation_items.html' %}</section>
+<div class="form-actions"><a class="button secondary" href="/operations?lang={{ lang }}">{{ t('nav.operations') }}</a><a class="button secondary" href="/duplicates?lang={{ lang }}">{{ t('nav.duplicates') }}</a><a class="button secondary" href="/assurance?lang={{ lang }}">{{ t('nav.assurance') }}</a></div>
+{% endblock %}

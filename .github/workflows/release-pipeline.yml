@@ -613,6 +613,7 @@ jobs:
             --mc-type application \
             --output-file "$assembly/provelume-${VERSION}.cdx.json" \
             "$runtime/bin/python"
+          "$runtime/bin/python" -I scripts/augment_asset_sbom.py --sbom "$assembly/provelume-${VERSION}.cdx.json"
           export SBOM_PATH="$assembly/provelume-${VERSION}.cdx.json"
           export SBOM_IDENTITY="https://github.com/gabned/provelume/tree/${SOURCE_COMMIT}#v${VERSION}"
           python - <<'PY'
@@ -718,6 +719,13 @@ jobs:
             --expected-tag "$TAG" \
             --expected-commit "$SOURCE_COMMIT" \
             --json >/dev/null
+          if [ "$CHANNEL" = development ]; then
+            PYTHONPATH=core python -m scripts.publication_dry_run \
+              --work-dir "$RUNNER_TEMP/publication-dry-run"
+          else
+            PYTHONPATH=core python -m scripts.publication_dry_run \
+              --work-dir "$RUNNER_TEMP/publication-dry-run" --bundle "$release"
+          fi
 
       - name: Upload verified release bundle
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

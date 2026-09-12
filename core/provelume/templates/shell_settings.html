@@ -86,6 +86,37 @@
   </form>
   <p class="technical-note">{{ t('shell.local_only') }}</p>
 </section>
+<section class="panel" aria-labelledby="interface-mode-heading">
+  <h2 id="interface-mode-heading">{{ t('shell.interface.title') }}</h2>
+  <p id="interface-mode-help">{{ t('shell.interface.help') }}</p>
+  <p>{{ t('shell.interface.selected') }}: <strong>{{ t('shell.interface.' ~ shell.shell.interface_mode) }}</strong></p>
+  <form id="interface-mode-form" method="post" action="/settings/shell?lang={{ lang }}" class="settings-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="mutation_nonce" value="{{ interface_mutation_nonce }}">
+    <input type="hidden" name="revision" value="{{ shell.revision }}">
+    <input type="hidden" name="action" value="set-interface-mode">
+    <label for="interface-mode"><span>{{ t('shell.interface.choice') }}</span>
+      <select id="interface-mode" name="interface_mode" aria-describedby="interface-mode-help">
+        {% for value in ['current', 'preview'] %}
+        <option value="{{ value }}"{% if shell.shell.interface_mode == value %} selected{% endif %}>{{ t('shell.interface.' ~ value) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">{{ t('shell.interface.save') }}</button>
+  </form>
+  {% if shell.shell.interface_mode_change %}
+  <details>
+    <summary>{{ t('shell.interface.receipt') }}</summary>
+    <dl>
+      <dt>{{ t('shell.revision') }}</dt><dd>{{ shell.shell.interface_mode_change.revision }}</dd>
+      <dt>{{ t('shell.interface.recorded') }}</dt><dd><time datetime="{{ shell.shell.interface_mode_change.recorded_at_utc }}">{{ shell.shell.interface_mode_change.recorded_at_utc }}</time></dd>
+      <dt>{{ t('shell.interface.previous') }}</dt><dd>{{ t('shell.interface.' ~ shell.shell.interface_mode_change['from']) }}</dd>
+      <dt>{{ t('shell.interface.selected') }}</dt><dd>{{ t('shell.interface.' ~ shell.shell.interface_mode_change.to) }}</dd>
+    </dl>
+    <p>{{ t('shell.interface.receipt_help') }}</p>
+  </details>
+  {% endif %}
+</section>
 {% else %}
 <section class="panel"><p class="technical-note">{{ t('shell.remote_readonly') }}</p></section>
 {% endif %}

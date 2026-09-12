@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="{{ lang }}" data-theme="{{ theme }}" class="cura">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ t('brand') }}{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="/static/brand/provelume.svg">
+  <link rel="icon" type="image/x-icon" href="/static/brand/provelume.ico">
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="stylesheet" href="/static/activity.css">
+  <link rel="stylesheet" href="/static/cura.css">
+  <script src="/static/cura-shell.js" integrity="{{ cura_script_integrity }}" crossorigin="anonymous" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">{{ t('common.skip_to_content') }}</a>
+<div class="cura-layout">
+  <header class="cura-sidebar">
+    <a class="brand" href="/?lang={{ lang }}">
+      <img class="brand-mark" src="/static/brand/provelume.svg" width="40" height="40" alt="" aria-hidden="true">
+      <span>{{ t('brand') }}</span><small>{{ t('tagline') }}</small>
+    </a>
+    <details class="cura-navigation" data-cura-navigation open>
+      <summary>{{ icon('menu') }}<span>{{ t('cura.menu') }}</span></summary>
+      <nav aria-label="{{ t('nav.primary') }}">
+        {% for item in cura_navigation %}
+        <a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}>{{ icon(item.icon) }}<span>{{ item.label }}</span></a>
+        {% endfor %}
+      </nav>
+    </details>
+    <div class="cura-sidebar-note"><span class="cura-local-dot" aria-hidden="true"></span>{{ t('cura.local_workspace') }}</div>
+  </header>
+  <div class="cura-workspace">
+    <div class="cura-topbar">
+      <span class="cura-instance">{% if instance is defined %}{{ instance.name }}{% else %}{{ t('brand') }}{% endif %}</span>
+      <div class="cura-topbar-actions">
+        <a class="cura-preview-label" href="/settings/shell?lang={{ lang }}">{{ t('cura.preview') }}</a>
+        <nav class="language" aria-label="{{ t('common.language') }}">
+          <a href="{{ language_urls.en }}" hreflang="en" lang="en"{% if lang == 'en' %} aria-current="true"{% endif %}>EN</a>
+          <span aria-hidden="true">·</span>
+          <a href="{{ language_urls.it }}" hreflang="it" lang="it"{% if lang == 'it' %} aria-current="true"{% endif %}>IT</a>
+        </nav>
+      </div>
+    </div>
+    <main id="main-content" class="page-shell" tabindex="-1">{% block content %}{% endblock %}</main>
+    <footer class="cura-footer">
+      <span>{{ t('footer.local') }}</span>
+      <span class="cura-version">{{ t('brand') }} {{ shell_about.version }} {% set publication = shell_about.publication %}{% include 'cura/new_badge.html' %} · <a href="/about?lang={{ lang }}">{{ t('cura.about') }}</a></span>
+    </footer>
+  </div>
+</div>
+</body>
+</html>

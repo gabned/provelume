@@ -93,6 +93,8 @@ english.EndpointUnavailable=The selected loopback port is occupied or the shell 
 italian.EndpointUnavailable=La porta loopback scelta è occupata o non è stato possibile applicare le impostazioni shell. L'installazione verrà ripristinata; non è stata scelta una porta casuale.
 english.EndpointPreflightUnavailable=The selected loopback port is occupied or could not be validated. Setup will stop before copying files; no random port was selected.
 italian.EndpointPreflightUnavailable=La porta loopback scelta è occupata o non è stato possibile validarla. L'installazione si fermerà prima di copiare file; non è stata scelta una porta casuale.
+english.PublicationImportFailed=The publication receipt could not be imported. Keep the matching original installer and release manifest, repair the offline metadata import, then start Provelume. No publication date was invented.
+italian.PublicationImportFailed=Non è stato possibile importare la ricevuta di pubblicazione. Conserva installer originale e manifest corrispondenti, ripara l'importazione offline dei metadati e avvia Provelume. Non è stata inventata una data di pubblicazione.
 
 [Code]
 var
@@ -187,6 +189,7 @@ var
   LanguageCode: String;
   TrayValue: String;
   LoginValue: String;
+  PublicationReceipt: String;
 begin
   if CurStep <> ssPostInstall then
     exit;
@@ -215,6 +218,23 @@ begin
     begin
       RaiseException(ExpandConstant('{cm:EndpointUnavailable}'));
     end;
+  end;
+  PublicationReceipt := ExpandConstant('{param:PUBLICATIONRECEIPT|}');
+  if PublicationReceipt = '' then
+  begin
+    if FileExists(ExpandConstant('{src}\..\publication\publication-receipt.json')) then
+      PublicationReceipt := ExpandConstant('{src}\..\publication\publication-receipt.json');
+  end;
+  if PublicationReceipt <> '' then
+  begin
+    if (Pos('"', PublicationReceipt) <> 0) or not FileExists(PublicationReceipt) then
+      RaiseException(ExpandConstant('{cm:PublicationImportFailed}'));
+    Arguments := '--import-publication "' + PublicationReceipt +
+      '" --publication-manifest "' + ExpandConstant('{src}\release-manifest.json') +
+      '" --publication-payload "' + ExpandConstant('{srcexe}') + '"';
+    if not Exec(ExpandConstant('{app}\Provelume.exe'), Arguments, '', SW_HIDE,
+      ewWaitUntilTerminated, ExitCode) or (ExitCode <> 0) then
+      RaiseException(ExpandConstant('{cm:PublicationImportFailed}'));
   end;
   Arguments := '--initialize-shell-settings --install-port ' +
     IntToStr(ValidatedInstallPort) +
