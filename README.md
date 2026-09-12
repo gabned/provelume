@@ -429,9 +429,9 @@ Instance content and is never enabled in the background by the Core:
 .venv/bin/provelume check-updates --channel preview
 ```
 
-The published Windows `0.10.0` preview packages the same behavior behind a per-user installer and
+The published Windows `0.10.1` preview packages the same behavior behind a per-user installer and
 EN/IT launcher. Download it only from the official
-[`v0.10.0` prerelease](https://github.com/gabned/provelume/releases/tag/v0.10.0); it remains an
+[`v0.10.1` prerelease](https://github.com/gabned/provelume/releases/tag/v0.10.1); it remains an
 unsigned preview. See the [Windows preview guide](docs/windows-preview.md).
 
 Inspect one Instance's declared network policy and components, also without making a network request:
