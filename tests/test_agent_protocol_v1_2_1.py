@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from tools import agent_protocol as protocol
 
 BASE = "a" * 40
@@ -60,6 +62,15 @@ def make_report(
         credentials_accessed=credentials_accessed,
         production_environment_accessed=production_environment_accessed,
     )
+
+
+def current_pr(*, body: str, base_sha: str = BASE, head_sha: str = HEAD) -> dict[str, object]:
+    return {
+        "number": 46,
+        "body": body,
+        "base": {"sha": base_sha},
+        "head": {"sha": head_sha},
+    }
 
 
 def waiver_body(*, head_sha: str = HEAD, approver_login: str = "gabned") -> str:
@@ -125,6 +136,25 @@ def test_pr_class_is_mandatory_and_closed() -> None:
     invalid = make_report(make_event(workstream_class="MAINTENANCE"), ["AGENTS.md"])
     assert invalid["blocker_codes"] == ["PR_CLASS_INVALID"]
     assert invalid["merge_allowed"] is False
+
+
+def test_current_public_pr_body_is_bound_only_to_the_exact_event_identity() -> None:
+    event = make_event(workstream_class=None)
+    body = "WORKSTREAM_CLASS: PRODUCT\nPROTOCOL_ESCALATION: NONE\n"
+    bound = protocol.bind_current_pr_body(event, current_pr(body=body))
+    assert bound["pull_request"]["body"] == body
+    assert event["pull_request"]["body"] == "PROTOCOL_ESCALATION: NONE\n"
+
+    for mismatch in (
+        current_pr(body=body, base_sha="c" * 40),
+        current_pr(body=body, head_sha="c" * 40),
+        {**current_pr(body=body), "number": 47},
+    ):
+        with pytest.raises(protocol.ContractError, match="does not match"):
+            protocol.bind_current_pr_body(event, mismatch)
+
+    with pytest.raises(protocol.ContractError, match="body must be a string"):
+        protocol.bind_current_pr_body(event, current_pr(body=None))  # type: ignore[arg-type]
 
 
 def test_mixed_scope_guard_fails_closed() -> None:
