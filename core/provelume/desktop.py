@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -36,13 +37,55 @@ from .shell_settings import (
     state_directory,
     validate_port,
 )
-from .updates import UpdateCandidate, UpdateError, check_for_updates, download_update
+from .updates import (
+    SOURCE_REPOSITORY,
+    UpdateCandidate,
+    UpdateError,
+    check_for_updates,
+    download_update,
+)
 from .web import create_app
 from .windows_tray import TRAY_LABELS, TrayState, WindowsTray
 
 SETTINGS_SCHEMA_VERSION = SHELL_SETTINGS_SCHEMA_VERSION
 DESKTOP_DIAGNOSTICS_SCHEMA_VERSION = 2
 MUTEX_NAME = "Local\\ProvelumeDesktop"
+SOURCE_REPOSITORY_URL = f"https://github.com/{SOURCE_REPOSITORY}"
+RELEASES_URL = f"{SOURCE_REPOSITORY_URL}/releases"
+RELEASE_TAG = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+
+
+def public_about_links(about: dict[str, Any]) -> dict[str, str]:
+    """Return only fixed canonical public links derived from validated local identity."""
+
+    links = {
+        "repository": SOURCE_REPOSITORY_URL,
+        "releases": RELEASES_URL,
+    }
+    tag = about.get("tag")
+    if isinstance(tag, str) and RELEASE_TAG.fullmatch(tag):
+        links["installed_release"] = f"{RELEASES_URL}/tag/{tag}"
+    return links
+
+
+def format_update_failure(error: BaseException, text: dict[str, str]) -> str:
+    """Render a bounded localized diagnostic without exposing raw response data."""
+
+    code = getattr(error, "code", "unexpected")
+    detail = text.get(f"update_error_{code}", text["update_error_unexpected"])
+    context: list[str] = []
+    stage = getattr(error, "stage", None)
+    if stage:
+        context.append(text.get(f"update_stage_{stage}", stage))
+    origin = getattr(error, "endpoint_origin", None)
+    if origin in {"https://api.github.com", "https://github.com"}:
+        context.append(origin)
+    status = getattr(error, "http_status", None)
+    if type(status) is int and 400 <= status <= 599:
+        context.append(f"HTTP {status}")
+    code_label = f"{text['diagnostic_code']}: {code}"
+    context.append(code_label)
+    return f"{detail} ({' · '.join(context)})"
 
 
 def load_settings(path: Path | None = None) -> LauncherSettings:
@@ -487,11 +530,36 @@ STRINGS = {
         "current": "This installation is up to date.",
         "available": "Version {version} is available.",
         "failed": "The update check failed: {error}",
+        "diagnostic_code": "diagnostic code",
+        "update_error_rate_limited": "GitHub temporarily limited update requests. Try again later.",
+        "update_error_http_error": "GitHub returned an unexpected response.",
+        "update_error_timeout": "GitHub did not respond in time. Check the connection and retry.",
+        "update_error_tls_error": (
+            "The secure GitHub connection could not be verified. Check the system date, "
+            "certificate inspection, proxy and firewall settings."
+        ),
+        "update_error_dns_error": (
+            "The GitHub host could not be resolved. Check DNS and connectivity."
+        ),
+        "update_error_connection_error": (
+            "GitHub could not be reached. Check connectivity, proxy and firewall settings."
+        ),
+        "update_error_update_error": "The update metadata did not pass validation.",
+        "update_error_unexpected": "The update check stopped for an unexpected local error.",
+        "update_stage_release_catalog": "release catalogue",
+        "update_stage_release_manifest": "release manifest",
+        "update_stage_release_identity": "release identity",
+        "update_stage_installer_download": "installer download",
         "downloading": "Downloading and verifying {version}…",
         "download_ready": "The verified installer is ready.",
         "network_notice": (
-            "This check contacts GitHub Releases. It sends no Instance content. "
-            "Continue?"
+            "Provelume will make a standard HTTPS request to GitHub Releases.\n\n"
+            "Destination: api.github.com and, only for a matching release, github.com\n"
+            "Selected channel (applied locally): {channel}\n"
+            "Purpose: read the release catalogue and verify its public manifest and tag.\n\n"
+            "GitHub receives normal connection metadata and the generic Provelume update-client "
+            "User-Agent. Provelume attaches no Instance content, file names, local paths, "
+            "credentials or telemetry."
         ),
         "unsigned_notice": (
             "This preview installer is not Authenticode-signed. Its size and SHA-256 will be "
@@ -520,10 +588,18 @@ STRINGS = {
         "theme": "Theme",
         "already_running": "Provelume is already running.",
         "about_text": (
-            "Provelume {version}\nChannel: {channel}\nTag: {tag}\nCommit: {commit}\n"
-            "Package: {packaging}\nPlatform signature: {signature}\n\n"
-            "About and version information are read locally."
+            "Provelume {version}\nChannel: {channel}\nPackage: {packaging}\n"
+            "Platform: {platform} · {architecture}\nTag: {tag}\nCommit: {commit}\n"
+            "Build identity: {identity}\nPlatform signature: {signature}\n"
+            "Automatic updates: no\n\n"
+            "These details are read locally. Opening a GitHub link is an explicit network action."
         ),
+        "continue": "Continue",
+        "cancel": "Cancel",
+        "close": "Close",
+        "open_repository": "Open repository",
+        "open_releases": "View releases",
+        "open_installed_release": "View installed release",
     },
     "it": {
         "title": "Provelume Preview",
@@ -553,11 +629,42 @@ STRINGS = {
         "current": "Questa installazione è aggiornata.",
         "available": "È disponibile la versione {version}.",
         "failed": "Controllo aggiornamenti non riuscito: {error}",
+        "diagnostic_code": "codice diagnostico",
+        "update_error_rate_limited": (
+            "GitHub ha limitato temporaneamente le richieste di aggiornamento. Riprova più tardi."
+        ),
+        "update_error_http_error": "GitHub ha restituito una risposta inattesa.",
+        "update_error_timeout": (
+            "GitHub non ha risposto in tempo. Controlla la connessione e riprova."
+        ),
+        "update_error_tls_error": (
+            "Non è stato possibile verificare la connessione sicura a GitHub. Controlla data e "
+            "ora del sistema, ispezione dei certificati, proxy e firewall."
+        ),
+        "update_error_dns_error": (
+            "Non è stato possibile risolvere l'host GitHub. Controlla DNS e connettività."
+        ),
+        "update_error_connection_error": (
+            "GitHub non è raggiungibile. Controlla connettività, proxy e firewall."
+        ),
+        "update_error_update_error": "I metadati di aggiornamento non hanno superato la verifica.",
+        "update_error_unexpected": (
+            "Il controllo si è interrotto per un errore locale imprevisto."
+        ),
+        "update_stage_release_catalog": "catalogo release",
+        "update_stage_release_manifest": "manifest della release",
+        "update_stage_release_identity": "identità della release",
+        "update_stage_installer_download": "download dell'installer",
         "downloading": "Download e verifica della versione {version}…",
         "download_ready": "L'installer verificato è pronto.",
         "network_notice": (
-            "Questo controllo contatta GitHub Releases. Non invia contenuti dell'istanza. "
-            "Continuare?"
+            "Provelume effettuerà una normale richiesta HTTPS a GitHub Releases.\n\n"
+            "Destinazione: api.github.com e, solo per una release compatibile, github.com\n"
+            "Canale selezionato (applicato in locale): {channel}\n"
+            "Scopo: leggere il catalogo e verificare manifest pubblico e tag della release.\n\n"
+            "GitHub riceve i normali metadati di connessione e lo User-Agent generico del client "
+            "di aggiornamento Provelume. Provelume non allega contenuti dell'istanza, nomi di "
+            "file, percorsi locali, credenziali o telemetria."
         ),
         "unsigned_notice": (
             "Questo installer preview non ha ancora firma Authenticode. Dimensione e SHA-256 "
@@ -586,10 +693,18 @@ STRINGS = {
         "theme": "Tema",
         "already_running": "Provelume è già in esecuzione.",
         "about_text": (
-            "Provelume {version}\nCanale: {channel}\nTag: {tag}\nCommit: {commit}\n"
-            "Pacchetto: {packaging}\nFirma di piattaforma: {signature}\n\n"
-            "Le informazioni su versione e prodotto sono lette in locale."
+            "Provelume {version}\nCanale: {channel}\nPacchetto: {packaging}\n"
+            "Piattaforma: {platform} · {architecture}\nTag: {tag}\nCommit: {commit}\n"
+            "Identità build: {identity}\nFirma di piattaforma: {signature}\n"
+            "Aggiornamenti automatici: no\n\n"
+            "Questi dati sono letti in locale. Aprire un link GitHub è un'azione di rete esplicita."
         ),
+        "continue": "Continua",
+        "cancel": "Annulla",
+        "close": "Chiudi",
+        "open_repository": "Apri repository",
+        "open_releases": "Vedi release",
+        "open_installed_release": "Vedi release installata",
     },
 }
 
@@ -1119,18 +1234,15 @@ class DesktopShell:
     def check_updates(self, interactive: bool = True) -> None:
         if not interactive and not startup_update_policy_enabled(self.instance):
             return
-        if interactive:
-            from tkinter import messagebox
-
-            if not messagebox.askyesno("Provelume", self.text["network_notice"]):
-                return
+        channel = self.channel.get()
+        if interactive and not self._confirm_update_check(channel):
+            return
         self.update_generation += 1
         generation = self.update_generation
         self.candidate = None
         self.update_status.set(self.text["checking"])
         self.download_button.configure(state="disabled")
         self.check_button.configure(state="disabled")
-        channel = self.channel.get()
         threading.Thread(
             target=self._check_updates_worker,
             args=(channel, generation),
@@ -1149,11 +1261,10 @@ class DesktopShell:
                 else None
             )
         except (OSError, UpdateError, TypeError, ValueError) as exc:
-            message = str(exc)
             if not self.closed:
                 self.root.after(
                     0,
-                    lambda: self._update_failed(message, generation, channel),
+                    lambda error=exc: self._update_failed(error, generation, channel),
                 )
             return
         if not self.closed:
@@ -1176,11 +1287,12 @@ class DesktopShell:
         self.download_button.configure(state="disabled")
         self.check_button.configure(state="normal")
 
-    def _update_failed(self, error: str, generation: int, channel: str) -> None:
+    def _update_failed(self, error: BaseException, generation: int, channel: str) -> None:
         if not self._is_current_update_request(generation, channel):
             return
         self.candidate = None
-        self.update_status.set(self.text["failed"].format(error=error))
+        detail = format_update_failure(error, self.text)
+        self.update_status.set(self.text["failed"].format(error=detail))
         self.download_button.configure(state="disabled")
         self.check_button.configure(state="normal")
 
@@ -1227,11 +1339,10 @@ class DesktopShell:
             destination = state_directory() / "updates" / candidate.version
             path = download_update(candidate, destination)
         except (OSError, UpdateError) as exc:
-            message = str(exc)
             if not self.closed:
                 self.root.after(
                     0,
-                    lambda: self._update_failed(message, generation, channel),
+                    lambda error=exc: self._update_failed(error, generation, channel),
                 )
             return
         if not self.closed:
@@ -1262,20 +1373,113 @@ class DesktopShell:
         subprocess.Popen([str(path)], cwd=str(path.parent))
         self.close()
 
-    def show_about(self) -> None:
-        from tkinter import messagebox
+    def _show_local_modal(
+        self,
+        *,
+        title: str,
+        body: str,
+        links: list[tuple[str, str]],
+        confirm: bool,
+    ) -> bool:
+        dialog = self.tk.Toplevel(self.root)
+        dialog.title(title)
+        dialog.transient(self.root)
+        dialog.resizable(False, False)
+        icon = _versioned_icon_path()
+        if icon is not None and os.name == "nt":
+            with suppress(self.tk.TclError):
+                dialog.iconbitmap(default=str(icon))
 
+        frame = self.ttk.Frame(dialog, padding=20)
+        frame.pack(fill="both", expand=True)
+        self.ttk.Label(
+            frame,
+            text=body,
+            wraplength=520,
+            justify="left",
+        ).pack(anchor="w")
+
+        if links:
+            link_row = self.ttk.Frame(frame)
+            link_row.pack(fill="x", pady=(16, 0))
+            for label, url in links:
+                self.ttk.Button(
+                    link_row,
+                    text=label,
+                    command=lambda selected=url: webbrowser.open(selected),
+                ).pack(side="left", padx=(0, 8))
+
+        result = False
+
+        def finish(value: bool) -> None:
+            nonlocal result
+            result = value
+            dialog.destroy()
+
+        action_row = self.ttk.Frame(frame)
+        action_row.pack(fill="x", pady=(18, 0))
+        if confirm:
+            cancel = self.ttk.Button(
+                action_row,
+                text=self.text["cancel"],
+                command=lambda: finish(False),
+            )
+            cancel.pack(side="right")
+            primary = self.ttk.Button(
+                action_row,
+                text=self.text["continue"],
+                command=lambda: finish(True),
+            )
+            primary.pack(side="right", padx=(0, 8))
+            dialog.bind("<Return>", lambda _event: finish(True))
+        else:
+            primary = self.ttk.Button(
+                action_row,
+                text=self.text["close"],
+                command=lambda: finish(False),
+            )
+            primary.pack(side="right")
+        dialog.bind("<Escape>", lambda _event: finish(False))
+        dialog.protocol("WM_DELETE_WINDOW", lambda: finish(False))
+        dialog.grab_set()
+        primary.focus_set()
+        self.root.wait_window(dialog)
+        return result
+
+    def _confirm_update_check(self, channel: str) -> bool:
+        return self._show_local_modal(
+            title=self.text["updates"],
+            body=self.text["network_notice"].format(channel=channel),
+            links=[(self.text["open_releases"], RELEASES_URL)],
+            confirm=True,
+        )
+
+    def show_about(self) -> None:
         about = current_about()
-        messagebox.showinfo(
-            self.text["about"],
-            self.text["about_text"].format(
+        links = public_about_links(about)
+        actions = [
+            (self.text["open_repository"], links["repository"]),
+            (self.text["open_releases"], links["releases"]),
+        ]
+        if "installed_release" in links:
+            actions.append(
+                (self.text["open_installed_release"], links["installed_release"])
+            )
+        self._show_local_modal(
+            title=self.text["about"],
+            body=self.text["about_text"].format(
                 version=about["version"],
                 channel=about["channel"],
                 tag=about["tag"] or "—",
                 commit=about["commit"] or "—",
                 packaging=about["runtime"]["packaging"],
+                platform=about["runtime"]["platform"],
+                architecture=about["runtime"]["architecture"],
+                identity=about["build_identity_status"],
                 signature=about["updates"]["platform_signature"],
             ),
+            links=actions,
+            confirm=False,
         )
 
     def close(self) -> None:
