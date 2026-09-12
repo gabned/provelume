@@ -138,6 +138,18 @@ def test_pr_class_is_mandatory_and_closed() -> None:
     assert invalid["merge_allowed"] is False
 
 
+def test_pr_markers_accept_github_api_crlf_bodies() -> None:
+    event = make_event()
+    event["pull_request"]["body"] = (
+        "WORKSTREAM_CLASS: PRODUCT\r\nPROTOCOL_ESCALATION: NONE\r\n"
+    )
+    report = make_report(event, ["core/provelume/cli.py"])
+    assert report["workstream_class"] == "PRODUCT"
+    assert report["protocol_escalation"] == "NONE"
+    assert report["blocker_codes"] == []
+    assert report["merge_allowed"] is True
+
+
 def test_current_public_pr_body_is_bound_only_to_the_exact_event_identity() -> None:
     event = make_event(workstream_class=None)
     body = "WORKSTREAM_CLASS: PRODUCT\nPROTOCOL_ESCALATION: NONE\n"
