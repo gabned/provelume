@@ -4,6 +4,11 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+- Corrected the Core/Windows brand to the existing navy, blue and gold public
+  Provelume mark. SVG, nine PNG sizes and ICO now derive from one source and ship
+  in the wheel; Windows package checks bind complete executable icon resources.
+  The permanent upgrade qualification now uses the immutable published `0.10.0`.
+
 - Fixed Gmail intake on Windows failing to promote message evidence at long
   filesystem paths. Native I/O uses extended Windows paths while stored references
   remain portable and containment checks stay enforced. Email commit errors now

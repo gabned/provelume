@@ -78,6 +78,8 @@ try {
     if (-not (Test-Path $Executable)) {
         throw "PyInstaller did not produce Provelume.exe."
     }
+    & (Join-Path $SourceRoot "scripts\verify_windows_brand.ps1") `
+        -Artifact $Executable -CanonicalIcon $Icon | Out-Null
     $ExecutableVersion = (Get-Item -LiteralPath $Executable).VersionInfo
     if (
         $ExecutableVersion.ProductName -ne "Provelume" -or
@@ -113,6 +115,7 @@ try {
         -not $Identity.frozen -or
         $Identity.network_used -or
         $Identity.windows_identity.icon.status -ne "versioned_asset" -or
+        $Identity.windows_identity.icon.sha256 -ne (Get-FileHash -LiteralPath $Icon -Algorithm SHA256).Hash.ToLowerInvariant() -or
         $Identity.windows_identity.icon.sizes.Count -ne 9
     ) {
         throw "Frozen desktop diagnostics do not match the offline contract."
@@ -140,6 +143,8 @@ try {
     if (-not (Test-Path $Installer)) {
         throw "Inno Setup did not produce the expected installer."
     }
+    & (Join-Path $SourceRoot "scripts\verify_windows_brand.ps1") `
+        -Artifact $Installer -CanonicalIcon $Icon | Out-Null
     & (Join-Path $SourceRoot "scripts\verify_windows_signature.ps1") `
         -Artifact $Installer -AllowUnsignedDevelopment | Out-Null
     if ($LASTEXITCODE -ne 0) {

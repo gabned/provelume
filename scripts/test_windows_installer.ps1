@@ -18,9 +18,9 @@ $ExpectedAppIdKey = "{E41A426B-F5FC-473F-A096-875017656A31}_is1"
 if ([string]::IsNullOrWhiteSpace($PreviousInstaller)) {
     $PreviousInstaller = Join-Path (
         Split-Path $InstallerPath -Parent
-    ) "Provelume-Setup-0.9.0-public.exe"
+    ) "Provelume-Setup-0.10.0-public.exe"
     Invoke-WebRequest `
-        -Uri "https://github.com/gabned/provelume/releases/download/v0.9.0/Provelume-Setup-0.9.0-x64.exe" `
+        -Uri "https://github.com/gabned/provelume/releases/download/v0.10.0/Provelume-Setup-0.10.0-x64.exe" `
         -OutFile $PreviousInstaller
 }
 $PreviousInstallerPath = (Resolve-Path $PreviousInstaller).Path
@@ -80,6 +80,14 @@ $ApprovedPreviousBaselines = @(
         sha256 = "e94c0722a92179c00d93db61f1aa5f3aab565f56d8382651471b3778dd503d68"
         wheel_size = 643901
         wheel_sha256 = "50eca9dc67672c79aa5570de0cad1454546d75a2b3fe5d6edae600bf73a5488f"
+    },
+    @{
+        version = "0.10.0"
+        commit = "72099ac35d2430c0de221fc9bfaca88942c9e883"
+        size = 19430710
+        sha256 = "c197f021a0c45512eb760a83e59f177ce22d946e0239ddf311296b6c7dc0e954"
+        wheel_size = 785803
+        wheel_sha256 = "31c10a4f0b1ab93f16321d343800f000c41163b38fa28cab15a82715058f9860"
     }
 )
 $IdentifiedBaseline = $ApprovedPreviousBaselines |
@@ -492,6 +500,11 @@ try {
     # Install the candidate over the public baseline. The stable AppId must replace one product.
     Install-Provelume -Setup $InstallerPath -Directory $InstallRoot
     Assert-SingleProductRegistration -ExpectedInstallRoot $InstallRoot
+    $BrandScript = Join-Path $PSScriptRoot "verify_windows_brand.ps1"
+    $CanonicalIcon = Join-Path (Split-Path $PSScriptRoot -Parent) "assets\windows\provelume.ico"
+    foreach ($Artifact in @($Executable, $InstallerPath, (Join-Path $InstallRoot "unins000.exe"))) {
+        & $BrandScript -Artifact $Artifact -CanonicalIcon $CanonicalIcon | Out-Null
+    }
     $ManifestChangedByInstaller = if ($BaselineRequiresMigration) {
         Test-Path $InstanceManifest
     }
@@ -897,6 +910,7 @@ try {
             start_and_optional_desktop_shortcuts = "PASS"
             published_baseline_identity = "PASS"
             in_place_upgrade_and_single_app_id = "PASS"
+            canonical_brand_resources_after_public_upgrade = "PASS"
             launcher_settings_preserved = "PASS"
             instance_originals_canonical_knowledge_and_state_preserved = "PASS"
             instance_schema_compatibility = "PASS"
