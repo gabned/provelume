@@ -570,6 +570,13 @@ def test_en_it_launcher_copy_covers_every_transient_state() -> None:
         assert required <= STRINGS[language].keys()
         assert all(STRINGS[language][key].strip() for key in required)
         assert STRINGS[language]["network_notice"] != STRINGS[language]["install_notice"]
+        for host in (
+            "api.github.com",
+            "github.com",
+            "objects.githubusercontent.com",
+            "release-assets.githubusercontent.com",
+        ):
+            assert host in STRINGS[language]["network_notice"]
 
 
 @pytest.mark.skipif(os.name != "nt", reason="named Windows mutex")
