@@ -377,7 +377,10 @@ def test_0_10_1_correction_forecast_is_bounded_and_actionable() -> None:
     section = roadmap.split(
         "### 0.10.1 — Source Onboarding, Filtering and Canonical Brand Correction",
         1,
-    )[1].split("### 0.11.0 — Daily-use UX, Unified Capture, Action Center and Multilingual Interface", 1)[0]
+    )[1].split(
+        "### 0.11.0 — Daily-use UX, Unified Capture, Action Center and Multilingual Interface",
+        1,
+    )[0]
 
     for required_contract in (
         "[#198](https://github.com/gabned/provelume/issues/198)",
