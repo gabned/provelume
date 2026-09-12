@@ -135,6 +135,41 @@ def _validated_https_url(value: object) -> str:
     return url
 
 
+def _endpoint_origin(url: str) -> str:
+    return f"https://{urllib.parse.urlsplit(url).hostname}"
+
+
+def _transport_error(error: BaseException, endpoint_origin: str) -> UpdateError:
+    if isinstance(error, urllib.error.HTTPError):
+        if error.code in {403, 429}:
+            return UpdateError(
+                "GitHub temporarily limited the update request",
+                code="rate_limited",
+                endpoint_origin=endpoint_origin,
+                http_status=error.code,
+            )
+        return UpdateError(
+            "the update service returned an HTTP error",
+            code="http_error",
+            endpoint_origin=endpoint_origin,
+            http_status=error.code,
+        )
+    reason = error.reason if isinstance(error, urllib.error.URLError) else error
+    if isinstance(reason, TimeoutError):
+        code = "timeout"
+        message = "the update service request timed out"
+    elif isinstance(reason, ssl.SSLError) or "CERTIFICATE_VERIFY_FAILED" in str(reason):
+        code = "tls_error"
+        message = "the secure connection to the update service could not be verified"
+    elif isinstance(reason, socket.gaierror):
+        code = "dns_error"
+        message = "the GitHub update host could not be resolved"
+    else:
+        code = "connection_error"
+        message = "the update service could not be reached"
+    return UpdateError(message, code=code, endpoint_origin=endpoint_origin)
+
+
 class _RestrictedRedirectHandler(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, file_pointer, code, message, headers, new_url):
         _validated_https_url(new_url)
@@ -155,7 +190,7 @@ class SafeHttpsClient:
 
     def _open(self, url: str, *, accept: str):
         safe_url = _validated_https_url(url)
-        endpoint_origin = f"https://{urllib.parse.urlsplit(safe_url).hostname}"
+        endpoint_origin = _endpoint_origin(safe_url)
         request = urllib.request.Request(
             safe_url,
             headers={
@@ -166,61 +201,17 @@ class SafeHttpsClient:
         )
         try:
             response = self._opener.open(request, timeout=self.timeout_seconds)
-        except urllib.error.HTTPError as exc:
-            if exc.code in {403, 429}:
-                raise UpdateError(
-                    "GitHub temporarily limited the update request",
-                    code="rate_limited",
-                    endpoint_origin=endpoint_origin,
-                    http_status=exc.code,
-                ) from exc
-            raise UpdateError(
-                "the update service returned an HTTP error",
-                code="http_error",
-                endpoint_origin=endpoint_origin,
-                http_status=exc.code,
-            ) from exc
-        except TimeoutError as exc:
-            raise UpdateError(
-                "the update service request timed out",
-                code="timeout",
-                endpoint_origin=endpoint_origin,
-            ) from exc
-        except ssl.SSLError as exc:
-            raise UpdateError(
-                "the secure connection to the update service could not be verified",
-                code="tls_error",
-                endpoint_origin=endpoint_origin,
-            ) from exc
-        except urllib.error.URLError as exc:
-            reason = exc.reason
-            if isinstance(reason, TimeoutError):
-                code = "timeout"
-                message = "the update service request timed out"
-            elif isinstance(reason, ssl.SSLError) or "CERTIFICATE_VERIFY_FAILED" in str(reason):
-                code = "tls_error"
-                message = "the secure connection to the update service could not be verified"
-            elif isinstance(reason, socket.gaierror):
-                code = "dns_error"
-                message = "the GitHub update host could not be resolved"
-            else:
-                code = "connection_error"
-                message = "the update service could not be reached"
-            raise UpdateError(
-                message,
-                code=code,
-                endpoint_origin=endpoint_origin,
-            ) from exc
-        except OSError as exc:
-            raise UpdateError(
-                "the update service could not be reached",
-                code="connection_error",
-                endpoint_origin=endpoint_origin,
-            ) from exc
+        except (OSError, urllib.error.URLError) as exc:
+            raise _transport_error(exc, endpoint_origin) from exc
         _validated_https_url(response.geturl())
         if getattr(response, "status", 200) != 200:
             response.close()
-            raise UpdateError("update service returned a non-success response")
+            raise UpdateError(
+                "update service returned a non-success response",
+                code="http_error",
+                endpoint_origin=endpoint_origin,
+                http_status=getattr(response, "status", None),
+            )
         return response
 
     @staticmethod
@@ -236,9 +227,13 @@ class SafeHttpsClient:
             raise UpdateError("update response exceeds its safety limit")
 
     def get_json(self, url: str, *, maximum_bytes: int) -> Any:
+        endpoint_origin = _endpoint_origin(_validated_https_url(url))
         with self._open(url, accept="application/vnd.github+json, application/json") as response:
             self._declared_length(response, maximum_bytes)
-            payload = response.read(maximum_bytes + 1)
+            try:
+                payload = response.read(maximum_bytes + 1)
+            except (OSError, urllib.error.URLError) as exc:
+                raise _transport_error(exc, endpoint_origin) from exc
         if len(payload) > maximum_bytes:
             raise UpdateError("update JSON exceeds its safety limit")
         try:
@@ -261,6 +256,7 @@ class SafeHttpsClient:
             raise UpdateError("installer SHA-256 is invalid")
         destination = destination.resolve()
         destination.parent.mkdir(parents=True, exist_ok=True)
+        endpoint_origin = _endpoint_origin(_validated_https_url(url))
         digest = hashlib.sha256()
         written = 0
         temporary_name: str | None = None
@@ -276,7 +272,13 @@ class SafeHttpsClient:
                 ) as temporary:
                     temporary_name = temporary.name
                     while True:
-                        chunk = response.read(1024 * 1024)
+                        try:
+                            chunk = response.read(1024 * 1024)
+                        except (OSError, urllib.error.URLError) as exc:
+                            raise _transport_error(
+                                exc,
+                                endpoint_origin,
+                            ) from exc
                         if not chunk:
                             break
                         written += len(chunk)
@@ -447,17 +449,30 @@ def select_update_candidate(
     for version, release in sorted(eligible, key=lambda row: row[0], reverse=True):
         release_channel = "preview" if release["prerelease"] else "stable"
         tag = f"v{version}"
-        assets = _release_assets(release.get("assets"))
+        try:
+            assets = _release_assets(release.get("assets"))
+        except UpdateError as exc:
+            raise exc.at_stage("release_catalog") from exc
         manifest_asset = assets.get(UPDATE_MANIFEST_NAME)
         if manifest_asset is None:
             continue
-        manifest = _windows_manifest(
-            fetch_manifest(manifest_asset.url),
-            version=str(version),
-            tag=tag,
-            channel=release_channel,
-        )
-        tag_commit = resolve_tag_commit(tag)
+        try:
+            manifest = _windows_manifest(
+                fetch_manifest(manifest_asset.url),
+                version=str(version),
+                tag=tag,
+                channel=release_channel,
+            )
+        except UpdateError as exc:
+            if exc.stage == "release_manifest":
+                raise
+            raise exc.at_stage("release_manifest") from exc
+        try:
+            tag_commit = resolve_tag_commit(tag)
+        except UpdateError as exc:
+            if exc.stage == "release_identity":
+                raise
+            raise exc.at_stage("release_identity") from exc
         if FULL_COMMIT.fullmatch(tag_commit) is None:
             raise UpdateError("release tag commit is invalid")
         if manifest["commit"] != tag_commit:
@@ -513,9 +528,9 @@ def check_for_updates(
                 f"{TAG_COMMIT_API}/{tag}",
                 maximum_bytes=MAX_TAG_COMMIT_BYTES,
             )
+            return _resolved_tag_commit(value)
         except UpdateError as exc:
             raise exc.at_stage("release_identity") from exc
-        return _resolved_tag_commit(value)
 
     candidate = select_update_candidate(
         releases,
