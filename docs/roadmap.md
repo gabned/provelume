@@ -1825,7 +1825,38 @@ recovery; uninstall that preserves the Instance; and a final desktop support mat
 
 Windows retains migration from the `0.4.0` preview installation, matures the bounded `0.10.1`
 UNC/network-share enrollment and the
-`0.11.0` minimal tray preferences, then matures them into a fully qualified per-user background agent and tray surface, with an explicitly qualified elevated-service option only if needed.
+`0.11.0` minimal tray preferences, then matures them into a fully qualified per-user background
+agent and tray surface, with an explicitly qualified elevated-service option only if needed.
+[Planning #259](https://github.com/gabned/provelume/issues/259) owns the accepted addition without
+expanding the active Cura train.
+
+The Windows agent supports explicitly configured, OS-accessible UNC Folder Sources and mapped
+drives visible to the same user/session. Enrollment preflights reachability, required read/write
+access, permissions and supported path/filesystem semantics; temporary loss, permission failure
+and session-unavailable states pause only dependent work and remain actionable. Reconnect and
+rescan preserve Source identity and never infer deletion, archive or reclassification from an
+unavailable share. Provelume does not discover shares, implement an SMB/NFS client, mount them
+silently, change network settings or store share credentials in canonical state, logs, diagnostics,
+backups or exports. The live Instance/database remains on qualified local storage unless a later
+explicit profile proves remote locking, atomic replacement, latency and disconnect recovery.
+A configured network location may instead be a watched intake Source or a separately qualified
+destination for a rebuildable human-readable library/export projection.
+
+The Windows tray adds a compact `Folders` view for the selected Instance. It identifies
+`Incoming / Drop folder — Put new files here`, `Library — Final organized files`,
+`Originals — Provelume-managed source files` and, under details, `Application data`. Each entry
+shows a friendly name, shortened path, local/network kind and availability, with deliberate
+Open folder, Copy path and Manage Sources actions. Originals, canonical state, cache and temporary
+work are never presented as manual drop/edit destinations. Multiple Sources or Instances remain
+distinct; the tray exposes bounded defaults plus `View all folders…` rather than inventing one
+final location. Full paths appear only on deliberate reveal/copy, filenames and content remain
+hidden, and tray state derives from the authoritative Source/Instance/job model.
+
+The same vocabulary and destinations appear in first-run guidance,
+`Management > Sources & Connectors` and `Settings > Storage & folders`. Missing configuration
+offers one setup action; an unavailable share never blocks unrelated local Sources. All folder
+status and actions remain local and make no GitHub, telemetry or other cloud request.
+
 macOS adds an application/menu-bar surface and per-user LaunchAgent, Keychain
 credential references, explicit selected-folder access, removable/network-volume handling and an
 Apple Silicon baseline; any Intel support remains an explicit matrix entry rather than an
@@ -1841,11 +1872,20 @@ the scheduler's bounded missed-run and checkpoint contracts.
 
 **Exit gate:** install/use/uninstall, login-start, pause/resume, sleep/wake, network-volume loss and
 failure-recovery fixtures pass on supported Windows and macOS targets without duplicate
-processing, hidden network activity or deletion of user knowledge.
+processing, hidden network activity or deletion of user knowledge. Windows UNC and mapped-drive
+tests cover user-session visibility, reboot, permission loss/recovery and same-path reconnect;
+tray actions resolve the exact selected Instance/Source, distinguish Incoming, Library, Originals
+and application data, and do not disclose credentials, filenames or content.
 
 **Suggested slices:** complete shared launcher/bootstrap recovery before adding platform agents;
-then qualify Windows startup/tray/optional-service and macOS app/menu-bar/LaunchAgent behavior in
-separate slices before cross-platform recovery fixtures.
+then qualify Windows startup/tray/optional-service, Windows network Sources and the tray folder
+guide, and macOS app/menu-bar/LaunchAgent behavior in separate slices before cross-platform
+recovery fixtures.
+
+**Planning metadata:** `MERGE_WITH_CURRENT`; `BUSINESS_IMPACT: MATERIAL`;
+`SURFACE_IDENTIFIERS: Windows tray > Folders | Management > Sources & Connectors | Settings > Storage & folders`;
+`NETWORK_DEFAULT: EXPLICIT_CONFIGURED_PATHS_ONLY`; rollback disables the network Source or folder
+shortcuts without changing canonical knowledge.
 
 ### 0.21.0 — Signed Desktop Releases and Safe Updaters
 
