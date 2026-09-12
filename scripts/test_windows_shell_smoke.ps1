@@ -273,6 +273,32 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
         throw "A Windows executable is missing an associated icon resource."
     }
     $Evidence.checks.executable_installer_uninstaller_identity = "PASS"
+    $CanonicalIcon = Join-Path $SourceRoot "assets\windows\provelume.ico"
+    foreach ($BrandArtifact in @($Executable, $InstallerPath, $Uninstaller)) {
+        & (Join-Path $SourceRoot "scripts\verify_windows_brand.ps1") `
+            -Artifact $BrandArtifact -CanonicalIcon $CanonicalIcon | Out-Null
+    }
+    $Evidence.checks.canonical_nine_size_executable_installer_uninstaller_resources = "PASS"
+    $Evidence.canonical_icon_sha256 = (Get-FileHash -LiteralPath $CanonicalIcon -Algorithm SHA256).Hash.ToLowerInvariant()
+    foreach ($Associated in @($ApplicationIcon, $InstallerIcon, $UninstallerIcon)) {
+        $ExpectedIcon = [System.Drawing.Icon]::new($CanonicalIcon, $Associated.Size)
+        $ExpectedBitmap = $ExpectedIcon.ToBitmap()
+        $ObservedBitmap = $Associated.ToBitmap()
+        try {
+            if ($ExpectedBitmap.Size -ne $ObservedBitmap.Size) { throw "Associated icon size differs." }
+            for ($Y = 0; $Y -lt $ExpectedBitmap.Height; $Y++) {
+                for ($X = 0; $X -lt $ExpectedBitmap.Width; $X++) {
+                    $ExpectedPixel = $ExpectedBitmap.GetPixel($X, $Y)
+                    $ObservedPixel = $ObservedBitmap.GetPixel($X, $Y)
+                    if ($ExpectedPixel.A -ne $ObservedPixel.A -or (
+                        $ExpectedPixel.A -ne 0 -and $ExpectedPixel.ToArgb() -ne $ObservedPixel.ToArgb()
+                    )) { throw "Windows associated icon still displays a different brand." }
+                }
+            }
+        }
+        finally { $ExpectedIcon.Dispose(); $ExpectedBitmap.Dispose(); $ObservedBitmap.Dispose() }
+    }
+    $Evidence.checks.associated_icon_pixels_match_canonical_brand = "PASS"
 
     $StartMenu = [Environment]::GetFolderPath("Programs")
     $Desktop = [Environment]::GetFolderPath("Desktop")
@@ -311,6 +337,7 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
         $Diagnostics.windows_identity.authenticode -ne "unsigned" -or
         $Diagnostics.windows_identity.icon.status -ne "versioned_asset" -or
         $Diagnostics.windows_identity.icon.sizes.Count -ne 9 -or
+        $Diagnostics.windows_identity.icon.sha256 -ne $Evidence.canonical_icon_sha256 -or
         $Diagnostics.network_used
     ) {
         throw "Installed shell diagnostics do not match exact-head identity."

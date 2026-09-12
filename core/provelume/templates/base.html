@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ t('brand') }}{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="/static/brand/provelume.svg">
+  <link rel="icon" type="image/x-icon" href="/static/brand/provelume.ico">
   <link rel="stylesheet" href="/static/app.css">
   <link rel="stylesheet" href="/static/activity.css">
 </head>
@@ -11,6 +13,7 @@
   <a class="skip-link" href="#main-content">{{ t('common.skip_to_content') }}</a>
   <header class="site-header">
     <a class="brand" href="/?lang={{ lang }}">
+      <img class="brand-mark" src="/static/brand/provelume.svg" width="40" height="40" alt="" aria-hidden="true">
       <span>{{ t('brand') }}</span>
       <small>{{ t('tagline') }}</small>
     </a>

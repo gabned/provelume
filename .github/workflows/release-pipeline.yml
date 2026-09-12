@@ -413,30 +413,30 @@ jobs:
             -Channel "${{ needs.candidate.outputs.channel }}" `
             -Commit "${{ needs.candidate.outputs.commit }}"
 
-      - name: Download and verify the published 0.9.0 upgrade baseline
+      - name: Download and verify the published 0.10.0 upgrade baseline
         shell: pwsh
         run: |
-          $baseline = "$env:RUNNER_TEMP\Provelume-Setup-0.9.0-public.exe"
+          $baseline = "$env:RUNNER_TEMP\Provelume-Setup-0.10.0-public.exe"
           Invoke-WebRequest `
-            -Uri "https://github.com/gabned/provelume/releases/download/v0.9.0/Provelume-Setup-0.9.0-x64.exe" `
+            -Uri "https://github.com/gabned/provelume/releases/download/v0.10.0/Provelume-Setup-0.10.0-x64.exe" `
             -OutFile $baseline
-          if ((Get-Item $baseline).Length -ne 19161550) {
-            throw "Published 0.9.0 installer size differs from the reviewed baseline."
+          if ((Get-Item $baseline).Length -ne 19430710) {
+            throw "Published 0.10.0 installer size differs from the reviewed baseline."
           }
           $hash = (Get-FileHash $baseline -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($hash -ne "e94c0722a92179c00d93db61f1aa5f3aab565f56d8382651471b3778dd503d68") {
-            throw "Published 0.9.0 installer SHA-256 differs from the reviewed baseline."
+          if ($hash -ne "c197f021a0c45512eb760a83e59f177ce22d946e0239ddf311296b6c7dc0e954") {
+            throw "Published 0.10.0 installer SHA-256 differs from the reviewed baseline."
           }
-          $wheel = "$env:RUNNER_TEMP\provelume-0.9.0-py3-none-any.whl"
+          $wheel = "$env:RUNNER_TEMP\provelume-0.10.0-py3-none-any.whl"
           Invoke-WebRequest `
-            -Uri "https://github.com/gabned/provelume/releases/download/v0.9.0/provelume-0.9.0-py3-none-any.whl" `
+            -Uri "https://github.com/gabned/provelume/releases/download/v0.10.0/provelume-0.10.0-py3-none-any.whl" `
             -OutFile $wheel
-          if ((Get-Item $wheel).Length -ne 643901) {
-            throw "Published 0.9.0 wheel size differs from the reviewed baseline."
+          if ((Get-Item $wheel).Length -ne 785803) {
+            throw "Published 0.10.0 wheel size differs from the reviewed baseline."
           }
           $wheelHash = (Get-FileHash $wheel -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($wheelHash -ne "50eca9dc67672c79aa5570de0cad1454546d75a2b3fe5d6edae600bf73a5488f") {
-            throw "Published 0.9.0 wheel SHA-256 differs from the reviewed baseline."
+          if ($wheelHash -ne "31c10a4f0b1ab93f16321d343800f000c41163b38fa28cab15a82715058f9860") {
+            throw "Published 0.10.0 wheel SHA-256 differs from the reviewed baseline."
           }
           "PROVELUME_PREVIOUS_INSTALLER=$baseline" | Out-File `
             -FilePath $env:GITHUB_ENV -Append

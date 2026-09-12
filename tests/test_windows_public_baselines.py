@@ -74,21 +74,21 @@ def test_windows_upgrade_uses_immutable_public_installer_baselines() -> None:
         'wheel_sha256 = "50eca9dc67672c79aa5570de0cad1454546d75a2b3fe5d6edae600bf73a5488f"'
         in text
     )
-    assert 'releases/download/v0.9.0/Provelume-Setup-0.9.0-x64.exe' in text
+    assert 'releases/download/v0.10.0/Provelume-Setup-0.10.0-x64.exe' in text
     assert 'provelume-$($IdentifiedBaseline.version)-py3-none-any.whl' in text
 
 
 def test_release_pipeline_uses_latest_immutable_public_installer() -> None:
     text = PIPELINE.read_text(encoding="utf-8")
 
-    assert "published 0.9.0 upgrade baseline" in text
-    assert 'Provelume-Setup-0.9.0-public.exe' in text
-    assert 'releases/download/v0.9.0/Provelume-Setup-0.9.0-x64.exe' in text
-    assert "Length -ne 19161550" in text
-    assert "e94c0722a92179c00d93db61f1aa5f3aab565f56d8382651471b3778dd503d68" in text
-    assert 'provelume-0.9.0-py3-none-any.whl' in text
-    assert "Length -ne 643901" in text
-    assert "50eca9dc67672c79aa5570de0cad1454546d75a2b3fe5d6edae600bf73a5488f" in text
+    assert "published 0.10.0 upgrade baseline" in text
+    assert 'Provelume-Setup-0.10.0-public.exe' in text
+    assert 'releases/download/v0.10.0/Provelume-Setup-0.10.0-x64.exe' in text
+    assert "Length -ne 19430710" in text
+    assert "c197f021a0c45512eb760a83e59f177ce22d946e0239ddf311296b6c7dc0e954" in text
+    assert 'provelume-0.10.0-py3-none-any.whl' in text
+    assert "Length -ne 785803" in text
+    assert "31c10a4f0b1ab93f16321d343800f000c41163b38fa28cab15a82715058f9860" in text
 
 
 def test_windows_upgrade_proves_schema_compatibility_for_public_baselines() -> None:

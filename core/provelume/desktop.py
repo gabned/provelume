@@ -404,6 +404,7 @@ def _configure_windows_identity() -> str:
 
 def _versioned_icon_path() -> Path | None:
     candidates = [
+        Path(__file__).resolve().parent / "static" / "brand" / "provelume.ico",
         Path(getattr(sys, "_MEIPASS", "")) / "assets" / "provelume.ico",
         Path(__file__).resolve().parents[2] / "assets" / "windows" / "provelume.ico",
         Path(sys.executable).with_name("provelume.ico"),
@@ -701,6 +702,11 @@ class DesktopShell:
         self.scroll_canvas = canvas
 
         title = ttk.Label(outer, text="Provelume", font=("Segoe UI", 24, "bold"))
+        brand_png = Path(__file__).resolve().parent / "static" / "brand" / "provelume-48.png"
+        if brand_png.is_file():
+            with suppress(self.tk.TclError):
+                self.brand_image = self.tk.PhotoImage(file=str(brand_png))
+                title.configure(image=self.brand_image, compound="left", padding=(0, 0, 8, 0))
         title.pack(anchor="w")
         ttk.Label(outer, text=self.text["tagline"]).pack(anchor="w", pady=(0, 20))
 
