@@ -145,7 +145,10 @@ def test_public_roadmap_activates_four_bounded_emendatio_slices() -> None:
     section = text.split(
         "### 0.10.1 — Source Onboarding, Filtering and Canonical Brand Correction",
         1,
-    )[1].split("### 0.11.0 — Daily-use UX, Unified Capture, Action Center and Multilingual Interface", 1)[0]
+    )[1].split(
+        "### 0.11.0 — Daily-use UX, Unified Capture, Action Center and Multilingual Interface",
+        1,
+    )[0]
     assert "#187" in section
     assert "planning-only" in section
     for slice_id in ("0.10.1/S01", "0.10.1/S02", "0.10.1/S03", "0.10.1/S04"):
