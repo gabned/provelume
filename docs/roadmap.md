@@ -41,7 +41,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.8.0` | Scheduler, watched folders and recoverable maintenance | #122, #124, #126, #128 and #130 (completed) | `Vigilia` |
 | Published preview | `0.9.0` | OCR, email, Google file and transcript intake | #137 (completed); S01–S07 completed by #138/#141/#147/#150/#152/#154/#156; release #158 | `Lectio` |
 | Published preview | `0.10.0` | Multimedia, universal content representations and component inventory | #160 (completed); S01–S07 completed by #163/#168/#170/#172/#173/#175/#179/#182; release #183 | `Perceptio` |
-| Active development | `0.10.1` | Source onboarding, filtering and canonical brand correction | #198 (active; #187 planning-only) | `Emendatio` |
+| Published preview | `0.10.1` | Source onboarding, filtering and canonical brand correction | #198 completed; release #251 | `Emendatio` |
 | Forecast | `0.11.0` | Daily-use UX, Unified Capture, Action Center and multilingual interface | #247 planning; issue just in time for activation | `Cura` |
 | Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
 | Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
@@ -153,8 +153,7 @@ planning or publication change whenever release scope or order moves.
 
 | Evidence gate | Personal use after verified publication | Dissemination after verified publication |
 | --- | --- | --- |
-| Current published `0.10.0` | Personal photo, audio and video archive pilot with local transcription, OCR and time/region citations where supported; the `0.9.0` document-heavy perimeter remains available. | Multimedia testers who accept explicit model, codec, performance and privacy limits. |
-| `0.10.1` | Corrected Folder Sources and qualified read-only Gmail/Drive intake after verified publication; it remains a preview rather than the daily-use beta. | Existing preview testers needing local/network folders or Google intake, within the published provider and platform matrix. |
+| Current published `0.10.1` | Corrected Folder Sources, qualified read-only Gmail/Drive intake and the Perceptio media/archive pilot; the immutable `0.10.0` release remains the N-1 upgrade baseline. | Existing preview testers within the published provider, platform and deferred-native-appearance limits. |
 | `0.11.0` | First recommended personal daily-use beta: coherent Capture, Action Center, recovery and mobile-PWA journeys within the qualified perimeter. | Controlled public beta, with feedback, support and security-reporting paths open. |
 | `0.12.0` | Optional local or remote AI use with explicit routing, cost and redaction policy; deterministic operation remains complete without AI. | Privacy-routing evaluators, not general AI marketing. |
 | `0.13.0` | Personal AI-assisted classification with plain-language autonomy levels and reviewed rules; earliest candidate for replacing a private reference workflow, never an equivalence claim. | Advanced evaluators after confidence calibration, prompt-injection, receipt, review and rollback evidence. |
@@ -174,9 +173,7 @@ planning or publication change whenever release scope or order moves.
 | `1.3.0` | Optional shared review without weakening the personal single-user path. | Teams after concurrency, audit, export and permission-isolation evidence. |
 | `1.4.0` | Long-term personal archive checks and retention profiles with explicit legal limits. | Preservation and regulated-domain evaluators; no compliance claim without separate evidence. |
 
-The current answer is therefore explicit: `0.10.0` is usable now as a bounded personal multimedia
-archive preview while immutable `0.9.0` remains its document-heavy N-1 baseline; `0.10.1` is in
-active correction development under #198 and does not rewrite either release; `0.11.0` is the first
+The current answer is therefore explicit: `0.10.1` is the published bounded correction preview while immutable `0.10.0` remains its N-1 upgrade baseline and `0.9.0` remains historical document-heavy evidence; `0.11.0` is the first
 planned coherent personal daily-use beta and controlled public-beta gate; `0.21.0` is the broad
 non-technical desktop-preview gate; `0.23.0` is broad release-candidate qualification; and
 `1.0.0` is general distribution.
@@ -1157,12 +1154,10 @@ belonging to Lectio; multimedia is not hidden in a `0.9.5` feature release.
 
 ### 0.10.1 — Source Onboarding, Filtering and Canonical Brand Correction
 
-**Current status:** active development under parent activation issue
-[#198](https://github.com/gabned/provelume/issues/198). Historical issue
+**Current status:** published preview under completed parent issue
+[#198](https://github.com/gabned/provelume/issues/198) and release workstream [#251](https://github.com/gabned/provelume/issues/251). Historical issue
 [#187](https://github.com/gabned/provelume/issues/187) remains closed planning-only evidence and is
-not reused as the parent tracker. The release uses Protocol 1.4.1 campaign schema 2 and the
-`GITHUB_ARTIFACT` profile. Package/runtime/embedded/Windows identity remains `0.10.0` until a
-separate release-preparation owner PR after S01–S04 are verified merged.
+not reused as the parent tracker. The release retains its Protocol 1.4.1/schema-2 receipt history and uses the current repository protocol with the `GITHUB_ARTIFACT` profile. Package/runtime/embedded/Windows identity is `0.10.1`; published `0.10.0` remains the immutable upgrade baseline.
 
 **Depends on:** the published `0.8.0` Folder Source contract, the `0.9.0` provider-neutral Google
 read-only adapter contract and the published `0.10.0` component/Windows baseline.
@@ -1178,8 +1173,8 @@ use one canonical first-party Provelume brand identity across existing Core/Wind
 | --- | --- | --- | --- | --- |
 | `0.10.1/S01` | Source enrollment and Windows network-path qualification | One EN/IT enrollment path validates local, removable, mounted-network and explicitly qualified UNC paths, exposes actionable reachability/session/permission diagnostics and keeps Source identity stable through reconnect/reconciliation. | No share discovery, SMB/NFS client, stored share credentials, firewall/LAN binding change or background network-volume recovery. | `MERGED` by #211 for #210; verified integration receipt in #198 |
 | `0.10.1/S02` | Per-Source exclusions, safe defaults and ingestion preview | Visible, versioned, editable and disableable exact/subfolder/extension/glob rules include the `.git`/`.github` safe preset, deterministic preview/reasons and scan/watch/reconcile/reindex plus backup/export/import parity. | Rule changes never retroactively delete Originals/canonical records; deletion stays an explicit lifecycle action. | `merged` by #213 for #212; verified merge `ac211c4767d3cffdeb48fd5ee17300c107946062` |
-| `0.10.1/S03` | Guided read-only Google connection journey | Ordinary `Connect Google` separately consents Gmail/Drive read-only, tests connection state, bounds backfill/retry/revoke/reconnect and keeps credentials outside canonical/log/backup/export state. | No writes, Calendar, sending, IMAP/POP/SMTP or provider expansion; final capability qualification requires an authorized real account on exact head. | `active` in #214; real-account exact-head qualification required |
-| `0.10.1/S04` | Canonical Provelume brand correction and integrated qualification | One first-party navy/blue/gold source deterministically derives existing Core/Windows SVG/PNG/ICO surfaces and the slice integrates S01–S04 qualification including clean install and real `0.10.0` upgrade. | No new tray feature, general UI icon framework, Lucide rollout, signing/notarization/publisher verification or `0.11.0+` capability. | `planned` under #198 |
+| `0.10.1/S03` | Guided read-only Google connection journey | Ordinary `Connect Google` separately consents Gmail/Drive read-only, tests connection state, bounds backfill/retry/revoke/reconnect and keeps credentials outside canonical/log/backup/export state. | No writes, Calendar, sending, IMAP/POP/SMTP or provider expansion; final capability qualification requires an authorized real account on exact head. | `MERGED` by #215/#244 for #214; real-account evidence observed and retained |
+| `0.10.1/S04` | Canonical Provelume brand correction and integrated qualification | One first-party navy/blue/gold source deterministically derives existing Core/Windows SVG/PNG/ICO surfaces and the slice integrates S01–S04 qualification including clean install and real `0.10.0` upgrade. | No new tray feature, general UI icon framework, Lucide rollout, signing/notarization/publisher verification or `0.11.0+` capability. | `MERGED` by #246 for #245; native appearance observation deferred |
 
 S01 validates before enrollment and distinguishes unavailable mount/path, permission, Windows
 authentication/session, mapped-drive visibility and unsupported-path failures across applicable

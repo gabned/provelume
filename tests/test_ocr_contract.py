@@ -666,8 +666,8 @@ def test_packaging_manifest_is_optional_offline_and_license_complete() -> None:
 
 def test_current_release_identity_adds_no_ocr_dependencies() -> None:
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert pyproject["project"]["version"] == "0.10.0"
-    assert __version__ == "0.10.0"
+    assert pyproject["project"]["version"] == "0.10.1"
+    assert __version__ == "0.10.1"
     dependencies = pyproject["project"]["dependencies"]
     assert all(
         token not in dependency.casefold()
@@ -685,7 +685,7 @@ def test_current_release_identity_adds_no_ocr_dependencies() -> None:
     embedded = json.loads(
         (ROOT / "core" / "provelume" / "build_info.json").read_text(encoding="utf-8")
     )
-    assert embedded["version"] == "0.10.0"
+    assert embedded["version"] == "0.10.1"
 
 
 def test_notices_distinguish_selected_but_unbundled_components() -> None:

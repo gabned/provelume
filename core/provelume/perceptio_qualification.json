@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "qualification_id": "provelume.perceptio-s07.v1",
-  "target_version": "0.10.0",
+  "target_version": "0.10.1",
   "publication_state": "candidate",
   "registry_profile_ids": [
     "universal-original-v1",

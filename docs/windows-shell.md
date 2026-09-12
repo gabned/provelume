@@ -1,7 +1,7 @@
 # Windows shell installation, endpoint and recovery guide
 
-This guide covers the Windows shell published with the `0.10.0 — Perceptio` preview. Package,
-executable, installer and uninstaller metadata all use `0.10.0`.
+This guide covers the Windows shell published with the `0.10.1 — Emendatio` preview. Package,
+executable, installer and uninstaller metadata all use `0.10.1`.
 
 ## Install
 
