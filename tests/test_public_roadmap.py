@@ -941,9 +941,14 @@ def test_mobile_capture_is_bounded_and_review_first() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.11.0` | Daily-use UX, Unified Capture, Action Center "
+        "| Active development | `0.11.0` | Daily-use UX, Unified Capture, Action Center "
         "and multilingual interface |"
     ) == 1
+    assert "| Forecast | `0.11.0` |" not in roadmap
+    assert "[#255](https://github.com/gabned/provelume/issues/255)" in roadmap
+    assert "[planning #247](https://github.com/gabned/provelume/issues/247)" in roadmap
+    assert "[S01 #256](https://github.com/gabned/provelume/issues/256)" in roadmap
+    assert "Package/runtime remains `0.10.1` until distinct release preparation" in roadmap
     for required_contract in (
         "short-lived QR pairing",
         "installable responsive web/PWA surface",
