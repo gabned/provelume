@@ -786,3 +786,42 @@ def test_cancelled_reconnect_preserves_established_connection_and_source(journey
     assert manager.sources._instance_record(identity) == before
     assert manager.sources.list_sources()[0]["id"] == original["source_id"]
     assert len(manager.view()["connections"]) == 1
+
+
+@pytest.mark.parametrize("selected", ["test", "continue", "failed-test"])
+def test_control_result_refresh_never_repeats_google_effects(tmp_path, selected):
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    app = create_app(instance.store.paths.root, effective_port=18765)
+    manager = app.state.provelume.google_connection
+    manager.vault, manager.transport = MemoryVault(), FakeGoogle()
+    manager.configure(json.dumps(CLIENT))
+    manager.set_network(enabled=True, consent=True)
+    _, connected = connect(manager, manager.transport, "drive")
+    client = TestClient(app)
+    page = client.get("/google/connect?lang=it")
+    csrf = re.search(r'name="csrf_token" value="([^"]+)"', page.text)[1]
+    values = {"csrf_token": csrf, "action": selected}
+    if selected == "continue":
+        values["source_id"] = connected["source_id"]
+    else:
+        values.update(action="test", instance_id=connected["instance_id"], capability="drive")
+    if selected == "failed-test":
+        manager.transport.fail = "google_connection_failed"
+    result = client.post("/google/connect?lang=it", data=values)
+    assert result.history and result.history[0].status_code == 303
+    assert result.request.method == "GET"
+    assert result.status_code == (400 if selected == "failed-test" else 200)
+    assert result.url.params["lang"] == "it"
+    before = (
+        len(app.state.provelume.list_google_jobs()),
+        len(manager.transport.calls), manager.vault.reads,
+    )
+    refreshed = client.get(str(result.url))
+    assert refreshed.status_code == result.status_code
+    assert (
+        len(app.state.provelume.list_google_jobs()),
+        len(manager.transport.calls), manager.vault.reads,
+    ) == before
+    assert all(secret not in str(result.url) for secret in (
+        csrf, "synthetic-client-secret", connected["source_id"], connected["instance_id"],
+    ))
