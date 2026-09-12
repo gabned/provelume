@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import re
 import tomllib
 from pathlib import Path
@@ -15,6 +14,7 @@ BASE_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.5.0.md"
 CAPABILITY_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.6.0.md"
 CORRECTION_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.6.1.md"
 PERCEPTIO_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.10.0.md"
+EMENDATIO_RELEASE_PLAN_PATH = ROOT / "docs" / "releases" / "0.10.1.md"
 
 EXPECTED_CONTRACT = {
     "RELEASE_PLAN_SCHEMA": "1",
@@ -30,8 +30,7 @@ EXPECTED_CONTRACT = {
 }
 
 FORECAST_VERSIONS = (
-    ("0.10.1",)
-    + tuple(f"0.{minor}.0" for minor in range(11, 24))
+    tuple(f"0.{minor}.0" for minor in range(11, 24))
     + tuple(f"1.{minor}.0" for minor in range(0, 5))
 )
 LATIN_RELEASE_NAMES = {
@@ -139,7 +138,7 @@ def test_published_release_records_align_current_and_historical_identity() -> No
 
     lectio = _read(ROOT / "docs" / "releases" / "0.9.0.md")
     perceptio = _read(PERCEPTIO_RELEASE_PLAN_PATH)
-    assert package_version == "0.10.0"
+    assert package_version == "0.10.1"
     assert "CURRENT_PACKAGE_VERSION: 0.9.0" in lectio
     assert "PUBLISHED_TAG: v0.9.0" in lectio
     assert "CURRENT_PACKAGE_VERSION: 0.10.0" in perceptio
@@ -180,14 +179,8 @@ def test_perceptio_release_records_frozen_slices_and_public_identity() -> None:
         "LECTIO_COMMIT": "e08125a8600f9c4300d0d173613a03f8bbc31327",
     }
 
-    with (ROOT / "pyproject.toml").open("rb") as handle:
-        assert tomllib.load(handle)["project"]["version"] == "0.10.0"
-    assert '__version__ = "0.10.0"' in _read(ROOT / "core" / "provelume" / "__init__.py")
-    build_info = json.loads(_read(ROOT / "core" / "provelume" / "build_info.json"))
-    assert build_info["version"] == "0.10.0"
-    windows_identity = _read(ROOT / "packaging" / "windows" / "version_info.txt")
-    assert "StringStruct('FileVersion', '0.10.0')" in windows_identity
-    assert "StringStruct('ProductVersion', '0.10.0')" in windows_identity
+    # The published Perceptio record is immutable even after the current package advances.
+    assert "aligns identity to `0.10.0`" in plan
 
 
 def test_perceptio_slices_are_ordered_bounded_and_delivered() -> None:
@@ -385,7 +378,7 @@ def test_0_10_1_correction_forecast_is_bounded_and_actionable() -> None:
     for required_contract in (
         "[#198](https://github.com/gabned/provelume/issues/198)",
         "[#187](https://github.com/gabned/provelume/issues/187) remains closed planning-only",
-        "Package/runtime/embedded/Windows identity remains `0.10.0`",
+        "Package/runtime/embedded/Windows identity is `0.10.1`",
         "`0.10.1/S01` | Source enrollment and Windows network-path qualification",
         "`0.10.1/S02` | Per-Source exclusions, safe defaults and ingestion preview",
         "`0.10.1/S03` | Guided read-only Google connection journey",
@@ -694,7 +687,7 @@ def test_perceptio_publication_is_consistent_across_public_surfaces() -> None:
     assert "| Forecast | `0.10.0` |" not in roadmap
     assert roadmap.count("| Published preview | `0.10.0` |") == 1
     assert "S06 is delivered under #177/#179; S07 is delivered under #180/#182" in roadmap
-    assert "Current status: 0.10.0 Perceptio preview" in readme
+    assert "Current status: 0.10.1 Emendatio preview" in readme
     assert "[0.10.0 release record](docs/releases/0.10.0.md)" in readme
     assert "activated planning-only development for `0.10.0 — Perceptio`" in changelog
     assert "CURRENT_PACKAGE_VERSION: 0.10.0" in perceptio
@@ -716,7 +709,7 @@ def test_release_quality_and_adoption_gates_are_mandatory_and_aligned() -> None:
     for required_contract in (
         "## Personal use and dissemination contract",
         "Forecast means unavailable",
-        "Current published `0.10.0`",
+        "Current published `0.10.1`",
         "First recommended personal daily-use beta",
         "non-technical desktop-preview gate",
         "broad release-candidate qualification",
@@ -1063,9 +1056,9 @@ def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
     assert "[public roadmap](docs/roadmap.md)" in readme
     assert "[0.10.0 release record](docs/releases/0.10.0.md)" in readme
     assert "[`v0.9.0`](https://github.com/gabned/provelume/releases/tag/v0.9.0)" in readme
-    assert "Perceptio is the current\npublic prerelease" in readme
-    assert "S01–S07 in their\nfrozen order" in readme
-    assert "Release workstream" in readme and "issues/183" in readme
+    assert "Emendatio is the current\npublic prerelease" in readme
+    assert "S01–S04 are integrated" in readme
+    assert "Release workstream" in readme and "issues/251" in readme
     assert "[Windows preview guide](docs/windows-preview.md)" in readme
     assert "configure-inbox" in readme
     assert "external Drop folder" in readme

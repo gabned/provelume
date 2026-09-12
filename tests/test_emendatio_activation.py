@@ -116,13 +116,14 @@ def test_emendatio_initial_campaign_is_native_schema_2() -> None:
     assert bundle["handoff"]["next_prompt"] == "NONE"
 
 
-def test_emendatio_release_plan_keeps_identity_deferred() -> None:
+def test_emendatio_release_plan_records_completed_release_identity() -> None:
     text = RELEASE_PLAN.read_text(encoding="utf-8")
-    assert "RELEASE_STATE: ACTIVE_DEVELOPMENT" in text
-    assert "CURRENT_PACKAGE_VERSION: 0.10.0" in text
-    assert "PACKAGE_VERSION_UPDATE: DEFERRED_TO_RELEASE_PREPARATION" in text
+    assert "RELEASE_STATE: PUBLISHED_PREVIEW" in text
+    assert "CURRENT_PACKAGE_VERSION: 0.10.1" in text
+    assert "PACKAGE_VERSION_UPDATE: APPLIED" in text
+    assert "PUBLISHED_TAG: v0.10.1" in text
     assert "PARENT_TRACKER: #198" in text
-    assert "CURRENT_SLICE: 0.10.1/S04" in text
+    assert "CURRENT_SLICE: NONE" in text
     assert "S01_STATE: MERGED" in text
     assert "S01_OWNER_PR: #211" in text
     assert "S01_MERGE_SHA: 26dee0fd74b43d39e46afe0e5a258130849ee97c" in text
@@ -133,15 +134,18 @@ def test_emendatio_release_plan_keeps_identity_deferred() -> None:
     assert "S02_MERGE_SHA: ac211c4767d3cffdeb48fd5ee17300c107946062" in text
     assert "S03_STATE: MERGED" in text
     assert "S03_ISSUE: #214" in text
+    assert "S03_OWNER_PR: #215,#244" in text
     assert "NEXT_SLICE: NONE" in text
-    assert "S04_STATE: ACTIVE" in text
+    assert "S04_STATE: MERGED" in text
     assert "S04_ISSUE: #245" in text
+    assert "S04_OWNER_PR: #246" in text
+    assert "RELEASE_ISSUE: #251" in text
     assert "NEXT_FORECAST_STATE: NOT_ACTIVATED" in text
 
 
-def test_public_roadmap_activates_four_bounded_emendatio_slices() -> None:
+def test_public_roadmap_records_four_bounded_emendatio_slices() -> None:
     text = ROADMAP.read_text(encoding="utf-8")
-    assert "| Active development | `0.10.1`" in text
+    assert "| Published preview | `0.10.1`" in text
     assert "#198" in text
     section = text.split(
         "### 0.10.1 — Source Onboarding, Filtering and Canonical Brand Correction",
@@ -173,6 +177,6 @@ def test_activation_status_distinguishes_campaign_and_repository_protocol() -> N
     assert "tools/agent_protocol_v1_4_1.py" in plan
     assert "repository protocol" in plan
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "## In development: 0.10.1 Emendatio" in readme
+    assert "## Current status: 0.10.1 Emendatio preview" in readme
     assert "docs/releases/0.10.1.md" in readme
     assert "0.11.0 — Cura remains unactivated" in readme

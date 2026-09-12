@@ -2,8 +2,8 @@
 
 Perceptio is the read-only, local-first integration surface for the exact photo, audio, video and
 CSV/XLSX/ZIP representation profiles published in `0.10.0`. Package, embedded runtime and Windows
-product identity are `0.10.0`. An ordinary source checkout reports `candidate`. A build whose
-embedded identity is exactly `0.10.0` / `v0.10.0` reports only `official_metadata_present` and
+product identity are `0.10.1`. An ordinary source checkout reports `candidate`. A build whose
+embedded identity is exactly `0.10.1` / `v0.10.1` reports only `official_metadata_present` and
 `external_release_verification_required`: metadata is descriptive and never authenticates its own
 publication or installation integrity.
 
@@ -56,10 +56,10 @@ Representation remove/rebuild, Instance backup/restore and portable transfer ret
 contracts. Release qualification also exercises clean install, upgrade from published `0.9.0`,
 rollback and uninstall data preservation through the permanent release and Windows workflows.
 Perceptio is published only when the exact-version PR, reviewed `main` commit, offline release
-verification, immutable `v0.10.0` tag and canonical asset publication all agree externally.
+verification, immutable `v0.10.1` tag and canonical asset publication all agree externally.
 Development builds remain candidates; even exact embedded release metadata requires the separate
 installation and release-bundle verification described by the release record.
 
-See the [0.10.0 release qualification](qualification/0.10.0.md),
-[release record](releases/0.10.0.md), [privacy contract](privacy-network.md) and
+See the [0.10.1 release qualification](qualification/0.10.1.md),
+[release record](releases/0.10.1.md), [privacy contract](privacy-network.md) and
 [Italian guide](perceptio.it.md).

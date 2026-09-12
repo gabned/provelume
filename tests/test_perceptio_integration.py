@@ -135,7 +135,7 @@ def test_service_cli_api_browser_share_one_read_only_model(
     assert expected["publication"] == {
         "state": "candidate",
         "availability": "unavailable_until_verified_publication",
-        "current_package_version": "0.10.0",
+        "current_package_version": "0.10.1",
         "official_build_metadata": False,
         "verification": {
             "status": "not_performed",
@@ -208,7 +208,7 @@ def test_release_metadata_never_infers_verified_publication(
 
     def identity(*, tag: str) -> dict[str, object]:
         return {
-            "version": "0.10.0",
+            "version": "0.10.1",
             "tag": tag,
             "commit": "a" * 40,
             "official": True,
@@ -227,12 +227,12 @@ def test_release_metadata_never_infers_verified_publication(
     assert candidate["state"] == "candidate"
     assert candidate["availability"] == "unavailable_until_verified_publication"
 
-    monkeypatch.setattr("provelume.perceptio.current_build_info", lambda: identity(tag="v0.10.0"))
+    monkeypatch.setattr("provelume.perceptio.current_build_info", lambda: identity(tag="v0.10.1"))
     release_metadata = instance.perceptio_read_model()["publication"]
     assert release_metadata == {
         "state": "official_metadata_present",
         "availability": "external_release_verification_required",
-        "current_package_version": "0.10.0",
+        "current_package_version": "0.10.1",
         "official_build_metadata": True,
         "verification": {
             "status": "not_performed",
@@ -344,7 +344,7 @@ def test_english_italian_and_packaged_qualification_remain_exact() -> None:
     qualification = json.loads(
         (root / "core/provelume/perceptio_qualification.json").read_text(encoding="utf-8")
     )
-    assert qualification["target_version"] == "0.10.0"
+    assert qualification["target_version"] == "0.10.1"
     assert qualification["publication_state"] == "candidate"
     assert qualification["registry_profile_ids"] == list(PERCEPTIO_PROFILE_IDS)
     assert [item["id"] for item in qualification["exit_gates"]] == [

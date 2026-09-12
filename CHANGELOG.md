@@ -4,6 +4,14 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+No unreleased changes.
+
+## 0.10.1 - 2026-09-12
+
+Published as the `v0.10.1` prerelease through the permanent verified release workflow. Package, runtime, embedded and Windows identity are aligned to the exact release commit. The native Windows appearance observation remains explicitly deferred; automated brand, resource, pixel, layout and lifecycle checks passed. Windows artifacts remain unsigned.
+
+### Changed
+
 - The release owner directed the `0.10.1` preview to include the canonical brand
   while the material native Windows appearance observation remains deferred. The
   automated resource, associated-pixel, EN/IT layout and lifecycle checks pass;
@@ -47,8 +55,7 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   explicit Windows UNC support, bounded filesystem probes, actionable mount/session/
   permission diagnostics and stable Source identity across reconnect and transfer.
   Network access uses the existing operating-system mount and authenticated session.
-- Activated the bounded `0.10.1 — Emendatio` development plan with four ordered
-  slices; package and published identity remain `0.10.0` until release preparation.
+- Completed the bounded `0.10.1 — Emendatio` train and aligned package and published identity to `0.10.1` after all four slices merged and qualified.
 - Preserved Unicode failure diagnostics and failure exit codes across all Windows
   test shards, including redirected legacy-encoding consoles.
 - Retained active test identities and slowest-case timings in bounded Windows

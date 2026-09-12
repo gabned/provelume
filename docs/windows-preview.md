@@ -1,9 +1,9 @@
 # Windows product shell preview
 
-Provelume `0.10.0` is the Perceptio Windows preview with the configurable loopback endpoint, coherent
+Provelume `0.10.1` is the Emendatio Windows preview with the configurable loopback endpoint, coherent
 icon/AppUserModelID, tray lifecycle, theme and accessibility contracts described in
-[`windows-shell.md`](windows-shell.md). Download `Provelume-Setup-0.10.0-x64.exe` only from the
-official [`v0.10.0` GitHub prerelease](https://github.com/gabned/provelume/releases/tag/v0.10.0) and run it as
+[`windows-shell.md`](windows-shell.md). Download `Provelume-Setup-0.10.1-x64.exe` only from the
+official [`v0.10.1` GitHub prerelease](https://github.com/gabned/provelume/releases/tag/v0.10.1) and run it as
 the current user. Git and a separately installed Python are not required.
 
 ## What is installed
@@ -21,14 +21,11 @@ Three locations remain intentionally separate:
 | portable Instance and preserved originals | `%USERPROFILE%\\Documents\\Provelume` | no |
 
 An upgrade replaces only launcher/runtime files. The portable Instance is opened by the new
-runtime after installation. `0.10.0` adds only derived Perceptio representations, component
+runtime after installation. `0.10.1` retains the derived Perceptio representations and component
 evidence and read-only integration over the `0.9.0` contracts without making Originals
 non-authoritative. The registered schema-1 to schema-2 migration from `0.6.0` remains available.
 
-The official release evidence installs the immutable public `0.9.0` executable, bootstraps a
-Unicode-path Instance and uses the matching immutable public wheel to ingest synthetic canonical
-knowledge and an exact Original. Before installing `0.10.0`, the test fingerprints the complete
-Instance tree; the `0.10.0` installer must preserve configuration, manifest, canonical records,
+The official release evidence installs the immutable public `0.10.0` executable and uses its matching immutable public wheel to prepare the qualified N-1 state. Before installing `0.10.1`, the test fingerprints the complete Instance tree; the `0.10.1` installer must preserve configuration, manifest, canonical records,
 Original bytes and durable ingestion state byte-for-byte. First startup must expose the preserved
 knowledge while leaving policies, jobs, receipts, maintenance/reconciliation runs and resource
 snapshots empty. Stable AppId, launcher settings, startup, reinstall and uninstall remain verified.
@@ -98,7 +95,7 @@ integrity or signature verdict.
 6. Provelume requires another confirmation before starting the normal installer and closing the
    local server.
 
-No background check is enabled by default. `0.10.0` never applies an update silently.
+No background check is enabled by default. `0.10.1` never applies an update silently.
 
 ## Recovery and limitations
 
@@ -123,7 +120,7 @@ verification of the exact artifact; no key or certificate is included here.
 ## Rollback and removal
 
 Export shell preferences and make a verified Instance backup before upgrading. To roll back,
-uninstall `0.10.0`, install an earlier immutable official installer, and restore only a backup that
+uninstall `0.10.1`, install an earlier immutable official installer, and restore only a backup that
 was created by or proved compatible with that version into a separate directory. There is no
 silent schema downgrade. Uninstall removes program files, shortcuts and registration but preserves
 launcher settings, downloaded-update state and every Instance; delete those only as a separate,

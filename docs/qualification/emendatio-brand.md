@@ -1,9 +1,6 @@
 # Emendatio canonical brand qualification
 
-Slice `0.10.1/S04` is owned by [#245](https://github.com/gabned/provelume/issues/245)
-under [#198](https://github.com/gabned/provelume/issues/198). Package identity remains
-`0.10.0` until the separate release-preparation PR. This document defines the
-checks; successful source tests alone do not certify a released artifact.
+Slice `0.10.1/S04` was delivered by [#245](https://github.com/gabned/provelume/issues/245) and owner PR #246 under [#198](https://github.com/gabned/provelume/issues/198). The distinct release preparation aligns package identity to `0.10.1`. This document defines the checks; successful source tests alone do not certify a released artifact.
 
 ## Source and packaged identity
 

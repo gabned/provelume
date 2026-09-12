@@ -8,7 +8,7 @@
   "properties": {
     "schema_version": {"const": 1},
     "qualification_id": {"const": "provelume.perceptio-s07.v1"},
-    "target_version": {"const": "0.10.0"},
+    "target_version": {"const": "0.10.1"},
     "publication_state": {"const": "candidate"},
     "registry_profile_ids": {"type": "array", "minItems": 14, "maxItems": 14, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 100}},
     "families": {"const": ["photo", "audio", "video", "file_family"]},

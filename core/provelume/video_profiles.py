@@ -2021,7 +2021,7 @@ class VideoProfileManager:
                 output_payloads=payloads,
                 implementation={
                     "component": "provelume.core",
-                    "component_version": "0.10.0",
+                    "component_version": "0.10.1",
                     "adapter": "perceptio-video-profile",
                     "adapter_version": "1",
                     "settings": {

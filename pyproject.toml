@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "provelume"
-version = "0.10.0"
+version = "0.10.1"
 description = "Provenance-first personal knowledge intelligence"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -32,7 +32,7 @@ provelume = "provelume.cli:main"
 provelume-desktop = "provelume.desktop:main"
 
 [tool.provelume.release]
-codename = "Perceptio"
+codename = "Emendatio"
 
 [tool.hatch.build]
 reproducible = true
