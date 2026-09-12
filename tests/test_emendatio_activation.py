@@ -145,7 +145,10 @@ def test_public_roadmap_activates_four_bounded_emendatio_slices() -> None:
     section = text.split(
         "### 0.10.1 — Source Onboarding, Filtering and Canonical Brand Correction",
         1,
-    )[1].split("### 0.11.0 — Unified Capture, Operations and Action Center", 1)[0]
+    )[1].split(
+        "### 0.11.0 — Daily-use UX, Unified Capture, Action Center and Multilingual Interface",
+        1,
+    )[0]
     assert "#187" in section
     assert "planning-only" in section
     for slice_id in ("0.10.1/S01", "0.10.1/S02", "0.10.1/S03", "0.10.1/S04"):
@@ -158,9 +161,9 @@ def test_public_roadmap_activates_four_bounded_emendatio_slices() -> None:
     assert len(rows) == 4
     outcomes = "\n".join(row[3] for row in rows)
     assert "Lucide" not in outcomes
-    assert "0.11/S07" not in outcomes
+    assert "0.11/S02" not in outcomes
     assert "No new tray feature, general UI icon framework, Lucide rollout" in rows[3][4]
-    assert "Lucide remains `0.11/S07`" in section
+    assert "Lucide remains `0.11/S02`" in section
 
 
 def test_activation_status_distinguishes_campaign_and_repository_protocol() -> None:
