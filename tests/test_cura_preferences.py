@@ -12,7 +12,7 @@ from urllib.parse import urlencode
 import pytest
 from fastapi.testclient import TestClient
 
-from provelume import desktop, shell_activity
+from provelume import desktop, shell_activity, shell_settings
 from provelume.service import ProvelumeInstance
 from provelume.shell_settings import (
     MAX_SETTINGS_REVISION,
@@ -82,7 +82,7 @@ def _browser(tmp_path: Path):
 
 
 @pytest.mark.parametrize("schema", [1, 2])
-def test_legacy_preferences_are_read_only_until_explicit_schema_three_save(tmp_path, schema):
+def test_compatible_current_preferences_keep_schema_two_until_interface_selection(tmp_path, schema):
     manager = _manager(tmp_path)
     payload = {
         "schema_version": schema,
@@ -107,7 +107,8 @@ def test_legacy_preferences_are_read_only_until_explicit_schema_three_save(tmp_p
     manager.path.write_text(json.dumps(payload), encoding="utf-8")
     before, modified = manager.path.read_bytes(), manager.path.stat().st_mtime_ns
     loaded = manager.load()
-    assert loaded.warning == "legacy_settings_loaded_pending_migration"
+    assert loaded.warning == ("legacy_settings_loaded_pending_migration" if schema == 1 else None)
+    assert loaded.settings.schema_version == 2
     assert loaded.settings.interface_mode == "current"
     assert loaded.settings.interface_mode_change is None
     assert manager.path.read_bytes() == before and manager.path.stat().st_mtime_ns == modified
@@ -115,10 +116,97 @@ def test_legacy_preferences_are_read_only_until_explicit_schema_three_save(tmp_p
     saved = manager.set_preferences(theme="light", expected_revision=loaded.settings.revision)
     assert saved == replace(loaded.settings, theme="light", revision=loaded.settings.revision + 1)
     serialized = json.loads(manager.path.read_bytes())
-    assert serialized["schema_version"] == 3
-    assert serialized["shell"]["interface_mode"] == "current"
-    assert serialized["shell"]["interface_mode_change"] is None
+    assert serialized["schema_version"] == 2
+    assert serialized["shell"] == {
+        "tray_enabled": saved.tray_enabled,
+        "login_startup": saved.login_startup,
+        "theme": "light",
+    }
     assert manager.load().warning is None
+    transferred = tmp_path / "ordinary-preferences.json"
+    manager.export_preferences(transferred)
+    imported = manager.import_preferences(transferred, expected_revision=saved.revision)
+    started = manager.mark_endpoint_started(
+        imported.endpoint_port, expected_revision=imported.revision
+    )
+    changed = manager.set_preferences(language="en", expected_revision=started.revision)
+    assert changed.schema_version == json.loads(manager.path.read_bytes())["schema_version"] == 2
+    assert changed.interface_mode == "current" and changed.interface_mode_change is None
+
+
+@pytest.mark.parametrize("mode", ["current", "preview"])
+def test_first_interface_choice_promotes_schema_and_receipt_in_one_write(
+    tmp_path, monkeypatch, mode
+):
+    manager = _manager(tmp_path)
+    manager.save(manager.defaults)
+    original_write = shell_settings._atomic_json
+    writes = []
+
+    def observe_write(path, payload, **kwargs):
+        writes.append(payload)
+        original_write(path, payload, **kwargs)
+
+    monkeypatch.setattr(shell_settings, "_atomic_json", observe_write)
+    saved = manager.set_interface_mode(mode, expected_revision=0)
+    assert len(writes) == 1
+    assert writes[0]["schema_version"] == saved.schema_version == 3
+    assert writes[0]["shell"]["interface_mode"] == mode
+    receipt = writes[0]["shell"]["interface_mode_change"]
+    assert receipt["revision"] == writes[0]["revision"] == saved.revision == 1
+    assert receipt["from"] == "current" and receipt["to"] == mode
+    assert receipt["changed"] is (mode != "current")
+    assert manager.load().settings == saved
+
+
+@pytest.mark.parametrize("mode", ["current", "preview"])
+def test_existing_schema_three_without_receipt_survives_every_ordinary_save(
+    tmp_path, monkeypatch, mode
+):
+    manager = _manager(tmp_path)
+    payload = manager.defaults.as_payload()
+    payload["schema_version"] = 3
+    payload["revision"] = 7
+    payload["shell"].update(interface_mode=mode, interface_mode_change=None)
+    manager.path.write_text(json.dumps(payload), encoding="utf-8")
+    before, modified = manager.path.read_bytes(), manager.path.stat().st_mtime_ns
+    loaded = manager.load()
+    assert loaded.warning is None and loaded.settings.schema_version == 3
+    assert manager.path.read_bytes() == before and manager.path.stat().st_mtime_ns == modified
+    saved = manager.set_preferences(theme="dark", language="en", expected_revision=7)
+    started = manager.mark_endpoint_started(saved.endpoint_port, expected_revision=8)
+    transfer = tmp_path / "ordinary.json"
+    manager.export_preferences(transfer)
+    imported = manager.import_preferences(transfer, expected_revision=started.revision)
+    desktop.save_settings(LauncherSettings(**asdict(imported)), manager.path)
+    restarted = desktop.load_settings(manager.path)
+    assert restarted.schema_version == 3 and restarted.interface_mode == mode
+    assert restarted.interface_mode_change is None
+    assert json.loads(manager.path.read_bytes())["schema_version"] == 3
+    assert restarted.public_view()["configuration_schema_version"] == 3
+    monkeypatch.setattr(desktop, "settings_path", lambda: manager.path)
+    assert desktop.diagnostics_payload()["settings_schema_version"] == 3
+    before = manager.path.read_bytes()
+    with pytest.raises(ShellSettingsError, match="cannot be downgraded"):
+        manager.save(manager.defaults)
+    assert manager.path.read_bytes() == before
+
+
+@pytest.mark.parametrize("schema", [None, True, 0, 1, 4, "2"])
+def test_in_memory_schema_marker_is_strict_and_never_coerced(tmp_path, schema):
+    manager = _manager(tmp_path)
+    with pytest.raises(ShellSettingsError, match="schema is invalid"):
+        manager.save(replace(manager.defaults, schema_version=schema))
+    assert not manager.path.exists()
+
+
+def test_schema_two_serialization_never_drops_an_interface_choice(tmp_path):
+    manager = _manager(tmp_path)
+    with pytest.raises(ShellSettingsError, match="requires launcher settings schema 3"):
+        replace(manager.defaults, interface_mode="preview").as_payload()
+    chosen = manager.set_interface_mode("current", expected_revision=0)
+    with pytest.raises(ShellSettingsError, match="requires launcher settings schema 3"):
+        replace(chosen, schema_version=2).as_payload()
 
 
 def test_mode_and_minimized_receipt_commit_once_without_unrelated_effects(tmp_path, monkeypatch):
@@ -139,6 +227,7 @@ def test_mode_and_minimized_receipt_commit_once_without_unrelated_effects(tmp_pa
         before = manager.load().settings
         saved = manager.set_interface_mode(mode, expected_revision=revision - 1)
         assert saved.revision == revision
+        assert saved.schema_version == 3
         assert saved.interface_mode == mode
         assert saved.interface_mode_change is not None
         receipt = saved.interface_mode_change.as_payload()
@@ -158,7 +247,13 @@ def test_mode_and_minimized_receipt_commit_once_without_unrelated_effects(tmp_pa
         assert receipt["recorded_at_utc"].endswith("+00:00")
         assert str(tmp_path) not in json.dumps(receipt)
         assert (
-            replace(saved, interface_mode="current", interface_mode_change=None, revision=0)
+            replace(
+                saved,
+                interface_mode="current",
+                interface_mode_change=None,
+                revision=0,
+                schema_version=2,
+            )
             == initial
         )
         assert _manager(tmp_path).load().settings == saved
@@ -168,10 +263,10 @@ def test_mode_and_minimized_receipt_commit_once_without_unrelated_effects(tmp_pa
 @pytest.mark.parametrize("invalid", [None, True, 1, [], {}, "Preview", "", "../preview"])
 def test_invalid_modes_never_rewrite_saved_settings(tmp_path, invalid):
     manager = _manager(tmp_path)
-    manager.save(manager.defaults)
+    manager.set_interface_mode("current", expected_revision=0)
     before = manager.path.read_bytes()
     with pytest.raises(ShellSettingsError):
-        manager.set_interface_mode(invalid, expected_revision=0)
+        manager.set_interface_mode(invalid, expected_revision=1)
     assert manager.path.read_bytes() == before
     payload = json.loads(before)
     payload["shell"]["interface_mode"] = invalid
@@ -222,7 +317,8 @@ def test_schema_three_rejects_forged_receipt_without_rewriting(tmp_path, key, va
 @pytest.mark.parametrize("missing", ["interface_mode", "interface_mode_change"])
 def test_schema_three_requires_both_declared_selection_fields(tmp_path, missing):
     manager = _manager(tmp_path)
-    payload = manager.defaults.as_payload()
+    manager.set_interface_mode("current", expected_revision=0)
+    payload = json.loads(manager.path.read_bytes())
     del payload["shell"][missing]
     manager.path.write_text(json.dumps(payload))
     assert manager.load().warning == "settings_invalid_using_safe_defaults"
@@ -329,6 +425,7 @@ def test_v1_import_without_revision_preserves_mode_changed_after_preflight(tmp_p
     monkeypatch.setattr(manager, "mutate", intervening_selection)
     imported = manager.import_preferences(transfer)
     assert imported.interface_mode == "preview" and imported.revision == 2
+    assert imported.schema_version == json.loads(manager.path.read_bytes())["schema_version"] == 3
     assert imported.interface_mode_change.revision == 1
 
 
@@ -463,14 +560,13 @@ def test_failed_browser_save_returns_fresh_form_without_a_committed_receipt(tmp_
     client, manager, _instance = _browser(tmp_path)
     fields = _mode_fields(client)
     before = manager.path.read_bytes()
-    app_manager = client.app.state.shell_settings_manager
-    save = app_manager.save
+    save = shell_settings._atomic_json
 
-    def fail_once(settings):
-        monkeypatch.setattr(app_manager, "save", save)
+    def fail_once(*args, **kwargs):
+        monkeypatch.setattr(shell_settings, "_atomic_json", save)
         raise OSError("synthetic write failure containing private detail")
 
-    monkeypatch.setattr(app_manager, "save", fail_once)
+    monkeypatch.setattr(shell_settings, "_atomic_json", fail_once)
     failed = client.post("/settings/shell", data=fields, follow_redirects=False)
     assert failed.status_code == 400 and "shell_settings_error" in failed.text
     assert "private detail" not in failed.text
@@ -528,6 +624,7 @@ def test_shell_page_reuses_one_snapshot_for_form_and_renderer(tmp_path, monkeypa
         return LoadedSettings(
             replace(
                 manager.defaults,
+                schema_version=3,
                 revision=len(calls),
                 interface_mode="preview" if len(calls) == 1 else "current",
             ),

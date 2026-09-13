@@ -24,19 +24,31 @@ Versions, Acquisitions, Sources, provider state or canonical configuration. Shel
 
 ## Closed configuration
 
-Schema 3 accepts only the documented top-level, endpoint and shell fields. `host` must equal
+Schemas 2 and 3 accept only their documented top-level, endpoint and shell fields. `host` must equal
 `127.0.0.1`; port must be an integer from 1024 through 65535; theme is `system`, `light`, or `dark`;
 language is `en` or `it`. Booleans are not accepted as integers. Documents over 64 KiB, unknown
-fields, invalid schemas, symlinks and reparse points are rejected. Schemas 1 and 2 are read
-compatibly, without rewriting their bytes, and migrate only on a later explicit save. Schema 2
-retains its revision and all endpoint/shell preferences; both legacy schemas default to the
-current presentation with no interface-choice receipt. Schema 3 adds exactly `interface_mode`
-and `interface_mode_change` to `shell`, alongside `tray_enabled`, `login_startup` and `theme`.
+fields, invalid schemas, symlinks and reparse points are rejected. Fresh installations retain
+the exact schema-2 format and Current presentation. Schema 1 loads without rewriting its bytes
+and migrates to schema 2 on an ordinary explicit save. Valid schema 2 remains schema 2 through
+ordinary language, theme, endpoint and legacy preference-transfer edits; it retains its revision
+and all endpoint/shell preferences, with implicit Current and no interface-choice receipt.
+The first explicit interface selection, including Current, promotes atomically to schema 3.
+Schema 3 adds exactly `interface_mode` and `interface_mode_change` to `shell`, alongside
+`tray_enabled`, `login_startup` and `theme`. Already persisted schema 3 is preserved even for
+Current or a null receipt; normal edits and presentation rollback never downgrade its format.
+An incompatible in-memory schema-2 choice/receipt is rejected instead of silently omitted.
+
+The public configuration and desktop diagnostic schema fields report the effective writable
+settings format, not the maximum supported parser version. A legacy schema-1 load therefore
+reports effective schema 2 with its existing pending-migration warning, without claiming that
+the unchanged disk header has migrated. Valid schema 2 needs no migration warning.
 
 Missing/invalid state produces safe values plus `settings_missing_using_defaults` or
 `settings_invalid_using_safe_defaults`. It never rewrites the input while reading. State mutation
 uses a non-blocking platform lock, revision check, same-directory temporary file, flush/fsync and
-atomic replace. Explicit crash recovery removes a maximum of 32 matching temporary files and no
+atomic replace. Direct full-settings saves also hold that lock and reject a schema-3 downgrade.
+A failed post-commit preference effect restores the complete pre-transaction state. Explicit
+crash recovery removes a maximum of 32 matching temporary files and no
 other path.
 
 ## Endpoint lifecycle
@@ -85,7 +97,9 @@ EN/IT preference, so the dedicated form cannot silently change language. Applica
 invalidates old CSRF/nonces while preserving the selection. The public shell API stays read-only.
 Shell forms, rendering and script-policy selection share one request settings snapshot.
 
-`shell.interface_mode_change` is `null` before a recorded selection, or one closed receipt:
+The public `shell.interface_mode_change` is `null` before a recorded selection. Schema 2 omits
+both interface fields on disk; schema 3 requires both and accepts a null receipt for compatible
+existing state. A recorded selection has one closed receipt:
 `schema_version: 1`, bounded `revision`, `recorded_at_utc`, `from`, `to`, Boolean `changed`, and
 `source: local_browser | local_process`. Its revision cannot exceed the enclosing configuration;
 `to` equals the selected mode and `changed` equals `from != to`. Timestamp text is bounded and

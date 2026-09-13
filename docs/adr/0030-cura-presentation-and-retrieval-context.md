@@ -9,7 +9,9 @@ decision and integrated accessibility qualification belong to S09.
 
 One server-rendered application owns both presentations. A fixed Jinja layout
 dispatcher selects Current or Preview from one loaded launcher-settings snapshot
-per request. The original base layout is retained in `templates/legacy/base.html`.
+per request. The original Current layout remains byte-identical at `templates/base.html`.
+Child templates extend the fixed request-bound `base_layout` choice; Preview uses
+`templates/cura/base.html`. There is no request-provided template name.
 Preview adds a shared sidebar, a compact in-flow Menu, useful Overview, progressive
 Knowledge/Search and grouped Management. Existing endpoints, data models and user
 confirmations remain authoritative. The bounded attention view projects recorded

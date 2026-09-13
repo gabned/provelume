@@ -310,7 +310,7 @@ def _base_context(request: Request, language: str) -> dict[str, Any]:
         "navigation": navigation,
         "theme": theme,
         "interface_mode": "preview" if preview else "current",
-        "base_layout": "cura/base.html" if preview else "legacy/base.html",
+        "base_layout": "cura/base.html" if preview else "base.html",
         "cura_script_integrity": integrity,
         "icon": icon_renderer() if preview else render_icon,
         "shell_about": current_about() if preview else None,

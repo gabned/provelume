@@ -18,7 +18,7 @@ RELEASE_TAG = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 NOTICE_NAMES = ("LICENSE", "NOTICE.md", "THIRD_PARTY_NOTICES.md")
 NOTICE_RESOURCES = {
     **{name: ("notices", name) for name in NOTICE_NAMES},
-    "Lucide LICENSE": ("static", "icons", "lucide", "LICENSE"),
+    "Lucide LICENSE": ("notices", "lucide-LICENSE.txt"),
 }
 
 

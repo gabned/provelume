@@ -30,14 +30,13 @@ STATIC_FILES = ("static/cura.css", "static/cura-shell.js")
 REQUIRED = {
     *STATIC_FILES,
     "templates/base.html",
-    "templates/legacy/base.html",
     "templates/cura/base.html",
     "i18n/en.json",
     "i18n/it.json",
     "notices/LICENSE",
     "notices/NOTICE.md",
     "notices/THIRD_PARTY_NOTICES.md",
-    "static/icons/lucide/LICENSE",
+    "notices/lucide-LICENSE.txt",
     "static/icons/lucide/subset.json",
 }
 RESERVED = {"AUX", "CON", "NUL", "PRN"} | {
@@ -145,8 +144,10 @@ def _wheel_resources(wheel: Path) -> tuple[dict[str, bytes], str]:
     if not resources.keys() >= REQUIRED:
         raise CuraResourceError("wheel missing required Cura resources")
     lucide = {name for name in resources if name.startswith("static/icons/lucide/")}
-    if len(lucide) != 20 or sum(name.endswith(".svg") for name in lucide) != 18:
-        raise CuraResourceError("wheel must contain the complete 20-file Lucide subset")
+    if len(lucide) != 19 or sum(name.endswith(".svg") for name in lucide) != 18:
+        raise CuraResourceError(
+            "wheel must contain 19 Lucide assets plus the required packaged license"
+        )
     for tree in ("i18n", "notices"):
         if {name for name in resources if name.startswith(tree + "/")} != {
             name for name in REQUIRED if name.startswith(tree + "/")

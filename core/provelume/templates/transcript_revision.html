@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends base_layout %}
 {% block title %}{{ revision.id }} · {{ t('transcript.title') }}{% endblock %}
 {% block content %}
 <p><a href="/transcripts?lang={{ lang }}">← {{ t('transcript.back') }}</a></p>

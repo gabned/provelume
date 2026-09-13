@@ -352,7 +352,6 @@ jobs:
             --mc-type application \
             --output-file "release/provelume-${VERSION}.cdx.json" \
             .release-runtime/bin/python
-          .release-runtime/bin/python -I scripts/augment_asset_sbom.py --sbom "release/provelume-${VERSION}.cdx.json"
           export SBOM_PATH="release/provelume-${VERSION}.cdx.json"
           export SBOM_IDENTITY="https://github.com/gabned/provelume/tree/${GITHUB_SHA}#v${VERSION}"
           python - <<'PY'
@@ -418,5 +417,3 @@ jobs:
           assert all(row['byte_identical'] for row in evidence['artifacts'])
           assert Path('release/SHA256SUMS').stat().st_size > 0
           PY
-          PYTHONPATH=core python -m scripts.publication_dry_run \
-            --work-dir "$RUNNER_TEMP/publication-dry-run"

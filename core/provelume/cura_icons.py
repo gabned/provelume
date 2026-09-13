@@ -20,6 +20,7 @@ from markupsafe import Markup
 COMPONENT_ID = "ui.lucide"
 BOM_REF = "provelume:ui.lucide"
 RESOURCE_PATH = "static/icons/lucide"
+LICENSE_RESOURCE_PATH = "notices/lucide-LICENSE.txt"
 MAX_MANIFEST_BYTES = 64 * 1024
 MAX_FILE_BYTES = 16 * 1024
 MAX_TOTAL_BYTES = 1024 * 1024
@@ -98,13 +99,21 @@ def _read(resource: Traversable, limit: int) -> bytes:
     return raw
 
 
-def _resource_root() -> Traversable:
+def _package_resource(path: str) -> Traversable:
     resource = files("provelume")
     _reject_link(resource)
-    for segment in RESOURCE_PATH.split("/"):
+    for segment in path.split("/"):
         resource = resource.joinpath(segment)
         _reject_link(resource)
     return resource
+
+
+def _resource_root() -> Traversable:
+    return _package_resource(RESOURCE_PATH)
+
+
+def _license_resource() -> Traversable:
+    return _package_resource(LICENSE_RESOURCE_PATH)
 
 
 def _catalogue_digest() -> str:
@@ -135,7 +144,12 @@ def _validate_svg(raw: bytes) -> None:
             _require(pattern.fullmatch(value) is not None)
 
 
-def _verify_entry(root: Traversable, entry: Any, expected_file: str, expected_source: str) -> bytes:
+def _verify_entry(
+    resource: Traversable,
+    entry: Any,
+    expected_file: str,
+    expected_source: str,
+) -> bytes:
     _require(isinstance(entry, dict))
     keys = {"file", "source_path", "bytes", "sha256", "git_blob"}
     _require(set(entry) == keys or set(entry) == keys | {"name"})
@@ -143,7 +157,7 @@ def _verify_entry(root: Traversable, entry: Any, expected_file: str, expected_so
     _require(type(entry["bytes"]) is int and 0 < entry["bytes"] <= MAX_FILE_BYTES)
     _require(isinstance(entry["sha256"], str) and _DIGEST.fullmatch(entry["sha256"]) is not None)
     _require(isinstance(entry["git_blob"], str) and _BLOB.fullmatch(entry["git_blob"]) is not None)
-    raw = _read(root.joinpath(expected_file), MAX_FILE_BYTES)
+    raw = _read(resource, MAX_FILE_BYTES)
     _require(len(raw) == entry["bytes"] and hashlib.sha256(raw).hexdigest() == entry["sha256"])
     blob = hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw).hexdigest()
     _require(blob == entry["git_blob"])
@@ -201,17 +215,22 @@ def verify_icon_subset(expected_sha256: str | None = None) -> VerifiedIconSubset
             and all(isinstance(name, str) and _NAME.fullmatch(name) for name in names)
         )
         _require(names == sorted(set(names)))
-        expected_files = {"subset.json", "LICENSE", *(name + ".svg" for name in names)}
+        expected_files = {"subset.json", *(name + ".svg" for name in names)}
         entries = []
         for resource in root.iterdir():
             _reject_link(resource)
             entries.append(resource)
-            _require(len(entries) <= MAX_ICONS + 2 and resource.is_file())
+            _require(len(entries) <= MAX_ICONS + 1 and resource.is_file())
         observed_files = {resource.name for resource in entries}
         if expected_files - observed_files:
             raise IconAssetError("packaged_asset_missing")
         _require(observed_files == expected_files)
-        license_bytes = _verify_entry(root, manifest["license"], "LICENSE", "LICENSE")
+        license_bytes = _verify_entry(
+            _license_resource(),
+            manifest["license"],
+            LICENSE_RESOURCE_PATH,
+            "LICENSE",
+        )
         _require(b"ISC License" in license_bytes and b"The MIT License (MIT)" in license_bytes)
         reference = manifest["license_reference"]
         base = source["repository"] + "/blob/" + source["commit"] + "/"
@@ -235,7 +254,12 @@ def verify_icon_subset(expected_sha256: str | None = None) -> VerifiedIconSubset
         total = len(raw) + len(license_bytes)
         for entry in icons:
             name = entry["name"]
-            data = _verify_entry(root, entry, name + ".svg", "icons/" + name + ".svg")
+            data = _verify_entry(
+                root.joinpath(name + ".svg"),
+                entry,
+                name + ".svg",
+                "icons/" + name + ".svg",
+            )
             _validate_svg(data)
             svgs[name] = data
             total += len(data)
@@ -260,9 +284,13 @@ def icon_renderer() -> Callable[[str], Markup]:
     """Verify once for one response; never reuse verification across requests."""
     subset = verify_icon_subset()
     icons = {
-        name: Markup(raw.decode("utf-8").replace(
-            "<svg", '<svg class="cura-icon" aria-hidden="true" focusable="false"', 1,
-        ))
+        name: Markup(
+            raw.decode("utf-8").replace(
+                "<svg",
+                '<svg class="cura-icon" aria-hidden="true" focusable="false"',
+                1,
+            )
+        )
         for name, raw in subset.svgs.items()
     }
 
@@ -285,6 +313,7 @@ def asset_sbom_component(expected_sha256: str | None = None) -> dict[str, Any]:
         "provelume:subset-sha256": subset.manifest_sha256,
         "provelume:subset-resource": RESOURCE_PATH + "/subset.json",
         "provelume:license-sha256": manifest["license"]["sha256"],
+        "provelume:license-resource": manifest["license"]["file"],
     }
     properties.update(
         {"provelume:asset-sha256:" + row["file"]: row["sha256"] for row in manifest["icons"]}

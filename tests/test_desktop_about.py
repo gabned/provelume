@@ -153,7 +153,7 @@ def test_launcher_settings_round_trip_and_malformed_fallback(tmp_path: Path) -> 
 
     path.write_text('{"schema_version": true}', encoding="utf-8")
     fallback = load_settings(path)
-    assert fallback.schema_version == 3
+    assert fallback.schema_version == 2
     assert fallback.update_channel == "preview"
     assert fallback.check_on_start is False
 
@@ -221,7 +221,7 @@ def test_desktop_diagnostics_and_headless_instance_bootstrap(tmp_path: Path) -> 
 
     output = tmp_path / "diagnostics.json"
     assert main(["--diagnostics-file", str(output)]) == 0
-    assert json.loads(output.read_text())["settings_schema_version"] == 3
+    assert json.loads(output.read_text())["settings_schema_version"] == 2
 
 
 def test_installer_validate_port_mode_rejects_reserved_and_occupied_ports() -> None:

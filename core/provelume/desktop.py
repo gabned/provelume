@@ -122,7 +122,7 @@ def diagnostics_payload() -> dict[str, Any]:
         "desktop_shell": True,
         "frozen": bool(getattr(sys, "frozen", False)),
         "about": current_about(),
-        "settings_schema_version": SETTINGS_SCHEMA_VERSION,
+        "settings_schema_version": loaded.settings.schema_version,
         "settings_warning": loaded.warning,
         "endpoint": loaded.settings.public_view(warning=loaded.warning)["endpoint"],
         "shell": loaded.settings.public_view(warning=loaded.warning)["shell"],

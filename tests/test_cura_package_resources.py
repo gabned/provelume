@@ -18,6 +18,7 @@ def package(tmp_path: Path) -> tuple[Path, Path, dict[str, bytes]]:
     resources = {name: (name + " synthetic fixture\n").encode() for name in verifier.REQUIRED}
     resources.update({f"static/icons/lucide/icon-{i}.svg": b"<svg/>" for i in range(18)})
     resources["templates/cura/home.html"] = b"synthetic Cura home"
+    resources["templates/legacy/base.html"] = b"synthetic optional nested legacy template"
     resources["templates/search.html"] = b"synthetic existing search"
     wheel = tmp_path / "provelume-0.0.0-py3-none-any.whl"
     frozen = tmp_path / "dist/Provelume/_internal/provelume"
@@ -61,7 +62,7 @@ def test_synthetic_parity_binds_bytes_without_network_or_candidate_import(packag
         "templates/cura/home.html",
         "templates/search.html",
         "notices/THIRD_PARTY_NOTICES.md",
-        "static/icons/lucide/LICENSE",
+        "notices/lucide-LICENSE.txt",
         "i18n/it.json",
         "static/cura-shell.js",
     ],
@@ -108,7 +109,9 @@ def test_unrelated_brand_resources_retain_their_separate_gate(package):
     assert verifier.verify_cura_resources(wheel, frozen)["status"] == "matched"
 
 
-@pytest.mark.parametrize("name", ["templates/legacy/base.html", "notices/LICENSE"])
+@pytest.mark.parametrize(
+    "name", ["templates/base.html", "notices/LICENSE", "notices/lucide-LICENSE.txt"]
+)
 def test_missing_in_both_artifacts_cannot_hide_required_resources(package, name):
     wheel, frozen, resources = package
     del resources[name]

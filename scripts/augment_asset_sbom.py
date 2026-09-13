@@ -14,6 +14,7 @@ from typing import Any
 
 from provelume.cura_icons import (
     BOM_REF,
+    LICENSE_RESOURCE_PATH,
     RESOURCE_PATH,
     asset_sbom_component,
     is_asset_sbom_component,
@@ -48,8 +49,9 @@ def assert_installed_resources() -> str:
     subset = verify_icon_subset()
     expected = {
         "provelume/" + RESOURCE_PATH + "/" + name
-        for name in ("subset.json", "LICENSE", *(item["file"] for item in subset.manifest["icons"]))
+        for name in ("subset.json", *(item["file"] for item in subset.manifest["icons"]))
     }
+    expected.add("provelume/" + LICENSE_RESOURCE_PATH)
     _require(expected <= members, "installed distribution RECORD omits declared icon resources")
     return distribution.version
 

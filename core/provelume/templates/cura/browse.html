@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends base_layout %}
 {% block title %}{{ t('cura.nav.knowledge') }} · {{ t('brand') }}{% endblock %}
 {% block content %}
 <nav class="breadcrumb"><a href="/?lang={{ lang }}">{{ t('nav.home') }}</a><span>/</span><span>{{ t('nav.browse') }}</span>{% if selected_hierarchy_node %}{% for item in selected_hierarchy_node.breadcrumbs %}<span>/</span><a href="{{ filter_link(hierarchy_id=item.id) }}">{{ item.name }}</a>{% endfor %}{% elif selected_area %}<span>/</span><span>{{ t('browse.root') if selected_area == root_area_filter else selected_area }}</span>{% endif %}</nav>

@@ -342,11 +342,16 @@ def test_packaged_detection_requires_actual_intact_resources(
 ) -> None:
     root = tmp_path / "assets"
     shutil.copytree(Path(str(files("provelume").joinpath(cura_icons.RESOURCE_PATH))), root)
+    notice = tmp_path / "lucide-LICENSE.txt"
+    shutil.copyfile(
+        Path(str(files("provelume").joinpath(cura_icons.LICENSE_RESOURCE_PATH))), notice
+    )
     if change == "missing":
-        (root / "LICENSE").unlink()
+        notice.unlink()
     else:
         (root / "house.svg").write_bytes(b"tampered")
     monkeypatch.setattr(cura_icons, "_resource_root", lambda: root)
+    monkeypatch.setattr(cura_icons, "_license_resource", lambda: notice)
     result = _inventory().read()
     row = next(row for row in result["components"] if row["id"] == "ui.lucide")
     assert (row["status"], row["status_reason"]) == (state, reason)

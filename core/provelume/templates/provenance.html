@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends base_layout %}
 {% block title %}{{ t('provenance.title') }} · {{ provenance.document.title }}{% endblock %}
 {% block content %}
 {% if interface_mode == "preview" and return_to %}<a class="cura-back" href="{{ return_to }}">{{ icon("arrow-left") }}{{ return_label }}</a>{% endif %}

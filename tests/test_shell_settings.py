@@ -77,7 +77,7 @@ def test_default_endpoint_and_closed_versioned_schema(tmp_path: Path) -> None:
         "endpoint",
         "shell",
     }
-    assert value["schema_version"] == 3
+    assert value["schema_version"] == 2
     assert value["endpoint"] == {
         "host": LOCAL_HOST,
         "last_good_port": DEFAULT_LOCAL_PORT,
@@ -88,8 +88,6 @@ def test_default_endpoint_and_closed_versioned_schema(tmp_path: Path) -> None:
         "login_startup": False,
         "theme": "system",
         "tray_enabled": True,
-        "interface_mode": "current",
-        "interface_mode_change": None,
     }
 
 
@@ -116,7 +114,7 @@ def test_schema_one_upgrade_preserves_compatible_preferences(tmp_path: Path) -> 
     changed = manager.set_preferences(theme="dark", expected_revision=0)
     assert changed.language == "it"
     assert changed.update_channel == "stable"
-    assert json.loads(manager.path.read_text())["schema_version"] == 3
+    assert json.loads(manager.path.read_text())["schema_version"] == 2
 
 
 @pytest.mark.parametrize(
@@ -200,9 +198,6 @@ def test_corrupt_remote_host_and_oversized_settings_fail_to_safe_defaults(tmp_pa
 def test_empty_instance_path_in_schema_two_fails_to_safe_defaults(tmp_path: Path) -> None:
     manager = _manager(tmp_path)
     payload = manager.defaults.as_payload()
-    payload["schema_version"] = 2
-    del payload["shell"]["interface_mode"]
-    del payload["shell"]["interface_mode_change"]
     payload["instance_path"] = ""
     manager.path.write_text(json.dumps(payload), encoding="utf-8")
 

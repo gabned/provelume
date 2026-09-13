@@ -307,5 +307,6 @@
   "components.reason.packaged_asset_invalid": "Integrità della risorsa del pacchetto non valida",
   "cura.operation.failed": "Non riuscita",
   "cura.operation.completed_with_errors": "Completata con errori",
-  "cura.more_filters": "Altri filtri"
+  "cura.more_filters": "Altri filtri",
+  "cura.result": "risultato"
 }

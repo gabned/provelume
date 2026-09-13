@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends base_layout %}
 {% block title %}{{ t('email.attachments') }} · {{ t('brand') }}{% endblock %}
 {% block content %}
 <section class="hero"><p class="eyebrow">{{ t('email.eyebrow') }}</p><h1>{{ t('email.attachments') }}</h1><p class="technical-note">{{ attachment.id }}</p></section>

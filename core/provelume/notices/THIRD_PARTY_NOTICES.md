@@ -32,11 +32,11 @@ Feather-derived icons are both retained: the aggregate subset is **ISC AND MIT**
 and not a choice between ISC and MIT. Copyright holders are Lucide Icons and Contributors
 (2026) and Cole Bemis (2013-present, Feather-derived list).
 
-The complete, unchanged upstream [LICENSE](core/provelume/static/icons/lucide/LICENSE),
+The complete, unchanged upstream [LICENSE](core/provelume/notices/lucide-LICENSE.txt),
 including both permission/disclaimer blocks and the Feather icon list, is packaged at
-`provelume/static/icons/lucide/LICENSE`. Its SHA-256 is
+`provelume/notices/lucide-LICENSE.txt`. Its SHA-256 is
 `b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57`.
-The adjacent [subset manifest](core/provelume/static/icons/lucide/subset.json) records every
+The [subset manifest](core/provelume/static/icons/lucide/subset.json) records every
 source byte identity and upstream reference. `triangle-alert` retains its upstream
 `alert-triangle` alias reference for the Feather-list attribution. No exhaustive individual
 copyright history is inferred from icon names or geometry.

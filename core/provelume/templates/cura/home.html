@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends base_layout %}
 {% block title %}{{ t('cura.nav.overview') }} · {{ t('brand') }}{% endblock %}
 {% block content %}
 <section class="cura-heading"><div><p class="eyebrow">{{ t('cura.your_knowledge') }}</p><h1>{{ t('cura.nav.overview') }}</h1><p class="lead">{{ t('cura.overview_lead') }}</p></div><a class="button" href="/inbox?lang={{ lang }}">{{ icon('inbox') }}{{ t('cura.nav.capture') }}</a></section>

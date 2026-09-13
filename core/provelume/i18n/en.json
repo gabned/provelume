@@ -307,5 +307,6 @@
   "components.reason.packaged_asset_invalid": "Packaged asset integrity is invalid",
   "cura.operation.failed": "Failed",
   "cura.operation.completed_with_errors": "Completed with errors",
-  "cura.more_filters": "More filters"
+  "cura.more_filters": "More filters",
+  "cura.result": "result"
 }

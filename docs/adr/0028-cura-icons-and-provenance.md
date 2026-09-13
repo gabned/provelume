@@ -33,6 +33,14 @@ references and reviewed-release update route. Its canonical UTF-8 JSON uses sort
 keys, compact separators and one trailing LF. The catalogue anchors the SHA-256 of
 those exact bytes. No second asset registry or runtime upstream service is introduced.
 
+The 18 SVG files and subset manifest are browser assets under `static/icons/lucide/`.
+The unchanged full upstream license is instead a packaged notice at
+`notices/lucide-LICENSE.txt`, outside the browser asset tree. Its manifest `file` is
+that exact package-relative path; `source_path` remains upstream `LICENSE`. No other
+notice path or traversal is accepted. This placement preserves the existing browser
+asset boundary without changing its allowed extensions. The component still owns
+20 resources, and installed wheel RECORD and frozen comparisons include the notice.
+
 The verifier reads only package resources, with a closed file set and explicit byte
 limits; it rejects missing/extra files, directories, symlinks/junctions, invalid names,
 manifest mismatch, source-byte mismatch and SVG active content. Geometric elements and

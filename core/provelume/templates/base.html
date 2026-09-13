@@ -1,1 +1,43 @@
-{% extends base_layout %}
+<!doctype html>
+<html lang="{{ lang }}" data-theme="{{ theme }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ t('brand') }}{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="/static/brand/provelume.svg">
+  <link rel="icon" type="image/x-icon" href="/static/brand/provelume.ico">
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="stylesheet" href="/static/activity.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">{{ t('common.skip_to_content') }}</a>
+  <header class="site-header">
+    <a class="brand" href="/?lang={{ lang }}">
+      <img class="brand-mark" src="/static/brand/provelume.svg" width="40" height="40" alt="" aria-hidden="true">
+      <span>{{ t('brand') }}</span>
+      <small>{{ t('tagline') }}</small>
+    </a>
+    <nav aria-label="{{ t('nav.primary') }}">
+      {% for group in navigation %}
+      <details class="nav-group"{% if group.current %} open{% endif %}>
+        <summary>{{ group.label }}</summary>
+        <div class="nav-menu">
+          {% for item in group.links %}
+          <a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a>
+          {% endfor %}
+        </div>
+      </details>
+      {% endfor %}
+    </nav>
+    <div class="language" aria-label="{{ t('common.language') }}">
+      <a href="{{ language_urls.en }}" hreflang="en" lang="en"{% if lang == 'en' %} aria-current="true"{% endif %}>EN</a>
+      <span aria-hidden="true">·</span>
+      <a href="{{ language_urls.it }}" hreflang="it" lang="it"{% if lang == 'it' %} aria-current="true"{% endif %}>IT</a>
+    </div>
+  </header>
+  <main id="main-content" class="page-shell" tabindex="-1">
+    {% block content %}{% endblock %}
+  </main>
+  <footer>{{ t('footer.local') }}</footer>
+</body>
+</html>
