@@ -434,6 +434,8 @@ def attach_operations_maintenance_routes(
 
     @app.post("/maintenance/capacity")
     async def capacity_plan(request: Request):
+        if instance is None:
+            return denied(request)
         values = await fields(request, {"mode", "revision"})
         try:
             revision = int(values["revision"])
@@ -520,7 +522,7 @@ def attach_operations_maintenance_routes(
                 result = repair.recover_pending_reviewed(
                     payload["input_revision"], key, confirm=True
                 )
-            elif kind == "capacity_policy":
+            elif kind == "capacity_policy" and instance is not None:
                 result = capacity.configure(
                     payload["mode"], expected_revision=payload["revision"], request_id=key
                 )
