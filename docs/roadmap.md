@@ -42,7 +42,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.9.0` | OCR, email, Google file and transcript intake | #137 (completed); S01–S07 completed by #138/#141/#147/#150/#152/#154/#156; release #158 | `Lectio` |
 | Published preview | `0.10.0` | Multimedia, universal content representations and component inventory | #160 (completed); S01–S07 completed by #163/#168/#170/#172/#173/#175/#179/#182; release #183 | `Perceptio` |
 | Published preview | `0.10.1` | Source onboarding, filtering and canonical brand correction | #198 completed; release #251 | `Emendatio` |
-| Active development | `0.11.0` | Daily-use UX, Unified Capture, Action Center and multilingual interface | #255 activation; #256 S01 baseline; #247 planning | `Cura` |
+| Active development | `0.11.0` | Daily-use UX, Unified Capture, Action Center and multilingual interface | #255 activation; S01 #256/#257 and S02 #258/#261 integrated; S03 #262 active; #247 planning | `Cura` |
 | Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
 | Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
 | Forecast | `0.14.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
@@ -1228,7 +1228,14 @@ evidence and Lucide remains `0.11/S02`.
 `0.10.1 — Emendatio` campaign. [S01 #256](https://github.com/gabned/provelume/issues/256) records the
 [existing-interface baseline](qualification/cura-s01-baseline.md) and
 [information architecture, route inventory and glossary](architecture/cura-information-architecture.md).
-S02–S09 remain ordered, unopened implementation slices until their preceding verified merge.
+S01 is integrated through #257. S02 #258/#261 is integrated at
+`6024dd153e902e02d59b68f7a6b4f9b919803c9b`, with qualification and post-merge verification
+in #255 receipts 15–16. It delivers the optional Preview shell, shared presentation and
+retrieval context, local icons, appearance/language persistence and presentation rollback.
+[S03 #262](https://github.com/gabned/provelume/issues/262) is active under receipt 17 for the
+[typed Action Center](architecture/action-center.md) and
+[local notification contract](architecture/cura-notifications.md).
+S04–S09 remain ordered, unopened implementation slices until their preceding verified merge.
 Package/runtime remains `0.10.1` until distinct release preparation; activation is not delivery.
 The optional Telegram adapter is deferred in #255; required native share/direct Capture/Drive-drop
 paths and the provider-neutral relay contract remain in scope.

@@ -1,0 +1,7 @@
+{% extends base_layout %}
+{% block title %}{{ t('action.reset_notification_history') }} · {{ t('brand') }}{% endblock %}
+{% block content %}<a href="/settings/notifications?lang={{ lang }}">{{ t('action.settings') }}</a><h1>{{ t('action.reset_notification_history') }}</h1>
+<section class="panel"><p>{{ t('action.reset_notification_help') }}</p><p>{{ t('action.dismissed_count') }}: {{ notification.acknowledged_count }}</p>
+{% if error %}<p role="alert">{{ t('action.notification_error') }}</p>{% endif %}
+{% if editable and notification.journal_revision is not none %}<form action="/settings/notifications/history?lang={{ lang }}" method="post" class="settings-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="mutation_nonce" value="{{ mutation_nonce }}"><input type="hidden" name="request_id" value="{{ request_id }}"><input type="hidden" name="instance_id" value="{{ notification.instance_id }}"><input type="hidden" name="journal_revision" value="{{ notification.journal_revision }}"><input type="hidden" name="settings_revision" value="{{ notification.settings_revision }}"><label><input type="checkbox" name="confirm_redelivery" required> {{ t('action.confirm_redelivery') }}</label><button type="submit">{{ t('action.reset_notification_history') }}</button></form>{% else %}<p>{{ t('action.unavailable') }}</p>{% endif %}
+{% if notification.last_reset %}<p>{{ t('action.last_reset') }}: {{ notification.last_reset.reset_at }}</p>{% endif %}</section>{% endblock %}

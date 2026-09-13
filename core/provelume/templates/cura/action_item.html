@@ -1,0 +1,22 @@
+{% extends base_layout %}
+{% block title %}{{ t('action.' ~ item.queue) }} · {{ t('action.title') }}{% endblock %}
+{% block content %}
+<a href="/attention?lang={{ lang }}">{{ t('action.back') }}</a><p class="eyebrow">{{ t('action.title') }}</p><h1>{{ t('action.' ~ item.queue) }}</h1>
+{% if saved %}<p class="status ok" role="status">{{ t('action.saved') }}</p>{% endif %}
+{% if error %}<p class="status warn" role="alert">{{ t('action.write_error') }}</p>{% elif stale %}<p class="status warn" role="status">{{ t('action.stale') }}</p>{% endif %}
+<section class="panel"><h2>{{ t('action.proposal') }}</h2><dl>
+<dt>{{ t('action.state') }}</dt><dd>{{ t('action.' ~ item.review_state) }}</dd>
+<dt>{{ t('action.reason') }}</dt><dd>{{ action_reason(item) }}</dd>
+<dt>{{ t('action.confidence') }}</dt><dd>{{ item.proposal.confidence if item.proposal.confidence is not none else t('action.unknown') }}</dd>
+<dt>{{ t('action.impact') }}</dt><dd>{{ t('action.impact.' ~ item.proposal.impact) }}</dd>
+<dt>{{ t('action.reversibility') }}</dt><dd>{{ t('action.receipt_preserved') }}</dd></dl></section>
+<section class="panel"><h2>{{ t('action.evidence') }}</h2><ul class="cura-link-list">{% for link in action_domain_links(item) %}<li><a href="{{ link.href }}">{{ link.label }}</a></li>{% endfor %}</ul>
+<p class="muted">{{ t('action.hash_help') }}</p><details><summary>{{ t('action.details') }}</summary><dl class="action-evidence"><dt>{{ t('action.item_id') }}</dt><dd><code>{{ item.id }}</code></dd><dt>{{ t('action.input_revision') }}</dt><dd><code>{{ item.revision }}</code></dd>{% for key, value in item.evidence.items() %}<dt>{{ action_label('action.evidence.', key, 'action.additional_evidence') }} · <code>{{ key }}</code></dt><dd>{% if value is mapping or (value is sequence and value is not string) %}<pre>{{ value|tojson(indent=2) }}</pre>{% else %}<code>{{ value }}</code>{% endif %}</dd>{% endfor %}</dl></details></section>
+<section class="panel"><h2>{{ t('action.actions') }}</h2>
+{% if editable and item.allowed_actions and not stale %}<form method="post" action="/attention/items/{{ item.id }}/decision?lang={{ lang }}" class="settings-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="mutation_nonce" value="{{ mutation_nonce }}"><input type="hidden" name="request_id" value="{{ request_id }}"><input type="hidden" name="instance_id" value="{{ item.instance_id }}"><input type="hidden" name="expected_revision" value="{{ item.revision }}"><input type="hidden" name="authority_revision" value="{{ item.authority_revision }}">
+{% if 'acknowledge_evidence' in item.allowed_actions %}<p>{{ t('action.acknowledge_help') }}</p>{% endif %}{% if 'reject_proposal' in item.allowed_actions %}<p>{{ t('action.reject_help') }}</p>{% endif %}
+<label><input type="checkbox" name="confirmed" required> {{ t('action.confirm') }}</label><div class="form-actions">{% for action in item.allowed_actions %}<button type="submit" name="action" value="{{ action }}">{{ t('action.' ~ action) }}</button>{% endfor %}</div></form>
+{% elif not editable %}<p>{{ t('action.readonly') }}</p>{% elif stale %}<a href="{{ action_item_url(item) }}">{{ t('action.reload') }}</a>{% else %}<p>{{ t('action.no_actions') }}</p>{% endif %}</section>
+{% if item.history %}<section class="panel"><h2>{{ t('action.history') }}</h2><ol class="document-list">{% for receipt in item.history %}<li><strong>{{ t('action.' ~ receipt.action) }}</strong><p>{{ t('action.' ~ receipt.review_state) }} · <time datetime="{{ receipt.recorded_at }}">{{ receipt.recorded_at }}</time></p><p>{{ t('action.impact.' ~ receipt.impact) }}</p>{% if receipt.superseded %}<p>{{ t('action.history_superseded') }}</p>{% endif %}<details><summary>{{ t('action.receipt_details') }}</summary><pre>{{ receipt|tojson(indent=2) }}</pre></details></li>{% endfor %}</ol></section>{% endif %}
+{% endblock %}

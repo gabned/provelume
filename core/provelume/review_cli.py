@@ -6,7 +6,12 @@ from pathlib import Path
 from typing import Any
 
 from .assurance import AssuranceLimitError, OriginalAssuranceManager
-from .duplicates import DuplicateCaseManager, DuplicateScanLimitError
+from .duplicates import (
+    DuplicateCaseBusyError,
+    DuplicateCaseManager,
+    DuplicateScanLimitError,
+    DuplicateScanStaleError,
+)
 from .storage import InstanceStore
 
 
@@ -81,13 +86,24 @@ def handle_review_command(args: argparse.Namespace) -> int | None:
     if args.command == "duplicate-scan":
         try:
             result = DuplicateCaseManager(store).scan()
-        except (AssuranceLimitError, DuplicateScanLimitError) as exc:
+        except (
+            AssuranceLimitError,
+            DuplicateScanLimitError,
+            DuplicateCaseBusyError,
+            DuplicateScanStaleError,
+        ) as exc:
+            conflict = isinstance(exc, (DuplicateCaseBusyError, DuplicateScanStaleError))
             print(
                 json.dumps(
                     {
-                        "status": "error",
+                        "status": "conflict" if conflict else "error",
                         "error": str(exc),
                         "error_type": exc.__class__.__name__,
+                        **(
+                            {"retryable": True, "retry_requires_new_request": True}
+                            if conflict
+                            else {}
+                        ),
                     },
                     indent=2,
                 )

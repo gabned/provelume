@@ -12,6 +12,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .about import current_about
+from .action_center import ActionCenter
+from .action_center_activity import action_reason, attach_action_center_routes, item_url
 from .activity import attach_activity_routes
 from .api import attach_api, reject_client_installation_evidence
 from .audio_activity import attach_audio_routes
@@ -29,7 +31,6 @@ from .installation_i18n import installation_translator
 from .maintenance_activity import attach_maintenance_routes
 from .markdown_viewer import DocumentContentError, safe_markdown_html
 from .ocr_activity import attach_ocr_routes
-from .operations import OperationLedger
 from .perceptio_activity import attach_perceptio_routes
 from .photo_activity import attach_photo_routes
 from .qualification_activity import attach_qualification_routes
@@ -306,6 +307,8 @@ def _base_context(request: Request, language: str) -> dict[str, Any]:
         "request": request,
         "lang": language,
         "t": t,
+        "action_item_url": lambda item: item_url(item, language),
+        "action_reason": lambda item: action_reason(item, t),
         "security_t": security_t,
         "navigation": navigation,
         "theme": theme,
@@ -430,6 +433,8 @@ def create_app(
     app.state.installation_verification = installation_verification
     app.state.release_evidence_configured = release_evidence_configured
     app.state.shell_settings_manager = shell_manager
+    action_center = ActionCenter(instance.store)
+    app.state.action_center = action_center
     app.mount("/static", StaticFiles(directory=str(PACKAGE_ROOT / "static")), name="static")
     attach_api(
         app,
@@ -437,6 +442,7 @@ def create_app(
         installation_verification=installation_verification,
     )
     attach_activity_routes(app, instance, TEMPLATES, _context)
+    attach_action_center_routes(app, instance, TEMPLATES, _context, action_center)
     attach_folder_source_routes(app, instance, TEMPLATES, _context)
     attach_maintenance_routes(app, instance, TEMPLATES, _context)
     attach_ocr_routes(app, instance, TEMPLATES, _context)
@@ -466,12 +472,7 @@ def create_app(
 
     @app.get("/")
     def home(request: Request):
-        ledger = OperationLedger(instance.store)
-        attention = sorted(
-            ledger.list(status="failed", limit=5)
-            + ledger.list(status="completed_with_errors", limit=5),
-            key=lambda item: (item["started_at"], item["id"]), reverse=True,
-        )[:5]
+        attention = action_center.snapshot(limit=5)
         return _page(
             request=request,
             name="home.html",
@@ -481,7 +482,7 @@ def create_app(
                 latest=instance.recent_documents(limit=8),
                 ingestion_errors=instance.ingestion_errors(limit=8),
                 health=instance.knowledge_health(),
-                attention_operations=attention,
+                attention=attention,
             ),
         )
 
@@ -569,19 +570,6 @@ def create_app(
     def management_page(request: Request):
         return TEMPLATES.TemplateResponse(
             request=request, name="cura/management.html", context=_context(request, instance),
-        )
-
-    @app.get("/attention")
-    def attention_page(request: Request):
-        ledger = OperationLedger(instance.store)
-        operations = sorted(
-            ledger.list(status="failed", limit=250)
-            + ledger.list(status="completed_with_errors", limit=250),
-            key=lambda item: (item["started_at"], item["id"]), reverse=True,
-        )[:250]
-        return TEMPLATES.TemplateResponse(
-            request=request, name="cura/attention.html",
-            context=_context(request, instance, attention_operations=operations),
         )
 
     @app.get("/documents/{document_id}")

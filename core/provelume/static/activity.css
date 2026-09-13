@@ -45,3 +45,7 @@
 .settings-form button {
   justify-self: start;
 }
+
+/* Exact evidence stays readable in Current and Preview at reduced widths. */
+.action-evidence dd { margin-inline-start: 0; overflow-wrap: anywhere; }
+.action-evidence pre { max-width: 100%; overflow-x: auto; white-space: pre-wrap; }

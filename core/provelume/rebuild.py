@@ -13,7 +13,12 @@ from .bundles import (
     BundleBuildError,
     DocumentBundleManager,
 )
-from .duplicates import DuplicateCaseManager, DuplicateScanLimitError
+from .duplicates import (
+    DuplicateCaseBusyError,
+    DuplicateCaseManager,
+    DuplicateScanLimitError,
+    DuplicateScanStaleError,
+)
 from .index import index_status, rebuild_search_index
 from .library_projection import LibraryProjectionError, LibraryProjectionManager
 from .locks import InstanceLockManager, InstanceLockUnavailable
@@ -630,7 +635,9 @@ class DerivedRebuildManager:
             return report
         except (
             BundleBuildError,
+            DuplicateCaseBusyError,
             DuplicateScanLimitError,
+            DuplicateScanStaleError,
             InstanceLockUnavailable,
             LibraryProjectionError,
             RebuildInvariantError,
@@ -651,7 +658,13 @@ class DerivedRebuildManager:
                     operation.id,
                     status="failed",
                     summary="Derived-state rebuild failed.",
-                    error_code="derived_rebuild_failed",
+                    error_code=(
+                        "duplicate_case_busy"
+                        if isinstance(exc, DuplicateCaseBusyError)
+                        else "duplicate_scan_stale"
+                        if isinstance(exc, DuplicateScanStaleError)
+                        else "derived_rebuild_failed"
+                    ),
                     error=exc.__class__.__name__,
                 )
             raise
