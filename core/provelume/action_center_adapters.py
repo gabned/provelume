@@ -25,11 +25,19 @@ from .action_center_model import (
     make_proposal,
     queue_observation,
 )
-from .duplicates import DuplicateCaseManager
+from .duplicates import (
+    DUPLICATE_SCAN_SCHEMA_VERSION,
+    DuplicateCaseManager,
+    duplicate_comparison_digest,
+    duplicate_input_digest,
+    duplicate_record_digest,
+    duplicate_text_binding,
+)
 from .folder_source_model import normalise_observer_record
 from .hierarchy_model import canonical_hierarchy_errors
 from .ingestion_runs import INGESTION_ITEM_STATUSES, INGESTION_RUN_STATUSES
 from .ocr_contract import OCR_ERROR_MESSAGES
+from .paths import normalise_locator
 from .retention_model import canonical_disposition_errors
 from .scheduler_model import utc_instant, validate_job_record
 from .source_reconciliation_model import validate_reconciliation_run, validate_source_cursor
@@ -99,6 +107,7 @@ def _probable_evidence_matches(rule: str, evidence: dict[str, Any]) -> bool:
     title, text = evidence.get("title_similarity"), evidence.get("text_similarity")
     if (
         any(type(value) not in (int, float) or not 0 <= value <= 1 for value in (title, text))
+        or _HASH.fullmatch(str(evidence.get("comparison_input_digest", ""))) is None
         or evidence.get("different_content_hashes") is not True
         or any(
             type(evidence.get(field)) is not int or not 1 <= evidence[field] <= 2_000
@@ -199,6 +208,32 @@ class _Reader:
                 if len(names) > MAX_RECORDS_PER_DIRECTORY:
                     break
         return tuple(sorted(names))
+
+    def text(self, path: Path, queues: tuple[str, ...]) -> str:
+        """Read bounded Instance-local derived text and retain its byte bracket."""
+        previous = self.files.get(path)
+        owners = set(queues) | (previous[1] if previous else set())
+        try:
+            self._safe(path)
+            if (self.bytes_read >= MAX_SNAPSHOT_BYTES
+                or path.stat().st_size > MAX_SNAPSHOT_BYTES - self.bytes_read):
+                self.problem(queues, "snapshot_byte_bound")
+                raise ValueError("derived text snapshot byte bound")
+            raw = self._bytes(path)
+            self.bytes_read += len(raw)
+            fingerprint = hashlib.sha256(raw).hexdigest()
+            if previous and previous[0] != fingerprint:
+                self.problem(tuple(owners), "snapshot_changed")
+                self.changed = True
+            self.files[path] = (fingerprint, owners)
+            # Match Path.read_text(newline=None), used by the scan producer.
+            return raw.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+        except FileNotFoundError:
+            self.files[path] = (None, owners)
+            raise
+        except (OSError, ValueError):
+            self.problem(queues, "derived_text_invalid_or_unreadable")
+            raise
 
     def rows(
         self,
@@ -338,9 +373,28 @@ class _Projection:
                 ),
             )
             candidate["producer_current"] = current
+            candidate["display"] = {"title": self.display_title(evidence, producer)}
             self.items.append(candidate)
         except ActionCenterError:
             self.reader.problem((queue,), "proposal_evidence_bound_or_invalid")
+
+    def display_title(self, evidence: dict[str, Any], producer: str) -> str:
+        """Canonical names are presentation only, never proposal/revision inputs."""
+        identifiers = [evidence.get("document_id")]
+        identifiers.extend(row.get("document_id") for row in evidence.get("lineage", []))
+        titles = []
+        for identifier in dict.fromkeys(identifiers):
+            document = self.canonical["documents"].get(identifier)
+            title = document.get("title") if document else None
+            if isinstance(title, str) and title.strip():
+                titles.append(title.strip()[:240])
+            if len(titles) == 2:
+                break
+        if titles:
+            return " / ".join(titles)[:240]
+        source = self.canonical["sources"].get(evidence.get("source_id"))
+        name = source.get("name") if source else None
+        return name.strip()[:240] if isinstance(name, str) and name.strip() else producer[:240]
 
     def lineage(
         self, document_id: Any, queue: str, version_id: Any = None, *, historical: bool = False
@@ -454,7 +508,11 @@ class _Projection:
 
     def duplicates(self) -> None:
         queues = ("exact_duplicate", "probable_duplicate")
+        marker = self.reader.record(
+            self.store.paths.state / "duplicates" / "scan-state.json", queues, optional=True
+        )
         cases = self.reader.rows(self.store.paths.state / "duplicates" / "cases", queues)
+        self.duplicate_scan_observation(marker, cases, queues)
         for case_id, case in cases.items():
             if not DuplicateCaseManager._valid_case(case):
                 self.reader.problem(queues, "duplicate_case_invalid")
@@ -513,6 +571,14 @@ class _Projection:
             ):
                 self.reader.problem((queue,), "duplicate_rule_invalid")
                 continue
+            if (
+                queue == "probable_duplicate" and marker
+                and isinstance(marker.get("text_inventory"), dict)
+                and duplicate_comparison_digest(snapshots, marker["text_inventory"])
+                != evidence["comparison_input_digest"]
+            ):
+                self.reader.problem((queue,), "duplicate_comparison_binding_invalid")
+                continue
             inputs = {
                 "lineage": lineage,
                 "source_ids": sorted({row["source_id"] for row in lineage}),
@@ -536,6 +602,69 @@ class _Projection:
                 semantic=inputs,
                 current=current,
             )
+
+    def duplicate_scan_observation(
+        self, marker: dict[str, Any] | None, cases: dict[str, dict[str, Any]],
+        queues: tuple[str, ...],
+    ) -> None:
+        reader = self.reader
+        if marker is None:
+            if cases:
+                reader.problem(queues, "duplicate_scan_unverified")
+            return
+        if (
+            type(marker.get("schema_version")) is not int
+            or marker["schema_version"] != DUPLICATE_SCAN_SCHEMA_VERSION
+            or re.fullmatch(r"op_[0-9a-f]{32}", str(marker.get("operation_id", ""))) is None
+            or marker.get("status") not in {"incomplete", "complete"}
+        ):
+            reader.problem(queues, "duplicate_scan_marker_invalid")
+            return
+        if marker["status"] != "complete":
+            reader.problem(queues, "duplicate_scan_incomplete")
+            return
+        if (
+            set(marker) != {"schema_version", "operation_id", "status", "input_digest",
+                            "case_inventory", "text_inventory", "complete_queues"}
+            or not isinstance(marker.get("complete_queues"), dict)
+            or set(marker["complete_queues"]) != set(queues)
+            or any(type(value) is not bool for value in marker["complete_queues"].values())
+        ):
+            reader.problem(queues, "duplicate_scan_marker_invalid")
+            return
+        expected = {key: duplicate_record_digest(case) for key, case in sorted(cases.items())}
+        if marker.get("case_inventory") != expected:
+            reader.problem(queues, "duplicate_scan_inventory_mismatch")
+        current_input = duplicate_input_digest({
+            kind: list(self.canonical[kind].values())
+            for kind in ("documents", "versions", "acquisitions")
+        })
+        if marker.get("input_digest") != current_input:
+            reader.problem(queues, "duplicate_scan_input_stale")
+        text_store = _DuplicateTextStore(self)
+        text_inventory = {}
+        for document in self.canonical["documents"].values():
+            version_id = document.get("current_version_id")
+            version = self.canonical["versions"].get(version_id)
+            if version and version.get("document_id") == document["id"]:
+                text_inventory[version_id] = duplicate_text_binding(
+                    *DuplicateCaseManager._safe_extracted_text(text_store, version_id)
+                )
+        if marker.get("text_inventory") != text_inventory:
+            reader.problem(("probable_duplicate",), "duplicate_scan_text_stale")
+        operation = reader.record(
+            self.store.paths.state / "operations" / "records" / (marker["operation_id"] + ".json"),
+            queues,
+        )
+        if (
+            not operation or operation.get("id") != marker["operation_id"]
+            or operation.get("kind") != "duplicate.scan"
+            or operation.get("status") not in {"completed", "completed_with_errors"}
+        ):
+            reader.problem(queues, "duplicate_scan_operation_incomplete")
+        for queue in queues:
+            if not marker["complete_queues"][queue]:
+                reader.problem((queue,), "duplicate_scan_partial")
 
     def intake(self) -> None:
         reader = self.reader
@@ -615,6 +744,7 @@ class _Projection:
                 ],
             }
             acquisition = self.canonical["acquisitions"].get(row.get("acquisition_id"))
+            links = [{"href": "/inbox", "kind": "intake"}]
             if row.get("acquisition_id"):
                 if not acquisition:
                     reader.problem((queue,), "acquisition_missing")
@@ -625,13 +755,14 @@ class _Projection:
                 if queue == "extraction_error" and self._extraction_recovered(acquisition):
                     continue
                 evidence.update(lineage)
+                links.extend(self.document_links(lineage["document_id"]))
             self.emit(
                 queue,
                 identifier,
                 "review_failed_acquisition" if queue == "intake" else "review_extraction_error",
                 row.get("error_code") or "ingestion_failed",
                 evidence,
-                links=[{"href": "/inbox", "kind": "intake"}],
+                links=links,
             )
         run_items = {row["run_id"] for row in items.values()}
         retry_runs = {row.get("retry_of_run_id") for row in runs.values()}
@@ -1048,6 +1179,40 @@ class _Projection:
                 )
 
 
+class _DuplicateTextStore(InstanceStore):
+    """Match the producer's artifact selection through the bounded pure reader."""
+
+    def __init__(self, projection: _Projection):
+        super().__init__(projection.store.paths.root)
+        self.projection = projection
+        self.artifacts = projection.reader.rows(
+            self.paths.derived_artifacts, ("probable_duplicate",)
+        )
+        self.texts: dict[str, str] = {}
+
+    def derived_artifact_for_version(
+        self, version_id: str, kind: str = "extracted_text"
+    ) -> dict[str, Any] | None:
+        for artifact in self.artifacts.values():
+            if artifact["version_id"] != version_id or artifact["kind"] != kind:
+                continue
+            relative = normalise_locator(artifact["storage_ref"])
+            if not relative.startswith("state/derived/text/"):
+                raise ValueError("duplicate text must be Instance-local derived text")
+            path = self.paths.root / relative
+            try:
+                self.texts[artifact["id"]] = self.projection.reader.text(
+                    path, ("probable_duplicate",)
+                )
+            except FileNotFoundError:
+                continue
+            return artifact
+        return None
+
+    def read_derived_text(self, artifact: dict[str, Any]) -> str:
+        return self.texts[artifact["id"]]
+
+
 class _RecordedStore(InstanceStore):
     """Reuse owner validation against this bounded in-memory evidence only."""
 
@@ -1085,6 +1250,9 @@ def collect_proposals(store: InstanceStore) -> dict[str, Any]:
         except (ValueError, TypeError, KeyError, OSError, RecursionError):
             projection.reader.problem(owners, "producer_record_invalid_or_unreadable")
     projection.reader.verify()
+    for item in projection.items:
+        if projection.reader.reasons[item["queue"]]:
+            item["allowed_actions"] = []
     queues = {}
     for queue in QUEUES:
         count = sum(item["queue"] == queue for item in projection.items)

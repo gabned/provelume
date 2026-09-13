@@ -224,7 +224,7 @@ class ActionCenter:
             for proposal_id, proposal in value["proposals"].items():
                 if (
                     not isinstance(proposal, dict)
-                    or set(proposal)
+                    or set(proposal) - {"target_binding"}
                     != {
                         "id",
                         "instance_id",
@@ -252,6 +252,17 @@ class ActionCenter:
                     or _SOURCE.fullmatch(proposal["source_id"]) is None
                 ):
                     raise ActionCenterUnavailable("Invalid version proposal binding")
+                if "target_binding" in proposal:
+                    binding = proposal["target_binding"]
+                    if (
+                        not isinstance(binding, dict)
+                        or set(binding) != {"original_id", "sha256", "size_bytes"}
+                        or not isinstance(binding["original_id"], str)
+                        or _ORIGINAL.fullmatch(binding["original_id"]) is None
+                    ):
+                        raise ActionCenterUnavailable("Invalid target Original binding")
+                    revision(binding["sha256"])
+                    integer(binding["size_bytes"], maximum=2**63 - 1)
             bounded_json(value, maximum=MAX_STATE_BYTES)
             return value
         except (
@@ -337,12 +348,11 @@ class ActionCenter:
         if not isinstance(version, dict) or version.get("id") != version_id:
             raise ActionCenterUnavailable("Version evidence is unavailable")
         document_id = version.get("document_id")
-        if (
-            not isinstance(document_id, str)
-            or _DOCUMENT.fullmatch(document_id) is None
-            or self.store.read_canonical("documents", document_id) is None
-        ):
+        if not isinstance(document_id, str) or _DOCUMENT.fullmatch(document_id) is None:
             raise ActionCenterUnavailable("Version Document evidence is unavailable")
+        owner = self.store.read_canonical("documents", document_id)
+        if not isinstance(owner, dict) or owner.get("id") != document_id:
+            raise ActionCenterUnavailable("Version Document ownership is unavailable")
         original_id = version.get("original_id")
         if not isinstance(original_id, str) or _ORIGINAL.fullmatch(original_id) is None:
             raise ActionCenterUnavailable("Invalid Original identity")
@@ -352,17 +362,36 @@ class ActionCenter:
             or original.get("id") != original_id
             or original.get("sha256") != version.get("content_hash")
             or original.get("size_bytes") != version.get("size_bytes")
+            or original_id != "sha256_" + str(version.get("content_hash"))
         ):
             raise ActionCenterUnavailable("Original evidence does not match the Version")
+        revision(original["sha256"])
+        integer(original["size_bytes"], maximum=2**63 - 1)
         return version, original
 
     def _manual_candidates(self, state: dict[str, Any]) -> list[dict[str, Any]]:
         result = []
         for record in state["proposals"].values():
             target = self.store.read_canonical("documents", record["target_document_id"])
-            current = bool(
-                target and target.get("current_version_id") == record["expected_current_version_id"]
-            )
+            if (
+                not isinstance(target, dict)
+                or target.get("id") != record["target_document_id"]
+                or target.get("source_id") != record["source_id"]
+                or "target_binding" not in record
+            ):
+                raise ActionCenterUnavailable("Target Document or persisted binding is unavailable")
+            target_version, target_original = self._version(record["expected_current_version_id"])
+            if (
+                target_version["document_id"] != record["target_document_id"]
+                or {
+                    "original_id": target_original["id"],
+                    "sha256": target_original["sha256"],
+                    "size_bytes": target_original["size_bytes"],
+                }
+                != record["target_binding"]
+            ):
+                raise ActionCenterUnavailable("Persisted target Version or Original has changed")
+            current = target.get("current_version_id") == record["expected_current_version_id"]
             for alternative in record["alternatives"]:
                 version, original = self._version(alternative["version_id"])
                 if (
@@ -387,6 +416,9 @@ class ActionCenter:
                     "version_id": record["expected_current_version_id"],
                     "source_id": record["source_id"],
                     "proposal_id": record["id"],
+                    "original_id": record["target_binding"]["original_id"],
+                    "content_hash": record["target_binding"]["sha256"],
+                    "size_bytes": record["target_binding"]["size_bytes"],
                 },
                 domain_links=[
                     {"href": "/documents/" + record["target_document_id"], "label": "document"}
@@ -395,6 +427,8 @@ class ActionCenter:
                 revision_inputs=record["input_revision"],
             )
             candidate["producer_current"] = current
+            title = target.get("title")
+            candidate["display"] = {"title": title[:240] if isinstance(title, str) else ""}
             result.append(candidate)
         return result
 
@@ -429,7 +463,7 @@ class ActionCenter:
                     reason="snapshot_changed",
                     snapshot_changed=True,
                 )
-        except (ActionCenterError, OSError, KeyError, TypeError):
+        except (ValueError, OSError, KeyError, TypeError):
             observations["version_conflict"] = queue_observation(
                 "version_conflict", status="invalid", reason="version_evidence_unavailable"
             )
@@ -642,8 +676,18 @@ class ActionCenter:
     def get_item(self, item_id: str) -> dict[str, Any] | None:
         if not isinstance(item_id, str) or _ITEM.fullmatch(item_id) is None:
             return None
-        items, _observations, _state = self._collection()
-        return next((item for item in items if item["id"] == item_id), None)
+        items, observations, state = self._collection()
+        item = next((item for item in items if item["id"] == item_id), None)
+        if (
+            item is None
+            and not observations["version_conflict"]["complete"]
+            and any(
+                item_identifier(self.instance_id, "version_conflict", proposal_id) == item_id
+                for proposal_id in state["proposals"]
+            )
+        ):
+            raise ActionCenterUnavailable("Registered version proposal evidence is unavailable")
+        return item
 
     @staticmethod
     def _principal(value: str) -> str:
@@ -931,7 +975,17 @@ class ActionCenter:
             document = self.store.read_canonical("documents", target_document_id)
             if document is None or document["current_version_id"] != expected_current_version_id:
                 raise ActionCenterStale("Target current Version changed")
-            self._version(expected_current_version_id)
+            target_version, target_original = self._version(expected_current_version_id)
+            if (
+                document.get("id") != target_document_id
+                or target_version["document_id"] != target_document_id
+            ):
+                raise ActionCenterUnavailable("Target Version does not belong to the Document")
+            target_binding = {
+                "original_id": target_original["id"],
+                "sha256": target_original["sha256"],
+                "size_bytes": target_original["size_bytes"],
+            }
             for alternative in alternatives:
                 version, original = self._version(alternative["version_id"])
                 if (
@@ -952,6 +1006,7 @@ class ActionCenter:
                 for key, value in payload.items()
                 if key not in {"authority_revision", "principal"}
             }
+            semantic["target_binding"] = target_binding
             proposal_id = "acp_" + digest([self.instance_id, semantic])[:32]
             item_id = item_identifier(self.instance_id, "version_conflict", proposal_id)
             state["proposals"][proposal_id] = {
@@ -960,6 +1015,7 @@ class ActionCenter:
                 "source_id": document["source_id"],
                 "target_document_id": target_document_id,
                 "expected_current_version_id": expected_current_version_id,
+                "target_binding": target_binding,
                 "alternatives": alternatives,
                 "reason": reason,
                 "input_revision": digest(semantic),

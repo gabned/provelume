@@ -28,6 +28,9 @@ local source kind, before/after preference digests and whether they differ. No i
 path or credentials are included. Stale saves fail. An invalid persisted launcher uses the
 existing safe-default warning; notifications fail closed, and notification configuration
 cannot silently repair the file by discarding unrelated settings.
+Schema 4 requires this validated, non-null receipt, including an explicit save of the
+default preferences. A bare schema marker or missing/null receipt cannot promote settings;
+ordinary saves preserve the valid receipt after that explicit choice.
 
 Existing schema-1 preference export/import keeps its declared fields. Import preserves
 notifications, interface selection and receipts outside that transfer scope. **Complete
@@ -97,13 +100,19 @@ or acknowledgement does not prove external delivery or that every item was read.
 
 ## Explicit acknowledgement and bounded recovery
 
-`acknowledge(snapshot, loaded_settings, batch_id=..., expected_revision=...,
+`acknowledge(snapshot, settings_manager, batch_id=..., expected_revision=...,
 expected_settings_revision=...)` writes only `state/action-center/notifications.json`.
 The route owner supplies a fresh server snapshot, local request protection, CSRF and a
 one-use nonce. The service independently validates Instance binding, exact batch/input
 references, settings revision, journal revision and current eligibility. It reuses the
 existing OS lock/path guards and atomic JSON writer. A stale batch cannot acknowledge a
 newer input revision; it never submits an Action Center review decision.
+Both journal mutations require the actual settings manager. They acquire its existing
+lock, reload persisted settings and verify the submitted revision and selected Instance
+before acquiring the journal lock. The settings lock remains held through journal commit
+and receipt replay. A stale caller-loaded object cannot authorize a write after another
+tab disables notifications. Lock order is always settings, then notification journal;
+contention fails explicitly without an implicit retry.
 Path guards reject broken symlinks as well as existing links/reparse points, including
 the lock and every parent, before any notification metadata is created.
 
@@ -118,7 +127,7 @@ a missing item in a bounded page is not evidence that it was resolved. Capacity 
 `notification_journal_full` before the UI offers an acknowledgement that cannot fit.
 
 Recovery is an explicit metadata-only action:
-`reset_acknowledgements(loaded_settings, expected_revision=...,
+`reset_acknowledgements(settings_manager, expected_revision=...,
 expected_settings_revision=..., confirm_redelivery=True)`. The UI must explain that
 **unchanged items become notifiable again** and require its own confirmation/nonce. The
 service checks both revisions and a literal true confirmation under the journal lock.

@@ -356,7 +356,7 @@ def attach_action_center_routes(
         try:
             notifications.acknowledge(
                 snapshot,
-                loaded,
+                app.state.shell_settings_manager,
                 batch_id=values["batch_id"],
                 expected_revision=number(values["journal_revision"]),
                 expected_settings_revision=number(values["settings_revision"]),
@@ -453,7 +453,7 @@ def attach_action_center_routes(
         loaded = app.state.shell_settings_manager.load()
         try:
             service.reset_acknowledgements(
-                loaded,
+                app.state.shell_settings_manager,
                 expected_revision=number(values["journal_revision"]),
                 expected_settings_revision=number(values["settings_revision"]),
                 confirm_redelivery=True,

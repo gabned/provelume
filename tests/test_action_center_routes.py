@@ -85,11 +85,16 @@ def test_real_queue_api_overview_and_both_renderers_preserve_evidence(browser):
                 assert response.status_code == 200, (route, response.text[:200])
                 assert "action.reason." not in response.text
                 assert "action.notification_state." not in response.text
+                if route == "/attention":
+                    assert "private-title-orchid.txt" in response.text
             item = extraction(client)
             detail = client.get(f"/attention/items/{item['id']}?lang={language}")
             assert detail.status_code == 200
             assert "action.impact." not in detail.text
             assert item["revision"] in detail.text
+            assert "failed.txt" in detail.text
+            assert f'/documents/{item["evidence"]["document_id"]}' in detail.text
+            assert "/provenance" in detail.text
         assert client.get("/api/v1/action-center").json() == expected
     assert protected_bytes(instance) == before
 

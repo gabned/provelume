@@ -88,6 +88,140 @@ def test_pure_read_and_page_independent_identity_counts(center, monkeypatch):
     assert not manager.root.exists()
 
 
+def _excluded_target_proposal(center, tmp_path):
+    manager, collection = center
+    collection["items"] = []
+    source = tmp_path / "excluded-target"
+    source.mkdir()
+    for name in ("target", "left", "right"):
+        (source / f"{name}.txt").write_text(f"distinct {name} exact bytes\n", encoding="utf-8")
+    instance = ProvelumeInstance(manager.store.paths.root)
+    instance.ingest_run(source)
+    documents = instance.store.list_canonical("documents")
+    target = next(document for document in documents if document["locator"] == "target.txt")
+    versions = [
+        instance.store.read_canonical("versions", item["current_version_id"]) for item in documents
+    ]
+    alternatives = [
+        {
+            "version_id": item["id"],
+            "original_id": item["original_id"],
+            "sha256": item["content_hash"],
+        }
+        for item in versions
+        if item["document_id"] != target["id"]
+    ]
+    result = manager.propose_version_conflict(
+        target["id"], target["current_version_id"], alternatives, "manual_comparison", "excluded", 0
+    )
+    item = manager.get_item(result["item_id"])
+    assert item["allowed_actions"] == ["reject_proposal"]
+    assert target["current_version_id"] not in {entry["version_id"] for entry in alternatives}
+    return manager, target, alternatives, item
+
+
+def _write_canonical_fixture(store, kind, record):
+    store._atomic_json(store.paths.canonical_dir(kind) / (record["id"] + ".json"), record)
+
+
+@pytest.mark.parametrize(
+    "damage",
+    [
+        "missing_version",
+        "version_json",
+        "version_owner",
+        "version_original_rebound",
+        "missing_original",
+        "original_json",
+        "original_hash",
+        "matched_sizes_changed",
+        "missing_document",
+        "document_identity",
+        "document_source",
+        "legacy_binding",
+    ],
+)
+def test_excluded_target_lineage_damage_denies_review_without_writing(center, tmp_path, damage):
+    manager, target, alternatives, item = _excluded_target_proposal(center, tmp_path)
+    store = manager.store
+    version = store.read_canonical("versions", target["current_version_id"])
+    original = store.read_canonical("originals", version["original_id"])
+    version_path = store.paths.canonical_dir("versions") / (version["id"] + ".json")
+    original_path = store.paths.canonical_dir("originals") / (original["id"] + ".json")
+    document_path = store.paths.canonical_dir("documents") / (target["id"] + ".json")
+    if damage == "missing_version":
+        version_path.unlink()
+    elif damage == "version_json":
+        version_path.write_text("{corrupt", encoding="utf-8")
+    elif damage == "version_owner":
+        other = store.read_canonical("versions", alternatives[0]["version_id"])
+        _write_canonical_fixture(
+            store, "versions", {**version, "document_id": other["document_id"]}
+        )
+    elif damage == "version_original_rebound":
+        other = store.read_canonical("versions", alternatives[0]["version_id"])
+        _write_canonical_fixture(
+            store,
+            "versions",
+            {
+                **version,
+                "original_id": other["original_id"],
+                "content_hash": other["content_hash"],
+                "size_bytes": other["size_bytes"],
+            },
+        )
+    elif damage == "missing_original":
+        original_path.unlink()
+    elif damage == "original_json":
+        original_path.write_text("{corrupt", encoding="utf-8")
+    elif damage == "original_hash":
+        _write_canonical_fixture(store, "originals", {**original, "sha256": "0" * 64})
+    elif damage == "matched_sizes_changed":
+        _write_canonical_fixture(
+            store, "originals", {**original, "size_bytes": original["size_bytes"] + 1}
+        )
+        _write_canonical_fixture(
+            store, "versions", {**version, "size_bytes": version["size_bytes"] + 1}
+        )
+    elif damage == "missing_document":
+        document_path.unlink()
+    elif damage == "document_identity":
+        store._atomic_json(document_path, {**target, "id": "doc_" + "f" * 32})
+    elif damage == "document_source":
+        _write_canonical_fixture(store, "documents", {**target, "source_id": "src_" + "f" * 32})
+    else:
+        state = json.loads(manager.path.read_bytes())
+        record = next(iter(state["proposals"].values()))
+        del record["target_binding"]
+        store._atomic_json(manager.path, state)
+    before = manager.path.read_bytes()
+    restarted = ActionCenter(store)
+    view = restarted.snapshot(queue="version_conflict")
+    assert view["complete"] is False and view["total"] is None
+    assert view["queues"]["version_conflict"]["status"] == "invalid"
+    assert not any(entry["allowed_actions"] for entry in view["items"])
+    assert restarted.authority()["revision"] == 0
+    with pytest.raises(ActionCenterUnavailable):
+        restarted.get_item(item["id"])
+    with pytest.raises(ActionCenterUnavailable):
+        restarted.decide(item["id"], item["revision"], "reject_proposal", "must_not_commit", 0)
+    assert manager.path.read_bytes() == before
+
+
+def test_manual_display_title_is_bounded_and_outside_input_revision(center, tmp_path):
+    manager, target, _alternatives, item = _excluded_target_proposal(center, tmp_path)
+    assert item["display"] == {"title": target["title"][:240]}
+    state_before = manager.path.read_bytes()
+    title = "<script>untrusted presentation</script>" * 20
+    _write_canonical_fixture(manager.store, "documents", {**target, "title": title})
+    changed = manager.get_item(item["id"])
+    assert changed["display"]["title"] == title[:240]
+    assert changed["revision"] == item["revision"]
+    assert changed["evidence"] == item["evidence"]
+    assert changed["allowed_actions"] == ["reject_proposal"]
+    assert manager.path.read_bytes() == state_before
+
+
 def test_revision_does_not_follow_presentation_or_poll_time():
     semantic = {"version_id": "ver_exact", "sha256": "1" * 64, "error_code": "failed"}
     first = make_proposal(

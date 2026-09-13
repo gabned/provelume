@@ -79,6 +79,20 @@ from the decision CAS window. No read acquires either lock: both may create cont
 Future S05 domain writers must supply their own shared mutation/CAS boundary; a queue-only lock
 does not protect an uncooperative producer.
 
+A duplicate scan publishes a durable incomplete marker before writing any case. Calculation
+stages the case set; publication verifies canonical inputs, the complete case inventory and
+the local text used for comparisons before recording a complete terminal scan. An interrupted
+or partial publication remains unavailable until an explicit successful scan. Readers bracket
+the marker, case files, owning operation and bounded local comparison evidence without taking
+a writer lock or repairing state. Legacy cases without a verified scan marker remain visible
+as unverified evidence, with unknown counts and no decision actions.
+
+Probable-duplicate rules depend on titles and extracted text. Their comparison digest binds
+those actual inputs separately from presentation labels and changes when the comparison
+evidence changes, even if its numeric similarity score happens to remain the same. Repeating
+a scan with identical evidence does not manufacture a new decision revision. Exact duplicates
+continue to use content identity rather than similarity evidence.
+
 ## Explicit version-conflict producer
 
 `propose_version_conflict` registers a proposal, not a Version mutation. The local caller supplies
@@ -87,6 +101,18 @@ one target Document, its expected current Version, two to sixteen explicit alter
 `conflicting_sources` or `manual_comparison`. Alternatives must identify distinct existing
 Versions and at least two content hashes. Their exact Original metadata and target-current
 binding are checked under the lifecycle lock with the expected authority revision.
+
+Registration also binds the target's exact Original identity, content hash and byte size,
+even when its current Version is not among the alternatives. Every recollection and decision
+revalidates that Version's Document ownership, the target Document/Source identity and this
+persisted Original binding. Missing, corrupt or changed target evidence makes the queue
+unavailable and denies review; it cannot be accepted as an empty complete queue. Earlier
+proposal records without this binding remain readable and retained, but are unavailable for
+review. Reads never reconstruct a historical binding from current data or rewrite those records.
+
+Manual proposals expose `display.title` as bounded presentation metadata (240 characters).
+It remains separate from evidence, receipts and input revision; changing a title does not
+change the identity or authority of an exact proposal.
 
 The producer persists the supplied alternatives and reason with deterministic Instance-scoped
 identity and input digest. Restart preserves it. If the target's current Version changes, the

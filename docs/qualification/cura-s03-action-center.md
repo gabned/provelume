@@ -13,6 +13,9 @@ bounded pagination, visible completeness and unknown counts. Preview Overview an
 `/api/v1/action-center` consume the same Instance-scoped read model. Detail pages separate
 human-readable proposals and effects from optional exact evidence and receipt details.
 Stale links show current evidence but do not present a decision form for the earlier revision.
+Bounded document titles distinguish items without changing their decision revision. Validated
+ingestion lineage links directly to the Document and its provenance; exact Version and
+Original references remain available in the evidence disclosure.
 
 Local forms require the existing authorized loopback boundary, a form token, a single-use
 nonce, the exact Instance and relevant input/settings/authority revisions. Requests are
@@ -25,11 +28,18 @@ canonical classification, duplicate/version handling and routing; S06 owns intak
 No placeholder action reports success. The explicit version-conflict producer is the public
 `ActionCenter.propose_version_conflict` core method, bound to supplied current Version and
 Original evidence; merely receiving several Versions does not manufacture a conflict.
+Each proposal persists its target Original binding and revalidates it even when the target
+Version is not among the alternatives. Legacy proposals without that binding require new
+explicit evidence; reading them never invents a binding from current records.
 
 `/attention/notifications` displays minimized local batches with exact item links, including
 later pages. Dismissing a batch changes only delivery metadata, never review or ingestion.
 `/settings/notifications` persists the in-app preference, quiet hours, time zone and aggregation.
 Explicit saves promote the launcher document to schema 4; reading legacy settings does not.
+Schema 4 requires a valid non-null preference receipt, including an explicit default-valued
+save. A bare schema marker change is invalid. Acknowledgement and reset hold the settings
+lock before the delivery journal lock and re-read the persisted revision and selected
+Instance before any journal mutation.
 Current/Preview switching preserves those settings. This is presentation rollback inside Cura,
 not a promise that an older application binary understands schema 4.
 
@@ -47,6 +57,10 @@ explicit recovery. HTTP integration tests exercise both renderers and reference 
 protected forms, current item links, unknown-state rendering and pagination. The HTTP
 101-item pagination fixture explicitly substitutes a synthetic snapshot while retaining the
 real notification journal; it is not evidence of 101 real acquisitions.
+Regression coverage includes incomplete/interrupted duplicate publication, corrupt target
+evidence outside the alternatives, invalid schema promotion and preference changes between
+form rendering and delivery mutation. Failed development and CI attempts remain evidence;
+correcting their cause does not retroactively qualify the earlier candidate.
 
 Development test outputs are retained outside source with original timestamps, commands,
 failures and digests. They are distinct from the required unchanged-candidate FULL execution.

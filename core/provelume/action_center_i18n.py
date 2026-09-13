@@ -3,7 +3,7 @@
 _COPY = {
     "title": (
         "Needs attention",
-        "Da esaminare",
+        "Da seguire",
     ),
     "lead": (
         "Review the evidence and choose what happens next.",
@@ -53,7 +53,7 @@ _COPY = {
     ),
     "back": (
         "Back to Needs attention",
-        "Torna a Da esaminare",
+        "Torna a Da seguire",
     ),
     "proposal": (
         "Proposed next step",
@@ -459,7 +459,7 @@ _COPY = {
         ),
         (
             "Raggruppa le nuove notifiche dopo l'ultima chiusura. Non sospende i "
-            "job e non nasconde il centro Da esaminare."
+            "job e non nasconde il centro Da seguire."
         ),
     ),
     "external_channels_help": (

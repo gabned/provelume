@@ -238,6 +238,8 @@ class LauncherSettings:
             )
         except NotificationPreferencesError as exc:
             raise ShellSettingsError(str(exc)) from exc
+        if self.schema_version == 4 and change is None:
+            raise ShellSettingsError("launcher settings schema is invalid")
         if self.schema_version < 4 and (
             notifications != NotificationPreferences() or change is not None
         ):

@@ -8,6 +8,6 @@
 <label for="authority-queue">{{ t('action.queue') }}<select id="authority-queue" name="queue">{% for capability in authority.capabilities %}<option value="{{ capability.queue }}">{{ t('action.' ~ capability.queue) }}</option>{% endfor %}</select></label>
 <label for="authority-scope">{{ t('action.scope') }}<select id="authority-scope" name="scope"><option value="instance:{{ authority.instance_id }}">{{ t('action.this_instance') }}</option>{% for source in sources %}<option value="source:{{ source.id }}">Source · {{ source.name }}</option>{% endfor %}</select></label>
 <label for="authority-mode">{{ t('action.authority') }}<select id="authority-mode" name="mode">{% for mode in ['disabled', 'proposal-only', 'confirm-each'] %}<option value="{{ mode }}"{% if mode == authority.default_mode %} selected{% endif %}>{{ t('action.' ~ mode) }}</option>{% endfor %}<option value="controlled-automatic" disabled>{{ t('action.controlled-automatic') }} — {{ t('action.unavailable') }}</option></select></label>
-<p>{{ t('action.mode_explanations') }}</p><label><input type="checkbox" name="confirmed" required> {{ t('action.confirm_scope') }}</label><button type="submit">{{ t('action.save_scope') }}</button>
+<p>{{ t('action.mode_explanations') }}</p><label class="action-check"><input type="checkbox" name="confirmed" required> {{ t('action.confirm_scope') }}</label><button type="submit">{{ t('action.save_scope') }}</button>
 </form></section>{% else %}<p>{{ t('action.readonly') }}</p>{% endif %}
 {% endblock %}

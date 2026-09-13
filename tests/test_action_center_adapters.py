@@ -364,6 +364,327 @@ def test_scan_rejects_participants_changed_before_case_write(tmp_path, monkeypat
     assert manager.operations.list(kind="duplicate.scan")[0]["status"] == "failed"
 
 
+def _assert_duplicate_incomplete(store):
+    before = _snapshot(store.paths.root)
+    snapshot = adapters.collect_proposals(InstanceStore(store.paths.root))
+    for queue in ("exact_duplicate", "probable_duplicate"):
+        assert snapshot["queues"][queue]["complete"] is False
+        assert snapshot["queues"][queue]["matched_count"] is None
+        assert snapshot["queues"][queue]["count_relation"] == "unknown"
+    assert all(not item["allowed_actions"] for item in snapshot["items"]
+               if item["queue"] in {"exact_duplicate", "probable_duplicate"})
+    assert _snapshot(store.paths.root) == before
+    return snapshot
+
+
+def test_later_stale_duplicate_case_never_exposes_partial_scan_as_complete(tmp_path, monkeypatch):
+    instance, _, _ = _instance(tmp_path, contents=("alpha", "alpha", "beta", "beta"))
+    manager = DuplicateCaseManager(instance.store)
+    original = manager._write_case
+    written = []
+    changed = []
+
+    def later_stale(record):
+        if written:
+            document = instance.store.read_canonical(
+                "documents", record["documents"][0]["document_id"]
+            )
+            changed.append(document)
+            instance.store._atomic_json(
+                instance.store.paths.canonical_dir("documents") / (document["id"] + ".json"),
+                {**document, "current_version_id": "ver_" + "f" * 32},
+            )
+            _assert_duplicate_incomplete(instance.store)
+        original(record)
+        written.append(record["id"])
+        _assert_duplicate_incomplete(instance.store)
+
+    monkeypatch.setattr(manager, "_write_case", later_stale)
+    with pytest.raises(DuplicateScanStaleError):
+        manager.scan()
+    assert len(written) == 1 and len(manager.list_cases()) == 1
+    assert manager.operations.list(kind="duplicate.scan")[0]["status"] == "failed"
+    assert json.loads(manager.scan_state.read_bytes())["status"] == "incomplete"
+    _assert_duplicate_incomplete(instance.store)
+    monkeypatch.setattr(manager, "_write_case", original)
+    for document in changed:
+        instance.store._atomic_json(
+            instance.store.paths.canonical_dir("documents") / (document["id"] + ".json"), document
+        )
+    recovered = DuplicateCaseManager(instance.store).scan()
+    assert len(recovered["exact"]) == 2
+    snapshot = adapters.collect_proposals(instance.store)
+    assert snapshot["queues"]["exact_duplicate"]["complete"]
+    assert snapshot["queues"]["exact_duplicate"]["matched_count"] == 2
+    assert all(row["allowed_actions"] == ["reject_proposal"]
+               for row in snapshot["items"] if row["queue"] == "exact_duplicate")
+
+
+def test_process_interruption_leaves_durable_incomplete_scan_until_explicit_rescan(tmp_path):
+    instance, _, _ = _instance(tmp_path, contents=("alpha", "alpha", "beta", "beta"))
+    protected = {key: value for key, value in _snapshot(instance.store.paths.root).items()
+                 if key.startswith(("knowledge", "originals"))}
+    code = (
+        "import os,sys; from provelume.storage import InstanceStore; "
+        "from provelume.duplicates import DuplicateCaseManager; "
+        "manager=DuplicateCaseManager(InstanceStore(sys.argv[1])); original=manager._write_case; "
+        "\ndef stop(record):\n original(record)\n os._exit(79)\n"
+        "manager._write_case=stop\nmanager.scan()\n"
+    )
+    result = subprocess.run([sys.executable, "-B", "-c", code, str(instance.store.paths.root)],
+                            capture_output=True, text=True, timeout=30, check=False)
+    assert result.returncode == 79, result.stderr
+    manager = DuplicateCaseManager(InstanceStore(instance.store.paths.root))
+    assert len(manager.list_cases()) == 1
+    assert manager.operations.list(kind="duplicate.scan")[0]["status"] == "running"
+    _assert_duplicate_incomplete(instance.store)
+    assert len(manager.scan()["exact"]) == 2
+    assert adapters.collect_proposals(instance.store)["queues"]["exact_duplicate"]["complete"]
+    assert protected == {key: value for key, value in _snapshot(instance.store.paths.root).items()
+                         if key.startswith(("knowledge", "originals"))}
+
+
+@pytest.mark.parametrize("damage", ["marker_missing", "case_missing", "case_changed", "bad_marker"])
+def test_scan_manifest_cannot_claim_complete_after_inventory_damage(tmp_path, damage):
+    instance, _, _ = _instance(tmp_path, contents=("alpha", "alpha", "beta", "beta"))
+    manager = DuplicateCaseManager(instance.store)
+    first = manager.scan()["exact"][0]
+    target = manager.cases / (first["id"] + ".json")
+    if damage == "marker_missing":
+        manager.scan_state.unlink()
+    elif damage == "case_missing":
+        target.unlink()
+    elif damage == "case_changed":
+        instance.store._atomic_json(target, {**first, "last_seen_at": "changed"})
+    else:
+        manager.scan_state.write_text('{', encoding="utf-8")
+    _assert_duplicate_incomplete(instance.store)
+    assert manager.scan()["operation"]["status"] == "completed"
+    assert adapters.collect_proposals(instance.store)["queues"]["exact_duplicate"]["complete"]
+
+
+def test_scan_marker_change_during_read_disables_all_duplicate_actions(tmp_path, monkeypatch):
+    instance, _, _ = _instance(tmp_path, contents=("same", "same"))
+    manager = DuplicateCaseManager(instance.store)
+    manager.scan()
+    original = adapters._Reader.verify
+
+    def change(self):
+        marker = json.loads(manager.scan_state.read_bytes())
+        instance.store._atomic_json(manager.scan_state, {**marker, "status": "incomplete"})
+        original(self)
+
+    monkeypatch.setattr(adapters._Reader, "verify", change)
+    snapshot = adapters.collect_proposals(instance.store)
+    for queue in ("exact_duplicate", "probable_duplicate"):
+        assert snapshot["queues"][queue]["snapshot_changed"]
+        assert snapshot["queues"][queue]["matched_count"] is None
+    assert all(not row["allowed_actions"] for row in snapshot["items"]
+               if row["queue"] == "exact_duplicate")
+
+
+def test_canonical_display_titles_are_bounded_and_do_not_change_input_revision(tmp_path):
+    instance, _, _ = _instance(tmp_path, contents=("first", "second"))
+    before = {row["producer_id"]: row for row in _items(instance.store, "classification")}
+    assert len({row["display"]["title"] for row in before.values()}) == 2
+    document = instance.store.list_canonical("documents")[0]
+    title = '<strong>Renamed canonical title</strong>' + 'x' * 260
+    instance.store._atomic_json(
+        instance.store.paths.canonical_dir("documents") / (document["id"] + ".json"),
+        {**document, "title": title},
+    )
+    after = {row["producer_id"]: row for row in _items(instance.store, "classification")}
+    assert after[document["id"]]["display"]["title"] == title[:240]
+    assert after[document["id"]]["input_revision"] == before[document["id"]]["input_revision"]
+    assert "display" not in after[document["id"]]["evidence"]
+
+
+def test_failed_extraction_keeps_inbox_and_links_validated_document_provenance(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "bad.txt").write_bytes(b"\xff\xfe")
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    result = instance.ingest_run(source)
+    assert result["run"]["status"] == "failed"
+    assert result["items"][0]["error_code"] == "extraction_failed"
+    before = _snapshot(instance.store.paths.root)
+    item = _items(instance.store, "extraction_error")[0]
+    document_id = item["evidence"]["document_id"]
+    assert item["domain_links"] == [
+        {"href": "/inbox", "kind": "intake"},
+        {"href": f"/documents/{document_id}", "kind": "document"},
+        {"href": f"/documents/{document_id}/provenance", "kind": "provenance"},
+    ]
+    assert item["display"]["title"] == "bad.txt"
+    assert _snapshot(instance.store.paths.root) == before
+
+
+def test_failed_completion_marker_write_is_not_replaced_by_operation(tmp_path, monkeypatch):
+    instance, _, _ = _instance(tmp_path, contents=("alpha", "alpha", "beta", "beta"))
+    manager = DuplicateCaseManager(instance.store)
+    original = instance.store._atomic_json
+
+    def fail_completion(path, payload):
+        if path == manager.scan_state and payload.get("status") == "complete":
+            raise OSError("synthetic interrupted publication receipt")
+        original(path, payload)
+
+    monkeypatch.setattr(instance.store, "_atomic_json", fail_completion)
+    with pytest.raises(OSError, match="publication receipt"):
+        manager.scan()
+    assert len(manager.list_cases()) == 2
+    assert manager.operations.list(kind="duplicate.scan")[0]["status"] == "completed"
+    _assert_duplicate_incomplete(instance.store)
+    monkeypatch.setattr(instance.store, "_atomic_json", original)
+    manager.scan()
+    assert adapters.collect_proposals(instance.store)["queues"]["exact_duplicate"]["complete"]
+
+
+def test_ingestion_of_nonparticipant_before_seal_invalidates_whole_scan(tmp_path, monkeypatch):
+    instance, source, _ = _instance(tmp_path, contents=("alpha", "alpha", "different"))
+    manager = DuplicateCaseManager(instance.store)
+    original = manager._verify_scan_publication
+
+    def ingest_before_seal(*args):
+        (source / "note-2.txt").write_text("alpha", encoding="utf-8")
+        assert instance.ingest_run(source)["run"]["status"] == "completed"
+        return original(*args)
+
+    monkeypatch.setattr(manager, "_verify_scan_publication", ingest_before_seal)
+    with pytest.raises(DuplicateScanStaleError, match="canonical inventory changed"):
+        manager.scan()
+    _assert_duplicate_incomplete(instance.store)
+    monkeypatch.setattr(manager, "_verify_scan_publication", original)
+    assert len(manager.scan()["exact"][0]["documents"]) == 3
+    assert adapters.collect_proposals(instance.store)["queues"]["exact_duplicate"]["complete"]
+
+
+@pytest.mark.parametrize("during_scan", [False, True])
+def test_title_change_can_create_probable_candidate_and_invalidates_scan(
+    tmp_path, monkeypatch, during_scan
+):
+    instance, _, _ = _instance(tmp_path, contents=(
+        "Shared strategy delivery plan finance risks milestones",
+        "Shared strategy delivery plan finance risks milestones revised",
+    ))
+    documents = instance.store.list_canonical("documents")
+    for document, title in zip(documents, ("apples farming", "finance planning"), strict=True):
+        document["title"] = title
+        instance.store._atomic_json(
+            instance.store.paths.canonical_dir("documents") / (document["id"] + ".json"), document
+        )
+    manager = DuplicateCaseManager(instance.store)
+    assert manager.scan()["probable"] == []
+
+    def rename():
+        instance.store._atomic_json(
+            instance.store.paths.canonical_dir("documents") / (documents[1]["id"] + ".json"),
+            {**documents[1], "title": documents[0]["title"]},
+        )
+
+    if during_scan:
+        original = manager._verify_scan_publication
+
+        def rename_before_seal(*args):
+            rename()
+            return original(*args)
+
+        monkeypatch.setattr(manager, "_verify_scan_publication", rename_before_seal)
+        with pytest.raises(DuplicateScanStaleError, match="canonical inventory changed"):
+            manager.scan()
+        monkeypatch.setattr(manager, "_verify_scan_publication", original)
+    else:
+        rename()
+    _assert_duplicate_incomplete(instance.store)
+    assert len(manager.scan()["probable"]) == 1
+    assert adapters.collect_proposals(instance.store)["queues"]["probable_duplicate"]["complete"]
+
+
+@pytest.mark.parametrize("changed_input", ["text", "title"])
+def test_probable_revision_binds_changed_comparison_inputs_even_with_identical_score(
+    tmp_path, changed_input
+):
+    from test_duplicate_assurance import _seed_duplicates
+
+    instance = _seed_duplicates(tmp_path)
+    manager = DuplicateCaseManager(instance.store)
+    first = manager.scan()["probable"][0]
+    item = _items(instance.store, "probable_duplicate")[0]
+    manager.scan()
+    assert (
+        _items(instance.store, "probable_duplicate")[0]["input_revision"] == item["input_revision"]
+    )
+    if changed_input == "text":
+        artifact = instance.store.derived_artifact_for_version(first["documents"][0]["version_id"])
+        original_text = instance.store.read_derived_text(artifact)
+        instance.store.write_derived_text(artifact["id"], original_text)
+        manager.scan()
+        assert (
+            _items(instance.store, "probable_duplicate")[0]["input_revision"]
+            == item["input_revision"]
+        )
+        instance.store.write_derived_text(artifact["id"], original_text + "\n" + original_text)
+    else:
+        for participant in first["documents"]:
+            document = instance.store.read_canonical("documents", participant["document_id"])
+            instance.store._atomic_json(
+                instance.store.paths.canonical_dir("documents") / (document["id"] + ".json"),
+                {**document, "title": "annual-summary.txt"},
+            )
+    second = manager.scan()["probable"][0]
+    changed = _items(instance.store, "probable_duplicate")[0]
+    assert second["id"] == first["id"] and second["confidence"] == first["confidence"]
+    assert changed["input_revision"] != item["input_revision"]
+    assert (
+        second["evidence"]["comparison_input_digest"]
+        != first["evidence"]["comparison_input_digest"]
+    )
+
+
+@pytest.mark.parametrize("during_scan", [False, True])
+def test_changed_derived_text_is_bound_for_nonparticipant_eligibility(
+    tmp_path, monkeypatch, during_scan
+):
+    texts = ("alpha finance delivery risks milestones", "beta garden flowers soil water")
+    instance, _, _ = _instance(tmp_path, contents=texts)
+    documents = instance.store.list_canonical("documents")
+    for document in documents:
+        instance.store._atomic_json(
+            instance.store.paths.canonical_dir("documents") / (document["id"] + ".json"),
+            {**document, "title": "matching-report"},
+        )
+    manager = DuplicateCaseManager(instance.store)
+    assert manager.scan()["probable"] == []
+    artifact = instance.store.derived_artifact_for_version(documents[1]["current_version_id"])
+    first = instance.store.derived_artifact_for_version(documents[0]["current_version_id"])
+    target_text = instance.store.read_derived_text(first)
+
+    def change_text():
+        instance.store.write_derived_text(artifact["id"], target_text)
+
+    if during_scan:
+        original = manager._verify_scan_publication
+
+        def text_before_seal(*args):
+            change_text()
+            return original(*args)
+
+        monkeypatch.setattr(manager, "_verify_scan_publication", text_before_seal)
+        with pytest.raises(DuplicateScanStaleError, match="extracted text changed"):
+            manager.scan()
+        monkeypatch.setattr(manager, "_verify_scan_publication", original)
+        _assert_duplicate_incomplete(instance.store)
+    else:
+        change_text()
+        before = _snapshot(instance.store.paths.root)
+        snapshot = adapters.collect_proposals(instance.store)
+        assert snapshot["queues"]["probable_duplicate"]["matched_count"] is None
+        assert "duplicate_scan_text_stale" in snapshot["queues"]["probable_duplicate"]["reason"]
+        assert _snapshot(instance.store.paths.root) == before
+    assert len(manager.scan()["probable"]) == 1
+    assert adapters.collect_proposals(instance.store)["queues"]["probable_duplicate"]["complete"]
+
+
 def test_snapshot_byte_budget_stops_before_reading_an_extra_record(tmp_path, monkeypatch):
     instance, _, _ = _instance(tmp_path)
     monkeypatch.setattr(adapters, "MAX_SNAPSHOT_BYTES", 1)

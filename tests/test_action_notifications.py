@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import copy
 import json
+import os
+import subprocess
+import sys
+from contextlib import contextmanager
 from dataclasses import asdict, replace
 from pathlib import Path
 
@@ -10,6 +14,7 @@ import pytest
 from provelume import shell_settings
 from provelume.notification_preferences import NotificationPreferences, NotificationPreferencesError
 from provelume.notifications import (
+    NotificationBusy,
     NotificationError,
     NotificationJournalError,
     NotificationService,
@@ -71,7 +76,7 @@ def ack(service, manager, value, *, now=NOW):
     view = service.preview(value, manager.load(), now=now)
     return service.acknowledge(
         value,
-        manager.load(),
+        manager,
         batch_id=view["batch_id"],
         expected_revision=view["journal_revision"],
         expected_settings_revision=view["settings_revision"],
@@ -197,6 +202,37 @@ def test_explicit_default_notification_save_promotes_with_non_content_receipt(co
     assert "notifications" in json.loads(manager.path.read_bytes())["shell"]
 
 
+def test_schema_four_cannot_discard_the_explicit_notification_receipt(context):
+    _root, manager, _service = context
+    selected = manager.configure_notifications(NotificationPreferences(), expected_revision=0)
+    before = manager.path.read_bytes()
+    with pytest.raises(ShellSettingsError, match="schema is invalid"):
+        manager.save(replace(selected, notifications_change=None))
+    assert manager.path.read_bytes() == before
+
+
+@pytest.mark.parametrize("corruption", ["missing", "null", "digest"])
+def test_persisted_schema_four_requires_a_valid_explicit_receipt(context, corruption):
+    _root, manager, service = context
+    manager.configure_notifications(NotificationPreferences(), expected_revision=0)
+    value = json.loads(manager.path.read_bytes())
+    if corruption == "missing":
+        del value["shell"]["notifications_change"]
+    elif corruption == "null":
+        value["shell"]["notifications_change"] = None
+    else:
+        value["shell"]["notifications_change"]["sha256"] = "0" * 64
+    manager.path.write_text(json.dumps(value))
+    before, modified = manager.path.read_bytes(), manager.path.stat().st_mtime_ns
+    loaded = manager.load()
+    assert loaded.warning == "settings_invalid_using_safe_defaults"
+    assert service.preview(snapshot(), loaded, now=NOW)["state"] == "unavailable"
+    with pytest.raises(ShellPreferencesError):
+        manager.configure_notifications(NotificationPreferences(), expected_revision=0)
+    assert manager.path.read_bytes() == before and manager.path.stat().st_mtime_ns == modified
+    assert not service.path.exists()
+
+
 def test_stale_notification_preferences_do_not_mutate(context):
     _root, manager, _service = context
     manager.configure_notifications(NotificationPreferences(in_app=False), expected_revision=0)
@@ -289,7 +325,7 @@ def test_ack_is_durable_idempotent_and_never_a_review_decision(context):
     before = service.path.read_bytes()
     duplicate = service.acknowledge(
         value,
-        manager.load(),
+        manager,
         batch_id=first["batch_id"],
         expected_revision=0,
         expected_settings_revision=0,
@@ -321,7 +357,7 @@ def test_stale_input_and_preference_revisions_do_not_acknowledge_new_items(conte
     with pytest.raises(NotificationStale):
         service.acknowledge(
             snapshot(revision="2" * 64),
-            manager.load(),
+            manager,
             batch_id=first["batch_id"],
             expected_revision=0,
             expected_settings_revision=0,
@@ -332,7 +368,7 @@ def test_stale_input_and_preference_revisions_do_not_acknowledge_new_items(conte
     with pytest.raises(NotificationStale):
         service.acknowledge(
             snapshot(),
-            manager.load(),
+            manager,
             batch_id=first["batch_id"],
             expected_revision=0,
             expected_settings_revision=0,
@@ -451,7 +487,7 @@ def test_quiet_hours_defer_ack_without_hiding_or_mutating_queue(context):
     with pytest.raises(NotificationStale):
         service.acknowledge(
             value,
-            manager.load(),
+            manager,
             batch_id=view["batch_id"],
             expected_revision=0,
             expected_settings_revision=1,
@@ -478,7 +514,7 @@ def test_corrupt_journal_is_not_silently_reset(context):
     with pytest.raises(NotificationJournalError):
         service.acknowledge(
             snapshot(),
-            manager.load(),
+            manager,
             batch_id=first["batch_id"],
             expected_revision=0,
             expected_settings_revision=0,
@@ -494,7 +530,7 @@ def test_notification_reset_requires_explicit_redelivery_confirmation(context, c
     before = service.path.read_bytes()
     with pytest.raises(NotificationError):
         service.reset_acknowledgements(
-            manager.load(),
+            manager,
             expected_revision=1,
             expected_settings_revision=0,
             confirm_redelivery=confirmation,
@@ -509,7 +545,7 @@ def test_notification_reset_is_metadata_only_durable_and_replay_safe(context):
     ack(service, manager, value)
     before = json.loads(service.path.read_bytes())
     reset = service.reset_acknowledgements(
-        manager.load(),
+        manager,
         expected_revision=1,
         expected_settings_revision=0,
         confirm_redelivery=True,
@@ -522,7 +558,7 @@ def test_notification_reset_is_metadata_only_durable_and_replay_safe(context):
     assert len(reset["receipt"]["previous_sha256"]) == 64
     encoded = service.path.read_bytes()
     repeated = service.reset_acknowledgements(
-        manager.load(),
+        manager,
         expected_revision=1,
         expected_settings_revision=0,
         confirm_redelivery=True,
@@ -560,7 +596,7 @@ def test_dangling_notification_links_cannot_create_external_metadata(context, ta
     with pytest.raises(ShellPreferencesError):
         service.acknowledge(
             snapshot(),
-            manager.load(),
+            manager,
             batch_id=first["batch_id"],
             expected_revision=0,
             expected_settings_revision=0,
@@ -583,7 +619,7 @@ def test_reset_is_available_at_history_capacity_without_silent_pruning(context):
     assert view["state"] == "unavailable" and view["error_code"] == "notification_journal_full"
     assert service.path.read_bytes() == before
     reset = service.reset_acknowledgements(
-        manager.load(),
+        manager,
         expected_revision=1,
         expected_settings_revision=0,
         confirm_redelivery=True,
@@ -604,7 +640,7 @@ def test_reset_checks_both_revisions_before_any_change(context):
     before = service.path.read_bytes()
     with pytest.raises(NotificationStale):
         service.reset_acknowledgements(
-            manager.load(),
+            manager,
             expected_revision=0,
             expected_settings_revision=0,
             confirm_redelivery=True,
@@ -612,10 +648,163 @@ def test_reset_checks_both_revisions_before_any_change(context):
         )
     with pytest.raises(NotificationStale):
         service.reset_acknowledgements(
-            manager.load(),
+            manager,
             expected_revision=1,
             expected_settings_revision=1,
             confirm_redelivery=True,
             now=NOW,
         )
     assert service.path.read_bytes() == before
+
+
+@pytest.mark.parametrize("operation", ["acknowledge", "reset"])
+def test_persisted_settings_change_after_caller_load_rejects_both_mutations(context, operation):
+    _root, manager, service = context
+    manager.configure_notifications(NotificationPreferences(), expected_revision=0)
+    if operation == "reset":
+        ack(service, manager, snapshot())
+    stale_loaded = manager.load()
+    view = service.preview(snapshot(), stale_loaded, now=NOW)
+    before = service.path.read_bytes() if service.path.exists() else None
+    manager.configure_notifications(NotificationPreferences(in_app=False), expected_revision=1)
+    with pytest.raises(NotificationStale):
+        if operation == "acknowledge":
+            service.acknowledge(
+                snapshot(),
+                manager,
+                batch_id=view["batch_id"],
+                expected_revision=view["journal_revision"],
+                expected_settings_revision=stale_loaded.settings.revision,
+                now=NOW,
+            )
+        else:
+            service.reset_acknowledgements(
+                manager,
+                expected_revision=view["journal_revision"],
+                expected_settings_revision=stale_loaded.settings.revision,
+                confirm_redelivery=True,
+                now=NOW,
+            )
+    assert (service.path.read_bytes() if service.path.exists() else None) == before
+
+
+@pytest.mark.parametrize("operation", ["acknowledge", "reset"])
+def test_notification_mutations_bind_the_selected_instance_under_settings_lock(context, operation):
+    root, manager, service = context
+    other = ShellSettingsManager(
+        manager.path, LauncherSettings(str(root.parent / "other-instance"))
+    )
+    view = service.preview(snapshot(), manager.load(), now=NOW)
+    with pytest.raises(NotificationStale):
+        if operation == "acknowledge":
+            service.acknowledge(
+                snapshot(),
+                other,
+                batch_id=view["batch_id"],
+                expected_revision=0,
+                expected_settings_revision=0,
+                now=NOW,
+            )
+        else:
+            service.reset_acknowledgements(
+                other,
+                expected_revision=0,
+                expected_settings_revision=0,
+                confirm_redelivery=True,
+                now=NOW,
+            )
+    assert not service.path.exists() and not manager.path.exists()
+
+
+@pytest.mark.parametrize("operation", ["acknowledge", "reset"])
+def test_other_process_cannot_change_settings_during_notification_commit(
+    context, operation, monkeypatch
+):
+    root, manager, service = context
+    manager.configure_notifications(NotificationPreferences(), expected_revision=0)
+    if operation == "reset":
+        ack(service, manager, snapshot())
+    before = manager.path.read_bytes()
+    view = service.preview(snapshot(), manager.load(), now=NOW)
+    original_hold = service._hold
+    child = """
+import sys
+from pathlib import Path
+from provelume.notification_preferences import NotificationPreferences
+from provelume.shell_settings import LauncherSettings, ShellSettingsBusy, ShellSettingsManager
+manager = ShellSettingsManager(Path(sys.argv[1]), LauncherSettings(sys.argv[2]))
+try:
+    manager.configure_notifications(NotificationPreferences(in_app=False), expected_revision=1)
+except ShellSettingsBusy:
+    print('configuration_busy')
+else:
+    raise AssertionError('notification commit failed to retain the real settings lock')
+"""
+    attempts = []
+
+    def try_other_process():
+        result = subprocess.run(
+            [sys.executable, "-B", "-c", child, str(manager.path), str(root)],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=10,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        )
+        assert result.stdout.strip() == "configuration_busy"
+        attempts.append(result.stdout.strip())
+
+    @contextmanager
+    def journal_hold():
+        try_other_process()
+        with original_hold():
+            yield
+        try_other_process()
+
+    monkeypatch.setattr(service, "_hold", journal_hold)
+    if operation == "acknowledge":
+        result = service.acknowledge(
+            snapshot(),
+            manager,
+            batch_id=view["batch_id"],
+            expected_revision=view["journal_revision"],
+            expected_settings_revision=1,
+            now=NOW,
+        )
+    else:
+        result = service.reset_acknowledgements(
+            manager,
+            expected_revision=view["journal_revision"],
+            expected_settings_revision=1,
+            confirm_redelivery=True,
+            now=NOW,
+        )
+    assert result["replayed"] is False and len(attempts) == 2
+    assert manager.path.read_bytes() == before
+
+
+@pytest.mark.parametrize("operation", ["acknowledge", "reset"])
+def test_settings_contention_is_an_explicit_notification_error_without_journal_write(
+    context, operation
+):
+    _root, manager, service = context
+    view = service.preview(snapshot(), manager.load(), now=NOW)
+    with manager.hold(), pytest.raises(NotificationBusy) as error:
+        if operation == "acknowledge":
+            service.acknowledge(
+                snapshot(),
+                manager,
+                batch_id=view["batch_id"],
+                expected_revision=0,
+                expected_settings_revision=0,
+                now=NOW,
+            )
+        else:
+            service.reset_acknowledgements(
+                manager,
+                expected_revision=0,
+                expected_settings_revision=0,
+                confirm_redelivery=True,
+                now=NOW,
+            )
+    assert error.value.code == "configuration_busy" and not service.path.exists()

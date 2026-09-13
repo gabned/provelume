@@ -20,7 +20,9 @@ from .scheduler_model import utc_instant
 from .shell_settings import (
     MAX_SETTINGS_REVISION,
     LoadedSettings,
+    ShellSettingsBusy,
     ShellSettingsError,
+    ShellSettingsManager,
     _acquire_os_lock,
     _atomic_json,
     _guard_path,
@@ -42,6 +44,10 @@ class NotificationError(ValueError):
 
 class NotificationStale(NotificationError):
     code = "stale_notification"
+
+
+class NotificationBusy(NotificationError):
+    code = "configuration_busy"
 
 
 class NotificationJournalError(NotificationError):
@@ -367,7 +373,7 @@ class NotificationService:
     def acknowledge(
         self,
         snapshot: dict[str, Any],
-        loaded_settings: LoadedSettings,
+        settings_manager: ShellSettingsManager,
         *,
         batch_id: str,
         expected_revision: int,
@@ -382,12 +388,10 @@ class NotificationService:
             or not _revision(expected_settings_revision)
         ):
             raise NotificationError("invalid notification acknowledgement")
-        if (
-            loaded_settings.warning == "settings_invalid_using_safe_defaults"
-            or loaded_settings.settings.revision != expected_settings_revision
+        with (
+            self._hold_settings(settings_manager, expected_settings_revision) as loaded_settings,
+            self._hold(),
         ):
-            raise NotificationStale("notification preferences changed; reload before acknowledging")
-        with self._hold():
             journal = self._load()
             for receipt in journal["receipts"]:
                 if receipt["batch_id"] == batch_id:
@@ -447,7 +451,7 @@ class NotificationService:
 
     def reset_acknowledgements(
         self,
-        loaded_settings: LoadedSettings,
+        settings_manager: ShellSettingsManager,
         *,
         expected_revision: int,
         expected_settings_revision: int,
@@ -462,12 +466,7 @@ class NotificationService:
             or confirm_redelivery is not True
         ):
             raise NotificationError("notification reset requires explicit redelivery confirmation")
-        if (
-            loaded_settings.warning == "settings_invalid_using_safe_defaults"
-            or loaded_settings.settings.revision != expected_settings_revision
-        ):
-            raise NotificationStale("notification preferences changed; reload before resetting")
-        with self._hold():
+        with self._hold_settings(settings_manager, expected_settings_revision), self._hold():
             journal = self._load()
             previous_reset = journal["last_reset"]
             if (
@@ -511,3 +510,24 @@ class NotificationService:
                 "journal_revision": candidate["revision"],
                 "replayed": False,
             }
+
+    @contextmanager
+    def _hold_settings(self, manager: ShellSettingsManager, expected_revision: int):
+        """Keep the persisted preference revision fixed until journal commit completes."""
+        if not isinstance(manager, ShellSettingsManager):
+            raise NotificationError("notification mutation requires a settings manager")
+        try:
+            with manager.hold():
+                loaded = manager.load()
+                if (
+                    loaded.warning == "settings_invalid_using_safe_defaults"
+                    or loaded.settings.revision != expected_revision
+                    or Path(loaded.settings.instance_path).expanduser().absolute()
+                    != self.instance_root
+                ):
+                    raise NotificationStale(
+                        "notification preferences changed; reload before retrying"
+                    )
+                yield loaded
+        except ShellSettingsBusy as exc:
+            raise NotificationBusy("notification configuration is busy; retry explicitly") from exc
