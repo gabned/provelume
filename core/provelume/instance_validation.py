@@ -147,13 +147,12 @@ def _finding(code: str, message: str, *, path: str | None = None) -> dict[str, s
     return value
 
 
-def _load_config(path: Path) -> tuple[dict[str, Any] | None, str | None]:
+def _load_config(store: InstanceStore) -> tuple[dict[str, Any] | None, str | None]:
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            value = yaml.safe_load(handle) or {}
+        value = store.read_config()
     except (OSError, UnicodeError, yaml.YAMLError) as exc:
         return None, str(exc)
-    if not isinstance(value, dict):
+    except ValueError:
         return None, "provelume.yml must contain a mapping"
     return value, None
 
@@ -1670,7 +1669,7 @@ def inspect_instance(root: Path | str, *, deep: bool = True) -> dict[str, Any]:
     store = InstanceStore(root)
     errors: list[dict[str, str]] = []
     warnings: list[dict[str, str]] = []
-    config, config_problem = _load_config(store.paths.config)
+    config, config_problem = _load_config(store)
     if config_problem is not None or config is None:
         errors.append(
             _finding(
