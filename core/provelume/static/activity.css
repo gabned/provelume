@@ -45,3 +45,23 @@
 .settings-form button {
   justify-self: start;
 }
+
+/* Exact evidence stays readable in Current and Preview at reduced widths. */
+.action-evidence dd { margin-inline-start: 0; overflow-wrap: anywhere; }
+.action-evidence pre { max-width: 100%; overflow-x: auto; white-space: pre-wrap; }
+.action-subject { overflow-wrap: anywhere; }
+.settings-form label.action-check {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: .65rem;
+  min-height: 44px;
+}
+.settings-form .action-check input[type="checkbox"] {
+  flex: 0 0 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  min-height: 1.25rem;
+  min-width: 1.25rem;
+  width: 1.25rem;
+}

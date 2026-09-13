@@ -1960,10 +1960,25 @@ class SchedulerCoordinator:
             )
         if job["job_kind"] == "maintenance.duplicate_scan":
             from .assurance import AssuranceLimitError
-            from .duplicates import DuplicateCaseManager, DuplicateScanLimitError
+            from .duplicates import (
+                DuplicateCaseBusyError,
+                DuplicateCaseManager,
+                DuplicateScanLimitError,
+                DuplicateScanStaleError,
+            )
 
             try:
                 result = DuplicateCaseManager(self.store).scan()
+            except (DuplicateCaseBusyError, DuplicateScanStaleError):
+                # A new explicit request must reread inputs; do not schedule an implicit retry.
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "manual_intervention",
+                    "maintenance_action_failed",
+                    False,
+                    False,
+                )
             except OSError:
                 return (
                     False,

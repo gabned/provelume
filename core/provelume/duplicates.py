@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
 import unicodedata
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import asdict
 from itertools import combinations
 from pathlib import Path
@@ -14,6 +18,7 @@ from .operations import OperationLedger
 from .storage import InstanceStore, utc_now
 
 DUPLICATE_SCHEMA_VERSION = 1
+DUPLICATE_SCAN_SCHEMA_VERSION = 1
 MAX_DUPLICATE_DOCUMENTS = 2_000
 MAX_CANDIDATE_PAIRS = 50_000
 MAX_CURRENT_CASES = 5_000
@@ -28,6 +33,48 @@ _TOKEN = re.compile(r"\w+", flags=re.UNICODE)
 
 class DuplicateScanLimitError(RuntimeError):
     pass
+
+
+class DuplicateCaseBusyError(RuntimeError):
+    """Another process owns the duplicate case writer boundary."""
+
+
+class DuplicateScanStaleError(RuntimeError):
+    """Canonical participants changed while the scan was being calculated."""
+
+
+def duplicate_record_digest(value: Any) -> str:
+    """Bind stored JSON semantics; readers separately bracket the original bytes."""
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+    ).hexdigest()
+
+
+def duplicate_input_digest(records: dict[str, list[dict[str, Any]]]) -> str:
+    fields = {
+        "documents": ("id", "source_id", "current_version_id", "title"),
+        "versions": ("id", "document_id", "original_id", "content_hash", "size_bytes"),
+        "acquisitions": ("id", "document_id", "version_id", "source_id", "content_hash"),
+    }
+    return duplicate_record_digest({
+        kind: [{key: row.get(key) for key in selected}
+               for row in sorted(records[kind], key=lambda row: row["id"])]
+        for kind, selected in fields.items()
+    })
+
+
+def duplicate_text_binding(text: str, warning: str | None) -> dict[str, str | None]:
+    return {"sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(), "warning": warning}
+
+
+def duplicate_comparison_digest(
+    documents: list[dict[str, Any]], text_inventory: dict[str, Any]
+) -> str:
+    return duplicate_record_digest([
+        {"document_id": row["document_id"], "normalised_title": _normalised_title(row["title"]),
+         "text": text_inventory.get(row["version_id"])}
+        for row in sorted(documents, key=lambda row: row["document_id"])
+    ])
 
 
 def _normalised_title(value: str) -> str:
@@ -63,7 +110,47 @@ class DuplicateCaseManager:
     def __init__(self, store: InstanceStore):
         self.store = store
         self.cases = store.paths.state / "duplicates" / "cases"
+        self.scan_state = self.cases.parent / "scan-state.json"
         self.operations = OperationLedger(store)
+
+    @contextmanager
+    def hold_cases(self) -> Iterator[None]:
+        """Guard case writers; a caller needing lifecycle must acquire it first.
+
+        Scans also run inside scheduler lifecycle holds, so this boundary must
+        never acquire lifecycle itself. Pure case readers do not enter it.
+        """
+        from .instance_lifecycle import (
+            InstanceLifecycleBusy,
+            _acquire_os_lock,
+            _release_os_lock,
+        )
+
+        directory = self.store.paths.state / "locks"
+        path = directory / "duplicate-cases.oslock"
+        for selected in (self.store.paths.state, directory, path):
+            if selected.is_symlink() or (selected.exists() and selected.is_junction()):
+                raise ValueError("duplicate case lock cannot use a linked path")
+        directory.mkdir(parents=True, exist_ok=True)
+        descriptor = os.open(
+            path,
+            os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+        )
+        acquired = False
+        try:
+            try:
+                _acquire_os_lock(descriptor)
+            except InstanceLifecycleBusy as exc:
+                raise DuplicateCaseBusyError("another duplicate case writer is active") from exc
+            acquired = True
+            if os.fstat(descriptor).st_size == 0:
+                os.write(descriptor, b"\n")
+            yield
+        finally:
+            if acquired:
+                _release_os_lock(descriptor)
+            os.close(descriptor)
 
     @staticmethod
     def _case_id(kind: str, identity: str) -> str:
@@ -198,8 +285,45 @@ class DuplicateCaseManager:
     def _write_case(self, record: dict[str, Any]) -> None:
         if not self._valid_case(record):
             raise ValueError("invalid duplicate case")
+        if record["current"]:
+            # Ingestion does not take the case guard. Revalidate at publication,
+            # and consumers still revalidate later under their writer guards.
+            for participant in record["documents"]:
+                document = self.store.read_canonical("documents", participant["document_id"])
+                version = self.store.read_canonical("versions", participant["version_id"])
+                if (
+                    not document
+                    or not version
+                    or document.get("current_version_id") != participant["version_id"]
+                    or version.get("document_id") != participant["document_id"]
+                    or version.get("content_hash") != participant["content_hash"]
+                ):
+                    raise DuplicateScanStaleError("duplicate scan canonical input changed")
         self.cases.mkdir(parents=True, exist_ok=True)
         self.store._atomic_json(self.cases / f"{record['id']}.json", record)
+
+    def _verify_scan_publication(
+        self, expected: dict[str, dict[str, Any]], input_digest: str,
+        input_findings: list[dict[str, Any]],
+        text_inventory: dict[str, dict[str, str | None]],
+    ) -> dict[str, str]:
+        records = {}
+        current_findings = []
+        for kind in ("documents", "versions", "acquisitions"):
+            records[kind], findings = safe_canonical_records(self.store, kind)
+            current_findings.extend(findings)
+        if current_findings != input_findings or duplicate_input_digest(records) != input_digest:
+            raise DuplicateScanStaleError("duplicate scan canonical inventory changed")
+        if any(
+            duplicate_text_binding(*self._safe_extracted_text(self.store, version_id)) != binding
+            for version_id, binding in text_inventory.items()
+        ):
+            raise DuplicateScanStaleError("duplicate scan extracted text changed")
+        actual = {row["id"]: row for row in self._all_cases()}
+        names = {path.name for path in self.cases.glob("*.json")}
+        if names != {key + ".json" for key in expected} or actual != expected:
+            raise DuplicateScanStaleError("duplicate scan case inventory is incomplete")
+        return {key: duplicate_record_digest(row) for key, row in sorted(actual.items())}
 
     def _case_record(
         self,
@@ -255,6 +379,10 @@ class DuplicateCaseManager:
             warnings.append({"code": code[:120], "message": message[:2000]})
 
     def scan(self) -> dict[str, Any]:
+        with self.hold_cases():
+            return self._scan_locked()
+
+    def _scan_locked(self) -> dict[str, Any]:
         operation = self.operations.start(
             "duplicate.scan",
             "Scan exact and probable duplicates",
@@ -265,6 +393,14 @@ class DuplicateCaseManager:
         now = utc_now()
         warnings: list[dict[str, str]] = []
         try:
+            # Durable before any case publication. Crash/failure never clears this
+            # marker: only a later explicit, fully verified scan can replace it.
+            marker = {
+                "schema_version": DUPLICATE_SCAN_SCHEMA_VERSION,
+                "operation_id": operation.id,
+                "status": "incomplete",
+            }
+            self.store._atomic_json(self.scan_state, marker)
             documents, document_findings = safe_canonical_records(
                 self.store,
                 "documents",
@@ -278,6 +414,9 @@ class DuplicateCaseManager:
                 "acquisitions",
             )
             all_findings = document_findings + version_findings + acquisition_findings
+            input_digest = duplicate_input_digest({
+                "documents": documents, "versions": versions, "acquisitions": acquisitions,
+            })
             for item in all_findings:
                 self._append_warning(
                     warnings,
@@ -292,11 +431,10 @@ class DuplicateCaseManager:
             acquisition_counts: dict[str, int] = {}
             for acquisition in acquisitions:
                 document_id = str(acquisition.get("document_id", ""))
-                acquisition_counts[document_id] = (
-                    acquisition_counts.get(document_id, 0) + 1
-                )
+                acquisition_counts[document_id] = acquisition_counts.get(document_id, 0) + 1
 
             current: list[dict[str, Any]] = []
+            text_inventory = {}
             for document in sorted(documents, key=lambda item: str(item["id"])):
                 version = version_map.get(str(document.get("current_version_id", "")))
                 if version is None or version.get("document_id") != document.get("id"):
@@ -317,6 +455,7 @@ class DuplicateCaseManager:
                     self.store,
                     snapshot["version_id"],
                 )
+                text_inventory[snapshot["version_id"]] = duplicate_text_binding(text, text_warning)
                 if text_warning:
                     self._append_warning(
                         warnings,
@@ -366,16 +505,13 @@ class DuplicateCaseManager:
                     documents=documents_for_case,
                     evidence={
                         "content_hash": content_hash,
-                        "distinct_sources": len(
-                            {item["source_id"] for item in documents_for_case}
-                        ),
+                        "distinct_sources": len({item["source_id"] for item in documents_for_case}),
                         "shared_content_addressed_original_expected": True,
                     },
                     existing=existing.get(case_id),
                     operation_id=operation.id,
                     now=now,
                 )
-                self._write_case(case)
                 seen.add(case_id)
                 exact_cases.append(case)
 
@@ -404,10 +540,7 @@ class DuplicateCaseManager:
                     candidate_pairs += 1
                     left = current[left_index]
                     right = current[right_index]
-                    if (
-                        left["snapshot"]["content_hash"]
-                        == right["snapshot"]["content_hash"]
-                    ):
+                    if left["snapshot"]["content_hash"] == right["snapshot"]["content_hash"]:
                         continue
                     if not left["text_tokens"] or not right["text_tokens"]:
                         continue
@@ -441,11 +574,13 @@ class DuplicateCaseManager:
                         confidence=confidence,
                         documents=ordered,
                         evidence={
+                            "comparison_input_digest": duplicate_comparison_digest(
+                                ordered, text_inventory
+                            ),
                             "title_similarity": round(title_similarity, 4),
                             "text_similarity": round(text_similarity, 4),
                             "same_normalised_title": (
-                                left["normalised_title"]
-                                == right["normalised_title"]
+                                left["normalised_title"] == right["normalised_title"]
                             ),
                             "different_content_hashes": True,
                             "compared_title_tokens": min(
@@ -461,7 +596,6 @@ class DuplicateCaseManager:
                         operation_id=operation.id,
                         now=now,
                     )
-                    self._write_case(case)
                     seen.add(case_id)
                     probable_cases.append(case)
                 if pair_limit_reached or case_limit_reached:
@@ -479,13 +613,11 @@ class DuplicateCaseManager:
                 self._append_warning(
                     warnings,
                     "duplicate_case_limit_reached",
-                    (
-                        "Duplicate case creation stopped at "
-                        f"{MAX_CURRENT_CASES} current cases."
-                    ),
+                    (f"Duplicate case creation stopped at {MAX_CURRENT_CASES} current cases."),
                 )
 
             stale_cases = 0
+            staged = {case["id"]: case for case in exact_cases + probable_cases}
             for case_id, record in existing.items():
                 if case_id in seen or not bool(record.get("current")):
                     continue
@@ -497,8 +629,16 @@ class DuplicateCaseManager:
                     "scan_operation_id": operation.id,
                     "automatic_action": "none",
                 }
-                self._write_case(stale)
+                staged[case_id] = stale
                 stale_cases += 1
+
+            # Staging avoids exposing calculation failures, while the marker
+            # also protects readers from partial writes or process interruption.
+            for case in staged.values():
+                self._write_case(case)
+            case_inventory = self._verify_scan_publication(
+                {**existing, **staged}, input_digest, all_findings, text_inventory
+            )
 
             status = "completed_with_errors" if warnings else "completed"
             self.operations.append(
@@ -529,6 +669,21 @@ class DuplicateCaseManager:
                     "warnings": len(warnings),
                 },
             )
+            exact_complete = not any(
+                warning["code"] not in {"derived_text_missing", "derived_text_unreadable"}
+                for warning in warnings
+            )
+            self.store._atomic_json(self.scan_state, {
+                **marker,
+                "status": "complete",
+                "input_digest": input_digest,
+                "case_inventory": case_inventory,
+                "text_inventory": text_inventory,
+                "complete_queues": {
+                    "exact_duplicate": exact_complete,
+                    "probable_duplicate": not warnings,
+                },
+            })
             return {
                 "operation": asdict(closed),
                 "exact": exact_cases,

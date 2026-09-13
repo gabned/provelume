@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .bundles import DEFAULT_MAX_BUNDLE_DOCUMENTS, BundleBuildError
-from .duplicates import DuplicateScanLimitError
+from .duplicates import DuplicateCaseBusyError, DuplicateScanLimitError, DuplicateScanStaleError
 from .locks import InstanceLockOwnershipError, InstanceLockUnavailable
 from .rebuild import (
     DerivedRebuildManager,
@@ -84,7 +84,9 @@ def handle_rebuild_command(args: argparse.Namespace) -> int | None:
             )
         except (
             BundleBuildError,
+            DuplicateCaseBusyError,
             DuplicateScanLimitError,
+            DuplicateScanStaleError,
             InstanceLockOwnershipError,
             InstanceLockUnavailable,
             RebuildInvariantError,
@@ -92,12 +94,18 @@ def handle_rebuild_command(args: argparse.Namespace) -> int | None:
             OSError,
             ValueError,
         ) as exc:
+            conflict = isinstance(exc, (DuplicateCaseBusyError, DuplicateScanStaleError))
             print(
                 json.dumps(
                     {
-                        "status": "error",
+                        "status": "conflict" if conflict else "error",
                         "error": str(exc),
                         "error_type": exc.__class__.__name__,
+                        **(
+                            {"retryable": True, "retry_requires_new_request": True}
+                            if conflict
+                            else {}
+                        ),
                     },
                     indent=2,
                 )

@@ -1,0 +1,3 @@
+{% extends base_layout %}
+{% block title %}{{ t('action.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}<h1>{{ t('action.title') }}</h1><section class="panel"><p role="alert">{{ t('action.' ~ error) }}</p><a href="/attention?lang={{ lang }}">{{ t('action.back') }}</a></section>{% endblock %}
