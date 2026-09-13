@@ -20,6 +20,14 @@ L'inventario non esegue strumenti opzionali e non esplora le cartelle dei modell
 un eseguibile è indicata senza mostrarne il percorso; modelli e pacchetti lingua richiedono
 evidenze esplicite. Credenziali, percorsi privati e contenuti dell'Istanza non sono inclusi.
 
+Lo schema 2 aggiunge `ui_asset` alle sette categorie esistenti. La voce `ui.lucide`
+descrive le 18 icone incluse nel pacchetto Provelume, versione 1.45.0, con la licenza
+upstream completa `ISC AND MIT`. Lo stato installato richiede gli hash esatti del
+manifest, degli SVG e della licenza nelle risorse del pacchetto. Un file mancante o
+alterato resta mancante o non verificato. Non viene consultato alcun servizio di
+icone, eseguibile o catalogo remoto. [ADR 0028](adr/0028-cura-icons-and-provenance.md)
+registra il pin e il percorso di aggiornamento.
+
 ## Confronto con lo SBOM di release
 
 Un operatore locale può confrontare uno SBOM CycloneDX scaricato o assemblato:
@@ -33,3 +41,8 @@ servizi advisory, provider o host di modelli e non installa né aggiorna nulla. 
 evidenza esplicita il confronto di release è correttamente `unavailable`. Versione più recente e
 stato di sicurezza restano `not_checked` e `unverified` finché non sarà qualificata una capacità
 di rete separata ed esplicita.
+
+Lo SBOM di release comprende lo stesso sottoinsieme installato prima di generarne
+l'impronta. La sola versione non basta: devono coincidere anche commit e hash del
+sottoinsieme e della licenza. Un sottoinsieme alterato con la stessa versione risulta
+non corrispondente.

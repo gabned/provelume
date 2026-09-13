@@ -111,7 +111,8 @@ not secrets or an arbitrary external redirect. Language switching preserves that
   navigation or focus leaving its context dismisses it; keyboard focus returns predictably.
 - Landmarks, skip link, visible focus, current location, labelled icons and logical keyboard order
   survive layout changes. Error focus and polite status announcements do not steal ongoing input.
-- Lucide is a locked, vendored MIT subset with repository-owned provenance/notices. The existing
+- Lucide is a locked, vendored subset with complete ISC and MIT provenance/notices
+  ([ADR 0028](../adr/0028-cura-icons-and-provenance.md)). The existing
   Provelume brand mark remains separate. No runtime CDN, remote font, telemetry or account is needed.
 
 ## One authoritative model; first-class action and recovery states
@@ -242,7 +243,7 @@ Rows define acceptance coverage, not permission to open slices out of the parent
 | C01 | Seven end-to-end baseline journeys; steps, backtracking, clarity and all declared states/devices/input modes | S01; existing Browser; compare in S09 |
 | C02 | Route/screen inventory, five everyday destinations, Management, progressive Knowledge/Search and useful Overview | S01 design → S02; stable existing routes/read models |
 | C03 | Shared shell, coherent menu dismissal/focus, labelled icons, landmarks/current location, responsive overflow | S02; S01; qualify S09 |
-| C04 | Locked/vendored Lucide subset, MIT/provenance/notices, separate canonical brand mark | S02; existing component contract; S09 icon/cache/upgrade matrix |
+| C04 | Locked/vendored Lucide subset, complete ISC AND MIT provenance/notices, separate canonical brand mark | S02; existing component contract; S09 icon/cache/upgrade matrix |
 | C05 | Offline About & Credits: actual identity, repository/release links, human/first-party credits/licenses/notices; metadata is not authentication | S02; Emendatio #253/#254 |
 | C06 | Local explicit auditable/server-rendered Preview; restart/upgrade persistence; same routes/backend/canonical state; presentation rollback | S02; S01; default activation only S09 |
 | C07 | Tiny accessible NEW cue from canonical publication timestamp, visible only at age <24h; no network/user tracking or automatic release-note opening | S02; #217; clock/timezone/cache/theme/input checks S09 |

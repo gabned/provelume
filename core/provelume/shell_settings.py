@@ -10,10 +10,12 @@ import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass, replace
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-SHELL_SETTINGS_SCHEMA_VERSION = 2
+SHELL_SETTINGS_SCHEMA_VERSION = 3
+DEFAULT_SHELL_SETTINGS_SCHEMA_VERSION = 2
 SHELL_PREFERENCES_SCHEMA_VERSION = 1
 SHELL_CAPABILITIES_SCHEMA_VERSION = 1
 DEFAULT_LOCAL_PORT = 44851
@@ -27,6 +29,8 @@ APP_USER_MODEL_ID = "Provelume.Desktop"
 THEMES = frozenset({"system", "light", "dark"})
 LANGUAGES = frozenset({"en", "it"})
 UPDATE_CHANNELS = frozenset({"preview", "stable"})
+INTERFACE_MODES = frozenset({"current", "preview"})
+INTERFACE_CHANGE_SOURCES = frozenset({"local_browser", "local_process"})
 
 
 def state_directory() -> Path:
@@ -85,6 +89,75 @@ class ShellPreferencesError(ShellSettingsError):
 
 
 @dataclass(frozen=True, slots=True)
+class InterfaceModeChange:
+    revision: int
+    recorded_at_utc: str
+    from_mode: str
+    to_mode: str
+    changed: bool
+    source: str
+    schema_version: int = 1
+
+    def as_payload(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "revision": self.revision,
+            "recorded_at_utc": self.recorded_at_utc,
+            "from": self.from_mode,
+            "to": self.to_mode,
+            "changed": self.changed,
+            "source": self.source,
+        }
+
+
+def _parse_interface_mode_change(
+    value: Any, *, mode: str, revision: int
+) -> InterfaceModeChange | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) != {
+        "schema_version",
+        "revision",
+        "recorded_at_utc",
+        "from",
+        "to",
+        "changed",
+        "source",
+    }:
+        raise ShellSettingsError("interface selection receipt fields are invalid")
+    if (
+        type(value["schema_version"]) is not int
+        or value["schema_version"] != 1
+        or type(value["revision"]) is not int
+        or not 1 <= value["revision"] <= revision
+        or not isinstance(value["from"], str)
+        or value["from"] not in INTERFACE_MODES
+        or value["to"] != mode
+        or type(value["changed"]) is not bool
+        or value["changed"] != (value["from"] != value["to"])
+        or not isinstance(value["source"], str)
+        or value["source"] not in INTERFACE_CHANGE_SOURCES
+        or not isinstance(value["recorded_at_utc"], str)
+        or not 20 <= len(value["recorded_at_utc"]) <= 40
+    ):
+        raise ShellSettingsError("interface selection receipt is invalid")
+    try:
+        observed = datetime.fromisoformat(value["recorded_at_utc"].replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ShellSettingsError("interface selection receipt time is invalid") from exc
+    if observed.utcoffset() != timedelta(0):
+        raise ShellSettingsError("interface selection receipt time must be UTC")
+    return InterfaceModeChange(
+        revision=value["revision"],
+        recorded_at_utc=value["recorded_at_utc"],
+        from_mode=value["from"],
+        to_mode=value["to"],
+        changed=value["changed"],
+        source=value["source"],
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class LauncherSettings:
     instance_path: str
     update_channel: str = "preview"
@@ -96,10 +169,14 @@ class LauncherSettings:
     tray_enabled: bool = True
     login_startup: bool = False
     theme: str = "system"
+    interface_mode: str = "current"
+    interface_mode_change: InterfaceModeChange | None = None
     revision: int = 0
-    schema_version: int = SHELL_SETTINGS_SCHEMA_VERSION
+    schema_version: int = DEFAULT_SHELL_SETTINGS_SCHEMA_VERSION
 
     def normalized(self) -> LauncherSettings:
+        if type(self.schema_version) is not int or self.schema_version not in {2, 3}:
+            raise ShellSettingsError("launcher settings schema is invalid")
         if (
             not isinstance(self.instance_path, str)
             or not self.instance_path.strip()
@@ -127,6 +204,25 @@ class LauncherSettings:
             )
         ):
             raise ShellSettingsError("launcher settings boolean is invalid")
+        if not isinstance(self.interface_mode, str) or self.interface_mode not in INTERFACE_MODES:
+            raise ShellSettingsError("interface mode must be current or preview")
+        receipt = self.interface_mode_change
+        # The desktop's asdict/constructor path reconstructs nested dataclasses as
+        # dictionaries. Accept that internal shape here, not in the wire parser.
+        if isinstance(receipt, dict):
+            try:
+                receipt = InterfaceModeChange(**receipt)
+            except TypeError as exc:
+                raise ShellSettingsError("interface selection receipt is invalid") from exc
+        if receipt is not None and not isinstance(receipt, InterfaceModeChange):
+            raise ShellSettingsError("interface selection receipt is invalid")
+        receipt = _parse_interface_mode_change(
+            receipt.as_payload() if receipt is not None else None,
+            mode=self.interface_mode,
+            revision=self.revision,
+        )
+        if self.schema_version == 2 and (self.interface_mode != "current" or receipt is not None):
+            raise ShellSettingsError("interface selection requires launcher settings schema 3")
         return LauncherSettings(
             instance_path=instance_path,
             update_channel=(
@@ -140,13 +236,30 @@ class LauncherSettings:
             tray_enabled=self.tray_enabled,
             login_startup=self.login_startup,
             theme=self.theme if self.theme in THEMES else "system",
+            interface_mode=self.interface_mode,
+            interface_mode_change=receipt,
             revision=self.revision,
+            schema_version=self.schema_version,
         )
 
     def as_payload(self) -> dict[str, Any]:
         value = self.normalized()
+        shell = {
+            "tray_enabled": value.tray_enabled,
+            "login_startup": value.login_startup,
+            "theme": value.theme,
+        }
+        if value.schema_version == 3:
+            shell.update(
+                interface_mode=value.interface_mode,
+                interface_mode_change=(
+                    value.interface_mode_change.as_payload()
+                    if value.interface_mode_change is not None
+                    else None
+                ),
+            )
         return {
-            "schema_version": SHELL_SETTINGS_SCHEMA_VERSION,
+            "schema_version": value.schema_version,
             "revision": value.revision,
             "instance_path": value.instance_path,
             "update_channel": value.update_channel,
@@ -158,18 +271,14 @@ class LauncherSettings:
                 "last_good_port": value.last_good_port,
                 "restart_required": value.restart_required,
             },
-            "shell": {
-                "tray_enabled": value.tray_enabled,
-                "login_startup": value.login_startup,
-                "theme": value.theme,
-            },
+            "shell": shell,
         }
 
     def public_view(self, *, warning: str | None = None) -> dict[str, Any]:
         value = self.normalized()
         return {
             "schema_version": SHELL_CAPABILITIES_SCHEMA_VERSION,
-            "configuration_schema_version": SHELL_SETTINGS_SCHEMA_VERSION,
+            "configuration_schema_version": value.schema_version,
             "revision": value.revision,
             "endpoint": {
                 "scheme": "http",
@@ -188,6 +297,12 @@ class LauncherSettings:
                 "tray_enabled": value.tray_enabled,
                 "login_startup": value.login_startup,
                 "theme": value.theme,
+                "interface_mode": value.interface_mode,
+                "interface_mode_change": (
+                    value.interface_mode_change.as_payload()
+                    if value.interface_mode_change is not None
+                    else None
+                ),
                 "app_user_model_id": APP_USER_MODEL_ID,
             },
             "limits": {
@@ -213,12 +328,7 @@ class LoadedSettings:
 def validate_port(value: int | str) -> int:
     if type(value) is int:
         selected = value
-    elif (
-        isinstance(value, str)
-        and value
-        and value.isascii()
-        and value.isdigit()
-    ):
+    elif isinstance(value, str) and value and value.isascii() and value.isdigit():
         selected = int(value)
     else:
         raise ShellSettingsError("port must be an integer")
@@ -331,7 +441,7 @@ def _parse_settings(value: Any, defaults: LauncherSettings) -> LauncherSettings:
             check_on_start=value["check_on_start"],
             language=value["language"],
         ).normalized()
-    if schema_version != SHELL_SETTINGS_SCHEMA_VERSION:
+    if schema_version not in {2, SHELL_SETTINGS_SCHEMA_VERSION}:
         raise ShellSettingsError("unsupported launcher settings schema")
     expected = {
         "schema_version",
@@ -356,11 +466,14 @@ def _parse_settings(value: Any, defaults: LauncherSettings) -> LauncherSettings:
         raise ShellSettingsError("launcher endpoint settings are invalid")
     if endpoint.get("host") != LOCAL_HOST:
         raise ShellSettingsError("launcher endpoint host must remain loopback")
-    if not isinstance(shell, dict) or set(shell) != {
+    shell_fields = {
         "tray_enabled",
         "login_startup",
         "theme",
-    }:
+    }
+    if schema_version == 3:
+        shell_fields |= {"interface_mode", "interface_mode_change"}
+    if not isinstance(shell, dict) or set(shell) != shell_fields:
         raise ShellSettingsError("launcher shell settings are invalid")
     if (
         value.get("update_channel") not in UPDATE_CHANNELS
@@ -376,6 +489,17 @@ def _parse_settings(value: Any, defaults: LauncherSettings) -> LauncherSettings:
     )
     if any(not isinstance(item, bool) for item in booleans):
         raise ShellSettingsError("launcher settings boolean is invalid")
+    mode = shell["interface_mode"] if schema_version == 3 else "current"
+    revision = value.get("revision")
+    if type(revision) is not int or not 0 <= revision <= MAX_SETTINGS_REVISION:
+        raise ShellSettingsError("launcher settings revision is invalid")
+    if not isinstance(mode, str) or mode not in INTERFACE_MODES:
+        raise ShellSettingsError("interface mode must be current or preview")
+    receipt = _parse_interface_mode_change(
+        shell["interface_mode_change"] if schema_version == 3 else None,
+        mode=mode,
+        revision=revision,
+    )
     return LauncherSettings(
         instance_path=value.get("instance_path", defaults.instance_path),
         update_channel=value.get("update_channel", defaults.update_channel),
@@ -387,7 +511,10 @@ def _parse_settings(value: Any, defaults: LauncherSettings) -> LauncherSettings:
         tray_enabled=shell.get("tray_enabled"),
         login_startup=shell.get("login_startup"),
         theme=shell.get("theme"),
-        revision=value.get("revision"),
+        interface_mode=mode,
+        interface_mode_change=receipt,
+        revision=revision,
+        schema_version=schema_version,
     ).normalized()
 
 
@@ -480,8 +607,15 @@ class ShellSettingsManager:
                 os.close(descriptor)
 
     def save(self, settings: LauncherSettings) -> Path:
-        _atomic_json(self.path, settings.normalized().as_payload(), maximum=MAX_SETTINGS_BYTES)
+        candidate = settings.normalized()
+        with self.hold():
+            self._save_locked(candidate, current=self.load().settings)
         return self.path
+
+    def _save_locked(self, settings: LauncherSettings, *, current: LauncherSettings) -> None:
+        if current.schema_version == 3 and settings.schema_version != 3:
+            raise ShellSettingsError("launcher settings schema cannot be downgraded")
+        _atomic_json(self.path, settings.as_payload(), maximum=MAX_SETTINGS_BYTES)
 
     def recover_abandoned_writes(self) -> dict[str, Any]:
         removed = 0
@@ -518,12 +652,14 @@ class ShellSettingsManager:
                 raise ShellSettingsError("shell configuration revision limit was reached")
             candidate = mutator(current).normalized()
             candidate = replace(candidate, revision=current.revision + 1)
-            self.save(candidate)
+            self._save_locked(candidate, current=current)
             try:
                 if post_commit is not None:
                     post_commit(candidate)
             except Exception:
-                self.save(current)
+                # Restore the complete pre-transaction state if an external
+                # preference effect fails, including a not-yet-committed promotion.
+                _atomic_json(self.path, current.as_payload(), maximum=MAX_SETTINGS_BYTES)
                 raise
             return candidate
 
@@ -577,6 +713,44 @@ class ShellSettingsManager:
 
         return self.mutate(change, expected_revision=expected_revision)
 
+    def set_interface_mode(
+        self,
+        mode: str,
+        *,
+        expected_revision: int,
+        source: str = "local_process",
+    ) -> LauncherSettings:
+        if not isinstance(mode, str) or mode not in INTERFACE_MODES:
+            raise ShellSettingsError("interface mode must be current or preview")
+        if (
+            type(expected_revision) is not int
+            or not 0 <= expected_revision <= MAX_SETTINGS_REVISION
+        ):
+            raise ShellSettingsError("launcher settings revision is invalid")
+        if not isinstance(source, str) or source not in INTERFACE_CHANGE_SOURCES:
+            raise ShellSettingsError("interface selection source is invalid")
+
+        def change(current: LauncherSettings) -> LauncherSettings:
+            next_revision = current.revision + 1
+            return replace(
+                current,
+                schema_version=SHELL_SETTINGS_SCHEMA_VERSION,
+                interface_mode=mode,
+                # mutate assigns this same revision; include it now so the
+                # receipt is coherent during its pre-save normalization too.
+                revision=next_revision,
+                interface_mode_change=InterfaceModeChange(
+                    revision=next_revision,
+                    recorded_at_utc=datetime.now(UTC).isoformat(),
+                    from_mode=current.interface_mode,
+                    to_mode=mode,
+                    changed=mode != current.interface_mode,
+                    source=source,
+                ),
+            )
+
+        return self.mutate(change, expected_revision=expected_revision)
+
     def set_preferences(
         self,
         *,
@@ -596,15 +770,14 @@ class ShellSettingsManager:
             return replace(
                 current,
                 tray_enabled=current.tray_enabled if tray_enabled is None else tray_enabled,
-                login_startup=(
-                    current.login_startup if login_startup is None else login_startup
-                ),
+                login_startup=(current.login_startup if login_startup is None else login_startup),
                 theme=current.theme if theme is None else theme,
                 language=current.language if language is None else language,
             )
 
         post_commit: Callable[[LauncherSettings], None] | None = None
         if login_startup is not None:
+
             def apply_login_startup(candidate: LauncherSettings) -> None:
                 configure_login_startup(
                     candidate.login_startup,
@@ -655,6 +828,7 @@ class ShellSettingsManager:
         if login_startup != before.login_startup or (
             os.name == "nt" and bool(getattr(sys, "frozen", False))
         ):
+
             def apply_login_startup(candidate: LauncherSettings) -> None:
                 configure_login_startup(
                     candidate.login_startup,
@@ -732,9 +906,10 @@ class ShellSettingsManager:
             raise ShellPortUnavailable("imported loopback port is already occupied")
 
         def change(settings: LauncherSettings) -> LauncherSettings:
-            if selected_port != settings.endpoint_port and not probe_port(selected_port)[
-                "available"
-            ]:
+            if (
+                selected_port != settings.endpoint_port
+                and not probe_port(selected_port)["available"]
+            ):
                 raise ShellPortUnavailable("imported loopback port is already occupied")
             return replace(
                 settings,
@@ -757,6 +932,7 @@ class ShellSettingsManager:
         if value["login_startup"] != current.login_startup or (
             os.name == "nt" and bool(getattr(sys, "frozen", False))
         ):
+
             def apply_login_startup(candidate: LauncherSettings) -> None:
                 configure_login_startup(candidate.login_startup)
 
@@ -820,8 +996,6 @@ def effective_port(*, explicit_port: int | None, persisted: LauncherSettings) ->
         }
     return {
         "port": persisted.endpoint_port,
-        "source": (
-            "default" if persisted.endpoint_port == DEFAULT_LOCAL_PORT else "persisted"
-        ),
+        "source": ("default" if persisted.endpoint_port == DEFAULT_LOCAL_PORT else "persisted"),
         "persisted_port": persisted.endpoint_port,
     }

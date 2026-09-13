@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends base_layout %}
 {% block title %}{{ t('qualification.finding') }} · {{ t('brand') }}{% endblock %}
 {% block content %}
 <section class="hero"><p class="eyebrow">{{ t('qualification.eyebrow') }}</p><h1>{{ t('qualification.finding') }}</h1><p class="lead">{{ finding.finding_type }} · {{ finding.epistemic_state }} · {{ finding.workflow_state }}</p></section>

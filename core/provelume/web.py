@@ -16,6 +16,8 @@ from .activity import attach_activity_routes
 from .api import attach_api, reject_client_installation_evidence
 from .audio_activity import attach_audio_routes
 from .build_info import current_build_info
+from .cura_icons import icon_renderer, render_icon
+from .cura_shell import navigation_context, script_integrity, shell_snapshot, validated_return
 from .email_activity import attach_email_routes
 from .file_family_activity import attach_file_family_routes
 from .folder_source_activity import attach_folder_source_routes
@@ -27,6 +29,7 @@ from .installation_i18n import installation_translator
 from .maintenance_activity import attach_maintenance_routes
 from .markdown_viewer import DocumentContentError, safe_markdown_html
 from .ocr_activity import attach_ocr_routes
+from .operations import OperationLedger
 from .perceptio_activity import attach_perceptio_routes
 from .photo_activity import attach_photo_routes
 from .qualification_activity import attach_qualification_routes
@@ -50,16 +53,27 @@ TEMPLATES = Jinja2Templates(directory=str(PACKAGE_ROOT / "templates"))
 ROOT_AREA_FILTER = "__root__"
 
 
-def _language(request: Request, instance: ProvelumeInstance) -> str:
+def _language(request: Request, instance: ProvelumeInstance | None = None) -> str:
     requested = request.query_params.get("lang")
     if requested in SUPPORTED_LANGUAGES:
         return requested
-    configured = instance.store.read_config().get("ui", {}).get("language", "en")
+    loaded = shell_snapshot(request)
+    if loaded is not None and loaded.warning not in {
+        "settings_missing_using_defaults", "settings_invalid_using_safe_defaults",
+    } and loaded.settings.language in SUPPORTED_LANGUAGES:
+        return loaded.settings.language
+    configured = (
+        instance.store.read_config().get("ui", {}).get("language", "en") if instance else "en"
+    )
     return configured if configured in SUPPORTED_LANGUAGES else "en"
 
 
 def _language_url(request: Request, language: str) -> str:
-    query = [(key, value) for key, value in request.query_params.multi_items() if key != "lang"]
+    query = [(key, value) for key, value in request.query_params.multi_items()
+             if key not in {"lang", "return_to"}]
+    return_to = validated_return(request.query_params.get("return_to"))
+    if return_to:
+        query.append(("return_to", return_to))
     query.append(("lang", language))
     return f"{request.url.path}?{urlencode(query, doseq=True)}"
 
@@ -281,15 +295,26 @@ def _navigation(
 def _base_context(request: Request, language: str) -> dict[str, Any]:
     t = translator(language)
     security_t = installation_translator(language)
-    manager = getattr(request.app.state, "shell_settings_manager", None)
-    theme = manager.load().settings.theme if manager is not None else "system"
+    loaded = shell_snapshot(request)
+    theme = loaded.settings.theme if loaded is not None else "system"
+    mode = loaded.settings.interface_mode if loaded is not None else "current"
+    preview = mode == "preview"
+    navigation = _navigation(language, request.url.path, t, security_t)
+    integrity = script_integrity() if preview else None
+    request.state.cura_script_integrity = integrity
     return {
         "request": request,
         "lang": language,
         "t": t,
         "security_t": security_t,
-        "navigation": _navigation(language, request.url.path, t, security_t),
+        "navigation": navigation,
         "theme": theme,
+        "interface_mode": "preview" if preview else "current",
+        "base_layout": "cura/base.html" if preview else "base.html",
+        "cura_script_integrity": integrity,
+        "icon": icon_renderer() if preview else render_icon,
+        "shell_about": current_about() if preview else None,
+        **navigation_context(request, language, t, navigation),
         "language_urls": {
             selected: _language_url(request, selected) for selected in sorted(SUPPORTED_LANGUAGES)
         },
@@ -298,17 +323,39 @@ def _base_context(request: Request, language: str) -> dict[str, Any]:
 
 def _context(request: Request, instance: ProvelumeInstance, **values: Any) -> dict[str, Any]:
     language = _language(request, instance)
+    base = _base_context(request, language)
+    sources = {item["id"]: item["name"] for item in values.get("sources", ())
+               if "name" in item}
+    nodes = {item["id"]: " / ".join(part["name"] for part in item["breadcrumbs"])
+             for item in values.get("hierarchy_nodes", ())}
+    for item in base["active_filters"]:
+        if item["key"] == "source_id":
+            item["value"] = sources.get(item["value"], base["t"]("common.unavailable"))
+        elif item["key"] == "hierarchy_id":
+            item["value"] = nodes.get(item["value"], base["t"]("common.unavailable"))
+        elif item["key"] == "disposition":
+            item["value"] = base["t"]("browse.all" if item["value"] == "all"
+                                      else "disposition." + item["value"])
+        elif item["key"] == "area" and item["value"] == ROOT_AREA_FILTER:
+            item["value"] = base["t"]("browse.root")
     return {
-        **_base_context(request, language),
+        **base,
         "instance": instance.instance_summary(),
         **values,
     }
 
 
 def _installation_context(request: Request, **values: Any) -> dict[str, Any]:
-    requested = request.query_params.get("lang")
-    language = requested if requested in SUPPORTED_LANGUAGES else "en"
+    language = _language(request)
     return {**_base_context(request, language), **values}
+
+
+def _page(*, request: Request, name: str, context: dict[str, Any]):
+    if context["interface_mode"] == "preview" and name in {
+        "home.html", "browse.html", "search.html",
+    }:
+        name = "cura/" + name
+    return TEMPLATES.TemplateResponse(request=request, name=name, context=context)
 
 
 def create_app(
@@ -419,7 +466,13 @@ def create_app(
 
     @app.get("/")
     def home(request: Request):
-        return TEMPLATES.TemplateResponse(
+        ledger = OperationLedger(instance.store)
+        attention = sorted(
+            ledger.list(status="failed", limit=5)
+            + ledger.list(status="completed_with_errors", limit=5),
+            key=lambda item: (item["started_at"], item["id"]), reverse=True,
+        )[:5]
+        return _page(
             request=request,
             name="home.html",
             context=_context(
@@ -428,6 +481,7 @@ def create_app(
                 latest=instance.recent_documents(limit=8),
                 ingestion_errors=instance.ingestion_errors(limit=8),
                 health=instance.knowledge_health(),
+                attention_operations=attention,
             ),
         )
 
@@ -455,7 +509,7 @@ def create_app(
             hierarchy_id=hierarchy_id,
             disposition=disposition,
         )
-        return TEMPLATES.TemplateResponse(
+        return _page(
             request=request,
             name="browse.html",
             context=_context(
@@ -494,7 +548,7 @@ def create_app(
                 date_from=date_from,
                 date_to=date_to,
             )
-        return TEMPLATES.TemplateResponse(
+        return _page(
             request=request,
             name="search.html",
             context=_context(
@@ -509,6 +563,25 @@ def create_app(
                 date_from=date_from,
                 date_to=date_to,
             ),
+        )
+
+    @app.get("/management")
+    def management_page(request: Request):
+        return TEMPLATES.TemplateResponse(
+            request=request, name="cura/management.html", context=_context(request, instance),
+        )
+
+    @app.get("/attention")
+    def attention_page(request: Request):
+        ledger = OperationLedger(instance.store)
+        operations = sorted(
+            ledger.list(status="failed", limit=250)
+            + ledger.list(status="completed_with_errors", limit=250),
+            key=lambda item: (item["started_at"], item["id"]), reverse=True,
+        )[:250]
+        return TEMPLATES.TemplateResponse(
+            request=request, name="cura/attention.html",
+            context=_context(request, instance, attention_operations=operations),
         )
 
     @app.get("/documents/{document_id}")

@@ -2,6 +2,12 @@
 
 Official release assets are designed to be independently checkable against public source and build provenance.
 
+Cura adds an outer installation kit and a separate actual-publication receipt, without changing
+the qualified inner bundle. Future releases expose installation readiness only after its public
+bytes have been verified. Follow [offline publication metadata installation](publication-installation.md)
+for wheel/sdist, Windows Setup, updater and existing raw installations. A receipt hash comparison
+alone is descriptive consistency evidence, not publisher authentication.
+
 ## Inspect the embedded identity offline
 
 An installed Python package can report the source identity embedded during deterministic assembly:

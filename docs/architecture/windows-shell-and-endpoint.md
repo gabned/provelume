@@ -6,7 +6,8 @@ with Lectio. The public product identity is `0.9.0`.
 ## Boundaries
 
 The shell owns only launcher location, explicit update preference, language, loopback port, tray
-behavior, login startup and visual theme. It cannot modify an Instance's Originals, Documents,
+behavior, login startup, visual theme and the local interface presentation. It cannot modify an
+Instance's Originals, Documents,
 Versions, Acquisitions, Sources, provider state or canonical configuration. Shell state lives in
 `%LOCALAPPDATA%\Provelume\launcher.json`; runtime files live under
 `%LOCALAPPDATA%\Programs\Provelume`; the default Instance remains
@@ -23,16 +24,31 @@ Versions, Acquisitions, Sources, provider state or canonical configuration. Shel
 
 ## Closed configuration
 
-Schema 2 accepts only the documented top-level, endpoint and shell fields. `host` must equal
+Schemas 2 and 3 accept only their documented top-level, endpoint and shell fields. `host` must equal
 `127.0.0.1`; port must be an integer from 1024 through 65535; theme is `system`, `light`, or `dark`;
 language is `en` or `it`. Booleans are not accepted as integers. Documents over 64 KiB, unknown
-fields, invalid schemas, symlinks and reparse points are rejected. Schema 1 is read compatibly and
-migrates only on a later explicit save.
+fields, invalid schemas, symlinks and reparse points are rejected. Fresh installations retain
+the exact schema-2 format and Current presentation. Schema 1 loads without rewriting its bytes
+and migrates to schema 2 on an ordinary explicit save. Valid schema 2 remains schema 2 through
+ordinary language, theme, endpoint and legacy preference-transfer edits; it retains its revision
+and all endpoint/shell preferences, with implicit Current and no interface-choice receipt.
+The first explicit interface selection, including Current, promotes atomically to schema 3.
+Schema 3 adds exactly `interface_mode` and `interface_mode_change` to `shell`, alongside
+`tray_enabled`, `login_startup` and `theme`. Already persisted schema 3 is preserved even for
+Current or a null receipt; normal edits and presentation rollback never downgrade its format.
+An incompatible in-memory schema-2 choice/receipt is rejected instead of silently omitted.
+
+The public configuration and desktop diagnostic schema fields report the effective writable
+settings format, not the maximum supported parser version. A legacy schema-1 load therefore
+reports effective schema 2 with its existing pending-migration warning, without claiming that
+the unchanged disk header has migrated. Valid schema 2 needs no migration warning.
 
 Missing/invalid state produces safe values plus `settings_missing_using_defaults` or
 `settings_invalid_using_safe_defaults`. It never rewrites the input while reading. State mutation
 uses a non-blocking platform lock, revision check, same-directory temporary file, flush/fsync and
-atomic replace. Explicit crash recovery removes a maximum of 32 matching temporary files and no
+atomic replace. Direct full-settings saves also hold that lock and reject a schema-3 downgrade.
+A failed post-commit preference effect restores the complete pre-transaction state. Explicit
+crash recovery removes a maximum of 32 matching temporary files and no
 other path.
 
 ## Endpoint lifecycle
@@ -50,11 +66,52 @@ other path.
 
 The service uses Uvicorn only on an explicitly validated loopback host. Local Web middleware also
 rejects untrusted Host values. Every mutative Browser request uses service authorization,
-loopback-client validation, the existing script-free same-origin policy, CSRF, a ten-minute
+loopback-client validation, the same-origin policy (script-free Current presentation;
+one fixed hash-bound first-party enhancement in Preview, see ADR 0030), CSRF, a ten-minute
 one-time reference (maximum 64 active), and an exact expected revision. A consumed, replayed or
 stale request cannot mutate state. Unknown, missing-required or duplicated fields fail before the
 one-time reference is consumed. Inspection reports active service and configured restart endpoints
 separately.
+
+## Local Preview preference and receipt
+
+`shell.interface_mode` is the closed enum `current | preview`, defaulting to `current`.
+It is independent of the update channel's `preview` value. Preview is an explicit installation
+preference for maintainers/testers; it selects a server-rendered presentation over the same
+routes, authorization, backend and canonical data. Selecting `current` provides presentation-only
+rollback. Neither choice changes the service port, pending endpoint restart, startup registration,
+other preferences or Instance state. Open pages use the new choice on navigation/reload, and
+the persisted choice survives compatible application restart and upgrade. This does not promise
+compatibility with an older schema-2-only binary; package downgrade is not the rollback mechanism.
+The new renderer's default activation remains owned by Cura S09.
+
+The existing settings POST has a dedicated `set-interface-mode` action accepting exactly
+`csrf_token`, `mutation_nonce`, `revision`, `action` and `interface_mode`. Other settings actions
+reject `interface_mode`; this action rejects their fields. The two forms have separate nonces
+under the existing shared bound/lifetime, and both use the displayed revision. Field, enum and
+bounded ASCII revision validation happen before nonce consumption. Invalid CSRF is 403;
+expired/replayed nonce is 409; a settings revision conflict retains the existing 400 response
+with `stale_configuration` and a fresh form. At exactly 600 seconds the nonce is still valid;
+after that it is expired. A success redirects only to the fixed settings path with the committed
+EN/IT preference, so the dedicated form cannot silently change language. Application restart
+invalidates old CSRF/nonces while preserving the selection. The public shell API stays read-only.
+Shell forms, rendering and script-policy selection share one request settings snapshot.
+
+The public `shell.interface_mode_change` is `null` before a recorded selection. Schema 2 omits
+both interface fields on disk; schema 3 requires both and accepts a null receipt for compatible
+existing state. A recorded selection has one closed receipt:
+`schema_version: 1`, bounded `revision`, `recorded_at_utc`, `from`, `to`, Boolean `changed`, and
+`source: local_browser | local_process`. Its revision cannot exceed the enclosing configuration;
+`to` equals the selected mode and `changed` equals `from != to`. Timestamp text is bounded and
+UTC, observed from the local device clock. This is neither authenticated time nor user identity.
+The mode and receipt are written in the same locked atomic configuration replacement. Even an
+explicit same-mode save increments the revision once and records `changed: false`. Failed or
+denied changes create no committed receipt. Other preference edits preserve the previous receipt.
+
+Only the last committed selection is retained. There is no separate append-only log, diagnostic
+logging gate or complete/tamper-evident history. The receipt contains no path, content, provider
+identity, account/device identifier, URL query, CSRF value or nonce; the sanitized API and local
+settings disclosure expose the same closed receipt. No Instance audit/canonical record is added.
 
 ## Tray and service state
 
@@ -86,6 +143,11 @@ evidence. The verifier rejects invalid/unexpected signatures even in development
 Export/backup schema 1 contains only endpoint port, tray, login-startup preference, theme and
 language. Import/restore validates size, fields, path type and port availability before atomic
 apply. It never contains the Instance path, source/provider data or credential references.
+This schema-1 transfer is the declared legacy subset, not a complete application-preference
+backup: it excludes `interface_mode` and its receipt. Import/restore preserves the destination's
+current mode and receipt using the state read under the mutation lock, even without an expected
+revision. Additional mode/receipt fields in a v1 document remain invalid. Cura S09 owns complete
+versioned transfer, import preview and preference-reset scope; S02 does not silently extend v1.
 Diagnostics contain schema/capability/status codes, bounds, endpoint and signing state only; no
 URL query, document content, source path, token, CSRF value or nonce is logged.
 

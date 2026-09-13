@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import shutil
 import socket
 from importlib.resources import files
 from pathlib import Path
@@ -9,8 +10,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from provelume import cura_icons
 from provelume.cli import main
 from provelume.component_inventory import ComponentInventory, ComponentInventoryError
+from provelume.cura_icons import asset_sbom_component
 from provelume.service import ProvelumeInstance
 from provelume.web import create_app
 
@@ -43,7 +46,8 @@ def test_inventory_covers_component_classes_and_keeps_states_distinct() -> None:
     result = _inventory().read()
     rows = {row["id"]: row for row in result["components"]}
 
-    assert result["schema_version"] == 1
+    assert result["schema_version"] == 2
+    assert result["catalogue_version"] == 2
     assert result["network"] == {
         "used": False,
         "catalogue_check": "not_performed",
@@ -58,11 +62,16 @@ def test_inventory_covers_component_classes_and_keeps_states_distinct() -> None:
         "model",
         "language_pack",
         "host_prerequisite",
+        "ui_asset",
     }
     assert rows["provelume.core"]["status"] == "installed"
     assert rows["provelume.core"]["pinned"] is True
     assert rows["python.fastapi"]["pinned"] is False
     assert rows["runtime.cpython"]["status"] == "installed"
+    assert rows["ui.lucide"]["status"] == "installed"
+    assert rows["ui.lucide"]["effective_version"] == "1.45.0"
+    assert rows["ui.lucide"]["license"] == "ISC AND MIT"
+    assert rows["ui.lucide"]["evidence"] == "packaged_asset_sha256_verified"
     assert rows["ocr.tesseract"]["status"] == "missing"
     assert rows["ocr.eng-traineddata"]["status"] == "unverified"
     assert rows["asr.whisper-cpp"]["approved_version"] == "1.9.2"
@@ -178,7 +187,8 @@ def test_installed_transitive_runtime_dependency_closure_enters_inventory_and_sb
                         "purl": f"pkg:pypi/{name}@{version}",
                     }
                     for name, version in versions.items()
-                ],
+                ]
+                + [asset_sbom_component()],
             }
         ),
         encoding="utf-8",
@@ -197,7 +207,8 @@ def test_release_sbom_reconciliation_is_bounded_and_deterministic(tmp_path: Path
                 "components": [
                     {"name": name, "version": version, "type": "library"}
                     for name, version in VERSIONS.items()
-                ],
+                ]
+                + [asset_sbom_component()],
             }
         ),
         encoding="utf-8",
@@ -238,13 +249,13 @@ def test_cli_api_and_bilingual_browser_share_one_offline_read_model(
     assert main(["component-inventory"]) == 0
     cli = json.loads(capsys.readouterr().out)
 
-    client = TestClient(create_app(root))
+    client = TestClient(create_app(root, shell_settings_file=tmp_path / "shell-settings.json"))
     api = client.get("/api/v1/components")
     assert api.status_code == 200
     assert api.json() == cli
     assert client.post("/api/v1/components", json={}).status_code == 405
 
-    english = client.get("/components")
+    english = client.get("/components", params={"lang": "en"})
     assert english.status_code == 200
     assert "Component catalogue" in english.text
     assert "No catalogue, advisory" in english.text
@@ -286,3 +297,71 @@ def test_component_documentation_and_schema_are_packaged() -> None:
     assert "status" in schema["$defs"]["component"]["required"]
     assert "pinned" in schema["$defs"]["component"]["required"]
     assert "GITHUB_TOKEN" not in _inventory().export_bytes().decode("utf-8")
+
+
+@pytest.mark.parametrize("field", ["hash", "commit", "asset_bytes", "license", "duplicate"])
+def test_packaged_asset_sbom_rejects_same_version_different_provenance(
+    tmp_path: Path,
+    field: str,
+) -> None:
+    asset = asset_sbom_component()
+    rows = [
+        {"name": name, "version": version, "type": "library"} for name, version in VERSIONS.items()
+    ] + [asset]
+    if field == "hash":
+        asset["hashes"][0]["content"] = "0" * 64
+    elif field in {"commit", "asset_bytes"}:
+        key = "provelume:source-commit" if field == "commit" else "provelume:asset-sha256:house.svg"
+        next(row for row in asset["properties"] if row["name"] == key)["value"] = "different"
+    elif field == "license":
+        asset["licenses"] = [{"expression": "MIT"}]
+    else:
+        rows.append(copy.deepcopy(asset))
+    sbom = tmp_path / "asset-mismatch.cdx.json"
+    sbom.write_text(json.dumps({"bomFormat": "CycloneDX", "components": rows}), "utf-8")
+    result = _inventory().read(release_sbom=sbom)
+    assert result["release_evidence"]["mismatched_component_ids"] == ["ui.lucide"]
+    row = next(row for row in result["components"] if row["id"] == "ui.lucide")
+    assert row["effective_version"] == "1.45.0"
+    assert row["release_evidence"] == "mismatch"
+
+
+@pytest.mark.parametrize(
+    "change,state,reason",
+    [
+        ("missing", "missing", "packaged_asset_missing"),
+        ("tampered", "unverified", "packaged_asset_invalid"),
+    ],
+)
+def test_packaged_detection_requires_actual_intact_resources(
+    tmp_path: Path,
+    monkeypatch,
+    change: str,
+    state: str,
+    reason: str,
+) -> None:
+    root = tmp_path / "assets"
+    shutil.copytree(Path(str(files("provelume").joinpath(cura_icons.RESOURCE_PATH))), root)
+    notice = tmp_path / "lucide-LICENSE.txt"
+    shutil.copyfile(
+        Path(str(files("provelume").joinpath(cura_icons.LICENSE_RESOURCE_PATH))), notice
+    )
+    if change == "missing":
+        notice.unlink()
+    else:
+        (root / "house.svg").write_bytes(b"tampered")
+    monkeypatch.setattr(cura_icons, "_resource_root", lambda: root)
+    monkeypatch.setattr(cura_icons, "_license_resource", lambda: notice)
+    result = _inventory().read()
+    row = next(row for row in result["components"] if row["id"] == "ui.lucide")
+    assert (row["status"], row["status_reason"]) == (state, reason)
+    assert row["effective_version"] is None
+    assert str(tmp_path) not in json.dumps(result)
+
+
+def test_packaged_asset_detector_does_not_accept_arbitrary_paths() -> None:
+    catalogue = copy.deepcopy(_catalogue())
+    row = next(row for row in catalogue["components"] if row["id"] == "ui.lucide")
+    row["detection"]["value"] = "../../private"
+    with pytest.raises(ComponentInventoryError, match="not allowlisted"):
+        _inventory(catalogue=catalogue)

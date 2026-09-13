@@ -152,21 +152,15 @@ jobs:
             ${{ runner.temp }}/provelume-verified-release/windows-py312-x86_64.in
             ${{ runner.temp }}/provelume-verified-release/windows-py312-x86_64.requirements.txt
 
-      - name: Publish GitHub Release without overwriting
+      - name: Publish or resume immutable core payload and prepare publication kit
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
+          PYTHONPATH: core
+          SOURCE_COMMIT: ${{ inputs.commit }}
           RELEASE_TITLE: ${{ inputs.title }}
-          TAG: ${{ inputs.tag }}
-          CHANNEL: ${{ inputs.channel }}
         run: |
           set -euo pipefail
-          release="$RUNNER_TEMP/provelume-verified-release"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo '::error::A GitHub Release already exists for this tag; refusing overwrite.'
-            exit 1
-          fi
           expected_title="$(python - <<'PY'
           import tomllib
 
@@ -181,17 +175,32 @@ jobs:
             echo '::error::Release title does not match the exact source release metadata.'
             exit 1
           fi
-          flags=()
-          if [ "$CHANNEL" = "preview" ]; then
-            flags+=(--prerelease)
-          fi
-          notes="docs/releases/${VERSION}.md"
-          if [ ! -f "$notes" ]; then
-            echo "::error::Public release notes are missing: ${notes}."
-            exit 1
-          fi
-          gh release create "$TAG" "$release"/* \
-            --verify-tag \
-            --title "$RELEASE_TITLE" \
-            --notes-file "$notes" \
-            "${flags[@]}"
+          python -m scripts.publication_publish prepare \
+            --bundle "$RUNNER_TEMP/provelume-verified-release" \
+            --stage "$RUNNER_TEMP/provelume-publication" \
+            --commit "$SOURCE_COMMIT"
+
+      - name: Attest publication receipt and unchanged-payload installation kit
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            ${{ runner.temp }}/provelume-publication/publication-receipt.json
+            ${{ runner.temp }}/provelume-publication/provelume-${{ inputs.version }}-installation-kit.zip
+
+      - name: Finalize and independently observe installation readiness
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: core
+        run: |
+          set -euo pipefail
+          python -m scripts.publication_publish finalize \
+            --bundle "$RUNNER_TEMP/provelume-verified-release" \
+            --stage "$RUNNER_TEMP/provelume-publication"
+
+      - name: Keep interrupted finalization visible
+        if: failure()
+        shell: bash
+        run: |
+          echo '::error::Publication is incomplete. Installation readiness has not been established by this run. Resume the same exact-source publisher; never rebuild, republish, or overwrite an existing artifact.'
+          echo 'Publication/finalization incomplete: inspect the failed stage and resume with the same qualified bundle and exact source. A public payload alone is not a ready installation kit.' >> "$GITHUB_STEP_SUMMARY"

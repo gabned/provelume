@@ -1,0 +1,1 @@
+{% if publication is defined and publication and publication.new %}<span class="cura-new" data-release-cue data-remaining-seconds="{{ publication.remaining_seconds }}" data-expires-at="{{ publication.expires_at }}" aria-label="{{ t('cura.new_accessible') }}">{{ t('cura.new') }}</span>{% endif %}

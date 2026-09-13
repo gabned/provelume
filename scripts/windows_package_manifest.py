@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 SOURCE_REPOSITORY = "gabned/provelume"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+\-]{0,254}$")
 
 
@@ -49,6 +49,7 @@ def build_windows_update_manifest(
         raise ValueError("minimum Windows build is below the supported baseline")
     return {
         "schema_version": SCHEMA_VERSION,
+        "publication_required": True,
         "source_repository": SOURCE_REPOSITORY,
         "version": version,
         "tag": tag,

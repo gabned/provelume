@@ -60,6 +60,8 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
         encoding="utf-8"
     )
 
+    publisher = (root / "scripts/publication_publish.py").read_text(encoding="utf-8")
+
     assert "scripts/deterministic_build.py" in ci
     assert "scripts.deterministic_build" in release
     assert "build-determinism.json" in ci
@@ -94,14 +96,18 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
         assert "uuid.uuid5(" in workflow
         assert "--output-reproducible" in workflow
     assert "CycloneDX serialNumber is missing or invalid" in publication
-    assert 'notes="docs/releases/${VERSION}.md"' in publication
-    assert 'Public release notes are missing: ${notes}' in publication
-    assert '--notes-file "$notes"' in publication
+    assert 'notes = Path("docs/releases") / f"{version}.md"' in publisher
+    assert "Public release notes are missing" in publisher
+    assert '"--notes-file"' in publisher
     assert "title: ${{ needs.assure.outputs.title }}" in release_caller
     assert "title: ${{ needs.candidate.outputs.title }}" in release
     assert 'title = f"Provelume {version} “{codename}”"' in release
     assert 'Release title does not match the exact source release metadata' in publication
-    assert '--title "$RELEASE_TITLE"' in publication
+    assert '"--title"' in publisher
+    assert "scripts.publication_publish prepare" in publication
+    assert "scripts.publication_publish finalize" in publication
+    assert "Attest publication receipt" in publication
+    assert "--clobber" not in publisher
     assert '“Lectio”' not in publication
     assert "--generate-notes" not in publication
     assert "windows-package:" in release

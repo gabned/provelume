@@ -1,5 +1,10 @@
 # Windows product shell preview
 
+For future Cura releases, the complete actual-publication metadata path uses the verified outer
+installation kit and its original Setup; existing raw installations can import the matching
+receipt offline. See [publication metadata installation](publication-installation.md). This does
+not retroactively add receipts to the historical preview described below.
+
 Provelume `0.10.1` is the Emendatio Windows preview with the configurable loopback endpoint, coherent
 icon/AppUserModelID, tray lifecycle, theme and accessibility contracts described in
 [`windows-shell.md`](windows-shell.md). Download `Provelume-Setup-0.10.1-x64.exe` only from the

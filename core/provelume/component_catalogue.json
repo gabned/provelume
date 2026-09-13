@@ -1,6 +1,6 @@
 {
-  "schema_version": 1,
-  "catalogue_version": 1,
+  "schema_version": 2,
+  "catalogue_version": 2,
   "components": [
     {
       "id": "provelume.core",
@@ -316,6 +316,35 @@
       "detection": {"kind": "external_evidence", "value": "ocr_capability"},
       "sbom_required": false,
       "eol": false
+    },
+    {
+      "id": "ui.lucide",
+      "category": "ui_asset",
+      "name": "Lucide SVG subset",
+      "purpose": {
+        "en": "Decorative icons beside visible Cura navigation and status labels",
+        "it": "Icone decorative accanto alle etichette visibili di navigazione e stato di Cura"
+      },
+      "dependency_relation": "runtime_asset",
+      "delivery": "vendored_package_resource",
+      "update_route": "verified_release",
+      "origin": "https://github.com/lucide-icons/lucide/tree/b998e2892b90b88004d62da2d0b64dab9959a520",
+      "license": "ISC AND MIT",
+      "notices": "Lucide Icons and Contributors; Cole Bemis. Complete upstream LICENSE: notices/lucide-LICENSE.txt; provenance: static/icons/lucide/subset.json",
+      "purl": null,
+      "expected_sha256": "3e0e084b3d246dd5346934e800361236e06c00a10a54394025521e1103f27292",
+      "required": true,
+      "approved_version": "1.45.0",
+      "version_constraint": "==1.45.0",
+      "platforms": [
+        "any"
+      ],
+      "detection": {
+        "kind": "packaged_asset",
+        "value": "lucide"
+      },
+      "sbom_required": true,
+      "eol": false
     }
   ],
   "class_coverage": [
@@ -325,6 +354,7 @@
     {"category": "codec", "state": "inventoried"},
     {"category": "model", "state": "inventoried"},
     {"category": "language_pack", "state": "inventoried"},
-    {"category": "host_prerequisite", "state": "inventoried"}
+    {"category": "host_prerequisite", "state": "inventoried"},
+    {"category": "ui_asset", "state": "inventoried"}
   ]
 }

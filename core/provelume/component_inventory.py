@@ -12,8 +12,10 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
-COMPONENT_INVENTORY_SCHEMA_VERSION = 1
-COMPONENT_CATALOGUE_VERSION = 1
+from .cura_icons import IconAssetError, asset_sbom_matches, verify_icon_subset
+
+COMPONENT_INVENTORY_SCHEMA_VERSION = 2
+COMPONENT_CATALOGUE_VERSION = 2
 MAX_CATALOGUE_BYTES = 512 * 1024
 MAX_SBOM_BYTES = 8 * 1024 * 1024
 MAX_SBOM_COMPONENTS = 10_000
@@ -27,6 +29,7 @@ COMPONENT_CATEGORIES = frozenset(
         "model",
         "language_pack",
         "host_prerequisite",
+        "ui_asset",
     }
 )
 COMPONENT_STATES = frozenset(
@@ -35,7 +38,14 @@ COMPONENT_STATES = frozenset(
 RELEASE_EVIDENCE_STATES = frozenset({"unavailable", "matched", "mismatch"})
 CHECK_STATES = frozenset({"not_checked", "current", "stale"})
 DETECTION_KINDS = frozenset(
-    {"distribution", "python_runtime", "platform", "executable_presence", "external_evidence"}
+    {
+        "distribution",
+        "python_runtime",
+        "platform",
+        "executable_presence",
+        "external_evidence",
+        "packaged_asset",
+    }
 )
 CLASS_COVERAGE_STATES = frozenset({"inventoried", "not_selected", "unavailable"})
 
@@ -201,6 +211,19 @@ def _validate_catalogue(value: Any) -> dict[str, Any]:
                 "component_catalogue_invalid", "component detection kind is unsupported"
             )
         _text(detection["value"], "component detection value", maximum=100)
+        if (detection["kind"] == "packaged_asset" or item["category"] == "ui_asset") and not (
+            identifier == "ui.lucide"
+            and item["category"] == "ui_asset"
+            and detection == {"kind": "packaged_asset", "value": "lucide"}
+            and digest is not None
+            and approved is not None
+            and constraint == "==" + approved
+            and item["sbom_required"]
+            and item["license"] == "ISC AND MIT"
+        ):
+            raise ComponentInventoryError(
+                "component_catalogue_invalid", "packaged asset detector is not allowlisted"
+            )
     coverage = catalogue["class_coverage"]
     if not isinstance(coverage, list) or len(coverage) != len(COMPONENT_CATEGORIES):
         raise ComponentInventoryError(
@@ -279,7 +302,7 @@ def _is_ahead(version: str, approved: str | None, constraint: str | None) -> boo
     return bool(upper and _compare(version, upper[0]) >= 0)
 
 
-def _load_sbom(path: Path) -> tuple[dict[str, set[str]], str]:
+def _load_sbom(path: Path) -> tuple[dict[str, set[str]], str, list[dict[str, Any]]]:
     try:
         raw = path.read_bytes()
     except OSError as exc:
@@ -316,7 +339,7 @@ def _load_sbom(path: Path) -> tuple[dict[str, set[str]], str]:
             if isinstance(identity, str) and identity and isinstance(version, str) and version:
                 for key in _identity_keys(identity):
                     inventory.setdefault(key, set()).add(version)
-    return inventory, hashlib.sha256(raw).hexdigest()
+    return inventory, hashlib.sha256(raw).hexdigest(), components
 
 
 def _distribution_key(value: str) -> str:
@@ -556,6 +579,12 @@ class ComponentInventory:
             return ("unknown" if present else None), (
                 "executable_present_version_unverified" if present else "executable_missing"
             )
+        if kind == "packaged_asset":
+            try:
+                subset = verify_icon_subset(item["expected_sha256"])
+            except IconAssetError as exc:
+                return None, exc.code
+            return subset.manifest["version"], "packaged_asset_sha256_verified"
         return None, "explicit_evidence_not_supplied"
 
     @staticmethod
@@ -564,6 +593,10 @@ class ComponentInventory:
             return "eol", "catalogue_marks_component_eol"
         if evidence == "explicit_evidence_not_supplied":
             return "unverified", evidence
+        if evidence == "packaged_asset_invalid":
+            return "unverified", evidence
+        if evidence == "packaged_asset_missing":
+            return "missing", evidence
         if version is None:
             return "missing", "required_component_missing" if item[
                 "required"
@@ -584,8 +617,9 @@ class ComponentInventory:
     def read(self, *, release_sbom: Path | str | None = None) -> dict[str, Any]:
         sbom_inventory: dict[str, set[str]] | None = None
         sbom_sha256: str | None = None
+        sbom_components: list[dict[str, Any]] = []
         if release_sbom is not None:
-            sbom_inventory, sbom_sha256 = _load_sbom(Path(release_sbom))
+            sbom_inventory, sbom_sha256, sbom_components = _load_sbom(Path(release_sbom))
 
         records: list[dict[str, Any]] = []
         release_mismatches: list[str] = []
@@ -607,7 +641,13 @@ class ComponentInventory:
                     seen_versions = set().union(
                         *(sbom_inventory.get(identity, set()) for identity in identities)
                     )
-                    if version is not None and version in seen_versions:
+                    if item["detection"]["kind"] == "packaged_asset":
+                        matched = state == "installed" and asset_sbom_matches(
+                            sbom_components, item["expected_sha256"]
+                        )
+                    else:
+                        matched = version is not None and version in seen_versions
+                    if matched:
                         release_state = "matched"
                     else:
                         release_state = "mismatch"

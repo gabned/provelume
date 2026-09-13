@@ -1,6 +1,6 @@
 {
-  "schema_version": 1,
-  "profile_id": "provelume.component-inventory-v1",
+  "schema_version": 2,
+  "profile_id": "provelume.component-inventory-v2",
   "catalogue_resource": "provelume/component_catalogue.json",
   "inventory_schema_resource": "provelume/component_inventory.schema.json",
   "release_sbom": {
@@ -15,7 +15,8 @@
     "codec",
     "model",
     "language_pack",
-    "host_prerequisite"
+    "host_prerequisite",
+    "ui_asset"
   ],
   "runtime_network_default": "disabled",
   "automatic_install": false,

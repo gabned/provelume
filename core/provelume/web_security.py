@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ipaddress
+import re
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -112,5 +113,18 @@ class LocalWebSecurityMiddleware(BaseHTTPMiddleware):
             and response.status_code in {200, 303}
         ):
             response.headers["Content-Security-Policy"] = GOOGLE_CONNECTION_SECURITY_POLICY
+        integrity = getattr(request.state, "cura_script_integrity", None)
+        if (
+            trusted_request_host(request.headers.get("host", ""))
+            and response.headers.get("content-type", "").startswith("text/html")
+            and isinstance(integrity, str)
+            and re.fullmatch(r"sha256-[A-Za-z0-9+/]{43}=", integrity)
+        ):
+            # Only the fixed, integrity-bound first-party enhancement is executable.
+            # The renderer and policy use one request-local preference snapshot.
+            policy = response.headers["Content-Security-Policy"]
+            response.headers["Content-Security-Policy"] = policy.replace(
+                "script-src 'none'", f"script-src '{integrity}'",
+            )
         response.headers["Cache-Control"] = "no-store"
         return response

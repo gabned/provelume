@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gabned/provelume/blob/main/core/provelume/publication.schema.json",
+  "title": "Provelume descriptive actual-publication receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "source_repository", "version", "tag", "commit", "channel", "published_at", "observed_at", "release_id", "release_url", "manifest", "artifacts"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "source_repository": {"const": "gabned/provelume"},
+    "version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "tag": {"type": "string", "pattern": "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "channel": {"enum": ["preview", "stable"]},
+    "published_at": {"type": "string", "format": "date-time", "maxLength": 40},
+    "observed_at": {"type": "string", "format": "date-time", "maxLength": 40},
+    "release_id": {"type": "integer", "minimum": 1},
+    "release_url": {"type": "string", "pattern": "^https://github\\.com/gabned/provelume/releases/tag/v[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "manifest": {"allOf": [{"$ref": "#/$defs/artifact"}, {"properties": {"name": {"const": "release-manifest.json"}}}]},
+    "artifacts": {"type": "array", "minItems": 1, "maxItems": 256, "items": {"$ref": "#/$defs/artifact"}}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "sha256", "size_bytes"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,254}$"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "size_bytes": {"type": "integer", "minimum": 1, "maximum": 536870912}
+      }
+    }
+  },
+  "$comment": "Runtime additionally rejects duplicate JSON fields, identity mismatches, case-insensitive artifact collisions, observation before publication, expiry overflow and metadata over 128 KiB. This receipt alone establishes no publisher authentication."
+}

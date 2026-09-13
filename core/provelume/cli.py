@@ -24,6 +24,7 @@ from .instance_cli import (
 from .maintenance_cli import add_maintenance_commands, handle_maintenance_command
 from .ocr_cli import add_ocr_commands, handle_ocr_command
 from .operational_cli import add_operational_commands, handle_operational_command
+from .publication_cli import add_publication_commands, handle_publication_command
 from .qualification_cli import add_qualification_commands, handle_qualification_command
 from .scheduler_cli import add_scheduler_commands, handle_scheduler_command
 from .service import ProvelumeInstance
@@ -167,11 +168,15 @@ def build_parser() -> argparse.ArgumentParser:
     add_transcript_commands(subparsers)
     add_qualification_commands(subparsers)
     add_shell_commands(subparsers)
+    add_publication_commands(subparsers)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    publication_result = handle_publication_command(args)
+    if publication_result is not None:
+        return publication_result
     lifecycle_result = handle_instance_lifecycle_command(args)
     if lifecycle_result is not None:
         return lifecycle_result

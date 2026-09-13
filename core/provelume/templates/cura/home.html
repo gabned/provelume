@@ -1,0 +1,18 @@
+{% extends base_layout %}
+{% block title %}{{ t('cura.nav.overview') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="cura-heading"><div><p class="eyebrow">{{ t('cura.your_knowledge') }}</p><h1>{{ t('cura.nav.overview') }}</h1><p class="lead">{{ t('cura.overview_lead') }}</p></div><a class="button" href="/inbox?lang={{ lang }}">{{ icon('inbox') }}{{ t('cura.nav.capture') }}</a></section>
+{% if not latest %}
+<section class="panel cura-welcome"><h2>{{ t('cura.welcome') }}</h2><p>{{ t('cura.welcome_lead') }}</p><a class="button" href="/sources?lang={{ lang }}">{{ t('cura.add_source') }}</a><a class="button secondary" href="/connectors?lang={{ lang }}">{{ t('nav.connectors') }}</a></section>
+{% endif %}
+<div class="two-column cura-overview-grid">
+  <section class="panel"><div class="panel-heading"><h2>{{ t('cura.continue') }}</h2><a href="/browse?lang={{ lang }}">{{ t('cura.all_knowledge') }}</a></div>
+    <ul class="document-list">{% for document in latest %}<li><a href="{{ document_link(document.id) }}"><strong>{{ document.title }}</strong><span>{{ document.source_name }} · {{ document.current_version.acquired_at[:10] }}</span></a></li>{% else %}<li class="empty">{{ t('cura.no_recent') }}</li>{% endfor %}</ul>
+  </section>
+  <section class="panel"><div class="panel-heading"><h2>{{ t('cura.operations_attention') }}</h2>{{ icon('triangle-alert') }}</div>
+    {% include 'cura/operation_items.html' %}
+    <a class="cura-section-link" href="/attention?lang={{ lang }}">{{ t('cura.see_attention') }}</a>
+  </section>
+</div>
+<details class="panel cura-disclosure"><summary>{{ t('cura.instance_details') }}</summary><div class="cura-disclosure-body"><div class="status-row"><span class="status {{ 'ok' if health.status == 'healthy' else 'warn' }}">{{ health.status }}</span><span>{{ t('home.index') }}: {{ instance.index_status }}</span></div><section class="metric-grid"><article><strong>{{ instance.sources }}</strong><span>{{ t('home.sources') }}</span></article><article><strong>{{ instance.documents }}</strong><span>{{ t('home.documents') }}</span></article><article><strong>{{ instance.versions }}</strong><span>{{ t('home.versions') }}</span></article><article><strong>{{ instance.index_status }}</strong><span>{{ t('home.index') }}</span></article></section><h3>{{ t('home.errors') }}</h3><ul class="issue-list">{% for item in ingestion_errors %}<li><strong>{{ item.locator }}</strong><span>{{ item.error or item.outcome }}</span></li>{% else %}<li>{{ t('home.no_errors') }}</li>{% endfor %}</ul><p class="muted">{{ t('home.network_local') }}</p><a href="/knowledge-health?lang={{ lang }}">{{ t('cura.diagnostics') }}</a></div></details>
+{% endblock %}

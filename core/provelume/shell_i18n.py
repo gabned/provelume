@@ -31,6 +31,24 @@ SHELL_TRANSLATIONS = {
         "shell.theme.light": "Light",
         "shell.theme.dark": "Dark",
         "shell.language": "Interface language",
+        "shell.interface.title": "Preview interface",
+        "shell.interface.help": (
+            "Try the preview presentation on this installation. Your knowledge and other "
+            "settings stay the same. Select Current interface to return at any time; no "
+            "service restart is needed. Other open pages change when you navigate or reload."
+        ),
+        "shell.interface.choice": "Interface presentation",
+        "shell.interface.current": "Current interface",
+        "shell.interface.preview": "Preview interface",
+        "shell.interface.selected": "Selected interface",
+        "shell.interface.save": "Save interface choice",
+        "shell.interface.receipt": "Last saved interface choice",
+        "shell.interface.recorded": "Recorded time (UTC)",
+        "shell.interface.previous": "Previous interface",
+        "shell.interface.receipt_help": (
+            "This local receipt records only the last saved choice and its settings revision. "
+            "It is not a complete history; the time comes from this device."
+        ),
         "shell.save": "Validate and save",
         "shell.reset": "Restore port 44851",
         "shell.saved": "Shell preferences were saved atomically.",
@@ -99,6 +117,26 @@ SHELL_TRANSLATIONS = {
         "shell.theme.light": "Chiaro",
         "shell.theme.dark": "Scuro",
         "shell.language": "Lingua dell'interfaccia",
+        "shell.interface.title": "Interfaccia in anteprima",
+        "shell.interface.help": (
+            "Prova la presentazione in anteprima su questa installazione. Le tue conoscenze "
+            "e le altre impostazioni restano invariate. Puoi tornare in qualsiasi momento "
+            "all'interfaccia attuale, senza riavviare il servizio. Le altre pagine aperte "
+            "cambiano quando navighi o le ricarichi."
+        ),
+        "shell.interface.choice": "Presentazione dell'interfaccia",
+        "shell.interface.current": "Interfaccia attuale",
+        "shell.interface.preview": "Interfaccia in anteprima",
+        "shell.interface.selected": "Interfaccia selezionata",
+        "shell.interface.save": "Salva la scelta dell'interfaccia",
+        "shell.interface.receipt": "Ultima scelta dell'interfaccia salvata",
+        "shell.interface.recorded": "Data e ora registrate (UTC)",
+        "shell.interface.previous": "Interfaccia precedente",
+        "shell.interface.receipt_help": (
+            "Questa ricevuta locale registra soltanto l'ultima scelta salvata e la relativa "
+            "revisione delle impostazioni. Non è una cronologia completa; la data e l'ora "
+            "provengono da questo dispositivo."
+        ),
         "shell.save": "Valida e salva",
         "shell.reset": "Ripristina la porta 44851",
         "shell.saved": "Le preferenze shell sono state salvate atomicamente.",

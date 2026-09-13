@@ -1,0 +1,6 @@
+{% extends base_layout %}
+{% block title %}{{ t('cura.nav.management') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<p class="eyebrow">{{ t('cura.local_workspace') }}</p><h1>{{ t('cura.nav.management') }}</h1><p class="lead">{{ t('cura.management_lead') }}</p>
+<div class="cura-management-grid">{% for group in management_groups %}<section class="panel"><h2>{{ group.label }}</h2><ul class="cura-link-list">{% for item in group.links %}<li><a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a></li>{% endfor %}</ul></section>{% endfor %}</div>
+{% endblock %}

@@ -4,7 +4,6 @@ import argparse
 import hashlib
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -20,7 +19,10 @@ from typing import Any
 import uvicorn
 
 from . import __version__
-from .about import current_about
+from .about import RELEASES_URL, current_about
+from .about import SOURCE_REPOSITORY_URL as SOURCE_REPOSITORY_URL
+from .about import public_about_links as public_about_links
+from .publication import RECEIPT_NAME, PublicationError, import_publication
 from .service import ProvelumeInstance
 from .shell_settings import (
     APP_USER_MODEL_ID,
@@ -37,8 +39,8 @@ from .shell_settings import (
     state_directory,
     validate_port,
 )
+from .updates import SOURCE_REPOSITORY as SOURCE_REPOSITORY
 from .updates import (
-    SOURCE_REPOSITORY,
     UpdateCandidate,
     UpdateError,
     check_for_updates,
@@ -50,22 +52,6 @@ from .windows_tray import TRAY_LABELS, TrayState, WindowsTray
 SETTINGS_SCHEMA_VERSION = SHELL_SETTINGS_SCHEMA_VERSION
 DESKTOP_DIAGNOSTICS_SCHEMA_VERSION = 2
 MUTEX_NAME = "Local\\ProvelumeDesktop"
-SOURCE_REPOSITORY_URL = f"https://github.com/{SOURCE_REPOSITORY}"
-RELEASES_URL = f"{SOURCE_REPOSITORY_URL}/releases"
-RELEASE_TAG = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
-
-
-def public_about_links(about: dict[str, Any]) -> dict[str, str]:
-    """Return only fixed canonical public links derived from validated local identity."""
-
-    links = {
-        "repository": SOURCE_REPOSITORY_URL,
-        "releases": RELEASES_URL,
-    }
-    tag = about.get("tag")
-    if isinstance(tag, str) and RELEASE_TAG.fullmatch(tag):
-        links["installed_release"] = f"{RELEASES_URL}/tag/{tag}"
-    return links
 
 
 def format_update_failure(error: BaseException, text: dict[str, str]) -> str:
@@ -136,7 +122,7 @@ def diagnostics_payload() -> dict[str, Any]:
         "desktop_shell": True,
         "frozen": bool(getattr(sys, "frozen", False)),
         "about": current_about(),
-        "settings_schema_version": SETTINGS_SCHEMA_VERSION,
+        "settings_schema_version": loaded.settings.schema_version,
         "settings_warning": loaded.warning,
         "endpoint": loaded.settings.public_view(warning=loaded.warning)["endpoint"],
         "shell": loaded.settings.public_view(warning=loaded.warning)["shell"],
@@ -545,6 +531,10 @@ STRINGS = {
             "GitHub could not be reached. Check connectivity, proxy and firewall settings."
         ),
         "update_error_update_error": "The update metadata did not pass validation.",
+        "update_error_publication_pending": (
+            "Publication metadata is incomplete or inconsistent. Keep the current version "
+            "and check for updates later."
+        ),
         "update_error_unexpected": "The update check stopped for an unexpected local error.",
         "update_stage_release_catalog": "release catalogue",
         "update_stage_release_manifest": "release manifest",
@@ -649,6 +639,10 @@ STRINGS = {
             "GitHub non è raggiungibile. Controlla connettività, proxy e firewall."
         ),
         "update_error_update_error": "I metadati di aggiornamento non hanno superato la verifica.",
+        "update_error_publication_pending": (
+            "I metadati di pubblicazione sono incompleti o incoerenti. Mantieni la versione "
+            "attuale e controlla gli aggiornamenti più tardi."
+        ),
         "update_error_unexpected": (
             "Il controllo si è interrotto per un errore locale imprevisto."
         ),
@@ -957,9 +951,7 @@ class DesktopShell:
         except RuntimeError:
             raise
         except (OSError, ValueError) as exc:
-            raise RuntimeError(
-                self.text["instance_open_failed"].format(error=exc)
-            ) from exc
+            raise RuntimeError(self.text["instance_open_failed"].format(error=exc)) from exc
 
     def _replace_settings(self, **changes: object) -> None:
         def change(current: LauncherSettings) -> LauncherSettings:
@@ -1214,9 +1206,7 @@ class DesktopShell:
         if not self.closed:
             self.status.set(self.text[final_status])
             self._update_tray(final_status)
-            self.open_button.configure(
-                state="normal" if self.instance_available else "disabled"
-            )
+            self.open_button.configure(state="normal" if self.instance_available else "disabled")
             self.stop_button.configure(state="disabled")
 
     def restart_server(self) -> None:
@@ -1362,17 +1352,17 @@ class DesktopShell:
     ) -> None:
         from tkinter import messagebox
 
-        if (
-            not self._is_current_update_request(generation, channel)
-            or self.candidate != candidate
-        ):
+        if not self._is_current_update_request(generation, channel) or self.candidate != candidate:
             return
         self.update_status.set(self.text["download_ready"])
         if not messagebox.askyesno("Provelume", self.text["install_notice"]):
             self.download_button.configure(state="normal")
             return
         self.stop_server()
-        subprocess.Popen([str(path)], cwd=str(path.parent))
+        command = [str(path)]
+        if candidate.publication_required:
+            command.append(f"/PUBLICATIONRECEIPT={path.parent / RECEIPT_NAME}")
+        subprocess.Popen(command, cwd=str(path.parent))
         self.close()
 
     def _show_local_modal(
@@ -1464,9 +1454,7 @@ class DesktopShell:
             (self.text["open_releases"], links["releases"]),
         ]
         if "installed_release" in links:
-            actions.append(
-                (self.text["open_installed_release"], links["installed_release"])
-            )
+            actions.append((self.text["open_installed_release"], links["installed_release"]))
         self._show_local_modal(
             title=self.text["about"],
             body=self.text["about_text"].format(
@@ -1541,6 +1529,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="Provelume", add_help=True)
     parser.add_argument("--serve", type=Path)
     parser.add_argument("--port", type=int)
+    parser.add_argument("--import-publication", type=Path)
+    parser.add_argument("--publication-manifest", type=Path)
+    parser.add_argument("--publication-payload", type=Path)
+    parser.add_argument("--publication-destination", type=Path)
     parser.add_argument(
         "--tray",
         action="store_true",
@@ -1584,6 +1576,7 @@ def main(arguments: list[str] | None = None) -> int:
     selected_modes = sum(
         value is not None
         for value in (
+            options.import_publication,
             options.serve,
             options.diagnostics_file,
             options.native_tray_smoke_file,
@@ -1597,6 +1590,28 @@ def main(arguments: list[str] | None = None) -> int:
     )
     if selected_modes > 1:
         raise SystemExit("select only one desktop execution mode")
+    if options.import_publication is not None:
+        if options.publication_manifest is None or options.publication_payload is None:
+            return 2
+        try:
+            import_publication(
+                options.import_publication,
+                manifest_path=options.publication_manifest,
+                payload_path=options.publication_payload,
+                destination=options.publication_destination,
+            )
+        except (OSError, PublicationError):
+            return 2
+        return 0
+    if any(
+        value is not None
+        for value in (
+            options.publication_manifest,
+            options.publication_payload,
+            options.publication_destination,
+        )
+    ):
+        raise SystemExit("publication paths require the explicit import mode")
     if options.diagnostics_file is not None:
         write_diagnostics(options.diagnostics_file)
         return 0
