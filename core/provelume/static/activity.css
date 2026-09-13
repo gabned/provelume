@@ -65,3 +65,11 @@
   min-width: 1.25rem;
   width: 1.25rem;
 }
+.maintenance-evidence {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.maintenance-view { min-width: 0; overflow-wrap: anywhere; }
+.maintenance-view .settings-form { min-width: 0; }
+.maintenance-view button { min-width: 0; max-width: 100%; }

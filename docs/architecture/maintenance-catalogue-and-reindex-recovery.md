@@ -19,13 +19,13 @@ The catalogue is code-defined and returned in one stable order. Unknown action I
 | `maintenance.original_assurance` | available | read-only verification; restart-only |
 | `maintenance.duplicate_scan` | available | review-only derived evidence; restart-only |
 | `maintenance.backup_create` | unavailable | explicit destination required |
-| `maintenance.backup_verify` | unavailable | explicit destination required |
+| `maintenance.backup_verify` | unavailable without explicit target; available with a valid reviewed local target | read-only archive verification; manual only |
 
 Every entry declares scope, authority, mutability, scheduling, dry-run and recovery capabilities.
 Every catalogue read also declares that the read itself uses no network, canonical mutation or
 automatic deletion. A Source-reconciliation terminal receipt separately records whether the
-operator-selected Source is a mounted-network class. An unavailable entry cannot create a policy
-or job. In particular, the scheduler never invents a backup destination and never turns
+operator-selected Source is a mounted-network class. An unavailable entry cannot create an
+executable job. In particular, the scheduler never invents a backup destination and never turns
 validation, assurance or a duplicate scan into repair.
 
 Resource observations use the same journal but persist their own immutable, job-bound sample before
@@ -38,6 +38,36 @@ policy and bounded retry. Run now remains an explicit operator action. There is 
 task, hidden timer, provider call or cloud fallback.
 
 ## Dry-run plan and temporary-space gate
+
+Cura uses `MaintenanceManager.plan_action(action_id, parameters=...)` for every supported heavy
+action. It returns the exact scope, authority, input revision, immutable `execution_plan`,
+`plan_revision`, readiness and a qualified estimate. Source reconciliation requires exactly
+`{"source_id": "src_..."}`; Instance actions require empty parameters. Backup verification requires
+exactly `target_ref` and `target_revision` from the local target registry. Unknown fields fail closed.
+`SchedulerCoordinator.run_now(..., parameters=..., expected_plan_revision=...)` reacquires lifecycle
+and rechecks policy scope and the plan. `run_now_locked` supplies the same check for a service already
+holding lifecycle. The job retains that exact plan and revalidates it again before execution; stale
+inputs produce an explicit failure without running a changed plan. Reusing an idempotency identity
+with different admission parameters fails. Existing callers without a reviewed plan retain their
+legacy admission contract, except backup verification always requires an explicit reviewed target.
+
+Reindex reports selected Documents, Original bytes and its enforced temporary-space requirement.
+Reconciliation reports Source items/bytes only when discovery is complete; missing/unreadable
+snapshots have unknown counts and are not ready. Other Instance actions report exact retained
+Original count/bytes and canonical-record input binding, but their complete work denominator and
+temporary demand remain explicitly unknown. These observations are not an estimate of all bytes
+read by validation, derived rebuild or duplicate verification. Volatile free capacity is observed
+again at execution rather than included in the immutable input digest.
+
+`catalog(include_explicit=True)` additionally exposes the unscheduled
+`repair.maintenance_redundant_atomic_artifact` descriptor. Its exact preview, verified recovery
+backup, explicit confirmation and rollback belong to the
+[Instance repair service](cura-instance-repair.md), not a generic scheduler executor.
+The default catalogue still exposes backup verification as unavailable until a target is selected.
+With explicit target parameters, `BackupVerificationService.plan` binds structural manifest identity
+and the full archive digest; `verify` revalidates both target registration and payload bytes. The
+scheduler alone writes the terminal receipt. No backup destination or provider credentials enter
+the job, and verification neither restores nor edits the Instance.
 
 A reindex dry run reads canonical metadata and existing derived-index evidence without writing a
 maintenance record or candidate. It reports:
@@ -113,6 +143,13 @@ terminal receipt without rebuilding or duplicating rows. If canonical state chan
 unfinished candidate resumes, the same job starts a new plan revision and candidate while retaining
 monotonic cumulative journal progress. Missing candidate files after restore/import likewise cause
 a safe restart; they are never treated as canonical loss.
+
+Cura explicit resume is stricter than this automatic recovery path: it validates current inputs and
+the exact candidate prefix in the preview and again under lifecycle before queueing the same job.
+A missing/corrupt candidate or changed reviewed plan requires an explicit fresh linked job. Its
+parent run and candidate remain untouched. Cooperative pause/cancel is acknowledged only after a
+durable cursor; a persisted commit barrier before activation rejects late stop requests. See the
+[scheduler control contract](durable-scheduler-and-job-journal.md#cura-cooperative-controls).
 
 ## Persistence, validation and surfaces
 

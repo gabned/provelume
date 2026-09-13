@@ -11,7 +11,9 @@ maintenance catalogue, incremental reindex and per-item recovery adapters descri
 
 ## Storage and authority
 
-Scheduler state is additive schema-1 durable state under `state/scheduler/`:
+Scheduler policies and terminal receipts retain schema 1. Legacy schema-1 jobs remain readable;
+Cura cooperative controls and reviewed maintenance plans use strict schema-2 jobs under the same
+durable `state/scheduler/`:
 
 ```text
 state/scheduler/
@@ -68,8 +70,9 @@ later policy edit cannot silently alter already queued work.
 
 ## Journal, leases and recovery
 
-A job moves through the closed states `queued`, `running`, `retry_wait`, `succeeded`, `failed`,
-`manual_intervention` or `cancelled`. Only a worker holding the random exclusive lease token may
+A legacy job moves through the closed states `queued`, `running`, `retry_wait`, `succeeded`,
+`failed`, `manual_intervention` or `cancelled`. Schema 2 also permits `pausing`, `paused` and
+`cancelling` under the cooperative contract below. Only the exclusive lease holder may
 heartbeat, checkpoint, succeed or fail a running job. Attempts are consecutive and bounded;
 progress counts are non-negative and monotonic across checkpoints.
 
@@ -100,6 +103,65 @@ mutation and automatic deletion. Both S01 executors report `network_used: false`
 `canonical_mutation: false` and `automatic_deletion: false`. S02 Source refresh reports mounted
 network use and canonical Acquisition mutation truthfully; automatic deletion remains false.
 
+## Cura cooperative controls
+
+`SchedulerCoordinator.job_capabilities(job_id)` and `preview_job_control(job_id, action)` are pure
+reads. A detail preview validates the bound producer checkpoint; list views instead use the cheap
+`scheduler_control.public_control_progress(job)` projection without scanning producers. Reads do
+not promote old jobs, create state or acquire a mutation lock. Unsupported running executors expose
+no stop controls. The three cooperative kinds are `search.reindex`, `search.reindex.incremental`
+and `maintenance.source_reconcile`.
+
+`control_job(job_id, action, expected_revision=..., request_id=..., expected_checkpoint=...)`
+requires the exact preview revision; resume/retry/restart may additionally bind its checkpoint.
+Only a digest of request identity and payload enters the bounded command history. Repeating the
+same request returns its stored command receipt; changed payload under that identity fails closed.
+A command receipt proves acceptance of the control request, not terminal success.
+
+| Request | Durable transition and effect |
+| --- | --- |
+| Pause queued/retry-wait | `paused`, no worker claim; retry eligibility is preserved |
+| Pause running | `pausing`; the lease holder acknowledges `paused` after a safe durable boundary |
+| Cancel queued/retry-wait/paused | one cancelled terminal receipt; no executor starts |
+| Cancel running/pausing | `cancelling`; the lease holder writes the terminal receipt at the boundary |
+| Resume paused | same job, `queued`, same validated plan/cursor and remaining attempt budget |
+| Safe retry | due `retry_wait` to `queued`, same job; never bypass backoff or attempt bounds |
+| Fresh restart | explicit new linked job with a fresh plan/attempt history; a paused parent is cancelled |
+
+The total attempt bound remains at most eight. A pause closes its attempt without an error and a
+resume consumes another attempt. An exhausted or changed checkpoint requires an explicit fresh
+restart. Missing/corrupt reindex candidates deny explicit resume; an exact one-item-ahead candidate
+retains the existing idempotent recovery contract. Source resume revalidates its entire bound
+snapshot. Restart never resets the parent's attempts or removes its candidate, history or receipt.
+One restart intent stores the immutable child admission record; recovery verifies its terminal
+parent receipt and lineage before creating or accepting the child. A further fresh restart belongs
+to the child. Immediate cancellation similarly persists intent before its receipt-first terminal
+commit, allowing interrupted commands to reconcile without execution.
+
+Each schema-2 job has `execution_plan` (null for legacy admission) and a strict `control` envelope:
+schema/revision, bounded commands, pending request, commit barrier, parent/restart intent,
+completion intent, network-use observation and one progress sample. History is capped at 128
+commands and the envelope at 1 MiB; exhausted capacity denies further commands without pruning
+evidence. The validator rejects unbound transitions, invalid units, duplicate command identities,
+unsupported fields and contradictory lease/attempt evidence. Schema-1 reads remain byte-preserving;
+promotion happens only at an explicit mutation or a cooperative worker claim.
+
+Worker and resume/retry/restart paths hold the Instance lifecycle guard before the existing
+`state/locks/scheduler-journal.oslock`. Running pause/cancel requests take only the journal lock so
+they can reach a worker that already owns lifecycle. They persist intent and do not mutate its
+producer. Reindex acknowledges after SQLite fsync, scheduler checkpoint and durable cursor;
+reconciliation also polls between files and hash chunks during discovery. A durable journal commit
+barrier precedes index activation or reconciliation publication. Requests arriving after it are
+rejected; the worker finishes publication. `CooperativeStop` is a dedicated control exception,
+distinct from domain failures. Expired leases honor pending pause/cancel and never silently requeue
+the interrupted command. Mounted-network use observed before a stop survives in the final receipt.
+
+Progress states its actual unit (`documents` or `source_items`), completed count, exact plan total,
+checkpoint and wait reason. Before discovery establishes a plan, counts and total are unknown.
+Rate uses two samples from the same attempt, plan and unit, never paused time; it is absent when
+not meaningful. A list cannot treat an unknown denominator as zero or fabricate percentage/ETA.
+Capacity admission remains a separate service concern; controls do not invent capacity wait reasons.
+
 ## Executable work and runtime boundary
 
 `maintenance.validate` performs deep read-only Instance validation. `search.reindex` and
@@ -113,6 +175,10 @@ only Source-bound hashes and counts, and performs no ingestion or canonical muta
 `maintenance.resource_snapshot` reads only local Instance filesystem metadata and capacity,
 persists one idempotent aggregate observation per job, and never enforces its warning or critical
 thresholds.
+`maintenance.backup_verify` verifies one explicitly registered local archive against the immutable
+reviewed target and archive digest. Its policy must be manual, and admission requires exact target
+parameters and plan revision. The verification service creates no competing job receipt; this
+journal owns the terminal result. It never restores, replaces Instance state or chooses a target.
 `ocr.execute`, added by `0.9/S02`, executes only a previously persisted exact local OCR request.
 Its idempotency binds source and component identity; page checkpoints survive retry or stale lease;
 only a complete derived bundle is promoted. It reports no network use or canonical mutation. OCR

@@ -166,6 +166,27 @@ AVAILABLE_MAINTENANCE_JOB_KINDS = tuple(
     if item["available"] and item["scheduler_job_kind"] is not None
 )
 
+
+def explicit_repair_descriptor() -> dict[str, Any]:
+    return {
+        "id": "repair.maintenance_redundant_atomic_artifact",
+        "label": "Repair redundant maintenance writer artifact",
+        "description": (
+            "Quarantine a verified redundant file after preview and backup confirmation."
+        ),
+        "scheduler_job_kind": None,
+        "scope_kind": "instance",
+        "authority": "explicit_local_repair",
+        "mutation": "quarantine_one_verified_redundant_atomic_file",
+        "available": True,
+        "unavailable_reason": None,
+        "schedulable": False,
+        "dry_run": True,
+        "recovery": "explicit_rollback",
+        "reversible": True,
+    }
+
+
 _JOB_ID = re.compile(r"job_([0-9a-f]{32})\Z")
 _RUN_ID = re.compile(r"reindex_([0-9a-f]{32})\Z")
 _GENERATION_ID = re.compile(r"generation_[0-9a-f]{32}\Z")
@@ -297,6 +318,7 @@ def validate_reindex_plan(value: Any) -> dict[str, Any]:
         or _SHA256.fullmatch(knowledge_fingerprint) is None
     ):
         raise MaintenanceStateError("reindex plan fingerprint is invalid")
+
     def document_map(candidate: Any, label: str) -> dict[str, str]:
         if not isinstance(candidate, Mapping) or any(
             not isinstance(key, str)
@@ -314,12 +336,8 @@ def validate_reindex_plan(value: Any) -> dict[str, Any]:
         "baseline document",
     )
     selected = value.get("selected_document_ids")
-    if (
-        not isinstance(selected, list)
-        or any(
-            not isinstance(item, str) or _CANONICAL_ID.fullmatch(item) is None
-            for item in selected
-        )
+    if not isinstance(selected, list) or any(
+        not isinstance(item, str) or _CANONICAL_ID.fullmatch(item) is None for item in selected
     ):
         raise MaintenanceStateError("reindex selected document IDs are invalid")
     if selected != sorted(set(selected)):
@@ -330,8 +348,7 @@ def validate_reindex_plan(value: Any) -> dict[str, Any]:
         else sorted(
             document_id
             for document_id in set(baseline_documents) | set(normalised_documents)
-            if baseline_documents.get(document_id)
-            != normalised_documents.get(document_id)
+            if baseline_documents.get(document_id) != normalised_documents.get(document_id)
         )
     )
     if strategy == "full" and baseline_documents:
@@ -416,9 +433,9 @@ def validate_reindex_run(value: Any) -> dict[str, Any]:
         maximum=2**31 - 1,
     )
     generation_id = value.get("generation_id")
-    expected_generation = "generation_" + hashlib.sha256(
-        f"{job_id}:{revision}:{digest}".encode()
-    ).hexdigest()[:32]
+    expected_generation = (
+        "generation_" + hashlib.sha256(f"{job_id}:{revision}:{digest}".encode()).hexdigest()[:32]
+    )
     if (
         not isinstance(generation_id, str)
         or _GENERATION_ID.fullmatch(generation_id) is None
@@ -454,9 +471,7 @@ def validate_reindex_run(value: Any) -> dict[str, Any]:
             raise MaintenanceStateError("completed reindex evidence is incomplete")
     elif completed_at is not None:
         raise MaintenanceStateError("unfinished reindex cannot have a completion time")
-    if status in {"validating", "activating"} and cursor != len(
-        plan["selected_document_ids"]
-    ):
+    if status in {"validating", "activating"} and cursor != len(plan["selected_document_ids"]):
         raise MaintenanceStateError("advanced reindex phase has incomplete item progress")
     if value.get("network_used") is not False:
         raise MaintenanceStateError("reindex cannot report network use")

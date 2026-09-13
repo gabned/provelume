@@ -340,35 +340,29 @@ def _validated_entries(
     return rows
 
 
-def verify_backup(archive: Path | str) -> dict[str, Any]:
-    selected = Path(archive).expanduser().resolve()
+def inspect_backup_stream(stream, *, verify_payload: bool = False) -> dict[str, Any]:
+    """Inspect an already-open stream; verification never reopens its locator."""
+    stream.seek(0)
     try:
-        with zipfile.ZipFile(selected, mode="r") as bundle:
+        with zipfile.ZipFile(stream, mode="r") as bundle:
             manifest = _manifest_from_bundle(bundle)
             entries = _validated_entries(bundle, manifest)
-            for row in entries:
+            for row in entries if verify_payload else ():
                 digest = hashlib.sha256()
                 size = 0
-                with bundle.open(
-                    f"{BACKUP_PAYLOAD_PREFIX}{row['path']}", mode="r"
-                ) as handle:
+                with bundle.open(f"{BACKUP_PAYLOAD_PREFIX}{row['path']}", mode="r") as handle:
                     while chunk := handle.read(1024 * 1024):
                         digest.update(chunk)
                         size += len(chunk)
                 if size != row["size_bytes"] or digest.hexdigest() != row["sha256"]:
-                    raise BackupError(
-                        f"backup payload hash is invalid: {row['path']}"
-                    )
+                    raise BackupError(f"backup payload hash is invalid: {row['path']}")
     except (OSError, zipfile.BadZipFile, RuntimeError) as exc:
         if isinstance(exc, BackupError):
             raise
         raise BackupError("backup archive cannot be read") from exc
     return {
         "schema_version": BACKUP_SCHEMA_VERSION,
-        "status": "valid",
-        "archive": str(selected),
-        "archive_sha256": _archive_sha256(selected),
-        "size_bytes": selected.stat().st_size,
+        "status": "valid" if verify_payload else "not_verified",
         "backup_id": manifest["backup_id"],
         "instance_id": manifest["instance_id"],
         "instance_schema_version": manifest["instance_schema_version"],
@@ -376,6 +370,21 @@ def verify_backup(archive: Path | str) -> dict[str, Any]:
         "files": len(entries),
         "derived_state": dict(DERIVED_STATE_POLICY),
         "excluded_prefixes": list(BACKUP_EXCLUDED_PREFIXES),
+    }
+
+
+def verify_backup(archive: Path | str) -> dict[str, Any]:
+    selected = Path(archive).expanduser().resolve()
+    try:
+        with selected.open("rb") as stream:
+            result = inspect_backup_stream(stream, verify_payload=True)
+    except OSError as exc:
+        raise BackupError("backup archive cannot be read") from exc
+    return {
+        **result,
+        "archive": str(selected),
+        "archive_sha256": _archive_sha256(selected),
+        "size_bytes": selected.stat().st_size,
     }
 
 

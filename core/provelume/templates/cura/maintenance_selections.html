@@ -1,0 +1,28 @@
+{% extends base_layout %}
+{% block title %}{{ t('om.retained_targets') }} · {{ t('brand') }}{% endblock %}
+{% block content %}<div class="maintenance-view">
+<a href="/maintenance/overview?lang={{ lang }}">{{ t('om.title') }}</a>
+<h1>{{ t('om.retained_targets') }}</h1><p>{{ t('om.metadata_only') }}</p>
+<p>{{ t('om.metadata_effect') }}</p>
+<section class="panel"><h2>{{ t('om.retained_targets') }}</h2>
+<p>{{ targets.targets|length }} / {{ targets.capacity }}</p>
+<ul class="document-list">{% for target in targets.targets %}<li><div>
+<code>{{ target.target_ref }}</code><p>{{ target.created_at }}</p>
+{% if target.archive_sha256 %}<p>SHA-256: <code>{{ target.archive_sha256 }}</code></p>{% endif %}
+{% if editable %}<form class="settings-form" method="post" action="/maintenance/selections/preview?lang={{ lang }}">
+{% include 'cura/maintenance_fields.html' %}
+<input type="hidden" name="kind" value="target_revoke"><input type="hidden" name="reference" value="{{ target.target_ref }}"><input type="hidden" name="revision" value="{{ target.target_revision }}">
+<button type="submit">{{ t('om.revoke') }}</button></form>{% endif %}
+</div></li>{% else %}<li>{{ t('om.none_recorded') }}</li>{% endfor %}</ul></section>
+<section class="panel"><h2>{{ t('om.retained_plans') }}</h2>
+<p>{{ plans.plans|length }} / {{ plans.capacity }}</p>
+{% if not plans.complete %}<p class="status warn">{{ t('om.partial') }}</p>{% endif %}
+<ul class="document-list">{% for plan in plans.plans %}<li><div>
+<code>{{ plan.plan_ref }}</code><p>{{ plan.observed_at }}</p>
+<details><summary>{{ t('om.exact_inputs') }}</summary><pre class="maintenance-evidence">{{ plan|tojson(indent=2) }}</pre></details>
+{% if editable %}<form class="settings-form" method="post" action="/maintenance/selections/preview?lang={{ lang }}">
+{% include 'cura/maintenance_fields.html' %}
+<input type="hidden" name="kind" value="diagnostic_forget"><input type="hidden" name="reference" value="{{ plan.plan_ref }}"><input type="hidden" name="revision" value="{{ plan.revision }}">
+<button type="submit">{{ t('om.forget') }}</button></form>{% endif %}
+</div></li>{% else %}<li>{{ t('om.none_recorded') }}</li>{% endfor %}</ul></section>
+</div>{% endblock %}

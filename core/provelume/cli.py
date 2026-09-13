@@ -38,7 +38,7 @@ from .shell_settings import (
 )
 from .transcript_cli import add_transcript_commands, handle_transcript_command
 from .updates import UpdateError, check_for_updates
-from .web import create_app
+from .web import create_app, create_recovery_app
 from .web_security import loopback_host
 
 
@@ -131,6 +131,10 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("instance", type=Path)
     serve.add_argument("--host", default="127.0.0.1", type=_loopback_host)
     serve.add_argument("--port", type=int)
+    serve.add_argument(
+        "--recovery", action="store_true",
+        help="open the local repair UI without ordinary Instance prepare or scheduler workers",
+    )
     serve.add_argument(
         "--release-bundle",
         type=Path,
@@ -328,13 +332,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         except ShellSettingsError as exc:
             print(json.dumps({"status": "error", "error": str(exc)}, indent=2))
             return 2
-        app = create_app(
-            args.instance,
-            release_bundle=args.release_bundle,
-            expected_manifest_sha256=args.expected_manifest_sha256,
-            effective_host=args.host,
-            effective_port=selected_port,
-        )
+        if args.recovery:
+            if args.release_bundle or args.expected_manifest_sha256:
+                print(json.dumps({
+                    "status": "error", "error": "recovery mode does not verify a release bundle"
+                }))
+                return 2
+            app = create_recovery_app(args.instance)
+        else:
+            app = create_app(
+                args.instance,
+                release_bundle=args.release_bundle,
+                expected_manifest_sha256=args.expected_manifest_sha256,
+                effective_host=args.host,
+                effective_port=selected_port,
+            )
         uvicorn.run(app, host=args.host, port=selected_port, access_log=False)
         return 0
     raise RuntimeError(f"unsupported command: {args.command}")

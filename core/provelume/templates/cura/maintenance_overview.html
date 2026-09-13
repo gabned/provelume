@@ -1,0 +1,46 @@
+{% extends base_layout %}
+{% block title %}{{ t('om.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}<div class="maintenance-view">
+<p class="eyebrow">{{ t('cura.management.operations') }}</p>
+<h1>{{ t('om.title') }}</h1><p class="lead">{{ t('om.lead') }}</p>
+<nav class="form-actions" aria-label="{{ t('om.tools') }}">
+<a href="/maintenance/backup?lang={{ lang }}">{{ t('om.backup') }}</a>
+<a href="/maintenance/diagnostics?lang={{ lang }}">{{ t('om.diagnostics') }}</a>
+<a href="/maintenance/repair?lang={{ lang }}">{{ t('om.repair') }}</a>
+<a href="/maintenance/selections?lang={{ lang }}">{{ t('om.retained_targets') }}</a>
+<a href="/operations?lang={{ lang }}">{{ t('om.operation_evidence') }}</a></nav>
+{% if not observation.complete %}<p class="status warn" role="status">{{ t('om.partial') }}</p>{% endif %}
+<section class="panel"><h2>{{ t('om.jobs') }}</h2>
+<p>{{ t('om.observed') }}: {{ observation.observed_jobs }} · {{ t('om.total') }}: {{ observation.total_jobs if observation.total_jobs is not none else t('om.unknown') }}</p>
+<ul class="document-list">
+{% for job in observation.jobs %}<li><div><a href="{{ job.detail_url }}?lang={{ lang }}"><strong>{{ t('scheduler.kind.' ~ job.job_kind) }}</strong></a>
+<p><span class="status">{{ t('om.state.' ~ job.display_state) }}</span> · <code>{{ job.id }}</code></p>
+<p>{{ t('om.scope') }}: {{ t('om.scope.' ~ job.scope.kind) }} · <code>{{ job.scope.id }}</code></p>
+<p>{{ t('om.last_attempt') }}: {{ job.last_attempt_at or t('om.unknown') }} · {{ t('om.last_success') }}: {{ job.last_success_at or t('om.unknown') }}</p>
+<p>{{ t('om.progress') }}: {{ job.progress_view.completed if job.progress_view.completed is not none else t('om.unknown') }} / {{ job.progress_view.total if job.progress_view.total is not none else t('om.unknown') }} {% if job.progress_view.unit %}{{ t('om.unit.' ~ job.progress_view.unit) }}{% endif %}</p>
+</div></li>{% else %}<li>{{ t('om.no_observed_jobs') }}</li>{% endfor %}</ul>
+<nav class="form-actions" aria-label="{{ t('om.pages') }}">{% if observation.offset %}<a href="?lang={{ lang }}&offset={{ [0, observation.offset - observation.limit]|max }}">{{ t('action.previous') }}</a>{% endif %}{% if observation.offset + observation.limit < observation.observed_jobs %}<a href="?lang={{ lang }}&offset={{ observation.offset + observation.limit }}">{{ t('action.next') }}</a>{% endif %}</nav>
+</section>
+<section class="panel"><h2>{{ t('om.policies') }}</h2><p>{{ t('om.evaluation_is_not_execution') }}</p>
+<ul class="document-list">{% for policy in observation.policies %}<li><div>
+<strong>{{ t('scheduler.kind.' ~ policy.job_kind) }}</strong> · {{ t('om.policy_state.' ~ policy.state) }}
+<p>{{ t('om.scope') }}: <code>{{ policy.scope.id }}</code> · {{ t('om.schedule') }}: {{ t('om.schedule.' ~ policy.schedule.mode) }}</p>
+<p>{{ t('om.last_attempt') }}: {{ policy.last_attempt_at or t('om.unknown') }}<br>{{ t('om.last_success') }}: {{ policy.last_success_at or t('om.unknown') }}<br>{{ t('om.next_due') }}: {{ policy.next_due_at or t('om.unknown') }}</p>
+{% if not policy.history_complete %}<p class="status warn">{{ t('om.partial') }}</p>{% endif %}
+<a href="{{ policy.evidence_url }}">{{ t('om.evidence') }}</a></div></li>{% else %}<li>{{ t('om.no_policies') }}</li>{% endfor %}</ul></section>
+<section class="panel"><h2>{{ t('om.run_maintenance') }}</h2><p>{{ t('om.preview_first') }}</p>
+{% for action in catalog %}{% if action.schedulable and action.available %}
+<form method="post" action="/maintenance/plan?lang={{ lang }}" class="settings-form">
+{% include 'cura/maintenance_fields.html' %}<input type="hidden" name="action_id" value="{{ action.id }}">
+<h3>{{ t('maintenance.action.' ~ action.id) }}</h3>
+{% if action.scope_kind == 'source' %}<label for="scope-{{ loop.index }}">{{ t('om.source') }}<select id="scope-{{ loop.index }}" name="source_id" required>{% for source in sources %}<option value="{{ source.id }}">{{ source.name }}</option>{% endfor %}</select></label>{% else %}<input type="hidden" name="source_id" value="">{% endif %}
+{% if editable %}<button type="submit">{{ t('om.preview') }}</button>{% endif %}</form>
+{% endif %}{% endfor %}</section>
+<section class="panel"><h2>{{ t('om.capacity') }}</h2><p>{{ t('om.capacity_scope') }}</p>
+<p>{{ t('om.mode.' ~ capacity.mode) }}</p>
+{% if capacity.last_wait %}<p>{{ t('om.last_recorded_wait') }}: {{ t('om.wait.' ~ capacity.last_wait.reason) }} · {{ capacity.last_wait.observed_at }}</p>{% endif %}
+<form method="post" action="/maintenance/capacity?lang={{ lang }}" class="settings-form">{% include 'cura/maintenance_fields.html' %}
+<input type="hidden" name="revision" value="{{ capacity.revision }}"><label for="capacity-mode">{{ t('om.policy') }}<select id="capacity-mode" name="mode">{% for mode in ['observe_only','pause_on_critical','paused'] %}<option value="{{ mode }}"{% if mode == capacity.mode %} selected{% endif %}>{{ t('om.mode.' ~ mode) }}</option>{% endfor %}</select></label>{% if editable %}<button type="submit">{{ t('om.preview') }}</button>{% endif %}</form></section>
+<details class="panel"><summary>{{ t('om.coverage') }}</summary><p>{{ observation.observed_at }}</p><dl>{% for name, coverage in observation.coverage.items() %}<dt>{{ t('om.' ~ name) }}</dt><dd>{{ t('om.' ~ coverage.status) }} · {{ coverage.observed_count }} / {{ coverage.total if coverage.total is not none else t('om.unknown') }}</dd>{% endfor %}</dl>
+<h3>{{ t('om.all_kinds') }}</h3><ul>{% for kind in observation.job_kinds %}<li>{{ t('scheduler.kind.' ~ kind.kind) }}: {{ kind.observed_jobs }}</li>{% endfor %}</ul></details>
+</div>{% endblock %}

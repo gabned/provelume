@@ -12,6 +12,19 @@ from threading import Event, RLock, Thread
 from typing import Any
 from uuid import uuid4
 
+from .scheduler_control import (
+    ACTIVE_STATUSES,
+    CooperativeStop,
+    JobControl,
+    promote,
+    validate_restart_lineage,
+)
+from .scheduler_control import (
+    capabilities as control_capabilities,
+)
+from .scheduler_control import (
+    digest as control_digest,
+)
 from .scheduler_model import (
     ERROR_CLASSES,
     EXECUTABLE_JOB_KINDS,
@@ -86,7 +99,7 @@ def _receipt_matches_terminal_job(
     if not attempts:
         return int(job["attempt"]) == 0 and receipt["status"] == "cancelled"
     final_attempt = attempts[-1]
-    if receipt["status"] == "cancelled" and final_attempt["outcome"] == "retry":
+    if receipt["status"] == "cancelled" and final_attempt["outcome"] in {"retry", "paused"}:
         return True
     return (
         final_attempt["completed_at"] == receipt["completed_at"]
@@ -484,11 +497,16 @@ class SchedulerStore:
         eligible: datetime,
         idempotency_key: str,
         now: datetime,
+        execution_plan=None,
     ) -> tuple[dict[str, Any], bool]:
         if reason not in RUN_REASONS:
             raise SchedulerError("unsupported scheduler run reason")
         existing = self._find_job_by_key(idempotency_key)
         if existing is not None:
+            if existing.get("execution_plan") != execution_plan:
+                raise SchedulerConflictError(
+                    "manual request reused with a different execution plan"
+                )
             return existing, False
         job = {
             "schema_version": SCHEDULER_SCHEMA_VERSION,
@@ -515,6 +533,8 @@ class SchedulerStore:
             "attempts": [],
             "receipt_ref": None,
         }
+        if execution_plan is not None:
+            job = {**promote(job), "execution_plan": execution_plan}
         return self._write_job(job), True
 
     def run_now(
@@ -523,6 +543,7 @@ class SchedulerStore:
         *,
         request_key: str | None = None,
         now: datetime | str | None = None,
+        execution_plan=None,
     ) -> dict[str, Any]:
         selected_now = utc_instant(now)
         with self.hold():
@@ -547,6 +568,7 @@ class SchedulerStore:
                 eligible=selected_now,
                 idempotency_key=key,
                 now=selected_now,
+                execution_plan=execution_plan,
             )
             return {"job": job, "created": created}
 
@@ -627,6 +649,8 @@ class SchedulerStore:
         for path in sorted(self.jobs.glob("*.json")):
             job = validate_job_record(self._read_json(path))
             if job["status"] in TERMINAL_JOB_STATUSES:
+                if job.get("control", {}).get("restart"):
+                    JobControl(self, lambda _: None).finish_restart(job, now=now)
                 continue
             receipt_id = f"receipt_{str(job['id']).removeprefix('job_')}"
             receipt_path = self.receipts / f"{receipt_id}.json"
@@ -653,8 +677,18 @@ class SchedulerStore:
                     "attempts": attempts,
                     "receipt_ref": f"state/scheduler/receipts/{receipt_id}.json",
                 }
-                self._write_job(job)
+                if "control" in job:
+                    job["control"] = {**job["control"], "pending": None, "completion": None}
+                job = self._write_job(job)
+                if job.get("control", {}).get("restart"):
+                    JobControl(self, lambda _: None).finish_restart(job, now=now)
                 reconciled_receipts += 1
+                continue
+            if job.get("control", {}).get("completion"):
+                JobControl(self, lambda _: None).finish_immediate(job, now=now)
+                continue
+            if job.get("control", {}).get("restart"):
+                JobControl(self, lambda _: None).finish_restart(job, now=now)
                 continue
             if job["status"] == "retry_wait":
                 retry_at = job.get("retry_not_before")
@@ -671,10 +705,49 @@ class SchedulerStore:
                     clock_changes += int(clock_reversed)
                 continue
             lease = job.get("lease")
-            if job["status"] != "running" or not isinstance(lease, Mapping):
+            if job["status"] not in ACTIVE_STATUSES or not isinstance(lease, Mapping):
                 continue
             clock_reversed = now < utc_instant(str(lease["heartbeat_at"]))
             if not clock_reversed and utc_instant(str(lease["expires_at"])) > now:
+                continue
+            pending = job.get("control", {}).get("pending")
+            if pending:
+                prepared = {
+                    **job,
+                    "control": {
+                        **job["control"],
+                        "pending": None,
+                        "revision": job["control"]["revision"] + 1,
+                    },
+                }
+                if pending["action"] == "cancel":
+                    self._finish_locked(
+                        prepared,
+                        status="cancelled",
+                        now=now,
+                        progress=job["progress"],
+                        error_class="cancelled",
+                        error_code="cancelled_by_user",
+                        network_used=False,
+                        canonical_mutation=False,
+                    )
+                else:
+                    attempts = [dict(row) for row in job["attempts"]]
+                    attempts[-1].update(outcome="paused", completed_at=instant_text(now))
+                    self._write_job(
+                        {
+                            **prepared,
+                            "status": "paused",
+                            "lease": None,
+                            "attempts": attempts,
+                            "updated_at": instant_text(now),
+                            "recovery_state": "resumable"
+                            if job["checkpoint"]["sequence"] > 2
+                            else "restart_only",
+                            "recovery_count": job["recovery_count"] + 1,
+                        }
+                    )
+                recovered += 1
                 continue
             checkpoint = job["checkpoint"]
             if (
@@ -947,6 +1020,15 @@ class SchedulerStore:
                 )
             )
             job = candidates[0]
+            parent_id = job.get("control", {}).get("parent_job_id")
+            if parent_id is not None:
+                validate_restart_lineage(self.get_job(parent_id), job)
+            if job["job_kind"] in {
+                "search.reindex",
+                "search.reindex.incremental",
+                "maintenance.source_reconcile",
+            }:
+                job = promote(job)
             attempt = int(job["attempt"]) + 1
             if attempt > int(job["retry"]["max_attempts"]):
                 raise SchedulerConflictError("queued job exceeded its attempt bound")
@@ -985,7 +1067,7 @@ class SchedulerStore:
     def _owned(job: Mapping[str, Any], lease_token: str, now: datetime) -> None:
         lease = job.get("lease")
         if (
-            job.get("status") != "running"
+            job.get("status") not in ACTIVE_STATUSES
             or not isinstance(lease, Mapping)
             or lease.get("token") != lease_token
         ):
@@ -1071,6 +1153,9 @@ class SchedulerStore:
         if error_code is not None:
             validate_error(error_code, "error code")
         selected_progress = validate_progress(progress)
+        if "control" in job:
+            job = {**job, "control": {**job["control"], "pending": None, "completion": None}}
+            network_used = network_used or job["control"]["network_used"]
         attempts = [dict(item) for item in job["attempts"]]
         if attempts and attempts[-1]["outcome"] == "running":
             attempts[-1] = {
@@ -1221,7 +1306,7 @@ class SchedulerStore:
                 raise SchedulerNotFoundError("scheduler job not found")
             if job["status"] in TERMINAL_JOB_STATUSES:
                 return job
-            if job["status"] == "running":
+            if job["status"] in ACTIVE_STATUSES:
                 raise SchedulerConflictError("a running job must stop cooperatively")
             return self._finish_locked(
                 job,
@@ -1266,6 +1351,130 @@ class SchedulerCoordinator:
     def __init__(self, store: InstanceStore):
         self.store = store
         self.journal = SchedulerStore(store)
+
+    def _control_producer(self, job: Mapping[str, Any]) -> Any:
+        execution = job.get("execution_plan")
+        current_execution = None
+        if execution is not None and job["job_kind"] != "maintenance.backup_verify":
+            from .maintenance import MaintenanceManager
+            from .maintenance_model import action_for_job_kind
+
+            current_execution = MaintenanceManager(self.store).plan_action(
+                action_for_job_kind(job["job_kind"])["id"],
+                parameters=execution["parameters"],
+            )["execution_plan"]
+        if job["job_kind"] in {"search.reindex", "search.reindex.incremental"}:
+            from .maintenance import MaintenanceManager
+
+            manager = MaintenanceManager(self.store)
+            run = manager.run_for_job(str(job["id"]))
+            knowledge = self.store.knowledge_fingerprint()
+            prefix_valid = run is None
+            if run is not None and run["status"] == "building":
+                prefix_valid = manager._prefix_matches(run)
+                if not prefix_valid:
+                    advanced = manager._advanced_prefix_record(run)
+                    prefix_valid = advanced is not None and manager._prefix_matches(advanced)
+            return {
+                "run": run,
+                "knowledge": knowledge,
+                "execution_plan": current_execution,
+                "resumable": (
+                    prefix_valid
+                    and (run is None or run["plan"]["canonical_fingerprint"] == knowledge)
+                    and (execution is None or execution == current_execution)
+                ),
+            }
+        if job["job_kind"] == "maintenance.source_reconcile":
+            from .source_reconciliation import SourceReconciliationManager
+
+            manager = SourceReconciliationManager(self.store)
+            run = manager.run_for_job(str(job["id"]))
+            current, _network = manager.build_plan(str(job["scope"]["id"]))
+            from .source_reconciliation_model import hash_payload
+
+            return {
+                "run": run,
+                "source_revision": hash_payload(current),
+                "execution_plan": current_execution,
+                "resumable": (
+                    (run is None or run["plan_digest"] == hash_payload(current))
+                    and (execution is None or execution == current_execution)
+                ),
+            }
+        return None
+
+    def _controls(self) -> JobControl:
+        return JobControl(self.journal, self._control_producer)
+
+    def job_capabilities(self, job_id: str, *, now=None) -> dict[str, Any]:
+        job = self.journal.get_job(job_id)
+        if job is None:
+            raise SchedulerNotFoundError("scheduler job not found")
+        producer = None if job["status"] in ACTIVE_STATUSES else self._control_producer(job)
+        return control_capabilities(job, producer=producer, now=now)
+
+    def preview_job_control(self, job_id: str, action: str, *, now=None) -> dict[str, Any]:
+        job = self.journal.get_job(job_id)
+        if job is None:
+            raise SchedulerNotFoundError("scheduler job not found")
+        producer = None if job["status"] in ACTIVE_STATUSES else self._control_producer(job)
+        capabilities = control_capabilities(job, producer=producer, now=now)
+        if action not in capabilities["actions"]:
+            raise SchedulerConflictError(
+                capabilities["unavailable"].get(action, "unsupported_action")
+            )
+        return {
+            "job_id": job_id,
+            "action": action,
+            "revision": capabilities["revision"],
+            "job": public_job_record(job),
+            "checkpoint": dict(job["checkpoint"]),
+            "producer_revision": control_digest(producer),
+            "capabilities": capabilities,
+            "impact": "fresh_linked_job"
+            if action == "restart"
+            else "stop_at_safe_boundary"
+            if job["status"] in ACTIVE_STATUSES
+            else action,
+            "reversible": action == "pause",
+        }
+
+    def control_job(
+        self,
+        job_id: str,
+        action: str,
+        *,
+        expected_revision: str,
+        request_id: str,
+        expected_checkpoint=None,
+        now=None,
+    ) -> dict[str, Any]:
+        arguments = {
+            "expected_revision": expected_revision,
+            "request_id": request_id,
+            "expected_checkpoint": expected_checkpoint,
+            "now": now,
+        }
+        # Intent must be reachable while the worker owns lifecycle for execution.
+        if action in {"pause", "cancel"}:
+            result = self._controls().request(job_id, action, **arguments)
+        else:
+            with self._hold_lifecycle("scheduler-job-control"):
+                result = self._controls().request(job_id, action, **arguments)
+        return {
+            **result,
+            "job": public_job_record(result["job"]),
+            "successor": public_job_record(result["successor"]) if result["successor"] else None,
+        }
+
+    def _cooperative_boundary(self, job, **kwargs):
+        return self._controls().boundary(
+            str(job["id"]),
+            str(job["lease"]["token"]),
+            now=getattr(self, "_execution_checkpoint_now", None),
+            **kwargs,
+        )
 
     def recover(self, *, now: datetime | str | None = None) -> dict[str, int]:
         if not self.journal.root.exists():
@@ -1328,9 +1537,57 @@ class SchedulerCoordinator:
         policy_id: str,
         *,
         request_key: str | None = None,
+        now=None,
+        parameters=None,
+        expected_plan_revision=None,
     ) -> dict[str, Any]:
         with self._hold_lifecycle("scheduler-run-now"):
-            return self.journal.run_now(policy_id, request_key=request_key)
+            return self.run_now_locked(
+                policy_id,
+                request_key=request_key,
+                now=now,
+                parameters=parameters,
+                expected_plan_revision=expected_plan_revision,
+            )
+
+    def run_now_locked(
+        self,
+        policy_id: str,
+        *,
+        request_key=None,
+        now=None,
+        parameters=None,
+        expected_plan_revision=None,
+    ):
+        """Caller must hold lifecycle; journal retains its own independent writer guard."""
+        policy = self.journal.get_policy(policy_id)
+        if policy is None:
+            raise SchedulerNotFoundError("scheduler policy not found")
+        execution_plan = None
+        if (
+            parameters is not None
+            or expected_plan_revision is not None
+            or policy["job_kind"] == "maintenance.backup_verify"
+        ):
+            from .maintenance import MaintenanceManager
+            from .maintenance_model import action_for_job_kind
+
+            action_id = (
+                "maintenance.backup_verify"
+                if policy["job_kind"] == "maintenance.backup_verify"
+                else action_for_job_kind(policy["job_kind"])["id"]
+            )
+            preview = MaintenanceManager(self.store).plan_action(action_id, parameters=parameters)
+            if (
+                preview["scope"] != policy["scope"]
+                or not preview["ready"]
+                or preview["plan_revision"] != expected_plan_revision
+            ):
+                raise SchedulerConflictError("maintenance preview or exact policy scope changed")
+            execution_plan = preview["execution_plan"]
+        return self.journal.run_now(
+            policy_id, request_key=request_key, now=now, execution_plan=execution_plan
+        )
 
     @staticmethod
     def _progress(*, processed: int = 0, skipped: int = 0, errors: int = 0) -> dict[str, int]:
@@ -1340,6 +1597,50 @@ class SchedulerCoordinator:
         self,
         job: Mapping[str, Any],
     ) -> tuple[bool, dict[str, int], str, str, bool, bool]:
+        execution = job.get("execution_plan")
+        if execution is not None and job["job_kind"] != "maintenance.backup_verify":
+            from .maintenance import MaintenanceManager
+            from .maintenance_model import MaintenanceError, action_for_job_kind
+            from .source_reconciliation_model import SourceReconciliationError
+
+            try:
+                preview = MaintenanceManager(self.store).plan_action(
+                    action_for_job_kind(job["job_kind"])["id"], parameters=execution["parameters"]
+                )
+                if not preview["ready"] or preview["execution_plan"] != execution:
+                    return (
+                        False,
+                        self._progress(errors=1),
+                        "manual_intervention",
+                        "maintenance_action_failed",
+                        False,
+                        False,
+                    )
+            except (MaintenanceError, SourceReconciliationError, OSError):
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "manual_intervention",
+                    "maintenance_action_failed",
+                    False,
+                    False,
+                )
+        if job["job_kind"] == "maintenance.backup_verify":
+            from .maintenance_backups import BackupVerificationService
+            from .maintenance_targets import MaintenanceTargetError
+
+            try:
+                result = BackupVerificationService(self.store).verify(execution)
+            except MaintenanceTargetError:
+                return (
+                    False,
+                    self._progress(errors=1),
+                    "manual_intervention",
+                    "maintenance_action_failed",
+                    False,
+                    False,
+                )
+            return True, self._progress(processed=result["files"]), "", "", False, False
         if job["job_kind"] == "transcript.intake":
             from .transcript_contract import TranscriptContractError
             from .transcript_jobs import TranscriptJobManager
@@ -1364,9 +1665,7 @@ class SchedulerCoordinator:
                     now=checkpoint_now,
                 )
 
-            manager_factory = getattr(
-                self, "_transcript_manager_factory", TranscriptJobManager
-            )
+            manager_factory = getattr(self, "_transcript_manager_factory", TranscriptJobManager)
             try:
                 progress = manager_factory(self.store).execute(
                     job,
@@ -1692,7 +1991,11 @@ class SchedulerCoordinator:
                 )
 
             try:
-                progress = manager.execute(job, checkpoint=checkpoint)
+                progress = manager.execute(
+                    job,
+                    checkpoint=checkpoint,
+                    safe_point=lambda **kw: self._cooperative_boundary(job, **kw),
+                )
             except SourceReconciliationAuthorizationError:
                 run = manager.run_for_job(str(job["id"]))
                 return (
@@ -1824,6 +2127,7 @@ class SchedulerCoordinator:
                 progress = MaintenanceManager(self.store).execute_reindex(
                     job,
                     checkpoint=checkpoint,
+                    safe_point=lambda **kw: self._cooperative_boundary(job, **kw),
                 )
             except MaintenanceInsufficientSpaceError:
                 return (
@@ -2107,6 +2411,8 @@ class SchedulerCoordinator:
                     network_used,
                     canonical_mutation,
                 ) = self._execute(job)
+            except CooperativeStop as stopped:
+                return stopped.job
             finally:
                 del self._execution_checkpoint_now
         finally:
@@ -2331,6 +2637,14 @@ def scheduler_state_findings(store: InstanceStore) -> list[dict[str, str]]:
                         "message": "terminal scheduler job receipt is missing or mismatched",
                         "path": path,
                     }
+                )
+        parent_id = job.get("control", {}).get("parent_job_id")
+        if parent_id is not None:
+            try:
+                validate_restart_lineage(jobs.get(parent_id), job)
+            except SchedulerError as exc:
+                findings.append(
+                    {"code": "scheduler_restart_lineage_invalid", "message": str(exc), "path": path}
                 )
     for receipt in receipts.values():
         job = jobs.get(str(receipt["job_id"]))

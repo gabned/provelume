@@ -133,6 +133,20 @@ class InstanceLifecycleManager:
                 handle.truncate()
                 handle.flush()
                 os.fsync(handle.fileno())
+            if selected_purpose != "instance-repair":
+                from .instance_repair import InstanceRepairError, InstanceRepairManager
+                from .scheduler import SchedulerStore
+
+                repair = InstanceRepairManager(self.store)
+                if repair.has_recovery_barrier():
+                    try:
+                        with SchedulerStore(self.store).hold():
+                            repair._recover_pending_locked()
+                            repair.assert_mutation_ready()
+                    except InstanceRepairError as exc:
+                        raise InstanceLifecycleError(
+                            "repair recovery is pending or restored a known invalid state"
+                        ) from exc
             yield owner
         finally:
             try:
@@ -363,6 +377,17 @@ class InstanceLifecycleManager:
         return receipt
 
     def prepare(self) -> dict[str, Any]:
+        from .instance_repair import InstanceRepairError, InstanceRepairManager
+
+        repair = InstanceRepairManager(self.store)
+        if repair.has_recovery_barrier():
+            try:
+                repair.recover_pending()
+                repair.assert_mutation_ready()
+            except InstanceRepairError as exc:
+                raise InstanceLifecycleError(
+                    "repair recovery is pending or restored a known invalid state"
+                ) from exc
         recovery = None
         if self.pending_path.exists():
             with self._hold(purpose="instance-lifecycle-recovery"):

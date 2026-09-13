@@ -8,6 +8,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -31,6 +32,7 @@ from .installation_i18n import installation_translator
 from .maintenance_activity import attach_maintenance_routes
 from .markdown_viewer import DocumentContentError, safe_markdown_html
 from .ocr_activity import attach_ocr_routes
+from .operations_maintenance_activity import attach_operations_maintenance_routes
 from .perceptio_activity import attach_perceptio_routes
 from .photo_activity import attach_photo_routes
 from .qualification_activity import attach_qualification_routes
@@ -191,7 +193,15 @@ def _navigation(
         {
             "href": f"/maintenance?lang={language}",
             "label": t("nav.maintenance"),
-            "current": current_path.startswith("/maintenance"),
+            "current": current_path == "/maintenance"
+            or current_path.startswith(("/maintenance/policies", "/maintenance/run")),
+            "group": "maintenance",
+        },
+        {
+            "href": f"/maintenance/overview?lang={language}",
+            "label": t("om.title"),
+            "current": current_path.startswith("/maintenance/")
+            and not current_path.startswith(("/maintenance/policies", "/maintenance/run")),
             "group": "maintenance",
         },
         {
@@ -361,6 +371,42 @@ def _page(*, request: Request, name: str, context: dict[str, Any]):
     return TEMPLATES.TemplateResponse(request=request, name=name, context=context)
 
 
+def create_recovery_app(
+    instance_root: Path | str,
+    *,
+    shell_settings_file: Path | str | None = None,
+) -> FastAPI:
+    """Explicit loopback repair UI, before ordinary Instance prepare or workers.
+
+    The caller selects the local Instance root. HTTP never accepts a root, starts
+    the scheduler, migrates, or opens the normal knowledge runtime in this mode.
+    """
+    from .storage import InstanceStore
+
+    store = InstanceStore(instance_root)
+    app = FastAPI(title="Provelume recovery", docs_url=None, redoc_url=None)
+    app.add_middleware(LocalWebSecurityMiddleware)
+    app.state.shell_settings_manager = ShellSettingsManager(
+        Path(shell_settings_file) if shell_settings_file else settings_path(), default_settings()
+    )
+    app.mount("/static", StaticFiles(directory=str(PACKAGE_ROOT / "static")), name="static")
+
+    def recovery_context(request, _instance, **values):
+        return {
+            **_installation_context(request), "base_layout": "cura/recovery_base.html", **values
+        }
+
+    attach_operations_maintenance_routes(
+        app, None, TEMPLATES, recovery_context, recovery_store=store
+    )
+
+    @app.get("/")
+    def recovery_home(request: Request):
+        return RedirectResponse("/maintenance/repair?lang=" + _language(request), status_code=303)
+
+    return app
+
+
 def create_app(
     instance_root: Path | str,
     *,
@@ -445,6 +491,7 @@ def create_app(
     attach_action_center_routes(app, instance, TEMPLATES, _context, action_center)
     attach_folder_source_routes(app, instance, TEMPLATES, _context)
     attach_maintenance_routes(app, instance, TEMPLATES, _context)
+    attach_operations_maintenance_routes(app, instance, TEMPLATES, _context)
     attach_ocr_routes(app, instance, TEMPLATES, _context)
     attach_photo_routes(app, instance, TEMPLATES, _context)
     attach_audio_routes(app, instance, TEMPLATES, _context)

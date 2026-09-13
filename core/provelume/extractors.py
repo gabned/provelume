@@ -36,6 +36,15 @@ class ExtractionError(RuntimeError):
     pass
 
 
+class TextDecodingUnavailable(ExtractionError):
+    """Preserved bytes are valid input identity, but cannot be decoded as UTF-8.
+
+    This is deliberately separate from malformed containers, unsafe paths and
+    extraction bounds. Only a caller that has verified the Original may project
+    this condition as unavailable derived content.
+    """
+
+
 @dataclass(frozen=True, slots=True)
 class ExtractionResult:
     text: str
@@ -67,7 +76,7 @@ class PlainTextExtractor:
         try:
             text = data.decode("utf-8-sig")
         except UnicodeDecodeError as exc:
-            raise ExtractionError("text file is not valid UTF-8") from exc
+            raise TextDecodingUnavailable("text file is not valid UTF-8") from exc
         return ExtractionResult(
             text=_bounded_text(text, "text file"),
             generator="provelume.text",
@@ -202,7 +211,7 @@ class CsvTextExtractor:
         try:
             text = data.decode("utf-8-sig")
         except UnicodeDecodeError as exc:
-            raise ExtractionError("CSV is not valid UTF-8") from exc
+            raise TextDecodingUnavailable("CSV is not valid UTF-8") from exc
         sample = text[:4096]
         try:
             dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|") if sample else csv.excel
@@ -725,7 +734,7 @@ def extract_web_readable_text(
         try:
             decoded = data.decode("utf-8-sig")
         except UnicodeDecodeError as exc:
-            raise ExtractionError("web representation is not valid UTF-8") from exc
+            raise TextDecodingUnavailable("web representation is not valid UTF-8") from exc
         text = _html_to_text(decoded) if selected in WEB_HTML_MEDIA_TYPES else decoded
         result = ExtractionResult(
             text=_bounded_text(text, "web representation"),

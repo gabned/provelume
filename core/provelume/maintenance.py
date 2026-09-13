@@ -28,6 +28,7 @@ from .maintenance_model import (
     MaintenanceInsufficientSpaceError,
     MaintenanceStateError,
     MaintenanceUnavailableError,
+    explicit_repair_descriptor,
     maintenance_action,
     plan_digest,
     reindex_mode_for_job_kind,
@@ -36,8 +37,9 @@ from .maintenance_model import (
     validate_reindex_run,
 )
 from .paths import safe_instance_path
+from .scheduler_control import digest
 from .scheduler_model import instant_text
-from .storage import InstanceStore
+from .storage import CANONICAL_KINDS, InstanceStore
 
 REINDEX_RUN_LIMIT = 10_000
 
@@ -51,11 +53,29 @@ class MaintenanceManager:
         self.runs = self.root / "reindex-runs"
         self.candidates = store.paths.indexes / "reindex-candidates"
 
-    def catalog(self, *, policies: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    def catalog(
+        self,
+        *,
+        policies: list[dict[str, Any]] | None = None,
+        include_explicit: bool = False,
+        parameters=None,
+    ) -> list[dict[str, Any]]:
         selected_policies = policies or []
         result = []
-        for definition in MAINTENANCE_CATALOG:
+        definitions = list(MAINTENANCE_CATALOG)
+        if include_explicit:
+            definitions.append(explicit_repair_descriptor())
+        for definition in definitions:
             item = dict(definition)
+            if include_explicit and item["id"] == "maintenance.backup_verify":
+                item.update(
+                    scheduler_job_kind="maintenance.backup_verify",
+                    dry_run=True,
+                    recovery="restart_only",
+                )
+                if parameters:
+                    self.plan_action(item["id"], parameters=parameters)
+                    item.update(available=True, schedulable=True, unavailable_reason=None)
             kind = item.get("scheduler_job_kind")
             item["policies"] = [
                 policy
@@ -73,8 +93,19 @@ class MaintenanceManager:
         action_id: str,
         *,
         policies: list[dict[str, Any]] | None = None,
+        parameters=None,
     ) -> dict[str, Any]:
         definition = maintenance_action(action_id)
+        if action_id == "maintenance.backup_verify" and parameters:
+            self.plan_action(action_id, parameters=parameters)
+            definition.update(
+                available=True,
+                schedulable=True,
+                unavailable_reason=None,
+                scheduler_job_kind=action_id,
+                dry_run=True,
+                recovery="restart_only",
+            )
         kind = definition.get("scheduler_job_kind")
         definition["policies"] = [
             policy
@@ -92,18 +123,14 @@ class MaintenanceManager:
         for document_id, version_id in documents.items():
             version = store.read_canonical("versions", version_id)
             if version is None or version.get("document_id") != document_id:
-                raise MaintenanceStateError(
-                    "reindex estimate references a missing Version"
-                )
+                raise MaintenanceStateError("reindex estimate references a missing Version")
             original = store.read_canonical("originals", str(version.get("original_id", "")))
             if (
                 original is None
                 or type(original.get("size_bytes")) is not int
                 or int(original["size_bytes"]) < 0
             ):
-                raise MaintenanceStateError(
-                    "reindex estimate references invalid Original evidence"
-                )
+                raise MaintenanceStateError("reindex estimate references invalid Original evidence")
             total += int(original["size_bytes"])
         return total
 
@@ -114,8 +141,7 @@ class MaintenanceManager:
         require_current: bool,
     ) -> list[tuple[Any, ...]]:
         by_id = {
-            str(document["id"]): document
-            for document in self.store.list_canonical("documents")
+            str(document["id"]): document for document in self.store.list_canonical("documents")
         }
         rows: list[tuple[Any, ...]] = []
         for document_id, version_id in sorted(documents.items()):
@@ -123,9 +149,7 @@ class MaintenanceManager:
             if document is None or (
                 require_current and document.get("current_version_id") != version_id
             ):
-                raise MaintenanceStateError(
-                    "reindex plan no longer matches canonical state"
-                )
+                raise MaintenanceStateError("reindex plan no longer matches canonical state")
             version = self.store.read_canonical("versions", version_id)
             if version is None or version.get("document_id") != document_id:
                 raise MaintenanceStateError("reindex Version is missing")
@@ -146,9 +170,7 @@ class MaintenanceManager:
         return rows
 
     def _active_index_matches_metadata(self, metadata: Mapping[str, Any]) -> bool:
-        previous = {
-            str(key): str(value) for key, value in metadata["documents"].items()
-        }
+        previous = {str(key): str(value) for key, value in metadata["documents"].items()}
         if metadata.get("knowledge_fingerprint") != _knowledge_fingerprint(previous):
             return False
         try:
@@ -166,10 +188,7 @@ class MaintenanceManager:
                 connection.close()
         except (KeyError, MaintenanceStateError, OSError, sqlite3.Error):
             return False
-        return (
-            observed == expected
-            and len(observed) == int(metadata.get("documents_indexed", -1))
-        )
+        return observed == expected and len(observed) == int(metadata.get("documents_indexed", -1))
 
     def plan_reindex(self, mode: str) -> dict[str, Any]:
         selected_mode = mode.strip().lower()
@@ -188,10 +207,7 @@ class MaintenanceManager:
             and _database_path(self.store).is_file()
             and self._active_index_matches_metadata(active_metadata)
         ):
-            previous = {
-                str(key): str(value)
-                for key, value in active_metadata["documents"].items()
-            }
+            previous = {str(key): str(value) for key, value in active_metadata["documents"].items()}
             strategy = "incremental"
             baseline = {key: previous[key] for key in sorted(previous)}
             selected_ids = sorted(
@@ -216,34 +232,141 @@ class MaintenanceManager:
         while not space_path.exists() and space_path != self.store.paths.root:
             space_path = space_path.parent
         free_bytes = shutil.disk_usage(space_path).free
-        return validate_reindex_plan({
-            "requested_mode": selected_mode,
-            "strategy": strategy,
-            "canonical_fingerprint": self.store.knowledge_fingerprint(),
-            "knowledge_fingerprint": _knowledge_fingerprint(current),
-            "documents": current,
-            "baseline_documents": baseline,
-            "selected_document_ids": selected_ids,
-            "estimated_items": len(selected_ids),
-            "estimated_bytes": estimated_bytes,
-            "temporary_bytes_required": temporary_required,
-            "free_bytes_observed": free_bytes,
-        })
+        return validate_reindex_plan(
+            {
+                "requested_mode": selected_mode,
+                "strategy": strategy,
+                "canonical_fingerprint": self.store.knowledge_fingerprint(),
+                "knowledge_fingerprint": _knowledge_fingerprint(current),
+                "documents": current,
+                "baseline_documents": baseline,
+                "selected_document_ids": selected_ids,
+                "estimated_items": len(selected_ids),
+                "estimated_bytes": estimated_bytes,
+                "temporary_bytes_required": temporary_required,
+                "free_bytes_observed": free_bytes,
+            }
+        )
 
-    def plan_action(self, action_id: str) -> dict[str, Any]:
+    def plan_action(self, action_id: str, *, parameters=None) -> dict[str, Any]:
         definition = maintenance_action(action_id)
+        instance_id = self.store.read_config()["instance"]["id"]
+        if action_id == "maintenance.backup_verify":
+            if not parameters:
+                raise MaintenanceUnavailableError("explicit_target_required")
+            from .maintenance_backups import BackupVerificationService
+
+            plan = BackupVerificationService(self.store).plan(parameters)
+            return {
+                "schema_version": 1,
+                "action_id": action_id,
+                "plan": plan,
+                "execution_plan": plan,
+                "plan_revision": plan["plan_revision"],
+                "ready": True,
+                "scope": {"kind": "instance", "id": instance_id},
+                "authority": "explicit_destination",
+                "estimate": {
+                    "unit": "archive_entries",
+                    "count": plan["files"],
+                    "bytes": plan["size_bytes"],
+                    "count_relation": "exact",
+                    "bytes_scope": "compressed_archive",
+                    "temporary_bytes_required": 0,
+                },
+                "network_used": False,
+                "canonical_mutation": False,
+                "automatic_deletion": False,
+            }
         if not definition["available"]:
             raise MaintenanceUnavailableError(str(definition["unavailable_reason"]))
         kind = str(definition["scheduler_job_kind"])
-        if not kind.startswith("search.reindex"):
-            raise MaintenanceUnavailableError("dry_run_not_supported")
-        plan = self.plan_reindex(reindex_mode_for_job_kind(kind))
+        parameters = {} if parameters is None else parameters
+        if not isinstance(parameters, dict):
+            raise MaintenanceStateError("maintenance parameters must be an object")
+        scope = {"kind": "instance", "id": instance_id}
+        network_used = False
+        if kind == "maintenance.source_reconcile":
+            if set(parameters) != {"source_id"} or not isinstance(parameters["source_id"], str):
+                raise MaintenanceStateError("reconciliation preview requires one exact Source")
+            from .source_reconciliation import SourceReconciliationManager
+
+            plan, network_used = SourceReconciliationManager(self.store).build_plan(
+                parameters["source_id"]
+            )
+            scope = {"kind": "source", "id": parameters["source_id"]}
+            ready = plan["snapshot_state"] == "available"
+            estimate = {
+                "unit": "source_items",
+                "count": plan["estimated_items"] if ready else None,
+                "bytes": plan["estimated_bytes"] if ready else None,
+                "count_relation": "exact" if ready else "unknown",
+                "bytes_scope": "observed_source_inputs",
+                "temporary_bytes_required": None,
+            }
+        else:
+            if parameters:
+                raise MaintenanceStateError("this maintenance action takes no parameters")
+            if kind.startswith("search.reindex"):
+                plan = self.plan_reindex(reindex_mode_for_job_kind(kind))
+                ready = plan["free_bytes_observed"] >= plan["temporary_bytes_required"]
+                estimate = {
+                    "unit": "documents",
+                    "count": plan["estimated_items"],
+                    "bytes": plan["estimated_bytes"],
+                    "count_relation": "exact",
+                    "bytes_scope": "selected_original_metadata",
+                    "temporary_bytes_required": plan["temporary_bytes_required"],
+                }
+            else:
+                records = {name: self.store.list_canonical(name) for name in CANONICAL_KINDS}
+                originals = records["originals"]
+                sizes = [row.get("size_bytes") for row in originals]
+                known = all(type(size) is int and size >= 0 for size in sizes)
+                # These exact retained-input observations are not a fabricated total
+                # of the executor's extra derived/state/validation work.
+                plan = {
+                    "input_revision": digest(records),
+                    "original_count": len(originals),
+                    "original_bytes": sum(sizes) if known else None,
+                    "canonical_record_count": sum(len(rows) for rows in records.values()),
+                }
+                ready = known
+                estimate = {
+                    "unit": "retained_originals",
+                    "count": len(originals),
+                    "bytes": plan["original_bytes"],
+                    "count_relation": "exact",
+                    "bytes_scope": "retained_original_metadata",
+                    "temporary_bytes_required": None,
+                    "total_work_relation": "unknown",
+                }
+        stable_plan = {key: value for key, value in plan.items() if key != "free_bytes_observed"}
+        canonical_revision = digest(
+            {name: self.store.list_canonical(name) for name in CANONICAL_KINDS}
+        )
+        execution_plan = {
+            "schema_version": 1,
+            "kind": kind,
+            "instance_id": instance_id,
+            "scope": scope,
+            "parameters": parameters,
+            "input_revision": digest(
+                {"plan": stable_plan, "canonical_revision": canonical_revision}
+            ),
+        }
+        execution_plan["plan_revision"] = digest(execution_plan)
         return {
             "schema_version": MAINTENANCE_SCHEMA_VERSION,
             "action_id": action_id,
             "plan": plan,
-            "ready": plan["free_bytes_observed"] >= plan["temporary_bytes_required"],
-            "network_used": False,
+            "ready": ready,
+            "execution_plan": execution_plan,
+            "plan_revision": execution_plan["plan_revision"],
+            "scope": scope,
+            "authority": definition["authority"],
+            "estimate": estimate,
+            "network_used": network_used,
             "canonical_mutation": False,
             "automatic_deletion": False,
         }
@@ -284,9 +407,7 @@ class MaintenanceManager:
     def list_runs(self, *, limit: int = 100) -> list[dict[str, Any]]:
         if limit < 1:
             return []
-        if self.runs.is_symlink() or (
-            self.runs.exists() and not self.runs.is_dir()
-        ):
+        if self.runs.is_symlink() or (self.runs.exists() and not self.runs.is_dir()):
             raise MaintenanceStateError("reindex run directory is invalid")
         if not self.runs.exists():
             return []
@@ -344,9 +465,7 @@ class MaintenanceManager:
     ) -> dict[str, Any]:
         plan = self.plan_reindex(mode)
         if plan["free_bytes_observed"] < plan["temporary_bytes_required"]:
-            raise MaintenanceInsufficientSpaceError(
-                "reindex temporary-space preflight failed"
-            )
+            raise MaintenanceInsufficientSpaceError("reindex temporary-space preflight failed")
         digest = plan_digest(plan)
         run_id = self._run_id(job_id)
         generation_id = self._generation_id(job_id, revision, digest)
@@ -411,8 +530,7 @@ class MaintenanceManager:
             and metadata.get("job_id") == record["job_id"]
             and metadata.get("plan_digest") == record["plan_digest"]
             and metadata.get("documents") == record["plan"]["documents"]
-            and metadata.get("knowledge_fingerprint")
-            == record["plan"]["knowledge_fingerprint"]
+            and metadata.get("knowledge_fingerprint") == record["plan"]["knowledge_fingerprint"]
             and metadata.get("build_mode") == record["plan"]["requested_mode"]
             and metadata.get("build_strategy") == record["plan"]["strategy"]
         ):
@@ -445,8 +563,7 @@ class MaintenanceManager:
                 "id INTEGER PRIMARY KEY CHECK (id = 1), payload TEXT NOT NULL)"
             )
             connection.execute(
-                f"INSERT OR REPLACE INTO {GENERATION_METADATA_TABLE}(id, payload) "
-                "VALUES (1, ?)",
+                f"INSERT OR REPLACE INTO {GENERATION_METADATA_TABLE}(id, payload) VALUES (1, ?)",
                 (payload,),
             )
             connection.commit()
@@ -509,7 +626,7 @@ class MaintenanceManager:
                 candidate_documents,
                 require_current=False,
             )
-            connection = _connection(database)
+            connection = sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True)
             try:
                 rows = connection.execute(
                     "SELECT document_id, version_id, source_id, media_type, acquired_at, "
@@ -539,9 +656,7 @@ class MaintenanceManager:
         for key in within_run:
             minimum = int(record["base_progress"][key]) + within_run[key]
             if int(progress[key]) < minimum:
-                raise MaintenanceStateError(
-                    "scheduler progress precedes durable reindex evidence"
-                )
+                raise MaintenanceStateError("scheduler progress precedes durable reindex evidence")
             rebased[key] = int(progress[key]) - within_run[key]
         return rebased
 
@@ -658,10 +773,8 @@ class MaintenanceManager:
             return existing
         _current_documents, current_versions = _documents_and_versions(self.store)
         if (
-            self.store.knowledge_fingerprint()
-            != existing["plan"]["canonical_fingerprint"]
-            or _knowledge_fingerprint(current_versions)
-            != existing["plan"]["knowledge_fingerprint"]
+            self.store.knowledge_fingerprint() != existing["plan"]["canonical_fingerprint"]
+            or _knowledge_fingerprint(current_versions) != existing["plan"]["knowledge_fingerprint"]
         ):
             return self._restart(existing, mode=mode, base_progress=progress)
         if self._active_generation_matches(existing):
@@ -731,7 +844,10 @@ class MaintenanceManager:
         job: Mapping[str, Any],
         *,
         checkpoint: Callable[[dict[str, int]], Mapping[str, Any]],
+        safe_point: Callable[..., None] | None = None,
     ) -> dict[str, int]:
+        boundary = safe_point or (lambda **_: None)
+        boundary()
         mode = reindex_mode_for_job_kind(str(job["job_kind"]))
         canonical_before = self.store.knowledge_fingerprint()
         record = self._load_or_start(
@@ -739,14 +855,21 @@ class MaintenanceManager:
             mode=mode,
             progress=job["progress"],
         )
+        boundary(
+            observation={
+                "unit": "documents",
+                "completed": record["cursor"],
+                "total": len(record["plan"]["selected_document_ids"]),
+                "plan_revision": record["plan_digest"],
+            }
+        )
         initial_progress = {key: int(job["progress"][key]) for key in job["progress"]}
         if record["status"] != "completed":
             database, metadata_candidate = self._candidate_paths(record)
             documents = record["plan"]["documents"]
             selected = record["plan"]["selected_document_ids"]
             by_id = {
-                str(document["id"]): document
-                for document in _documents_and_versions(self.store)[0]
+                str(document["id"]): document for document in _documents_and_versions(self.store)[0]
             }
             connection = _connection(database)
             try:
@@ -779,10 +902,8 @@ class MaintenanceManager:
                     next_indexed = int(record["indexed"]) + int(indexed)
                     next_skipped = int(record["skipped"]) + int(not indexed)
                     absolute_progress = {
-                        "processed": int(record["base_progress"]["processed"])
-                        + next_indexed,
-                        "skipped": int(record["base_progress"]["skipped"])
-                        + next_skipped,
+                        "processed": int(record["base_progress"]["processed"]) + next_indexed,
+                        "skipped": int(record["base_progress"]["skipped"]) + next_skipped,
                         "errors": int(record["base_progress"]["errors"]),
                     }
                     checkpoint(absolute_progress)
@@ -797,11 +918,20 @@ class MaintenanceManager:
                         }
                     )
                     self._after_item_checkpoint(record)
+                    boundary(
+                        observation={
+                            "unit": "documents",
+                            "completed": record["cursor"],
+                            "total": len(selected),
+                            "plan_revision": record["plan_digest"],
+                        }
+                    )
             finally:
                 connection.close()
             record = self._write_run(
                 {**record, "status": "validating", "updated_at": instant_text()}
             )
+            boundary()
             matches, indexed_count = self._candidate_matches(record)
             if not matches:
                 raise MaintenanceStateError("reindex candidate validation failed")
@@ -815,6 +945,7 @@ class MaintenanceManager:
                     "plan_digest": record["plan_digest"],
                 }
             )
+            boundary(commit=True)
             self.store._atomic_json(metadata_candidate, metadata)
             record = self._write_run(
                 {**record, "status": "activating", "updated_at": instant_text()}
@@ -839,16 +970,11 @@ class MaintenanceManager:
         if self.store.knowledge_fingerprint() != canonical_before:
             raise MaintenanceStateError("reindex changed canonical knowledge")
         final_progress = {
-            "processed": int(record["base_progress"]["processed"])
-            + int(record["indexed"]),
-            "skipped": int(record["base_progress"]["skipped"])
-            + int(record["skipped"]),
+            "processed": int(record["base_progress"]["processed"]) + int(record["indexed"]),
+            "skipped": int(record["base_progress"]["skipped"]) + int(record["skipped"]),
             "errors": int(record["base_progress"]["errors"]) + int(record["errors"]),
         }
-        return {
-            key: max(0, final_progress[key] - initial_progress[key])
-            for key in final_progress
-        }
+        return {key: max(0, final_progress[key] - initial_progress[key]) for key in final_progress}
 
 
 def maintenance_state_findings(store: InstanceStore) -> list[dict[str, str]]:
