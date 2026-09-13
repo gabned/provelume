@@ -53,6 +53,7 @@
 .settings-form label.action-check {
   align-items: center;
   display: flex;
+  flex-direction: row;
   gap: .65rem;
   min-height: 44px;
 }
