@@ -1,0 +1,1 @@
+<ul class="document-list">{% for item in attention['items'] %}<li><a href="{{ action_item_url(item) }}"><strong>{{ t('action.' ~ item.queue) }}</strong><span>{{ action_reason(item) }} · {{ t('action.' ~ item.review_state) }}</span></a></li>{% else %}<li class="empty">{{ t('action.empty') if attention.complete else t('action.unreadable_items') }}</li>{% endfor %}</ul>

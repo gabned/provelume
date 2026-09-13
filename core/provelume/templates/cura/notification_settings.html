@@ -1,0 +1,17 @@
+{% extends base_layout %}
+{% block title %}{{ t('action.settings') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<a href="/attention/notifications?lang={{ lang }}">{{ t('action.notifications') }}</a><h1>{{ t('action.settings') }}</h1><p class="lead">{{ t('action.notifications_help') }}</p>
+<p><a href="/settings/notifications/history?lang={{ lang }}">{{ t('action.reset_notification_history') }}</a></p>
+{% if error %}<p role="alert">{{ t('action.preferences_error') }}</p>{% endif %}
+<section class="panel"><h2>{{ t('action.channels') }}</h2><dl>{% for channel, status in notification.channels.items() %}<dt>{{ t('action.' ~ channel) }}</dt><dd>{{ t('action.channel_state.' ~ status.state) }}</dd>{% endfor %}</dl><p>{{ t('action.external_channels_help') }}</p></section>
+{% if editable %}<section class="panel"><form action="/settings/notifications?lang={{ lang }}" method="post" class="settings-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="mutation_nonce" value="{{ mutation_nonce }}"><input type="hidden" name="request_id" value="{{ request_id }}"><input type="hidden" name="instance_id" value="{{ notification.instance_id }}"><input type="hidden" name="revision" value="{{ notification.settings_revision }}">
+<label><input type="checkbox" name="in_app"{% if notification.preferences.channels.in_app %} checked{% endif %}> {{ t('action.in_app') }}</label>
+<fieldset><legend>{{ t('action.quiet') }}</legend><label><input type="checkbox" name="quiet_enabled"{% if notification.preferences.quiet_hours.enabled %} checked{% endif %}> {{ t('action.enable_quiet') }}</label>
+<label for="quiet-start">{{ t('action.start') }}<input id="quiet-start" type="time" name="quiet_start" value="{{ notification.preferences.quiet_hours.start }}" required></label>
+<label for="quiet-end">{{ t('action.end') }}<input id="quiet-end" type="time" name="quiet_end" value="{{ notification.preferences.quiet_hours.end }}" required></label>
+<label for="quiet-zone">{{ t('action.timezone') }}<input id="quiet-zone" name="timezone" value="{{ notification.preferences.quiet_hours.timezone }}" required maxlength="100" aria-describedby="quiet-zone-help"></label><p id="quiet-zone-help">{{ t('action.timezone_help') }}</p></fieldset>
+<label for="notification-window">{{ t('action.aggregation') }}<input id="notification-window" type="number" name="aggregation_seconds" value="{{ notification.preferences.aggregation_seconds }}" min="1" max="3600" required></label><p>{{ t('action.aggregation_help') }}</p>
+<button type="submit">{{ t('action.save') }}</button></form></section>{% else %}<p>{{ t('action.readonly') }}</p>{% endif %}
+{% endblock %}

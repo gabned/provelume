@@ -9,8 +9,10 @@
   <section class="panel"><div class="panel-heading"><h2>{{ t('cura.continue') }}</h2><a href="/browse?lang={{ lang }}">{{ t('cura.all_knowledge') }}</a></div>
     <ul class="document-list">{% for document in latest %}<li><a href="{{ document_link(document.id) }}"><strong>{{ document.title }}</strong><span>{{ document.source_name }} · {{ document.current_version.acquired_at[:10] }}</span></a></li>{% else %}<li class="empty">{{ t('cura.no_recent') }}</li>{% endfor %}</ul>
   </section>
-  <section class="panel"><div class="panel-heading"><h2>{{ t('cura.operations_attention') }}</h2>{{ icon('triangle-alert') }}</div>
-    {% include 'cura/operation_items.html' %}
+  <section class="panel"><div class="panel-heading"><h2>{{ t('action.title') }}</h2>{{ icon('triangle-alert') }}</div>
+    <p>{{ t('action.count') }}: <strong>{{ attention.total if attention.total is not none else (t('action.count_unknown') if attention.count_relation == 'unknown' else attention.observed_count) }}</strong></p>
+    {% if not attention.complete %}<p role="status">{{ t('action.partial') }}</p>{% endif %}
+    {% include 'cura/action_items.html' %}
     <a class="cura-section-link" href="/attention?lang={{ lang }}">{{ t('cura.see_attention') }}</a>
   </section>
 </div>

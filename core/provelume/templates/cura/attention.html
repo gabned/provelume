@@ -1,8 +1,15 @@
 {% extends base_layout %}
 {% block title %}{{ t('cura.nav.attention') }} · {{ t('brand') }}{% endblock %}
 {% block content %}
-<p class="eyebrow">{{ t('cura.nav.overview') }}</p><h1>{{ t('cura.nav.attention') }}</h1>
-<p class="lead">{{ t('cura.attention_boundary') }}</p>
-<section class="panel"><h2>{{ t('cura.operations_attention') }}</h2>{% include 'cura/operation_items.html' %}</section>
-<div class="form-actions"><a class="button secondary" href="/operations?lang={{ lang }}">{{ t('nav.operations') }}</a><a class="button secondary" href="/duplicates?lang={{ lang }}">{{ t('nav.duplicates') }}</a><a class="button secondary" href="/assurance?lang={{ lang }}">{{ t('nav.assurance') }}</a></div>
+<p class="eyebrow">{{ t('cura.nav.overview') }}</p><h1>{{ t('action.title') }}</h1><p class="lead">{{ t('action.lead') }}</p>
+<div class="form-actions"><a href="/attention/notifications?lang={{ lang }}">{{ t('action.notifications') }}</a><a href="/attention/authority?lang={{ lang }}">{{ t('action.authority') }}</a></div>
+{% if not attention.complete %}<p class="status warn" role="status">{{ t('action.partial') }}</p>{% endif %}
+<section class="panel"><form method="get" action="/attention" class="settings-form">
+<input type="hidden" name="lang" value="{{ lang }}">
+<label for="action-queue">{{ t('action.queue') }}<select id="action-queue" name="queue"><option value="">{{ t('action.all') }}</option>{% for queue in attention.queues %}<option value="{{ queue }}"{% if selected_queue == queue %} selected{% endif %}>{{ t('action.' ~ queue) }}</option>{% endfor %}</select></label>
+<label for="action-state">{{ t('action.state') }}<select id="action-state" name="state">{% for state in ['awaiting_review', 'accepted', 'rejected', 'superseded', 'all'] %}<option value="{{ state }}"{% if selected_state == state %} selected{% endif %}>{{ t('action.all_states') if state == 'all' else t('action.' ~ state) }}</option>{% endfor %}</select></label><button type="submit">{{ t('action.filter') }}</button>
+</form><p>{{ t('action.count') if selected_state == 'awaiting_review' else t('action.observed') }}: <strong>{{ attention.total if attention.total is not none else (t('action.count_unknown') if attention.count_relation == 'unknown' else attention.observed_count) }}</strong>{% if attention.count_relation != 'exact' %} · {{ t('action.partial_status') }}{% endif %}</p>
+{% include 'cura/action_items.html' %}
+<nav class="form-actions" aria-label="{{ t('action.filter') }}">{% if attention.offset %}<a href="{{ page_url([0, attention.offset - attention.limit]|max) }}">{{ t('action.previous') }}</a>{% endif %}{% if attention.offset + attention.limit < attention.observed_count %}<a href="{{ page_url(attention.offset + attention.limit) }}">{{ t('action.next') }}</a>{% endif %}</nav></section>
+<details class="panel"><summary>{{ t('action.status') }}</summary><dl>{% for queue, observation in attention.queues.items() %}<dt>{{ t('action.' ~ queue) }}</dt><dd>{{ t('action.partial_status') if observation.status == 'partial' else t('action.' ~ observation.status) }} · {{ observation.count if observation.count is not none else (t('action.count_unknown') if observation.count_relation == 'unknown' else observation.observed_count) }}{% if observation.reason %}<br><span class="muted">{{ t('action.observation_problem') }} <code>{{ observation.reason }}</code></span>{% endif %}</dd>{% endfor %}</dl></details>
 {% endblock %}

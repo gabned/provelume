@@ -1,0 +1,13 @@
+{% extends base_layout %}
+{% block title %}{{ t('action.authority') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<a href="/attention?lang={{ lang }}">{{ t('action.back') }}</a><h1>{{ t('action.authority') }}</h1><p class="lead">{{ t('action.authority_help') }}</p>{% if error %}<p role="alert">{{ t('action.write_error') }}</p>{% endif %}
+<section class="panel"><h2>{{ t('action.current_authority') }}</h2><p>{{ t('action.default') }}: {{ t('action.' ~ authority.default_mode) }}</p><dl>{% for rule in authority.rules %}<dt>{{ t('action.' ~ rule.queue) }}</dt><dd>{{ t('action.' ~ rule.mode) }} · {{ rule.scope.kind }} · <code>{{ rule.scope.id }}</code></dd>{% endfor %}</dl></section>
+{% if editable %}<section class="panel"><form action="/attention/authority?lang={{ lang }}" method="post" class="settings-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="mutation_nonce" value="{{ mutation_nonce }}"><input type="hidden" name="request_id" value="{{ request_id }}"><input type="hidden" name="instance_id" value="{{ authority.instance_id }}"><input type="hidden" name="revision" value="{{ authority.revision }}">
+<label for="authority-queue">{{ t('action.queue') }}<select id="authority-queue" name="queue">{% for capability in authority.capabilities %}<option value="{{ capability.queue }}">{{ t('action.' ~ capability.queue) }}</option>{% endfor %}</select></label>
+<label for="authority-scope">{{ t('action.scope') }}<select id="authority-scope" name="scope"><option value="instance:{{ authority.instance_id }}">{{ t('action.this_instance') }}</option>{% for source in sources %}<option value="source:{{ source.id }}">Source · {{ source.name }}</option>{% endfor %}</select></label>
+<label for="authority-mode">{{ t('action.authority') }}<select id="authority-mode" name="mode">{% for mode in ['disabled', 'proposal-only', 'confirm-each'] %}<option value="{{ mode }}"{% if mode == authority.default_mode %} selected{% endif %}>{{ t('action.' ~ mode) }}</option>{% endfor %}<option value="controlled-automatic" disabled>{{ t('action.controlled-automatic') }} — {{ t('action.unavailable') }}</option></select></label>
+<p>{{ t('action.mode_explanations') }}</p><label><input type="checkbox" name="confirmed" required> {{ t('action.confirm_scope') }}</label><button type="submit">{{ t('action.save_scope') }}</button>
+</form></section>{% else %}<p>{{ t('action.readonly') }}</p>{% endif %}
+{% endblock %}

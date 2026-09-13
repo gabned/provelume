@@ -1,0 +1,14 @@
+{% extends base_layout %}
+{% block title %}{{ t('action.notifications') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<a href="/attention?lang={{ lang }}">{{ t('action.back') }}</a><h1>{{ t('action.notifications') }}</h1><p class="lead">{{ t('action.notifications_help') }}</p><a href="/settings/notifications?lang={{ lang }}">{{ t('action.settings') }}</a>
+{% if error %}<p role="alert">{{ t('action.notification_error') }}</p>{% elif stale %}<p role="status">{{ t('action.notification_stale') }}</p>{% endif %}
+<section class="panel"><h2>{{ t('action.notification_state.' ~ notification.state) }}</h2>
+{% if notification.state == 'ready' %}<p role="status">{{ t('action.notification_count') }}: <strong>{{ notification.count }}</strong></p>
+<ul>{% for member in notification['items'] %}<li><a href="{{ member.href }}&amp;lang={{ lang }}">{{ t('action.open_item') }} <span class="muted">{{ loop.index }}</span></a></li>{% endfor %}</ul>
+{% if editable and not stale %}<form action="/attention/notifications/acknowledge?lang={{ lang }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="mutation_nonce" value="{{ mutation_nonce }}"><input type="hidden" name="request_id" value="{{ request_id }}"><input type="hidden" name="instance_id" value="{{ notification.instance_id }}"><input type="hidden" name="offset" value="{{ notification.offset }}"><input type="hidden" name="batch_id" value="{{ notification.batch_id }}"><input type="hidden" name="journal_revision" value="{{ notification.journal_revision }}"><input type="hidden" name="settings_revision" value="{{ notification.settings_revision }}"><button type="submit">{{ t('action.dismiss_notifications') }}</button></form>{% endif %}
+{% elif notification.next_eligible_at %}<p>{{ t('action.next_notification') }}: <time datetime="{{ notification.next_eligible_at }}">{{ notification.next_eligible_at }}</time></p>{% endif %}
+{% if not notification.snapshot_complete %}<p>{{ t('action.partial') }}</p>{% endif %}
+<p>{{ t('action.queue_count') }}: {{ notification.queue_count if notification.queue_count is not none else t('action.count_unknown') }}</p></section>
+<nav class="form-actions" aria-label="{{ t('action.notifications') }}">{% if notification.offset %}<a href="/attention/notifications?offset={{ [0, notification.offset - notification.limit]|max }}&amp;lang={{ lang }}">{{ t('action.previous') }}</a>{% endif %}{% if notification.offset + notification.limit < notification.observed_count %}<a href="/attention/notifications?offset={{ notification.offset + notification.limit }}&amp;lang={{ lang }}">{{ t('action.next') }}</a>{% endif %}</nav>
+{% endblock %}

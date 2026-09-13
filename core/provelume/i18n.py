@@ -5,6 +5,7 @@ from functools import lru_cache
 from importlib.resources import files
 from typing import Any
 
+from .action_center_i18n import ACTION_CENTER_TRANSLATIONS
 from .activity_i18n import ACTIVITY_TRANSLATIONS
 from .audio_i18n import AUDIO_TRANSLATIONS
 from .connector_i18n import CONNECTOR_TRANSLATIONS
@@ -38,6 +39,7 @@ def catalog(language: str) -> dict[str, str]:
         raise ValueError(f"invalid UI catalog: {selected}")
     result = {str(key): str(text) for key, text in value.items()}
     result.update(ACTIVITY_TRANSLATIONS.get(selected, {}))
+    result.update(ACTION_CENTER_TRANSLATIONS.get(selected, {}))
     result.update(AUDIO_TRANSLATIONS.get(selected, {}))
     result.update(CONNECTOR_TRANSLATIONS.get(selected, {}))
     result.update(EMAIL_TRANSLATIONS.get(selected, {}))

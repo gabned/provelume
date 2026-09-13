@@ -9,12 +9,18 @@ import sys
 import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-SHELL_SETTINGS_SCHEMA_VERSION = 3
+from .notification_preferences import (
+    NotificationPreferences,
+    NotificationPreferencesError,
+    notification_change,
+)
+
+SHELL_SETTINGS_SCHEMA_VERSION = 4
 DEFAULT_SHELL_SETTINGS_SCHEMA_VERSION = 2
 SHELL_PREFERENCES_SCHEMA_VERSION = 1
 SHELL_CAPABILITIES_SCHEMA_VERSION = 1
@@ -171,11 +177,13 @@ class LauncherSettings:
     theme: str = "system"
     interface_mode: str = "current"
     interface_mode_change: InterfaceModeChange | None = None
+    notifications: NotificationPreferences = field(default_factory=NotificationPreferences)
+    notifications_change: dict[str, Any] | None = None
     revision: int = 0
     schema_version: int = DEFAULT_SHELL_SETTINGS_SCHEMA_VERSION
 
     def normalized(self) -> LauncherSettings:
-        if type(self.schema_version) is not int or self.schema_version not in {2, 3}:
+        if type(self.schema_version) is not int or self.schema_version not in {2, 3, 4}:
             raise ShellSettingsError("launcher settings schema is invalid")
         if (
             not isinstance(self.instance_path, str)
@@ -223,6 +231,17 @@ class LauncherSettings:
         )
         if self.schema_version == 2 and (self.interface_mode != "current" or receipt is not None):
             raise ShellSettingsError("interface selection requires launcher settings schema 3")
+        try:
+            notifications = NotificationPreferences.from_internal(self.notifications)
+            change = notification_change(
+                self.notifications_change, revision=self.revision, preferences=notifications
+            )
+        except NotificationPreferencesError as exc:
+            raise ShellSettingsError(str(exc)) from exc
+        if self.schema_version < 4 and (
+            notifications != NotificationPreferences() or change is not None
+        ):
+            raise ShellSettingsError("notification preferences require launcher settings schema 4")
         return LauncherSettings(
             instance_path=instance_path,
             update_channel=(
@@ -238,6 +257,8 @@ class LauncherSettings:
             theme=self.theme if self.theme in THEMES else "system",
             interface_mode=self.interface_mode,
             interface_mode_change=receipt,
+            notifications=notifications,
+            notifications_change=change,
             revision=self.revision,
             schema_version=self.schema_version,
         )
@@ -249,7 +270,7 @@ class LauncherSettings:
             "login_startup": value.login_startup,
             "theme": value.theme,
         }
-        if value.schema_version == 3:
+        if value.schema_version >= 3:
             shell.update(
                 interface_mode=value.interface_mode,
                 interface_mode_change=(
@@ -257,6 +278,11 @@ class LauncherSettings:
                     if value.interface_mode_change is not None
                     else None
                 ),
+            )
+        if value.schema_version == 4:
+            shell.update(
+                notifications=value.notifications.as_payload(),
+                notifications_change=value.notifications_change,
             )
         return {
             "schema_version": value.schema_version,
@@ -394,10 +420,12 @@ def _release_os_lock(descriptor: int) -> None:
 
 
 def _is_reparse_point(path: Path) -> bool:
-    if os.name != "nt" or not path.exists():
+    if os.name != "nt":
         return False
     try:
         return bool(path.stat(follow_symlinks=False).st_file_attributes & 0x400)
+    except FileNotFoundError:
+        return False
     except (AttributeError, OSError):
         return True
 
@@ -406,14 +434,13 @@ def _guard_path(path: Path, *, allow_missing: bool) -> Path:
     selected = path.expanduser().absolute()
     if len(str(selected)) > 4096:
         raise ShellPreferencesError("preferences path is too long")
-    if selected.exists():
-        if selected.is_symlink() or _is_reparse_point(selected):
-            raise ShellPreferencesError("symlink and reparse-point preferences are not allowed")
-    elif not allow_missing:
+    if selected.is_symlink() or _is_reparse_point(selected):
+        raise ShellPreferencesError("symlink and reparse-point preferences are not allowed")
+    if not selected.exists() and not allow_missing:
         raise ShellPreferencesError("preferences file does not exist")
     parent = selected.parent
     while parent != parent.parent:
-        if parent.exists() and (parent.is_symlink() or _is_reparse_point(parent)):
+        if parent.is_symlink() or _is_reparse_point(parent):
             raise ShellPreferencesError("symlink and reparse-point parents are not allowed")
         parent = parent.parent
     return selected
@@ -441,7 +468,7 @@ def _parse_settings(value: Any, defaults: LauncherSettings) -> LauncherSettings:
             check_on_start=value["check_on_start"],
             language=value["language"],
         ).normalized()
-    if schema_version not in {2, SHELL_SETTINGS_SCHEMA_VERSION}:
+    if schema_version not in {2, 3, SHELL_SETTINGS_SCHEMA_VERSION}:
         raise ShellSettingsError("unsupported launcher settings schema")
     expected = {
         "schema_version",
@@ -471,8 +498,10 @@ def _parse_settings(value: Any, defaults: LauncherSettings) -> LauncherSettings:
         "login_startup",
         "theme",
     }
-    if schema_version == 3:
+    if schema_version >= 3:
         shell_fields |= {"interface_mode", "interface_mode_change"}
+    if schema_version == 4:
+        shell_fields |= {"notifications", "notifications_change"}
     if not isinstance(shell, dict) or set(shell) != shell_fields:
         raise ShellSettingsError("launcher shell settings are invalid")
     if (
@@ -489,17 +518,24 @@ def _parse_settings(value: Any, defaults: LauncherSettings) -> LauncherSettings:
     )
     if any(not isinstance(item, bool) for item in booleans):
         raise ShellSettingsError("launcher settings boolean is invalid")
-    mode = shell["interface_mode"] if schema_version == 3 else "current"
+    mode = shell["interface_mode"] if schema_version >= 3 else "current"
     revision = value.get("revision")
     if type(revision) is not int or not 0 <= revision <= MAX_SETTINGS_REVISION:
         raise ShellSettingsError("launcher settings revision is invalid")
     if not isinstance(mode, str) or mode not in INTERFACE_MODES:
         raise ShellSettingsError("interface mode must be current or preview")
     receipt = _parse_interface_mode_change(
-        shell["interface_mode_change"] if schema_version == 3 else None,
+        shell["interface_mode_change"] if schema_version >= 3 else None,
         mode=mode,
         revision=revision,
     )
+    try:
+        notifications = (
+            NotificationPreferences.from_payload(shell["notifications"])
+            if schema_version == 4 else NotificationPreferences()
+        )
+    except NotificationPreferencesError as exc:
+        raise ShellSettingsError(str(exc)) from exc
     return LauncherSettings(
         instance_path=value.get("instance_path", defaults.instance_path),
         update_channel=value.get("update_channel", defaults.update_channel),
@@ -513,6 +549,8 @@ def _parse_settings(value: Any, defaults: LauncherSettings) -> LauncherSettings:
         theme=shell.get("theme"),
         interface_mode=mode,
         interface_mode_change=receipt,
+        notifications=notifications,
+        notifications_change=shell["notifications_change"] if schema_version == 4 else None,
         revision=revision,
         schema_version=schema_version,
     ).normalized()
@@ -613,7 +651,7 @@ class ShellSettingsManager:
         return self.path
 
     def _save_locked(self, settings: LauncherSettings, *, current: LauncherSettings) -> None:
-        if current.schema_version == 3 and settings.schema_version != 3:
+        if current.schema_version >= 3 and settings.schema_version < current.schema_version:
             raise ShellSettingsError("launcher settings schema cannot be downgraded")
         _atomic_json(self.path, settings.as_payload(), maximum=MAX_SETTINGS_BYTES)
 
@@ -734,7 +772,7 @@ class ShellSettingsManager:
             next_revision = current.revision + 1
             return replace(
                 current,
-                schema_version=SHELL_SETTINGS_SCHEMA_VERSION,
+                schema_version=max(3, current.schema_version),
                 interface_mode=mode,
                 # mutate assigns this same revision; include it now so the
                 # receipt is coherent during its pre-save normalization too.
@@ -747,6 +785,52 @@ class ShellSettingsManager:
                     changed=mode != current.interface_mode,
                     source=source,
                 ),
+            )
+
+        return self.mutate(change, expected_revision=expected_revision)
+
+    def configure_notifications(
+        self,
+        preferences: NotificationPreferences | dict[str, Any],
+        *,
+        expected_revision: int,
+        source: str = "local_browser",
+    ) -> LauncherSettings:
+        """Only an explicit notification save promotes a legacy launcher to schema 4."""
+        if (type(expected_revision) is not int
+                or not 0 <= expected_revision <= MAX_SETTINGS_REVISION):
+            raise ShellSettingsError("launcher settings revision is invalid")
+        if not isinstance(source, str) or source not in INTERFACE_CHANGE_SOURCES:
+            raise ShellSettingsError("notification selection source is invalid")
+        try:
+            selected = (preferences.normalized() if isinstance(preferences, NotificationPreferences)
+                        else NotificationPreferences.from_payload(preferences))
+        except NotificationPreferencesError as exc:
+            raise ShellPreferencesError(str(exc)) from exc
+
+        def change(current: LauncherSettings) -> LauncherSettings:
+            # Checked inside mutate's OS lock; a repair must not silently reset
+            # unrelated fields when the current persisted document is unreadable.
+            if self.load().warning == "settings_invalid_using_safe_defaults":
+                raise ShellPreferencesError(
+                    "repair invalid launcher settings before changing notifications"
+                )
+            next_revision = current.revision + 1
+            before, after = current.notifications.digest(), selected.digest()
+            return replace(
+                current,
+                schema_version=4,
+                revision=next_revision,
+                notifications=selected,
+                notifications_change={
+                    "schema_version": 1,
+                    "revision": next_revision,
+                    "recorded_at_utc": datetime.now(UTC).isoformat(),
+                    "source": source,
+                    "previous_sha256": before,
+                    "sha256": after,
+                    "changed": before != after,
+                },
             )
 
         return self.mutate(change, expected_revision=expected_revision)
