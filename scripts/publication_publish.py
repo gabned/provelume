@@ -22,7 +22,11 @@ from provelume.publication import (
     utc_text,
     write_once,
 )
-from scripts.publication_receipt import create_receipt, validate_qualified_files
+from scripts.publication_receipt import (
+    create_receipt,
+    validate_asset_inventory,
+    validate_qualified_files,
+)
 from scripts.release_kit import create_kit, readiness, verify_kit
 
 
@@ -53,7 +57,29 @@ class GitHub:
             if b"(HTTP 404)" in result.stderr:
                 return None
             raise PublicationError("Release lookup failed; publication was not attempted")
-        return decode_json(result.stdout)
+        release = decode_json(result.stdout)
+        release_id = release.get("id")
+        if type(release_id) is not int or release_id <= 0:
+            raise PublicationError("Observed public release identity is invalid")
+        assets = []
+        # An embedded release asset list is not pagination evidence. Read every page,
+        # including the empty terminal page when the existing 300-asset bound is reached.
+        for page in range(1, 5):
+            raw = self.run(
+                [
+                    "api",
+                    f"repos/{SOURCE_REPOSITORY}/releases/{release_id}/assets"
+                    f"?per_page=100&page={page}",
+                ]
+            )
+            rows = decode_json(b'{"assets":' + raw + b"}")["assets"]
+            if not isinstance(rows, list) or len(rows) > 100 or len(assets) + len(rows) > 300:
+                raise PublicationError("Observed asset inventory is invalid or incomplete")
+            assets.extend(rows)
+            if len(rows) < 100:
+                release["assets"] = assets
+                return release
+        raise PublicationError("Observed asset inventory is incomplete")
 
     def download(self, release: dict, name: str, destination: Path) -> None:
         rows = [row for row in release.get("assets", []) if row.get("name") == name]
@@ -134,6 +160,7 @@ def prepare(bundle: Path, stage: Path, *, commit: str, client: GitHub) -> None:
         or release.get("name") != title
     ):
         raise PublicationError("Existing release differs from qualified publication identity")
+    validate_asset_inventory(release, manifest, phase="resume")
     stage = safe_path(stage)
     stage.mkdir(parents=True, exist_ok=True)
     public_bundle = stage / "public-bundle"
@@ -145,6 +172,7 @@ def prepare(bundle: Path, stage: Path, *, commit: str, client: GitHub) -> None:
     release = client.release(tag)
     if release is None:
         raise PublicationError("Completed payload observation is unavailable")
+    validate_asset_inventory(release, manifest, phase="payloads")
     for path in sorted(bundle.iterdir()):
         client.download(release, path.name, public_bundle / path.name)
         if file_identity(public_bundle / path.name) != file_identity(path):
@@ -174,6 +202,7 @@ def finalize(bundle: Path, stage: Path, *, client: GitHub) -> dict:
     release = client.release(tag)
     if release is None:
         raise PublicationError("Public release is unavailable; finalization is pending")
+    validate_asset_inventory(release, manifest, phase="payloads")
     receipt_path = stage / RECEIPT_NAME
     kit_path = stage / f"provelume-{version}-installation-kit.zip"
     verify_kit(kit_path, bundle=bundle, receipt=read_metadata(receipt_path))
@@ -183,6 +212,7 @@ def finalize(bundle: Path, stage: Path, *, client: GitHub) -> dict:
     release = client.release(tag)
     if release is None:
         raise PublicationError("Finalization observation is unavailable")
+    validate_asset_inventory(release, manifest, phase="finalization")
     observed_root = stage / "observed"
     for path in (receipt_path, kit_path):
         client.download(release, path.name, observed_root / path.name)
@@ -209,6 +239,7 @@ def finalize(bundle: Path, stage: Path, *, client: GitHub) -> dict:
     release = client.release(tag)
     if release is None:
         raise PublicationError("Readiness observation is unavailable")
+    validate_asset_inventory(release, manifest, phase="ready")
     client.download(release, READY_NAME, observed_root / READY_NAME)
     if read_metadata(observed_root / READY_NAME) != read_metadata(ready_path):
         raise PublicationError("Public readiness marker differs")

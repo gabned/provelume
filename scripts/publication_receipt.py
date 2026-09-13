@@ -9,6 +9,8 @@ from pathlib import Path
 from provelume.publication import (
     MAX_PAYLOAD_BYTES,
     MAX_RECEIPT_BYTES,
+    READY_NAME,
+    RECEIPT_NAME,
     SOURCE_REPOSITORY,
     PublicationError,
     _identity,
@@ -22,6 +24,64 @@ from provelume.publication import (
     utc_text,
     write_once,
 )
+
+
+def _asset_names(manifest: dict) -> tuple[set[str], set[str]]:
+    _identity(manifest)
+    declared = manifest.get("artifacts")
+    if not isinstance(declared, list) or not isinstance(manifest.get("sbom"), dict):
+        raise PublicationError("qualified manifest artifacts are invalid")
+    generated = {
+        RECEIPT_NAME,
+        f"provelume-{manifest['version']}-installation-kit.zip",
+        READY_NAME,
+    }
+    names = {"release-manifest.json", "SHA256SUMS"}
+    for value in [*declared, manifest["sbom"]]:
+        if not isinstance(value, dict):
+            raise PublicationError("qualified manifest artifact is invalid")
+        name = artifact_identity({key: value.get(key) for key in ("name", "sha256", "size_bytes")})[
+            "name"
+        ]
+        if name.casefold() in {item.casefold() for item in names | generated}:
+            raise PublicationError("qualified file identities collide")
+        names.add(name)
+    return names, generated
+
+
+def validate_asset_inventory(release: dict, manifest: dict, *, phase: str) -> dict[str, dict]:
+    """Closed observed names, including only the three permanent finalization assets."""
+    core, generated = _asset_names(manifest)
+    if phase not in {"resume", "payloads", "finalization", "ready"}:
+        raise PublicationError("publication inventory phase is invalid")
+    required = set() if phase == "resume" else set(core)
+    if phase in {"finalization", "ready"}:
+        required.update(generated - {READY_NAME})
+    if phase == "ready":
+        required.add(READY_NAME)
+    assets = release.get("assets")
+    if not isinstance(assets, list) or len(assets) > 300:
+        raise PublicationError("observed asset inventory is invalid")
+    inventory, folded = {}, set()
+    for asset in assets:
+        if not isinstance(asset, dict) or not isinstance(asset.get("name"), str):
+            raise PublicationError("observed asset row is invalid")
+        name = asset["name"]
+        if name.casefold() in folded:
+            raise PublicationError("observed release assets collide")
+        folded.add(name.casefold())
+        if name not in core | generated:
+            raise PublicationError("observed release contains an unexpected asset")
+        if (
+            asset.get("state") != "uploaded"
+            or type(asset.get("size")) is not int
+            or not 0 < asset["size"] <= MAX_PAYLOAD_BYTES
+        ):
+            raise PublicationError("observed release asset is incomplete or invalid")
+        inventory[name] = asset
+    if required - inventory.keys():
+        raise PublicationError("published required asset is missing")
+    return inventory
 
 
 def create_receipt(
@@ -43,17 +103,7 @@ def create_receipt(
         raise PublicationError("observed release tag differs")
     if ("preview" if release["prerelease"] else "stable") != manifest.get("channel"):
         raise PublicationError("observed release channel differs")
-    assets = release.get("assets")
-    if not isinstance(assets, list) or len(assets) > 300:
-        raise PublicationError("observed asset inventory is invalid")
-    inventory = {}
-    for asset in assets:
-        if not isinstance(asset, dict) or not isinstance(asset.get("name"), str):
-            raise PublicationError("observed asset row is invalid")
-        key = asset["name"].casefold()
-        if key in inventory:
-            raise PublicationError("observed release assets collide")
-        inventory[key] = asset
+    inventory = validate_asset_inventory(release, manifest, phase="payloads")
     identities = []
     declared = manifest.get("artifacts")
     if not isinstance(declared, list) or not isinstance(manifest.get("sbom"), dict):
@@ -72,7 +122,7 @@ def create_receipt(
     identities.append(file_identity(bundle / "SHA256SUMS"))
     manifest_identity = file_identity(manifest_path)
     for identity in [manifest_identity, *identities]:
-        asset = inventory.get(identity["name"].casefold())
+        asset = inventory.get(identity["name"])
         if (
             not asset
             or asset.get("state") != "uploaded"
@@ -112,7 +162,7 @@ def validate_qualified_files(bundle: Path) -> dict:
     declared = manifest.get("artifacts")
     if not isinstance(declared, list) or not isinstance(manifest.get("sbom"), dict):
         raise PublicationError("qualified manifest artifacts are invalid")
-    names = {"release-manifest.json", "SHA256SUMS"}
+    names, _generated = _asset_names(manifest)
     total = 0
     for value in [*declared, manifest["sbom"]]:
         if not isinstance(value, dict):
@@ -120,9 +170,6 @@ def validate_qualified_files(bundle: Path) -> dict:
         identity = artifact_identity(
             {key: value.get(key) for key in ("name", "sha256", "size_bytes")}
         )
-        if identity["name"].casefold() in {name.casefold() for name in names}:
-            raise PublicationError("qualified file identities collide")
-        names.add(identity["name"])
         if file_identity(bundle / identity["name"]) != identity:
             raise PublicationError("qualified artifact bytes differ")
         total += identity["size_bytes"]

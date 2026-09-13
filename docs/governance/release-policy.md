@@ -27,6 +27,11 @@ Recovery reruns only the failed publisher with the same run's qualified bundle a
 It can add missing assets, reuse identical assets and resume the receipt's original observation.
 It cannot rebuild payloads, republish the release, move its tag, overwrite assets or manufacture
 a successful readiness observation. A conflicting public identity or byte sequence stops recovery.
+The observed release asset inventory must be complete and limited to the qualified core bundle
+plus its publication receipt, exact-version installation kit and readiness marker. Unexpected
+assets, duplicate names or aliases stop recovery and readiness; they are never silently ignored
+or removed. Each phase requires its expected files, and existing allowed files still require
+unchanged bytes. A marker uploaded before a subsequently failed observation does not grant readiness.
 Raw artifacts remain independently verifiable payloads, but require the matching offline receipt
 import to constitute a publication-metadata-complete installation. No source/build/install time
 is substituted when that evidence is absent. The runtime receipt describes consistency and does

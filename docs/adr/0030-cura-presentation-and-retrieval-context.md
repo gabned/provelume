@@ -48,6 +48,12 @@ never a redirect or server-side fetch. Changing a hierarchy filter keeps other
 filters. Result anchors restore the selected document; individual filter chips
 remove one condition while preserving the others.
 
+Knowledge keeps Source and Area in the primary filters. MIME type, hierarchy and
+disposition remain under More filters, expanded when one is active. This preserves
+the baseline Area-to-document path without an extra disclosure action. The measured
+journeys and evidence boundaries are recorded in
+[S02 qualification](../qualification/cura-s02-shell.md).
+
 About & Credits reads fixed local identity, publication receipt and packaged notice
 texts. Public project links are explicitly activated by the user. Actual publication
 time and the independently verifiable offline release kit follow ADR 0029; a missing

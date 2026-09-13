@@ -36,6 +36,15 @@ finalization. The receipt's first `observed_at` is preserved across retries. A r
 written only after public bytes have been independently read back. A failure after marker upload
 but before its observation is retried idempotently; that run remains failed until the observation.
 
+Every publisher observation reads all asset pages within the existing 300-asset bound. The closed
+inventory permits only the qualified core file names and the receipt, this version's installation
+kit and readiness marker. Extra assets, name aliases or collisions stop before recovery uploads
+and before readiness is issued or reported. Missing core files are allowed only while resuming
+the initial payload upload; finalization requires the complete core plus receipt and kit, and its
+last observation also requires readiness. Existing permitted assets still require byte equality.
+If an extra appears after the marker upload, the observation fails and recovery remains pending;
+the publisher does not delete foreign assets, overwrite bytes or treat the marker alone as success.
+
 The reusable production implementation is `scripts/publication_publish.py`, with the receipt
 producer in `scripts/publication_receipt.py` and deterministic kit in `scripts/release_kit.py`.
 The permanent `scripts/publication_dry_run.py` replaces only transport with an explicitly synthetic
