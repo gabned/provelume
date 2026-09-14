@@ -1663,10 +1663,15 @@ def _validate_originals(
     return valid_files
 
 
-def inspect_instance(root: Path | str, *, deep: bool = True) -> dict[str, Any]:
+def inspect_instance(
+    root: Path | str, *, deep: bool = True,
+    _config_source: InstanceStore | None = None,
+) -> dict[str, Any]:
     """Validate one Instance without migrating, repairing or rebuilding it."""
 
     store = InstanceStore(root)
+    if _config_source is not None:
+        store._reuse_config_decoding_from(_config_source)
     errors: list[dict[str, str]] = []
     warnings: list[dict[str, str]] = []
     config, config_problem = _load_config(store)

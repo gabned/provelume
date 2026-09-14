@@ -85,7 +85,9 @@ class InstanceLifecycleManager:
         self.pending_path = self.control_root / "pending-operation.json"
 
     def validate(self, *, deep: bool = True) -> dict[str, Any]:
-        return inspect_instance(self.store.paths.root, deep=deep)
+        return inspect_instance(
+            self.store.paths.root, deep=deep, _config_source=self.store
+        )
 
     @staticmethod
     def _read_json(path: Path) -> dict[str, Any] | None:
