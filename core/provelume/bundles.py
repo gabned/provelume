@@ -18,7 +18,12 @@ from pypdf import PdfReader
 
 from .derived import provenance_edge
 from .domain import DerivedArtifact
-from .extractors import ExtractionError, extract_web_readable_text, extractor_for
+from .extractors import (
+    ExtractionError,
+    TextDecodingUnavailable,
+    extract_web_readable_text,
+    extractor_for,
+)
 from .operations import OperationLedger
 from .paths import safe_instance_path
 from .storage import InstanceStore, utc_now
@@ -39,6 +44,10 @@ _SAFE_SUFFIX = re.compile(r"\.[a-zA-Z0-9]{1,8}\Z")
 
 class BundleBuildError(RuntimeError):
     pass
+
+
+class BundleTextUnavailable(BundleBuildError):
+    """Verified Original has no UTF-8 text; the failed build remains recorded."""
 
 
 def _sha256(data: bytes) -> str:
@@ -303,6 +312,8 @@ class DocumentBundleManager:
                 if extractor is not None
                 else None
             )
+        except TextDecodingUnavailable as exc:
+            raise BundleTextUnavailable(str(exc)) from exc
         except ExtractionError as exc:
             raise BundleBuildError(str(exc)) from exc
         if extraction is None:

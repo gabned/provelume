@@ -66,6 +66,14 @@ Path locators use `/` as the logical separator even on Windows. Absolute locator
 every retained Original hash/size. It performs no migration, repair, index rebuild or network
 request. `--fast` validates identity and schema contracts without reading every Original byte.
 
+Every configuration access still opens and reads `provelume.yml`. An `InstanceStore` may reuse
+the YAML decoding of its last successful buffer only when the newly read bytes are identical;
+timestamps, file size and prior validation results never substitute for that read. The private
+buffer/value pair belongs to that store, and callers receive independent deep copies. A changed,
+missing, unreadable or malformed file is processed as the current input, never replaced with a
+previous valid configuration. This removes repeated decoding during validation and maintenance
+without caching an inspection, permission, manifest check or authority for a later operation.
+
 Schema 1 is reported as valid but `migration_required: true` when its identity and canonical state
 pass inspection. An unknown future schema or an older schema with no registered migration fails
 closed before a backup or write.

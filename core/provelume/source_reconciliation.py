@@ -76,9 +76,7 @@ class SourceReconciliationManager:
             ) from exc
         path = self.store.source_path(selected_id)
         if path is None:
-            raise SourceReconciliationStateError(
-                "Source reconciliation Source path is missing"
-            )
+            raise SourceReconciliationStateError("Source reconciliation Source path is missing")
         configuration_fingerprint = hash_payload(
             {
                 "source_id": selected_id,
@@ -230,16 +228,16 @@ class SourceReconciliationManager:
     ) -> list[dict[str, Any]]:
         path = self.store.source_path(source_id)
         if path is None:
-            raise SourceReconciliationStateError(
-                "Source reconciliation Source path is missing"
-            )
+            raise SourceReconciliationStateError("Source reconciliation Source path is missing")
         files = _iter_files(
-            self.folder_sources.selected_for_read(path), min(max_files, MAX_RECONCILIATION_FILES),
+            self.folder_sources.selected_for_read(path),
+            min(max_files, MAX_RECONCILIATION_FILES),
             policy_for_source(self.store, source_id),
         )
         rows: list[dict[str, Any]] = []
         total_bytes = 0
         for locator, selected_path in files:
+            getattr(self, "_control_poll", lambda: None)()
             try:
                 before = selected_path.stat()
                 if before.st_size > max_file_bytes:
@@ -249,6 +247,7 @@ class SourceReconciliationManager:
                 digest = hashlib.sha256()
                 with selected_path.open("rb") as handle:
                     while chunk := handle.read(_READ_CHUNK_BYTES):
+                        getattr(self, "_control_poll", lambda: None)()
                         digest.update(chunk)
                 after = selected_path.stat()
             except FileNotFoundError as exc:
@@ -324,6 +323,8 @@ class SourceReconciliationManager:
     def build_plan(self, source_id: str) -> tuple[dict[str, Any], bool]:
         selected_id = self._source_identifier(source_id)
         folder, configuration_fingerprint, network_used = self._configuration(selected_id)
+        if hasattr(self, "_control_poll"):
+            self._control_network_used = network_used
         canonical_rows, canonical_fingerprint = self._canonical_rows(selected_id)
         if folder["lifecycle_state"] == "paused":
             return (
@@ -451,9 +452,7 @@ class SourceReconciliationManager:
             existing = canonical_by_locator.get(locator)
             if existing is not None:
                 classification = (
-                    "current"
-                    if existing["content_hash"] == content_hash
-                    else "changed"
+                    "current" if existing["content_hash"] == content_hash else "changed"
                 )
             else:
                 rename_from = next(
@@ -533,9 +532,7 @@ class SourceReconciliationManager:
         try:
             int(job_id[4:], 16)
         except ValueError as exc:
-            raise SourceReconciliationStateError(
-                "Source reconciliation job ID is invalid"
-            ) from exc
+            raise SourceReconciliationStateError("Source reconciliation job ID is invalid") from exc
         return f"reconcile_{job_id.removeprefix('job_')}"
 
     def _run_path(self, run_id: str) -> Path:
@@ -557,31 +554,23 @@ class SourceReconciliationManager:
                 "Source reconciliation state is unreadable"
             ) from exc
         if not isinstance(value, dict):
-            raise SourceReconciliationStateError(
-                "Source reconciliation state must be an object"
-            )
+            raise SourceReconciliationStateError("Source reconciliation state must be an object")
         return value
 
     def _write_run(self, value: Mapping[str, Any]) -> dict[str, Any]:
         selected = validate_reconciliation_run(value)
         if self.root.is_symlink() or self.runs.is_symlink():
-            raise SourceReconciliationStateError(
-                "Source reconciliation run directory is unsafe"
-            )
+            raise SourceReconciliationStateError("Source reconciliation run directory is unsafe")
         self.runs.mkdir(parents=True, exist_ok=True)
         if not self.root.is_dir() or not self.runs.is_dir():
-            raise SourceReconciliationStateError(
-                "Source reconciliation run directory is invalid"
-            )
+            raise SourceReconciliationStateError("Source reconciliation run directory is invalid")
         self.store._atomic_json(self._run_path(str(selected["id"])), selected)
         return selected
 
     def _write_cursor(self, value: Mapping[str, Any]) -> dict[str, Any]:
         selected = validate_source_cursor(value)
         if self.root.is_symlink() or self.cursors.is_symlink():
-            raise SourceReconciliationStateError(
-                "Source reconciliation cursor directory is unsafe"
-            )
+            raise SourceReconciliationStateError("Source reconciliation cursor directory is unsafe")
         self.cursors.mkdir(parents=True, exist_ok=True)
         if not self.root.is_dir() or not self.cursors.is_dir():
             raise SourceReconciliationStateError(
@@ -631,10 +620,7 @@ class SourceReconciliationManager:
         return cursor
 
     def list_cursors(self) -> list[dict[str, Any]]:
-        return [
-            self.cursor(str(source["id"]))
-            for source in self.folder_sources.list_public()
-        ]
+        return [self.cursor(str(source["id"])) for source in self.folder_sources.list_public()]
 
     def get_run(self, run_id: str) -> dict[str, Any] | None:
         if not reconciliation_run_identifier(run_id):
@@ -656,9 +642,7 @@ class SourceReconciliationManager:
         if limit < 1:
             return []
         if self.runs.is_symlink() or (self.runs.exists() and not self.runs.is_dir()):
-            raise SourceReconciliationStateError(
-                "Source reconciliation run directory is invalid"
-            )
+            raise SourceReconciliationStateError("Source reconciliation run directory is invalid")
         if not self.runs.exists():
             return []
         paths = sorted(self.runs.glob("reconcile_*.json"))
@@ -714,8 +698,7 @@ class SourceReconciliationManager:
     def _within_progress(run: Mapping[str, Any]) -> dict[str, int]:
         plan = run["plan"]
         special_skip = int(
-            run["status"] == "completed"
-            and plan["snapshot_state"] in {"paused", "missing"}
+            run["status"] == "completed" and plan["snapshot_state"] in {"paused", "missing"}
         )
         terminal_error = int(run["status"] in {"failed", "superseded"})
         return {
@@ -726,10 +709,7 @@ class SourceReconciliationManager:
 
     def _absolute_progress(self, run: Mapping[str, Any]) -> dict[str, int]:
         within = self._within_progress(run)
-        return {
-            key: int(run["base_progress"][key]) + within[key]
-            for key in within
-        }
+        return {key: int(run["base_progress"][key]) + within[key] for key in within}
 
     def _rebase(
         self,
@@ -756,9 +736,7 @@ class SourceReconciliationManager:
             rebased[key] = observed[key] - value
         if rebased == run["base_progress"]:
             return dict(run)
-        return self._write_run(
-            {**run, "base_progress": rebased, "updated_at": instant_text()}
-        )
+        return self._write_run({**run, "base_progress": rebased, "updated_at": instant_text()})
 
     @staticmethod
     def _advanced(run: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -819,18 +797,14 @@ class SourceReconciliationManager:
             and current["code"] == code
             and current["counts"] == run["counts"]
             and current["snapshot_fingerprint"] == run["plan"]["snapshot_fingerprint"]
-            and current["configuration_fingerprint"]
-            == run["plan"]["configuration_fingerprint"]
+            and current["configuration_fingerprint"] == run["plan"]["configuration_fingerprint"]
             and current["resync_required"] == resync_required
             and current["network_used"] == run["network_used"]
         )
         if bound:
             return current
         now = str(run["completed_at"])
-        successful = (
-            run["status"] == "completed"
-            and run["plan"]["snapshot_state"] == "available"
-        )
+        successful = run["status"] == "completed" and run["plan"]["snapshot_state"] == "available"
         return self._write_cursor(
             {
                 "schema_version": SOURCE_RECONCILIATION_SCHEMA_VERSION,
@@ -838,9 +812,7 @@ class SourceReconciliationManager:
                 "revision": int(current["revision"]) + 1,
                 "state": state,
                 "code": code,
-                "configuration_fingerprint": run["plan"][
-                    "configuration_fingerprint"
-                ],
+                "configuration_fingerprint": run["plan"]["configuration_fingerprint"],
                 "snapshot_fingerprint": run["plan"]["snapshot_fingerprint"],
                 "last_attempt_at": now,
                 "last_success_at": now if successful else current["last_success_at"],
@@ -890,8 +862,7 @@ class SourceReconciliationManager:
             network_used=network_used,
             base_progress=progress,
             revision=int(existing["plan_revision"]) + 1,
-            superseded_revisions=int(existing["superseded_revisions"])
-            + int(superseded),
+            superseded_revisions=int(existing["superseded_revisions"]) + int(superseded),
             created_at=str(existing["created_at"]),
         )
         return self._write_run(replacement)
@@ -968,22 +939,43 @@ class SourceReconciliationManager:
         job: Mapping[str, Any],
         *,
         checkpoint: Callable[[dict[str, int]], Mapping[str, Any]],
+        safe_point: Callable[..., None] | None = None,
     ) -> dict[str, int]:
+        boundary = safe_point or (lambda **_: None)
+        self._control_network_used = False
+        self._control_poll = lambda: boundary(network_used=self._control_network_used)
+        try:
+            return self._execute_cooperative(job, checkpoint=checkpoint, boundary=boundary)
+        finally:
+            del self._control_poll
+            del self._control_network_used
+
+    def _execute_cooperative(self, job, *, checkpoint, boundary):
+        boundary()
         if (
             job.get("job_kind") != "maintenance.source_reconcile"
             or job.get("scope", {}).get("kind") != "source"
         ):
-            raise SourceReconciliationStateError(
-                "Scheduler job is not a Source reconciliation"
-            )
+            raise SourceReconciliationStateError("Scheduler job is not a Source reconciliation")
         initial_progress = {key: int(job["progress"][key]) for key in job["progress"]}
         run = self._load_or_start(job)
+        if run["plan"]["snapshot_state"] == "available":
+            boundary(
+                network_used=run["network_used"],
+                observation={
+                    "unit": "source_items",
+                    "completed": run["cursor"],
+                    "total": len(run["plan"]["items"]),
+                    "plan_revision": run["plan_digest"],
+                },
+            )
         if run["status"] == "completed":
             final = self._absolute_progress(run)
             return {key: max(0, final[key] - initial_progress[key]) for key in final}
 
         snapshot_state = str(run["plan"]["snapshot_state"])
         if snapshot_state in {"paused", "missing"}:
+            boundary(commit=True)
             run = self._finish_run(run, status="completed")
             final = self._absolute_progress(run)
             return {key: max(0, final[key] - initial_progress[key]) for key in final}
@@ -1019,11 +1011,20 @@ class SourceReconciliationManager:
                 }
             )
             self._after_item_checkpoint(run)
+            boundary(
+                observation={
+                    "unit": "source_items",
+                    "completed": run["cursor"],
+                    "total": len(run["plan"]["items"]),
+                    "plan_revision": run["plan_digest"],
+                }
+            )
 
         final_plan, network_used = self.build_plan(str(run["source_id"]))
         if hash_payload(final_plan) != run["plan_digest"] or network_used != run["network_used"]:
             self._finish_run(run, status="superseded")
             raise SourceReconciliationSupersededError("source_changed")
+        boundary(commit=True)
         run = self._finish_run(run, status="completed")
         final = self._absolute_progress(run)
         return {key: max(0, final[key] - initial_progress[key]) for key in final}
@@ -1096,9 +1097,7 @@ def source_reconciliation_state_findings(store: InstanceStore) -> list[dict[str,
             relative = path.relative_to(store.paths.root).as_posix()
             try:
                 if path.suffix != ".json":
-                    raise SourceReconciliationStateError(
-                        "Source reconciliation record is not JSON"
-                    )
+                    raise SourceReconciliationStateError("Source reconciliation record is not JSON")
                 record = validator(manager._read_json(path))
                 expected_id = record["source_id"] if label == "cursor" else record["id"]
                 if path.stem != expected_id:
@@ -1159,8 +1158,7 @@ def source_reconciliation_state_findings(store: InstanceStore) -> list[dict[str,
             else:
                 state, code, resync_required = manager._cursor_state(run)
                 successful = (
-                    run["status"] == "completed"
-                    and run["plan"]["snapshot_state"] == "available"
+                    run["status"] == "completed" and run["plan"]["snapshot_state"] == "available"
                 )
                 binding_invalid = (
                     run["status"] == "scanning"
@@ -1168,8 +1166,7 @@ def source_reconciliation_state_findings(store: InstanceStore) -> list[dict[str,
                     or cursor["code"] != code
                     or cursor["configuration_fingerprint"]
                     != run["plan"]["configuration_fingerprint"]
-                    or cursor["snapshot_fingerprint"]
-                    != run["plan"]["snapshot_fingerprint"]
+                    or cursor["snapshot_fingerprint"] != run["plan"]["snapshot_fingerprint"]
                     or cursor["last_attempt_at"] != run["completed_at"]
                     or (successful and cursor["last_success_at"] != run["completed_at"])
                     or cursor["counts"] != run["counts"]
@@ -1181,10 +1178,7 @@ def source_reconciliation_state_findings(store: InstanceStore) -> list[dict[str,
                 {
                     "code": "source_reconciliation_binding_invalid",
                     "message": "Source reconciliation cursor binding is invalid",
-                    "path": (
-                        "state/source-reconciliation/cursors/"
-                        f"{cursor['source_id']}.json"
-                    ),
+                    "path": (f"state/source-reconciliation/cursors/{cursor['source_id']}.json"),
                 }
             )
     return findings

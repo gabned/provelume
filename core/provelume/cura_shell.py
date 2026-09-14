@@ -160,6 +160,7 @@ def navigation_context(
                     "/assurance",
                     "/rebuild",
                     "/maintenance",
+                    "/maintenance/overview",
                 }:
                     category = "operations"
                 management[category]["links"].append(item)

@@ -1,0 +1,13 @@
+{% extends base_layout %}
+{% block title %}{{ t('om.result') }} · {{ t('brand') }}{% endblock %}
+{% block content %}<div class="maintenance-view"><h1>{{ t('om.result') }}</h1>
+{% if error %}<p class="status warn" role="alert">{{ t('om.result_error') }}</p><p><code>{{ error }}</code></p>
+{% if repair_reason %}<p>{{ t('om.repair_reason.' ~ repair_reason) }}</p>{% endif %}
+{% else %}<p role="status">{{ t('om.result_recorded') }}</p>
+{% if result.resulting_validation_status == 'invalid' %}<p class="status warn">{{ t('om.rollback_warning') }}</p>{% endif %}
+{% if result.status in ['repair_failed_restored', 'rollback_failed_compensated'] %}<p>{{ t('om.recovery_compensated') }}</p>{% endif %}
+{% if result.job %}<p><a href="/maintenance/jobs/{{ result.job.id }}?lang={{ lang }}">{{ t('om.job') }} {{ result.job.id }}</a></p>{% endif %}
+{% if result.receipt_id and result.status == 'repaired' %}<p><a href="/maintenance/repair/rollback/{{ result.receipt_id }}?lang={{ lang }}">{{ t('om.rollback') }}</a></p>{% endif %}
+<section class="panel"><details open><summary>{{ t('om.evidence') }}</summary><pre class="maintenance-evidence">{{ result|tojson(indent=2) }}</pre></details></section>{% endif %}
+<a href="/maintenance/{{ 'repair' if recovery_only else 'overview' }}?lang={{ lang }}">{{ t('om.repair') if recovery_only else t('om.title') }}</a>
+</div>{% endblock %}

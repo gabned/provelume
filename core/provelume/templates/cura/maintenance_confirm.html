@@ -1,0 +1,30 @@
+{% extends base_layout %}
+{% block title %}{{ t('om.confirm_title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}<div class="maintenance-view">
+<h1>{{ t('om.confirm_title') }}</h1><p>{{ t('om.preview_first') }}</p>
+{% if command_kind in ['repair_backup','repair_apply'] %}<p class="status warn">{{ t('om.repair_backup_scope') }}</p>{% endif %}
+{% if command_kind == 'repair_rollback' %}<p class="status warn">{{ t('om.rollback_warning') }}</p>{% endif %}
+{% if command_kind == 'repair_reconcile' %}<p>{{ t('om.pending_recovery_lead') }}</p><p class="status warn">{{ t('om.effect.' ~ preview.effect) }}</p>{% endif %}
+{% if command_kind in ['target_revoke', 'diagnostic_forget'] %}<p>{{ t('om.metadata_only') }}</p><p class="status warn">{{ t('om.metadata_effect') }}</p>{% endif %}
+<section class="panel"><dl>
+{% if preview.action %}<dt>{{ t('om.controls') }}</dt><dd>{{ t('om.action.' ~ preview.action) }}</dd>{% endif %}
+{% if preview.action_id %}<dt>{{ t('om.job') }}</dt><dd>{{ t('maintenance.action.' ~ preview.action_id) }}</dd>{% endif %}
+{% if preview.job_id %}<dt>{{ t('om.job') }}</dt><dd><code>{{ preview.job_id }}</code></dd>{% endif %}
+{% if preview.scope %}<dt>{{ t('om.scope') }}</dt><dd>{% if preview.scope is mapping %}{{ t('om.scope.' ~ preview.scope.kind) }} · <code>{{ preview.scope.id }}</code>{% else %}{{ t('om.scope.' ~ preview.scope) }}{% endif %}</dd>{% endif %}
+{% if preview.authority %}<dt>{{ t('om.authority') }}</dt><dd>{{ t('om.authority.' ~ preview.authority) }}</dd>{% endif %}
+{% if preview.estimate %}<dt>{{ t('om.count') }}</dt><dd>{{ preview.estimate.count if preview.estimate.count is not none else t('om.unknown') }} {{ t('om.unit.' ~ preview.estimate.unit) }}</dd>
+<dt>{{ t('om.bytes') }}</dt><dd>{{ preview.estimate.bytes if preview.estimate.bytes is not none else t('om.unknown') }}</dd>
+<dt>{{ t('om.temporary_bytes') }}</dt><dd>{{ preview.estimate.temporary_bytes_required if preview.estimate.temporary_bytes_required is not none else t('om.unknown') }}</dd>{% endif %}
+{% if preview.relative_path %}<dt>{{ t('om.relative_path') }}</dt><dd><code>{{ preview.relative_path }}</code></dd>{% endif %}
+{% if preview.archive_path %}<dt>{{ t('om.archive_path') }}</dt><dd><code>{{ preview.archive_path }}</code></dd>{% endif %}
+{% if preview.destination %}<dt>{{ t('om.destination') }}</dt><dd><code>{{ preview.destination }}</code></dd>{% endif %}
+{% if preview.mode %}<dt>{{ t('om.policy') }}</dt><dd>{{ t('om.mode.' ~ preview.mode) }}</dd>{% endif %}
+{% if preview.categories %}<dt>{{ t('om.diagnostics') }}</dt><dd>{{ preview.categories|join(', ') }}</dd>{% endif %}
+</dl><details><summary>{{ t('om.exact_inputs') }}</summary><pre class="maintenance-evidence">{{ preview|tojson(indent=2) }}</pre></details></section>
+{% if editable %}<section class="panel"><form action="/maintenance/confirm?lang={{ lang }}" method="post" class="settings-form">
+{% include 'cura/maintenance_fields.html' %}<input type="hidden" name="preview_id" value="{{ preview_id }}">
+<label class="action-check" for="confirm-maintenance"><input id="confirm-maintenance" type="checkbox" name="confirmed" value="yes" required>{{ t('om.confirm_ack') }}</label>
+<button type="submit">{{ t('om.prepare_backup') if command_kind == 'repair_backup' else t('om.confirm') }}</button>
+</form></section>{% else %}<p>{{ t('om.local_only') }}</p>{% endif %}
+<a href="/maintenance/overview?lang={{ lang }}">{{ t('om.cancel_preview') }}</a>
+</div>{% endblock %}

@@ -1,0 +1,20 @@
+{% extends base_layout %}
+{% block title %}{{ t('om.job') }} · {{ t('brand') }}{% endblock %}
+{% block content %}<div class="maintenance-view"><a href="/maintenance/overview?lang={{ lang }}">{{ t('om.title') }}</a>
+<h1>{{ t('scheduler.kind.' ~ job.job_kind) }}</h1><p><code>{{ job.id }}</code></p>
+<section class="panel"><h2>{{ t('om.state') }}</h2><p class="status">{{ t('om.state.' ~ job.display_state) }}</p>
+<dl><dt>{{ t('om.scope') }}</dt><dd>{{ t('om.scope.' ~ job.scope.kind) }} · <code>{{ job.scope.id }}</code></dd>
+<dt>{{ t('om.policy') }}</dt><dd><code>{{ job.policy_id }}</code> · {{ t('om.revision') }} {{ job.policy_revision }}</dd>
+<dt>{{ t('om.last_attempt') }}</dt><dd>{{ job.last_attempt_at or t('om.unknown') }}</dd>
+<dt>{{ t('om.last_success') }}</dt><dd>{{ job.last_success_at or t('om.unknown') }}</dd>
+<dt>{{ t('om.retry_time') }}</dt><dd>{{ job.retry_not_before or t('om.unknown') }}</dd>
+<dt>{{ t('om.recovery') }}</dt><dd>{{ t('om.recovery.' ~ job.recovery_state) }}</dd>
+<dt>{{ t('om.progress') }}</dt><dd>{{ job.progress_view.completed if job.progress_view.completed is not none else t('om.unknown') }} / {{ job.progress_view.total if job.progress_view.total is not none else t('om.unknown') }} {% if job.progress_view.unit %}{{ t('om.unit.' ~ job.progress_view.unit) }}{% endif %}</dd>
+<dt>{{ t('om.throughput') }}</dt><dd>{{ job.progress_view.rate_per_second if job.progress_view.rate_per_second is not none else t('om.unknown') }}</dd>
+<dt>{{ t('om.wait') }}</dt><dd>{{ t('om.wait.' ~ job.progress_view.wait_reason) if job.progress_view.wait_reason else t('om.none_recorded') }}</dd>
+<dt>{{ t('om.checkpoint') }}</dt><dd>{{ job.checkpoint.phase }} · {{ job.checkpoint.sequence }}</dd>
+</dl><a href="{{ job.evidence_url }}">{{ t('om.evidence') }}</a></section>
+<section class="panel"><h2>{{ t('om.controls') }}</h2><p>{{ t('om.cooperative') }}</p><nav class="form-actions" aria-label="{{ t('om.controls') }}">
+{% for action in capabilities.actions %}{% if editable %}<a href="/maintenance/jobs/{{ job.id }}/preview/{{ action }}?lang={{ lang }}">{{ t('om.action.' ~ action) }}</a>{% endif %}{% else %}<p>{{ t('om.no_controls') }}</p>{% endfor %}</nav></section>
+<section class="panel"><h2>{{ t('om.receipt') }}</h2>{% if job.terminal_receipt %}<p><code>{{ job.terminal_receipt.id }}</code> · {{ job.terminal_receipt.completed_at }}</p><p>{{ t('om.receipt_verified') }}</p>{% else %}<p>{{ t('om.receipt_unavailable') }}</p>{% endif %}</section>
+</div>{% endblock %}

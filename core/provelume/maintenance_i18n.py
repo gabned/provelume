@@ -72,6 +72,53 @@ MAINTENANCE_TRANSLATIONS: dict[str, dict[str, str]] = {
             "Verify one explicit backup target without changing the Instance."
         ),
         "maintenance.run_now": "Queue run now",
+        "maintenance.review.confirm_run": "Confirm preview and queue",
+        "maintenance.review.confirmation": (
+            "Confirmation queues the exact action and inputs shown. This preview expires after "
+            "10 minutes and can be used once."
+        ),
+        "maintenance.review.missing": (
+            "The selected action, Source or policy was not available in this preview."
+        ),
+        "maintenance.review.changed": (
+            "The reviewed inputs changed or the action could not be queued. Review a new "
+            "preview before confirming again."
+        ),
+        "maintenance.review.reload": (
+            "This preview has been used. Load current estimates before another action."
+        ),
+        "maintenance.review.refresh": "Load a new preview",
+        "maintenance.review.expired": (
+            "The preview is missing, expired or already used. Load a new preview to continue."
+        ),
+        "maintenance.review.limit": (
+            "The preview limit was reached. Actions without a reviewed estimate cannot be "
+            "queued from this page."
+        ),
+        "maintenance.review.unavailable": (
+            "A current preview is unavailable. Load a new preview before confirming."
+        ),
+        "maintenance.review.not_ready": "The preview prerequisites are not satisfied.",
+        "maintenance.review.unknown": "Unknown",
+        "maintenance.review.total_unknown": (
+            "Total execution work is not yet known; these counts describe retained inputs only."
+        ),
+        "maintenance.review.network": "Network access",
+        "maintenance.review.yes": "Yes",
+        "maintenance.review.no": "No",
+        "maintenance.review.unit.documents": "documents",
+        "maintenance.review.unit.retained_originals": "retained Originals",
+        "maintenance.review.unit.source_items": "Source items",
+        "maintenance.review.unit.archive_entries": "archive entries",
+        "maintenance.review.relation.exact": "exact input count",
+        "maintenance.review.relation.unknown": "input count unknown",
+        "maintenance.review.bytes_scope.selected_original_metadata": "selected Original sizes",
+        "maintenance.review.bytes_scope.retained_original_metadata": "retained Original sizes",
+        "maintenance.review.bytes_scope.observed_source_inputs": "observed Source inputs",
+        "maintenance.review.bytes_scope.compressed_archive": "compressed archive size",
+        "maintenance.review.authority.read_only": "Read-only inspection",
+        "maintenance.review.authority.derived_write": "Rebuildable data write",
+        "maintenance.review.authority.explicit_destination": "Explicit local destination",
         "maintenance.local_only": (
             "Run-now controls are available only in the loopback Browser. Timed policies remain "
             "explicit local CLI actions."
@@ -141,15 +188,11 @@ MAINTENANCE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "maintenance.action.search.reindex.full.description": (
             "Costruisce e attiva atomicamente una generazione FTS completa e ricostruibile."
         ),
-        "maintenance.action.search.reindex.incremental": (
-            "Reindicizzazione FTS incrementale"
-        ),
+        "maintenance.action.search.reindex.incremental": ("Reindicizzazione FTS incrementale"),
         "maintenance.action.search.reindex.incremental.description": (
             "Reindicizza l'evidenza esatta delle Version modificate in una generazione isolata."
         ),
-        "maintenance.action.maintenance.library_rebuild": (
-            "Ricostruzione libreria Markdown"
-        ),
+        "maintenance.action.maintenance.library_rebuild": ("Ricostruzione libreria Markdown"),
         "maintenance.action.maintenance.library_rebuild.description": (
             "Ricostruisce la proiezione eliminabile della libreria Markdown."
         ),
@@ -184,6 +227,59 @@ MAINTENANCE_TRANSLATIONS: dict[str, dict[str, str]] = {
             "Verifica una destinazione di backup esplicita senza modificare l'Instance."
         ),
         "maintenance.run_now": "Accoda ora",
+        "maintenance.review.confirm_run": "Conferma anteprima e accoda",
+        "maintenance.review.confirmation": (
+            "La conferma accoda esattamente l'azione e gli input mostrati. L'anteprima scade "
+            "dopo 10 minuti e può essere usata una sola volta."
+        ),
+        "maintenance.review.missing": (
+            "L'azione, la Source o la policy selezionata non era disponibile in questa anteprima."
+        ),
+        "maintenance.review.changed": (
+            "Gli input esaminati sono cambiati oppure non è stato possibile accodare l'azione. "
+            "Consulta una nuova anteprima prima di confermare ancora."
+        ),
+        "maintenance.review.reload": (
+            "Questa anteprima è stata usata. Carica le stime attuali prima di un'altra azione."
+        ),
+        "maintenance.review.refresh": "Carica una nuova anteprima",
+        "maintenance.review.expired": (
+            "L'anteprima è assente, scaduta o già usata. Carica una nuova anteprima per continuare."
+        ),
+        "maintenance.review.limit": (
+            "È stato raggiunto il limite delle anteprime. Le azioni senza una stima esaminata "
+            "non possono essere accodate da questa pagina."
+        ),
+        "maintenance.review.unavailable": (
+            "Non è disponibile un'anteprima attuale. Carica una nuova anteprima prima di "
+            "confermare."
+        ),
+        "maintenance.review.not_ready": "I prerequisiti dell'anteprima non sono soddisfatti.",
+        "maintenance.review.unknown": "Non noto",
+        "maintenance.review.total_unknown": (
+            "Il lavoro complessivo di esecuzione non è ancora noto: questi conteggi descrivono "
+            "soltanto gli input conservati."
+        ),
+        "maintenance.review.network": "Accesso alla rete",
+        "maintenance.review.yes": "Sì",
+        "maintenance.review.no": "No",
+        "maintenance.review.unit.documents": "documenti",
+        "maintenance.review.unit.retained_originals": "Original conservati",
+        "maintenance.review.unit.source_items": "elementi della Source",
+        "maintenance.review.unit.archive_entries": "elementi dell'archivio",
+        "maintenance.review.relation.exact": "conteggio esatto degli input",
+        "maintenance.review.relation.unknown": "conteggio degli input non noto",
+        "maintenance.review.bytes_scope.selected_original_metadata": (
+            "dimensioni degli Original selezionati"
+        ),
+        "maintenance.review.bytes_scope.retained_original_metadata": (
+            "dimensioni degli Original conservati"
+        ),
+        "maintenance.review.bytes_scope.observed_source_inputs": "input osservati della Source",
+        "maintenance.review.bytes_scope.compressed_archive": "dimensione dell'archivio compresso",
+        "maintenance.review.authority.read_only": "Ispezione in sola lettura",
+        "maintenance.review.authority.derived_write": "Scrittura di dati ricostruibili",
+        "maintenance.review.authority.explicit_destination": "Destinazione locale esplicita",
         "maintenance.local_only": (
             "I controlli Run now sono disponibili solo nel Browser loopback. Le policy "
             "temporizzate restano azioni CLI locali esplicite."
@@ -194,18 +290,14 @@ MAINTENANCE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "maintenance.no_generations": (
             "Non è stata registrata alcuna generazione durevole dell'indice."
         ),
-        "maintenance.source_lifecycle": (
-            "Ciclo di vita della riconciliazione Source"
-        ),
+        "maintenance.source_lifecycle": ("Ciclo di vita della riconciliazione Source"),
         "maintenance.revision": "revisione",
         "maintenance.last_attempt": "Ultimo tentativo",
         "maintenance.last_success": "Ultimo successo",
         "maintenance.resync": "Risincronizzazione necessaria",
         "maintenance.no_source_cursors": "Non è disponibile alcuna Source gestita.",
         "maintenance.source_runs": "Esecuzioni di riconciliazione Source",
-        "maintenance.no_source_runs": (
-            "Non è stata registrata alcuna riconciliazione Source."
-        ),
+        "maintenance.no_source_runs": ("Non è stata registrata alcuna riconciliazione Source."),
         "maintenance.resource_title": "Statistiche risorse dell'Instance",
         "maintenance.resource_never": "Non è stato registrato alcuno snapshot risorse.",
         "maintenance.resource_state": "Stato delle soglie",

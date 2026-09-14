@@ -1351,14 +1351,25 @@ class ProvelumeInstance:
         request_key: str | None = None,
         policy_id: str | None = None,
         source_id: str | None = None,
+        parameters: dict[str, Any] | None = None,
+        expected_plan_revision: str | None = None,
     ) -> dict[str, Any]:
-        action = self.maintenance.action(action_id)
+        action = self.maintenance.action(action_id, parameters=parameters)
         if not action["available"] or not action["schedulable"]:
             raise MaintenanceUnavailableError(str(action["unavailable_reason"]))
         kind = str(action["scheduler_job_kind"])
         scope = self._maintenance_scope(action, source_id=source_id)
         try:
             with InstanceLifecycleManager(self.store)._hold(purpose="maintenance-run-now"):
+                if parameters is not None or expected_plan_revision is not None:
+                    current_plan = self.maintenance.plan_action(action_id, parameters=parameters)
+                    if (
+                        not isinstance(expected_plan_revision, str)
+                        or current_plan["plan_revision"] != expected_plan_revision
+                        or not current_plan["ready"]
+                        or current_plan["scope"] != scope
+                    ):
+                        raise MaintenanceError("maintenance preview changed or is unavailable")
                 matches = [
                     policy
                     for policy in self.scheduler.journal.list_policies()
@@ -1381,9 +1392,11 @@ class ProvelumeInstance:
                         state="enabled",
                         schedule=schedule_payload(mode="manual", timezone="UTC"),
                     )
-                result = self.scheduler.journal.run_now(
+                result = self.scheduler.run_now_locked(
                     str(policy["id"]),
                     request_key=request_key,
+                    parameters=parameters,
+                    expected_plan_revision=expected_plan_revision,
                 )
         except InstanceLifecycleBusy as exc:
             raise MaintenanceError("another Instance operation is active") from exc

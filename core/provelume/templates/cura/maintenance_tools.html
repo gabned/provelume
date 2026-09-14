@@ -1,0 +1,24 @@
+{% extends base_layout %}
+{% block title %}{{ t('om.' ~ tool) }} · {{ t('brand') }}{% endblock %}
+{% block content %}<div class="maintenance-view">
+{% if not recovery_only %}<a href="/maintenance/overview?lang={{ lang }}">{{ t('om.title') }}</a>{% endif %}
+<h1>{{ t('om.' ~ tool) }}</h1>
+{% if recovery_only %}<p class="status warn">{{ t('om.recovery_only') }}</p>{% endif %}
+<p class="lead">{{ t('om.' ~ tool ~ '_lead') }}</p>
+{% if tool == 'repair' %}<p>{{ t('om.repair_backup_scope') }}</p>{% endif %}
+{% if pending and pending.status != 'none' %}<section class="panel"><h2>{{ t('om.pending_recovery') }}</h2>
+<p>{{ t('om.pending_recovery_lead') }}</p>
+{% if pending.status == 'eligible' %}<p>{{ t('om.effect.' ~ pending.effect) }}</p>
+{% if editable %}<a href="/maintenance/repair/reconcile?lang={{ lang }}">{{ t('om.review_recovery') }}</a>{% endif %}
+{% else %}<p class="status warn">{{ t('om.repair_reason.unreadable') }}</p>{% endif %}</section>{% endif %}
+{% if not pending or pending.status == 'none' %}
+<section class="panel"><form class="settings-form" method="post" action="/maintenance/{{ tool }}?lang={{ lang }}">
+{% include 'cura/maintenance_fields.html' %}
+{% if tool == 'backup' %}<label for="archive-path">{{ t('om.archive_path') }}<input id="archive-path" name="archive_path" type="text" required maxlength="2048" autocomplete="off" spellcheck="false"></label>
+{% elif tool == 'diagnostics' %}<label for="diagnostic-destination">{{ t('om.destination') }}<input id="diagnostic-destination" name="destination" type="text" required maxlength="2048" autocomplete="off" spellcheck="false"></label>
+{% else %}<label for="repair-path">{{ t('om.relative_path') }}<input id="repair-path" name="relative_path" type="text" required maxlength="256" autocomplete="off" spellcheck="false"></label>{% endif %}
+{% if editable %}<button type="submit">{{ t('om.preview') }}</button>{% else %}<p>{{ t('om.local_only') }}</p>{% endif %}
+</form></section>
+{% endif %}
+{% if not recovery_only and tool in ['backup', 'diagnostics'] %}<p><a href="/maintenance/selections?lang={{ lang }}">{{ t('om.retained_targets') }} · {{ t('om.retained_plans') }}</a></p>{% endif %}
+</div>{% endblock %}

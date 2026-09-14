@@ -10,7 +10,7 @@ from typing import Any
 from markupsafe import Markup
 
 from .bundle_reader import DocumentBundleReader
-from .bundles import DocumentBundleManager
+from .bundles import BundleTextUnavailable, DocumentBundleManager
 from .index import verified_email_text_artifact
 from .paths import safe_instance_path
 from .storage import InstanceStore
@@ -321,6 +321,7 @@ class DocumentContentReader:
                 text_original = None
 
         source = "unavailable"
+        unavailable_reason = None
         raw_markdown = None
         bundle = None
         is_email = any(
@@ -345,7 +346,13 @@ class DocumentContentReader:
         elif not is_google_drive:
             bundle = self.bundles.get(str(version["id"]))
             if bundle is None and build_missing_bundle:
-                DocumentBundleManager(self.store).build_version(str(version["id"]))
+                try:
+                    DocumentBundleManager(self.store).build_version(str(version["id"]))
+                except BundleTextUnavailable:
+                    # Both this reader and the builder verified the exact Original.
+                    # Keep the failed operation and project the preserved identity;
+                    # integrity, container, path, limit and unknown errors propagate.
+                    unavailable_reason = "invalid_utf8"
                 bundle = self.bundles.get(str(version["id"]))
             if bundle is not None:
                 raw_markdown = self.bundles.read_markdown(str(version["id"]))
@@ -362,6 +369,7 @@ class DocumentContentReader:
             "version_id": str(version["id"]),
             "media_type": str(version["media_type"]),
             "source": source,
+            "unavailable_reason": unavailable_reason if raw_markdown is None else None,
             "markdown": selected_markdown,
             "markdown_truncated": markdown_truncated,
             "original_text": selected_original,

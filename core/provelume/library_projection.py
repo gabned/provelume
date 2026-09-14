@@ -73,6 +73,11 @@ class LibraryProjectionManager:
                 f"{document_id}"
             )
         body = content["markdown"] or "_No readable Markdown representation is available._\n"
+        if content.get("unavailable_reason") == "invalid_utf8":
+            body = (
+                "_Text is unavailable because the preserved Original is not valid "
+                "UTF-8. Its identity and bytes remain preserved._\n"
+            )
         bundle = content.get("bundle")
         if isinstance(bundle, dict):
             for asset in bundle.get("manifest", {}).get("assets", []):
@@ -118,6 +123,9 @@ class LibraryProjectionManager:
             f"provelume_primary_node_id: {primary_id}",
             f"provelume_secondary_node_ids: {secondary}",
             f"provelume_original_sha256: {json.dumps(content['original']['sha256'])}",
+            f"provelume_representation_source: {json.dumps(content['source'])}",
+            "provelume_representation_unavailable_reason: "
+            + json.dumps(content.get("unavailable_reason")),
             "---",
             "",
             (

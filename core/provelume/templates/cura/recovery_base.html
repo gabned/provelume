@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="{{ lang }}" data-theme="{{ theme }}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ t('om.repair') }} · {{ t('brand') }}{% endblock %}</title>
+<link rel="icon" type="image/svg+xml" href="/static/brand/provelume.svg">
+<link rel="stylesheet" href="/static/app.css"><link rel="stylesheet" href="/static/activity.css"></head>
+<body><a class="skip-link" href="#main-content">{{ t('common.skip_to_content') }}</a>
+<header class="site-header"><a class="brand" href="/maintenance/repair?lang={{ lang }}"><img class="brand-mark" src="/static/brand/provelume.svg" width="40" height="40" alt=""><span>{{ t('brand') }}</span></a>
+<nav class="language" aria-label="{{ t('common.language') }}"><a href="{{ language_urls.en }}" lang="en">EN</a><a href="{{ language_urls.it }}" lang="it">IT</a></nav></header>
+<main id="main-content" class="page-shell" tabindex="-1">{% block content %}{% endblock %}</main>
+</body></html>

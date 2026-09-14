@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import tempfile
 from collections.abc import Iterable
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -133,10 +135,17 @@ class InstancePaths:
         return self.state / "derived" / "provenance"
 
 
+class _ConfigBuffer(io.BytesIO):
+    def __init__(self, payload: bytes, name: str):
+        super().__init__(payload)
+        self.name = name
+
+
 class InstanceStore:
     def __init__(self, root: Path | str):
         self.paths = InstancePaths(Path(root).expanduser().resolve())
         self._open_preparation: dict[str, Any] | None = None
+        self._config_decoding: tuple[bytes, dict[str, Any]] | None = None
 
     @classmethod
     def initialise(
@@ -228,11 +237,25 @@ class InstanceStore:
             raise ValueError(errors[0])
 
     def read_config(self) -> dict[str, Any]:
-        with self.paths.config.open("r", encoding="utf-8") as handle:
-            value = yaml.safe_load(handle) or {}
-        if not isinstance(value, dict):
-            raise ValueError("invalid provelume.yml")
-        return value
+        try:
+            # Always observe the file, including replacement, removal and access errors.
+            with self.paths.config.open("rb") as handle:
+                payload = handle.read()
+                name = handle.name
+            previous = self._config_decoding
+            if previous is not None and previous[0] == payload:
+                return deepcopy(previous[1])
+            # Keep the real stream name and TextIOWrapper's UTF-8/newline semantics.
+            with io.TextIOWrapper(_ConfigBuffer(payload, name), encoding="utf-8") as handle:
+                value = yaml.safe_load(handle) or {}
+            if not isinstance(value, dict):
+                raise ValueError("invalid provelume.yml")
+            # A reader uses its own pair even if another reader replaces the cache.
+            self._config_decoding = (payload, value)
+            return deepcopy(value)
+        except (OSError, ValueError, yaml.YAMLError):
+            self._config_decoding = None
+            raise
 
     def read_manifest(self) -> dict[str, Any]:
         if not self.paths.manifest.is_file():

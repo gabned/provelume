@@ -23,6 +23,7 @@ SCHEDULER_JOB_KINDS = (
     "maintenance.duplicate_scan",
     "maintenance.source_reconcile",
     "maintenance.resource_snapshot",
+    "maintenance.backup_verify",
     "ocr.execute",
     "email.intake",
     "google.intake",
@@ -51,36 +52,43 @@ JOB_STATUSES = (
     "queued",
     "running",
     "retry_wait",
+    "pausing",
+    "paused",
+    "cancelling",
     "succeeded",
     "failed",
     "manual_intervention",
     "cancelled",
 )
-TERMINAL_JOB_STATUSES = frozenset(
-    {"succeeded", "failed", "manual_intervention", "cancelled"}
-)
+TERMINAL_JOB_STATUSES = frozenset({"succeeded", "failed", "manual_intervention", "cancelled"})
 ERROR_CLASSES = ("transient", "permanent", "manual_intervention", "cancelled")
 ERROR_CODES = (
-    "cancelled_by_user",
-    "committed_checkpoint_needs_review",
-    "executor_unavailable",
-    "instance_validation_failed",
-    "insufficient_temporary_space",
-    "invalid_state",
-    "lease_clock_reversed",
-    "lease_expired",
-    "lease_recovery_exhausted",
-    "local_io",
-    "maintenance_action_failed",
-    "reindex_state_invalid",
-    "resource_statistics_changed",
-    "resource_statistics_failed",
-    "resource_statistics_limit",
-    "source_refresh_failed",
-    "source_reconciliation_failed",
-    "source_reauthorization_required",
-    "source_reconciliation_superseded",
-) + OCR_ERROR_CODES + EMAIL_ERROR_CODES + GOOGLE_ERROR_CODES + TRANSCRIPT_ERROR_CODES
+    (
+        "cancelled_by_user",
+        "committed_checkpoint_needs_review",
+        "executor_unavailable",
+        "instance_validation_failed",
+        "insufficient_temporary_space",
+        "invalid_state",
+        "lease_clock_reversed",
+        "lease_expired",
+        "lease_recovery_exhausted",
+        "local_io",
+        "maintenance_action_failed",
+        "reindex_state_invalid",
+        "resource_statistics_changed",
+        "resource_statistics_failed",
+        "resource_statistics_limit",
+        "source_refresh_failed",
+        "source_reconciliation_failed",
+        "source_reauthorization_required",
+        "source_reconciliation_superseded",
+    )
+    + OCR_ERROR_CODES
+    + EMAIL_ERROR_CODES
+    + GOOGLE_ERROR_CODES
+    + TRANSCRIPT_ERROR_CODES
+)
 RECOVERY_STATES = ("none", "resumable", "restart_only", "manual_intervention")
 RUN_REASONS = ("manual", "scheduled", "coalesced", "catch_up")
 PROGRESS_KEYS = ("processed", "skipped", "errors")
@@ -428,9 +436,7 @@ def next_nominal_from_previous(
 ) -> datetime | None:
     normalised = normalise_schedule(schedule)
     if normalised["mode"] == "interval":
-        return utc_instant(previous) + timedelta(
-            seconds=int(normalised["interval_seconds"])
-        )
+        return utc_instant(previous) + timedelta(seconds=int(normalised["interval_seconds"]))
     return next_nominal_after(previous, normalised)
 
 
@@ -561,6 +567,8 @@ def validate_policy_record(
         job_kind=str(job_kind),
     )
     schedule = normalise_schedule(value.get("schedule"))
+    if job_kind == "maintenance.backup_verify" and schedule["mode"] != "manual":
+        raise SchedulerError("backup verification requires an explicit manual plan")
     retry = normalise_retry(value.get("retry"))
     created = instant_text(value.get("created_at"))
     updated = instant_text(value.get("updated_at"))
@@ -613,8 +621,7 @@ def validate_progress(value: Any) -> dict[str, int]:
     if not isinstance(value, Mapping) or set(value) != set(PROGRESS_KEYS):
         raise SchedulerError("job progress fields are incomplete or unsupported")
     return {
-        key: _integer(value.get(key), key, minimum=0, maximum=2**63 - 1)
-        for key in PROGRESS_KEYS
+        key: _integer(value.get(key), key, minimum=0, maximum=2**63 - 1) for key in PROGRESS_KEYS
     }
 
 
@@ -641,6 +648,13 @@ def _record_scope(value: Any, *, job_kind: str) -> dict[str, str]:
 
 
 def validate_job_record(value: Any) -> dict[str, Any]:
+    from .scheduler_control import ACTIVE_STATUSES, validate_control, validate_execution_plan
+
+    controlled = (
+        isinstance(value, Mapping)
+        and type(value.get("schema_version")) is int
+        and value["schema_version"] == 2
+    )
     expected = {
         "schema_version",
         "id",
@@ -666,6 +680,8 @@ def validate_job_record(value: Any) -> dict[str, Any]:
         "attempts",
         "receipt_ref",
     }
+    if controlled:
+        expected |= {"control", "execution_plan"}
     if not isinstance(value, Mapping) or set(value) != expected:
         raise SchedulerError("scheduler job fields are incomplete or unsupported")
     job_id = value.get("id")
@@ -674,13 +690,15 @@ def validate_job_record(value: Any) -> dict[str, Any]:
     status = value.get("status")
     reason = value.get("reason")
     if (
-        value.get("schema_version") != SCHEDULER_SCHEMA_VERSION
+        type(value.get("schema_version")) is not int
+        or value.get("schema_version") != (2 if controlled else SCHEDULER_SCHEMA_VERSION)
         or not isinstance(job_id, str)
         or _JOB_ID.fullmatch(job_id) is None
         or not isinstance(policy_id, str)
         or _POLICY_ID.fullmatch(policy_id) is None
         or job_kind not in SCHEDULER_JOB_KINDS
         or status not in JOB_STATUSES
+        or (not controlled and status in {"paused", "pausing", "cancelling"})
         or reason not in RUN_REASONS
         or not isinstance(value.get("idempotency_key"), str)
         or _SHA256.fullmatch(str(value.get("idempotency_key"))) is None
@@ -733,9 +751,10 @@ def validate_job_record(value: Any) -> dict[str, Any]:
             "heartbeat_at": instant_text(lease.get("heartbeat_at")),
             "expires_at": instant_text(lease.get("expires_at")),
         }
-    if status == "running" and lease is None:
+    active = status in ACTIVE_STATUSES
+    if active and lease is None:
         raise SchedulerError("running job must have a lease")
-    if status != "running" and lease is not None:
+    if not active and lease is not None:
         raise SchedulerError("only running jobs may retain a lease")
     checkpoint = value.get("checkpoint")
     if not isinstance(checkpoint, Mapping) or set(checkpoint) != {
@@ -799,7 +818,11 @@ def validate_job_record(value: Any) -> dict[str, Any]:
         completed_at = row.get("completed_at")
         if completed_at is not None:
             completed_at = instant_text(completed_at)
-        if row.get("outcome") not in {"running", "succeeded", "retry", "failed"}:
+        if row.get("outcome") not in (
+            {"running", "succeeded", "retry", "failed", "paused"}
+            if controlled
+            else {"running", "succeeded", "retry", "failed"}
+        ):
             raise SchedulerError("job attempt outcome is invalid")
         error_class = row.get("error_class")
         error_code = row.get("error_code")
@@ -814,13 +837,13 @@ def validate_job_record(value: Any) -> dict[str, Any]:
             raise SchedulerError("running job attempt has terminal evidence")
         if outcome != "running" and completed_at is None:
             raise SchedulerError("completed job attempt has no completion instant")
-        if outcome in {"retry", "failed"} and (
-            error_class is None or error_code is None
-        ):
+        if outcome in {"retry", "failed"} and (error_class is None or error_code is None):
             raise SchedulerError("failed job attempt has no closed error")
         if outcome == "retry" and error_class != "transient":
             raise SchedulerError("retry attempt must have a transient error")
-        if outcome == "succeeded" and (error_class is not None or error_code is not None):
+        if outcome in {"succeeded", "paused"} and (
+            error_class is not None or error_code is not None
+        ):
             raise SchedulerError("successful job attempt cannot contain an error")
         normalised_attempts.append(
             {
@@ -832,25 +855,24 @@ def validate_job_record(value: Any) -> dict[str, Any]:
                 "error_code": error_code,
             }
         )
-    if status == "running" and (
-        not normalised_attempts or normalised_attempts[-1]["outcome"] != "running"
-    ):
+    if active and (not normalised_attempts or normalised_attempts[-1]["outcome"] != "running"):
         raise SchedulerError("running job has no running attempt")
-    if status != "running" and any(
-        row["outcome"] == "running" for row in normalised_attempts
-    ):
+    if not active and any(row["outcome"] == "running" for row in normalised_attempts):
         raise SchedulerError("non-running job retains a running attempt")
     if status == "retry_wait" and normalised_attempts[-1]["outcome"] != "retry":
         raise SchedulerError("retry-wait job has inconsistent attempt evidence")
-    if status == "queued" and normalised_attempts and normalised_attempts[-1][
-        "outcome"
-    ] != "retry":
+    if (
+        status == "queued"
+        and normalised_attempts
+        and normalised_attempts[-1]["outcome"]
+        not in ({"retry", "paused"} if controlled else {"retry"})
+    ):
         raise SchedulerError("recovered queued job has inconsistent attempt evidence")
     if status in TERMINAL_JOB_STATUSES and normalised_attempts:
         expected_outcomes = (
             {"succeeded"}
             if status == "succeeded"
-            else {"failed", "retry"}
+            else ({"failed", "retry", "paused"} if controlled else {"failed", "retry"})
             if status == "cancelled"
             else {"failed"}
         )
@@ -866,8 +888,29 @@ def validate_job_record(value: Any) -> dict[str, Any]:
         raise SchedulerError("terminal job must reference an immutable receipt")
     if status not in TERMINAL_JOB_STATUSES and receipt_ref is not None:
         raise SchedulerError("non-terminal job cannot reference a receipt")
+    if (
+        status == "paused"
+        and normalised_attempts
+        and normalised_attempts[-1]["outcome"] not in {"paused", "retry"}
+    ):
+        raise SchedulerError("paused job retains inconsistent attempt evidence")
+    extension = {}
+    if controlled:
+        extension = {
+            "control": validate_control(value["control"], job=value),
+            "execution_plan": validate_execution_plan(value["execution_plan"], job_kind=job_kind),
+        }
+        execution_plan = extension["execution_plan"]
+        if execution_plan is not None and (
+            (job_kind != "maintenance.backup_verify" and execution_plan["scope"] != scope)
+            or (scope["kind"] == "instance" and execution_plan["instance_id"] != scope["id"])
+        ):
+            raise SchedulerError("execution plan scope differs from its job")
+    elif job_kind == "maintenance.backup_verify":
+        raise SchedulerError("backup verification requires its immutable execution plan")
     return {
-        "schema_version": SCHEDULER_SCHEMA_VERSION,
+        **extension,
+        "schema_version": 2 if controlled else SCHEDULER_SCHEMA_VERSION,
         "id": job_id,
         "policy_id": policy_id,
         "policy_revision": policy_revision,
@@ -969,9 +1012,7 @@ def validate_receipt_record(value: Any) -> dict[str, Any]:
         raise SchedulerError("successful scheduler receipt cannot contain an error")
     if status != "succeeded" and (error_class is None or error_code is None):
         raise SchedulerError("unsuccessful scheduler receipt requires a closed error")
-    if status == "cancelled" and (
-        error_class != "cancelled" or error_code != "cancelled_by_user"
-    ):
+    if status == "cancelled" and (error_class != "cancelled" or error_code != "cancelled_by_user"):
         raise SchedulerError("cancelled scheduler receipt has inconsistent error evidence")
     if status == "manual_intervention" and error_class != "manual_intervention":
         raise SchedulerError("manual-intervention receipt has inconsistent error evidence")
