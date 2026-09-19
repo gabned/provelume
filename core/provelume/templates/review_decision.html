@@ -6,9 +6,13 @@
 <h1>{{ rl[subject] if domain == 'capabilities' else rl[domain] }}</h1>
 <p class="lead">{{ rl.lead }}</p>
 <p><a href="/review/capabilities?lang={{ lang }}">{{ rl.capabilities }}</a> · <a href="/review/routing?lang={{ lang }}">{{ rl.routing }}</a> · <a href="/review/decisions/{{ domain }}/{{ subject }}?lang={{ lang }}">{{ rl.fresh }}</a></p>
+{% if domain == 'placement' %}<p><a href="/review/decisions/routing/{{ subject }}?lang={{ lang }}">{{ rl.apply_rule }}</a></p>{% endif %}
 {% if unavailable %}<p class="panel" role="alert">{{ rl.unavailable }}</p>{% else %}
 <div id="review-decisions" data-domain="{{ domain }}" data-subject="{{ subject }}" data-token="{{ csrf_token }}" data-labels="{{ rl|tojson|forceescape }}">
 {% for document in options.documents %}<p><a href="/documents/{{ document.id }}?lang={{ lang }}">{{ document.title }}</a> · <code>{{ document.id }}</code></p>{% endfor %}
+{% set routing_empty = domain == 'routing' and subject.startswith('doc_') and not options.actions %}
+{% if routing_empty %}<section class="panel" role="status"><h2>{{ rl.routing_empty_title }}</h2><p>{{ rl.routing_empty_help }}</p><a href="/review/decisions/placement/{{ subject }}?lang={{ lang }}">{{ rl.classify }}</a></section>{% endif %}
+<div{% if routing_empty %} hidden{% endif %}>
 <section class="panel">
 <form id="review-selection" class="settings-form">
 <label for="review-action">{{ rl.action }}</label><select id="review-action" name="action" required>{% for action in options.actions %}<option value="{{ action }}">{{ rl[action] }}</option>{% endfor %}</select>
@@ -38,6 +42,7 @@
 <dl><dt>{{ rl.impact }}</dt><dd id="review-impact"></dd><dt>{{ rl.reversibility }}</dt><dd id="review-reversibility"></dd><dt>{{ rl.confidence }}</dt><dd id="review-confidence"></dd></dl><p id="review-ambiguity" hidden>{{ rl.ambiguous }}</p>
 <details><summary>{{ rl.evidence }}</summary><pre id="review-evidence"></pre></details>
 <div class="review-confirmation"><label class="review-check"><input id="review-confirm-check" type="checkbox"> {{ rl.confirm_check }}</label><button id="review-confirm" type="button" disabled>{{ rl.confirm }}</button></div></section>
+</div>
 <p id="review-status" role="status" aria-live="polite"></p>
 <section class="panel"><h2>{{ rl.history }}</h2><p id="review-history-refresh" hidden>{{ rl.history_refresh }} <a href="/review/decisions/{{ domain }}/{{ subject }}?lang={{ lang }}">{{ rl.fresh }}</a></p><div id="review-history-snapshot">{% if not history.complete %}<p role="status">{{ rl.incomplete }}</p>{% endif %}{% if history.complete and not history['items'] %}<p>{{ rl.history_empty }}</p>{% endif %}<ol class="document-list">{% for receipt in history['items'] %}<li><strong>{{ rl.get(receipt.action, receipt.action) }}</strong> · {{ receipt.principal }} · <time>{{ receipt.recorded_at }}</time><p><code>{{ receipt.id }}</code></p><details><summary>{{ rl.evidence }}</summary><pre>{{ receipt|tojson(indent=2) }}</pre></details></li>{% endfor %}</ol></div></section>
 </div><noscript><p role="alert">{{ rl.noscript }}</p></noscript>

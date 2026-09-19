@@ -116,6 +116,11 @@ def review_state_findings(store, records):
         findings.append({"code": "review_state_invalid", "message": str(message), "path": path})
 
     try:
+        review_root = checked_path(store, "state/review")
+        if not review_root.exists() and not records.get("review-origins"):
+            return findings
+        if review_root.exists() and not review_root.is_dir():
+            raise ReviewUnavailable("Retained review state is not a directory")
         ReviewAuthority(store, CAPABILITIES).read()
         RoutingProvider(store).rules()
         root = checked_path(store, "state/review/receipts")

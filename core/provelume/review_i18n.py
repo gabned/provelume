@@ -26,6 +26,11 @@ REVIEW_TRANSLATIONS = {
         "review.save_rule": "Save routing rule",
         "review.revoke_rule": "Revoke routing rule",
         "review.apply_rule": "Apply selected rule",
+        "review.routing_empty_title": "No routing action available",
+        "review.routing_empty_help": (
+            "No applicable routing action is available for this document in the current view. "
+            "You can review its placement manually or inspect the routing rules."
+        ),
         "review.link_exact": "Link exact occurrences",
         "review.relate": "Keep as related Documents",
         "review.keep_separate": "Keep Documents separate",
@@ -195,6 +200,11 @@ REVIEW_TRANSLATIONS = {
         "review.save_rule": "Salva regola di instradamento",
         "review.revoke_rule": "Revoca regola di instradamento",
         "review.apply_rule": "Applica la regola selezionata",
+        "review.routing_empty_title": "Nessuna azione di instradamento disponibile",
+        "review.routing_empty_help": (
+            "Nella vista corrente non è disponibile un'azione di instradamento applicabile "
+            "a questo documento. Puoi rivedere manualmente la collocazione o consultare le regole."
+        ),
         "review.link_exact": "Collega occorrenze identiche",
         "review.relate": "Mantieni Documenti correlati",
         "review.keep_separate": "Mantieni Documenti separati",
