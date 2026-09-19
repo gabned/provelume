@@ -113,6 +113,11 @@ class InstanceLifecycleManager:
         selected_purpose = purpose.strip()[:120]
         if not selected_purpose:
             raise ValueError("lifecycle purpose is required")
+        if any(
+            path.is_symlink() or path.is_junction()
+            for path in (self.control_root, self.lock_path, self.control_root / "transactions")
+        ):
+            raise InstanceLifecycleError("lifecycle control paths cannot traverse links")
         self.control_root.mkdir(parents=True, exist_ok=True)
         token = f"lifecycle_{uuid4().hex}"
         owner = {
@@ -170,6 +175,12 @@ class InstanceLifecycleManager:
                         raise InstanceLifecycleError(
                             "repair recovery is pending or restored a known invalid state"
                         ) from exc
+            # A crashed reviewed decision may expose only some domain writes.
+            # Every lifecycle writer recovers it before reading a preimage.
+            from .review_runtime import recover_review_transactions_locked
+
+            if selected_purpose != "instance-transaction-recovery":
+                recover_review_transactions_locked(self.store)
             yield owner
         finally:
             try:
@@ -427,6 +438,7 @@ class InstanceLifecycleManager:
                 or any(transaction_root.glob("email-intake-*"))
                 or any(transaction_root.glob("google-intake-*"))
                 or any(transaction_root.glob("transcript-intake-*"))
+                or any(transaction_root.glob("review-*"))
             )
         )
         if has_registered_transactions:
@@ -434,6 +446,7 @@ class InstanceLifecycleManager:
                 ATOMIC_COMMIT_SCHEMA_VERSION,
                 EMAIL_INTAKE_TRANSACTION_PROFILE,
                 GOOGLE_INTAKE_TRANSACTION_PROFILE,
+                REVIEW_TRANSACTION_PROFILE,
                 TRANSCRIPT_INTAKE_TRANSACTION_PROFILE,
                 AtomicRecoveryHandler,
                 recover_atomic_transactions,
@@ -455,6 +468,7 @@ class InstanceLifecycleManager:
                         AtomicRecoveryHandler(
                             profile=TRANSCRIPT_INTAKE_TRANSACTION_PROFILE,
                         ),
+                        AtomicRecoveryHandler(profile=REVIEW_TRANSACTION_PROFILE),
                     ),
                 )
             if transaction_recovery is not None:

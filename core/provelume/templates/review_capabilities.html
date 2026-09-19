@@ -1,0 +1,11 @@
+{% extends base_layout %}
+{% block title %}{{ rl.capabilities }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<a href="/attention?lang={{ lang }}">{{ rl.back }}</a>
+<h1>{{ rl.capabilities }}</h1><p class="lead">{{ rl.scope_help }}</p>
+{% if unavailable %}<p class="panel" role="alert">{{ rl.unavailable }}</p>{% else %}
+<section class="panel"><ul class="document-list">{% for row in rows %}<li>
+<a href="/review/decisions/capabilities/{{ row.domain }}?lang={{ lang }}">{{ rl[row.domain] }}</a>
+<p>{{ rl.mode }}: {{ rl[row.mode] }}</p></li>{% endfor %}</ul></section>{% endif %}
+<a href="/review/routing?lang={{ lang }}">{{ rl.routing }}</a>
+{% endblock %}

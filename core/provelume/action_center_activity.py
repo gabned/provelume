@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from .action_center import ActionCenter
+from .action_center_adapters import domain_review_target
 from .action_center_model import ActionCenterError, ActionCenterUnavailable
 from .notification_preferences import NotificationPreferences, NotificationPreferencesError
 from .notifications import NotificationError, NotificationService
@@ -43,7 +44,25 @@ def attach_action_center_routes(
     token = secrets.token_urlsafe(32)
     nonces = MutationNonces()
 
+    def domain_item(item):
+        target = domain_review_target(item)
+        if target is None:
+            return item
+        item["domain_review"] = target
+        try:
+            history = instance.review_decisions.history(
+                domain=target["domain"], subject=target["subject"], limit=100,
+            )
+        except (ActionCenterUnavailable, OSError, ValueError, KeyError, TypeError):
+            history = {
+                "items": [], "complete": False, "count_relation": "unknown", "observed_count": 0,
+            }
+        item["domain_history"] = history
+        return item
+
     def page(request: Request, template: str, *, status_code: int = 200, **values):
+        if template == "cura/action_item.html" and values.get("item"):
+            values["item"] = domain_item(values["item"])
         context = context_factory(request, instance, **values)
         editable = _loopback_request(request)
         translate = context["t"]
@@ -158,7 +177,9 @@ def attach_action_center_routes(
         offset: int = Query(default=0, ge=0),
     ):
         try:
-            return center.snapshot(queue=queue, state=state, limit=limit, offset=offset)
+            return center.review_projection(
+                instance.review_decisions, queue=queue, state=state, limit=limit, offset=offset,
+            )
         except ActionCenterError as exc:
             raise HTTPException(400, exc.code) from exc
 
@@ -171,7 +192,7 @@ def attach_action_center_routes(
         item = center.get_item(item_id)
         if item is None:
             raise HTTPException(404, "Action Center item not found")
-        return item
+        return domain_item(item)
 
     @app.get("/attention")
     def attention_page(
@@ -181,7 +202,10 @@ def attach_action_center_routes(
         offset: int = Query(default=0, ge=0),
     ):
         try:
-            snapshot = center.snapshot(queue=queue or None, state=state, limit=50, offset=offset)
+            snapshot = center.review_projection(
+                instance.review_decisions, queue=queue or None, state=state,
+                limit=50, offset=offset,
+            )
         except ActionCenterError as exc:
             raise HTTPException(400, exc.code) from exc
         if (

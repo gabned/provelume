@@ -1809,6 +1809,7 @@ def inspect_instance(
         from .qualification import qualification_state_findings
         from .representations import representation_state_findings
         from .resource_statistics import resource_statistics_state_findings
+        from .review_integrity import review_state_findings
         from .scheduler import scheduler_state_findings
         from .source_reconciliation import source_reconciliation_state_findings
         from .transcript_jobs import transcript_state_findings
@@ -1820,6 +1821,7 @@ def inspect_instance(
         errors.extend(scheduler_state_findings(store))
         errors.extend(source_reconciliation_state_findings(store))
         errors.extend(resource_statistics_state_findings(store))
+        errors.extend(review_state_findings(store, records))
         errors.extend(transcript_state_findings(store, records))
         original_files = _validate_originals(
             store,

@@ -1273,6 +1273,46 @@ class RepresentationBundleManager:
         missing_component: str | None = None,
         created_at: str | None = None,
     ) -> dict[str, Any]:
+        from .instance_lifecycle import InstanceLifecycleManager
+
+        with InstanceLifecycleManager(self.store)._hold(purpose="representation-materialize"):
+            return self._materialize_locked(
+                version_id,
+                recipe_id=recipe_id,
+                recipe_version=recipe_version,
+                recipe_settings=recipe_settings,
+                output_payloads=output_payloads,
+                implementation=implementation,
+                warnings=warnings,
+                anchor_targets=anchor_targets,
+                corrections=corrections,
+                previous_representation_ids=previous_representation_ids,
+                parent_representation_ids=parent_representation_ids,
+                availability_state=availability_state,
+                availability_reason=availability_reason,
+                missing_component=missing_component,
+                created_at=created_at,
+            )
+
+    def _materialize_locked(
+        self,
+        version_id: str,
+        *,
+        recipe_id: str,
+        recipe_version: str,
+        recipe_settings: Mapping[str, Any],
+        output_payloads: Mapping[str, tuple[str, bytes]],
+        implementation: Mapping[str, Any],
+        warnings: Sequence[str] = (),
+        anchor_targets: Sequence[Mapping[str, Any]] = (),
+        corrections: Sequence[Mapping[str, Any]] = (),
+        previous_representation_ids: Sequence[str] = (),
+        parent_representation_ids: Sequence[str] = (),
+        availability_state: str = "available",
+        availability_reason: str | None = None,
+        missing_component: str | None = None,
+        created_at: str | None = None,
+    ) -> dict[str, Any]:
         version = self._version(version_id)
         if not output_payloads:
             raise RepresentationContractError(
@@ -1463,6 +1503,15 @@ class RepresentationBundleManager:
         return result
 
     def remove(self, selected_id: str, *, removed_at: str | None = None) -> dict[str, Any]:
+        from .instance_lifecycle import InstanceLifecycleManager
+
+        with InstanceLifecycleManager(self.store)._hold(purpose="representation-remove"):
+            return self._remove_locked(
+                selected_id,
+                removed_at=removed_at,
+            )
+
+    def _remove_locked(self, selected_id: str, *, removed_at: str | None = None) -> dict[str, Any]:
         bundle = self.get(selected_id, deep=True)
         if bundle is None:
             raise RepresentationContractError(
@@ -1508,6 +1557,17 @@ class RepresentationBundleManager:
         return receipt
 
     def rebuild(self, selected_id: str, output_payloads: Mapping[str, bytes]) -> dict[str, Any]:
+        from .instance_lifecycle import InstanceLifecycleManager
+
+        with InstanceLifecycleManager(self.store)._hold(purpose="representation-rebuild"):
+            return self._rebuild_locked(
+                selected_id,
+                output_payloads,
+            )
+
+    def _rebuild_locked(
+        self, selected_id: str, output_payloads: Mapping[str, bytes]
+    ) -> dict[str, Any]:
         receipt_path = self.history / f"{selected_id}.json"
         try:
             receipt = json.loads(receipt_path.read_text(encoding="utf-8"))

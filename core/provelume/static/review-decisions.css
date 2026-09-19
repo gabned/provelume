@@ -1,0 +1,26 @@
+#review-decisions .settings-form > label,
+#review-decisions [data-actions] > label { margin-block: 1rem .4rem; }
+#review-decisions .settings-form > label:first-child { margin-top: 0; }
+#review-decisions select { max-width: 100%; }
+#review-decisions fieldset { margin-block: 1rem; padding: .75rem 1rem; border: 1px solid var(--line); border-radius: var(--radius); }
+#review-decisions .review-check { display: flex; flex-direction: row; align-items: center; gap: .75rem; min-height: 2.75rem; color: var(--text); font-size: .9rem; line-height: 1.5; }
+#review-decisions .review-check input[type="checkbox"] { flex: 0 0 1.2rem; width: 1.2rem; height: 1.2rem; min-height: 1.2rem; padding: 0; margin: 0; accent-color: var(--accent); }
+#review-decisions .review-table-scroll { max-width: 100%; overflow-x: auto; margin-block: 1rem 1.5rem; border: 1px solid var(--line); border-radius: var(--radius); }
+#review-decisions table { width: 100%; min-width: 32rem; border-collapse: collapse; table-layout: fixed; text-align: left; }
+#review-decisions th, #review-decisions td { padding: .85rem 1rem; vertical-align: top; overflow-wrap: anywhere; line-height: 1.5; }
+#review-decisions thead { background: var(--soft); }
+#review-decisions tbody tr { border-top: 1px solid var(--line); }
+#review-decisions th:first-child { width: 24%; }
+#review-decisions dl { display: grid; grid-template-columns: minmax(7rem, 1fr) minmax(0, 3fr); gap: .75rem 1rem; }
+#review-decisions dt { font-weight: 650; }
+#review-decisions dd { margin: 0; line-height: 1.5; }
+#review-decisions pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }
+#review-decisions code { overflow-wrap: anywhere; }
+#review-decisions .review-confirmation { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+#review-decisions .review-confirmation .review-check { flex: 1 1 22rem; }
+#review-decisions .document-list li { padding-block: .75rem; }
+@media (max-width: 600px) {
+  #review-decisions dl { grid-template-columns: minmax(0, 1fr); gap: .35rem; }
+  #review-decisions dd { margin-bottom: .75rem; }
+  #review-decisions .review-confirmation button { width: 100%; }
+}

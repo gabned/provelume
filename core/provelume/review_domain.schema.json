@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.local/schemas/review-domain-v1",
+  "title": "Retained domain review records",
+  "oneOf": [
+    {"$ref": "#/$defs/receipt"},
+    {"$ref": "#/$defs/routingRule"},
+    {"$ref": "#/$defs/placementHistory"}
+  ],
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "text": {"type": "string", "minLength": 1, "maxLength": 4000},
+    "requestId": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,128}$"},
+    "nodeId": {"type": "string", "pattern": "^(area|project|collection)_[0-9a-f]{32}$"},
+    "ruleId": {"type": "string", "pattern": "^routing_[0-9a-f]{32}$"},
+    "destinations": {
+      "type": "object", "additionalProperties": false,
+      "required": ["primary_node_id", "secondary_node_ids"],
+      "properties": {
+        "primary_node_id": {"type": "string", "pattern": "^(area|project)_[0-9a-f]{32}$"},
+        "secondary_node_ids": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/nodeId"}}
+      }
+    },
+    "receipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "id", "instance_id", "request_id", "request_digest", "domain", "subject", "action", "principal", "recorded_at", "plan_revision", "authority_revision", "history_ref", "history_sha256", "effect", "reversibility", "result", "status", "canonical_mutation"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "id": {"type": "string", "pattern": "^review_[0-9a-f]{32}$"},
+        "instance_id": {"type": "string", "pattern": "^inst_[0-9a-f]{32}$"},
+        "request_id": {"$ref": "#/$defs/requestId"},
+        "request_digest": {"$ref": "#/$defs/hash"},
+        "domain": {"$ref": "#/$defs/text"}, "subject": {"$ref": "#/$defs/text"},
+        "action": {"$ref": "#/$defs/text"}, "principal": {"$ref": "#/$defs/text"},
+        "recorded_at": {"$ref": "#/$defs/text"},
+        "plan_revision": {"$ref": "#/$defs/hash"}, "authority_revision": {"$ref": "#/$defs/hash"},
+        "history_ref": {"type": "string", "pattern": "^state/review/", "maxLength": 512},
+        "history_sha256": {"$ref": "#/$defs/hash"},
+        "effect": {"$ref": "#/$defs/text"}, "reversibility": {"$ref": "#/$defs/text"},
+        "result": {"type": "object"}, "status": {"const": "committed"},
+        "canonical_mutation": {"type": "boolean"}
+      }
+    },
+    "routingRule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "id", "revision", "source_id", "path_prefix", "destinations", "enabled", "automatic_enabled", "created_at", "updated_at", "principal"],
+      "properties": {
+        "schema_version": {"const": 1}, "id": {"$ref": "#/$defs/ruleId"},
+        "revision": {"type": "integer", "minimum": 1, "maximum": 2147483647},
+        "source_id": {"type": "string", "pattern": "^src_[0-9a-f]{32}$"},
+        "path_prefix": {"type": "string", "maxLength": 512},
+        "destinations": {"$ref": "#/$defs/destinations"},
+        "enabled": {"type": "boolean"}, "automatic_enabled": {"type": "boolean"},
+        "created_at": {"type": "string", "minLength": 1, "maxLength": 80},
+        "updated_at": {"type": "string", "minLength": 1, "maxLength": 80},
+        "principal": {"enum": ["local_browser", "local_cli"]}
+      }
+    },
+    "placementHistory": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "domain", "subject", "action", "request_id", "principal", "recorded_at", "input_revision", "plan_revision", "before", "after", "rule_id"],
+      "properties": {
+        "schema_version": {"const": 1}, "domain": {"enum": ["placement", "routing"]},
+        "subject": {"type": "string", "pattern": "^(doc|routing)_[0-9a-f]{32}$"},
+        "action": {"enum": ["classify", "save_rule", "revoke_rule", "apply_rule"]},
+        "request_id": {"$ref": "#/$defs/requestId"}, "principal": {"$ref": "#/$defs/text"},
+        "recorded_at": {"type": "string", "minLength": 1, "maxLength": 80},
+        "input_revision": {"$ref": "#/$defs/hash"}, "plan_revision": {"$ref": "#/$defs/hash"},
+        "before": {"type": ["object", "null"]}, "after": {"type": "object"},
+        "rule_id": {"oneOf": [{"$ref": "#/$defs/ruleId"}, {"type": "null"}]}
+      }
+    }
+  }
+}

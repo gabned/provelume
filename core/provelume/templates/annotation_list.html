@@ -1,0 +1,11 @@
+{% extends base_layout %}
+{% block title %}{{ al.title }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<section class="hero"><h1>{{ al.title }}</h1><p>{{ al.lead }}</p><p>{{ al.notice }}</p></section>
+<section class="panel">
+{% if not inventory.complete %}<p role="status">{{ al.partial }}</p>{% endif %}
+<ul>{% for item in inventory['items'] %}
+<li>{{ item.kind }} · <code>{{ item.version_id }}</code> — <a href="/review/annotations/{{ item.id }}?lang={{ lang }}">{{ al.open }}</a></li>
+{% else %}<li>{{ al.empty }}</li>{% endfor %}</ul>
+</section>
+{% endblock %}

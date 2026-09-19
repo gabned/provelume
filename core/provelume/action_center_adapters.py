@@ -18,6 +18,7 @@ from typing import Any
 import yaml
 
 from .action_center_model import (
+    DOMAIN_REVIEW_ACTIONS,
     QUEUES,
     ActionCenterError,
     bounded_json,
@@ -1228,6 +1229,27 @@ class _RecordedStore(InstanceStore):
 
     def list_canonical(self, kind: str) -> list[dict[str, Any]]:
         return list(self.projection.canonical.get(kind, {}).values())
+
+
+def domain_review_target(item: dict[str, Any]) -> dict[str, Any] | None:
+    """Project a navigation target, never confer mutation authority from queue evidence."""
+    selected = DOMAIN_REVIEW_ACTIONS.get(item.get("queue"))
+    if selected is None or item.get("review_state") == "superseded":
+        return None
+    domain, actions = selected
+    evidence = item.get("evidence", {})
+    key = {"placement": "document_id", "duplicates": "case_id", "versions": "proposal_id"}[domain]
+    subject = evidence.get(key)
+    if (
+        not isinstance(subject, str)
+        or re.fullmatch(r"[a-z][a-z0-9_]*_[0-9a-f]{32,64}", subject) is None
+    ):
+        return None
+    return {
+        "domain": domain, "subject": subject, "actions": list(actions),
+        "href": f"/review/decisions/{domain}/{subject}",
+        "requires_fresh_preview": True, "grants_mutation_authority": False,
+    }
 
 
 def collect_proposals(store: InstanceStore) -> dict[str, Any]:

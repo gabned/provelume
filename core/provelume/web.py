@@ -16,11 +16,13 @@ from .about import current_about
 from .action_center import ActionCenter
 from .action_center_activity import action_reason, attach_action_center_routes, item_url
 from .activity import attach_activity_routes
+from .annotation_activity import attach_annotation_routes
 from .api import attach_api, reject_client_installation_evidence
 from .audio_activity import attach_audio_routes
 from .build_info import current_build_info
 from .cura_icons import icon_renderer, render_icon
 from .cura_shell import navigation_context, script_integrity, shell_snapshot, validated_return
+from .domain_review_activity import attach_domain_review_routes
 from .email_activity import attach_email_routes
 from .file_family_activity import attach_file_family_routes
 from .folder_source_activity import attach_folder_source_routes
@@ -489,6 +491,8 @@ def create_app(
     )
     attach_activity_routes(app, instance, TEMPLATES, _context)
     attach_action_center_routes(app, instance, TEMPLATES, _context, action_center)
+    attach_annotation_routes(app, instance, TEMPLATES, _context)
+    attach_domain_review_routes(app, instance, TEMPLATES, _context)
     attach_folder_source_routes(app, instance, TEMPLATES, _context)
     attach_maintenance_routes(app, instance, TEMPLATES, _context)
     attach_operations_maintenance_routes(app, instance, TEMPLATES, _context)

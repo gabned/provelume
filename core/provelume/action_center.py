@@ -673,6 +673,31 @@ class ActionCenter:
             "authority_revision": stored["authority"]["revision"],
         }
 
+    def review_projection(self, decisions, **snapshot_parameters) -> dict[str, Any]:
+        """Compose real domain history without changing legacy inspection receipts."""
+        from .action_center_adapters import domain_review_target
+
+        snapshot = self.snapshot(**snapshot_parameters)
+        try:
+            history = decisions.history(limit=500)
+        except (ActionCenterUnavailable, OSError, ValueError, KeyError, TypeError):
+            history = {
+                "items": [], "complete": False, "count_relation": "unknown", "observed_count": 0,
+            }
+        for item in snapshot["items"]:
+            target = domain_review_target(item)
+            if target is None:
+                continue
+            item["domain_review"] = target
+            item["domain_receipts"] = [
+                receipt for receipt in history["items"]
+                if receipt["domain"] == target["domain"] and receipt["subject"] == target["subject"]
+            ]
+            # A historical committed effect does not assert that today's inputs are unchanged.
+            item["domain_history_complete"] = history["complete"]
+        snapshot["domain_history"] = history
+        return snapshot
+
     def get_item(self, item_id: str) -> dict[str, Any] | None:
         if not isinstance(item_id, str) or _ITEM.fullmatch(item_id) is None:
             return None

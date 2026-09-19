@@ -1,0 +1,14 @@
+{% extends base_layout %}
+{% block title %}{{ rl.routing }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<a href="/attention?lang={{ lang }}">{{ rl.back }}</a>
+<h1>{{ rl.routing }}</h1><p class="lead">{{ rl.automatic_help }}</p>
+<p><a href="/review/capabilities?lang={{ lang }}">{{ rl.capabilities }}</a></p>
+{% if unavailable %}<p class="panel" role="alert">{{ rl.unavailable }}</p>{% else %}
+<a href="/review/decisions/routing/{{ new_rule }}?lang={{ lang }}">{{ rl.new_rule }}</a>
+<section class="panel">{% if not rows %}<p>{{ rl.rules_empty }}</p>{% endif %}<ul class="document-list">
+{% for row in rows %}<li><a href="/review/decisions/routing/{{ row.id }}?lang={{ lang }}">{{ row.path_prefix or row.source_id }}</a>
+<p>{{ rl.revision }} {{ row.revision }} · {{ rl.enabled if row.enabled else rl.revoked }} · <code>{{ row.id }}</code></p>
+<p>{{ rl.source }}: <code>{{ row.source_id }}</code> · {{ rl.primary }}: <code>{{ row.destinations.primary_node_id }}</code></p></li>{% endfor %}</ul></section>
+{% endif %}
+{% endblock %}

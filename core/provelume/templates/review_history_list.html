@@ -1,0 +1,12 @@
+<section class="panel" aria-labelledby="domain-history-title">
+<h2 id="domain-history-title">{{ t('review.history') }}</h2>
+<p>{{ t('review.recorded_scope') }}</p>
+{% if not domain_history.complete %}<p role="status">{{ t('review.incomplete') }}</p>{% endif %}
+{% if domain_history.complete and not domain_history['items'] %}<p>{{ t('review.history_empty') }}</p>{% endif %}
+{% if domain_history['items']|length > 50 %}<p>{{ t('review.history_bound') }}</p>{% endif %}
+<ol class="document-list">{% for receipt in domain_history['items'][:50] %}<li>
+<strong>{{ t('review.' ~ receipt.action) }}</strong> · <span class="status ok">{{ t('review.committed') }}</span>
+<p>{{ t('review.' ~ receipt.domain) }} · <code>{{ receipt.subject }}</code></p>
+<p>{{ receipt.principal }} · <time datetime="{{ receipt.recorded_at }}">{{ receipt.recorded_at }}</time></p>
+<p><code>{{ receipt.id }}</code></p>
+</li>{% endfor %}</ol></section>

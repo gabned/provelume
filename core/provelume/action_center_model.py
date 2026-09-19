@@ -21,6 +21,14 @@ QUEUES = (
 REVIEW_STATES = ("awaiting_review", "accepted", "rejected", "superseded")
 AUTHORITY_MODES = ("disabled", "proposal-only", "confirm-each", "controlled-automatic")
 ACTIONS = ("acknowledge_evidence", "reject_proposal")
+# Domain mutations have a separate plan, authority and retained receipt contract.
+# These names must never be admitted into the schema-1 inspection receipt enum.
+DOMAIN_REVIEW_ACTIONS = {
+    "classification": ("placement", ("classify",)),
+    "exact_duplicate": ("duplicates", ("link_exact",)),
+    "probable_duplicate": ("duplicates", ("relate", "keep_separate", "new_version")),
+    "version_conflict": ("versions", ("select_current", "new_version")),
+}
 MAX_PAGE_SIZE = 500
 MAX_ITEMS = 10_000
 MAX_STATE_BYTES = 8 * 1024 * 1024
