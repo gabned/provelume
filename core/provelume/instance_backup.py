@@ -154,7 +154,7 @@ def create_backup(
     selected_reason = reason.strip()[:120]
     if not selected_reason:
         raise ValueError("backup reason is required")
-    validation = inspect_instance(store.paths.root, deep=True)
+    validation = inspect_instance(store.paths.root, deep=True, _config_source=store)
     if validation["status"] != "valid":
         raise BackupError("Instance validation failed before backup")
     backup_id, archive = _backup_destination(store, destination)
@@ -206,7 +206,7 @@ def create_backup(
 
     try:
         verified = verify_backup(archive)
-        final_validation = inspect_instance(store.paths.root, deep=True)
+        final_validation = inspect_instance(store.paths.root, deep=True, _config_source=store)
         final_entries = _entry_manifest(_payload_files(store))
         if (
             verified["status"] != "valid"

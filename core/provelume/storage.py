@@ -236,6 +236,11 @@ class InstanceStore:
         if errors:
             raise ValueError(errors[0])
 
+    def _reuse_config_decoding_from(self, source: InstanceStore) -> None:
+        """Reuse only a private successful decode for the same resolved config path."""
+        if self.paths.config == source.paths.config:
+            self._config_decoding = source._config_decoding
+
     def read_config(self) -> dict[str, Any]:
         try:
             # Always observe the file, including replacement, removal and access errors.

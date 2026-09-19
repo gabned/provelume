@@ -254,7 +254,9 @@ class LibraryProjectionManager:
 
     @staticmethod
     def _deep_fingerprint(store: InstanceStore) -> str:
-        validation = inspect_instance(store.paths.root, deep=True)
+        validation = inspect_instance(
+            store.paths.root, deep=True, _config_source=store
+        )
         fingerprint = validation.get("content_fingerprint")
         if validation.get("status") != "valid" or not isinstance(fingerprint, str):
             raise LibraryProjectionError(
