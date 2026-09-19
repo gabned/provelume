@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import shutil
 import socket
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from time import monotonic, sleep
 from typing import Any
 from uuid import uuid4
 
@@ -99,7 +101,15 @@ class InstanceLifecycleManager:
         return value if isinstance(value, dict) else None
 
     @contextmanager
-    def _hold(self, *, purpose: str) -> Iterator[dict[str, Any]]:
+    def _hold(
+        self, *, purpose: str, wait_seconds: float = 0
+    ) -> Iterator[dict[str, Any]]:
+        if (
+            type(wait_seconds) not in {int, float}
+            or not 0 <= wait_seconds <= 2
+            or not math.isfinite(wait_seconds)
+        ):
+            raise ValueError("lifecycle wait must be finite and between zero and two seconds")
         selected_purpose = purpose.strip()[:120]
         if not selected_purpose:
             raise ValueError("lifecycle purpose is required")
@@ -111,7 +121,6 @@ class InstanceLifecycleManager:
             "purpose": selected_purpose,
             "pid": os.getpid(),
             "hostname": socket.gethostname(),
-            "acquired_at": utc_now(),
         }
         flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0)
         try:
@@ -120,8 +129,20 @@ class InstanceLifecycleManager:
             raise InstanceLifecycleError("lifecycle lock file cannot be opened") from exc
         locked = False
         try:
-            _acquire_os_lock(descriptor)
+            deadline = monotonic() + wait_seconds
+            while True:
+                try:
+                    _acquire_os_lock(descriptor)
+                    break
+                except InstanceLifecycleBusy:
+                    remaining = deadline - monotonic()
+                    if remaining <= 0:
+                        raise
+                    sleep(min(0.025, remaining))
+                    if monotonic() >= deadline:
+                        raise
             locked = True
+            owner["acquired_at"] = utc_now()
             with os.fdopen(
                 descriptor,
                 "r+",

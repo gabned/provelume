@@ -43,7 +43,7 @@ from .library_projection import (
     LibraryProjectionManager,
 )
 from .maintenance import MaintenanceManager
-from .maintenance_model import MaintenanceError, MaintenanceUnavailableError
+from .maintenance_model import MaintenanceBusyError, MaintenanceError, MaintenanceUnavailableError
 from .markdown_viewer import MAX_VIEWER_MARKDOWN_CHARS, DocumentContentReader
 from .network_status import declared_network_status
 from .oauth_authorization import InstalledAppAuthorizationManager, InstalledAppOAuthAdapter
@@ -1360,7 +1360,9 @@ class ProvelumeInstance:
         kind = str(action["scheduler_job_kind"])
         scope = self._maintenance_scope(action, source_id=source_id)
         try:
-            with InstanceLifecycleManager(self.store)._hold(purpose="maintenance-run-now"):
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose="maintenance-run-now", wait_seconds=2
+            ):
                 if parameters is not None or expected_plan_revision is not None:
                     current_plan = self.maintenance.plan_action(action_id, parameters=parameters)
                     if (
@@ -1399,7 +1401,7 @@ class ProvelumeInstance:
                     expected_plan_revision=expected_plan_revision,
                 )
         except InstanceLifecycleBusy as exc:
-            raise MaintenanceError("another Instance operation is active") from exc
+            raise MaintenanceBusyError("another Instance operation is active") from exc
         except InstanceLifecycleError as exc:
             raise MaintenanceError("maintenance lifecycle lock is unavailable") from exc
         return {**result, "policy": policy, "job": public_job_record(result["job"])}

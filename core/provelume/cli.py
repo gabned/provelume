@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -56,9 +57,62 @@ def _loopback_host(value: str) -> str:
         raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
+class _UnselectedParser:
+    """Discard declarations for a command that this invocation cannot dispatch."""
+
+    def add_argument(self, *args, **kwargs) -> None:
+        pass
+
+    def add_mutually_exclusive_group(self, **kwargs) -> _UnselectedParser:
+        return self
+
+    def add_subparsers(self, **kwargs) -> _UnselectedParser:
+        return self
+
+    def add_parser(self, name, **kwargs) -> _UnselectedParser:
+        return self
+
+
+class _SelectedSubparsers:
+    def __init__(self, action: argparse._SubParsersAction, command: str):
+        self.action = action
+        self.command = command
+        self.matched = False
+
+    def add_parser(self, name, **kwargs):
+        aliases = kwargs.get("aliases", ())
+        if name == self.command or self.command in aliases:
+            self.matched = True
+            return self.action.add_parser(name, **kwargs)
+        # Delegate uncommon parser customization and conflicting registrations
+        # to argparse, which retains its original validation and error behavior.
+        if set(kwargs) - {"help", "aliases"} or any(
+            value in self.action.choices for value in (name, *aliases)
+        ):
+            return self.action.add_parser(name, **kwargs)
+        parser = _UnselectedParser()
+        # Preserve argparse's ordered names, aliases and choice help. Only the
+        # selected command's ArgumentParser/action graph needs construction.
+        if "help" in kwargs:
+            self.action._choices_actions.append(
+                self.action._ChoicesPseudoAction(name, aliases, kwargs["help"])
+            )
+        self.action._name_parser_map[name] = parser
+        for alias in aliases:
+            self.action._name_parser_map[alias] = parser
+        return parser
+
+
 def build_parser() -> argparse.ArgumentParser:
+    """Return a fresh, complete public CLI grammar."""
+    return _build_parser()
+
+
+def _build_parser(command: str | None = None) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="provelume", description="Run a local Provelume Instance")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    if command is not None:
+        subparsers = _SelectedSubparsers(subparsers, command)
 
     subparsers.add_parser(
         "build-info",
@@ -173,11 +227,24 @@ def build_parser() -> argparse.ArgumentParser:
     add_qualification_commands(subparsers)
     add_shell_commands(subparsers)
     add_publication_commands(subparsers)
+    if isinstance(subparsers, _SelectedSubparsers) and not subparsers.matched:
+        return build_parser()
     return parser
 
 
+def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
+    values = list(sys.argv[1:] if argv is None else argv)
+    if not values or values[0].startswith("-") or any(
+        value in {"-h", "--help"} for value in values
+    ):
+        parser = build_parser()
+    else:
+        parser = _build_parser(values[0])
+    return parser.parse_args(values)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    args = _parse_args(argv)
     publication_result = handle_publication_command(args)
     if publication_result is not None:
         return publication_result
