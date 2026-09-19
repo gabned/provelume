@@ -5,6 +5,7 @@ import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, replace
 from pathlib import Path
+from threading import Lock
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
@@ -83,13 +84,28 @@ class GoogleJobManager:
         self.store = store
         self.sources = GoogleSourceManager(store)
         self.scheduler = SchedulerStore(store)
-        self.adapter = adapter or GoogleApiAdapter()
+        self._adapter_lock = Lock()
+        self._adapter = adapter
         self.email = EmailJobManager(store)
         self.root = store.paths.state / "google-adapters" / "jobs"
         self.requests = self.root / "requests"
         self.runs = self.root / "runs"
         self.work = self.root / "work"
         self.cancellations = self.root / "cancellations"
+
+    @property
+    def adapter(self) -> GoogleProviderAdapter:
+        # Local Instance construction does not need Google transport resources.
+        # Publish only a completed adapter; failed construction remains retryable.
+        with self._adapter_lock:
+            if self._adapter is None:
+                self._adapter = GoogleApiAdapter()
+            return self._adapter
+
+    @adapter.setter
+    def adapter(self, value: GoogleProviderAdapter | None) -> None:
+        with self._adapter_lock:
+            self._adapter = value
 
     @staticmethod
     def _read_json(path: Path) -> dict[str, Any]:

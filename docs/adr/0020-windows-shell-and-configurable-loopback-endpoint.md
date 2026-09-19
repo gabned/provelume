@@ -116,7 +116,10 @@ markup, URLs, formulas, escape sequences and script-like values inert.
 
 The protected Public CI workflow and its 10-minute job remain unchanged. Only the bare Windows full
 suite is partitioned into four concurrent subprocesses by assigning whole source modules with a
-deterministic largest-first balance on collected test count. The partitions are stable, disjoint
+deterministic largest-first balance using versioned relative cost hints, with collected test count
+as the fallback for unknown modules or changed module counts. Hints only affect allocation; the
+collected items remain the sole source of partition membership. Malformed hints fail closed.
+The partitions are stable, disjoint
 and complete; targeted invocations are untouched. Each subprocess receives isolated state and
 pytest-cache directories. The parent has a 480-second bounded deadline, replays at most 2 MiB per
 shard, reports only shard index/count/duration/exit code, and terminates the process tree on timeout.

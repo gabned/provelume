@@ -11,7 +11,7 @@ from urllib.parse import parse_qs
 
 from fastapi import FastAPI, HTTPException, Request
 
-from .maintenance_model import MaintenanceError
+from .maintenance_model import MaintenanceBusyError, MaintenanceError
 from .scheduler_model import SchedulerError
 from .service import ProvelumeInstance
 
@@ -220,6 +220,13 @@ def attach_maintenance_routes(
                 source_id=source_id,
                 parameters=selected["parameters"],
                 expected_plan_revision=selected["plan_revision"],
+            )
+        except MaintenanceBusyError:
+            return templates.TemplateResponse(
+                request=request,
+                name="maintenance.html",
+                status_code=409,
+                context=values(request, error="maintenance.review.busy", issue_preview=False),
             )
         except (MaintenanceError, OSError, SchedulerError, ValueError):
             return templates.TemplateResponse(

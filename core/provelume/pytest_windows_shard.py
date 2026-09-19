@@ -21,6 +21,47 @@ CHILD_ENV = "PROVELUME_WINDOWS_SHARD_CHILD"
 FORCE_ENV = "PROVELUME_WINDOWS_SHARD_FORCE"
 DISABLE_ENV = "PROVELUME_WINDOWS_SHARD_DISABLE"
 
+# Relative allocation hints from completed, non-failing modules in the Cura 007
+# Windows diagnostic. They are not execution budgets or qualification evidence.
+# Keep them versioned and independent of optional files, environment or services.
+_COUNT_COST = 1000
+_MODULE_COST_HINTS = (
+    ("tests/test_instance_repair_pending.py", 21, 67681),
+    ("tests/test_agent_protocol_work_recovery.py", 33, 74703),
+    ("tests/test_action_center_routes.py", 9, 38270),
+    ("tests/test_agent_protocol_v1_2.py", 11, 153868),
+    ("tests/test_instance_repair.py", 33, 72579),
+    ("tests/test_cura_shell.py", 12, 43830),
+    ("tests/test_google_intake_coordination.py", 7, 28858),
+)
+
+
+def _validated_cost_hints() -> dict[str, tuple[int, int]]:
+    if type(_MODULE_COST_HINTS) is not tuple:
+        raise ValueError("invalid Provelume pytest allocation hints")
+    hints: dict[str, tuple[int, int]] = {}
+    for row in _MODULE_COST_HINTS:
+        if type(row) is not tuple or len(row) != 3:
+            raise ValueError("invalid Provelume pytest allocation hint")
+        source, count, cost = row
+        if (
+            type(source) is not str
+            or not source.startswith("tests/")
+            or not source.endswith(".py")
+            or "\\" in source
+            or ":" in source
+            or any(part in {"", ".", ".."} for part in source.split("/"))
+            or any(character.isspace() or ord(character) < 32 for character in source)
+            or source in hints
+            or type(count) is not int
+            or count < 1
+            or type(cost) is not int
+            or cost < 1
+        ):
+            raise ValueError("invalid Provelume pytest allocation hint")
+        hints[source] = (count, cost)
+    return hints
+
 
 def pytest_addoption(parser) -> None:
     group = parser.getgroup("provelume-windows-shard")
@@ -33,20 +74,34 @@ def _source_for_nodeid(nodeid: str) -> str:
 
 
 def balanced_shard_assignments(nodeids: list[str], count: int) -> dict[str, int]:
-    """Assign whole source modules while balancing their collected test counts."""
+    """Assign all collected modules using cost hints with a test-count fallback."""
     if type(count) is not int or count < 1:
         raise ValueError("invalid Provelume pytest shard count")
+    hints = _validated_cost_hints()
     source_sizes: dict[str, int] = {}
     for nodeid in nodeids:
         source = _source_for_nodeid(nodeid)
         source_sizes[source] = source_sizes.get(source, 0) + 1
 
+    costs = {
+        source: hints[source][1]
+        if source in hints and hints[source][0] == size
+        else size * _COUNT_COST
+        for source, size in source_sizes.items()
+    }
     loads = [0] * count
+    test_counts = [0] * count
     assignments: dict[str, int] = {}
-    for source, size in sorted(source_sizes.items(), key=lambda value: (-value[1], value[0])):
-        index = min(range(count), key=lambda candidate: (loads[candidate], candidate))
+    for source, size in sorted(
+        source_sizes.items(), key=lambda value: (-costs[value[0]], -value[1], value[0])
+    ):
+        index = min(
+            range(count),
+            key=lambda candidate: (loads[candidate], test_counts[candidate], candidate),
+        )
         assignments[source] = index
-        loads[index] += size
+        loads[index] += costs[source]
+        test_counts[index] += size
     return assignments
 
 
