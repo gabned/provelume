@@ -198,6 +198,10 @@ class MaintenanceError(ValueError):
     pass
 
 
+class MaintenanceBusyError(MaintenanceError):
+    pass
+
+
 class MaintenanceNotFoundError(MaintenanceError):
     pass
 
@@ -523,6 +527,7 @@ __all__ = [
     "MAINTENANCE_SCHEMA_VERSION",
     "MINIMUM_REINDEX_TEMPORARY_BYTES",
     "MaintenanceError",
+    "MaintenanceBusyError",
     "MaintenanceInsufficientSpaceError",
     "MaintenanceNotFoundError",
     "MaintenanceStateError",

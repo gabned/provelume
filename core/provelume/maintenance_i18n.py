@@ -80,6 +80,9 @@ MAINTENANCE_TRANSLATIONS: dict[str, dict[str, str]] = {
         "maintenance.review.missing": (
             "The selected action, Source or policy was not available in this preview."
         ),
+        "maintenance.review.busy": (
+            "Another Instance operation is active. Load a new preview before confirming again."
+        ),
         "maintenance.review.changed": (
             "The reviewed inputs changed or the action could not be queued. Review a new "
             "preview before confirming again."
@@ -234,6 +237,10 @@ MAINTENANCE_TRANSLATIONS: dict[str, dict[str, str]] = {
         ),
         "maintenance.review.missing": (
             "L'azione, la Source o la policy selezionata non era disponibile in questa anteprima."
+        ),
+        "maintenance.review.busy": (
+            "Un’altra operazione dell’Instance è attiva. Carica una nuova anteprima "
+            "prima di confermare nuovamente."
         ),
         "maintenance.review.changed": (
             "Gli input esaminati sono cambiati oppure non è stato possibile accodare l'azione. "
