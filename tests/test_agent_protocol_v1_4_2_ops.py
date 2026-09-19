@@ -444,6 +444,104 @@ def test_expired_wait_keeps_same_handle_and_never_transitions():
         ops.validate_wait(value, now)
 
 
+def retained_wait(duration_seconds=1038):
+    """Synthetic wait retaining the observed019 timing boundary."""
+    observed_at = datetime(2026, 9, 19, 19, 4, 50, tzinfo=UTC)
+    value = {
+        "repository": REPO, "run_id": 100, "run_attempt": 2, "head_sha": HEAD,
+        "status": "IN_PROGRESS", "conclusion": "NONE", "source": "GITHUB_CONNECTOR",
+        "observed_at": observed_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "deadline": (observed_at + timedelta(seconds=duration_seconds)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"),
+        "handle": f"https://api.github.com/repos/{REPO}/actions/runs/100/attempts/2",
+    }
+    return value, observed_at
+
+
+@pytest.mark.parametrize("duration", [1, 900, 1038, 3600])
+@pytest.mark.parametrize("lateness", [0, 1, 86400])
+def test_retained_wait_expiry_requests_only_same_handle(duration, lateness):
+    value, observed_at = retained_wait(duration)
+    original = deepcopy(value)
+    admission = ops.validate_wait(value, now=observed_at)
+    assert admission["next_action"] == "WAIT_SAME_HANDLE"
+    result = ops.validate_wait(
+        value, now=observed_at + timedelta(seconds=duration + lateness))
+    assert result == {
+        "outcome": "WAIT_EVENT", "next_action": "REOBSERVE_SAME_HANDLE",
+        "handle": original["handle"], "campaign_transition": False,
+        "polling": "DISABLED", "automatic_retry": False,
+    }
+    assert value == original
+
+
+@pytest.mark.parametrize("age", [-31, 901])
+def test_unexpired_wait_still_requires_fresh_admission(age):
+    value, observed_at = retained_wait(3600)
+    with pytest.raises(ValueError, match="stale observation"):
+        ops.validate_wait(value, now=observed_at + timedelta(seconds=age))
+
+
+@pytest.mark.parametrize("age", [-30, 0, 900])
+def test_unexpired_wait_retains_existing_freshness_boundaries(age):
+    value, observed_at = retained_wait(3600)
+    assert ops.validate_wait(
+        value, now=observed_at + timedelta(seconds=age)
+    )["next_action"] == "WAIT_SAME_HANDLE"
+
+
+@pytest.mark.parametrize("duration", [-1, 0, 3601])
+def test_expired_wait_rejects_out_of_contract_duration(duration):
+    value, observed_at = retained_wait(duration)
+    with pytest.raises(ValueError, match="unbounded wait"):
+        ops.validate_wait(value, now=observed_at + timedelta(days=1))
+
+
+@pytest.mark.parametrize("field,replacement", [
+    ("repository", "other/project"),
+    ("run_id", 0),
+    ("run_id", True),
+    ("run_attempt", -1),
+    ("run_attempt", "2"),
+    ("head_sha", "not-a-sha"),
+    ("source", "LOCAL_GIT"),
+    ("status", "COMPLETED"),
+    ("status", "UNKNOWN"),
+    ("conclusion", "SUCCESS"),
+    ("handle", f"https://api.github.com/repos/{REPO}/actions/runs/100/attempts/1"),
+    ("handle", "https://api.github.com/repos/other/project/actions/runs/100/attempts/2"),
+    ("observed_at", "not-a-time"),
+    ("deadline", "not-a-time"),
+])
+def test_expired_wait_keeps_source_identity_and_shape_checks(field, replacement):
+    value, observed_at = retained_wait()
+    value[field] = replacement
+    with pytest.raises(ValueError):
+        ops.validate_wait(value, now=observed_at + timedelta(days=1))
+
+
+@pytest.mark.parametrize("damage", ["missing", "extra"])
+def test_expired_wait_keeps_closed_schema(damage):
+    value, observed_at = retained_wait()
+    if damage == "missing":
+        del value["head_sha"]
+    else:
+        value["approved"] = True
+    with pytest.raises(ValueError):
+        ops.validate_wait(value, now=observed_at + timedelta(days=1))
+
+
+@pytest.mark.parametrize("part", ["pr", "ci", "reviews"])
+def test_wait_expiry_does_not_relax_operation_observation_freshness(part):
+    value = operations()
+    clock = datetime.now(UTC).replace(microsecond=0)
+    value[part]["observed_at"] = (clock - timedelta(seconds=901)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ")
+    with pytest.raises(ValueError, match="stale observation"):
+        ops.validate_operations(value, now=clock)
+
+
+
 @pytest.mark.parametrize("damage", ["missing", "duplicate", "stale", "wrong_tree"])
 def test_pr_identity_rejects_invalid_declarations_and_renderer_repairs(damage):
     value = pr()
