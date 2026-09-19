@@ -320,7 +320,7 @@ def validate_ci_append_only(
 def validate_wait(value: Any, now: datetime | None = None) -> dict:
     w = obj(value, "repository run_id run_attempt head_sha status conclusion source "
             "observed_at deadline handle", "wait")
-    observation(w, now)
+    require(w["source"] == "GITHUB_CONNECTOR", "evidence must be connector-observed")
     require(w["repository"] in PROFILES, "unknown wait repository")
     number(w["run_id"], "wait run")
     number(w["run_attempt"], "wait attempt")
@@ -331,7 +331,10 @@ def validate_wait(value: Any, now: datetime | None = None) -> dict:
     require(w["handle"] == expected, "wait handle does not bind the observed attempt")
     duration = timestamp(w["deadline"]) - timestamp(w["observed_at"])
     require(timedelta(seconds=1) <= duration <= timedelta(hours=1), "unbounded wait")
-    expired = (now or datetime.now(UTC)) >= timestamp(w["deadline"])
+    clock = now or datetime.now(UTC)
+    expired = clock >= timestamp(w["deadline"])
+    if not expired:
+        observation(w, clock)
     return {"outcome": "WAIT_EVENT", "next_action": "REOBSERVE_SAME_HANDLE" if expired
             else "WAIT_SAME_HANDLE", "handle": expected, "campaign_transition": False,
             "polling": "DISABLED", "automatic_retry": False}

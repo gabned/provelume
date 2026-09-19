@@ -95,11 +95,18 @@ GitHub-managed checks can report `dynamic` (for example Code Quality); retain
 that observed trigger and workflow path with the same attempt/history gates.
 Do not omit it from the CI inventory or relabel it as a repository workflow.
 
-`validate-wait` accepts only a freshly observed live run and the exact connector
-handle ending in `/actions/runs/{id}/attempts/{attempt}`. Its deadline is bounded
-to one hour. Expiry requests observation of that same handle and makes no
-campaign transition. Elapsed time is not failure, completion or authorization.
-Polling and automatic retries remain disabled.
+`validate-wait` requires a freshly observed live run to admit or continue an
+unexpired wait. The exact connector handle ends in
+`/actions/runs/{id}/attempts/{attempt}`; its deadline must be between one second
+and one hour after the original observation. Source, identity, status, handle,
+timestamps and duration remain validated even after expiry. At or after that
+deadline, a retained wait only requests a new observation of the same handle,
+including after a delayed wakeup beyond the observation freshness window. It
+does not renew the old observation or assert that the run is still live.
+Any new observation must satisfy the normal freshness and qualification checks.
+Neither outcome makes a campaign transition or authorizes an effect. Elapsed
+time is not failure, completion or authorization. Polling and automatic retries
+remain disabled.
 
 ## PR identity, exceptions and merge
 
