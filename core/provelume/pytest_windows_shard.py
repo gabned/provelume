@@ -21,8 +21,10 @@ CHILD_ENV = "PROVELUME_WINDOWS_SHARD_CHILD"
 FORCE_ENV = "PROVELUME_WINDOWS_SHARD_FORCE"
 DISABLE_ENV = "PROVELUME_WINDOWS_SHARD_DISABLE"
 
-# Relative allocation hints from completed, non-failing modules in the Cura 007
-# Windows diagnostic. They are not execution budgets or qualification evidence.
+# Relative allocation hints from completed, non-failing Cura Windows diagnostics.
+# Retain the seven Cura 007 hints; Cura 009 adds modules whose observed cost differs
+# from the count fallback by at least 20 seconds. Failed/incomplete modules are
+# excluded. These hints are not execution budgets or qualification evidence.
 # Keep them versioned and independent of optional files, environment or services.
 _COUNT_COST = 1000
 _MODULE_COST_HINTS = (
@@ -33,6 +35,32 @@ _MODULE_COST_HINTS = (
     ("tests/test_instance_repair.py", 33, 72579),
     ("tests/test_cura_shell.py", 12, 43830),
     ("tests/test_google_intake_coordination.py", 7, 28858),
+    ("tests/test_action_center_adapters.py", 43, 76684),
+    ("tests/test_action_notifications.py", 65, 4949),
+    ("tests/test_agent_protocol_v1_2_1.py", 21, 69),
+    ("tests/test_agent_protocol_v1_4.py", 21, 24),
+    ("tests/test_agent_protocol_v1_4_1.py", 65, 9863),
+    ("tests/test_agent_protocol_v1_4_2_ops.py", 223, 30242),
+    ("tests/test_agent_protocol_v1_4_7.py", 46, 1153),
+    ("tests/test_agent_protocol_work_source.py", 37, 65),
+    ("tests/test_anchored_installation.py", 23, 950),
+    ("tests/test_capacity_admission.py", 30, 4917),
+    ("tests/test_cura_icons.py", 37, 3784),
+    ("tests/test_cura_package_resources.py", 36, 6829),
+    ("tests/test_cura_preferences.py", 63, 23730),
+    ("tests/test_cura_retention_recovery.py", 12, 32730),
+    ("tests/test_desktop_about.py", 27, 3838),
+    ("tests/test_folder_source_enrollment.py", 52, 10186),
+    ("tests/test_guarded_web_transport.py", 83, 43246),
+    ("tests/test_installation_verification.py", 80, 3392),
+    ("tests/test_ocr_contract.py", 28, 90),
+    ("tests/test_operations_maintenance.py", 29, 6986),
+    ("tests/test_public_roadmap.py", 47, 175),
+    ("tests/test_publication.py", 24, 3013),
+    ("tests/test_retention_boundaries.py", 16, 47117),
+    ("tests/test_review_path_observation.py", 22, 672),
+    ("tests/test_shell_settings.py", 33, 3721),
+    ("tests/test_source_exclusions.py", 47, 19631),
 )
 
 
