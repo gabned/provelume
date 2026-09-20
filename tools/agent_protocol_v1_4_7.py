@@ -151,6 +151,45 @@ def select_documents(root, manifest, expected_digest, *, workstream, phase, host
     }
 
 
+def context_delta(selection, retained, *, trusted_selection, trusted_retained, context_id):
+    """Suppress only text the host confirms is still available in this context.
+
+    Run select_documents first: this view never substitutes for inventory integrity.
+    The host selects the retained receipt independently; a digest is not provenance.
+    """
+    require(digest(selection) == trusted_selection, "changed verified selection")
+    require(selection.get("schema") == "agent-document-selection/v1", "selection schema")
+    ops.text(context_id, "current context identity")
+    require(digest(retained) == trusted_retained, "changed retained context")
+    ops.obj(retained, "context_id manifest_sha256 documents", "retained context")
+    require(isinstance(retained["documents"], dict), "retained documents")
+    for path, sha in retained["documents"].items():
+        ops.path(path)
+        ops.sha(sha, 64)
+    reusable = (
+        retained["context_id"] == context_id
+        and retained["manifest_sha256"] == selection["manifest_sha256"]
+        and selection["selection"] == "EXACT"
+    )
+    result = deepcopy(selection)
+    result["schema"] = "agent-document-context/v1"
+    result["documents"] = [
+        row for row in selection["documents"]
+        if not reusable or retained["documents"].get(row["path"]) != row["sha256"]
+    ]
+    result["selected_document_count"] = selection["document_count"]
+    result["document_count"] = len(result["documents"])
+    result["model_bytes"] = sum(len(row["content"].encode()) for row in result["documents"])
+    result["retained_model_bytes"] = selection["model_bytes"] - result["model_bytes"]
+    result["context_receipt"] = {
+        "context_id": context_id,
+        "manifest_sha256": selection["manifest_sha256"],
+        "documents": {row["path"]: row["sha256"] for row in selection["documents"]},
+    }
+    result["push_qualified"] = False
+    return result
+
+
 def validate_qualification(operation, policy, expected_digest, *, now=None):
     """Apply the accepted repository policy without querying remote administration APIs."""
     require(digest(policy) == expected_digest, "changed trusted repository policy")
@@ -388,6 +427,138 @@ def handoff(view, *, blocker, references, next_action):
             f"Evidence: {', '.join(references)}\nNext action: {next_action}"
         ),
         "state_mutated": False,
+    }
+
+
+def checkpoint_metrics(metrics):
+    """Validate a small host-measured record kept inside the existing checkpoint."""
+    ops.obj(
+        metrics,
+        "kind window source elapsed_seconds tool_calls github_calls repeated_reads "
+        "repeated_checks input_tokens output_tokens",
+        "checkpoint metrics",
+    )
+    require(metrics["kind"] in {"ACTUAL", "REPLAY", "SYNTHETIC"}, "measurement kind")
+    for key in ("window", "source"):
+        ops.text(metrics[key], "measurement provenance")
+    for key in set(metrics) - {"kind", "window", "source"}:
+        value = metrics[key]
+        require(
+            value is None or (type(value) is int and value >= 0),
+            "measurement must be an observed nonnegative integer or null: " + key,
+        )
+    return deepcopy(metrics)
+
+
+def checkpoint_handoff(
+    checkpoint, roadmap, recommendation, *, trusted_checkpoint, trusted_roadmap,
+    model_availability, trusted_models, now=None,
+):
+    """Render host-selected checkpoint projections; never grant or broaden authority."""
+    require(digest(checkpoint) == trusted_checkpoint, "changed checkpoint")
+    require(digest(roadmap) == trusted_roadmap, "changed roadmap")
+    ops.obj(
+        checkpoint,
+        "repository pr head_sha state scope result checks residuals next metrics",
+        "checkpoint projection",
+    )
+    ops.sha(checkpoint["head_sha"])
+    ops.number(checkpoint["pr"], "PR number")
+    require(checkpoint["state"] in {"OPEN", "MERGED", "BLOCKED", "COMPLETE"}, "checkpoint state")
+    for key in ("repository", "scope", "result", "checks", "residuals"):
+        ops.text(checkpoint[key], "checkpoint text")
+    ops.obj(roadmap, "repository steps reference", "roadmap projection")
+    require(roadmap["repository"] == checkpoint["repository"], "roadmap repository")
+    ops.text(roadmap["reference"], "roadmap reference")
+    require(isinstance(roadmap["steps"], list) and roadmap["steps"], "roadmap steps")
+    pending, seen = [], set()
+    for step in roadmap["steps"]:
+        ops.obj(step, "id state", "roadmap step")
+        identity = ops.text(step["id"], "roadmap step id")
+        require(identity not in seen, "duplicate roadmap step")
+        seen.add(identity)
+        require(step["state"] in {"COMPLETE", "PENDING"}, "roadmap step state")
+        if step["state"] == "PENDING":
+            pending.append(identity)
+    next_step = checkpoint["next"]
+    ops.obj(next_step, "roadmap_step kind action prompt authorization", "next step")
+    require(pending and next_step["roadmap_step"] == pending[0], "next step must follow roadmap")
+    require(next_step["kind"] in {"CONTINUE", "RECOVER", "DECISION"}, "continuation kind")
+    require(next_step["authorization"] in {"GRANTED", "MISSING"}, "next authorization")
+    require(
+        next_step["kind"] == "DECISION" or next_step["authorization"] == "GRANTED",
+        "decision must identify missing authority",
+    )
+    ops.text(next_step["action"], "next step action")
+    ops.instruction_text(next_step["prompt"], "complete next prompt")
+    ops.obj(
+        recommendation,
+        "environment model reasoning workload rationale uncertainty",
+        "recommendation",
+    )
+    require(recommendation["workload"] in {"LOW", "MEDIUM", "HIGH"}, "workload estimate")
+    for key in ("environment", "rationale", "uncertainty"):
+        ops.text(recommendation[key], "recommendation text")
+    model, reasoning = recommendation["model"], recommendation["reasoning"]
+    if model_availability is None:
+        require(trusted_models is None and model is None and reasoning is None, "unverified model")
+        require(recommendation["uncertainty"] != "NONE", "model availability uncertainty required")
+    else:
+        require(digest(model_availability) == trusted_models, "changed model availability")
+        ops.obj(
+            model_availability,
+            "environment source observed_at valid_until models",
+            "model availability",
+        )
+        ops.text(model_availability["source"], "model source")
+        observed = checked_time(model_availability["observed_at"])
+        expiry = checked_time(model_availability["valid_until"])
+        current = now or datetime.now(UTC)
+        require(observed <= current < expiry, "model availability expired or future")
+        require(
+            model_availability["environment"] == recommendation["environment"], "model environment"
+        )
+        require(isinstance(model_availability["models"], dict), "model inventory")
+        for name, efforts in model_availability["models"].items():
+            ops.text(name, "model name")
+            require(isinstance(efforts, list) and efforts, "supported reasoning efforts")
+            for effort in efforts:
+                ops.text(effort, "reasoning effort")
+        require(model in model_availability["models"], "unsupported model")
+        require(reasoning in model_availability["models"][model], "unsupported reasoning")
+    metrics = checkpoint_metrics(checkpoint["metrics"])
+    execution = "DECISION_REQUIRED" if next_step["kind"] == "DECISION" else "CONTINUE_IN_SESSION"
+    selection = f"Model: {model or 'UNVERIFIED'}; reasoning: {reasoning or 'UNVERIFIED'}"
+    prompt = (
+        next_step["prompt"] + "\n\n"
+        f"Scope: {checkpoint['scope']}\nRoadmap: {roadmap['reference']}\n"
+        "Resume from the existing checkpoint and verified roadmap. Revalidate changed or "
+        "expired evidence and mandatory decision-boundary checks. Preserve the actual "
+        "authorization scope; this handoff grants no additional authority. Complete already "
+        "authorized work without requesting another prompt."
+    )
+    return {
+        "schema": "agent-checkpoint-handoff/v1",
+        "checkpoint_sha256": trusted_checkpoint,
+        "roadmap_sha256": trusted_roadmap,
+        "kind": next_step["kind"],
+        "execution": execution,
+        "next_action": next_step["action"],
+        "recommendation": deepcopy(recommendation),
+        "metrics": metrics,
+        "text": (
+            f"{checkpoint['result']}\nChecks: {checkpoint['checks']}\n"
+            f"Residuals: {checkpoint['residuals']}\n"
+            f"{checkpoint['repository']} #{checkpoint['pr']} · {checkpoint['head_sha']}\n"
+            f"Next action: {next_step['action']}\n{selection}\n"
+            f"Workload: {recommendation['workload']} — {recommendation['rationale']}\n"
+            f"Uncertainty: {recommendation['uncertainty']}\n"
+            f"Select before the next step (not changed): {selection}\n{prompt}"
+        ),
+        "prompt": prompt,
+        "state_mutated": False,
+        "model_changed": False,
+        "push_qualified": False,
     }
 
 
@@ -1050,6 +1221,8 @@ def main():
         "human-intervention",
         "environment-plan",
         "review-inventory",
+        "context-delta",
+        "checkpoint-handoff",
     ):
         entry = sub.add_parser(command)
         entry.add_argument("--input", type=Path, required=True)
@@ -1070,6 +1243,10 @@ def main():
                 result = recovery_plan(**data, **trust)
             elif args.command == "closure-plan":
                 result = closure_plan(**data, **trust)
+            elif args.command == "context-delta":
+                result = context_delta(**data, **trust)
+            elif args.command == "checkpoint-handoff":
+                result = checkpoint_handoff(**data, **trust)
             else:
                 require(trust == {}, "unexpected trust arguments")
                 function = {

@@ -276,6 +276,174 @@ class ExecutionConformance(unittest.TestCase):
         self.assertEqual(value["text"].count("Next action:"), 1)
 
 
+class ContinuationConformance(unittest.TestCase):
+    setUp = ExecutionConformance.setUp
+    select = ExecutionConformance.select
+
+    def delta(self, selection, retained, context="session-1"):
+        return p.context_delta(
+            selection, retained, trusted_selection=p.digest(selection),
+            trusted_retained=p.digest(retained), context_id=context,
+        )
+
+    def test_unchanged_context_omits_text_but_retains_integrity_measurement(self):
+        first = self.select()
+        retained = {
+            "context_id": "session-1", "manifest_sha256": first["manifest_sha256"],
+            "documents": {r["path"]: r["sha256"] for r in first["documents"]},
+        }
+        result = self.delta(first, retained)
+        self.assertEqual(result["model_bytes"], 0)
+        self.assertEqual(result["verified_inventory_bytes"], first["verified_inventory_bytes"])
+        self.assertEqual(result["retained_model_bytes"], first["model_bytes"])
+        self.assertFalse(result["push_qualified"])
+        # A changed unselected file still fails before the context delta is considered.
+        (self.root / "archive.md").write_text("tampered")
+        with self.assertRaisesRegex(ValueError, "integrity"):
+            self.select()
+
+    def test_context_loss_manifest_change_and_uncertainty_deliver_all_text(self):
+        first = self.select()
+        retained = {
+            "context_id": "session-1", "manifest_sha256": first["manifest_sha256"],
+            "documents": {r["path"]: r["sha256"] for r in first["documents"]},
+        }
+        self.assertEqual(self.delta(first, retained, "compacted")["documents"], first["documents"])
+        retained["manifest_sha256"] = "f" * 64
+        self.assertEqual(self.delta(first, retained)["documents"], first["documents"])
+        fallback = self.select(phase="UNKNOWN")
+        retained["manifest_sha256"] = fallback["manifest_sha256"]
+        self.assertEqual(self.delta(fallback, retained)["documents"], fallback["documents"])
+
+    def test_new_phase_delivers_only_newly_required_text(self):
+        first = self.select()
+        retained = {
+            "context_id": "session-1", "manifest_sha256": first["manifest_sha256"],
+            "documents": {r["path"]: r["sha256"] for r in first["documents"]},
+        }
+        result = self.delta(self.select(phase="RESUME"), retained)
+        self.assertEqual([r["id"] for r in result["documents"]], ["work"])
+
+    def test_candidate_cannot_replace_host_selected_context_or_selection(self):
+        selection = self.select()
+        retained = {"context_id": "session-1", "manifest_sha256": "f" * 64, "documents": {}}
+        for selected_digest, retained_digest in (("0" * 64, p.digest(retained)),
+                                                  (p.digest(selection), "0" * 64)):
+            with self.assertRaises(ValueError):
+                p.context_delta(selection, retained, trusted_selection=selected_digest,
+                                trusted_retained=retained_digest, context_id="session-1")
+
+
+class CheckpointHandoffConformance(unittest.TestCase):
+    def setUp(self):
+        self.now = datetime(2026, 1, 1, tzinfo=UTC)
+        self.metrics = {
+            "kind": "SYNTHETIC", "window": "fixture", "source": "test counter",
+            "elapsed_seconds": 10, "tool_calls": 4, "github_calls": 2,
+            "repeated_reads": 0, "repeated_checks": 0, "input_tokens": None,
+            "output_tokens": None,
+        }
+        self.checkpoint = {
+            "repository": "example/repo", "pr": 1, "head_sha": "a" * 40,
+            "state": "OPEN", "scope": "One protocol-only repository",
+            "result": "Prepared", "checks": "PASS fixture; CI pending",
+            "residuals": "qualification pending", "metrics": self.metrics,
+            "next": {"roadmap_step": "qualify", "kind": "CONTINUE",
+                     "action": "Qualify the prepared candidate", "authorization": "GRANTED",
+                     "prompt": "Use example/repo checkpoint #1 and qualify the exact candidate."},
+        }
+        self.roadmap = {"repository": "example/repo", "reference": "issue:1",
+                        "steps": [{"id": "implement", "state": "COMPLETE"},
+                                  {"id": "qualify", "state": "PENDING"}]}
+        self.models = {
+            "environment": "synthetic host", "source": "synthetic capability inventory",
+            "observed_at": self.now.isoformat(),
+            "valid_until": (self.now + timedelta(hours=1)).isoformat(),
+            "models": {"fixture-model": ["fixture-effort"]},
+        }
+        self.recommendation = {
+            "environment": "synthetic host", "model": "fixture-model",
+            "reasoning": "fixture-effort", "workload": "MEDIUM",
+            "rationale": "Bounded gate reconciliation", "uncertainty": "CI duration",
+        }
+
+    def render(self, **overrides):
+        args = dict(trusted_checkpoint=p.digest(self.checkpoint),
+                    trusted_roadmap=p.digest(self.roadmap), model_availability=self.models,
+                    trusted_models=p.digest(self.models) if self.models else None, now=self.now)
+        args.update(overrides)
+        return p.checkpoint_handoff(self.checkpoint, self.roadmap, self.recommendation, **args)
+
+    def test_bound_single_action_complete_prompt_and_no_state_or_model_change(self):
+        self.checkpoint["next"]["prompt"] += "\nPreserve full required checks."
+        before = deepcopy(self.checkpoint)
+        result = self.render()
+        self.assertEqual(self.checkpoint, before)
+        self.assertEqual(result["execution"], "CONTINUE_IN_SESSION")
+        self.assertEqual(result["next_action"], self.checkpoint["next"]["action"])
+        self.assertEqual(result["text"].count("Next action:"), 1)
+        self.assertIn("grants no additional authority", result["prompt"])
+        self.assertIn("\nPreserve full required checks.", result["prompt"])
+        self.assertFalse(result["model_changed"])
+        self.assertFalse(result["push_qualified"])
+        self.assertIsNone(result["metrics"]["input_tokens"])
+
+    def test_recovery_continues_authorized_work_and_missing_decision_is_explicit(self):
+        self.checkpoint["state"] = "BLOCKED"
+        self.checkpoint["next"]["kind"] = "RECOVER"
+        self.assertEqual(self.render()["execution"], "CONTINUE_IN_SESSION")
+        self.checkpoint["next"].update(kind="DECISION", authorization="MISSING")
+        self.assertEqual(self.render()["execution"], "DECISION_REQUIRED")
+        self.checkpoint["next"]["authorization"] = "GRANTED"
+        self.assertEqual(self.render()["execution"], "DECISION_REQUIRED")
+        self.checkpoint["next"]["authorization"] = "MISSING"
+        self.checkpoint["next"]["kind"] = "CONTINUE"
+        with self.assertRaisesRegex(ValueError, "missing authority"):
+            self.render()
+
+    def test_changed_checkpoint_roadmap_or_models_are_rejected(self):
+        for key in ("trusted_checkpoint", "trusted_roadmap", "trusted_models"):
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                self.render(**{key: "0" * 64})
+
+    def test_skipping_pending_roadmap_step_is_rejected(self):
+        self.roadmap["steps"][0]["state"] = "PENDING"
+        with self.assertRaisesRegex(ValueError, "follow roadmap"):
+            self.render()
+
+    def test_invented_model_effort_wrong_environment_and_expired_inventory_fail(self):
+        for key, value in (("model", "invented"), ("reasoning", "maximum-ish"),
+                           ("environment", "different client")):
+            original = self.recommendation[key]
+            self.recommendation[key] = value
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                self.render()
+            self.recommendation[key] = original
+        with self.assertRaisesRegex(ValueError, "expired"):
+            self.render(now=self.now + timedelta(hours=1))
+
+    def test_unavailable_models_require_nulls_and_explicit_uncertainty(self):
+        self.models = None
+        with self.assertRaisesRegex(ValueError, "unverified model"):
+            self.render()
+        self.recommendation.update(model=None, reasoning=None, uncertainty="Host not verified")
+        self.assertIn("UNVERIFIED", self.render()["text"])
+        self.recommendation["uncertainty"] = "NONE"
+        with self.assertRaisesRegex(ValueError, "uncertainty required"):
+            self.render()
+
+    def test_metrics_reject_guesses_negative_values_and_unsupported_fields(self):
+        for value in (-1, True, 1.5, "estimated"):
+            self.metrics["input_tokens"] = value
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "measurement"):
+                self.render()
+        self.metrics["input_tokens"] = 200
+        self.assertEqual(self.render()["metrics"]["input_tokens"], 200)
+        self.metrics["credit_savings"] = 50
+        with self.assertRaises(ValueError):
+            self.render()
+
+
 class DeliveryConformance(unittest.TestCase):
     """Synthetic host-selected evidence, never real editorial or production approval."""
 
