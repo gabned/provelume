@@ -122,7 +122,9 @@ collected items remain the sole source of partition membership. Malformed hints 
 The partitions are stable, disjoint
 and complete; targeted invocations are untouched. Each subprocess receives isolated state and
 pytest-cache directories. The parent has a 480-second bounded deadline, replays at most 2 MiB per
-shard, reports only shard index/count/duration/exit code, and terminates the process tree on timeout.
+shard, and terminates the process tree on timeout. Parent summaries report only shard
+index/count/duration/exit code. Bounded child replay retains pytest diagnostics and content-free
+completed-module phase timings and outcome counts; interrupted modules are not reported as complete.
 Child pytest processes receive an explicit `--rootdir` anchored to the versioned configuration
 directory and derived collection roots are never appended. The bounded harness selects a tracked,
 non-recursive node ID under that same root; cross-volume forced targets are not part of the bare

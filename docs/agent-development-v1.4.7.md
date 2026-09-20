@@ -195,6 +195,12 @@ Verification reads bytes locally; only selected text enters model context. Repor
 those as different measurements. Workstream-specific product documentation still
 comes from the owning repository and relevant source area.
 
+After integrity verification, `context-delta` can suppress selected text already
+retained in the same host context. Context loss, uncertain selection or changed
+manifest restores full selected text. The accepted selection and retained receipt
+are independent host inputs, never candidate authority. See the
+[execution and handoff procedure](agent-development-v1.4.6-work.md#checkpoint-driven-execution).
+
 ### Scope-first / lazy repository acquisition
 
 Repository acquisition MUST be scope-first and lazy. An agent MUST NOT materialize,
@@ -361,7 +367,13 @@ No conversion to tokens, credits or money. Keep this evidence in the campaign's
 existing artifacts, not a separate analytics system or new narrative report.
 
 Final responses give outcome, essential checks, material limits/blocker and next
-action. Issue/PR/checkpoint prose references existing evidence instead of repeating
+action derived from the existing checkpoint and verified roadmap. Every closure
+also recommends an exact supported model and reasoning level, low/medium/high
+workload with rationale and uncertainty, and one complete copyable prompt preceded
+by the settings to select. Recommendations do not change models or grant authority.
+Use `checkpoint-handoff` and the linked procedure; keep model availability and
+session measurements in the checkpoint, not in permanent instructions.
+Issue/PR/checkpoint prose references existing evidence instead of repeating
 the prompt, rules or history. Updates communicate meaningful findings and decisions
 at the host's required cadence. Concision never hides failed checks, unknowns,
 required fields, authority boundaries or unresolved findings.
