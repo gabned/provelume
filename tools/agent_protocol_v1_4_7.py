@@ -184,7 +184,10 @@ def context_delta(selection, retained, *, trusted_selection, trusted_retained, c
     result["context_receipt"] = {
         "context_id": context_id,
         "manifest_sha256": selection["manifest_sha256"],
-        "documents": {row["path"]: row["sha256"] for row in selection["documents"]},
+        "documents": {
+            **(retained["documents"] if reusable else {}),
+            **{row["path"]: row["sha256"] for row in selection["documents"]},
+        },
     }
     result["push_qualified"] = False
     return result

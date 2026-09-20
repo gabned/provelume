@@ -333,6 +333,16 @@ class ContinuationConformance(unittest.TestCase):
                 p.context_delta(selection, retained, trusted_selection=selected_digest,
                                 trusted_retained=retained_digest, context_id="session-1")
 
+    def test_returning_to_prior_phase_preserves_all_retained_documents(self):
+        retained = {"context_id": "session-1", "manifest_sha256": p.digest(self.manifest),
+                    "documents": {}}
+        for phase in ("RESUME", "QUALIFY", "RESUME"):
+            result = self.delta(self.select(phase=phase), retained)
+            if retained["documents"]:
+                self.assertEqual(result["model_bytes"], 0)
+            retained = result["context_receipt"]
+        self.assertEqual(set(retained["documents"]), {"safety.md", "work.md"})
+
 
 class CheckpointHandoffConformance(unittest.TestCase):
     def setUp(self):
