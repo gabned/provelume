@@ -53,7 +53,16 @@ def read_bytes(store, relative: str, *, maximum: int = MAX_ENTRY_BYTES) -> bytes
         if not path.is_file() or path.stat().st_size > maximum:
             raise ReviewUnavailable("Review evidence has the wrong type or exceeds its bound")
         with path.open("rb") as handle:
-            value = handle.read(maximum + 1)
+            # Most records are tiny. Bound each allocation as well as the total,
+            # retaining the extra byte that detects growth beyond the limit.
+            chunks, remaining = [], maximum + 1
+            while remaining:
+                chunk = handle.read(min(64 * 1024, remaining))
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                remaining -= len(chunk)
+            value = b"".join(chunks)
         if len(value) > maximum:
             raise ReviewUnavailable("Review evidence exceeds its bound")
         return value
@@ -70,10 +79,8 @@ def _object(pairs):
     return result
 
 
-def read_json(store, relative: str) -> dict[str, Any] | None:
-    raw = read_bytes(store, relative)
-    if raw is None:
-        return None
+def decode_json(raw: bytes) -> dict[str, Any]:
+    """Validate the same observed bytes that are bound to their evidence digest."""
     try:
         value = json.loads(raw, object_pairs_hook=_object)
         if not isinstance(value, dict):
@@ -81,6 +88,11 @@ def read_json(store, relative: str) -> dict[str, Any] | None:
         return bounded_json(value, maximum=MAX_ENTRY_BYTES)
     except (ValueError, UnicodeError) as exc:
         raise ReviewUnavailable("Review evidence is invalid") from exc
+
+
+def read_json(store, relative: str) -> dict[str, Any] | None:
+    raw = read_bytes(store, relative)
+    return None if raw is None else decode_json(raw)
 
 
 def receipt_identifier(instance_id: str, request_id: str) -> str:
@@ -267,6 +279,32 @@ class ReviewDecisions:
         request_id: str,
         principal: str = "local_browser",
     ) -> dict:
+        self._confirmation_input(
+            domain, subject, action, parameters,
+            expected_plan_revision=expected_plan_revision,
+            expected_authority_revision=expected_authority_revision,
+            request_id=request_id, principal=principal,
+        )
+        with InstanceLifecycleManager(self.store)._hold(purpose="review-decision"):
+            return self._confirm_locked(
+                domain, subject, action, parameters,
+                expected_plan_revision=expected_plan_revision,
+                expected_authority_revision=expected_authority_revision,
+                request_id=request_id, principal=principal,
+            )
+
+    def _confirmation_input(
+        self,
+        domain: str,
+        subject: str,
+        action: str,
+        parameters: dict,
+        *,
+        expected_plan_revision: str,
+        expected_authority_revision: str,
+        request_id: str,
+        principal: str = "local_browser",
+    ) -> tuple:
         provider = self._provider(domain, action)
         revision(expected_plan_revision)
         revision(expected_authority_revision)
@@ -289,109 +327,129 @@ class ReviewDecisions:
                 "principal": principal,
             }
         )
-        with InstanceLifecycleManager(self.store)._hold(purpose="review-decision"):
-            self.mutation_guard(self.store)
-            previous = self._receipt(request_id)
-            if previous is not None:
-                if previous["request_digest"] != digest(payload):
-                    raise ReviewConflict(
-                        "Request identity already belongs to different review input"
-                    )
-                return {"receipt": previous, "result": previous["result"], "replayed": True}
-            # Select secondary locks from request identities, not client plan data.
-            preliminary = {
+        return provider, automatic, payload
+
+    def _confirm_locked(
+        self,
+        domain: str,
+        subject: str,
+        action: str,
+        parameters: dict,
+        *,
+        expected_plan_revision: str,
+        expected_authority_revision: str,
+        request_id: str,
+        principal: str = "local_browser",
+    ) -> dict:
+        """Internal caller owns lifecycle; all confirmation checks still apply."""
+        provider, automatic, payload = self._confirmation_input(
+            domain, subject, action, parameters,
+            expected_plan_revision=expected_plan_revision,
+            expected_authority_revision=expected_authority_revision,
+            request_id=request_id, principal=principal,
+        )
+        self.mutation_guard(self.store)
+        previous = self._receipt(request_id)
+        if previous is not None:
+            if previous["request_digest"] != digest(payload):
+                raise ReviewConflict(
+                    "Request identity already belongs to different review input"
+                )
+            return {"receipt": previous, "result": previous["result"], "replayed": True}
+        # Select secondary locks from request identities, not client plan data.
+        preliminary = {
+            "domain": domain,
+            "subject": subject,
+            "action": action,
+            "parameters": bounded_json(parameters),
+        }
+        secondary = getattr(provider, "secondary_lock", lambda plan: nullcontext())
+        with secondary(preliminary):
+            plan = self.preview(domain, subject, action, parameters)
+            if (
+                plan["authority_revision"] != expected_authority_revision
+                or plan["plan_revision"] != expected_plan_revision
+            ):
+                raise ReviewStale("Review inputs or authority changed; request a new preview")
+            authority = plan["authority"]
+            if authority["mode"] not in {"confirm-each", "controlled-automatic"}:
+                raise ReviewDenied("Effective authority does not allow this decision")
+            if automatic and (
+                domain != "routing"
+                or action != "apply_rule"
+                or authority["mode"] != "controlled-automatic"
+                or not authority["automatic_allowed"]
+                or plan["parameters"].get("rule_id") != principal.removeprefix("rule:")
+            ):
+                raise ReviewDenied(
+                    "Automatic review is restricted to explicitly enabled routing"
+                )
+            recorded_at = utc_now()
+            effect = provider.prepare(
+                plan, request_id=request_id, principal=principal, recorded_at=recorded_at
+            )
+            if (
+                not isinstance(effect, PreparedEffect)
+                or effect.domain != domain
+                or effect.action != action
+            ):
+                raise ReviewUnavailable("Provider returned another domain effect")
+            allowed = provider.allowed_paths(plan, request_id)
+            if not isinstance(allowed, frozenset) or any(
+                relative_path(x) != x for x in allowed
+            ):
+                raise ReviewUnavailable("Provider has no exact write allowlist")
+            if any(
+                write.relative not in allowed
+                or write.relative.startswith("state/review/receipts/")
+                for write in effect.writes
+            ):
+                raise ReviewDenied("Provider write falls outside its subject allowlist")
+            identifier = receipt_identifier(self.instance_id, request_id)
+            receipt = {
+                "schema_version": 1,
+                "id": identifier,
+                "instance_id": self.instance_id,
+                "request_id": request_id,
+                "request_digest": digest(payload),
                 "domain": domain,
                 "subject": subject,
                 "action": action,
-                "parameters": bounded_json(parameters),
+                "principal": principal,
+                "recorded_at": recorded_at,
+                "plan_revision": plan["plan_revision"],
+                "authority_revision": plan["authority_revision"],
+                "history_ref": effect.history_ref,
+                "history_sha256": sha256(
+                    next(x.data for x in effect.writes if x.relative == effect.history_ref)
+                ),
+                "effect": effect.effect,
+                "reversibility": effect.reversibility,
+                "result": effect.result,
+                "status": "committed",
+                "canonical_mutation": any(
+                    write.relative.startswith("knowledge/") for write in effect.writes
+                ),
             }
-            secondary = getattr(provider, "secondary_lock", lambda plan: nullcontext())
-            with secondary(preliminary):
-                plan = self.preview(domain, subject, action, parameters)
-                if (
-                    plan["authority_revision"] != expected_authority_revision
-                    or plan["plan_revision"] != expected_plan_revision
-                ):
-                    raise ReviewStale("Review inputs or authority changed; request a new preview")
-                authority = plan["authority"]
-                if authority["mode"] not in {"confirm-each", "controlled-automatic"}:
-                    raise ReviewDenied("Effective authority does not allow this decision")
-                if automatic and (
-                    domain != "routing"
-                    or action != "apply_rule"
-                    or authority["mode"] != "controlled-automatic"
-                    or not authority["automatic_allowed"]
-                    or plan["parameters"].get("rule_id") != principal.removeprefix("rule:")
-                ):
-                    raise ReviewDenied(
-                        "Automatic review is restricted to explicitly enabled routing"
-                    )
-                recorded_at = utc_now()
-                effect = provider.prepare(
-                    plan, request_id=request_id, principal=principal, recorded_at=recorded_at
-                )
-                if (
-                    not isinstance(effect, PreparedEffect)
-                    or effect.domain != domain
-                    or effect.action != action
-                ):
-                    raise ReviewUnavailable("Provider returned another domain effect")
-                allowed = provider.allowed_paths(plan, request_id)
-                if not isinstance(allowed, frozenset) or any(
-                    relative_path(x) != x for x in allowed
-                ):
-                    raise ReviewUnavailable("Provider has no exact write allowlist")
-                if any(
-                    write.relative not in allowed
-                    or write.relative.startswith("state/review/receipts/")
-                    for write in effect.writes
-                ):
-                    raise ReviewDenied("Provider write falls outside its subject allowlist")
-                identifier = receipt_identifier(self.instance_id, request_id)
-                receipt = {
-                    "schema_version": 1,
-                    "id": identifier,
-                    "instance_id": self.instance_id,
-                    "request_id": request_id,
-                    "request_digest": digest(payload),
-                    "domain": domain,
-                    "subject": subject,
-                    "action": action,
-                    "principal": principal,
-                    "recorded_at": recorded_at,
-                    "plan_revision": plan["plan_revision"],
-                    "authority_revision": plan["authority_revision"],
-                    "history_ref": effect.history_ref,
-                    "history_sha256": sha256(
-                        next(x.data for x in effect.writes if x.relative == effect.history_ref)
-                    ),
-                    "effect": effect.effect,
-                    "reversibility": effect.reversibility,
-                    "result": effect.result,
-                    "status": "committed",
-                    "canonical_mutation": any(
-                        write.relative.startswith("knowledge/") for write in effect.writes
-                    ),
-                }
-                validate_receipt(receipt, instance_id=self.instance_id)
-                writes = (
-                    *effect.writes,
-                    PreparedWrite(
-                        f"state/review/receipts/{identifier}.json",
-                        ABSENT,
-                        json_bytes(receipt),
-                        immutable=True,
-                    ),
-                )
-                for write in writes:
-                    before = read_bytes(self.store, write.relative)
-                    if (ABSENT if before is None else sha256(before)) != write.expected_sha256:
-                        raise ReviewStale("Review write preimage changed")
-                transaction = self.transaction_factory(identifier)
-                for write in writes:
-                    transaction.add(write.relative, write.data, immutable=write.immutable)
-                transaction.commit()
-                return {"receipt": receipt, "result": effect.result, "replayed": False}
+            validate_receipt(receipt, instance_id=self.instance_id)
+            writes = (
+                *effect.writes,
+                PreparedWrite(
+                    f"state/review/receipts/{identifier}.json",
+                    ABSENT,
+                    json_bytes(receipt),
+                    immutable=True,
+                ),
+            )
+            for write in writes:
+                before = read_bytes(self.store, write.relative)
+                if (ABSENT if before is None else sha256(before)) != write.expected_sha256:
+                    raise ReviewStale("Review write preimage changed")
+            transaction = self.transaction_factory(identifier)
+            for write in writes:
+                transaction.add(write.relative, write.data, immutable=write.immutable)
+            transaction.commit()
+            return {"receipt": receipt, "result": effect.result, "replayed": False}
 
     def history(
         self, *, domain: str | None = None, subject: str | None = None, limit: int = 100

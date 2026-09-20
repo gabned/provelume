@@ -668,6 +668,11 @@ class FolderSourceManager:
         except IngestionRetryError as exc:
             raise FolderSourceError("durable folder Source retry is inconsistent") from exc
         _refresh_after_ingestion(self.store, result)
+        # refresh already owns the scheduler's lifecycle lock. Route only durable
+        # acquisitions, retaining successful intake if its separate review fails.
+        from .review_intake import route_committed_acquisitions_locked
+
+        routed = route_committed_acquisitions_locked(self.store, result.as_dict()["acquisitions"])
         post = self.observe(source_id, now=now)
         successful = result.run.status == "completed"
         unchanged_snapshot = post["pending_fingerprint"] == target_fingerprint
@@ -756,6 +761,7 @@ class FolderSourceManager:
         )
         return {
             "status": "refreshed" if successful else "failed",
+            "review_routing": routed,
             "reason": None if successful else failure_reason,
             "observer": post,
             "run": result.as_dict(),

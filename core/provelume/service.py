@@ -474,59 +474,20 @@ class ProvelumeInstance:
         return payload
 
     def route_new_acquisitions(self, acquisitions: Sequence[Mapping[str, Any]]) -> list[dict]:
-        """Apply only explicitly enabled, uniquely matched routing after acquisition.
+        """Route committed intake under current, explicitly scoped review authority."""
+        from .review_intake import route_committed_acquisitions
 
-        Intake is already committed. A routing conflict retains intake and reports
-        a manual review outcome; it never makes an acquisition look uncommitted.
-        """
-        from .action_center_model import digest
-        from .atomic_commit import AtomicCommitError
-        from .review_effects import ReviewError
-
-        outcomes = []
-        documents = sorted({row["document_id"] for row in acquisitions if row.get("document_id")})
-        if len(documents) > 1000:
-            return [{"status": "review_required", "reason": "routing_batch_bound"}]
-        for document_id in documents:
-            try:
-                candidates = self.review_routing.candidates(document_id)
-                rule_id = candidates.get("automatic_rule_id")
-                if not rule_id:
-                    if candidates.get("rule_ids"):
-                        outcomes.append({
-                            "document_id": document_id, "status": "proposal", **candidates,
-                        })
-                    continue
-                plan = self.review_decisions.preview(
-                    "routing", document_id, "apply_rule", {"rule_id": rule_id},
-                )
-                if not plan["authority"]["automatic_allowed"]:
-                    outcomes.append({
-                        "document_id": document_id, "status": "proposal", **candidates,
-                    })
-                    continue
-                committed = self.review_decisions.confirm(
-                    "routing", document_id, "apply_rule", {"rule_id": rule_id},
-                    expected_plan_revision=plan["plan_revision"],
-                    expected_authority_revision=plan["authority_revision"],
-                    request_id="routing_" + digest([rule_id, document_id, plan["plan_revision"]]),
-                    principal="rule:" + rule_id,
-                )
-                outcomes.append({
-                    "document_id": document_id, "status": "committed",
-                    "receipt": committed["receipt"]["id"],
-                })
-            except (
-                ReviewError, InstanceLifecycleError, AtomicCommitError, OSError, ValueError,
-            ) as exc:
-                outcomes.append({
-                    "document_id": document_id, "status": "review_required", "reason": str(exc),
-                })
-        return outcomes
+        return route_committed_acquisitions(
+            self.store, acquisitions, routing=self.review_routing, decisions=self.review_decisions,
+        )
 
     def retry_ingestion(self, run_id: str) -> dict[str, Any]:
         result = retry_ingestion_run(self.store, run_id)
-        return result.as_dict()
+        payload = result.as_dict()
+        routed = self.route_new_acquisitions(payload["acquisitions"])
+        if routed:
+            payload["review_routing"] = routed
+        return payload
 
     def list_ingestion_runs(self, *, limit: int = 50) -> list[dict[str, Any]]:
         return IngestionLedger(self.store).list_runs(limit=limit)

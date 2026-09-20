@@ -13,6 +13,7 @@ from .action_center_model import digest, json_bytes
 from .review_decisions import (
     assert_review_readable,
     checked_path,
+    decode_json,
     read_bytes,
     read_json,
     receipt_identifier,
@@ -117,7 +118,7 @@ class ReviewAuthority:
                     raise ReviewUnavailable("Authority history is invalid or exceeds its bound")
                 relative = f"state/review/authority-history/{path.name}"
                 raw = read_bytes(self.store, relative)
-                history = read_json(self.store, relative)
+                history = None if raw is None else decode_json(raw)
                 if raw is None or history is None or set(history) != {
                     "schema_version", "principal", "recorded_at", "capability", "before", "after",
                 }:
