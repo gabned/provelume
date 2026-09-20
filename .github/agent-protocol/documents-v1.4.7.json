@@ -5,7 +5,7 @@
     {
       "id": "AGENTS",
       "path": "AGENTS.md",
-      "sha256": "1c3d1853cd72ad9fa96a34af09c111afbfd6a08153bceec02b23db635e439a3c",
+      "sha256": "36169d696a543a923bd4932bf70f019417d877e010c9755efa4b4a1f92c965f7",
       "role": "ALWAYS",
       "workstreams": [
         "PRODUCT",
@@ -209,7 +209,7 @@
     {
       "id": "agent-development-v1.4.6-work",
       "path": "docs/agent-development-v1.4.6-work.md",
-      "sha256": "6a8ee8b35b97be9fc3262d1d59a89f352826ee770a73cc447876e748001a2ed3",
+      "sha256": "73bb05ca10217a70847e11af3e71178e368f8eb49a7108975fb74e26afb4aeb8",
       "role": "PROCEDURE",
       "workstreams": [
         "PRODUCT",
@@ -219,18 +219,21 @@
       "phases": [
         "START",
         "RESUME",
+        "IMPLEMENT",
         "QUALIFY",
-        "POST_MERGE"
+        "POST_MERGE",
+        "CLOSE"
       ],
       "hosts": [
-        "WORK"
+        "WORK",
+        "GIT"
       ],
       "requires": []
     },
     {
       "id": "agent-development-v1.4.7",
       "path": "docs/agent-development-v1.4.7.md",
-      "sha256": "fff2cd26312665b8ae92691786d4a7da61caf01b5ef1ebea1aef8876a885f25f",
+      "sha256": "581e4f198c0c4e56f880d834571b41ef35acea016ffad8643d93079595cb3895",
       "role": "ALWAYS",
       "workstreams": [
         "PRODUCT",

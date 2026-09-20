@@ -40,6 +40,8 @@ For a new product area, read its owning architecture/release documentation and
 relevant code; roadmap and changelog retain their separate functions. Use narrow
 searches before large reads. Original complete evidence stays outside source;
 normal model output contains compact references, findings and uncertainty.
+Resume from the existing checkpoint; use the current contract's context-delta and
+checkpoint-handoff routes for retained text, measurements and the single next step.
 
 ## Native checks
 
