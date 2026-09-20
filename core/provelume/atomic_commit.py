@@ -179,6 +179,20 @@ _Replace = Callable[[Path, Path], None]
 _InterruptedHandler = Callable[[InstanceStore, str], None]
 
 
+REVIEW_TRANSACTION_PROFILE = AtomicCommitProfile(
+    key="review",
+    kind="review-domain",
+    owner_id_pattern=r"review_[0-9a-f]{32}\Z",
+    limits=AtomicCommitLimits(
+        max_entries=257,
+        max_entry_bytes=8 * 1024 * 1024,
+        max_candidate_bytes=40 * 1024 * 1024,
+        max_preimage_bytes=32 * 1024 * 1024,
+        max_journal_payload_bytes=72 * 1024 * 1024,
+    ),
+)
+
+
 @dataclass(frozen=True, slots=True)
 class AtomicRecoveryHandler:
     profile: AtomicCommitProfile
@@ -847,7 +861,11 @@ def recover_atomic_transactions(
             raise ValueError(f"duplicate atomic recovery profile: {key}")
         registrations[key] = handler
     root = control_root / "transactions"
-    if root.is_symlink() or (root.exists() and not root.is_dir()):
+    if (
+        control_root.is_symlink() or control_root.is_junction()
+        or root.is_symlink() or root.is_junction()
+        or (root.exists() and not root.is_dir())
+    ):
         raise AtomicCommitRecoveryError()
     if not root.exists():
         return None
@@ -866,7 +884,7 @@ def recover_atomic_transactions(
         error_type = handler.error_type
         profile = handler.profile
         try:
-            if not stage.is_dir() or stage.is_symlink():
+            if not stage.is_dir() or stage.is_symlink() or stage.is_junction():
                 raise error_type()
             manifest = _load_transaction_manifest(
                 stage,
@@ -940,6 +958,7 @@ __all__ = [
     "EMAIL_INTAKE_TRANSACTION_PROFILE",
     "GOOGLE_INTAKE_TRANSACTION_PROFILE",
     "MANUAL_WEB_TRANSACTION_PROFILE",
+    "REVIEW_TRANSACTION_PROFILE",
     "AtomicCommitError",
     "AtomicCommitIntegrityError",
     "AtomicCommitLimitError",

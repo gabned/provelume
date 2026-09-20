@@ -23,6 +23,7 @@ from .photo_i18n import PHOTO_TRANSLATIONS
 from .qualification_i18n import QUALIFICATION_TRANSLATIONS
 from .rebuild_i18n import REBUILD_TRANSLATIONS
 from .representation_i18n import REPRESENTATION_TRANSLATIONS
+from .review_i18n import REVIEW_TRANSLATIONS
 from .scheduler_i18n import SCHEDULER_TRANSLATIONS
 from .shell_i18n import SHELL_TRANSLATIONS
 from .transcript_i18n import TRANSCRIPT_TRANSLATIONS
@@ -41,6 +42,7 @@ def catalog(language: str) -> dict[str, str]:
     result = {str(key): str(text) for key, text in value.items()}
     result.update(ACTIVITY_TRANSLATIONS.get(selected, {}))
     result.update(ACTION_CENTER_TRANSLATIONS.get(selected, {}))
+    result.update(REVIEW_TRANSLATIONS.get(selected, {}))
     result.update(AUDIO_TRANSLATIONS.get(selected, {}))
     result.update(CONNECTOR_TRANSLATIONS.get(selected, {}))
     result.update(EMAIL_TRANSLATIONS.get(selected, {}))

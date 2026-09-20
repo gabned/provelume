@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import math
 import os
 import signal
 import subprocess
@@ -21,8 +23,10 @@ CHILD_ENV = "PROVELUME_WINDOWS_SHARD_CHILD"
 FORCE_ENV = "PROVELUME_WINDOWS_SHARD_FORCE"
 DISABLE_ENV = "PROVELUME_WINDOWS_SHARD_DISABLE"
 
-# Relative allocation hints from completed, non-failing modules in the Cura 007
-# Windows diagnostic. They are not execution budgets or qualification evidence.
+# Relative allocation hints from completed, non-failing Cura Windows diagnostics.
+# Retain the seven Cura 007 hints; Cura 009 adds modules whose observed cost differs
+# from the count fallback by at least 20 seconds. Failed/incomplete modules are
+# excluded. These hints are not execution budgets or qualification evidence.
 # Keep them versioned and independent of optional files, environment or services.
 _COUNT_COST = 1000
 _MODULE_COST_HINTS = (
@@ -33,6 +37,32 @@ _MODULE_COST_HINTS = (
     ("tests/test_instance_repair.py", 33, 72579),
     ("tests/test_cura_shell.py", 12, 43830),
     ("tests/test_google_intake_coordination.py", 7, 28858),
+    ("tests/test_action_center_adapters.py", 43, 76684),
+    ("tests/test_action_notifications.py", 65, 4949),
+    ("tests/test_agent_protocol_v1_2_1.py", 21, 69),
+    ("tests/test_agent_protocol_v1_4.py", 21, 24),
+    ("tests/test_agent_protocol_v1_4_1.py", 65, 9863),
+    ("tests/test_agent_protocol_v1_4_2_ops.py", 223, 30242),
+    ("tests/test_agent_protocol_v1_4_7.py", 46, 1153),
+    ("tests/test_agent_protocol_work_source.py", 37, 65),
+    ("tests/test_anchored_installation.py", 23, 950),
+    ("tests/test_capacity_admission.py", 30, 4917),
+    ("tests/test_cura_icons.py", 37, 3784),
+    ("tests/test_cura_package_resources.py", 36, 6829),
+    ("tests/test_cura_preferences.py", 63, 23730),
+    ("tests/test_cura_retention_recovery.py", 12, 32730),
+    ("tests/test_desktop_about.py", 27, 3838),
+    ("tests/test_folder_source_enrollment.py", 52, 10186),
+    ("tests/test_guarded_web_transport.py", 83, 43246),
+    ("tests/test_installation_verification.py", 80, 3392),
+    ("tests/test_ocr_contract.py", 28, 90),
+    ("tests/test_operations_maintenance.py", 29, 6986),
+    ("tests/test_public_roadmap.py", 47, 175),
+    ("tests/test_publication.py", 24, 3013),
+    ("tests/test_retention_boundaries.py", 16, 47117),
+    ("tests/test_review_path_observation.py", 22, 672),
+    ("tests/test_shell_settings.py", 33, 3721),
+    ("tests/test_source_exclusions.py", 47, 19631),
 )
 
 
@@ -129,6 +159,69 @@ def pytest_collection_modifyitems(config, items) -> None:
     config._provelume_shard_count = len(selected)
 
 
+class _ModuleTimings:
+    """Observe completed selected modules without changing pytest outcomes."""
+
+    def __init__(self, session, index: int, count: int) -> None:
+        self.reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+        self.index, self.count = index, count
+        self.nodes: dict[str, str] = {}
+        self.modules: dict[str, dict] = {}
+        for item in session.items:
+            try:
+                source = item.path.relative_to(session.config.rootpath).as_posix()
+            except ValueError:
+                continue
+            self.nodes[item.nodeid] = source
+            module = self.modules.setdefault(source, {
+                "selected": 0, "completed": set(), "seen": {}, "invalid": False,
+                "durations": dict.fromkeys(("setup", "call", "teardown"), 0.0),
+                "outcomes": {phase: dict.fromkeys(("passed", "failed", "skipped"), 0)
+                             for phase in ("setup", "call", "teardown")},
+            })
+            module["selected"] += 1
+
+    def pytest_runtest_logreport(self, report) -> None:
+        source = self.nodes.get(report.nodeid)
+        if source is None:
+            return
+        module = self.modules[source]
+        key = (report.nodeid, report.when)
+        setup = module["seen"].get((report.nodeid, "setup"))
+        if (
+            module["invalid"] or key in module["seen"]
+            or report.when not in module["durations"]
+            or report.outcome not in ("passed", "failed", "skipped")
+            or not math.isfinite(report.duration) or report.duration < 0
+            or (report.when != "setup" and setup is None)
+            or (report.when == "call" and setup != "passed")
+            or (report.when == "teardown" and setup == "passed"
+                and (report.nodeid, "call") not in module["seen"])
+        ):
+            module["invalid"] = True
+            return
+        module["seen"][key] = report.outcome
+        module["durations"][report.when] += report.duration
+        module["outcomes"][report.when][report.outcome] += 1
+        if report.when != "teardown":
+            return
+        module["completed"].add(report.nodeid)
+        if len(module["completed"]) != module["selected"]:
+            return
+        durations = dict(module["durations"])
+        durations["total"] = sum(durations.values())
+        record = {
+            "schema": 1, "shard_index": self.index, "shard_count": self.count,
+            "module": source, "selected": module["selected"],
+            "completed": len(module["completed"]), "complete": True,
+            "duration_seconds": durations, "phase_outcomes": module["outcomes"],
+        }
+        self.reporter.write_line(
+            "provelume-windows-module " + json.dumps(record, ensure_ascii=True)
+        )
+        self.reporter.flush()
+
+
 def pytest_collection_finish(session) -> None:
     count = getattr(session.config, "_provelume_shard_count", None)
     index = session.config.getoption("--provelume-shard-index")
@@ -137,6 +230,8 @@ def pytest_collection_finish(session) -> None:
         session.config.pluginmanager.get_plugin("terminalreporter").write_line(
             f"provelume-windows-shard index={index}/{total} selected={count}"
         )
+        if os.environ.get(CHILD_ENV) == "1" and index is not None and total is not None:
+            session.config.pluginmanager.register(_ModuleTimings(session, index, total))
 
 
 def pytest_sessionfinish(session, exitstatus) -> None:

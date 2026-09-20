@@ -1,0 +1,35 @@
+{% extends base_layout %}
+{% block title %}{{ al.title }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/annotation-editor.css">
+<section class="hero"><h1>{{ al.title }}</h1><p>{{ al.lead }}</p><p>{{ al.notice }}</p>
+<p><a href="/review/annotations/{{ subject }}?lang={{ lang }}">{{ al.fresh }}</a> · <a href="/review/capabilities?lang={{ lang }}">{{ al.configure }}</a></p></section>
+{% if unavailable %}<p class="panel" role="alert">{{ al.unavailable }}</p>{% endif %}
+{% if not editable and not unavailable %}<p class="panel" role="status">{{ al.disabled }}</p>{% endif %}
+{% if model %}
+<div id="annotation-editor" data-subject="{{ subject }}" data-token="{{ csrf_token or '' }}" data-editable="{{ 'true' if editable else 'false' }}" data-model="{{ model|tojson|forceescape }}" data-labels="{{ al|tojson|forceescape }}">
+<p class="technical-note">{{ al.version }}: <code>{{ model.source.version.id }}</code> · {{ al.revision }} {{ model.revision }} · {{ al.result }}: <code>{{ model.source.binding.result_sha256 }}</code></p>
+<div class="annotation-toolbar"><button id="annotation-previous" type="button">{{ al.previous }}</button><button id="annotation-next" type="button">{{ al.next }}</button></div>
+<div class="annotation-columns">
+<section class="panel annotation-evidence" aria-labelledby="annotation-evidence-title"><h2 id="annotation-evidence-title">{{ al.evidence }}</h2>
+{% if model.source.media.available and not unavailable %}
+{% if model.source.media.kind == 'image' %}<div class="annotation-image"><img id="annotation-image" src="/review/annotations/{{ subject }}/media" alt="{{ al.evidence }}"><svg id="annotation-overlay" role="img" aria-label="{{ al.anchor }}" viewBox="0 0 1 1"><rect id="annotation-region" x="0" y="0" width="0" height="0"></rect></svg></div>
+{% elif model.source.media.kind == 'pdf' %}<iframe id="annotation-pdf" title="{{ al.evidence }}" src="/review/annotations/{{ subject }}/media#page=1"></iframe>
+{% elif model.source.media.kind == 'video' %}<video id="annotation-player" controls preload="metadata" src="/review/annotations/{{ subject }}/media"></video>
+{% elif model.source.media.kind == 'audio' %}<audio id="annotation-player" controls preload="metadata" src="/review/annotations/{{ subject }}/media"></audio>{% endif %}
+{% else %}<p>{{ al.media_unavailable }}</p>{% endif %}
+<p id="annotation-anchor" aria-live="polite"></p><p>{{ al.shared }}</p>
+</section>
+<section class="panel" aria-labelledby="annotation-text-title"><h2 id="annotation-text-title">{{ al.text }}</h2><div id="annotation-segments"></div></section>
+</div>
+<section class="panel" aria-labelledby="annotation-preview-title"><h2 id="annotation-preview-title">{{ al.preview }}</h2><pre id="annotation-diff"></pre><p id="annotation-status" role="status" aria-live="polite"></p><button id="annotation-save" type="button" disabled>{{ al.save }}</button></section>
+<section class="panel" aria-labelledby="annotation-history-title"><h2 id="annotation-history-title">{{ al.history }}</h2>
+<label for="annotation-undo-target">{{ al.revision }}</label><select id="annotation-undo-target"><option value="0">{{ al.original }}</option>{% for row in model.history %}{% if row.revision < model.revision %}<option value="{{ row.revision }}">{{ al.revision }} {{ row.revision }} · {{ row.recorded_at }}</option>{% endif %}{% endfor %}</select>
+<button id="annotation-undo" type="button"{% if not editable or model.revision == 0 %} disabled{% endif %}>{{ al.undo }}</button>
+<ol>{% for row in model.history %}<li>{{ al.revision }} {{ row.revision }} · {{ row.action }} · {{ row.principal }} · <time>{{ row.recorded_at }}</time> · <code>{{ row.id }}</code></li>{% endfor %}</ol>
+</section>
+</div>
+<noscript><p role="alert">{{ al.noscript }}</p></noscript>
+<script src="/static/annotation-editor.js" integrity="{{ annotation_integrity }}" crossorigin="anonymous" defer></script>
+{% endif %}
+{% endblock %}

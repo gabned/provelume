@@ -42,6 +42,7 @@
     </dl>
     <pre class="technical-note">{{ duplicate.evidence | tojson(indent=2) }}</pre>
     <h2>{{ t('duplicates.actions') }}</h2>
+    <p><a class="button" href="/review/decisions/duplicates/{{ duplicate.id }}?lang={{ lang }}">{{ t('review.open_decision') }}</a></p>
     <ul>
     {% for action in duplicate.recommended_actions %}<li>{{ action }}</li>{% endfor %}
     </ul>

@@ -1,0 +1,51 @@
+{% extends base_layout %}
+{% block title %}{{ rl.title }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/review-decisions.css">
+<a href="/attention?lang={{ lang }}">{{ rl.back }}</a>
+<h1>{{ rl[subject] if domain == 'capabilities' else rl[domain] }}</h1>
+<p class="lead">{{ rl.lead }}</p>
+<p><a href="/review/capabilities?lang={{ lang }}">{{ rl.capabilities }}</a> · <a href="/review/routing?lang={{ lang }}">{{ rl.routing }}</a> · <a href="/review/decisions/{{ domain }}/{{ subject }}?lang={{ lang }}">{{ rl.fresh }}</a></p>
+{% if domain == 'placement' %}<p><a href="/review/decisions/routing/{{ subject }}?lang={{ lang }}">{{ rl.apply_rule }}</a></p>{% endif %}
+{% if unavailable %}<p class="panel" role="alert">{{ rl.unavailable }}</p>{% else %}
+<div id="review-decisions" data-domain="{{ domain }}" data-subject="{{ subject }}" data-token="{{ csrf_token }}" data-labels="{{ rl|tojson|forceescape }}">
+{% for document in options.documents %}<p><a href="/documents/{{ document.id }}?lang={{ lang }}">{{ document.title }}</a> · <code>{{ document.id }}</code></p>{% endfor %}
+{% set routing_empty = domain == 'routing' and subject.startswith('doc_') and not options.actions %}
+{% if routing_empty %}<section class="panel" role="status"><h2>{{ rl.routing_empty_title }}</h2><p>{{ rl.routing_empty_help }}</p><a href="/review/decisions/placement/{{ subject }}?lang={{ lang }}">{{ rl.classify }}</a></section>{% endif %}
+<div{% if routing_empty %} hidden{% endif %}>
+<section class="panel">
+<form id="review-selection" class="settings-form">
+<label for="review-action">{{ rl.action }}</label><select id="review-action" name="action" required>{% for action in options.actions %}<option value="{{ action }}">{{ rl[action] }}</option>{% endfor %}</select>
+{% if domain == 'placement' or (domain == 'routing' and subject.startswith('routing_')) %}
+<div data-actions="classify save_rule">
+{% if domain == 'routing' %}<label for="review-source">{{ rl.source }}</label><select id="review-source" name="source_id">{% for source in options.sources %}<option value="{{ source.id }}"{% if options.defaults.source_id == source.id %} selected{% endif %}>{{ source.name }} · {{ source.id }}</option>{% endfor %}</select>
+<label for="review-prefix">{{ rl.path_prefix }}</label><input id="review-prefix" name="path_prefix" type="text" maxlength="512" value="{{ options.defaults.path_prefix or '' }}" aria-describedby="review-prefix-help"><p id="review-prefix-help">{{ rl.path_help }}</p>{% endif %}
+<label for="review-primary">{{ rl.primary }}</label><select id="review-primary" name="primary_node_id">{% for node in options.nodes %}{% if node.kind != 'collection' %}<option value="{{ node.id }}"{% if options.defaults.primary_node_id == node.id %} selected{% endif %}>{{ node.name }} · {{ node.id }}</option>{% endif %}{% endfor %}</select>
+<label for="review-secondary">{{ rl.secondary }}</label><select id="review-secondary" name="secondary_node_ids" multiple size="5" aria-describedby="review-secondary-help">{% for node in options.nodes %}<option value="{{ node.id }}"{% if node.id in (options.defaults.secondary_node_ids or []) %} selected{% endif %}>{{ node.name }} · {{ node.id }}</option>{% endfor %}</select><p id="review-secondary-help">{{ rl.multi_help }}</p>
+{% if domain == 'routing' %}<label class="review-check"><input name="automatic_enabled" type="checkbox"{% if options.defaults.automatic_enabled %} checked{% endif %}> {{ rl.automatic }}</label><p>{{ rl.automatic_help }}</p>{% endif %}
+</div>{% endif %}
+{% if domain == 'routing' and subject.startswith('doc_') %}<label for="review-rule">{{ rl.rule }}</label><select id="review-rule" name="rule_id">{% for rule in options.rules %}<option value="{{ rule.id }}">{{ rule.path_prefix or rule.source_id }} · {{ rl.revision }} {{ rule.revision }} · {{ rule.id }}</option>{% endfor %}</select>{% endif %}
+{% if domain in ['duplicates','versions'] %}<div data-actions="new_version select_current">
+{% if domain == 'duplicates' %}<label for="review-target">{{ rl.target }}</label><select id="review-target" name="target_document_id">{% for document in options.documents %}<option value="{{ document.id }}">{{ document.title }} · {{ document.id }}</option>{% endfor %}</select>{% endif %}
+<label for="review-version">{{ rl.version }}</label><select id="review-version" name="version_id">{% for version in options.versions %}<option value="{{ version.id }}">{{ version.id }} · {{ version.content_hash }} · {{ version.document_id }}</option>{% endfor %}</select><p>{{ rl.version_help }}</p></div>{% endif %}
+{% if domain == 'capabilities' %}
+<label for="review-mode">{{ rl.mode }}</label><select id="review-mode" name="mode">{% for mode in ['disabled','proposal-only','confirm-each','controlled-automatic'] %}{% if mode != 'controlled-automatic' or subject == 'routing' %}<option value="{{ mode }}"{% if options.defaults.mode == mode %} selected{% endif %}>{{ rl[mode] }}</option>{% endif %}{% endfor %}</select>
+<fieldset><legend>{{ rl.actions }}</legend>{% for action in options.capability_actions %}<label class="review-check"><input type="checkbox" name="scope_action" value="{{ action }}"{% if action in options.defaults.scope.actions %} checked{% endif %}> {{ rl[action] }}</label>{% endfor %}</fieldset>
+<label class="review-check"><input type="checkbox" name="all_subjects"{% if '*' in options.defaults.scope.subjects %} checked{% endif %}> {{ rl.all_subjects }}</label>
+<label for="review-subjects">{{ rl.subjects }}</label><select id="review-subjects" name="scope_subject" multiple size="5">{% for row in options.subjects %}<option value="{{ row.id }}"{% if row.id in options.defaults.scope.subjects %} selected{% endif %}>{{ row.label }} · {{ row.id }}</option>{% endfor %}</select>
+<label for="review-sources">{{ rl.sources }}</label><select id="review-sources" name="scope_source" multiple size="5" aria-describedby="review-sources-help">{% for source in options.sources %}<option value="{{ source.id }}"{% if source.id in options.defaults.scope.sources %} selected{% endif %}>{{ source.name }} · {{ source.id }}</option>{% endfor %}</select><p id="review-sources-help">{{ rl.sources_help }}</p><p>{{ rl.scope_help }}</p>
+{% endif %}
+<button id="review-preview" type="submit"{% if not options.actions %} disabled{% endif %}>{{ rl.preview }}</button>
+</form></section>
+<section id="review-preview-panel" class="panel" aria-labelledby="review-preview-title" hidden><h2 id="review-preview-title" tabindex="-1">{{ rl.preview_title }}</h2>
+<div class="review-table-scroll" role="region" aria-label="{{ rl.preview_title }}" tabindex="0"><table><thead><tr><th scope="col">{{ rl.action }}</th><th scope="col">{{ rl.before }}</th><th scope="col">{{ rl.after }}</th></tr></thead><tbody id="review-changes"></tbody></table></div>
+<dl><dt>{{ rl.impact }}</dt><dd id="review-impact"></dd><dt>{{ rl.reversibility }}</dt><dd id="review-reversibility"></dd><dt>{{ rl.confidence }}</dt><dd id="review-confidence"></dd></dl><p id="review-ambiguity" hidden>{{ rl.ambiguous }}</p>
+<details><summary>{{ rl.evidence }}</summary><pre id="review-evidence"></pre></details>
+<div class="review-confirmation"><label class="review-check"><input id="review-confirm-check" type="checkbox"> {{ rl.confirm_check }}</label><button id="review-confirm" type="button" disabled>{{ rl.confirm }}</button></div></section>
+</div>
+<p id="review-status" role="status" aria-live="polite"></p>
+<section class="panel"><h2>{{ rl.history }}</h2><p id="review-history-refresh" hidden>{{ rl.history_refresh }} <a href="/review/decisions/{{ domain }}/{{ subject }}?lang={{ lang }}">{{ rl.fresh }}</a></p><div id="review-history-snapshot">{% if not history.complete %}<p role="status">{{ rl.incomplete }}</p>{% endif %}{% if history.complete and not history['items'] %}<p>{{ rl.history_empty }}</p>{% endif %}<ol class="document-list">{% for receipt in history['items'] %}<li><strong>{{ rl.get(receipt.action, receipt.action) }}</strong> · {{ receipt.principal }} · <time>{{ receipt.recorded_at }}</time><p><code>{{ receipt.id }}</code></p><details><summary>{{ rl.evidence }}</summary><pre>{{ receipt|tojson(indent=2) }}</pre></details></li>{% endfor %}</ol></div></section>
+</div><noscript><p role="alert">{{ rl.noscript }}</p></noscript>
+<script src="/static/review-decisions.js" integrity="{{ review_integrity }}" crossorigin="anonymous" defer></script>
+{% endif %}
+{% endblock %}

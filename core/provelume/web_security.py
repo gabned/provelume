@@ -113,18 +113,39 @@ class LocalWebSecurityMiddleware(BaseHTTPMiddleware):
             and response.status_code in {200, 303}
         ):
             response.headers["Content-Security-Policy"] = GOOGLE_CONNECTION_SECURITY_POLICY
-        integrity = getattr(request.state, "cura_script_integrity", None)
+        integrities = [
+            getattr(request.state, name, None)
+            for name in (
+                "cura_script_integrity", "annotation_script_integrity", "review_script_integrity",
+            )
+        ]
+        allowed_scripts = [
+            value for value in integrities
+            if isinstance(value, str) and re.fullmatch(r"sha256-[A-Za-z0-9+/]{43}=", value)
+        ]
         if (
             trusted_request_host(request.headers.get("host", ""))
             and response.headers.get("content-type", "").startswith("text/html")
-            and isinstance(integrity, str)
-            and re.fullmatch(r"sha256-[A-Za-z0-9+/]{43}=", integrity)
+            and allowed_scripts
         ):
             # Only the fixed, integrity-bound first-party enhancement is executable.
             # The renderer and policy use one request-local preference snapshot.
             policy = response.headers["Content-Security-Policy"]
             response.headers["Content-Security-Policy"] = policy.replace(
-                "script-src 'none'", f"script-src '{integrity}'",
+                "script-src 'none'",
+                "script-src " + " ".join(f"'{value}'" for value in allowed_scripts),
             )
+            if getattr(request.state, "annotation_script_integrity", None) in allowed_scripts:
+                response.headers["Content-Security-Policy"] += "; frame-src 'self'"
+        if (
+            getattr(request.state, "annotation_pdf_media", False) is True
+            and request.url.path.startswith("/review/annotations/")
+            and response.headers.get("content-type", "").split(";", 1)[0] == "application/pdf"
+        ):
+            policy = response.headers["Content-Security-Policy"]
+            response.headers["Content-Security-Policy"] = policy.replace(
+                "frame-ancestors 'none'", "frame-ancestors 'self'",
+            )
+            response.headers["X-Frame-Options"] = "SAMEORIGIN"
         response.headers["Cache-Control"] = "no-store"
         return response

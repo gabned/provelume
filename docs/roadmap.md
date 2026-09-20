@@ -1232,10 +1232,16 @@ S01 is integrated through #257. S02 #258/#261 is integrated at
 `6024dd153e902e02d59b68f7a6b4f9b919803c9b`, with qualification and post-merge verification
 in #255 receipts 15–16. It delivers the optional Preview shell, shared presentation and
 retrieval context, local icons, appearance/language persistence and presentation rollback.
-[S03 #262](https://github.com/gabned/provelume/issues/262) is active under receipt 17 for the
+[S03 #262](https://github.com/gabned/provelume/issues/262) is integrated for the
 [typed Action Center](architecture/action-center.md) and
 [local notification contract](architecture/cura-notifications.md).
-S04–S09 remain ordered, unopened implementation slices until their preceding verified merge.
+S04 #264 is delivered through #265 and qualifying corrections #266/#267 at
+`1b8e075e7ee221aca2fcab43288dd751ccefe43c`, certified by #255 receipt 42.
+[S05 #270](https://github.com/gabned/provelume/issues/270) is active under receipt 43 for
+[reviewed placement and routing](architecture/cura-domain-review.md),
+[duplicate and Version decisions](cura-document-decisions.md), and the
+[OCR and transcript correction editor](architecture/annotation-editor.md).
+S06–S09 remain ordered, unopened implementation slices until their preceding verified merge.
 Package/runtime remains `0.10.1` until distinct release preparation; activation is not delivery.
 The optional Telegram adapter is deferred in #255; required native share/direct Capture/Drive-drop
 paths and the provider-neutral relay contract remain in scope.

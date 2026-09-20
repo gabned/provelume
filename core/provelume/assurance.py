@@ -130,6 +130,7 @@ class OriginalAssuranceManager:
             "email-messages",
             "email-observations",
             "email-attachments",
+            "review-origins",
         ):
             records, issues = safe_canonical_records(self.store, kind)
             result[kind] = self._mapping(records)
@@ -539,6 +540,20 @@ class OriginalAssuranceManager:
                     )
             for version_id, count in sorted(version_acquisitions.items()):
                 if count == 0:
+                    origin = records["review-origins"].get(version_id)
+                    if origin is not None:
+                        from .review_integrity import validate_review_origin
+
+                        try:
+                            validate_review_origin(self.store, origin, records)
+                        except (ValueError, OSError):
+                            findings.append(self._finding(
+                                "error", "review_origin_invalid",
+                                f"Reviewed Version origin is invalid: {version_id}",
+                                {"version_id": version_id},
+                            ))
+                        else:
+                            continue
                     findings.append(
                         self._finding(
                             "warning",

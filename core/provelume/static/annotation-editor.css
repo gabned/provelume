@@ -1,0 +1,20 @@
+.annotation-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; align-items: start; }
+.annotation-columns > * { min-width: 0; }
+.annotation-evidence { position: sticky; top: 1rem; }
+.annotation-image { position: relative; }
+.annotation-image img { width: 100%; height: auto; display: block; }
+.annotation-image svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#annotation-region { fill: #c5a00044; stroke: #705800; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.annotation-evidence video, .annotation-evidence audio, .annotation-evidence iframe { width: 100%; max-width: 100%; }
+.annotation-evidence iframe { min-height: 28rem; border: 1px solid currentColor; }
+.annotation-toolbar, .annotation-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-block: .5rem; }
+.annotation-segment { border: 1px solid #7778; border-radius: .5rem; padding: .7rem; margin-block: .8rem; }
+.annotation-segment:focus-within, .annotation-segment[aria-current="true"] { outline: 3px solid #397061; outline-offset: 2px; }
+.annotation-segment textarea, .annotation-segment input { display: block; width: 100%; max-width: 100%; box-sizing: border-box; font: inherit; }
+.annotation-segment textarea { min-height: 6rem; resize: vertical; }
+.annotation-segment label { display: block; margin-block: .4rem; }
+#annotation-diff { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }
+#annotation-editor code, #annotation-anchor { overflow-wrap: anywhere; }
+#annotation-editor button, #annotation-editor select { min-height: 2.75rem; max-width: 100%; white-space: normal; }
+@media (max-width: 760px) { .annotation-columns { grid-template-columns: minmax(0, 1fr); } .annotation-evidence { position: static; } .annotation-evidence iframe { min-height: 20rem; } }
+@media (prefers-reduced-motion: reduce) { #annotation-editor * { scroll-behavior: auto; } }

@@ -93,6 +93,28 @@ class ProvelumeInstance:
         self.resource_statistics = ResourceStatisticsManager(self.store)
         self.components = ComponentInventory()
         self.representations = RepresentationReadModel(self.store)
+        from .annotation_store import AnnotationProvider
+        from .review_authority import ReviewAuthority
+        from .review_decisions import ReviewDecisions
+        from .review_documents import DuplicateDecisionProvider, VersionDecisionProvider
+        from .review_integrity import CAPABILITIES
+        from .review_routing import PlacementProvider, RoutingProvider
+        from .review_runtime import recover_review_transactions_locked, review_transaction_factory
+
+        self.annotations = AnnotationProvider(self.store)
+        self.review_authority = ReviewAuthority(self.store, CAPABILITIES)
+        self.review_routing = RoutingProvider(self.store)
+        self.review_decisions = ReviewDecisions(
+            self.store,
+            [
+                self.review_authority, PlacementProvider(self.store), self.review_routing,
+                DuplicateDecisionProvider(self.store), VersionDecisionProvider(self.store),
+                self.annotations,
+            ],
+            authority_resolver=self.review_authority.resolve,
+            transaction_factory=review_transaction_factory(self.store),
+            mutation_guard=recover_review_transactions_locked,
+        )
         self.photos = PhotoProfileManager(self.store)
         self.audio = AudioProfileManager(self.store)
         self.video = VideoProfileManager(self.store)
@@ -445,11 +467,27 @@ class ProvelumeInstance:
             max_file_bytes=max_file_bytes,
             max_files=max_files,
         )
-        return result.as_dict()
+        payload = result.as_dict()
+        routed = self.route_new_acquisitions(payload["acquisitions"])
+        if routed:
+            payload["review_routing"] = routed
+        return payload
+
+    def route_new_acquisitions(self, acquisitions: Sequence[Mapping[str, Any]]) -> list[dict]:
+        """Route committed intake under current, explicitly scoped review authority."""
+        from .review_intake import route_committed_acquisitions
+
+        return route_committed_acquisitions(
+            self.store, acquisitions, routing=self.review_routing, decisions=self.review_decisions,
+        )
 
     def retry_ingestion(self, run_id: str) -> dict[str, Any]:
         result = retry_ingestion_run(self.store, run_id)
-        return result.as_dict()
+        payload = result.as_dict()
+        routed = self.route_new_acquisitions(payload["acquisitions"])
+        if routed:
+            payload["review_routing"] = routed
+        return payload
 
     def list_ingestion_runs(self, *, limit: int = 50) -> list[dict[str, Any]]:
         return IngestionLedger(self.store).list_runs(limit=limit)

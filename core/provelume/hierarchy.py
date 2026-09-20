@@ -26,6 +26,7 @@ from .hierarchy_model import (
     normalise_node_name,
     portable_node_slug,
 )
+from .instance_lifecycle import InstanceLifecycleManager
 from .storage import InstanceStore, utc_now
 
 
@@ -241,6 +242,12 @@ class HierarchyManager:
         return self._node_view(node, nodes, children, primary, secondary)
 
     def create_node(
+        self, kind: str, name: str, *, parent_id: str | None = None,
+    ) -> dict[str, Any]:
+        with InstanceLifecycleManager(self.store)._hold(purpose="hierarchy-create"):
+            return self.create_node_locked(kind, name, parent_id=parent_id)
+
+    def create_node_locked(
         self,
         kind: str,
         name: str,
@@ -277,6 +284,10 @@ class HierarchyManager:
         return self.get_node(node_id) or {}
 
     def rename_node(self, node_id: str, name: str) -> dict[str, Any]:
+        with InstanceLifecycleManager(self.store)._hold(purpose="hierarchy-rename"):
+            return self.rename_node_locked(node_id, name)
+
+    def rename_node_locked(self, node_id: str, name: str) -> dict[str, Any]:
         selected_name = normalise_node_name(name)
         nodes, _classifications = self._state()
         current = nodes.get(node_id)
@@ -302,6 +313,10 @@ class HierarchyManager:
         return self.get_node(node_id) or {}
 
     def move_node(self, node_id: str, parent_id: str | None) -> dict[str, Any]:
+        with InstanceLifecycleManager(self.store)._hold(purpose="hierarchy-move"):
+            return self.move_node_locked(node_id, parent_id)
+
+    def move_node_locked(self, node_id: str, parent_id: str | None) -> dict[str, Any]:
         nodes, _classifications = self._state()
         current = nodes.get(node_id)
         if current is None:
@@ -372,6 +387,14 @@ class HierarchyManager:
         return self.classification_views().get(document_id)
 
     def classify_document(
+        self, document_id: str, primary_node_id: str, *, secondary_node_ids: Iterable[str] = (),
+    ) -> dict[str, Any]:
+        with InstanceLifecycleManager(self.store)._hold(purpose="hierarchy-classify"):
+            return self.classify_document_locked(
+                document_id, primary_node_id, secondary_node_ids=secondary_node_ids,
+            )
+
+    def classify_document_locked(
         self,
         document_id: str,
         primary_node_id: str,
