@@ -12,6 +12,7 @@ from .duplicates import DuplicateCaseManager
 from .review_decisions import (
     assert_review_readable,
     checked_path,
+    decode_json,
     read_bytes,
     read_json,
     receipt_identifier,
@@ -91,7 +92,7 @@ def _target_versions(store, document_id):
         total += len(raw)
         if total > 32 * 1024 * 1024:
             raise ReviewUnavailable("Version inventory exceeds its byte bound")
-        row = read_json(store, f"knowledge/versions/{path.name}")
+        row = decode_json(raw)
         if row is None or row.get("id") != path.stem:
             raise ReviewUnavailable("Version inventory identity is invalid")
         if row.get("document_id") == document_id:
@@ -178,7 +179,7 @@ class DuplicateDecisionProvider:
                     raise ReviewUnavailable("Document decision history is invalid or incomplete")
                 relative = f"state/review/{self.domain}/{path.name}"
                 raw = read_bytes(self.store, relative)
-                row = read_json(self.store, relative)
+                row = None if raw is None else decode_json(raw)
                 if raw is None or row is None or row.get("schema_version") != 1:
                     raise ReviewUnavailable("Document decision history is invalid")
                 total += len(raw)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import stat
 from contextlib import nullcontext
 from datetime import datetime
 from pathlib import Path
@@ -35,12 +36,21 @@ def checked_path(store, relative: str) -> Path:
     """Resolve without creating anything; reject links in every existing component."""
     relative_path(relative)
     current = store.paths.root
+    target = current / relative
     for part in (None, *relative.split("/")):
         if part is not None:
             current = current / part
-        if current.is_symlink() or current.is_junction():
+        try:
+            observed = current.lstat()
+        except (FileNotFoundError, NotADirectoryError):
+            continue
+        # Observe each component once, without following links or caching it
+        # across operations. Other filesystem errors remain fail-closed.
+        if stat.S_ISLNK(observed.st_mode) or getattr(observed, "st_reparse_tag", 0) == getattr(
+            stat, "IO_REPARSE_TAG_MOUNT_POINT", 0xA0000003
+        ):
             raise ReviewUnavailable("Review evidence cannot traverse links")
-        if current.exists() and current != store.paths.root / relative and not current.is_dir():
+        if current != target and not stat.S_ISDIR(observed.st_mode):
             raise ReviewUnavailable("Review evidence parent is not a directory")
     return current
 
@@ -48,9 +58,11 @@ def checked_path(store, relative: str) -> Path:
 def read_bytes(store, relative: str, *, maximum: int = MAX_ENTRY_BYTES) -> bytes | None:
     path = checked_path(store, relative)
     try:
-        if not path.exists():
+        try:
+            observed = path.lstat()
+        except FileNotFoundError:
             return None
-        if not path.is_file() or path.stat().st_size > maximum:
+        if not stat.S_ISREG(observed.st_mode) or observed.st_size > maximum:
             raise ReviewUnavailable("Review evidence has the wrong type or exceeds its bound")
         with path.open("rb") as handle:
             # Most records are tiny. Bound each allocation as well as the total,

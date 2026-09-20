@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from .review_decisions import checked_path, read_bytes, read_json, validate_receipt
+from .review_decisions import checked_path, decode_json, read_bytes, read_json, validate_receipt
 from .review_effects import ReviewUnavailable, sha256
 
 CAPABILITIES = {
@@ -78,7 +78,7 @@ def validate_review_origin(store, origin, records):
         ):
             raise ValueError("origin history path")
         raw = read_bytes(store, origin["history_ref"])
-        history = read_json(store, origin["history_ref"])
+        history = None if raw is None else decode_json(raw)
         if raw is None or sha256(raw) != origin["history_sha256"] or history is None:
             raise ValueError("origin history missing or changed")
         if (
