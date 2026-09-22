@@ -65,6 +65,10 @@ not a content hash of document bytes. Apply writes only the Source configuration
 If another Instance lifecycle writer holds the lock, the Browser returns a localized
 409 conflict and retains the proposed form without applying rules or retrying in the
 background. After the writer finishes, preview the change again before applying it.
+The conflict response shows the proposed policy and provides a dedicated Preview
+form retaining the complete operation and original revision, including existing
+rule IDs and disabled states. It omits the old fingerprint and any Apply button;
+a competing revision change is therefore rejected on the new preview.
 
 ## Ingestion, recovery and retained data
 

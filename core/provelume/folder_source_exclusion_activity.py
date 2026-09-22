@@ -125,8 +125,10 @@ def attach_exclusion_routes(
                 status_code=400,
             )
         except InstanceLifecycleBusy:
-            context = page(request, source_id, form=fields)
+            context = page(request, source_id)
             context["error"] = exclusion_message("instance_busy", context["lang"])
+            context["retry_form"] = fields
+            context["retry_policy"] = proposed
             return templates.TemplateResponse(
                 request=request,
                 name="folder_source_exclusions.html",
