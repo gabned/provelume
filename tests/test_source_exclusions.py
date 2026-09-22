@@ -472,9 +472,23 @@ def test_timed_out_preview_workers_cannot_apply_rules_late(setup, monkeypatch):
     assert instance.folder_source_exclusions(source_id) == before
 
 
-def test_browser_preview_apply_and_read_only_api_share_policy_and_csrf(setup):
+def test_browser_preview_apply_and_read_only_api_share_policy_and_csrf(setup, monkeypatch):
     instance, folder, source_id = setup
-    with TestClient(create_app(instance.root)) as client:
+    app = create_app(instance.root)
+    startup_finished = Event()
+    original_cycle = app.state.provelume.run_scheduler_cycle
+
+    def observed_cycle(*args, **kwargs):
+        try:
+            return original_cycle(*args, **kwargs)
+        finally:
+            startup_finished.set()
+
+    monkeypatch.setattr(app.state.provelume, "run_scheduler_cycle", observed_cycle)
+    with TestClient(app) as client:
+        # Exercise the real startup cycle, then the uncontended happy path.
+        # Real writer contention has a separate deterministic browser test.
+        assert startup_finished.wait(10)
         url = f"/sources/{source_id}/exclusions?lang=it"
         page = client.get(url)
         assert page.status_code == 200 and "Esclusioni della Source" in page.text
