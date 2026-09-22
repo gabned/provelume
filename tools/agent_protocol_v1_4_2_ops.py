@@ -40,6 +40,9 @@ CI_EVENTS = {"pull_request", "pull_request_target", "push", "merge_group",
 _WORK_INSTRUCTIONS: ContextVar[dict | None] = ContextVar(
     "protocol143_trusted_work_instructions", default=None,
 )
+_PROTOCOL_SCOPE: ContextVar[dict | None] = ContextVar(
+    "protocol147_trusted_consumer_scope", default=None,
+)
 
 
 def require(condition: bool, message: str) -> None:
@@ -89,6 +92,46 @@ def canonical(value: Any) -> bytes:
 
 def digest(value: Any) -> str:
     return hashlib.sha256(canonical(value)).hexdigest()
+
+
+@contextmanager
+def trusted_protocol_scope(profile: Any, expected_digest: str):
+    """Bind a caller-selected accepted-base profile; never discover it in a PR.
+
+    The host reads the policy file at the independently observed accepted base,
+    then binds its repository, path and base here. The digest is integrity only.
+    This context changes no workflow, review, effect or lifecycle requirement.
+    """
+    require(digest(profile) == sha(expected_digest, 64), "changed trusted Protocol scope")
+    obj(profile, "schema repository base_sha policy_path paths", "Protocol scope")
+    require(profile["schema"] == "agent-protocol-scope/v1", "Protocol scope schema")
+    require(profile["repository"] in PROFILES and profile["repository"] != "gabned/nexus",
+            "Protocol scope repository")
+    sha(profile["base_sha"])
+    policy_path = path(profile["policy_path"])
+    policy_roots = (".github/agent-protocol/", "docs/agent-development-v",
+                    "docs/runbooks/agent-development-v")
+    require(policy_path.startswith(policy_roots) and policy_path.endswith(".json") and
+            not any(char in policy_path for char in "*?[]"),
+            "Protocol scope policy path")
+    rows = array(profile["paths"], "Protocol scope paths")
+    require(0 < len(rows) <= 64, "bounded Protocol scope paths")
+    roots = {"IMPLEMENTATION": ("tools/", "scripts/"), "TEST": ("tests/",),
+             "NORMATIVE_DOC": ("docs/",)}
+    names = []
+    for row in rows:
+        obj(row, "path role", "Protocol scope entry")
+        name = path(row["path"])
+        require(not any(char in name for char in "*?[]"), "exact Protocol scope paths required")
+        require(row["role"] in roots and name.startswith(roots[row["role"]]),
+                "Protocol scope role/path mismatch")
+        names.append(name)
+    require(names == sorted(set(names)), "sorted unique Protocol scope paths required")
+    token = _PROTOCOL_SCOPE.set(deepcopy(profile))
+    try:
+        yield
+    finally:
+        _PROTOCOL_SCOPE.reset(token)
 
 
 def work_instruction_records(value: Any) -> dict[str, dict]:
@@ -345,6 +388,13 @@ def validate_scope(
 ) -> None:
     initial = paths(baseline)
     require(set(initial) <= set(pr["changed_paths"]), "baseline contains absent paths")
+    profile = _PROTOCOL_SCOPE.get()
+    if profile is not None:
+        require(profile["repository"] == pr["repository"] and
+                profile["base_sha"] == pr["base_sha"],
+                "Protocol scope base/repository mismatch")
+        require(profile["policy_path"] not in pr["changed_paths"],
+                "Protocol scope cannot qualify its own policy change")
     if pr["repository"] != "gabned/nexus":
         exact = {"AGENTS.md", ".github/pull_request_template.md", ".github/workflows/ci.yml",
                  "tools/agent-check", "tools/agent-protocol",
@@ -362,6 +412,8 @@ def validate_scope(
                     "tests/agent_protocol_", "tests/agent_change_control_",
                     "docs/agent-development-v", "docs/runbooks/agent-development-v",
                     ".github/agent-protocol/")
+        if profile is not None:
+            exact.update(row["path"] for row in profile["paths"])
         require(all(name in exact or name.startswith(prefixes) for name in initial),
                 "baseline includes a non-Protocol surface")
     else:

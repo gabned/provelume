@@ -193,7 +193,8 @@ def context_delta(selection, retained, *, trusted_selection, trusted_retained, c
     return result
 
 
-def validate_qualification(operation, policy, expected_digest, *, now=None):
+def validate_qualification(operation, policy, expected_digest, *, now=None,
+                           scope_profile=None, expected_scope_digest=None):
     """Apply the accepted repository policy without querying remote administration APIs."""
     require(digest(policy) == expected_digest, "changed trusted repository policy")
     ops.obj(
@@ -230,8 +231,14 @@ def validate_qualification(operation, policy, expected_digest, *, now=None):
         ),
         "required review policy mismatch",
     )
-    ops.validate_operations(operation, now=now)
-    return {
+    require((scope_profile is None) == (expected_scope_digest is None),
+            "complete independent Protocol scope authority required")
+    if scope_profile is None:
+        ops.validate_operations(operation, now=now)
+    else:
+        with ops.trusted_protocol_scope(scope_profile, expected_scope_digest):
+            ops.validate_operations(operation, now=now)
+    result = {
         "schema": "agent-qualification/v1",
         "protocol_version": VERSION,
         "repository": policy["repository"],
@@ -244,6 +251,9 @@ def validate_qualification(operation, policy, expected_digest, *, now=None):
         "ruleset_observation_required": False,
         "merge_performed": False,
     }
+    if scope_profile is not None:
+        result["scope_profile_sha256"] = expected_scope_digest
+    return result
 
 
 def verify_merge_response(response, expected_head, observed_head):
