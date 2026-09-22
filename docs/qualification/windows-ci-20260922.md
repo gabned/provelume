@@ -16,9 +16,17 @@ baseline record as versioned allocation data: module path, collected test count,
 and `max(1, round(total_seconds * 1000))`, where total includes setup, call and
 teardown. New modules and changed counts still use the existing count fallback.
 The allocation algorithm, module atomicity, complete test union, deterministic
-ordering, four processes, timeout bounds and failure propagation are unchanged.
+ordering, four processes and failure propagation are unchanged.
 Historical replay predicts about 420.77 test-phase seconds per process for the
 baseline inventory. This is a diagnostic estimate, not a new Windows execution.
+
+Two exact-head runs on #280 still exceeded the previous 480-second suite bound.
+The second attempt completed 151 modules without assertion failures, with two
+shards still running at the deadline. The suite bound is now 540 seconds to
+accommodate observed runner variance while keeping the same complete test set,
+four shards, termination on timeout and the existing ten-minute job bound.
+This is a measured revision of the initial unchanged-timeout plan; only a real
+successful exact-head Windows run can qualify it.
 
 The exclusion browser happy-path test also waits, bounded to ten seconds, for
 the real initial scheduler cycle to finish. It still executes that cycle and all
@@ -31,7 +39,7 @@ behavior for an actual competing writer is owned by #277 / #278.
   default-branch `push` triggers, concurrency rules, permissions and job names.
 - Core tests retain Python 3.12, Ubuntu and Windows, the pip dependency cache,
   editable development installation, Ruff and the complete `python -m pytest -q`.
-  The job remains bounded to ten minutes and the Windows suite to 480 seconds.
+  The job remains bounded to ten minutes and the Windows suite to 540 seconds.
 - The pytest plugin remains registered by `pyproject.toml`; source selection,
   targeted invocation behavior and failure cleanup remain unchanged.
 - Windows installer and release-foundation jobs, build inputs, cache keys,

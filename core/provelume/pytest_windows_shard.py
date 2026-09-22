@@ -15,9 +15,9 @@ from typing import Any
 import pytest
 
 SHARD_COUNT = 4
-DEFAULT_SHARD_TIMEOUT_SECONDS = 480
+DEFAULT_SHARD_TIMEOUT_SECONDS = 540
 MIN_SHARD_TIMEOUT_SECONDS = 60
-MAX_SHARD_TIMEOUT_SECONDS = 480
+MAX_SHARD_TIMEOUT_SECONDS = 540
 MAX_REPLAY_BYTES = 2 * 1024 * 1024
 CHILD_ENV = "PROVELUME_WINDOWS_SHARD_CHILD"
 FORCE_ENV = "PROVELUME_WINDOWS_SHARD_FORCE"
@@ -478,7 +478,7 @@ def pytest_cmdline_main(config) -> int | None:
                     f"cache_dir={state / 'pytest-cache'}",
                     *args,
                     # Retain the active test and slowest completed cases when
-                    # the unchanged aggregate deadline interrupts a quiet run.
+                    # the bounded aggregate deadline interrupts a quiet run.
                     # Full collection, partitioning and output bounds are unchanged.
                     "-vv",
                     "--durations=10",
