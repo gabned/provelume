@@ -62,6 +62,9 @@ policy and inspected metadata snapshot. Apply re-runs the same preview under the
 Instance mutation lock and requires an exact match. Changed metadata, rules or
 revision require a new preview. The fingerprint qualifies selection/counts; it is
 not a content hash of document bytes. Apply writes only the Source configuration.
+If another Instance lifecycle writer holds the lock, the Browser returns a localized
+409 conflict and retains the proposed form without applying rules or retrying in the
+background. After the writer finishes, preview the change again before applying it.
 
 ## Ingestion, recovery and retained data
 

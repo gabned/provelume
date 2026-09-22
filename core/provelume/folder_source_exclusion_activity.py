@@ -9,6 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from .folder_source_exclusion_i18n import exclusion_message
 from .folder_source_exclusions import propose_change
 from .folder_source_model import FolderSourceError
+from .instance_lifecycle import InstanceLifecycleBusy
 from .service import ProvelumeInstance
 from .source_exclusions import KINDS, ExclusionError
 
@@ -122,6 +123,15 @@ def attach_exclusion_routes(
                 name="folder_source_exclusions.html",
                 context=context,
                 status_code=400,
+            )
+        except InstanceLifecycleBusy:
+            context = page(request, source_id, form=fields)
+            context["error"] = exclusion_message("instance_busy", context["lang"])
+            return templates.TemplateResponse(
+                request=request,
+                name="folder_source_exclusions.html",
+                context=context,
+                status_code=409,
             )
         return templates.TemplateResponse(
             request=request, name="folder_source_exclusions.html", context=context
