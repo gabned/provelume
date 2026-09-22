@@ -233,7 +233,7 @@
     {
       "id": "agent-development-v1.4.7",
       "path": "docs/agent-development-v1.4.7.md",
-      "sha256": "c655a785968f4979b609f619936b4a5a30f57094745789fd45f0755220478ce6",
+      "sha256": "e96272a83546d1be27577dbec11ec042ee13a8d62beb43c4a31e17714667cb70",
       "role": "ALWAYS",
       "workstreams": [
         "PRODUCT",

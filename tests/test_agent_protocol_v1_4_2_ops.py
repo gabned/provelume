@@ -196,6 +196,19 @@ def test_consumer_scope_reuses_registered_normative_policy_namespaces(name):
     assert qualify_consumer(value, policy, profile)["result"] == "PASS"
 
 
+def test_profiled_operation_preserves_resolved_historical_findings():
+    value, policy, profile = consumer_scope_case()
+    value["late_findings"] = [resolved_finding()]
+    assert qualify_consumer(value, policy, profile)["result"] == "PASS"
+
+
+def test_nested_operation_cannot_borrow_outer_profile_authority():
+    value, _, profile = consumer_scope_case()
+    with (ops.trusted_protocol_scope(profile, ops.digest(profile)),
+          pytest.raises(ValueError, match="non-Protocol")):
+        ops.validate_operations(value, nested=True)
+
+
 @pytest.mark.parametrize("damage", ["head", "ci", "review", "threads", "scope", "ancestry",
                                   "unknown", "policy", "post_policy", "review_source", "stale"])
 def test_147_ruleset_removal_does_not_remove_other_gates(damage):

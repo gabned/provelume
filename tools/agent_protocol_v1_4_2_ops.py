@@ -544,7 +544,14 @@ def validate_operations(
         sha(default["sha"])
         require((default["repository"], default["name"]) ==
                 (p["repository"], PROFILES[p["repository"]][0]), "default branch identity mismatch")
-    validate_scope(e["scope_exception"], p, e["baseline_paths"], now)
+    # A caller-selected profile belongs to this operation, not to embedded
+    # historical origin/correction proofs (which can have a different base).
+    token = _PROTOCOL_SCOPE.set(None) if nested else None
+    try:
+        validate_scope(e["scope_exception"], p, e["baseline_paths"], now)
+    finally:
+        if token is not None:
+            _PROTOCOL_SCOPE.reset(token)
     validate_ci(e["ci"], p["repository"], p["head_sha"], now=now)
     require(e["ci"]["policy_ref"] == p["base_sha"], "CI policy is not bound to trusted base")
     r = obj(e["reviews"], "repository pr head_sha requirement state unresolved_threads "

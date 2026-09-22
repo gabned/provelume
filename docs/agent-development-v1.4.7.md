@@ -94,6 +94,9 @@ Historical campaign replay using a registered scope must independently select it
 original accepted profile and use `trusted_protocol_scope(profile, digest)` around
 the existing validator; never modify old receipts or infer trust from their content.
 Context is restored after success or failure and grants no process-global authority.
+An outer profile is never inherited by embedded origin/correction proofs. Those
+nested operations retain built-in scope validation; an unregistered nested path
+still blocks rather than borrowing authority from the current operation.
 
 ## Delegated decisions and concrete human intervention
 
