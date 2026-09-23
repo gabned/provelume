@@ -198,10 +198,11 @@ observe the resulting state. Record late findings with origin/correction evidenc
 selected exact authorized repository inventory. It binds that scope and campaign
 reference and validates every integration, current gate, vendor byte/mode and
 provenance. Omitted authorized consumers, duplicate rows and unresolved findings
-fail. The historical five-repository audit is unchanged. Nexus is included only
-when its existing descriptive registry actually requires authorized reconciliation;
-it never becomes an executable consumer or an authority source. Update it once,
-at campaign closure, rather than after each intermediate PR.
+fail. The historical five-repository audit is unchanged. The current campaign
+qualifies Core and its three authorized executable consumers. Any authorized
+Nexus registry reconciliation retains a separate descriptive receipt, without
+executable-consumer qualification or authority. Update that registry once at
+campaign closure.
 
 Campaign completion requires the accepted Core, successful pilot, every authorized
 consumer adoption and actual final verification, coherent routing/pins/adapters,
