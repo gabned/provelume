@@ -2,7 +2,18 @@
 {% block title %}{{ t('exclusions.title') }} · Provelume{% endblock %}
 {% block content %}
 <section class="page-heading"><p class="eyebrow">{{ source.name }}</p><h1>{{ t('exclusions.title') }}</h1><p class="lead">{{ t('exclusions.lead') }}</p></section>
-{% if error %}<section class="panel" role="alert"><p>{{ error }}</p></section>{% endif %}
+{% if error %}<section class="panel" role="alert"><p>{{ error }}</p>
+  {% if retry_form %}
+  <h2>{{ t('exclusions.proposed') }} · {{ t('exclusions.revision') }} {{ retry_policy.revision }}</h2>
+  <p>{{ t('exclusions.enabled' if retry_policy.enabled else 'exclusions.disabled') }}</p>
+  <ul>{% for item in retry_policy.rules %}<li><code>{{ item.pattern }}</code> · {{ t('exclusions.' + item.kind) }} · {{ t('exclusions.' + item.action) }} · {{ t('exclusions.enabled' if item.enabled else 'exclusions.disabled') }}</li>{% endfor %}</ul>
+  <form method="post" id="exclusion-conflict-retry">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="preview">
+    {% for key, value in retry_form.items() %}{% if key not in ['action', 'preview_fingerprint'] %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+    <button>{{ t('exclusions.preview') }}</button>
+  </form>
+  {% endif %}
+</section>{% endif %}
 {% if saved %}<section class="panel" role="status"><p>{{ t('exclusions.saved') }}</p></section>{% endif %}
 <section class="panel">
   <h2>{{ t('exclusions.rules') }} · {{ t('exclusions.revision') }} {{ policy.revision }}</h2>
