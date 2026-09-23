@@ -71,7 +71,7 @@ and attempts maximum, and a 64 MiB imported snapshot limit.
 
 ## Checkpoint-driven execution
 
-This procedure applies to current 1.4.7 execution. Historical receipt and handoff
+This procedure applies when selected by the accepted current manifest. Historical receipt and handoff
 schemas keep their original meaning; the original `handoff` helper remains
 available for replay. New closures use `checkpoint-handoff`.
 

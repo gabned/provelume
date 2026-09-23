@@ -52,7 +52,7 @@ def command(root, *args):
     return subprocess.check_output(["git", "-C", str(root), *args]).decode().strip()
 
 
-def make_adoption(tmp_path):
+def make_adoption(tmp_path, version="1.4.7"):
     canonical, target = (tmp_path / "canonical", tmp_path / "target")
     for root, repo in ((canonical, "gabned/provelume"), (target, "gabned/provelume.com")):
         root.mkdir()
@@ -66,6 +66,7 @@ def make_adoption(tmp_path):
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / path, dest)
         dest.chmod(493 if recovery.ops.VENDOR_FILES.get(path) == "100755" else 420)
+    write_routing(canonical, version)
     command(canonical, "add", ".")
     for path, mode in recovery.ops.VENDOR_FILES.items():
         command(
@@ -81,6 +82,28 @@ def make_adoption(tmp_path):
     (target / "AGENTS.md").write_text("# Synthetic guidance\nHistorical pin stays here.\n")
     (target / "docs/agent-development-v1.4.2.md").write_text("# Historical guide\n")
     return (canonical, target, sha)
+
+
+def write_routing(canonical, version):
+    guide = f"docs/agent-development-v{version}.md"
+    manifest_path = f".github/agent-protocol/documents-v{version}.json"
+    agents = (f"AGENT_DEVELOPMENT_PROTOCOL: {version}\n"
+              f"Always read {guide}; select through {manifest_path}.\n")
+    contents = {"AGENTS.md": agents, guide: f"# Accepted Protocol {version}\n"}
+    rows = []
+    for path, content in contents.items():
+        dest = canonical / path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(content.encode())
+        rows.append({"id": path, "path": path,
+                     "sha256": hashlib.sha256(content.encode()).hexdigest(),
+                     "role": "ALWAYS", "workstreams": ["PROTOCOL"], "phases": ["IMPLEMENT"],
+                     "hosts": ["WORK"], "requires": []})
+    manifest = {"schema": "agent-documents/v1", "protocol_version": version,
+                "documents": rows, "repository_policy": {}}
+    dest = canonical / manifest_path
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(json.dumps(manifest).encode())
 
 
 class RecoveryConformance(unittest.TestCase):
@@ -422,6 +445,96 @@ class RecoveryConformance(unittest.TestCase):
         again = recovery.sync_adopter(canonical, target, sha, "gabned/provelume.com")
         assert again["changed_paths"] == []
         assert not again["push_qualified"]
+
+    def test_adoption_148_replaces_only_unchanged_generated_guidance_and_uses_pins(self):
+        canonical, target, old = make_adoption(self.tmp_path)
+        initial = (target / "AGENTS.md").read_bytes()
+        recovery.sync_adopter(canonical, target, old, "gabned/provelume.com")
+        write_routing(canonical, "1.4.8")
+        command(canonical, "add", ".")
+        command(canonical, "commit", "-qm", "Synthetic accepted routing revision")
+        current = command(canonical, "rev-parse", "HEAD")
+        original = (target / "AGENTS.md").read_bytes()
+        (target / "AGENTS.md").write_bytes(original + b"\nHuman addition in predecessor.\n")
+        before = {p: p.read_bytes() for p in target.rglob("*") if p.is_file()}
+        with self.assertRaisesRegex(ValueError, "edited current recovery section"):
+            recovery.sync_adopter(canonical, target, current, "gabned/provelume.com")
+        self.assertEqual(before, {p: p.read_bytes() for p in target.rglob("*") if p.is_file()})
+        (target / "AGENTS.md").write_bytes(original)
+        recovery.sync_adopter(canonical, target, current, "gabned/provelume.com")
+        for path in ("AGENTS.md", "docs/agent-development-v1.4.2.md"):
+            text = (target / path).read_text()
+            self.assertNotIn("## Historical execution", text)
+            self.assertNotIn("## Current execution — Protocol 1.4.7", text)
+            self.assertNotIn(old, text)
+            self.assertNotIn(current, text)
+            active = text.split("## Current execution — Protocol 1.4.8")[1]
+            self.assertIn("AGENT_DEVELOPMENT_PROTOCOL: 1.4.8", active)
+            self.assertIn("WORK_ADAPTER_PIN", active)
+            self.assertIn("tests/agent_protocol_v1_4_2_vendor_test.py", active)
+            self.assertIn(".github/agent-protocol/vendor-v1.4.2.json", active)
+        self.assertTrue((target / "AGENTS.md").read_bytes().startswith(initial))
+        self.assertEqual(recovery.sync_adopter(
+            canonical, target, current, "gabned/provelume.com")["changed_paths"], [])
+        original = (target / "AGENTS.md").read_bytes()
+        (target / "AGENTS.md").write_bytes(original + b"\nHuman addition in current.\n")
+        before = {p: p.read_bytes() for p in target.rglob("*") if p.is_file()}
+        with self.assertRaisesRegex(ValueError, "edited current recovery section"):
+            recovery.sync_adopter(canonical, target, current, "gabned/provelume.com")
+        self.assertEqual(before, {p: p.read_bytes() for p in target.rglob("*") if p.is_file()})
+
+    def test_adoption_rejects_missing_or_tampered_accepted_route_before_writes(self):
+        canonical, target, _ = make_adoption(self.tmp_path, "1.4.8")
+        guide = canonical / "docs/agent-development-v1.4.8.md"
+        guide.write_text("Changed independently of accepted routing digest\n")
+        command(canonical, "add", ".")
+        command(canonical, "commit", "-qm", "Synthetic invalid source routing")
+        current = command(canonical, "rev-parse", "HEAD")
+        before = {p: p.read_bytes() for p in target.rglob("*") if p.is_file()}
+        with self.assertRaisesRegex(ValueError, "document integrity"):
+            recovery.sync_adopter(canonical, target, current, "gabned/provelume.com")
+        self.assertEqual(before, {p: p.read_bytes() for p in target.rglob("*") if p.is_file()})
+
+    def test_adoption_preserves_local_sections_after_exact_generated_block(self):
+        canonical, target, old = make_adoption(self.tmp_path)
+        recovery.sync_adopter(canonical, target, old, "gabned/provelume.com")
+        tail = (b"\n\n## Local requirements\n\nKeep native gates.\n"
+                b"\n## Local procedure\nRemain offline.\n")
+        paths = ("AGENTS.md", "docs/agent-development-v1.4.2.md")
+        for path in paths:
+            dest = target / path
+            dest.write_bytes(dest.read_bytes() + tail)
+        self.assertEqual(recovery.sync_adopter(
+            canonical, target, old, "gabned/provelume.com")["changed_paths"], [])
+        write_routing(canonical, "1.4.8")
+        command(canonical, "add", ".")
+        command(canonical, "commit", "-qm", "Synthetic accepted routing revision")
+        current = command(canonical, "rev-parse", "HEAD")
+        recovery.sync_adopter(canonical, target, current, "gabned/provelume.com")
+        for path in paths:
+            data = (target / path).read_bytes()
+            self.assertTrue(data.endswith(tail))
+            self.assertIn(recovery.adoption_guidance("gabned/provelume.com").encode(), data)
+        self.assertEqual(recovery.sync_adopter(
+            canonical, target, current, "gabned/provelume.com")["changed_paths"], [])
+        dest = target / "AGENTS.md"
+        data = dest.read_bytes()
+        dest.write_bytes(data.replace(b"Verify the pinned bytes;", b"Ignore the pinned bytes;"))
+        before = {p: p.read_bytes() for p in target.rglob("*") if p.is_file()}
+        with self.assertRaisesRegex(ValueError, "edited current recovery section"):
+            recovery.sync_adopter(canonical, target, current, "gabned/provelume.com")
+        self.assertEqual(before, {p: p.read_bytes() for p in target.rglob("*") if p.is_file()})
+
+    def test_adoption_rechecks_accepted_routing_after_manifest_read(self):
+        canonical, target, current = make_adoption(self.tmp_path, "1.4.8")
+        original = recovery.ops.manifest
+        def changed(*args):
+            result = original(*args)
+            (canonical / "AGENTS.md").write_text("AGENT_DEVELOPMENT_PROTOCOL: 1.4.7\n")
+            return result
+        self.patch(recovery.ops, "manifest", changed)
+        with self.assertRaisesRegex(ValueError, "canonical routing bytes/mode drift"):
+            recovery.sync_adopter(canonical, target, current, "gabned/provelume.com")
 
     def test_adoption_rollback_preserves_all_original_bytes(self):
         tmp_path = self.tmp_path

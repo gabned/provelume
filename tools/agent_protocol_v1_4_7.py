@@ -48,7 +48,8 @@ def select_documents(root, manifest, expected_digest, *, workstream, phase, host
     require(digest(manifest) == expected_digest, "untrusted or changed document manifest")
     ops.obj(manifest, "schema protocol_version documents repository_policy", "manifest")
     require(
-        manifest["schema"] == "agent-documents/v1" and manifest["protocol_version"] == VERSION,
+        manifest["schema"] == "agent-documents/v1"
+        and manifest["protocol_version"] in {VERSION, "1.4.8"},
         "document contract version",
     )
     rows = manifest["documents"]
@@ -141,7 +142,7 @@ def select_documents(root, manifest, expected_digest, *, workstream, phase, host
     ]
     return {
         "schema": "agent-document-selection/v1",
-        "protocol_version": VERSION,
+        "protocol_version": manifest["protocol_version"],
         "manifest_sha256": expected_digest,
         "selection": "FULL_FALLBACK" if fallback else "EXACT",
         "documents": documents,
@@ -268,6 +269,196 @@ def validate_qualification(operation, policy, expected_digest, *, now=None,
     if nested_scope_profiles is not None:
         result["nested_scope_profiles_sha256"] = expected_nested_scope_digest
     return result
+
+
+def campaign_audit(
+    evidence, scope, policies, adoption, adoptions, *,
+    trusted_scope, trusted_policies, trusted_adoption,
+):
+    """Reuse all operational audit checks with an independently selected campaign scope.
+
+    The historical five-repository CLI and receipts keep their original semantics.
+    No row, current gate or integration is synthesized for a descriptive registry.
+    """
+    require(digest(scope) == trusted_scope, "changed campaign scope")
+    ops.obj(scope, "schema campaign_ref repositories", "campaign scope")
+    require(scope["schema"] == "agent-campaign-scope/v1", "campaign scope schema")
+    require(scope["campaign_ref"] == evidence["campaign_ref"], "campaign scope reference")
+    repositories = scope["repositories"]
+    require(isinstance(repositories, list) and repositories == sorted(set(repositories)),
+            "exact campaign repository inventory")
+    require("gabned/provelume" in repositories and len(repositories) >= 2
+            and set(repositories) <= set(ops.PROFILES), "campaign scope repositories")
+    accepted = frozenset(repositories)
+    require(digest(policies) == trusted_policies, "changed campaign policies")
+    require(isinstance(policies, list), "campaign policy inventory")
+    bindings = {}
+    for item in policies:
+        ops.obj(item, "repository pr base_sha head_sha default_sha policy scope_profile",
+                "campaign policy")
+        key = tuple(item[k] for k in ("repository", "pr", "base_sha", "head_sha", "default_sha"))
+        require(key not in bindings, "duplicate campaign policy")
+        bindings[key] = item
+    used = set()
+
+    def integration_binding(integration):
+        pr = integration["pr"]
+        key = (pr["repository"], pr["number"], pr["base_sha"], pr["head_sha"],
+               integration["merge"]["default_sha"])
+        require(key in bindings, "missing independently selected integration policy")
+        return key, bindings[key]
+
+    def qualify_operation(operation, *, now=None):
+        integrations = [operation] + [finding[key] for finding in operation["late_findings"]
+                                      for key in ("origin", "correction")]
+        for integration in integrations:
+            key, binding = integration_binding(integration)
+            policy, profile = binding["policy"], binding["scope_profile"]
+            nested_profiles = {}
+            for finding in integration["late_findings"]:
+                for part in ("origin", "correction"):
+                    _, nested_binding = integration_binding(finding[part])
+                    nested = nested_binding["scope_profile"]
+                    if nested is not None:
+                        scope_key = (nested["repository"], nested["base_sha"])
+                        require(scope_key not in nested_profiles
+                                or nested_profiles[scope_key] == nested,
+                                "conflicting independently selected nested scope")
+                        nested_profiles[scope_key] = nested
+            extra = {}
+            if nested_profiles:
+                profiles = [nested_profiles[k] for k in sorted(nested_profiles)]
+                extra = {"nested_scope_profiles": profiles,
+                         "expected_nested_scope_digest": digest(profiles)}
+            if profile is not None:
+                require(hasattr(ops, "trusted_protocol_scope"),
+                        "accepted operational engine lacks Protocol scope profiles")
+                extra.update(scope_profile=profile, expected_scope_digest=digest(profile))
+            validate_qualification(integration, policy, digest(policy), now=now, **extra)
+            used.add(key)
+        return operation
+
+    ops.validate_audit_input(evidence, expected_repositories=accepted,
+                             operation_validator=qualify_operation)
+    ops.validate_audit_input(evidence, now=ops.timestamp(evidence["observed_at"]),
+                             expected_repositories=accepted, operation_validator=qualify_operation)
+    require(used == set(bindings), "unused campaign policy")
+    # The historical operational manifest covers only its four engine files.
+    # Current Work bytes, actual pin and instruction routing need separate proof.
+    require(digest(adoption) == trusted_adoption, "changed accepted adoption contract")
+    ops.obj(adoption, "schema protocol_version source_repository source_commit "
+            "work_files documents_manifest", "accepted adoption")
+    require(adoption["schema"] == "agent-campaign-adoption/v1"
+            and adoption["protocol_version"] == "1.4.8"
+            and adoption["source_repository"] == "gabned/provelume"
+            and adoption["source_commit"] == evidence["canonical"]["source_commit"],
+            "campaign adoption identity")
+    recovery_spec = importlib.util.spec_from_file_location(
+        "campaign_recovery", Path(__file__).with_name("agent_protocol_work_recovery.py"))
+    recovery = importlib.util.module_from_spec(recovery_spec)
+    recovery_spec.loader.exec_module(recovery)
+    expected_files = adoption["work_files"]
+    require(isinstance(expected_files, list)
+            and [f.get("path") for f in expected_files] == list(recovery.WORK_FILES),
+            "complete accepted Work inventory required")
+    for item in expected_files:
+        ops.obj(item, "path mode git_blob sha256", "accepted Work file")
+        require(item["mode"] == "100644", "accepted Work mode")
+        ops.sha(item["git_blob"])
+        ops.sha(item["sha256"], 64)
+    manifest = adoption["documents_manifest"]
+    ops.obj(manifest, "schema protocol_version documents repository_policy", "accepted routing")
+    require(manifest["schema"] == "agent-documents/v1"
+            and manifest["protocol_version"] == adoption["protocol_version"],
+            "accepted routing version")
+    guide = f"docs/agent-development-v{adoption['protocol_version']}.md"
+    manifest_path = f".github/agent-protocol/documents-v{adoption['protocol_version']}.json"
+    documents = manifest["documents"]
+    require(isinstance(documents, list)
+            and len({r["path"] for r in documents}) == len(documents), "accepted routing inventory")
+    for path in ("AGENTS.md", guide):
+        require(sum(r["path"] == path and r["role"] == "ALWAYS" for r in documents) == 1,
+                "accepted current instruction route")
+    require(isinstance(adoptions, list) and len(adoptions) == len(accepted - {"gabned/nexus"})
+            and {r.get("repository") for r in adoptions} == accepted - {"gabned/nexus"},
+            "exact executable adoption inventory")
+    expected_pin = {"source_repository": adoption["source_repository"],
+                    "source_commit": adoption["source_commit"], "files": expected_files}
+
+    def observed_file(item, default):
+        ops.obj(item, "path commit_sha mode git_blob content", "observed adoption file")
+        ops.path(item["path"])
+        require(item["commit_sha"] == default and item["mode"] in {"100644", "100755"}
+                and isinstance(item["content"], str), "observed adoption identity")
+        require(ops.blob(item["content"].encode()) == item["git_blob"],
+                "observed adoption bytes")
+        return item["content"]
+
+    defaults = {r["repository"]: r["default_sha"] for r in evidence["repositories"]}
+    for row in adoptions:
+        ops.obj(row, "repository default_sha files pin_file routing_files", "observed adoption")
+        repository = row["repository"]
+        default = defaults[repository]
+        core = repository == "gabned/provelume"
+        require(row["default_sha"] == default, "adoption observed at another default")
+        require(isinstance(row["files"], list)
+                and [f.get("path") for f in row["files"]]
+                == (list(recovery.WORK_FILES) if core else []),
+                "complete observed Work inventory required")
+        for item, expected in zip(row["files"], expected_files if core else [], strict=True):
+            content = observed_file(item, default)
+            require(item["mode"] == expected["mode"] and item["git_blob"] == expected["git_blob"]
+                    and hashlib.sha256(content.encode()).hexdigest() == expected["sha256"],
+                    "observed Work byte or mode drift")
+        routes = row["routing_files"]
+        runbook = "docs/agent-development-v1.4.2.md" if repository == "gabned/provelume.com" \
+            else "docs/runbooks/agent-development-v1.4.2.md"
+        expected_routes = ["AGENTS.md", guide, manifest_path] if core else ["AGENTS.md", runbook]
+        require(isinstance(routes, list) and [r.get("path") for r in routes] == expected_routes,
+                "complete observed instruction routing required")
+        for item in routes:
+            content = observed_file(item, default)
+            require(item["mode"] == "100644", "instruction route mode")
+            if core:
+                if item["path"] == manifest_path:
+                    require(json.loads(content) == manifest, "Core routing manifest drift")
+                else:
+                    expected = next(r for r in documents if r["path"] == item["path"])
+                    require(hashlib.sha256(content.encode()).hexdigest() == expected["sha256"],
+                            "Core instruction byte drift")
+            else:
+                marker = "## Current execution — Protocol 1.4.8"
+                require(re.findall(r"(?m)^## Current execution — Protocol (\S+)$", content)
+                        == ["1.4.8"], "consumer current instruction route")
+                current = content.split(marker)[1]
+                boundary = re.search(r"(?m)^## ", current)
+                generated = marker + (current[:boundary.start()] if boundary else current)
+                expected = recovery.adoption_guidance(repository)
+                separator = generated[len(expected):]
+                require(generated.startswith(expected) and (
+                    not separator or (boundary is not None and not separator.strip("\n"))),
+                        "consumer instruction provenance drift")
+        if core:
+            require(row["pin_file"] is None, "Core cannot self-adopt")
+        else:
+            import ast
+            item = row["pin_file"]
+            pin_path = "scripts/agent/protocol-v1-2.py" if repository == "brickms/brickms" \
+                else "tests/agent_protocol_v1_4_2_vendor_test.py"
+            require(item["path"] == pin_path and item["mode"] == (
+                "100755" if repository == "brickms/brickms" else "100644"),
+                "consumer actual pin location/mode")
+            tree = ast.parse(observed_file(item, default))
+            pins = [node.value for node in tree.body if isinstance(node, ast.Assign)
+                    and any(isinstance(t, ast.Name) and t.id == "WORK_ADAPTER_PIN"
+                            for t in node.targets)]
+            require(len(pins) == 1 and ast.literal_eval(pins[0]) == expected_pin,
+                    "consumer actual Work pin drift")
+    return {"schema": "agent-campaign-audit/v1", "protocol_version": "1.4.8",
+            "result": "PASS", "scope": deepcopy(scope), "scope_sha256": trusted_scope,
+            "evidence": deepcopy(evidence), "evidence_sha256": digest(evidence),
+            "policies_sha256": trusted_policies, "adoption_sha256": trusted_adoption,
+            "adoptions_sha256": digest(adoptions)}
 
 
 def verify_merge_response(response, expected_head, observed_head):
@@ -475,6 +666,133 @@ def checkpoint_metrics(metrics):
             "measurement must be an observed nonnegative integer or null: " + key,
         )
     return deepcopy(metrics)
+
+
+def execution_step(checkpoint, *, trusted_checkpoint):
+    """Derive continuation from the single host-selected ledger; never run an effect.
+
+    Coordinates bind observations, not authority. The host establishes actual
+    authorization, useful progress and supported recovery before calling this view.
+    A blocked step cannot conceal independent ready work.
+    """
+    require(digest(checkpoint) == trusted_checkpoint, "changed execution checkpoint")
+    ops.obj(checkpoint, "schema scope_sha256 steps", "execution checkpoint")
+    require(checkpoint["schema"] == "agent-execution/v1", "execution schema")
+    ops.sha(checkpoint["scope_sha256"], 64)
+    steps = checkpoint["steps"]
+    require(isinstance(steps, list) and 0 < len(steps) <= 1000, "bounded execution steps")
+    indexed = {}
+    for step in steps:
+        ops.obj(step, "id state dependencies action observations recovery blocker",
+                "execution step")
+        identity = ops.text(step["id"], "step identity")
+        require(identity not in indexed, "duplicate execution step")
+        require(step["state"] in {"PENDING", "COMPLETE"}, "execution step state")
+        indexed[identity] = step
+    for step in steps:
+        dependencies = step["dependencies"]
+        require(isinstance(dependencies, list) and len(dependencies) == len(set(dependencies)),
+                "execution dependencies")
+        require(all(d in indexed and d != step["id"] for d in dependencies),
+                "unknown or self dependency")
+    visiting, visited = set(), set()
+
+    def visit(identity):
+        require(identity not in visiting, "execution dependency cycle")
+        if identity in visited:
+            return
+        visiting.add(identity)
+        for dependency in indexed[identity]["dependencies"]:
+            visit(dependency)
+        visiting.remove(identity)
+        visited.add(identity)
+
+    for identity in indexed:
+        visit(identity)
+
+    def action(value):
+        ops.obj(value, "repository operation head_sha inputs_sha256 event authorization", "action")
+        for key in ("repository", "operation", "event"):
+            ops.text(value[key], "action coordinate")
+        ops.sha(value["head_sha"])
+        ops.sha(value["inputs_sha256"], 64)
+        require(value["authorization"] in {"GRANTED", "MISSING"}, "action authorization")
+        return {k: value[k] for k in value if k != "authorization"}
+
+    blocked, ready = [], []
+    for step in steps:
+        if step["state"] == "COMPLETE":
+            require(all(indexed[d]["state"] == "COMPLETE" for d in step["dependencies"]),
+                    "completion precedes dependency")
+            continue
+        coordinate = action(step["action"])
+        observations = step["observations"]
+        require(isinstance(observations, list) and len(observations) <= 1000,
+                "bounded iteration history")
+        counts, last_causes = {}, {}
+        for row in observations:
+            ops.obj(row, "coordinates_sha256 result_sha256 progress cause", "iteration")
+            for key in ("coordinates_sha256", "result_sha256"):
+                ops.sha(row[key], 64)
+            require(row["progress"] in {
+                "NONE", "ADVANCE", "NEW_EVIDENCE", "CAUSE_FIXED", "DEPENDENCY"},
+                    "iteration progress")
+            require(row["cause"] in {"NONE", "DETERMINISTIC", "TRANSIENT", "RATE_LIMIT",
+                                     "CAPABILITY_MISSING", "EXTERNAL", "UNKNOWN"},
+                    "iteration cause")
+            identity = row["coordinates_sha256"]
+            history = counts.setdefault(identity, {})
+            if row["progress"] != "NONE":
+                history.clear()
+            else:
+                result = row["result_sha256"]
+                history[result] = history.get(result, 0) + 1
+            last_causes[identity] = row["cause"]
+
+        def halted(candidate, histories=counts, causes=last_causes):
+            identity = digest(candidate)
+            return (max(histories.get(identity, {}).values(), default=0) >= 2
+                    or causes.get(identity) == "DETERMINISTIC")
+
+        recovery = step["recovery"]
+        stopped, recovery_stopped = halted(coordinate), False
+        if recovery is not None:
+            recovered = action(recovery)
+            require(recovery["authorization"] == "GRANTED", "recovery lacks authorization")
+            require(digest(recovered) != digest(coordinate), "retry requires changed coordinates")
+            require(recovered["repository"] == coordinate["repository"], "recovery repository")
+            recovery_stopped = halted(recovered)
+        blocker = step["blocker"]
+        if blocker is not None:
+            ops.obj(blocker, "kind reference reason prepared_result action", "external blocker")
+            require(blocker["kind"] in {"WAIT_EXTERNAL", "HUMAN_ACTION_REQUIRED"}, "blocker kind")
+            for key in ("reference", "reason", "prepared_result", "action"):
+                ops.text(blocker[key], "concrete blocker")
+        require(not stopped or recovery is not None or blocker is not None,
+                "equivalent observations require classified supported recovery or dependency")
+        require(not recovery_stopped or blocker is not None,
+                "failed recovery requires changed conditions or a concrete dependency")
+        require(step["action"]["authorization"] == "GRANTED" or (
+            blocker is not None and blocker["kind"] == "HUMAN_ACTION_REQUIRED"
+        ), "missing authority requires a concrete human action")
+        if any(indexed[d]["state"] != "COMPLETE" for d in step["dependencies"]):
+            continue
+        if recovery is not None and not recovery_stopped:
+            ready.append({"step": step["id"], "action": recovery, "recovery": True})
+        elif blocker is None and not stopped:
+            ready.append({"step": step["id"], "action": step["action"], "recovery": False})
+        else:
+            blocked.append({"step": step["id"], **blocker,
+                            "loop_stopped": stopped or recovery_stopped})
+    complete = all(s["state"] == "COMPLETE" for s in steps)
+    require(complete or ready or blocked, "no executable frontier")
+    chosen = ready[0] if ready else blocked[0] if blocked else None
+    return {
+        "schema": "agent-execution-result/v1", "checkpoint_sha256": trusted_checkpoint,
+        "state": "TERMINAL" if complete else "CONTINUE_NOW" if ready else chosen["kind"],
+        "next": chosen, "blocked": blocked, "prompt_required": False,
+        "state_mutated": False, "push_qualified": False,
+    }
 
 
 def checkpoint_handoff(
@@ -871,7 +1189,7 @@ def authorization_reuse(
     }
 
 
-def readiness(identity, observations, *, trusted_observations):
+def readiness(identity, observations, *, trusted_observations, trusted_deferrals=(), now=None):
     """Aggregate independent read-only diagnoses; this never invokes production."""
     release_identity(identity)
     phases = {
@@ -893,7 +1211,8 @@ def readiness(identity, observations, *, trusted_observations):
         ops.obj(
             row,
             "phase identity_sha256 status cause elements effects next_action "
-            "evidence event_at observed_at recorded_at",
+            "evidence event_at observed_at recorded_at"
+            + (" deferral" if row.get("status") == "DEFERRED" else ""),
             "readiness observation",
         )
         phase = row["phase"]
@@ -901,7 +1220,9 @@ def readiness(identity, observations, *, trusted_observations):
         seen.add(phase)
         require(row["identity_sha256"] == digest(identity), "readiness candidate mismatch")
         require(
-            row["status"] in {"PASS", "BLOCKED", "PENDING", "UNKNOWN", "NOT_APPLICABLE"},
+            row["status"] in {
+                "PASS", "BLOCKED", "PENDING", "UNKNOWN", "NOT_APPLICABLE", "DEFERRED"
+            },
             "readiness status",
         )
         for field in ("cause", "effects", "next_action", "evidence"):
@@ -909,6 +1230,24 @@ def readiness(identity, observations, *, trusted_observations):
         require(isinstance(row["elements"], list), "affected elements required")
         for value in row["elements"]:
             ops.text(value, "element")
+        if row["status"] == "DEFERRED":
+            require(phase in {"VERIFICATION", "CERTIFICATION"}, "only acceptance can be deferred")
+            grant = row["deferral"]
+            trusted_record(grant, trusted_deferrals, "acceptance deferral")
+            ops.obj(grant, "id identity_sha256 phase elements authorization_ref sequence "
+                    "not_before expires_at revoked", "acceptance deferral")
+            require(grant["identity_sha256"] == digest(identity), "deferral candidate mismatch")
+            require(grant["phase"] == phase and grant["elements"] == row["elements"]
+                    and bool(row["elements"]), "deferral acceptance scope mismatch")
+            for key in ("id", "authorization_ref"):
+                ops.text(grant[key], key)
+            require(isinstance(grant["sequence"], list) and len(grant["sequence"]) >= 2,
+                    "explicit authorized acceptance sequence required")
+            for step in grant["sequence"]:
+                ops.text(step, "acceptance sequence step")
+            require(grant["revoked"] is False, "acceptance deferral revoked")
+            require(checked_time(grant["not_before"]) <= (now or datetime.now(UTC))
+                    < checked_time(grant["expires_at"]), "acceptance deferral expired or inactive")
         require(
             checked_time(row["event_at"])
             <= checked_time(row["observed_at"])
@@ -927,9 +1266,9 @@ def readiness(identity, observations, *, trusted_observations):
         "identity_sha256": digest(identity),
         "phases": states,
         "blockers": blockers,
-        "ready_for_final_consent": all(states[k] == "PASS" for k in prepared),
+        "ready_for_final_consent": all(states[k] in {"PASS", "NOT_APPLICABLE"} for k in prepared),
         "production_executed": states["EXECUTION"] == "PASS",
-        "certified": all(states[k] == "PASS" for k in phases),
+        "certified": all(states[k] in {"PASS", "NOT_APPLICABLE"} for k in phases),
         "mutation_authorized": False,
     }
 
@@ -1250,6 +1589,8 @@ def main():
         "review-inventory",
         "context-delta",
         "checkpoint-handoff",
+        "execution-step",
+        "campaign-audit",
     ):
         entry = sub.add_parser(command)
         entry.add_argument("--input", type=Path, required=True)
@@ -1274,6 +1615,10 @@ def main():
                 result = context_delta(**data, **trust)
             elif args.command == "checkpoint-handoff":
                 result = checkpoint_handoff(**data, **trust)
+            elif args.command == "execution-step":
+                result = execution_step(**data, **trust)
+            elif args.command == "campaign-audit":
+                result = campaign_audit(**data, **trust)
             else:
                 require(trust == {}, "unexpected trust arguments")
                 function = {

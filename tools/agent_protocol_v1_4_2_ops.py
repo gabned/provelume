@@ -813,7 +813,11 @@ def sync_vendor(source: Path, target: Path, commit: str, *, check: bool = False)
     return {"result": "PASS", "manifest": m, "changed_paths": changed, "check_only": check}
 
 
-def validate_audit_input(value: Any, *, now: datetime | None = None) -> dict:
+def validate_audit_input(
+    value: Any, *, now: datetime | None = None,
+    expected_repositories: frozenset[str] | None = None,
+    operation_validator=None,
+) -> dict:
     a = obj(value, "protocol_version campaign_ref canonical source observed_at repositories",
             "five-repository audit")
     observation(a, now)
@@ -822,8 +826,12 @@ def validate_audit_input(value: Any, *, now: datetime | None = None) -> dict:
                          a["campaign_ref"]) is not None, "unbound campaign")
     canonical_manifest = validate_manifest(a["canonical"])
     rows = array(a["repositories"], "repositories")
-    require(len(rows) == 5 and {r.get("repository") for r in rows} == set(PROFILES),
-            "audit must cover exactly the five repositories")
+    expected = set(PROFILES) if expected_repositories is None else expected_repositories
+    require(isinstance(expected, set | frozenset) and "gabned/provelume" in expected
+            and expected <= set(PROFILES), "invalid independently selected audit scope")
+    require(len(rows) == len(expected) and {r.get("repository") for r in rows} == expected,
+            "audit must cover exactly the five repositories" if expected_repositories is None
+            else "audit must cover exactly the authorized repositories")
     for raw in rows:
         r = obj(raw, "repository default_branch profile default_sha operations vendor_manifest "
                 "vendor_files provenance_files registry open_campaign_prs unresolved_threads",
@@ -836,7 +844,8 @@ def validate_audit_input(value: Any, *, now: datetime | None = None) -> dict:
         operations = array(r["operations"], "operation history")
         require(bool(operations), "missing repository integration evidence")
         for operation in operations:
-            e = validate_operations(operation, now=now)
+            e = (validate_operations(operation, now=now) if operation_validator is None
+                 else operation_validator(operation, now=now))
             integrations = [e] + [f[key] for f in e["late_findings"]
                                   for key in ("origin", "correction")]
             for integration in integrations:

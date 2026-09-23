@@ -393,7 +393,110 @@ class CheckpointHandoffConformance(unittest.TestCase):
         self.assertFalse(result["push_qualified"])
         self.assertIsNone(result["metrics"]["input_tokens"])
 
+    def test_execution_cli_keeps_loop_history_bound_to_operation(self):
+        action = dict(repository="example/repo", operation="observe-run", head_sha="a" * 40,
+                      inputs_sha256="b" * 64, event="pull_request", authorization="GRANTED")
+        coordinates = {k: v for k, v in action.items() if k != "authorization"}
+        repeated = dict(coordinates_sha256=p.digest(coordinates), result_sha256="c" * 64,
+                        progress="NONE", cause="EXTERNAL")
+        unrelated = dict(coordinates_sha256="e" * 64, result_sha256="f" * 64,
+                         progress="NEW_EVIDENCE", cause="NONE")
+        ledger = dict(schema="agent-execution/v1", scope_sha256="d" * 64, steps=[
+            dict(id="wait", state="PENDING", dependencies=[], action=action,
+                 observations=[repeated, unrelated, deepcopy(repeated)],
+                 recovery=None, blocker=None)])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "input.json").write_text(json.dumps({"checkpoint": ledger}))
+            (root / "trust.json").write_text(json.dumps({"trusted_checkpoint": p.digest(ledger)}))
+            result = subprocess.run([
+                sys.executable, "-I", "-B", str(ROOT / "tools/agent_protocol_v1_4_7.py"),
+                "execution-step", "--input", str(root / "input.json"),
+                "--trusted", str(root / "trust.json"),
+            ], capture_output=True, text=True, check=False, timeout=10)
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("supported recovery", result.stdout + result.stderr)
+
+    def test_failed_recovery_cannot_restart_the_loop(self):
+        action = dict(repository="example/repo", operation="observe-run", head_sha="a" * 40,
+                      inputs_sha256="b" * 64, event="pull_request", authorization="GRANTED")
+        recovery = {**action, "operation": "inspect-diagnostic"}
+
+        def observation(candidate, cause):
+            coordinates = {k: v for k, v in candidate.items() if k != "authorization"}
+            return dict(coordinates_sha256=p.digest(coordinates), result_sha256="c" * 64,
+                        progress="NONE", cause=cause)
+
+        for cause, repeats in [("DETERMINISTIC", 1), ("EXTERNAL", 2)]:
+            with self.subTest(cause=cause):
+                step = dict(id="blocked", state="PENDING", dependencies=[], action=action,
+                            observations=[observation(action, "DETERMINISTIC")]
+                            + [observation(recovery, cause)] * repeats,
+                            recovery=recovery, blocker=None)
+                ledger = dict(schema="agent-execution/v1", scope_sha256="d" * 64,
+                              steps=[step])
+                with self.assertRaisesRegex(ValueError, "recovery.*dependency"):
+                    p.execution_step(ledger, trusted_checkpoint=p.digest(ledger))
+                step["blocker"] = dict(kind="WAIT_EXTERNAL", reference="synthetic://diagnostic",
+                                       reason="diagnostic unavailable", prepared_result="saved",
+                                       action="Observe changed diagnostic availability")
+                result = p.execution_step(ledger, trusted_checkpoint=p.digest(ledger))
+                self.assertEqual(result["state"], "WAIT_EXTERNAL")
+                independent = dict(id="independent", state="PENDING", dependencies=[],
+                                   action=action, observations=[], recovery=None, blocker=None)
+                ledger["steps"].append(independent)
+                self.assertEqual(p.execution_step(ledger, trusted_checkpoint=p.digest(ledger))
+                                 ["next"]["step"], "independent")
+
     def test_recovery_continues_authorized_work_and_missing_decision_is_explicit(self):
+        action = dict(repository="example/repo", operation="observe-run", head_sha="a" * 40,
+                      inputs_sha256="b" * 64, event="pull_request", authorization="GRANTED")
+        coordinates = {k: v for k, v in action.items() if k != "authorization"}
+        row = dict(coordinates_sha256=p.digest(coordinates), result_sha256="c" * 64,
+                   progress="NONE", cause="EXTERNAL")
+        first = dict(id="first", state="PENDING", dependencies=[], action=action,
+                     observations=[row, deepcopy(row)], recovery=None, blocker=None)
+        ledger = dict(schema="agent-execution/v1", scope_sha256="d" * 64, steps=[first])
+
+        def execute():
+            return p.execution_step(ledger, trusted_checkpoint=p.digest(ledger))
+
+        with self.assertRaisesRegex(ValueError, "supported recovery"):
+            execute()
+        first["blocker"] = dict(kind="WAIT_EXTERNAL", reference="synthetic://run/1",
+                                reason="CI running", prepared_result="candidate saved",
+                                action="Observe the existing run after its status changes")
+        self.assertEqual(execute()["state"], "WAIT_EXTERNAL")
+        second = dict(id="second", state="PENDING", dependencies=[], action=deepcopy(action),
+                      observations=[], recovery=None, blocker=None)
+        ledger["steps"].append(second)
+        self.assertEqual(execute()["next"]["step"], "second")
+        self.assertEqual(execute()["state"], "CONTINUE_NOW")
+        second["dependencies"] = ["first"]
+        self.assertEqual(execute()["state"], "WAIT_EXTERNAL")
+        first["recovery"] = deepcopy(action)
+        with self.assertRaisesRegex(ValueError, "changed coordinates"):
+            execute()
+        first["recovery"]["operation"] = "inspect-saved-run-diagnostic"
+        self.assertTrue(execute()["next"]["recovery"])
+        self.assertEqual(execute()["state"], "CONTINUE_NOW")
+        first["recovery"] = None
+        first["blocker"]["kind"] = "HUMAN_ACTION_REQUIRED"
+        first["action"]["authorization"] = "MISSING"
+        self.assertEqual(execute()["state"], "HUMAN_ACTION_REQUIRED")
+        for step in ledger["steps"]:
+            step["state"] = "COMPLETE"
+        result = execute()
+        self.assertEqual(result["state"], "TERMINAL")
+        self.assertIsNone(result["next"])
+        self.assertFalse(result["prompt_required"])
+        self.assertFalse(result["push_qualified"])
+        ledger["steps"][0]["dependencies"] = ["second"]
+        with self.assertRaisesRegex(ValueError, "cycle"):
+            execute()
+        ledger["steps"][0]["dependencies"] = []
+        with self.assertRaisesRegex(ValueError, "changed execution checkpoint"):
+            p.execution_step(ledger, trusted_checkpoint="0" * 64)
         self.checkpoint["state"] = "BLOCKED"
         self.checkpoint["next"]["kind"] = "RECOVER"
         self.assertEqual(self.render()["execution"], "CONTINUE_IN_SESSION")
@@ -759,6 +862,92 @@ class DeliveryConformance(unittest.TestCase):
         )
         row.update(kwargs)
         return p.recovery_plan(row, trusted_observations=[p.digest(row)])
+
+    def readiness_rows(self):
+        return [dict(
+            phase=phase, identity_sha256=p.digest(self.identity), status="PASS",
+            cause="verified synthetic prerequisite", elements=["browser smoke"],
+            effects="recorded separately", next_action="retain evidence",
+            evidence="synthetic://readiness", event_at=self.start,
+            observed_at=self.start, recorded_at=self.start,
+        ) for phase in ("CODE", "DATA", "CONFIGURATION", "ARTIFACT", "MIGRATIONS",
+                        "WORKFLOW_INPUTS", "AUTHORIZATION", "EXECUTION",
+                        "VERIFICATION", "CERTIFICATION")]
+
+    def deferral_row(self):
+        row = self.readiness_rows()[-2]
+        row["status"] = "DEFERRED"
+        row["deferral"] = dict(
+            id="acceptance-sequence-1", identity_sha256=p.digest(self.identity),
+            phase=row["phase"], elements=row["elements"],
+            authorization_ref="synthetic://explicit-acceptance-authorization",
+            sequence=["activate controlled cohort", "run browser smoke", "record acceptance"],
+            not_before=self.start, expires_at=self.end, revoked=False,
+        )
+        return row
+
+    def test_readiness_not_applicable_is_satisfied_without_inventing_execution(self):
+        rows = self.readiness_rows()
+        for row in rows:
+            if row["phase"] in {"MIGRATIONS", "EXECUTION"}:
+                row["status"] = "NOT_APPLICABLE"
+        result = p.readiness(self.identity, rows, trusted_observations=[p.digest(r) for r in rows])
+        self.assertEqual(result["blockers"], [])
+        self.assertTrue(result["ready_for_final_consent"])
+        self.assertTrue(result["certified"])
+        self.assertFalse(result["production_executed"])
+        self.assertEqual(result["phases"]["MIGRATIONS"], "NOT_APPLICABLE")
+
+    def test_readiness_real_cli_preserves_authorized_deferred_acceptance(self):
+        rows = self.readiness_rows()
+        rows[-2] = self.deferral_row()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data, trust = root / "input.json", root / "trusted.json"
+            data.write_text(json.dumps(dict(identity=self.identity, observations=rows)))
+            trust.write_text(json.dumps(dict(
+                trusted_observations=[p.digest(r) for r in rows],
+                trusted_deferrals=[p.digest(rows[-2]["deferral"])],
+            )))
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "tools/agent_protocol_v1_4_7.py"),
+                 "readiness", "--input", str(data), "--trusted", str(trust)],
+                capture_output=True, text=True, check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        value = json.loads(result.stdout)
+        self.assertEqual(value["phases"]["VERIFICATION"], "DEFERRED")
+        self.assertEqual(value["blockers"], [rows[-2]])
+        self.assertTrue(value["ready_for_final_consent"])
+        self.assertFalse(value["certified"])
+        self.assertFalse(value["mutation_authorized"])
+
+    def test_deferred_acceptance_requires_independent_exact_unexpired_grant(self):
+        original = self.deferral_row()
+        def check(row, grants):
+            return p.readiness(self.identity, [row],
+                trusted_observations=[p.digest(row)], trusted_deferrals=grants, now=self.now)
+        with self.assertRaisesRegex(ValueError, "untrusted"):
+            check(original, [])
+        for key, value in (
+            ("identity_sha256", "f" * 64), ("phase", "CERTIFICATION"),
+            ("elements", ["different smoke"]), ("revoked", True),
+            ("expires_at", self.start), ("not_before", self.end),
+            ("authorization_ref", ""), ("sequence", []),
+        ):
+            row = deepcopy(original)
+            row["deferral"][key] = value
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                check(row, [p.digest(row["deferral"])])
+        for phase in ("CODE", "AUTHORIZATION", "EXECUTION"):
+            row = deepcopy(original)
+            row["phase"] = row["deferral"]["phase"] = phase
+            with self.subTest(phase=phase), self.assertRaises(ValueError):
+                check(row, [p.digest(row["deferral"])])
+        row = deepcopy(original)
+        del row["deferral"]
+        with self.assertRaises(ValueError):
+            check(row, [])
 
     def test_partial_recovery_is_idempotent_and_never_repeats_completed_effects(self):
         first = self.recovery()

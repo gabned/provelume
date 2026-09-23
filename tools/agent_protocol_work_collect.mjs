@@ -25,7 +25,8 @@ export async function collectSource({repository, fetchJson, saveBlob,
     let response;
     try { response = await fetchJson(url); }
     catch (error) {
-      if (persistObservation) await persistObservation({url, observed_at:now(), status:"UNKNOWN", response:null});
+      if (persistObservation) await persistObservation({url, observed_at:now(), status:"UNKNOWN",
+        response:error.connectorResponse ?? null, failure:error.failure || connectorFailure(error)});
       throw error;
     }
     const observation = {url, observed_at: now(), response};
@@ -49,7 +50,7 @@ export async function collectSource({repository, fetchJson, saveBlob,
   const metadata = await get("");
   if (metadata.response.full_name !== repository || !metadata.response.default_branch) throw Error("repository identity mismatch");
   const branch = metadata.response.default_branch;
-  const ref = `/git/ref/heads/${encodeURIComponent(branch)}`;
+  const ref = `/git/ref/heads/${branch.split("/").map(encodeURIComponent).join("/")}`;
   const before = await get(ref);
   const commit = before.response.object?.sha;
   if (!/^[0-9a-f]{40}$/.test(commit || "") || before.response.object.type !== "commit" ||
@@ -104,7 +105,8 @@ export async function collectSource({repository, fetchJson, saveBlob,
       try { response = await fetchFile(args); }
       catch (error) {
         if (persistObservation) await persistObservation({tool:"github_fetch_file", arguments:args,
-          observed_at:now(), status:"UNKNOWN", response:null});
+          observed_at:now(), status:"UNKNOWN", response:error.connectorResponse ?? null,
+          failure:error.failure || connectorFailure(error)});
         throw error;
       }
       const observation = {tool: "github_fetch_file", arguments: args, observed_at: now(), response};
@@ -134,11 +136,40 @@ export async function collectSource({repository, fetchJson, saveBlob,
 }
 
 /** Unwrap only supported tool envelopes; error content is never source data. */
+export function connectorFailure(result) {
+  let value = result;
+  for (let depth = 0; depth < 4 && value && typeof value === "object"; depth++) {
+    if (value.structuredContent) { value = value.structuredContent; continue; }
+    if (value.result && typeof value.result === "object") { value = value.result; continue; }
+    break;
+  }
+  const response = value?.error_data || value?.response || value || {};
+  const rawStatus = response.status ?? value?.status;
+  const status = /^\d{3}$/.test(String(rawStatus)) ? Number(rawStatus) : null;
+  const headers = Object.fromEntries(Object.entries(response.headers || value?.headers || {})
+    .map(([name, content]) => [name.toLowerCase(), content]));
+  const message = String(response.message || value?.error || value?.message || "");
+  const rateEvidence = status === 429 || ((status === 403) &&
+    (String(headers["x-ratelimit-remaining"]) === "0" ||
+      /(?:API |secondary )?rate limit exceeded|secondary rate limit/i.test(message)));
+  const kind = rateEvidence ? "RATE_LIMIT" : status === 403 || status === 401 ? "ACCESS_DENIED" :
+    status !== null && status >= 500 && status <= 599 ? "TRANSIENT" :
+    ["TOOL_UNAVAILABLE", "CAPABILITY_MISSING"].includes(value?.error_code) ? "CAPABILITY_MISSING" :
+    status !== null && status >= 400 || value?.error_code === "INVALID_ARGUMENT" ? "DETERMINISTIC" :
+    "UNKNOWN";
+  return {kind, status, automatic_retry:false};
+}
+
 export function connectorPayload(result) {
   let value = result;
   for (let depth = 0; depth < 4; depth++) {
     if (!value || typeof value !== "object" || value.isError === true || value.error ||
-        Number(value.status) >= 400) throw Error("connector tool failed; no fallback or inferred success");
+        Number(value.status) >= 400) {
+      const error = Error("connector tool failed; no fallback or inferred success");
+      error.failure = connectorFailure(value);
+      error.connectorResponse = result;
+      throw error;
+    }
     if (value.structuredContent) { value = value.structuredContent; continue; }
     if (value.result && typeof value.result === "object") { value = value.result; continue; }
     return value;
@@ -215,8 +246,9 @@ export async function collectPreflight({repository, fetchJson, activePr = null,
       const response = await fetchJson(url);
       const status = !response || response.error || Number(response.status) >= 400 ? "UNKNOWN" : "OBSERVED";
       observation = {url, observed_at: now(), status, response};
-    } catch {
-      observation = {url, observed_at: now(), status: "UNKNOWN", response: null};
+    } catch (error) {
+      observation = {url, observed_at: now(), status: "UNKNOWN", response: error.connectorResponse ?? null,
+        failure:error.failure || connectorFailure(error)};
     }
     // Persistence is outside the connector catch: a disk/host failure must stop
     // collection, not be converted into a successfully saved UNKNOWN record.
@@ -238,7 +270,7 @@ export async function collectPreflight({repository, fetchJson, activePr = null,
   const repo = await get("");
   if (repo.status !== "OBSERVED" || repo.response.full_name !== repository || !repo.response.default_branch) throw Error("repository observation unavailable");
   const branch = repo.response.default_branch;
-  const defaultBranch = await get(`/branches/${encodeURIComponent(branch)}`);
+  const defaultBranch = await get(`/branches/${branch.split("/").map(encodeURIComponent).join("/")}`);
   const openPullRequests = await pages("/pulls?state=open");
   const recentActions = await get("/actions/runs?per_page=20&page=1");
   let active = {status: "NOT_SELECTED", number: null};
@@ -348,7 +380,9 @@ export async function createEvidenceCollector({repository, fetchJson, persistObs
     let response, error;
     try { response = await fetchJson(url); } catch (caught) { error = caught; }
     const ok = !error && response && typeof response === "object" && !response.error && !(Number(response.status) >= 400);
-    const row = {url, observed_at:now(), status:ok ? "OBSERVED" : "UNKNOWN", response:response ?? null};
+    const row = {url, observed_at:now(), status:ok ? "OBSERVED" : "UNKNOWN",
+      response:response ?? error?.connectorResponse ?? null};
+    if (!ok) row.failure = error?.failure || connectorFailure(response ?? error);
     await persistObservation(clone(row));
     if (!ok) throw error || Error("evidence unavailable");
     return clone(row);
