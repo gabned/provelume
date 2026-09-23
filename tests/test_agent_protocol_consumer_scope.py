@@ -148,3 +148,96 @@ def test_nested_operation_cannot_borrow_outer_profile_authority():
     with (ops.trusted_protocol_scope(profile, ops.digest(profile)),
           pytest.raises(ValueError, match="non-Protocol")):
         ops.validate_operations(value, nested=True)
+
+
+def profiled_finding_case():
+    finding = resolved_finding()
+    _, policy, template = consumer_scope_case()
+    profiles = []
+    for key in ("origin", "correction"):
+        operation = finding[key]
+        name = template["paths"][0]["path"]
+        operation["baseline_paths"] = operation["pr"]["changed_paths"] = [name]
+        operation["pr"]["file_patches"] = {name: "+synthetic accepted governance\n"}
+        profile = deepcopy(template)
+        profile["base_sha"] = operation["pr"]["base_sha"]
+        profiles.append(profile)
+    parent = deepcopy(finding["origin"])
+    parent["late_findings"] = [finding]
+    return parent, policy, profiles
+
+
+def qualify_profiled_finding(value, policy, profiles):
+    new = execution147()
+    outer = deepcopy(consumer_scope_case()[2])
+    return new.validate_qualification(
+        value, policy, new.digest(policy), scope_profile=outer,
+        expected_scope_digest=new.digest(outer), nested_scope_profiles=profiles,
+        expected_nested_scope_digest=new.digest(profiles))
+
+
+def test_nested_finding_profiles_bind_each_accepted_base_without_inheritance():
+    value, policy, profiles = profiled_finding_case()
+    for key, profile in zip(("origin", "correction"), profiles, strict=True):
+        assert qualify_consumer(value["late_findings"][0][key], policy, profile)["result"] == "PASS"
+    with pytest.raises(ValueError, match="non-Protocol"):
+        qualify_consumer(value, policy, profiles[0])
+    result = qualify_profiled_finding(value, policy, profiles)
+    assert result["result"] == "PASS"
+    assert result["nested_scope_profiles_sha256"] == execution147().digest(profiles)
+    with pytest.raises(ValueError, match="non-Protocol"):
+        qualify_consumer(value, policy, profiles[0])  # Successful context never leaks.
+
+
+@pytest.mark.parametrize("damage", ["missing_origin", "missing_correction", "wrong_base",
+                                  "wrong_repository", "duplicate", "unused", "no_finding",
+                                  "policy_edit", "ci", "resolution"])
+def test_nested_finding_profiles_cannot_borrow_authority_or_skip_gates(damage):
+    value, policy, profiles = profiled_finding_case()
+    finding = value["late_findings"][0]
+    if damage == "missing_origin":
+        profiles.pop(0)
+    elif damage == "missing_correction":
+        profiles.pop()
+    elif damage == "wrong_base":
+        profiles[1]["base_sha"] = "f" * 40
+    elif damage == "wrong_repository":
+        profiles[1]["repository"] = "brickms/brickms"
+    elif damage == "duplicate":
+        profiles.append(deepcopy(profiles[0]))
+    elif damage == "unused":
+        extra = deepcopy(profiles[0])
+        extra["base_sha"] = "f" * 40
+        profiles.append(extra)
+    elif damage == "no_finding":
+        value["late_findings"] = []
+    elif damage == "policy_edit":
+        operation = finding["correction"]
+        path = profiles[1]["policy_path"]
+        operation["pr"]["changed_paths"] = sorted([*operation["pr"]["changed_paths"], path])
+        operation["baseline_paths"] = operation["pr"]["changed_paths"].copy()
+        operation["pr"]["file_patches"][path] = "+candidate scope\n"
+    elif damage == "ci":
+        finding["correction"]["ci"]["runs"][0]["attempts"][-1] = attempt(conclusion="FAILURE")
+    else:
+        finding["resolution"]["is_resolved"] = False
+    with pytest.raises(ValueError):
+        qualify_profiled_finding(value, policy, profiles)
+    clean, policy, profiles = profiled_finding_case()
+    with pytest.raises(ValueError, match="non-Protocol"):
+        qualify_consumer(clean, policy, profiles[0])  # Failure restores both contexts too.
+
+
+def test_nested_finding_profiles_require_independent_complete_unchanged_trust():
+    value, policy, profiles = profiled_finding_case()
+    new = execution147()
+    for supplied, expected in ((profiles, None), (None, new.digest(profiles)),
+                               (profiles, "0" * 64)):
+        with pytest.raises(ValueError):
+            new.validate_qualification(
+                value, policy, new.digest(policy), scope_profile=profiles[0],
+                expected_scope_digest=new.digest(profiles[0]), nested_scope_profiles=supplied,
+                expected_nested_scope_digest=expected)
+    value["nested_scope_profiles"] = profiles
+    with pytest.raises(ValueError, match="missing or extra fields"):
+        qualify_consumer(value, policy, profiles[0])

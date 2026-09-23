@@ -43,6 +43,9 @@ _WORK_INSTRUCTIONS: ContextVar[dict | None] = ContextVar(
 _PROTOCOL_SCOPE: ContextVar[dict | None] = ContextVar(
     "protocol147_trusted_consumer_scope", default=None,
 )
+_NESTED_PROTOCOL_SCOPES: ContextVar[dict | None] = ContextVar(
+    "protocol147_trusted_nested_consumer_scopes", default=None,
+)
 
 
 def require(condition: bool, message: str) -> None:
@@ -132,6 +135,26 @@ def trusted_protocol_scope(profile: Any, expected_digest: str):
         yield
     finally:
         _PROTOCOL_SCOPE.reset(token)
+
+
+@contextmanager
+def trusted_nested_protocol_scopes(profiles: Any, expected_digest: str):
+    """Bind independently accepted historical bases; never inherit the outer scope."""
+    require(digest(profiles) == sha(expected_digest, 64), "changed trusted nested Protocol scopes")
+    rows = array(profiles, "nested Protocol scope inventory")
+    require(0 < len(rows) <= 128, "bounded nested Protocol scope inventory")
+    selected = {}
+    for profile in rows:
+        with trusted_protocol_scope(profile, digest(profile)):
+            pass
+        key = (profile["repository"], profile["base_sha"])
+        require(key not in selected, "duplicate nested Protocol scope base")
+        selected[key] = deepcopy(profile)
+    token = _NESTED_PROTOCOL_SCOPES.set(selected)
+    try:
+        yield
+    finally:
+        _NESTED_PROTOCOL_SCOPES.reset(token)
 
 
 def work_instruction_records(value: Any) -> dict[str, dict]:
@@ -544,9 +567,10 @@ def validate_operations(
         sha(default["sha"])
         require((default["repository"], default["name"]) ==
                 (p["repository"], PROFILES[p["repository"]][0]), "default branch identity mismatch")
-    # A caller-selected profile belongs to this operation, not to embedded
-    # historical origin/correction proofs (which can have a different base).
-    token = _PROTOCOL_SCOPE.set(None) if nested else None
+    # Embedded origin/correction proofs may only use their separately selected
+    # accepted-base profile. The outer operation never supplies implicit authority.
+    selected = (_NESTED_PROTOCOL_SCOPES.get() or {}).get((p["repository"], p["base_sha"]))
+    token = _PROTOCOL_SCOPE.set(selected) if nested else None
     try:
         validate_scope(e["scope_exception"], p, e["baseline_paths"], now)
     finally:

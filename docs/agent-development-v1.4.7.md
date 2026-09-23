@@ -94,9 +94,16 @@ Historical campaign replay using a registered scope must independently select it
 original accepted profile and use `trusted_protocol_scope(profile, digest)` around
 the existing validator; never modify old receipts or infer trust from their content.
 Context is restored after success or failure and grants no process-global authority.
-An outer profile is never inherited by embedded origin/correction proofs. Those
-nested operations retain built-in scope validation; an unregistered nested path
-still blocks rather than borrowing authority from the current operation.
+An outer profile is never inherited by embedded origin/correction proofs. To
+qualify nested consumer paths, independently select each historical accepted-base
+profile and pass the separate `nested_scope_profiles` list and
+`expected_nested_scope_digest` to `validate_qualification`. Entries bind exact
+repository/base pairs; duplicates, unused bases and candidate policy edits fail.
+Only the matching nested proof receives that profile. Missing explicit authority
+retains built-in validation, so an unregistered path still blocks. Historical
+replay may use `trusted_nested_protocol_scopes(profiles, digest)` externally;
+never infer these profiles from receipt contents. Both contexts restore after
+success or failure, and a profiled result binds the separate inventory digest.
 
 ## Delegated decisions and concrete human intervention
 
@@ -397,6 +404,30 @@ does not erase accrued storage usage. Compression can retain exact original byte
 report compaction needs schema/version compatibility and reconstructible evidence.
 Preserve required release/recovery artifacts before any authorized cleanup. Do not
 delete whole workflow histories merely to remove redundant report archives.
+
+Core Windows CI uses two isolated Windows runners, each executing two of the four
+existing pytest shard indices. Every runner first records a separate full Windows
+collection. The existing shard selector, full test inventory, assertions, Python
+runtime and 540-second execution bound remain unchanged. No partial runner result
+is a Windows suite approval. The canonical `tools/agent_protocol_work_check.py`
+supervisor retains independent state, raw logs and actual phase outcomes outside
+source; this CI route is separate from its existing Work repository supervisor.
+
+The required `Core tests (windows-latest)` gate verifies both successful runner
+jobs and their exact commit/tree, run/attempt, event, Windows OS and runtime. It
+requires four distinct shards whose actually completed nodes form a disjoint,
+complete union of the independent Windows inventories. Missing artifacts,
+unknown exits, unsuccessful phases, changed source or an exceeded bound fail the
+gate. Pytest case identity binds the parent node, original test name and every
+parameter index sorted by parameter name to the verified source. Version 2 case
+records retain the complete raw node labels and their bijection with those
+structural identities; duplicate, missing or unknown mappings fail. This identifies
+each parametrized case even when a generated ZIP timestamp changes its display
+label between processes; it does not assert equality of generated parameter bytes.
+The aggregate verifier uses only the Python standard library on Linux;
+Windows execution evidence must still come from the Windows runner jobs. Artifacts
+are confined to the same run and attempt and retain their complete reports/logs.
+The full Linux suite and the trusted-base `pull_request_target` guard are unchanged.
 
 ## Measurement and communication
 
