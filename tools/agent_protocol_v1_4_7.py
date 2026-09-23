@@ -7,6 +7,7 @@ import hashlib
 import importlib.util
 import json
 import re
+from contextlib import ExitStack
 from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
@@ -193,7 +194,9 @@ def context_delta(selection, retained, *, trusted_selection, trusted_retained, c
     return result
 
 
-def validate_qualification(operation, policy, expected_digest, *, now=None):
+def validate_qualification(operation, policy, expected_digest, *, now=None,
+                           scope_profile=None, expected_scope_digest=None,
+                           nested_scope_profiles=None, expected_nested_scope_digest=None):
     """Apply the accepted repository policy without querying remote administration APIs."""
     require(digest(policy) == expected_digest, "changed trusted repository policy")
     ops.obj(
@@ -230,8 +233,24 @@ def validate_qualification(operation, policy, expected_digest, *, now=None):
         ),
         "required review policy mismatch",
     )
-    ops.validate_operations(operation, now=now)
-    return {
+    require((scope_profile is None) == (expected_scope_digest is None),
+            "complete independent Protocol scope authority required")
+    require((nested_scope_profiles is None) == (expected_nested_scope_digest is None),
+            "complete independent nested Protocol scope authority required")
+    with ExitStack() as contexts:
+        if scope_profile is not None:
+            contexts.enter_context(ops.trusted_protocol_scope(scope_profile, expected_scope_digest))
+        if nested_scope_profiles is not None:
+            contexts.enter_context(ops.trusted_nested_protocol_scopes(
+                nested_scope_profiles, expected_nested_scope_digest))
+            nested_bases = {
+                (finding[key]["pr"]["repository"], finding[key]["pr"]["base_sha"])
+                for finding in operation["late_findings"] for key in ("origin", "correction")
+            }
+            require(all((p["repository"], p["base_sha"]) in nested_bases
+                        for p in nested_scope_profiles), "unused nested Protocol scope base")
+        ops.validate_operations(operation, now=now)
+    result = {
         "schema": "agent-qualification/v1",
         "protocol_version": VERSION,
         "repository": policy["repository"],
@@ -244,6 +263,11 @@ def validate_qualification(operation, policy, expected_digest, *, now=None):
         "ruleset_observation_required": False,
         "merge_performed": False,
     }
+    if scope_profile is not None:
+        result["scope_profile_sha256"] = expected_scope_digest
+    if nested_scope_profiles is not None:
+        result["nested_scope_profiles_sha256"] = expected_nested_scope_digest
+    return result
 
 
 def verify_merge_response(response, expected_head, observed_head):

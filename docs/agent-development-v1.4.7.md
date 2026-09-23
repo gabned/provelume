@@ -56,6 +56,55 @@ Neither an emoji nor a comment without a verdict is an approval. A withdrawn
 requirement is not a clean review or waiver. Unknown, partial or stale evidence
 never becomes PASS through a summary or cached result.
 
+### Independently accepted consumer Protocol scope
+
+The built-in scope remains the default. A consumer with additional native Protocol
+surfaces may register a bounded exact-path profile in a separate, normally qualified
+policy adoption before any repair relies on it. The predecessor qualifies that
+adoption under its existing paths; the proposed profile never qualifies itself.
+No private consumer paths, code or operational evidence belong in public Core.
+
+The host independently reads the accepted consumer policy JSON at the actual PR
+base. Its stored fields are `schema: agent-protocol-scope/v1`, `repository` and
+`paths`, a sorted unique array of `{path, role}`. The policy file must use an
+already recognized normative namespace: `.github/agent-protocol/`,
+`docs/agent-development-v*` or `docs/runbooks/agent-development-v*`, ending in
+`.json`. This preserves consumer layouts without requiring new path exceptions.
+Roles are `IMPLEMENTATION` under
+`tools/` or `scripts/`, `TEST` under `tests/`, and `NORMATIVE_DOC` under `docs/`.
+The native classifier and reviewed registration must establish those semantics;
+a prefix alone is not a classification. No wildcards, workflow extensions,
+application roots or lifecycle checkpoint are supported. The profile only adds
+these exact paths to the existing scope check, never to another repository.
+
+After verifying file provenance, accepted blob/content and actual base identity,
+the host adds the observed `base_sha` and `policy_path` (the exact accepted JSON
+file) to this external trusted envelope. Supply it through
+`validate_qualification(..., scope_profile=profile, expected_scope_digest=digest)`
+alongside the separately selected repository policy. The expected digest must come
+from this independent read, never from the candidate or an operational observation
+field. The offline validator cannot authenticate a GitHub source or human approval.
+
+The base/repository must match and the PR must not modify the policy file. A moved
+base requires a fresh accepted-policy binding. The result binds the profile digest;
+all scope, effect, complete CI history, current review, ancestry and normal merge
+requirements still apply. There is no production or PRODUCT continuation grant.
+Without an explicit profile/digest pair the historical behavior is unchanged.
+Historical campaign replay using a registered scope must independently select its
+original accepted profile and use `trusted_protocol_scope(profile, digest)` around
+the existing validator; never modify old receipts or infer trust from their content.
+Context is restored after success or failure and grants no process-global authority.
+An outer profile is never inherited by embedded origin/correction proofs. To
+qualify nested consumer paths, independently select each historical accepted-base
+profile and pass the separate `nested_scope_profiles` list and
+`expected_nested_scope_digest` to `validate_qualification`. Entries bind exact
+repository/base pairs; duplicates, unused bases and candidate policy edits fail.
+Only the matching nested proof receives that profile. Missing explicit authority
+retains built-in validation, so an unregistered path still blocks. Historical
+replay may use `trusted_nested_protocol_scopes(profiles, digest)` externally;
+never infer these profiles from receipt contents. Both contexts restore after
+success or failure, and a profiled result binds the separate inventory digest.
+
 ## Delegated decisions and concrete human intervention
 
 For a necessary operation beyond ordinary authority, identify the exact rule and

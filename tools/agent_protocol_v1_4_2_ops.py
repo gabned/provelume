@@ -40,6 +40,12 @@ CI_EVENTS = {"pull_request", "pull_request_target", "push", "merge_group",
 _WORK_INSTRUCTIONS: ContextVar[dict | None] = ContextVar(
     "protocol143_trusted_work_instructions", default=None,
 )
+_PROTOCOL_SCOPE: ContextVar[dict | None] = ContextVar(
+    "protocol147_trusted_consumer_scope", default=None,
+)
+_NESTED_PROTOCOL_SCOPES: ContextVar[dict | None] = ContextVar(
+    "protocol147_trusted_nested_consumer_scopes", default=None,
+)
 
 
 def require(condition: bool, message: str) -> None:
@@ -89,6 +95,66 @@ def canonical(value: Any) -> bytes:
 
 def digest(value: Any) -> str:
     return hashlib.sha256(canonical(value)).hexdigest()
+
+
+@contextmanager
+def trusted_protocol_scope(profile: Any, expected_digest: str):
+    """Bind a caller-selected accepted-base profile; never discover it in a PR.
+
+    The host reads the policy file at the independently observed accepted base,
+    then binds its repository, path and base here. The digest is integrity only.
+    This context changes no workflow, review, effect or lifecycle requirement.
+    """
+    require(digest(profile) == sha(expected_digest, 64), "changed trusted Protocol scope")
+    obj(profile, "schema repository base_sha policy_path paths", "Protocol scope")
+    require(profile["schema"] == "agent-protocol-scope/v1", "Protocol scope schema")
+    require(profile["repository"] in PROFILES and profile["repository"] != "gabned/nexus",
+            "Protocol scope repository")
+    sha(profile["base_sha"])
+    policy_path = path(profile["policy_path"])
+    policy_roots = (".github/agent-protocol/", "docs/agent-development-v",
+                    "docs/runbooks/agent-development-v")
+    require(policy_path.startswith(policy_roots) and policy_path.endswith(".json") and
+            not any(char in policy_path for char in "*?[]"),
+            "Protocol scope policy path")
+    rows = array(profile["paths"], "Protocol scope paths")
+    require(0 < len(rows) <= 64, "bounded Protocol scope paths")
+    roots = {"IMPLEMENTATION": ("tools/", "scripts/"), "TEST": ("tests/",),
+             "NORMATIVE_DOC": ("docs/",)}
+    names = []
+    for row in rows:
+        obj(row, "path role", "Protocol scope entry")
+        name = path(row["path"])
+        require(not any(char in name for char in "*?[]"), "exact Protocol scope paths required")
+        require(row["role"] in roots and name.startswith(roots[row["role"]]),
+                "Protocol scope role/path mismatch")
+        names.append(name)
+    require(names == sorted(set(names)), "sorted unique Protocol scope paths required")
+    token = _PROTOCOL_SCOPE.set(deepcopy(profile))
+    try:
+        yield
+    finally:
+        _PROTOCOL_SCOPE.reset(token)
+
+
+@contextmanager
+def trusted_nested_protocol_scopes(profiles: Any, expected_digest: str):
+    """Bind independently accepted historical bases; never inherit the outer scope."""
+    require(digest(profiles) == sha(expected_digest, 64), "changed trusted nested Protocol scopes")
+    rows = array(profiles, "nested Protocol scope inventory")
+    require(0 < len(rows) <= 128, "bounded nested Protocol scope inventory")
+    selected = {}
+    for profile in rows:
+        with trusted_protocol_scope(profile, digest(profile)):
+            pass
+        key = (profile["repository"], profile["base_sha"])
+        require(key not in selected, "duplicate nested Protocol scope base")
+        selected[key] = deepcopy(profile)
+    token = _NESTED_PROTOCOL_SCOPES.set(selected)
+    try:
+        yield
+    finally:
+        _NESTED_PROTOCOL_SCOPES.reset(token)
 
 
 def work_instruction_records(value: Any) -> dict[str, dict]:
@@ -345,6 +411,13 @@ def validate_scope(
 ) -> None:
     initial = paths(baseline)
     require(set(initial) <= set(pr["changed_paths"]), "baseline contains absent paths")
+    profile = _PROTOCOL_SCOPE.get()
+    if profile is not None:
+        require(profile["repository"] == pr["repository"] and
+                profile["base_sha"] == pr["base_sha"],
+                "Protocol scope base/repository mismatch")
+        require(profile["policy_path"] not in pr["changed_paths"],
+                "Protocol scope cannot qualify its own policy change")
     if pr["repository"] != "gabned/nexus":
         exact = {"AGENTS.md", ".github/pull_request_template.md", ".github/workflows/ci.yml",
                  "tools/agent-check", "tools/agent-protocol",
@@ -362,6 +435,8 @@ def validate_scope(
                     "tests/agent_protocol_", "tests/agent_change_control_",
                     "docs/agent-development-v", "docs/runbooks/agent-development-v",
                     ".github/agent-protocol/")
+        if profile is not None:
+            exact.update(row["path"] for row in profile["paths"])
         require(all(name in exact or name.startswith(prefixes) for name in initial),
                 "baseline includes a non-Protocol surface")
     else:
@@ -492,7 +567,15 @@ def validate_operations(
         sha(default["sha"])
         require((default["repository"], default["name"]) ==
                 (p["repository"], PROFILES[p["repository"]][0]), "default branch identity mismatch")
-    validate_scope(e["scope_exception"], p, e["baseline_paths"], now)
+    # Embedded origin/correction proofs may only use their separately selected
+    # accepted-base profile. The outer operation never supplies implicit authority.
+    selected = (_NESTED_PROTOCOL_SCOPES.get() or {}).get((p["repository"], p["base_sha"]))
+    token = _PROTOCOL_SCOPE.set(selected) if nested else None
+    try:
+        validate_scope(e["scope_exception"], p, e["baseline_paths"], now)
+    finally:
+        if token is not None:
+            _PROTOCOL_SCOPE.reset(token)
     validate_ci(e["ci"], p["repository"], p["head_sha"], now=now)
     require(e["ci"]["policy_ref"] == p["base_sha"], "CI policy is not bound to trusted base")
     r = obj(e["reviews"], "repository pr head_sha requirement state unresolved_threads "
