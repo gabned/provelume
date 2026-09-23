@@ -74,6 +74,18 @@ def test_protocol_self_test() -> None:
 
 
 def test_exact_safe_delta_round_trip(tmp_path: Path) -> None:
+    # Successor routing is registered before its files or rules can be adopted.
+    for name in (
+        ".github/agent-protocol/documents-v1.4.8.json",
+        "docs/agent-development-v1.4.8.md",
+    ):
+        assert protocol.classify_path(name) == ("NO_PRODUCTION", None)
+    for name in (
+        "docs/agent-development-v1.4.8-extra.md",
+        ".github/agent-protocol/documents-v1.4.9.json",
+        "tools/agent_protocol_v1_4_8.py",
+    ):
+        assert protocol.classify_path(name)[0] == "PRODUCTION"
     report = make_safe_report()
     path = tmp_path / "effect.json"
     protocol.write_object(path, report)

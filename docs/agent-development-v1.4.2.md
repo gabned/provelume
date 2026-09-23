@@ -1,5 +1,21 @@
 # Agent Development Protocol 1.4.2
 
+## Successor routing registration
+
+Campaign [#281](https://github.com/gabned/provelume/issues/281) registers exactly
+`docs/agent-development-v1.4.8.md` and
+`.github/agent-protocol/documents-v1.4.8.json` for later successor adoption.
+This prerequisite creates neither file and changes no active routing, engine,
+consumer dependency, review, CI, release, deployment or lifecycle requirement.
+The existing implementation and test entrypoints will be extended, rather than
+copied into another almost-equivalent helper. The predecessor qualifies this
+registration; only its accepted merge may authorize the successor's new paths.
+
+The successor campaign covers the Core and the three explicitly authorized
+consumers. A descriptive registry is not an executable consumer. The successor
+must implement and qualify its own scoped final-audit semantics under the
+predecessor before using them; this registration changes no audit result.
+
 ## Pending 1.4.7 contract registration
 
 Campaign [#237](https://github.com/gabned/provelume/issues/237) first registers
