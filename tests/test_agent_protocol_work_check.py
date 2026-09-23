@@ -51,17 +51,22 @@ class WindowsShardContractTests(unittest.TestCase):
         expected = {"commit": "a" * 40, "tree": "b" * 40,
                     "run_id": "1234", "run_attempt": "1", "event": "pull_request"}
         identity = {**expected, "platform": "win32", "python": "3.12.10"}
-        nodes = [f"tests/test_synthetic_{index}.py::test_one"
-                 for index in range(node_count)]
+        cases = []
+        for index in range(node_count):
+            descriptor = {"parent": f"tests/test_synthetic_{index}.py",
+                          "originalname": "test_one", "indices": [["payload", 0]]}
+            cases.append({"id": source.digest(descriptor), "descriptor": descriptor,
+                          "raw_nodeid": f"tests/test_synthetic_{index}.py::test_one[synthetic]"})
+        nodes = [case["id"] for case in cases]
 
         def record(mode, shard=None):
             selected = nodes if mode == "inventory" else nodes[shard::4]
             outcomes = {node: {"setup": "passed", "call": "passed", "teardown": "passed"}
                         for node in selected} if mode == "shard" else {}
-            return {"schema": "agent-windows-ci-pytest/v1", "identity": deepcopy(identity),
+            return {"schema": "agent-windows-ci-pytest/v2", "identity": deepcopy(identity),
                     "mode": mode, "shard": shard, "inventory": list(nodes),
                     "selected": list(selected), "outcomes": outcomes,
-                    "exit_code": 0, "errors": []}
+                    "cases": deepcopy(cases), "exit_code": 0, "errors": []}
 
         groups = [{"schema": "agent-windows-ci-group/v1", "identity": deepcopy(identity),
                    "group": group, "inventory": record("inventory"),
@@ -159,6 +164,39 @@ class WindowsShardContractTests(unittest.TestCase):
                     lambda gs, value=duration: gs[0].__setitem__("duration_seconds", value))
         self.assert_rejected(lambda gs: gs[0].pop("duration_seconds"))
 
+    def test_case_catalog_is_complete_canonical_and_collision_free(self):
+        mutations = {
+            "missing catalog": lambda gs: gs[0]["inventory"].pop("cases"),
+            "missing case": lambda gs: gs[0]["inventory"]["cases"].pop(),
+            "duplicate case": lambda gs: gs[0]["inventory"]["cases"].append(
+                deepcopy(gs[0]["inventory"]["cases"][0])),
+            "duplicate raw node": lambda gs: gs[0]["inventory"]["cases"][1].__setitem__(
+                "raw_nodeid", gs[0]["inventory"]["cases"][0]["raw_nodeid"]),
+            "wrong digest": lambda gs: gs[0]["inventory"]["cases"][0].__setitem__("id", "f" * 64),
+            "altered coordinate": lambda gs: gs[0]["inventory"]["cases"][0][
+                "descriptor"].__setitem__("indices", [["payload", 1]]),
+            "boolean coordinate": lambda gs: gs[0]["inventory"]["cases"][0][
+                "descriptor"].__setitem__("indices", [["payload", False]]),
+            "unsorted coordinates": lambda gs: gs[0]["inventory"]["cases"][0][
+                "descriptor"].__setitem__("indices", [["z", 0], ["a", 0]]),
+            "missing raw diagnostic": lambda gs: gs[0]["inventory"]["cases"][0].pop("raw_nodeid"),
+            "old raw-node schema": lambda gs: gs[0]["inventory"].__setitem__(
+                "schema", "agent-windows-ci-pytest/v1"),
+        }
+        for label, mutate in mutations.items():
+            with self.subTest(label=label):
+                self.assert_rejected(mutate)
+
+    def test_rendered_parameter_labels_can_differ_without_changing_coordinate_coverage(self):
+        groups, expected = self.fixture()
+        for index, group in enumerate(groups):
+            for offset, record in enumerate([group["inventory"], *group["shards"]]):
+                for case in record["cases"]:
+                    descriptor = case["descriptor"]
+                    case["raw_nodeid"] = (f"{descriptor['parent']}::{descriptor['originalname']}"
+                                          f"[volatile-rendering-{index}-{offset}]")
+        self.assertEqual(runner.verify_windows_reports(groups, expected)["node_count"], 4)
+
     def test_every_report_binds_exact_source_run_event_os_and_python(self):
         wrong = {"commit": "c" * 40, "tree": "d" * 40, "run_id": "9999",
                  "run_attempt": "2", "event": "push", "platform": "linux",
@@ -214,27 +252,63 @@ class WindowsShardContractTests(unittest.TestCase):
                     runner.verify_windows_reports(groups, expected)
 
     def test_recorder_preserves_duplicate_and_unexpected_phase_errors(self):
-        for kind in ("duplicate", "unselected", "unknown phase"):
+        for kind in ("duplicate", "unknown raw", "unselected", "unknown phase"):
             with self.subTest(kind=kind):
                 groups, expected = self.fixture()
                 worker = groups[0]["shards"][0]
-                node = worker["selected"][0]
+                selected = worker["selected"][0]
+                case = next(case for case in worker["cases"] if case["id"] == selected)
+                node = case["raw_nodeid"]
                 recorder = runner._WindowsRecorder(worker["identity"], "shard", 0)
+
+                def item(case):
+                    descriptor = case["descriptor"]
+                    return SimpleNamespace(nodeid=case["raw_nodeid"],
+                                           parent=SimpleNamespace(nodeid=descriptor["parent"]),
+                                           originalname=descriptor["originalname"],
+                                           callspec=SimpleNamespace(indices=dict(
+                                               descriptor["indices"])))
+
                 recorder.pytest_collection_modifyitems(
-                    [SimpleNamespace(nodeid=value) for value in worker["inventory"]])
-                recorder.pytest_collection_finish(
-                    SimpleNamespace(items=[SimpleNamespace(nodeid=node)]))
+                    [item(case) for case in worker["cases"]])
+                recorder.pytest_collection_finish(SimpleNamespace(items=[item(case)]))
                 for phase in ("setup", "call", "teardown"):
                     recorder.pytest_runtest_logreport(
                         SimpleNamespace(nodeid=node, when=phase, outcome="passed"))
+                unexpected = ("tests/test_other.py::test_one" if kind == "unknown raw"
+                              else worker["cases"][1]["raw_nodeid"] if kind == "unselected"
+                              else node)
                 recorder.pytest_runtest_logreport(SimpleNamespace(
-                    nodeid=node if kind != "unselected" else "tests/test_other.py::test_one",
+                    nodeid=unexpected,
                     when="call" if kind != "unknown phase" else "collection", outcome="passed"))
                 record = recorder.record(0)
                 self.assertTrue(record["errors"])
                 groups[0]["shards"][0] = record
                 with self.assertRaises(source.EvidenceError):
                     runner.verify_windows_reports(groups, expected)
+
+    def test_recorder_retains_identity_and_raw_collisions_as_errors(self):
+        for collision in ("coordinate", "raw"):
+            with self.subTest(collision=collision):
+                groups, _ = self.fixture()
+                worker = groups[0]["shards"][0]
+                descriptor = worker["cases"][0]["descriptor"]
+                first = SimpleNamespace(
+                    nodeid="tests/test_synthetic.py::test_one[first]",
+                    parent=SimpleNamespace(nodeid=descriptor["parent"]),
+                    originalname=descriptor["originalname"],
+                    callspec=SimpleNamespace(indices={"payload": 0}))
+                second = deepcopy(first)
+                if collision == "coordinate":
+                    second.nodeid = "tests/test_synthetic.py::test_one[second]"
+                else:
+                    second.callspec.indices["payload"] = 1
+                recorder = runner._WindowsRecorder(worker["identity"], "inventory", None)
+                recorder.pytest_collection_modifyitems([first, second])
+                recorder.pytest_collection_finish(SimpleNamespace(items=[first, second]))
+                record = recorder.record(0)
+                self.assertEqual(len(record["cases"]), 2)
+                self.assertTrue(record["errors"])
 
     def test_supervisor_runs_inventory_and_exact_pair_with_bounded_cp1252_replay(self):
         groups, expected = self.fixture()
@@ -328,6 +402,15 @@ class WindowsShardRecorderTests(unittest.TestCase):
                     "import pytest\ndef test_one():\n    pass\n"
                     "@pytest.mark.skip(reason='synthetic existing skip')\n"
                     "def test_two():\n    pass\n")
+            (fixture / "test_synthetic_0.py").write_text(
+                "import os\nfrom io import BytesIO\nfrom zipfile import ZipFile, ZipInfo\n"
+                "import pytest\ndef _payload(name):\n    stream = BytesIO()\n"
+                "    year = int(os.environ['PROVELUME_CI_FIXTURE_ZIP_YEAR'])\n"
+                "    with ZipFile(stream, 'w') as archive:\n"
+                "        archive.writestr(ZipInfo(name, (year, 1, 1, 0, 0, 0)), b'synthetic')\n"
+                "    return stream.getvalue()\n"
+                "@pytest.mark.parametrize('payload', [_payload('one'), _payload('two')])\n"
+                "def test_one(payload):\n    assert payload.startswith(b'PK')\n    pass\n")
             script = fixture / "record_fixture.py"
             script.write_text(
                 "import json,sys\nfrom pathlib import Path\nimport pytest\n"
@@ -348,8 +431,13 @@ class WindowsShardRecorderTests(unittest.TestCase):
             environment["PROVELUME_WINDOWS_SHARD_DISABLE"] = "1"
             environment.pop("PROVELUME_WINDOWS_SHARD_FORCE", None)
             environment.pop("PROVELUME_WINDOWS_SHARD_CHILD", None)
+            invocation = 0
 
             def capture(mode, shard=None):
+                nonlocal invocation
+                invocation += 1
+                child_environment = {**environment,
+                                     "PROVELUME_CI_FIXTURE_ZIP_YEAR": str(2020 + invocation)}
                 output = fixture / f"{mode}-{shard}.json"
                 arguments = ["-c", str(config), "--rootdir", str(fixture), "-q", str(fixture)]
                 if mode == "inventory":
@@ -360,7 +448,7 @@ class WindowsShardRecorderTests(unittest.TestCase):
                 process = subprocess.run(
                     [sys.executable, str(script), json.dumps(identity), mode,
                      "none" if shard is None else str(shard), str(output), *arguments],
-                    cwd=fixture, env=environment, capture_output=True, text=True,
+                    cwd=fixture, env=child_environment, capture_output=True, text=True,
                     timeout=45, check=False,
                 )
                 self.assertTrue(output.is_file(), process.stdout + process.stderr)
@@ -377,6 +465,14 @@ class WindowsShardRecorderTests(unittest.TestCase):
                 self.assertEqual(record["inventory"], inventory["inventory"])
                 self.assertEqual(set(record["outcomes"]), set(record["selected"]))
                 self.assertEqual(len(record["selected"]), 2)
+                volatile_raw = {case["id"]: case["raw_nodeid"] for case in record["cases"]
+                                if case["descriptor"]["indices"]}
+                independent_raw = {case["id"]: case["raw_nodeid"] for case in inventory["cases"]
+                                   if case["descriptor"]["indices"]}
+                self.assertEqual(set(volatile_raw), set(independent_raw))
+                self.assertEqual(len(volatile_raw), 2)
+                self.assertTrue(all(raw != independent_raw[key]
+                                    for key, raw in volatile_raw.items()))
                 shards.append(record)
             groups = [{"schema": "agent-windows-ci-group/v1", "identity": identity,
                        "group": group, "inventory": inventory, "shards": shards[2*group:2*group+2],
@@ -475,10 +571,11 @@ class WindowsShardRecorderTests(unittest.TestCase):
             passed, record = inventory("supervisor-environment", environment)
             self.assertEqual(passed.returncode, 0, passed.stdout + passed.stderr)
             self.assertEqual(record["exit_code"], 0)
-            self.assertEqual(set(record["inventory"]), {
+            self.assertEqual({case["raw_nodeid"] for case in record["cases"]}, {
                 "tests/test_tools_namespace.py::test_tools_namespace",
                 "tests/test_scripts_namespace.py::test_scripts_namespace",
             })
+            self.assertEqual(set(record["inventory"]), {case["id"] for case in record["cases"]})
             self.assertEqual(record["selected"], record["inventory"])
             self.assertEqual(record["outcomes"], {})
 

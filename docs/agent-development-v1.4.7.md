@@ -369,7 +369,13 @@ jobs and their exact commit/tree, run/attempt, event, Windows OS and runtime. It
 requires four distinct shards whose actually completed nodes form a disjoint,
 complete union of the independent Windows inventories. Missing artifacts,
 unknown exits, unsuccessful phases, changed source or an exceeded bound fail the
-gate. The aggregate verifier uses only the Python standard library on Linux;
+gate. Pytest case identity binds the parent node, original test name and every
+parameter index sorted by parameter name to the verified source. Version 2 case
+records retain the complete raw node labels and their bijection with those
+structural identities; duplicate, missing or unknown mappings fail. This identifies
+each parametrized case even when a generated ZIP timestamp changes its display
+label between processes; it does not assert equality of generated parameter bytes.
+The aggregate verifier uses only the Python standard library on Linux;
 Windows execution evidence must still come from the Windows runner jobs. Artifacts
 are confined to the same run and attempt and retain their complete reports/logs.
 The full Linux suite and the trusted-base `pull_request_target` guard are unchanged.

@@ -212,25 +212,81 @@ class _WindowsRecorder:
     def __init__(self, identity, mode, shard):
         self.identity, self.mode, self.shard = identity, mode, shard
         self.inventory, self.selected, self.outcomes, self.errors = [], [], {}, []
+        self.cases, self._ids = [], {}
 
     def pytest_collection_modifyitems(self, items):
-        self.inventory = [item.nodeid for item in items]
+        for item in items:
+            callspec = getattr(item, "callspec", None)
+            descriptor = {"parent": item.parent.nodeid,
+                          "originalname": getattr(item, "originalname", None) or item.name,
+                          "indices": sorted([name, index] for name, index in
+                                            (callspec.indices.items() if callspec else []))}
+            identity = _windows_case_id(descriptor)
+            if identity in self.inventory or item.nodeid in self._ids:
+                self.errors.append("duplicate pytest case or raw node identity")
+            self.inventory.append(identity)
+            self.cases.append({"id": identity, "descriptor": descriptor,
+                               "raw_nodeid": item.nodeid})
+            self._ids[item.nodeid] = identity
 
     def pytest_collection_finish(self, session):
-        self.selected = [item.nodeid for item in session.items]
+        for item in session.items:
+            identity = self._ids.get(item.nodeid)
+            if identity is None:
+                self.errors.append("selected pytest node missing from collection")
+            else:
+                self.selected.append(identity)
 
     def pytest_runtest_logreport(self, report):
-        phases = self.outcomes.setdefault(report.nodeid, {})
-        if (report.nodeid not in self.selected or report.when in phases
+        identity = self._ids.get(report.nodeid)
+        if identity is None:
+            self.errors.append("pytest phase missing from raw node map")
+            return
+        phases = self.outcomes.setdefault(identity, {})
+        if (identity not in self.selected or report.when in phases
                 or report.when not in {"setup", "call", "teardown"}):
             self.errors.append("unexpected or duplicate pytest phase")
         phases[report.when] = report.outcome
 
     def record(self, exit_code):
-        return {"schema": "agent-windows-ci-pytest/v1", "identity": self.identity,
+        return {"schema": "agent-windows-ci-pytest/v2", "identity": self.identity,
                 "mode": self.mode, "shard": self.shard, "inventory": self.inventory,
-                "selected": self.selected, "outcomes": self.outcomes,
+                "cases": self.cases, "selected": self.selected, "outcomes": self.outcomes,
                 "exit_code": int(exit_code), "errors": self.errors}
+
+
+def _windows_case_id(descriptor):
+    """Identify the source-bound pytest case, not its possibly volatile display label."""
+    source.require(isinstance(descriptor, dict)
+                   and set(descriptor) == {"parent", "originalname", "indices"}
+                   and all(type(descriptor[key]) is str and descriptor[key]
+                           for key in ("parent", "originalname")), "invalid CI case descriptor")
+    indices = descriptor["indices"]
+    source.require(isinstance(indices, list)
+                   and all(isinstance(pair, list) and len(pair) == 2
+                           and type(pair[0]) is str and pair[0]
+                           and type(pair[1]) is int and pair[1] >= 0 for pair in indices),
+                   "invalid CI parameter indices")
+    names = [pair[0] for pair in indices]
+    source.require(names == sorted(set(names)), "duplicate or unordered CI parameter names")
+    return source.digest(descriptor)
+
+
+def _windows_case_catalog(value, inventory):
+    source.require(isinstance(value, list), "CI case catalog missing")
+    identities, raw_nodes = set(), set()
+    for case in value:
+        source.require(isinstance(case, dict)
+                       and set(case) == {"id", "descriptor", "raw_nodeid"}, "invalid CI case")
+        identity = _windows_case_id(case["descriptor"])
+        raw = case["raw_nodeid"]
+        source.require(case["id"] == identity and identity not in identities,
+                       "duplicate or mismatched CI case identity")
+        source.require(type(raw) is str and raw and raw not in raw_nodes,
+                       "duplicate or missing CI raw node identity")
+        identities.add(identity)
+        raw_nodes.add(raw)
+    source.require(identities == inventory, "CI case catalog does not cover collection")
 
 
 def _windows_nodes(value):
@@ -241,7 +297,7 @@ def _windows_nodes(value):
 
 def _validate_windows_record(record, identity, inventory, mode, index):
     source.require(isinstance(record, dict)
-                   and record.get("schema") == "agent-windows-ci-pytest/v1"
+                   and record.get("schema") == "agent-windows-ci-pytest/v2"
                    and record.get("identity") == identity
                    and record.get("mode") == mode and record.get("shard") == index,
                    "CI record identity mismatch")
@@ -249,6 +305,7 @@ def _validate_windows_record(record, identity, inventory, mode, index):
                    and record.get("errors") == [], "CI pytest execution failed or unknown")
     source.require(_windows_nodes(record.get("inventory")) == inventory,
                    "CI full collection mismatch")
+    _windows_case_catalog(record.get("cases"), inventory)
     selected = _windows_nodes(record.get("selected"))
     outcomes = record.get("outcomes")
     source.require(isinstance(outcomes, dict), "CI execution outcomes missing")
