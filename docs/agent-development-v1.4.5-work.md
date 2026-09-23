@@ -127,7 +127,11 @@ Stage the complete hash-verified Work inventory together with all four operation
 siblings verified against the accepted canonical manifest, including their Git
 blob identities and executable modes. Recheck copied bytes before execution.
 The isolated tree must contain only these explicitly verified dependencies.
-No pytest installation, unverified module or application source is needed.
+The recovery suite needs no pytest installation. The Work check suite uses real
+pytest from the verified runtime with self-contained synthetic plugin and namespace
+fixtures; it requires no application source or editable Core installation. Verify
+the loaded fixture paths. Actual Core application integration remains covered by
+the native Core and Windows CI gates; these fixtures do not qualify it.
 
 Work runners execute source, check and recovery suites explicitly and propagate
 every nonzero exit. Core also runs the same recovery cases under its full suite,

@@ -387,6 +387,44 @@ class WindowsShardContractTests(unittest.TestCase):
 
 
 class WindowsShardRecorderTests(unittest.TestCase):
+    @staticmethod
+    def synthetic_plugin(root):
+        """Exercise recorder hooks with real pytest, independently of Product."""
+        plugin = root / "core/synthetic_work_shard.py"
+        plugin.parent.mkdir(parents=True, exist_ok=True)
+        plugin.write_text(
+            "import json, os, sys\nfrom pathlib import Path\nimport pytest\n"
+            "def pytest_addoption(parser):\n"
+            "    parser.addoption('--provelume-shard-index', type=int, default=None)\n"
+            "    parser.addoption('--provelume-shard-count', type=int, default=4)\n"
+            "def pytest_configure(config):\n"
+            "    loaded = {'plugin': str(Path(__file__).resolve()),\n"
+            "              'application_modules': sorted(name for name in sys.modules\n"
+            "                  if name == 'provelume' or name.startswith('provelume.'))}\n"
+            "    Path(os.environ['WORK_FIXTURE_PLUGIN_RECEIPT']).write_text(\n"
+            "        json.dumps(loaded), encoding='utf-8')\n"
+            "@pytest.hookimpl(trylast=True)\n"
+            "def pytest_collection_modifyitems(config, items):\n"
+            "    index = config.getoption('--provelume-shard-index')\n"
+            "    if index is None:\n        return\n"
+            "    count = config.getoption('--provelume-shard-count')\n"
+            "    modules = sorted({item.nodeid.split('::', 1)[0] for item in items})\n"
+            "    chosen, excluded = [], []\n"
+            "    for item in items:\n"
+            "        module = item.nodeid.split('::', 1)[0]\n"
+            "        target = chosen if modules.index(module) % count == index else excluded\n"
+            "        target.append(item)\n"
+            "    items[:] = chosen\n"
+            "    config.hook.pytest_deselected(items=excluded)\n",
+            encoding="utf-8",
+        )
+        return plugin
+
+    def assert_fixture_plugin(self, receipt, plugin):
+        self.assertEqual(json.loads(receipt.read_text(encoding="utf-8")), {
+            "plugin": str(plugin.resolve()), "application_modules": [],
+        })
+
     def test_real_pytest_records_complete_collection_execution_skips_and_failure(self):
         root = Path(__file__).resolve().parents[1]
         expected = {"commit": "a" * 40, "tree": "b" * 40,
@@ -395,8 +433,9 @@ class WindowsShardRecorderTests(unittest.TestCase):
         identity = {**expected, "platform": "win32", "python": "3.12.10"}
         with tempfile.TemporaryDirectory(prefix="provelume-ci-recorder-") as temporary:
             fixture = Path(temporary)
+            plugin = self.synthetic_plugin(fixture)
             config = fixture / "pytest.ini"
-            config.write_text("[pytest]\naddopts = -p provelume.pytest_windows_shard\n")
+            config.write_text("[pytest]\naddopts = -p synthetic_work_shard\n", encoding="utf-8")
             for index in range(4):
                 (fixture / f"test_synthetic_{index}.py").write_text(
                     "import pytest\ndef test_one():\n    pass\n"
@@ -427,7 +466,9 @@ class WindowsShardRecorderTests(unittest.TestCase):
                 "sys.exit(int(code))\n")
             environment = os.environ.copy()
             environment["PYTHONPATH"] = os.pathsep.join(
-                (str(root / "core"), str(root), str(root / "tools")))
+                (str(fixture / "core"), str(root / "tools")))
+            environment["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
+            environment["PYTHONIOENCODING"] = "utf-8"
             environment["PROVELUME_WINDOWS_SHARD_DISABLE"] = "1"
             environment.pop("PROVELUME_WINDOWS_SHARD_FORCE", None)
             environment.pop("PROVELUME_WINDOWS_SHARD_CHILD", None)
@@ -436,8 +477,10 @@ class WindowsShardRecorderTests(unittest.TestCase):
             def capture(mode, shard=None):
                 nonlocal invocation
                 invocation += 1
+                receipt = fixture / f"plugin-{invocation}.json"
                 child_environment = {**environment,
-                                     "PROVELUME_CI_FIXTURE_ZIP_YEAR": str(2020 + invocation)}
+                                     "PROVELUME_CI_FIXTURE_ZIP_YEAR": str(2020 + invocation),
+                                     "WORK_FIXTURE_PLUGIN_RECEIPT": str(receipt)}
                 output = fixture / f"{mode}-{shard}.json"
                 arguments = ["-c", str(config), "--rootdir", str(fixture), "-q", str(fixture)]
                 if mode == "inventory":
@@ -448,10 +491,11 @@ class WindowsShardRecorderTests(unittest.TestCase):
                 process = subprocess.run(
                     [sys.executable, str(script), json.dumps(identity), mode,
                      "none" if shard is None else str(shard), str(output), *arguments],
-                    cwd=fixture, env=child_environment, capture_output=True, text=True,
+                    cwd=fixture, env=child_environment, capture_output=True, encoding="utf-8",
                     timeout=45, check=False,
                 )
                 self.assertTrue(output.is_file(), process.stdout + process.stderr)
+                self.assert_fixture_plugin(receipt, plugin)
                 return json.loads(output.read_text()), process.returncode
 
             inventory, code = capture("inventory")
@@ -496,23 +540,24 @@ class WindowsShardRecorderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="provelume-ci-entrypoint-") as temporary:
             parent = Path(temporary)
             root = parent / "source"
-            for directory in ("core/provelume", "tools", "scripts", "tests"):
+            for directory in ("core", "tools", "scripts", "tests"):
                 (root / directory).mkdir(parents=True, exist_ok=True)
             for relative in ("tools/agent_protocol_work_check.py",
-                             "tools/agent_protocol_work_source.py",
-                             "scripts/windows_package_manifest.py",
-                             "core/provelume/pytest_windows_shard.py"):
+                             "tools/agent_protocol_work_source.py"):
                 shutil.copyfile(source_root / relative, root / relative)
-            (root / "core/provelume/__init__.py").write_text("")
+            plugin = self.synthetic_plugin(root)
+            (root / "scripts/synthetic_namespace.py").write_text(
+                "VALUE = 'synthetic namespace fixture'\n", encoding="utf-8")
             (root / "pyproject.toml").write_text(
-                '[tool.pytest.ini_options]\naddopts = "-p provelume.pytest_windows_shard"\n'
+                '[tool.pytest.ini_options]\naddopts = "-p synthetic_work_shard"\n'
                 'pythonpath = ["core"]\ntestpaths = ["tests"]\n')
             (root / "tests/test_tools_namespace.py").write_text(
                 "from tools.agent_protocol_work_source import SCHEMA\n"
                 "def test_tools_namespace():\n    assert SCHEMA == 'agent-work-source/v1'\n")
             (root / "tests/test_scripts_namespace.py").write_text(
-                "from scripts.windows_package_manifest import SCHEMA_VERSION\n"
-                "def test_scripts_namespace():\n    assert SCHEMA_VERSION == 2\n")
+                "from scripts.synthetic_namespace import VALUE\n"
+                "def test_scripts_namespace():\n"
+                "    assert VALUE == 'synthetic namespace fixture'\n")
 
             def git(*arguments):
                 return subprocess.check_output(
@@ -534,6 +579,10 @@ class WindowsShardRecorderTests(unittest.TestCase):
                 raise OSError("synthetic stop after capturing the real child environment")
 
             with (
+                patch.dict(os.environ, {
+                    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+                    "WORK_FIXTURE_PLUGIN_RECEIPT": str(parent / "plugin.json"),
+                }),
                 patch.object(runner.sys, "platform", "win32"),
                 patch.object(runner.sys, "stdout", io.StringIO()),
                 patch.object(runner, "windows_identity", return_value=expected),
@@ -546,15 +595,17 @@ class WindowsShardRecorderTests(unittest.TestCase):
 
             def inventory(name, child_environment):
                 output = parent / f"{name}.json"
+                (parent / "plugin.json").unlink(missing_ok=True)
                 process = subprocess.run(
                     [sys.executable, str(root / "tools/agent_protocol_work_check.py"),
                      "windows-inventory", "--root", str(root), "--output", str(output),
                      "--commit", expected["commit"], "--run-id", expected["run_id"],
                      "--run-attempt", expected["run_attempt"], "--event", expected["event"]],
-                    cwd=root, env=child_environment, capture_output=True, text=True,
+                    cwd=root, env=child_environment, capture_output=True, encoding="utf-8",
                     timeout=45, check=False,
                 )
                 self.assertTrue(output.is_file(), process.stdout + process.stderr)
+                self.assert_fixture_plugin(parent / "plugin.json", plugin)
                 return process, json.loads(output.read_text())
 
             # Reproduce the broken script-entrypoint shape without a root namespace.

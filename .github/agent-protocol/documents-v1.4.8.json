@@ -190,7 +190,7 @@
     {
       "id": "agent-development-v1.4.5-work",
       "path": "docs/agent-development-v1.4.5-work.md",
-      "sha256": "9f8d84761dc581dc65de03bdfcae238a21579a6766b5acd665b5598a4b808aa2",
+      "sha256": "44bbd5e535b53712f4e3f398274a0171993704e9475fad0249f39b4cb4ed787b",
       "role": "PROCEDURE",
       "workstreams": [
         "PRODUCT",
