@@ -40,10 +40,10 @@ def execution147():
     return agent_protocol_v1_4_7
 
 
-def test_147_repository_document_manifest_is_complete_and_current():
+def test_current_repository_document_manifest_is_complete_and_current():
     module = execution147()
     root = Path(__file__).resolve().parents[1]
-    manifest = json.loads((root / ".github/agent-protocol/documents-v1.4.7.json").read_text())
+    manifest = json.loads((root / ".github/agent-protocol/documents-v1.4.8.json").read_text())
     inventory = {row["path"] for row in manifest["documents"]}
     guides = (root / "docs").glob("agent-development-v*.md")
     expected = {p.relative_to(root).as_posix() for p in guides}
@@ -54,7 +54,8 @@ def test_147_repository_document_manifest_is_complete_and_current():
         assert result["selection"] == "EXACT"
         assert result["model_bytes"] < result["verified_inventory_bytes"]
         selected = {row["path"] for row in result["documents"]}
-        assert {"AGENTS.md", "docs/agent-development-v1.4.7.md"} <= selected
+        assert {"AGENTS.md", "docs/agent-development-v1.4.8.md"} <= selected
+        assert "docs/agent-development-v1.4.7.md" not in selected
     result = module.select_documents(
         root, manifest, module.digest(manifest), workstream="UNKNOWN", phase="START")
     assert result["selection"] == "FULL_FALLBACK"
@@ -343,6 +344,275 @@ def audit():
                      "open_campaign_prs": [], "unresolved_threads": []})
     return {"protocol_version": "1.4.2", "campaign_ref": ref, "canonical": canonical,
             **observed(), "repositories": rows}
+
+
+def campaign_audit_inputs():
+    """Real audit schemas with synthetic public bytes and independently chosen policy."""
+    p = execution147()
+    from tools.agent_protocol_work_recovery import WORK_FILES, adoption_guidance
+    value = audit()
+    value["repositories"] = [r for r in value["repositories"] if r["repository"] != "gabned/nexus"]
+    scope = {"schema": "agent-campaign-scope/v1", "campaign_ref": value["campaign_ref"],
+             "repositories": sorted(r["repository"] for r in value["repositories"])}
+    policies = []
+    for row in value["repositories"]:
+        operation = row["operations"][0]
+        policies.append({"repository": row["repository"], "pr": operation["pr"]["number"],
+                         "base_sha": BASE, "head_sha": HEAD, "default_sha": MERGE,
+                         "scope_profile": None,
+                         "policy": {"schema": "agent-repository-policy/v1",
+                                    "repository": row["repository"],
+                                    "required_workflows": ["ci.yml@pull_request"],
+                                    "post_merge_required_workflows": ["ci.yml@pull_request"],
+                                    "review_requirement": "NONE"}})
+    def file(path, content):
+        return {"path": path, "commit_sha": MERGE, "mode": "100644",
+                "git_blob": ops.blob(content.encode()), "content": content}
+    work = [file(path, path + "\n") for path in WORK_FILES]
+    work_pin = [{k: f[k] for k in ("path", "mode", "git_blob")} | {
+        "sha256": hashlib.sha256(f["content"].encode()).hexdigest()} for f in work]
+    guide = "docs/agent-development-v1.4.8.md"
+    routing = ".github/agent-protocol/documents-v1.4.8.json"
+    core_documents = [file("AGENTS.md", "AGENT_DEVELOPMENT_PROTOCOL: 1.4.8\n"),
+                      file(guide, "# Current synthetic contract\n")]
+    manifest = {"schema": "agent-documents/v1", "protocol_version": "1.4.8",
+                "documents": [{"id": f["path"], "path": f["path"],
+                               "sha256": hashlib.sha256(f["content"].encode()).hexdigest(),
+                               "role": "ALWAYS", "workstreams": ["PROTOCOL"],
+                               "phases": ["CLOSE"], "hosts": ["WORK"], "requires": []}
+                              for f in core_documents], "repository_policy": {}}
+    adoption = {"schema": "agent-campaign-adoption/v1", "protocol_version": "1.4.8",
+                "source_repository": REPO, "source_commit": MERGE, "work_files": work_pin,
+                "documents_manifest": manifest}
+    pin = {"source_repository": REPO, "source_commit": MERGE, "files": work_pin}
+    adoptions = []
+    for row in value["repositories"]:
+        repo = row["repository"]
+        core = repo == REPO
+        runbook = "docs/agent-development-v1.4.2.md" if repo == "gabned/provelume.com" \
+            else "docs/runbooks/agent-development-v1.4.2.md"
+        guidance = adoption_guidance(repo)
+        pin_path = "scripts/agent/protocol-v1-2.py" if repo == "brickms/brickms" \
+            else "tests/agent_protocol_v1_4_2_vendor_test.py"
+        adoptions.append({"repository": repo, "default_sha": MERGE,
+                          "files": deepcopy(work) if core else [],
+                          "pin_file": None if core else file(
+                              pin_path, "WORK_ADAPTER_PIN = " + repr(pin)),
+                          "routing_files": core_documents + [file(routing, json.dumps(manifest))]
+                          if core else [file("AGENTS.md", guidance), file(runbook, guidance)]})
+        if repo == "brickms/brickms":
+            adoptions[-1]["pin_file"]["mode"] = "100755"
+    data = dict(evidence=value, scope=scope, policies=policies,
+                adoption=adoption, adoptions=adoptions)
+    trust = dict(trusted_scope=p.digest(scope), trusted_policies=p.digest(policies),
+                 trusted_adoption=p.digest(adoption))
+    return data, trust
+
+
+def test_campaign_audit_observes_work_bytes_at_current_core_default():
+    p = execution147()
+    data, trust = campaign_audit_inputs()
+    advanced = "f" * 40
+    core = data["evidence"]["repositories"][0]
+    operation = core["operations"][0]
+    core["default_sha"] = advanced
+    operation["default_branch"]["sha"] = advanced
+    operation["merge"]["default_sha"] = advanced
+    operation["merge"]["ancestry"].insert(
+        0, {"sha": advanced, "tree_sha": "e" * 40, "parents": [MERGE]})
+    operation["post_merge_ci"] = ci(REPO, advanced)
+    for item in core["vendor_files"]:
+        item["commit_sha"] = advanced
+    data["policies"][0]["default_sha"] = advanced
+    trust["trusted_policies"] = p.digest(data["policies"])
+    adoption = data["adoptions"][0]
+    adoption["default_sha"] = advanced
+    for item in adoption["routing_files"]:
+        item["commit_sha"] = advanced
+    with pytest.raises(ValueError, match="observed adoption identity"):
+        p.campaign_audit(**data, **trust)
+    # A later Core product commit may keep the accepted Protocol bytes unchanged.
+    # Observe them at that default instead of transferring an old inventory PASS.
+    for item in adoption["files"]:
+        item["commit_sha"] = advanced
+    assert p.campaign_audit(**data, **trust)["result"] == "PASS"
+
+
+def test_campaign_audit_binds_actual_work_pins_routing_and_accepted_policy(tmp_path):
+    p = execution147()
+    data, trust = campaign_audit_inputs()
+    for consumer in data["adoptions"][1:]:
+        for item in consumer["routing_files"]:
+            item["content"] += "\n## Local procedure\nKeep independent native checks.\n"
+            item["git_blob"] = ops.blob(item["content"].encode())
+    result = p.campaign_audit(**data, **trust)
+    assert result["result"] == "PASS" and result["protocol_version"] == "1.4.8"
+    assert result["adoption_sha256"] == trust["trusted_adoption"]
+    input_file, trusted_file = tmp_path / "input.json", tmp_path / "trusted.json"
+    input_file.write_text(json.dumps(data))
+    trusted_file.write_text(json.dumps(trust))
+    command = subprocess.run([os.sys.executable, str(ROOT / "tools/agent_protocol_v1_4_7.py"),
+                              "campaign-audit", "--input", str(input_file),
+                              "--trusted", str(trusted_file)], capture_output=True,
+                             encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+    assert command.returncode == 0, command.stdout + command.stderr
+    assert json.loads(command.stdout) == result
+
+
+@pytest.mark.parametrize("content", ["WORK_ADAPTER_PIN = {", "<<<<<<< unresolved\n"])
+def test_campaign_audit_cli_blocks_malformed_observed_pin(tmp_path, content):
+    p = execution147()
+    data, trust = campaign_audit_inputs()
+    pin = data["adoptions"][1]["pin_file"]
+    pin["content"] = content
+    pin["git_blob"] = ops.blob(content.encode())
+    input_file, trusted_file = tmp_path / "input.json", tmp_path / "trusted.json"
+    input_file.write_text(json.dumps(data), encoding="utf-8")
+    trusted_file.write_text(json.dumps(trust), encoding="utf-8")
+    command = subprocess.run([os.sys.executable, str(ROOT / "tools/agent_protocol_v1_4_7.py"),
+                              "campaign-audit", "--input", str(input_file),
+                              "--trusted", str(trusted_file)], capture_output=True,
+                             encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+    assert command.returncode == 2, command.stdout + command.stderr
+    assert json.loads(command.stdout) == {
+        "result": "BLOCKED", "reason": "consumer actual Work pin syntax"}
+    assert command.stderr == ""
+    with pytest.raises(ValueError, match="consumer actual Work pin syntax"):
+        p.campaign_audit(**data, **trust)
+
+
+@pytest.mark.parametrize("damage", ["policy", "policy_binding", "policy_trust", "adoption_trust",
+                                   "work_missing", "work_bytes", "work_mode", "pin",
+                                   "pin_missing", "pin_location", "routing", "routing_missing",
+                                   "routing_edited", "routing_duplicate",
+                                   "core_routing", "source", "consumer_missing",
+                                   "consumer_duplicate"])
+def test_campaign_audit_rejects_legacy_only_or_drifted_adoption(damage):
+    p = execution147()
+    data, trust = campaign_audit_inputs()
+    core, consumer = data["adoptions"][:2]
+    if damage == "policy":
+        data["policies"][0]["policy"]["required_workflows"].append("missing.yml@pull_request")
+        trust["trusted_policies"] = p.digest(data["policies"])
+    elif damage == "policy_binding":
+        data["policies"][0]["head_sha"] = "f" * 40
+        trust["trusted_policies"] = p.digest(data["policies"])
+    elif damage == "policy_trust":
+        trust["trusted_policies"] = "0" * 64
+    elif damage == "adoption_trust":
+        trust["trusted_adoption"] = "0" * 64
+    elif damage == "work_missing":
+        core["files"].pop()
+    elif damage in {"work_bytes", "work_mode"}:
+        item = core["files"][0]
+        if damage == "work_bytes":
+            item["content"] += "changed"
+            item["git_blob"] = ops.blob(item["content"].encode())
+        else:
+            item["mode"] = "100755"
+    elif damage in {"pin", "pin_missing", "pin_location"}:
+        item = consumer["pin_file"]
+        if damage == "pin_location":
+            item["path"] = "tests/unused.py"
+        else:
+            item["content"] = "WORK_ADAPTER_PIN = {}" if damage == "pin" else "NOT_THE_PIN = {}"
+            item["git_blob"] = ops.blob(item["content"].encode())
+    elif damage in {"routing", "core_routing"}:
+        item = (consumer if damage == "routing" else core)["routing_files"][0]
+        item["content"] = item["content"].replace("1.4.8", "1.4.7")
+        item["git_blob"] = ops.blob(item["content"].encode())
+    elif damage == "routing_missing":
+        consumer["routing_files"].pop()
+    elif damage in {"routing_edited", "routing_duplicate"}:
+        item = consumer["routing_files"][0]
+        if damage == "routing_edited":
+            item["content"] = item["content"].replace("Verify the pinned bytes;", "Ignore bytes;")
+        else:
+            item["content"] += "\n" + item["content"]
+        item["content"] += "\n## Local procedure\nKeep native checks.\n"
+        item["git_blob"] = ops.blob(item["content"].encode())
+    elif damage == "source":
+        data["adoption"]["source_commit"] = "f" * 40
+        trust["trusted_adoption"] = p.digest(data["adoption"])
+    elif damage == "consumer_missing":
+        data["adoptions"].pop()
+    else:
+        data["adoptions"][-1] = deepcopy(data["adoptions"][0])
+    with pytest.raises(ValueError):
+        p.campaign_audit(**data, **trust)
+
+
+def test_campaign_audit_keeps_independent_consumer_scope_through_closure():
+    p = execution147()
+    data, trust = campaign_audit_inputs()
+    row = data["evidence"]["repositories"][1]
+    operation = row["operations"][0]
+    path = "scripts/synthetic_protocol_guard.py"
+    operation["baseline_paths"] = [path]
+    operation["pr"]["changed_paths"] = [path]
+    operation["pr"]["file_patches"] = {path: "+synthetic guard\n"}
+    operation["pr"] = ops.render_pr_identity(operation["pr"])
+    binding = data["policies"][1]
+    binding["scope_profile"] = {
+        "schema": "agent-protocol-scope/v1", "repository": row["repository"],
+        "base_sha": BASE, "policy_path": ".github/agent-protocol/scope.json",
+        "paths": [{"path": path, "role": "IMPLEMENTATION"}],
+    }
+    trust["trusted_policies"] = p.digest(data["policies"])
+    if not hasattr(p.ops, "trusted_protocol_scope"):
+        with pytest.raises(ValueError, match="lacks Protocol scope profiles"):
+            p.campaign_audit(**data, **trust)
+        return
+    assert p.campaign_audit(**data, **trust)["result"] == "PASS"
+    binding["scope_profile"]["base_sha"] = "f" * 40
+    trust["trusted_policies"] = p.digest(data["policies"])
+    with pytest.raises(ValueError):
+        p.campaign_audit(**data, **trust)
+    binding["scope_profile"] = None
+    trust["trusted_policies"] = p.digest(data["policies"])
+    with pytest.raises(ValueError, match="non-Protocol surface"):
+        p.campaign_audit(**data, **trust)
+
+
+def test_campaign_audit_real_cli_qualifies_resolved_findings_with_their_own_profiles(tmp_path):
+    p = execution147()
+    data, trust = campaign_audit_inputs()
+    finding = resolved_finding()
+    data["evidence"]["repositories"][0]["operations"][0]["late_findings"] = [finding]
+    for part in ("origin", "correction"):
+        integration = finding[part]
+        path = "tools/consumer-governance.py"
+        integration["baseline_paths"] = [path]
+        integration["pr"]["changed_paths"] = [path]
+        integration["pr"]["file_patches"] = {path: "+synthetic Protocol correction\n"}
+        integration["pr"] = ops.render_pr_identity(integration["pr"])
+        profile = {
+            "schema": "agent-protocol-scope/v1", "repository": REPO,
+            "base_sha": integration["pr"]["base_sha"],
+            "policy_path": ".github/agent-protocol/scope.json",
+            "paths": [{"path": path, "role": "IMPLEMENTATION"}],
+        }
+        binding = {**deepcopy(data["policies"][0]), "scope_profile": profile,
+                   "pr": integration["pr"]["number"], "base_sha": profile["base_sha"],
+                   "default_sha": integration["merge"]["default_sha"]}
+        data["policies"].append(binding)
+        # The two integrations are independently valid; the parent must preserve that proof.
+        assert p.validate_qualification(integration, binding["policy"], p.digest(binding["policy"]),
+                                       scope_profile=profile,
+                                       expected_scope_digest=p.digest(profile))["result"] == "PASS"
+    trust["trusted_policies"] = p.digest(data["policies"])
+    source, trusted = tmp_path / "input.json", tmp_path / "trusted.json"
+    source.write_text(json.dumps(data))
+    trusted.write_text(json.dumps(trust))
+    result = subprocess.run(
+        [os.sys.executable, str(ROOT / "tools/agent_protocol_v1_4_7.py"), "campaign-audit",
+         "--input", str(source), "--trusted", str(trusted)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert json.loads(result.stdout)["result"] == "PASS"
+    data["policies"][-1]["scope_profile"] = None
+    trust["trusted_policies"] = p.digest(data["policies"])
+    with pytest.raises(ValueError, match="non-Protocol surface"):
+        p.campaign_audit(**data, **trust)
 
 
 def test_complete_audit_and_cli_receipt_roundtrip(tmp_path):
