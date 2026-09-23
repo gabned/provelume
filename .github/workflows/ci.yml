@@ -167,7 +167,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
 
     steps:
       - name: Checkout repository
@@ -189,6 +189,81 @@ jobs:
 
       - name: Test
         run: python -m pytest -q
+
+  windows-shards:
+    name: Windows Core execution (${{ matrix.group }})
+    if: github.event_name != 'pull_request_target'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [0, 1]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package and development checks
+        run: python -m pip install -e ".[dev]"
+      - name: Lint
+        run: python -m ruff check core tests scripts tools packaging
+      - name: Execute two of four Windows shards within the unchanged deadline
+        run: >-
+          python tools/agent_protocol_work_check.py windows-group
+          --root "${{ github.workspace }}"
+          --output "${{ runner.temp }}/windows-core-${{ matrix.group }}"
+          --group ${{ matrix.group }} --commit "${{ github.sha }}"
+          --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}"
+          --event "${{ github.event_name }}"
+      - name: Retain exact-source Windows execution evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: windows-core-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.group }}
+          path: |
+            ${{ runner.temp }}/windows-core-${{ matrix.group }}/*.json
+            ${{ runner.temp }}/windows-core-${{ matrix.group }}/*.log
+            ${{ runner.temp }}/windows-core-${{ matrix.group }}/shard-*/*.json
+            ${{ runner.temp }}/windows-core-${{ matrix.group }}/shard-*/*.log
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-tests:
+    name: Core tests (windows-latest)
+    if: ${{ always() && github.event_name != 'pull_request_target' }}
+    needs: windows-shards
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+      - name: Download this run and attempt's Windows evidence
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          pattern: windows-core-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: ${{ runner.temp }}/windows-core-evidence
+          merge-multiple: true
+      - name: Require complete disjoint Windows execution on the exact source
+        if: always()
+        run: >-
+          python tools/agent_protocol_work_check.py windows-verify
+          --root "${{ github.workspace }}"
+          --output "${{ runner.temp }}/windows-core-evidence"
+          --groups-result "${{ needs.windows-shards.result }}"
+          --commit "${{ github.sha }}" --run-id "${{ github.run_id }}"
+          --run-attempt "${{ github.run_attempt }}" --event "${{ github.event_name }}"
 
   windows-installer:
     name: Windows preview install and uninstall

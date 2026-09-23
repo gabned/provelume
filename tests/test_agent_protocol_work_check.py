@@ -1,5 +1,6 @@
 """Process/log conformance with explicitly synthetic local scripts, never app CI."""
 
+import io
 import json
 import os
 import shutil
@@ -7,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -40,6 +42,357 @@ class PortableCheckTests(unittest.TestCase):
             self.assertRaisesRegex(source.EvidenceError, "POSIX"),
         ):
             runner.run_check(root, root, root, root, workstream="PROTOCOL", suite="FULL")
+
+
+class WindowsShardContractTests(unittest.TestCase):
+    """Synthetic receipts exercise the independent gate, never qualify app CI."""
+
+    def fixture(self, node_count=4):
+        expected = {"commit": "a" * 40, "tree": "b" * 40,
+                    "run_id": "1234", "run_attempt": "1", "event": "pull_request"}
+        identity = {**expected, "platform": "win32", "python": "3.12.10"}
+        nodes = [f"tests/test_synthetic_{index}.py::test_one"
+                 for index in range(node_count)]
+
+        def record(mode, shard=None):
+            selected = nodes if mode == "inventory" else nodes[shard::4]
+            outcomes = {node: {"setup": "passed", "call": "passed", "teardown": "passed"}
+                        for node in selected} if mode == "shard" else {}
+            return {"schema": "agent-windows-ci-pytest/v1", "identity": deepcopy(identity),
+                    "mode": mode, "shard": shard, "inventory": list(nodes),
+                    "selected": list(selected), "outcomes": outcomes,
+                    "exit_code": 0, "errors": []}
+
+        groups = [{"schema": "agent-windows-ci-group/v1", "identity": deepcopy(identity),
+                   "group": group, "inventory": record("inventory"),
+                   "shards": [record("shard", index) for index in (2 * group, 2 * group + 1)],
+                   "timed_out": False, "exit_code": 0, "timeout_seconds": 540,
+                   "duration_seconds": 200}
+                  for group in range(2)]
+        return groups, expected
+
+    def assert_rejected(self, mutate):
+        groups, expected = self.fixture()
+        mutate(groups)
+        with self.assertRaises(source.EvidenceError):
+            runner.verify_windows_reports(groups, expected)
+
+    def test_complete_union_preserves_pass_call_skip_and_setup_skip(self):
+        groups, expected = self.fixture()
+        call_skip = groups[0]["shards"][1]
+        call_skip["outcomes"][call_skip["selected"][0]]["call"] = "skipped"
+        setup_skip = groups[1]["shards"][0]
+        setup_skip["outcomes"][setup_skip["selected"][0]] = {
+            "setup": "skipped", "teardown": "passed"}
+        result = runner.verify_windows_reports(groups, expected)
+        self.assertEqual(result["result"], "PASS")
+        self.assertEqual(result["node_count"], 4)
+        self.assertEqual(result["shard_count"], 4)
+
+    def test_empty_shard_is_valid_only_with_nonempty_complete_global_inventory(self):
+        groups, expected = self.fixture(node_count=2)
+        self.assertEqual(groups[1]["shards"][0]["selected"], [])
+        self.assertEqual(groups[1]["shards"][1]["outcomes"], {})
+        self.assertEqual(runner.verify_windows_reports(groups, expected)["node_count"], 2)
+        groups, expected = self.fixture(node_count=0)
+        with self.assertRaises(source.EvidenceError):
+            runner.verify_windows_reports(groups, expected)
+
+    def test_missing_duplicate_and_wrong_group_or_shard_cannot_form_a_pass(self):
+        mutations = {
+            "missing group": lambda gs: gs.pop(),
+            "duplicate group": lambda gs: gs.__setitem__(1, deepcopy(gs[0])),
+            "unknown group": lambda gs: gs[1].__setitem__("group", 2),
+            "missing shard": lambda gs: gs[0]["shards"].pop(),
+            "duplicate shard": lambda gs: gs[0]["shards"].__setitem__(1,
+                                                deepcopy(gs[0]["shards"][0])),
+            "unknown shard": lambda gs: gs[1]["shards"][1].__setitem__("shard", 4),
+            "wrong runner group": lambda gs: gs[0]["shards"].__setitem__(0,
+                                                deepcopy(gs[1]["shards"][0])),
+        }
+        for label, mutate in mutations.items():
+            with self.subTest(label=label):
+                self.assert_rejected(mutate)
+
+    def test_inventory_and_execution_must_be_exact_disjoint_complete_sets(self):
+        def remove_execution(groups):
+            worker = groups[0]["shards"][0]
+            worker["selected"] = []
+            worker["outcomes"] = {}
+
+        def overlap(groups):
+            donor, worker = groups[0]["shards"]
+            worker["selected"] += donor["selected"]
+            worker["outcomes"].update(deepcopy(donor["outcomes"]))
+
+        def invented_node(groups):
+            worker = groups[0]["shards"][0]
+            worker["outcomes"]["tests/test_not_collected.py::test_one"] = {
+                "setup": "passed", "call": "passed", "teardown": "passed"}
+
+        mutations = {
+            "assigned node never executed": lambda gs: gs[0]["shards"][0]["outcomes"].clear(),
+            "missing from union": remove_execution,
+            "overlapping shards": overlap,
+            "invented result": invented_node,
+            "duplicate selected node": lambda gs: gs[0]["shards"][0]["selected"].extend(
+                                                gs[0]["shards"][0]["selected"]),
+            "duplicate collected node": lambda gs: gs[0]["inventory"]["inventory"].append(
+                                                gs[0]["inventory"]["inventory"][0]),
+            "worker collected less": lambda gs: gs[0]["shards"][0]["inventory"].pop(),
+            "runner collected less": lambda gs: gs[1]["inventory"]["inventory"].pop(),
+            "missing independent inventory": lambda gs: gs[0].__setitem__("inventory", None),
+            "malformed independent inventory": lambda gs: gs[0].__setitem__("inventory", []),
+            "inventory has deselection": lambda gs: gs[0]["inventory"]["selected"].pop(),
+            "inventory reported execution": lambda gs: gs[0]["inventory"].__setitem__(
+                "outcomes", deepcopy(gs[0]["shards"][0]["outcomes"])),
+            "wrong worker mode": lambda gs: gs[0]["shards"][0].__setitem__("mode", "inventory"),
+        }
+        for label, mutate in mutations.items():
+            with self.subTest(label=label):
+                self.assert_rejected(mutate)
+
+    def test_duration_must_prove_completion_before_the_unchanged_deadline(self):
+        for duration in (None, float("nan"), float("inf"), 540, False, -1):
+            with self.subTest(duration=duration):
+                self.assert_rejected(
+                    lambda gs, value=duration: gs[0].__setitem__("duration_seconds", value))
+        self.assert_rejected(lambda gs: gs[0].pop("duration_seconds"))
+
+    def test_every_report_binds_exact_source_run_event_os_and_python(self):
+        wrong = {"commit": "c" * 40, "tree": "d" * 40, "run_id": "9999",
+                 "run_attempt": "2", "event": "push", "platform": "linux",
+                 "python": "3.11.10"}
+        for location in ("group", "inventory", "shard"):
+            for field, value in wrong.items():
+                with self.subTest(location=location, field=field):
+                    groups, expected = self.fixture()
+                    record = (groups[0] if location == "group" else groups[0]["inventory"]
+                              if location == "inventory" else groups[0]["shards"][0])
+                    record["identity"][field] = value
+                    with self.assertRaises(source.EvidenceError):
+                        runner.verify_windows_reports(groups, expected)
+
+    def test_unknown_or_failed_exit_timeout_and_errors_never_pass(self):
+        for location in ("group", "inventory", "shard"):
+            for code in (None, 1, 5, True, "0"):
+                with self.subTest(location=location, code=code):
+                    groups, expected = self.fixture()
+                    record = (groups[0] if location == "group" else groups[0]["inventory"]
+                              if location == "inventory" else groups[0]["shards"][0])
+                    record["exit_code"] = code
+                    with self.assertRaises(source.EvidenceError):
+                        runner.verify_windows_reports(groups, expected)
+        mutations = {
+            "supervisor timeout": lambda gs: gs[0].__setitem__("timed_out", True),
+            "unknown supervisor state": lambda gs: gs[0].__setitem__("timed_out", None),
+            "larger budget": lambda gs: gs[0].__setitem__("timeout_seconds", 541),
+            "collection error": lambda gs: gs[0]["inventory"]["errors"].append("collection"),
+            "worker error": lambda gs: gs[0]["shards"][0]["errors"].append("internal"),
+            "missing worker exit": lambda gs: gs[0]["shards"][0].pop("exit_code"),
+        }
+        for label, mutate in mutations.items():
+            with self.subTest(label=label):
+                self.assert_rejected(mutate)
+
+    def test_each_selected_node_requires_valid_complete_nonfailing_phases(self):
+        invalid_phases = (
+            {}, {"setup": "passed", "call": "passed"},
+            {"setup": "passed", "teardown": "passed"},
+            {"setup": "failed", "teardown": "passed"},
+            {"setup": "passed", "call": "failed", "teardown": "passed"},
+            {"setup": "passed", "call": "passed", "teardown": "failed"},
+            {"setup": "passed", "call": "unknown", "teardown": "passed"},
+            {"setup": "skipped", "call": "passed", "teardown": "passed"},
+        )
+        for phases in invalid_phases:
+            with self.subTest(phases=phases):
+                groups, expected = self.fixture()
+                worker = groups[0]["shards"][0]
+                worker["outcomes"][worker["selected"][0]] = phases
+                with self.assertRaises(source.EvidenceError):
+                    runner.verify_windows_reports(groups, expected)
+
+    def test_recorder_preserves_duplicate_and_unexpected_phase_errors(self):
+        for kind in ("duplicate", "unselected", "unknown phase"):
+            with self.subTest(kind=kind):
+                groups, expected = self.fixture()
+                worker = groups[0]["shards"][0]
+                node = worker["selected"][0]
+                recorder = runner._WindowsRecorder(worker["identity"], "shard", 0)
+                recorder.pytest_collection_modifyitems(
+                    [SimpleNamespace(nodeid=value) for value in worker["inventory"]])
+                recorder.pytest_collection_finish(
+                    SimpleNamespace(items=[SimpleNamespace(nodeid=node)]))
+                for phase in ("setup", "call", "teardown"):
+                    recorder.pytest_runtest_logreport(
+                        SimpleNamespace(nodeid=node, when=phase, outcome="passed"))
+                recorder.pytest_runtest_logreport(SimpleNamespace(
+                    nodeid=node if kind != "unselected" else "tests/test_other.py::test_one",
+                    when="call" if kind != "unknown phase" else "collection", outcome="passed"))
+                record = recorder.record(0)
+                self.assertTrue(record["errors"])
+                groups[0]["shards"][0] = record
+                with self.assertRaises(source.EvidenceError):
+                    runner.verify_windows_reports(groups, expected)
+
+    def test_supervisor_runs_inventory_and_exact_pair_with_bounded_cp1252_replay(self):
+        groups, expected = self.fixture()
+        identity = groups[0]["identity"]
+        maximum = 2 * 1024 * 1024
+        with tempfile.TemporaryDirectory(prefix="provelume-ci-supervisor-") as temporary:
+            root = Path(temporary) / "source"
+            root.mkdir()
+            for group in (0, 1):
+                with self.subTest(group=group):
+                    output = Path(temporary) / f"evidence-{group}"
+                    commands, environments = [], []
+
+                    class Process:
+                        returncode = None
+                        pid = 12345
+
+                        def wait(process, timeout):
+                            self.assertGreater(timeout, 0)
+                            self.assertLessEqual(timeout, 540)
+                            process.returncode = 0
+                            return 0
+
+                        def poll(process):
+                            return process.returncode
+
+                    def launch(command, commands=commands, environments=environments,
+                               group=group, **kwargs):
+                        mode = command[2]
+                        destination = Path(command[command.index("--output") + 1])
+                        index = (None if "--shard" not in command
+                                 else int(command[command.index("--shard") + 1]))
+                        commands.append((mode, index))
+                        environments.append(kwargs["env"])
+                        self.assertEqual(kwargs["cwd"], root)
+                        self.assertEqual(command[0], sys.executable)
+                        record = (groups[group]["inventory"] if index is None
+                                  else groups[group]["shards"][index % 2])
+                        destination.write_text(json.dumps(record))
+                        content = "synthetic unicode: 🧊\n".encode()
+                        if index is None:
+                            content = b"OMITTED_PREFIX" + b"x" * maximum + content
+                        kwargs["stdout"].write(content)
+                        kwargs["stdout"].flush()
+                        return Process()
+
+                    buffer = io.BytesIO()
+                    console = io.TextIOWrapper(buffer, encoding="cp1252")
+                    with (
+                        patch.object(runner.sys, "platform", "win32"),
+                        patch.object(runner.sys, "stdout", console),
+                        patch.object(runner, "windows_identity", return_value=identity),
+                        patch.object(runner.subprocess, "Popen", side_effect=launch),
+                    ):
+                        code = runner.run_windows_group(root, output, expected, group)
+                    console.flush()
+                    replay = buffer.getvalue().decode("cp1252")
+                    console.close()
+                    self.assertEqual(code, 0)
+                    self.assertEqual(commands, [("windows-inventory", None),
+                                               ("windows-shard", group * 2),
+                                               ("windows-shard", group * 2 + 1)])
+                    self.assertIn("\\U0001f9ca", replay)
+                    self.assertIn("[bounded output; complete log retained in artifact]", replay)
+                    self.assertNotIn("OMITTED_PREFIX", replay)
+                    self.assertLess(len(replay), maximum + 1000)
+                    self.assertTrue((output / f"inventory-{group}.log").read_bytes().startswith(
+                        b"OMITTED_PREFIX"))
+                    self.assertEqual(len({env["LOCALAPPDATA"] for env in environments}), 3)
+                    for environment in environments:
+                        self.assertEqual(environment["PYTHONPATH"], os.pathsep.join(
+                            (str(root / "core"), str(root / "tools"))))
+                        self.assertEqual(environment["PROVELUME_WINDOWS_SHARD_CHILD"], "1")
+                    groups[group] = json.loads((output / f"group-{group}.json").read_text())
+            self.assertEqual(runner.verify_windows_reports(groups, expected)["node_count"], 4)
+
+
+class WindowsShardRecorderTests(unittest.TestCase):
+    def test_real_pytest_records_complete_collection_execution_skips_and_failure(self):
+        root = Path(__file__).resolve().parents[1]
+        expected = {"commit": "a" * 40, "tree": "b" * 40,
+                    "run_id": "1234", "run_attempt": "1", "event": "pull_request"}
+        # Explicitly synthetic identity tests receipt mechanics on any host.
+        identity = {**expected, "platform": "win32", "python": "3.12.10"}
+        with tempfile.TemporaryDirectory(prefix="provelume-ci-recorder-") as temporary:
+            fixture = Path(temporary)
+            config = fixture / "pytest.ini"
+            config.write_text("[pytest]\naddopts = -p provelume.pytest_windows_shard\n")
+            for index in range(4):
+                (fixture / f"test_synthetic_{index}.py").write_text(
+                    "import pytest\ndef test_one():\n    pass\n"
+                    "@pytest.mark.skip(reason='synthetic existing skip')\n"
+                    "def test_two():\n    pass\n")
+            script = fixture / "record_fixture.py"
+            script.write_text(
+                "import json,sys\nfrom pathlib import Path\nimport pytest\n"
+                "import agent_protocol_work_check as runner\n"
+                "identity=json.loads(sys.argv[1])\nmode=sys.argv[2]\n"
+                "shard=None if sys.argv[3]=='none' else int(sys.argv[3])\n"
+                "output=Path(sys.argv[4])\n"
+                "runner._WindowsRecorder.pytest_collection_modifyitems = "
+                "pytest.hookimpl(tryfirst=True)("
+                "runner._WindowsRecorder.pytest_collection_modifyitems)\n"
+                "recorder=runner._WindowsRecorder(identity, mode, shard)\n"
+                "code=pytest.main(sys.argv[5:], plugins=[recorder])\n"
+                "output.write_text(json.dumps(recorder.record(int(code))))\n"
+                "sys.exit(int(code))\n")
+            environment = os.environ.copy()
+            environment["PYTHONPATH"] = os.pathsep.join((str(root / "core"), str(root / "tools")))
+            environment["PROVELUME_WINDOWS_SHARD_DISABLE"] = "1"
+            environment.pop("PROVELUME_WINDOWS_SHARD_FORCE", None)
+            environment.pop("PROVELUME_WINDOWS_SHARD_CHILD", None)
+
+            def capture(mode, shard=None):
+                output = fixture / f"{mode}-{shard}.json"
+                arguments = ["-c", str(config), "--rootdir", str(fixture), "-q", str(fixture)]
+                if mode == "inventory":
+                    arguments += ["--collect-only"]
+                else:
+                    arguments += [f"--provelume-shard-index={shard}",
+                                  "--provelume-shard-count=4"]
+                process = subprocess.run(
+                    [sys.executable, str(script), json.dumps(identity), mode,
+                     "none" if shard is None else str(shard), str(output), *arguments],
+                    cwd=fixture, env=environment, capture_output=True, text=True,
+                    timeout=45, check=False,
+                )
+                self.assertTrue(output.is_file(), process.stdout + process.stderr)
+                return json.loads(output.read_text()), process.returncode
+
+            inventory, code = capture("inventory")
+            self.assertEqual(code, 0)
+            self.assertEqual(len(inventory["inventory"]), 8)
+            self.assertEqual(inventory["outcomes"], {})
+            shards = []
+            for index in range(4):
+                record, code = capture("shard", index)
+                self.assertEqual(code, 0)
+                self.assertEqual(record["inventory"], inventory["inventory"])
+                self.assertEqual(set(record["outcomes"]), set(record["selected"]))
+                self.assertEqual(len(record["selected"]), 2)
+                shards.append(record)
+            groups = [{"schema": "agent-windows-ci-group/v1", "identity": identity,
+                       "group": group, "inventory": inventory, "shards": shards[2*group:2*group+2],
+                       "timed_out": False, "exit_code": 0, "timeout_seconds": 540,
+                       "duration_seconds": 200}
+                      for group in range(2)]
+            self.assertEqual(runner.verify_windows_reports(groups, expected)["node_count"], 8)
+            for index in range(4):
+                file = fixture / f"test_synthetic_{index}.py"
+                file.write_text(file.read_text().replace("    pass", "    assert False", 1))
+            failed, code = capture("shard", 0)
+            self.assertEqual(code, 1)
+            self.assertTrue(any(phases.get("call") == "failed"
+                                for phases in failed["outcomes"].values()))
+            groups[0]["shards"][0] = failed
+            with self.assertRaises(source.EvidenceError):
+                runner.verify_windows_reports(groups, expected)
 
 
 @unittest.skipUnless(os.name == "posix", "POSIX process supervisor conformance")
