@@ -448,7 +448,10 @@ def campaign_audit(
             require(item["path"] == pin_path and item["mode"] == (
                 "100755" if repository == "brickms/brickms" else "100644"),
                 "consumer actual pin location/mode")
-            tree = ast.parse(observed_file(item, default))
+            try:
+                tree = ast.parse(observed_file(item, default))
+            except SyntaxError as error:
+                raise ValueError("consumer actual Work pin syntax") from error
             pins = [node.value for node in tree.body if isinstance(node, ast.Assign)
                     and any(isinstance(t, ast.Name) and t.id == "WORK_ADAPTER_PIN"
                             for t in node.targets)]
@@ -747,7 +750,8 @@ def execution_step(checkpoint, *, trusted_checkpoint):
             else:
                 result = row["result_sha256"]
                 history[result] = history.get(result, 0) + 1
-            last_causes[identity] = row["cause"]
+            if row["progress"] == "CAUSE_FIXED" or last_causes.get(identity) != "DETERMINISTIC":
+                last_causes[identity] = row["cause"]
 
         def halted(candidate, histories=counts, causes=last_causes):
             identity = digest(candidate)

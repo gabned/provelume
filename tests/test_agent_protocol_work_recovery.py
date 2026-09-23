@@ -448,6 +448,9 @@ class RecoveryConformance(unittest.TestCase):
 
     def test_adoption_148_replaces_only_unchanged_generated_guidance_and_uses_pins(self):
         canonical, target, old = make_adoption(self.tmp_path)
+        guidance = target / "AGENTS.md"
+        guidance.write_bytes(guidance.read_bytes().replace(b"\r\n", b"\n")
+                             .replace(b"\n", b"\r\n"))
         initial = (target / "AGENTS.md").read_bytes()
         recovery.sync_adopter(canonical, target, old, "gabned/provelume.com")
         write_routing(canonical, "1.4.8")

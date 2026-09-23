@@ -448,6 +448,51 @@ class CheckpointHandoffConformance(unittest.TestCase):
                 self.assertEqual(p.execution_step(ledger, trusted_checkpoint=p.digest(ledger))
                                  ["next"]["step"], "independent")
 
+    def test_deterministic_failure_requires_progress_or_distinct_recovery(self):
+        action = dict(repository="example/repo", operation="observe-run", head_sha="a" * 40,
+                      inputs_sha256="b" * 64, event="pull_request", authorization="GRANTED")
+        coordinates = {k: v for k, v in action.items() if k != "authorization"}
+        failure = dict(coordinates_sha256=p.digest(coordinates), result_sha256="c" * 64,
+                       progress="NONE", cause="DETERMINISTIC")
+        later = {**failure, "result_sha256": "e" * 64, "cause": "EXTERNAL"}
+        step = dict(id="failed", state="PENDING", dependencies=[], action=action,
+                    observations=[failure, later], recovery=None, blocker=None)
+        ledger = dict(schema="agent-execution/v1", scope_sha256="d" * 64, steps=[step])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "input.json").write_text(json.dumps({"checkpoint": ledger}), encoding="utf-8")
+            (root / "trust.json").write_text(
+                json.dumps({"trusted_checkpoint": p.digest(ledger)}), encoding="utf-8")
+            result = subprocess.run([
+                sys.executable, "-I", "-B", str(ROOT / "tools/agent_protocol_v1_4_7.py"),
+                "execution-step", "--input", str(root / "input.json"),
+                "--trusted", str(root / "trust.json"),
+            ], capture_output=True, text=True, check=False, timeout=10)
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout)["result"], "BLOCKED")
+        for cause in ("NONE", "TRANSIENT", "RATE_LIMIT", "CAPABILITY_MISSING", "UNKNOWN"):
+            with self.subTest(cause=cause):
+                later["cause"] = cause
+                with self.assertRaisesRegex(ValueError, "supported recovery"):
+                    p.execution_step(ledger, trusted_checkpoint=p.digest(ledger))
+        for progress in ("NEW_EVIDENCE", "ADVANCE", "DEPENDENCY"):
+            with self.subTest(progress=progress):
+                later.update(progress=progress, cause="NONE")
+                with self.assertRaisesRegex(ValueError, "supported recovery"):
+                    p.execution_step(ledger, trusted_checkpoint=p.digest(ledger))
+        later["progress"] = "NONE"
+        unrelated = {**later, "coordinates_sha256": "f" * 64, "progress": "CAUSE_FIXED"}
+        step["observations"].append(unrelated)
+        with self.assertRaisesRegex(ValueError, "supported recovery"):
+            p.execution_step(ledger, trusted_checkpoint=p.digest(ledger))
+        step["recovery"] = {**action, "operation": "inspect-diagnostic"}
+        self.assertTrue(p.execution_step(ledger, trusted_checkpoint=p.digest(ledger))
+                        ["next"]["recovery"])
+        step["recovery"] = None
+        step["observations"].append({**later, "progress": "CAUSE_FIXED", "cause": "NONE"})
+        self.assertEqual(p.execution_step(ledger, trusted_checkpoint=p.digest(ledger))
+                         ["state"], "CONTINUE_NOW")
+
     def test_recovery_continues_authorized_work_and_missing_decision_is_explicit(self):
         action = dict(repository="example/repo", operation="observe-run", head_sha="a" * 40,
                       inputs_sha256="b" * 64, event="pull_request", authorization="GRANTED")

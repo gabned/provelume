@@ -459,6 +459,28 @@ def test_campaign_audit_binds_actual_work_pins_routing_and_accepted_policy(tmp_p
     assert json.loads(command.stdout) == result
 
 
+@pytest.mark.parametrize("content", ["WORK_ADAPTER_PIN = {", "<<<<<<< unresolved\n"])
+def test_campaign_audit_cli_blocks_malformed_observed_pin(tmp_path, content):
+    p = execution147()
+    data, trust = campaign_audit_inputs()
+    pin = data["adoptions"][1]["pin_file"]
+    pin["content"] = content
+    pin["git_blob"] = ops.blob(content.encode())
+    input_file, trusted_file = tmp_path / "input.json", tmp_path / "trusted.json"
+    input_file.write_text(json.dumps(data), encoding="utf-8")
+    trusted_file.write_text(json.dumps(trust), encoding="utf-8")
+    command = subprocess.run([os.sys.executable, str(ROOT / "tools/agent_protocol_v1_4_7.py"),
+                              "campaign-audit", "--input", str(input_file),
+                              "--trusted", str(trusted_file)], capture_output=True,
+                             encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+    assert command.returncode == 2, command.stdout + command.stderr
+    assert json.loads(command.stdout) == {
+        "result": "BLOCKED", "reason": "consumer actual Work pin syntax"}
+    assert command.stderr == ""
+    with pytest.raises(ValueError, match="consumer actual Work pin syntax"):
+        p.campaign_audit(**data, **trust)
+
+
 @pytest.mark.parametrize("damage", ["policy", "policy_binding", "policy_trust", "adoption_trust",
                                    "work_missing", "work_bytes", "work_mode", "pin",
                                    "pin_missing", "pin_location", "routing", "routing_missing",

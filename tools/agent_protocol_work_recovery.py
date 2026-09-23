@@ -455,7 +455,8 @@ def adoption_plan(canonical, target, commit, repository, *, work=None):
             tail = separator + current[boundary.start():] if boundary else ""
             planned[path] = (before + block + tail).encode()
         else:
-            planned[path] = (text.rstrip() + "\n\n" + block).encode()
+            separator = "\n" if text.endswith("\n") else "\n\n"
+            planned[path] = (text + separator + block).encode()
     return manifest, planned
 
 
