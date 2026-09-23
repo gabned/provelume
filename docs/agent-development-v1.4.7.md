@@ -356,6 +356,30 @@ report compaction needs schema/version compatibility and reconstructible evidenc
 Preserve required release/recovery artifacts before any authorized cleanup. Do not
 delete whole workflow histories merely to remove redundant report archives.
 
+Core Windows CI uses two isolated Windows runners, each executing two of the four
+existing pytest shard indices. Every runner first records a separate full Windows
+collection. The existing shard selector, full test inventory, assertions, Python
+runtime and 540-second execution bound remain unchanged. No partial runner result
+is a Windows suite approval. The canonical `tools/agent_protocol_work_check.py`
+supervisor retains independent state, raw logs and actual phase outcomes outside
+source; this CI route is separate from its existing Work repository supervisor.
+
+The required `Core tests (windows-latest)` gate verifies both successful runner
+jobs and their exact commit/tree, run/attempt, event, Windows OS and runtime. It
+requires four distinct shards whose actually completed nodes form a disjoint,
+complete union of the independent Windows inventories. Missing artifacts,
+unknown exits, unsuccessful phases, changed source or an exceeded bound fail the
+gate. Pytest case identity binds the parent node, original test name and every
+parameter index sorted by parameter name to the verified source. Version 2 case
+records retain the complete raw node labels and their bijection with those
+structural identities; duplicate, missing or unknown mappings fail. This identifies
+each parametrized case even when a generated ZIP timestamp changes its display
+label between processes; it does not assert equality of generated parameter bytes.
+The aggregate verifier uses only the Python standard library on Linux;
+Windows execution evidence must still come from the Windows runner jobs. Artifacts
+are confined to the same run and attempt and retain their complete reports/logs.
+The full Linux suite and the trusted-base `pull_request_target` guard are unchanged.
+
 ## Measurement and communication
 
 Use the same fixed scenarios before/after: startup, unchanged resume, candidate
