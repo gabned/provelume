@@ -463,7 +463,7 @@ class RecoveryConformance(unittest.TestCase):
         (target / "AGENTS.md").write_bytes(original)
         recovery.sync_adopter(canonical, target, current, "gabned/provelume.com")
         for path in ("AGENTS.md", "docs/agent-development-v1.4.2.md"):
-            text = (target / path).read_text()
+            text = (target / path).read_text(encoding="utf-8")
             self.assertNotIn("## Historical execution", text)
             self.assertNotIn("## Current execution — Protocol 1.4.7", text)
             self.assertNotIn(old, text)
@@ -651,11 +651,14 @@ class RecoveryConformance(unittest.TestCase):
         canonical, target, sha = adoption
         recovery.sync_adopter(canonical, target, sha, "gabned/provelume.com")
         guidance = target / "AGENTS.md"
-        guidance.write_text(guidance.read_text() + "\nHuman addition.\n")
-        before = {p: p.read_bytes() for p in target.rglob("*") if p.is_file()}
-        with self.assertRaisesRegex(ValueError, "explicit reconciliation"):
-            recovery.sync_adopter(canonical, target, sha, "gabned/provelume.com")
-        assert before == {p: p.read_bytes() for p in target.rglob("*") if p.is_file()}
+        original = guidance.read_bytes()
+        for newline in (b"\n", b"\r\n"):
+            with self.subTest(newline=newline):
+                guidance.write_bytes((original + b"\nHuman addition.\n").replace(b"\n", newline))
+                before = {p: p.read_bytes() for p in target.rglob("*") if p.is_file()}
+                with self.assertRaisesRegex(ValueError, "explicit reconciliation"):
+                    recovery.sync_adopter(canonical, target, sha, "gabned/provelume.com")
+                assert before == {p: p.read_bytes() for p in target.rglob("*") if p.is_file()}
 
     def test_recovery_archive_never_carries_symlink_zip_members(self):
         tmp_path = self.tmp_path

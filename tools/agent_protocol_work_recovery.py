@@ -429,7 +429,7 @@ def adoption_plan(canonical, target, commit, repository, *, work=None):
     block = legacy_block if version == "1.4.7" else adoption_guidance(repository)
     for path in ("AGENTS.md", runbook):
         text = source.read_regular(regular(target, path)).decode()
-        current_versions = re.findall(r"(?m)^## Current execution — Protocol (\S+)$", text)
+        current_versions = re.findall(r"(?m)^## Current execution — Protocol (\S+)\r?$", text)
         source.require(len(current_versions) <= 1, "duplicate current recovery section")
         if current_versions:
             previous_version = current_versions[0]

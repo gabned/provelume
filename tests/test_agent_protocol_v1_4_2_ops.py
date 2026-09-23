@@ -453,7 +453,8 @@ def test_campaign_audit_binds_actual_work_pins_routing_and_accepted_policy(tmp_p
     trusted_file.write_text(json.dumps(trust))
     command = subprocess.run([os.sys.executable, str(ROOT / "tools/agent_protocol_v1_4_7.py"),
                               "campaign-audit", "--input", str(input_file),
-                              "--trusted", str(trusted_file)], capture_output=True, text=True)
+                              "--trusted", str(trusted_file)], capture_output=True,
+                             encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"})
     assert command.returncode == 0, command.stdout + command.stderr
     assert json.loads(command.stdout) == result
 
