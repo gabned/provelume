@@ -306,7 +306,7 @@ class WindowsShardContractTests(unittest.TestCase):
                     self.assertEqual(len({env["LOCALAPPDATA"] for env in environments}), 3)
                     for environment in environments:
                         self.assertEqual(environment["PYTHONPATH"], os.pathsep.join(
-                            (str(root / "core"), str(root / "tools"))))
+                            (str(root / "core"), str(root), str(root / "tools"))))
                         self.assertEqual(environment["PROVELUME_WINDOWS_SHARD_CHILD"], "1")
                     groups[group] = json.loads((output / f"group-{group}.json").read_text())
             self.assertEqual(runner.verify_windows_reports(groups, expected)["node_count"], 4)
@@ -343,7 +343,8 @@ class WindowsShardRecorderTests(unittest.TestCase):
                 "output.write_text(json.dumps(recorder.record(int(code))))\n"
                 "sys.exit(int(code))\n")
             environment = os.environ.copy()
-            environment["PYTHONPATH"] = os.pathsep.join((str(root / "core"), str(root / "tools")))
+            environment["PYTHONPATH"] = os.pathsep.join(
+                (str(root / "core"), str(root), str(root / "tools")))
             environment["PROVELUME_WINDOWS_SHARD_DISABLE"] = "1"
             environment.pop("PROVELUME_WINDOWS_SHARD_FORCE", None)
             environment.pop("PROVELUME_WINDOWS_SHARD_CHILD", None)
@@ -393,6 +394,93 @@ class WindowsShardRecorderTests(unittest.TestCase):
             groups[0]["shards"][0] = failed
             with self.assertRaises(source.EvidenceError):
                 runner.verify_windows_reports(groups, expected)
+
+    def test_real_inventory_entrypoint_uses_supervisor_environment_for_namespace_imports(self):
+        source_root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory(prefix="provelume-ci-entrypoint-") as temporary:
+            parent = Path(temporary)
+            root = parent / "source"
+            for directory in ("core/provelume", "tools", "scripts", "tests"):
+                (root / directory).mkdir(parents=True, exist_ok=True)
+            for relative in ("tools/agent_protocol_work_check.py",
+                             "tools/agent_protocol_work_source.py",
+                             "scripts/windows_package_manifest.py",
+                             "core/provelume/pytest_windows_shard.py"):
+                shutil.copyfile(source_root / relative, root / relative)
+            (root / "core/provelume/__init__.py").write_text("")
+            (root / "pyproject.toml").write_text(
+                '[tool.pytest.ini_options]\naddopts = "-p provelume.pytest_windows_shard"\n'
+                'pythonpath = ["core"]\ntestpaths = ["tests"]\n')
+            (root / "tests/test_tools_namespace.py").write_text(
+                "from tools.agent_protocol_work_source import SCHEMA\n"
+                "def test_tools_namespace():\n    assert SCHEMA == 'agent-work-source/v1'\n")
+            (root / "tests/test_scripts_namespace.py").write_text(
+                "from scripts.windows_package_manifest import SCHEMA_VERSION\n"
+                "def test_scripts_namespace():\n    assert SCHEMA_VERSION == 2\n")
+
+            def git(*arguments):
+                return subprocess.check_output(
+                    ["git", "-C", str(root), "-c", "user.name=Synthetic CI test",
+                     "-c", "user.email=synthetic@example.invalid", "-c", "commit.gpgsign=false",
+                     *arguments], text=True, stderr=subprocess.STDOUT,
+                ).strip()
+
+            git("init", "--quiet")
+            git("add", ".")
+            git("commit", "--quiet", "-m", "synthetic namespace fixture")
+            expected = {"commit": git("rev-parse", "HEAD"), "tree": git("rev-parse", "HEAD^{tree}"),
+                        "run_id": "1234", "run_attempt": "1", "event": "push"}
+            captured = []
+
+            def capture_environment(command, **kwargs):
+                self.assertEqual(command[2], "windows-inventory")
+                captured.append(dict(kwargs["env"]))
+                raise OSError("synthetic stop after capturing the real child environment")
+
+            with (
+                patch.object(runner.sys, "platform", "win32"),
+                patch.object(runner.sys, "stdout", io.StringIO()),
+                patch.object(runner, "windows_identity", return_value=expected),
+                patch.object(runner.subprocess, "Popen", side_effect=capture_environment),
+            ):
+                self.assertEqual(runner.run_windows_group(
+                    root, parent / "captured-supervisor", expected, 0), 1)
+            self.assertEqual(len(captured), 1)
+            environment = captured[0]
+
+            def inventory(name, child_environment):
+                output = parent / f"{name}.json"
+                process = subprocess.run(
+                    [sys.executable, str(root / "tools/agent_protocol_work_check.py"),
+                     "windows-inventory", "--root", str(root), "--output", str(output),
+                     "--commit", expected["commit"], "--run-id", expected["run_id"],
+                     "--run-attempt", expected["run_attempt"], "--event", expected["event"]],
+                    cwd=root, env=child_environment, capture_output=True, text=True,
+                    timeout=45, check=False,
+                )
+                self.assertTrue(output.is_file(), process.stdout + process.stderr)
+                return process, json.loads(output.read_text())
+
+            # Reproduce the broken script-entrypoint shape without a root namespace.
+            missing_root = dict(environment)
+            missing_root["PYTHONPATH"] = os.pathsep.join(
+                value for value in environment["PYTHONPATH"].split(os.pathsep)
+                if Path(value).resolve() != root.resolve())
+            broken, broken_record = inventory("missing-root", missing_root)
+            self.assertEqual(broken.returncode, 2, broken.stdout + broken.stderr)
+            self.assertEqual(broken_record["exit_code"], 2)
+            self.assertIn("No module named 'scripts'", broken.stdout + broken.stderr)
+            self.assertIn("No module named 'tools'", broken.stdout + broken.stderr)
+            # The success must use the actual supervisor environment, without repairing it here.
+            passed, record = inventory("supervisor-environment", environment)
+            self.assertEqual(passed.returncode, 0, passed.stdout + passed.stderr)
+            self.assertEqual(record["exit_code"], 0)
+            self.assertEqual(set(record["inventory"]), {
+                "tests/test_tools_namespace.py::test_tools_namespace",
+                "tests/test_scripts_namespace.py::test_scripts_namespace",
+            })
+            self.assertEqual(record["selected"], record["inventory"])
+            self.assertEqual(record["outcomes"], {})
 
 
 @unittest.skipUnless(os.name == "posix", "POSIX process supervisor conformance")

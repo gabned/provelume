@@ -353,7 +353,7 @@ def run_windows_group(root, output, expected, group):
         state = output / ("inventory-state" if index is None else f"state-{index}")
         state.mkdir()
         environment = {**os.environ, "PYTHONPATH": os.pathsep.join(
-            (str(root / "core"), str(root / "tools"))), "PYTHONIOENCODING": "utf-8",
+            (str(root / "core"), str(root), str(root / "tools"))), "PYTHONIOENCODING": "utf-8",
             "PROVELUME_WINDOWS_SHARD_CHILD": "1", "LOCALAPPDATA": str(state)}
         environment.pop("PROVELUME_WINDOWS_SHARD_FORCE", None)
         command = [sys.executable, str(Path(__file__).resolve()), "windows-" + mode,
