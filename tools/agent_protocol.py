@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import copy
 import hashlib
+import importlib.util
 import json
 import re
 import sys
@@ -782,13 +783,35 @@ def verify_effect_report(
         fail("effect report does not authorize PR binding")
 
 
+def policy_module():
+    spec = importlib.util.spec_from_file_location(
+        "protocol_policy", Path(__file__).with_name("agent_protocol_v1_4_9.py")
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def build_binding(
-    report: dict[str, Any], *, active_pr: str, workstream: str
+    report: dict[str, Any], *, active_pr: str, workstream: str,
+    workstream_class: str, adopted_contract: dict[str, Any], trusted_contract: str,
+    production_authority: dict[str, bool],
 ) -> dict[str, Any]:
     base_sha = require_sha(report.get("base_sha"), "base_sha")
     head_sha = require_sha(report.get("head_sha"), "head_sha")
     policy = require_choice(report.get("policy"), "policy", POLICIES)
     verify_effect_report(report, base_sha=base_sha, head_sha=head_sha, policy=policy)
+    if adopted_contract.get("repository") != REPOSITORY:
+        fail("INPUT_MISMATCH: adopted routing repository mismatch")
+    try:
+        decision = policy_module().require_policy_coherence(
+            contract=adopted_contract, trusted_contract=trusted_contract,
+            workstream=workstream, workstream_class=workstream_class,
+            selected_policy=policy, observed_effects=report["effect"],
+            production_authority=production_authority,
+        )
+    except ValueError as error:
+        fail(str(error))
     return seal(
         {
             "schema_version": SCHEMA_VERSION,
@@ -803,13 +826,15 @@ def build_binding(
             "effect_report_sha256": report["report_sha256"],
             "effect_policy": policy,
             "effect_prediction": report["effect"],
+            "adopted_contract": copy.deepcopy(adopted_contract),
+            "policy_resolution": decision,
             "state": "BOUND",
             "errors": [],
         }
     )
 
 
-def validate_binding(binding: dict[str, Any]) -> None:
+def validate_binding(binding: dict[str, Any], policy_context=None) -> None:
     verify_seal(binding)
     expected = {
         "schema_version": SCHEMA_VERSION,
@@ -835,6 +860,40 @@ def validate_binding(binding: dict[str, Any]) -> None:
     digest = binding.get("effect_report_sha256")
     if not isinstance(digest, str) or SHA256_PATTERN.fullmatch(digest) is None:
         fail("binding effect_report_sha256 is invalid")
+    # Every fresh gate uses independently selected current routing. An unkeyed
+    # seal and a decision embedded in the candidate cannot supply that authority.
+    if policy_context is None:
+        fail("STALE_EVIDENCE: binding needs current adopted routing evidence; "
+             "collect policy_context with the ordinary snapshot, do not rebind")
+    try:
+        if policy_context["contract"]["repository"] != REPOSITORY:
+            fail("INPUT_MISMATCH: current routing repository mismatch")
+        policy_module().require_policy_coherence(
+            **policy_context, workstream=binding["workstream"],
+            selected_policy=binding["effect_policy"],
+            observed_effects=binding["effect_prediction"],
+        )
+    except (ValueError, TypeError, KeyError) as error:
+        fail(str(error))
+    if "policy_resolution" not in binding and "adopted_contract" not in binding:
+        return
+    try:
+        decision = binding["policy_resolution"]
+        contract = binding["adopted_contract"]
+        if contract["repository"] != REPOSITORY:
+            fail("binding adopted routing repository mismatch")
+        expected_decision = policy_module().require_policy_coherence(
+            contract=contract, trusted_contract=decision["contract_sha256"],
+            workstream=binding["workstream"], workstream_class=decision["workstream_class"],
+            selected_policy=binding["effect_policy"], observed_effects=binding["effect_prediction"],
+            production_authority=decision["production_authority"],
+        )
+        if decision != expected_decision:
+            fail("binding policy decision drift")
+    except (ValueError, KeyError, TypeError) as error:
+        fail(f"BOUND_TERMINAL: current policy proof missing or inconsistent: {error}; "
+             "historical bindings retain their original validator; use typed recovery "
+             "only for a proven policy mismatch")
 
 
 def validate_snapshot_identity(snapshot: dict[str, Any]) -> list[str]:
@@ -917,7 +976,7 @@ def normalize_review_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
 def preflight(snapshot: dict[str, Any], binding: dict[str, Any]) -> dict[str, Any]:
     errors = validate_snapshot_identity(snapshot)
     try:
-        validate_binding(binding)
+        validate_binding(binding, snapshot.get("policy_context"))
     except ContractError as exc:
         errors.append(str(exc))
 
@@ -1017,7 +1076,7 @@ def preflight(snapshot: dict[str, Any], binding: dict[str, Any]) -> dict[str, An
 def reconcile(evidence: dict[str, Any], binding: dict[str, Any]) -> dict[str, Any]:
     identity_errors: list[str] = []
     try:
-        validate_binding(binding)
+        validate_binding(binding, evidence.get("policy_context"))
     except ContractError as exc:
         identity_errors.append(str(exc))
     expected = {
@@ -1435,10 +1494,20 @@ def self_test() -> None:
     assert renamed == ["core/old.py", "docs/new.md"]
 
     binding = build_binding(
-        safe, active_pr="#45", workstream="agent-protocol-v1.2-subset"
+        safe, active_pr="#45", workstream="agent-protocol-v1.2-subset",
+        workstream_class="PROTOCOL", adopted_contract=(contract := {
+            "schema": "agent-policy-contract/v1", "repository": REPOSITORY,
+            "source_commit": base_sha, "reference": "synthetic accepted contract",
+            "routing": "PROTOCOL/v1"}), trusted_contract=policy_module().digest(contract),
+        production_authority={"production": False, "deploy": False, "migrate": False},
     )
+    policy_context = {"contract": contract, "trusted_contract": policy_module().digest(contract),
+                      "workstream_class": "PROTOCOL",
+                      "production_authority": dict.fromkeys(
+                          ["production", "deploy", "migrate"], False)}
     snapshot = seal(
         {
+            "policy_context": policy_context,
             "schema_version": SCHEMA_VERSION,
             "protocol_version": PROTOCOL_VERSION,
             "mode": "SNAPSHOT",
@@ -1489,6 +1558,7 @@ def self_test() -> None:
 
     evidence = seal(
         {
+            "policy_context": policy_context,
             "schema_version": SCHEMA_VERSION,
             "protocol_version": PROTOCOL_VERSION,
             "mode": "RECONCILE_EVIDENCE",
@@ -1580,6 +1650,10 @@ def build_parser() -> argparse.ArgumentParser:
     bind.add_argument("--report", type=Path, required=True)
     bind.add_argument("--pr", required=True)
     bind.add_argument("--workstream", required=True)
+    bind.add_argument("--workstream-class", choices=sorted(WORKSTREAM_CLASSES), required=True)
+    bind.add_argument("--adopted-contract", type=Path, required=True)
+    bind.add_argument("--trusted-contract", required=True)
+    bind.add_argument("--production-authority", type=Path, required=True)
     bind.add_argument("--output", type=Path)
 
     check = commands.add_parser("preflight")
@@ -1651,6 +1725,10 @@ def main() -> int:
                     load_object(args.report),
                     active_pr=args.pr,
                     workstream=args.workstream,
+                    workstream_class=args.workstream_class,
+                    adopted_contract=load_object(args.adopted_contract),
+                    trusted_contract=args.trusted_contract,
+                    production_authority=load_object(args.production_authority),
                 ),
                 args.output,
             )

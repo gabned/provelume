@@ -49,7 +49,7 @@ def select_documents(root, manifest, expected_digest, *, workstream, phase, host
     ops.obj(manifest, "schema protocol_version documents repository_policy", "manifest")
     require(
         manifest["schema"] == "agent-documents/v1"
-        and manifest["protocol_version"] in {VERSION, "1.4.8"},
+        and manifest["protocol_version"] in {VERSION, "1.4.8", "1.4.9"},
         "document contract version",
     )
     rows = manifest["documents"]
@@ -343,13 +343,13 @@ def campaign_audit(
     ops.validate_audit_input(evidence, now=ops.timestamp(evidence["observed_at"]),
                              expected_repositories=accepted, operation_validator=qualify_operation)
     require(used == set(bindings), "unused campaign policy")
-    # The historical operational manifest covers only its four engine files.
+    # The operational manifest covers its versioned engine inventory.
     # Current Work bytes, actual pin and instruction routing need separate proof.
     require(digest(adoption) == trusted_adoption, "changed accepted adoption contract")
     ops.obj(adoption, "schema protocol_version source_repository source_commit "
             "work_files documents_manifest", "accepted adoption")
     require(adoption["schema"] == "agent-campaign-adoption/v1"
-            and adoption["protocol_version"] == "1.4.8"
+            and adoption["protocol_version"] in {"1.4.8", "1.4.9"}
             and adoption["source_repository"] == "gabned/provelume"
             and adoption["source_commit"] == evidence["canonical"]["source_commit"],
             "campaign adoption identity")
@@ -427,13 +427,13 @@ def campaign_audit(
                     require(hashlib.sha256(content.encode()).hexdigest() == expected["sha256"],
                             "Core instruction byte drift")
             else:
-                marker = "## Current execution — Protocol 1.4.8"
+                marker = f"## Current execution — Protocol {adoption['protocol_version']}"
                 require(re.findall(r"(?m)^## Current execution — Protocol (\S+)$", content)
-                        == ["1.4.8"], "consumer current instruction route")
+                        == [adoption["protocol_version"]], "consumer current instruction route")
                 current = content.split(marker)[1]
                 boundary = re.search(r"(?m)^## ", current)
                 generated = marker + (current[:boundary.start()] if boundary else current)
-                expected = recovery.adoption_guidance(repository)
+                expected = recovery.adoption_guidance(repository, adoption["protocol_version"])
                 separator = generated[len(expected):]
                 require(generated.startswith(expected) and (
                     not separator or (boundary is not None and not separator.strip("\n"))),
@@ -457,7 +457,7 @@ def campaign_audit(
                             for t in node.targets)]
             require(len(pins) == 1 and ast.literal_eval(pins[0]) == expected_pin,
                     "consumer actual Work pin drift")
-    return {"schema": "agent-campaign-audit/v1", "protocol_version": "1.4.8",
+    return {"schema": "agent-campaign-audit/v1", "protocol_version": adoption["protocol_version"],
             "result": "PASS", "scope": deepcopy(scope), "scope_sha256": trusted_scope,
             "evidence": deepcopy(evidence), "evidence_sha256": digest(evidence),
             "policies_sha256": trusted_policies, "adoption_sha256": trusted_adoption,

@@ -29,6 +29,7 @@ VENDOR_FILES = {
     "tools/agent_protocol_v1_4_1.py": "100755",
     "tools/agent_protocol_v1_4_2.py": "100755",
     "tools/agent_protocol_v1_4_2_ops.py": "100644",
+    "tools/agent_protocol_v1_4_9.py": "100644",
 }
 MANIFEST_PATH = ".github/agent-protocol/vendor-v1.4.2.json"
 PROVENANCE_PATH = "docs/agent-development-v1.4.2-provenance.md"

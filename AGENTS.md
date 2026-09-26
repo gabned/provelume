@@ -1,6 +1,6 @@
 # Provelume Core agent entry
 
-AGENT_DEVELOPMENT_PROTOCOL: 1.4.8
+AGENT_DEVELOPMENT_PROTOCOL: 1.4.9
 LIFECYCLE_SCHEMA: 1.2
 CAMPAIGN_SCHEMA: 2
 
@@ -27,9 +27,9 @@ source of repository, branch, commit, PR, checks, tag and release identity.
 ## Read and execute
 
 Start with one bounded GitHub reconciliation and verify complete source identity.
-Read [the current cross-cutting contract](docs/agent-development-v1.4.8.md) always.
+Read [the current cross-cutting contract](docs/agent-development-v1.4.9.md) always.
 Then use `tools/agent_protocol_v1_4_7.py select-documents` with the independently
-selected accepted-base `.github/agent-protocol/documents-v1.4.8.json`, its verified
+selected accepted-base `.github/agent-protocol/documents-v1.4.9.json`, its verified
 canonical JSON digest, and actual workstream/phase/host. Integrity failures stop;
 uncertain selection loads the full inventory. Candidate routing cannot qualify
 its own adoption. Historical receipts use their matching historical validator.
