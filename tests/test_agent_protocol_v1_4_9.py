@@ -69,7 +69,9 @@ def fixture():
         "binding": {k: checkpoint[k] for k in p.IDENTITY},
         "history": history,
         "history_complete": True,
-        "ancestry": dict.fromkeys(["basis_to_head", "base_to_head", "base_to_master"], True),
+        "ancestry": dict.fromkeys(
+            ["basis_to_head", "checkpoint_basis_to_head", "base_to_head", "base_to_master"], True
+        ),
         "delta": {
             "base": "a" * 40,
             "head": "e" * 40,
@@ -206,6 +208,9 @@ class PolicyTests(unittest.TestCase):
 
     def test_coherence_table_and_explain_parity(self):
         for routing, selected, effect, expected in [
+            ("PRODUCT/v1", "NO_PRODUCTION", "NO_PRODUCTION", True),
+            ("PRODUCT/v1", "REPOSITORY_POLICY", "NO_PRODUCTION", True),
+            ("PRODUCT/v1", "NO_PRODUCTION", "PRODUCTION", False),
             ("PRODUCT/v2", "REPOSITORY_POLICY", "NO_PRODUCTION", True),
             ("PRODUCT/v2", "NO_PRODUCTION", "NO_PRODUCTION", False),
             ("PRODUCT/v2", "REPOSITORY_POLICY", "PRODUCTION", True),
@@ -236,6 +241,12 @@ class PolicyTests(unittest.TestCase):
                 else:
                     with self.assertRaisesRegex(p.PolicyError, "INPUT_MISMATCH.*expected"):
                         p.require_policy_coherence(**kwargs)
+
+    def test_legacy_route_does_not_invent_a_unique_recovery_policy(self):
+        request, evidence, contract = fixture()
+        contract["routing"] = "PRODUCT/v1"
+        with self.assertRaisesRegex(p.PolicyError, "no allow-listed policy mismatch"):
+            plan(request, evidence, contract)
 
     def test_minimal_recovery_preserves_history_and_identity(self):
         request, evidence, contract = fixture()

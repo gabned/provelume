@@ -30,6 +30,9 @@ DIMENSIONS = frozenset(
 )
 ROUTES = {
     "PRODUCT/v2": ("PRODUCT", "REPOSITORY_POLICY"),
+    # The original lifecycle permits both policies, with effects and stronger
+    # product gates remaining independent. Only the adopted v2 narrows this.
+    "PRODUCT/v1": ("PRODUCT", ("NO_PRODUCTION", "REPOSITORY_POLICY")),
     "PROTOCOL/v1": ("PROTOCOL", "NO_PRODUCTION"),
 }
 IDENTITY = frozenset(
@@ -166,7 +169,8 @@ def resolve_policy(
         "AUTHORITY_BLOCKED",
     )
     incompatibilities = []
-    if (workstream_class, selected_policy) != (expected_class, expected_policy):
+    allowed = (expected_policy,) if isinstance(expected_policy, str) else expected_policy
+    if workstream_class != expected_class or selected_policy not in allowed:
         incompatibilities.append("POLICY_ROUTING_MISMATCH")
     if observed_effects == "UNKNOWN":
         incompatibilities.append("UNKNOWN_EFFECTS")
@@ -180,7 +184,9 @@ def resolve_policy(
         "routing": contract["routing"],
         "contract": contract["reference"],
         "contract_sha256": trusted_contract,
-        "expected_policy": expected_policy,
+        "expected_policy": expected_policy
+        if isinstance(expected_policy, str)
+        else list(expected_policy),
         "selected_policy": selected_policy,
         "observed_effects": observed_effects,
         "production_authority": deepcopy(production_authority),
@@ -305,6 +311,18 @@ def plan_policy_recovery(*, request, evidence, trusted_evidence, contract, trust
     require(-30 <= age <= 900, "live recovery observations expired", "STALE_EVIDENCE")
     original = exact(evidence["original_checkpoint"], CHECKPOINT_FIELDS, "original checkpoint")
     checkpoint = exact(evidence["checkpoint"], CHECKPOINT_FIELDS, "current checkpoint")
+    require(
+        all(
+            isinstance(checkpoint[k], str)
+            and checkpoint[k].strip()
+            and checkpoint[k] not in {"UNKNOWN", "UNBOUND", "UNASSIGNED"}
+            for k in ("owner", "repository", "branch", "workstream", "workstream_class")
+        ),
+        "incomplete checkpoint identity",
+    )
+    require(
+        type(checkpoint["pr"]) is int and checkpoint["pr"] > 0, "exact original PR number required"
+    )
     require(original["state"] == checkpoint["state"] == "BOUND", "BOUND required")
     require(checkpoint == original, "checkpoint altered after original binding")
     require(request["owner"] == evidence["viewer"] == checkpoint["owner"], "owner mismatch")
@@ -328,7 +346,9 @@ def plan_policy_recovery(*, request, evidence, trusted_evidence, contract, trust
     )
     require(contract["repository"] == checkpoint["repository"], "contract repository mismatch")
     ancestry = exact(
-        evidence["ancestry"], {"basis_to_head", "base_to_head", "base_to_master"}, "ancestry"
+        evidence["ancestry"],
+        {"basis_to_head", "checkpoint_basis_to_head", "base_to_head", "base_to_master"},
+        "ancestry",
     )
     require(all(value is True for value in ancestry.values()), "incompatible ancestry")
     require(evidence["history_complete"] is True, "incomplete checkpoint history")
@@ -389,7 +409,8 @@ def plan_policy_recovery(*, request, evidence, trusted_evidence, contract, trust
         decision["resolved_class"] == checkpoint["workstream_class"], "workstream class mismatch"
     )
     require(
-        checkpoint["effect_policy"] != decision["expected_policy"],
+        "POLICY_ROUTING_MISMATCH" in decision["incompatibilities"]
+        and isinstance(decision["expected_policy"], str),
         "no allow-listed policy mismatch",
     )
     require(

@@ -26,7 +26,14 @@ The initial supported routes are:
 | Adopted route | Workstream class | Required policy |
 | --- | --- | --- |
 | PRODUCT/v2 | PRODUCT | REPOSITORY_POLICY |
+| PRODUCT/v1 (original lifecycle policy semantics) | PRODUCT | NO_PRODUCTION or REPOSITORY_POLICY |
 | PROTOCOL/v1 | PROTOCOL | NO_PRODUCTION |
+
+PRODUCT/v1 names the original lifecycle's two-policy contract; it is not a
+downgrade route for a consumer already adopting PRODUCT/v2. Select it only when
+current verified routing retains that original contract. Explain returns both
+admissible policies there, and recovery cannot manufacture a uniquely required
+replacement. This preserves coherent existing lifecycles without silent fallback.
 
 An unsupported route is `EXTERNAL_DEPENDENCY`: establish its authoritative Core
 contract through the ordinary PROTOCOL lifecycle before enabling it. Do not guess
