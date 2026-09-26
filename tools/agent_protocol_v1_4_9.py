@@ -473,6 +473,7 @@ def plan_policy_recovery(*, request, evidence, trusted_evidence, contract, trust
         "master": evidence["master"],
         "contract_sha256": trusted_contract,
         "observations_sha256": trusted_evidence,
+        "contract": deepcopy(contract),
         "delta_sha256": digest(delta),
         "history_sha256": digest(history),
         "events_sha256": digest(evidence["events"]),
@@ -492,6 +493,69 @@ def verify_policy_compensation(
 ):
     """The host proves actual bytes/objects; only the exact planned child is accepted."""
     trusted(plan, trusted_plan, "recovery plan")
+    exact(
+        plan,
+        {
+            "schema",
+            "diagnostic",
+            "operation",
+            "reason",
+            "original_checkpoint",
+            "corrected_checkpoint",
+            "parent_head",
+            "base",
+            "master",
+            "contract_sha256",
+            "observations_sha256",
+            "contract",
+            "delta_sha256",
+            "history_sha256",
+            "events_sha256",
+            "evidence_sha256",
+            "dimensions",
+            "new_capabilities",
+            "commit_required",
+            "qualified",
+            "plan_sha256",
+            "commit_subject",
+        },
+        "typed recovery plan",
+    )
+    unsigned = {k: v for k, v in plan.items() if k not in {"plan_sha256", "commit_subject"}}
+    require(
+        digest(unsigned) == plan["plan_sha256"]
+        and plan["commit_subject"] == "Protocol policy compensation " + plan["plan_sha256"],
+        "recovery plan identity changed",
+    )
+    require(
+        plan["schema"] == "agent-bound-policy-compensation/v1"
+        and plan["operation"] == "RECOVER_BOUND_POLICY"
+        and plan["reason"] == "POLICY_ROUTING_MISMATCH"
+        and plan["diagnostic"] == "BOUND_RECOVERABLE"
+        and plan["new_capabilities"] == []
+        and plan["commit_required"] is True
+        and plan["qualified"] is False,
+        "invalid recovery plan semantics",
+    )
+    before = exact(plan["original_checkpoint"], CHECKPOINT_FIELDS, "planned original checkpoint")
+    after = exact(plan["corrected_checkpoint"], CHECKPOINT_FIELDS, "planned corrected checkpoint")
+    require(
+        {k for k in before if before[k] != after[k]} == {"effect_policy"}
+        and before["state"] == after["state"] == "BOUND"
+        and before["observed_effects"] == after["observed_effects"] == "NO_PRODUCTION",
+        "recovery plan changes immutable fields or effects",
+    )
+    require(plan["contract"]["repository"] == before["repository"], "plan repository mismatch")
+    decision = require_policy_coherence(
+        contract=plan["contract"],
+        trusted_contract=plan["contract_sha256"],
+        workstream=after["workstream"],
+        workstream_class=after["workstream_class"],
+        selected_policy=after["effect_policy"],
+        observed_effects=after["observed_effects"],
+        production_authority=after["authority"],
+    )
+    require(isinstance(decision["expected_policy"], str), "no deterministic recovery policy")
     trusted(compensation, trusted_compensation, "observed compensation")
     require(
         digest(previous_evidence) == plan["evidence_sha256"],

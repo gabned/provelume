@@ -398,6 +398,23 @@ class PolicyTests(unittest.TestCase):
         prior.pop()
         with self.assertRaisesRegex(p.PolicyError, "inventory changed or omitted"):
             verify(compensation)
+        prior[:] = evidence["evidence"]
+        original_plan = copy.deepcopy(planned)
+        for key in sorted(p.IDENTITY | {"state", "observed_effects"}):
+            with self.subTest(planned_immutable=key):
+                planned.clear()
+                planned.update(copy.deepcopy(original_plan))
+                planned["corrected_checkpoint"][key] = "altered"
+                planned["plan_sha256"] = p.digest(
+                    {k: v for k, v in planned.items() if k not in {"plan_sha256", "commit_subject"}}
+                )
+                planned["commit_subject"] = "Protocol policy compensation " + planned["plan_sha256"]
+                forged = compensation | {
+                    "after": planned["corrected_checkpoint"],
+                    "subject": planned["commit_subject"],
+                }
+                with self.assertRaisesRegex(p.PolicyError, "immutable fields or effects"):
+                    verify(forged)
 
     def test_freshness_all_dimensions_and_independent_reuse(self):
         _, evidence, _ = fixture()
