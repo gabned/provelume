@@ -1,5 +1,17 @@
 # Agent Development Protocol 1.4.2
 
+## Pending 1.4.9 contract registration
+
+Campaign [#286](https://github.com/gabned/provelume/issues/286) registers exactly
+`docs/agent-development-v1.4.9.md`,
+`.github/agent-protocol/documents-v1.4.9.json`,
+`tools/agent_protocol_v1_4_9.py` and `tests/test_agent_protocol_v1_4_9.py`.
+These are the successor contract, document inventory, typed Core policy/recovery
+implementation and permanent synthetic conformance tests. This prerequisite
+creates none of those files and changes no active routing, lifecycle, authority,
+consumer policy or qualification. Only its accepted merge permits the successor
+to use these exact paths. The predecessor qualifies this registration.
+
 ## Successor routing registration
 
 Campaign [#281](https://github.com/gabned/provelume/issues/281) registers exactly
