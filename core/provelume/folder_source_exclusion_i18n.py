@@ -87,6 +87,12 @@ _TEXT = {
     ),
 }
 ERROR_TEXT = {
+    "instance_busy": (
+        "Another operation is using the Instance. No rules were changed. Preview the "
+        "change again after that operation finishes.",
+        "Un'altra operazione sta usando l'Instance. Nessuna regola è stata modificata. "
+        "Ripeti l'anteprima al termine dell'operazione.",
+    ),
     "invalid_rules": (
         "Check the rule kind, relative pattern and limits; duplicate or unsupported "
         "rules are rejected.",
