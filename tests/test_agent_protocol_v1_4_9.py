@@ -193,6 +193,7 @@ class PolicyTests(unittest.TestCase):
                 "history_sha256": p.digest(evidence["history"]),
                 "events_sha256": p.digest(evidence["events"]),
                 "full_effects": "NO_PRODUCTION",
+                "observed_at": datetime.now(UTC).isoformat(),
             }
             verified = p.verify_policy_compensation(
                 plan=planned,
@@ -363,6 +364,7 @@ class PolicyTests(unittest.TestCase):
             "history_sha256": planned["history_sha256"],
             "events_sha256": planned["events_sha256"],
             "full_effects": "NO_PRODUCTION",
+            "observed_at": datetime.now(UTC).isoformat(),
         }
         current = evidence["dimensions"] | {"HEAD": "f" * 40, "POLICY": "REPOSITORY_POLICY"}
         prior = copy.deepcopy(evidence["evidence"])
@@ -389,6 +391,7 @@ class PolicyTests(unittest.TestCase):
             ("full_effects", "PRODUCTION"),
             ("history_sha256", "f" * 64),
             ("events_sha256", "f" * 64),
+            ("observed_at", "2000-01-01T00:00:00Z"),
         ]:
             with self.subTest(key=key), self.assertRaises(p.PolicyError):
                 verify(compensation | {key: value})
@@ -418,6 +421,15 @@ class PolicyTests(unittest.TestCase):
         del row["coordinates"]["HEAD"]
         with self.assertRaisesRegex(p.PolicyError, "STALE_EVIDENCE"):
             p.evidence_freshness([row], evidence["dimensions"])
+
+    def test_identical_unknown_coordinates_never_prove_reuse(self):
+        _, evidence, _ = fixture()
+        for unknown in (None, "UNKNOWN", "UNAVAILABLE", "UNBOUND", "", {}, False):
+            current = evidence["dimensions"] | {"HEAD": unknown}
+            row = receipt("QUALIFICATION", current)
+            result = p.evidence_freshness([row], current)
+            assert result[0]["reuse"] == "STALE_EVIDENCE"
+            assert result[0]["invalidators"] == ["HEAD"]
 
 
 if __name__ == "__main__":

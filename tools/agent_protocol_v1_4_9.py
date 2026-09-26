@@ -116,6 +116,16 @@ def sha(value, label):
     return value
 
 
+def require_fresh_observation(value):
+    try:
+        timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        require(timestamp.tzinfo is not None, "timezone required", "STALE_EVIDENCE")
+        age = (datetime.now(UTC) - timestamp).total_seconds()
+    except (TypeError, AttributeError, ValueError) as exc:
+        raise PolicyError("STALE_EVIDENCE", "invalid live observation time") from exc
+    require(-30 <= age <= 900, "live recovery observations expired", "STALE_EVIDENCE")
+
+
 def validate_contract(contract, expected_digest):
     trusted(contract, expected_digest, "adopted routing")
     exact(
@@ -222,6 +232,14 @@ def evidence_freshness(evidence, current):
     )
     require(isinstance(evidence, list), "evidence inventory required", "STALE_EVIDENCE")
     results, seen = [], set()
+
+    def known(coordinate):
+        return (
+            isinstance(coordinate, str)
+            and bool(coordinate.strip())
+            and coordinate not in {"UNKNOWN", "UNBOUND", "UNASSIGNED", "UNAVAILABLE"}
+        )
+
     for row in evidence:
         exact(row, {"id", "gate", "dependencies", "coordinates", "result"}, "evidence")
         require(
@@ -249,8 +267,8 @@ def evidence_freshness(evidence, current):
         changed = sorted(
             d
             for d in deps
-            if current[d] is None
-            or row["coordinates"][d] is None
+            if not known(current[d])
+            or not known(row["coordinates"][d])
             or row["coordinates"][d] != current[d]
         )
         results.append(
@@ -302,13 +320,7 @@ def plan_policy_recovery(*, request, evidence, trusted_evidence, contract, trust
         },
         "observations",
     )
-    try:
-        timestamp = datetime.fromisoformat(evidence["observed_at"].replace("Z", "+00:00"))
-        require(timestamp.tzinfo is not None, "timezone required", "STALE_EVIDENCE")
-        age = (datetime.now(UTC) - timestamp).total_seconds()
-    except (TypeError, AttributeError, ValueError) as exc:
-        raise PolicyError("STALE_EVIDENCE", "invalid live observation time") from exc
-    require(-30 <= age <= 900, "live recovery observations expired", "STALE_EVIDENCE")
+    require_fresh_observation(evidence["observed_at"])
     original = exact(evidence["original_checkpoint"], CHECKPOINT_FIELDS, "original checkpoint")
     checkpoint = exact(evidence["checkpoint"], CHECKPOINT_FIELDS, "current checkpoint")
     require(
@@ -499,9 +511,11 @@ def verify_policy_compensation(
             "history_sha256",
             "events_sha256",
             "full_effects",
+            "observed_at",
         },
         "compensation",
     )
+    require_fresh_observation(compensation["observed_at"])
     sha(compensation["head"], "compensation head")
     require(
         compensation["head"] != plan["parent_head"]
