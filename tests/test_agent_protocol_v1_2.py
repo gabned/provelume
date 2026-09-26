@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import copy
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -9,6 +12,47 @@ from tools import agent_protocol as protocol
 
 BASE = "a" * 40
 HEAD = "b" * 40
+
+
+def test_binding_cli_rejects_incoherent_route_before_output(tmp_path):
+    report = make_safe_report()
+    contract = {"schema": "agent-policy-contract/v1", "repository": protocol.REPOSITORY,
+                "source_commit": BASE, "reference": "accepted PRODUCT/v2 fixture",
+                "routing": "PRODUCT/v2"}
+    inputs = {"effects": report, "contract": contract,
+              "authority": dict.fromkeys(["production", "deploy", "migrate"], False)}
+    for name, value in inputs.items():
+        (tmp_path / f"{name}.json").write_text(json.dumps(value))
+    output = tmp_path / "binding.json"
+    command = [sys.executable, str(Path(protocol.__file__)), "bind", "--report",
+               str(tmp_path / "effects.json"), "--pr", "#45", "--workstream", "example",
+               "--workstream-class", "PRODUCT", "--adopted-contract",
+               str(tmp_path / "contract.json"), "--trusted-contract",
+               protocol.policy_module().digest(contract), "--production-authority",
+               str(tmp_path / "authority.json"), "--output", str(output)]
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    assert result.returncode != 0 and not output.exists()
+    assert "INPUT_MISMATCH" in result.stdout + result.stderr
+    assert "PRODUCT/REPOSITORY_POLICY" in result.stdout + result.stderr
+
+
+def test_legacy_coherent_binding_uses_fresh_context_without_rewriting():
+    report = make_safe_report()
+    binding = make_binding(report)
+    decision = binding.pop("policy_resolution")
+    contract = binding.pop("adopted_contract")
+    binding = protocol.seal(binding)
+    before = copy.deepcopy(binding)
+    context = {"contract": contract, "trusted_contract": decision["contract_sha256"],
+               "workstream_class": "PROTOCOL",
+               "production_authority": decision["production_authority"]}
+    protocol.validate_binding(binding, context)
+    assert binding == before
+    with pytest.raises(protocol.ContractError, match="STALE_EVIDENCE"):
+        protocol.validate_binding(binding)
+    context["workstream_class"] = "PRODUCT"
+    with pytest.raises(protocol.ContractError, match="INPUT_MISMATCH"):
+        protocol.validate_binding(binding, context)
 
 
 def make_safe_report() -> dict[str, object]:
@@ -24,10 +68,16 @@ def make_safe_report() -> dict[str, object]:
 
 
 def make_binding(report: dict[str, object]) -> dict[str, object]:
+    contract = {"schema": "agent-policy-contract/v1", "repository": protocol.REPOSITORY,
+                "source_commit": BASE, "reference": "synthetic accepted contract",
+                "routing": "PROTOCOL/v1"}
     return protocol.build_binding(
         report,
         active_pr="#45",
         workstream="agent-protocol-v1.2-subset",
+        workstream_class="PROTOCOL", adopted_contract=contract,
+        trusted_contract=protocol.policy_module().digest(contract),
+        production_authority={"production": False, "deploy": False, "migrate": False},
     )
 
 

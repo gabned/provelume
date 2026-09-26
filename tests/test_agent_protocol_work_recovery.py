@@ -560,6 +560,38 @@ class RecoveryConformance(unittest.TestCase):
             recovery.sync_adopter(canonical, target, sha, "gabned/provelume.com")
         assert before == {p: (target / p).read_bytes() for p in plan}
 
+    def test_149_adoption_adds_policy_engine_and_rolls_back_new_file(self):
+        canonical, target, sha = make_adoption(self.tmp_path, version="1.4.9")
+        new_file = target / "tools/agent_protocol_v1_4_9.py"
+        new_file.unlink()
+        for path in ("AGENTS.md", "docs/agent-development-v1.4.2.md"):
+            (target / path).write_text(recovery.adoption_guidance("gabned/provelume.com", "1.4.8"))
+        _, plan = recovery.adoption_plan(canonical, target, sha, "gabned/provelume.com")
+        before = {p: (target / p).read_bytes() if (target / p).exists() else None for p in plan}
+        replace = recovery.os.replace
+        written_new = False
+
+        def fail_after_new(src, dst):
+            nonlocal written_new
+            if written_new and Path(dst) != new_file:
+                written_new = False
+                raise OSError("injected failure after new engine")
+            replace(src, dst)
+            written_new = Path(dst) == new_file
+
+        with (patch.object(recovery.os, "replace", fail_after_new),
+              self.assertRaisesRegex(OSError, "after new engine")):
+            recovery.sync_adopter(canonical, target, sha, "gabned/provelume.com")
+        assert not new_file.exists()
+        after = {p: (target / p).read_bytes() if (target / p).exists() else None for p in plan}
+        assert before == after
+        result = recovery.sync_adopter(canonical, target, sha, "gabned/provelume.com")
+        assert "tools/agent_protocol_v1_4_9.py" in result["changed_paths"]
+        assert new_file.read_bytes() == (canonical / "tools/agent_protocol_v1_4_9.py").read_bytes()
+        assert "Protocol 1.4.9" in (target / "AGENTS.md").read_text()
+        checked = recovery.sync_adopter(canonical, target, sha, "gabned/provelume.com", check=True)
+        assert checked["changed_paths"] == []
+
     def test_adoption_rechecks_vendor_bytes_after_manifest_read(self):
         tmp_path = self.tmp_path
         adoption = make_adoption(tmp_path)
