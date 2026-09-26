@@ -43,7 +43,7 @@ def execution147():
 def test_current_repository_document_manifest_is_complete_and_current():
     module = execution147()
     root = Path(__file__).resolve().parents[1]
-    manifest = json.loads((root / ".github/agent-protocol/documents-v1.4.8.json").read_text())
+    manifest = json.loads((root / ".github/agent-protocol/documents-v1.4.9.json").read_text())
     inventory = {row["path"] for row in manifest["documents"]}
     guides = (root / "docs").glob("agent-development-v*.md")
     expected = {p.relative_to(root).as_posix() for p in guides}
@@ -54,7 +54,8 @@ def test_current_repository_document_manifest_is_complete_and_current():
         assert result["selection"] == "EXACT"
         assert result["model_bytes"] < result["verified_inventory_bytes"]
         selected = {row["path"] for row in result["documents"]}
-        assert {"AGENTS.md", "docs/agent-development-v1.4.8.md"} <= selected
+        assert {"AGENTS.md", "docs/agent-development-v1.4.8.md",
+                "docs/agent-development-v1.4.9.md"} <= selected
         assert "docs/agent-development-v1.4.7.md" not in selected
     result = module.select_documents(
         root, manifest, module.digest(manifest), workstream="UNKNOWN", phase="START")

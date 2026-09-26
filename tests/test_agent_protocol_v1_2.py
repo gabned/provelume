@@ -300,7 +300,7 @@ def test_recovery_conformance_runs_in_isolation_and_propagates_failure(tmp_path)
     ]
     result = subprocess.run(command, cwd=tmp_path, capture_output=True, text=True, timeout=120)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "Ran 37 tests" in result.stderr
+    assert "Ran 38 tests" in result.stderr
 
     helper = tmp_path / "tools/agent_protocol_work_recovery.py"
     original = helper.read_text()
