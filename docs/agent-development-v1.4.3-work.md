@@ -1,6 +1,6 @@
 # Protocol 1.4.3: verifiable Work sources and host authority
 
-## Current operational entrypoint — 1.4.7
+## Current operational entrypoint — 1.4.8
 
 The historical 1.4.3 contract below is preserved. Version 1.4.4 fixes its host
 integration: Work's generic `github_fetch` and `github_fetch_blob` can return
@@ -14,7 +14,7 @@ set the actual repository. The provided host exposes `tools.exec_command`,
 `tools.apply_patch` and the advertised GitHub tools. Work's isolate has no native
 filesystem/module loader, so this recipe verifies the acquired collector bytes
 before loading its exports. It does not replace the collector's transport logic.
-The pinned digest below identifies the 1.4.7 collector, including incremental
+The pinned digest below identifies the current collector, including incremental
 observation persistence and verified evidence reuse. See [durable recovery](agent-development-v1.4.5-work.md)
 for exporting and restoring evidence across workspace loss, and the
 [1.4.6 evidence guide](agent-development-v1.4.6-work.md) for operational CI collection.
@@ -27,7 +27,7 @@ const shellQuote = value => "'" + value.replace(/'/g, "'\\''") + "'";
 const bootstrap = [
   "import hashlib,pathlib,sys",
   "data=pathlib.Path(sys.argv[1]).read_bytes()",
-  "if hashlib.sha256(data).hexdigest()!='a7dbd7b1159ece534b10a679b6d8c9b641b728270876f4932581cb71bac32efe': raise ValueError('collector digest mismatch')",
+  "if hashlib.sha256(data).hexdigest()!='ada703e75c7e80f2cb32d8c1302d04da83cab2a6c191cded1900662b4deb9f1a': raise ValueError('collector digest mismatch')",
   "pathlib.Path(sys.argv[2]).mkdir(parents=True,exist_ok=False)",
   "sys.stdout.write(data.decode('utf-8'))",
 ].join("\n");

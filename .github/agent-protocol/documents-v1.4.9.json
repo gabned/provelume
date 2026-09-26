@@ -1,11 +1,11 @@
 {
   "schema": "agent-documents/v1",
-  "protocol_version": "1.4.7",
+  "protocol_version": "1.4.9",
   "documents": [
     {
       "id": "AGENTS",
       "path": "AGENTS.md",
-      "sha256": "36169d696a543a923bd4932bf70f019417d877e010c9755efa4b4a1f92c965f7",
+      "sha256": "a62a92f16932f277d4235f29fe203d8579bc2b7d04e0de0460b9f0be6259a854",
       "role": "ALWAYS",
       "workstreams": [
         "PRODUCT",
@@ -149,7 +149,7 @@
     {
       "id": "agent-development-v1.4.2",
       "path": "docs/agent-development-v1.4.2.md",
-      "sha256": "08c7e5c0397ea6c187b8751ba2d21806f82572e4a73ba1ec747a8a427a69f3f6",
+      "sha256": "9cf17ebb7ec5c766ff7dd71118873a596637ceac1c7c3113ef871d4daea6c0d6",
       "role": "PROCEDURE",
       "workstreams": [
         "PRODUCT",
@@ -170,7 +170,7 @@
     {
       "id": "agent-development-v1.4.3-work",
       "path": "docs/agent-development-v1.4.3-work.md",
-      "sha256": "5a88b418755e105c785bc0060952b275d022f4af9a05c17757976984a5bb1ed9",
+      "sha256": "b77c2023f9cfc81dd140c01978b9d66087410f1ccd7b4c6d4784efdab1b4c879",
       "role": "PROCEDURE",
       "workstreams": [
         "PRODUCT",
@@ -190,7 +190,7 @@
     {
       "id": "agent-development-v1.4.5-work",
       "path": "docs/agent-development-v1.4.5-work.md",
-      "sha256": "f280156901ca67ad7dc961607bc7f439967823588af547543981c89e6faedda6",
+      "sha256": "44bbd5e535b53712f4e3f398274a0171993704e9475fad0249f39b4cb4ed787b",
       "role": "PROCEDURE",
       "workstreams": [
         "PRODUCT",
@@ -209,7 +209,7 @@
     {
       "id": "agent-development-v1.4.6-work",
       "path": "docs/agent-development-v1.4.6-work.md",
-      "sha256": "73bb05ca10217a70847e11af3e71178e368f8eb49a7108975fb74e26afb4aeb8",
+      "sha256": "afb602d5c0f7fa831ce1b460d9496049725ba75c8ec1955b57f566ab9a77ef49",
       "role": "PROCEDURE",
       "workstreams": [
         "PRODUCT",
@@ -234,6 +234,30 @@
       "id": "agent-development-v1.4.7",
       "path": "docs/agent-development-v1.4.7.md",
       "sha256": "374facbda5842c9b04a7e362d39663a0a37f138e32d875638983c815b67034fe",
+      "role": "HISTORICAL",
+      "workstreams": [
+        "PRODUCT",
+        "PROTOCOL",
+        "CHECKPOINT_ONLY"
+      ],
+      "phases": [
+        "START",
+        "RESUME",
+        "IMPLEMENT",
+        "QUALIFY",
+        "POST_MERGE",
+        "CLOSE"
+      ],
+      "hosts": [
+        "WORK",
+        "GIT"
+      ],
+      "requires": []
+    },
+    {
+      "id": "agent-development-v1.4.8",
+      "path": "docs/agent-development-v1.4.8.md",
+      "sha256": "5620cc6f412d547a3bd1f3e188606209e3d6c899e1874cff1bd8c2fe5b1ee400",
       "role": "ALWAYS",
       "workstreams": [
         "PRODUCT",
@@ -253,6 +277,32 @@
         "GIT"
       ],
       "requires": []
+    },
+    {
+      "id": "agent-development-v1.4.9",
+      "path": "docs/agent-development-v1.4.9.md",
+      "sha256": "6473e247b5302763977bf2553d9c31033dca2cd820403f0e837ab7d9a02d6253",
+      "role": "ALWAYS",
+      "workstreams": [
+        "PRODUCT",
+        "PROTOCOL",
+        "CHECKPOINT_ONLY"
+      ],
+      "phases": [
+        "START",
+        "RESUME",
+        "IMPLEMENT",
+        "QUALIFY",
+        "POST_MERGE",
+        "CLOSE"
+      ],
+      "hosts": [
+        "WORK",
+        "GIT"
+      ],
+      "requires": [
+        "agent-development-v1.4.8"
+      ]
     }
   ],
   "repository_policy": {

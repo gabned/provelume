@@ -280,6 +280,53 @@ def replace_assignment(text, name, value):
     return "".join(lines)
 
 
+def accepted_routing(canonical, commit):
+    """Read current guidance only from the selected immutable canonical source."""
+    def committed(path):
+        data = source.read_regular(regular(canonical, path))
+        entry = git(canonical, "ls-tree", commit, "--", path).decode().split()
+        source.require(len(entry) == 4 and entry[:2] == ["100644", "blob"]
+                       and entry[2] == ops.blob(data), "canonical routing bytes/mode drift")
+        return data
+
+    agents = committed("AGENTS.md").decode()
+    versions = re.findall(r"(?m)^AGENT_DEVELOPMENT_PROTOCOL: (1[.]4[.][789])$", agents)
+    source.require(len(versions) == 1, "one supported accepted Protocol version required")
+    version = versions[0]
+    guide = f"docs/agent-development-v{version}.md"
+    manifest_path = f".github/agent-protocol/documents-v{version}.json"
+    source.require(guide in agents and manifest_path in agents, "accepted instruction routing")
+    manifest = json.loads(committed(manifest_path))
+    source.require(manifest.get("protocol_version") == version, "accepted routing version")
+    execution = sibling("agent_protocol_v1_4_7")
+    selected = execution.select_documents(
+        canonical, manifest, ops.digest(manifest), workstream="PROTOCOL", phase="IMPLEMENT")
+    for row in manifest["documents"]:
+        committed(row["path"])
+    source.require({"AGENTS.md", guide} <= {r["path"] for r in selected["documents"]}
+                   and all(any(r["path"] == path and r["role"] == "ALWAYS"
+                               for r in manifest["documents"]) for path in ("AGENTS.md", guide)),
+                   "accepted current contract must always route")
+    return version, guide
+
+
+def adoption_guidance(repository, version="1.4.8"):
+    """Stable routing; adopted identities belong to the verified pins, not prose."""
+    pin_path = "scripts/agent/protocol-v1-2.py" if repository == "brickms/brickms" \
+        else "tests/agent_protocol_v1_4_2_vendor_test.py"
+    return (
+        f"## Current execution — Protocol {version}\n\n"
+        f"AGENT_DEVELOPMENT_PROTOCOL: {version}\n\n"
+        f"Resolve `WORK_ADAPTER_PIN` in `{pin_path}` and the operational manifest\n"
+        "`.github/agent-protocol/vendor-v1.4.2.json` to the same immutable `source_commit`.\n"
+        "Verify the pinned bytes; read Core `AGENTS.md` and its document manifest at\n"
+        "that commit. Follow that current contract and the accepted local policy.\n"
+        "Preserve existing owners and checkpoints; adoption grants no PRODUCT\n"
+        "continuation or production authority. Keep actual state and evidence in\n"
+        "the existing workstream ledger.\n"
+    )
+
+
 def adoption_plan(canonical, target, commit, repository, *, work=None):
     source.require(
         repository in ops.PROFILES and repository not in {"gabned/provelume", "gabned/nexus"},
@@ -301,6 +348,7 @@ def adoption_plan(canonical, target, commit, repository, *, work=None):
         source.verify_live_anchor(snapshot, anchor)
         source.candidate_delta(snapshot, baseline, target, repository, snapshot["commit_sha"])
     manifest = ops.manifest(canonical, commit)
+    version, _ = accepted_routing(canonical, commit)
     work = []
     for path in WORK_FILES:
         data = source.read_regular(regular(canonical, path))
@@ -350,14 +398,13 @@ def adoption_plan(canonical, target, commit, repository, *, work=None):
         if repository == "gabned/provelume.com"
         else "docs/runbooks/agent-development-v1.4.2.md"
     )
-    marker = "## Current execution — Protocol 1.4.7"
     ownership = (
         "This authorized PROTOCOL adoption retains PR-local ownership and uses\n"
         if repository == "gabned/provelume.com"
         else "This authorized PROTOCOL adoption retains the valid product checkpoint and uses\n"
     )
-    block = (
-        f"{marker}\n\nAGENT_DEVELOPMENT_PROTOCOL: 1.4.7\n\n"
+    legacy_block = (
+        "## Current execution — Protocol 1.4.7\n\nAGENT_DEVELOPMENT_PROTOCOL: 1.4.7\n\n"
         f"Accepted Core: `{commit}`. This current section supersedes earlier Work\n"
         "startup/pin descriptions; historical receipts and their identities stay unchanged.\n"
         "Use the canonical evidence collector for immutable Git objects and terminal CI\n"
@@ -379,26 +426,50 @@ def adoption_plan(canonical, target, commit, repository, *, work=None):
         "merge and post-merge verification remain required. No PRODUCT continuation,\n"
         "production effect or Level C authority follows from recovery or adoption.\n"
     )
+    block = legacy_block if version == "1.4.7" else adoption_guidance(repository, version)
     for path in ("AGENTS.md", runbook):
         text = source.read_regular(regular(target, path)).decode()
-        if marker in text:
-            source.require(text.count(marker) == 1, "duplicate current recovery section")
-            before, current = text.split(marker)
-            previous = re.search(r"Accepted Core: `([0-9a-f]{40})`", current)
+        current_versions = re.findall(r"(?m)^## Current execution — Protocol (\S+)\r?$", text)
+        source.require(len(current_versions) <= 1, "duplicate current recovery section")
+        if current_versions:
+            previous_version = current_versions[0]
+            source.require(previous_version == version
+                           or (previous_version, version) in {("1.4.7", "1.4.8"),
+                                                            ("1.4.8", "1.4.9")},
+                           "unsupported adoption guidance transition")
+            previous_marker = f"## Current execution — Protocol {previous_version}"
+            source.require(text.count(previous_marker) == 1, "duplicate current recovery section")
+            before, current = text.split(previous_marker)
+            expected = block
+            if previous_version == "1.4.8":
+                expected = adoption_guidance(repository, previous_version)
+            if previous_version == "1.4.7":
+                previous = re.search(r"Accepted Core: `([0-9a-f]{40})`", current)
+                source.require(previous is not None, "missing previous accepted Core identity")
+                expected = legacy_block.replace(commit, previous[1])
+            boundary = re.search(r"(?m)^## ", current)
+            generated = previous_marker + (current[:boundary.start()] if boundary else current)
+            separator = generated[len(expected):]
             source.require(
-                previous is not None and marker + current == block.replace(commit, previous[1]),
+                generated.startswith(expected)
+                and (not separator or (boundary is not None and not separator.strip("\n"))),
                 "edited current recovery section requires explicit reconciliation",
             )
-            text = before
-        planned[path] = (text.rstrip() + "\n\n" + block).encode()
+            tail = separator + current[boundary.start():] if boundary else ""
+            planned[path] = (before + block + tail).encode()
+        else:
+            separator = "\n" if text.endswith("\n") else "\n\n"
+            planned[path] = (text + separator + block).encode()
     return manifest, planned
 
 
 def sync_adopter(canonical, target, commit, repository, *, check=False, work=None):
     """One planned transaction; rollback on error, never publishes a ref or modifies history."""
     manifest, planned = adoption_plan(canonical, target, commit, repository, work=work)
-    originals = {p: source.read_regular(regular(target, p)) for p in planned}
-    modes = {p: stat.S_IMODE(regular(target, p).stat().st_mode) for p in planned}
+    originals = {p: source.read_regular(regular(target, p))
+                 if regular(target, p).exists() else None for p in planned}
+    modes = {p: stat.S_IMODE(regular(target, p).stat().st_mode)
+             if regular(target, p).exists() else 0o644 for p in planned}
     wanted = {
         p: ops.VENDOR_FILES.get(p, "100755" if modes[p] & stat.S_IXUSR else "100644")
         for p in planned
@@ -421,7 +492,8 @@ def sync_adopter(canonical, target, commit, repository, *, check=False, work=Non
         try:
             for index, path in enumerate(changed):
                 dest = regular(target, path)
-                source.require(source.read_regular(dest) == originals[path], "target changed")
+                actual = source.read_regular(dest) if dest.exists() else None
+                source.require(actual == originals[path], "target changed")
                 # Stage on the target filesystem for atomic per-file replacement.
                 fd, name = tempfile.mkstemp(prefix=".agent-adoption-", dir=dest.parent)
                 try:
@@ -437,10 +509,14 @@ def sync_adopter(canonical, target, commit, repository, *, check=False, work=Non
                     applied.append(path)
                 finally:
                     Path(name).unlink(missing_ok=True)
-                Path(temp, str(index)).write_bytes(originals[path])
+                if originals[path] is not None:
+                    Path(temp, str(index)).write_bytes(originals[path])
         except BaseException:
             for path in reversed(applied):
                 dest = regular(target, path)
+                if originals[path] is None:
+                    dest.unlink()
+                    continue
                 fd, name = tempfile.mkstemp(prefix=".agent-restore-", dir=dest.parent)
                 try:
                     with os.fdopen(fd, "wb") as stream:

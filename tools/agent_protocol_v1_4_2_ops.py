@@ -29,6 +29,7 @@ VENDOR_FILES = {
     "tools/agent_protocol_v1_4_1.py": "100755",
     "tools/agent_protocol_v1_4_2.py": "100755",
     "tools/agent_protocol_v1_4_2_ops.py": "100644",
+    "tools/agent_protocol_v1_4_9.py": "100644",
 }
 MANIFEST_PATH = ".github/agent-protocol/vendor-v1.4.2.json"
 PROVENANCE_PATH = "docs/agent-development-v1.4.2-provenance.md"
@@ -39,6 +40,12 @@ CI_EVENTS = {"pull_request", "pull_request_target", "push", "merge_group",
              "pull_request_review"}
 _WORK_INSTRUCTIONS: ContextVar[dict | None] = ContextVar(
     "protocol143_trusted_work_instructions", default=None,
+)
+_PROTOCOL_SCOPE: ContextVar[dict | None] = ContextVar(
+    "protocol147_trusted_consumer_scope", default=None,
+)
+_NESTED_PROTOCOL_SCOPES: ContextVar[dict | None] = ContextVar(
+    "protocol147_trusted_nested_consumer_scopes", default=None,
 )
 
 
@@ -89,6 +96,66 @@ def canonical(value: Any) -> bytes:
 
 def digest(value: Any) -> str:
     return hashlib.sha256(canonical(value)).hexdigest()
+
+
+@contextmanager
+def trusted_protocol_scope(profile: Any, expected_digest: str):
+    """Bind a caller-selected accepted-base profile; never discover it in a PR.
+
+    The host reads the policy file at the independently observed accepted base,
+    then binds its repository, path and base here. The digest is integrity only.
+    This context changes no workflow, review, effect or lifecycle requirement.
+    """
+    require(digest(profile) == sha(expected_digest, 64), "changed trusted Protocol scope")
+    obj(profile, "schema repository base_sha policy_path paths", "Protocol scope")
+    require(profile["schema"] == "agent-protocol-scope/v1", "Protocol scope schema")
+    require(profile["repository"] in PROFILES and profile["repository"] != "gabned/nexus",
+            "Protocol scope repository")
+    sha(profile["base_sha"])
+    policy_path = path(profile["policy_path"])
+    policy_roots = (".github/agent-protocol/", "docs/agent-development-v",
+                    "docs/runbooks/agent-development-v")
+    require(policy_path.startswith(policy_roots) and policy_path.endswith(".json") and
+            not any(char in policy_path for char in "*?[]"),
+            "Protocol scope policy path")
+    rows = array(profile["paths"], "Protocol scope paths")
+    require(0 < len(rows) <= 64, "bounded Protocol scope paths")
+    roots = {"IMPLEMENTATION": ("tools/", "scripts/"), "TEST": ("tests/",),
+             "NORMATIVE_DOC": ("docs/",)}
+    names = []
+    for row in rows:
+        obj(row, "path role", "Protocol scope entry")
+        name = path(row["path"])
+        require(not any(char in name for char in "*?[]"), "exact Protocol scope paths required")
+        require(row["role"] in roots and name.startswith(roots[row["role"]]),
+                "Protocol scope role/path mismatch")
+        names.append(name)
+    require(names == sorted(set(names)), "sorted unique Protocol scope paths required")
+    token = _PROTOCOL_SCOPE.set(deepcopy(profile))
+    try:
+        yield
+    finally:
+        _PROTOCOL_SCOPE.reset(token)
+
+
+@contextmanager
+def trusted_nested_protocol_scopes(profiles: Any, expected_digest: str):
+    """Bind independently accepted historical bases; never inherit the outer scope."""
+    require(digest(profiles) == sha(expected_digest, 64), "changed trusted nested Protocol scopes")
+    rows = array(profiles, "nested Protocol scope inventory")
+    require(0 < len(rows) <= 128, "bounded nested Protocol scope inventory")
+    selected = {}
+    for profile in rows:
+        with trusted_protocol_scope(profile, digest(profile)):
+            pass
+        key = (profile["repository"], profile["base_sha"])
+        require(key not in selected, "duplicate nested Protocol scope base")
+        selected[key] = deepcopy(profile)
+    token = _NESTED_PROTOCOL_SCOPES.set(selected)
+    try:
+        yield
+    finally:
+        _NESTED_PROTOCOL_SCOPES.reset(token)
 
 
 def work_instruction_records(value: Any) -> dict[str, dict]:
@@ -345,6 +412,13 @@ def validate_scope(
 ) -> None:
     initial = paths(baseline)
     require(set(initial) <= set(pr["changed_paths"]), "baseline contains absent paths")
+    profile = _PROTOCOL_SCOPE.get()
+    if profile is not None:
+        require(profile["repository"] == pr["repository"] and
+                profile["base_sha"] == pr["base_sha"],
+                "Protocol scope base/repository mismatch")
+        require(profile["policy_path"] not in pr["changed_paths"],
+                "Protocol scope cannot qualify its own policy change")
     if pr["repository"] != "gabned/nexus":
         exact = {"AGENTS.md", ".github/pull_request_template.md", ".github/workflows/ci.yml",
                  "tools/agent-check", "tools/agent-protocol",
@@ -362,6 +436,8 @@ def validate_scope(
                     "tests/agent_protocol_", "tests/agent_change_control_",
                     "docs/agent-development-v", "docs/runbooks/agent-development-v",
                     ".github/agent-protocol/")
+        if profile is not None:
+            exact.update(row["path"] for row in profile["paths"])
         require(all(name in exact or name.startswith(prefixes) for name in initial),
                 "baseline includes a non-Protocol surface")
     else:
@@ -492,7 +568,15 @@ def validate_operations(
         sha(default["sha"])
         require((default["repository"], default["name"]) ==
                 (p["repository"], PROFILES[p["repository"]][0]), "default branch identity mismatch")
-    validate_scope(e["scope_exception"], p, e["baseline_paths"], now)
+    # Embedded origin/correction proofs may only use their separately selected
+    # accepted-base profile. The outer operation never supplies implicit authority.
+    selected = (_NESTED_PROTOCOL_SCOPES.get() or {}).get((p["repository"], p["base_sha"]))
+    token = _PROTOCOL_SCOPE.set(selected) if nested else None
+    try:
+        validate_scope(e["scope_exception"], p, e["baseline_paths"], now)
+    finally:
+        if token is not None:
+            _PROTOCOL_SCOPE.reset(token)
     validate_ci(e["ci"], p["repository"], p["head_sha"], now=now)
     require(e["ci"]["policy_ref"] == p["base_sha"], "CI policy is not bound to trusted base")
     r = obj(e["reviews"], "repository pr head_sha requirement state unresolved_threads "
@@ -730,7 +814,11 @@ def sync_vendor(source: Path, target: Path, commit: str, *, check: bool = False)
     return {"result": "PASS", "manifest": m, "changed_paths": changed, "check_only": check}
 
 
-def validate_audit_input(value: Any, *, now: datetime | None = None) -> dict:
+def validate_audit_input(
+    value: Any, *, now: datetime | None = None,
+    expected_repositories: frozenset[str] | None = None,
+    operation_validator=None,
+) -> dict:
     a = obj(value, "protocol_version campaign_ref canonical source observed_at repositories",
             "five-repository audit")
     observation(a, now)
@@ -739,8 +827,12 @@ def validate_audit_input(value: Any, *, now: datetime | None = None) -> dict:
                          a["campaign_ref"]) is not None, "unbound campaign")
     canonical_manifest = validate_manifest(a["canonical"])
     rows = array(a["repositories"], "repositories")
-    require(len(rows) == 5 and {r.get("repository") for r in rows} == set(PROFILES),
-            "audit must cover exactly the five repositories")
+    expected = set(PROFILES) if expected_repositories is None else expected_repositories
+    require(isinstance(expected, set | frozenset) and "gabned/provelume" in expected
+            and expected <= set(PROFILES), "invalid independently selected audit scope")
+    require(len(rows) == len(expected) and {r.get("repository") for r in rows} == expected,
+            "audit must cover exactly the five repositories" if expected_repositories is None
+            else "audit must cover exactly the authorized repositories")
     for raw in rows:
         r = obj(raw, "repository default_branch profile default_sha operations vendor_manifest "
                 "vendor_files provenance_files registry open_campaign_prs unresolved_threads",
@@ -753,7 +845,8 @@ def validate_audit_input(value: Any, *, now: datetime | None = None) -> dict:
         operations = array(r["operations"], "operation history")
         require(bool(operations), "missing repository integration evidence")
         for operation in operations:
-            e = validate_operations(operation, now=now)
+            e = (validate_operations(operation, now=now) if operation_validator is None
+                 else operation_validator(operation, now=now))
             integrations = [e] + [f[key] for f in e["late_findings"]
                                   for key in ("origin", "correction")]
             for integration in integrations:

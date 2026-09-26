@@ -121,7 +121,7 @@ as the fallback for unknown modules or changed module counts. Hints only affect 
 collected items remain the sole source of partition membership. Malformed hints fail closed.
 The partitions are stable, disjoint
 and complete; targeted invocations are untouched. Each subprocess receives isolated state and
-pytest-cache directories. The parent has a 480-second bounded deadline, replays at most 2 MiB per
+pytest-cache directories. The parent has a 540-second bounded deadline, replays at most 2 MiB per
 shard, and terminates the process tree on timeout. Parent summaries report only shard
 index/count/duration/exit code. Bounded child replay retains pytest diagnostics and content-free
 completed-module phase timings and outcome counts; interrupted modules are not reported as complete.

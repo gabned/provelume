@@ -2,9 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
 import {collectSource, collectPreflight, collectWorkSession,
-  createWorkConnector, connectorPayload, createEvidenceCollector} from "../tools/agent_protocol_work_collect.mjs";
+  createWorkConnector, connectorPayload, connectorFailure,
+  createEvidenceCollector} from "../tools/agent_protocol_work_collect.mjs";
 
 test("source observations survive interruption before the next read", async()=>{
+  // Actual connector routing preserves branch separators; it rejects encoded '/'.
+  const slash = host({"":{full_name:repo,default_branch:"release/protocol"},
+    "/git/ref/heads/release/protocol":{...ref,ref:"refs/heads/release/protocol"}});
+  await collectSource(slash);
+  assert.ok(slash.calls.includes("/git/ref/heads/release/protocol"));
+  assert.ok(!slash.calls.some(x=>x.includes("%2F")));
   const saved=[]; const h=host(); let calls=0;
   const get=h.fetchJson;
   h.fetchJson=async url=>{
@@ -415,7 +422,30 @@ test("restored CI bytes must satisfy original run and complete job identity",asy
     await assert.rejects(createEvidenceCollector({...h,cacheSnapshot,expectedCacheSha256:await sha256(cacheSnapshot),sha256}));
   }
 });
+test("real connector entrypoint preserves denied response and case-insensitive rate headers",async()=>{
+  const response={isError:true,structuredContent:{error:"GitHub API error",
+    error_data:{status:"403",message:"Request denied",headers:{"X-RateLimit-Remaining":"0"}}}};
+  const h=evidenceHost(); let calls=0;
+  const connector=createWorkConnector({fetch:async()=>{calls++;return response},fetchFile:async()=>{throw Error("unexpected")}});
+  const collector=await createEvidenceCollector({...h,...connector});
+  await assert.rejects(collector.collectRuns(base),error=>error.failure.kind==="RATE_LIMIT");
+  assert.equal(calls,1);
+  assert.deepEqual(h.records.at(-1).response,response);
+  assert.equal(h.records.at(-1).failure.kind,"RATE_LIMIT");
+  assert.equal(JSON.parse(collector.snapshot()).entries.length,0);
+});
 test("evidence budgets reject before extra connector access; UNKNOWN is never cached",async()=>{
+  for (const [status,message,kind] of [
+    [403,"Resource not accessible by integration","ACCESS_DENIED"],
+    [403,"API rate limit exceeded","RATE_LIMIT"],
+    [429,"Too many requests","RATE_LIMIT"],
+    [503,"Service unavailable","TRANSIENT"],
+    [422,"Invalid reference","DETERMINISTIC"],
+  ]) {
+    const response={isError:true,structuredContent:{error:"GitHub API error",error_data:{status:String(status),message}}};
+    assert.deepEqual(connectorFailure(response),{kind,status,automatic_retry:false});
+    assert.throws(()=>connectorPayload(response),error=>error.failure.kind===kind);
+  }
   const h=evidenceHost(),c=await createEvidenceCollector({...h,maxCalls:1});
   await c.readImmutable("commits",base);
   await assert.rejects(c.readTree(root),/budget/);
