@@ -565,7 +565,8 @@ class RecoveryConformance(unittest.TestCase):
         new_file = target / "tools/agent_protocol_v1_4_9.py"
         new_file.unlink()
         for path in ("AGENTS.md", "docs/agent-development-v1.4.2.md"):
-            (target / path).write_text(recovery.adoption_guidance("gabned/provelume.com", "1.4.8"))
+            (target / path).write_bytes(
+                recovery.adoption_guidance("gabned/provelume.com", "1.4.8").encode("utf-8"))
         _, plan = recovery.adoption_plan(canonical, target, sha, "gabned/provelume.com")
         before = {p: (target / p).read_bytes() if (target / p).exists() else None for p in plan}
         replace = recovery.os.replace
@@ -588,7 +589,7 @@ class RecoveryConformance(unittest.TestCase):
         result = recovery.sync_adopter(canonical, target, sha, "gabned/provelume.com")
         assert "tools/agent_protocol_v1_4_9.py" in result["changed_paths"]
         assert new_file.read_bytes() == (canonical / "tools/agent_protocol_v1_4_9.py").read_bytes()
-        assert "Protocol 1.4.9" in (target / "AGENTS.md").read_text()
+        assert "Protocol 1.4.9" in (target / "AGENTS.md").read_text(encoding="utf-8")
         checked = recovery.sync_adopter(canonical, target, sha, "gabned/provelume.com", check=True)
         assert checked["changed_paths"] == []
 
