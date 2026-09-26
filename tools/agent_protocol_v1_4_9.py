@@ -369,26 +369,63 @@ def plan_policy_recovery(*, request, evidence, trusted_evidence, contract, trust
         isinstance(history, list) and 0 < len(history) <= 100000,
         "bounded complete history required",
     )
-    seen, previous = set(), None
+    nodes = {}
     for row in history:
         exact(row, {"commit", "parents", "checkpoint_sha256"}, "historical commit")
-        require(row["commit"] not in seen, "duplicate historical commit")
-        seen.add(row["commit"])
         sha(row["commit"], "historical commit")
+        require(row["commit"] not in nodes, "duplicate historical commit")
+        nodes[row["commit"]] = row
         require(row["checkpoint_sha256"] == digest(original), "checkpoint history tampered")
         require(
-            isinstance(row["parents"], list) and (previous is None or previous in row["parents"]),
-            "history gap or rewrite",
+            isinstance(row["parents"], list) and bool(row["parents"]),
+            "historical parents missing",
         )
         for parent in row["parents"]:
             sha(parent, "historical parent")
-        previous = row["commit"]
+        require(len(set(row["parents"])) == len(row["parents"]), "duplicate historical parent")
     require(
-        history[0]["commit"] == checkpoint["checkpoint_id"]
-        and checkpoint["binding_basis"] in history[0]["parents"]
-        and history[-1]["commit"] == evidence["head"],
+        checkpoint["checkpoint_id"] in nodes
+        and evidence["head"] in nodes
+        and checkpoint["binding_basis"] in nodes[checkpoint["checkpoint_id"]]["parents"],
         "history endpoints mismatch",
     )
+    # Full DAG, not a linear ordering: retain both sides of a merge. Only exact
+    # independently proved original/upstream anchors can terminate the inventory.
+    boundaries = {
+        checkpoint["binding_basis"],
+        checkpoint["checkpoint_basis"],
+        evidence["base"],
+        evidence["master"],
+    } - nodes.keys()
+    children = {commit: [] for commit in nodes}
+    indegree = {}
+    for commit, row in nodes.items():
+        require(
+            all(parent in nodes or parent in boundaries for parent in row["parents"]),
+            "history gap or omitted merge parent",
+        )
+        indegree[commit] = sum(parent in nodes for parent in row["parents"])
+        for parent in row["parents"]:
+            if parent in nodes:
+                children[parent].append(commit)
+    queue = [commit for commit, count in indegree.items() if count == 0]
+    processed = 0
+    while queue:
+        commit = queue.pop()
+        processed += 1
+        for child in children[commit]:
+            indegree[child] -= 1
+            if indegree[child] == 0:
+                queue.append(child)
+    require(processed == len(nodes), "cyclic checkpoint history")
+    reachable, queue = set(), [evidence["head"]]
+    while queue:
+        commit = queue.pop()
+        if commit in reachable:
+            continue
+        reachable.add(commit)
+        queue.extend(p for p in nodes[commit]["parents"] if p in nodes)
+    require(reachable == nodes.keys(), "unrelated or orphan historical commits")
     delta = exact(evidence["delta"], {"base", "head", "complete", "changes"}, "current delta")
     require(
         delta["base"] == evidence["base"]

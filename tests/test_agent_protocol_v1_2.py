@@ -14,6 +14,15 @@ BASE = "a" * 40
 HEAD = "b" * 40
 
 
+def policy_context():
+    contract = {"schema": "agent-policy-contract/v1", "repository": protocol.REPOSITORY,
+                "source_commit": BASE, "reference": "synthetic accepted contract",
+                "routing": "PROTOCOL/v1"}
+    return {"contract": contract, "trusted_contract": protocol.policy_module().digest(contract),
+            "workstream_class": "PROTOCOL",
+            "production_authority": dict.fromkeys(["production", "deploy", "migrate"], False)}
+
+
 def test_binding_cli_rejects_incoherent_route_before_output(tmp_path):
     report = make_safe_report()
     contract = {"schema": "agent-policy-contract/v1", "repository": protocol.REPOSITORY,
@@ -91,6 +100,7 @@ def make_snapshot(
 ) -> dict[str, object]:
     return protocol.seal(
         {
+            "policy_context": policy_context(),
             "schema_version": protocol.SCHEMA_VERSION,
             "protocol_version": protocol.PROTOCOL_VERSION,
             "mode": "SNAPSHOT",
@@ -121,6 +131,32 @@ def make_snapshot(
 
 def test_protocol_self_test() -> None:
     protocol.self_test()
+
+
+def test_resealed_binding_cannot_replace_independent_current_route():
+    report = make_safe_report()
+    binding = make_binding(report)
+    untrusted = binding["adopted_contract"] | {"routing": "PRODUCT/v1"}
+    binding["adopted_contract"] = untrusted
+    binding["policy_resolution"] = protocol.policy_module().resolve_policy(
+        contract=untrusted, trusted_contract=protocol.policy_module().digest(untrusted),
+        workstream=binding["workstream"], workstream_class="PRODUCT",
+        selected_policy="NO_PRODUCTION", observed_effects="NO_PRODUCTION",
+        production_authority=policy_context()["production_authority"],
+    )
+    binding = protocol.seal(binding)
+    context = policy_context()
+    context["contract"]["routing"] = "PRODUCT/v2"
+    context["workstream_class"] = "PRODUCT"
+    context["trusted_contract"] = protocol.policy_module().digest(context["contract"])
+    snapshot = make_snapshot(report)
+    snapshot["policy_context"] = context
+    snapshot = protocol.seal(snapshot)
+    result = protocol.preflight(snapshot, binding)
+    assert not result["merge_ready"]
+    assert any("PRODUCT/REPOSITORY_POLICY" in error for error in result["errors"])
+    with pytest.raises(protocol.ContractError, match="STALE_EVIDENCE"):
+        protocol.validate_binding(binding)
 
 
 def test_exact_safe_delta_round_trip(tmp_path: Path) -> None:
@@ -243,6 +279,7 @@ def test_reconciliation_accepts_newer_default_tip_without_inferring_release() ->
             "schema_version": protocol.SCHEMA_VERSION,
             "protocol_version": protocol.PROTOCOL_VERSION,
             "mode": "RECONCILE_EVIDENCE",
+            "policy_context": policy_context(),
             "source": "GITHUB_CONNECTOR",
             "repository": protocol.REPOSITORY,
             "observed_at": protocol.now_utc(),

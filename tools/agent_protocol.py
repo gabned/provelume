@@ -860,20 +860,22 @@ def validate_binding(binding: dict[str, Any], policy_context=None) -> None:
     digest = binding.get("effect_report_sha256")
     if not isinstance(digest, str) or SHA256_PATTERN.fullmatch(digest) is None:
         fail("binding effect_report_sha256 is invalid")
-    # Legacy receipts remain intact. Fresh qualification supplies the current
-    # host-selected context without rewriting their identity or original bytes.
+    # Every fresh gate uses independently selected current routing. An unkeyed
+    # seal and a decision embedded in the candidate cannot supply that authority.
+    if policy_context is None:
+        fail("STALE_EVIDENCE: binding needs current adopted routing evidence; "
+             "collect policy_context with the ordinary snapshot, do not rebind")
+    try:
+        if policy_context["contract"]["repository"] != REPOSITORY:
+            fail("INPUT_MISMATCH: current routing repository mismatch")
+        policy_module().require_policy_coherence(
+            **policy_context, workstream=binding["workstream"],
+            selected_policy=binding["effect_policy"],
+            observed_effects=binding["effect_prediction"],
+        )
+    except (ValueError, TypeError, KeyError) as error:
+        fail(str(error))
     if "policy_resolution" not in binding and "adopted_contract" not in binding:
-        if policy_context is None:
-            fail("STALE_EVIDENCE: legacy binding needs current adopted routing evidence; "
-                 "collect policy_context with the ordinary snapshot, do not rebind")
-        try:
-            policy_module().require_policy_coherence(
-                **policy_context, workstream=binding["workstream"],
-                selected_policy=binding["effect_policy"],
-                observed_effects=binding["effect_prediction"],
-            )
-        except (ValueError, TypeError) as error:
-            fail(str(error))
         return
     try:
         decision = binding["policy_resolution"]
@@ -1499,8 +1501,13 @@ def self_test() -> None:
             "routing": "PROTOCOL/v1"}), trusted_contract=policy_module().digest(contract),
         production_authority={"production": False, "deploy": False, "migrate": False},
     )
+    policy_context = {"contract": contract, "trusted_contract": policy_module().digest(contract),
+                      "workstream_class": "PROTOCOL",
+                      "production_authority": dict.fromkeys(
+                          ["production", "deploy", "migrate"], False)}
     snapshot = seal(
         {
+            "policy_context": policy_context,
             "schema_version": SCHEMA_VERSION,
             "protocol_version": PROTOCOL_VERSION,
             "mode": "SNAPSHOT",
@@ -1551,6 +1558,7 @@ def self_test() -> None:
 
     evidence = seal(
         {
+            "policy_context": policy_context,
             "schema_version": SCHEMA_VERSION,
             "protocol_version": PROTOCOL_VERSION,
             "mode": "RECONCILE_EVIDENCE",

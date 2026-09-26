@@ -346,6 +346,31 @@ class PolicyTests(unittest.TestCase):
         self.assertTrue(result["commit_required"])
         self.assertEqual(result["history_sha256"], p.digest(evidence["history"]))
 
+    def test_complete_merge_dag_and_missing_parent_cycle_or_orphan(self):
+        request, evidence, contract = fixture()
+        side = {
+            "commit": "f" * 40,
+            "parents": ["c" * 40],
+            "checkpoint_sha256": p.digest(evidence["checkpoint"]),
+        }
+        evidence["history"].insert(2, side)
+        evidence["history"][-1]["parents"].append(side["commit"])
+        result = plan(request, evidence, contract)
+        assert result["history_sha256"] == p.digest(evidence["history"])
+        for damage in ("missing", "cycle", "orphan", "unproved_boundary"):
+            with self.subTest(damage=damage):
+                altered = copy.deepcopy(evidence)
+                if damage == "missing":
+                    altered["history"].pop(2)
+                elif damage == "cycle":
+                    altered["history"][1]["parents"] = [evidence["head"]]
+                elif damage == "orphan":
+                    altered["history"][-1]["parents"].remove(side["commit"])
+                else:
+                    altered["history"][-1]["parents"].append("9" * 40)
+                with self.assertRaises(p.PolicyError):
+                    plan(request, altered, contract)
+
     def test_compensation_requires_exact_child_and_fresh_gates(self):
         request, evidence, contract = fixture()
         evidence["evidence"] = [

@@ -78,11 +78,14 @@ authority. Never derive the trusted value from an unverified candidate payload.
 Native adapters gather these inputs in their existing claim/bind operation; a
 coherent consumer does not need a separate recovery or a second lifecycle.
 
-Existing coherent bindings are not rewritten. For legacy stateless receipts
-without a retained policy decision, the ordinary fresh snapshot includes
+Existing coherent bindings are not rewritten. Every ordinary fresh snapshot and
+reconciliation observation, for both new and legacy stateless receipts, includes
 `policy_context` with `contract`, `trusted_contract`, `workstream_class` and
 `production_authority`; validation supplies workstream/policy/effects from the
-original binding. Missing context is stale evidence, not permission to rebind.
+original binding. The host selects this context independently of the candidate;
+an embedded decision and a recomputable seal cannot supply current authority.
+Missing context is stale evidence, not permission to rebind. A retained decision
+is checked for internal consistency only after the independent current guard.
 
 ## Narrow recovery allow-list
 
@@ -104,7 +107,7 @@ The host must save original source observations before normalization and prove:
   current head; expected base and master; valid native Git ancestry.
 - Original binding, BOUND checkpoint and complete history from the checkpoint
   commit to current head, including intermediate commits and checkpoint contents
-  at every commit. No hidden alteration, incomplete clone, graft, replacement,
+at every commit. No hidden alteration, incomplete clone, graft, replacement,
   omitted merge parent or unexplained head movement is acceptable.
 - Current applicable contract, verified adopted pin, workstream class, complete
   actual delta and its native classifications; complete historical event and gate
@@ -123,6 +126,12 @@ must cover the complete normalized inventory linked to its retained raw sources.
 Live observations expire after 15 minutes; resample changed remote state before
 mutation. A native adapter unable to prove this contract must refuse recovery as
 `EXTERNAL_DEPENDENCY`, retain the checkpoint, and complete independent adoption.
+
+History is a complete acyclic ancestry graph, including both branches of a merge,
+with exact parent lists and no orphan rows. Traversal may stop only at the proven
+binding/checkpoint basis or exact current base/master anchors; those upstream
+objects retain their separately verified ancestry. Missing intermediate or merge
+parents cannot be replaced with a completeness assertion or an unknown boundary.
 
 Owner, repository, PR, branch, workstream, class, binding basis, checkpoint basis,
 checkpoint identity, all previous commits/ancestry, authorizations and Level C
