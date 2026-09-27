@@ -26,10 +26,21 @@ MAX_RESOURCE_BYTES = 1024 * 1024
 MAX_RESOURCE_TOTAL_BYTES = 16 * 1024 * 1024
 MAX_RESOURCE_FILES = 4096
 SUBTREES = ("templates", "static/icons/lucide", "i18n", "notices")
-STATIC_FILES = ("static/cura.css", "static/cura-shell.js")
+STATIC_FILES = (
+    "static/cura.css",
+    "static/cura-shell.js",
+    "static/capture.css",
+    "static/capture-shell.js",
+    "static/capture-worker.js",
+    "static/capture.webmanifest",
+    "static/capture-icon.svg",
+    "static/capture-icon192.png",
+    "static/capture-icon512.png",
+)
 REQUIRED = {
     *STATIC_FILES,
     "templates/base.html",
+    "templates/capture.html",
     "templates/cura/base.html",
     "i18n/en.json",
     "i18n/it.json",
@@ -37,6 +48,7 @@ REQUIRED = {
     "notices/NOTICE.md",
     "notices/THIRD_PARTY_NOTICES.md",
     "notices/lucide-LICENSE.txt",
+    "notices/qrcode-LICENSE.txt",
     "static/icons/lucide/subset.json",
 }
 RESERVED = {"AUX", "CON", "NUL", "PRN"} | {
