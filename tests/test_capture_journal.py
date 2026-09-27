@@ -219,6 +219,7 @@ def test_interruption_reconciles_before_retry(journal, monkeypatch, point):
     with pytest.raises(CaptureJournalError, match="recovery required"):
         journal.lookup(DEVICE, CLIENT, authorize=allow)
     assert tree(journal.store.paths.root.parent) == before
+    InstanceStore.open(journal.store.paths.root)
     receipt = submit(CaptureJournal(journal.store))
     assert submit(journal) == receipt
     assert len(list(journal.root.rglob("*.json"))) == 1
