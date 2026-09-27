@@ -26,8 +26,25 @@ independently of JSON key ordering, without treating a hash as a receipt or anti
 result. The fingerprint input retains the existing ingestion byte bound; effective
 per-mode upload/type limits must be implemented and declared by the real adapter.
 
-Next integration is the device-scoped durable submission journal, under the existing
-lifecycle and recovery contracts. Before acknowledging, the adapter must authenticate
+The device-scoped durable submission journal now stores immutable receipt/byte records
+under `state/capture/<device>/<occurrence>.json`. `CaptureJournal` is an internal
+service, not a network endpoint. Its caller supplies current authorization and actual
+payload/reference validation guards; these run again on replay under the shared
+lifecycle lock. Lookup/list recheck authorization, remain pure, and refuse pending
+recovery. Exact bytes and metadata are compared in addition to fingerprints, so a
+digest collision does not permit conflicting identity reuse. Distinct devices and
+UUIDs retain distinct occurrences. A committed submission is not an Acquisition.
+
+The bounded `capture` atomic profile commits one immutable record, with a domain
+path/owner/schema allowlist checked before recovery. A prepared interruption rolls
+back the unacknowledged submission; a committed interruption retains its original
+receipt. Lifecycle writers and Instance preparation recover before subsequent work.
+There are at most 128 records/devices and 128 MiB of serialized journal content;
+individual records are bounded to 36 MiB and payloads retain the 25 MiB identity
+limit. Full state fails visibly and never trims history. Base64 is storage encoding,
+not protection or a malware scan. Stored submitted bytes remain untrusted.
+
+Before external acknowledgement, the real adapter must authenticate
 and recheck current revocation, enforce reference authority and actual byte/type
 validation, and commit the authoritative receipt. Processing and S05 routing follow
 that commit through their existing lifecycle, without nested mutation locks or a
