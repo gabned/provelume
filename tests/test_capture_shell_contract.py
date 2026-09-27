@@ -133,3 +133,36 @@ for(const action of ['cancel','escape','accept']){
 console.log(JSON.stringify({explicit_confirmation:true,escape_cancelled:true,secret_not_displayed:true}));
 """
     assert node(script)["explicit_confirmation"] is True
+
+
+
+def test_install_guidance_waits_for_browser_choice_and_actual_installed_event():
+    script = r"""
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+const source=readFileSync('core/provelume/static/capture-shell.js','utf8')
+ .replace(/\}\)\(\);\s*$/, 'globalThis.test={setupInstallation};})();');
+const listeners={}, elements={install:{hidden:true},'install-help':{hidden:true}};
+const scope={navigator:{language:'en'},location:{protocol:'https:'},isSecureContext:true,
+ document:{addEventListener(){},getElementById:id=>elements[id]},
+ window:{addEventListener:(name,callback)=>listeners[name]=callback}};
+vm.createContext(scope);vm.runInContext(source,scope);scope.test.setupInstallation();
+let choose;const userChoice=new Promise(resolve=>choose=resolve);
+listeners.beforeinstallprompt({preventDefault(){},prompt:async()=>{},userChoice});
+assert.equal(elements.install.hidden,false);
+assert.match(elements['install-help'].textContent,/address bar/);
+const pendingInstall=elements.install.onclick();
+assert.match(elements['install-help'].textContent,/Finish in/);
+choose({outcome:'dismissed'});await pendingInstall;
+assert.match(elements['install-help'].textContent,/cancelled/);
+listeners.beforeinstallprompt({preventDefault(){},prompt:async()=>{},
+ userChoice:Promise.resolve({outcome:'accepted'})});
+await elements.install.onclick();await new Promise(resolve=>setImmediate(resolve));
+assert.match(elements['install-help'].textContent,/accepted by the browser/);
+listeners.appinstalled();
+assert.match(elements['install-help'].textContent,/Capture installed/);
+assert.equal(elements.install.hidden,true);
+console.log(JSON.stringify({choice:true,installedEvent:true}));
+"""
+    assert node(script) == {"choice": True, "installedEvent": True}

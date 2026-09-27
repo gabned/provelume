@@ -14,7 +14,8 @@
 <label class="inline"><input id="retain-pairing" type="checkbox"><span data-i18n="retain">Keep scoped pairing on this browser for at most 30 days. Never shared with the worker cache.</span></label>
 <button id="pair" data-i18n="pair">Pair this device</button><button id="scan-qr" data-i18n="scanQr">Scan pairing QR</button>
 <button id="forget" data-i18n="forget">Forget local pairing</button></div>
-<button id="install" hidden data-i18n="install">Install Capture</button></section>
+<button id="install" hidden data-i18n="install" aria-describedby="install-help">Install Capture</button>
+<p id="install-help" hidden role="status" aria-live="polite"></p></section>
 <section><h2 data-i18n="newCapture">Add a capture</h2><form id="capture-form">
 <label><span data-i18n="mode">Mode</span><select id="mode">
 <option value="file" data-i18n="file">File</option><option value="photo" data-i18n="photo">Photo</option>
