@@ -352,7 +352,7 @@ def test_rejected_payload_is_never_acknowledged(adapter, payload, changes):
 
 def test_declared_capabilities_match_text_url_and_pdf_validation():
     matrix = capture_capabilities()
-    assert matrix["paired_transport"] == "unavailable"
+    assert matrix["paired_transport"] == "explicit_https_configuration_required"
     assert matrix["modes"]["url"]["fetch"] is False
     assert validate_capture_payload(b"https://example.test/", metadata(mode="url"))
     writer = PdfWriter()

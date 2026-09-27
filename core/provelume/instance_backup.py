@@ -121,7 +121,7 @@ def _payload_files(store: InstanceStore) -> list[tuple[str, Path, int, str]]:
         except OSError as exc:
             raise BackupError(f"Instance file cannot be read: {relative}") from exc
         result.append((normalise_locator(relative), path, size, digest))
-    return result
+    return sorted(result, key=lambda row: row[0])
 
 
 def _entry_manifest(

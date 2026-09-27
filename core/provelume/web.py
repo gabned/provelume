@@ -20,6 +20,7 @@ from .annotation_activity import attach_annotation_routes
 from .api import attach_api, reject_client_installation_evidence
 from .audio_activity import attach_audio_routes
 from .build_info import current_build_info
+from .capture_http import attach_capture_routes
 from .cura_icons import icon_renderer, render_icon
 from .cura_shell import navigation_context, script_integrity, shell_snapshot, validated_return
 from .domain_review_activity import attach_domain_review_routes
@@ -483,6 +484,7 @@ def create_app(
     app.state.shell_settings_manager = shell_manager
     action_center = ActionCenter(instance.store)
     app.state.action_center = action_center
+    attach_capture_routes(app, instance.store)
     app.mount("/static", StaticFiles(directory=str(PACKAGE_ROOT / "static")), name="static")
     attach_api(
         app,

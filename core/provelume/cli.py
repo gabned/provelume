@@ -182,6 +182,15 @@ def _build_parser(command: str | None = None) -> argparse.ArgumentParser:
     network_status.add_argument("instance", type=Path)
 
     serve = subparsers.add_parser("serve", help="Run Knowledge API and browser")
+    capture_serve = subparsers.add_parser(
+        "capture-serve", help="Explicitly run the separate scoped Capture HTTPS listener"
+    )
+    capture_serve.add_argument("instance", type=Path)
+    capture_serve.add_argument("--origin", required=True)
+    capture_serve.add_argument("--host", default="127.0.0.1")
+    capture_serve.add_argument("--port", type=int, required=True)
+    capture_serve.add_argument("--tls-cert", type=Path, required=True)
+    capture_serve.add_argument("--tls-key", type=Path, required=True)
     serve.add_argument("instance", type=Path)
     serve.add_argument("--host", default="127.0.0.1", type=_loopback_host)
     serve.add_argument("--port", type=int)
@@ -389,6 +398,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "network-status":
         instance = ProvelumeInstance(args.instance)
         print(json.dumps(instance.network_status(), indent=2, sort_keys=True))
+        return 0
+    if args.command == "capture-serve":
+        from .capture_http import create_capture_app
+
+        if not 1 <= args.port <= 65535 or not args.tls_cert.is_file() or not args.tls_key.is_file():
+            raise ValueError("Capture requires a valid port and explicit TLS certificate/key")
+        app = create_capture_app(args.instance, trusted_origin=args.origin)
+        uvicorn.run(
+            app, host=args.host, port=args.port, ssl_certfile=str(args.tls_cert),
+            ssl_keyfile=str(args.tls_key), access_log=False, proxy_headers=False,
+        )
         return 0
     if args.command == "serve":
         try:

@@ -1,6 +1,6 @@
 # Cura Capture request foundation
 
-Status: initial S06 implementation under #274, following source-exclusion correction
+Foundation history through checkpoint54: initial S06 implementation under #274, following source-exclusion correction
 #277/#278. This is not a delivered Capture API, pairing service or PWA. The package
 remains 0.10.1 and the complete slice acceptance criteria remain open.
 
@@ -80,3 +80,70 @@ real capture modes, restart/replay/uncertain-acknowledgement recovery, quarantin
 retention, backup/portable preservation, the bounded offline outbox and PWA resources,
 and actual browser/keyboard observations. This foundation does not satisfy or waive
 those gates and does not activate S07 or a release preparation.
+
+## Protected transport and outbox candidate
+
+The current OWNER #289 extends that foundation with the responsive EN/IT `/capture/`
+surface. The ordinary loopback server issues a ten-minute memory-only nonce after an
+explicit Connect action. Exact Origin/Host and current authorization guard every
+submission, reconciliation, processing and Original download. Local Inbox folder
+configuration and its import journey remain available.
+
+Remote Capture is a separate app, disabled by default. The local owner explicitly
+configures its canonical HTTPS origin and confirms revocation when rebinding. Start
+it with `provelume capture-serve INSTANCE --origin https://HOST:PORT --host BIND
+--port PORT --tls-cert CERT --tls-key KEY`. TLS is mandatory, including LAN/VPN;
+forwarded headers are not trusted. This command exposes only Capture, never owner
+administration or the general Knowledge API. Configuration does not start a listener.
+
+Owner-created QR contents bind destination, Instance, scope and a single-use challenge
+with a 120-second lifetime. Secrets never enter URL queries. Each device credential
+authorizes submission, its own receipts/Original attachments and metadata proposals.
+The server retains verifiers and an audit in one atomic `device-authority` profile.
+Its host key lives outside the portable Instance, protected by current-user DPAPI on
+Windows and owner-only permissions on POSIX. Imported credentials remain inactive
+without that host binding; explicit rebind revokes retained devices without deleting
+knowledge. Corrupt state fails visibly rather than resetting pairing.
+
+The effective matrix adds decoded PNG/JPEG for photo/scan/screenshot and validated
+PCM16 WAV for audio/voice. The browser explicitly starts camera/microphone capture;
+unavailable/denied capability remains visible and file input remains available.
+Limits are declared before selection and enforced against actual bytes before server
+acknowledgement: text 512 KiB, URL 8 KiB, PDF 25 MiB/500 pages, images 20 MiB/20 million
+pixels/100x expansion, WAV 10 MiB/120 seconds/two channels. Files use this closed type
+matrix. The one-item JSON body is capped at 36 MiB; each listener admits two concurrent
+intake requests and bounded authentication attempts. Photos/audio preserve Original
+with separate extraction attention; Capture does not silently start OCR/transcription.
+
+IndexedDB retains at most 16 local entries/64 MiB. Entries preserve UUID, device,
+Instance, exact-byte fingerprint and capture context across reload. A transactional
+lease and cross-tab change notification coordinate duplicate tabs. Every uncertain
+send looks up its authoritative receipt before retry. Receipt/device/fingerprint must
+match before pending bytes and note are removed. Processing attention cannot turn an
+acquired Original into a new pending occurrence. Cancellation removes the local copy
+only and explicitly warns that server acceptance/knowledge may already exist.
+
+Local nonces never persist. Paired retention requires an explicit checkbox, is bound
+to the destination and expires locally after 30 days; Forget removes the credential
+without deleting pending captures. No acquired knowledge is cached for mobile use.
+Only seven fixed public shell assets, each bounded to 256 KiB, enter the PWA worker
+cache. APIs, queries, authenticated requests, submissions and Originals are excluded.
+Plain HTTP explicitly disables installation, worker and share-target paths. Native
+mobile/share-target reference clients remain S07 work.
+
+Owner rejection records bounded quarantine with explicit 1–365 day retention; undo
+records compensation in an atomic `submission-quarantine` profile. Neither action
+moves/purges an Original or canonical history. Action Center projects Capture intake,
+quarantine and extraction attention, with inspection-only decisions and a link to the
+protected Capture actions. Existing S05 routing/disposition authority still applies.
+
+Deep Instance inspection validates Capture schemas, journal/processing/acquisition
+bindings and quarantine references. Backup and portable transfer retain the journal,
+receipts, Original and audit. Projection rebuild selects codecs from the accepted
+Capture media type because occurrence locators intentionally have no file extension.
+Backup manifests sort canonical POSIX path strings on every host.
+
+This is a candidate, not S06 delivery. Native checks, complete exact-head CI and real
+browser/PWA observations remain distinct evidence gates. Missing HTTPS/PWA evidence
+must remain explicit; a simulated transport test cannot qualify real installation or
+offline reload. Package 0.10.1 and the independent release gates remain unchanged.

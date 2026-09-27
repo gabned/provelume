@@ -42,9 +42,7 @@ def loopback_host(value: str) -> str:
     try:
         address = ipaddress.ip_address(selected)
     except ValueError as exc:
-        raise ValueError(
-            "host must be localhost or an explicit loopback IP address"
-        ) from exc
+        raise ValueError("host must be localhost or an explicit loopback IP address") from exc
     if not address.is_loopback:
         raise ValueError("non-loopback serving requires a separate authenticated contract")
     return str(address)
@@ -60,9 +58,7 @@ def _host_without_port(value: str) -> str | None:
             return None
         host = selected[1:closing]
         remainder = selected[closing + 1 :]
-        if remainder and (
-            not remainder.startswith(":") or not remainder[1:].isdigit()
-        ):
+        if remainder and (not remainder.startswith(":") or not remainder[1:].isdigit()):
             return None
         return host
     if selected.count(":") == 1:
@@ -116,11 +112,15 @@ class LocalWebSecurityMiddleware(BaseHTTPMiddleware):
         integrities = [
             getattr(request.state, name, None)
             for name in (
-                "cura_script_integrity", "annotation_script_integrity", "review_script_integrity",
+                "cura_script_integrity",
+                "annotation_script_integrity",
+                "review_script_integrity",
+                "capture_script_integrity",
             )
         ]
         allowed_scripts = [
-            value for value in integrities
+            value
+            for value in integrities
             if isinstance(value, str) and re.fullmatch(r"sha256-[A-Za-z0-9+/]{43}=", value)
         ]
         if (
@@ -144,8 +144,24 @@ class LocalWebSecurityMiddleware(BaseHTTPMiddleware):
         ):
             policy = response.headers["Content-Security-Policy"]
             response.headers["Content-Security-Policy"] = policy.replace(
-                "frame-ancestors 'none'", "frame-ancestors 'self'",
+                "frame-ancestors 'none'",
+                "frame-ancestors 'self'",
             )
             response.headers["X-Frame-Options"] = "SAMEORIGIN"
         response.headers["Cache-Control"] = "no-store"
+        if (
+            getattr(request.state, "capture_surface", False) is True
+            and request.url.path == "/capture/"
+        ):
+            response.headers["Content-Security-Policy"] = (
+                response.headers["Content-Security-Policy"]
+                .replace("worker-src 'none'", "worker-src 'self'")
+                .replace("img-src 'self' data:", "img-src 'self' data: blob:")
+                .replace("media-src 'self'", "media-src 'self' blob:")
+            )
+            response.headers["Permissions-Policy"] = (
+                SECURITY_HEADERS["Permissions-Policy"]
+                .replace("camera=()", "camera=(self)")
+                .replace("microphone=()", "microphone=(self)")
+            )
         return response

@@ -218,13 +218,50 @@ class CaptureAdapter:
             or read(original["storage_ref"], 25 * 1024 * 1024) != payload
         ):
             raise CaptureJournalError("Capture acquired Original or provenance is unavailable")
-        for relative in _allow_paths(receipt, set()):
-            if relative.startswith("knowledge/provenance/"):
-                edge = record(relative)
-                if edge is None or relative != f"knowledge/provenance/{edge.get('id')}.json":
-                    raise CaptureJournalError("Capture provenance is unavailable")
+        for origin, oid, relation, target, tid in (
+            ("source", receipt["source_id"], "observed", "acquisition", receipt["acquisition_id"]),
+            (
+                "capture_submission",
+                submission["id"],
+                "delivered",
+                "acquisition",
+                receipt["acquisition_id"],
+            ),
+            (
+                "acquisition",
+                receipt["acquisition_id"],
+                "captured",
+                "original",
+                receipt["original_id"],
+            ),
+            (
+                "original",
+                receipt["original_id"],
+                "materialized_as",
+                "version",
+                receipt["version_id"],
+            ),
+            ("version", receipt["version_id"], "version_of", "document", receipt["document_id"]),
+        ):
+            expected = asdict(
+                _edge(origin, oid, relation, target, tid, created_at=receipt["acquired_at"])
+            )
+            if record(f"knowledge/provenance/{expected['id']}.json") != expected:
+                raise CaptureJournalError("Capture provenance is unavailable")
         artifact_id = receipt["processing"]["artifact_id"]
         if artifact_id is not None:
+            expected_edge = asdict(
+                _edge(
+                    "version",
+                    receipt["version_id"],
+                    "extracted_to",
+                    "derived_artifact",
+                    artifact_id,
+                    created_at=receipt["acquired_at"],
+                )
+            )
+            if record(f"state/derived/provenance/{expected_edge['id']}.json") != expected_edge:
+                raise CaptureJournalError("Capture derived provenance is unavailable")
             artifact = record(f"state/derived/artifacts/{artifact_id}.json")
             expected_ref = f"state/derived/text/{artifact_id}.txt"
             if (
@@ -253,6 +290,7 @@ class CaptureAdapter:
         if acquired is not None:
             self._assure(acquired, submission, payload)
         self.journal._read_ready()
+        self._guard(device, channel)
         return {"submission": submission, "acquisition": acquired}
 
     def process(self, device, client, *, channel):

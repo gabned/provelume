@@ -164,7 +164,10 @@ class CaptureJournal:
     def _read_ready(self):
         root = self.lifecycle.control_root / "transactions"
         _safe(root)
-        if root.exists() and any(root.glob("capture-*")):
+        if root.exists() and any(
+            any(root.glob(pattern))
+            for pattern in ("capture-*", "device-authority-*", "submission-quarantine-*")
+        ):
             raise CaptureJournalError("Capture recovery required before receipt lookup")
 
     def lookup(
