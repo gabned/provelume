@@ -103,11 +103,34 @@
     auth={...value,expiresAt:Date.now()+value.expires_in*1000};identity={device_id:value.device_id,instance_id:value.instance_id,channel:value.channel};
     await saveSetting("identity",identity);say("connected");limits();await render();await ownerRefresh();
   }
+  async function confirmPairDestination(value) {
+    const dialog=$("pair-confirm"), trigger=$("pair");
+    $("pair-confirm-title").textContent=WORDS[lang].confirmPair;
+    $("pair-confirm-destination").textContent=value.origin+"\n"+value.instance_id+"\n"+value.scope;
+    $("pair-confirm-accept").textContent=lang==="it"?"Conferma abbinamento":"Confirm pairing";
+    $("pair-confirm-cancel").textContent=lang==="it"?"Annulla":"Cancel";
+    trigger.disabled=true;
+    return new Promise(resolve=>{
+      let settled=false;
+      const finish=accepted=>{
+        if(settled)return;settled=true;
+        dialog.close();dialog.oncancel=null;dialog.onclose=null;
+        $("pair-confirm-accept").onclick=null;$("pair-confirm-cancel").onclick=null;
+        trigger.disabled=false;trigger.focus();resolve(accepted);
+      };
+      $("pair-confirm-accept").onclick=()=>finish(true);
+      $("pair-confirm-cancel").onclick=()=>finish(false);
+      dialog.oncancel=event=>{event.preventDefault();finish(false);};
+      dialog.onclose=()=>finish(false);
+      try{dialog.showModal();$("pair-confirm-cancel").focus();}
+      catch(error){finish(false);}
+    });
+  }
   async function pair() {
     if(!$("retain-pairing").checked)throw new Error(WORDS[lang].retainRequired);
     const value=JSON.parse($("pair-code").value);
     if(value.origin!==location.origin||value.scope!==capabilities.scope||typeof value.instance_id!=="string"||typeof value.challenge!=="string")throw new Error(WORDS[lang].wrongDevice);
-    if(!confirm(WORDS[lang].confirmPair+"\n"+value.origin+"\n"+value.instance_id+"\n"+value.scope))return;
+    if(!await confirmPairDestination(value))return;
     const result=await api("/pair/redeem",{challenge:value.challenge,label:$("device-label").value,instance_id:value.instance_id},{anonymous:true});
     auth={...result,channel:"paired_pwa",expiresAt:Date.now()+30*24*60*60*1000};
     await saveSetting("credential",auth);identity={device_id:auth.device_id,instance_id:auth.instance_id,channel:auth.channel};await saveSetting("identity",identity);

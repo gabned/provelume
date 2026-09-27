@@ -94,3 +94,42 @@ await assert.rejects(installation,/size bound/);
 console.log(JSON.stringify({public_assets:7,private_requests_excluded:7,oversize_rejected:true,offline_public_shell:true}));
 """
     assert node(script)["oversize_rejected"] is True
+
+
+def test_pair_confirmation_requires_explicit_accept_and_escape_fails_closed():
+    script = r"""
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+const elements={}; let focus=null;
+for(const id of ['pair-confirm','pair','pair-confirm-title','pair-confirm-destination',
+  'pair-confirm-accept','pair-confirm-cancel']){
+  elements[id]={textContent:'',disabled:false,focus:()=>focus=id};
+}
+const dialog=elements['pair-confirm'];
+dialog.showModal=()=>dialog.open=true;
+dialog.close=()=>{dialog.open=false;dialog.onclose?.();};
+const scope={navigator:{language:'en'},
+  document:{addEventListener(){},getElementById:id=>elements[id]}};
+const source=readFileSync('core/provelume/static/capture-shell.js','utf8')
+  .replace(/\}\)\(\);\s*$/,'globalThis.test={confirmPairDestination};})();');
+vm.createContext(scope);vm.runInContext(source,scope);
+const destination={origin:'https://capture.test',instance_id:'inst_synthetic',scope:'capture.only',challenge:'not-displayed-secret'};
+for(const action of ['cancel','escape','accept']){
+  let result=null;
+  const pending=scope.test.confirmPairDestination(destination).then(value=>result=value);
+  assert.equal(result,null);assert.equal(dialog.open,true);assert.equal(elements.pair.disabled,true);
+  assert.equal(focus,'pair-confirm-cancel');
+  assert.equal(elements['pair-confirm-destination'].textContent,'https://capture.test\ninst_synthetic\ncapture.only');
+  assert.equal(elements['pair-confirm-destination'].textContent.includes(destination.challenge),false);
+  if(action==='escape'){
+    let prevented=false;dialog.oncancel({preventDefault:()=>prevented=true});assert(prevented);
+  }
+  else elements['pair-confirm-'+(action==='accept'?'accept':'cancel')].onclick();
+  await pending;assert.equal(result,action==='accept');assert.equal(dialog.open,false);
+  assert.equal(elements.pair.disabled,false);assert.equal(focus,'pair');
+  assert.equal(elements['pair-confirm-accept'].onclick,null);
+}
+console.log(JSON.stringify({explicit_confirmation:true,escape_cancelled:true,secret_not_displayed:true}));
+"""
+    assert node(script)["explicit_confirmation"] is True
