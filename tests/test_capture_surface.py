@@ -267,12 +267,12 @@ def test_quarantine_replay_conflict_compensation_and_deep_validation(store):
     assert len(store.list_canonical("originals")) == 1
 
 
+@pytest.mark.parametrize("restart", ["open", "listener"])
 @pytest.mark.parametrize("domain", ["authority", "quarantine"])
 @pytest.mark.parametrize("point", ["prepared", "replaced", "committed"])
-def test_new_state_interruptions_recover_without_reset(store, monkeypatch, domain, point):
+def test_new_state_interruptions_recover_without_reset(store, monkeypatch, domain, point, restart):
     from provelume import capture_authority, capture_quarantine
     from provelume.atomic_commit import replace_file
-    from provelume.instance_lifecycle import InstanceLifecycleManager
 
     authority = configured(store)
     value = paired(authority)
@@ -308,8 +308,10 @@ def test_new_state_interruptions_recover_without_reset(store, monkeypatch, domai
     monkeypatch.undo()
     with pytest.raises(CaptureJournalError, match="recovery required"):
         authority.management()
-    with InstanceLifecycleManager(store)._hold(purpose="capture-test-recovery"):
-        pass
+    if restart == "listener":
+        create_capture_app(store.paths.root, trusted_origin=ORIGIN)
+    else:
+        InstanceStore.open(store.paths.root)
     assert capture_state_findings(store) == []
     if domain == "authority":
         assert bool(authority.read()["devices"][value["device_id"]]["revoked_at"]) == (

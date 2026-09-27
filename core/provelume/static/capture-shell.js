@@ -282,9 +282,18 @@
       if(installState!=="installComplete")showInstallation(choice?.outcome==="accepted"?"installAccepted":"installDismissed");
     });
   }
+  async function forgetPairing() {
+    auth=null;identity=null;
+    await saveSetting("credential",undefined);await saveSetting("identity",undefined);
+  }
+  async function restorePairing() {
+    identity=await setting("identity");const saved=await setting("credential");
+    if(saved?.expiresAt>Date.now()&&saved.origin===location.origin){auth=saved;}
+    else if(saved||identity?.channel==="paired_pwa"){await forgetPairing();}
+  }
   async function boot() {
     db=await openDB();const savedLanguage=await setting("language");if(["en","it"].includes(savedLanguage))lang=savedLanguage;$("language").value=lang;
-    identity=await setting("identity");const saved=await setting("credential");if(saved?.expiresAt>Date.now()&&saved.origin===location.origin){auth=saved;}else if(saved){await saveSetting("credential",undefined);}
+    await restorePairing();
     capabilities=await setting("capabilities");
     try{capabilities=await api("/capabilities",undefined,{anonymous:true});await saveSetting("capabilities",capabilities);}catch(error){if(!capabilities)throw error;say("offline");}
     $("connect").hidden=capabilities.transport==="paired_pwa";$("pair-panel").hidden=capabilities.transport!=="paired_pwa";$("owner-panel").hidden=capabilities.transport!=="local_browser";
@@ -293,7 +302,7 @@
     $("language").onchange=()=>run(async()=>{lang=$("language").value;await saveSetting("language",lang);translate();await render();});
     $("connect").onclick=()=>run(connect);$("pair").onclick=()=>run(pair);$("capture-form").onsubmit=event=>run(()=>enqueue(event));$("retry").onclick=()=>run(flush);$("receipts").onclick=()=>run(serverReceipts);
     $("mode").onchange=()=>run(async()=>{await stopMedia();media=null;$("file").value="";limits();});$("camera").onclick=()=>run(camera);$("snapshot").onclick=()=>run(snapshot);$("record").onclick=()=>run(record);$("stop").onclick=()=>run(stopMedia);$("scan-qr").onclick=()=>run(scanQr);
-    $("forget").onclick=()=>run(async()=>{if(!confirm(WORDS[lang].forgetConfirm))return;auth=null;await saveSetting("credential",undefined);say("pairNeeded");});
+    $("forget").onclick=()=>run(async()=>{if(!confirm(WORDS[lang].forgetConfirm))return;await forgetPairing();limits();say("pairNeeded");});
     $("configure").onclick=()=>run(async()=>{await api("/admin/origin",{origin:$("origin").value,confirm_rebind:$("confirm-rebind").checked});$("confirm-rebind").checked=false;say("ownerDone");await ownerRefresh();});
     $("pair-qr").onclick=()=>run(async()=>{const value=await api("/admin/pair",{});if(qrUrl)URL.revokeObjectURL(qrUrl);qrUrl=URL.createObjectURL(new Blob([value.qr_svg],{type:"image/svg+xml"}));$("qr").src=qrUrl;$("qr").hidden=false;const {qr_svg,...code}=value;$("qr-text").value=JSON.stringify(code);$("qr-text").hidden=false;$("qr-status").textContent=WORDS[lang].qrExpiry+" "+value.origin+" "+value.instance_id+" "+value.scope;setTimeout(()=>{$("qr").hidden=true;$("qr-text").value="";$("qr-text").hidden=true;if(qrUrl)URL.revokeObjectURL(qrUrl);},120000);});
     $("owner-refresh").onclick=()=>run(ownerRefresh);

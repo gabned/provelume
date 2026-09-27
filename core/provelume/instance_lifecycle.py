@@ -446,6 +446,8 @@ class InstanceLifecycleManager:
                 or any(transaction_root.glob("transcript-intake-*"))
                 or any(transaction_root.glob("review-*"))
                 or any(transaction_root.glob("capture-*"))
+                or any(transaction_root.glob("device-authority-*"))
+                or any(transaction_root.glob("submission-quarantine-*"))
             )
         )
         if has_registered_transactions:

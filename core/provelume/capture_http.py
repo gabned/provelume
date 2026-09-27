@@ -440,7 +440,7 @@ def attach_capture_routes(app, store, *, paired_origin=None):
 def create_capture_app(instance_root, *, trusted_origin):
     """Separate listener factory, no management/Knowledge API; no proxy-header trust."""
     origin = trusted_capture_origin(trusted_origin)
-    store = InstanceStore(instance_root)
+    store = InstanceStore.open(instance_root)
     authority = CaptureAuthority(store)
     configured = authority.management()
     if configured["origin"] != origin or not configured["active"]:
