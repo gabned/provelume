@@ -175,9 +175,9 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const source=readFileSync('core/provelume/static/capture-shell.js','utf8')
  .replace(/\}\)\(\);\s*$/, 'globalThis.test={restorePairing,forgetPairing,limits,'+
- 'state:()=>({auth,identity}),setCapabilities:v=>capabilities=v};})();');
+ 'state:()=>({auth,identity}),setCapabilities:v=>capabilities=v,enqueue,sendRow};})();');
 const pending=[{id:'retained-request',payload_base64:'c3ludGhldGlj',device_id:'old-device'}];
-const original=JSON.stringify(pending);
+const original=JSON.stringify(pending);let now=Date.now();
 let saved={};const touched=[];
 const db={transaction(store,mode){
  assert.equal(store,'settings');touched.push({store,mode});
@@ -192,7 +192,8 @@ const scope={navigator:{language:'en'},location:{origin:'https://capture.test'},
  document:{addEventListener(){},getElementById:id=>elements[id]},queueMicrotask};
 const injected=source.replace('async function restorePairing() {',
  'async function restorePairing() { db=globalThis.fakeDB;');
-scope.fakeDB=db;vm.createContext(scope);vm.runInContext(injected,scope);
+scope.fakeDB=db;scope.Date={now:()=>now};
+vm.createContext(scope);vm.runInContext(injected,scope);
 scope.test.setCapabilities({modes:{text:{types:['text/plain']}}});
 for(const invalid of ['expired','foreign','missing']){
  saved={identity:{channel:'paired_pwa',device_id:'old-device'}};
@@ -202,8 +203,15 @@ for(const invalid of ['expired','foreign','missing']){
  assert.equal(elements.queue.disabled,true);assert.equal(saved.identity,undefined);
  assert.equal(saved.credential,undefined);assert.equal(JSON.stringify(pending),original);
 }
-saved={identity:{channel:'paired_pwa',device_id:'valid-device'},credential:{channel:'paired_pwa',expiresAt:Date.now()+10000,origin:'https://capture.test'}};
+saved={identity:{channel:'paired_pwa',device_id:'valid-device',instance_id:'synthetic'},
+ credential:{channel:'paired_pwa',device_id:'valid-device',instance_id:'synthetic',
+ expiresAt:now+10000,origin:'https://capture.test'}};
 await scope.test.restorePairing();scope.test.limits();assert.equal(elements.queue.disabled,false);
+now+=10001;scope.test.limits();assert.equal(elements.queue.disabled,true);
+await assert.rejects(scope.test.enqueue({preventDefault(){}}),/pair/);
+assert.equal(scope.test.state().identity,null);
+await assert.rejects(scope.test.sendRow('retained-request'),/pair/);
+assert.equal(scope.test.state().auth,null);
 await scope.test.forgetPairing();scope.test.limits();assert.equal(elements.queue.disabled,true);
 assert.equal(JSON.stringify(pending),original);assert(touched.every(x=>x.store==='settings'));
 console.log(JSON.stringify({invalid_pairing_disabled:true,pending_preserved:true}));
