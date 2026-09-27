@@ -41,7 +41,8 @@ class CapturePayload:
 
 
 def capture_capabilities() -> dict:
-    return {
+    decoder = PillowPhotoDecoder().capability()
+    value = {
         "schema_version": 1,
         "channel": "local_browser",
         "paired_transport": "explicit_https_configuration_required",
@@ -71,6 +72,7 @@ def capture_capabilities() -> dict:
                     "types": ["image/png", "image/jpeg"],
                     "maximum_pixels": 20_000_000,
                     "maximum_expansion_ratio": 100,
+                    "decoder": decoder,
                 }
                 for mode in ("photo", "scan", "screenshot")
             },
@@ -85,9 +87,7 @@ def capture_capabilities() -> dict:
                 for mode in ("audio", "voice_note")
             },
         },
-        "unavailable_modes": []
-        if PillowPhotoDecoder().capability()["state"] == "ready"
-        else ["photo", "scan", "screenshot"],
+        "unavailable_modes": [] if decoder["state"] == "ready" else ["photo", "scan", "screenshot"],
         "processing": {
             "photo": "Original only; OCR separate",
             "audio": "Original only; transcription separate",
@@ -96,6 +96,12 @@ def capture_capabilities() -> dict:
             "Untrusted Original bytes; explicit attachment download only; no antivirus claim."
         ),
     }
+    if decoder["state"] != "ready":
+        value["modes"]["file"]["types"] = [
+            kind for kind in value["modes"]["file"]["types"] if not kind.startswith("image/")
+        ]
+        value["modes"]["file"]["extensions"] = [".txt", ".md", ".pdf", ".wav"]
+    return value
 
 
 def validate_capture_payload(payload: bytes, metadata: dict) -> CapturePayload:

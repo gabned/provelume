@@ -82,7 +82,9 @@
     $("camera").hidden=!["photo","scan","screenshot"].includes(mode);$("snapshot").hidden=$("camera").hidden;
     $("record").hidden=mode!=="voice_note";
     if(cap){$("limits").textContent=WORDS[lang].limits+": "+JSON.stringify(cap);$("file").accept=cap.types.join(",");}
-    $("queue").disabled=!identity||!cap||(capabilities?.unavailable_modes||[]).includes(mode);
+    const unavailable=!cap||(capabilities?.unavailable_modes||[]).includes(mode);
+    $("camera").disabled=unavailable;$("record").disabled=unavailable;
+    $("queue").disabled=!identity||unavailable;
   }
   async function render() {
     const rows=await entries();$("outbox").replaceChildren();
@@ -120,7 +122,8 @@
     if(!blob||!blob.size)throw new Error(WORDS[lang].unsupported);
     const suffix=name.split(".").pop().toLowerCase(), types={txt:"text/plain",md:"text/markdown",pdf:"application/pdf",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",wav:"audio/wav"};
     const cap=capabilities.modes[mode], maximum=cap.maximum_bytes||({pdf:cap.maximum_pdf_bytes,png:cap.maximum_photo_bytes,jpg:cap.maximum_photo_bytes,jpeg:cap.maximum_photo_bytes,wav:cap.maximum_audio_bytes}[suffix]||cap.maximum_text_bytes);
-    if(!types[suffix]||blob.size>maximum||(capabilities.unavailable_modes||[]).includes(mode))throw new Error(WORDS[lang].unsupported);
+    const mime=mode==="url"?"text/uri-list":types[suffix];
+    if(!types[suffix]||!cap.types.includes(mime)||blob.size>maximum||(capabilities.unavailable_modes||[]).includes(mode))throw new Error(WORDS[lang].unsupported);
     const metadata={schema_version:1,client_submission_id:uuid(),captured_at:capturedAt,mode,channel:identity.channel,filename:name,declared_mime:mode==="url"?"text/uri-list":types[suffix]};
     for(const [id,key] of [["note","note"],["area","area_id"],["project","project_id"]]) if($(id).value)metadata[key]=$(id).value;
     const bytes=new Uint8Array(await blob.arrayBuffer()), encoded=bytes64(bytes), fp=await fingerprint(bytes,metadata);

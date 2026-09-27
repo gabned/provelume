@@ -550,7 +550,18 @@ def test_backup_transfer_and_deep_validation_preserve_photo_profile(tmp_path: Pa
 
 def test_support_registry_keeps_core_inspection_and_optional_preview_distinct(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(
+        PillowPhotoDecoder,
+        "capability",
+        lambda self: {
+            "state": "unavailable",
+            "component": "codec.pillow",
+            "version": None,
+            "qualified": False,
+        },
+    )
     instance, _versions = _seed(tmp_path, {"photo.png": _png()})
     support = instance.representation_support(profile_id="perceptio-photo-v1")
     records = {item["operation"]: item for item in support["records"]}

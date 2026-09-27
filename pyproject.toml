@@ -15,7 +15,6 @@ dependencies = [
   "jinja2>=3.1,<4",
   "keyring>=25.6,<26; sys_platform != 'win32'",
   "pypdf>=5,<7",
-  "Pillow==12.3.0",
   "qrcode==8.2",
   "pyyaml>=6,<7",
   "tzdata>=2026.3,<2027",
@@ -23,7 +22,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+capture = ["Pillow==12.3.0"]
 dev = [
+  "Pillow==12.3.0",
   "httpx>=0.28,<1",
   "pytest>=8,<9",
   "ruff>=0.11,<1",

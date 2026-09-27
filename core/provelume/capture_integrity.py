@@ -13,6 +13,16 @@ def capture_state_findings(store):
     manager = CaptureAdapter(store, authorize=lambda *args: None)
     try:
         manager.journal._read_ready()
+        if not any(
+            path.exists() or path.is_symlink()
+            for path in (
+                store.paths.state / "capture",
+                store.paths.state / "capture-processing",
+                store.paths.state / "capture-authority.json",
+                store.paths.state / "capture-quarantine.json",
+            )
+        ):
+            return []
         inventory = manager.journal._inventory()
         authority = CaptureAuthority(store).read()
         quarantine = CaptureQuarantine(store).read()

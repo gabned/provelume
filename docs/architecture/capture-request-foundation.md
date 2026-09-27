@@ -107,6 +107,9 @@ knowledge. Corrupt state fails visibly rather than resetting pairing.
 
 The effective matrix adds decoded PNG/JPEG for photo/scan/screenshot and validated
 PCM16 WAV for audio/voice. The browser explicitly starts camera/microphone capture;
+PNG/JPEG require the explicit external `capture` extra (`pip install 'provelume[capture]'`)
+with the existing qualified Pillow 12.3.0 decoder. Core packages keep native decoder
+payloads external; absent/incompatible decoders are declared unavailable before selection.
 unavailable/denied capability remains visible and file input remains available.
 Limits are declared before selection and enforced against actual bytes before server
 acknowledgement: text 512 KiB, URL 8 KiB, PDF 25 MiB/500 pages, images 20 MiB/20 million

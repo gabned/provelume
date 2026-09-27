@@ -407,3 +407,18 @@ def test_expiry_and_authentication_before_body_decode(store):
         == 400
     )
     assert client.get("/capture/submissions?credential=secret", headers=headers).status_code == 400
+
+
+def test_unavailable_photo_decoder_is_removed_from_file_selection(monkeypatch):
+    from provelume.capture_payloads import capture_capabilities
+    from provelume.photo_profiles import PillowPhotoDecoder
+
+    monkeypatch.setattr(
+        PillowPhotoDecoder,
+        "capability",
+        lambda self: {"state": "unavailable", "qualified": False},
+    )
+    capabilities = capture_capabilities()
+    assert capabilities["unavailable_modes"] == ["photo", "scan", "screenshot"]
+    assert not any(kind.startswith("image/") for kind in capabilities["modes"]["file"]["types"])
+    assert capabilities["modes"]["file"]["extensions"] == [".txt", ".md", ".pdf", ".wav"]
