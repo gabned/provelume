@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#164b72"><title>Provelume Capture</title>
+<link rel="stylesheet" href="/capture/style.css">
+<script defer src="/capture/shell.js" integrity="__CAPTURE_INTEGRITY__" crossorigin="anonymous"></script>
+</head><body><header><img src="/capture/icon.svg" width="40" height="40" alt="">
+<h1 data-i18n="title">Capture</h1><label><span data-i18n="language">Language</span>
+<select id="language"><option value="en">English</option><option value="it">Italiano</option></select></label></header>
+<main><p data-i18n="boundary">Originals remain untrusted. Files are not executed or scanned for malware. Downloads are explicit attachments.</p>
+<p id="transport" role="status"></p><p id="status" role="status" aria-live="polite"></p>
+<section><h2 data-i18n="connection">Connection</h2><button id="connect" data-i18n="connect">Connect local Capture</button>
+<div id="pair-panel" hidden><label><span data-i18n="pairCode">Pairing QR contents</span><textarea id="pair-code" maxlength="2048" rows="4" autocomplete="off" spellcheck="false"></textarea></label>
+<label><span data-i18n="deviceLabel">Device name</span><input id="device-label" maxlength="80" value="Personal device" autocomplete="off"></label>
+<label class="inline"><input id="retain-pairing" type="checkbox"><span data-i18n="retain">Keep scoped pairing on this browser for at most 30 days. Never shared with the worker cache.</span></label>
+<button id="pair" data-i18n="pair">Pair this device</button><button id="scan-qr" data-i18n="scanQr">Scan pairing QR</button>
+<button id="forget" data-i18n="forget">Forget local pairing</button></div>
+<button id="install" hidden data-i18n="install" aria-describedby="install-help">Install Capture</button>
+<p id="install-help" hidden role="status" aria-live="polite"></p></section>
+<section><h2 data-i18n="newCapture">Add a capture</h2><form id="capture-form">
+<label><span data-i18n="mode">Mode</span><select id="mode">
+<option value="file" data-i18n="file">File</option><option value="photo" data-i18n="photo">Photo</option>
+<option value="scan" data-i18n="scan">Scan</option><option value="screenshot" data-i18n="screenshot">Screenshot</option>
+<option value="pdf">PDF</option><option value="url" data-i18n="url">Link (no fetching)</option>
+<option value="text" data-i18n="text">Text</option><option value="audio" data-i18n="audio">Audio (PCM16 WAV)</option>
+<option value="voice_note" data-i18n="voice">Voice note</option></select></label>
+<p id="limits"></p><label id="file-label"><span data-i18n="chooseFile">Choose one file</span><input id="file" type="file"></label>
+<label id="text-label" hidden><span data-i18n="content">Text or one HTTP(S) link</span><textarea id="text" maxlength="500000" rows="5"></textarea></label>
+<div id="media-controls"><button type="button" id="camera" data-i18n="camera">Start camera</button>
+<button type="button" id="snapshot" disabled data-i18n="snapshot">Take photo / scan</button>
+<button type="button" id="record" data-i18n="record">Record voice note</button>
+<button type="button" id="stop" disabled data-i18n="stop">Stop media capture</button>
+<video id="video" playsinline muted hidden></video><p id="media-status" role="status"></p></div>
+<label><span data-i18n="note">Note (optional)</span><textarea id="note" maxlength="4096" rows="2"></textarea></label>
+<div class="columns"><label><span data-i18n="area">Area proposal (optional reference)</span><input id="area" maxlength="37"></label>
+<label><span data-i18n="project">Project proposal (optional reference)</span><input id="project" maxlength="40"></label></div>
+<p data-i18n="proposal">Proposals do not apply classification or create Claims, Decisions, Tasks or Calendar Events. Existing review permissions govern subsequent routing.</p>
+<button id="queue" type="submit" data-i18n="queue">Queue and send</button></form></section>
+<section><h2 data-i18n="outbox">Local outbox</h2><p data-i18n="retention">At most 16 items / 64 MiB. Pending bytes remain locally until an authoritative receipt. Acknowledgement removes pending bytes, not server knowledge. Local removal never cancels an accepted server submission.</p>
+<button id="retry" data-i18n="retryAll">Reconcile / retry queued captures</button><ul id="outbox" aria-live="polite"></ul>
+<button id="receipts" data-i18n="receipts">Refresh my server receipts</button><ul id="server-receipts"></ul></section>
+<section id="owner-panel" hidden><h2 data-i18n="owner">Local owner: devices and retained captures</h2>
+<p data-i18n="httpsHelp">The remote Capture listener is separate and disabled by default. Configure its exact HTTPS origin, then start it explicitly with a certificate. Management remains loopback-only. QR challenges expire in 120 seconds and are single-use.</p>
+<label><span data-i18n="origin">Trusted HTTPS Capture origin</span><input id="origin" type="url" placeholder="https://capture.example.test:8443" autocomplete="off"></label>
+<label class="inline"><input id="confirm-rebind" type="checkbox"><span data-i18n="rebind">Configure / rebind this destination and revoke existing pairing credentials. Acquired knowledge is retained.</span></label>
+<button id="configure" data-i18n="configure">Configure destination</button><button id="pair-qr" data-i18n="createQr">Create one-use pairing QR</button>
+<img id="qr" hidden alt="One-use scoped Capture pairing QR"><textarea id="qr-text" readonly hidden rows="5" aria-label="Pairing challenge contents"></textarea>
+<p id="qr-status" role="status"></p><ul id="devices"></ul>
+<button id="owner-refresh" data-i18n="ownerRefresh">Refresh retained Capture results</button><ul id="owner-captures"></ul>
+<p data-i18n="quarantineHelp">Rejection records quarantine with explicit retention. Undo records compensation. Neither action deletes, moves or purges Original bytes or canonical history. Archive/trash/purge are separate governed disposition actions in Knowledge.</p>
+<a href="/inbox" data-i18n="backInbox">Return to local Inbox</a></section>
+<dialog id="pair-confirm" aria-labelledby="pair-confirm-title" aria-describedby="pair-confirm-destination">
+<h2 id="pair-confirm-title"></h2><pre id="pair-confirm-destination"></pre>
+<button type="button" id="pair-confirm-cancel">Cancel</button><button type="button" id="pair-confirm-accept">Confirm pairing</button></dialog>
+<noscript>Capture requires JavaScript. Local Inbox and Knowledge remain available.</noscript></main></body></html>

@@ -216,8 +216,10 @@ class _Reader:
         owners = set(queues) | (previous[1] if previous else set())
         try:
             self._safe(path)
-            if (self.bytes_read >= MAX_SNAPSHOT_BYTES
-                or path.stat().st_size > MAX_SNAPSHOT_BYTES - self.bytes_read):
+            if (
+                self.bytes_read >= MAX_SNAPSHOT_BYTES
+                or path.stat().st_size > MAX_SNAPSHOT_BYTES - self.bytes_read
+            ):
                 self.problem(queues, "snapshot_byte_bound")
                 raise ValueError("derived text snapshot byte bound")
             raw = self._bytes(path)
@@ -573,7 +575,8 @@ class _Projection:
                 self.reader.problem((queue,), "duplicate_rule_invalid")
                 continue
             if (
-                queue == "probable_duplicate" and marker
+                queue == "probable_duplicate"
+                and marker
                 and isinstance(marker.get("text_inventory"), dict)
                 and duplicate_comparison_digest(snapshots, marker["text_inventory"])
                 != evidence["comparison_input_digest"]
@@ -605,7 +608,9 @@ class _Projection:
             )
 
     def duplicate_scan_observation(
-        self, marker: dict[str, Any] | None, cases: dict[str, dict[str, Any]],
+        self,
+        marker: dict[str, Any] | None,
+        cases: dict[str, dict[str, Any]],
         queues: tuple[str, ...],
     ) -> None:
         reader = self.reader
@@ -625,8 +630,16 @@ class _Projection:
             reader.problem(queues, "duplicate_scan_incomplete")
             return
         if (
-            set(marker) != {"schema_version", "operation_id", "status", "input_digest",
-                            "case_inventory", "text_inventory", "complete_queues"}
+            set(marker)
+            != {
+                "schema_version",
+                "operation_id",
+                "status",
+                "input_digest",
+                "case_inventory",
+                "text_inventory",
+                "complete_queues",
+            }
             or not isinstance(marker.get("complete_queues"), dict)
             or set(marker["complete_queues"]) != set(queues)
             or any(type(value) is not bool for value in marker["complete_queues"].values())
@@ -636,10 +649,12 @@ class _Projection:
         expected = {key: duplicate_record_digest(case) for key, case in sorted(cases.items())}
         if marker.get("case_inventory") != expected:
             reader.problem(queues, "duplicate_scan_inventory_mismatch")
-        current_input = duplicate_input_digest({
-            kind: list(self.canonical[kind].values())
-            for kind in ("documents", "versions", "acquisitions")
-        })
+        current_input = duplicate_input_digest(
+            {
+                kind: list(self.canonical[kind].values())
+                for kind in ("documents", "versions", "acquisitions")
+            }
+        )
         if marker.get("input_digest") != current_input:
             reader.problem(queues, "duplicate_scan_input_stale")
         text_store = _DuplicateTextStore(self)
@@ -658,7 +673,8 @@ class _Projection:
             queues,
         )
         if (
-            not operation or operation.get("id") != marker["operation_id"]
+            not operation
+            or operation.get("id") != marker["operation_id"]
             or operation.get("kind") != "duplicate.scan"
             or operation.get("status") not in {"completed", "completed_with_errors"}
         ):
@@ -838,6 +854,76 @@ class _Projection:
                     {**lineage, "producer": "acquisition", "acquisition_id": acquisition["id"]},
                     links=self.document_links(lineage["document_id"]),
                 )
+
+    def capture(self) -> None:
+        from .capture_journal import CaptureJournal
+        from .capture_quarantine import CaptureQuarantine
+
+        journal = CaptureJournal(self.store)
+        journal._read_ready()
+        root = self.store.paths.state / "capture"
+        try:
+            names = self.reader._names(root)
+        except FileNotFoundError:
+            names = ()
+        self.reader.directories[root] = (names, set(_INTAKE_QUEUES))
+        quarantine = self.reader.record(
+            self.store.paths.state / "capture-quarantine.json", _INTAKE_QUEUES, optional=True
+        )
+        if quarantine is not None:
+            CaptureQuarantine(self.store).validate(quarantine)
+        retained = (quarantine or {}).get("items", {})
+        for name in names[:128]:
+            if not re.fullmatch(r"dev_[0-9a-f]{32}", name):
+                self.reader.problem(_INTAKE_QUEUES, "capture_device_invalid")
+                continue
+            filenames = self.reader._names(root / name)
+            self.reader.directories[root / name] = (filenames, set(_INTAKE_QUEUES))
+            if len(filenames) > 128:
+                self.reader.problem(_INTAKE_QUEUES, "capture_record_bound")
+            for filename in filenames[:128]:
+                path = root / name / filename
+                row = self.reader.record(path, _INTAKE_QUEUES)
+                if row is None:
+                    continue
+                for queue in _INTAKE_QUEUES:
+                    self.reader.observed[queue] += 1
+                relative = str(path.relative_to(self.store.paths.root)).replace("\\", "/")
+                journal._validate(json.dumps(row).encode(), relative)
+                receipt = row["receipt"]
+                acquired = self.reader.record(
+                    self.store.paths.state / "capture-processing" / f"{receipt['id']}.json",
+                    _INTAKE_QUEUES,
+                    optional=True,
+                )
+                quarantined = retained.get(receipt["id"], {}).get("action") == "quarantine"
+                attention = acquired and acquired.get("processing", {}).get("status") == "attention"
+                if acquired is not None and not quarantined and not attention:
+                    continue
+                evidence = {
+                    "producer": "capture",
+                    "submission_id": receipt["id"],
+                    "device_id": receipt["device_id"],
+                    "mode": receipt["metadata"]["mode"],
+                    "status": "quarantined"
+                    if quarantined
+                    else "attention"
+                    if attention
+                    else "acknowledged",
+                    "acquisition_id": acquired.get("acquisition_id") if acquired else None,
+                    "quarantine": retained.get(receipt["id"]),
+                }
+                self.emit(
+                    "extraction_error" if attention and not quarantined else "intake",
+                    receipt["id"],
+                    "review_capture",
+                    evidence["status"],
+                    evidence,
+                    links=[{"href": "/capture/", "kind": "intake"}],
+                )
+        if len(names) > 128:
+            self.reader.problem(_INTAKE_QUEUES, "capture_device_bound")
+        journal._read_ready()
 
     def acquisition_lineage(self, acquisition: dict[str, Any], queue: str) -> dict[str, Any] | None:
         lineage = self.lineage(acquisition.get("document_id"), queue, acquisition.get("version_id"))
@@ -1246,9 +1332,12 @@ def domain_review_target(item: dict[str, Any]) -> dict[str, Any] | None:
     ):
         return None
     return {
-        "domain": domain, "subject": subject, "actions": list(actions),
+        "domain": domain,
+        "subject": subject,
+        "actions": list(actions),
         "href": f"/review/decisions/{domain}/{subject}",
-        "requires_fresh_preview": True, "grants_mutation_authority": False,
+        "requires_fresh_preview": True,
+        "grants_mutation_authority": False,
     }
 
 
@@ -1264,6 +1353,7 @@ def collect_proposals(store: InstanceStore) -> dict[str, Any]:
         (projection.classification_retention, ("classification", "retention")),
         (projection.duplicates, ("exact_duplicate", "probable_duplicate")),
         (projection.intake, _INTAKE_QUEUES),
+        (projection.capture, _INTAKE_QUEUES),
         (projection.extraction_jobs, ("extraction_error",)),
         (projection.sources, ("source_change",)),
     ):

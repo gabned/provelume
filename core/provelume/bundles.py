@@ -304,6 +304,10 @@ class DocumentBundleManager:
         locator = str(document["locator"])
         web_locator = urlsplit(locator).scheme in {"http", "https"}
         extractor = None if web_locator else extractor_for(Path(locator))
+        if extractor is None and not web_locator:
+            from .capture_projection import capture_document_extractor
+
+            extractor = capture_document_extractor(self.store, document)
         try:
             extraction = (
                 extract_web_readable_text(str(document["media_type"]), data)

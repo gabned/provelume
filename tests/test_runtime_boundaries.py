@@ -16,7 +16,8 @@ def test_browser_assets_are_local() -> None:
     assets = [*package.glob("templates/*.html"), *package.glob("static/**/*")]
     assets = [path for path in assets if path.is_file()]
     assert all(
-        path.suffix in {".html", ".css", ".js", ".svg", ".json", ".png", ".ico"} for path in assets
+        path.suffix in {".html", ".css", ".js", ".svg", ".json", ".png", ".ico", ".webmanifest"}
+        for path in assets
     )
     text = "\n".join(
         path.read_text(encoding="utf-8") for path in assets if path.suffix not in {".png", ".ico"}

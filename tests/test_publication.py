@@ -248,4 +248,7 @@ def test_packaged_credits_have_real_offline_texts():
     assert about["credits"]["notice_texts"]["Lucide LICENSE"] == Path(
         "core/provelume/notices/lucide-LICENSE.txt"
     ).read_text(encoding="utf-8")
+    assert about["credits"]["notice_texts"]["qrcode LICENSE"] == Path(
+        "core/provelume/notices/qrcode-LICENSE.txt"
+    ).read_text(encoding="utf-8")
     assert about["public_links"]["repository"] == "https://github.com/gabned/provelume"

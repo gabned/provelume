@@ -19,6 +19,7 @@ NOTICE_NAMES = ("LICENSE", "NOTICE.md", "THIRD_PARTY_NOTICES.md")
 NOTICE_RESOURCES = {
     **{name: ("notices", name) for name in NOTICE_NAMES},
     "Lucide LICENSE": ("notices", "lucide-LICENSE.txt"),
+    "qrcode LICENSE": ("notices", "qrcode-LICENSE.txt"),
 }
 
 

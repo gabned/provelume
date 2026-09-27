@@ -65,6 +65,9 @@ def test_synthetic_parity_binds_bytes_without_network_or_candidate_import(packag
         "notices/lucide-LICENSE.txt",
         "i18n/it.json",
         "static/cura-shell.js",
+        "notices/qrcode-LICENSE.txt",
+        "templates/capture.html",
+        *(name for name in verifier.STATIC_FILES if name.startswith("static/capture")),
     ],
 )
 @pytest.mark.parametrize("mutation", ["missing", "changed"])

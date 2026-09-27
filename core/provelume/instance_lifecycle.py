@@ -177,8 +177,14 @@ class InstanceLifecycleManager:
                         ) from exc
             # A crashed reviewed decision may expose only some domain writes.
             # Every lifecycle writer recovers it before reading a preimage.
+            from .capture_authority import recover_capture_authority_locked
+            from .capture_journal import recover_capture_transactions_locked
+            from .capture_quarantine import recover_capture_quarantine_locked
             from .review_runtime import recover_review_transactions_locked
 
+            recover_capture_authority_locked(self.store)
+            recover_capture_transactions_locked(self.store)
+            recover_capture_quarantine_locked(self.store)
             if selected_purpose != "instance-transaction-recovery":
                 recover_review_transactions_locked(self.store)
             yield owner
@@ -439,6 +445,7 @@ class InstanceLifecycleManager:
                 or any(transaction_root.glob("google-intake-*"))
                 or any(transaction_root.glob("transcript-intake-*"))
                 or any(transaction_root.glob("review-*"))
+                or any(transaction_root.glob("capture-*"))
             )
         )
         if has_registered_transactions:

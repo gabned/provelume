@@ -11,6 +11,13 @@ Direct runtime dependencies in the current Python package include:
 | pypdf | local PDF text extraction | BSD-3-Clause |
 | PyYAML | Instance configuration | MIT |
 | Uvicorn | local ASGI server | BSD-3-Clause |
+| qrcode 8.2 | local single-use pairing QR encoding | BSD-3-Clause AND inherited MIT notice |
+
+Capture uses qrcode's pure SVG encoder; it does not bundle an image decoder or invoke
+an external QR service. The complete unchanged upstream license, including Lincoln
+Loop (2011) and Kazuhiko Arase (2009) notices, is packaged at
+`provelume/notices/qrcode-LICENSE.txt`. Pillow remains an explicitly installed external
+component for the optional Capture PNG/JPEG decoder; its existing notices below apply.
 
 Release-build tooling includes:
 
