@@ -44,7 +44,32 @@ individual records are bounded to 36 MiB and payloads retain the 25 MiB identity
 limit. Full state fails visibly and never trims history. Base64 is storage encoding,
 not protection or a malware scan. Stored submitted bytes remain untrusted.
 
-Before external acknowledgement, the real adapter must authenticate
+`CaptureAdapter` now supplies the domain guards and a separate bounded atomic
+acquisition profile. Its required authority callback runs before entering mutation
+and again under lifecycle, including replay; the transport must still supply real
+authentication and revocation. Proposal references require existing matching
+Area/Project nodes and explicit callback permission. Capacity admission gates new
+submissions and acquisitions; historical committed acknowledgements remain available.
+
+The effective internal matrix admits bounded UTF-8 text, a single HTTP(S) URL without
+credentials (preserved without fetching), and structurally validated unencrypted
+PDFs; file mode is restricted to `.txt`, `.md` and `.pdf`. Declared MIME mismatch,
+malformed bytes and unavailable modes fail before acknowledgement. The capability
+description lists unsupported photo/scan/screenshot/audio/voice modes and the absent
+paired transport. There is still no browser route or usable capture UI.
+
+Each device has a deterministic Capture Source. Distinct submission occurrences
+retain distinct Documents/Acquisitions even when they share one exact Original.
+The acquisition receipt, canonical records, Original, derived text and provenance
+commit together. The profile permits at most 20 immutable entries, 32 MiB per entry
+and 40 MiB in candidates/journal. Domain receipt/path/byte bindings are checked before
+recovering an interrupted transaction. Prepared writes roll back; a durable commit
+retains its original acquisition receipt, so retry never duplicates acquisition.
+Lookup/detail remains pure and refuses pending recovery. Extraction failure records
+attention while retaining the Original; S05 routing and the search projection follow
+the canonical commit and cannot roll it back. S05 retains its own authority gates.
+
+Before external acknowledgement, the transport adapter must authenticate
 and recheck current revocation, enforce reference authority and actual byte/type
 validation, and commit the authoritative receipt. Processing and S05 routing follow
 that commit through their existing lifecycle, without nested mutation locks or a

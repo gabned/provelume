@@ -196,6 +196,7 @@ class CaptureJournal:
         transport_channel: str,
         authorize: Callable[[str], None],
         validate_payload: Callable[[bytes, dict], None],
+        admission: Callable[[int], None] | None = None,
     ) -> dict:
         # Freeze client input before calling domain guards or acquiring a lock.
         selected = validate_capture_metadata(metadata, transport_channel=transport_channel)
@@ -242,6 +243,8 @@ class CaptureJournal:
             ):
                 raise CaptureJournalError("Capture journal byte budget exhausted")
             self._validate(data, relative)
+            if admission is not None:
+                admission(len(data) * 2 + 72 * 1024)
             transaction = AtomicInstanceCommit(
                 self.store,
                 self.lifecycle.control_root / "transactions",
@@ -261,6 +264,8 @@ def recover_capture_transactions_locked(store: InstanceStore):
     if not root.exists():
         return None
     for index, stage in enumerate(root.glob("capture-*")):
+        if stage.name.startswith("capture-acquisition-"):
+            continue
         if index >= MAX_RECORDS or not PROFILE.transaction_pattern.fullmatch(stage.name):
             raise CaptureJournalError("invalid Capture recovery inventory")
         _safe(stage)
@@ -288,6 +293,9 @@ def recover_capture_transactions_locked(store: InstanceStore):
                 record = journal._validate(_read(path), relative)
                 if record["receipt"]["id"] != manifest.get("operation_id"):
                     raise CaptureJournalError("Capture recovery owner mismatch")
+    from .capture_adapter import recover_capture_acquisitions_locked
+
+    recover_capture_acquisitions_locked(store)
     return recover_atomic_transactions(
         store, journal.lifecycle.control_root, handlers=(AtomicRecoveryHandler(profile=PROFILE),)
     )
