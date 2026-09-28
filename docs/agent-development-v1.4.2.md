@@ -1,5 +1,46 @@
 # Agent Development Protocol 1.4.2
 
+## Pending independent Protocol Core registration
+
+Campaign [#292](https://github.com/gabned/provelume/issues/292) registers exactly
+`.github/agent-protocol/transfer-v1.5.0.json`,
+`.github/agent-protocol/documents-v1.5.0.json`,
+`docs/agent-development-v1.5.0.md`, `tools/agent_protocol_transfer.py`,
+`tests/test_agent_protocol_transfer.py`, `tools/agent_protocol_v2.py` and
+`tests/test_agent_protocol_v2.py`. Registration creates none of these files and
+does not activate a new engine, authority, schema, policy, package or release.
+Only this prerequisite's accepted merge permits their later implementation.
+
+The destination is the independent public `gabned/agent-protocol` repository.
+The Provelume product Core remains here and will become a Protocol consumer.
+The transfer must be qualified here, by the accepted predecessor, before the
+destination can qualify its own changes. A candidate's repository declaration,
+editable PR description or recomputed digest cannot establish source authority.
+The transfer record must bind the accepted source commit, complete exact file
+inventory, source and destination paths, Git blob IDs, SHA-256 values, executable
+modes, dependencies and applicable license/attribution. Preserve byte transfer
+separately from functional changes. Copy no product history or private material.
+Never remove the historical source or invalidate supported legacy receipts.
+
+Before relocation, the accepted predecessor must qualify exact destination
+package, documentation, launcher, fixture, CI and artifact inventories. It must
+also qualify the destination's guard, acquisition and publication contract. The
+initial registration is not permission to broaden path prefixes, skip native
+checks, self-certify a destination policy or publish application releases.
+
+The successor may implement an audit bound to an independently supplied exact
+authorized inventory. It must not read any repository absent from that inventory
+or require an unrelated registry. Consumer details remain in authorized private
+ledgers; public fixtures use synthetic identities. Adoption, state migration and
+compatibility cleanup have separate acceptance evidence. Active PRODUCT owners
+and all original authorizations, failures and receipts remain preserved.
+
+The successor's common milestone/handoff contract must state verified progress,
+one immediate next action, where to execute it and the remaining milestones.
+Continue already-authorized work in the same session. A new prompt is appropriate
+only for a real context handoff; proposals do not authorize new work. Unknown
+measurements and unexecuted checks stay explicitly unknown or NOT_RUN.
+
 ## Pending 1.4.9 contract registration
 
 Campaign [#286](https://github.com/gabned/provelume/issues/286) registers exactly
