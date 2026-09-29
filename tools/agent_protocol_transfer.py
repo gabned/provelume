@@ -270,11 +270,68 @@ def verify_source(manifest, observations, *, trusted_manifest, accepted_predeces
     return {"result": "SOURCE_BYTES_VERIFIED", "source_commit": manifest["source_commit"]}
 
 
-def verify_destination(manifest, observations, *, trusted_manifest, accepted_predecessor):
+def verify_destination(
+    manifest,
+    observations,
+    *,
+    trusted_manifest,
+    accepted_predecessor,
+    accepted_history=None,
+    trusted_history=None,
+):
     validate_manifest(
         manifest, trusted_manifest=trusted_manifest, accepted_predecessor=accepted_predecessor
     )
     correction = manifest["schema"] == "agent-protocol-transfer/v2"
+    if correction:
+        # This host-selected input is outside the candidate manifest/observations.
+        # Its digest binds retained bytes; the host authenticates the predecessor
+        # qualification and original byte receipt before selecting this context.
+        require(
+            isinstance(accepted_history, list)
+            and accepted_history
+            and isinstance(trusted_history, str)
+            and digest(accepted_history) == trusted_history,
+            "Independent authenticated historical qualification is required",
+        )
+        require(
+            len(accepted_history) == len(manifest["bootstrap_history"]),
+            "Historical qualification inventory differs",
+        )
+        for actual, claim in zip(accepted_history, manifest["bootstrap_history"], strict=True):
+            require(
+                set(actual)
+                == {
+                    "source_repository",
+                    "qualification_commit",
+                    "manifest_sha256",
+                    "destination_repository",
+                    "destination_id",
+                    "destination_commit",
+                    "destination_parent",
+                    "destination_tree",
+                },
+                "Unknown historical qualification proof fields",
+            )
+            expected = {
+                "source_repository": manifest["source_repository"],
+                "qualification_commit": claim["qualified_by"],
+                "manifest_sha256": claim["manifest_sha256"],
+                "destination_repository": manifest["destination_repository"],
+                "destination_id": manifest["destination_id"],
+                "destination_commit": claim["commit"],
+                "destination_parent": claim["parent"],
+                "destination_tree": claim["tree"],
+            }
+            require(
+                actual == expected,
+                "Candidate history differs from independently authenticated qualification",
+            )
+    else:
+        require(
+            accepted_history is None and trusted_history is None,
+            "Historical qualification inputs do not apply to transfer-v1",
+        )
     require(
         set(observations)
         == (
@@ -455,6 +512,8 @@ def main():
     parser.add_argument("--observations", type=Path)
     parser.add_argument("--source-root", type=Path)
     parser.add_argument("--destination", type=Path)
+    parser.add_argument("--accepted-history", type=Path)
+    parser.add_argument("--trusted-history")
     args = parser.parse_args()
     try:
         manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
@@ -476,8 +535,23 @@ def main():
             result = materialize(manifest, args.source_root, args.destination, **trust)
         else:
             require(args.observations is not None, "Destination observations required")
-            verifier = verify_source if args.operation == "verify-source" else verify_destination
-            result = verifier(manifest, json.loads(args.observations.read_text()), **trust)
+            observations = json.loads(args.observations.read_text(encoding="utf-8"))
+            if args.operation == "verify-source":
+                require(
+                    args.accepted_history is None and args.trusted_history is None,
+                    "Historical qualification applies only to destination verification",
+                )
+                result = verify_source(manifest, observations, **trust)
+            else:
+                result = verify_destination(
+                    manifest,
+                    observations,
+                    **trust,
+                    accepted_history=json.loads(args.accepted_history.read_text(encoding="utf-8"))
+                    if args.accepted_history
+                    else None,
+                    trusted_history=args.trusted_history,
+                )
         print(json.dumps(result, sort_keys=True))
         return 0
     except (ValueError, TypeError, KeyError, OSError) as error:

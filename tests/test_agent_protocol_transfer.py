@@ -59,6 +59,40 @@ def fixture():
 
 
 class TransferTests(unittest.TestCase):
+    def test_missing_independent_history_blocks_destination_verification(self):
+        manifest, observation = self.correction_fixture()
+        with self.assertRaisesRegex(ValueError, "Independent authenticated"):
+            self.verify(manifest, observation, accepted_history=None, trusted_history=None)
+
+    def test_current_manifest_cannot_reassign_a_historical_qualification(self):
+        manifest, observation = self.correction_fixture()
+        for field in ["qualified_by", "manifest_sha256"]:
+            changed = copy.deepcopy(manifest)
+            changed["bootstrap_history"][0][field] = "9" * len(
+                changed["bootstrap_history"][0][field]
+            )
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, "independently"):
+                self.verify(changed, observation)
+
+    def test_replaced_host_history_fails_its_independently_retained_digest(self):
+        manifest, observation = self.correction_fixture()
+        accepted = [
+            {
+                "source_repository": "gabned/provelume",
+                "qualification_commit": "1" * 40,
+                "manifest_sha256": "2" * 64,
+                "destination_repository": "gabned/agent-protocol",
+                "destination_id": 123,
+                "destination_commit": "e" * 40,
+                "destination_parent": "d" * 40,
+                "destination_tree": "f" * 40,
+            }
+        ]
+        trusted = transfer.digest(accepted)
+        accepted[0]["qualification_commit"] = "9" * 40
+        with self.assertRaisesRegex(ValueError, "Independent authenticated"):
+            self.verify(manifest, observation, accepted_history=accepted, trusted_history=trusted)
+
     def correction_fixture(self):
         manifest, observation = fixture()
         manifest.update(
@@ -198,12 +232,29 @@ class TransferTests(unittest.TestCase):
             transfer.verify_source(manifest, source, **trust)["result"], "SOURCE_BYTES_VERIFIED"
         )
 
-    def verify(self, manifest, observation, trusted=None):
+    def verify(self, manifest, observation, trusted=None, **history):
+        if manifest["schema"] == "agent-protocol-transfer/v2" and not history:
+            # Independently selected synthetic predecessor receipt, not derived
+            # from the candidate's bootstrap_history claims.
+            accepted = [
+                {
+                    "source_repository": "gabned/provelume",
+                    "qualification_commit": "1" * 40,
+                    "manifest_sha256": "2" * 64,
+                    "destination_repository": "gabned/agent-protocol",
+                    "destination_id": 123,
+                    "destination_commit": "e" * 40,
+                    "destination_parent": "d" * 40,
+                    "destination_tree": "f" * 40,
+                }
+            ]
+            history = {"accepted_history": accepted, "trusted_history": transfer.digest(accepted)}
         return transfer.verify_destination(
             manifest,
             observation,
             trusted_manifest=trusted or transfer.digest(manifest),
             accepted_predecessor=manifest["source_commit"],
+            **history,
         )
 
     def test_exact_transfer_is_byte_evidence_without_publication_authority(self):
