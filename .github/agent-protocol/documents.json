@@ -3,7 +3,7 @@
   "documents": [
     {
       "path": "docs/agent-protocol/operations.md",
-      "sha256": "155e817b4557ad44ed90aea63d88d43511e09f98934d877ff2eb786d6a8bf2dc",
+      "sha256": "71baa4806e68c3e6a1907534dab40b726e8d2f1a2845908f520fb161469ee26d",
       "phases": [
         "START",
         "IMPLEMENT",
@@ -46,7 +46,7 @@
     },
     {
       "path": "docs/agent-protocol/compatibility.md",
-      "sha256": "488a03b7733a5367e428e963e31c0fb0057a41d19d3c632d63afac9bfd1d82f1",
+      "sha256": "d35f4c9a7c9e2f8cc5af262a063ff724bb724ec6bd155e823e29b2585e81336c",
       "phases": [
         "START",
         "RECOVER",

@@ -12,6 +12,11 @@ START --host CLI --workstream PROTOCOL`; use the actual context rather than this
 example. `engine` forwards the public canonical CLI, and `collect` forwards the
 canonical read-only Node collector. Work invokes the same package and collector
 through authenticated connectors, with the same pin and accepted local profile.
+The existing Work module exports `collectLifecycle` from the canonical package;
+its historical exports are tested compatibility shims. On Provelume the trusted
+PR workflow invokes `event-guard` through the same native adapter, preserving the
+accepted local classifier, event binding and scope restrictions. The event guard
+checks scope; it does not claim a journal operation or replace qualification.
 Keep tool caches in `.agent/`; for Ruff use `--cache-dir .agent/ruff-cache` so its
 nested configuration does not create extra files inside the immutable vendor tree.
 

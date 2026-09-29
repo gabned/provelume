@@ -703,5 +703,950 @@
       "treatment": "VENDOR_CANONICAL"
     }
   ],
-  "legacy_policy": "PRESERVE_ORIGINAL_RECEIPTS_AND_VALIDATORS"
+  "legacy_policy": "PRESERVE_ORIGINAL_RECEIPTS_AND_VALIDATORS",
+  "local_file_map": [
+    {
+      "path": ".github/agent-protocol/conformance-v1.4.1.json",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": ".github/agent-protocol/conformance-v1.4.1.json",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "723796ebf0adf078ab9613bae52beb8e3e49898d9309ca5f3f06c0be33c09be1",
+      "current_sha256": "723796ebf0adf078ab9613bae52beb8e3e49898d9309ca5f3f06c0be33c09be1",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        ".github/workflows/ci.yml",
+        "docs/agent-development-v1.4.1.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_4_1.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": ".github/agent-protocol/documents-v1.4.7.json",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": ".github/agent-protocol/documents-v1.4.7.json",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "d30add2ffc0905b0d14682b56c7786127223cf9ebfc03fc45ef1b05563290b16",
+      "current_sha256": "d30add2ffc0905b0d14682b56c7786127223cf9ebfc03fc45ef1b05563290b16",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.2.md",
+        "docs/agent-development-v1.4.7.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": ".github/agent-protocol/documents-v1.4.8.json",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": ".github/agent-protocol/documents-v1.4.8.json",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "5ce6bfedcbe44f5ce275b48b0168bd7db1434880c00f724e31c46ec857823227",
+      "current_sha256": "5ce6bfedcbe44f5ce275b48b0168bd7db1434880c00f724e31c46ec857823227",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.2.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_4_2_ops.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": ".github/agent-protocol/documents-v1.4.9.json",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": ".github/agent-protocol/documents-v1.4.9.json",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "1197dda489df6f8ae3368eb55e38478ff4adf2ee846bd3ac0d4ff7f6f919670d",
+      "current_sha256": "e77ebdc32cd75800d43a7aef22120f7dcd8271245728a1c1e345fd6591f7a220",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.2.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_4_2_ops.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": ".github/agent-protocol/transfer-v1.5.0.json",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": ".github/agent-protocol/transfer-v1.5.0.json",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "f125f1beb7c18546237683290ab1122cc813fd83855d5cc692626a9850b86cae",
+      "current_sha256": "e4fe6164e00a288928c418db84af60578432beb3f20c22173377d5e8a69fc194",
+      "references": [
+        ".github/workflows/ci.yml",
+        "docs/agent-development-v1.4.2.md",
+        "tests/test_agent_protocol_transfer.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": ".github/pull_request_template.md",
+      "role": "native routing or local change control",
+      "destination": ".github/pull_request_template.md",
+      "treatment": "KEEP",
+      "baseline_sha256": "7e5287271b16505b40836c615eecbcf9190b01368e4fa446a2bb4f9b40e38f08",
+      "current_sha256": "7e5287271b16505b40836c615eecbcf9190b01368e4fa446a2bb4f9b40e38f08"
+    },
+    {
+      "path": ".github/workflows/audio-smoke.yml",
+      "role": "native product gate/trigger, unchanged",
+      "destination": ".github/workflows/audio-smoke.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "f376296a86510b813a1a6491936b2de544ab517855835591f0e0eee8cd0bd27f",
+      "current_sha256": "f376296a86510b813a1a6491936b2de544ab517855835591f0e0eee8cd0bd27f"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "role": "native routing or local change control",
+      "destination": ".github/workflows/ci.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "817d70d2b014fa57498355aec4d98b481ded64c17a2503410dbaaf5c36904c2d",
+      "current_sha256": "eacd6ca82e2dff7adb72cb7ff3bc6f92c6fe285edbda91e6461ffa895f6c03ef"
+    },
+    {
+      "path": ".github/workflows/email-smoke.yml",
+      "role": "native product gate/trigger, unchanged",
+      "destination": ".github/workflows/email-smoke.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "8a65db65b85cd2f0f5a2bf3cd7d3a3ef2ca999af2434cd12bc97aacb2aa752d2",
+      "current_sha256": "8a65db65b85cd2f0f5a2bf3cd7d3a3ef2ca999af2434cd12bc97aacb2aa752d2"
+    },
+    {
+      "path": ".github/workflows/file-family-smoke.yml",
+      "role": "native product gate/trigger, unchanged",
+      "destination": ".github/workflows/file-family-smoke.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "5704ba73202fbeb54a1a005b98a5f105da6e906399d5b7847a20011db5be0b5b",
+      "current_sha256": "5704ba73202fbeb54a1a005b98a5f105da6e906399d5b7847a20011db5be0b5b"
+    },
+    {
+      "path": ".github/workflows/google-smoke.yml",
+      "role": "native product gate/trigger, unchanged",
+      "destination": ".github/workflows/google-smoke.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "0281fe245cf3619b79d3f34d5cfd4aa30baec366324ef7059f705448953ead4b",
+      "current_sha256": "0281fe245cf3619b79d3f34d5cfd4aa30baec366324ef7059f705448953ead4b"
+    },
+    {
+      "path": ".github/workflows/ocr-smoke.yml",
+      "role": "native product gate/trigger, unchanged",
+      "destination": ".github/workflows/ocr-smoke.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "cef336da82de3141bcdf9fefac851ac4c2c28b3babf26a14d29cc2e407e73014",
+      "current_sha256": "cef336da82de3141bcdf9fefac851ac4c2c28b3babf26a14d29cc2e407e73014"
+    },
+    {
+      "path": ".github/workflows/perceptio-final-qualification.yml",
+      "role": "native product gate/trigger, unchanged",
+      "destination": ".github/workflows/perceptio-final-qualification.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "a58b75076f85cb460d9e98b1500746b4a7cadf198c1064fb14430fd1259137f7",
+      "current_sha256": "a58b75076f85cb460d9e98b1500746b4a7cadf198c1064fb14430fd1259137f7"
+    },
+    {
+      "path": ".github/workflows/qualification-smoke.yml",
+      "role": "native product gate/trigger, unchanged",
+      "destination": ".github/workflows/qualification-smoke.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "29aa8267cfec1c92d78b87996673227f82e88b08ab5ba8843b897db8e3ce08d1",
+      "current_sha256": "29aa8267cfec1c92d78b87996673227f82e88b08ab5ba8843b897db8e3ce08d1"
+    },
+    {
+      "path": ".github/workflows/refresh-build-input-lock.yml",
+      "role": "native product gate/trigger, unchanged",
+      "destination": ".github/workflows/refresh-build-input-lock.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "3ee7803002dce18725a6c3d5a01a4466cb19ed6712110851750addc87be9001b",
+      "current_sha256": "3ee7803002dce18725a6c3d5a01a4466cb19ed6712110851750addc87be9001b"
+    },
+    {
+      "path": ".github/workflows/release-dry-run.yml",
+      "role": "native product gate/trigger, unchanged",
+      "destination": ".github/workflows/release-dry-run.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "a915e56f063d9eb558b3337c2f65068b1d68c1a7304e7c3f4c938b83c26ac875",
+      "current_sha256": "a915e56f063d9eb558b3337c2f65068b1d68c1a7304e7c3f4c938b83c26ac875"
+    },
+    {
+      "path": ".github/workflows/release-pipeline.yml",
+      "role": "native product gate/trigger, unchanged",
+      "destination": ".github/workflows/release-pipeline.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "d9d47eedc43a3a8887133d04c8763b409293d3f47933622d2a16909baed3bd5c",
+      "current_sha256": "d9d47eedc43a3a8887133d04c8763b409293d3f47933622d2a16909baed3bd5c"
+    },
+    {
+      "path": ".github/workflows/release-publish.yml",
+      "role": "native product gate/trigger, unchanged",
+      "destination": ".github/workflows/release-publish.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "a3d076afa6847e4e44afb12d8776da864e26ce51e1b1ed48659b4b598586211a",
+      "current_sha256": "a3d076afa6847e4e44afb12d8776da864e26ce51e1b1ed48659b4b598586211a"
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "role": "native product gate/trigger, unchanged",
+      "destination": ".github/workflows/release.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "d4cf12e9de1f5eb01930c4c39f9973abb418f3a8c7493790e7f3cba8a20f15d4",
+      "current_sha256": "d4cf12e9de1f5eb01930c4c39f9973abb418f3a8c7493790e7f3cba8a20f15d4"
+    },
+    {
+      "path": ".github/workflows/transcript-smoke.yml",
+      "role": "native product gate/trigger, unchanged",
+      "destination": ".github/workflows/transcript-smoke.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "0cf3592f75582a887998fd0749e7d5ecc4127ddb0f51bfffc767561d4843ab27",
+      "current_sha256": "0cf3592f75582a887998fd0749e7d5ecc4127ddb0f51bfffc767561d4843ab27"
+    },
+    {
+      "path": ".github/workflows/video-smoke.yml",
+      "role": "native product gate/trigger, unchanged",
+      "destination": ".github/workflows/video-smoke.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "0e258045b7d5abef3fb16831e3bca8fa4104a23b0e0227d0c62a599801392208",
+      "current_sha256": "0e258045b7d5abef3fb16831e3bca8fa4104a23b0e0227d0c62a599801392208"
+    },
+    {
+      "path": ".github/workflows/windows-shell-smoke.yml",
+      "role": "native product gate/trigger, unchanged",
+      "destination": ".github/workflows/windows-shell-smoke.yml",
+      "treatment": "KEEP",
+      "baseline_sha256": "a1208015a63e0cb7c5a7c77a932e6205596fc4d3aa8e41f6d0741e51b906e683",
+      "current_sha256": "a1208015a63e0cb7c5a7c77a932e6205596fc4d3aa8e41f6d0741e51b906e683"
+    },
+    {
+      "path": "AGENTS.md",
+      "role": "native routing or local change control",
+      "destination": "AGENTS.md",
+      "treatment": "KEEP",
+      "baseline_sha256": "a62a92f16932f277d4235f29fe203d8579bc2b7d04e0de0460b9f0be6259a854",
+      "current_sha256": "01be04dfc2b621ca8dbfe029924b020f040469961fba717537a9c9272526026e"
+    },
+    {
+      "path": "docs/agent-development-v1.2.1.md",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "docs/agent-development-v1.2.1.md",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "742d3ca3feb8f200804513e422f4ea6ac19eb429f2fec3e8e02922209904b479",
+      "current_sha256": "742d3ca3feb8f200804513e422f4ea6ac19eb429f2fec3e8e02922209904b479",
+      "references": [
+        ".github/agent-protocol/documents-v1.4.7.json",
+        ".github/agent-protocol/documents-v1.4.8.json",
+        ".github/agent-protocol/documents-v1.4.9.json",
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_2_1.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "docs/agent-development-v1.2.md",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "docs/agent-development-v1.2.md",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "c0a27a7e8cbd3012e49ba0197b455a9d71c28f02411172302be0eb59d366fdf8",
+      "current_sha256": "c0a27a7e8cbd3012e49ba0197b455a9d71c28f02411172302be0eb59d366fdf8",
+      "references": [
+        ".github/agent-protocol/documents-v1.4.7.json",
+        ".github/agent-protocol/documents-v1.4.8.json",
+        ".github/agent-protocol/documents-v1.4.9.json",
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_2_1.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "docs/agent-development-v1.3.0.md",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "docs/agent-development-v1.3.0.md",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "f7fbcdd7aa1e71f7164a5a5a29fc760febbf0aa6450f4c6762cff61aef32a4fc",
+      "current_sha256": "f7fbcdd7aa1e71f7164a5a5a29fc760febbf0aa6450f4c6762cff61aef32a4fc",
+      "references": [
+        ".github/agent-protocol/documents-v1.4.7.json",
+        ".github/agent-protocol/documents-v1.4.8.json",
+        ".github/agent-protocol/documents-v1.4.9.json",
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "docs/agent-development-v1.4.0.md",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "docs/agent-development-v1.4.0.md",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "9ae1af939b9617087dce0458a1f4570a3aeac6b230aee09c2abb367cc137341c",
+      "current_sha256": "9ae1af939b9617087dce0458a1f4570a3aeac6b230aee09c2abb367cc137341c",
+      "references": [
+        ".github/agent-protocol/documents-v1.4.7.json",
+        ".github/agent-protocol/documents-v1.4.8.json",
+        ".github/agent-protocol/documents-v1.4.9.json",
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "docs/agent-development-v1.4.1.md",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "docs/agent-development-v1.4.1.md",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "ec822cdd3f690b7d7b71ec1addb7a45efcdcf575c9cb33824d3f72a9a94f7575",
+      "current_sha256": "ec822cdd3f690b7d7b71ec1addb7a45efcdcf575c9cb33824d3f72a9a94f7575",
+      "references": [
+        ".github/agent-protocol/documents-v1.4.7.json",
+        ".github/agent-protocol/documents-v1.4.8.json",
+        ".github/agent-protocol/documents-v1.4.9.json",
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "docs/agent-development-v1.4.2.md",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "docs/agent-development-v1.4.2.md",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "498d346632c3c67a97eb2a4288b425c228c4d0d5ec7fe7048b0574d5eee04ece",
+      "current_sha256": "498d346632c3c67a97eb2a4288b425c228c4d0d5ec7fe7048b0574d5eee04ece",
+      "references": [
+        ".github/agent-protocol/documents-v1.4.7.json",
+        ".github/agent-protocol/documents-v1.4.8.json",
+        ".github/agent-protocol/documents-v1.4.9.json",
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.7.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_4_2_ops.py",
+        "tests/test_agent_protocol_work_recovery.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_v1_4_2_ops.py",
+        "tools/agent_protocol_v1_4_7.py",
+        "tools/agent_protocol_work_recovery.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "docs/agent-development-v1.4.3-work.md",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "docs/agent-development-v1.4.3-work.md",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "b77c2023f9cfc81dd140c01978b9d66087410f1ccd7b4c6d4784efdab1b4c879",
+      "current_sha256": "b77c2023f9cfc81dd140c01978b9d66087410f1ccd7b4c6d4784efdab1b4c879",
+      "references": [
+        ".github/agent-protocol/documents-v1.4.7.json",
+        ".github/agent-protocol/documents-v1.4.8.json",
+        ".github/agent-protocol/documents-v1.4.9.json",
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.5-work.md",
+        "docs/agent-development-v1.4.6-work.md",
+        "docs/agent-development-v1.4.7.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_4_2_ops.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "docs/agent-development-v1.4.5-work.md",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "docs/agent-development-v1.4.5-work.md",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "44bbd5e535b53712f4e3f398274a0171993704e9475fad0249f39b4cb4ed787b",
+      "current_sha256": "44bbd5e535b53712f4e3f398274a0171993704e9475fad0249f39b4cb4ed787b",
+      "references": [
+        ".github/agent-protocol/documents-v1.4.7.json",
+        ".github/agent-protocol/documents-v1.4.8.json",
+        ".github/agent-protocol/documents-v1.4.9.json",
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.3-work.md",
+        "docs/agent-development-v1.4.6-work.md",
+        "docs/agent-development-v1.4.7.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "docs/agent-development-v1.4.6-work.md",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "docs/agent-development-v1.4.6-work.md",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "afb602d5c0f7fa831ce1b460d9496049725ba75c8ec1955b57f566ab9a77ef49",
+      "current_sha256": "afb602d5c0f7fa831ce1b460d9496049725ba75c8ec1955b57f566ab9a77ef49",
+      "references": [
+        ".github/agent-protocol/documents-v1.4.7.json",
+        ".github/agent-protocol/documents-v1.4.8.json",
+        ".github/agent-protocol/documents-v1.4.9.json",
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.3-work.md",
+        "docs/agent-development-v1.4.7.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "docs/agent-development-v1.4.7.md",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "docs/agent-development-v1.4.7.md",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "374facbda5842c9b04a7e362d39663a0a37f138e32d875638983c815b67034fe",
+      "current_sha256": "374facbda5842c9b04a7e362d39663a0a37f138e32d875638983c815b67034fe",
+      "references": [
+        ".github/agent-protocol/documents-v1.4.7.json",
+        ".github/agent-protocol/documents-v1.4.8.json",
+        ".github/agent-protocol/documents-v1.4.9.json",
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.2.md",
+        "docs/agent-development-v1.4.8.md",
+        "tests/test_agent_protocol_consumer_scope.py",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_4_2_ops.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_work_recovery.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "docs/agent-development-v1.4.8.md",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "docs/agent-development-v1.4.8.md",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "5620cc6f412d547a3bd1f3e188606209e3d6c899e1874cff1bd8c2fe5b1ee400",
+      "current_sha256": "5620cc6f412d547a3bd1f3e188606209e3d6c899e1874cff1bd8c2fe5b1ee400",
+      "references": [
+        ".github/agent-protocol/documents-v1.4.8.json",
+        ".github/agent-protocol/documents-v1.4.9.json",
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.2.md",
+        "docs/agent-development-v1.4.9.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_4_2_ops.py",
+        "tests/test_agent_protocol_work_recovery.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "docs/agent-development-v1.4.9.md",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "docs/agent-development-v1.4.9.md",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "6473e247b5302763977bf2553d9c31033dca2cd820403f0e837ab7d9a02d6253",
+      "current_sha256": "6473e247b5302763977bf2553d9c31033dca2cd820403f0e837ab7d9a02d6253",
+      "references": [
+        ".github/agent-protocol/documents-v1.4.9.json",
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.2.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_4_2_ops.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tests/test_agent_protocol_consumer_scope.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tests/test_agent_protocol_consumer_scope.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "72b22ccb4019db03b6a66570f46ee440f67ae338f63aad55297b82d44f90c8af",
+      "current_sha256": "72b22ccb4019db03b6a66570f46ee440f67ae338f63aad55297b82d44f90c8af",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tests/test_agent_protocol_transfer.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tests/test_agent_protocol_transfer.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "644bc6a7cf4407c9cf187bfb9e3ef48060daadcca254d8b676f1dd15062eb6c7",
+      "current_sha256": "6190a01fe35906d844ab19499b40a44d47f8a883c5251a210d63f7aea82ecfb5",
+      "references": [
+        "docs/agent-development-v1.4.2.md",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tests/test_agent_protocol_v1_2.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tests/test_agent_protocol_v1_2.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "8f4a77fb89a7e4dfd0b75f84b298642744a9a91b5bf6082c2ee0261f37d1817b",
+      "current_sha256": "8f4a77fb89a7e4dfd0b75f84b298642744a9a91b5bf6082c2ee0261f37d1817b",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "tests/test_agent_protocol_v1_2_1.py",
+        "tests/test_windows_shard_costs.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tests/test_agent_protocol_v1_2_1.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tests/test_agent_protocol_v1_2_1.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "6ca137e6450d5b286e52ee946bf94f541e929b8ce82440b5a3e7b1a696196743",
+      "current_sha256": "6ca137e6450d5b286e52ee946bf94f541e929b8ce82440b5a3e7b1a696196743",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tests/test_agent_protocol_v1_4.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tests/test_agent_protocol_v1_4.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "61fb932da0f34c3fc1e6951281d7bd4c0cf843cfb5a741e8cfe308173e8dc151",
+      "current_sha256": "61fb932da0f34c3fc1e6951281d7bd4c0cf843cfb5a741e8cfe308173e8dc151",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.2.md",
+        "docs/agent-development-v1.4.9.md",
+        "tests/test_agent_protocol_consumer_scope.py",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_work_recovery.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tests/test_agent_protocol_v1_4_1.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tests/test_agent_protocol_v1_4_1.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "5d63c387418f90c92a0246fe9144b6266629d8d4805e6a8547fb85e7c5a0ad08",
+      "current_sha256": "5d63c387418f90c92a0246fe9144b6266629d8d4805e6a8547fb85e7c5a0ad08",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tests/test_agent_protocol_v1_4_1_slice_issue_transition.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tests/test_agent_protocol_v1_4_1_slice_issue_transition.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "07ac0d787d1e2ea5f49a20a9e85e81e28194b0ae02c329c269bccbd5d7dd2e97",
+      "current_sha256": "07ac0d787d1e2ea5f49a20a9e85e81e28194b0ae02c329c269bccbd5d7dd2e97",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tests/test_agent_protocol_v1_4_2_ops.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tests/test_agent_protocol_v1_4_2_ops.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "81d34288f8108337bab67f81761cf6cc1605360d62c401ca9d6f10ab4a20abba",
+      "current_sha256": "81d34288f8108337bab67f81761cf6cc1605360d62c401ca9d6f10ab4a20abba",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.2.md",
+        "tests/test_agent_protocol_consumer_scope.py",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tests/test_agent_protocol_v1_4_7.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tests/test_agent_protocol_v1_4_7.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "39d9754319463f52f0d76f9bb151c80d52977823567cc1980092c4ae222d78ca",
+      "current_sha256": "39d9754319463f52f0d76f9bb151c80d52977823567cc1980092c4ae222d78ca",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.2.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_work_recovery.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tests/test_agent_protocol_v1_4_9.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tests/test_agent_protocol_v1_4_9.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "2dc903ec1bf77bbed4948eb8243175ef36a462bf6b696fd0fed9c838eb53a02a",
+      "current_sha256": "2dc903ec1bf77bbed4948eb8243175ef36a462bf6b696fd0fed9c838eb53a02a",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.2.md",
+        "docs/agent-development-v1.4.9.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tests/test_agent_protocol_work_check.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tests/test_agent_protocol_work_check.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "b8ef7b39416b5bb0d327264b5679ae3dc2b294c0e5764969c32bf0f80701dc5c",
+      "current_sha256": "b8ef7b39416b5bb0d327264b5679ae3dc2b294c0e5764969c32bf0f80701dc5c",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_work_recovery.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tests/test_agent_protocol_work_collect.mjs",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tests/test_agent_protocol_work_collect.mjs",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "0c9de61b0d42e5250d816c8846663fbc7725ba2228083eeea4913812d3f4d8a1",
+      "current_sha256": "6d9506d274d32ae2b8b9b9037e5d2c384b099d603ce92996c71a88f886ed6c6e",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_work_check.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_work_recovery.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tests/test_agent_protocol_work_recovery.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tests/test_agent_protocol_work_recovery.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "9c5565fc05ab9d87abf71a51535881c8f360eaa2b6af03949107ffc0ae87ef28",
+      "current_sha256": "9c5565fc05ab9d87abf71a51535881c8f360eaa2b6af03949107ffc0ae87ef28",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.5-work.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_work_recovery.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tests/test_agent_protocol_work_source.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tests/test_agent_protocol_work_source.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "86be9c9d961912745704445086dc675d56f3e7ffbcd9257edf53b87cd96f12f7",
+      "current_sha256": "86be9c9d961912745704445086dc675d56f3e7ffbcd9257edf53b87cd96f12f7",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "tests/test_agent_protocol_v1_2.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_work_recovery.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tools/agent_protocol.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tools/agent_protocol.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "8d7d4116b6072664cc98b2c04d5fe776ab5df5f838b2a1f64f0f1d98c364e188",
+      "current_sha256": "8d7d4116b6072664cc98b2c04d5fe776ab5df5f838b2a1f64f0f1d98c364e188",
+      "references": [
+        ".github/agent-protocol/conformance-v1.4.1.json",
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        ".github/workflows/ci.yml",
+        "AGENTS.md",
+        "docs/agent-development-v1.2.1.md",
+        "docs/agent-development-v1.2.md",
+        "docs/agent-development-v1.4.0.md",
+        "docs/agent-development-v1.4.1.md",
+        "docs/agent-development-v1.4.2.md",
+        "docs/agent-development-v1.4.3-work.md",
+        "docs/agent-development-v1.4.5-work.md",
+        "docs/agent-development-v1.4.6-work.md",
+        "docs/agent-development-v1.4.7.md",
+        "docs/agent-development-v1.4.9.md",
+        "tests/test_agent_protocol_consumer_scope.py",
+        "tests/test_agent_protocol_transfer.py",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_2_1.py",
+        "tests/test_agent_protocol_v1_4.py",
+        "tests/test_agent_protocol_v1_4_1.py",
+        "tests/test_agent_protocol_v1_4_1_slice_issue_transition.py",
+        "tests/test_agent_protocol_v1_4_2_ops.py",
+        "tests/test_agent_protocol_v1_4_7.py",
+        "tests/test_agent_protocol_v1_4_9.py",
+        "tests/test_agent_protocol_work_check.py",
+        "tests/test_agent_protocol_work_collect.mjs",
+        "tests/test_agent_protocol_work_recovery.py",
+        "tests/test_agent_protocol_work_source.py",
+        "tests/test_emendatio_activation.py",
+        "tests/test_windows_shard_costs.py",
+        "tools/agent_protocol_v1_4_1.py",
+        "tools/agent_protocol_v1_4_2.py",
+        "tools/agent_protocol_v1_4_2_ops.py",
+        "tools/agent_protocol_v1_4_7.py",
+        "tools/agent_protocol_work_check.py",
+        "tools/agent_protocol_work_collect.mjs",
+        "tools/agent_protocol_work_recovery.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tools/agent_protocol_transfer.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tools/agent_protocol_transfer.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "1e409798eab13b0f5721bc739964bc6649091e501c34e8cb31f333a5b2f90f93",
+      "current_sha256": "1e409798eab13b0f5721bc739964bc6649091e501c34e8cb31f333a5b2f90f93",
+      "references": [
+        ".github/workflows/ci.yml",
+        "docs/agent-development-v1.4.2.md",
+        "tests/test_agent_protocol_transfer.py",
+        "tools/agent_protocol.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tools/agent_protocol_v1_4.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tools/agent_protocol_v1_4.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "5f3d0c36ddc2b6862b36eeb1cc02de7e7b5ad783adadca8af76cec3eb19b9586",
+      "current_sha256": "5f3d0c36ddc2b6862b36eeb1cc02de7e7b5ad783adadca8af76cec3eb19b9586",
+      "references": [
+        ".github/agent-protocol/conformance-v1.4.1.json",
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        ".github/workflows/ci.yml",
+        "docs/agent-development-v1.4.0.md",
+        "docs/agent-development-v1.4.1.md",
+        "docs/agent-development-v1.4.2.md",
+        "docs/agent-development-v1.4.6-work.md",
+        "docs/agent-development-v1.4.9.md",
+        "tests/test_agent_protocol_consumer_scope.py",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_4.py",
+        "tests/test_agent_protocol_v1_4_1.py",
+        "tests/test_agent_protocol_v1_4_1_slice_issue_transition.py",
+        "tests/test_agent_protocol_v1_4_2_ops.py",
+        "tests/test_agent_protocol_v1_4_7.py",
+        "tests/test_agent_protocol_v1_4_9.py",
+        "tests/test_agent_protocol_work_recovery.py",
+        "tests/test_emendatio_activation.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_v1_4_1.py",
+        "tools/agent_protocol_v1_4_2.py",
+        "tools/agent_protocol_v1_4_2_ops.py",
+        "tools/agent_protocol_v1_4_7.py",
+        "tools/agent_protocol_work_recovery.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tools/agent_protocol_v1_4_1.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tools/agent_protocol_v1_4_1.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "a6962c123a07ad6bd3e212dfc222f6e565a908a26a9ea5eefb74e9676e4047db",
+      "current_sha256": "a6962c123a07ad6bd3e212dfc222f6e565a908a26a9ea5eefb74e9676e4047db",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        ".github/workflows/ci.yml",
+        "docs/agent-development-v1.4.1.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_4_1.py",
+        "tests/test_agent_protocol_v1_4_1_slice_issue_transition.py",
+        "tests/test_emendatio_activation.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_v1_4_2_ops.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tools/agent_protocol_v1_4_2.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tools/agent_protocol_v1_4_2.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "4553c4da74a9d5f2010f5f2c2b9878b1ff6d0bfa5abe2c178e3e3e437858cd2f",
+      "current_sha256": "4553c4da74a9d5f2010f5f2c2b9878b1ff6d0bfa5abe2c178e3e3e437858cd2f",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        ".github/workflows/ci.yml",
+        "docs/agent-development-v1.4.2.md",
+        "tests/test_agent_protocol_consumer_scope.py",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_4_2_ops.py",
+        "tests/test_agent_protocol_work_recovery.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_v1_4_2_ops.py",
+        "tools/agent_protocol_v1_4_7.py",
+        "tools/agent_protocol_work_recovery.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tools/agent_protocol_v1_4_2_ops.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tools/agent_protocol_v1_4_2_ops.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "78f7a0d4c7577e015c202f2389ff90d64af93c020bcfc3e8b85ebc2c51551d2b",
+      "current_sha256": "78f7a0d4c7577e015c202f2389ff90d64af93c020bcfc3e8b85ebc2c51551d2b",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        ".github/workflows/ci.yml",
+        "docs/agent-development-v1.4.2.md",
+        "tests/test_agent_protocol_consumer_scope.py",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_4_2_ops.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_v1_4_2.py",
+        "tools/agent_protocol_v1_4_7.py",
+        "tools/agent_protocol_work_recovery.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tools/agent_protocol_v1_4_7.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tools/agent_protocol_v1_4_7.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "ce87767a0bdb63a715615b4ea8b89d8d93dc1df3e359d6f47434da8d560b9d74",
+      "current_sha256": "ce87767a0bdb63a715615b4ea8b89d8d93dc1df3e359d6f47434da8d560b9d74",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.2.md",
+        "docs/agent-development-v1.4.6-work.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_4_2_ops.py",
+        "tests/test_agent_protocol_v1_4_7.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_work_recovery.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tools/agent_protocol_v1_4_9.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tools/agent_protocol_v1_4_9.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "d3b1afa7bea6de9ea42f30bad17f3060d07bdc43c8465cb41855004c4f63ebb0",
+      "current_sha256": "d3b1afa7bea6de9ea42f30bad17f3060d07bdc43c8465cb41855004c4f63ebb0",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.2.md",
+        "docs/agent-development-v1.4.9.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_4_9.py",
+        "tests/test_agent_protocol_work_recovery.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_v1_4_2_ops.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tools/agent_protocol_work_check.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tools/agent_protocol_work_check.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "8d2630b52f80f6e217b39c0fb18d781c29cff6265d2b14a6d53a75c2f5c00c7e",
+      "current_sha256": "8d2630b52f80f6e217b39c0fb18d781c29cff6265d2b14a6d53a75c2f5c00c7e",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        ".github/workflows/ci.yml",
+        "docs/agent-development-v1.4.3-work.md",
+        "docs/agent-development-v1.4.7.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_work_check.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_work_recovery.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tools/agent_protocol_work_collect.mjs",
+      "role": "Work current collector and historical import shim",
+      "destination": "tools/agent_protocol_work_collect.mjs",
+      "treatment": "CONSOLIDATE",
+      "baseline_sha256": "ada703e75c7e80f2cb32d8c1302d04da83cab2a6c191cded1900662b4deb9f1a",
+      "current_sha256": "c37bab094952abe43d132d1954d0f1a2aaa3a0cc19e204bb8c3366b493440ac5",
+      "references": [
+        "tests/test_agent_protocol_work_collect.mjs"
+      ],
+      "canonical_destination": "tools/agent_protocol_core/compat/legacy/tools/agent_protocol_work_collect.mjs",
+      "removal_criterion": "All historical imports migrated; canonical current entrypoint used directly"
+    },
+    {
+      "path": "tools/agent_protocol_work_recovery.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tools/agent_protocol_work_recovery.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "eed5454572a47ce1780b1ad87f0406ee7ba20923d61f50ca58739e4172f4ed52",
+      "current_sha256": "eed5454572a47ce1780b1ad87f0406ee7ba20923d61f50ca58739e4172f4ed52",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.5-work.md",
+        "docs/agent-development-v1.4.9.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_v1_4_2_ops.py",
+        "tests/test_agent_protocol_work_recovery.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_v1_4_7.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    },
+    {
+      "path": "tools/agent_protocol_work_source.py",
+      "role": "historical receipt/transfer validator and native regression caller",
+      "destination": "tools/agent_protocol_work_source.py",
+      "treatment": "COMPATIBILITY",
+      "baseline_sha256": "fa829258034477e5bd89d05a3012c509a41280d6fa76aa39ed0172052a9127ac",
+      "current_sha256": "fa829258034477e5bd89d05a3012c509a41280d6fa76aa39ed0172052a9127ac",
+      "references": [
+        ".github/agent-protocol/transfer-v1.5.0.json",
+        "docs/agent-development-v1.4.3-work.md",
+        "tests/test_agent_protocol_v1_2.py",
+        "tests/test_agent_protocol_work_check.py",
+        "tests/test_agent_protocol_work_source.py",
+        "tools/agent_protocol.py",
+        "tools/agent_protocol_work_check.py",
+        "tools/agent_protocol_work_recovery.py"
+      ],
+      "removal_criterion": "No live native/Work/transfer caller; original validator and receipts recoverable by immutable revision"
+    }
+  ],
+  "migration": {
+    "role": "PR_LOCAL_LEGACY_RECEIPTS",
+    "treatment": "PRESERVE_EXISTING_WORKSTREAMS",
+    "new_workstreams": "CANONICAL_SIGNED_JOURNAL",
+    "global_checkpoint": "NONE",
+    "adoption_pr": 299,
+    "adoption_qualification": "ACCEPTED_PREDECESSOR",
+    "active_product_owner_changes": "NONE"
+  }
 }

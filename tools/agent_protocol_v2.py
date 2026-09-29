@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import subprocess
@@ -457,6 +458,14 @@ def main(argv=None):
     engine.add_argument("arguments", nargs=argparse.REMAINDER)
     collector = sub.add_parser("collect")
     collector.add_argument("arguments", nargs=argparse.REMAINDER)
+    guard = sub.add_parser("event-guard")
+    guard.add_argument("--event", type=Path, required=True)
+    guard.add_argument("--current-pr", type=Path, required=True)
+    guard.add_argument("--name-status", type=Path, required=True)
+    guard.add_argument("--expected-base-sha", required=True)
+    guard.add_argument("--expected-head-sha", required=True)
+    guard.add_argument("--complete", action="store_true")
+    guard.add_argument("--output", type=Path)
     native_workspace = sub.add_parser("workspace")
     native_workspace.add_argument("action", choices=["prepare", "check", "start"])
     args = parser.parse_args(argv)
@@ -476,6 +485,35 @@ def main(argv=None):
             result = acquire(pin, offline=args.offline)
         elif args.command == "workspace":
             result = workspace(args.action)
+        elif args.command == "event-guard":
+            require(REPOSITORY == "gabned/provelume", "Accepted local event adapter required")
+            event = json.loads(read(args.event))
+            require(
+                (event["repository"]["full_name"], event["repository"]["id"])
+                == (REPOSITORY, REPOSITORY_ID),
+                "Event repository identity changed",
+            )
+            spec = importlib.util.spec_from_file_location(
+                "native_change_control", ROOT / "tools/agent_protocol.py"
+            )
+            native = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(native)
+            event = native.bind_current_pr_body(event, json.loads(read(args.current_pr)))
+            result = native.build_change_control_report(
+                event=event,
+                changed_paths=native.read_name_status(args.name_status),
+                expected_base_sha=args.expected_base_sha,
+                expected_head_sha=args.expected_head_sha,
+                complete=args.complete,
+                credentials_accessed=False,
+                production_environment_accessed=False,
+            )
+            if args.output:
+                require(not args.output.exists(), "Preserve existing guard evidence")
+                with args.output.open("x", encoding="utf-8") as stream:
+                    json.dump(result, stream, sort_keys=True)
+            print(json.dumps(result, sort_keys=True))
+            return 0 if result["merge_allowed"] else 1
         elif args.command == "engine":
             from agent_protocol.cli import main as core_main
 

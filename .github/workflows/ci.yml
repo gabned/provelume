@@ -153,7 +153,7 @@ jobs:
           curl --fail --silent --show-error --location \
             "${GITHUB_API_URL}/repos/${REPOSITORY}/pulls/${PR_NUMBER}" \
             > .agent/current-pr.json
-          python tools/agent_protocol.py change-control \
+          python tools/agent_protocol_v2.py event-guard \
             --event "$GITHUB_EVENT_PATH" \
             --current-pr .agent/current-pr.json \
             --name-status .agent/name-status.z \

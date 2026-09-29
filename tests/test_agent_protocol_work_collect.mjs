@@ -455,3 +455,11 @@ test("evidence budgets reject before extra connector access; UNKNOWN is never ca
   assert.equal(h.records.at(-1).status,"UNKNOWN");
   assert.equal(JSON.parse(denied.snapshot()).entries.length,0);
 });
+
+test("current Work entrypoint is the canonical lifecycle collector", async()=>{
+  const native = await import("../tools/agent_protocol_work_collect.mjs");
+  const canonical = await import("../tools/agent_protocol_core/tools/collect.mjs");
+  assert.equal(native.collectLifecycle, canonical.collectLifecycle);
+  await assert.rejects(native.collectLifecycle({repository:"gabned/provelume",repositoryId:0,pr:299}),
+    /Independent stable identity/);
+});

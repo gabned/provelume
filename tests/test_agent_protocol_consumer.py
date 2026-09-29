@@ -101,6 +101,60 @@ def test_native_engine_uses_canonical_preconditions_without_write_authority():
     assert write.returncode == 2 and "Independent operator enrollment required" in write.stderr
 
 
+def test_actual_event_entrypoint_preserves_local_guard_and_identity(tmp_path):
+    pin = json.loads((ROOT / ".github/agent-protocol/pin.json").read_text())
+    if pin["consumer"] != "gabned/provelume":
+        pytest.skip("Provelume local event policy")
+    base, head = "a" * 40, "b" * 40
+    body = "WORKSTREAM_CLASS: PROTOCOL\nPROTOCOL_ESCALATION: NONE\n"
+    pr = {
+        "number": 46,
+        "body": body,
+        "base": {"sha": base},
+        "head": {"sha": head},
+        "author_association": "OWNER",
+        "user": {"login": "gabned", "type": "User"},
+    }
+    event = {
+        "number": 46,
+        "repository": {"full_name": pin["consumer"], "id": pin["consumer_id"]},
+        "sender": {"login": "gabned", "type": "User"},
+        "pull_request": pr,
+    }
+    files = {"event.json": json.dumps(event), "pr.json": json.dumps(pr)}
+    for name, content in files.items():
+        (tmp_path / name).write_text(content)
+    delta = tmp_path / "delta.z"
+    delta.write_bytes(b"M\0docs/agent-protocol/operations.md\0")
+    args = (
+        "event-guard",
+        "--event",
+        str(tmp_path / "event.json"),
+        "--current-pr",
+        str(tmp_path / "pr.json"),
+        "--name-status",
+        str(delta),
+        "--expected-base-sha",
+        base,
+        "--expected-head-sha",
+        head,
+        "--complete",
+    )
+    valid = command(*args)
+    assert valid.returncode == 0, valid.stderr
+    assert json.loads(valid.stdout)["merge_allowed"] is True
+    # Preserve the native prohibition on PRODUCT touching Protocol, even though
+    # the engine and vendor source are shared with the PROTOCOL route.
+    pr["body"] = "WORKSTREAM_CLASS: PRODUCT\nPROTOCOL_ESCALATION: NONE\n"
+    (tmp_path / "pr.json").write_text(json.dumps(pr))
+    denied = command(*args)
+    assert denied.returncode == 1 and "PRODUCT_TOUCHES_PROTOCOL" in denied.stdout
+    event["repository"]["id"] += 1
+    (tmp_path / "event.json").write_text(json.dumps(event))
+    denied = command(*args)
+    assert denied.returncode == 2 and "identity changed" in denied.stderr
+
+
 def test_product_host_keeps_native_policy_and_failed_gate():
     spec = importlib.util.spec_from_file_location(
         "consumer_native", ROOT / "tools/agent_protocol_v2.py"

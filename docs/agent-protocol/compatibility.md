@@ -23,3 +23,14 @@ recovery and indirect uses; a version in a filename does not prove obsolescence.
 Preserve unique evidence and unresolved work. Retained shims need a demonstrated
 caller, conformance coverage and a removal criterion. No historical tag, release,
 failed run or someone else's branch is deleted.
+
+The provenance file contains the local KEEP/CONSOLIDATE/COMPATIBILITY map and
+observed reference paths. On Provelume the historical Work collector is a shim
+to the unchanged canonical compatibility module; its 48 native collector tests
+cover retained callers and the current export. Historical Python validators and
+transfer fixtures still have native CI and receipt callers, so they remain at
+their established paths. Invoke historical synchronization against its original
+immutable source and validator. It cannot adopt the current independent package;
+the current `acquire` command verifies release artifacts without editing any pin.
+Retire a compatibility path only after its recorded callers no longer exist and
+the original receipts remain verifiable at their immutable revisions.
