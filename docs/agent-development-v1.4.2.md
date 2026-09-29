@@ -11,6 +11,9 @@ prerequisite merge. `tools/agent_protocol_transfer.py` checks source and destina
 observations against the manifest selected independently from this PR's accepted
 merge. A manifest supplied by the destination or hashed by its candidate is not an
 authority source. Only a qualified and reconciled predecessor merge activates it.
+The independently selected accepted byte-source predecessor must equal the
+manifest's source_commit. The later merge qualifying the transfer manifest is a
+separate authority observation; neither identity may be substituted for the other.
 
 The destination starts with one root commit containing only the original LICENSE,
 then one direct-child bootstrap candidate with the exact complete inventoried tree.
@@ -21,6 +24,9 @@ is qualified through this predecessor because its license-only base has no guard
 Its actual candidate Linux/Windows conformance remains mandatory. Later changes
 use the accepted destination guard, exact registry, complete CI/reviews, expected
 head integration and post-merge checks described in the qualified bootstrap bytes.
+The destination guard compares the stable repository ID and freezes its gate,
+workflow, authority, dependency configuration and historical compatibility corpus.
+A registered path alone cannot qualify a change to these verification surfaces.
 
 The compatibility subtree retains only Protocol modules, their full test suite,
 their document inventories and the historical CI file read by guard conformance.

@@ -59,12 +59,25 @@ def fixture():
 
 
 class TransferTests(unittest.TestCase):
+    def test_host_selected_predecessor_must_be_the_exact_byte_source(self):
+        manifest, observation = fixture()
+        with self.assertRaisesRegex(ValueError, "Source commit differs"):
+            transfer.verify_destination(
+                manifest,
+                observation,
+                trusted_manifest=transfer.digest(manifest),
+                accepted_predecessor="c" * 40,
+            )
+
     def test_authored_materialization_preserves_existing_bytes_and_is_idempotent(self):
         manifest, _ = fixture()
         # Applicable notices remain source rows; use the real accepted corpus for this host check.
         root = Path(__file__).resolve().parents[1]
         manifest = json.loads((root / ".github/agent-protocol/transfer-v1.5.0.json").read_text())
-        trust = {"trusted_manifest": transfer.digest(manifest), "accepted_predecessor": "c" * 40}
+        trust = {
+            "trusted_manifest": transfer.digest(manifest),
+            "accepted_predecessor": manifest["source_commit"],
+        }
         with tempfile.TemporaryDirectory() as temporary:
             dest = Path(temporary) / "extraction"
             first = transfer.materialize(manifest, root, dest, **trust)
@@ -118,7 +131,10 @@ class TransferTests(unittest.TestCase):
             "commit": manifest["source_commit"],
             "files": rows,
         }
-        trust = {"trusted_manifest": transfer.digest(manifest), "accepted_predecessor": "c" * 40}
+        trust = {
+            "trusted_manifest": transfer.digest(manifest),
+            "accepted_predecessor": manifest["source_commit"],
+        }
         self.assertEqual(
             transfer.verify_source(manifest, source, **trust)["result"], "SOURCE_BYTES_VERIFIED"
         )
@@ -128,7 +144,7 @@ class TransferTests(unittest.TestCase):
             manifest,
             observation,
             trusted_manifest=trusted or transfer.digest(manifest),
-            accepted_predecessor="c" * 40,
+            accepted_predecessor=manifest["source_commit"],
         )
 
     def test_exact_transfer_is_byte_evidence_without_publication_authority(self):
@@ -211,7 +227,10 @@ class TransferTests(unittest.TestCase):
             "commit": "a" * 40,
             "files": copy.deepcopy(observation["files"]),
         }
-        trust = {"trusted_manifest": transfer.digest(manifest), "accepted_predecessor": "c" * 40}
+        trust = {
+            "trusted_manifest": transfer.digest(manifest),
+            "accepted_predecessor": manifest["source_commit"],
+        }
         self.assertEqual(
             transfer.verify_source(manifest, source, **trust)["result"], "SOURCE_BYTES_VERIFIED"
         )

@@ -99,6 +99,10 @@ def validate_manifest(manifest, *, trusted_manifest, accepted_predecessor):
         "Stable destination identity required",
     )
     require(re.fullmatch(r"[0-9a-f]{40}", manifest["source_commit"]), "Immutable source required")
+    require(
+        manifest["source_commit"] == accepted_predecessor,
+        "Source commit differs from host-selected accepted predecessor",
+    )
     require(isinstance(manifest["files"], list) and manifest["files"], "Exact inventory required")
     paths, folded, source_paths = [], set(), set()
     for row in manifest["files"]:
