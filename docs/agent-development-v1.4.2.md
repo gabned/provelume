@@ -45,6 +45,14 @@ every merge, manifest, repository ID, bootstrap commit, parent and tree with tha
 external inventory. Missing, replaced or inconsistent history blocks verification;
 a recomputed digest alone does not authenticate a historical qualification.
 
+The native destination checker requires all registered functional files once a
+package or current collector entrypoint appears. It then lints the current Python
+package and executes the current Node collector tests in addition to all preserved
+legacy and root suites. Missing functional surfaces fail before command execution;
+a failing current collector must fail the canonical native/CI entrypoint. This
+runner correction appends to both already-qualified bootstrap candidates and
+preserves their independently authenticated qualification records.
+
 The compatibility subtree retains only Protocol modules, their full test suite,
 their document inventories and the historical CI file read by guard conformance.
 Relative paths and file modes are intentionally preserved. It includes no product
