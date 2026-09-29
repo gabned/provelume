@@ -59,6 +59,65 @@ def fixture():
 
 
 class TransferTests(unittest.TestCase):
+    def correction_fixture(self):
+        manifest, observation = fixture()
+        manifest.update(
+            schema="agent-protocol-transfer/v2",
+            initialization="LICENSE_ONLY_ROOT",
+            bootstrap_history=[
+                {
+                    "commit": "e" * 40,
+                    "parent": "d" * 40,
+                    "tree": "f" * 40,
+                    "qualified_by": "1" * 40,
+                    "manifest_sha256": "2" * 64,
+                }
+            ],
+        )
+        license_row = next(r for r in observation["files"] if r["path"] == "LICENSE")
+        observation.update(
+            seed={"commit": "d" * 40, "parents": [], "files": [license_row]},
+            parents=["e" * 40],
+            history=[{"commit": "e" * 40, "parents": ["d" * 40], "tree": "f" * 40}],
+        )
+        return manifest, observation
+
+    def test_qualified_correction_appends_without_rewriting_initial_candidate(self):
+        result = self.verify(*self.correction_fixture())
+        self.assertEqual(result["schema"], "agent-protocol-transfer-receipt/v2")
+        self.assertFalse(result["publication_authorized"])
+        legacy = self.verify(*fixture())
+        self.assertEqual(legacy["schema"], "agent-protocol-transfer-receipt/v1")
+
+    def test_correction_requires_every_exact_predecessor_qualified_history_object(self):
+        mutations = [
+            lambda o: o["history"].clear(),
+            lambda o: o["history"][0].update(tree="9" * 40),
+            lambda o: o["history"][0].update(parents=["8" * 40]),
+            lambda o: o.update(parents=["d" * 40]),
+            lambda o: o.update(commit="d" * 40),
+            lambda o: o.update(commit="e" * 40),
+            lambda o: o["history"].append(copy.deepcopy(o["history"][0])),
+        ]
+        for mutate in mutations:
+            with self.subTest(mutation=mutate):
+                manifest, observation = self.correction_fixture()
+                mutate(observation)
+                with self.assertRaises(ValueError):
+                    self.verify(manifest, observation)
+
+    def test_self_selected_or_cyclic_bootstrap_history_cannot_grant_authority(self):
+        manifest, observation = self.correction_fixture()
+        trusted = transfer.digest(manifest)
+        manifest["bootstrap_history"][0]["qualified_by"] = "9" * 40
+        with self.assertRaisesRegex(ValueError, "Untrusted"):
+            self.verify(manifest, observation, trusted)
+        manifest["bootstrap_history"].append(
+            {**manifest["bootstrap_history"][0], "commit": "d" * 40, "parent": "e" * 40}
+        )
+        with self.assertRaisesRegex(ValueError, "Cyclic"):
+            self.verify(manifest, observation)
+
     def test_host_selected_predecessor_must_be_the_exact_byte_source(self):
         manifest, observation = fixture()
         with self.assertRaisesRegex(ValueError, "Source commit differs"):

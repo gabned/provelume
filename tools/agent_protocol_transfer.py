@@ -69,26 +69,65 @@ def validate_manifest(manifest, *, trusted_manifest, accepted_predecessor):
         re.fullmatch(r"[0-9a-f]{40}", accepted_predecessor or ""),
         "Host-selected accepted predecessor required",
     )
+    correction = manifest.get("schema") == "agent-protocol-transfer/v2"
+    require(
+        manifest.get("schema") in {"agent-protocol-transfer/v1", "agent-protocol-transfer/v2"},
+        "Unknown transfer schema",
+    )
     require(
         set(manifest)
-        == {
-            "schema",
-            "source_repository",
-            "source_commit",
-            "destination_repository",
-            "destination_id",
-            "files",
-            "future_paths",
-            "dependencies",
-            "initialization",
-        },
+        == (
+            {
+                "schema",
+                "source_repository",
+                "source_commit",
+                "destination_repository",
+                "destination_id",
+                "files",
+                "future_paths",
+                "dependencies",
+                "initialization",
+            }
+            | ({"bootstrap_history"} if correction else set())
+        ),
         "Unknown manifest fields",
     )
     require(
         manifest["initialization"] in {"FULL_ROOT", "LICENSE_ONLY_ROOT"},
         "Unsupported bootstrap route",
     )
-    require(manifest["schema"] == "agent-protocol-transfer/v1", "Unknown transfer schema")
+    if correction:
+        history = manifest["bootstrap_history"]
+        require(
+            manifest["initialization"] == "LICENSE_ONLY_ROOT"
+            and isinstance(history, list)
+            and 0 < len(history) <= 16,
+            "Bounded accepted bootstrap history required",
+        )
+        seen = set()
+        previous = None
+        for row in history:
+            require(
+                set(row) == {"commit", "parent", "tree", "qualified_by", "manifest_sha256"},
+                "Unknown bootstrap history fields",
+            )
+            for field in ["commit", "parent", "tree", "qualified_by"]:
+                require(
+                    re.fullmatch(r"[0-9a-f]{40}", row[field]), "Exact history identity required"
+                )
+            require(
+                re.fullmatch(r"[0-9a-f]{64}", row["manifest_sha256"]),
+                "Historical qualification manifest required",
+            )
+            require(
+                row["commit"] not in seen
+                and row["commit"] != row["parent"]
+                and (previous is None or previous == row["parent"]),
+                "Broken accepted bootstrap history",
+            )
+            seen.add(row["commit"])
+            previous = row["commit"]
+        require(history[0]["parent"] not in seen, "Cyclic bootstrap history")
     require(
         manifest["source_repository"] == "gabned/provelume"
         and manifest["destination_repository"] == "gabned/agent-protocol",
@@ -235,8 +274,13 @@ def verify_destination(manifest, observations, *, trusted_manifest, accepted_pre
     validate_manifest(
         manifest, trusted_manifest=trusted_manifest, accepted_predecessor=accepted_predecessor
     )
+    correction = manifest["schema"] == "agent-protocol-transfer/v2"
     require(
-        set(observations) == {"repository", "repository_id", "commit", "parents", "files", "seed"},
+        set(observations)
+        == (
+            {"repository", "repository_id", "commit", "parents", "files", "seed"}
+            | ({"history"} if correction else set())
+        ),
         "Exact destination observation required",
     )
     require(
@@ -260,9 +304,35 @@ def verify_destination(manifest, observations, *, trusted_manifest, accepted_pre
             re.fullmatch(r"[0-9a-f]{40}", seed["commit"]) and seed["parents"] == [],
             "Bootstrap root must not import history",
         )
-        require(
-            observations["parents"] == [seed["commit"]], "Only the bootstrap root may be a parent"
-        )
+        if correction:
+            previous = seed["commit"]
+            history = observations["history"]
+            require(
+                isinstance(history, list) and len(history) == len(manifest["bootstrap_history"]),
+                "Incomplete observed bootstrap history",
+            )
+            for actual, expected in zip(history, manifest["bootstrap_history"], strict=True):
+                require(
+                    actual
+                    == {
+                        "commit": expected["commit"],
+                        "parents": [expected["parent"]],
+                        "tree": expected["tree"],
+                    }
+                    and expected["parent"] == previous,
+                    "Observed history differs from predecessor-qualified bootstrap",
+                )
+                previous = expected["commit"]
+            retained = {seed["commit"], *(r["commit"] for r in manifest["bootstrap_history"])}
+            require(
+                observations["parents"] == [previous] and observations["commit"] not in retained,
+                "Correction must append to the exact retained bootstrap",
+            )
+        else:
+            require(
+                observations["parents"] == [seed["commit"]],
+                "Only the bootstrap root may be a parent",
+            )
         require(len(seed["files"]) == 1, "Bootstrap root contains unrelated files")
         license_row = next(r for r in manifest["files"] if r["destination_path"] == "LICENSE")
         actual = seed["files"][0]
@@ -286,7 +356,9 @@ def verify_destination(manifest, observations, *, trusted_manifest, accepted_pre
         )
         verify_bytes(expected, base64.b64decode(actual["content_base64"], validate=True))
     return {
-        "schema": "agent-protocol-transfer-receipt/v1",
+        "schema": "agent-protocol-transfer-receipt/v2"
+        if correction
+        else "agent-protocol-transfer-receipt/v1",
         "result": "BYTES_VERIFIED",
         "accepted_predecessor": accepted_predecessor,
         "manifest_sha256": trusted_manifest,
