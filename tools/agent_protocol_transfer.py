@@ -11,7 +11,9 @@ import argparse
 import base64
 import hashlib
 import json
+import os
 import re
+import subprocess
 from pathlib import Path, PurePosixPath
 
 
@@ -38,6 +40,10 @@ def valid_path(value):
         "Unsafe path",
     )
     require(not any(ord(c) < 32 or c in '<>"|?*' for c in value), "Nonportable path character")
+    require(
+        not any(part.casefold() in {".git", ".agent"} for part in value.split("/")),
+        "Git metadata and operational caches are not transfer surfaces",
+    )
     require(
         not any(
             p.endswith((" ", "."))
@@ -286,15 +292,93 @@ def verify_destination(manifest, observations, *, trusted_manifest, accepted_pre
     }
 
 
+def materialize(manifest, source_root, destination, *, trusted_manifest, accepted_predecessor):
+    """Host-side local byte acquisition; no remote write or authority is granted."""
+    validate_manifest(
+        manifest, trusted_manifest=trusted_manifest, accepted_predecessor=accepted_predecessor
+    )
+    source_root, destination = Path(source_root).absolute(), Path(destination).absolute()
+    require(
+        not any(p.is_symlink() for p in (destination, *destination.parents)),
+        "Symlink destination refused",
+    )
+    require(not destination.is_relative_to(source_root), "Use an independent destination")
+    expected = {r["destination_path"] for r in manifest["files"]}
+    if destination.exists():
+        require(destination.is_dir(), "Existing non-directory preserved")
+        require(
+            not any(p.is_symlink() for p in destination.rglob("*")),
+            "Existing symlink material preserved",
+        )
+        actual = {
+            p.relative_to(destination).as_posix() for p in destination.rglob("*") if p.is_file()
+        }
+        require(actual <= expected, "Unrelated destination material preserved")
+    payloads = []
+    for row in manifest["files"]:
+        if row["source_revision"] == "AUTHORED":
+            data = base64.b64decode(row["content_base64"], validate=True)
+        else:
+            command = [
+                "git",
+                "--no-replace-objects",
+                "-c",
+                "protocol.allow=never",
+                "-c",
+                "safe.directory=" + source_root.as_posix(),
+                "-C",
+                str(source_root),
+            ]
+            environment = {**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"}
+            data = subprocess.check_output(
+                [*command, "show", manifest["source_commit"] + ":" + row["source_path"]],
+                env=environment,
+            )
+            tree = subprocess.check_output(
+                [*command, "ls-tree", manifest["source_commit"], "--", row["source_path"]],
+                env=environment,
+            )
+            require(tree.decode().split()[0] == row["mode"], "Source executable mode mismatch")
+        verify_bytes(row, data)
+        target = destination / row["destination_path"]
+        require(
+            not any(p.is_symlink() for p in (target, *target.parents)), "Symlink target refused"
+        )
+        if target.exists():
+            require(target.is_file() and target.read_bytes() == data, "Existing bytes preserved")
+            if os.name != "nt":
+                require(
+                    bool(target.stat().st_mode & 0o100) == (row["mode"] == "100755"),
+                    "Existing mode drift requires explicit reconciliation",
+                )
+        payloads.append((row, target, data))
+    for row, target, data in payloads:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if not target.exists():
+            with target.open("xb") as stream:
+                stream.write(data)
+            if row["mode"] == "100755":
+                target.chmod(target.stat().st_mode | 0o100)
+    return {
+        "result": "MATERIALIZED",
+        "files": len(payloads),
+        "authority": "NOT_GRANTED",
+        "functional_qualification": "REQUIRED",
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "operation", choices=["validate-manifest", "verify-source", "verify-destination"]
+        "operation",
+        choices=["validate-manifest", "verify-source", "verify-destination", "materialize"],
     )
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--trusted-manifest", required=True)
     parser.add_argument("--accepted-predecessor", required=True)
     parser.add_argument("--observations", type=Path)
+    parser.add_argument("--source-root", type=Path)
+    parser.add_argument("--destination", type=Path)
     args = parser.parse_args()
     try:
         manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
@@ -308,6 +392,12 @@ def main():
                 "result": "INVENTORY_VALID",
                 "authority": "HOST_VERIFIED_PREDECESSOR_REQUIRED",
             }
+        elif args.operation == "materialize":
+            require(
+                args.source_root is not None and args.destination is not None,
+                "Source and independent destination required",
+            )
+            result = materialize(manifest, args.source_root, args.destination, **trust)
         else:
             require(args.observations is not None, "Destination observations required")
             verifier = verify_source if args.operation == "verify-source" else verify_destination

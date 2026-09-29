@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import json
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -58,6 +59,23 @@ def fixture():
 
 
 class TransferTests(unittest.TestCase):
+    def test_authored_materialization_preserves_existing_bytes_and_is_idempotent(self):
+        manifest, _ = fixture()
+        # Applicable notices remain source rows; use the real accepted corpus for this host check.
+        root = Path(__file__).resolve().parents[1]
+        manifest = json.loads((root / ".github/agent-protocol/transfer-v1.5.0.json").read_text())
+        trust = {"trusted_manifest": transfer.digest(manifest), "accepted_predecessor": "c" * 40}
+        with tempfile.TemporaryDirectory() as temporary:
+            dest = Path(temporary) / "extraction"
+            first = transfer.materialize(manifest, root, dest, **trust)
+            second = transfer.materialize(manifest, root, dest, **trust)
+            self.assertEqual(first, second)
+            self.assertEqual(first["authority"], "NOT_GRANTED")
+            (dest / "README.md").write_text("unsaved")
+            with self.assertRaisesRegex(ValueError, "Existing bytes"):
+                transfer.materialize(manifest, root, dest, **trust)
+            self.assertEqual((dest / "README.md").read_text(), "unsaved")
+
     def test_repository_manifest_has_complete_committed_source_bytes(self):
         root = Path(__file__).resolve().parents[1]
         manifest = json.loads((root / ".github/agent-protocol/transfer-v1.5.0.json").read_text())
