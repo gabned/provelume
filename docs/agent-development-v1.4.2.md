@@ -28,6 +28,23 @@ The destination guard compares the stable repository ID and freezes its gate,
 workflow, authority, dependency configuration and historical compatibility corpus.
 A registered path alone cannot qualify a change to these verification surfaces.
 
+The transfer-v2 correction manifest additionally binds the already published
+bootstrap candidate, its parent and tree, and the predecessor merge/manifest that
+qualified it. The verifier requires this complete exact observed history before
+accepting an appended correction. This preserves the first candidate and its
+review findings without rewriting Git. Transfer-v1 keeps its original direct-child
+receipt semantics. The corrected guard binds every path to an exact Git mode and
+also freezes AGENTS.md; the entrypoint selects current topic procedures only from
+an accepted revision. Corrections still require full predecessor qualification.
+Destination verification also requires a separate host-selected historical
+qualification inventory and its independently retained digest. The host derives
+these identities from the authenticated prior merge, reconciled native qualification
+and original destination byte/tree receipt, never from the correction manifest.
+It authenticates these sources before selecting the inventory. The engine compares
+every merge, manifest, repository ID, bootstrap commit, parent and tree with that
+external inventory. Missing, replaced or inconsistent history blocks verification;
+a recomputed digest alone does not authenticate a historical qualification.
+
 The compatibility subtree retains only Protocol modules, their full test suite,
 their document inventories and the historical CI file read by guard conformance.
 Relative paths and file modes are intentionally preserved. It includes no product
