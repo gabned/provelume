@@ -1,8 +1,8 @@
 {
   "schema": "agent-protocol-consumer-provenance/v2",
   "source_repository": "gabned/agent-protocol",
-  "source_revision": "4862051b06c745a12a20482809147a1081bdc059",
-  "source_manifest_digest": "3ca9f01ec3dabdce53f91e72a1826e8619fbdce38fa71cb5afc0dae30f8abdc9",
+  "source_revision": "7287e2c3c6dd42d1aad1c7eac3c68043f8a0cf69",
+  "source_manifest_digest": "00b0a6babb0fb94a685f239dd45ddf4c25bdfe46d59767d2f7b0f9d534e11df6",
   "predecessor": {
     "repository": "gabned/provelume",
     "revision": "f4bc7af7088dbcded954a4e4e41153a0ac5a8446",

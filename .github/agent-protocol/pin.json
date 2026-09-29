@@ -2,13 +2,13 @@
   "schema": "agent-protocol-consumer-pin/v2",
   "consumer": "gabned/provelume",
   "consumer_id": 1343746770,
-  "operational_revision": "4862051b06c745a12a20482809147a1081bdc059",
-  "work_revision": "4862051b06c745a12a20482809147a1081bdc059",
+  "operational_revision": "7287e2c3c6dd42d1aad1c7eac3c68043f8a0cf69",
+  "work_revision": "7287e2c3c6dd42d1aad1c7eac3c68043f8a0cf69",
   "source_manifest": {
     "schema": "agent-protocol-source/v1",
     "repository": "gabned/agent-protocol",
     "repository_id": 1393711644,
-    "revision": "4862051b06c745a12a20482809147a1081bdc059",
+    "revision": "7287e2c3c6dd42d1aad1c7eac3c68043f8a0cf69",
     "version": "1.5.0",
     "files": [
       {
@@ -595,10 +595,31 @@
       }
     ]
   },
-  "manifest_digest": "3ca9f01ec3dabdce53f91e72a1826e8619fbdce38fa71cb5afc0dae30f8abdc9",
+  "manifest_digest": "00b0a6babb0fb94a685f239dd45ddf4c25bdfe46d59767d2f7b0f9d534e11df6",
   "documents_digest": "a5e8ea8a51ef964abca7092c7e6d18502fa0ca526aed49efa6b069485c895f06",
-  "archive_sha256": "39f97464810d867ab1ddf0f259f370d02364f6a3aa465c24a7a41e0e49237729",
+  "archive_sha256": "192ab551e19082e593e4cf4866c3affbeb4f277ec3b946a053743aae025560eb",
   "release_url": "https://github.com/gabned/agent-protocol/releases/tag/v1.5.0",
   "vendor_prefix": "tools/agent_protocol_core",
-  "candidate_preview": "NOT_ACCEPTED_NOT_PUBLISHED_NOT_ADOPTED"
+  "release_artifacts": {
+    "agent_protocol_core-1.5.0-py3-none-any.whl": {
+      "sha256": "c52672be3b970ebf85498344ae07dc08f33121831a281b0c5d7956fc691f46a0",
+      "size": 441192
+    },
+    "conformance.json": {
+      "sha256": "ab45ca9e941668ee041e58d9f4057eaec98a664324b7a6506c769110f3bdc3c5",
+      "size": 2782
+    },
+    "SHA256SUMS": {
+      "sha256": "1dd43ad2323f99d48789d9ecc41a4038c9228fa9f2bb9c2fdfc262951f8097cc",
+      "size": 359
+    },
+    "source-manifest.json": {
+      "sha256": "d25a81bdfbbdc157124f5c2fb1aa7a744004cb7d06e68119980d30e9c776df0c",
+      "size": 22639
+    },
+    "source.tar.gz": {
+      "sha256": "192ab551e19082e593e4cf4866c3affbeb4f277ec3b946a053743aae025560eb",
+      "size": 372774
+    }
+  }
 }

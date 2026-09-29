@@ -539,6 +539,7 @@ jobs:
           cd "$RUNNER_TEMP/independent-protocol"
           python tools/check.py
 
+
   protocol-workspace:
     name: Native Protocol workspace profile
     if: github.event_name != 'pull_request_target'
@@ -549,6 +550,12 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Reacquire and verify all published Protocol artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/agent_protocol_v2.py acquire
+          python3 tools/agent_protocol_v2.py acquire --offline
       - name: Build isolated native dependencies from the exact profile inputs
         shell: bash
         run: |

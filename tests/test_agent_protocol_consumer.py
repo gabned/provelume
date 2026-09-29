@@ -1,5 +1,6 @@
 """Native entrypoint conformance against the pinned canonical Protocol package."""
 
+import hashlib
 import importlib.util
 import json
 import os
@@ -12,6 +13,8 @@ import urllib.request
 from datetime import UTC
 from pathlib import Path
 from types import SimpleNamespace
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRY = ROOT / "tools/agent-protocol"
@@ -43,6 +46,39 @@ def test_current_dependency_and_native_document_routing():
         payload = json.loads(selected.stdout)
         assert payload["core"]["documents"] and payload["local"]["documents"]
         assert payload["model_text_bytes"] > 0
+
+
+def test_acquisition_refuses_preview_and_preserves_corrupt_offline_cache(tmp_path, monkeypatch):
+    spec = importlib.util.spec_from_file_location(
+        "consumer_acquire", ROOT / "tools/agent_protocol_v2.py"
+    )
+    adapter = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(adapter)
+    pin = adapter.verify()
+    with pytest.raises(ValueError, match="Preview"):
+        adapter.acquire({**pin, "candidate_preview": "NOT_ADOPTED"}, offline=True)
+    monkeypatch.setattr(adapter, "ROOT", tmp_path)
+    cache = tmp_path / ".agent/protocol-artifacts" / pin["operational_revision"]
+    cache.mkdir(parents=True)
+    damaged = cache / "source.tar.gz"
+    damaged.write_bytes(b"retain damaged artifact for diagnosis")
+    accepted = {"sha256": hashlib.sha256(b"expected").hexdigest(), "size": 8}
+    pin = {
+        **pin,
+        "release_artifacts": {
+            name: accepted
+            for name in (
+                "source.tar.gz",
+                "source-manifest.json",
+                "SHA256SUMS",
+                "conformance.json",
+                "agent_protocol_core-1.5.0-py3-none-any.whl",
+            )
+        },
+    }
+    with pytest.raises(ValueError, match="Cached artifact differs"):
+        adapter.acquire(pin, offline=True)
+    assert damaged.read_bytes() == b"retain damaged artifact for diagnosis"
 
 
 def test_native_engine_uses_canonical_preconditions_without_write_authority():
@@ -194,8 +230,13 @@ def workspace_conformance():
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     for attempt in range(2):
         with (ROOT / ".agent/native-profile-runtime.log").open("ab") as log:
-            process = subprocess.Popen(profile["commands"]["start"], cwd=ROOT,
-                                       stdout=log, stderr=log, start_new_session=True)
+            process = subprocess.Popen(
+                profile["commands"]["start"],
+                cwd=ROOT,
+                stdout=log,
+                stderr=log,
+                start_new_session=True,
+            )
             try:
                 for _ in range(120):
                     assert process.poll() is None, "Native server exited before readiness"

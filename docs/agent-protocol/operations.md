@@ -21,6 +21,14 @@ approved signer identity, accepted profile, exact scope and the workstream owner
 The adapter cannot generate approval, claim another owner or convert an editable
 PR description into authority. Preserve raw observations and the signed journal.
 
+Use `python tools/agent_protocol_v2.py acquire` to download the five public release
+artifacts selected by the accepted pin. It checks their complete bytes and sizes,
+the embedded source inventory, every source byte and archive mode against the
+vendored installation. `acquire --offline` repeats verification using only the
+ignored `.agent/protocol-artifacts/` cache. A corrupt or unmanaged cache is
+preserved and refused; acquisition does not change pins, source files or authority.
+Work uses the same command or adapter function, never a second source inventory.
+
 For one journal use START, REFRESH, INTERRUPT, RESUME, HANDOFF, QUALIFY,
 INTEGRATE, RECONCILE, RECONCILE_NOT_APPLIED, CLOSE and ABANDON through their typed
 interfaces. Reobserve before each write, compare expected journal tip and candidate
