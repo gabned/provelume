@@ -1,0 +1,707 @@
+{
+  "schema": "agent-protocol-consumer-provenance/v2",
+  "source_repository": "gabned/agent-protocol",
+  "source_revision": "4862051b06c745a12a20482809147a1081bdc059",
+  "source_manifest_digest": "3ca9f01ec3dabdce53f91e72a1826e8619fbdce38fa71cb5afc0dae30f8abdc9",
+  "predecessor": {
+    "repository": "gabned/provelume",
+    "revision": "f4bc7af7088dbcded954a4e4e41153a0ac5a8446",
+    "registration_pr": 298
+  },
+  "authority_transfer": {
+    "schema": "agent-protocol-origin/v1",
+    "source_repository": "gabned/provelume",
+    "source_commit": "e0a0812b42694f629bcf631e7f2224376bc87e2d",
+    "authority_transfer_repository": "gabned/provelume",
+    "authority_transfer_commit": "03f93074219f221d8c3103b98695191b8407bdce",
+    "authority_transfer_manifest": ".github/agent-protocol/transfer-v1.5.0.json",
+    "authority_transfer_manifest_sha256": "836635c75bb2c0967a073021f0f80d141c1612d60226699363f97b18991900c5",
+    "destination_repository": "gabned/agent-protocol",
+    "destination_id": 1393711644,
+    "accepted_bootstrap_commit": "ed2e8c1d6d816289c2fcab5f583d6d258bb3243f",
+    "provenance_role": "LOCATOR_REQUIRES_INDEPENDENT_AUTHENTICATION",
+    "application_history_imported": false
+  },
+  "files": [
+    {
+      "source": ".gitattributes",
+      "destination": "tools/agent_protocol_core/.gitattributes",
+      "mode": "100644",
+      "sha256": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": ".github/agent-protocol/bootstrap.json",
+      "destination": "tools/agent_protocol_core/.github/agent-protocol/bootstrap.json",
+      "mode": "100644",
+      "sha256": "eec6c6649f9c1becf5c6b4ad6a5459e05e1cfebb5134fe831af1370c257e8dfa",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": ".github/agent-protocol/conformance.json",
+      "destination": "tools/agent_protocol_core/.github/agent-protocol/conformance.json",
+      "mode": "100644",
+      "sha256": "c65f3929ada7d100257181e31a6bdb120a8a937f3269bcf33c89d18c671fdd13",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": ".github/agent-protocol/documents.json",
+      "destination": "tools/agent_protocol_core/.github/agent-protocol/documents.json",
+      "mode": "100644",
+      "sha256": "9e86304764f8e1e3139fe596c90874e107dc5898792b33f55239061e3f00468f",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": ".github/agent-protocol/release.json",
+      "destination": "tools/agent_protocol_core/.github/agent-protocol/release.json",
+      "mode": "100644",
+      "sha256": "773a1b55fcf04c619314b3728b493d8e3d0025dacb663f6fd3b65ca207417490",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": ".github/agent-protocol/source.json",
+      "destination": "tools/agent_protocol_core/.github/agent-protocol/source.json",
+      "mode": "100644",
+      "sha256": "afa97dd607b9b472a097448c9ed1f243837bcdb7c470a6b56e6f289f3c94b16e",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": ".github/workflows/ci.yml",
+      "destination": "tools/agent_protocol_core/.github/workflows/ci.yml",
+      "mode": "100644",
+      "sha256": "a068dd52fb27721a6c43e3a2f14a97718c5d1e16bdbd3b1a39901db74a3d0136",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": ".gitignore",
+      "destination": "tools/agent_protocol_core/.gitignore",
+      "mode": "100644",
+      "sha256": "9c0cb30746d5609f936b052555488d4ab89c8acfcfd1fff16df63cee61f43889",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": ".ruff.toml",
+      "destination": "tools/agent_protocol_core/.ruff.toml",
+      "mode": "100644",
+      "sha256": "f110b88b651022534df4e1edba2c20e10850a16991e8157b5e891f921a627426",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "AGENTS.md",
+      "destination": "tools/agent_protocol_core/AGENTS.md",
+      "mode": "100644",
+      "sha256": "6f9d7f303503ee08f57ab8ca30a283950a76149945a0a80cc79e5cabf0495794",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "COMMERCIAL-LICENSE.md",
+      "destination": "tools/agent_protocol_core/COMMERCIAL-LICENSE.md",
+      "mode": "100644",
+      "sha256": "e715540291a0619933ac9d5e6da62361a48ef699f064a2913dcd2b331573c3ed",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "LICENSE",
+      "destination": "tools/agent_protocol_core/LICENSE",
+      "mode": "100644",
+      "sha256": "9252608df974b053cb0133f583451aa1b2998ede3718a63928c3baa0afe196ad",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "README.md",
+      "destination": "tools/agent_protocol_core/README.md",
+      "mode": "100644",
+      "sha256": "bb99fd9023c85fab7ce5d128f15d67399582576ff54d9ff7126dcf63e5c7f1af",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "THIRD_PARTY_NOTICES.md",
+      "destination": "tools/agent_protocol_core/THIRD_PARTY_NOTICES.md",
+      "mode": "100644",
+      "sha256": "5640a1ac5f048b2eb95b2497bdca8352e2af1c669946636c953ba9f0b5a1b4a8",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/.github/agent-protocol/conformance-v1.4.1.json",
+      "destination": "tools/agent_protocol_core/compat/legacy/.github/agent-protocol/conformance-v1.4.1.json",
+      "mode": "100644",
+      "sha256": "723796ebf0adf078ab9613bae52beb8e3e49898d9309ca5f3f06c0be33c09be1",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/.github/agent-protocol/documents-v1.4.7.json",
+      "destination": "tools/agent_protocol_core/compat/legacy/.github/agent-protocol/documents-v1.4.7.json",
+      "mode": "100644",
+      "sha256": "d30add2ffc0905b0d14682b56c7786127223cf9ebfc03fc45ef1b05563290b16",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/.github/agent-protocol/documents-v1.4.8.json",
+      "destination": "tools/agent_protocol_core/compat/legacy/.github/agent-protocol/documents-v1.4.8.json",
+      "mode": "100644",
+      "sha256": "5ce6bfedcbe44f5ce275b48b0168bd7db1434880c00f724e31c46ec857823227",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/.github/agent-protocol/documents-v1.4.9.json",
+      "destination": "tools/agent_protocol_core/compat/legacy/.github/agent-protocol/documents-v1.4.9.json",
+      "mode": "100644",
+      "sha256": "72167e1e4e1a699aedc6d644b4d56d1d2226876f08153d5663c65c4187491f7e",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/.github/workflows/ci.yml",
+      "destination": "tools/agent_protocol_core/compat/legacy/.github/workflows/ci.yml",
+      "mode": "100644",
+      "sha256": "2960ea97560a5115ac9039a23cd1697a4d6ead2e3e7c1b2e110d60f7b29a37ff",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/AGENTS.md",
+      "destination": "tools/agent_protocol_core/compat/legacy/AGENTS.md",
+      "mode": "100644",
+      "sha256": "a62a92f16932f277d4235f29fe203d8579bc2b7d04e0de0460b9f0be6259a854",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/docs/agent-development-v1.2.1.md",
+      "destination": "tools/agent_protocol_core/compat/legacy/docs/agent-development-v1.2.1.md",
+      "mode": "100644",
+      "sha256": "742d3ca3feb8f200804513e422f4ea6ac19eb429f2fec3e8e02922209904b479",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/docs/agent-development-v1.2.md",
+      "destination": "tools/agent_protocol_core/compat/legacy/docs/agent-development-v1.2.md",
+      "mode": "100644",
+      "sha256": "c0a27a7e8cbd3012e49ba0197b455a9d71c28f02411172302be0eb59d366fdf8",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/docs/agent-development-v1.3.0.md",
+      "destination": "tools/agent_protocol_core/compat/legacy/docs/agent-development-v1.3.0.md",
+      "mode": "100644",
+      "sha256": "f7fbcdd7aa1e71f7164a5a5a29fc760febbf0aa6450f4c6762cff61aef32a4fc",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/docs/agent-development-v1.4.0.md",
+      "destination": "tools/agent_protocol_core/compat/legacy/docs/agent-development-v1.4.0.md",
+      "mode": "100644",
+      "sha256": "9ae1af939b9617087dce0458a1f4570a3aeac6b230aee09c2abb367cc137341c",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/docs/agent-development-v1.4.1.md",
+      "destination": "tools/agent_protocol_core/compat/legacy/docs/agent-development-v1.4.1.md",
+      "mode": "100644",
+      "sha256": "ec822cdd3f690b7d7b71ec1addb7a45efcdcf575c9cb33824d3f72a9a94f7575",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/docs/agent-development-v1.4.2.md",
+      "destination": "tools/agent_protocol_core/compat/legacy/docs/agent-development-v1.4.2.md",
+      "mode": "100644",
+      "sha256": "0d0cad870ef166224d1b00bbfd3c39397f3728c37bbb79dd998c1278bf189a87",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/docs/agent-development-v1.4.3-work.md",
+      "destination": "tools/agent_protocol_core/compat/legacy/docs/agent-development-v1.4.3-work.md",
+      "mode": "100644",
+      "sha256": "b77c2023f9cfc81dd140c01978b9d66087410f1ccd7b4c6d4784efdab1b4c879",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/docs/agent-development-v1.4.5-work.md",
+      "destination": "tools/agent_protocol_core/compat/legacy/docs/agent-development-v1.4.5-work.md",
+      "mode": "100644",
+      "sha256": "44bbd5e535b53712f4e3f398274a0171993704e9475fad0249f39b4cb4ed787b",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/docs/agent-development-v1.4.6-work.md",
+      "destination": "tools/agent_protocol_core/compat/legacy/docs/agent-development-v1.4.6-work.md",
+      "mode": "100644",
+      "sha256": "afb602d5c0f7fa831ce1b460d9496049725ba75c8ec1955b57f566ab9a77ef49",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/docs/agent-development-v1.4.7.md",
+      "destination": "tools/agent_protocol_core/compat/legacy/docs/agent-development-v1.4.7.md",
+      "mode": "100644",
+      "sha256": "374facbda5842c9b04a7e362d39663a0a37f138e32d875638983c815b67034fe",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/docs/agent-development-v1.4.8.md",
+      "destination": "tools/agent_protocol_core/compat/legacy/docs/agent-development-v1.4.8.md",
+      "mode": "100644",
+      "sha256": "5620cc6f412d547a3bd1f3e188606209e3d6c899e1874cff1bd8c2fe5b1ee400",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/docs/agent-development-v1.4.9.md",
+      "destination": "tools/agent_protocol_core/compat/legacy/docs/agent-development-v1.4.9.md",
+      "mode": "100644",
+      "sha256": "6473e247b5302763977bf2553d9c31033dca2cd820403f0e837ab7d9a02d6253",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/pytest.ini",
+      "destination": "tools/agent_protocol_core/compat/legacy/pytest.ini",
+      "mode": "100644",
+      "sha256": "b160d82f7811555051f8966d8e02750a985227c1d022208c784e606946f2eada",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tests/test_agent_protocol_consumer_scope.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_consumer_scope.py",
+      "mode": "100644",
+      "sha256": "72b22ccb4019db03b6a66570f46ee440f67ae338f63aad55297b82d44f90c8af",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tests/test_agent_protocol_v1_2.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_v1_2.py",
+      "mode": "100644",
+      "sha256": "842910d5216b0d724ef5a0a9dad457093663e19638ef2fb21749e9e587c317cf",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tests/test_agent_protocol_v1_2_1.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_v1_2_1.py",
+      "mode": "100644",
+      "sha256": "6ca137e6450d5b286e52ee946bf94f541e929b8ce82440b5a3e7b1a696196743",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tests/test_agent_protocol_v1_4.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_v1_4.py",
+      "mode": "100644",
+      "sha256": "61fb932da0f34c3fc1e6951281d7bd4c0cf843cfb5a741e8cfe308173e8dc151",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tests/test_agent_protocol_v1_4_1.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_v1_4_1.py",
+      "mode": "100644",
+      "sha256": "5d63c387418f90c92a0246fe9144b6266629d8d4805e6a8547fb85e7c5a0ad08",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tests/test_agent_protocol_v1_4_1_slice_issue_transition.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_v1_4_1_slice_issue_transition.py",
+      "mode": "100644",
+      "sha256": "07ac0d787d1e2ea5f49a20a9e85e81e28194b0ae02c329c269bccbd5d7dd2e97",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tests/test_agent_protocol_v1_4_2_ops.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_v1_4_2_ops.py",
+      "mode": "100644",
+      "sha256": "81d34288f8108337bab67f81761cf6cc1605360d62c401ca9d6f10ab4a20abba",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tests/test_agent_protocol_v1_4_7.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_v1_4_7.py",
+      "mode": "100644",
+      "sha256": "39d9754319463f52f0d76f9bb151c80d52977823567cc1980092c4ae222d78ca",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tests/test_agent_protocol_v1_4_9.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_v1_4_9.py",
+      "mode": "100644",
+      "sha256": "2dc903ec1bf77bbed4948eb8243175ef36a462bf6b696fd0fed9c838eb53a02a",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tests/test_agent_protocol_work_check.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_work_check.py",
+      "mode": "100644",
+      "sha256": "b8ef7b39416b5bb0d327264b5679ae3dc2b294c0e5764969c32bf0f80701dc5c",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tests/test_agent_protocol_work_collect.mjs",
+      "destination": "tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_work_collect.mjs",
+      "mode": "100644",
+      "sha256": "0c9de61b0d42e5250d816c8846663fbc7725ba2228083eeea4913812d3f4d8a1",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tests/test_agent_protocol_work_recovery.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_work_recovery.py",
+      "mode": "100644",
+      "sha256": "9c5565fc05ab9d87abf71a51535881c8f360eaa2b6af03949107ffc0ae87ef28",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tests/test_agent_protocol_work_source.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_work_source.py",
+      "mode": "100644",
+      "sha256": "86be9c9d961912745704445086dc675d56f3e7ffbcd9257edf53b87cd96f12f7",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tools/__init__.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tools/__init__.py",
+      "mode": "100644",
+      "sha256": "1d0548b14f2934d1e2dbe63fd635a476ed7795812f6913716a04a801456712fe",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tools/agent_protocol.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tools/agent_protocol.py",
+      "mode": "100755",
+      "sha256": "c7df835b74840ca1063f3ecf1f6088883dff0ada90a1488625d0f5e0f4f187f9",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tools/agent_protocol_v1_4.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tools/agent_protocol_v1_4.py",
+      "mode": "100755",
+      "sha256": "5f3d0c36ddc2b6862b36eeb1cc02de7e7b5ad783adadca8af76cec3eb19b9586",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tools/agent_protocol_v1_4_1.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tools/agent_protocol_v1_4_1.py",
+      "mode": "100755",
+      "sha256": "a6962c123a07ad6bd3e212dfc222f6e565a908a26a9ea5eefb74e9676e4047db",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tools/agent_protocol_v1_4_2.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tools/agent_protocol_v1_4_2.py",
+      "mode": "100755",
+      "sha256": "4553c4da74a9d5f2010f5f2c2b9878b1ff6d0bfa5abe2c178e3e3e437858cd2f",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tools/agent_protocol_v1_4_2_ops.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tools/agent_protocol_v1_4_2_ops.py",
+      "mode": "100644",
+      "sha256": "78f7a0d4c7577e015c202f2389ff90d64af93c020bcfc3e8b85ebc2c51551d2b",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tools/agent_protocol_v1_4_7.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tools/agent_protocol_v1_4_7.py",
+      "mode": "100644",
+      "sha256": "ce87767a0bdb63a715615b4ea8b89d8d93dc1df3e359d6f47434da8d560b9d74",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tools/agent_protocol_v1_4_9.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tools/agent_protocol_v1_4_9.py",
+      "mode": "100644",
+      "sha256": "d3b1afa7bea6de9ea42f30bad17f3060d07bdc43c8465cb41855004c4f63ebb0",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tools/agent_protocol_work_check.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tools/agent_protocol_work_check.py",
+      "mode": "100644",
+      "sha256": "8d2630b52f80f6e217b39c0fb18d781c29cff6265d2b14a6d53a75c2f5c00c7e",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tools/agent_protocol_work_collect.mjs",
+      "destination": "tools/agent_protocol_core/compat/legacy/tools/agent_protocol_work_collect.mjs",
+      "mode": "100644",
+      "sha256": "ada703e75c7e80f2cb32d8c1302d04da83cab2a6c191cded1900662b4deb9f1a",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tools/agent_protocol_work_recovery.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tools/agent_protocol_work_recovery.py",
+      "mode": "100644",
+      "sha256": "eed5454572a47ce1780b1ad87f0406ee7ba20923d61f50ca58739e4172f4ed52",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "compat/legacy/tools/agent_protocol_work_source.py",
+      "destination": "tools/agent_protocol_core/compat/legacy/tools/agent_protocol_work_source.py",
+      "mode": "100644",
+      "sha256": "fa829258034477e5bd89d05a3012c509a41280d6fa76aa39ed0172052a9127ac",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "docs/agent-protocol/adoption.md",
+      "destination": "tools/agent_protocol_core/docs/agent-protocol/adoption.md",
+      "mode": "100644",
+      "sha256": "817856962992c9048a048976b7ea797f55d64142ebf6c72ad029f6bcf12e0419",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "docs/agent-protocol/bootstrap.md",
+      "destination": "tools/agent_protocol_core/docs/agent-protocol/bootstrap.md",
+      "mode": "100644",
+      "sha256": "063d2e9bd6beb71b5a07fc635308cfd0a7ebafc88da3c8b1234fd36a8c3acee1",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "docs/agent-protocol/communication.md",
+      "destination": "tools/agent_protocol_core/docs/agent-protocol/communication.md",
+      "mode": "100644",
+      "sha256": "d2d17768527d8db5331360aa00e6e002e18c0a71557c522f20a242cb062f2408",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "docs/agent-protocol/compatibility.md",
+      "destination": "tools/agent_protocol_core/docs/agent-protocol/compatibility.md",
+      "mode": "100644",
+      "sha256": "6b8a3eb407f8327f1e81b42bd5e0c6acc342ca647e649cc81b277c62317e0bf1",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "docs/agent-protocol/contract.md",
+      "destination": "tools/agent_protocol_core/docs/agent-protocol/contract.md",
+      "mode": "100644",
+      "sha256": "5b1f04c50aa471cb8c56a5b1b5ccd5d2002e6f15dedb070c56d084516f6260fb",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "docs/agent-protocol/hosts.md",
+      "destination": "tools/agent_protocol_core/docs/agent-protocol/hosts.md",
+      "mode": "100644",
+      "sha256": "22247008f59e07b9db377dc98dc6032609d2a3604b63a63ffa5c0f02b991badf",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "docs/agent-protocol/lifecycle.md",
+      "destination": "tools/agent_protocol_core/docs/agent-protocol/lifecycle.md",
+      "mode": "100644",
+      "sha256": "8aceab5b2469a3dd6c50ea7dc9c1ebdc80251ba88e7df61bcdddab96ad4ee4cb",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "docs/agent-protocol/publication.md",
+      "destination": "tools/agent_protocol_core/docs/agent-protocol/publication.md",
+      "mode": "100644",
+      "sha256": "453f4960c8acfbe19cf9823a90a923b30c0a7b574043519d1e47a8318e868ad9",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "docs/agent-protocol/qualification.md",
+      "destination": "tools/agent_protocol_core/docs/agent-protocol/qualification.md",
+      "mode": "100644",
+      "sha256": "fa53c505a995f0a1a2d612b701d103aef9dd621454c351640b5f948f4115ed59",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "pyproject.toml",
+      "destination": "tools/agent_protocol_core/pyproject.toml",
+      "mode": "100644",
+      "sha256": "9fad71f70363698687e819b648b40680658c12e6aafcc1447e11f0040b954231",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "requirements-test.txt",
+      "destination": "tools/agent_protocol_core/requirements-test.txt",
+      "mode": "100644",
+      "sha256": "49e9d8a868c39cc101f85b50396b6e7e32530f56447f6d60f2e210a6c1cc8302",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "src/agent_protocol/__init__.py",
+      "destination": "tools/agent_protocol_core/src/agent_protocol/__init__.py",
+      "mode": "100644",
+      "sha256": "f28a0c7b1ba1a87e2b286bfc6568dfb6d89c89fd38566ee3f5be64b8e65fc4b7",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "src/agent_protocol/__main__.py",
+      "destination": "tools/agent_protocol_core/src/agent_protocol/__main__.py",
+      "mode": "100644",
+      "sha256": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "src/agent_protocol/adoption.py",
+      "destination": "tools/agent_protocol_core/src/agent_protocol/adoption.py",
+      "mode": "100644",
+      "sha256": "00699770b48a47070b3aa51afaae4c2f56aaa5a8344b5b8df354e0e7415086b4",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "src/agent_protocol/audit.py",
+      "destination": "tools/agent_protocol_core/src/agent_protocol/audit.py",
+      "mode": "100644",
+      "sha256": "50ea3cb9e6861dbb833a4415e3597cb18b50fdb51d73e85f042781ed57a1e59f",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "src/agent_protocol/cli.py",
+      "destination": "tools/agent_protocol_core/src/agent_protocol/cli.py",
+      "mode": "100644",
+      "sha256": "d9867375f1132ba15df834b13f152c9c065316f3b4c03242a7c25352e1bbea01",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "src/agent_protocol/documents.py",
+      "destination": "tools/agent_protocol_core/src/agent_protocol/documents.py",
+      "mode": "100644",
+      "sha256": "d380d6368bdc4dc1abc48f91323018827f0f4154b2f5b67f78359edeb2a0565f",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "src/agent_protocol/host.py",
+      "destination": "tools/agent_protocol_core/src/agent_protocol/host.py",
+      "mode": "100644",
+      "sha256": "15dc125ba57f4e937b506b7c43300d724f3901ed502792488633cf1b6dc9ceb0",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "src/agent_protocol/ledger.py",
+      "destination": "tools/agent_protocol_core/src/agent_protocol/ledger.py",
+      "mode": "100644",
+      "sha256": "7018336c25ee73aac383f65fd73ab6dfb4b3da8e9dedef6edc02d50e7bc189e4",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "src/agent_protocol/lifecycle.py",
+      "destination": "tools/agent_protocol_core/src/agent_protocol/lifecycle.py",
+      "mode": "100644",
+      "sha256": "350ba5452cc3cd4a1f6c66cc094a1fd092b078866235e7444e78b5f32b88b4f4",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "src/agent_protocol/qualification.py",
+      "destination": "tools/agent_protocol_core/src/agent_protocol/qualification.py",
+      "mode": "100644",
+      "sha256": "c897177b2b1fc67b0374f5d5973596793d531774a4a9fb59e1e68e6cdc488db6",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "src/agent_protocol/source.py",
+      "destination": "tools/agent_protocol_core/src/agent_protocol/source.py",
+      "mode": "100644",
+      "sha256": "4f5035595489987fa47e7ba732e2657faedb3078e119869d92aad90210803f56",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tests/fixtures/lifecycle.json",
+      "destination": "tools/agent_protocol_core/tests/fixtures/lifecycle.json",
+      "mode": "100644",
+      "sha256": "824ac79d045a9466972fb211abcb90b1369bef8debe5b2f073e713823db5fd70",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tests/test_adoption.py",
+      "destination": "tools/agent_protocol_core/tests/test_adoption.py",
+      "mode": "100644",
+      "sha256": "ef5c8c6e3e8397b094e1976568ad520338a9b1d512596e4272e7e2a684e77a7e",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tests/test_audit.py",
+      "destination": "tools/agent_protocol_core/tests/test_audit.py",
+      "mode": "100644",
+      "sha256": "f47d2e9e0fe1aef859a50e021122cd4ba60c5dea1c561738532731b623745c88",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tests/test_bootstrap.py",
+      "destination": "tools/agent_protocol_core/tests/test_bootstrap.py",
+      "mode": "100644",
+      "sha256": "4dd8fc65e8283c1526c6d462914d2aff62101797906bf66ab2c7567c04e06c1a",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tests/test_cli.py",
+      "destination": "tools/agent_protocol_core/tests/test_cli.py",
+      "mode": "100644",
+      "sha256": "601bfda5ec01ba813b62bd7efd6f7d31ac65e6797b0760c53b97e206cb62f084",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tests/test_collect.mjs",
+      "destination": "tools/agent_protocol_core/tests/test_collect.mjs",
+      "mode": "100644",
+      "sha256": "23d22168a90f0c2c176e53f85ea385d32a8e29ae4b60166decfd5b2f93f2faf1",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tests/test_documents.py",
+      "destination": "tools/agent_protocol_core/tests/test_documents.py",
+      "mode": "100644",
+      "sha256": "bca127b1183a73c1dc6fdaf10a48e82a8eddcb5b04e7a455feff420b58c25fc6",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tests/test_host.py",
+      "destination": "tools/agent_protocol_core/tests/test_host.py",
+      "mode": "100644",
+      "sha256": "2511fd6873648b5857d39b128bc396a7d8fd03581104c44f39d8c773baecdc7d",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tests/test_ledger.py",
+      "destination": "tools/agent_protocol_core/tests/test_ledger.py",
+      "mode": "100644",
+      "sha256": "189ac3b3dc6f700e3f6aabc06cb2fc9f368bd6f52d50a849c10f6a8a469795c9",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tests/test_lifecycle.py",
+      "destination": "tools/agent_protocol_core/tests/test_lifecycle.py",
+      "mode": "100644",
+      "sha256": "b1a2d12ac81205c511c2f2a9f8623eadff59d1fd6f61f2fd3d8a60bf496381e5",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tests/test_packaging.py",
+      "destination": "tools/agent_protocol_core/tests/test_packaging.py",
+      "mode": "100644",
+      "sha256": "6c35e18361ebc7f177d62cd574d690f68accfa9d3239439db8124c8454a1fc44",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tests/test_qualification.py",
+      "destination": "tools/agent_protocol_core/tests/test_qualification.py",
+      "mode": "100644",
+      "sha256": "097ddfef1e9e8f2ca7643d2af208985cc2c565558dda3a5c8436fe2697eb62bb",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tests/test_source.py",
+      "destination": "tools/agent_protocol_core/tests/test_source.py",
+      "mode": "100644",
+      "sha256": "59f90b8fcb2d816abdaa2a628355173392db7ccc300acec049af6edb0a01b6bd",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tools/check.py",
+      "destination": "tools/agent_protocol_core/tools/check.py",
+      "mode": "100644",
+      "sha256": "8d49551913d414fcb9d37104d3ce57bcc8702934a4e4f8f7524cd093f4c58d3f",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tools/collect.mjs",
+      "destination": "tools/agent_protocol_core/tools/collect.mjs",
+      "mode": "100644",
+      "sha256": "3d95008bd46a7131d9c6b260474d624970ab79af1bccfac07ec8451c09c8a091",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tools/guard.py",
+      "destination": "tools/agent_protocol_core/tools/guard.py",
+      "mode": "100644",
+      "sha256": "9c0114cfaa10177091385ca9678323eec4849c18a151436ae1c701cd73978495",
+      "treatment": "VENDOR_CANONICAL"
+    },
+    {
+      "source": "tools/package.py",
+      "destination": "tools/agent_protocol_core/tools/package.py",
+      "mode": "100644",
+      "sha256": "ebc71c0f7706284e015ccd48de98f221b2f6d98550b989ef4e786820e60b0672",
+      "treatment": "VENDOR_CANONICAL"
+    }
+  ],
+  "legacy_policy": "PRESERVE_ORIGINAL_RECEIPTS_AND_VALIDATORS"
+}

@@ -5,7 +5,7 @@
     {
       "id": "AGENTS",
       "path": "AGENTS.md",
-      "sha256": "01be04dfc2b621ca8dbfe029924b020f040469961fba717537a9c9272526026e",
+      "sha256": "a62a92f16932f277d4235f29fe203d8579bc2b7d04e0de0460b9f0be6259a854",
       "role": "ALWAYS",
       "workstreams": [
         "PRODUCT",
@@ -149,7 +149,7 @@
     {
       "id": "agent-development-v1.4.2",
       "path": "docs/agent-development-v1.4.2.md",
-      "sha256": "498d346632c3c67a97eb2a4288b425c228c4d0d5ec7fe7048b0574d5eee04ece",
+      "sha256": "0d0cad870ef166224d1b00bbfd3c39397f3728c37bbb79dd998c1278bf189a87",
       "role": "PROCEDURE",
       "workstreams": [
         "PRODUCT",

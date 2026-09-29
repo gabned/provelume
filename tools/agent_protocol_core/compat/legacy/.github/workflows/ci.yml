@@ -12,9 +12,6 @@ on:
 permissions:
   contents: read
 
-env:
-  RUFF_CACHE_DIR: .agent/ruff-cache
-
 # Superseded PR code runs have no publication authority. Keep trusted-base and
 # default-branch runs intact; every current head still completes the same checks.
 concurrency:
@@ -176,7 +173,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Python
@@ -207,7 +203,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          fetch-depth: 0
           persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -497,81 +492,3 @@ jobs:
           assert all(row['byte_identical'] for row in evidence['artifacts'])
           assert Path('release/SHA256SUMS').stat().st_size > 0
           PY
-
-  protocol-extraction:
-    name: Independent Protocol extraction (${{ matrix.os }})
-    if: github.event_name != 'pull_request_target'
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-          fetch-depth: 0
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: '3.12'
-      - name: Materialize candidate bootstrap for conformance only
-        shell: python
-        run: |
-          import importlib.util, json, os
-          from pathlib import Path
-          spec = importlib.util.spec_from_file_location('transfer', 'tools/agent_protocol_transfer.py')
-          module = importlib.util.module_from_spec(spec)
-          spec.loader.exec_module(module)
-          manifest = json.loads(Path('.github/agent-protocol/transfer-v1.5.0.json').read_text())
-          result = module.materialize(manifest, Path.cwd(), Path(os.environ['RUNNER_TEMP']) / 'independent-protocol',
-                                      trusted_manifest=module.digest(manifest),
-                                      accepted_predecessor=manifest['source_commit'])
-          assert result['authority'] == 'NOT_GRANTED'
-          print(json.dumps(result))
-      - name: Install only standalone Protocol test dependencies
-        shell: bash
-        run: python -m pip install -r "$RUNNER_TEMP/independent-protocol/requirements-test.txt"
-      - name: Run complete extracted checks without a product checkout
-        shell: bash
-        run: |
-          cd "$RUNNER_TEMP/independent-protocol"
-          python tools/check.py
-
-  protocol-workspace:
-    name: Native Protocol workspace profile
-    if: github.event_name != 'pull_request_target'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Build isolated native dependencies from the exact profile inputs
-        shell: bash
-        run: |
-          set -euo pipefail
-          context="$(mktemp -d)"
-          mkdir -p "$context/.github/agent-protocol" "$context/build-lock"
-          cp .github/agent-protocol/Dockerfile "$context/.github/agent-protocol/Dockerfile"
-          cp pyproject.toml "$context/pyproject.toml"
-          cp build-lock/ubuntu-py312-x86_64.requirements.txt "$context/build-lock/"
-          docker build --pull --no-cache --iidfile "$RUNNER_TEMP/protocol-profile-image" \
-            --file "$context/.github/agent-protocol/Dockerfile" "$context"
-      - name: Prepare, run native checks, start, stop and resume synthetic instance
-        shell: bash
-        run: |
-          set -euo pipefail
-          image="$(cat "$RUNNER_TEMP/protocol-profile-image")"
-          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
-            --user "$(id -u):$(id -g)" --env HOME=/tmp/native-home \
-            --env RUFF_CACHE_DIR=/workspace/.agent/ruff-cache \
-            --mount "type=bind,src=$PWD,dst=/workspace" --workdir /workspace "$image" \
-            bash -c 'set -euo pipefail
-              python3 tools/agent_protocol_v2.py workspace prepare
-              python3 tools/agent_protocol_v2.py workspace prepare
-              python3 tools/agent_protocol_v2.py workspace check
-              .agent/lab-venv/bin/python tests/test_agent_protocol_consumer.py --workspace-conformance'
-          git diff --check
