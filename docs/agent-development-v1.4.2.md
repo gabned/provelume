@@ -53,6 +53,15 @@ a failing current collector must fail the canonical native/CI entrypoint. This
 runner correction appends to both already-qualified bootstrap candidates and
 preserves their independently authenticated qualification records.
 
+The destination guard now checks every introduced commit, not only the final
+tree. Candidate ancestry must be complete and linear from the accepted base;
+each parent/child delta and complete tree is checked for scope, frozen gates,
+exact modes and case-insensitive collisions. Adding then deleting an unregistered
+file or restoring a forbidden gate change still fails. Shallow, grafted, replaced,
+unrelated or candidate merge history fails closed. Normal integration preserves
+the entire qualified chain. This correction appends to all three previously
+qualified bootstrap candidates without rewriting their history or findings.
+
 The compatibility subtree retains only Protocol modules, their full test suite,
 their document inventories and the historical CI file read by guard conformance.
 Relative paths and file modes are intentionally preserved. It includes no product
