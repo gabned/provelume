@@ -1206,7 +1206,7 @@
       "destination": "tests/test_agent_protocol_v1_2_1.py",
       "treatment": "COMPATIBILITY",
       "baseline_sha256": "6ca137e6450d5b286e52ee946bf94f541e929b8ce82440b5a3e7b1a696196743",
-      "current_sha256": "6ca137e6450d5b286e52ee946bf94f541e929b8ce82440b5a3e7b1a696196743",
+      "current_sha256": "d3b2653bc4cbdb5c4f0e20b3a6b19bd12ddb10da8d132db8f78c650e0e97ebc9",
       "references": [
         ".github/agent-protocol/transfer-v1.5.0.json",
         "tests/test_agent_protocol_v1_2.py",
@@ -1266,7 +1266,7 @@
       "destination": "tests/test_agent_protocol_v1_4_2_ops.py",
       "treatment": "COMPATIBILITY",
       "baseline_sha256": "81d34288f8108337bab67f81761cf6cc1605360d62c401ca9d6f10ab4a20abba",
-      "current_sha256": "81d34288f8108337bab67f81761cf6cc1605360d62c401ca9d6f10ab4a20abba",
+      "current_sha256": "955523ad14e8fc342af7b1f5e82fc2390f1da514289a41c110f87499e40eb7ae",
       "references": [
         ".github/agent-protocol/transfer-v1.5.0.json",
         "docs/agent-development-v1.4.2.md",
