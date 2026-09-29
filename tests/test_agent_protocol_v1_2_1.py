@@ -295,8 +295,8 @@ def test_authoritative_workflow_uses_the_trusted_base_guard() -> None:
     assert 'git checkout --detach "$BASE_SHA"' in target
     assert "refs/pull/${PR_NUMBER}/head" in target
     assert 'test "$observed_head" = "$HEAD_SHA"' in target
-    assert "python tools/agent_protocol.py change-control" in target
-    assert workflow.count("python tools/agent_protocol.py change-control") == 1
+    assert "python tools/agent_protocol_v2.py event-guard" in target
+    assert workflow.count("python tools/agent_protocol_v2.py event-guard") == 1
 
 
 def test_global_checkpoint_path_is_never_waivable() -> None:

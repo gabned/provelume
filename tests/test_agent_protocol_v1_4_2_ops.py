@@ -1733,7 +1733,12 @@ def test_documented_quickstart_in_fresh_host(tmp_path, monkeypatch, optimization
     canonical = tmp_path / "canonical ' $()"
     (canonical / "tools").mkdir(parents=True)
     module = canonical / "tools/agent_protocol_work_collect.mjs"
-    shutil.copyfile(ROOT / "tools/agent_protocol_work_collect.mjs", module)
+    # This documented legacy bootstrap intentionally tests its original single
+    # file dependency. The current Work entry is a separately tested package shim.
+    shutil.copyfile(
+        ROOT / "tools/agent_protocol_core/compat/legacy/tools/agent_protocol_work_collect.mjs",
+        module,
+    )
     evidence = tmp_path / "evidence ' $()"
     snippet = snippet.replace('"/absolute/canonical-core"', json.dumps(str(canonical)))
     snippet = snippet.replace('"/absolute/evidence/new-work-startup"', json.dumps(str(evidence)))
