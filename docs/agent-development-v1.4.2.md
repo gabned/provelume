@@ -2,6 +2,46 @@
 
 ## Pending independent Protocol Core registration
 
+### Exact extraction qualification
+
+The registered `.github/agent-protocol/transfer-v1.5.0.json` now contains the closed
+source-to-destination inventory, blob/digest/mode identities, preserved notices,
+bootstrap payloads and future exact destination paths. Its source is the accepted
+prerequisite merge. `tools/agent_protocol_transfer.py` checks source and destination
+observations against the manifest selected independently from this PR's accepted
+merge. A manifest supplied by the destination or hashed by its candidate is not an
+authority source. Only a qualified and reconciled predecessor merge activates it.
+The independently selected accepted byte-source predecessor must equal the
+manifest's source_commit. The later merge qualifying the transfer manifest is a
+separate authority observation; neither identity may be substituted for the other.
+
+The destination starts with one root commit containing only the original LICENSE,
+then one direct-child bootstrap candidate with the exact complete inventoried tree.
+The host must observe both trees, modes and parent lists. No product history or
+other files are permitted. This supports the actual GitHub contents/Git APIs without
+assuming they can create a multi-file parentless commit. The initial destination PR
+is qualified through this predecessor because its license-only base has no guard.
+Its actual candidate Linux/Windows conformance remains mandatory. Later changes
+use the accepted destination guard, exact registry, complete CI/reviews, expected
+head integration and post-merge checks described in the qualified bootstrap bytes.
+The destination guard compares the stable repository ID and freezes its gate,
+workflow, authority, dependency configuration and historical compatibility corpus.
+A registered path alone cannot qualify a change to these verification surfaces.
+
+The compatibility subtree retains only Protocol modules, their full test suite,
+their document inventories and the historical CI file read by guard conformance.
+Relative paths and file modes are intentionally preserved. It includes no product
+library, product checkout, runtime credential or application Git history. Nested
+workflow files are test inputs, not active GitHub workflows. Original source pins
+and historical receipt validators remain available and retain their meanings.
+
+The destination bootstrap contract and workflow are authored payloads in the
+manifest, so they receive predecessor review and qualification before use. Run
+their complete standalone checks in a separate directory with no product imports.
+The transfer receipt proves bytes only; it cannot publish Protocol 1.5.0, migrate
+state, grant authority or establish final consumer conformance. Those remain
+separate milestones under the registered destination contract.
+
 Campaign [#292](https://github.com/gabned/provelume/issues/292) registers exactly
 `.github/agent-protocol/transfer-v1.5.0.json`,
 `.github/agent-protocol/documents-v1.5.0.json`,
