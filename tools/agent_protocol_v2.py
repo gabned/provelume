@@ -167,6 +167,10 @@ def workspace(action):
     require(REPOSITORY == "gabned/provelume" and os.name == "posix", "Native profile differs")
     wheels = Path("/opt/native-wheels")
     inventory = json.loads(read(wheels / "inventory.json"))
+    editable = json.loads(read(wheels / "editable-requirements.json"))
+    require(isinstance(editable, list) and editable and all(
+        isinstance(item, str) and item and not any(c in item for c in "/\\:@\n\r")
+        and not item.startswith("-") for item in editable), "Invalid native backend requirements")
     require(inventory and set(inventory) == {p.name for p in wheels.glob("*.whl")},
             "Complete native dependency inventory required")
     for name, expected in inventory.items():
@@ -180,7 +184,7 @@ def workspace(action):
     marker = temporary / "lab-environment.json"
     binding = {"repository": REPOSITORY, "runtime": sys.version,
                "pyproject_sha256": hashlib.sha256(read(ROOT / "pyproject.toml")).hexdigest(),
-               "wheels_sha256": digest(inventory)}
+               "wheels_sha256": digest(inventory), "editable_requirements_sha256": digest(editable)}
     if marker.exists():
         require(json.loads(read(marker)) == binding,
                 "Existing native environment differs; preserve it")
@@ -198,6 +202,8 @@ def workspace(action):
         subprocess.run([str(python), "-m", "pip", "install", "--no-index",
             "--find-links", str(wheels), "--require-hashes", "-r",
             str(ROOT / "build-lock/ubuntu-py312-x86_64.requirements.txt")], cwd=ROOT, check=True)
+        subprocess.run([str(python), "-m", "pip", "install", "--no-index",
+                        "--find-links", str(wheels), *editable], cwd=ROOT, check=True)
         subprocess.run([str(python), "-m", "pip", "install", "--no-index", "--no-build-isolation",
             "--find-links", str(wheels), "-e", ".[dev]"], cwd=ROOT, check=True)
         return {"native_environment": "PREPARED", "gates": "NOT_REPLACED"}
