@@ -5,7 +5,7 @@
     {
       "id": "AGENTS",
       "path": "AGENTS.md",
-      "sha256": "01be04dfc2b621ca8dbfe029924b020f040469961fba717537a9c9272526026e",
+      "sha256": "81a22f45256f841f6fe41e91615f9890a75526f617fa513bbdbb25127edacd86",
       "role": "ALWAYS",
       "workstreams": [
         "PRODUCT",

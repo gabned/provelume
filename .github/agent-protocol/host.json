@@ -196,18 +196,7 @@
     ".github/workflows/windows-shell-smoke.yml@push"
   ],
   "reviewers": [],
-  "review_activity": [
-    {
-      "provider": "CODEX_SUMMARY_V1",
-      "author_id": 199175422,
-      "kind": "CODE"
-    },
-    {
-      "provider": "CODEX_SUMMARY_V1",
-      "author_id": 199175422,
-      "kind": "SECURITY"
-    }
-  ],
+  "review_activity": [],
   "runtime": {
     "pyproject.toml": "2531ca306004255e96ff62c670f4b1f30719072ae1c13a1f7eaa5f5a999d42f8",
     "build-lock/ubuntu-py312-x86_64.requirements.txt": "0b58dd8d57e22583bdfbf395ce7c4da3c8a3265a0f51aa83a6c4c42e1ed4b636",

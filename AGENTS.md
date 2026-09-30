@@ -32,10 +32,14 @@ using the actual phase/host/workstream. The selected canonical topic contract an
 docs/agent-protocol/operations.md govern new execution. Local PRODUCT policies,
 architecture and release gates remain mandatory. Integrity does not establish authority.
 
-Use one signed durable journal per new PR/workstream through an independently
-enrolled host. A PR description is a summary. Existing owners and legacy receipts
-keep their original supported route; follow docs/agent-protocol/compatibility.md
-before any migration. .agent/ contains ignored caches and temporary material.
+Lifecycle v2 activation is optional and deferred by the maintainer. Existing and
+new workstreams may retain the accepted PR-local legacy procedure and its original
+validators; use docs/agent-development-v1.4.9.md and its verified historical selector.
+The independent engine remains installed and byte-verified. Explicit v2 activation
+requires independent host enrollment before the first signed-journal write.
+Keep one state/owner per workstream, never switch an active signed journal to escape
+a failed gate, and follow docs/agent-protocol/compatibility.md before migration.
+.agent/ contains ignored caches and temporary material; no global lock is introduced.
 
 After each milestone state what is verified, one next action and where it runs,
 then the remaining milestones. Continue work already authorized here. Only a real

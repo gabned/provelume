@@ -760,7 +760,7 @@
       "destination": ".github/agent-protocol/documents-v1.4.9.json",
       "treatment": "COMPATIBILITY",
       "baseline_sha256": "1197dda489df6f8ae3368eb55e38478ff4adf2ee846bd3ac0d4ff7f6f919670d",
-      "current_sha256": "e77ebdc32cd75800d43a7aef22120f7dcd8271245728a1c1e345fd6591f7a220",
+      "current_sha256": "d23cd149c307ee21f9cf99fd499180d85b987099097eb7dbaf6fcd43fd7ed2e4",
       "references": [
         ".github/agent-protocol/transfer-v1.5.0.json",
         "docs/agent-development-v1.4.2.md",
@@ -927,7 +927,7 @@
       "destination": "AGENTS.md",
       "treatment": "KEEP",
       "baseline_sha256": "a62a92f16932f277d4235f29fe203d8579bc2b7d04e0de0460b9f0be6259a854",
-      "current_sha256": "01be04dfc2b621ca8dbfe029924b020f040469961fba717537a9c9272526026e"
+      "current_sha256": "81a22f45256f841f6fe41e91615f9890a75526f617fa513bbdbb25127edacd86"
     },
     {
       "path": "docs/agent-development-v1.2.1.md",
@@ -1647,6 +1647,9 @@
     "global_checkpoint": "NONE",
     "adoption_pr": 299,
     "adoption_qualification": "ACCEPTED_PREDECESSOR",
-    "active_product_owner_changes": "NONE"
+    "active_product_owner_changes": "NONE",
+    "lifecycle_v2_activation": "OPTIONAL_DEFERRED_BY_MAINTAINER",
+    "new_workstream": "SUPPORTED_NATIVE_ROUTE_OR_EXPLICIT_V2_ACTIVATION",
+    "active_signed_journals": "PRESERVE_IDENTITY_AND_HISTORY_NO_FAILURE_DRIVEN_FALLBACK"
   }
 }

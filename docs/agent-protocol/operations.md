@@ -6,6 +6,30 @@ documents selected for the actual phase, host and workstream. A byte digest prov
 integrity, never authority. The repository's PRODUCT policy, required native tests,
 review governance and production consent remain local.
 
+## Optional Lifecycle v2 activation
+
+Lifecycle v2 activation is optional and currently deferred by the maintainer.
+The independent engine stays adopted and verified; its installation does not
+activate a signed journal. Existing and new workstreams may use the accepted PR-local legacy procedure in `docs/agent-development-v1.4.9.md` and its verified historical document selection; no global checkpoint is introduced.
+
+Operator enrollment, signing setup, WSL and paid laboratory provisioning are not
+prerequisites for that native route. Native tests, source integrity, policy-before-
+binding, ownership, exact-head CI, complete reviews/threads and production consent
+remain mandatory as applicable. A PR description or digest never grants authority.
+
+Each workstream retains one authoritative state and its actual route in the handoff.
+Starting v2 requires explicit activation and independently approved host enrollment.
+Once a signed journal exists, preserve identity/history and use its typed recovery
+and closure; do not fall back after a failed or uncertain operation. Migration of
+an existing owner requires a separate supported coordinated operation. No manual
+checkpoint edits, new capabilities or reinterpretation of historical receipts.
+
+Report v2 activation and real signed-journal recovery as DEFERRED_BY_MAINTAINER,
+never PASS. This deferral does not block ordinary native PRODUCT work and does not
+certify v2 migration or replace any required native acceptance.
+
+## Independent engine and optional v2 operations
+
 Run `python tools/agent_protocol_v2.py verify` before importing the dependency.
 Select documentation with `python tools/agent_protocol_v2.py documents --phase
 START --host CLI --workstream PROTOCOL`; use the actual context rather than this
@@ -63,3 +87,13 @@ work in the same session. For a genuine handoff preserve owner, journal location
 expected head, accepted pin/profile, unresolved gates and the one next action.
 Record actual available model/effort only in that handoff. Unknown measurements
 remain UNKNOWN. A proposed new objective does not authorize starting it.
+
+## Review authority
+
+The accepted local instructions and actual maintainer requests determine review
+requirements. This adoption adds no unconditional Codex Code/Security requirement.
+An explicit request or independently required repository review must be bound by
+the host before qualification; editable JSON cannot remove it. Every current
+technical finding and complete review/thread inventory remains binding. Use normal
+expected-head GitHub merge and stop on a platform denial. Review unavailability
+is never a clean verdict or a waiver of an actual requirement.
