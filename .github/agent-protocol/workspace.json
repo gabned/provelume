@@ -1,0 +1,39 @@
+{
+  "schema": "agent-workspace/v3",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04@sha256:d94c97dd9cacf183d0a6fd12a8e87b526e9e928307674ae9c94139139c0c6eae",
+  "runtime_sources": [
+    "pyproject.toml",
+    "build-lock/ubuntu-py312-x86_64.requirements.txt"
+  ],
+  "services": {},
+  "caches": {},
+  "ports": [],
+  "build": {
+    "dockerfile": ".github/agent-protocol/Dockerfile",
+    "context_files": [
+      ".github/agent-protocol/Dockerfile",
+      "pyproject.toml",
+      "build-lock/ubuntu-py312-x86_64.requirements.txt"
+    ]
+  },
+  "commands": {
+    "prepare": [
+      "python3",
+      "tools/agent_protocol_v2.py",
+      "workspace",
+      "prepare"
+    ],
+    "check": [
+      "python3",
+      "tools/agent_protocol_v2.py",
+      "workspace",
+      "check"
+    ],
+    "start": [
+      "python3",
+      "tools/agent_protocol_v2.py",
+      "workspace",
+      "start"
+    ]
+  }
+}

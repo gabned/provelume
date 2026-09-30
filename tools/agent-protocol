@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+"""Native launcher for the accepted, verified Protocol dependency."""
+import importlib.util
+from pathlib import Path
+
+path = Path(__file__).resolve().with_name('agent_protocol_v2.py')
+spec = importlib.util.spec_from_file_location('consumer_protocol', path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+raise SystemExit(module.main())

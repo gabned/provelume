@@ -1,11 +1,11 @@
 {
   "schema": "agent-documents/v1",
-  "protocol_version": "1.4.9",
+  "protocol_version": "1.4.8",
   "documents": [
     {
       "id": "AGENTS",
       "path": "AGENTS.md",
-      "sha256": "81a22f45256f841f6fe41e91615f9890a75526f617fa513bbdbb25127edacd86",
+      "sha256": "cb483811398b76289cdd50e450c0bb454da954148722372768e27f63948da19a",
       "role": "ALWAYS",
       "workstreams": [
         "PRODUCT",
@@ -149,7 +149,7 @@
     {
       "id": "agent-development-v1.4.2",
       "path": "docs/agent-development-v1.4.2.md",
-      "sha256": "498d346632c3c67a97eb2a4288b425c228c4d0d5ec7fe7048b0574d5eee04ece",
+      "sha256": "9cf17ebb7ec5c766ff7dd71118873a596637ceac1c7c3113ef871d4daea6c0d6",
       "role": "PROCEDURE",
       "workstreams": [
         "PRODUCT",
@@ -277,32 +277,6 @@
         "GIT"
       ],
       "requires": []
-    },
-    {
-      "id": "agent-development-v1.4.9",
-      "path": "docs/agent-development-v1.4.9.md",
-      "sha256": "6473e247b5302763977bf2553d9c31033dca2cd820403f0e837ab7d9a02d6253",
-      "role": "ALWAYS",
-      "workstreams": [
-        "PRODUCT",
-        "PROTOCOL",
-        "CHECKPOINT_ONLY"
-      ],
-      "phases": [
-        "START",
-        "RESUME",
-        "IMPLEMENT",
-        "QUALIFY",
-        "POST_MERGE",
-        "CLOSE"
-      ],
-      "hosts": [
-        "WORK",
-        "GIT"
-      ],
-      "requires": [
-        "agent-development-v1.4.8"
-      ]
     }
   ],
   "repository_policy": {
