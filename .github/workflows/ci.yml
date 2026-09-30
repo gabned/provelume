@@ -218,6 +218,25 @@ jobs:
         run: python -m pip install -e ".[dev]"
       - name: Lint
         run: python -m ruff check core tests scripts tools packaging
+      - name: Observe Windows JavaScript runtime before full shard execution
+        shell: python
+        run: |
+          import json, shutil, subprocess, sys, time
+          from pathlib import Path
+          node = shutil.which("node")
+          if node is None:
+              raise SystemExit("Required browser-contract runtime is unavailable")
+          version = subprocess.run([node, "--version"], capture_output=True, text=True, timeout=15, check=True)
+          print(json.dumps({"node": node, "node_version": version.stdout.strip(), "python": sys.version}), flush=True)
+          started = time.monotonic()
+          result = subprocess.run([node, str(Path("tests/fixtures/cura_shell_contract.cjs").resolve()),
+                                   str(Path("core/provelume/static/cura-shell.js").resolve())],
+                                  stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=15, check=False)
+          print(json.dumps({"exit": result.returncode, "seconds": time.monotonic()-started,
+                            "stdout": result.stdout, "stderr": result.stderr}), flush=True)
+          if result.returncode != 0 or "publication expiry contracts passed" not in result.stdout:
+              raise SystemExit("Windows JavaScript contract failed before shard execution")
+
       - name: Execute two of four Windows shards within the unchanged deadline
         run: >-
           python tools/agent_protocol_work_check.py windows-group

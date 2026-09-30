@@ -807,7 +807,7 @@
       "destination": ".github/workflows/ci.yml",
       "treatment": "KEEP",
       "baseline_sha256": "817d70d2b014fa57498355aec4d98b481ded64c17a2503410dbaaf5c36904c2d",
-      "current_sha256": "eacd6ca82e2dff7adb72cb7ff3bc6f92c6fe285edbda91e6461ffa895f6c03ef"
+      "current_sha256": "b5c98febc954272fb255aa4b01615b1ddf2935e33de3ca1cd2a8d97b69d88807"
     },
     {
       "path": ".github/workflows/email-smoke.yml",
