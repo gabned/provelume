@@ -31,6 +31,12 @@
   const MAX_ITEMS = 16, MAX_BYTES = 64 * 1024 * 1024;
   let statusKey = null, statusExtra = "";
   let retrievalAuth=null,retrievalGeneration=0;
+  function knowledgeSay(key,extra="") {
+    const e=$("retrieval-status");e.dataset.i18n=key;e.dataset.i18nSuffix=extra;e.textContent=WORDS[lang][key]+extra;
+  }
+  function knowledgeError(key,extra="") {
+    const error=new Error(WORDS[lang][key]+extra);error.translation={key,extra};return error;
+  }
   function clearKnowledge({forget=true}={}) {
     retrievalGeneration++;
     if(forget)retrievalAuth=null;
@@ -39,18 +45,18 @@
   }
   async function knowledgeRequest(path,data,{download=false}={}) {
     await requireConnection();
-    if(auth.channel==="paired_pwa"&&(!retrievalAuth||retrievalAuth.device_id!==auth.device_id||Date.parse(retrievalAuth.expires_at)<=Date.now()))throw new Error(WORDS[lang].retrievalExpired);
+    if(auth.channel==="paired_pwa"&&(!retrievalAuth||retrievalAuth.device_id!==auth.device_id||Date.parse(retrievalAuth.expires_at)<=Date.now()))throw knowledgeError("retrievalExpired");
     const selected=auth.channel==="paired_pwa"?{"Authorization":"Bearer "+retrievalAuth.credential,"X-Retrieval-Device":retrievalAuth.device_id}:headers();
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
     try{
       const response=await fetch("/capture/knowledge"+path,{method:data===undefined?"GET":"POST",credentials:"omit",cache:"no-store",signal:controller.signal,headers:{...selected,...(data===undefined?{}:{"Content-Type":"application/json"})},...(data===undefined?{}:{body:JSON.stringify(data)})});
-      if(!response.ok)throw new Error(WORDS[lang][response.status===403?"retrievalExpired":"retrievalError"]+" ("+response.status+")");
+      if(!response.ok)throw knowledgeError(response.status===403?"retrievalExpired":"retrievalError"," ("+response.status+")");
       return download?await response.blob():await response.json();
     }finally{clearTimeout(timer);}
   }
   async function knowledgeAction(action){
-    $("retrieval-status").textContent=WORDS[lang].retrievalLoading;
-    try{await action();}catch(error){clearKnowledge();$("retrieval-status").textContent=error.message;}
+    knowledgeSay("retrievalLoading");
+    try{await action();}catch(error){clearKnowledge();if(error.translation)knowledgeSay(error.translation.key,error.translation.extra);else{const e=$("retrieval-status");delete e.dataset.i18n;delete e.dataset.i18nSuffix;e.textContent=error.message;}}
   }
   async function knowledgeDetail(id){
     clearKnowledge({forget:false});const generation=retrievalGeneration;
@@ -63,16 +69,16 @@
         const blob=await knowledgeRequest("/documents/"+encodeURIComponent(id)+"/versions/"+encodeURIComponent(version.id)+"/original",{},{download:true});
         if(epoch!==retrievalGeneration)return;
         const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="original.bin";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-      }));b.textContent+=" "+version.id;$("retrieval-downloads").append(b);
+      }));b.dataset.i18nSuffix=" "+version.id;b.textContent+=b.dataset.i18nSuffix;$("retrieval-downloads").append(b);
     }
-    $("retrieval-status").textContent=WORDS[lang].retrievalReady+JSON.stringify(value.grant);
+    knowledgeSay("retrievalReady",JSON.stringify(value.grant));
   }
   async function knowledgeList(query){
     clearKnowledge({forget:false});const generation=retrievalGeneration;
     const value=await knowledgeRequest(query===undefined?"/recent":"/search",query===undefined?undefined:{query});
     if(generation!==retrievalGeneration)return;
     for(const row of value.items){const li=document.createElement("li"),name=document.createElement("p");name.textContent=(row.title||row.id)+(row.snippet?" — "+row.snippet:"");li.append(name,button("retrievalOpen",()=>knowledgeAction(()=>knowledgeDetail(row.id))));$("retrieval-results").append(li);}
-    $("retrieval-status").textContent=value.items.length?WORDS[lang].knowledgeTitle:WORDS[lang].retrievalEmpty;
+    knowledgeSay(value.items.length?"knowledgeTitle":"retrievalEmpty");
   }
   const say = (key, extra="") => { statusKey=key;statusExtra=extra;$("status").textContent = WORDS[lang][key] + extra; };
   const canonical = value => JSON.stringify(Object.fromEntries(Object.keys(value).sort().map(k => [k,value[k]])));
@@ -125,11 +131,11 @@
       return value;
     } finally { clearTimeout(timer); }
   }
-  function button(key, action) { const b=document.createElement("button");b.type="button";b.textContent=WORDS[lang][key];b.onclick=()=>run(action);return b; }
+  function button(key, action) { const b=document.createElement("button");b.type="button";b.dataset.i18n=key;b.textContent=WORDS[lang][key];b.onclick=()=>run(action);return b; }
   async function run(action) { try { await action(); } catch(error) { say("failed",error.message); } }
   function translate() {
     document.documentElement.lang=lang;
-    for(const e of document.querySelectorAll("[data-i18n]")) e.textContent=WORDS[lang][e.dataset.i18n];
+    for(const e of document.querySelectorAll("[data-i18n]")) e.textContent=WORDS[lang][e.dataset.i18n]+(e.dataset.i18nSuffix||"");
     $("transport").textContent=WORDS[lang][location.protocol==="https:"&&isSecureContext?"secure":"fallback"];
     if(statusKey)$("status").textContent=WORDS[lang][statusKey]+statusExtra;
     if(installState)$("install-help").textContent=WORDS[lang][installState];
@@ -371,15 +377,15 @@
     $("retrieval-connect").onclick=()=>knowledgeAction(async()=>{
       await requireConnection();const value=JSON.parse($("retrieval-grant").value);
       clearKnowledge();
-      if(value.origin!==location.origin||value.instance_id!==auth.instance_id||value.device_id!==auth.device_id||value.scope!=="knowledge.read+original.download"||!/^[-_A-Za-z0-9]{43}$/.test(value.credential)||!Number.isFinite(Date.parse(value.expires_at))||Date.parse(value.expires_at)<=Date.now())throw new Error(WORDS[lang].retrievalExpired);
-      retrievalAuth=value;const epoch=retrievalGeneration;setTimeout(()=>{if(epoch===retrievalGeneration||retrievalAuth===value){clearKnowledge();$("retrieval-status").textContent=WORDS[lang].retrievalExpired;}},Math.min(86400000,Date.parse(value.expires_at)-Date.now()));
+      if(value.origin!==location.origin||value.instance_id!==auth.instance_id||value.device_id!==auth.device_id||value.scope!=="knowledge.read+original.download"||!/^[-_A-Za-z0-9]{43}$/.test(value.credential)||!Number.isFinite(Date.parse(value.expires_at))||Date.parse(value.expires_at)<=Date.now())throw knowledgeError("retrievalExpired");
+      retrievalAuth=value;const epoch=retrievalGeneration;setTimeout(()=>{if(epoch===retrievalGeneration||retrievalAuth===value){clearKnowledge();knowledgeSay("retrievalExpired");}},Math.min(86400000,Date.parse(value.expires_at)-Date.now()));
       await knowledgeList();
     });
-    $("retrieval-forget").onclick=()=>{clearKnowledge();$("retrieval-status").textContent=WORDS[lang].retrievalCleared;};
+    $("retrieval-forget").onclick=()=>{clearKnowledge();knowledgeSay("retrievalCleared");};
     $("retrieval-recent").onclick=()=>knowledgeAction(()=>knowledgeList());
     $("retrieval-search").onsubmit=event=>{event.preventDefault();const query=$("retrieval-query").value;knowledgeAction(()=>knowledgeList(query));};
-    $("retrieval-issue").onclick=()=>knowledgeAction(async()=>{if(!$("retrieval-consent").checked)throw new Error(WORDS[lang].retrievalConsentRequired);const value=await api("/admin/retrieval/grant",{device_id:$("retrieval-device").value,source_ids:$("retrieval-sources").value.split(",").map(s=>s.trim()),seconds:Number($("retrieval-seconds").value)});$("retrieval-consent").checked=false;$("retrieval-issued").value=JSON.stringify(value);$("retrieval-status").textContent=WORDS[lang].ownerDone;});
-    $("retrieval-revoke").onclick=()=>knowledgeAction(async()=>{await api("/admin/retrieval/revoke",{device_id:$("retrieval-device").value});clearKnowledge();$("retrieval-status").textContent=WORDS[lang].ownerDone;});
+    $("retrieval-issue").onclick=()=>knowledgeAction(async()=>{if(!$("retrieval-consent").checked)throw knowledgeError("retrievalConsentRequired");const value=await api("/admin/retrieval/grant",{device_id:$("retrieval-device").value,source_ids:$("retrieval-sources").value.split(",").map(s=>s.trim()),seconds:Number($("retrieval-seconds").value)});$("retrieval-consent").checked=false;$("retrieval-issued").value=JSON.stringify(value);knowledgeSay("ownerDone");});
+    $("retrieval-revoke").onclick=()=>knowledgeAction(async()=>{await api("/admin/retrieval/revoke",{device_id:$("retrieval-device").value});clearKnowledge();knowledgeSay("ownerDone");});
     window.addEventListener("pagehide",()=>clearKnowledge());
     document.addEventListener("visibilitychange",()=>{if(document.hidden)clearKnowledge();});
     window.addEventListener("online",()=>run(flush));window.addEventListener("offline",()=>say("offline"));window.addEventListener("pagehide",()=>{if(stream)for(const track of stream.getTracks())track.stop();});

@@ -89,3 +89,49 @@ await assert.rejects(scope.test.knowledgeRequest('/recent'),/revoked/);
 console.log(JSON.stringify({no_store:true,separate_token:true,cleared:true,stale_rejected:true}));
 """
     assert node(script)["stale_rejected"] is True
+
+
+def test_existing_retrieval_results_errors_and_version_identity_change_language():
+    script = r"""
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+const nodes=[];
+function element(){const e={dataset:{},textContent:'',value:'',children:[],
+ append(...v){this.children.push(...v);}};nodes.push(e);return e;}
+const elements=new Proxy({}, {get:(t,k)=>t[k]??=element()});
+let mode='recent';const version='ver_'+'9'.repeat(32);
+const source=readFileSync('core/provelume/static/capture-shell.js','utf8')
+ .replace(/\}\)\(\);\s*$/, 'globalThis.test={knowledgeList,knowledgeDetail,'+
+ 'knowledgeAction,knowledgeRequest,'+
+ 'setLanguage:l=>{lang=l;translate();},setAuth:a=>{auth=a;identity=a;}};})();');
+const scope={navigator:{language:'en'},location:{origin:'https://capture.test',protocol:'https:'},
+ isSecureContext:true,AbortController,setTimeout,clearTimeout,
+ document:{documentElement:{},addEventListener(){},getElementById:id=>elements[id],
+  createElement:element,querySelectorAll:()=>nodes.filter(n=>n.dataset.i18n)},
+ fetch:async()=> mode==='denied'?{ok:false,status:403}:{ok:true,json:async()=>mode==='recent'
+  ?{items:[{title:'synthetic',id:'doc_synthetic'}]}
+  :{versions:[{id:version}],grant:{source_ids:['src_synthetic'],expires_at:'local session'}}}};
+vm.createContext(scope);vm.runInContext(source,scope);
+scope.test.setAuth({device_id:'dev_synthetic',instance_id:'inst_synthetic',channel:'local_browser',
+ expiresAt:Date.now()+600000});
+await scope.test.knowledgeList();
+const preview=elements['retrieval-results'].children[0].children[1];
+assert.equal(preview.textContent,'Preview provenance and versions');
+scope.test.setLanguage('it');
+assert.equal(preview.textContent,'Anteprima di provenienza e versioni');
+assert.equal(elements['retrieval-status'].textContent,'Consulta Knowledge');
+mode='detail';await scope.test.knowledgeDetail('doc_synthetic');
+const download=elements['retrieval-downloads'].children[0];
+assert.equal(download.textContent,'Scarica questo Originale esatto (allegato) '+version);
+scope.test.setLanguage('en');
+assert.equal(download.textContent,'Download this exact Original (attachment) '+version);
+assert.match(elements['retrieval-status'].textContent,/Separate Knowledge grant active/);
+assert.match(elements['retrieval-status'].textContent,/src_synthetic/);
+mode='denied';await scope.test.knowledgeAction(()=>scope.test.knowledgeRequest('/recent'));
+assert.match(elements['retrieval-status'].textContent,/revoked.*\(403\)/);
+scope.test.setLanguage('it');
+assert.match(elements['retrieval-status'].textContent,/revocato.*\(403\)/);
+console.log(JSON.stringify({live_language:true,version_preserved:true,error_translated:true}));
+"""
+    assert node(script)["live_language"] is True
