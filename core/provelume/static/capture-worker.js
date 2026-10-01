@@ -4,13 +4,15 @@ const PUBLIC = ["/capture/", "/capture/shell.js", "/capture/style.css", "/captur
 const MAX_FILE = 256 * 1024;
 // Transient handoff only. Durable admission uses the shell's existing S06 outbox.
 let shared = null;
+let receivingShare = false;
 const SHARE_LIMIT = 25 * 1024 * 1024 + 16384;
 const shareError = status => new Response("Share unavailable or interrupted. Keep the source item and use Capture file selection or the configured Drive-drop folder.", {status, headers:{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
 async function receiveShare(request) {
-  if (shared && shared.expires > Date.now()) return shareError(409);
+  if (receivingShare || (shared && shared.expires > Date.now())) return shareError(409);
   shared=null;
   if (!request.headers.get("Content-Type")?.startsWith("multipart/form-data;")) return shareError(415);
   const reader=request.body?.getReader(); if(!reader)return shareError(400);
+  receivingShare=true;
   let size=0;const chunks=[];
   try {
     while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>SHARE_LIMIT){await reader.cancel();return shareError(413);}chunks.push(value);}
@@ -25,6 +27,7 @@ async function receiveShare(request) {
     const selected=shared;setTimeout(()=>{if(shared===selected)shared=null;},120000);
     return new Response(null,{status:303,headers:{Location:"/capture/?share="+id,"Cache-Control":"no-store"}});
   }catch(error){shared=null;return shareError(400);}
+  finally{receivingShare=false;reader.releaseLock();}
 }
 self.addEventListener("message",event=>{
   const client=event.source;

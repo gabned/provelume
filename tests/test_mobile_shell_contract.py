@@ -50,6 +50,44 @@ console.log(JSON.stringify({bounded:true,transient:true,one_use:true,foreign_rej
     assert node(script)["transient"] is True
 
 
+def test_concurrent_share_does_not_overwrite_pending_handoff_and_failure_recovers():
+    script = r"""
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+import {webcrypto} from 'node:crypto';
+const handlers={},messages=[];
+const scope={URL,Response,Request,Blob,TextEncoder,crypto:webcrypto,Date,setTimeout:()=>0,
+ self:{location:{origin:'https://capture.test'},addEventListener:(k,v)=>handlers[k]=v}};
+vm.createContext(scope);vm.runInContext(readFileSync('core/provelume/static/capture-worker.js','utf8'),scope);
+const client={url:'https://capture.test/capture/',postMessage:v=>messages.push(v)};
+function dispatch(request){let result;
+ handlers.fetch({request,respondWith:p=>result=p});return result;}
+function ordinary(text){const body=new FormData();body.append('text',text);
+ return new Request('https://capture.test/capture/share',{method:'POST',body});}
+const original=ordinary('first retained item');
+let resume,reads=0,released=false;
+const first=dispatch({url:original.url,method:'POST',headers:original.headers,
+ body:{getReader:()=>({read:async()=>{if(reads++)return {done:true};
+ await new Promise(r=>resume=r);
+ return {done:false,value:new Uint8Array(await original.arrayBuffer())};},
+ releaseLock:()=>released=true})}});
+assert.equal((await dispatch(ordinary('second must be refused'))).status,409);
+resume();const response=await first;assert.equal(response.status,303);assert.equal(released,true);
+const id=new URL(response.headers.get('Location'),'https://capture.test').searchParams.get('share');
+handlers.message({source:client,data:{kind:'capture-share',id}});
+assert.equal(messages[0].value.text,'first retained item');
+let failedReleased=false;
+assert.equal((await dispatch({url:original.url,method:'POST',headers:original.headers,
+ body:{getReader:()=>({read:async()=>{throw new Error('synthetic interrupted stream');},
+ releaseLock:()=>failedReleased=true})}})).status,400);
+assert.equal(failedReleased,true);
+assert.equal((await dispatch(ordinary('recovered after interruption'))).status,303);
+console.log(JSON.stringify({concurrent_refused:true,first_retained:true,recovery:true}));
+"""
+    assert node(script)["recovery"] is True
+
+
 def test_retrieval_no_store_clear_and_stale_response_cannot_restore_content():
     script = r"""
 import assert from 'node:assert/strict';
