@@ -113,6 +113,8 @@ def _capture_headers(response):
         .replace("camera=()", "camera=(self)")
         .replace("microphone=()", "microphone=(self)")
     )
+    if response.headers.get("Content-Disposition", "").startswith("attachment;"):
+        response.headers["Content-Security-Policy"] = "default-src 'none'; sandbox"
     return response
 
 
@@ -153,6 +155,10 @@ def attach_capture_routes(app, store, *, paired_origin=None):
             raise HTTPException(404, "Not found")
         boundary(request, mutation=request.method not in {"GET", "HEAD"})
         sessions.check(request.headers.get("x-capture-nonce"), subject)
+
+    from .mobile_retrieval import attach_mobile_retrieval
+
+    attach_mobile_retrieval(app, store, authority, boundary, owner, paired_origin, attempts)
 
     def access(request, *, mutation=False):
         boundary(request, mutation=mutation)
@@ -263,6 +269,15 @@ def attach_capture_routes(app, store, *, paired_origin=None):
             "secure_context_required": True,
             "scope": SCOPE,
         }
+
+    @app.post("/capture/share")
+    def share_unavailable():
+        # An installed HTTPS worker owns transient OS sharing. No server-side queue.
+        raise HTTPException(
+            409,
+            "Share target unavailable; keep the source item and use file selection "
+            "or the already configured watched Drive-drop folder",
+        )
 
     if not paired:
 
@@ -438,7 +453,7 @@ def attach_capture_routes(app, store, *, paired_origin=None):
 
 
 def create_capture_app(instance_root, *, trusted_origin):
-    """Separate listener factory, no management/Knowledge API; no proxy-header trust."""
+    """Explicit Capture listener with separately granted reads, no owner administration."""
     origin = trusted_capture_origin(trusted_origin)
     store = InstanceStore.open(instance_root)
     authority = CaptureAuthority(store)

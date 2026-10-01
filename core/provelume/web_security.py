@@ -104,6 +104,12 @@ class LocalWebSecurityMiddleware(BaseHTTPMiddleware):
         for name, value in SECURITY_HEADERS.items():
             response.headers[name] = value
         if (
+            getattr(request.state, "capture_original_attachment", False) is True
+            and request.url.path.startswith("/capture/knowledge/documents/")
+            and response.headers.get("Content-Disposition", "").startswith("attachment;")
+        ):
+            response.headers["Content-Security-Policy"] = "default-src 'none'; sandbox"
+        if (
             trusted_request_host(request.headers.get("host", ""))
             and request.url.path == "/google/connect"
             and response.status_code in {200, 303}

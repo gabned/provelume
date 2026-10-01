@@ -38,6 +38,15 @@
 <section><h2 data-i18n="outbox">Local outbox</h2><p data-i18n="retention">At most 16 items / 64 MiB. Pending bytes remain locally until an authoritative receipt. Acknowledgement removes pending bytes, not server knowledge. Local removal never cancels an accepted server submission.</p>
 <button id="retry" data-i18n="retryAll">Reconcile / retry queued captures</button><ul id="outbox" aria-live="polite"></ul>
 <button id="receipts" data-i18n="receipts">Refresh my server receipts</button><ul id="server-receipts"></ul></section>
+<section id="knowledge-panel"><h2 data-i18n="knowledgeTitle">Consult Knowledge</h2>
+<p data-i18n="knowledgeBoundary">Capture pairing does not authorize Knowledge. A separate expiring grant selects Sources. Use LAN, a trusted network or VPN and the explicitly configured HTTPS destination. Retrieved content stays in memory; an explicit download saves a copy.</p>
+<label><span data-i18n="retrievalGrant">Separate retrieval grant contents</span><textarea id="retrieval-grant" maxlength="4096" rows="3" autocomplete="off" spellcheck="false"></textarea></label>
+<button id="retrieval-connect" data-i18n="retrievalConnect">Use grant for this session</button>
+<button id="retrieval-forget" data-i18n="retrievalForget">Clear retrieved content and grant</button>
+<p id="retrieval-status" role="status" aria-live="polite"></p>
+<button id="retrieval-recent" data-i18n="recentKnowledge">Recent acquisitions</button>
+<form id="retrieval-search"><label><span data-i18n="knowledgeQuery">Search (1–128 characters, at most 20 matches)</span><input id="retrieval-query" maxlength="128" required></label><button data-i18n="searchKnowledge">Search</button></form>
+<ul id="retrieval-results"></ul><pre id="retrieval-detail"></pre><div id="retrieval-downloads"></div></section>
 <section id="owner-panel" hidden><h2 data-i18n="owner">Local owner: devices and retained captures</h2>
 <p data-i18n="httpsHelp">The remote Capture listener is separate and disabled by default. Configure its exact HTTPS origin, then start it explicitly with a certificate. Management remains loopback-only. QR challenges expire in 120 seconds and are single-use.</p>
 <label><span data-i18n="origin">Trusted HTTPS Capture origin</span><input id="origin" type="url" placeholder="https://capture.example.test:8443" autocomplete="off"></label>
@@ -45,6 +54,15 @@
 <button id="configure" data-i18n="configure">Configure destination</button><button id="pair-qr" data-i18n="createQr">Create one-use pairing QR</button>
 <img id="qr" hidden alt="One-use scoped Capture pairing QR"><textarea id="qr-text" readonly hidden rows="5" aria-label="Pairing challenge contents"></textarea>
 <p id="qr-status" role="status"></p><ul id="devices"></ul>
+<fieldset><legend data-i18n="retrievalOwner">Separate Knowledge permission</legend>
+<p data-i18n="retrievalOwnerHelp">Select one active paired device and 1–16 existing Source IDs. Granting authorizes future reads in these Sources until expiry or revocation. Submission permission is independent.</p>
+<label><span data-i18n="retrievalDevice">Device ID</span><input id="retrieval-device" maxlength="36"></label>
+<label><span data-i18n="retrievalSources">Source IDs, separated by commas</span><textarea id="retrieval-sources" maxlength="700" rows="2"></textarea></label>
+<label><span data-i18n="retrievalSeconds">Lifetime in seconds (60–86400)</span><input id="retrieval-seconds" type="number" min="60" max="86400" value="600"></label>
+<label class="inline"><input id="retrieval-consent" type="checkbox"><span data-i18n="retrievalConsent">Authorize this device to read the selected Sources and explicitly download their Originals.</span></label>
+<button id="retrieval-issue" data-i18n="retrievalIssue">Grant Knowledge permission</button>
+<button id="retrieval-revoke" data-i18n="retrievalRevoke">Revoke Knowledge permission</button>
+<textarea id="retrieval-issued" rows="4" readonly autocomplete="off" aria-label="Separate retrieval grant"></textarea></fieldset>
 <button id="owner-refresh" data-i18n="ownerRefresh">Refresh retained Capture results</button><ul id="owner-captures"></ul>
 <p data-i18n="quarantineHelp">Rejection records quarantine with explicit retention. Undo records compensation. Neither action deletes, moves or purges Original bytes or canonical history. Archive/trash/purge are separate governed disposition actions in Knowledge.</p>
 <a href="/inbox" data-i18n="backInbox">Return to local Inbox</a></section>
