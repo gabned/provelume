@@ -22,7 +22,7 @@ from . import __version__
 from .about import RELEASES_URL, current_about
 from .about import SOURCE_REPOSITORY_URL as SOURCE_REPOSITORY_URL
 from .about import public_about_links as public_about_links
-from .catalog_registry import exported_catalogs, resolve_language
+from .catalog_registry import exported_catalogs, namespace_catalog, resolve_language
 from .publication import RECEIPT_NAME, PublicationError, import_publication
 from .service import ProvelumeInstance
 from .shell_settings import (
@@ -184,6 +184,7 @@ def write_ui_diagnostics(
                 ),
                 auto_start_service=False,
                 enable_native_tray=False,
+                enable_first_run_dialog=False,
             )
             target_width, target_height = _window_dimensions(
                 viewport_width,
@@ -490,7 +491,7 @@ def _configure_windows_dpi_awareness() -> str:
     return "platform_default"
 
 
-STRINGS = exported_catalogs('desktop.STRINGS')
+STRINGS = exported_catalogs("desktop.STRINGS")
 
 
 class DesktopShell:
@@ -502,6 +503,7 @@ class DesktopShell:
         create_instance_if_missing: bool = True,
         auto_start_service: bool = True,
         enable_native_tray: bool = True,
+        enable_first_run_dialog: bool = True,
     ):
         import tkinter as tk
         from tkinter import ttk
@@ -510,6 +512,9 @@ class DesktopShell:
         self.tk = tk
         self.ttk = ttk
         self.settings = initial_settings.normalized()
+        from .shell_appearance import apply_native_appearance
+
+        self.appearance = apply_native_appearance(self.root, self.settings.theme)
         self.settings_manager = ShellSettingsManager(settings_path(), default_settings())
         self.text = STRINGS[resolve_language(self.settings.language)]
         self.instance = Path(self.settings.instance_path).expanduser()
@@ -522,6 +527,8 @@ class DesktopShell:
         self.update_generation = 0
         self.closed = False
         self.tray: WindowsTray | None = None
+        self._tray_close_explained = False
+        self._tray_observation_running = False
 
         self.status = tk.StringVar(value=self.text["instance_ready"])
         self.update_status = tk.StringVar(value=self.text["current"])
@@ -561,9 +568,15 @@ class DesktopShell:
                 restart_service=self.restart_server,
                 quit_application=self.close,
                 icon_path=_versioned_icon_path(),
+                open_queue=self.open_queue_status,
+                pause_resume=self.open_queue_controls,
             )
             if not self.tray.start():
                 self.tray = None
+            else:
+                self.root.after(1000, self._refresh_tray_queue)
+        if enable_first_run_dialog and self.settings.revision == 0:
+            self.root.after(0, self.show_first_run)
         if auto_start_service and self.instance_available:
             self.root.after(250, self.start_server)
         if self.settings.check_on_start and self.instance_available:
@@ -878,6 +891,87 @@ class DesktopShell:
         with suppress(Exception):
             self.root.focus_force()
 
+    def open_queue_status(self) -> None:
+        self.start_server(open_target="/attention")
+
+    def open_queue_controls(self) -> None:
+        # Job selection and Pause/Resume confirmation use the existing durable
+        # scheduler controls. The tray creates no global pause flag or job queue.
+        self.start_server(open_target="/scheduler")
+
+    def show_first_run(self) -> None:
+        from .shell_preferences import preference_display
+
+        labels = namespace_catalog(resolve_language(self.settings.language), "preferences")
+        selected = self.settings
+        resolved = resolve_language(selected.language)
+        body = "\n".join(
+            [
+                labels["first_run_help"],
+                f"{labels['field.language']}: {selected.language} → {resolved}",
+                f"{labels['field.endpoint_port']}: 127.0.0.1:{selected.endpoint_port}",
+                labels["field.tray_enabled"]
+                + ": "
+                + preference_display("tray_enabled", selected.tray_enabled, resolved),
+                labels["field.login_startup"]
+                + ": "
+                + preference_display("login_startup", selected.login_startup, resolved),
+                f"{labels['instance']}: {self.instance.name}",
+            ]
+        )
+        self._show_local_modal(title=labels["first_run"], body=body, links=[], confirm=False)
+
+    def _refresh_tray_queue(self) -> None:
+        if self.closed or self.tray is None:
+            return
+        if self.server_ready and not self._tray_observation_running:
+            self._tray_observation_running = True
+            port, selected_instance, selected_process = self.server_port, self.instance, self.server
+
+            def observe():
+                from .tray_queue import normalize_queue
+
+                queue = None
+                try:
+                    # Direct loopback only, bounded bytes/time, never proxy or redirect.
+                    class NoRedirect(urllib.request.HTTPRedirectHandler):
+                        def redirect_request(self, *args, **kwargs):
+                            return None
+
+                    opener = urllib.request.build_opener(
+                        urllib.request.ProxyHandler({}),
+                        NoRedirect(),
+                    )
+                    url = f"http://127.0.0.1:{port}/api/v1/shell/queue"
+                    with opener.open(url, timeout=3) as reply:
+                        raw = reply.read(8193)
+                    if len(raw) <= 8192:
+                        queue = normalize_queue(json.loads(raw))
+                except (OSError, ValueError):
+                    pass
+
+                def deliver():
+                    self._tray_observation_running = False
+                    if (
+                        not self.closed
+                        and self.tray is not None
+                        and self.server_ready
+                        and self.server_port == port
+                        and self.instance == selected_instance
+                        and self.server is selected_process
+                    ):
+                        self.tray.update(
+                            service_status="running",
+                            endpoint=f"http://127.0.0.1:{port}",
+                            queue=queue,
+                        )
+
+                if not self.closed:
+                    self.root.after(0, deliver)
+
+            threading.Thread(target=observe, name="ProvelumeTrayObservation", daemon=True).start()
+        self.root.after(15000, self._refresh_tray_queue)
+
     def _update_tray(self, status: str) -> None:
         tray = getattr(self, "tray", None)
         if tray is not None:
@@ -1005,7 +1099,15 @@ class DesktopShell:
         manager = getattr(self, "settings_manager", None)
         if manager is not None:
             self.settings = manager.load().settings
+            self.text = STRINGS[resolve_language(self.settings.language)]
         if self.settings.tray_enabled and self.tray is not None:
+            if not getattr(self, "_tray_close_explained", False):
+                text = namespace_catalog(resolve_language(self.settings.language), "tray")
+                if not self._show_local_modal(
+                    title=self.text["title"], body=text["first_close"], links=[], confirm=True
+                ):
+                    return
+                self._tray_close_explained = True
             self.root.withdraw()
             self._update_tray("running" if self.server_ready else "stopped")
             return

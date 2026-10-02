@@ -40,6 +40,9 @@ a { color: var(--accent); text-underline-offset: .18em; }
 .skip-link { position: fixed; top: 10px; left: 10px; z-index: 100; padding: 10px 14px; border-radius: 8px; background: var(--surface); color: var(--text); border: 2px solid var(--accent); transform: translateY(-180%); }
 .skip-link:focus { transform: translateY(0); }
 :focus-visible { outline: 3px solid var(--info); outline-offset: 3px; }
+dialog.preference-confirm { position: fixed; width: min(42rem,calc(100% - 2rem)); max-height: calc(100% - 2rem); overflow: auto; padding: 1.5rem; border: 2px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+dialog.preference-confirm::backdrop { background: rgb(0 0 0 / .6); }
+dialog.preference-confirm dd { overflow-wrap: anywhere; }
 .page-shell { width: min(1180px,calc(100% - 40px)); margin: 0 auto; padding: 42px 0 70px; }
 .page-shell:focus { outline: none; }
 footer { border-top: 1px solid var(--line); padding: 22px clamp(20px,5vw,72px); color: var(--muted); font-size: .8rem; }

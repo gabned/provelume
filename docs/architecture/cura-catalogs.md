@@ -49,9 +49,19 @@ approval delegation or exact grant recorded for this work.
 The maintainer authorized ordered completion and publication of Cura on
 2026-10-02. S08 is integrated only after verified S07 merge and post-merge checks;
 S09 remains separate. This authorization does not establish linguistic review.
-Actual review is NOT_PERFORMED and no automatic approval grant or review evidence
-is inferred. The sensitive-copy review requirement under #255/#247 remains a
-delivery/publication gate. Complete source-bound review evidence must identify
+The original S08 development record reported review NOT_PERFORMED. The maintainer
+subsequently attested `lingue revisionate` for the exact S08 batch (1,988 sensitive
+items in seven languages) at head `9df70ab2b6855cf2300d5d7e9b8d40dd52e9e767`.
+The [durable attestation](https://github.com/gabned/provelume/pull/304#issuecomment-5946325092)
+records MAINTAINER_ATTESTED human review, not review performed by the agent or
+delegated automatic approval. S08 was delivered at verified merge
+`9636092b6777a531c527f0dd5364ec8873870cea`.
+S09 preserves those reviewed text/key/context/reference items and introduces
+34 additional sensitive keys (238 items). The maintainer explicitly confirmed
+review of those additions in [the S09 attestation](https://github.com/gabned/provelume/issues/306#issuecomment-5946619851),
+bound to full batch `7d1d1ec14e49c42f23dc14ea25cd1c7a85618dee601dab3decbf2cddf6fba5fb`.
+This separate statement does not fabricate per-item verdicts or an automatic grant. The sensitive-copy review
+requirement under #255/#247 remains a delivery/publication gate. Source-bound evidence identifies
 the exact text, language, context and dependencies. Any delegated automatic
 approval additionally requires a prior adopted consumer policy and an exact
 valid grant; neither exists for this candidate. Completeness and automatic

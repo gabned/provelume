@@ -554,7 +554,7 @@ try {
     }
 
     # Exercise the actual frozen Tk layout at every supported DPI probe and reduced resolution.
-    foreach ($Language in @("en", "it")) {
+    foreach ($Language in @("en", "it", "de", "es", "fr", "pt", "ro")) {
         foreach ($Dpi in @(100, 125, 150, 200)) {
             $LayoutEvidence = Join-Path $EvidenceRoot "layout-$Language-$Dpi.json"
             Invoke-WindowsProcess -FilePath $Executable -Arguments @(
@@ -919,7 +919,7 @@ try {
             loopback_backend_identity_and_readiness = "PASS"
             reinstall_and_uninstall = "PASS"
             unsigned_preview_boundary = "PASS"
-            en_it_dpi_layout_probes = "PASS"
+            seven_language_dpi_layout_probes = "PASS"
             windows_10_22h2 = "BLOCKED"
             subjective_visual_quality = "MANUAL_CHECK_REQUIRED"
         }

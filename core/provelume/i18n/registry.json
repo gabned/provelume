@@ -10670,6 +10670,204 @@
       "rendering": "text",
       "sensitive_review_required": false
     },
+    "preferences.cancel": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.configure": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.confirm": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.confirm_help": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.export": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.failed": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.field.check_on_start": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.field.endpoint_port": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.field.interface_mode": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.field.language": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.field.login_startup": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.field.notifications": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.field.theme": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.field.tray_enabled": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.field.update_channel": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.first_run": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.first_run_help": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.import": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.instance": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.no_changes": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.preserved": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.preview": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.reset": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.saved": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.scope": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.scope.all": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.scope.appearance_language": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.scope.notifications_background": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.title": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.transfer": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "preferences.transfer_help": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.undo": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "preferences.undo_help": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
     "provenance.explainer": {
       "context": "provenance: label/navigation; templates/provenance.html",
       "linguistic_review": "UNVERIFIED",
@@ -13070,8 +13268,32 @@
       "rendering": "text",
       "sensitive_review_required": false
     },
+    "tray.first_close": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
     "tray.open": {
       "context": "tray: label/navigation; windows_tray supported shell text / tray.open",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tray.pause": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray.queue": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tray.queue_summary": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
@@ -13105,6 +13327,96 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "tray.unavailable": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_queue_state.attention": {
+      "context": "S09 native tray coarse state derived from complete scheduler / Action Center counts; incomplete observations never mean idle",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_queue_state.degraded": {
+      "context": "S09 native tray coarse state derived from complete scheduler / Action Center counts; incomplete observations never mean idle",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_queue_state.idle": {
+      "context": "S09 native tray coarse state derived from complete scheduler / Action Center counts; incomplete observations never mean idle",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_queue_state.paused": {
+      "context": "S09 native tray coarse state derived from complete scheduler / Action Center counts; incomplete observations never mean idle",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_queue_state.queued": {
+      "context": "S09 native tray coarse state derived from complete scheduler / Action Center counts; incomplete observations never mean idle",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_queue_state.running": {
+      "context": "S09 native tray coarse state derived from complete scheduler / Action Center counts; incomplete observations never mean idle",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_status.crashed": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_status.endpoint_rolled_back": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_status.occupied": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_status.running": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_status.server_failed": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_status.starting": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_status.stopped": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_status.stopping": {
+      "context": "S09 host preference preview/reset/import/undo or native content-minimizing tray; shell_preferences.html / windows_tray.py / desktop.py",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     },
     "video.asr": {
       "context": "video: label/navigation; templates/video.html",

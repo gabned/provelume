@@ -1,0 +1,73 @@
+{% extends base_layout %}
+{% block title %}{{ t('preferences.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+{% if base_layout == 'base.html' %}<script src="/static/cura-shell.js" integrity="{{ cura_script_integrity }}" crossorigin="anonymous" defer></script>{% endif %}
+<h1>{{ t('preferences.title') }}</h1>
+<p>{{ t('preferences.preserved') }}</p>
+{% if first_run %}
+<section class="panel" aria-labelledby="first-run-heading">
+  <h2 id="first-run-heading">{{ t('preferences.first_run') }}</h2>
+  <p>{{ t('preferences.first_run_help') }}</p>
+  <dl><dt>{{ t('preferences.instance') }}</dt><dd>{{ instance.name }}</dd>
+  <dt>{{ t('preferences.field.language') }}</dt><dd>{{ preference_display('language', preferences.language) }} → {{ lang }}</dd>
+  <dt>{{ t('preferences.field.endpoint_port') }}</dt><dd>127.0.0.1:{{ preferences.endpoint_port }}</dd>
+  <dt>{{ t('preferences.field.tray_enabled') }}</dt><dd>{{ t('common.yes') if preferences.tray_enabled else t('common.no') }}</dd>
+  <dt>{{ t('preferences.field.login_startup') }}</dt><dd>{{ t('common.yes') if preferences.login_startup else t('common.no') }}</dd></dl>
+  <a href="/settings/shell?lang={{ lang }}">{{ t('preferences.configure') }}</a>
+</section>
+{% endif %}
+{% if error %}<p role="alert">{{ t('preferences.failed') }}</p>{% endif %}
+{% if saved %}<p role="status">{{ t('preferences.saved') }}</p>{% endif %}
+{% if undo_key %}
+<form method="post" action="/settings/preferences?lang={{ lang }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="mutation_nonce" value="{{ mutation_nonce }}">
+  <input type="hidden" name="revision" value="{{ revision }}">
+  <input type="hidden" name="action" value="undo"><input type="hidden" name="plan_key" value="{{ undo_key }}">
+  <button>{{ t('preferences.undo') }}</button><p>{{ t('preferences.undo_help') }}</p>
+</form>
+{% elif plan %}
+<dialog open class="preference-confirm" data-preference-confirm aria-labelledby="preview-heading">
+  <h2 id="preview-heading">{{ t('preferences.preview') }}</h2>
+  <p>{{ t('preferences.confirm_help') }}</p>
+  <dl>{% for key in plan.changed_fields %}
+    <dt>{{ t('preferences.field.' ~ key) }}</dt>
+    <dd><span>{{ preference_display(key, plan.before[key]) }}</span> → <span>{{ preference_display(key, plan.after[key]) }}</span></dd>
+  {% else %}<dt>{{ t('preferences.no_changes') }}</dt><dd>—</dd>{% endfor %}</dl>
+  <form method="post" action="/settings/preferences?lang={{ lang }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="mutation_nonce" value="{{ mutation_nonce }}">
+    <input type="hidden" name="revision" value="{{ revision }}">
+    <input type="hidden" name="action" value="confirm"><input type="hidden" name="plan_key" value="{{ plan_key }}">
+    <button>{{ t('preferences.confirm') }}</button>
+    <a data-preference-cancel autofocus class="button secondary" href="/settings/preferences?lang={{ lang }}">{{ t('preferences.cancel') }}</a>
+  </form>
+</dialog>
+{% else %}
+<section class="panel">
+  <h2>{{ t('preferences.reset') }}</h2>
+  <form id="preference-reset" method="post" action="/settings/preferences?lang={{ lang }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="mutation_nonce" value="{{ mutation_nonce }}">
+    <input type="hidden" name="revision" value="{{ revision }}"><input type="hidden" name="action" value="preview-reset">
+    <label>{{ t('preferences.scope') }}<select name="scope">
+      {% for scope in ['appearance_language','notifications_background','all'] %}
+      <option value="{{ scope }}">{{ t('preferences.scope.' ~ scope) }}</option>{% endfor %}
+    </select></label><button>{{ t('preferences.preview') }}</button>
+  </form>
+</section>
+<section class="panel">
+  <h2>{{ t('preferences.transfer') }}</h2>
+  <a href="/settings/preferences/export">{{ t('preferences.export') }}</a>
+  <p>{{ t('preferences.transfer_help') }}</p>
+  <form id="preference-import" method="post" action="/settings/preferences?lang={{ lang }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="mutation_nonce" value="{{ mutation_nonce }}">
+    <input type="hidden" name="revision" value="{{ revision }}"><input type="hidden" name="action" value="preview-import">
+    <label>{{ t('preferences.import') }}<textarea name="preferences_json" maxlength="16384" rows="6" required></textarea></label>
+    <button>{{ t('preferences.preview') }}</button>
+  </form>
+</section>
+{% endif %}
+<p><a href="/settings/shell?lang={{ lang }}">{{ t('preferences.configure') }}</a></p>
+{% endblock %}

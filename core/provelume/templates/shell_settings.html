@@ -1,6 +1,7 @@
 {% extends base_layout %}
 {% block title %}{{ t('shell.title') }} · {{ t('brand') }}{% endblock %}
 {% block content %}
+<p><a href="/settings/preferences?lang={{ lang }}">{{ t('preferences.title') }}</a></p>
 <section class="hero">
   <p class="eyebrow">{{ t('shell.eyebrow') }}</p>
   <h1>{{ t('shell.title') }}</h1>
