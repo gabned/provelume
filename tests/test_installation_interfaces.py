@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -40,6 +41,7 @@ def _result(status: str = "package_integrity_verified") -> dict[str, object]:
 def test_read_only_installation_security_api_and_browser(
     tmp_path: Path,
     monkeypatch,
+    shell_mode_settings,
 ) -> None:
     root = tmp_path / "instance"
     ProvelumeInstance.initialise(root, name="Security Demo")
@@ -53,7 +55,8 @@ def test_read_only_installation_security_api_and_browser(
 
     monkeypatch.setattr("provelume.web.verify_current_installation", verify_stub)
 
-    client = TestClient(create_app(root))
+    mode, settings_path = shell_mode_settings
+    client = TestClient(create_app(root, shell_settings_file=settings_path))
     response = client.get("/api/v1/security/installation")
     assert response.status_code == 200
     assert response.json() == result
@@ -64,11 +67,10 @@ def test_read_only_installation_security_api_and_browser(
     assert "Verify installation" in english.text
     assert "Package integrity verified" in english.text
     assert "Not established by local package metadata" in english.text
-    assert (
-        'href="/security/installation?lang=en" aria-current="page">'
-        "Verify installation</a>"
-    ) in english.text
-    assert 'href="/security?lang=en">Security</a>' in english.text
+    active = "/security/installation" if mode == "current" else "/management"
+    assert re.search(rf'href="{active}\?lang=en"[^>]*aria-current="page"', english.text)
+    if mode == "current":
+        assert 'href="/security?lang=en">Security</a>' in english.text
     assert "Synthetic verification result." not in english.text
 
     italian = client.get("/security/installation", params={"lang": "it"})

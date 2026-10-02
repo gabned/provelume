@@ -8,6 +8,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from fastapi.testclient import TestClient
 
+from provelume.cura_shell import script_integrity
 from provelume.service import ProvelumeInstance
 from provelume.web import create_app
 from provelume.web_security import CONTENT_SECURITY_POLICY
@@ -123,25 +124,24 @@ def test_read_only_api_contract(tmp_path: Path) -> None:
     assert instance.store.read_config()["network"]["external_access"] is False
 
 
-def test_browser_routes_and_italian_catalog(tmp_path: Path) -> None:
+def test_browser_routes_and_italian_catalog(tmp_path: Path, shell_mode_settings) -> None:
     root, _source, instance = _fixture(tmp_path)
-    client = TestClient(create_app(root))
+    mode, settings_path = shell_mode_settings
+    client = TestClient(create_app(root, shell_settings_file=settings_path))
     document_id = instance.list_documents()[0]["id"]
 
     home = client.get("/")
     assert home.status_code == 200
-    assert "Instance overview" in home.text
-    assert "/security?lang=en" in home.text
+    assert ("Instance overview" if mode == "current" else "Overview") in home.text
+    assert ("/security?lang=en" if mode == "current" else "/management?lang=en") in home.text
     assert "/about?lang=en" in home.text
     assert 'href="http' not in home.text.lower()
     assert 'src="http' not in home.text.lower()
 
     italian = client.get("/", params={"lang": "it"})
     assert italian.status_code == 200
-    assert (
-        "Panoramica dell&#39;istanza" in italian.text
-        or "Panoramica dell'istanza" in italian.text
-    )
+    expected_heading = "Panoramica dell'istanza" if mode == "current" else "Panoramica"
+    assert expected_heading in unescape(italian.text)
 
     browse = client.get("/browse", params={"area": "Projects"})
     assert browse.status_code == 200
@@ -213,13 +213,19 @@ def test_browser_and_api_survive_restart(tmp_path: Path) -> None:
     assert client.get("/api/v1/build-info").json()["verification"]["network_used"] is False
 
 
-def test_local_web_security_and_accessibility_boundary(tmp_path: Path) -> None:
+def test_local_web_security_and_accessibility_boundary(tmp_path: Path, shell_mode_settings) -> None:
     root, _source, _instance = _fixture(tmp_path)
-    client = TestClient(create_app(root))
+    mode, settings_path = shell_mode_settings
+    client = TestClient(create_app(root, shell_settings_file=settings_path))
 
     home = client.get("/")
     assert home.status_code == 200
-    assert home.headers["content-security-policy"] == CONTENT_SECURITY_POLICY
+    expected_policy = CONTENT_SECURITY_POLICY
+    if mode == "preview":
+        expected_policy = expected_policy.replace(
+            "script-src 'none'", f"script-src '{script_integrity()}'"
+        )
+    assert home.headers["content-security-policy"] == expected_policy
     assert home.headers["cache-control"] == "no-store"
     assert home.headers["cross-origin-opener-policy"] == "same-origin"
     assert home.headers["cross-origin-resource-policy"] == "same-origin"
@@ -237,7 +243,7 @@ def test_local_web_security_and_accessibility_boundary(tmp_path: Path) -> None:
 
     assert 'class="skip-link" href="#main-content"' in home.text
     assert 'id="main-content"' in home.text
-    assert 'aria-current="page">Home</a>' in home.text
+    assert re.search(r'href="/\?lang=en"[^>]*aria-current="page"', home.text)
 
     search = client.get(
         "/search",
@@ -260,4 +266,4 @@ def test_local_web_security_and_accessibility_boundary(tmp_path: Path) -> None:
         "date_from": ["2026-01-01"],
         "lang": ["it"],
     }
-    assert 'aria-current="page">Search</a>' in search.text
+    assert re.search(r'href="/search\?lang=en"[^>]*aria-current="page"', search.text)

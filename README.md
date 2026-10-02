@@ -18,6 +18,8 @@ The [public v0.11.0 release](https://github.com/gabned/provelume/releases/tag/v0
 and its matching publication receipt, asset hashes and installation-readiness marker
 are authoritative for published installation readiness; source preparation alone
 does not establish publication. The channel is **preview**, not stable.
+The permanent verified release chain binds tag, package, embedded identity,
+Windows metadata, manifest, SBOM, checksums and provenance to one reviewed commit.
 
 Cura brings daily Overview, Knowledge, Capture, Search and Needs attention together,
 with one authoritative Action Center and recoverable operations/maintenance.

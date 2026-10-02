@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 import provelume.library_projection as library_projection
 from provelume.cli import main
+from provelume.cura_shell import script_integrity
 from provelume.library_projection import (
     LIBRARY_MANIFEST,
     MAX_LIBRARY_DOCUMENTS,
@@ -327,7 +328,9 @@ def test_explicit_document_limit_above_the_default_is_honored(
         manager.rebuild(max_documents=MAX_LIBRARY_DOCUMENTS + 1)
 
 
-def test_viewer_blocks_active_html_links_and_resource_loading(tmp_path: Path) -> None:
+def test_viewer_blocks_active_html_links_and_resource_loading(
+    tmp_path: Path, shell_mode_settings
+) -> None:
     source = tmp_path / "hostile.md"
     original = (
         "# Safe heading\n\n"
@@ -340,15 +343,26 @@ def test_viewer_blocks_active_html_links_and_resource_loading(tmp_path: Path) ->
     instance = ProvelumeInstance.initialise(tmp_path / "instance")
     instance.ingest(source)
     document = instance.list_documents()[0]
-    client = TestClient(create_app(instance.root))
+    mode, settings_path = shell_mode_settings
+    client = TestClient(create_app(instance.root, shell_settings_file=settings_path))
 
     rendered = client.get(f"/documents/{document['id']}")
 
     assert rendered.status_code == 200
-    assert rendered.headers["content-security-policy"] == CONTENT_SECURITY_POLICY
+    expected_policy = CONTENT_SECURITY_POLICY
+    trusted_script = (
+        f'<script src="/static/cura-shell.js" integrity="{script_integrity()}" '
+        'crossorigin="anonymous" defer></script>'
+    )
+    if mode == "preview":
+        expected_policy = expected_policy.replace(
+            "script-src 'none'", f"script-src '{script_integrity()}'"
+        )
+        assert rendered.text.count(trusted_script) == 1
+    assert rendered.headers["content-security-policy"] == expected_policy
     assert "<h1>Safe heading</h1>" in rendered.text
     assert "&lt;script&gt;alert" in rendered.text
-    assert "<script" not in rendered.text.casefold()
+    assert "<script" not in rendered.text.replace(trusted_script, "").casefold()
     assert "<iframe" not in rendered.text.casefold()
     assert "javascript:" not in rendered.text.casefold()
     assert 'src="file:///' not in rendered.text.casefold()
