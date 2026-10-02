@@ -8,6 +8,43 @@ from test_capture_shell_contract import node
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_share_error_reads_only_existing_language_preference_and_falls_back_on_unavailable_store():
+    script = r"""
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+const handlers={};let choice='de',opened=0,closed=0,aborted=0;
+const scope={URL,Response,TextEncoder,setTimeout,clearTimeout,
+ self:{navigator:{language:'fr-FR'},location:{origin:'https://capture.test'},
+ addEventListener:(k,v)=>handlers[k]=v,
+ indexedDB:{open:(name,version)=>{
+   assert.equal(name,'provelume-capture-outbox');assert.equal(version,1);opened++;
+   const request={transaction:{abort(){aborted++;}}};
+   queueMicrotask(()=>{
+     if(choice==='missing'){request.onupgradeneeded();return;}
+     request.result={close(){closed++;},objectStoreNames:{contains:n=>n==='settings'},
+       transaction(store,mode){assert.equal(store,'settings');assert.equal(mode,'readonly');
+         const transaction={objectStore:()=>({get(key){assert.equal(key,'language');
+           const language={result:choice};
+           queueMicrotask(()=>{language.onsuccess();transaction.oncomplete();});
+           return language;}})};
+         return transaction;}};
+     request.onsuccess();
+   });return request;
+ }}}};
+vm.createContext(scope);vm.runInContext(readFileSync('core/provelume/static/capture-worker.js','utf8')+
+ ';self.test={shareLanguage,shareError};',scope);
+assert.equal(await scope.self.test.shareLanguage(),'de');
+assert.equal(closed,1);choice='system';assert.equal(await scope.self.test.shareLanguage(),'fr');
+choice='missing';assert.equal(await scope.self.test.shareLanguage(),'fr');assert.equal(aborted,1);
+choice='ro';const response=await scope.self.test.shareError(409);
+assert.equal(response.status,409);assert.equal(response.headers.get('cache-control'),'no-store');
+assert.match(await response.text(),/Partajare/);assert.equal(opened,4);assert.equal(closed,3);
+console.log(JSON.stringify({preference_only:true,no_database_creation:true,localized_error:true}));
+"""
+    assert node(script)["localized_error"] is True
+
+
 def test_android_manifest_and_transient_share_admission_without_second_store():
     manifest = json.loads((ROOT / "core/provelume/static/capture.webmanifest").read_text())
     assert manifest["share_target"]["action"] == "/capture/share"
@@ -146,7 +183,7 @@ const source=readFileSync('core/provelume/static/capture-shell.js','utf8')
 const scope={navigator:{language:'en'},location:{origin:'https://capture.test',protocol:'https:'},
  isSecureContext:true,AbortController,setTimeout,clearTimeout,
  document:{documentElement:{},addEventListener(){},getElementById:id=>elements[id],
-  createElement:element,querySelectorAll:()=>nodes.filter(n=>n.dataset.i18n)},
+  createElement:element,querySelectorAll:selector=>selector==='[data-i18n]'?nodes.filter(n=>n.dataset.i18n):[]},
  fetch:async()=> mode==='denied'?{ok:false,status:403}:{ok:true,json:async()=>mode==='recent'
   ?{items:[{title:'synthetic',id:'doc_synthetic'}]}
   :{versions:[{id:version}],grant:{source_ids:['src_synthetic'],expires_at:'local session'}}}};

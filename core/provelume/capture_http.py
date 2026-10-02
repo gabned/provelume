@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
+import html as html_escape
 import json
 from collections import OrderedDict
 from io import BytesIO
@@ -24,6 +25,7 @@ from .capture_journal import CaptureJournal, CaptureJournalError, _read, _unique
 from .capture_payloads import capture_capabilities
 from .capture_quarantine import CaptureQuarantine
 from .capture_requests import CaptureRequestError
+from .catalog_registry import SUPPORTED_LANGUAGES, message, namespace_catalog, raw_catalog, registry
 from .instance_lifecycle import InstanceLifecycleError
 from .review_security import ReviewBrowserSessions, require_local_browser
 from .storage import InstanceStore
@@ -84,9 +86,25 @@ async def capture_json(request, fields, *, maximum=16 * 1024):
     return value
 
 
+def capture_script_bytes():
+    words = {code: namespace_catalog(code, "capture") for code in sorted(SUPPORTED_LANGUAGES)}
+    for code, values in words.items():
+        values["catalogIncomplete"] = any(not value for value in raw_catalog(code).values())
+    script = (PACKAGE / "static/capture-shell.js").read_text(encoding="utf-8")
+    return script.replace("__CAPTURE_WORDS__", json.dumps(words, ensure_ascii=True)).encode()
+
+
 def capture_script_integrity():
-    digest = hashlib.sha256((PACKAGE / "static/capture-shell.js").read_bytes()).digest()
+    digest = hashlib.sha256(capture_script_bytes()).digest()
     return "sha256-" + base64.b64encode(digest).decode()
+
+
+def capture_worker_bytes():
+    words = {code: message(code, "capture.shareUnavailable")
+             for code in sorted(SUPPORTED_LANGUAGES)}
+    source = (PACKAGE / "static/capture-worker.js").read_text(encoding="utf-8")
+    return source.replace("__CAPTURE_SHARE_WORDS__", json.dumps(words, ensure_ascii=True)).replace(
+        "__CAPTURE_SHELL_REVISION__", capture_public_revision()).encode()
 
 
 def capture_public_revision():
@@ -95,6 +113,9 @@ def capture_public_revision():
         if url != "/capture/worker.js":
             digest.update(filename.encode())
             digest.update((PACKAGE / "static" / filename).read_bytes())
+    for path in sorted((PACKAGE / "i18n").glob("*.json")):
+        digest.update(path.name.encode())
+        digest.update(path.read_bytes())
     return digest.hexdigest()
 
 
@@ -230,6 +251,16 @@ def attach_capture_routes(app, store, *, paired_origin=None):
         request.state.capture_script_integrity = capture_script_integrity()
         html = (PACKAGE / "templates/capture.html").read_text(encoding="utf-8")
         html = html.replace("__CAPTURE_INTEGRITY__", capture_script_integrity())
+        options = '<option value="system" data-i18n="system">' + html_escape.escape(
+            message("en", "common.language_system")) + '</option>' + "".join(
+            '<option value="' + html_escape.escape(row["id"], quote=True) + '">' +
+            html_escape.escape(row["label"]) + '</option>' for row in registry()["languages"]
+        )
+        html = html.replace("__LANGUAGE_OPTIONS__", options)
+        html = html.replace("__CAPTURE_FALLBACK__", html_escape.escape(
+            message("en", "common.language_fallback")))
+        for key, value in namespace_catalog("en", "capture").items():
+            html = html.replace("__CAPTURE_TEXT_" + key + "__", html_escape.escape(value))
         return _capture_headers(HTMLResponse(html))
 
     def build_resource(filename, media_type):
@@ -242,12 +273,10 @@ def attach_capture_routes(app, store, *, paired_origin=None):
             ):
                 raise HTTPException(409, "PWA resources disabled for plain-HTTP fallback")
             response = FileResponse(PACKAGE / "static" / filename, media_type=media_type)
+            if filename == "capture-shell.js":
+                response = Response(capture_script_bytes(), media_type=media_type)
             if filename == "capture-worker.js":
-                source = (PACKAGE / "static" / filename).read_text(encoding="utf-8")
-                response = Response(
-                    source.replace("__CAPTURE_SHELL_REVISION__", capture_public_revision()),
-                    media_type=media_type,
-                )
+                response = Response(capture_worker_bytes(), media_type=media_type)
                 response.headers["Service-Worker-Allowed"] = "/capture/"
             return response
 

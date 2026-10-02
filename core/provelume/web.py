@@ -21,6 +21,14 @@ from .api import attach_api, reject_client_installation_evidence
 from .audio_activity import attach_audio_routes
 from .build_info import current_build_info
 from .capture_http import attach_capture_routes
+from .catalog_registry import (
+    LANGUAGE_CHOICES,
+    format_date,
+    format_number,
+    raw_catalog,
+    registry,
+    resolve_language,
+)
 from .cura_icons import icon_renderer, render_icon
 from .cura_shell import navigation_context, script_integrity, shell_snapshot, validated_return
 from .domain_review_activity import attach_domain_review_routes
@@ -29,7 +37,7 @@ from .file_family_activity import attach_file_family_routes
 from .folder_source_activity import attach_folder_source_routes
 from .google_activity import attach_google_routes
 from .google_connection_activity import attach_google_connection_routes
-from .i18n import SUPPORTED_LANGUAGES, translator
+from .i18n import translator
 from .installation import verify_current_installation
 from .installation_i18n import installation_translator
 from .maintenance_activity import attach_maintenance_routes
@@ -61,17 +69,17 @@ ROOT_AREA_FILTER = "__root__"
 
 def _language(request: Request, instance: ProvelumeInstance | None = None) -> str:
     requested = request.query_params.get("lang")
-    if requested in SUPPORTED_LANGUAGES:
-        return requested
+    if requested in LANGUAGE_CHOICES:
+        return resolve_language(requested)
     loaded = shell_snapshot(request)
     if loaded is not None and loaded.warning not in {
         "settings_missing_using_defaults", "settings_invalid_using_safe_defaults",
-    } and loaded.settings.language in SUPPORTED_LANGUAGES:
-        return loaded.settings.language
+    } and loaded.settings.language in LANGUAGE_CHOICES:
+        return resolve_language(loaded.settings.language)
     configured = (
         instance.store.read_config().get("ui", {}).get("language", "en") if instance else "en"
     )
-    return configured if configured in SUPPORTED_LANGUAGES else "en"
+    return resolve_language(configured)
 
 
 def _language_url(request: Request, language: str) -> str:
@@ -332,9 +340,26 @@ def _base_context(request: Request, language: str) -> dict[str, Any]:
         "shell_about": current_about() if preview else None,
         **navigation_context(request, language, t, navigation),
         "language_urls": {
-            selected: _language_url(request, selected) for selected in sorted(SUPPORTED_LANGUAGES)
+            selected: _language_url(request, selected) for selected in sorted(LANGUAGE_CHOICES)
         },
+        "language_options": registry()["languages"],
+        "language_choice": (request.query_params.get("lang")
+                            if request.query_params.get("lang") in LANGUAGE_CHOICES
+                            else shell_snapshot(request).settings.language
+                            if shell_snapshot(request) else "system"),
+        "language_fallback": any(not value for value in raw_catalog(language).values()),
+        "ui_number": lambda value, decimals=0: format_number(value, language, decimals=decimals),
+        "ui_date": lambda value, time=False: _display_date(value, language, time=time),
     }
+
+
+def _display_date(value, language, *, time=False):
+    from datetime import datetime
+
+    if not value:
+        return ""
+    presented = format_date(datetime.fromisoformat(str(value).replace("Z", "+00:00")), language)
+    return presented if time else presented[:10]
 
 
 def _context(request: Request, instance: ProvelumeInstance, **values: Any) -> dict[str, Any]:

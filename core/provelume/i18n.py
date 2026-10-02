@@ -1,76 +1,26 @@
 from __future__ import annotations
 
-import json
-from functools import lru_cache
-from importlib.resources import files
-from typing import Any
-
-from .action_center_i18n import ACTION_CENTER_TRANSLATIONS
-from .activity_i18n import ACTIVITY_TRANSLATIONS
-from .audio_i18n import AUDIO_TRANSLATIONS
-from .connector_i18n import CONNECTOR_TRANSLATIONS
-from .email_i18n import EMAIL_TRANSLATIONS
-from .file_family_i18n import FILE_FAMILY_TRANSLATIONS
-from .folder_settings_i18n import FOLDER_SETTINGS_TRANSLATIONS
-from .folder_source_exclusion_i18n import EXCLUSION_TRANSLATIONS
-from .folder_source_i18n import FOLDER_SOURCE_TRANSLATIONS
-from .google_i18n import GOOGLE_TRANSLATIONS
-from .maintenance_i18n import MAINTENANCE_TRANSLATIONS
-from .ocr_i18n import OCR_TRANSLATIONS
-from .operations_maintenance_i18n import OPERATIONS_MAINTENANCE_TRANSLATIONS
-from .perceptio_i18n import PERCEPTIO_TRANSLATIONS
-from .photo_i18n import PHOTO_TRANSLATIONS
-from .qualification_i18n import QUALIFICATION_TRANSLATIONS
-from .rebuild_i18n import REBUILD_TRANSLATIONS
-from .representation_i18n import REPRESENTATION_TRANSLATIONS
-from .review_i18n import REVIEW_TRANSLATIONS
-from .scheduler_i18n import SCHEDULER_TRANSLATIONS
-from .shell_i18n import SHELL_TRANSLATIONS
-from .transcript_i18n import TRANSCRIPT_TRANSLATIONS
-from .video_i18n import VIDEO_TRANSLATIONS
-
-SUPPORTED_LANGUAGES = {"en", "it"}
+from .catalog_registry import (
+    message,
+    registry,
+    render_message,
+    resolve_language,
+)
 
 
-@lru_cache(maxsize=4)
 def catalog(language: str) -> dict[str, str]:
-    selected = language if language in SUPPORTED_LANGUAGES else "en"
-    path = files("provelume").joinpath("i18n", f"{selected}.json")
-    value: Any = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(value, dict):
-        raise ValueError(f"invalid UI catalog: {selected}")
-    result = {str(key): str(text) for key, text in value.items()}
-    result.update(ACTIVITY_TRANSLATIONS.get(selected, {}))
-    result.update(ACTION_CENTER_TRANSLATIONS.get(selected, {}))
-    result.update(REVIEW_TRANSLATIONS.get(selected, {}))
-    result.update(AUDIO_TRANSLATIONS.get(selected, {}))
-    result.update(CONNECTOR_TRANSLATIONS.get(selected, {}))
-    result.update(EMAIL_TRANSLATIONS.get(selected, {}))
-    result.update(FILE_FAMILY_TRANSLATIONS.get(selected, {}))
-    result.update(REBUILD_TRANSLATIONS.get(selected, {}))
-    result.update(REPRESENTATION_TRANSLATIONS.get(selected, {}))
-    result.update(FOLDER_SETTINGS_TRANSLATIONS.get(selected, {}))
-    result.update(FOLDER_SOURCE_TRANSLATIONS.get(selected, {}))
-    result.update(EXCLUSION_TRANSLATIONS.get(selected, {}))
-    result.update(GOOGLE_TRANSLATIONS.get(selected, {}))
-    result.update(MAINTENANCE_TRANSLATIONS.get(selected, {}))
-    result.update(OPERATIONS_MAINTENANCE_TRANSLATIONS.get(selected, {}))
-    result.update(SCHEDULER_TRANSLATIONS.get(selected, {}))
-    result.update(SHELL_TRANSLATIONS.get(selected, {}))
-    result.update(OCR_TRANSLATIONS.get(selected, {}))
-    result.update(PHOTO_TRANSLATIONS.get(selected, {}))
-    result.update(PERCEPTIO_TRANSLATIONS.get(selected, {}))
-    result.update(QUALIFICATION_TRANSLATIONS.get(selected, {}))
-    result.update(TRANSCRIPT_TRANSLATIONS.get(selected, {}))
-    result.update(VIDEO_TRANSLATIONS.get(selected, {}))
-    return result
+    selected = resolve_language(language)
+    return {key: message(selected, key) for key in registry()["messages"]
+            if not key.startswith(("installation.", "annotation.",
+                                   "google_connection.", "capture."))}
 
 
 def translator(language: str):
-    values = catalog(language)
-    fallback = catalog("en")
+    selected = resolve_language(language)
 
-    def translate(key: str) -> str:
-        return values.get(key, fallback.get(key, key))
+    def translate(key: str, **parameters) -> str:
+        value = message(selected, key)
+        return render_message(selected, value, **parameters) if parameters or isinstance(
+            value, dict) else value
 
     return translate

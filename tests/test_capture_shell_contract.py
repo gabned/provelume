@@ -6,23 +6,33 @@ These checks do not stand in for real browser/PWA observations.
 import json
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
+from provelume.capture_http import capture_script_bytes, capture_worker_bytes
 from provelume.capture_requests import capture_payload_fingerprint
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def node(script, *args):
+    script = script.replace("readFileSync('core/provelume/static/capture-shell.js','utf8')",
+                            json.dumps(capture_script_bytes().decode()))
+    script = script.replace("readFileSync('core/provelume/static/capture-worker.js','utf8')",
+                            json.dumps(capture_worker_bytes().decode()))
     executable = shutil.which("node")
     assert executable, "Node is required for Capture shell conformance"
-    result = subprocess.run(
-        [executable, "--input-type=module", "-e", script, *args],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
+    cache = ROOT / ".agent/node-tests"
+    cache.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".mjs", dir=cache,
+                                     delete=False) as fixture:
+        fixture.write("process.argv.splice(1, 1);\n" + script)
+        path = Path(fixture.name)
+    try:
+        result = subprocess.run([executable, str(path), *args], cwd=ROOT,
+                                capture_output=True, text=True, timeout=30)
+    finally:
+        path.unlink()
     assert result.returncode == 0, result.stderr
     return json.loads(result.stdout)
 

@@ -6,7 +6,31 @@ const MAX_FILE = 256 * 1024;
 let shared = null;
 let receivingShare = false;
 const SHARE_LIMIT = 25 * 1024 * 1024 + 16384;
-const shareError = status => new Response("Share unavailable or interrupted. Keep the source item and use Capture file selection or the configured Drive-drop folder.", {status, headers:{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
+const SHARE_WORDS = __CAPTURE_SHARE_WORDS__;
+async function shareLanguage() {
+  const host=(self.navigator?.language||"").replaceAll("_","-").toLowerCase().split("-")[0];
+  const fallback=Object.hasOwn(SHARE_WORDS,host)?host:"en";
+  if(!self.indexedDB)return fallback;
+  // Read only the existing S06 preference. Never create a database or read items/credentials.
+  return new Promise(resolve=>{
+    let finished=false,db=null;
+    const done=choice=>{if(finished)return;finished=true;if(db)db.close();clearTimeout(timer);resolve(Object.hasOwn(SHARE_WORDS,choice)?choice:fallback);};
+    const timer=setTimeout(()=>done(null),1000);
+    try{
+      const request=self.indexedDB.open("provelume-capture-outbox",1);
+      request.onupgradeneeded=()=>{request.transaction.abort();done(null);};
+      request.onerror=request.onblocked=()=>done(null);
+      request.onsuccess=()=>{
+        db=request.result;if(finished){db.close();return;}
+        if(!db.objectStoreNames.contains("settings")){done(null);return;}
+        const transaction=db.transaction("settings","readonly"),language=transaction.objectStore("settings").get("language");
+        let choice=null;language.onsuccess=()=>{choice=language.result;};
+        transaction.oncomplete=()=>done(choice);transaction.onerror=transaction.onabort=()=>done(null);
+      };
+    }catch(error){done(null);}
+  });
+}
+const shareError = async status => new Response(SHARE_WORDS[await shareLanguage()], {status, headers:{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
 async function receiveShare(request) {
   if (receivingShare || (shared && shared.expires > Date.now())) return shareError(409);
   shared=null;

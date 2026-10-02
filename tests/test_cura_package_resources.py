@@ -88,7 +88,7 @@ def test_frozen_missing_or_changed_resources_are_rejected(package, name, mutatio
     [
         "templates/legacy/unexpected.html",
         "notices/extra.txt",
-        "i18n/fr.json",
+        "i18n/ja.json",
         "static/icons/lucide/extra.svg",
         "templates/unused/empty-directory",
     ],

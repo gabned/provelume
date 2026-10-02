@@ -22,6 +22,7 @@ from . import __version__
 from .about import RELEASES_URL, current_about
 from .about import SOURCE_REPOSITORY_URL as SOURCE_REPOSITORY_URL
 from .about import public_about_links as public_about_links
+from .catalog_registry import exported_catalogs, resolve_language
 from .publication import RECEIPT_NAME, PublicationError, import_publication
 from .service import ProvelumeInstance
 from .shell_settings import (
@@ -159,7 +160,7 @@ def write_ui_diagnostics(
     """Build the real Tk launcher off-loop and record bounded layout evidence."""
 
     if language not in STRINGS:
-        raise ValueError("UI diagnostics language must be en or it")
+        raise ValueError("UI diagnostics language must be registered")
     if dpi_percent not in {100, 125, 150, 200}:
         raise ValueError("UI diagnostics DPI must be 100, 125, 150 or 200 percent")
     if viewport_width < 640 or viewport_height < 480:
@@ -489,220 +490,7 @@ def _configure_windows_dpi_awareness() -> str:
     return "platform_default"
 
 
-STRINGS = {
-    "en": {
-        "title": "Provelume Preview",
-        "tagline": "Knowledge you can trace.",
-        "installed": "Installed version",
-        "instance": "Local Instance",
-        "instance_ready": "Ready",
-        "open": "Open Provelume",
-        "stop": "Stop",
-        "choose": "Choose existing…",
-        "create": "Create new…",
-        "updates": "Updates",
-        "channel": "Channel",
-        "check_start": "Check at startup (contacts GitHub)",
-        "check_now": "Check now",
-        "download": "Download update",
-        "about": "About",
-        "offline": "Local-first. No cloud or external AI is required.",
-        "starting": "Starting the local service…",
-        "running": "Running locally",
-        "stopping": "Stopping the local service…",
-        "stopped": "Stopped",
-        "server_exited": "The local service stopped unexpectedly. You can start it again.",
-        "checking": "Checking GitHub Releases…",
-        "current": "This installation is up to date.",
-        "available": "Version {version} is available.",
-        "failed": "The update check failed: {error}",
-        "diagnostic_code": "diagnostic code",
-        "update_error_rate_limited": "GitHub temporarily limited update requests. Try again later.",
-        "update_error_http_error": "GitHub returned an unexpected response.",
-        "update_error_timeout": "GitHub did not respond in time. Check the connection and retry.",
-        "update_error_tls_error": (
-            "The secure GitHub connection could not be verified. Check the system date, "
-            "certificate inspection, proxy and firewall settings."
-        ),
-        "update_error_dns_error": (
-            "The GitHub host could not be resolved. Check DNS and connectivity."
-        ),
-        "update_error_connection_error": (
-            "GitHub could not be reached. Check connectivity, proxy and firewall settings."
-        ),
-        "update_error_update_error": "The update metadata did not pass validation.",
-        "update_error_publication_pending": (
-            "Publication metadata is incomplete or inconsistent. Keep the current version "
-            "and check for updates later."
-        ),
-        "update_error_unexpected": "The update check stopped for an unexpected local error.",
-        "update_stage_release_catalog": "release catalogue",
-        "update_stage_release_manifest": "release manifest",
-        "update_stage_release_identity": "release identity",
-        "update_stage_installer_download": "installer download",
-        "downloading": "Downloading and verifying {version}…",
-        "download_ready": "The verified installer is ready.",
-        "network_notice": (
-            "Provelume will make a standard HTTPS request to GitHub Releases.\n\n"
-            "Destinations: api.github.com, github.com and GitHub's asset redirect hosts "
-            "objects.githubusercontent.com and release-assets.githubusercontent.com\n"
-            "Selected channel (applied locally): {channel}\n"
-            "Purpose: read the release catalogue and verify its public manifest and tag.\n\n"
-            "GitHub receives normal connection metadata and the generic Provelume update-client "
-            "User-Agent. Provelume attaches no Instance content, file names, local paths, "
-            "credentials or telemetry."
-        ),
-        "unsigned_notice": (
-            "This preview installer is not Authenticode-signed. Its size and SHA-256 will be "
-            "checked against the release metadata, but publisher authentication is not yet "
-            "established. Download it?"
-        ),
-        "install_notice": "Start the installer now? Provelume will close first.",
-        "invalid_instance": "The selected folder is not a valid Provelume Instance.",
-        "missing_instance": (
-            "The saved Provelume Instance could not be found. Choose its new location or create "
-            "another Instance; no replacement was created automatically."
-        ),
-        "instance_open_failed": "The local Instance could not be opened: {error}",
-        "server_failed": "The local service could not start.",
-        "port_unavailable": (
-            "The configured endpoint is occupied. Choose another explicit port or restore "
-            "44851 in Shell settings. No random port was selected."
-        ),
-        "endpoint_rolled_back": (
-            "The local service failed; the endpoint setting was rolled back to the previous "
-            "known value. Restart explicitly after reviewing Shell settings."
-        ),
-        "shell_settings": "Shell settings",
-        "endpoint": "Local endpoint",
-        "tray_enabled": "Keep running in the system tray",
-        "theme": "Theme",
-        "already_running": "Provelume is already running.",
-        "about_text": (
-            "Provelume {version}\nChannel: {channel}\nPackage: {packaging}\n"
-            "Platform: {platform} · {architecture}\nTag: {tag}\nCommit: {commit}\n"
-            "Build identity: {identity}\nPlatform signature: {signature}\n"
-            "Automatic updates: no\n\n"
-            "These details are read locally. Opening a GitHub link is an explicit network action."
-        ),
-        "continue": "Continue",
-        "cancel": "Cancel",
-        "close": "Close",
-        "open_repository": "Open repository",
-        "open_releases": "View releases",
-        "open_installed_release": "View installed release",
-    },
-    "it": {
-        "title": "Provelume Preview",
-        "tagline": "Conoscenza di cui puoi ricostruire l'origine.",
-        "installed": "Versione installata",
-        "instance": "Istanza locale",
-        "instance_ready": "Pronta",
-        "open": "Apri Provelume",
-        "stop": "Ferma",
-        "choose": "Scegli esistente…",
-        "create": "Crea nuova…",
-        "updates": "Aggiornamenti",
-        "channel": "Canale",
-        "check_start": "Controlla all'avvio (contatta GitHub)",
-        "check_now": "Controlla ora",
-        "download": "Scarica aggiornamento",
-        "about": "Informazioni",
-        "offline": "Local-first. Non richiede cloud né AI esterna.",
-        "starting": "Avvio del servizio locale…",
-        "running": "In esecuzione in locale",
-        "stopping": "Arresto del servizio locale…",
-        "stopped": "Fermato",
-        "server_exited": (
-            "Il servizio locale si è arrestato in modo imprevisto. Puoi avviarlo di nuovo."
-        ),
-        "checking": "Controllo GitHub Releases…",
-        "current": "Questa installazione è aggiornata.",
-        "available": "È disponibile la versione {version}.",
-        "failed": "Controllo aggiornamenti non riuscito: {error}",
-        "diagnostic_code": "codice diagnostico",
-        "update_error_rate_limited": (
-            "GitHub ha limitato temporaneamente le richieste di aggiornamento. Riprova più tardi."
-        ),
-        "update_error_http_error": "GitHub ha restituito una risposta inattesa.",
-        "update_error_timeout": (
-            "GitHub non ha risposto in tempo. Controlla la connessione e riprova."
-        ),
-        "update_error_tls_error": (
-            "Non è stato possibile verificare la connessione sicura a GitHub. Controlla data e "
-            "ora del sistema, ispezione dei certificati, proxy e firewall."
-        ),
-        "update_error_dns_error": (
-            "Non è stato possibile risolvere l'host GitHub. Controlla DNS e connettività."
-        ),
-        "update_error_connection_error": (
-            "GitHub non è raggiungibile. Controlla connettività, proxy e firewall."
-        ),
-        "update_error_update_error": "I metadati di aggiornamento non hanno superato la verifica.",
-        "update_error_publication_pending": (
-            "I metadati di pubblicazione sono incompleti o incoerenti. Mantieni la versione "
-            "attuale e controlla gli aggiornamenti più tardi."
-        ),
-        "update_error_unexpected": (
-            "Il controllo si è interrotto per un errore locale imprevisto."
-        ),
-        "update_stage_release_catalog": "catalogo release",
-        "update_stage_release_manifest": "manifest della release",
-        "update_stage_release_identity": "identità della release",
-        "update_stage_installer_download": "download dell'installer",
-        "downloading": "Download e verifica della versione {version}…",
-        "download_ready": "L'installer verificato è pronto.",
-        "network_notice": (
-            "Provelume effettuerà una normale richiesta HTTPS a GitHub Releases.\n\n"
-            "Destinazioni: api.github.com, github.com e gli host di reindirizzamento asset di "
-            "GitHub objects.githubusercontent.com e release-assets.githubusercontent.com\n"
-            "Canale selezionato (applicato in locale): {channel}\n"
-            "Scopo: leggere il catalogo e verificare manifest pubblico e tag della release.\n\n"
-            "GitHub riceve i normali metadati di connessione e lo User-Agent generico del client "
-            "di aggiornamento Provelume. Provelume non allega contenuti dell'istanza, nomi di "
-            "file, percorsi locali, credenziali o telemetria."
-        ),
-        "unsigned_notice": (
-            "Questo installer preview non ha ancora firma Authenticode. Dimensione e SHA-256 "
-            "saranno confrontati con i metadati di release, ma l'autenticazione dell'editore "
-            "non è ancora stabilita. Scaricarlo?"
-        ),
-        "install_notice": "Avviare ora l'installer? Provelume verrà prima chiuso.",
-        "invalid_instance": "La cartella scelta non è un'istanza Provelume valida.",
-        "missing_instance": (
-            "L'istanza Provelume salvata non è stata trovata. Scegli la nuova posizione o crea "
-            "un'altra istanza; non ne è stata creata automaticamente una sostitutiva."
-        ),
-        "instance_open_failed": "Impossibile aprire l'istanza locale: {error}",
-        "server_failed": "Non è stato possibile avviare il servizio locale.",
-        "port_unavailable": (
-            "L'endpoint configurato è occupato. Scegli un'altra porta esplicita o ripristina "
-            "44851 nelle impostazioni shell. Non è stata scelta una porta casuale."
-        ),
-        "endpoint_rolled_back": (
-            "Il servizio locale non si è avviato; l'endpoint è stato ripristinato al precedente "
-            "valore noto. Riavvia esplicitamente dopo aver verificato le impostazioni shell."
-        ),
-        "shell_settings": "Impostazioni shell",
-        "endpoint": "Endpoint locale",
-        "tray_enabled": "Mantieni in esecuzione nell'area di notifica",
-        "theme": "Tema",
-        "already_running": "Provelume è già in esecuzione.",
-        "about_text": (
-            "Provelume {version}\nCanale: {channel}\nPacchetto: {packaging}\n"
-            "Piattaforma: {platform} · {architecture}\nTag: {tag}\nCommit: {commit}\n"
-            "Identità build: {identity}\nFirma di piattaforma: {signature}\n"
-            "Aggiornamenti automatici: no\n\n"
-            "Questi dati sono letti in locale. Aprire un link GitHub è un'azione di rete esplicita."
-        ),
-        "continue": "Continua",
-        "cancel": "Annulla",
-        "close": "Chiudi",
-        "open_repository": "Apri repository",
-        "open_releases": "Vedi release",
-        "open_installed_release": "Vedi release installata",
-    },
-}
+STRINGS = exported_catalogs('desktop.STRINGS')
 
 
 class DesktopShell:
@@ -723,7 +511,7 @@ class DesktopShell:
         self.ttk = ttk
         self.settings = initial_settings.normalized()
         self.settings_manager = ShellSettingsManager(settings_path(), default_settings())
-        self.text = STRINGS[self.settings.language]
+        self.text = STRINGS[resolve_language(self.settings.language)]
         self.instance = Path(self.settings.instance_path).expanduser()
         self.server: subprocess.Popen[bytes] | None = None
         self.server_port: int | None = None
@@ -1498,7 +1286,7 @@ def run_ui(*, start_hidden: bool = False) -> int:
             with suppress(tk.TclError):
                 root.iconbitmap(default=str(icon))
         language = load_settings().language
-        messagebox.showinfo("Provelume", STRINGS[language]["already_running"])
+        messagebox.showinfo("Provelume", STRINGS[resolve_language(language)]["already_running"])
         root.destroy()
         return 0
     try:
@@ -1542,7 +1330,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--native-tray-smoke-file", type=Path)
     parser.add_argument("--google-credential-smoke-file", type=Path)
     parser.add_argument("--ui-diagnostics-file", type=Path)
-    parser.add_argument("--ui-diagnostics-language", choices=("en", "it"), default="en")
+    parser.add_argument("--ui-diagnostics-language", choices=sorted(STRINGS), default="en")
     parser.add_argument(
         "--ui-diagnostics-dpi",
         type=int,
@@ -1557,7 +1345,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--initialize-shell-settings", action="store_true")
     parser.add_argument("--remove-login-startup", action="store_true")
     parser.add_argument("--install-port", type=int, default=DEFAULT_LOCAL_PORT)
-    parser.add_argument("--install-language", choices=("en", "it"), default="en")
+    parser.add_argument("--install-language", choices=sorted(STRINGS), default="en")
     parser.add_argument(
         "--install-tray",
         choices=("enabled", "disabled"),

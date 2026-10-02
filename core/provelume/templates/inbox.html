@@ -27,7 +27,7 @@
     <li>
       <a href="/operations/{{ submission.operation_id }}?lang={{ lang }}">
         <strong>{{ submission.input_name }}</strong>
-        <span>{{ submission.status }} · {{ submission.mode }} · {{ submission.created_at[:19] }}</span>
+        <span>{{ submission.status }} · {{ submission.mode }} · <time datetime="{{ submission.created_at }}">{{ ui_date(submission.created_at, time=true) }}</time></span>
         <span>{{ submission.completed_items }}/{{ submission.total_items }} {{ t('inbox.items_completed') }}</span>
       </a>
     </li>

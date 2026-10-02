@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import locale
 import os
 import socket
 import sys
@@ -14,6 +13,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from .catalog_registry import LANGUAGE_CHOICES
 from .notification_preferences import (
     NotificationPreferences,
     NotificationPreferencesError,
@@ -33,7 +33,7 @@ MAX_PREFERENCES_BYTES = 16 * 1024
 MAX_SETTINGS_REVISION = (1 << 63) - 1
 APP_USER_MODEL_ID = "Provelume.Desktop"
 THEMES = frozenset({"system", "light", "dark"})
-LANGUAGES = frozenset({"en", "it"})
+LANGUAGES = LANGUAGE_CHOICES
 UPDATE_CHANNELS = frozenset({"preview", "stable"})
 INTERFACE_MODES = frozenset({"current", "preview"})
 INTERFACE_CHANGE_SOURCES = frozenset({"local_browser", "local_process"})
@@ -60,11 +60,7 @@ def settings_path() -> Path:
 
 
 def default_language() -> str:
-    try:
-        configured = locale.getlocale()[0] or ""
-    except (ValueError, TypeError):
-        configured = ""
-    return "it" if configured.casefold().startswith("it") else "en"
+    return "system"
 
 
 def default_settings() -> LauncherSettings:
@@ -168,7 +164,7 @@ class LauncherSettings:
     instance_path: str
     update_channel: str = "preview"
     check_on_start: bool = False
-    language: str = "en"
+    language: str = "system"
     endpoint_port: int = DEFAULT_LOCAL_PORT
     last_good_port: int = DEFAULT_LOCAL_PORT
     restart_required: bool = False
@@ -850,7 +846,7 @@ class ShellSettingsManager:
         if theme is not None and theme not in THEMES:
             raise ShellSettingsError("theme must be system, light or dark")
         if language is not None and language not in LANGUAGES:
-            raise ShellSettingsError("language must be en or it")
+            raise ShellSettingsError("language must be a registered language or system")
 
         def change(current: LauncherSettings) -> LauncherSettings:
             return replace(
@@ -892,7 +888,7 @@ class ShellSettingsManager:
         if theme not in THEMES:
             raise ShellSettingsError("theme must be system, light or dark")
         if language not in LANGUAGES:
-            raise ShellSettingsError("language must be en or it")
+            raise ShellSettingsError("language must be a registered language or system")
         before = self.load().settings
 
         def change(current: LauncherSettings) -> LauncherSettings:
