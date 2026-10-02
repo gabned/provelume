@@ -44,8 +44,8 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.10.0` | Multimedia, universal content representations and component inventory | #160 (completed); S01–S07 completed by #163/#168/#170/#172/#173/#175/#179/#182; release #183 | `Perceptio` |
 | Published preview | `0.10.1` | Source onboarding, filtering and canonical brand correction | #198 completed; release #251 | `Emendatio` |
 | Published preview | `0.11.0` | Daily-use UX, Unified Capture, Action Center and multilingual interface | #255 S01–S09 delivered; #308 release record; [public identity/readiness](https://github.com/gabned/provelume/releases/tag/v0.11.0) | `Cura` |
-| Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
-| Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
+| Active development | `0.12.0` | Optional local AI, privacy gateway and accountable document assistance | #311; S01 #312; [nine-slice plan](releases/0.12.0.md) | `Custodia` |
+| Forecast | `0.13.0` | AI classification, confidence and controlled application extending Custodia receipts/templates | issue just in time | `Iudicium` |
 | Forecast | `0.14.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
 | Forecast | `0.15.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
 | Forecast | `0.16.0` | Knowledge navigation, statistics, relations and deterministic discovery | issue just in time | `Itinerarium` |
@@ -101,11 +101,12 @@ names do not replace SemVer, package identity, tags or the immutable published r
   capture, mobile access, review and operations/maintenance queues in one Action Center. It also
   ships a governed offline-complete multilingual interface; interrupted work and every destructive
   choice remain explicit.
-- **`0.12.0` — `Custodia`.** Adds a replaceable AI gateway with local, remote and fallback policy
-  by scope. Privacy, redaction, budgets and network use remain visible and user-controlled.
-- **`0.13.0` — `Iudicium`.** Adds guarded AI classification, decision receipts, user-readable
-  autonomy levels, review rules and provider evaluation. The end-to-end intake flow resists prompt
-  injection and keeps every catalog action reviewable or reversible.
+- **`0.12.0` — `Custodia`.** Adds optional CPU-first Recommended local AI, a replaceable privacy
+  gateway, base receipts/templates and manual evidence-linked single-document synthesis.
+  Privacy, redaction, budgets and explicit fallback remain user-controlled; AI off stays supported.
+- **`0.13.0` — `Iudicium`.** Extends Custodia receipts, templates and adversarial/conformance
+  foundations with guarded classification, calibrated confidence, autonomy levels, reviewed rules
+  and reversible controlled application.
 - **`0.14.0` — `Entitas`.** Adds evidence-linked objects, claims, decisions, tasks, calendar items
   and relations. Derived structure remains traceable to exact Originals and canonical records.
 - **`0.15.0` — `Concordia`.** Adds productivity connectors, guarded task synchronization and
@@ -154,8 +155,8 @@ planning or publication change whenever release scope or order moves.
 
 | Evidence gate | Personal use after verified publication | Dissemination after verified publication |
 | --- | --- | --- |
-| Current published `0.10.1` | Corrected Folder Sources, qualified read-only Gmail/Drive intake and the Perceptio media/archive pilot; the immutable `0.10.0` release remains the N-1 upgrade baseline. | Existing preview testers within the published provider, platform and deferred-native-appearance limits. |
-| `0.11.0` | First recommended personal daily-use beta: coherent Capture, Action Center, recovery and mobile-PWA journeys within the qualified perimeter. | Controlled public beta, with feedback, support and security-reporting paths open. |
+| Published `0.10.1` (Cura N-1 baseline) | Corrected Folder Sources, qualified read-only Gmail/Drive intake and the Perceptio media/archive pilot. | Existing preview testers within the published provider, platform and deferred-native-appearance limits. |
+| Current published `0.11.0` | First recommended personal daily-use beta: coherent Capture, Action Center, recovery and mobile-PWA journeys within the qualified perimeter. | Controlled public beta, with feedback, support and security-reporting paths open. |
 | `0.12.0` | Optional local or remote AI use with explicit routing, cost and redaction policy; deterministic operation remains complete without AI. | Privacy-routing evaluators, not general AI marketing. |
 | `0.13.0` | Personal AI-assisted classification with plain-language autonomy levels and reviewed rules; earliest candidate for replacing a private reference workflow, never an equivalence claim. | Advanced evaluators after confidence calibration, prompt-injection, receipt, review and rollback evidence. |
 | `0.14.0` | Personal use of evidence-linked claims, decisions, tasks and events after export/import qualification. | Existing beta group; no broader claim until object migration and review UX are proven. |
@@ -1435,35 +1436,48 @@ Exact activation may refine these internal boundaries while preserving dependenc
 homogeneous PR ownership. No Cura slice starts before Emendatio closes and a just-in-time Cura
 parent tracker is activated.
 
-### 0.12.0 — AI Gateway and Privacy Routing
+### 0.12.0 — Custodia: Optional Local AI and Accountable Document Assistance
 
 **Depends on:** `0.10.0` representation contracts, the `0.11.0` Action Center and `0.2.0`
 network transparency.
 
-**Outcome:** introduce inference as a replaceable adapter, never as the foundation of canonical
-knowledge.
+**Activation:** parent [#311](https://github.com/gabned/provelume/issues/311), first slice
+[#312](https://github.com/gabned/provelume/issues/312), and the canonical
+[nine-slice release plan](releases/0.12.0.md). Only S01 is implemented in its owner change;
+S02–S09 remain planned. Package/runtime/embedded/Windows identity stays at published 0.11.0.
 
-**Includes:** capability-based provider registry; deterministic fake adapter and at least one
-optional OpenAI-compatible adapter; a bounded agent document-context contract that selects
-normalized Markdown, page map and minimum required assets by default and retrieves source pages or
-the Original only when permitted and needed; external secret references; source/data-category/
-local-only policy; no silent cloud fallback; bounded budget, retry and cancellation; explicit
-provider and network disclosure before execution.
+**Outcome:** optional AI off / Local Recommended / External / Explicit Hybrid, with a first
+manual single-document synthesis/key-points action. Output is removable derived information
+with exact evidence anchors, never canonical facts or automatic filing. Deterministic flows
+remain complete without a model, account or network.
 
-Users may select disabled/local-only, a specific local model endpoint, a specific remote provider
-or an explicit ordered fallback at Instance, Source, Area or Project scope. A fallback may narrow
-but never override a local-only or denied-data rule. Provider/model allowlists, per-job and periodic
-budgets, content minimization/redaction preview, metered-network policy and an operator-visible
-estimate remain independent controls. Optional remote OCR/vision also uses this gateway and never
-silently replaces the local `0.9.0` OCR path.
+**Includes:** the #224 Custodia subset: one ADR-qualified CPU-first Recommended runtime/model,
+governed registry, explicit verified install/update or offline import, lazy load/idle unload,
+compatibility and previous-good rollback, bounded Advanced BYOM and BYO provider. Model
+selection/benchmarking is later work; no model is chosen by S01. Add base inference receipts,
+template identities, adversarial isolation and provider-conformance foundations before user
+inference. Reuse Cura's Action Center, scheduler, seven catalogs and appearance/accessibility.
 
-Provider sampling parameters, including technical temperature where supported, are versioned in
-the adapter and evaluation receipt. They may be fixed or bounded for reproducibility, but are not
-shown as an accuracy score and cannot raise an autonomy level, lower a review requirement or
-authorize a canonical write.
+One resolver intersects Instance, every Source/data category and Area/Project association.
+Explicit deny/local-only survives preferences, duplicate acquisition and fallback. Unknown,
+missing, conflicting or stale security inputs fail closed. A loopback URL, brand or compatible
+API is not proof of local inference; qualification evidence is independent. Bind plans/receipts
+to content/version, context, policy, route, template, consent and bounded limits. Context
+minimization/redaction preview, budgets, atomic reservations, retries, cancellation and uncertain
+transmission outcomes remain explicit. Sampling parameters are recipe data, not accuracy or authority.
 
-**Exit gate:** local-only fails closed, provider substitution leaves canonical knowledge intact,
-and denied data never reaches a provider in policy tests.
+**Ordered slices:** S01 gateway/preflight/fake; S02 bounded context/redaction/isolation;
+S03 transports/diagnostics; S04 model registry/lifecycle; S05 Recommended local runtime;
+S06 durable jobs/budgets/fallback; S07 AI/privacy setup and receipts; S08 manual synthesis;
+S09 integrated qualification/model promotion. Each issue/owner opens just in time.
+The separate release workstream follows all nine slices; it is not S10.
+
+**Exit gate:** real qualified Windows/Linux offline inference, fixed numeric model/task/language
+thresholds, bounded latency/RAM/cancellation, provider substitution, no unauthorized transmission,
+privacy-safe receipts and integrated upgrade/backup/rollback/accessibility evidence. Fake output
+does not qualify real inference; missing tests stay NOT_RUN/BLOCKED. No generic chat, RAG,
+classification, MCP, new connectors or remote OCR/vision/audio execution. #259 and advanced
+network/tray/global capture remain 0.20; later release numbers stay unchanged.
 
 ### 0.13.0 — AI Classification, Controlled Autonomy, Receipts and Evaluation
 
@@ -1472,12 +1486,12 @@ and denied data never reaches a provider in policy tests.
 **Outcome:** complete the user-controlled folder-to-knowledge path by making AI-assisted
 classification attributable, reviewable, safely applicable and replaceable.
 
-**Includes:** privacy-aware receipts with capability/model/policy/template/source/output identity;
-versioned templates; additional optional adapters behind the same capability contract; document,
-metadata and hierarchical-classification proposals delivered through the same Action Center;
-immutable
-separation between extracted Markdown and AI-authored output; sanitized conformance/evaluation fixtures;
-provider replacement tests; configurable receipt retention with minimum provenance.
+**Includes:** extensions of Custodia's privacy-safe receipts, versioned templates, adversarial
+isolation and adapter conformance for classification, calibrated confidence and controlled
+application. Document, metadata and hierarchical-classification proposals use the same gateway
+and Action Center; application receipts retain source/policy/output identity, reversibility and
+bounded retention. Extracted Markdown and AI-authored output stay separate. Additional optional
+adapters and task evaluation reuse the existing contract rather than rebuilding its foundations.
 
 Classification maps the internal `disabled`, `proposal-only`, `confirm-each` and
 `controlled-automatic` policies to the plain-language autonomy levels established by Cura. Every
@@ -1519,7 +1533,7 @@ create or broaden a proposal; disabling AI stops inference without stopping dete
 ingestion; the complete folder-to-knowledge workflow can be paused, retried and reconciled without
 duplicate knowledge or Original loss; and logs contain neither secrets nor raw private content.
 
-**Suggested slices:** `0.13/S01` receipts/templates/confidence evaluation; `0.13/S02` closed
+**Suggested slices:** `0.13/S01` classification receipt/template extensions and confidence evaluation; `0.13/S02` closed
 classification proposals; `0.13/S03` plain-language autonomy policy, review rules and guarded
 application; `0.13/S04` derived-processing autonomy plus adversarial isolation; `0.13/S05`
 complete folder-to-knowledge qualification.
@@ -1850,7 +1864,7 @@ UNC/network-share enrollment and the
 `0.11.0` minimal tray preferences, then matures them into a fully qualified per-user background agent and tray surface, with an
 explicitly qualified elevated-service option only if needed.
 [Planning #259](https://github.com/gabned/provelume/issues/259) owns the accepted addition without
-expanding the active Cura train.
+expanding Custodia or reopening the published Cura train.
 
 The Windows agent supports explicitly configured, OS-accessible UNC Folder Sources and mapped
 drives visible to the same user/session. Enrollment preflights reachability, required read/write
