@@ -30,7 +30,7 @@ EXPECTED_CONTRACT = {
 }
 
 FORECAST_VERSIONS = (
-    tuple(f"0.{minor}.0" for minor in range(11, 24))
+    tuple(f"0.{minor}.0" for minor in range(12, 24))
     + tuple(f"1.{minor}.0" for minor in range(0, 5))
 )
 LATIN_RELEASE_NAMES = {
@@ -138,7 +138,7 @@ def test_published_release_records_align_current_and_historical_identity() -> No
 
     lectio = _read(ROOT / "docs" / "releases" / "0.9.0.md")
     perceptio = _read(PERCEPTIO_RELEASE_PLAN_PATH)
-    assert package_version == "0.10.1"
+    assert package_version == "0.11.0"
     assert "CURRENT_PACKAGE_VERSION: 0.9.0" in lectio
     assert "PUBLISHED_TAG: v0.9.0" in lectio
     assert "CURRENT_PACKAGE_VERSION: 0.10.0" in perceptio
@@ -687,7 +687,7 @@ def test_perceptio_publication_is_consistent_across_public_surfaces() -> None:
     assert "| Forecast | `0.10.0` |" not in roadmap
     assert roadmap.count("| Published preview | `0.10.0` |") == 1
     assert "S06 is delivered under #177/#179; S07 is delivered under #180/#182" in roadmap
-    assert "Current status: 0.10.1 Emendatio preview" in readme
+    assert "Current status: 0.11.0 Cura preview" in readme
     assert "[0.10.0 release record](docs/releases/0.10.0.md)" in readme
     assert "activated planning-only development for `0.10.0 — Perceptio`" in changelog
     assert "CURRENT_PACKAGE_VERSION: 0.10.0" in perceptio
@@ -941,14 +941,15 @@ def test_mobile_capture_is_bounded_and_review_first() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Active development | `0.11.0` | Daily-use UX, Unified Capture, Action Center "
+        "| Prepared preview | `0.11.0` | Daily-use UX, Unified Capture, Action Center "
         "and multilingual interface |"
     ) == 1
     assert "| Forecast | `0.11.0` |" not in roadmap
     assert "[#255](https://github.com/gabned/provelume/issues/255)" in roadmap
     assert "[planning #247](https://github.com/gabned/provelume/issues/247)" in roadmap
     assert "[S01 #256](https://github.com/gabned/provelume/issues/256)" in roadmap
-    assert "Package/runtime remains `0.10.1` until distinct release preparation" in roadmap
+    assert "All nine slices are delivered in order" in roadmap
+    assert "[Release #308]" in roadmap
     for required_contract in (
         "short-lived QR pairing",
         "installable responsive web/PWA surface",
@@ -1061,9 +1062,9 @@ def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
     assert "[public roadmap](docs/roadmap.md)" in readme
     assert "[0.10.0 release record](docs/releases/0.10.0.md)" in readme
     assert "[`v0.9.0`](https://github.com/gabned/provelume/releases/tag/v0.9.0)" in readme
-    assert "Emendatio is the current\npublic prerelease" in readme
-    assert "S01–S04 are integrated" in readme
-    assert "Release workstream" in readme and "issues/251" in readme
+    assert "source package is prepared as **0.11.0 — Cura**" in readme
+    assert "all nine slices" in readme
+    assert "Release workstream" in readme and "issues/308" in readme
     assert "[Windows preview guide](docs/windows-preview.md)" in readme
     assert "configure-inbox" in readme
     assert "external Drop folder" in readme

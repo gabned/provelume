@@ -1,15 +1,20 @@
 # Windows product shell preview
 
-For future Cura releases, the complete actual-publication metadata path uses the verified outer
-installation kit and its original Setup; existing raw installations can import the matching
-receipt offline. See [publication metadata installation](publication-installation.md). This does
-not retroactively add receipts to the historical preview described below.
+Cura 0.11.0 uses the verified outer installation kit and its unchanged Setup,
+with the actual-publication receipt imported offline. Download only from the
+[official v0.11.0 preview release](https://github.com/gabned/provelume/releases/tag/v0.11.0)
+after its matching installation-readiness marker has been verified.
+See [publication metadata installation](publication-installation.md) and the
+[release qualification](qualification/0.11.0.md). Preparation of source or a
+development installer does not establish public readiness. Historical previews
+retain their original contracts.
 
-Provelume `0.10.1` is the Emendatio Windows preview with the configurable loopback endpoint, coherent
-icon/AppUserModelID, tray lifecycle, theme and accessibility contracts described in
-[`windows-shell.md`](windows-shell.md). Download `Provelume-Setup-0.10.1-x64.exe` only from the
-official [`v0.10.1` GitHub prerelease](https://github.com/gabned/provelume/releases/tag/v0.10.1) and run it as
-the current user. Git and a separately installed Python are not required.
+Provelume `0.11.0` is the Cura Windows preview with configurable loopback endpoint,
+canonical icon/AppUserModelID, authoritative minimal tray, System/Light/Dark,
+seven offline languages and the qualified daily-use presentation. Run its unchanged
+`Provelume-Setup-0.11.0-x64.exe` as the current user. Git and a separately installed
+Python are not required. The original shell contract remains in
+[windows-shell.md](windows-shell.md).
 
 ## What is installed
 
@@ -26,14 +31,32 @@ Three locations remain intentionally separate:
 | portable Instance and preserved originals | `%USERPROFILE%\\Documents\\Provelume` | no |
 
 An upgrade replaces only launcher/runtime files. The portable Instance is opened by the new
-runtime after installation. `0.10.1` retains the derived Perceptio representations and component
+runtime after installation. `0.11.0` retains the derived Perceptio representations and component
 evidence and read-only integration over the `0.9.0` contracts without making Originals
 non-authoritative. The registered schema-1 to schema-2 migration from `0.6.0` remains available.
 
-The official release evidence installs the immutable public `0.10.0` executable and uses its matching immutable public wheel to prepare the qualified N-1 state. Before installing `0.10.1`, the test fingerprints the complete Instance tree; the `0.10.1` installer must preserve configuration, manifest, canonical records,
+The official release evidence installs the immutable public `0.10.0` executable and uses its matching immutable public wheel to prepare the qualified N-1 state. Before installing `0.11.0`, the test fingerprints the complete Instance tree; the `0.11.0` installer must preserve configuration, manifest, canonical records,
 Original bytes and durable ingestion state byte-for-byte. First startup must expose the preserved
 knowledge while leaving policies, jobs, receipts, maintenance/reconciliation runs and resource
 snapshots empty. Stable AppId, launcher settings, startup, reinstall and uninstall remain verified.
+
+## Cura preferences
+
+A clean installation uses the Cura presentation and System language/appearance.
+The first-run summary shows the detected language, endpoint, selected Instance and
+close-to-tray/login choices. Upgrade preserves existing Current/Preview, language
+and background preferences. Current remains an explicit presentation-only rollback.
+
+Appearance/language, notifications/background and all-preferences resets show an
+impact preview and require confirmation. Cancellation preserves every preference;
+Undo is a fresh forward transaction. All reset scopes preserve Originals, Knowledge,
+Sources, credentials, history, backups, pairing/outbox and the selected Instance.
+Settings JSON export/import contains non-secret preferences only and previews changes.
+
+Closing the window can keep the runtime active only under the selected tray policy;
+first close offers cancellation. Exit stops the runtime and removes the tray icon.
+Login startup is a separate opt-in. Tray counts are content-free projections of
+the authoritative job/attention queues; Pause/Resume opens their existing controls.
 
 ## Local Inbox folders
 
@@ -59,7 +82,7 @@ local, removable or already-mounted network folder Source and choose manual, bou
 local-calendar observation. The schedule, timezone, DST behavior, quiet window, retry and
 missed-run policy remain visible and independently enabled or paused.
 
-In Emendatio development, use **Validate path** before **Register Source**. Windows
+For supported Folder Sources, use **Validate path** before **Register Source**. Windows
 UNC paths such as `\\server\share\folder` use the network class. Open the same path
 in Explorer under the same Windows user/session first. If a mapped drive is missing,
 map it in Provelume's session or select the UNC path; elevation can change drive
@@ -100,7 +123,7 @@ integrity or signature verdict.
 6. Provelume requires another confirmation before starting the normal installer and closing the
    local server.
 
-No background check is enabled by default. `0.10.1` never applies an update silently.
+No background check is enabled by default. `0.11.0` never applies an update silently.
 
 ## Recovery and limitations
 
@@ -128,7 +151,7 @@ verification of the exact artifact; no key or certificate is included here.
 ## Rollback and removal
 
 Export shell preferences and make a verified Instance backup before upgrading. To roll back,
-uninstall `0.10.1`, install an earlier immutable official installer, and restore only a backup that
+uninstall `0.11.0`, install an earlier immutable official installer, and restore only a backup that
 was created by or proved compatible with that version into a separate directory. There is no
 silent schema downgrade. Uninstall removes program files, shortcuts and registration but preserves
 launcher settings, downloaded-update state and every Instance; delete those only as a separate,

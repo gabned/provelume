@@ -13,6 +13,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
+from . import __version__
 from .paths import safe_instance_path
 from .representations import (
     RepresentationBundleManager,
@@ -1591,7 +1592,7 @@ class AudioProfileManager:
                 output_payloads=payloads,
                 implementation={
                     "component": "provelume.core",
-                    "component_version": "0.10.1",
+                    "component_version": __version__,
                     "adapter": "perceptio-audio-profile",
                     "adapter_version": "1",
                     "settings": {

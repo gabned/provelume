@@ -4,6 +4,38 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+## 0.11.0 - 2026-10-02
+
+Cura preview identity is prepared after verified S01–S09 delivery. Official publication
+and installation readiness are established only by the permanent verified release
+record, unchanged public payloads, publication receipt and readiness marker.
+
+### Added
+
+- Journey-based Overview, Knowledge, Capture, Search and Needs attention, with local
+  Lucide icons, progressive navigation, About & Credits and presentation-only rollback.
+- One authoritative Action Center for review, capture, failures and recoverable
+  operations/maintenance; previewed placement/routing, duplicate/version decisions
+  and evidence-bound OCR/transcript corrections preserve Originals.
+- Paired Capture/PWA, bounded offline outbox and idempotent retry, reference Android/
+  iOS Shortcut/Drive-drop paths, authenticated mobile search and explicit Original
+  retrieval. Real iOS remains NOT_RUN; Android OK is maintainer-attested on S07.
+- Complete offline en/it/de/es/fr/pt/ro catalogs; automatic contracts and human
+  linguistic review are recorded separately, including 2,226 sensitive review items.
+- System/Light/Dark before rendering, independent Windows close-to-tray/login
+  preferences, first-run/first-close summaries and authoritative compact tray state.
+- Atomic confirmed scoped reset, secret-free settings export/import and forward Undo.
+- Offline actual-publication receipt and exact-version installation kit; readiness
+  requires complete public readback rather than a tag or uploaded payload alone.
+
+### Changed
+
+- Fresh installations and explicit preference resets use the qualified Cura
+  presentation. Upgrades preserve existing choices and Current remains available.
+- Package/runtime/embedded/Windows and current first-party component identity align
+  to 0.11.0. Human UX/accessibility and linguistic attestations stay distinct from
+  automatic tests and agent browser observations; Windows artifacts remain unsigned.
+
 ### Improved
 
 - Expanded the Windows update-consent and local Information dialogs with the selected channel,

@@ -12,7 +12,7 @@ import time
 import urllib.request
 import webbrowser
 from contextlib import suppress
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 
@@ -1555,8 +1555,8 @@ def main(arguments: list[str] | None = None) -> int:
             )
             try:
                 save_settings(
-                    LauncherSettings(
-                        instance_path=str(Path.home() / "Documents" / "Provelume"),
+                    replace(
+                        default_settings(),
                         language=options.install_language,
                         endpoint_port=port,
                         last_good_port=port,

@@ -19,6 +19,7 @@ from typing import Any
 from xml.etree import ElementTree
 from zipfile import ZIP_DEFLATED, ZIP_STORED, BadZipFile, ZipFile, ZipInfo
 
+from . import __version__
 from .paths import safe_instance_path
 from .representations import (
     MAX_REPRESENTATION_ANCHORS,
@@ -1442,7 +1443,7 @@ class FileFamilyProfileManager:
                 output_payloads=payloads,
                 implementation={
                     "component": "provelume.core",
-                    "component_version": "0.10.1",
+                    "component_version": __version__,
                     "adapter": "perceptio-file-family-profile",
                     "adapter_version": "1",
                     "settings": {"mode": "offline", "active_content": "never"},

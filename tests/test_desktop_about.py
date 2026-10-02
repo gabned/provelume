@@ -97,7 +97,7 @@ def test_about_is_local_and_describes_preview_update_boundary() -> None:
     value = current_about()
 
     assert value["product"] == "Provelume"
-    assert value["version"] == "0.10.1"
+    assert value["version"] == "0.11.0"
     assert value["runtime"]["packaging"] == "python_package"
     assert value["updates"] == {
         "manual_check_available": True,
@@ -113,11 +113,11 @@ def test_about_is_local_and_describes_preview_update_boundary() -> None:
 
 def test_about_links_are_canonical_and_reject_untrusted_build_tags() -> None:
     value = current_about()
-    value.update({"tag": "v0.10.1"})
+    value.update({"tag": "v0.11.0"})
     assert public_about_links(value) == {
         "repository": "https://github.com/gabned/provelume",
         "releases": "https://github.com/gabned/provelume/releases",
-        "installed_release": "https://github.com/gabned/provelume/releases/tag/v0.10.1",
+        "installed_release": "https://github.com/gabned/provelume/releases/tag/v0.11.0",
     }
 
     value["tag"] = "../../private"
@@ -208,7 +208,7 @@ def test_desktop_diagnostics_and_headless_instance_bootstrap(tmp_path: Path) -> 
     diagnostics = diagnostics_payload()
     assert diagnostics["desktop_shell"] is True
     assert diagnostics["network_used"] is False
-    assert diagnostics["about"]["version"] == "0.10.1"
+    assert diagnostics["about"]["version"] == "0.11.0"
     assert diagnostics["windows_identity"]["process_app_user_model_id"] in {
         "not_applicable",
         "configured",

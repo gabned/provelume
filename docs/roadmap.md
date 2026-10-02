@@ -14,8 +14,9 @@ request, tag, release or delivery commitment. Planned-version movement follows
 - **Active implementation** — a canonical parent issue and exactly one current owner product pull
   request activate one bounded release slice; package identity and publication remain separate
   later steps.
-- **Release preparation** — all implementation slices are complete and one reviewed product pull
-  request aligns package identity and release evidence; no tag or public release exists yet.
+- **Prepared preview** — all implementation slices are delivered and package identity is aligned.
+  The linked public release, publication receipt and readiness marker establish actual publication;
+  a prepared source record alone does not claim an uploaded or verified release.
 - **Next forecast** — first intended product increment after the published baseline, not yet
   activated until a canonical issue and one owner pull request exist.
 - **Forecast** — ordered portfolio slot whose scope may still be refined before activation.
@@ -42,7 +43,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.9.0` | OCR, email, Google file and transcript intake | #137 (completed); S01–S07 completed by #138/#141/#147/#150/#152/#154/#156; release #158 | `Lectio` |
 | Published preview | `0.10.0` | Multimedia, universal content representations and component inventory | #160 (completed); S01–S07 completed by #163/#168/#170/#172/#173/#175/#179/#182; release #183 | `Perceptio` |
 | Published preview | `0.10.1` | Source onboarding, filtering and canonical brand correction | #198 completed; release #251 | `Emendatio` |
-| Active development | `0.11.0` | Daily-use UX, Unified Capture, Action Center and multilingual interface | #255 activation; S01 #256/#257 and S02 #258/#261 integrated; S03 #262 active; #247 planning | `Cura` |
+| Prepared preview | `0.11.0` | Daily-use UX, Unified Capture, Action Center and multilingual interface | #255 S01–S09 delivered; #308 release record; [public identity/readiness](https://github.com/gabned/provelume/releases/tag/v0.11.0) | `Cura` |
 | Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
 | Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
 | Forecast | `0.14.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
@@ -1223,28 +1224,31 @@ evidence and Lucide remains `0.11/S02`.
 
 ### 0.11.0 — Daily-use UX, Unified Capture, Action Center and Multilingual Interface
 
-**Active release train:** [#255](https://github.com/gabned/provelume/issues/255), distinct from
-[planning #247](https://github.com/gabned/provelume/issues/247), after the completed published
-`0.10.1 — Emendatio` campaign. [S01 #256](https://github.com/gabned/provelume/issues/256) records the
-[existing-interface baseline](qualification/cura-s01-baseline.md) and
-[information architecture, route inventory and glossary](architecture/cura-information-architecture.md).
-S01 is integrated through #257. S02 #258/#261 is integrated at
-`6024dd153e902e02d59b68f7a6b4f9b919803c9b`, with qualification and post-merge verification
-in #255 receipts 15–16. It delivers the optional Preview shell, shared presentation and
-retrieval context, local icons, appearance/language persistence and presentation rollback.
-[S03 #262](https://github.com/gabned/provelume/issues/262) is integrated for the
-[typed Action Center](architecture/action-center.md) and
-[local notification contract](architecture/cura-notifications.md).
-S04 #264 is delivered through #265 and qualifying corrections #266/#267 at
-`1b8e075e7ee221aca2fcab43288dd751ccefe43c`, certified by #255 receipt 42.
-[S05 #270](https://github.com/gabned/provelume/issues/270) is active under receipt 43 for
-[reviewed placement and routing](architecture/cura-domain-review.md),
-[duplicate and Version decisions](cura-document-decisions.md), and the
-[OCR and transcript correction editor](architecture/annotation-editor.md).
-S06–S09 remain ordered, unopened implementation slices until their preceding verified merge.
-Package/runtime remains `0.10.1` until distinct release preparation; activation is not delivery.
-The optional Telegram adapter is deferred in #255; required native share/direct Capture/Drive-drop
-paths and the provider-neutral relay contract remain in scope.
+**Prepared release train:** [#255](https://github.com/gabned/provelume/issues/255),
+distinct from [planning #247](https://github.com/gabned/provelume/issues/247).
+[S01 #256](https://github.com/gabned/provelume/issues/256) records the immutable
+[baseline](qualification/cura-s01-baseline.md) and
+[information architecture](architecture/cura-information-architecture.md).
+All nine slices are delivered in order: #257; #261; #263; #265/#266/#267;
+#271; #289/#290; #302; #304; #307. S07 merge90f8c830, S08 merge9636092b and
+S09 merge03d35be4 have complete post-merge native CI and durable receipts in #255.
+[Release #308](https://github.com/gabned/provelume/issues/308) separately owns
+0.11.0 identity, the qualified fresh-install/reset default and independent preview
+publication. See [release record](releases/0.11.0.md) and
+[qualification](qualification/0.11.0.md); actual publication/readiness comes from
+the matching public tag, verified assets and readiness marker.
+
+Human integrated seven-language J1–J7, screen-reader/high-contrast/200% and Windows
+lifecycle review is MAINTAINER_ATTESTED at S09 headc6053b1. The separate linguistic
+attestations cover 1,988 S08 items plus 238 S09 additions; catalogs/tests alone are
+not human review. Android OK is maintainer-attested only at S07 with later dependency
+binding; real iOS is NOT_RUN within the accepted consumer perimeter, while Shortcut
+contracts/docs/tests remain required. These are not agent physical observations.
+
+The optional Telegram adapter remains deferred in #255; required direct
+Capture/Android/iOS Shortcut/Drive-drop and provider-neutral relay contracts remain
+in scope. #167's later Windows network folders/full tray folder guide remain #259
+(0.20); no scope from that future owner or 0.12 is activated.
 
 **BUSINESS_IMPACT:** MATERIAL — reduce time-to-first-value, navigation/recovery friction and
 language barriers at the first planned personal daily-use beta. Review primary-journey completion,

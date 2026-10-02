@@ -67,6 +67,8 @@ def default_settings() -> LauncherSettings:
     return LauncherSettings(
         instance_path=str(default_instance_directory()),
         language=default_language(),
+        interface_mode="preview",
+        schema_version=3,
     )
 
 
