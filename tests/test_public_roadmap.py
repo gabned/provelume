@@ -941,7 +941,7 @@ def test_mobile_capture_is_bounded_and_review_first() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Prepared preview | `0.11.0` | Daily-use UX, Unified Capture, Action Center "
+        "| Published preview | `0.11.0` | Daily-use UX, Unified Capture, Action Center "
         "and multilingual interface |"
     ) == 1
     assert "| Forecast | `0.11.0` |" not in roadmap
@@ -1062,8 +1062,8 @@ def test_readme_links_current_release_and_canonical_planning_surfaces() -> None:
     assert "[public roadmap](docs/roadmap.md)" in readme
     assert "[0.10.0 release record](docs/releases/0.10.0.md)" in readme
     assert "[`v0.9.0`](https://github.com/gabned/provelume/releases/tag/v0.9.0)" in readme
-    assert "source package is prepared as **0.11.0 — Cura**" in readme
-    assert "all nine slices" in readme
+    assert "**0.11.0 — Cura** is the published, independently verified preview" in readme
+    assert "all nine slices" in readme.casefold()
     assert "Release workstream" in readme and "issues/308" in readme
     assert "[Windows preview guide](docs/windows-preview.md)" in readme
     assert "configure-inbox" in readme
