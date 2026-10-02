@@ -864,8 +864,8 @@ def test_ai_classification_is_closed_reviewable_and_reconcilable() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, "
-        "provider adapters and evaluation |"
+        "| Forecast | `0.13.0` | AI classification, confidence and controlled application "
+        "extending Custodia receipts/templates |"
     ) == 1
     for required_contract in (
         "disabled`, `proposal-only`, `confirm-each` and\n`controlled-automatic` policies",
