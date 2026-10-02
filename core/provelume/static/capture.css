@@ -3,3 +3,11 @@
 dialog{max-width:min(90vw,42rem);border:1px solid #758c9d;border-radius:.8rem;padding:1rem}dialog::backdrop{background:rgba(20,43,60,.45)}dialog pre{white-space:pre-wrap;overflow-wrap:anywhere}
 #retrieval-detail{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}fieldset{min-width:0}
 #retrieval-downloads button{overflow-wrap:anywhere}
+
+/* Theme is selected before stylesheet loading. Paired devices follow their OS. */
+html[data-theme="dark"]{color-scheme:dark;color:#edf4fa;background:#17212a}
+html[data-theme="dark"] :is(section,dialog,input,textarea,select){background:#22303c;color:#edf4fa;border-color:#8296a5}
+html[data-theme="dark"] a{color:#acd6f4}
+html[data-theme="dark"] #status:not(:empty){border-color:#acd6f4}
+@media(prefers-color-scheme:dark){html[data-theme="system"]{color-scheme:dark;color:#edf4fa;background:#17212a}html[data-theme="system"] :is(section,dialog,input,textarea,select){background:#22303c;color:#edf4fa;border-color:#8296a5}html[data-theme="system"] a{color:#acd6f4}html[data-theme="system"] #status:not(:empty){border-color:#acd6f4}}
+@media(forced-colors:active){*{forced-color-adjust:auto}:is(section,dialog,button,input,textarea,select){border:1px solid CanvasText}:focus-visible{outline:3px solid Highlight}}

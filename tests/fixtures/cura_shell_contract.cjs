@@ -21,7 +21,7 @@ function page({compact = false, seconds = 3, expires = 13000, badge = true} = {}
     isConnected: true, remove() { this.isConnected = false; },
   };
   const document = {
-    querySelector: () => navigation,
+    querySelector: (selector) => selector === "[data-cura-navigation]" ? navigation : null,
     querySelectorAll: () => badge ? [cue] : [],
     addEventListener: listeners("document"),
   };

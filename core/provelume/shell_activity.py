@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hmac
 import ipaddress
+import json
 import os
 import secrets
 import sys
@@ -13,7 +14,7 @@ from typing import Any
 from urllib.parse import parse_qs
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 
 from .service import ProvelumeInstance
 from .shell_settings import (
@@ -107,6 +108,9 @@ def attach_shell_routes(
 ) -> None:
     csrf_token = secrets.token_urlsafe(32)
     nonces = MutationNonces()
+    from .shell_preference_activity import attach_preference_routes
+
+    attach_preference_routes(app, instance, templates, context_factory, manager, csrf_token, nonces)
 
     def view(request: Request) -> dict[str, Any]:
         loaded = getattr(request.state, "shell_settings_snapshot", None)
@@ -163,6 +167,20 @@ def attach_shell_routes(
     @app.get("/api/v1/shell")
     def api_shell(request: Request) -> dict[str, Any]:
         return view(request)
+
+    @app.get("/api/v1/shell/queue")
+    def api_tray_queue(request: Request):
+        if not _loopback_request(request):
+            raise HTTPException(403, "tray observation requires the local shell")
+        from .tray_queue import queue_snapshot
+
+        try:
+            return Response(
+                json.dumps(queue_snapshot(instance)), media_type="application/json",
+                headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+            )
+        except (OSError, ValueError, RuntimeError, KeyError, TypeError):
+            raise HTTPException(503, "tray queue observation is unavailable") from None
 
     @app.get("/settings/shell")
     def shell_settings_page(request: Request):

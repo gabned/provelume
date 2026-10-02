@@ -1,6 +1,27 @@
 /* Fixed first-party presentation enhancement. No network, storage or user code. */
 "use strict";
 (() => {
+  const confirmation = document.querySelector("[data-preference-confirm]");
+  if (confirmation && typeof confirmation.showModal === "function") {
+    // The server-rendered open dialog remains usable without JavaScript.
+    confirmation.close();
+    confirmation.showModal();
+    const cancel = confirmation.querySelector("[data-preference-cancel]");
+    confirmation.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      cancel.click();
+    });
+    confirmation.addEventListener("keydown", (event) => {
+      if (event.key !== "Tab") return;
+      const controls = [...confirmation.querySelectorAll("button:not([disabled]),a[href]")];
+      const first = controls[0], last = controls[controls.length - 1];
+      if ((!event.shiftKey && document.activeElement === last) ||
+          (event.shiftKey && document.activeElement === first)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      }
+    });
+  }
   const navigation = document.querySelector("[data-cura-navigation]");
   const compact = window.matchMedia("(max-width: 60rem)");
   if (navigation) {

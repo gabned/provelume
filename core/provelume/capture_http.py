@@ -251,6 +251,9 @@ def attach_capture_routes(app, store, *, paired_origin=None):
         request.state.capture_script_integrity = capture_script_integrity()
         html = (PACKAGE / "templates/capture.html").read_text(encoding="utf-8")
         html = html.replace("__CAPTURE_INTEGRITY__", capture_script_integrity())
+        manager = getattr(request.app.state, "shell_settings_manager", None)
+        theme = manager.load().settings.theme if not paired and manager is not None else "system"
+        html = html.replace("__CAPTURE_THEME__", theme)
         options = '<option value="system" data-i18n="system">' + html_escape.escape(
             message("en", "common.language_system")) + '</option>' + "".join(
             '<option value="' + html_escape.escape(row["id"], quote=True) + '">' +

@@ -6,8 +6,28 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from .catalog_registry import exported_catalogs, resolve_language
+from .catalog_registry import (
+    SUPPORTED_LANGUAGES,
+    exported_catalogs,
+    namespace_catalog,
+    resolve_language,
+)
+from .tray_queue import normalize_queue, queue_state
+
+SERVICE_STATUSES = frozenset(
+    {
+        "starting",
+        "running",
+        "stopping",
+        "stopped",
+        "occupied",
+        "crashed",
+        "server_failed",
+        "endpoint_rolled_back",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,40 +36,49 @@ class TrayState:
     service_status: str
     endpoint: str
     visible: bool = True
+    queue: dict | None = None
 
     def normalized(self) -> TrayState:
+        endpoint = "http://127.0.0.1:44851"
+        try:
+            parsed = urlsplit(self.endpoint)
+            if (
+                parsed.scheme == "http"
+                and parsed.hostname == "127.0.0.1"
+                and parsed.username is None
+                and parsed.password is None
+                and parsed.path in {"", "/"}
+                and not parsed.query
+                and not parsed.fragment
+                and parsed.port is not None
+                and 1024 <= parsed.port <= 65535
+            ):
+                endpoint = f"http://127.0.0.1:{parsed.port}"
+        except (ValueError, TypeError):
+            pass
         return TrayState(
             language=resolve_language(self.language),
-            service_status=self.service_status.strip()[:80] or "stopped",
-            endpoint=self.endpoint.strip()[:80] or "http://127.0.0.1:44851",
+            service_status=(
+                self.service_status if self.service_status in SERVICE_STATUSES else "stopped"
+            ),
+            endpoint=endpoint,
             visible=bool(self.visible),
+            queue=normalize_queue(self.queue) if self.queue is not None else None,
         )
 
 
-TRAY_LABELS = exported_catalogs('windows_tray.TRAY_LABELS')
+TRAY_LABELS = exported_catalogs("windows_tray.TRAY_LABELS")
 
-TRAY_STATUS_LABELS = {
-    "en": {
-        "starting": "starting",
-        "running": "running",
-        "stopping": "stopping",
-        "stopped": "stopped",
-        "occupied": "endpoint occupied",
-        "crashed": "stopped unexpectedly",
-        "server_failed": "start failed",
-        "endpoint_rolled_back": "endpoint rolled back",
-    },
-    "it": {
-        "starting": "in avvio",
-        "running": "in esecuzione",
-        "stopping": "in arresto",
-        "stopped": "arrestato",
-        "occupied": "endpoint occupato",
-        "crashed": "arrestato in modo imprevisto",
-        "server_failed": "avvio non riuscito",
-        "endpoint_rolled_back": "endpoint ripristinato",
-    },
-}
+TRAY_STATUS_LABELS = {lang: namespace_catalog(lang, "tray_status") for lang in SUPPORTED_LANGUAGES}
+
+
+def queue_text(state: TrayState) -> str:
+    labels = namespace_catalog(state.language, "tray")
+    value = state.queue
+    if value is None or not value["complete"]:
+        return labels["unavailable"]
+    title = namespace_catalog(state.language, "tray_queue_state")[queue_state(value)]
+    return title + " · " + labels["queue_summary"].format(**value)
 
 
 class TrayLifecycleHarness:
@@ -107,6 +136,8 @@ class WindowsTray:
         restart_service: Callable[[], None],
         quit_application: Callable[[], None],
         icon_path: Path | None = None,
+        open_queue: Callable[[], None] | None = None,
+        pause_resume: Callable[[], None] | None = None,
     ):
         self.root = root
         self.state = state.normalized()
@@ -115,6 +146,8 @@ class WindowsTray:
             2: open_settings,
             3: restart_service,
             4: quit_application,
+            5: open_queue or open_interface,
+            6: pause_resume or open_settings,
         }
         self.icon_path = icon_path
         self.available = False
@@ -147,11 +180,12 @@ class WindowsTray:
             self.stop()
         return self.available
 
-    def update(self, *, service_status: str, endpoint: str) -> None:
+    def update(self, *, service_status: str, endpoint: str, queue: dict | None = None) -> None:
         self.state = replace(
             self.state,
             service_status=service_status,
             endpoint=endpoint,
+            queue=queue,
         ).normalized()
         if self._window is not None:
             import ctypes
@@ -238,14 +272,21 @@ class WindowsTray:
         WM_CLOSE = 0x0010
         WM_DESTROY = 0x0002
         WM_LBUTTONDBLCLK = 0x0203
+        WM_LBUTTONUP = 0x0202
         WM_RBUTTONUP = 0x0205
         WM_CONTEXTMENU = 0x007B
         NIM_ADD = 0
         NIM_MODIFY = 1
         NIM_DELETE = 2
+        NIM_SETFOCUS = 3
+        NIM_SETVERSION = 4
+        NOTIFYICON_VERSION_4 = 4
+        NIN_SELECT = 0x0400
+        NIN_KEYSELECT = 0x0401
         NIF_MESSAGE = 1
         NIF_ICON = 2
         NIF_TIP = 4
+        NIF_SHOWTIP = 0x80
         MF_STRING = 0
         MF_GRAYED = 1
         MF_SEPARATOR = 0x0800
@@ -314,6 +355,9 @@ class WindowsTray:
         user32.DestroyIcon.restype = wintypes.BOOL
         user32.RegisterClassW.argtypes = [ctypes.POINTER(WNDCLASSW)]
         user32.RegisterClassW.restype = wintypes.WORD
+        user32.RegisterWindowMessageW.argtypes = [wintypes.LPCWSTR]
+        user32.RegisterWindowMessageW.restype = wintypes.UINT
+        taskbar_created = user32.RegisterWindowMessageW("TaskbarCreated")
         user32.UnregisterClassW.argtypes = [wintypes.LPCWSTR, wintypes.HINSTANCE]
         user32.UnregisterClassW.restype = wintypes.BOOL
         user32.CreateWindowExW.argtypes = [
@@ -347,6 +391,26 @@ class WindowsTray:
         user32.DestroyMenu.argtypes = [wintypes.HMENU]
         user32.DestroyMenu.restype = wintypes.BOOL
         user32.TrackPopupMenu.restype = wintypes.UINT
+        user32.TrackPopupMenu.argtypes = [
+            wintypes.HMENU,
+            wintypes.UINT,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            wintypes.HWND,
+            ctypes.c_void_p,
+        ]
+        user32.AppendMenuW.argtypes = [
+            wintypes.HMENU,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPCWSTR,
+        ]
+        user32.AppendMenuW.restype = wintypes.BOOL
+        user32.GetCursorPos.argtypes = [ctypes.POINTER(wintypes.POINT)]
+        user32.GetCursorPos.restype = wintypes.BOOL
+        user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+        user32.SetForegroundWindow.restype = wintypes.BOOL
         shell32.ExtractIconExW.argtypes = [
             wintypes.LPCWSTR,
             ctypes.c_int,
@@ -407,6 +471,7 @@ class WindowsTray:
             icon = user32.LoadIconW(None, 32512)
 
         notification: NOTIFYICONDATAW | None = None
+        notification_v4 = False
 
         def tooltip() -> str:
             value = self.state.normalized()
@@ -428,6 +493,18 @@ class WindowsTray:
                 shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(notification))
             )
 
+        def add_notification() -> bool:
+            nonlocal notification_v4
+            if notification is None or self._stop_requested.is_set():
+                return False
+            notification.szTip = tooltip()
+            added = bool(shell32.Shell_NotifyIconW(NIM_ADD, ctypes.byref(notification)))
+            notification.uTimeoutOrVersion = NOTIFYICON_VERSION_4
+            notification_v4 = added and bool(
+                shell32.Shell_NotifyIconW(NIM_SETVERSION, ctypes.byref(notification))
+            )
+            return added
+
         def delete_notification() -> None:
             nonlocal notification
             if notification is None:
@@ -439,6 +516,7 @@ class WindowsTray:
         def show_menu(window: int) -> None:
             value = self.state.normalized()
             labels = TRAY_LABELS[value.language]
+            queue_labels = namespace_catalog(value.language, "tray")
             status = TRAY_STATUS_LABELS[value.language].get(
                 value.service_status,
                 value.service_status,
@@ -446,6 +524,8 @@ class WindowsTray:
             menu = user32.CreatePopupMenu()
             try:
                 user32.AppendMenuW(menu, MF_STRING, 1, labels["open"])
+                user32.AppendMenuW(menu, MF_STRING, 5, queue_labels["queue"])
+                user32.AppendMenuW(menu, MF_STRING | MF_GRAYED, 12, queue_text(value))
                 user32.AppendMenuW(
                     menu,
                     MF_STRING | MF_GRAYED,
@@ -460,6 +540,7 @@ class WindowsTray:
                 )
                 user32.AppendMenuW(menu, MF_SEPARATOR, 0, None)
                 user32.AppendMenuW(menu, MF_STRING, 2, labels["settings"])
+                user32.AppendMenuW(menu, MF_STRING, 6, queue_labels["pause"])
                 user32.AppendMenuW(menu, MF_STRING, 3, labels["restart"])
                 user32.AppendMenuW(menu, MF_SEPARATOR, 0, None)
                 user32.AppendMenuW(menu, MF_STRING, 4, labels["quit"])
@@ -479,15 +560,26 @@ class WindowsTray:
                     self._dispatch(int(selected))
             finally:
                 user32.DestroyMenu(menu)
+                if notification is not None:
+                    shell32.Shell_NotifyIconW(NIM_SETFOCUS, ctypes.byref(notification))
 
         @WNDPROC
         def window_proc(window, message, wparam, lparam):
             nonlocal notification
+            if taskbar_created and message == taskbar_created:
+                self.available = add_notification()
+                return 0
             if message == WM_APP_TRAY:
-                event = int(lparam)
+                event = int(lparam) & 0xFFFF if notification_v4 else int(lparam)
                 if event == WM_LBUTTONDBLCLK:
                     self._dispatch(1)
-                elif event in {WM_RBUTTONUP, WM_CONTEXTMENU}:
+                elif event in {
+                    WM_LBUTTONUP,
+                    WM_RBUTTONUP,
+                    WM_CONTEXTMENU,
+                    NIN_SELECT,
+                    NIN_KEYSELECT,
+                }:
                     show_menu(window)
                 return 0
             if message == WM_APP_UPDATE:
@@ -551,11 +643,11 @@ class WindowsTray:
         notification.cbSize = ctypes.sizeof(NOTIFYICONDATAW)
         notification.hWnd = window
         notification.uID = 1
-        notification.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP
+        notification.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_SHOWTIP
         notification.uCallbackMessage = WM_APP_TRAY
         notification.hIcon = icon
         notification.szTip = tooltip()
-        added = bool(shell32.Shell_NotifyIconW(NIM_ADD, ctypes.byref(notification)))
+        added = add_notification()
         self._notification_added = added
         self.available = added and not self._stop_requested.is_set()
         self.icon_source = icon_source

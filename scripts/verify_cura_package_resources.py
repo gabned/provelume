@@ -41,6 +41,7 @@ REQUIRED = {
     *STATIC_FILES,
     "templates/base.html",
     "templates/capture.html",
+    "templates/shell_preferences.html",
     "templates/cura/base.html",
     "i18n/en.json",
     "i18n/it.json",
