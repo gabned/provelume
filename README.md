@@ -10,14 +10,17 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 ## Current status: 0.11.0 Cura preview
 
-The source package is prepared as **0.11.0 — Cura**, after all nine slices of
-[parent #255](https://github.com/gabned/provelume/issues/255) were delivered.
+**0.11.0 — Cura** is the published, independently verified preview.
+All nine slices of [parent #255](https://github.com/gabned/provelume/issues/255)
+were delivered.
 [Release workstream #308](https://github.com/gabned/provelume/issues/308) records
 the exact reviewed release commit, independent qualification and publication outcome.
 The [public v0.11.0 release](https://github.com/gabned/provelume/releases/tag/v0.11.0)
 and its matching publication receipt, asset hashes and installation-readiness marker
-are authoritative for published installation readiness; source preparation alone
-does not establish publication. The channel is **preview**, not stable.
+have been independently downloaded and verified against the exact release commit
+`3414612e23891d1d3ac44610ee8a0d4fb6c305e7`. The channel remains **preview**;
+Windows artifacts remain unsigned. See the
+[qualification record](docs/qualification/0.11.0.md) for the closed asset inventory.
 The permanent verified release chain binds tag, package, embedded identity,
 Windows metadata, manifest, SBOM, checksums and provenance to one reviewed commit.
 

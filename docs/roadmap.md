@@ -43,7 +43,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.9.0` | OCR, email, Google file and transcript intake | #137 (completed); S01–S07 completed by #138/#141/#147/#150/#152/#154/#156; release #158 | `Lectio` |
 | Published preview | `0.10.0` | Multimedia, universal content representations and component inventory | #160 (completed); S01–S07 completed by #163/#168/#170/#172/#173/#175/#179/#182; release #183 | `Perceptio` |
 | Published preview | `0.10.1` | Source onboarding, filtering and canonical brand correction | #198 completed; release #251 | `Emendatio` |
-| Prepared preview | `0.11.0` | Daily-use UX, Unified Capture, Action Center and multilingual interface | #255 S01–S09 delivered; #308 release record; [public identity/readiness](https://github.com/gabned/provelume/releases/tag/v0.11.0) | `Cura` |
+| Published preview | `0.11.0` | Daily-use UX, Unified Capture, Action Center and multilingual interface | #255 S01–S09 delivered; #308 release record; [public identity/readiness](https://github.com/gabned/provelume/releases/tag/v0.11.0) | `Cura` |
 | Forecast | `0.12.0` | AI gateway and privacy routing | issue just in time | `Custodia` |
 | Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, provider adapters and evaluation | issue just in time | `Iudicium` |
 | Forecast | `0.14.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
@@ -175,7 +175,7 @@ planning or publication change whenever release scope or order moves.
 | `1.4.0` | Long-term personal archive checks and retention profiles with explicit legal limits. | Preservation and regulated-domain evaluators; no compliance claim without separate evidence. |
 
 The current answer is therefore explicit: `0.10.1` is the published bounded correction preview while immutable `0.10.0` remains its N-1 upgrade baseline and `0.9.0` remains historical document-heavy evidence; `0.11.0` is the first
-planned coherent personal daily-use beta and controlled public-beta gate; `0.21.0` is the broad
+published coherent personal daily-use beta within its verified support perimeter; `0.21.0` is the broad
 non-technical desktop-preview gate; `0.23.0` is broad release-candidate qualification; and
 `1.0.0` is general distribution.
 
@@ -1224,7 +1224,7 @@ evidence and Lucide remains `0.11/S02`.
 
 ### 0.11.0 — Daily-use UX, Unified Capture, Action Center and Multilingual Interface
 
-**Prepared release train:** [#255](https://github.com/gabned/provelume/issues/255),
+**Published preview release train:** [#255](https://github.com/gabned/provelume/issues/255),
 distinct from [planning #247](https://github.com/gabned/provelume/issues/247).
 [S01 #256](https://github.com/gabned/provelume/issues/256) records the immutable
 [baseline](qualification/cura-s01-baseline.md) and
@@ -1233,10 +1233,11 @@ All nine slices are delivered in order: #257; #261; #263; #265/#266/#267;
 #271; #289/#290; #302; #304; #307. S07 merge90f8c830, S08 merge9636092b and
 S09 merge03d35be4 have complete post-merge native CI and durable receipts in #255.
 [Release #308](https://github.com/gabned/provelume/issues/308) separately owns
-0.11.0 identity, the qualified fresh-install/reset default and independent preview
-publication. See [release record](releases/0.11.0.md) and
-[qualification](qualification/0.11.0.md); actual publication/readiness comes from
-the matching public tag, verified assets and readiness marker.
+the published `v0.11.0` preview at commit
+`3414612e23891d1d3ac44610ee8a0d4fb6c305e7`, its qualified fresh-install/reset
+default and independently verified public installation kit. See
+[release record](releases/0.11.0.md) and [qualification](qualification/0.11.0.md)
+for the unchanged payloads, actual-publication receipt and observed readiness marker.
 
 Human integrated seven-language J1–J7, screen-reader/high-contrast/200% and Windows
 lifecycle review is MAINTAINER_ATTESTED at S09 headc6053b1. The separate linguistic
