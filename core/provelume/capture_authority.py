@@ -88,7 +88,7 @@ def _stamp(value):
 def validate_authority(value, instance_id):
     try:
         if (
-            set(value)
+            (set(value) - ({"retrieval"} if value.get("schema_version") == 2 else set()))
             != {
                 "schema_version",
                 "instance_id",
@@ -99,7 +99,7 @@ def validate_authority(value, instance_id):
                 "audit",
             }
             or type(value["schema_version"]) is not int
-            or value["schema_version"] != 1
+            or value["schema_version"] not in {1, 2}
             or value["instance_id"] != instance_id
             or not _HASH.fullmatch(value["host_binding"])
             or not isinstance(value["devices"], dict)
@@ -111,6 +111,24 @@ def validate_authority(value, instance_id):
         ):
             raise ValueError()
         trusted_capture_origin(value["origin"])
+        if value["schema_version"] == 2:
+            grants = value["retrieval"]
+            if not isinstance(grants, dict) or len(grants) > MAX_DEVICES:
+                raise ValueError()
+            for device, grant in grants.items():
+                if (
+                    device not in value["devices"]
+                    or set(grant) != {"verifier", "expires_at", "revoked_at", "source_ids"}
+                    or not _HASH.fullmatch(grant["verifier"])
+                    or not isinstance(grant["source_ids"], list)
+                    or not 1 <= len(grant["source_ids"]) <= 16
+                    or len(set(grant["source_ids"])) != len(grant["source_ids"])
+                    or any(not re.fullmatch(r"src_[0-9a-f]{32}", s) for s in grant["source_ids"])
+                ):
+                    raise ValueError()
+                _stamp(grant["expires_at"])
+                if grant["revoked_at"] is not None:
+                    _stamp(grant["revoked_at"])
         for device, row in value["devices"].items():
             if (
                 not _DEVICE.fullmatch(device)
@@ -143,7 +161,15 @@ def validate_authority(value, instance_id):
                 set(row) != {"id", "at", "action", "device_id"}
                 or not re.fullmatch(r"audit_[0-9a-f]{32}", row["id"])
                 or row["id"] in ids
-                or row["action"] not in {"configured", "challenge", "paired", "revoked"}
+                or row["action"]
+                not in {
+                    "configured",
+                    "challenge",
+                    "paired",
+                    "revoked",
+                    "retrieval_granted",
+                    "retrieval_revoked",
+                }
                 or (row["device_id"] is not None and row["device_id"] not in value["devices"])
             ):
                 raise ValueError()
@@ -253,6 +279,8 @@ class CaptureAuthority:
             )
             for row in value["devices"].values():
                 row["revoked_at"] = row["revoked_at"] or utc_now()
+            for grant in value.get("retrieval", {}).values():
+                grant["revoked_at"] = grant["revoked_at"] or utc_now()
             value.update(origin=origin, host_binding=self._binding(key), challenges=[])
             self._audit(value, "configured")
             self._write(value)
@@ -407,6 +435,93 @@ class CaptureAuthority:
                 self._audit(value, "revoked", device)
                 self._write(value)
         return self.management()
+
+    def grant_retrieval(self, device, source_ids, seconds, *, authorize_owner):
+        """Explicit owner action; submission pairing never grants Knowledge access."""
+        _owner_guard(authorize_owner)
+        if not isinstance(device, str) or not _DEVICE.fullmatch(device):
+            raise CaptureJournalError("Retrieval device identity is invalid")
+        if type(seconds) is not int or not 60 <= seconds <= 86400:
+            raise CaptureJournalError("Retrieval grant must expire in 60–86400 seconds")
+        if (
+            not isinstance(source_ids, list)
+            or not 1 <= len(source_ids) <= 16
+            or any(not isinstance(s, str) for s in source_ids)
+            or any(not re.fullmatch(r"src_[0-9a-f]{32}", s) for s in source_ids)
+            or len(set(source_ids)) != len(source_ids)
+        ):
+            raise CaptureJournalError("Select 1–16 distinct existing Sources explicitly")
+        with self.lifecycle._hold(purpose="capture-retrieval-grant"):
+            _owner_guard(authorize_owner)
+            value, key = self.read(), self._key()
+            if (
+                value is None
+                or key is None
+                or not hmac.compare_digest(value["host_binding"], self._binding(key))
+                or device not in value["devices"]
+                or value["devices"][device]["revoked_at"] is not None
+            ):
+                raise PermissionError("Active paired device required for separate retrieval grant")
+            if any(self.store.read_canonical("sources", s) is None for s in source_ids):
+                raise CaptureJournalError("Retrieval Source unavailable")
+            token = secrets.token_urlsafe(32)
+            expires = (datetime.now(UTC) + timedelta(seconds=seconds)).isoformat()
+            value["schema_version"] = 2
+            value.setdefault("retrieval", {})[device] = {
+                "verifier": self._verifier(key, token, "retrieval:" + device, value["origin"]),
+                "expires_at": expires,
+                "revoked_at": None,
+                "source_ids": sorted(source_ids),
+            }
+            self._audit(value, "retrieval_granted", device)
+            self._write(value)
+        return dict(
+            device_id=device,
+            credential=token,
+            expires_at=expires,
+            source_ids=sorted(source_ids),
+            instance_id=self.instance_id,
+            origin=value["origin"],
+            scope="knowledge.read+original.download",
+        )
+
+    def authorize_retrieval(self, device, token, *, origin):
+        value, key = self.read(), self._key()
+        if (
+            value is None
+            or key is None
+            or value["origin"] != origin
+            or not hmac.compare_digest(value["host_binding"], self._binding(key))
+        ):
+            raise PermissionError("Retrieval authority unavailable")
+        row = value["devices"].get(device)
+        grant = value.get("retrieval", {}).get(device)
+        if (
+            row is None
+            or row["revoked_at"] is not None
+            or grant is None
+            or grant["revoked_at"] is not None
+            or _stamp(grant["expires_at"]) <= datetime.now(UTC)
+            or not hmac.compare_digest(
+                grant["verifier"], self._verifier(key, token, "retrieval:" + device, origin)
+            )
+        ):
+            raise PermissionError("Separate retrieval grant expired, revoked or unavailable")
+        return dict(source_ids=list(grant["source_ids"]), expires_at=grant["expires_at"])
+
+    def revoke_retrieval(self, device, *, authorize_owner):
+        _owner_guard(authorize_owner)
+        with self.lifecycle._hold(purpose="capture-retrieval-revoke"):
+            _owner_guard(authorize_owner)
+            value = self.read()
+            grant = value.get("retrieval", {}).get(device) if value else None
+            if grant is None:
+                raise CaptureJournalError("Retrieval grant unavailable")
+            if grant["revoked_at"] is None:
+                grant["revoked_at"] = utc_now()
+                self._audit(value, "retrieval_revoked", device)
+                self._write(value)
+        return {"revoked": True, "device_id": device}
 
 
 def recover_capture_authority_locked(store):

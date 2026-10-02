@@ -3,6 +3,8 @@
   const $ = id => document.getElementById(id);
   const WORDS = {
     en: {
+      shareReady:"Shared item selected locally. Review it, then Queue and send through the existing outbox. It is not acquired yet.",shareUnavailable:"Share unavailable or interrupted. Keep the source item; select a supported file in Capture or use the already configured watched Drive-drop folder. No item was acknowledged.",retrievalError:"Knowledge request failed. No retrieved content is retained. Inspect locally or retry after recovery. Status: ",
+      knowledgeTitle:"Consult Knowledge",knowledgeBoundary:"Capture pairing does not authorize Knowledge. A separate expiring grant selects Sources. Use LAN, a trusted network or VPN and the explicitly configured HTTPS destination. Retrieved content stays in memory; an explicit download saves a copy.",retrievalGrant:"Separate retrieval grant contents",retrievalConnect:"Use grant for this session",retrievalForget:"Clear retrieved content and grant",recentKnowledge:"Recent acquisitions",knowledgeQuery:"Search (1–128 characters, at most 20 matches)",searchKnowledge:"Search",retrievalOwner:"Separate Knowledge permission",retrievalOwnerHelp:"Select one active paired device and 1–16 existing Source IDs. Granting authorizes future reads in these Sources until expiry or revocation. Submission permission is independent.",retrievalDevice:"Device ID",retrievalSources:"Source IDs, separated by commas",retrievalSeconds:"Lifetime in seconds (60–86400)",retrievalConsent:"Authorize this device to read the selected Sources and explicitly download their Originals.",retrievalIssue:"Grant Knowledge permission",retrievalRevoke:"Revoke Knowledge permission",retrievalExpired:"Knowledge permission is unavailable, expired or revoked. Ask the local owner. Retrieved content has been cleared; pending captures are retained.",retrievalReady:"Separate Knowledge grant active for this session only. Sources and expiry: ",retrievalLoading:"Loading; no persistent content cache.",retrievalEmpty:"No authorized results.",retrievalOpen:"Preview provenance and versions",retrievalDownload:"Download this exact Original (attachment)",retrievalConsentRequired:"Select explicit Knowledge permission before granting.",retrievalCleared:"Retrieved content and in-memory grant cleared.",
       installReady:"Install Capture as an app. After clicking, look for the browser's installation dialog near the address bar; it may be behind this window. Confirm Install there.",
       installPrompt:"Finish in the browser's installation dialog near the address bar. If it is hidden, bring this browser window to the front. Capture stays usable if you cancel.",
       installAccepted:"Installation accepted by the browser. Open Capture from your apps and check that it opens in its own window without an address bar.",
@@ -13,6 +15,8 @@
       fallback:"Plain HTTP fallback: PWA installation, workers and share targets disabled. Local Capture still works.",secure:"Secure Capture surface. Only public shell resources may enter the worker cache; knowledge caching is disabled.",offline:"Offline: local queued captures are not yet acquired.",connected:"Connected. Local queued captures retain their original device/Instance identity.",pairNeeded:"Connect / pair before sending. Pending captures remain local.",queued:"queued, not acquired",sending:"sending; server outcome not yet known",acknowledged:"acknowledged submission; processing separate",attention:"attention",acquired:"acquired",localOnly:"Local removal cannot cancel a server submission or delete acquired knowledge. Remove this local copy?",forgetConfirm:"Forget this browser's pairing credential? Pending captures and acquired server knowledge remain.",storage:"Local storage/quota unavailable. No capture was acknowledged or silently discarded.",wrongDevice:"The saved capture belongs to another device/Instance. It cannot be resubmitted under a new identity.",uncertain:"Outcome uncertain: authoritative receipt must be reconciled before retry.",mediaReady:"Media is local and not queued. Press Queue and send to retain it.",mediaDenied:"Camera/microphone permission denied or unavailable; use a supported file instead.",mediaUnsupported:"This media capability is unavailable in this browser/context.",micActive:"Recording locally (maximum 90 seconds). Stop to retain a WAV, then queue it.",cameraActive:"Camera is local only. Take a snapshot; no upload occurs before Queue and send.",limits:"Limits declared before selection",empty:"No local captures.",retry:"Reconcile / retry",remove:"Remove local copy",download:"Download own Original (attachment)",revoke:"Revoke device",quarantine:"Reject / quarantine",undo:"Undo quarantine",days:"Retention days (1–365; no automatic purge)",retained:"Original and history retained",paired:"Paired. The credential is Capture-scoped; owner administration is not available here.",retainRequired:"Choose explicitly whether to retain pairing before redemption; this outbox needs durable pairing across reload.",qrUnavailable:"QR scanner unavailable. Copy the QR contents from local owner management.",failed:"Capture action failed: ",qrExpiry:"One-use QR expires in 120 seconds. Destination, Instance and scope are in its contents.",installUnavailable:"PWA installation unavailable; Capture and the bounded outbox remain usable.",installed:"Capture worker ready; authenticated responses are never cached.",ownerDone:"Owner action recorded. Refresh the retained result before any retry.",unsupported:"Selected capture is outside the declared type/byte/capability matrix.",payloadChanged:"Receipt fingerprint/device does not match this queued capture; do not resubmit.",confirmPair:"Pair this device with the displayed destination/Instance and only the displayed Capture scope?"
     },
     it: {
+      shareReady:"Elemento condiviso selezionato localmente. Verificalo, poi usa Accoda e invia nella coda esistente. Non è ancora acquisito.",shareUnavailable:"Condivisione non disponibile o interrotta. Conserva l’elemento di origine; scegli un file supportato in Capture oppure usa la cartella Drive-drop già configurata e sorvegliata. Nessun elemento è stato confermato.",retrievalError:"Consultazione Knowledge non riuscita. Nessun contenuto consultato viene conservato. Verifica localmente o riprova dopo il recupero. Stato: ",
+      knowledgeTitle:"Consulta Knowledge",knowledgeBoundary:"L’abbinamento Capture non autorizza Knowledge. Un permesso separato a scadenza seleziona le Sources. Usa LAN, rete fidata o VPN e la destinazione HTTPS configurata esplicitamente. I contenuti consultati restano in memoria; il download esplicito salva una copia.",retrievalGrant:"Contenuto del permesso separato di consultazione",retrievalConnect:"Usa il permesso per questa sessione",retrievalForget:"Cancella contenuti consultati e permesso",recentKnowledge:"Acquisizioni recenti",knowledgeQuery:"Ricerca (1–128 caratteri, massimo 20 risultati)",searchKnowledge:"Cerca",retrievalOwner:"Permesso Knowledge separato",retrievalOwnerHelp:"Seleziona un dispositivo abbinato attivo e 1–16 ID Source esistenti. Il permesso autorizza letture future nelle Sources fino a scadenza o revoca. L’invio resta indipendente.",retrievalDevice:"ID dispositivo",retrievalSources:"ID Source separati da virgole",retrievalSeconds:"Durata in secondi (60–86400)",retrievalConsent:"Autorizza questo dispositivo a leggere le Sources selezionate e scaricare esplicitamente i loro Originali.",retrievalIssue:"Autorizza consultazione Knowledge",retrievalRevoke:"Revoca consultazione Knowledge",retrievalExpired:"Permesso Knowledge non disponibile, scaduto o revocato. Rivolgiti al proprietario locale. I contenuti consultati sono stati cancellati; le acquisizioni in attesa restano.",retrievalReady:"Permesso Knowledge attivo solo per questa sessione. Sources e scadenza: ",retrievalLoading:"Caricamento; nessuna cache persistente dei contenuti.",retrievalEmpty:"Nessun risultato autorizzato.",retrievalOpen:"Anteprima di provenienza e versioni",retrievalDownload:"Scarica questo Originale esatto (allegato)",retrievalConsentRequired:"Seleziona il permesso Knowledge esplicito prima di autorizzare.",retrievalCleared:"Contenuti consultati e permesso in memoria cancellati.",
       installReady:"Installa Capture come app. Dopo il clic, cerca il dialogo di installazione del browser vicino alla barra degli indirizzi: potrebbe essere dietro questa finestra. Conferma Installa nel dialogo.",
       installPrompt:"Completa l'installazione nel dialogo del browser vicino alla barra degli indirizzi. Se è nascosto, porta questa finestra del browser in primo piano. Capture resta utilizzabile se annulli.",
       installAccepted:"Il browser ha accettato l'installazione. Apri Capture dalle tue app e verifica che si apra in una finestra propria senza barra degli indirizzi.",
@@ -26,6 +30,56 @@
   let media = null, stream = null, recorder = null, installEvent = null, qrUrl = null, installState = null;
   const MAX_ITEMS = 16, MAX_BYTES = 64 * 1024 * 1024;
   let statusKey = null, statusExtra = "";
+  let retrievalAuth=null,retrievalGeneration=0;
+  function knowledgeSay(key,extra="") {
+    const e=$("retrieval-status");e.dataset.i18n=key;e.dataset.i18nSuffix=extra;e.textContent=WORDS[lang][key]+extra;
+  }
+  function knowledgeError(key,extra="") {
+    const error=new Error(WORDS[lang][key]+extra);error.translation={key,extra};return error;
+  }
+  function clearKnowledge({forget=true}={}) {
+    retrievalGeneration++;
+    if(forget)retrievalAuth=null;
+    for(const id of ["retrieval-results","retrieval-detail","retrieval-downloads"])$(id).textContent="";
+    $("retrieval-grant").value="";$("retrieval-issued").value="";$("retrieval-query").value="";
+  }
+  async function knowledgeRequest(path,data,{download=false}={}) {
+    await requireConnection();
+    if(auth.channel==="paired_pwa"&&(!retrievalAuth||retrievalAuth.device_id!==auth.device_id||Date.parse(retrievalAuth.expires_at)<=Date.now()))throw knowledgeError("retrievalExpired");
+    const selected=auth.channel==="paired_pwa"?{"Authorization":"Bearer "+retrievalAuth.credential,"X-Retrieval-Device":retrievalAuth.device_id}:headers();
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+    try{
+      const response=await fetch("/capture/knowledge"+path,{method:data===undefined?"GET":"POST",credentials:"omit",cache:"no-store",signal:controller.signal,headers:{...selected,...(data===undefined?{}:{"Content-Type":"application/json"})},...(data===undefined?{}:{body:JSON.stringify(data)})});
+      if(!response.ok)throw knowledgeError(response.status===403?"retrievalExpired":"retrievalError"," ("+response.status+")");
+      return download?await response.blob():await response.json();
+    }finally{clearTimeout(timer);}
+  }
+  async function knowledgeAction(action){
+    knowledgeSay("retrievalLoading");
+    try{await action();}catch(error){clearKnowledge();if(error.translation)knowledgeSay(error.translation.key,error.translation.extra);else{const e=$("retrieval-status");delete e.dataset.i18n;delete e.dataset.i18nSuffix;e.textContent=error.message;}}
+  }
+  async function knowledgeDetail(id){
+    clearKnowledge({forget:false});const generation=retrievalGeneration;
+    const value=await knowledgeRequest("/documents/"+encodeURIComponent(id));
+    if(generation!==retrievalGeneration)return;
+    $("retrieval-detail").textContent=JSON.stringify(value,null,2);
+    for(const version of value.versions){
+      const b=button("retrievalDownload",()=>knowledgeAction(async()=>{
+        const epoch=retrievalGeneration;
+        const blob=await knowledgeRequest("/documents/"+encodeURIComponent(id)+"/versions/"+encodeURIComponent(version.id)+"/original",{},{download:true});
+        if(epoch!==retrievalGeneration)return;
+        const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="original.bin";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+      }));b.dataset.i18nSuffix=" "+version.id;b.textContent+=b.dataset.i18nSuffix;$("retrieval-downloads").append(b);
+    }
+    knowledgeSay("retrievalReady",JSON.stringify(value.grant));
+  }
+  async function knowledgeList(query){
+    clearKnowledge({forget:false});const generation=retrievalGeneration;
+    const value=await knowledgeRequest(query===undefined?"/recent":"/search",query===undefined?undefined:{query});
+    if(generation!==retrievalGeneration)return;
+    for(const row of value.items){const li=document.createElement("li"),name=document.createElement("p");name.textContent=(row.title||row.id)+(row.snippet?" — "+row.snippet:"");li.append(name,button("retrievalOpen",()=>knowledgeAction(()=>knowledgeDetail(row.id))));$("retrieval-results").append(li);}
+    knowledgeSay(value.items.length?"knowledgeTitle":"retrievalEmpty");
+  }
   const say = (key, extra="") => { statusKey=key;statusExtra=extra;$("status").textContent = WORDS[lang][key] + extra; };
   const canonical = value => JSON.stringify(Object.fromEntries(Object.keys(value).sort().map(k => [k,value[k]])));
   const uuid = () => crypto.randomUUID();
@@ -77,11 +131,11 @@
       return value;
     } finally { clearTimeout(timer); }
   }
-  function button(key, action) { const b=document.createElement("button");b.type="button";b.textContent=WORDS[lang][key];b.onclick=()=>run(action);return b; }
+  function button(key, action) { const b=document.createElement("button");b.type="button";b.dataset.i18n=key;b.textContent=WORDS[lang][key];b.onclick=()=>run(action);return b; }
   async function run(action) { try { await action(); } catch(error) { say("failed",error.message); } }
   function translate() {
     document.documentElement.lang=lang;
-    for(const e of document.querySelectorAll("[data-i18n]")) e.textContent=WORDS[lang][e.dataset.i18n];
+    for(const e of document.querySelectorAll("[data-i18n]")) e.textContent=WORDS[lang][e.dataset.i18n]+(e.dataset.i18nSuffix||"");
     $("transport").textContent=WORDS[lang][location.protocol==="https:"&&isSecureContext?"secure":"fallback"];
     if(statusKey)$("status").textContent=WORDS[lang][statusKey]+statusExtra;
     if(installState)$("install-help").textContent=WORDS[lang][installState];
@@ -295,6 +349,7 @@
     await forgetPairing();limits();throw new Error(WORDS[lang].pairNeeded);
   }
   async function forgetPairing() {
+    clearKnowledge();
     auth=null;identity=null;
     await saveSetting("credential",undefined);await saveSetting("identity",undefined);
   }
@@ -310,6 +365,7 @@
     try{capabilities=await api("/capabilities",undefined,{anonymous:true});await saveSetting("capabilities",capabilities);}catch(error){if(!capabilities)throw error;say("offline");}
     $("connect").hidden=capabilities.transport==="paired_pwa";$("pair-panel").hidden=capabilities.transport!=="paired_pwa";$("owner-panel").hidden=capabilities.transport!=="local_browser";
     translate();await render();
+    setupShare();
     if(location.protocol==="https:"&&isSecureContext&&"serviceWorker" in navigator){try{const registration=await navigator.serviceWorker.register("/capture/worker.js",{scope:"/capture/"});registration.update();navigator.serviceWorker.ready.then(()=>{if(!statusKey)say("installed");});}catch(error){say("installUnavailable");}}
     $("language").onchange=()=>run(async()=>{lang=$("language").value;await saveSetting("language",lang);translate();await render();});
     $("connect").onclick=()=>run(connect);$("pair").onclick=()=>run(pair);$("capture-form").onsubmit=event=>run(()=>enqueue(event));$("retry").onclick=()=>run(flush);$("receipts").onclick=()=>run(serverReceipts);
@@ -318,11 +374,44 @@
     $("configure").onclick=()=>run(async()=>{await api("/admin/origin",{origin:$("origin").value,confirm_rebind:$("confirm-rebind").checked});$("confirm-rebind").checked=false;say("ownerDone");await ownerRefresh();});
     $("pair-qr").onclick=()=>run(async()=>{const value=await api("/admin/pair",{});if(qrUrl)URL.revokeObjectURL(qrUrl);qrUrl=URL.createObjectURL(new Blob([value.qr_svg],{type:"image/svg+xml"}));$("qr").src=qrUrl;$("qr").hidden=false;const {qr_svg,...code}=value;$("qr-text").value=JSON.stringify(code);$("qr-text").hidden=false;$("qr-status").textContent=WORDS[lang].qrExpiry+" "+value.origin+" "+value.instance_id+" "+value.scope;setTimeout(()=>{$("qr").hidden=true;$("qr-text").value="";$("qr-text").hidden=true;if(qrUrl)URL.revokeObjectURL(qrUrl);},120000);});
     $("owner-refresh").onclick=()=>run(ownerRefresh);
+    $("retrieval-connect").onclick=()=>knowledgeAction(async()=>{
+      await requireConnection();const value=JSON.parse($("retrieval-grant").value);
+      clearKnowledge();
+      if(value.origin!==location.origin||value.instance_id!==auth.instance_id||value.device_id!==auth.device_id||value.scope!=="knowledge.read+original.download"||!/^[-_A-Za-z0-9]{43}$/.test(value.credential)||!Number.isFinite(Date.parse(value.expires_at))||Date.parse(value.expires_at)<=Date.now())throw knowledgeError("retrievalExpired");
+      retrievalAuth=value;const epoch=retrievalGeneration;setTimeout(()=>{if(epoch===retrievalGeneration||retrievalAuth===value){clearKnowledge();knowledgeSay("retrievalExpired");}},Math.min(86400000,Date.parse(value.expires_at)-Date.now()));
+      await knowledgeList();
+    });
+    $("retrieval-forget").onclick=()=>{clearKnowledge();knowledgeSay("retrievalCleared");};
+    $("retrieval-recent").onclick=()=>knowledgeAction(()=>knowledgeList());
+    $("retrieval-search").onsubmit=event=>{event.preventDefault();const query=$("retrieval-query").value;knowledgeAction(()=>knowledgeList(query));};
+    $("retrieval-issue").onclick=()=>knowledgeAction(async()=>{if(!$("retrieval-consent").checked)throw knowledgeError("retrievalConsentRequired");const value=await api("/admin/retrieval/grant",{device_id:$("retrieval-device").value,source_ids:$("retrieval-sources").value.split(",").map(s=>s.trim()),seconds:Number($("retrieval-seconds").value)});$("retrieval-consent").checked=false;$("retrieval-issued").value=JSON.stringify(value);knowledgeSay("ownerDone");});
+    $("retrieval-revoke").onclick=()=>knowledgeAction(async()=>{await api("/admin/retrieval/revoke",{device_id:$("retrieval-device").value});clearKnowledge();knowledgeSay("ownerDone");});
+    window.addEventListener("pagehide",()=>clearKnowledge());
+    document.addEventListener("visibilitychange",()=>{if(document.hidden)clearKnowledge();});
     window.addEventListener("online",()=>run(flush));window.addEventListener("offline",()=>say("offline"));window.addEventListener("pagehide",()=>{if(stream)for(const track of stream.getTracks())track.stop();});
     if(updates)updates.onmessage=()=>run(render);window.addEventListener("focus",()=>run(async()=>{limits();await render();}));
     setupInstallation();
     if(location.protocol==="https:"){const link=document.createElement("link");link.rel="manifest";link.href="/capture/manifest.webmanifest";document.head.append(link);}
     if(!navigator.onLine)say("offline");
+  }
+  function setupShare() {
+    const id=new URL(location.href).searchParams.get("share");
+    if(!id)return;
+    history.replaceState(null,"","/capture/");
+    if(!isSecureContext||location.protocol!=="https:"||!navigator.serviceWorker||!/^[-0-9a-f]{36}$/.test(id)){say("shareUnavailable");return;}
+    let accepted=false;
+    const listener=event=>{
+      if(event.source!==navigator.serviceWorker.controller||!["capture-share","capture-share-expired"].includes(event.data?.kind))return;
+      accepted=true;navigator.serviceWorker.removeEventListener("message",listener);
+      const value=event.data.value;if(!value){say("shareUnavailable");return;}
+      media=null;$("file").value="";
+      if(value.file instanceof Blob){media={blob:value.file,name:value.file.name||"shared.bin",mode:"file",capturedAt:new Date().toISOString()};$("mode").value="file";$("text").value="";}
+      else{const text=value.url||value.text||value.title;$("mode").value=/^https?:\/\/\S+$/.test(text)?"url":"text";$("text").value=text;}
+      limits();say("shareReady");$("queue").focus();
+    };
+    navigator.serviceWorker.addEventListener("message",listener);
+    navigator.serviceWorker.ready.then(()=>navigator.serviceWorker.controller?.postMessage({kind:"capture-share",id}));
+    setTimeout(()=>{if(!accepted){navigator.serviceWorker.removeEventListener("message",listener);say("shareUnavailable");}},5000);
   }
   document.addEventListener("DOMContentLoaded",()=>{translate();$("language").value=lang;$("language").onchange=()=>{lang=$("language").value;translate();};run(boot);});
 })();
