@@ -6,7 +6,7 @@
   <h1 id="perceptio-title">{{ t('perceptio.title') }}</h1>
   <p class="lead">{{ t('perceptio.lead') }}</p>
   <p><a href="/review/annotations?lang={{ lang }}">{{ t('review.corrections') }}</a></p>
-  <p class="technical-note" role="status"><strong>{{ model.publication.state }}</strong> · {% if model.publication.state == 'official_metadata_present' %}{{ t('perceptio.release_metadata') }}{% else %}{{ t('perceptio.unpublished') }}{% endif %}</p>
+  <p class="technical-note" role="status"><strong>{{ model.publication.state }}</strong> · {% if model.publication.state == 'official_metadata_present' %}{{ t('perceptio.release_metadata') | replace('0.10.1', model.publication.current_package_version) }}{% else %}{{ t('perceptio.unpublished') | replace('0.10.1', model.publication.current_package_version) }}{% endif %}</p>
 </section>
 
 <section class="panel" aria-labelledby="journey-title">

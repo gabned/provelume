@@ -1,7 +1,9 @@
 # Windows shell installation, endpoint and recovery guide
 
-This guide covers the Windows shell published with the `0.10.1 — Emendatio` preview. Package,
-executable, installer and uninstaller metadata all use `0.10.1`.
+This shell was originally published with the `0.10.1 — Emendatio` preview. Cura
+release preparation aligns package, executable, installer and uninstaller metadata to
+`0.11.0`; the qualified daily-use defaults, seven-language preferences and actual
+publication/installation-readiness boundary are in [the current preview guide](windows-preview.md).
 
 ## Install
 

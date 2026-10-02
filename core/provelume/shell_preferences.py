@@ -24,6 +24,7 @@ from .shell_settings import (
     ShellPreferencesError,
     ShellSettingsManager,
     configure_login_startup,
+    default_settings,
     probe_port,
     validate_port,
 )
@@ -178,7 +179,7 @@ def reset_preview(current: LauncherSettings, scope: str) -> dict[str, Any]:
     if scope not in RESET_SCOPES:
         raise ShellPreferencesError("unsupported preference reset scope")
     before = preference_payload(current)
-    defaults = preference_payload(LauncherSettings(instance_path=current.instance_path))
+    defaults = preference_payload(default_settings())
     after = {**before, **{key: defaults[key] for key in RESET_SCOPES[scope]}}
     return {
         "scope": scope,

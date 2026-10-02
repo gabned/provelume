@@ -245,7 +245,8 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     }
     $Settings = Get-Content -LiteralPath $SettingsPath -Raw | ConvertFrom-Json
     if (
-        $Settings.schema_version -ne 2 -or
+        $Settings.schema_version -ne 3 -or
+        $Settings.shell.interface_mode -ne "preview" -or
         $Settings.endpoint.host -ne "127.0.0.1" -or
         $Settings.endpoint.port -ne $ConfiguredPort -or
         -not $Settings.shell.tray_enabled -or

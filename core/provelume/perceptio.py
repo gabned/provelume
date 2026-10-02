@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from importlib.resources import files
 from typing import Any
 
+from . import __version__
 from .audio_profiles import AUDIO_PROFILE_ID, AUDIO_RECIPE_ID, AudioProfileManager
 from .build_info import current_build_info
 from .component_inventory import ComponentInventory
@@ -361,8 +362,8 @@ class PerceptioReadModel:
         release_metadata_present = (
             build["official"] is True
             and build["identity_status"] == "official_metadata_present"
-            and build["version"] == PERCEPTIO_TARGET_VERSION
-            and build["tag"] == f"v{PERCEPTIO_TARGET_VERSION}"
+            and build["version"] == __version__
+            and build["tag"] == f"v{__version__}"
             and isinstance(build["commit"], str)
         )
         return {

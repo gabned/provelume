@@ -8,33 +8,48 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.10.1 Emendatio preview
+## Current status: 0.11.0 Cura preview
 
-[`v0.10.1`](https://github.com/gabned/provelume/releases/tag/v0.10.1) Emendatio is the current
-public prerelease. The permanent verified release chain binds its tag, package, embedded identity,
-Windows metadata, manifest, SBOM, checksums and provenance to one exact commit. The immutable
-[`v0.10.0`](https://github.com/gabned/provelume/releases/tag/v0.10.0) Perceptio prerelease remains
-the published N-1 upgrade baseline and is never recreated or overwritten; its
-[0.10.0 release record](docs/releases/0.10.0.md) remains immutable historical evidence.
-The earlier [`v0.9.0`](https://github.com/gabned/provelume/releases/tag/v0.9.0) Lectio prerelease
-remains preserved as historical document-focused evidence.
+The source package is prepared as **0.11.0 — Cura**, after all nine slices of
+[parent #255](https://github.com/gabned/provelume/issues/255) were delivered.
+[Release workstream #308](https://github.com/gabned/provelume/issues/308) records
+the exact reviewed release commit, independent qualification and publication outcome.
+The [public v0.11.0 release](https://github.com/gabned/provelume/releases/tag/v0.11.0)
+and its matching publication receipt, asset hashes and installation-readiness marker
+are authoritative for published installation readiness; source preparation alone
+does not establish publication. The channel is **preview**, not stable.
+The permanent verified release chain binds tag, package, embedded identity,
+Windows metadata, manifest, SBOM, checksums and provenance to one reviewed commit.
 
-Emendatio corrects Folder Source enrollment including qualified Windows network paths, adds
-visible per-Source exclusions and ingestion preview, completes the separately consented read-only
-Google connection journey, and applies one canonical Core/Windows brand. S01–S04 are integrated
-through owner PRs #211, #213, #215/#244 and #246. Release workstream
-[#251](https://github.com/gabned/provelume/issues/251) owns final identity, qualification and
-publication under parent [#198](https://github.com/gabned/provelume/issues/198).
+Cura brings daily Overview, Knowledge, Capture, Search and Needs attention together,
+with one authoritative Action Center and recoverable operations/maintenance.
+It adds reviewed placement/duplicate/version decisions, paired mobile Capture and
+retrieval, offline outbox, local icons, About & Credits and complete offline catalogs
+for English, Italian, German, Spanish, French, Portuguese and Romanian.
 
-The automated brand resource, associated-pixel, EN/IT layout and lifecycle checks pass. The
-material native Windows appearance observation for setup, window, Start, taskbar, About, tray,
-scaling and applicable appearance modes is deferred and is not certified by this publication.
-Authenticated real Google exact-head evidence from S03 remains valid and is retained with its
-original timestamps. See the [0.10.1 release record](docs/releases/0.10.1.md),
-[qualification record](docs/qualification/0.10.1.md), [public roadmap](docs/roadmap.md), and
-[Windows preview guide](docs/windows-preview.md). Windows artifacts remain unsigned. No Cura
-capability or additional provider is activated; `0.11.0 — Cura` remains forecast only.
-0.11.0 — Cura remains unactivated.
+Fresh installations use the qualified Cura presentation. Upgrades keep an existing
+presentation choice; Current remains a presentation-only rollback. Explicit settings
+reset uses the new safe defaults, System language/appearance, independent tray/login
+preferences and confirmation/Undo, preserving Knowledge, Originals and credentials.
+
+Qualification separates automatic tests, browser observations and human evidence.
+The maintainer attested the seven-language journeys, screen-reader, high contrast,
+actual 200% zoom and Windows first-run/close/cancel/tray/Exit on the final S09 source.
+Human linguistic review of 2,226 sensitive items is MAINTAINER_ATTESTED.
+Android OK is a maintainer attestation bound to S07, with later source dependencies
+assessed separately. **Real iOS is NOT_RUN**, accepted within the documented support
+perimeter; Shortcut implementation, contracts, documentation and automatic tests
+remain qualified. No agent-run physical-device or screen-reader PASS is claimed.
+
+The immutable [v0.10.1 Emendatio](https://github.com/gabned/provelume/releases/tag/v0.10.1)
+and [v0.10.0 Perceptio](https://github.com/gabned/provelume/releases/tag/v0.10.0)
+previews remain historical releases; the adopted immutable installer-upgrade baseline
+is v0.10.0. The [0.10.0 release record](docs/releases/0.10.0.md) and
+[0.10.1 release record](docs/releases/0.10.1.md) retain their original boundaries.
+The earlier [`v0.9.0`](https://github.com/gabned/provelume/releases/tag/v0.9.0) is preserved.
+See the [0.11.0 release record](docs/releases/0.11.0.md),
+[qualification record](docs/qualification/0.11.0.md), [public roadmap](docs/roadmap.md),
+and [Windows preview guide](docs/windows-preview.md). Windows artifacts remain unsigned.
 
 The local **Representations & support** surface keeps Preserve, Inspect, Extract, Preview, Local
 enrich and AI enrich independent. It reports declared/effective support, closed unavailable or
@@ -71,11 +86,10 @@ read-only service/CLI/API/EN/IT Browser model. It keeps support, component ident
 uncertainty, reversible correction annotations and exact anchors together without adding a parser,
 model or mutation route. See the [integrated pilot guide](docs/perceptio.md).
 
-The release lane preserves Lectio at `0.9.0` and Perceptio at `0.10.0`, publishes `0.10.1 Emendatio` as the corrected preview, and keeps the later forecasts ordered through the
-`0.23.0` release candidate. It does not use `0.9.5` for feature work. The roadmap identifies
-`0.11.0` as the first planned coherent personal daily-use beta and controlled public-beta gate,
-`0.21.0` as the broad non-technical desktop-preview gate, and `1.0.0` as general distribution;
-none of those forecast capabilities is available before its verified publication.
+The release lane retains immutable earlier previews and prepares Cura as the first
+coherent personal daily-use beta inside its qualified perimeter. Later portfolio
+forecasts remain inactive; no 0.12 capability is activated by this release.
+It does not use `0.9.5` for feature work.
 
 The active source tree can:
 
@@ -115,7 +129,7 @@ The active source tree can:
   headers and observed threads as non-authoritative evidence, and expose durable explicit intake
   with no account discovery, remote provider, active HTML, implicit OCR or cross-Source merge;
 - expose a read-only versioned Knowledge API with FastAPI;
-- provide an EN/IT Knowledge Browser for browse, search, safe rendered/raw/Original document
+- provide a seven-language Knowledge Browser for browse, search, safe rendered/raw/Original document
   viewing, versions, provenance, Inbox, bundles, duplicates, assurance, rebuild reports,
   operations, settings and health;
 - report its embedded version/tag/commit/source identity offline through CLI, API and browser;

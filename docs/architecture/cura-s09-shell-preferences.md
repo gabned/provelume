@@ -88,3 +88,20 @@ No automatic-approval consumer policy/grant has been adopted.
 
 The integrated matrix and native observations must be complete before selecting
 the new default presentation. This candidate retains the existing default.
+
+## Verified delivery and qualified default
+
+S09 is delivered by #307 at main03d35be452e2c6d9c9815061f2c4a5a524b5abef
+after complete native/post-merge qualification. The original development candidate
+above retained the old default. The maintainer separately attested integrated
+seven-language J1–J7, screen-reader/high-contrast/actual200percent and Windows
+first-run/close/cancel/tray/Exit at exact headc6053b1:
+https://github.com/gabned/provelume/issues/306#issuecomment-5957429555 .
+
+Distinct release preparation #308 selects Preview for fresh preferences/installation
+and explicit appearance/all resets. Existing schema1/2 preferences and explicit
+Current/Preview selections are preserved on upgrade. Default creation invents no
+choice receipt; an explicit reset/rollback remains a recorded forward transaction.
+Interactive first-run remains enabled; diagnostic/layout probes disable only that
+interactive modal. New release identity/default entrypoints receive fresh native CI,
+installed-artifact and offline build checks, independently from human attestations.

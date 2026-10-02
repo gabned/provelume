@@ -4,6 +4,7 @@ import json
 import os
 import socket
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -97,7 +98,7 @@ def test_about_is_local_and_describes_preview_update_boundary() -> None:
     value = current_about()
 
     assert value["product"] == "Provelume"
-    assert value["version"] == "0.10.1"
+    assert value["version"] == "0.11.0"
     assert value["runtime"]["packaging"] == "python_package"
     assert value["updates"] == {
         "manual_check_available": True,
@@ -113,11 +114,11 @@ def test_about_is_local_and_describes_preview_update_boundary() -> None:
 
 def test_about_links_are_canonical_and_reject_untrusted_build_tags() -> None:
     value = current_about()
-    value.update({"tag": "v0.10.1"})
+    value.update({"tag": "v0.11.0"})
     assert public_about_links(value) == {
         "repository": "https://github.com/gabned/provelume",
         "releases": "https://github.com/gabned/provelume/releases",
-        "installed_release": "https://github.com/gabned/provelume/releases/tag/v0.10.1",
+        "installed_release": "https://github.com/gabned/provelume/releases/tag/v0.11.0",
     }
 
     value["tag"] = "../../private"
@@ -141,8 +142,11 @@ def test_update_failures_are_actionable_localized_and_privacy_safe() -> None:
 
 
 def test_launcher_settings_round_trip_and_malformed_fallback(tmp_path: Path) -> None:
+    from provelume.shell_settings import default_settings
+
     path = tmp_path / "launcher.json"
-    expected = LauncherSettings(
+    expected = replace(
+        default_settings(),
         instance_path=str(tmp_path / "Mia's knowledge"),
         update_channel="stable",
         check_on_start=True,
@@ -153,7 +157,8 @@ def test_launcher_settings_round_trip_and_malformed_fallback(tmp_path: Path) -> 
 
     path.write_text('{"schema_version": true}', encoding="utf-8")
     fallback = load_settings(path)
-    assert fallback.schema_version == 2
+    assert fallback.schema_version == 3
+    assert fallback.interface_mode == "preview" and fallback.interface_mode_change is None
     assert fallback.update_channel == "preview"
     assert fallback.check_on_start is False
 
@@ -204,11 +209,12 @@ def test_missing_instance_keeps_recovery_controls_available() -> None:
     assert shell.create_button.state == "normal"
 
 
-def test_desktop_diagnostics_and_headless_instance_bootstrap(tmp_path: Path) -> None:
+def test_desktop_diagnostics_and_headless_instance_bootstrap(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr("provelume.desktop.settings_path", lambda: tmp_path / "launcher.json")
     diagnostics = diagnostics_payload()
     assert diagnostics["desktop_shell"] is True
     assert diagnostics["network_used"] is False
-    assert diagnostics["about"]["version"] == "0.10.1"
+    assert diagnostics["about"]["version"] == "0.11.0"
     assert diagnostics["windows_identity"]["process_app_user_model_id"] in {
         "not_applicable",
         "configured",
@@ -221,7 +227,7 @@ def test_desktop_diagnostics_and_headless_instance_bootstrap(tmp_path: Path) -> 
 
     output = tmp_path / "diagnostics.json"
     assert main(["--diagnostics-file", str(output)]) == 0
-    assert json.loads(output.read_text())["settings_schema_version"] == 2
+    assert json.loads(output.read_text())["settings_schema_version"] == 3
 
 
 def test_installer_validate_port_mode_rejects_reserved_and_occupied_ports() -> None:

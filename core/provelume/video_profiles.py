@@ -17,6 +17,7 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
+from . import __version__
 from .audio_profiles import (
     AudioContractError,
     WhisperCppAdapter,
@@ -2021,7 +2022,7 @@ class VideoProfileManager:
                 output_payloads=payloads,
                 implementation={
                     "component": "provelume.core",
-                    "component_version": "0.10.1",
+                    "component_version": __version__,
                     "adapter": "perceptio-video-profile",
                     "adapter_version": "1",
                     "settings": {

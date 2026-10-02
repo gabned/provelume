@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 import pytest
 from fastapi.testclient import TestClient
 
+from provelume.cura_shell import script_integrity
 from provelume.google_connection import GoogleConnectionManager
 from provelume.google_contract import GOOGLE_CAPABILITY_SCOPES, GoogleItem, GooglePage
 from provelume.google_credentials import GoogleCredentialError, GoogleCredentialVault
@@ -415,24 +416,39 @@ def test_backfill_checkpoints_continue_without_dropping_pages(journey):
 
 
 def test_ordinary_http_connect_callback_reconnect_and_evidence_binding(
-    tmp_path, monkeypatch, caplog
+    tmp_path, monkeypatch, caplog, shell_mode_settings
 ):
     instance = ProvelumeInstance.initialise(tmp_path / "instance")
-    app = create_app(instance.store.paths.root, effective_port=18765)
+    mode, settings_path = shell_mode_settings
+    app = create_app(
+        instance.store.paths.root, effective_port=18765, shell_settings_file=settings_path
+    )
     manager = app.state.provelume.google_connection
     manager.vault, manager.transport = MemoryVault(), FakeGoogle()
     manager.configure(json.dumps(CLIENT))
     client = TestClient(app, base_url="http://127.0.0.1:18765")
     page = client.get("/google/connect?lang=it")
-    assert page.headers["content-security-policy"] == GOOGLE_CONNECTION_SECURITY_POLICY
+    google_page_policy = GOOGLE_CONNECTION_SECURITY_POLICY
+    page_policy = CONTENT_SECURITY_POLICY
+    if mode == "preview":
+        google_page_policy = google_page_policy.replace(
+            "script-src 'none'", f"script-src '{script_integrity()}'"
+        )
+        page_policy = page_policy.replace(
+            "script-src 'none'", f"script-src '{script_integrity()}'"
+        )
+    assert page.headers["content-security-policy"] == google_page_policy
     directives = dict(
-        part.strip().split(" ", 1) for part in GOOGLE_CONNECTION_SECURITY_POLICY.split(";")
+        part.strip().split(" ", 1) for part in google_page_policy.split(";")
     )
     assert directives["form-action"] == "'self' https://accounts.google.com"
     assert directives["connect-src"] == directives["style-src"] == "'self'"
-    assert directives["script-src"] == "'none'"
+    assert directives["script-src"] == (
+        "'none'" if mode == "current" else f"'{script_integrity()}'"
+    )
     for path in ("/", "/google", "/api/v1/google/connection"):
-        assert client.get(path).headers["content-security-policy"] == CONTENT_SECURITY_POLICY
+        expected = CONTENT_SECURITY_POLICY if path.startswith("/api/") else page_policy
+        assert client.get(path).headers["content-security-policy"] == expected
     rejected = client.get("/google/connect", headers={"host": "example.invalid"})
     assert rejected.status_code == 400
     assert rejected.headers["content-security-policy"] == CONTENT_SECURITY_POLICY
