@@ -12,6 +12,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from fastapi import Request
 
+from .catalog_registry import SUPPORTED_LANGUAGES
+
 RETRIEVAL_KEYS = {
     "/browse": frozenset(
         {"lang", "source_id", "media_type", "area", "hierarchy_id", "disposition"}
@@ -64,7 +66,7 @@ def retrieval_url(path: str, values: list[tuple[str, str]], *, fragment: str = "
     selected = {
         key: value for key, value in values if key in allowed and value and len(value) <= 500
     }
-    if "lang" in selected and selected["lang"] not in {"en", "it"}:
+    if "lang" in selected and selected["lang"] not in SUPPORTED_LANGUAGES:
         selected.pop("lang")
     query = urlencode(sorted(selected.items()))
     result = path + ("?" + query if query else "")
@@ -87,7 +89,7 @@ def validated_return(value: str | None) -> str:
         return ""
     if any(len(value) > 500 or any(ord(c) < 32 or c == "\\" for c in value) for _, value in pairs):
         return ""
-    if any(key == "lang" and value not in {"en", "it"} for key, value in pairs):
+    if any(key == "lang" and value not in SUPPORTED_LANGUAGES for key, value in pairs):
         return ""
     if len({key for key, _ in pairs}) != len(pairs):
         return ""

@@ -4,69 +4,70 @@
 <link rel="stylesheet" href="/capture/style.css">
 <script defer src="/capture/shell.js" integrity="__CAPTURE_INTEGRITY__" crossorigin="anonymous"></script>
 </head><body><header><img src="/capture/icon.svg" width="40" height="40" alt="">
-<h1 data-i18n="title">Capture</h1><label><span data-i18n="language">Language</span>
-<select id="language"><option value="en">English</option><option value="it">Italiano</option></select></label></header>
-<main><p data-i18n="boundary">Originals remain untrusted. Files are not executed or scanned for malware. Downloads are explicit attachments.</p>
+<h1 data-i18n="title">__CAPTURE_TEXT_title__</h1><label><span data-i18n="language">__CAPTURE_TEXT_language__</span>
+<select id="language">__LANGUAGE_OPTIONS__</select></label></header>
+<main><p id="language-fallback" hidden role="status">__CAPTURE_FALLBACK__</p>
+<p data-i18n="boundary">__CAPTURE_TEXT_boundary__</p>
 <p id="transport" role="status"></p><p id="status" role="status" aria-live="polite"></p>
-<section><h2 data-i18n="connection">Connection</h2><button id="connect" data-i18n="connect">Connect local Capture</button>
-<div id="pair-panel" hidden><label><span data-i18n="pairCode">Pairing QR contents</span><textarea id="pair-code" maxlength="2048" rows="4" autocomplete="off" spellcheck="false"></textarea></label>
-<label><span data-i18n="deviceLabel">Device name</span><input id="device-label" maxlength="80" value="Personal device" autocomplete="off"></label>
-<label class="inline"><input id="retain-pairing" type="checkbox"><span data-i18n="retain">Keep scoped pairing on this browser for at most 30 days. Never shared with the worker cache.</span></label>
-<button id="pair" data-i18n="pair">Pair this device</button><button id="scan-qr" data-i18n="scanQr">Scan pairing QR</button>
-<button id="forget" data-i18n="forget">Forget local pairing</button></div>
-<button id="install" hidden data-i18n="install" aria-describedby="install-help">Install Capture</button>
+<section><h2 data-i18n="connection">__CAPTURE_TEXT_connection__</h2><button id="connect" data-i18n="connect">__CAPTURE_TEXT_connect__</button>
+<div id="pair-panel" hidden><label><span data-i18n="pairCode">__CAPTURE_TEXT_pairCode__</span><textarea id="pair-code" maxlength="2048" rows="4" autocomplete="off" spellcheck="false"></textarea></label>
+<label><span data-i18n="deviceLabel">__CAPTURE_TEXT_deviceLabel__</span><input id="device-label" maxlength="80" placeholder="__CAPTURE_TEXT_personalDevice__" data-i18n-placeholder="personalDevice" autocomplete="off"></label>
+<label class="inline"><input id="retain-pairing" type="checkbox"><span data-i18n="retain">__CAPTURE_TEXT_retain__</span></label>
+<button id="pair" data-i18n="pair">__CAPTURE_TEXT_pair__</button><button id="scan-qr" data-i18n="scanQr">__CAPTURE_TEXT_scanQr__</button>
+<button id="forget" data-i18n="forget">__CAPTURE_TEXT_forget__</button></div>
+<button id="install" hidden data-i18n="install" aria-describedby="install-help">__CAPTURE_TEXT_install__</button>
 <p id="install-help" hidden role="status" aria-live="polite"></p></section>
-<section><h2 data-i18n="newCapture">Add a capture</h2><form id="capture-form">
-<label><span data-i18n="mode">Mode</span><select id="mode">
-<option value="file" data-i18n="file">File</option><option value="photo" data-i18n="photo">Photo</option>
-<option value="scan" data-i18n="scan">Scan</option><option value="screenshot" data-i18n="screenshot">Screenshot</option>
-<option value="pdf">PDF</option><option value="url" data-i18n="url">Link (no fetching)</option>
-<option value="text" data-i18n="text">Text</option><option value="audio" data-i18n="audio">Audio (PCM16 WAV)</option>
-<option value="voice_note" data-i18n="voice">Voice note</option></select></label>
-<p id="limits"></p><label id="file-label"><span data-i18n="chooseFile">Choose one file</span><input id="file" type="file"></label>
-<label id="text-label" hidden><span data-i18n="content">Text or one HTTP(S) link</span><textarea id="text" maxlength="500000" rows="5"></textarea></label>
-<div id="media-controls"><button type="button" id="camera" data-i18n="camera">Start camera</button>
-<button type="button" id="snapshot" disabled data-i18n="snapshot">Take photo / scan</button>
-<button type="button" id="record" data-i18n="record">Record voice note</button>
-<button type="button" id="stop" disabled data-i18n="stop">Stop media capture</button>
+<section><h2 data-i18n="newCapture">__CAPTURE_TEXT_newCapture__</h2><form id="capture-form">
+<label><span data-i18n="mode">__CAPTURE_TEXT_mode__</span><select id="mode">
+<option value="file" data-i18n="file">__CAPTURE_TEXT_file__</option><option value="photo" data-i18n="photo">__CAPTURE_TEXT_photo__</option>
+<option value="scan" data-i18n="scan">__CAPTURE_TEXT_scan__</option><option value="screenshot" data-i18n="screenshot">__CAPTURE_TEXT_screenshot__</option>
+<option value="pdf" data-i18n="pdf">__CAPTURE_TEXT_pdf__</option><option value="url" data-i18n="url">__CAPTURE_TEXT_url__</option>
+<option value="text" data-i18n="text">__CAPTURE_TEXT_text__</option><option value="audio" data-i18n="audio">__CAPTURE_TEXT_audio__</option>
+<option value="voice_note" data-i18n="voice">__CAPTURE_TEXT_voice__</option></select></label>
+<p id="limits"></p><label id="file-label"><span data-i18n="chooseFile">__CAPTURE_TEXT_chooseFile__</span><input id="file" type="file"></label>
+<label id="text-label" hidden><span data-i18n="content">__CAPTURE_TEXT_content__</span><textarea id="text" maxlength="500000" rows="5"></textarea></label>
+<div id="media-controls"><button type="button" id="camera" data-i18n="camera">__CAPTURE_TEXT_camera__</button>
+<button type="button" id="snapshot" disabled data-i18n="snapshot">__CAPTURE_TEXT_snapshot__</button>
+<button type="button" id="record" data-i18n="record">__CAPTURE_TEXT_record__</button>
+<button type="button" id="stop" disabled data-i18n="stop">__CAPTURE_TEXT_stop__</button>
 <video id="video" playsinline muted hidden></video><p id="media-status" role="status"></p></div>
-<label><span data-i18n="note">Note (optional)</span><textarea id="note" maxlength="4096" rows="2"></textarea></label>
-<div class="columns"><label><span data-i18n="area">Area proposal (optional reference)</span><input id="area" maxlength="37"></label>
-<label><span data-i18n="project">Project proposal (optional reference)</span><input id="project" maxlength="40"></label></div>
-<p data-i18n="proposal">Proposals do not apply classification or create Claims, Decisions, Tasks or Calendar Events. Existing review permissions govern subsequent routing.</p>
-<button id="queue" type="submit" data-i18n="queue">Queue and send</button></form></section>
-<section><h2 data-i18n="outbox">Local outbox</h2><p data-i18n="retention">At most 16 items / 64 MiB. Pending bytes remain locally until an authoritative receipt. Acknowledgement removes pending bytes, not server knowledge. Local removal never cancels an accepted server submission.</p>
-<button id="retry" data-i18n="retryAll">Reconcile / retry queued captures</button><ul id="outbox" aria-live="polite"></ul>
-<button id="receipts" data-i18n="receipts">Refresh my server receipts</button><ul id="server-receipts"></ul></section>
-<section id="knowledge-panel"><h2 data-i18n="knowledgeTitle">Consult Knowledge</h2>
-<p data-i18n="knowledgeBoundary">Capture pairing does not authorize Knowledge. A separate expiring grant selects Sources. Use LAN, a trusted network or VPN and the explicitly configured HTTPS destination. Retrieved content stays in memory; an explicit download saves a copy.</p>
-<label><span data-i18n="retrievalGrant">Separate retrieval grant contents</span><textarea id="retrieval-grant" maxlength="4096" rows="3" autocomplete="off" spellcheck="false"></textarea></label>
-<button id="retrieval-connect" data-i18n="retrievalConnect">Use grant for this session</button>
-<button id="retrieval-forget" data-i18n="retrievalForget">Clear retrieved content and grant</button>
+<label><span data-i18n="note">__CAPTURE_TEXT_note__</span><textarea id="note" maxlength="4096" rows="2"></textarea></label>
+<div class="columns"><label><span data-i18n="area">__CAPTURE_TEXT_area__</span><input id="area" maxlength="37"></label>
+<label><span data-i18n="project">__CAPTURE_TEXT_project__</span><input id="project" maxlength="40"></label></div>
+<p data-i18n="proposal">__CAPTURE_TEXT_proposal__</p>
+<button id="queue" type="submit" data-i18n="queue">__CAPTURE_TEXT_queue__</button></form></section>
+<section><h2 data-i18n="outbox">__CAPTURE_TEXT_outbox__</h2><p data-i18n="retention">__CAPTURE_TEXT_retention__</p>
+<button id="retry" data-i18n="retryAll">__CAPTURE_TEXT_retryAll__</button><ul id="outbox" aria-live="polite"></ul>
+<button id="receipts" data-i18n="receipts">__CAPTURE_TEXT_receipts__</button><ul id="server-receipts"></ul></section>
+<section id="knowledge-panel"><h2 data-i18n="knowledgeTitle">__CAPTURE_TEXT_knowledgeTitle__</h2>
+<p data-i18n="knowledgeBoundary">__CAPTURE_TEXT_knowledgeBoundary__</p>
+<label><span data-i18n="retrievalGrant">__CAPTURE_TEXT_retrievalGrant__</span><textarea id="retrieval-grant" maxlength="4096" rows="3" autocomplete="off" spellcheck="false"></textarea></label>
+<button id="retrieval-connect" data-i18n="retrievalConnect">__CAPTURE_TEXT_retrievalConnect__</button>
+<button id="retrieval-forget" data-i18n="retrievalForget">__CAPTURE_TEXT_retrievalForget__</button>
 <p id="retrieval-status" role="status" aria-live="polite"></p>
-<button id="retrieval-recent" data-i18n="recentKnowledge">Recent acquisitions</button>
-<form id="retrieval-search"><label><span data-i18n="knowledgeQuery">Search (1–128 characters, at most 20 matches)</span><input id="retrieval-query" maxlength="128" required></label><button data-i18n="searchKnowledge">Search</button></form>
+<button id="retrieval-recent" data-i18n="recentKnowledge">__CAPTURE_TEXT_recentKnowledge__</button>
+<form id="retrieval-search"><label><span data-i18n="knowledgeQuery">__CAPTURE_TEXT_knowledgeQuery__</span><input id="retrieval-query" maxlength="128" required></label><button data-i18n="searchKnowledge">__CAPTURE_TEXT_searchKnowledge__</button></form>
 <ul id="retrieval-results"></ul><pre id="retrieval-detail"></pre><div id="retrieval-downloads"></div></section>
-<section id="owner-panel" hidden><h2 data-i18n="owner">Local owner: devices and retained captures</h2>
-<p data-i18n="httpsHelp">The remote Capture listener is separate and disabled by default. Configure its exact HTTPS origin, then start it explicitly with a certificate. Management remains loopback-only. QR challenges expire in 120 seconds and are single-use.</p>
-<label><span data-i18n="origin">Trusted HTTPS Capture origin</span><input id="origin" type="url" placeholder="https://capture.example.test:8443" autocomplete="off"></label>
-<label class="inline"><input id="confirm-rebind" type="checkbox"><span data-i18n="rebind">Configure / rebind this destination and revoke existing pairing credentials. Acquired knowledge is retained.</span></label>
-<button id="configure" data-i18n="configure">Configure destination</button><button id="pair-qr" data-i18n="createQr">Create one-use pairing QR</button>
-<img id="qr" hidden alt="One-use scoped Capture pairing QR"><textarea id="qr-text" readonly hidden rows="5" aria-label="Pairing challenge contents"></textarea>
+<section id="owner-panel" hidden><h2 data-i18n="owner">__CAPTURE_TEXT_owner__</h2>
+<p data-i18n="httpsHelp">__CAPTURE_TEXT_httpsHelp__</p>
+<label><span data-i18n="origin">__CAPTURE_TEXT_origin__</span><input id="origin" type="url" placeholder="https://capture.example.test:8443" autocomplete="off"></label>
+<label class="inline"><input id="confirm-rebind" type="checkbox"><span data-i18n="rebind">__CAPTURE_TEXT_rebind__</span></label>
+<button id="configure" data-i18n="configure">__CAPTURE_TEXT_configure__</button><button id="pair-qr" data-i18n="createQr">__CAPTURE_TEXT_createQr__</button>
+<img id="qr" hidden alt="__CAPTURE_TEXT_qrAlt__" data-i18n-alt="qrAlt"><textarea id="qr-text" readonly hidden rows="5" aria-label="__CAPTURE_TEXT_qrContents__" data-i18n-aria-label="qrContents"></textarea>
 <p id="qr-status" role="status"></p><ul id="devices"></ul>
-<fieldset><legend data-i18n="retrievalOwner">Separate Knowledge permission</legend>
-<p data-i18n="retrievalOwnerHelp">Select one active paired device and 1–16 existing Source IDs. Granting authorizes future reads in these Sources until expiry or revocation. Submission permission is independent.</p>
-<label><span data-i18n="retrievalDevice">Device ID</span><input id="retrieval-device" maxlength="36"></label>
-<label><span data-i18n="retrievalSources">Source IDs, separated by commas</span><textarea id="retrieval-sources" maxlength="700" rows="2"></textarea></label>
-<label><span data-i18n="retrievalSeconds">Lifetime in seconds (60–86400)</span><input id="retrieval-seconds" type="number" min="60" max="86400" value="600"></label>
-<label class="inline"><input id="retrieval-consent" type="checkbox"><span data-i18n="retrievalConsent">Authorize this device to read the selected Sources and explicitly download their Originals.</span></label>
-<button id="retrieval-issue" data-i18n="retrievalIssue">Grant Knowledge permission</button>
-<button id="retrieval-revoke" data-i18n="retrievalRevoke">Revoke Knowledge permission</button>
-<textarea id="retrieval-issued" rows="4" readonly autocomplete="off" aria-label="Separate retrieval grant"></textarea></fieldset>
-<button id="owner-refresh" data-i18n="ownerRefresh">Refresh retained Capture results</button><ul id="owner-captures"></ul>
-<p data-i18n="quarantineHelp">Rejection records quarantine with explicit retention. Undo records compensation. Neither action deletes, moves or purges Original bytes or canonical history. Archive/trash/purge are separate governed disposition actions in Knowledge.</p>
-<a href="/inbox" data-i18n="backInbox">Return to local Inbox</a></section>
+<fieldset><legend data-i18n="retrievalOwner">__CAPTURE_TEXT_retrievalOwner__</legend>
+<p data-i18n="retrievalOwnerHelp">__CAPTURE_TEXT_retrievalOwnerHelp__</p>
+<label><span data-i18n="retrievalDevice">__CAPTURE_TEXT_retrievalDevice__</span><input id="retrieval-device" maxlength="36"></label>
+<label><span data-i18n="retrievalSources">__CAPTURE_TEXT_retrievalSources__</span><textarea id="retrieval-sources" maxlength="700" rows="2"></textarea></label>
+<label><span data-i18n="retrievalSeconds">__CAPTURE_TEXT_retrievalSeconds__</span><input id="retrieval-seconds" type="number" min="60" max="86400" value="600"></label>
+<label class="inline"><input id="retrieval-consent" type="checkbox"><span data-i18n="retrievalConsent">__CAPTURE_TEXT_retrievalConsent__</span></label>
+<button id="retrieval-issue" data-i18n="retrievalIssue">__CAPTURE_TEXT_retrievalIssue__</button>
+<button id="retrieval-revoke" data-i18n="retrievalRevoke">__CAPTURE_TEXT_retrievalRevoke__</button>
+<textarea id="retrieval-issued" rows="4" readonly autocomplete="off" aria-label="__CAPTURE_TEXT_issuedGrant__" data-i18n-aria-label="issuedGrant"></textarea></fieldset>
+<button id="owner-refresh" data-i18n="ownerRefresh">__CAPTURE_TEXT_ownerRefresh__</button><ul id="owner-captures"></ul>
+<p data-i18n="quarantineHelp">__CAPTURE_TEXT_quarantineHelp__</p>
+<a href="/inbox" data-i18n="backInbox">__CAPTURE_TEXT_backInbox__</a></section>
 <dialog id="pair-confirm" aria-labelledby="pair-confirm-title" aria-describedby="pair-confirm-destination">
 <h2 id="pair-confirm-title"></h2><pre id="pair-confirm-destination"></pre>
-<button type="button" id="pair-confirm-cancel">Cancel</button><button type="button" id="pair-confirm-accept">Confirm pairing</button></dialog>
-<noscript>Capture requires JavaScript. Local Inbox and Knowledge remain available.</noscript></main></body></html>
+<button type="button" id="pair-confirm-cancel" data-i18n="cancel">__CAPTURE_TEXT_cancel__</button><button type="button" id="pair-confirm-accept" data-i18n="confirmPairing">__CAPTURE_TEXT_confirmPairing__</button></dialog>
+<noscript>__CAPTURE_TEXT_noScript__</noscript></main></body></html>

@@ -122,5 +122,6 @@ def attach_folder_settings_routes(
                 error=None,
             ),
         )
-        response.headers["Content-Language"] = language if language in {"en", "it"} else "en"
+        from .catalog_registry import resolve_language
+        response.headers["Content-Language"] = resolve_language(language)
         return response

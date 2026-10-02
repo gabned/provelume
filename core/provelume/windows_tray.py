@@ -7,6 +7,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from .catalog_registry import exported_catalogs, resolve_language
+
 
 @dataclass(frozen=True, slots=True)
 class TrayState:
@@ -17,33 +19,14 @@ class TrayState:
 
     def normalized(self) -> TrayState:
         return TrayState(
-            language=self.language if self.language in {"en", "it"} else "en",
+            language=resolve_language(self.language),
             service_status=self.service_status.strip()[:80] or "stopped",
             endpoint=self.endpoint.strip()[:80] or "http://127.0.0.1:44851",
             visible=bool(self.visible),
         )
 
 
-TRAY_LABELS = {
-    "en": {
-        "open": "Open Provelume",
-        "status": "Service: {value}",
-        "endpoint": "Endpoint: {value}",
-        "settings": "Shell settings",
-        "restart": "Restart local service",
-        "quit": "Exit Provelume",
-        "tooltip": "Provelume · {status} · {endpoint}",
-    },
-    "it": {
-        "open": "Apri Provelume",
-        "status": "Servizio: {value}",
-        "endpoint": "Endpoint: {value}",
-        "settings": "Impostazioni shell",
-        "restart": "Riavvia il servizio locale",
-        "quit": "Esci da Provelume",
-        "tooltip": "Provelume · {status} · {endpoint}",
-    },
-}
+TRAY_LABELS = exported_catalogs('windows_tray.TRAY_LABELS')
 
 TRAY_STATUS_LABELS = {
     "en": {

@@ -10,9 +10,9 @@
   </div>
 </section>
 <section class="metric-grid">
-  <article><strong>{{ instance.sources }}</strong><span>{{ t('home.sources') }}</span></article>
-  <article><strong>{{ instance.documents }}</strong><span>{{ t('home.documents') }}</span></article>
-  <article><strong>{{ instance.versions }}</strong><span>{{ t('home.versions') }}</span></article>
+  <article><strong>{{ ui_number(instance.sources) }}</strong><span>{{ t('home.sources') }}</span></article>
+  <article><strong>{{ ui_number(instance.documents) }}</strong><span>{{ t('home.documents') }}</span></article>
+  <article><strong>{{ ui_number(instance.versions) }}</strong><span>{{ t('home.versions') }}</span></article>
   <article><strong>{{ instance.index_status }}</strong><span>{{ t('home.index') }}</span></article>
 </section>
 <div class="two-column">
@@ -20,7 +20,7 @@
   <div class="panel-heading"><h2>{{ t('home.latest') }}</h2><a href="/browse?lang={{ lang }}">{{ t('nav.browse') }}</a></div>
   <ul class="document-list">
   {% for document in latest %}
-    <li><a href="/documents/{{ document.id }}?lang={{ lang }}"><strong>{{ document.title }}</strong><span>{{ document.source_name }} · {{ document.current_version.acquired_at[:10] }}</span></a></li>
+    <li><a href="/documents/{{ document.id }}?lang={{ lang }}"><strong>{{ document.title }}</strong><span>{{ document.source_name }} · <time datetime="{{ document.current_version.acquired_at }}">{{ ui_date(document.current_version.acquired_at) }}</time></span></a></li>
   {% else %}<li class="empty">{{ t('browse.empty') }}</li>{% endfor %}
   </ul>
 </section>

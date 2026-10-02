@@ -13,92 +13,19 @@ from queue import Empty, Queue
 from threading import BoundedSemaphore, Thread
 from typing import Any
 
+from .catalog_registry import exported_catalogs, resolve_language
 from .folder_source_model import MAX_FOLDER_PATH_CHARS, SOURCE_CLASSES, FolderSourceError
 
 VALIDATION_TIMEOUT_SECONDS = 5.0
 _VALIDATION_SLOTS = BoundedSemaphore(2)
 
-DIAGNOSTICS = {
-    "ok": (
-        "The path is readable. You can register this Source.",
-        "Il percorso è leggibile. Puoi registrare questa Source.",
-    ),
-    "path_unavailable": (
-        "The path is unavailable. Select an existing readable folder and try again.",
-        "Il percorso non è disponibile. Seleziona una cartella esistente e leggibile e riprova.",
-    ),
-    "mount_unavailable": (
-        "Reconnect and mount the volume at its configured location, then try again.",
-        "Ricollega e monta il volume nella posizione configurata, quindi riprova.",
-    ),
-    "network_unreachable": (
-        "The network folder is unreachable. Check its mount or open the same path in your "
-        "file manager, then try again.",
-        "La cartella di rete non è raggiungibile. Verifica il mount o apri lo stesso percorso "
-        "nel file manager, quindi riprova.",
-    ),
-    "permission_denied": (
-        "Read access was denied. Check folder and share permissions for the user running "
-        "Provelume, then try again.",
-        "Accesso in lettura negato. Verifica i permessi della cartella e della condivisione "
-        "per l'utente che esegue Provelume, quindi riprova.",
-    ),
-    "windows_session_required": (
-        "Windows requires an authenticated session. Open the share in Explorer with the "
-        "same Windows user and session as Provelume, then retry. Provelume stores no password.",
-        "Windows richiede una sessione autenticata. Apri la condivisione in Esplora file con "
-        "lo stesso utente e la stessa sessione Windows di Provelume, quindi riprova. "
-        "Provelume non conserva password.",
-    ),
-    "mapped_drive_unavailable": (
-        "The drive is not visible in this Windows session. Map it in the session running "
-        "Provelume or use its UNC path. Check whether the two applications run elevated.",
-        "L'unità non è visibile in questa sessione Windows. Mappala nella sessione di "
-        "Provelume o usa il percorso UNC. Verifica se le due applicazioni sono eseguite "
-        "come amministratore.",
-    ),
-    "unsupported_path": (
-        "Use a filesystem path, not a URL, device path, drive-relative path or special file. "
-        "For UNC, enter both server and share and select the network class.",
-        "Usa un percorso filesystem, non un URL, un percorso dispositivo, un percorso "
-        "relativo a un'unità o un file speciale. Per UNC indica server e condivisione "
-        "e seleziona la classe rete.",
-    ),
-    "unsupported_platform": (
-        "Windows drive and UNC paths require a Windows-hosted Instance. On this host, "
-        "mount the volume through the operating system and select its local mount path.",
-        "I percorsi di unità Windows e UNC richiedono un'Instance ospitata su Windows. "
-        "Su questo host monta il volume tramite il sistema operativo e seleziona il mount locale.",
-    ),
-    "unsafe_path": (
-        "The Source cannot contain the Instance root or overlap reserved Instance storage. "
-        "Select a separate folder.",
-        "La Source non può contenere la radice dell'Instance né sovrapporsi al suo storage "
-        "riservato. Seleziona una cartella separata.",
-    ),
-    "validation_timeout": (
-        "The filesystem did not respond within the validation limit. Check the mount and "
-        "Windows session outside Provelume, then retry explicitly.",
-        "Il filesystem non ha risposto entro il limite di verifica. Controlla il mount e "
-        "la sessione Windows fuori da Provelume, quindi riprova esplicitamente.",
-    ),
-    "validation_busy": (
-        "Earlier filesystem checks are still pending. Wait for the operating system to "
-        "respond before retrying; no Source has been registered.",
-        "Sono ancora in corso verifiche filesystem precedenti. Attendi la risposta del "
-        "sistema operativo prima di riprovare; non è stata registrata alcuna Source.",
-    ),
-    "validation_failed": (
-        "The path check could not complete. Check the selected path and retry; "
-        "no Source has been registered.",
-        "Non è stato possibile completare la verifica. Controlla il percorso e riprova; "
-        "non è stata registrata alcuna Source.",
-    ),
-}
+_diagnostic_catalogs = exported_catalogs('folder_source_enrollment.DIAGNOSTICS')
+DIAGNOSTICS = {key: (_diagnostic_catalogs["en"][key], _diagnostic_catalogs["it"][key])
+               for key in _diagnostic_catalogs["en"]}
 
 
 def diagnostic_message(code: str, language: str = "en") -> str:
-    return DIAGNOSTICS[code][1 if language == "it" else 0]
+    return _diagnostic_catalogs[resolve_language(language)][code]
 
 
 class FolderSourceEnrollmentError(FolderSourceError):

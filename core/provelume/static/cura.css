@@ -100,3 +100,5 @@ html.cura {
   .cura-navigation nav a[aria-current="page"] { border: 2px solid Highlight; }
   .cura-new { border: 1px solid CanvasText; }
 }
+.language { display: flex; flex-wrap: wrap; gap: .4rem .75rem; min-width: 0; }
+.language a { overflow-wrap: anywhere; }

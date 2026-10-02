@@ -75,8 +75,10 @@
     </label>
     <label for="shell-language"><span>{{ t('shell.language') }}</span>
       <select id="shell-language" name="language">
-        <option value="en"{% if lang == 'en' %} selected{% endif %}>English</option>
-        <option value="it"{% if lang == 'it' %} selected{% endif %}>Italiano</option>
+        <option value="system"{% if language_choice == 'system' %} selected{% endif %}>{{ t('common.language_system') }}</option>
+        {% for option in language_options %}
+        <option value="{{ option.id }}"{% if language_choice == option.id %} selected{% endif %}>{{ option.label }}</option>
+        {% endfor %}
       </select>
     </label>
     <div class="form-actions">
