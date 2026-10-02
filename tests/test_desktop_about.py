@@ -592,7 +592,15 @@ def test_windows_mutex_rejects_a_second_launcher() -> None:
 
 
 @pytest.mark.skipif(os.name != "nt", reason="real Tk layout probe")
-def test_windows_tk_layout_probe_is_offline_and_scrollable(tmp_path: Path) -> None:
+def test_windows_tk_layout_probe_is_offline_and_scrollable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first_run_calls = []
+
+    def unexpected_first_run(self) -> None:
+        first_run_calls.append(self)
+
+    monkeypatch.setattr(DesktopShell, "show_first_run", unexpected_first_run)
     output = tmp_path / "layout.json"
     write_ui_diagnostics(
         output,
@@ -602,6 +610,7 @@ def test_windows_tk_layout_probe_is_offline_and_scrollable(tmp_path: Path) -> No
         viewport_height=480,
     )
     value = json.loads(output.read_text(encoding="utf-8"))
+    assert first_run_calls == [], "offline layout diagnostics must remain non-interactive"
     assert value["language"] == "it"
     assert value["dpi_percent"] == 200
     assert value["network_used"] is False
@@ -641,6 +650,7 @@ def test_windows_missing_persisted_instance_renders_recovery_shell(
                 language="en",
             ),
             create_instance_if_missing=False,
+            enable_first_run_dialog=False,
         )
         root.update()
         assert shell.instance_available is False

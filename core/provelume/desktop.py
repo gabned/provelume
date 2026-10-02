@@ -184,6 +184,7 @@ def write_ui_diagnostics(
                 ),
                 auto_start_service=False,
                 enable_native_tray=False,
+                enable_first_run_dialog=False,
             )
             target_width, target_height = _window_dimensions(
                 viewport_width,
@@ -502,6 +503,7 @@ class DesktopShell:
         create_instance_if_missing: bool = True,
         auto_start_service: bool = True,
         enable_native_tray: bool = True,
+        enable_first_run_dialog: bool = True,
     ):
         import tkinter as tk
         from tkinter import ttk
@@ -573,7 +575,7 @@ class DesktopShell:
                 self.tray = None
             else:
                 self.root.after(1000, self._refresh_tray_queue)
-        if self.settings.revision == 0:
+        if enable_first_run_dialog and self.settings.revision == 0:
             self.root.after(0, self.show_first_run)
         if auto_start_service and self.instance_available:
             self.root.after(250, self.start_server)
