@@ -118,6 +118,13 @@ def test_url_closed_matrix(url):
         artifact_url(url)
 
 
+@pytest.mark.parametrize("path", ["/../model.zip", "/a/./model.zip", "/a/../model.zip",
+                                  "/.", "/a/.."])
+def test_governed_artifact_rejects_dot_segments_on_valid_host(path):
+    with pytest.raises(ModelError, match="origin"):
+        artifact_url("https://fixtures.invalid" + path)
+
+
 @pytest.mark.parametrize("address", ["127.0.0.1", "10.0.0.2", "169.254.169.254", "::1",
                                      "::ffff:127.0.0.1", "fe80::1", "fc00::1"])
 def test_all_dns_answers_checked_before_connect(address):

@@ -93,6 +93,7 @@ def artifact_url(value: Any) -> str:
         parts = urlsplit(result)
         check(parts.port in (None, 443) and not parts.query and not parts.fragment, "origin")
         check("%" not in parts.path, "origin")
+        check(all(segment not in (".", "..") for segment in parts.path.split("/")), "origin")
         return result
     except ModelError:
         raise
