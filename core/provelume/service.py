@@ -233,6 +233,15 @@ class ProvelumeInstance:
 
         return ModelStore.for_instance(self.root)
 
+    def ai_local_runtime_status(self) -> dict[str, Any]:
+        """Pure component contract. Availability does not authorize product dispatch."""
+        from .ai_runtime_contract import CONFIGURATION, LOCK_SHA256, RUNTIME_VERSION
+
+        return {"runtime": "llama.cpp", "version": RUNTIME_VERSION,
+                "runtime_lock_sha256": LOCK_SHA256, "configuration": dict(CONFIGURATION),
+                "qualification": "CANDIDATE_NOT_QUALIFIED", "recommended": False,
+                "inference_authorized": False, "product_dispatch": "REQUIRES_S06"}
+
     def representation_support(self, *, profile_id: str | None = None) -> dict[str, Any]:
         return self.representations.support.read(profile_id=profile_id)
 

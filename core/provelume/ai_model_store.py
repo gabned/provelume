@@ -58,7 +58,7 @@ _TEMP_NAME = re.compile(r"\.maintenance-[0-9a-f]{32}\.tmp\Z")
 @dataclass(frozen=True, slots=True, repr=False)
 class VerifiedModel:
     entry: ModelEntry
-    model: bytes
+    model: object
     license: bytes
 
 
@@ -206,6 +206,10 @@ class ModelStore:
         return self.root / "verified" / (entry.package_sha256 + ".pkg")
 
     def _verify(self, entry):
+        if entry.format == "gguf-v3-q4_k_m":
+            from .ai_model_file import verify_file
+
+            return verify_file(self._path(entry), entry)
         return inspect_package(_read(self._path(entry), MAX_PACKAGE_BYTES), entry)
 
     def verify(self, identifier: str, runtime: RuntimeSelection) -> VerifiedModel:
@@ -276,12 +280,15 @@ class ModelStore:
                         check(total == entry.package_size, "integrity")
                         output.flush()
                         os.fsync(output.fileno())
-                raw = _read(stage, MAX_PACKAGE_BYTES)
-                inspect_package(raw, entry)
-                checkpoint(cancel, deadline)
-                # Same-volume, pinned-parent publication via the existing primitive.
-                # Rewriting verified bytes avoids reopening a changed source at rename.
-                write_local_bytes(target, raw, replace=True)
+                if entry.format == "gguf-v3-q4_k_m":
+                    from .ai_model_file import publish_file
+
+                    publish_file(stage, target, entry, cancel=cancel, deadline=deadline)
+                else:
+                    raw = _read(stage, MAX_PACKAGE_BYTES)
+                    inspect_package(raw, entry)
+                    checkpoint(cancel, deadline)
+                    write_local_bytes(target, raw, replace=True)
                 self._verify(entry)
                 return {"id": entry.id, "state": "verified", "activated": False}
             finally:
@@ -354,6 +361,10 @@ class ModelStore:
             checkpoint(cancel, started + OPERATION_SECONDS)
             try:
                 # Trusted host implementation only; packages never supply a runner.
+                if entry.format == "gguf-v3-q4_k_m":
+                    from .ai_runtime import LocalRuntime
+
+                    check(type(runner) is LocalRuntime, "self_test")
                 result = runner(model, runtime, cancel)
             except Exception:
                 raise ModelError("self_test") from None

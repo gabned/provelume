@@ -25,7 +25,7 @@ RUNTIME_VERSION = "1"
 CONFIGURATION = {"schema_version": 1, "purpose": "lifecycle-self-test-only"}
 # Governed together with the manifest by ordinary application distribution gates.
 # This pin is not accepted from an offline package or a download response.
-MANIFEST_SHA256 = "d89f5222298157d091046642f3e457cfb9a1ee8c2f4cce9550df7b57e63f39d8"
+MANIFEST_SHA256 = "a044827dad8ab3e5a1597d17d039b16e7127215fa64c8b2ae3561f50746814be"
 _ID = re.compile(r"[a-z][a-z0-9_.-]{0,79}\Z")
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -35,10 +35,29 @@ class ModelError(ValueError):
 
     def __init__(self, code: str):
         if code not in {
-            "manifest", "untrusted", "unknown", "compatibility", "revoked", "license",
-            "origin", "package", "integrity", "limit", "unsafe_path", "missing",
-            "busy", "space", "io", "cancelled", "timeout", "network", "self_test",
-            "stale", "in_use", "consent", "state",
+            "manifest",
+            "untrusted",
+            "unknown",
+            "compatibility",
+            "revoked",
+            "license",
+            "origin",
+            "package",
+            "integrity",
+            "limit",
+            "unsafe_path",
+            "missing",
+            "busy",
+            "space",
+            "io",
+            "cancelled",
+            "timeout",
+            "network",
+            "self_test",
+            "stale",
+            "in_use",
+            "consent",
+            "state",
         }:
             raise ValueError("invalid model error code")
         self.code = code
@@ -133,11 +152,15 @@ class ModelEntry:
     def profile(self) -> Profile:
         # Reuse the single S01 profile schema. No LocalityEvidence is manufactured.
         return Profile(
-            id=self.id, provider=self.runtime_id, model="fixture.model",
+            id=self.id,
+            provider=self.runtime_id,
+            model=self.id if self.runtime_id == "llama.cpp" else "fixture.model",
             revision=self.model_sha256,
             route_revision=digest({"runtime": self.runtime_id, "version": self.runtime_version}),
             capabilities=(Capability.STRUCTURED_OUTPUT,),
-            limits=Limits(1024, 32, 1, 5),
+            limits=Limits(4096, 128, 1, 60)
+            if self.runtime_id == "llama.cpp"
+            else Limits(1024, 32, 1, 5),
         )
 
 
@@ -158,21 +181,51 @@ def parse_manifest(raw: bytes) -> tuple[ModelEntry, ...]:
         seen.add(item.id)
         check(type(item.version) is str and re.fullmatch(r"[1-9][0-9]{0,3}", item.version))
         check(item.channel in ("candidate", "stable"))
-        check(item.qualification == "SYNTHETIC_ONLY")
+        native = item.format == "gguf-v3-q4_k_m"
+        check(item.qualification == ("CANDIDATE_NOT_QUALIFIED" if native else "SYNTHETIC_ONLY"))
         check(item.app_version == "0.11.0")
-        check((item.runtime_id, item.runtime_version, item.format) ==
-              (RUNTIME, RUNTIME_VERSION, FORMAT), "compatibility")
-        check(item.license == "CC0-1.0", "license")
+        check(
+            (item.runtime_id, item.runtime_version, item.format)
+            == (
+                ("llama.cpp", "b11379", "gguf-v3-q4_k_m")
+                if native
+                else (RUNTIME, RUNTIME_VERSION, FORMAT)
+            ),
+            "compatibility",
+        )
+        check(item.license == ("Apache-2.0" if native else "CC0-1.0"), "license")
         artifact_url(item.url)
         check(item.origin == canonical_web_origin(item.url, limits=GuardedWebLimits()), "origin")
-        check(item.evidence == "repository:docs/architecture/ai-model-lifecycle.md#provenance")
+        check(
+            item.evidence
+            == (
+                "repository:docs/adr/0031-cpu-local-runtime-candidate.md"
+                if native
+                else "repository:docs/architecture/ai-model-lifecycle.md#provenance"
+            )
+        )
         for value in (item.package_sha256, item.model_sha256, item.license_sha256):
             _hash(value)
-        for size, maximum in ((item.package_size, MAX_PACKAGE_BYTES),
-                              (item.model_size, MAX_FILE_BYTES),
-                              (item.license_size, MAX_FILE_BYTES)):
+        maximum_model = 1117320736 if native else MAX_FILE_BYTES
+        for size, maximum in (
+            (item.package_size, maximum_model if native else MAX_PACKAGE_BYTES),
+            (item.model_size, maximum_model),
+            (item.license_size, MAX_FILE_BYTES),
+        ):
             check(type(size) is int and 1 <= size <= maximum, "limit")
-        check(item.model_size + item.license_size <= MAX_TOTAL_BYTES, "limit")
+        if native:
+            from .ai_runtime_contract import MODEL_ID, MODEL_SHA256, MODEL_SIZE
+
+            check(
+                item.id == MODEL_ID
+                and item.model_size == MODEL_SIZE
+                and item.package_size == MODEL_SIZE
+                and item.model_sha256 == MODEL_SHA256
+                and item.package_sha256 == MODEL_SHA256,
+                "compatibility",
+            )
+        else:
+            check(item.model_size + item.license_size <= MAX_TOTAL_BYTES, "limit")
         entries.append(item)
     return tuple(entries)
 
@@ -215,16 +268,28 @@ class ModelRegistry:
             "network_used": False,
             "recommended": None,
             "advanced_byom": "UNSUPPORTED_NO_QUALIFIED_RUNTIME",
-            "entries": [{
-                "id": entry.id, "category": "model", "version": entry.version,
-                "channel": entry.channel, "qualification": entry.qualification,
-                "app_version": entry.app_version, "runtime_id": entry.runtime_id,
-                "runtime_version": entry.runtime_version, "format": entry.format,
-                "expected_sha256": entry.model_sha256, "license": entry.license,
-                "origin": entry.origin, "size_bytes": entry.model_size,
-                "status": "unverified", "installation": "not_observed",
-                "offline_qualified": False, "inference_authorized": False,
-            } for entry in self.entries],
+            "entries": [
+                {
+                    "id": entry.id,
+                    "category": "model",
+                    "version": entry.version,
+                    "channel": entry.channel,
+                    "qualification": entry.qualification,
+                    "app_version": entry.app_version,
+                    "runtime_id": entry.runtime_id,
+                    "runtime_version": entry.runtime_version,
+                    "format": entry.format,
+                    "expected_sha256": entry.model_sha256,
+                    "license": entry.license,
+                    "origin": entry.origin,
+                    "size_bytes": entry.model_size,
+                    "status": "unverified",
+                    "installation": "not_observed",
+                    "offline_qualified": False,
+                    "inference_authorized": False,
+                }
+                for entry in self.entries
+            ],
         }
 
 
@@ -240,14 +305,28 @@ class RuntimeSelection:
     configuration: bytes = canonical_json_bytes(CONFIGURATION)
 
     def validate(self, entry: ModelEntry):
-        check((self.id, self.version, self.format, self.app_version) ==
-              (entry.runtime_id, entry.runtime_version, entry.format, entry.app_version),
-              "compatibility")
+        check(
+            (self.id, self.version, self.format, self.app_version)
+            == (entry.runtime_id, entry.runtime_version, entry.format, entry.app_version),
+            "compatibility",
+        )
         check(self.platform in ("linux", "windows"), "compatibility")
-        check(self.configuration == canonical_json_bytes(CONFIGURATION), "compatibility")
+        if self.id == "llama.cpp":
+            from .ai_runtime_contract import CONFIGURATION as native_configuration
+
+            check(self.configuration == canonical_json_bytes(native_configuration), "compatibility")
+        else:
+            check(self.configuration == canonical_json_bytes(CONFIGURATION), "compatibility")
 
     @property
     def fingerprint(self):
-        return digest({"id": self.id, "version": self.version, "format": self.format,
-                       "app_version": self.app_version, "platform": self.platform,
-                       "configuration": sha256(self.configuration)})
+        return digest(
+            {
+                "id": self.id,
+                "version": self.version,
+                "format": self.format,
+                "app_version": self.app_version,
+                "platform": self.platform,
+                "configuration": sha256(self.configuration),
+            }
+        )
