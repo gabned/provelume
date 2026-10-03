@@ -115,7 +115,7 @@ def bind(lib, name, result, *args):
 
 
 class Llama:
-    def __init__(self, directory, model_path):
+    def __init__(self, directory, model_path, library_paths):
         windows = os.name == "nt"
         self._directory = os.add_dll_directory(str(directory)) if windows else None
         mode = getattr(c, "RTLD_GLOBAL", 0)
@@ -124,14 +124,14 @@ class Llama:
             if windows
             else ["libggml-base.so.0", "libggml.so.0"]
         )
-        self._dependencies = [c.CDLL(str(directory / n), mode=mode) for n in names]
+        self._dependencies = [c.CDLL(str(library_paths[n]), mode=mode) for n in names]
         ggml = self._dependencies[-1]
-        backend = directory / ("ggml-cpu-haswell.dll" if windows else "libggml-cpu-haswell.so")
+        backend = library_paths["ggml-cpu-haswell.dll" if windows else "libggml-cpu-haswell.so"]
         check(
             bool(bind(ggml, "ggml_backend_load", P, c.c_char_p)(os.fsencode(backend))),
             "compatibility",
         )
-        lib = c.CDLL(str(directory / ("llama.dll" if windows else "libllama.so.0")), mode=mode)
+        lib = c.CDLL(str(library_paths["llama.dll" if windows else "libllama.so.0"]), mode=mode)
         self.lib = lib
         self._logger = c.CFUNCTYPE(None, INT, c.c_char_p, P)(lambda *_: None)
         bind(lib, "llama_log_set", None, P, P)(c.cast(self._logger, P), None)

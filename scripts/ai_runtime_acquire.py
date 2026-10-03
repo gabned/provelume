@@ -32,7 +32,8 @@ class Redirects(urllib.request.HTTPRedirectHandler):
         if (parsed.scheme != "https" or parsed.username or parsed.password or
                 parsed.port not in (None, 443) or parsed.hostname not in {
                     "huggingface.co", "cdn-lfs.huggingface.co", "cdn-lfs-us-1.hf.co",
-                    "cas-bridge.xethub.hf.co", "release-assets.githubusercontent.com"}):
+                    "cas-bridge.xethub.hf.co", "us.aws.cdn.hf.co",
+                    "release-assets.githubusercontent.com"}):
             raise ValueError("unapproved acquisition redirect")
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 

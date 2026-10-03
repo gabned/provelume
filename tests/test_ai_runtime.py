@@ -49,6 +49,7 @@ def host(tmp_path, monkeypatch):
 
     monkeypatch.setattr(runtime.subprocess, "Popen", process)
     monkeypatch.setattr(runtime, "hardware", lambda: {})
+    monkeypatch.setattr(runtime.LocalRuntime, "validate_installation", lambda self: None)
     host = runtime.LocalRuntime(tmp_path)
     yield host
     host.close()
@@ -177,3 +178,51 @@ print(json.dumps({'denied':observed,'limits':limits}))
                              str(Path(__file__).resolve().parents[1] / "core")],
                             capture_output=True, timeout=5, check=True)
     assert json.loads(result.stdout)["denied"] == ["denied", "denied"]
+
+
+def test_failed_termination_keeps_process_ownership_and_global_slot(monkeypatch, tmp_path):
+    host = runtime.LocalRuntime(tmp_path)
+    assert runtime._SLOT.acquire(blocking=False)
+    host._slot = True
+    alive = True
+
+    def wait(**kwargs):
+        if alive:
+            raise subprocess.TimeoutExpired("synthetic-worker", 2)
+
+    worker = SimpleNamespace(pid=1, poll=lambda: None if alive else 0,
+                             kill=lambda: None, wait=wait,
+                             stdin=SimpleNamespace(close=lambda: None),
+                             stdout=SimpleNamespace(close=lambda: None))
+    host._process = worker
+    if sys.platform != "win32":
+        monkeypatch.setattr(runtime.os, "killpg", lambda *args: None)
+    try:
+        with pytest.raises(ModelError, match="busy"):
+            host.close()
+        assert host._process is worker and host._slot
+        assert not runtime._SLOT.acquire(blocking=False)
+    finally:
+        alive = False
+        host.close()
+    assert runtime._SLOT.acquire(blocking=False)
+    runtime._SLOT.release()
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="native Linux sealed snapshots only")
+def test_native_snapshot_is_immutable_and_refuses_source_substitution(tmp_path):
+    from contextlib import ExitStack
+
+    from provelume.ai_runtime_worker import sealed_snapshot
+
+    source = tmp_path / "source"
+    source.write_bytes(b"bounded synthetic snapshot")
+    expected = hashlib.sha256(source.read_bytes()).hexdigest()
+    with ExitStack() as stack, source.open("rb") as stream:
+        path = sealed_snapshot(stack, stream, source.stat().st_size, expected)
+        source.write_bytes(b"replacement")
+        assert Path(path).read_bytes() == b"bounded synthetic snapshot"
+        with pytest.raises(PermissionError), open(path, "wb") as out:
+            out.write(b"x")
+    with ExitStack() as stack, source.open("rb") as stream, pytest.raises(ModelError):
+        sealed_snapshot(stack, stream, 26, expected)

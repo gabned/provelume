@@ -165,7 +165,9 @@ def measure(root, output):
         if runtime:
             runtime.close()
         save()
-    print(json.dumps({k: report.get(k) for k in ("status", "failures", "quality")}))
+    # The corpus and every output are synthetic and public. Preserve raw samples
+    # in both the artifact and native job log for an independently readable ledger.
+    print("S05_REAL_REPORT=" + json.dumps(report, ensure_ascii=True))
     return report
 
 

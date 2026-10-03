@@ -143,6 +143,7 @@ class ModelStore:
               len(set(self.allowed_ids)) == len(self.allowed_ids))
         check(all(item in tuple(e.id for e in self.registry.entries) for item in self.allowed_ids))
         self._evidence: dict[str, SelfTestEvidence] = {}
+        self._native_runners = {}
         self._session = uuid4().hex
 
     @classmethod
@@ -356,6 +357,7 @@ class ModelStore:
         with self._hold():
             entry = self._entry(identifier, runtime)
             self._evidence.pop(identifier, None)
+            self._native_runners.pop(identifier, None)
             model = self._verify(entry)
             started = time.monotonic()
             checkpoint(cancel, started + OPERATION_SECONDS)
@@ -376,6 +378,8 @@ class ModelStore:
                                         started + SELF_TEST_TTL_SECONDS)
             if result == "PASSED":
                 self._evidence[identifier] = evidence
+                if entry.format == "gguf-v3-q4_k_m":
+                    self._native_runners[identifier] = runner
             return evidence
 
     def _admit_evidence(self, entry, runtime, evidence):
@@ -383,6 +387,15 @@ class ModelStore:
         check(self._evidence.get(entry.id) is evidence and
               evidence.binding == self._binding(entry, runtime) and
               time.monotonic() < evidence.expires, "stale")
+        if entry.format == "gguf-v3-q4_k_m":
+            runner = self._native_runners.get(entry.id)
+            check(runner is not None, "stale")
+            try:
+                runner.validate_installation()
+            except Exception:
+                self._evidence.pop(entry.id, None)
+                runner.close()
+                raise ModelError("stale") from None
         return self._verify(entry)
 
     def activate(self, identifier: str, runtime: RuntimeSelection, evidence: SelfTestEvidence, *,

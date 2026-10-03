@@ -32,6 +32,8 @@ def _linux():
         _fields_ = [("code", c.c_ushort), ("jt", c.c_ubyte), ("jf", c.c_ubyte), ("k", c.c_uint)]
 
     rows = [(0x20, 0, 0, 4), (0x15, 1, 0, 0xC000003E), (0x06, 0, 0, 0x80000000), (0x20, 0, 0, 0)]
+    # x32 shares AUDIT_ARCH_X86_64; do not let its syscall bit bypass the filter.
+    rows.extend([(0x45, 0, 1, 0x40000000), (0x06, 0, 0, 0x50001)])
     for syscall in (
         41,
         42,
@@ -53,6 +55,9 @@ def _linux():
         59,
         288,
         322,
+        425,  # io_uring setup/enter/register can otherwise submit socket operations.
+        426,
+        427,
     ):
         rows.extend([(0x15, 0, 1, syscall), (0x06, 0, 0, 0x50001)])
     rows.extend(

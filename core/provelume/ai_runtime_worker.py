@@ -30,6 +30,26 @@ def read():
     return json.loads(raw)
 
 
+def sealed_snapshot(stack, source, size, digest):
+    """Bounded immutable Linux file, retained until worker exit; no pathname reload."""
+    import fcntl
+
+    descriptor = os.memfd_create("provelume-input", os.MFD_ALLOW_SEALING)
+    snapshot = stack.enter_context(os.fdopen(descriptor, "w+b"))
+    source.seek(0)
+    count, observed = 0, hashlib.sha256()
+    while block := source.read(1024 * 1024):
+        count += len(block)
+        check(count <= size, "limit")
+        snapshot.write(block)
+        observed.update(block)
+    check(count == size and observed.hexdigest() == digest, "integrity")
+    snapshot.flush()
+    fcntl.fcntl(descriptor, fcntl.F_ADD_SEALS,
+                fcntl.F_SEAL_WRITE | fcntl.F_SEAL_GROW | fcntl.F_SEAL_SHRINK | fcntl.F_SEAL_SEAL)
+    return f"/proc/self/fd/{descriptor}"
+
+
 def main():
     started = time.monotonic()
     try:
@@ -42,27 +62,11 @@ def main():
             verify_stream(source, entry)
             model_path = initial["model"]
             if os.name != "nt":
-                import fcntl
-
-                # Immutable file-backed snapshot, bounded chunks and fixed size.
-                descriptor = os.memfd_create("provelume-model", os.MFD_ALLOW_SEALING)
-                snapshot = stack.enter_context(os.fdopen(descriptor, "w+b"))
-                for block in iter(lambda: source.read(1024 * 1024), b""):
-                    snapshot.write(block)
-                snapshot.flush()
-                verify_stream(snapshot, entry)
-                fcntl.fcntl(
-                    descriptor,
-                    fcntl.F_ADD_SEALS,
-                    fcntl.F_SEAL_WRITE
-                    | fcntl.F_SEAL_GROW
-                    | fcntl.F_SEAL_SHRINK
-                    | fcntl.F_SEAL_SEAL,
-                )
-                model_path = f"/proc/self/fd/{descriptor}"
+                model_path = sealed_snapshot(stack, source, entry.model_size, entry.model_sha256)
             directory = Path(initial["runtime"])
             system = "windows" if os.name == "nt" else "linux"
             inventory = runtime_lock()["platforms"][system]
+            library_paths = {}
             check({p.name for p in directory.iterdir()} == set(inventory), "untrusted")
             for name, expected in inventory.items():
                 stream = stack.enter_context(open_local_file(directory / name))
@@ -72,11 +76,13 @@ def main():
                     and hashlib.file_digest(stream, "sha256").hexdigest() == expected["sha256"],
                     "integrity",
                 )
+                library_paths[name] = (directory / name if os.name == "nt" else
+                    sealed_snapshot(stack, stream, expected["size"], expected["sha256"]))
             # Keep job handle and deny-write model/library descriptors alive.
             check(job is not False, "state")
             from .ai_llama import Llama
 
-            engine = Llama(directory, model_path)
+            engine = Llama(directory, model_path, library_paths)
             emit(
                 {
                     "event": "loaded",

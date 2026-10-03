@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import platform
+import sys
 from importlib.resources import files
 
 from .ai_models import check
@@ -47,10 +48,13 @@ def runtime_lock():
 def hardware():
     """Observed resources, not qualification of a reference laptop."""
     system = platform.system().lower()
+    check(not getattr(sys, "frozen", False), "compatibility")
     check(system in ("windows", "linux"), "compatibility")
     check(platform.machine().lower() in ("amd64", "x86_64"), "compatibility")
     if system == "windows":
         import ctypes
+
+        check(bool(ctypes.windll.kernel32.IsProcessorFeaturePresent(40)), "compatibility")
 
         class Memory(ctypes.Structure):
             _fields_ = [("length", ctypes.c_ulong), ("load", ctypes.c_ulong)] + [
@@ -79,12 +83,19 @@ def hardware():
                 values[key] = int(value.split()[0]) * 1024
         total, available = values["MemTotal"], values["MemAvailable"]
         cpus = len(os.sched_getaffinity(0))
+        with open("/proc/cpuinfo", encoding="ascii") as stream:
+            cpuinfo = stream.read()
+        flags = [set(line.split(":", 1)[1].split()) for line in cpuinfo.splitlines()
+                 if line.startswith("flags")]
+        check(bool(flags) and all("avx2" in row for row in flags), "compatibility")
     check(cpus >= 4 and total >= 8 * 1024**3 and available >= 4 * 1024**3, "limit")
     return {
         "os": platform.platform(),
         "platform": system,
         "architecture": platform.machine(),
         "cpu": platform.processor(),
+        "python": platform.python_version(),
+        "avx2": True,
         "logical_cpus": cpus,
         "ram_total": total,
         "ram_available": available,

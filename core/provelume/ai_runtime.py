@@ -7,6 +7,7 @@ adapter can call this boundary. Public service execution remains fail-closed.
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import json
 import os
 import queue
@@ -26,7 +27,9 @@ from .ai_runtime_contract import (
     RUNTIME_ID,
     RUNTIME_VERSION,
     hardware,
+    runtime_lock,
 )
+from .maintenance_local_files import open_local_file
 from .ocr_process import minimal_child_environment
 from .representations import canonical_json_bytes
 
@@ -58,6 +61,21 @@ class LocalRuntime:
         self._messages = queue.Queue(maxsize=8)
         self._load = None
         self.last_observation = None
+
+    def validate_installation(self):
+        """Revalidate native bytes at activation/use, including a warm worker."""
+        inventory = runtime_lock()["platforms"][native_selection().platform]
+        try:
+            check({p.name for p in self.directory.iterdir()} == set(inventory), "integrity")
+            for name, expected in inventory.items():
+                with open_local_file(self.directory / name) as stream:
+                    check(os.fstat(stream.fileno()).st_size == expected["size"] and
+                          hashlib.file_digest(stream, "sha256").hexdigest() == expected["sha256"],
+                          "integrity")
+        except ModelError:
+            raise
+        except Exception:
+            raise ModelError("integrity") from None
 
     @property
     def loaded(self):
@@ -158,7 +176,7 @@ class LocalRuntime:
         timer, self._timer = self._timer, None
         if timer is not None:
             timer.cancel()
-        process, self._process = self._process, None
+        process = self._process
         try:
             if process is not None:
                 if process.poll() is None:
@@ -175,6 +193,11 @@ class LocalRuntime:
                 process.stdin.close()
                 process.stdout.close()
         finally:
+            # If termination cannot be confirmed, keep both ownership and the slot.
+            # A later explicit close may recover it; another worker must not start.
+            if process is not None and process.poll() is None:
+                raise ModelError("busy")
+            self._process = None
             self._reader = self._model = self._load = None
             if self._slot:
                 self._slot = False
@@ -199,6 +222,7 @@ class LocalRuntime:
             deadline = time.monotonic() + 60
             started = time.monotonic()
             checkpoint(cancel, deadline)
+            self.validate_installation()
             if self._timer is not None:
                 self._timer.cancel()
                 self._timer = None
