@@ -104,13 +104,17 @@ def test_faults_cleanup_no_retry_and_following_caller(host, model, kind):
     assert host._infer(model, runtime.native_selection(), "next")["text"] == "ORCHID"
 
 
-@pytest.mark.parametrize("stage", ["construct", "reader_start"])
+@pytest.mark.parametrize("stage", ["construct", "reader_start", "writer_start"])
 def test_construction_start_failure_releases_slot(host, model, monkeypatch, stage):
     target, attribute = ((runtime.subprocess, "Popen") if stage == "construct" else
                          (runtime.threading.Thread, "start"))
     original = getattr(target, attribute)
+    calls = []
 
     def broken(*args, **kwargs):
+        calls.append(True)
+        if stage == "writer_start" and len(calls) != 2:
+            return original(*args, **kwargs)
         raise OSError("synthetic-private-failure-detail")
 
     monkeypatch.setattr(target, attribute, broken)
@@ -148,6 +152,29 @@ def test_cancel_before_start_and_no_implicit_install(host, model):
     assert not host.loaded
     with pytest.raises(ModelError, match="consent"):
         host.qualify(None, "hello")
+
+
+def test_worker_not_reading_cannot_block_pipe_cancellation(tmp_path, model, monkeypatch):
+    original = subprocess.Popen
+    delayed = SCRIPT.replace("for line in sys.stdin:", "time.sleep(2)\nfor line in sys.stdin:")
+
+    def process(command, **kwargs):
+        return original([getattr(sys, "_base_executable", sys.executable),
+                         "-I", "-c", delayed], **kwargs)
+
+    monkeypatch.setattr(runtime.subprocess, "Popen", process)
+    monkeypatch.setattr(runtime, "hardware", lambda: {})
+    monkeypatch.setattr(runtime.LocalRuntime, "validate_installation", lambda self: None)
+    host = runtime.LocalRuntime(tmp_path)
+    started = time.monotonic()
+    try:
+        with pytest.raises(ModelError, match="cancelled"):
+            host._infer(model, runtime.native_selection(), "\x01" * 4096,
+                        cancel=lambda: time.monotonic() - started >= 0.3)
+        assert time.monotonic() - started < 1.5
+        assert not host.loaded and host._writer is None
+    finally:
+        host.close()
 
 
 def test_gguf_verification_streams_bounded_chunks_and_rejects_changes(tmp_path):

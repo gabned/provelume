@@ -4,6 +4,9 @@ Issue #320, sole owner PR #321, after integrated and qualified S01–S04. The se
 and frozen thresholds are [ADR 0031](../adr/0031-cpu-local-runtime-candidate.md).
 Candidate selection, S05 technical qualification and S09 Recommended promotion are
 three separate decisions. None authorizes product dispatch before S06.
+Actual profiles, numerical results and retained failures are in the
+[S05 qualification record](../qualification/custodia-s05-cpu-runtime.md); final
+exact-head and actual-main qualification are linked from the sole owner ledger.
 
 ## Boundary and compatibility
 
@@ -28,7 +31,9 @@ One process slot per Core interpreter, one active request, zero queue. Multiple
 independent Core processes are not a global job budget; S06 owns that enforcement.
 The worker uses fixed two-thread CPU inference, 2048 context tokens, 1536 input
 tokens, 4096 input bytes, 128 output tokens and 4096 output bytes. Greedy sampling
-is fixed. StdIO messages and the reader queue are bounded. Errors, crash, malformed
+is fixed. StdIO messages, the reader queue and the single supervised writer are
+bounded; a worker that stops consuming input cannot block cancellation in a pipe
+write. Errors, crash, malformed
 output, cancellation and timeout close the operation without retry or fallback.
 
 ## OS controls, byte integrity and limits
@@ -56,7 +61,9 @@ The fixed 60-second operation limit includes load/generation; cancellation polls
 at bounded supervisor waits and termination has a two-second deadline. Python
 thread count is configurable, not a hard OS thread ceiling. Parent verification
 streams weights through existing S04 admission; OS controls start before native
-library load. The interpreter and application code are trusted application inputs.
+library load and application dependency imports. A content-free child HOME prevents
+implicit NSS account-home discovery, but is never treated as network evidence.
+The interpreter and application code are trusted application inputs.
 
 Model integrity, governed metadata and origin authenticity remain distinct. The
 application-pinned registry and native lock are reviewed source artifacts; a

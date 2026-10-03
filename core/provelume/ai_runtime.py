@@ -56,6 +56,7 @@ class LocalRuntime:
         self._lock = threading.RLock()
         self._process = None
         self._reader = None
+        self._writer = None
         self._timer = None
         self._slot = False
         self._model = None
@@ -99,11 +100,33 @@ class LocalRuntime:
             with contextlib.suppress(queue.Full):
                 messages.put_nowait({"event": "eof"})
 
-    def _send(self, value):
+    def _send(self, value, *, deadline, cancel):
         raw = json.dumps(value, ensure_ascii=True, separators=(",", ":")).encode("ascii") + b"\n"
         check(len(raw) <= 32768, "limit")
-        self._process.stdin.write(raw)
-        self._process.stdin.flush()
+        # A worker that stops reading must not trap the supervisor in a pipe
+        # write (especially escaped Unicode/control input on Windows' small pipe).
+        # One writer at a time, no queue; cancellation/deadline still owns cleanup.
+        done, failed = threading.Event(), []
+        process = self._process
+
+        def write():
+            try:
+                check(process.stdin.write(raw) == len(raw), "state")
+                process.stdin.flush()
+            except Exception:
+                failed.append(True)
+            finally:
+                done.set()
+
+        checkpoint(cancel, deadline)
+        self._writer = threading.Thread(target=write, daemon=True)
+        self._writer.start()
+        while not done.wait(0.02):
+            checkpoint(cancel, deadline)
+            check(self.loaded, "state")
+        check(not failed, "state")
+        self._writer.join()
+        self._writer = None
 
     def _receive(self, event, *, deadline, cancel):
         while True:
@@ -183,7 +206,8 @@ class LocalRuntime:
                 target=self._drain, args=(self._process, self._messages), daemon=True
             )
             self._reader.start()
-            self._send({"runtime": str(self.directory), "model": str(model.model.path)})
+            self._send({"runtime": str(self.directory), "model": str(model.model.path)},
+                       deadline=deadline, cancel=cancel)
             self._load = self._receive("loaded", deadline=deadline, cancel=cancel)
             check(self._load.get("pid") == self._process.pid, "state")
             self._model = model.entry.model_sha256
@@ -209,6 +233,8 @@ class LocalRuntime:
                 process.wait(timeout=2)
                 if self._reader is not None and self._reader.ident is not None:
                     self._reader.join(timeout=0.25)
+                if self._writer is not None and self._writer.ident is not None:
+                    self._writer.join(timeout=0.25)
                 process.stdin.close()
                 process.stdout.close()
         finally:
@@ -217,7 +243,7 @@ class LocalRuntime:
             if process is not None and process.poll() is None:
                 raise ModelError("busy")
             self._process = None
-            self._reader = self._model = self._load = None
+            self._reader = self._writer = self._model = self._load = None
             if self._slot:
                 self._slot = False
                 _SLOT.release()
@@ -252,7 +278,7 @@ class LocalRuntime:
                 self._stop()
                 self._start(model, deadline=deadline, cancel=cancel)
             check(self._model == model.entry.model_sha256, "stale")
-            self._send({"prompt": prompt})
+            self._send({"prompt": prompt}, deadline=deadline, cancel=cancel)
             value = self._receive("result", deadline=deadline, cancel=cancel)
             check(
                 type(value.get("text")) is str and len(value["text"].encode("utf-8")) <= 4096,

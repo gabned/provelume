@@ -1448,8 +1448,10 @@ S03 (#316/#317) is completed with bounded replaceable transports and explicit di
 live provider/model was NOT_RUN within S03. S04 (#318/#319) is integrated and qualified at
 main `9fabc34a870a98c63bcd589f1f4ab337855b335d`, using synthetic lifecycle fixtures.
 S05 (#320/#321) evaluates one CPU candidate: llama.cpp b11379 with Qwen2.5-1.5B-Instruct
-GGUF Q4_K_M under precommitted ADR 0031 thresholds. Selection is not qualification or
-Recommended promotion; the owner ledger retains native measurements and unresolved gates.
+GGUF Q4_K_M under precommitted ADR 0031 thresholds. The implementation and
+[native measurement record](qualification/custodia-s05-cpu-runtime.md) distinguish
+selection, observed-profile technical qualification and S09 Recommended promotion;
+the sole owner ledger retains final exact-head integration and actual-main checks.
 Product inference remains disabled until S06. S06–S09 remain planned and unstarted.
 Package/runtime/embedded/Windows identity stays at published 0.11.0.
 

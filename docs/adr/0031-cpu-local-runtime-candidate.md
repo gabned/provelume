@@ -1,7 +1,9 @@
 # ADR 0031: one CPU runtime candidate for Custodia S05
 
-Status: candidate selected; technical qualification pending; Recommended promotion
-requires S09. Parent #311, slice #320. Decision and thresholds fixed before any
+Status: candidate selected; real native measurements and exact-source findings are
+recorded in the [S05 qualification record](../qualification/custodia-s05-cpu-runtime.md).
+The sole PR #321 ledger owns final technical qualification/integration; Recommended
+promotion requires S09. Parent #311, slice #320. Decision and thresholds fixed before any
 candidate inference or scoring on 2026-10-03. Failures do not change these thresholds.
 
 ## Choice and provenance
