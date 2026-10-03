@@ -1,0 +1,46 @@
+{
+  "entries": [
+    {
+      "app_version": "0.11.0",
+      "channel": "candidate",
+      "evidence": "repository:docs/architecture/ai-model-lifecycle.md#provenance",
+      "format": "synthetic-bytes-v1",
+      "id": "fixture.model-v1",
+      "license": "CC0-1.0",
+      "license_sha256": "920d47259af7ebe122bf712df23a5f03cf1a7a93ac4c7eb25a2d172a199bbcd7",
+      "license_size": 61,
+      "model_sha256": "41c0d4cb03b084beec675ea62cef7c165af1a5f0528885dbafa04519a67cd08a",
+      "model_size": 38,
+      "origin": "https://fixtures.invalid",
+      "package_sha256": "009f6208d727e04fcdb5e396e6da1002d5d0596643640e5c49981cb9a7969e15",
+      "package_size": 313,
+      "qualification": "SYNTHETIC_ONLY",
+      "runtime_id": "provelume.synthetic-fixture",
+      "runtime_version": "1",
+      "url": "https://fixtures.invalid/custodia/model-v1.zip",
+      "version": "1"
+    },
+    {
+      "app_version": "0.11.0",
+      "channel": "candidate",
+      "evidence": "repository:docs/architecture/ai-model-lifecycle.md#provenance",
+      "format": "synthetic-bytes-v1",
+      "id": "fixture.model-v2",
+      "license": "CC0-1.0",
+      "license_sha256": "920d47259af7ebe122bf712df23a5f03cf1a7a93ac4c7eb25a2d172a199bbcd7",
+      "license_size": 61,
+      "model_sha256": "2c4ecba77dd51062d063daa0c73e60f9e79052a71178e36c27930418e76a92c0",
+      "model_size": 38,
+      "origin": "https://fixtures.invalid",
+      "package_sha256": "02eb0897ce652aa70915c25c84dc1cf3394d8076d09e6184753ef23eec77b579",
+      "package_size": 313,
+      "qualification": "SYNTHETIC_ONLY",
+      "runtime_id": "provelume.synthetic-fixture",
+      "runtime_version": "1",
+      "url": "https://fixtures.invalid/custodia/model-v2.zip",
+      "version": "2"
+    }
+  ],
+  "repository": "gabned/provelume",
+  "schema_version": 1
+}

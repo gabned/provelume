@@ -720,3 +720,10 @@ class ComponentInventory:
 
     def export_bytes(self, *, release_sbom: Path | str | None = None) -> bytes:
         return _canonical_json(self.read(release_sbom=release_sbom))
+
+    @staticmethod
+    def model_registry() -> dict[str, Any]:
+        """Internal Components, models & licenses data; never installed evidence."""
+        from .ai_models import ModelRegistry
+
+        return ModelRegistry.packaged().inventory()

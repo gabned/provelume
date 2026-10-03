@@ -49,6 +49,13 @@ exercised with synthetic fixtures. No product inference caller exists until S06;
 user previews. Configuration/state reads are local; explicit diagnostics establish only
 a connection, never model compatibility, authentication, inference or offline assurance.
 
+S04 (#318) supplies the [governed model lifecycle](ai-model-lifecycle.md), including explicit
+artifact acquisition/import, byte verification, self-test/internal activation, recovery and
+rollback. App/runtime/model identity and candidate/stable/qualification stay separate.
+Artifact GET is distinct from inference and preserves web-intake SSRF. Synthetic fixtures
+cannot establish managed offline locality or enable product dispatch; S05 chooses the real
+runtime and S06 gates execution. S01–S03 are completed through #313/#315/#317.
+
 Domain code must request capabilities rather than vendor APIs. Candidate capabilities include:
 
 - `structured_output`;

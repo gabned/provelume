@@ -1444,9 +1444,10 @@ network transparency.
 **Activation:** parent [#311](https://github.com/gabned/provelume/issues/311), first slice
 [#312](https://github.com/gabned/provelume/issues/312), and the canonical
 [nine-slice release plan](releases/0.12.0.md). S01 and S02 are completed through #313/#315.
-S03 (#316) implements bounded replaceable transports and explicit connection diagnostics
-in its owner change, qualified with synthetic fixtures only; live provider/model NOT_RUN.
-Product inference remains disabled until S06. S04–S09 remain planned.
+S03 (#316/#317) is completed with bounded replaceable transports and explicit diagnostics;
+live provider/model remains NOT_RUN. S04 (#318) implements the governed model registry and
+verified installation/update lifecycle in its sole owner change, using synthetic fixtures.
+Product inference remains disabled until S06. S05–S09 remain planned.
 Package/runtime/embedded/Windows identity stays at published 0.11.0.
 
 **Outcome:** optional AI off / Local Recommended / External / Explicit Hybrid, with a first

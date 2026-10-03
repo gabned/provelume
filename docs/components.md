@@ -18,6 +18,13 @@ The inventory does not execute optional tools or search model directories. Execu
 reports presence without returning its path; model and language-pack claims require explicit
 evidence. No credential, private filesystem path or Instance content is included.
 
+Custodia S04 adds an internal `ComponentInventory.model_registry` data projection for the
+[governed model lifecycle](architecture/ai-model-lifecycle.md). It separates application,
+runtime and model identities, provenance, license, size, channel and actual qualification.
+Registry presence is not installation. Both shipped entries are synthetic fixtures, with no
+Recommended or real offline-qualified runtime. The complete user surface remains S07; the
+existing component inventory and its release SBOM contract remain unchanged.
+
 Schema 2 adds the `ui_asset` category to the existing seven categories. The `ui.lucide`
 entry describes the 18-icon subset packaged with Provelume, version 1.45.0, with the
 complete upstream `ISC AND MIT` license. Its installed state requires exact manifest,
