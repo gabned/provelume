@@ -363,7 +363,13 @@ class ModelStore:
             self._native_runners.pop(identifier, None)
             model = self._verify(entry)
             started = time.monotonic()
-            checkpoint(cancel, started + OPERATION_SECONDS)
+            seconds = OPERATION_SECONDS
+            if entry.format == "gguf-v3-q4_k_m":
+                from .ai_runtime_contract import CONFIGURATION
+
+                seconds = CONFIGURATION["seconds"]
+            deadline = started + seconds
+            checkpoint(cancel, deadline)
             try:
                 # Trusted host implementation only; packages never supply a runner.
                 if entry.format == "gguf-v3-q4_k_m":
@@ -373,7 +379,7 @@ class ModelStore:
                 result = runner(model, runtime, cancel)
             except Exception:
                 raise ModelError("self_test") from None
-            checkpoint(cancel, started + OPERATION_SECONDS)
+            checkpoint(cancel, deadline)
             check(type(result) is str and result in ("PASSED", "FAILED", "UNKNOWN"), "self_test")
             # A callback cannot validate bytes that changed while it was running.
             self._verify(self._entry(identifier, runtime))

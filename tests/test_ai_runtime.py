@@ -353,6 +353,43 @@ def test_native_evidence_requires_same_configuration_and_current_admission(tmp_p
         store._entry(MODEL_ID, selection)
 
 
+@pytest.mark.parametrize("native,elapsed,accepted", [
+    (False, 29, True), (False, 31, False),
+    (True, 31, True), (True, 59, True), (True, 61, False),
+])
+def test_lifecycle_self_test_honors_its_closed_runtime_budget(
+    tmp_path, monkeypatch, native, elapsed, accepted,
+):
+    from contextlib import nullcontext
+
+    from provelume import ai_model_store as storage
+
+    store = storage.ModelStore(tmp_path / "store")
+    entry = (store.registry.entry(MODEL_ID) if native else store.registry.entries[0])
+    selection = runtime.native_selection() if native else storage.default_runtime()
+    clock = [0.0]
+    monkeypatch.setattr(storage.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(store, "_hold", nullcontext)
+    monkeypatch.setattr(store, "_verify", lambda entry: object())
+
+    def result(*args):
+        clock[0] = elapsed
+        return "PASSED"
+
+    if native:
+        monkeypatch.setattr(runtime.LocalRuntime, "__call__", result)
+        runner = runtime.LocalRuntime(tmp_path / "native")
+    else:
+        runner = result
+    if accepted:
+        evidence = store.self_test(entry.id, selection, runner, requested=True)
+        assert evidence.result == "PASSED" and evidence.expires == 60
+    else:
+        with pytest.raises(ModelError, match="timeout"):
+            store.self_test(entry.id, selection, runner, requested=True)
+        assert entry.id not in store._evidence
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="native Windows Job Object only")
 def test_windows_job_refuses_descendant_process():
     import sysconfig

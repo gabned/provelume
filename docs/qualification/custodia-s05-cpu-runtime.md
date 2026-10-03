@@ -94,6 +94,15 @@ The owner correction makes pipe writes supervised and bounded too, retaining one
 writer and no queue, and adds a regression with an escaped 4096-byte input and a
 worker that stops reading. No gate is satisfied merely by successful ordinary input.
 
+The automatically triggered optional review of 54cb314a found a further P2:
+the inherited S04 self-test checkpoint rejected native results after 30 seconds,
+although the frozen native configuration permits 60 seconds. The correction selects
+that existing 60-second budget only for the closed GGUF runtime; synthetic S04
+self-tests and acquisition retain 30 seconds. Injected-clock contract regressions
+first reproduced rejection at 31/59 seconds and then pass those native cases while
+refusing native 61 seconds and synthetic 31 seconds. No ADR threshold or canonical
+suite timeout changes. Final source-bound CI and the resolved thread remain in #321.
+
 Local Windows remains a distinct restricted host: Python 3.12.14, Node 24.16.0,
 Windows 11 build 26300, Intel family 6 model 186 stepping 3, 12 logical CPUs.
 Its canonical full suites retain 540-second timeout failures and protected-parent/
@@ -116,4 +125,3 @@ acquisition/import, exact-byte self-test, real EN/IT inference, OS observation,
 cancellation/unload, corruption refusal and deterministic-flow checks. No new
 scheduler, product AI dispatch, S06–S09 feature, account, paid service, remote
 inference, version/tag or publication is introduced.
-
