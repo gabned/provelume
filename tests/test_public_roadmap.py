@@ -709,7 +709,7 @@ def test_release_quality_and_adoption_gates_are_mandatory_and_aligned() -> None:
     for required_contract in (
         "## Personal use and dissemination contract",
         "Forecast means unavailable",
-        "Current published `0.10.1`",
+        "Current published `0.11.0`",
         "First recommended personal daily-use beta",
         "non-technical desktop-preview gate",
         "broad release-candidate qualification",
@@ -864,8 +864,8 @@ def test_ai_classification_is_closed_reviewable_and_reconcilable() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Forecast | `0.13.0` | AI classification, controlled autonomy, receipts, "
-        "provider adapters and evaluation |"
+        "| Forecast | `0.13.0` | AI classification, confidence and controlled application "
+        "extending Custodia receipts/templates |"
     ) == 1
     for required_contract in (
         "disabled`, `proposal-only`, `confirm-each` and\n`controlled-automatic` policies",

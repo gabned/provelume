@@ -4,6 +4,13 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Added
+
+- Custodia `0.12/S01`: versioned internal AI descriptors, pure fail-closed scope-policy
+  preflight, stale-plan validation and synthetic-only adapter conformance. No real inference,
+  model download, new user surface or package-version change is enabled. The nine-slice
+  release plan adopts #224's Custodia subset and preserves later release boundaries.
+
 ## 0.11.0 - 2026-10-02
 
 Cura preview identity is prepared after verified S01–S09 delivery. Official publication

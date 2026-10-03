@@ -5,6 +5,14 @@ from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from .ai_contract import (
+    GovernanceSnapshot,
+    LocalityEvidence,
+    Plan,
+    PolicyRule,
+    Profile,
+    RequestDescriptor,
+)
 from .audio_profiles import AudioProfileManager
 from .component_inventory import ComponentInventory
 from .connectors import ConnectorManager
@@ -72,6 +80,22 @@ from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTran
 
 
 class ProvelumeInstance:
+    @staticmethod
+    def ai_explain(
+        request: RequestDescriptor | dict[str, Any],
+        *,
+        snapshot: GovernanceSnapshot,
+        rules: tuple[PolicyRule, ...],
+        profiles: tuple[Profile, ...],
+        evidence: tuple[LocalityEvidence, ...],
+    ) -> Plan:
+        """Internal dry-run seam; does not open an Instance or authorize execution."""
+        from .ai_gateway import explain
+
+        return explain(
+            request, snapshot=snapshot, rules=rules, profiles=profiles, evidence=evidence,
+        )
+
     def __init__(self, root: Path | str):
         self.store = InstanceStore.open(root)
         self.retention = DocumentRetentionManager(self.store)

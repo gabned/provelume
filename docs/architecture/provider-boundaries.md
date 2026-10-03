@@ -30,7 +30,13 @@ capability contract is implemented.
 
 Configured endpoints are transparency metadata, not connection instructions for this read-only surface. Only safe HTTP(S) origins are returned; credentials, paths, query strings and fragments are never surfaced. Runtime traffic observation is explicitly `not_instrumented` and remains separate from declared capability.
 
-## Future AI Gateway boundary
+## Custodia internal AI Gateway boundary
+
+The `0.12/S01` [preflight contract](ai-gateway-preflight.md) now supplies versioned internal
+descriptors, independent locality evidence and a pure scope-policy resolver through
+`ProvelumeInstance.ai_explain`. It returns only a plan; it opens no Instance, contacts no
+provider and grants no execution or canonical-write authority. Its deterministic fake adapter
+lives only in synthetic tests, outside the product package. Real inference remains unavailable.
 
 Domain code must request capabilities rather than vendor APIs. Candidate capabilities include:
 
@@ -47,4 +53,7 @@ The disabled/no-provider state is valid. Core business logic must not call a ven
 
 Embeddings, vector indexes and technical caches are derived state. They must record enough metadata to be rebuilt with a different model/provider without changing canonical knowledge or provenance.
 
-AI-derived knowledge that becomes durable will require explicit receipts and source references; this is not implemented in the 0.1 vertical slice.
+Custodia's base receipt distinguishes plans, denials and synthetic simulations without claiming
+transmission. Later Custodia slices extend it for actual bounded derived work; Iudicium (0.13)
+adds classification, calibrated confidence and controlled application. No durable AI output is
+created by S01.
