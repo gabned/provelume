@@ -285,6 +285,13 @@ def test_selection_closed_types(field, value):
         Selection.from_bytes(canonical_json_bytes({**selections[0].as_record(), "path": "secret"}))
 
 
+@pytest.mark.parametrize("literal", ["\ud800", "\udfff"])
+def test_redaction_rejects_unpaired_surrogates_with_closed_error(literal):
+    with pytest.raises(AiContractError, match=Reason.INVALID) as error:
+        RedactionConfig(literals=(literal,))
+    assert str(error.value) == Reason.INVALID
+
+
 def test_redaction_determinism_overlap_and_disclosed_limits():
     source, selections, current, _ = context_case("a@example.test PRIVATE private Ada +39 12345")
     redacted = preview_context(source, selections, **current)

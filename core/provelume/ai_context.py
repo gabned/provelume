@@ -240,6 +240,7 @@ class RedactionConfig(Contract):
         sequence(self.literals, 32)
         for value in self.literals:
             require(type(value) is str and 1 <= len(value) <= 256)
+            require(not any(0xD800 <= ord(char) <= 0xDFFF for char in value))
             require(unicodedata.normalize("NFC", value) == value and "\r" not in value)
         object.__setattr__(self, "literals", tuple(sorted(set(self.literals))))
 
