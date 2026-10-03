@@ -197,7 +197,7 @@ def explain(
             () if allowed else decisions[0].reasons,
             digest(bound),
             policy.policy_fingerprint,
-            policy.limits,
+            request.limits,
             decisions,
         )
     except AiContractError as error:

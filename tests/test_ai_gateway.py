@@ -328,6 +328,21 @@ def test_explicit_fallback_eligibility_is_restricted(restriction, reason):
     assert plan.routes[1].reasons == (reason,)
 
 
+def test_plan_exposes_request_ceiling_below_policy_and_profile():
+    request, current = synthetic_case()
+    request = replace(request, limits=Limits(512, 32, 1, 5))
+    policy = resolve_policy(current["snapshot"], current["rules"])
+    plan = explain(request, **current)
+    assert plan.outcome == Outcome.PLANNED
+    assert plan.limits == request.limits
+    assert all(
+        selected < ceiling
+        for selected, ceiling in zip(plan.limits.values(), policy.limits.values(), strict=True)
+    )
+    assert plan.routes[0].eligible
+    assert plan.routes[1].reasons == (Reason.LIMIT,)
+
+
 def test_attempt_budget_and_external_network_gate_apply_to_fallback():
     request, current = synthetic_case()
     request = replace(request, limits=replace(request.limits, max_attempts=1))

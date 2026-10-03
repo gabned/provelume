@@ -70,6 +70,8 @@ permutations and identical duplicate rules yield the same binding. Route order i
 The descriptor envelope caps input at 1 MiB, output at 8,192 tokens, attempts at four and
 wall time at 300 seconds. These are planning ceilings, not runtime enforcement or cost
 reservations. Each request/profile/policy chooses positive integers within those ceilings.
+The plan exposes the request's effective limits after checking them against every applicable
+ceiling; it never replaces a stricter requested budget with the broader policy maximum.
 At most 128 scope associations, 256 rule occurrences, 16 profiles and 32 evidence records
 are accepted; the final bound descriptor is capped at 128 KiB. No inference estimates,
 provider billing or execution guarantees are inferred from these declarations.
