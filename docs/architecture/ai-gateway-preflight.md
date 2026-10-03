@@ -13,7 +13,8 @@ context fingerprint, consent revision, template identity/revision, input byte co
 limits. It accepts no prompt, endpoint, credential reference, paths or extra fields.
 The supported planning capability is `structured_output`; vision, embeddings,
 transcription and tool calling are explicit reserved capabilities and are denied.
-This is not S02 context extraction, tokenization, redaction or result-schema evaluation.
+S02's [bounded context preparation](ai-bounded-context.md) supplies a separate explicit
+bridge into this descriptor. It does not add I/O or result evaluation to the pure preflight.
 
 The host supplies three independent inputs outside the request:
 
@@ -92,5 +93,5 @@ and stale-Version rejection. I/O spies prohibit socket/DNS, filesystem reads/wri
 environment access and subprocess/model discovery while exercising the service and fake.
 Full native suites retain deterministic intake, capture, search and reading regressions.
 
-S02 adds bounded context and untrusted-output isolation. S01 deliberately provides no
+S02 now adds bounded context and untrusted-output isolation through that bridge. S01 provides no
 actual model, transport, user inference path, monetary reservation or canonical-write grant.

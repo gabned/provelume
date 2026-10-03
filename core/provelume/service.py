@@ -81,6 +81,13 @@ from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTran
 
 class ProvelumeInstance:
     @staticmethod
+    def ai_context_preview(source, selections, **current):
+        """Internal local preview of explicitly supplied context; no Instance I/O."""
+        from .ai_context import preview_context
+
+        return preview_context(source, selections, **current)
+
+    @staticmethod
     def ai_explain(
         request: RequestDescriptor | dict[str, Any],
         *,
