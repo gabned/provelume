@@ -1,0 +1,54 @@
+name: Custodia S05 real CPU candidate measurements
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  measure:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Canonical dependency bootstrap
+        run: python scripts/bootstrap.py
+      - name: Explicit locked acquisition (no model in artifacts or Git)
+        run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/s05-inputs" --accept-licenses --include-model
+      - name: Build locked native input with notices and SBOM, offline
+        run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/build_ai_runtime_input.py --directory "${{ runner.temp }}/s05-inputs/${{ runner.os == 'Windows' && 'windows' || 'linux' }}" --platform ${{ runner.os == 'Windows' && 'windows' || 'linux' }} --output .agent/s05-native-input.zip
+      - name: Real Linux execution with external syscall observation
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set +e
+          strace -ff -tt -e trace=network -o .agent/s05-network .venv/bin/python scripts/qualify_ai_runtime.py --artifacts "${{ runner.temp }}/s05-inputs" --output .agent/s05-real.json
+          measurement=$?
+          if test ! -f .agent/s05-real.json; then exit "$measurement"; fi
+          .venv/bin/python scripts/ai_runtime_network.py --report .agent/s05-real.json --trace .agent/s05-network
+      - name: Real Windows execution with disposable WFP control and audit
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/qualify_ai_runtime_windows.ps1 -Artifacts "${{ runner.temp }}/s05-inputs"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: s05-real-${{ matrix.os }}
+          path: |
+            .agent/s05-real.json
+            .agent/s05-network.*
+            .agent/s05-wfp.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30

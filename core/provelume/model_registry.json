@@ -39,6 +39,26 @@
       "runtime_version": "1",
       "url": "https://fixtures.invalid/custodia/model-v2.zip",
       "version": "2"
+    },
+    {
+      "app_version": "0.11.0",
+      "channel": "candidate",
+      "evidence": "repository:docs/adr/0031-cpu-local-runtime-candidate.md",
+      "format": "gguf-v3-q4_k_m",
+      "id": "qwen2.5-1.5b-instruct-q4-k-m",
+      "license": "Apache-2.0",
+      "license_sha256": "832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e",
+      "license_size": 11343,
+      "model_sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e",
+      "model_size": 1117320736,
+      "origin": "https://huggingface.co",
+      "package_sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e",
+      "package_size": 1117320736,
+      "qualification": "CANDIDATE_NOT_QUALIFIED",
+      "runtime_id": "llama.cpp",
+      "runtime_version": "b11379",
+      "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/91cad51170dc346986eccefdc2dd33a9da36ead9/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+      "version": "1"
     }
   ],
   "repository": "gabned/provelume",

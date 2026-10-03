@@ -57,6 +57,8 @@ def test_governed_manifest_separates_identity_trust_and_qualification():
     registry = ModelRegistry.packaged()
     assert sha256(registry.raw) == MANIFEST_SHA256
     for entry in registry.entries:
+        if entry.format != "synthetic-bytes-v1":
+            continue  # S05 has separate real-candidate identity/qualification checks.
         assert entry.package_sha256 == sha256(package(entry.version))
         assert entry.qualification == "SYNTHETIC_ONLY"
         assert entry.profile.model == "fixture.model"
@@ -388,7 +390,7 @@ def test_no_implicit_network_or_dispatch(store, runtime, monkeypatch):
     assert not store.root.exists()
     with pytest.raises(ModelError, match="consent"):
         store.registry.discover()
-    assert store.registry.discover(requested=True) == (V1, V2)
+    assert store.registry.discover(requested=True) == (V1, V2, "qwen2.5-1.5b-instruct-q4-k-m")
     install(store, runtime)
     activate(store, runtime)
     assert ProvelumeInstance.ai_execution_status()["enabled"] is False

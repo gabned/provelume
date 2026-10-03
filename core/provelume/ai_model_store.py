@@ -58,7 +58,7 @@ _TEMP_NAME = re.compile(r"\.maintenance-[0-9a-f]{32}\.tmp\Z")
 @dataclass(frozen=True, slots=True, repr=False)
 class VerifiedModel:
     entry: ModelEntry
-    model: bytes
+    model: object
     license: bytes
 
 
@@ -71,7 +71,9 @@ class SelfTestEvidence:
 
     def public_record(self):
         return {"model_id": self.model_id, "binding": self.binding, "result": self.result,
-                "scope": "SYNTHETIC_ONLY", "inference_authorized": False}
+                "scope": ("REAL_RUNTIME_SELF_TEST" if self.model_id ==
+                          "qwen2.5-1.5b-instruct-q4-k-m" else "SYNTHETIC_ONLY"),
+                "inference_authorized": False}
 
 
 def inspect_package(raw: bytes, entry: ModelEntry) -> VerifiedModel:
@@ -143,6 +145,7 @@ class ModelStore:
               len(set(self.allowed_ids)) == len(self.allowed_ids))
         check(all(item in tuple(e.id for e in self.registry.entries) for item in self.allowed_ids))
         self._evidence: dict[str, SelfTestEvidence] = {}
+        self._native_runners = {}
         self._session = uuid4().hex
 
     @classmethod
@@ -206,6 +209,10 @@ class ModelStore:
         return self.root / "verified" / (entry.package_sha256 + ".pkg")
 
     def _verify(self, entry):
+        if entry.format == "gguf-v3-q4_k_m":
+            from .ai_model_file import verify_file
+
+            return verify_file(self._path(entry), entry)
         return inspect_package(_read(self._path(entry), MAX_PACKAGE_BYTES), entry)
 
     def verify(self, identifier: str, runtime: RuntimeSelection) -> VerifiedModel:
@@ -267,7 +274,8 @@ class ModelStore:
                         total = 0
                         for chunk in chunks(entry, deadline):
                             checkpoint(cancel, deadline)
-                            check(type(chunk) is bytes and 0 < len(chunk) <= 4096, "limit")
+                            chunk_limit = 1024 * 1024 if entry.format == "gguf-v3-q4_k_m" else 4096
+                            check(type(chunk) is bytes and 0 < len(chunk) <= chunk_limit, "limit")
                             total += len(chunk)
                             check(total <= entry.package_size, "limit")
                             self._space(len(chunk))
@@ -276,12 +284,15 @@ class ModelStore:
                         check(total == entry.package_size, "integrity")
                         output.flush()
                         os.fsync(output.fileno())
-                raw = _read(stage, MAX_PACKAGE_BYTES)
-                inspect_package(raw, entry)
-                checkpoint(cancel, deadline)
-                # Same-volume, pinned-parent publication via the existing primitive.
-                # Rewriting verified bytes avoids reopening a changed source at rename.
-                write_local_bytes(target, raw, replace=True)
+                if entry.format == "gguf-v3-q4_k_m":
+                    from .ai_model_file import publish_file
+
+                    publish_file(stage, target, entry, cancel=cancel, deadline=deadline)
+                else:
+                    raw = _read(stage, MAX_PACKAGE_BYTES)
+                    inspect_package(raw, entry)
+                    checkpoint(cancel, deadline)
+                    write_local_bytes(target, raw, replace=True)
                 self._verify(entry)
                 return {"id": entry.id, "state": "verified", "activated": False}
             finally:
@@ -323,7 +334,7 @@ class ModelStore:
                 before = file_identity(handle)
                 while True:
                     checkpoint(cancel, deadline)
-                    chunk = handle.read(4096)
+                    chunk = handle.read(1024 * 1024 if entry.format == "gguf-v3-q4_k_m" else 4096)
                     if not chunk:
                         break
                     yield chunk
@@ -349,15 +360,26 @@ class ModelStore:
         with self._hold():
             entry = self._entry(identifier, runtime)
             self._evidence.pop(identifier, None)
+            self._native_runners.pop(identifier, None)
             model = self._verify(entry)
             started = time.monotonic()
-            checkpoint(cancel, started + OPERATION_SECONDS)
+            seconds = OPERATION_SECONDS
+            if entry.format == "gguf-v3-q4_k_m":
+                from .ai_runtime_contract import CONFIGURATION
+
+                seconds = CONFIGURATION["seconds"]
+            deadline = started + seconds
+            checkpoint(cancel, deadline)
             try:
                 # Trusted host implementation only; packages never supply a runner.
+                if entry.format == "gguf-v3-q4_k_m":
+                    from .ai_runtime import LocalRuntime
+
+                    check(type(runner) is LocalRuntime, "self_test")
                 result = runner(model, runtime, cancel)
             except Exception:
                 raise ModelError("self_test") from None
-            checkpoint(cancel, started + OPERATION_SECONDS)
+            checkpoint(cancel, deadline)
             check(type(result) is str and result in ("PASSED", "FAILED", "UNKNOWN"), "self_test")
             # A callback cannot validate bytes that changed while it was running.
             self._verify(self._entry(identifier, runtime))
@@ -365,6 +387,8 @@ class ModelStore:
                                         started + SELF_TEST_TTL_SECONDS)
             if result == "PASSED":
                 self._evidence[identifier] = evidence
+                if entry.format == "gguf-v3-q4_k_m":
+                    self._native_runners[identifier] = runner
             return evidence
 
     def _admit_evidence(self, entry, runtime, evidence):
@@ -372,6 +396,15 @@ class ModelStore:
         check(self._evidence.get(entry.id) is evidence and
               evidence.binding == self._binding(entry, runtime) and
               time.monotonic() < evidence.expires, "stale")
+        if entry.format == "gguf-v3-q4_k_m":
+            runner = self._native_runners.get(entry.id)
+            check(runner is not None, "stale")
+            try:
+                runner.validate_installation()
+            except Exception:
+                self._evidence.pop(entry.id, None)
+                runner.close()
+                raise ModelError("stale") from None
         return self._verify(entry)
 
     def activate(self, identifier: str, runtime: RuntimeSelection, evidence: SelfTestEvidence, *,

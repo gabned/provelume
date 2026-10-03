@@ -20,6 +20,14 @@ L'inventario non esegue strumenti opzionali e non esplora le cartelle dei modell
 un eseguibile è indicata senza mostrarne il percorso; modelli e pacchetti lingua richiedono
 evidenze esplicite. Credenziali, percorsi privati e contenuti dell'Istanza non sono inclusi.
 
+Il registro interno Custodia distingue installazione, self-test e attivazione interna.
+Oltre alle due fixture sintetiche, S05 valuta un solo candidato: Qwen2.5-1.5B-Instruct
+GGUF Q4_K_M con llama.cpp b11379. Lo stato resta `CANDIDATE_NOT_QUALIFIED` finché
+i gate nativi non sono soddisfatti; Recommended richiede la promozione integrata S09.
+La presenza del modello non abilita il dispatch prodotto, riservato a S06. Il
+[contratto runtime](architecture/ai-local-runtime.md) documenta limiti, licenze,
+SBOM dell'input nativo di build e riproduzione; le superfici complete restano S07.
+
 Lo schema 2 aggiunge `ui_asset` alle sette categorie esistenti. La voce `ui.lucide`
 descrive le 18 icone incluse nel pacchetto Provelume, versione 1.45.0, con la licenza
 upstream completa `ISC AND MIT`. Lo stato installato richiede gli hash esatti del

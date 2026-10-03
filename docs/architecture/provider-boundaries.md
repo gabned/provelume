@@ -32,6 +32,14 @@ Configured endpoints are transparency metadata, not connection instructions for 
 
 ## Custodia internal AI Gateway boundary
 
+S05's [CPU candidate runtime](ai-local-runtime.md) uses the existing S01–S04
+profile, compatibility and lifecycle boundaries. Internal synthetic qualification
+is the only real inference caller. It adds no provider resolver, public dispatch
+route or cloud rescue; product execution remains disabled until S06. Linux seccomp
+and Windows Job controls have different guarantees. Network qualification needs
+external native observations, including the additional CI WFP control on Windows;
+a process boundary alone is not an offline claim.
+
 The `0.12/S01` [preflight contract](ai-gateway-preflight.md) now supplies versioned internal
 descriptors, independent locality evidence and a pure scope-policy resolver through
 `ProvelumeInstance.ai_explain`. It returns only a plan; it opens no Instance, contacts no
