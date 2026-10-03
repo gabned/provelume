@@ -93,6 +93,8 @@ The release lane retains immutable earlier previews and the published Cura perso
 daily-use beta inside its qualified perimeter. [Custodia development](docs/releases/0.12.0.md)
 starts with #311 / #312: internal policy preflight and synthetic gateway tests only.
 Real AI inference remains unavailable; package identity stays 0.11.0.
+Later portfolio forecasts remain inactive from 0.13 onward; their release numbers
+and activation gates are unchanged.
 It does not use `0.9.5` for feature work.
 
 The active source tree can:
