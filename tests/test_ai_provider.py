@@ -39,6 +39,42 @@ from provelume.service import ProvelumeInstance
 from provelume.web_transport import WebTransportDestinationError, _public_ip
 
 
+@pytest.mark.parametrize(
+    "slot_name,failure", [("_DNS_SLOT", Failure.DNS), ("_SECRET_SLOT", Failure.CREDENTIAL)]
+)
+@pytest.mark.parametrize("failure_at", ["construct", "start"])
+def test_lookup_worker_start_failure_releases_slot_and_normalizes_error(
+    monkeypatch, slot_name, failure, failure_at
+):
+    slot = threading.BoundedSemaphore(1)
+    monkeypatch.setattr(http, slot_name, slot)
+    calls = []
+
+    def lookup():
+        calls.append("lookup")
+        return "synthetic-result"
+
+    def unavailable(*args, **kwargs):
+        raise RuntimeError("synthetic-private-startup-detail")
+
+    with monkeypatch.context() as patch:
+        if failure_at == "construct":
+            patch.setattr(http.threading, "Thread", unavailable)
+        else:
+            patch.setattr(http.threading.Thread, "start", unavailable)
+        with pytest.raises(ProviderError) as caught:
+            http._external(lookup, slot, http._Control(Cancellation(), 1), failure)
+        assert caught.value.code == failure
+        assert caught.value.transmission == Transmission.NOT_SENT
+        assert "synthetic-private" not in str(caught.value)
+        assert calls == []
+
+    # A distinct caller can make progress; there is no implicit retry.
+    result = http._external(lookup, slot, http._Control(Cancellation(), 1), failure)
+    assert result == "synthetic-result"
+    assert calls == ["lookup"]
+
+
 def no_effect(*args, **kwargs):
     pytest.fail("unexpected external effect")
 

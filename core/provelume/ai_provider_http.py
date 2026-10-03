@@ -93,7 +93,13 @@ def _external(function, slot, control, failure):
             slot.release()
             done.set()
 
-    threading.Thread(target=work, daemon=True, name="ai-provider-lookup").start()
+    try:
+        threading.Thread(target=work, daemon=True, name="ai-provider-lookup").start()
+    except Exception:
+        # No worker owns the slot when construction/start fails. Preserve the
+        # caller's transmission state and expose only the closed failure code.
+        slot.release()
+        raise ProviderError(failure, control.transmission) from None
     while not done.wait(control.poll()):
         pass
     control.poll()
