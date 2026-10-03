@@ -5,9 +5,16 @@ from __future__ import annotations
 import ctypes as c
 import os
 
-from .ai_models import check
-
 MEMORY = 3 * 1024**3
+
+
+def check(condition, code):
+    # This bootstrap must run before imports of the application dependency graph.
+    # Import closed application errors only on failure, before any native load.
+    if not condition:
+        from .ai_models import ModelError
+
+        raise ModelError(code)
 
 
 def contain():

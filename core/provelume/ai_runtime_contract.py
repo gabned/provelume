@@ -48,6 +48,7 @@ def runtime_lock():
 def hardware():
     """Observed resources, not qualification of a reference laptop."""
     system = platform.system().lower()
+    cpu = platform.processor()
     check(not getattr(sys, "frozen", False), "compatibility")
     check(sys.version_info[:2] == (3, 12), "compatibility")
     check(system in ("windows", "linux"), "compatibility")
@@ -86,6 +87,8 @@ def hardware():
         cpus = len(os.sched_getaffinity(0))
         with open("/proc/cpuinfo", encoding="ascii") as stream:
             cpuinfo = stream.read()
+        cpu = next((line.split(":", 1)[1].strip() for line in cpuinfo.splitlines()
+                    if line.startswith("model name")), cpu)
         flags = [set(line.split(":", 1)[1].split()) for line in cpuinfo.splitlines()
                  if line.startswith("flags")]
         check(bool(flags) and all("avx2" in row for row in flags), "compatibility")
@@ -94,7 +97,7 @@ def hardware():
         "os": platform.platform(),
         "platform": system,
         "architecture": platform.machine(),
-        "cpu": platform.processor(),
+        "cpu": cpu,
         "python": platform.python_version(),
         "avx2": True,
         "logical_cpus": cpus,

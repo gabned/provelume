@@ -142,6 +142,10 @@ class LocalRuntime:
                     "OMP_NUM_THREADS": "2",
                     "OMP_THREAD_LIMIT": "2",
                     "OPENBLAS_NUM_THREADS": "2",
+                    # Without HOME, Python/site and dependencies can ask NSS for
+                    # the account home before containment. This content-free path
+                    # prevents implicit identity lookup; it is not network proof.
+                    "HOME": str(self.directory),
                 },
             )
             # Isolated Python omits user site/PYTHONPATH; only this installed Core
@@ -153,7 +157,8 @@ class LocalRuntime:
                 "-I",
                 "-c",
                 "import sys;sys.path[:0]=sys.argv[1:3];"
-                "from provelume.ai_runtime_worker import main;main()",
+                "from provelume.ai_runtime_limits import contain;limits=contain();"
+                "from provelume.ai_runtime_worker import main;main(containment=limits)",
                 root,
                 sysconfig.get_path("purelib"),
             ]

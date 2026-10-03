@@ -282,6 +282,76 @@ def test_measurement_report_never_promotes_missing_or_failed_observations():
     assert evaluate(report)["status"] == "FAIL"
 
 
+def test_native_library_change_invalidates_lifecycle_evidence_and_closes_runner(
+    tmp_path, model, monkeypatch,
+):
+    from provelume.ai_model_store import ModelStore, SelfTestEvidence
+
+    store = ModelStore(tmp_path / "store")
+    selection = runtime.native_selection()
+    runner = runtime.LocalRuntime(tmp_path / "native")
+    evidence = SelfTestEvidence(MODEL_ID, store._binding(model.entry, selection),
+                                "PASSED", time.monotonic() + 60)
+    store._evidence[MODEL_ID] = evidence
+    store._native_runners[MODEL_ID] = runner
+    closed = []
+    monkeypatch.setattr(runner, "close", lambda: closed.append(True))
+
+    def changed():
+        raise ModelError("integrity")
+
+    monkeypatch.setattr(runner, "validate_installation", changed)
+    with pytest.raises(ModelError, match="stale"):
+        store._admit_evidence(model.entry, selection, evidence)
+    assert MODEL_ID not in store._evidence and closed == [True]
+    # Restoring library bytes cannot resurrect the old self-test object.
+    monkeypatch.setattr(runner, "validate_installation", lambda: None)
+    with pytest.raises(ModelError, match="stale"):
+        store._admit_evidence(model.entry, selection, evidence)
+
+
+def test_native_evidence_requires_same_configuration_and_current_admission(tmp_path, model):
+    from provelume.ai_model_store import ModelStore, SelfTestEvidence
+
+    store = ModelStore(tmp_path / "store")
+    selection = runtime.native_selection()
+    evidence = SelfTestEvidence(MODEL_ID, store._binding(model.entry, selection),
+                                "PASSED", time.monotonic() + 60)
+    store._evidence[MODEL_ID] = evidence
+    for changed in (dataclasses.replace(selection, configuration=b"{}"), selection):
+        with pytest.raises(ModelError, match="stale"):
+            store._admit_evidence(model.entry, changed, evidence)
+    store.allowed_ids = ()
+    with pytest.raises(ModelError, match="revoked"):
+        store._entry(MODEL_ID, selection)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="native Windows Job Object only")
+def test_windows_job_refuses_descendant_process():
+    import sysconfig
+
+    code = '''
+import sys,subprocess,json
+sys.path[:0]=sys.argv[1:3]
+from provelume.ai_runtime_limits import contain
+job,limits=contain()
+try:
+    child=subprocess.Popen([sys.executable,'-I','-c','pass'])
+except OSError:
+    denied=True
+else:
+    child.wait(timeout=2)
+    denied=False
+print(json.dumps({'denied':denied,'processes':limits['processes']}))
+'''
+    result = subprocess.run([getattr(sys, "_base_executable", sys.executable), "-I", "-c", code,
+                             str(Path(__file__).resolve().parents[1] / "core"),
+                             sysconfig.get_path("purelib")],
+                            capture_output=True, timeout=10, check=True)
+    assert json.loads(result.stdout) == {
+        "denied": True, "processes": "JobObject:active-process:1"}
+
+
 @pytest.mark.skipif(sys.platform != "linux", reason="native Linux file descriptor ceiling")
 def test_snapshots_release_source_ancestor_descriptors_under_native_limit(tmp_path):
     import hashlib

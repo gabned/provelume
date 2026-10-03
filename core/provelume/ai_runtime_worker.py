@@ -58,13 +58,13 @@ def pinned_input(stack, path):
             if os.name == "nt" else open_local_file(path))
 
 
-def main():
+def main(*, containment=None):
     started = time.monotonic()
     phase = "initialization"
     try:
         initial = read()
         check(set(initial) == {"runtime", "model"}, "state")
-        job, limits = contain()
+        job, limits = containment if containment is not None else contain()
         phase = "model_verification"
         entry = ModelRegistry.packaged().entry(MODEL_ID)
         with ExitStack() as stack:

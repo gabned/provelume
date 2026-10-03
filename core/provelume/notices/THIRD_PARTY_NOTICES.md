@@ -2,6 +2,19 @@
 
 Provelume's public license does not replace the licenses of third-party dependencies.
 
+Custodia S05 evaluates one optional native runtime/model pair; it is not bundled
+in the published 0.11.0 preview or promoted to Recommended. llama.cpp b11379,
+commit `1537a0a8b2f8711d840878b0a0677ab2213c882c`, is MIT. The selected Windows
+distribution's LLVM OpenMP library is Apache-2.0 WITH LLVM-exception. Full upstream
+texts are retained under `core/provelume/runtime_notices/` and accompany the
+deterministic native build input. Qwen/Qwen2.5-1.5B-Instruct-GGUF revision
+`91cad51170dc346986eccefdc2dd33a9da36ead9` is Apache-2.0; its full license is retained
+there as `qwen-LICENSE.txt`. Weights are acquired explicitly, not shipped in wheels.
+See [ADR 0031](docs/adr/0031-cpu-local-runtime-candidate.md) for immutable origins,
+digests, quantization and redistribution conditions. The candidate input's SBOM
+lists each shipped native library and exact hash; host Python/C runtimes remain
+host prerequisites rather than newly redistributed components.
+
 Direct runtime dependencies in the current Python package include:
 
 | Component | Purpose | License |
