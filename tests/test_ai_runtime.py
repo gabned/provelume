@@ -165,7 +165,7 @@ def test_gguf_verification_streams_bounded_chunks_and_rejects_changes(tmp_path):
 @pytest.mark.skipif(sys.platform != "linux", reason="native Linux seccomp only")
 def test_linux_os_limits_deny_network_and_process_creation():
     code = '''
-import sys,socket,os,json
+import sys,socket,os,json,ctypes
 sys.path.insert(0,sys.argv[1])
 from provelume.ai_runtime_limits import contain
 _,limits=contain()
@@ -173,6 +173,9 @@ observed=[]
 for call in (lambda:socket.socket(),lambda:os.fork()):
     try: call()
     except PermissionError: observed.append('denied')
+libc=ctypes.CDLL(None,use_errno=True)
+for number in (0x40000029,425,426,427):
+    assert libc.syscall(number,0,0,0,0,0,0)==-1 and ctypes.get_errno()==1
 print(json.dumps({'denied':observed,'limits':limits}))
 '''
     result = subprocess.run([sys.executable, "-I", "-c", code,
@@ -227,3 +230,53 @@ def test_native_snapshot_is_immutable_and_refuses_source_substitution(tmp_path):
             out.write(b"x")
     with ExitStack() as stack, source.open("rb") as stream, pytest.raises(ModelError):
         sealed_snapshot(stack, stream, 26, expected)
+
+
+def test_frozen_launcher_and_unsupported_hardware_fail_closed(monkeypatch):
+    from provelume import ai_runtime_contract as contract
+
+    monkeypatch.setattr(contract.sys, "frozen", True, raising=False)
+    with pytest.raises(ModelError, match="compatibility"):
+        contract.hardware()
+    monkeypatch.setattr(contract.sys, "frozen", False)
+    monkeypatch.setattr(contract.platform, "machine", lambda: "arm64")
+    with pytest.raises(ModelError, match="compatibility"):
+        contract.hardware()
+
+
+@pytest.mark.skipif(sys.platform not in ("linux", "win32"), reason="native supported OS only")
+def test_native_os_memory_ceiling_cannot_allocate_four_gibibytes():
+    code = '''
+import sys,ctypes,mmap,json,os
+sys.path.insert(0,sys.argv[1])
+from provelume.ai_runtime_limits import contain
+job,limits=contain()
+if os.name=='nt':
+    k=ctypes.WinDLL('kernel32',use_last_error=True)
+    k.VirtualAlloc.restype=ctypes.c_void_p
+    k.VirtualAlloc.argtypes=[ctypes.c_void_p,ctypes.c_size_t,ctypes.c_ulong,ctypes.c_ulong]
+    denied=not k.VirtualAlloc(None,4*1024**3,0x3000,4)
+else:
+    try: mmap.mmap(-1,4*1024**3);denied=False
+    except (OSError,MemoryError): denied=True
+print(json.dumps({'denied':denied,'limit':limits['memory_bytes']}))
+'''
+    import sysconfig
+
+    # Base interpreter avoids Windows' redirector. Trusted package paths only.
+    code = code.replace("sys.path.insert(0,sys.argv[1])", "sys.path[:0]=sys.argv[1:3]")
+    result = subprocess.run([getattr(sys, "_base_executable", sys.executable), "-I", "-c", code,
+                             str(Path(__file__).resolve().parents[1] / "core"),
+                             sysconfig.get_path("purelib")],
+                            capture_output=True, timeout=10, check=True)
+    assert json.loads(result.stdout) == {"denied": True, "limit": 3 * 1024**3}
+
+
+def test_measurement_report_never_promotes_missing_or_failed_observations():
+    from scripts.ai_runtime_report import evaluate
+
+    report = evaluate({"samples": [], "failures": []})
+    assert report["status"] == "BLOCKED"
+    assert set(report["gates"].values()) == {"NOT_RUN"}
+    report["cancel_load"] = {"seconds": 2.1, "worker_absent": True, "code": "cancelled"}
+    assert evaluate(report)["status"] == "FAIL"

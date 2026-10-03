@@ -1,9 +1,10 @@
-# Custodia S04 model registry and lifecycle
+# Custodia model registry and lifecycle
 
 [S04 #318](https://github.com/gabned/provelume/issues/318) belongs to parent
 [#311](https://github.com/gabned/provelume/issues/311), after completed S01 #312/#313,
 S02 #314/#315 and S03 #316/#317. Application/package/public preview remains 0.11.0 — Cura.
-S05 selects and qualifies a real runtime; S06 owns dispatch enforcement; S07 owns complete
+S04 is integrated through #319 with exact-head and actual-main qualification. S05 #320/#321
+adds the [one-candidate extension](ai-local-runtime.md); S06 owns dispatch enforcement; S07 owns complete
 user surfaces. This internal lifecycle creates no inference, resolver, scheduler or budget engine.
 
 ## Provenance
@@ -33,7 +34,8 @@ credential or existing LAN service is used or qualified.
 | Qualification | `SYNTHETIC_ONLY`; never offline-qualified, Recommended or inference-authorized |
 | Platform | Native Linux and Windows local filesystems, subject to exact-head qualification |
 | Configuration | Exact versioned `lifecycle-self-test-only` record |
-| Real GGUF, ONNX, safetensors, pickle, scripts and executable runtime packages | Unsupported |
+| Real GGUF | Only the exact S05 candidate tuple in ADR 0031; streamed raw import, no ZIP extraction |
+| ONNX, safetensors, pickle, scripts and executable runtime packages | Unsupported |
 | Advanced BYOM | `UNSUPPORTED_NO_QUALIFIED_RUNTIME`; no guessed compatibility before S05 |
 
 Unknown/duplicate fields and unsupported combinations fail closed. Stable metadata is not

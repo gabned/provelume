@@ -118,6 +118,9 @@ class LocalRuntime:
                                          "phase": value.get("phase"),
                                          "failure_type": value.get("failure_type")}
                 raise ModelError(value.get("code", "state"))
+            if value.get("event") == "eof":
+                self.last_observation = {"failure": "worker_exit",
+                                         "returncode": self._process.poll()}
             check(value.get("event") in (event, "first"), "state")
             if value["event"] == "first":
                 self._first_received = time.monotonic()

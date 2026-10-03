@@ -21,8 +21,11 @@ evidence. No credential, private filesystem path or Instance content is included
 Custodia S04 adds an internal `ComponentInventory.model_registry` data projection for the
 [governed model lifecycle](architecture/ai-model-lifecycle.md). It separates application,
 runtime and model identities, provenance, license, size, channel and actual qualification.
-Registry presence is not installation. Both shipped entries are synthetic fixtures, with no
-Recommended or real offline-qualified runtime. The complete user surface remains S07; the
+Registry presence is not installation. Two entries are synthetic fixtures; S05 adds one
+`CANDIDATE_NOT_QUALIFIED` Qwen2.5-1.5B-Instruct GGUF entry, bound to llama.cpp b11379.
+The [runtime contract](architecture/ai-local-runtime.md) separates actual native measurements,
+self-test and internal activation from S09 Recommended promotion and S06 dispatch authority.
+Its native build input has a separate exact-library SBOM and notices. The complete surface remains S07; the
 existing component inventory and its release SBOM contract remain unchanged.
 
 Schema 2 adds the `ui_asset` category to the existing seven categories. The `ui.lucide`

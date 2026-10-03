@@ -274,7 +274,8 @@ class ModelStore:
                         total = 0
                         for chunk in chunks(entry, deadline):
                             checkpoint(cancel, deadline)
-                            check(type(chunk) is bytes and 0 < len(chunk) <= 4096, "limit")
+                            chunk_limit = 1024 * 1024 if entry.format == "gguf-v3-q4_k_m" else 4096
+                            check(type(chunk) is bytes and 0 < len(chunk) <= chunk_limit, "limit")
                             total += len(chunk)
                             check(total <= entry.package_size, "limit")
                             self._space(len(chunk))
@@ -333,7 +334,7 @@ class ModelStore:
                 before = file_identity(handle)
                 while True:
                     checkpoint(cancel, deadline)
-                    chunk = handle.read(4096)
+                    chunk = handle.read(1024 * 1024 if entry.format == "gguf-v3-q4_k_m" else 4096)
                     if not chunk:
                         break
                     yield chunk

@@ -177,18 +177,20 @@ def measure(root, output):
         # Change one byte only in this disposable installed test model, then restore
         # in finally; no acquisition, fallback or fabricated evidence on corruption.
         model = store.verify(MODEL_ID, selection)
-        with model.model.path.open("r+b") as stream:
+        with model.model.path.open("rb") as stream:
             stream.seek(128)
             original = stream.read(1)
-            try:
+        try:
+            with model.model.path.open("r+b") as stream:
                 stream.seek(128)
                 stream.write(bytes([original[0] ^ 1]))
                 stream.flush()
-                try:
-                    store.verify(MODEL_ID, selection)
-                except ModelError as exc:
-                    report["altered_model"] = exc.code
-            finally:
+            try:
+                store.verify(MODEL_ID, selection)
+            except ModelError as exc:
+                report["altered_model"] = exc.code
+        finally:
+            with model.model.path.open("r+b") as stream:
                 stream.seek(128)
                 stream.write(original)
         for language in ("en", "it"):
