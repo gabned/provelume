@@ -13,6 +13,7 @@ import os
 import queue
 import subprocess
 import sys
+import sysconfig
 import threading
 import time
 from pathlib import Path
@@ -61,6 +62,7 @@ class LocalRuntime:
         self._messages = queue.Queue(maxsize=8)
         self._load = None
         self.last_observation = None
+        self.worker_history = []
 
     def validate_installation(self):
         """Revalidate native bytes at activation/use, including a warm worker."""
@@ -112,8 +114,13 @@ class LocalRuntime:
                 check(self.loaded, "state")
                 continue
             if value.get("event") == "error":
+                self.last_observation = {"failure": value.get("code", "state"),
+                                         "phase": value.get("phase"),
+                                         "failure_type": value.get("failure_type")}
                 raise ModelError(value.get("code", "state"))
             check(value.get("event") in (event, "first"), "state")
+            if value["event"] == "first":
+                self._first_received = time.monotonic()
             if value["event"] == event:
                 return value
 
@@ -138,12 +145,14 @@ class LocalRuntime:
             # package is added, never a model/runtime directory to Python imports.
             root = str(Path(__file__).resolve().parent.parent)
             command = [
-                sys.executable,
+                getattr(sys, "_base_executable", sys.executable) if os.name == "nt"
+                else sys.executable,
                 "-I",
                 "-c",
-                "import sys;sys.path.insert(0,sys.argv[1]);"
+                "import sys;sys.path[:0]=sys.argv[1:3];"
                 "from provelume.ai_runtime_worker import main;main()",
                 root,
+                sysconfig.get_path("purelib"),
             ]
             options = (
                 {"creationflags": subprocess.CREATE_NO_WINDOW}
@@ -160,6 +169,7 @@ class LocalRuntime:
                 bufsize=0,
                 **options,
             )
+            self.worker_history.append(self._process.pid)
             self._messages = queue.Queue(maxsize=8)
             self._reader = threading.Thread(
                 target=self._drain, args=(self._process, self._messages), daemon=True
@@ -167,6 +177,7 @@ class LocalRuntime:
             self._reader.start()
             self._send({"runtime": str(self.directory), "model": str(model.model.path)})
             self._load = self._receive("loaded", deadline=deadline, cancel=cancel)
+            check(self._load.get("pid") == self._process.pid, "state")
             self._model = model.entry.model_sha256
         except BaseException:
             self._stop()
@@ -221,6 +232,7 @@ class LocalRuntime:
             check(not any(token in prompt for token in ("<|im_start|>", "<|im_end|>")), "limit")
             deadline = time.monotonic() + 60
             started = time.monotonic()
+            self._first_received = None
             checkpoint(cancel, deadline)
             self.validate_installation()
             if self._timer is not None:
@@ -238,6 +250,8 @@ class LocalRuntime:
                 "limit",
             )
             value.update(cold=cold, total_seconds=time.monotonic() - started, load=self._load)
+            value["first_wall_seconds"] = (self._first_received - started
+                                           if self._first_received is not None else None)
             self.last_observation = {k: v for k, v in value.items() if k != "text"}
             timer = threading.Timer(5, lambda: self._idle(timer))
             self._timer = timer
@@ -266,9 +280,15 @@ class LocalRuntime:
     def qualify(self, store, prompt, *, requested=False, cancel=lambda: False):
         check(requested is True, "consent")
         selection = native_selection()
+        started = time.monotonic()
         try:
             with store.use(selection) as model:
-                return self._infer(model, selection, prompt, cancel=cancel)
+                admission = time.monotonic() - started
+                result = self._infer(model, selection, prompt, cancel=cancel)
+                result["total_seconds"] = time.monotonic() - started
+                if result["first_wall_seconds"] is not None:
+                    result["first_wall_seconds"] += admission
+                return result
         except BaseException:
             self.close()
             raise

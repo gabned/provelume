@@ -71,7 +71,9 @@ class SelfTestEvidence:
 
     def public_record(self):
         return {"model_id": self.model_id, "binding": self.binding, "result": self.result,
-                "scope": "SYNTHETIC_ONLY", "inference_authorized": False}
+                "scope": ("REAL_RUNTIME_SELF_TEST" if self.model_id ==
+                          "qwen2.5-1.5b-instruct-q4-k-m" else "SYNTHETIC_ONLY"),
+                "inference_authorized": False}
 
 
 def inspect_package(raw: bytes, entry: ModelEntry) -> VerifiedModel:

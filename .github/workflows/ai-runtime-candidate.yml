@@ -25,13 +25,29 @@ jobs:
         run: python scripts/bootstrap.py
       - name: Explicit locked acquisition (no model in artifacts or Git)
         run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/s05-inputs" --accept-licenses --include-model
-      - name: Real native execution and honest qualification report
-        run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/qualify_ai_runtime.py --artifacts "${{ runner.temp }}/s05-inputs" --output .agent/s05-real.json
+      - name: Build locked native input with notices and SBOM, offline
+        run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/build_ai_runtime_input.py --directory "${{ runner.temp }}/s05-inputs/${{ runner.os == 'Windows' && 'windows' || 'linux' }}" --platform ${{ runner.os == 'Windows' && 'windows' || 'linux' }} --output .agent/s05-native-input.zip
+      - name: Real Linux execution with external syscall observation
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set +e
+          strace -ff -tt -e trace=network -o .agent/s05-network .venv/bin/python scripts/qualify_ai_runtime.py --artifacts "${{ runner.temp }}/s05-inputs" --output .agent/s05-real.json
+          measurement=$?
+          if test ! -f .agent/s05-real.json; then exit "$measurement"; fi
+          .venv/bin/python scripts/ai_runtime_network.py --report .agent/s05-real.json --trace .agent/s05-network
+      - name: Real Windows execution with disposable WFP control and audit
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/qualify_ai_runtime_windows.ps1 -Artifacts "${{ runner.temp }}/s05-inputs"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         if: always()
         with:
           name: s05-real-${{ matrix.os }}
-          path: .agent/s05-real.json
+          path: |
+            .agent/s05-real.json
+            .agent/s05-network.*
+            .agent/s05-wfp.json
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30

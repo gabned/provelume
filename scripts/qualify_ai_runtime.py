@@ -6,12 +6,16 @@ import argparse
 import hashlib
 import json
 import statistics
+import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "core"))
+from ai_runtime_report import deterministic_probe, evaluate  # noqa: E402
+
 from provelume.ai_model_store import ModelStore  # noqa: E402
 from provelume.ai_models import ModelError  # noqa: E402
 from provelume.ai_runtime import LocalRuntime, native_selection  # noqa: E402
@@ -23,6 +27,7 @@ from provelume.ai_runtime_contract import (  # noqa: E402
     hardware,
 )
 from provelume.ai_runtime_limits import memory_observation  # noqa: E402
+from provelume.service import ProvelumeInstance  # noqa: E402
 
 
 def measure(root, output):
@@ -47,6 +52,10 @@ def measure(root, output):
 
     runtime = None
     try:
+        report["source_commit"] = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, timeout=10).strip()
+        report["configuration_sha256"] = hashlib.sha256(
+            native_selection().configuration).hexdigest()
         report["environment"] = hardware()
         system = report["environment"]["platform"]
         store = ModelStore(root / "store")
@@ -64,6 +73,8 @@ def measure(root, output):
         corpus_path = ROOT / "tests/fixtures/ai_runtime_quality.json"
         report["corpus_sha256"] = hashlib.sha256(corpus_path.read_bytes()).hexdigest()
         corpus = json.loads(corpus_path.read_text(encoding="utf-8"))
+        instance = ProvelumeInstance.initialise(root / "synthetic-instance")
+        report["deterministic_idle"] = [deterministic_probe(instance, n) for n in range(3)]
         for cold_run in range(3):
             runtime.close()
             evidence = store.self_test(MODEL_ID, selection, runtime, requested=True)
@@ -73,6 +84,23 @@ def measure(root, output):
                 report["failures"].append("self_test:" + evidence.result)
                 break
             store.activate(MODEL_ID, selection, evidence, requested=True)
+            model = store.verify(MODEL_ID, selection)
+            outcome = []
+
+            def generate(model=model, outcome=outcome):
+                try:
+                    outcome.append(runtime._infer(model, selection,
+                        "Text: The synthetic word is orchid. Question: Repeat orchid 100 times."))
+                except ModelError as exc:
+                    report["failures"].append(exc.code)
+
+            thread = threading.Thread(target=generate)
+            thread.start()
+            time.sleep(0.02)
+            row = deterministic_probe(instance, cold_run)
+            row["worker_observed"] = runtime.loaded and thread.is_alive()
+            report.setdefault("deterministic_busy", []).append(row)
+            thread.join()  # Runtime's single canonical operation deadline owns termination.
             for case in corpus:
                 # Fresh evidence has a 60-second TTL. Refresh explicitly; no inferred
                 # authority, persisted qualification or implicit inference retry.
@@ -114,12 +142,13 @@ def measure(root, output):
             }
         evidence = store.self_test(MODEL_ID, selection, runtime, requested=True)
         store.activate(MODEL_ID, selection, evidence, requested=True)
+        model = store.verify(MODEL_ID, selection)
         start = time.monotonic()
         try:
-            runtime.qualify(
-                store,
+            runtime._infer(
+                model,
+                selection,
                 "Text: A synthetic test. Question: Repeat the word test 100 times.",
-                requested=True,
                 cancel=lambda: time.monotonic() - start >= 0.1,
             )
         except ModelError as exc:
@@ -138,6 +167,30 @@ def measure(root, output):
             "worker_absent": not runtime.loaded,
         }
         report["parent_after"] = memory_observation()
+        # A real worker error, followed by termination, is part of the network
+        # observation and cleanup protocol (the prompt exceeds the token ceiling).
+        model = store.verify(MODEL_ID, selection)
+        try:
+            runtime._infer(model, selection, " a" * 2048)
+        except ModelError as exc:
+            report["worker_error"] = {"code": exc.code, "worker_absent": not runtime.loaded}
+        # Change one byte only in this disposable installed test model, then restore
+        # in finally; no acquisition, fallback or fabricated evidence on corruption.
+        model = store.verify(MODEL_ID, selection)
+        with model.model.path.open("r+b") as stream:
+            stream.seek(128)
+            original = stream.read(1)
+            try:
+                stream.seek(128)
+                stream.write(bytes([original[0] ^ 1]))
+                stream.flush()
+                try:
+                    store.verify(MODEL_ID, selection)
+                except ModelError as exc:
+                    report["altered_model"] = exc.code
+            finally:
+                stream.seek(128)
+                stream.write(original)
         for language in ("en", "it"):
             rows = [r for r in report["samples"] if r["language"] == language]
             score = sum(r["pass"] for r in rows) / len(rows) if rows else 0
@@ -161,9 +214,12 @@ def measure(root, output):
     except Exception as exc:
         report["status"] = "FAIL"
         report["failures"].append(exc.code if isinstance(exc, ModelError) else type(exc).__name__)
+        report["last_observation"] = runtime.last_observation if runtime else None
     finally:
         if runtime:
             runtime.close()
+            report["worker_pids"] = runtime.worker_history
+        evaluate(report)
         save()
     # The corpus and every output are synthetic and public. Preserve raw samples
     # in both the artifact and native job log for an independently readable ledger.
@@ -177,7 +233,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     report = measure(args.artifacts.absolute(), args.output)
-    return 1 if report["status"] == "FAIL" else 0
+    return 0 if report["status"] == "PASS" else 1
 
 
 if __name__ == "__main__":

@@ -52,21 +52,25 @@ def sealed_snapshot(stack, source, size, digest):
 
 def main():
     started = time.monotonic()
+    phase = "initialization"
     try:
         initial = read()
         check(set(initial) == {"runtime", "model"}, "state")
         job, limits = contain()
+        phase = "model_verification"
         entry = ModelRegistry.packaged().entry(MODEL_ID)
         with ExitStack() as stack:
             source = stack.enter_context(open_local_file(initial["model"]))
             verify_stream(source, entry)
             model_path = initial["model"]
+            phase = "model_snapshot"
             if os.name != "nt":
                 model_path = sealed_snapshot(stack, source, entry.model_size, entry.model_sha256)
             directory = Path(initial["runtime"])
             system = "windows" if os.name == "nt" else "linux"
             inventory = runtime_lock()["platforms"][system]
             library_paths = {}
+            phase = "runtime_verification"
             check({p.name for p in directory.iterdir()} == set(inventory), "untrusted")
             for name, expected in inventory.items():
                 stream = stack.enter_context(open_local_file(directory / name))
@@ -82,6 +86,7 @@ def main():
             check(job is not False, "state")
             from .ai_llama import Llama
 
+            phase = "native_load"
             engine = Llama(directory, model_path, library_paths)
             emit(
                 {
@@ -93,6 +98,7 @@ def main():
                 }
             )
             while True:
+                phase = "idle"
                 request = read()
                 if request == {"operation": "unload"}:
                     engine.close()
@@ -100,11 +106,13 @@ def main():
                     return
                 check(set(request) == {"prompt"} and type(request["prompt"]) is str, "state")
                 check(0 < len(request["prompt"].encode("utf-8")) <= 4096, "limit")
+                phase = "generation"
                 result = engine.generate(request["prompt"], emit)
                 result["memory"] = memory_observation()
                 emit(result)
     except Exception as exc:
-        emit({"event": "error", "code": exc.code if isinstance(exc, ModelError) else "state"})
+        emit({"event": "error", "code": exc.code if isinstance(exc, ModelError) else "state",
+              "phase": phase, "failure_type": type(exc).__name__})
         raise SystemExit(2) from None
 
 

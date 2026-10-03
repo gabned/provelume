@@ -45,7 +45,8 @@ def host(tmp_path, monkeypatch):
     original = subprocess.Popen
 
     def process(command, **kwargs):
-        return original([sys.executable, "-I", "-c", SCRIPT], **kwargs)
+        return original([getattr(sys, "_base_executable", sys.executable),
+                         "-I", "-c", SCRIPT], **kwargs)
 
     monkeypatch.setattr(runtime.subprocess, "Popen", process)
     monkeypatch.setattr(runtime, "hardware", lambda: {})
