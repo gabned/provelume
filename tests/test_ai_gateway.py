@@ -64,7 +64,8 @@ def test_executable_s01_demonstration(monkeypatch):
     result = simulate_synthetic(plan, request, adapter=fake, **current)
     assert result.receipt.outcome == Outcome.SIMULATED
     assert_not_transmitted(result)
-    assert simulate_synthetic(plan, request, adapter=fake, **current).to_bytes() == result.to_bytes()
+    repeated = simulate_synthetic(plan, request, adapter=fake, **current)
+    assert repeated.to_bytes() == result.to_bytes()
     # 2. Source local-only excludes the expressly configured remote fallback.
     rules = (
         *current["rules"][:1],
@@ -77,6 +78,7 @@ def test_executable_s01_demonstration(monkeypatch):
     assert plan.routes[1].reasons == (Reason.LOCAL_ONLY,)
     # 3. A changed exact Version refuses the earlier plan before any fake call.
     changed = replace(request, context=replace(request.context, version_id="synthetic_version_2"))
+
     def unexpected_call(*args, **kwargs):
         pytest.fail("stale decision reached the adapter")
 
@@ -107,6 +109,7 @@ def test_off_and_explicit_deny_at_every_scope_never_call_fake(
     plan = explain(request, **current)
     denied(plan, reason)
     fake = DeterministicFakeAdapter()
+
     def unexpected_call(*args, **kwargs):
         pytest.fail("denied request reached the adapter")
 
