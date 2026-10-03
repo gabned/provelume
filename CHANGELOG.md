@@ -4,6 +4,11 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+- Custodia `0.12/S04` (#318): repository-governed model metadata and explicit bounded
+  install/update/offline import, verified byte snapshots, self-test/internal activation,
+  restart recovery, removal and last-good rollback. Synthetic lifecycle fixtures only;
+  no real runtime/Recommended qualification, inference or version/publication change.
+
 ### Added
 
 - Custodia `0.12/S03` (#316): restricted Chat Completions JSON transport and synthetic fake

@@ -223,6 +223,16 @@ class ProvelumeInstance:
     def component_inventory(self) -> dict[str, Any]:
         return self.components.read()
 
+    def ai_model_registry(self) -> dict[str, Any]:
+        """Pure governed metadata, separate from availability or inference authority."""
+        return self.components.model_registry()
+
+    def ai_model_lifecycle(self):
+        """Internal explicit lifecycle; construction performs no I/O or recovery."""
+        from .ai_model_store import ModelStore
+
+        return ModelStore.for_instance(self.root)
+
     def representation_support(self, *, profile_id: str | None = None) -> dict[str, Any]:
         return self.representations.support.read(profile_id=profile_id)
 

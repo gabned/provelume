@@ -19,3 +19,10 @@ Issues, documentation corrections and design discussion are welcome during this 
 ## Pull requests
 
 Pull requests should be focused, explain the public requirement they satisfy, include tests when executable code is added, and pass all required repository checks.
+
+Custodia's [S04 lifecycle contract](docs/architecture/ai-model-lifecycle.md) distinguishes
+governed artifact metadata from real runtime qualification. Use only tiny synthetic fixtures
+for registry/install/update tests; never commit model weights or substitute their success for
+S05/S09 model evidence. Run the executable demonstration, complete native checks and existing
+S01–S03/SSRF regressions. Preserve actual local-host failures in the sole owner ledger and use
+the accepted independent native Linux/Windows qualification route where applicable.
