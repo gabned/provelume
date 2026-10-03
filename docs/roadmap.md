@@ -1443,9 +1443,11 @@ network transparency.
 
 **Activation:** parent [#311](https://github.com/gabned/provelume/issues/311), first slice
 [#312](https://github.com/gabned/provelume/issues/312), and the canonical
-[nine-slice release plan](releases/0.12.0.md). S01 is completed through #313. S02 (#314)
-implements bounded context, local redaction and untrusted-result isolation in its owner change;
-S03–S09 remain planned. Package/runtime/embedded/Windows identity stays at published 0.11.0.
+[nine-slice release plan](releases/0.12.0.md). S01 and S02 are completed through #313/#315.
+S03 (#316) implements bounded replaceable transports and explicit connection diagnostics
+in its owner change, qualified with synthetic fixtures only; live provider/model NOT_RUN.
+Product inference remains disabled until S06. S04–S09 remain planned.
+Package/runtime/embedded/Windows identity stays at published 0.11.0.
 
 **Outcome:** optional AI off / Local Recommended / External / Explicit Hybrid, with a first
 manual single-document synthesis/key-points action. Output is removable derived information
