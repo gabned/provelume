@@ -68,7 +68,9 @@ The service uses the existing external control sibling
 `.<instance-name>.provelume/ai-models/`. Construction is pure. No model data or installation
 authority enters canonical Instance configuration, Originals, knowledge or jobs. Archives,
 staging, writer temporaries and selection hints stay outside Instance backup/export and the
-known storage directory is Git-ignored. Restore on a new host requires explicit acquisition
+storage directory writes its own `*` Git exclusion on explicit use, including when an
+Instance is placed inside a working tree. This cannot prevent an explicit forced Git add.
+Restore on a new host requires explicit acquisition
 and verification; a hint cannot recreate installed/qualified state. Reusing existing external
 bytes still requires current integrity/compatibility and fresh session self-test evidence.
 
@@ -123,7 +125,8 @@ Missing/corrupt selections or packages fail closed.
 Verified publication and selection use pinned-parent same-directory replacement in separate
 steps. Interruption can leave a verified inactive orphan. There is no cross-filesystem
 transaction or power-loss durability guarantee for directory entries. Network filesystems are
-refused. Cooperative locks do not protect against already compromised same-account host code;
+not qualified; network path syntax is refused, but POSIX mount types are not detected.
+Cooperative locks do not protect against already compromised same-account host code;
 every use still verifies bytes and passes immutable snapshots instead of reopened paths.
 
 ## Executable proof

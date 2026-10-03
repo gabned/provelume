@@ -182,6 +182,11 @@ class ModelStore:
                 _acquire_os_lock(descriptor)
                 acquired = True
                 try:
+                    ignore = self.root / ".gitignore"
+                    if ignore.exists():
+                        check(_read(ignore, 32) == b"*\n", "state")
+                    else:
+                        write_local_bytes(ignore, b"*\n", replace=True)
                     yield
                 finally:
                     if acquired:

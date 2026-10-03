@@ -515,3 +515,15 @@ def test_service_metadata_and_factory_are_pure(tmp_path, monkeypatch):
     lifecycle = instance.ai_model_lifecycle()
     assert not lifecycle.root.is_relative_to(instance.root)
     assert list(tmp_path.iterdir()) == before
+
+
+def test_operational_storage_excludes_itself_from_git(store, runtime, tmp_path):
+    subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+    install(store, runtime)
+    stage = store.root / "staging" / ("c" * 32 + ".part")
+    stage.write_bytes(b"synthetic partial")
+    paths = [str(store._path(store.registry.entry(V1))), str(stage),
+             str(store.root / "selection.json")]
+    result = subprocess.run(["git", "-C", str(tmp_path), "check-ignore", *paths],
+                            check=True, capture_output=True, text=True)
+    assert len(result.stdout.splitlines()) == len(paths)
