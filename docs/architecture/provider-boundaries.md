@@ -38,6 +38,12 @@ descriptors, independent locality evidence and a pure scope-policy resolver thro
 provider and grants no execution or canonical-write authority. Its deterministic fake adapter
 lives only in synthetic tests, outside the product package. Real inference remains unavailable.
 
+S02 (#314) adds the [bounded context boundary](ai-bounded-context.md): explicitly supplied
+exact-Version representation selections, local redaction with disclosed limits, immutable
+task templates and closed untrusted-result validation. It does not retrieve more content,
+invoke providers or give a manifest/preview/result execution authority. S01 (#312/#313)
+remains the only policy resolver; S03 transports and S07 user previews remain later work.
+
 Domain code must request capabilities rather than vendor APIs. Candidate capabilities include:
 
 - `structured_output`;

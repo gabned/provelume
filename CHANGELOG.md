@@ -6,6 +6,11 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Added
 
+- Custodia `0.12/S02` (#314): bounded exact-Version context manifests, explicit coverage,
+  validated representation/page selections, local literal/email redaction previews and
+  closed untrusted-result validation. Internal synthetic-only exercise; no inference,
+  user synthesis, new API/screen or package-version change.
+
 - Custodia `0.12/S01`: versioned internal AI descriptors, pure fail-closed scope-policy
   preflight, stale-plan validation and synthetic-only adapter conformance. No real inference,
   model download, new user surface or package-version change is enabled. The nine-slice
