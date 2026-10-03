@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "runtime": "llama.cpp",
+  "version": "b11379",
+  "source_revision": "1537a0a8b2f8711d840878b0a0677ab2213c882c",
+  "platforms": {
+    "windows": {
+      "ggml-base.dll": {
+        "size": 803328,
+        "sha256": "c89f456f13be462034429854fb2ee62cc8547afdbaa168a61426d394a9ef2245"
+      },
+      "ggml.dll": {
+        "size": 79872,
+        "sha256": "56ab5024d532c7dc209292ec8c671222ae9f8d4faaae1fc52b45de792622d53d"
+      },
+      "ggml-cpu-haswell.dll": {
+        "size": 1434624,
+        "sha256": "82485b1acbb5deb068cf13645ffa85834e4fcd090f73db6eff262d676c2bbe47"
+      },
+      "llama.dll": {
+        "size": 3302400,
+        "sha256": "096d3fc04bcf43314700401a737cb42990da5a461f1bbc58c31b01ae18df37be"
+      },
+      "libomp.dll": {
+        "size": 768000,
+        "sha256": "a12116ba72d1d6820407cf30be23da04ce79d6bb8a71a5ee71759c5a1faa6f1c"
+      }
+    },
+    "linux": {
+      "libggml-base.so.0.25.3": {
+        "size": 931232,
+        "sha256": "fffb217f8178d954d52df937d1276b0f800c24c087d86b79b8b45e1fcdeec9fc"
+      },
+      "libggml.so.0.25.3": {
+        "size": 55184,
+        "sha256": "354c630e37df7982af7b2d032aafdb0548f8e2f3a255ff0778027e531a357b82"
+      },
+      "libllama.so.0.5.0": {
+        "size": 4780144,
+        "sha256": "f116f14903cdf46ea4fa8f162908cbfe2231001dbbbd54d084c15010c3997fc3"
+      },
+      "libggml-cpu-haswell.so": {
+        "size": 1412216,
+        "sha256": "e33722c998d99613c1be1a430282baa1a82a1ead13dca3953d9084fd202abef6"
+      },
+      "libggml-base.so.0": {
+        "size": 931232,
+        "sha256": "fffb217f8178d954d52df937d1276b0f800c24c087d86b79b8b45e1fcdeec9fc"
+      },
+      "libggml.so.0": {
+        "size": 55184,
+        "sha256": "354c630e37df7982af7b2d032aafdb0548f8e2f3a255ff0778027e531a357b82"
+      },
+      "libllama.so.0": {
+        "size": 4780144,
+        "sha256": "f116f14903cdf46ea4fa8f162908cbfe2231001dbbbd54d084c15010c3997fc3"
+      }
+    }
+  },
+  "licenses": {
+    "llama-LICENSE.txt": {
+      "size": 1078,
+      "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d"
+    },
+    "LLVM-OpenMP-LICENSE.txt": {
+      "size": 19741,
+      "sha256": "fdad1758a9e1f9d5a81e18879b3406772115edc92c24bfa36b70c654f325e8e4"
+    },
+    "qwen-LICENSE.txt": {
+      "size": 11343,
+      "sha256": "832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e"
+    }
+  }
+}
