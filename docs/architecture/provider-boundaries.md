@@ -42,7 +42,12 @@ S02 (#314) adds the [bounded context boundary](ai-bounded-context.md): explicitl
 exact-Version representation selections, local redaction with disclosed limits, immutable
 task templates and closed untrusted-result validation. It does not retrieve more content,
 invoke providers or give a manifest/preview/result execution authority. S01 (#312/#313)
-remains the only policy resolver; S03 transports and S07 user previews remain later work.
+remains the only policy resolver. S03 (#316) supplies the internal
+[transport and diagnostic boundary](ai-provider-transports.md): one restricted Chat
+Completions JSON profile, pinned actual peer, external-secret references and bounded I/O,
+exercised with synthetic fixtures. No product inference caller exists until S06; S07 owns
+user previews. Configuration/state reads are local; explicit diagnostics establish only
+a connection, never model compatibility, authentication, inference or offline assurance.
 
 Domain code must request capabilities rather than vendor APIs. Candidate capabilities include:
 

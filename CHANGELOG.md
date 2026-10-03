@@ -6,6 +6,11 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Added
 
+- Custodia `0.12/S03` (#316): restricted Chat Completions JSON transport and synthetic fake
+  substitution, explicit bound endpoint/model/capability and external-secret references,
+  pinned DNS/actual peer, bounded HTTP I/O, redirect refusal and cancellation/uncertain
+  outcome without replay. Connection-only diagnostics never enable product inference,
+  which stays disabled until S06. Live provider/model verification remains NOT_RUN.
 - Custodia `0.12/S02` (#314): bounded exact-Version context manifests, explicit coverage,
   validated representation/page selections, local literal/email redaction previews and
   closed untrusted-result validation. Internal synthetic-only exercise; no inference,

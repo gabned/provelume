@@ -81,6 +81,28 @@ from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTran
 
 class ProvelumeInstance:
     @staticmethod
+    def ai_provider_configuration(profile, config):
+        """Internal local validation; no lookup, DNS or provider contact."""
+        from .ai_provider import validate_configuration
+
+        return validate_configuration(profile, config)
+
+    @staticmethod
+    def ai_connection_diagnostic(current, *, cancel, requested=False):
+        """Explicit connection only: no credentials, HTTP request or inference."""
+        from .ai_provider_http import ChatJsonAdapter
+
+        return ChatJsonAdapter(credentials=None).diagnose(
+            current, cancel=cancel, requested=requested,
+        )
+
+    @staticmethod
+    def ai_execution_status():
+        from .ai_provider import product_execution_status
+
+        return product_execution_status()
+
+    @staticmethod
     def ai_context_preview(source, selections, **current):
         """Internal local preview of explicitly supplied context; no Instance I/O."""
         from .ai_context import preview_context

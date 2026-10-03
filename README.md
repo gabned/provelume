@@ -91,8 +91,9 @@ model or mutation route. See the [integrated pilot guide](docs/perceptio.md).
 
 The release lane retains immutable earlier previews and the published Cura personal
 daily-use beta inside its qualified perimeter. [Custodia development](docs/releases/0.12.0.md)
-tracks #311: S01 (#312/#313) delivered internal policy preflight; S02 (#314) adds
-bounded context, local redaction and untrusted-result isolation with synthetic tests.
+tracks #311: S01 (#312/#313) delivered internal policy preflight; S02 (#314/#315) delivered
+bounded context, local redaction and untrusted-result isolation. S03 (#316) adds internal
+replaceable transports and connection diagnostics with synthetic fixture qualification.
 Real AI inference remains unavailable; package identity stays 0.11.0.
 Later portfolio forecasts remain inactive from 0.13 onward; their release numbers
 and activation gates are unchanged.
