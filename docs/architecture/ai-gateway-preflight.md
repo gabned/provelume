@@ -81,8 +81,10 @@ inapplicable usage (`null`) and no canonical mutation. `executed` is reserved an
 the S01 producer. Nothing is persisted or logged by this module.
 
 `tests/ai_gateway_fakes.py` contains the deterministic adapter, outside the installed package.
-It recomputes current preflight before incrementing a simulation count and emits only the
-fixed synthetic-result contract. Denied/off/stale requests never enter its response path.
+Its test harness recomputes current preflight before invoking the adapter, which emits only
+the fixed synthetic-result contract. Denied/off/stale requests never invoke the adapter;
+call spies assert this independently of the simulation count. The adapter also revalidates
+as a defensive check when directly called by a synthetic test.
 The demonstration test covers allowed simulation, remote fallback rejection under local-only
 and stale-Version rejection. I/O spies prohibit socket/DNS, filesystem reads/writes,
 environment access and subprocess/model discovery while exercising the service and fake.

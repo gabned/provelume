@@ -10,7 +10,12 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from ai_gateway_fakes import DeterministicFakeAdapter, assert_not_transmitted, synthetic_case
+from ai_gateway_fakes import (
+    DeterministicFakeAdapter,
+    assert_not_transmitted,
+    simulate_synthetic,
+    synthetic_case,
+)
 
 from provelume import google_oauth
 from provelume.ai_contract import (
@@ -50,16 +55,16 @@ def denied(plan, reason):
     assert plan.execution_authorized is False
 
 
-def test_executable_s01_demonstration():
+def test_executable_s01_demonstration(monkeypatch):
     request, current = synthetic_case()
     fake = DeterministicFakeAdapter()
     # 1. Only a synthetic simulation; a permitted plan is never execution authority.
     plan = ProvelumeInstance.ai_explain(request, **current)
     assert plan.outcome == Outcome.PLANNED and not plan.execution_authorized
-    result = fake.simulate(plan, request, **current)
+    result = simulate_synthetic(plan, request, adapter=fake, **current)
     assert result.receipt.outcome == Outcome.SIMULATED
     assert_not_transmitted(result)
-    assert fake.simulate(plan, request, **current).to_bytes() == result.to_bytes()
+    assert simulate_synthetic(plan, request, adapter=fake, **current).to_bytes() == result.to_bytes()
     # 2. Source local-only excludes the expressly configured remote fallback.
     rules = (
         *current["rules"][:1],
@@ -72,7 +77,11 @@ def test_executable_s01_demonstration():
     assert plan.routes[1].reasons == (Reason.LOCAL_ONLY,)
     # 3. A changed exact Version refuses the earlier plan before any fake call.
     changed = replace(request, context=replace(request.context, version_id="synthetic_version_2"))
-    stale = fake.simulate(plan, changed, **local)
+    def unexpected_call(*args, **kwargs):
+        pytest.fail("stale decision reached the adapter")
+
+    monkeypatch.setattr(fake, "simulate", unexpected_call)
+    stale = simulate_synthetic(plan, changed, adapter=fake, **local)
     assert stale.outcome == Outcome.DENIED and stale.reasons == (Reason.STALE,)
     assert fake.simulations == 2
     assert_not_transmitted(stale)
@@ -82,7 +91,9 @@ def test_executable_s01_demonstration():
 @pytest.mark.parametrize(
     "restriction,reason", [({"mode": Mode.OFF}, Reason.OFF), ({"deny": True}, Reason.DENY)]
 )
-def test_off_and_explicit_deny_at_every_scope_never_call_fake(scope, restriction, reason):
+def test_off_and_explicit_deny_at_every_scope_never_call_fake(
+    scope, restriction, reason, monkeypatch
+):
     request, current = synthetic_case()
     if scope in (Scope.INSTANCE, Scope.SOURCE, Scope.CATEGORY):
         changes = {**restriction, **({"route": ()} if "mode" in restriction else {})}
@@ -96,7 +107,11 @@ def test_off_and_explicit_deny_at_every_scope_never_call_fake(scope, restriction
     plan = explain(request, **current)
     denied(plan, reason)
     fake = DeterministicFakeAdapter()
-    assert_not_transmitted(fake.simulate(plan, request, **current))
+    def unexpected_call(*args, **kwargs):
+        pytest.fail("denied request reached the adapter")
+
+    monkeypatch.setattr(fake, "simulate", unexpected_call)
+    assert_not_transmitted(simulate_synthetic(plan, request, adapter=fake, **current))
     assert fake.simulations == 0
 
 
@@ -442,7 +457,9 @@ def test_no_io_secrets_model_discovery_or_canonical_mutation(tmp_path, monkeypat
                 patch.setattr(owner, name, forbidden)
         plan = instance.ai_explain(request, **current)
         assert plan.outcome == Outcome.PLANNED
-        assert_not_transmitted(DeterministicFakeAdapter().simulate(plan, request, **current))
+        assert_not_transmitted(
+            simulate_synthetic(plan, request, adapter=DeterministicFakeAdapter(), **current)
+        )
     assert caplog.text == ""
     assert before == {kind: instance.store.list_canonical(kind) for kind in CANONICAL_KINDS}
     assert original_bytes == {

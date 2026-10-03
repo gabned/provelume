@@ -97,6 +97,14 @@ def synthetic_case():
     return request, dict(snapshot=snapshot, rules=rules, profiles=profiles, evidence=evidence)
 
 
+def simulate_synthetic(plan, request, *, adapter, **current):
+    """Test harness only: reject before even invoking the synthetic adapter."""
+    fresh = revalidate(plan, request, **current)
+    if fresh.outcome != Outcome.PLANNED:
+        return receipt(fresh)
+    return adapter.simulate(fresh, request, **current)
+
+
 class DeterministicFakeAdapter:
     """No model, no transport, no user registration. Calls count simulations only."""
 
