@@ -550,7 +550,7 @@ def preview_context(source: SourceSnapshot, selections: tuple[Selection, ...], *
             while (start := text.find(literal, offset)) != -1:
                 matches.append((start, start + len(literal), "literal"))
                 require(len(matches) <= 4096, Reason.LIMIT)
-                offset = start + len(literal)
+                offset = start + 1  # Include self-overlap before merging sensitive intervals.
         require(len(matches) <= 4096, Reason.LIMIT)
         # Merge overlaps to avoid leaking the tail of a sensitive overlapping literal.
         merged: list[tuple[int, int, str]] = []

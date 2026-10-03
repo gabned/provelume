@@ -292,6 +292,18 @@ def test_redaction_rejects_unpaired_surrogates_with_closed_error(literal):
     assert str(error.value) == Reason.INVALID
 
 
+@pytest.mark.parametrize("text,literal", [("ababab", "abab"), ("aaaaa", "aaa"), ("ééé", "éé")])
+def test_redaction_merges_self_overlapping_literal_occurrences(text, literal):
+    source, selections, current, _ = context_case(text)
+    current["redaction"] = RedactionConfig(email=False, literals=(literal,))
+    redacted = preview_context(source, selections, **current)
+    assert redacted.segments[0].text == "[REDACTED]"
+    assert len(redacted.events) == 1
+    event = redacted.events[0]
+    assert (event.start, event.end, event.rule) == (0, len(text), "literal")
+    assert source.outputs[0].data == text.encode("utf-8")
+
+
 def test_redaction_determinism_overlap_and_disclosed_limits():
     source, selections, current, _ = context_case("a@example.test PRIVATE private Ada +39 12345")
     redacted = preview_context(source, selections, **current)
