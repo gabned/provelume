@@ -7,7 +7,7 @@ import json
 import os
 import sys
 import time
-from contextlib import ExitStack
+from contextlib import ExitStack, nullcontext
 from pathlib import Path
 
 from .ai_model_file import verify_stream
@@ -50,6 +50,14 @@ def sealed_snapshot(stack, source, size, digest):
     return f"/proc/self/fd/{descriptor}"
 
 
+def pinned_input(stack, path):
+    # Windows must retain deny-write/delete handles. Linux retains only the sealed
+    # snapshot after copying; retaining every ancestor for every library exhausted
+    # the fixed 64-descriptor ceiling on ordinary deep CI paths.
+    return (nullcontext(stack.enter_context(open_local_file(path)))
+            if os.name == "nt" else open_local_file(path))
+
+
 def main():
     started = time.monotonic()
     phase = "initialization"
@@ -60,12 +68,13 @@ def main():
         phase = "model_verification"
         entry = ModelRegistry.packaged().entry(MODEL_ID)
         with ExitStack() as stack:
-            source = stack.enter_context(open_local_file(initial["model"]))
-            verify_stream(source, entry)
-            model_path = initial["model"]
-            phase = "model_snapshot"
-            if os.name != "nt":
-                model_path = sealed_snapshot(stack, source, entry.model_size, entry.model_sha256)
+            with pinned_input(stack, initial["model"]) as source:
+                verify_stream(source, entry)
+                model_path = initial["model"]
+                phase = "model_snapshot"
+                if os.name != "nt":
+                    model_path = sealed_snapshot(
+                        stack, source, entry.model_size, entry.model_sha256)
             directory = Path(initial["runtime"])
             system = "windows" if os.name == "nt" else "linux"
             inventory = runtime_lock()["platforms"][system]
@@ -73,15 +82,15 @@ def main():
             phase = "runtime_verification"
             check({p.name for p in directory.iterdir()} == set(inventory), "untrusted")
             for name, expected in inventory.items():
-                stream = stack.enter_context(open_local_file(directory / name))
-                check(os.fstat(stream.fileno()).st_nlink == 1, "unsafe_path")
-                check(
-                    os.fstat(stream.fileno()).st_size == expected["size"]
-                    and hashlib.file_digest(stream, "sha256").hexdigest() == expected["sha256"],
-                    "integrity",
-                )
-                library_paths[name] = (directory / name if os.name == "nt" else
-                    sealed_snapshot(stack, stream, expected["size"], expected["sha256"]))
+                with pinned_input(stack, directory / name) as stream:
+                    check(os.fstat(stream.fileno()).st_nlink == 1, "unsafe_path")
+                    check(
+                        os.fstat(stream.fileno()).st_size == expected["size"]
+                        and hashlib.file_digest(stream, "sha256").hexdigest() == expected["sha256"],
+                        "integrity",
+                    )
+                    library_paths[name] = (directory / name if os.name == "nt" else
+                        sealed_snapshot(stack, stream, expected["size"], expected["sha256"]))
             # Keep job handle and deny-write model/library descriptors alive.
             check(job is not False, "state")
             from .ai_llama import Llama

@@ -280,3 +280,32 @@ def test_measurement_report_never_promotes_missing_or_failed_observations():
     assert set(report["gates"].values()) == {"NOT_RUN"}
     report["cancel_load"] = {"seconds": 2.1, "worker_absent": True, "code": "cancelled"}
     assert evaluate(report)["status"] == "FAIL"
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="native Linux file descriptor ceiling")
+def test_snapshots_release_source_ancestor_descriptors_under_native_limit(tmp_path):
+    import hashlib
+
+    directory = tmp_path / "a/b/c/d/e/f/g/h"
+    directory.mkdir(parents=True)
+    for n in range(8):
+        (directory / str(n)).write_bytes(b"synthetic")
+    code = '''
+import sys,os,hashlib
+from pathlib import Path
+from contextlib import ExitStack
+sys.path.insert(0,sys.argv[1])
+from provelume.ai_runtime_limits import contain
+from provelume.ai_runtime_worker import pinned_input,sealed_snapshot
+contain()
+paths=[]
+with ExitStack() as stack:
+    for path in Path(sys.argv[2]).iterdir():
+        with pinned_input(stack,path) as stream:
+            paths.append(sealed_snapshot(stack,stream,9,sys.argv[3]))
+    assert len(os.listdir('/proc/self/fd')) < 32
+    assert all(Path(p).read_bytes()==b'synthetic' for p in paths)
+'''
+    subprocess.run([sys.executable, "-I", "-c", code,
+                    str(Path(__file__).resolve().parents[1] / "core"), str(directory),
+                    hashlib.sha256(b"synthetic").hexdigest()], check=True, timeout=10)

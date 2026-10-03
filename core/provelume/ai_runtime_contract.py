@@ -49,6 +49,7 @@ def hardware():
     """Observed resources, not qualification of a reference laptop."""
     system = platform.system().lower()
     check(not getattr(sys, "frozen", False), "compatibility")
+    check(sys.version_info[:2] == (3, 12), "compatibility")
     check(system in ("windows", "linux"), "compatibility")
     check(platform.machine().lower() in ("amd64", "x86_64"), "compatibility")
     if system == "windows":

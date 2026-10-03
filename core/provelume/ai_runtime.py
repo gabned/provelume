@@ -231,6 +231,7 @@ class LocalRuntime:
         check(self._lock.acquire(blocking=False), "busy")
         try:
             selection.validate(model.entry)
+            check(selection.platform == native_selection().platform, "compatibility")
             check(type(prompt) is str and 0 < len(prompt.encode("utf-8")) <= 4096, "limit")
             check(not any(token in prompt for token in ("<|im_start|>", "<|im_end|>")), "limit")
             deadline = time.monotonic() + 60
