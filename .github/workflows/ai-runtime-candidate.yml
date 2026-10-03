@@ -24,7 +24,7 @@ jobs:
       - name: Canonical dependency bootstrap
         run: python scripts/bootstrap.py
       - name: Explicit locked acquisition (no model in artifacts or Git)
-        run: python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/s05-inputs" --accept-licenses --include-model
+        run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/s05-inputs" --accept-licenses --include-model
       - name: Real native execution and honest qualification report
         run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/qualify_ai_runtime.py --artifacts "${{ runner.temp }}/s05-inputs" --output .agent/s05-real.json
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
@@ -32,5 +32,6 @@ jobs:
         with:
           name: s05-real-${{ matrix.os }}
           path: .agent/s05-real.json
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
