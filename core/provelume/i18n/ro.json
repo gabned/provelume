@@ -1690,6 +1690,7 @@
   "scheduler.cli_control": "Modificările politicilor necesită o acțiune locală explicită în CLI.",
   "scheduler.eyebrow": "Automatizare locală persistentă",
   "scheduler.jobs": "Sarcini",
+  "scheduler.kind.ai.execute": "Execuție IA controlată",
   "scheduler.kind.email.intake": "Preluare e-mail",
   "scheduler.kind.google.intake": "Preluare Google",
   "scheduler.kind.maintenance.backup_verify": "Verificare backup",

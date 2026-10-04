@@ -203,11 +203,18 @@ def test_reconciliation_duplicate_and_known_usage_never_refunded(case):
         evidence=digest("verified provider statement"),
         units=9,
         micros=5,
+        usage_source="PROVIDER",
     )
     first = jobs.reconcile(job["id"], **args)
+    assert first["ai"]["attempts"][0]["usage_source"] == "PROVIDER"
+    assert first["ai"]["attempts"][0]["reconciliations"][0]["usage_source"] == "PROVIDER"
     assert jobs.reconcile(job["id"], **args) == first
     with pytest.raises(SchedulerError, match="ai_reconciliation_conflict"):
         jobs.reconcile(job["id"], **{**args, "units": 8})
+    with pytest.raises(SchedulerError, match="ai_reconciliation_conflict"):
+        jobs.reconcile(job["id"], **{**args, "usage_source": "LOCAL"})
+    with pytest.raises(SchedulerError, match="ai_reconciliation_required"):
+        jobs.reconcile(job["id"], **{**args, "usage_source": "UNKNOWN"})
     with pytest.raises(SchedulerError, match="ai_known_consumption"):
         jobs.reconcile(job["id"], **{**args, "units": 8, "evidence": digest("other")})
 

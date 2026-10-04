@@ -27,6 +27,21 @@ diff checks passed. These local results precede native real-inference qualificat
 that intermediate result is not exact-head qualification. Full native and final
 synthetic results must be observed on the final unchanged candidate.
 
+The first immutable head `7ef4d22e67150d3b84d4d8fd9726862c0714bf06` produced
+two actionable full-CI regressions: the missing AI job label in Operations and the
+generic job-inventory fixture attempting to bypass governed AI admission. Both are
+corrected without dropping the all-kinds assertion. A further controlled audit
+reproduced enqueue/control/settlement writes during a restore lifecycle lock;
+three regressions failed before the lock-order correction. The expanded synthetic
+demo subsequently passed 58 cases. Reconciliation also retains explicit LOCAL or
+PROVIDER provenance for new numeric facts, including duplicate-evidence checks.
+
+The complete local Windows suite on that first head reached the unchanged canonical
+540-second shard deadline (561.17 seconds including supervisor closure), exit 1.
+Focused diagnostics reproduced the known restricted-host DPAPI credential-store
+failure and backup verification/maintenance failure. Complete logs are retained;
+this is not a local PASS and no security restriction or timeout is changed.
+
 ## Native candidate boundary
 
 The model/runtime, lock, licenses, configuration and ADR 0031 thresholds are unchanged.
@@ -43,13 +58,24 @@ S06 inference until measured. Native CI profiles are reported separately. Extern
 transport tests are synthetic only; real remote provider qualification is NOT_RUN.
 S09 retains Recommended promotion and S08 retains synthesis-quality acceptance.
 
+Native run [37191972291](https://github.com/gabned/provelume/actions/runs/37191972291)
+on the first head measured all six governed jobs per host successfully, nine receipts,
+both cancellations, next caller and final off. All 17 inherited S05 dimensions,
+including independent network observation, passed. The added S06 gate **failed**:
+maximum warm first output was **8.956 s on Linux / 7.844 s on Windows**, above
+the unchanged **5 s** threshold. The governed S02 payload is larger than the S05
+bounded factual corpus; successful execution does not waive its latency gate.
+No sample is discarded, payload shortened, threshold raised or S05 PASS transferred.
+The next corrected head requires its own full observation; integration stays blocked
+while any mandatory gate fails. Exact-head outcomes and all attempts belong in PR #323.
+
 ## Gate state before final ledger
 
 | Gate | Current declaration |
 | --- | --- |
 | Full native Windows/Linux suites and CI on exact head | Pending observation |
-| Real governed Windows execution/no-egress | NOT_RUN until native report |
-| Real governed Linux execution/no-egress | NOT_RUN until native report |
+| Real governed Windows execution/no-egress | First head: latency FAIL, no-egress PASS; corrected head needs fresh measurement |
+| Real governed Linux execution/no-egress | First head: latency FAIL, no-egress PASS; corrected head needs fresh measurement |
 | Complete reviews, threads and technical findings | Pending final inventory |
 | Integration and actual-main post-merge qualification | Not yet performed |
 | Lifecycle v2 enrollment/signing/recovery | DEFERRED_BY_MAINTAINER; accepted PR-local legacy route |

@@ -11,8 +11,9 @@ from test_ai_jobs import claim, enqueue
 from provelume.ai_job_runtime import JobOutcome, NativeJobAdapter
 from provelume.ai_jobs import AiJobs
 from provelume.ai_provider import ProviderError, Transmission
+from provelume.instance_lifecycle import InstanceLifecycleManager
 from provelume.scheduler import SchedulerCoordinator
-from provelume.scheduler_model import utc_instant
+from provelume.scheduler_model import SchedulerBusyError, utc_instant
 from provelume.service import ProvelumeInstance
 from provelume.storage import InstanceStore
 
@@ -165,3 +166,23 @@ def test_late_old_callback_cannot_modify_retry_attempt(case):
             now=now,
         )
     assert jobs.journal.get_job(old["id"]) == new
+
+
+@pytest.mark.parametrize("operation", ["enqueue", "configure", "complete"])
+def test_restore_lifecycle_lock_fences_ai_mutations(case, operation):
+    instance, jobs, _ = case
+    job = claim(jobs, enqueue(jobs)["id"])
+    with (
+        InstanceLifecycleManager(instance.store)._hold(purpose="synthetic-restore-publication"),
+        pytest.raises(SchedulerBusyError),
+    ):
+        if operation == "enqueue":
+            enqueue(jobs, "during-restore")
+        elif operation == "configure":
+            jobs.configure(mode="off")
+        else:
+            jobs.complete(
+                job["id"],
+                job["lease"]["token"],
+                outcome=JobOutcome({"kind": "untrusted_text", "value": "late"}),
+            )

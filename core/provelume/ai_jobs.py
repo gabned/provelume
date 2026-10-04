@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import time
+from contextlib import contextmanager
 from dataclasses import asdict
 from datetime import timedelta
 
@@ -129,6 +130,13 @@ class AiJobs:
         check(self._control()["mode"] == "enabled", "ai_off")
         self.session_authorized = True
 
+    @contextmanager
+    def _transaction(self):
+        # Same lock order as scheduler admission and staged restore. A directory
+        # swap cannot erase a reservation or settlement written to the old root.
+        with self.coordinator._hold_lifecycle("ai-job-transaction"), self.journal.hold():
+            yield
+
     def _control(self):
         check(not self.path.is_symlink(), "ai_job_invalid")
         if not self.path.exists():
@@ -164,7 +172,7 @@ class AiJobs:
 
     def configure(self, *, mode, budget=None):
         check(mode in {"off", "enabled", "paused"})
-        with self.journal.hold():
+        with self._transaction():
             value = self._control()
             if budget is not None:
                 record = budget_record(budget)
@@ -193,7 +201,7 @@ class AiJobs:
 
     def change_authority(self, change, *, revoke=None):
         """Serialize supported host-source mutation against dispatch authorization."""
-        with self.journal.hold():
+        with self._transaction():
             if revoke is not None:
                 fingerprint(revoke)
                 value = self._control()
@@ -219,7 +227,7 @@ class AiJobs:
         budget_record(budget)
         check(type(request_key) is str and 1 <= len(request_key) <= 200)
         check(type(acknowledge_duplicate_risk) is bool)
-        with self.journal.hold():
+        with self._transaction():
             control = self._control()
             check(control["mode"] != "off", "ai_off")
             inputs, request, _ = self._inputs(request_ref, 0)
@@ -472,7 +480,7 @@ class AiJobs:
                 return True
 
         try:
-            with self.journal.hold():
+            with self._transaction():
                 clock = utc_instant(now)
                 job = self._owned(job_id, token, clock)
                 inputs, _, profile, _ = self._validate(job, clock)
@@ -519,7 +527,7 @@ class AiJobs:
             )
 
     def complete(self, job_id, token, *, outcome=None, error=None, elapsed_ms=0, now=None):
-        with self.journal.hold():
+        with self._transaction():
             clock = utc_instant(now)
             job = self.journal.get_job(job_id)
             check(job is not None and job["job_kind"] == AI_JOB_KIND)
@@ -647,7 +655,7 @@ class AiJobs:
         return finish_ai_locked(self.journal, job, now) if ai["terminal"] else job
 
     def control_job(self, job_id, action):
-        with self.journal.hold():
+        with self._transaction():
             job = self.journal.get_job(job_id)
             check(job is not None and job["job_kind"] == AI_JOB_KIND)
             return self._control_job_locked(job, action, utc_instant())
@@ -658,7 +666,7 @@ class AiJobs:
         from .scheduler_control import revision
 
         check(type(request_id) is str and 1 <= len(request_id) <= 200)
-        with self.journal.hold():
+        with self._transaction():
             job = self.journal.get_job(job_id)
             check(job is not None and job["job_kind"] == AI_JOB_KIND)
             request_digest = digest(request_id)
@@ -714,12 +722,18 @@ class AiJobs:
         evidence,
         units=None,
         micros=None,
+        usage_source="UNKNOWN",
     ):
         fingerprint(evidence)
         check(
             quiescent is True and acknowledge_duplicate_risk is True, "ai_reconciliation_required"
         )
-        with self.journal.hold():
+        check(usage_source in {"UNKNOWN", "LOCAL", "PROVIDER"}, "ai_reconciliation_required")
+        check(
+            (units is None and micros is None) or usage_source != "UNKNOWN",
+            "ai_reconciliation_required",
+        )
+        with self._transaction():
             job = self.journal.get_job(job_id)
             check(job is not None and job["job_kind"] == AI_JOB_KIND)
             integer(attempt, 1, len(job["ai"]["attempts"]))
@@ -728,7 +742,9 @@ class AiJobs:
             prior = next((e for e in row["reconciliations"] if e["evidence"] == evidence), None)
             if prior:
                 check(
-                    prior["units"] == units and prior["micros"] == micros,
+                    prior["units"] == units
+                    and prior["micros"] == micros
+                    and prior["usage_source"] == usage_source,
                     "ai_reconciliation_conflict",
                 )
                 return job
@@ -739,11 +755,14 @@ class AiJobs:
                     check(row[key] is None or value >= row[key], "ai_known_consumption")
                     row[key] = value
             row.update(phase="settled", quiescent=True)
+            if units is not None or micros is not None:
+                row["usage_source"] = usage_source
             row["reconciliations"].append(
                 {
                     "evidence": evidence,
                     "units": units,
                     "micros": micros,
+                    "usage_source": usage_source,
                     "at": instant_text(utc_instant()),
                 }
             )

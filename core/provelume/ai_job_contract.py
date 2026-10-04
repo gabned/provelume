@@ -168,7 +168,15 @@ def validate_ai(value, job):
         check(type(row["reconciliations"]) is list and len(row["reconciliations"]) <= 32)
         seen = set()
         for entry in row["reconciliations"]:
-            check(type(entry) is dict and set(entry) == {"evidence", "units", "micros", "at"})
+            check(
+                type(entry) is dict
+                and set(entry) == {"evidence", "units", "micros", "usage_source", "at"}
+            )
+            check(entry["usage_source"] in {"UNKNOWN", "LOCAL", "PROVIDER"})
+            check(
+                (entry["units"] is None and entry["micros"] is None)
+                or entry["usage_source"] != "UNKNOWN"
+            )
             fingerprint(entry["evidence"])
             check(entry["evidence"] not in seen)
             seen.add(entry["evidence"])

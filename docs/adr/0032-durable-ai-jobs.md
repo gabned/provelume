@@ -34,7 +34,8 @@ MAY_HAVE_SENT attempt becomes UNCERTAIN, keeps its reservation and occupies a sl
 until explicit reconciliation establishes quiescence. It is never automatically
 replayed, retried or sent to a fallback. The same rule covers process death.
 
-The existing Instance lifecycle lock covers admission, then is released before AI
+The existing Instance lifecycle lock covers every short AI mutation before the
+journal lock (including admission, authorization, controls and settlement), then is released before AI
 inference: context is immutable and no canonical object is changed. Restore instead
 fences active AI records conservatively. This keeps capture/search available while
 the journal lock still serializes authority/accounting transactions.

@@ -1690,6 +1690,7 @@
   "scheduler.cli_control": "Policy changes require an explicit local CLI action.",
   "scheduler.eyebrow": "Durable local automation",
   "scheduler.jobs": "Jobs",
+  "scheduler.kind.ai.execute": "Governed AI execution",
   "scheduler.kind.email.intake": "Email intake",
   "scheduler.kind.google.intake": "Google intake",
   "scheduler.kind.maintenance.backup_verify": "Verify backup",

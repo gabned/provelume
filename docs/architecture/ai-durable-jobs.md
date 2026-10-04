@@ -59,7 +59,9 @@ replace output, accounting or receipt. Exactly-once remote execution/billing is 
 claimed. Crashes are tested with real `os._exit` subprocesses at seven boundaries,
 including receipt persistence before the terminal job projection.
 
-The lifecycle lock covers claim, not the whole inference. Immutable bounded context
+The lifecycle lock covers every short mutation before the journal lock, not the
+whole inference. This prevents enqueue/control/settlement writes being lost to a
+concurrent staged directory swap. Immutable bounded context
 and the journal barrier let deterministic capture/search continue. A concurrent restore
 forces off and fences the live job as uncertain; it does not assume its worker stopped.
 
@@ -109,7 +111,9 @@ missing consent, exhausted budget or ambiguous send never triggers fallback.
 
 `reconcile` requires explicit quiescence, acknowledgement of duplicate execution/cost
 risk and a privacy-safe evidence fingerprint. It appends facts without requeueing or
-rewriting the terminal receipt. A new explicit request for an uncertain reference
+rewriting the terminal receipt. New numeric facts require an explicit LOCAL or
+PROVIDER provenance, retained in each evidence entry; quiescence alone cannot turn
+UNKNOWN into zero. A new explicit request for an uncertain reference
 requires its own recorded risk acknowledgement and retains the previous liability.
 
 ## Operations, privacy and portability
