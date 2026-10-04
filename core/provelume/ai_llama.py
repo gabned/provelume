@@ -180,6 +180,7 @@ class Llama:
             pointer = c.cast(c.byref(tokens, start * c.sizeof(INT)), P)
             check(self.decode(self.context, self.batch(pointer, count)) == 0, "limit")
         result = bytearray()
+        output_tokens = 0
         first = None
         for _ in range(128):
             token = self.sample(self.sampler, self.context, -1)
@@ -192,10 +193,13 @@ class Llama:
                 first = time.monotonic() - started
                 emit({"event": "first", "seconds": first})
             result.extend(buffer.raw[:count])
+            output_tokens += 1
             one = (INT * 1)(token)
             check(self.decode(self.context, self.batch(one, 1)) == 0, "limit")
         return {
             "event": "result",
+            "input_tokens": n,
+            "output_tokens": output_tokens,
             "text": result.decode("utf-8", errors="strict"),
             "first_seconds": first,
             "seconds": time.monotonic() - started,

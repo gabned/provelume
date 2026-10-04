@@ -182,6 +182,10 @@ class ProvelumeInstance:
             representations=self.representations,
         )
         self.scheduler = SchedulerCoordinator(self.store)
+        from .ai_jobs import AiJobs
+
+        self.ai_jobs = AiJobs(self.scheduler)
+        self.scheduler.ai_jobs = self.ai_jobs
         self.ocr = OcrJobManager(self.store)
         self.email_sources = EmailSourceManager(self.store)
         self.email = EmailJobManager(self.store)
@@ -227,6 +231,21 @@ class ProvelumeInstance:
         """Pure governed metadata, separate from availability or inference authority."""
         return self.components.model_registry()
 
+    def bind_ai_execution(self, *, current, adapters, quotes=None):
+        """Internal trusted host wiring; does not enable AI or enqueue any work."""
+        from .ai_jobs import AiJobs
+
+        self.ai_jobs = AiJobs(self.scheduler, current=current, adapters=adapters, quotes=quotes)
+        self.scheduler.ai_jobs = self.ai_jobs
+        return self.ai_jobs
+
+    def run_ai_job(self, job_id):
+        job = self.scheduler.journal.get_job(job_id)
+        if job is None or job["job_kind"] != "ai.execute":
+            raise SchedulerError("ai_job_invalid")
+        self.scheduler.run_one(job_id=job_id)
+        return self.ai_jobs.public(job_id)
+
     def ai_model_lifecycle(self):
         """Internal explicit lifecycle; construction performs no I/O or recovery."""
         from .ai_model_store import ModelStore
@@ -240,7 +259,7 @@ class ProvelumeInstance:
         return {"runtime": "llama.cpp", "version": RUNTIME_VERSION,
                 "runtime_lock_sha256": LOCK_SHA256, "configuration": dict(CONFIGURATION),
                 "qualification": "CANDIDATE_NOT_QUALIFIED", "recommended": False,
-                "inference_authorized": False, "product_dispatch": "REQUIRES_S06"}
+                "inference_authorized": False, "product_dispatch": "governed_job_required"}
 
     def representation_support(self, *, profile_id: str | None = None) -> dict[str, Any]:
         return self.representations.support.read(profile_id=profile_id)

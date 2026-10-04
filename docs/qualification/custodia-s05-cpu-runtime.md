@@ -2,8 +2,11 @@
 
 Sole owner: [#320](https://github.com/gabned/provelume/issues/320) /
 [PR #321](https://github.com/gabned/provelume/pull/321).
-The PR ledger carries final exact-head qualification, integration and actual-main
-post-merge identity. This document records reproducible measurements, not product
+S05 is completed: [exact-head qualification](https://github.com/gabned/provelume/pull/321#issuecomment-5974348828)
+binds `f34a3517f0622df705a99e022c47334e23d6e5c9`; the
+[integration/post-merge ledger](https://github.com/gabned/provelume/pull/321#issuecomment-5974454025)
+qualifies actual main `d7f33d908912b7644cc074354ec68a8552c081fb`, tree
+`6fd5e1c4850f4114986bd2b23c95d3d04dd46586`. This document retains earlier measurements, not product
 dispatch authority or S09 Recommended promotion.
 
 ## Fixed candidate and criteria

@@ -3,7 +3,11 @@
 Issue #320, sole owner PR #321, after integrated and qualified S01–S04. The selection
 and frozen thresholds are [ADR 0031](../adr/0031-cpu-local-runtime-candidate.md).
 Candidate selection, S05 technical qualification and S09 Recommended promotion are
-three separate decisions. None authorizes product dispatch before S06.
+three separate decisions. S05 is integrated at main
+`d7f33d908912b7644cc074354ec68a8552c081fb`; the final integration ledger is linked in
+the qualification record. None of these decisions authorizes dispatch: the separate
+[S06 durable-job boundary](ai-durable-jobs.md) requires current policy, explicit
+session/job authority and an atomic reservation.
 Actual profiles, numerical results and retained failures are in the
 [S05 qualification record](../qualification/custodia-s05-cpu-runtime.md); final
 exact-head and actual-main qualification are linked from the sole owner ledger.
@@ -26,9 +30,10 @@ pure metadata. Complete activation surfaces belong to S07.
 
 Construction, import, status and preflight do not load native libraries, spawn
 workers, fetch weights or send network requests. Only an explicit lifecycle self-test
-or qualification call lazily starts one worker; after five idle seconds it exits.
+or qualification call, or an admitted S06 job, lazily starts one worker; after five idle seconds it exits.
 One process slot per Core interpreter, one active request, zero queue. Multiple
-independent Core processes are not a global job budget; S06 owns that enforcement.
+independent Core processes are constrained by S06's Instance-wide durable reservations
+and existing cross-process scheduler lock before product dispatch.
 The worker uses fixed two-thread CPU inference, 2048 context tokens, 1536 input
 tokens, 4096 input bytes, 128 output tokens and 4096 output bytes. Greedy sampling
 is fixed. StdIO messages, the reader queue and the single supervised writer are

@@ -40,15 +40,16 @@ _HEADER = re.compile(rb"[!#$%&'*+.^_`|~0-9A-Za-z-]+\Z")
 
 
 class Cancellation:
-    def __init__(self):
+    def __init__(self, *, probe=None):
         self._event = threading.Event()
+        self._probe = probe
 
     def cancel(self):
         self._event.set()
 
     @property
     def cancelled(self):
-        return self._event.is_set()
+        return self._event.is_set() or (self._probe is not None and self._probe())
 
 
 class _Control:
@@ -442,7 +443,7 @@ class ChatJsonAdapter:
                     "tls_verified": target.scheme == "https",
                     "authentication": "NOT_RUN",
                     "inference": "NOT_RUN",
-                    "product_execution": "disabled_until_s06",
+                    "product_execution": "governed_job_required",
                 }
             # Observe revocation/rotation again at the final pre-send boundary.
             # A changed token is refused; this is not an authentication retry.

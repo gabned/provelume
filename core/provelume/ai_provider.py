@@ -52,7 +52,7 @@ class Destination(StrEnum):
 
 class Failure(StrEnum):
     CONFIG = "ai_transport_configuration"
-    DISABLED = "ai_execution_requires_s06"
+    DISABLED = "ai_governed_job_required"
     POLICY = "ai_transport_policy_or_stale"
     CREDENTIAL = "ai_credential_unavailable"
     DESTINATION = "ai_destination_refused"
@@ -257,6 +257,12 @@ def admit_address(config, raw):
 
 def validate_configuration(profile, config):
     """Pure local validation; availability is not provider/model qualification."""
+    from .ai_job_runtime import NativeConfig
+
+    if type(config) is NativeConfig:
+        check(type(profile) is Profile and profile.route_revision == config.fingerprint)
+        return {"configuration": "valid", "wire": "native-worker-v1",
+                "live_verification": "NOT_RUN", "product_execution": "governed_job_required"}
     check(type(profile) is Profile and type(config) is ProviderConfig)
     check(profile.capabilities == (Capability.STRUCTURED_OUTPUT,))
     check(profile.route_revision == config.fingerprint)
@@ -266,7 +272,7 @@ def validate_configuration(profile, config):
         "wire": WIRE_PROFILE,
         "destination": config.destination.value,
         "live_verification": "NOT_RUN",
-        "product_execution": "disabled_until_s06",
+        "product_execution": "governed_job_required",
     }
 
 
@@ -282,6 +288,7 @@ class CallInputs:
     profiles: tuple
     evidence: tuple
     config: ProviderConfig
+    route_index: int = 0
 
     def prepare(self):
         try:
@@ -297,16 +304,23 @@ class CallInputs:
                 evidence=self.evidence,
             )
             require(fresh.outcome == Outcome.PLANNED, Reason.STALE)
+            require(type(self.route_index) is int and 0 <= self.route_index < len(fresh.routes),
+                    Reason.ROUTE)
+            require(fresh.routes[self.route_index].eligible, Reason.ROUTE)
             profile = next(
-                p for p in self.profiles if p.fingerprint == fresh.routes[0].profile_fingerprint
+                p for p in self.profiles
+                if p.fingerprint == fresh.routes[self.route_index].profile_fingerprint
             )
             validate_configuration(profile, self.config)
             qualification = next(
                 e for e in self.evidence if e.profile_fingerprint == profile.fingerprint
             )
+            from .ai_job_runtime import NativeConfig
+
             expected = (
                 (Locality.LOCAL, Assurance.MANAGED_OFFLINE)
-                if self.config.destination == Destination.MANAGED
+                if (type(self.config) is NativeConfig
+                    or self.config.destination == Destination.MANAGED)
                 else (Locality.REMOTE, Assurance.REMOTE)
             )
             require((qualification.locality, qualification.assurance) == expected, Reason.LOCALITY)
@@ -379,7 +393,7 @@ def accept_candidate(raw, inputs, *, transmission):
             "schema_version": 1,
             "plan_receipt": receipt(inputs.plan).as_record(),
             "binding": inputs.plan.binding,
-            "profile_fingerprint": inputs.plan.routes[0].profile_fingerprint,
+            "profile_fingerprint": inputs.plan.routes[inputs.route_index].profile_fingerprint,
             "transport_fingerprint": inputs.config.fingerprint,
             "transmission": transmission.value,
             "usage": "UNKNOWN",

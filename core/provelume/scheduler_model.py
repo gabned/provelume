@@ -14,6 +14,7 @@ from .transcript_contract import TRANSCRIPT_ERROR_CODES
 
 SCHEDULER_SCHEMA_VERSION = 1
 SCHEDULER_JOB_KINDS = (
+    "ai.execute",
     "source.refresh",
     "search.reindex",
     "search.reindex.incremental",
@@ -32,7 +33,9 @@ SCHEDULER_JOB_KINDS = (
 USER_SCHEDULER_JOB_KINDS = tuple(
     kind
     for kind in SCHEDULER_JOB_KINDS
-    if kind not in {"ocr.execute", "email.intake", "google.intake", "transcript.intake"}
+    if kind not in {
+        "ai.execute", "ocr.execute", "email.intake", "google.intake", "transcript.intake"
+    }
 )
 EXECUTABLE_JOB_KINDS = SCHEDULER_JOB_KINDS
 SOURCE_SCOPED_JOB_KINDS = frozenset(
@@ -65,6 +68,9 @@ ERROR_CLASSES = ("transient", "permanent", "manual_intervention", "cancelled")
 ERROR_CODES = (
     (
         "cancelled_by_user",
+        "ai_execution_blocked",
+        "ai_outcome_uncertain",
+        "ai_retry",
         "committed_checkpoint_needs_review",
         "executor_unavailable",
         "instance_validation_failed",
@@ -653,7 +659,7 @@ def validate_job_record(value: Any) -> dict[str, Any]:
     controlled = (
         isinstance(value, Mapping)
         and type(value.get("schema_version")) is int
-        and value["schema_version"] == 2
+        and value["schema_version"] in {2, 3}
     )
     expected = {
         "schema_version",
@@ -682,6 +688,9 @@ def validate_job_record(value: Any) -> dict[str, Any]:
     }
     if controlled:
         expected |= {"control", "execution_plan"}
+    ai_job = controlled and value["schema_version"] == 3
+    if ai_job:
+        expected.add("ai")
     if not isinstance(value, Mapping) or set(value) != expected:
         raise SchedulerError("scheduler job fields are incomplete or unsupported")
     job_id = value.get("id")
@@ -691,7 +700,9 @@ def validate_job_record(value: Any) -> dict[str, Any]:
     reason = value.get("reason")
     if (
         type(value.get("schema_version")) is not int
-        or value.get("schema_version") != (2 if controlled else SCHEDULER_SCHEMA_VERSION)
+        or value.get("schema_version") != (
+            3 if ai_job else 2 if controlled else SCHEDULER_SCHEMA_VERSION
+        )
         or not isinstance(job_id, str)
         or _JOB_ID.fullmatch(job_id) is None
         or not isinstance(policy_id, str)
@@ -908,9 +919,15 @@ def validate_job_record(value: Any) -> dict[str, Any]:
             raise SchedulerError("execution plan scope differs from its job")
     elif job_kind == "maintenance.backup_verify":
         raise SchedulerError("backup verification requires its immutable execution plan")
+    if ai_job:
+        from .ai_job_contract import validate_ai
+
+        extension["ai"] = validate_ai(value["ai"], value)
+    elif job_kind == "ai.execute":
+        raise SchedulerError("AI jobs require the governed schema 3 admission")
     return {
         **extension,
-        "schema_version": 2 if controlled else SCHEDULER_SCHEMA_VERSION,
+        "schema_version": 3 if ai_job else 2 if controlled else SCHEDULER_SCHEMA_VERSION,
         "id": job_id,
         "policy_id": policy_id,
         "policy_revision": policy_revision,
@@ -941,6 +958,7 @@ def validate_job_record(value: Any) -> dict[str, Any]:
 
 
 def validate_receipt_record(value: Any) -> dict[str, Any]:
+    ai_receipt = isinstance(value, Mapping) and value.get("job_kind") == "ai.execute"
     expected = {
         "schema_version",
         "id",
@@ -960,13 +978,15 @@ def validate_receipt_record(value: Any) -> dict[str, Any]:
         "canonical_mutation",
         "automatic_deletion",
     }
+    if ai_receipt:
+        expected.add("ai")
     if not isinstance(value, Mapping) or set(value) != expected:
         raise SchedulerError("scheduler receipt fields are incomplete or unsupported")
     receipt_id = value.get("id")
     job_id = value.get("job_id")
     policy_id = value.get("policy_id")
     if (
-        value.get("schema_version") != SCHEDULER_SCHEMA_VERSION
+        value.get("schema_version") != (2 if ai_receipt else SCHEDULER_SCHEMA_VERSION)
         or not isinstance(receipt_id, str)
         or _RECEIPT_ID.fullmatch(receipt_id) is None
         or not isinstance(job_id, str)
@@ -1024,6 +1044,11 @@ def validate_receipt_record(value: Any) -> dict[str, Any]:
         raise SchedulerError("scheduler receipt canonical-mutation flag is invalid")
     if value.get("automatic_deletion") is not False:
         raise SchedulerError("scheduler receipts cannot authorize automatic deletion")
+    extension = {}
+    if ai_receipt:
+        from .ai_job_contract import validate_receipt_snapshot
+
+        extension = {"schema_version": 2, "ai": validate_receipt_snapshot(value["ai"])}
     return {
         "schema_version": SCHEDULER_SCHEMA_VERSION,
         "id": receipt_id,
@@ -1042,6 +1067,7 @@ def validate_receipt_record(value: Any) -> dict[str, Any]:
         "network_used": value["network_used"],
         "canonical_mutation": value["canonical_mutation"],
         "automatic_deletion": False,
+        **extension,
     }
 
 

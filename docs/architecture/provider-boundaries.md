@@ -44,7 +44,8 @@ The `0.12/S01` [preflight contract](ai-gateway-preflight.md) now supplies versio
 descriptors, independent locality evidence and a pure scope-policy resolver through
 `ProvelumeInstance.ai_explain`. It returns only a plan; it opens no Instance, contacts no
 provider and grants no execution or canonical-write authority. Its deterministic fake adapter
-lives only in synthetic tests, outside the product package. Real inference remains unavailable.
+lives only in synthetic tests, outside the product package. Real inference now requires
+the separate [S06 governed-job contract](ai-durable-jobs.md); a preflight plan remains insufficient.
 
 S02 (#314) adds the [bounded context boundary](ai-bounded-context.md): explicitly supplied
 exact-Version representation selections, local redaction with disclosed limits, immutable
@@ -53,7 +54,7 @@ invoke providers or give a manifest/preview/result execution authority. S01 (#31
 remains the only policy resolver. S03 (#316) supplies the internal
 [transport and diagnostic boundary](ai-provider-transports.md): one restricted Chat
 Completions JSON profile, pinned actual peer, external-secret references and bounded I/O,
-exercised with synthetic fixtures. No product inference caller exists until S06; S07 owns
+exercised with synthetic fixtures. S06 alone binds these adapters to durable jobs; S07 owns
 user previews. Configuration/state reads are local; explicit diagnostics establish only
 a connection, never model compatibility, authentication, inference or offline assurance.
 

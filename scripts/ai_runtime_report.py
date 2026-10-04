@@ -76,6 +76,42 @@ def evaluate(report):
     gates["network"] = report.get("network", "NOT_RUN")
     gates["next_caller"] = ("NOT_RUN" if "next_caller" not in report else "PASS"
                             if report["next_caller"] == "PASSED" else "FAIL")
+    if report.get("s06_required"):
+        governed = report.get("s06", {})
+        rows = governed.get("samples", [])
+        cancels = governed.get("cancellations", [])
+        gates["s06_governed"] = "NOT_RUN"
+        if governed.get("status") == "MEASURED" and len(rows) == 6 and len(cancels) == 2:
+            passed = (governed.get("default_off") and governed.get("final_off")
+                      and governed.get("worker_absent")
+                      and governed.get("next_caller") == "succeeded"
+                      and governed.get("receipt_count") == 9)
+            for row in rows:
+                worker = row["worker"]
+                passed &= (row["status"] == "succeeded" and row["attempts"] == 1
+                    and row["consumption"]["usage_source"] == "LOCAL"
+                    and row["consumption"]["micros"] == 0 and row["consumption"]["units"] > 0
+                    and row["result_fingerprint"] is not None
+                    and worker["memory"]["peak_rss"] <= 2 * 1024**3
+                    and row["seconds"] <= (60 if row["phase"] == "cold" else 30)
+                    and row["first_seconds"] is not None
+                    and row["first_seconds"] <= (20 if row["phase"] == "cold" else 5)
+                    and (row["phase"] != "cold" or worker["load"]["seconds"] <= 15))
+            passed &= all(r["status"] == "cancelled" and r["worker_absent"] and r["active"] == 0
+                          and r["seconds"] is not None and r["seconds"] <= 2 for r in cancels)
+            probes = governed.get("deterministic_busy", [])
+            passed &= len(probes) == 6 and len(baseline) >= 3
+            passed &= all(r["preserved"] and r["search_found"] and r["worker_observed"]
+                          and r["product_dispatch_blocked"] for r in probes)
+            for key in ("capture_seconds", "search_seconds"):
+                if baseline:
+                    limit = min(1, 2 * statistics.median(r[key] for r in baseline) + 0.1)
+                    passed &= all(r[key] <= limit for r in probes)
+            unload = governed.get("idle_unload", {})
+            passed &= unload.get("worker_absent") and unload.get("seconds", 8) <= 7
+            passed &= (governed["parent_after"]["rss"] - governed["parent_before"]["rss"]
+                       <= 64 * 1024**2)
+            gates["s06_governed"] = "PASS" if passed else "FAIL"
     report["gates"] = gates
     report["status"] = ("FAIL" if report.get("failures") or "FAIL" in gates.values() else
                          "BLOCKED" if any(v != "PASS" for v in gates.values()) else "PASS")

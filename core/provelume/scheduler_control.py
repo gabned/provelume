@@ -82,7 +82,7 @@ def initial_control(*, parent: str | None = None) -> dict[str, Any]:
 
 
 def promote(job: Mapping[str, Any]) -> dict[str, Any]:
-    if job["schema_version"] == CONTROLLED_JOB_SCHEMA_VERSION:
+    if job["schema_version"] in {CONTROLLED_JOB_SCHEMA_VERSION, 3}:
         return dict(job)
     return {**job, "schema_version": 2, "control": initial_control(), "execution_plan": None}
 
@@ -199,7 +199,7 @@ def validate_control(value: Any, *, job: Mapping[str, Any]) -> dict[str, Any]:
         raise SchedulerError("job control history exceeds its bound")
     if value["revision"] < len(commands):
         raise SchedulerError("job control revision precedes its history")
-    if job["status"] == "paused" and job["job_kind"] not in COOPERATIVE_KINDS:
+    if job["status"] == "paused" and job["job_kind"] not in COOPERATIVE_KINDS | {"ai.execute"}:
         raise SchedulerError("executor has no cooperative paused state")
     seen = set()
     for row in commands:
@@ -385,6 +385,10 @@ def public_control_progress(job: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def capabilities(job: Mapping[str, Any], *, producer: Any = None, now=None) -> dict[str, Any]:
+    if job["job_kind"] == "ai.execute":
+        from .ai_jobs import ai_capabilities
+
+        return ai_capabilities(job, now=now)
     status = job["status"]
     cooperative = job["job_kind"] in COOPERATIVE_KINDS
     control = job.get("control") or initial_control()

@@ -11,7 +11,7 @@ maintenance catalogue, incremental reindex and per-item recovery adapters descri
 
 ## Storage and authority
 
-Scheduler policies and terminal receipts retain schema 1. Legacy schema-1 jobs remain readable;
+Scheduler policies and non-AI terminal receipts retain schema 1. Legacy schema-1 jobs remain readable;
 Cura cooperative controls and reviewed maintenance plans use strict schema-2 jobs under the same
 durable `state/scheduler/`:
 
@@ -21,6 +21,15 @@ state/scheduler/
   jobs/job_<uuid>.json
   receipts/receipt_<job-uuid>.json
 ```
+
+Custodia S06 adds [schema-3 AI jobs](ai-durable-jobs.md), schema-2 AI receipts and
+validated `ai-control.json` under this same journal. Admission/reservation and lease
+commit together under the existing OS lock. AI execution is explicitly requested;
+ordinary background cycles skip it. Possible-send lease expiry retains uncertainty
+and budget instead of using ordinary maintenance replay. Private bounded generic AI
+results live only in the internal job extension and are removed from public projections.
+The no-content description below continues to apply to policies, public views and
+ordinary jobs/receipts, not that explicitly private result field.
 
 Policies and jobs are atomically replaceable JSON records. A terminal receipt is write-once and
 has the same UUID as its job, so recovery can reconcile the one permitted split commit: a receipt

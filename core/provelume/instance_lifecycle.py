@@ -330,6 +330,9 @@ class InstanceLifecycleManager:
                 raise InstanceLifecycleError(
                     "restored staging Instance failed validation"
                 )
+            from .ai_job_portability import prepare_restored_ai
+
+            prepare_restored_ai(InstanceStore(stage), self.store if root.exists() else None)
             if root.exists():
                 os.replace(root, previous)
                 moved_previous = True

@@ -258,7 +258,7 @@ class LocalRuntime:
                 self._stop()
 
     def _infer(self, model, selection, prompt, *, cancel=lambda: False):
-        """Only explicit lifecycle self-test/qualification calls this internal seam."""
+        """Internal primitive for lifecycle qualification and governed S06 attempts."""
         check(self._lock.acquire(blocking=False), "busy")
         try:
             selection.validate(model.entry)
@@ -336,5 +336,5 @@ class LocalRuntime:
             "qualification": "CANDIDATE_NOT_QUALIFIED",
             "offline_qualified": False,
             "inference_authorized": False,
-            "product_dispatch": "REQUIRES_S06",
+            "product_dispatch": "governed_job_required",
         }
