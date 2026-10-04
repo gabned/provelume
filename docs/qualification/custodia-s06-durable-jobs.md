@@ -102,13 +102,39 @@ are unchanged. This optimization does not itself establish a native PASS: fresh
 unchanged-head Windows/Linux observations belong in the sole PR ledger. The user
 requested this follow-up before reconsidering integration; the owner remains draft.
 
+Head `976e72d227e70514eb78aed1158d8fd941adc758` (tree
+`3705ce40f08d09a6b66c678ac867ae7cf981363d`) passed
+[full CI 37213406200](https://github.com/gabned/provelume/actions/runs/37213406200):
+Linux 3462 passed/23 skipped, Windows 3396 passed/89 skipped. The synthetic demo
+passed 67 cases. Five alternating isolated local profile pairs measured median
+polling wall time 1.224 s before/0.588 s after, thread CPU 1.172 s/0.563 s. This is
+about 52% less synthetic polling work, not a native inference speedup claim.
+The full local suite retained its canonical 540-second timeout (562.419 s including
+wrapper closure, exit 124); complete logs retain all 62 observed failing nodes.
+
+[Native run 37213406166](https://github.com/gabned/provelume/actions/runs/37213406166)
+passed all 17 inherited S05 gates on both profiles, including external no-egress,
+but failed S06 warm first output: max 8.297 s Linux/9.735 s Windows. Numeric phase
+timings isolated about 7–8 s of native prefill. Concurrent capture max was 0.368 s
+Linux/0.484 s Windows and search 0.035 s/0.016 s, within the unchanged bounds.
+Runner CPUs differ from earlier measurements, so these are separate observations,
+not a paired native comparison. No failed run or sample is removed.
+
+The following source correction reuses only the exactly matching input-token prefix
+in a warm worker within the current Instance, with full current authorization and
+logical token accounting. Tests assert the complete model-visible input after
+divergence, shortening, generated-tail removal, scope changes and invalid truncation.
+All native warm S06 samples now change public document content and approved binding
+after the cold sample. The full payload and six measurements remain mandatory;
+this source still needs fresh exact-head Windows/Linux measurement before any PASS.
+
 ## Gate state before final ledger
 
 | Gate | Current declaration |
 | --- | --- |
-| Full native Windows/Linux suites and CI on exact head | 8da33e3 PASS in independent CI; latency follow-up needs fresh observation |
-| Real governed Windows execution/no-egress | 8da33e3: latency FAIL, no-egress PASS; follow-up needs fresh measurement |
-| Real governed Linux execution/no-egress | 8da33e3: latency/responsiveness FAIL, no-egress PASS; follow-up needs fresh measurement |
+| Full native Windows/Linux suites and CI on exact head | 976e72d PASS in independent CI; prefix correction needs fresh observation |
+| Real governed Windows execution/no-egress | 976e72d: latency FAIL, no-egress PASS; prefix correction needs fresh measurement |
+| Real governed Linux execution/no-egress | 976e72d: latency FAIL, no-egress PASS; prefix correction needs fresh measurement |
 | Complete reviews, threads and technical findings | Pending final inventory |
 | Integration and actual-main post-merge qualification | Not yet performed |
 | Lifecycle v2 enrollment/signing/recovery | DEFERRED_BY_MAINTAINER; accepted PR-local legacy route |

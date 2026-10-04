@@ -18,8 +18,8 @@ UNITS = 16384 + 2048
 BUDGET = Budget(UNITS * 4, UNITS * 8, concurrency=2)
 
 
-def inputs_for(instance_id):
-    inputs = provider_case()
+def inputs_for(instance_id, *, text=None):
+    inputs = provider_case(text=text)
     version = replace(inputs.source.version, instance_id=instance_id)
     source = replace(inputs.source, version=version)
     selections = tuple(replace(s, version=version) for s in inputs.selections)

@@ -80,6 +80,16 @@ configuration fail closed. Rollback follows S04's fresh verification/self-test.
 Restore hints never recreate installation or qualification. Installed weights,
 staging and snapshots remain outside portable Instance backup/export and Git.
 
+Governed S06 requests may reuse the exact common input-token prefix in the same
+loaded worker and Instance. Every request still receives the full current payload;
+all old suffix/generated positions are removed before decoding, and at least the
+last input token is decoded for fresh logits. The worker asserts the resulting
+native position and fails closed if truncation fails. Unscoped qualification calls
+and Instance changes clear the complete cache. This bounded memory-only computation
+does not reuse permission, output or accounting: all input tokens remain charged.
+Cancellation, errors and idle unload destroy it. See ADR 0032 for the isolation
+contract and separate native qualification of this changed execution boundary.
+
 ## Reproduction and build inputs
 
 Check Python 3.12 and Node first. Reuse a valid environment or run canonical

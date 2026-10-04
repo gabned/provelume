@@ -28,6 +28,7 @@ def main():
             "tests/test_ai_jobs.py",
             "tests/test_ai_jobs_controls.py",
             "tests/test_ai_jobs_boundaries.py",
+            "tests/test_ai_llama_prefix.py",
             "--junitxml=.agent/s06-synthetic-demo.xml",
         ],
         cwd=root,

@@ -174,6 +174,24 @@ all admission/persistence overhead and every sample remains subject to ADR 0031.
 The model, payload, byte-substitution checks, two-thread configuration, isolation,
 single supervisor deadline and thresholds are unchanged by this instrumentation.
 
+After measurements isolated native prefill as the remaining warm-latency failure,
+the governed adapter also supplies an opaque Instance scope to its existing worker.
+Within that scope the worker reuses only an exactly matching input-token prefix,
+removes every divergent/old generated position, checks the resulting native position,
+and decodes at least the final current input token for fresh logits. Different scopes
+and unscoped S05 qualification/self-test clear the full cache. Logical token usage
+still counts the complete current prompt; no budget is refunded for reused computation.
+The bounded token tuple/KV state remains only in worker memory, never portable data.
+Removing positions makes their values unreachable to subsequent attention; physical
+zeroization of every removed native cell is not claimed. Scope changes clear data;
+worker termination/unload ends the cache lifetime. No cached output or authority exists.
+
+All three native warm S06 samples change public document content and approved binding
+after their corresponding cold jobs. Qualification requires partial (not whole-prompt)
+reuse, preserves the original complete payload plus the small public variation, and
+continues checking every original gate. This does not qualify arbitrary new templates
+or worst-case maximum-sized payloads; reference-profile/task limits remain explicit.
+
 All full native Ruff/pytest, inherited S01–S05/SSRF/lifecycle regressions, exact-head CI,
 Protocol policy/ownership/review gates and actual-main checks remain mandatory. Logs
 preserve failures. No timeout, DPAPI, ACL, sandbox or fixed threshold is weakened.

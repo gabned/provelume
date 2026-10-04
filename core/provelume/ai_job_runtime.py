@@ -107,7 +107,10 @@ class NativeJobAdapter:
                     raise ProviderError(Failure.CANCELLED)
                 entered = True
                 inference_at = time.monotonic()
-                value = self.runtime._infer(model, selection, payload, cancel=cancel)
+                value = self.runtime._infer(
+                    model, selection, payload, cancel=cancel,
+                    reuse_scope=digest({"instance": request.context.instance_id}),
+                )
             self.last_observation = {
                 "prepare_seconds": prepared_at - started,
                 "model_admission_seconds": admitted_at - prepared_at,

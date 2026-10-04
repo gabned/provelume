@@ -100,6 +100,12 @@ def evaluate(report):
                     and row["first_seconds"] is not None
                     and row["first_seconds"] <= (20 if row["phase"] == "cold" else 5)
                     and (row["phase"] != "cold" or worker["load"]["seconds"] <= 15))
+                # Warm means the model is loaded, not an identical private prompt.
+                passed &= (
+                    worker.get("reused_input_tokens") == 0 if row["phase"] == "cold" else
+                    0 < worker.get("reused_input_tokens", 0) < worker["input_tokens"] - 1)
+            passed &= len({r.get("binding") for r in rows if r["phase"] == "warm"}) == 3
+            passed &= all(rows[i].get("binding") != rows[i + 1].get("binding") for i in (0, 2, 4))
             passed &= all(r["status"] == "cancelled" and r["worker_absent"] and r["active"] == 0
                           and r["seconds"] is not None and r["seconds"] <= 2 for r in cancels)
             probes = governed.get("deterministic_busy", [])

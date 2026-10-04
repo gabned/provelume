@@ -37,6 +37,37 @@ authorization, adapter pre-send checks and completion always prepare afresh.
 No preparation is shared across attempts, jobs or sessions. This avoids repeatedly
 rebuilding unchanged context while preserving current revocation checks.
 
+### Warm worker computation reuse (S06 latency finding)
+
+Head 976e72d measured roughly 7–8 seconds of native prefill for the complete S02
+payload, independently of polling, exceeding the fixed five-second warm threshold.
+The bounded correction reuses an exact token prefix in the same loaded worker.
+Before any new decode, compare the complete newly authorized token sequence with
+the previous prompt, retain only their common prefix, and remove every subsequent
+KV position, including all previous generated tokens. Always decode at least the
+last input token to produce fresh logits. Assert the native sequence position after
+truncation; failure terminates the worker, with no inferred success or hidden retry.
+
+This is computation reuse, not conversation history or cached authorization/output.
+The complete current payload still traverses scheduler/gateway and stdin; reservations
+and logical input-token accounting are unchanged. One bounded prompt token tuple
+(at most 1536 tokens) exists only in the existing isolated worker; no prompt cache is
+persisted, exported or shared between workers/Instances. Cancellation/error/unload
+destroys it. Greedy sampling, one sequence, model/runtime bytes, configuration, memory,
+two-thread bound and all ADR 0031 thresholds remain unchanged. Source identity changes
+and requires fresh qualification; no S05 PASS transfers to this execution change.
+The native adapter supplies an opaque current Instance scope; a scope change clears
+all cached positions. Calls without a governed scope (including S05's internal
+qualification/self-test) clear every time, retaining their original execution path.
+
+Use the locked upstream `llama_memory_seq_rm`/`llama_memory_seq_pos_max` ABI from
+[b11379's header](https://github.com/ggml-org/llama.cpp/blob/1537a0a8b2f8711d840878b0a0677ab2213c882c/include/llama.h).
+Synthetic memory-state tests must cover divergence, shortening, exact repetition,
+generated-tail removal and refused truncation. Native warm S06 samples additionally
+change the public document content/binding after each cold job: a repeated identical
+prompt alone cannot qualify reuse. Preserve the whole payload and all six samples;
+EN/IT factual and missing-fact cases continue checking cross-request output isolation.
+
 Every writer checks the current lease token and deadline. Lease expiry fences the
 old owner; it does not prove termination. An expired RESERVED attempt can release
 its reservation because dispatch requires a second owned transaction. An expired

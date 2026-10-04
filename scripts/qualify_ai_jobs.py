@@ -23,8 +23,8 @@ from provelume.ai_runtime_contract import MODEL_ID, MODEL_SHA256, RUNTIME_ID  # 
 from provelume.ai_runtime_limits import memory_observation  # noqa: E402
 
 
-def native_inputs(instance, proof):
-    base = inputs_for(instance.store.read_config()["instance"]["id"])
+def native_inputs(instance, proof, *, text=None):
+    base = inputs_for(instance.store.read_config()["instance"]["id"], text=text)
     config = NativeConfig()
     limits = Limits(4096, 128, 2, 60)
     profile = replace(
@@ -137,6 +137,9 @@ def measure_jobs(instance, store, runtime):
         refresh()
         runtime.close()
         for phase in ("cold", "warm"):
+            inputs = native_inputs(instance, proof, text=(
+                None if phase == "cold" else
+                f"Contact ada@example.test, code PRIVATE.\fSecond page. Public variant {index}."))
             job, elapsed = execute(f"s06-{phase}-{index}")
             row = job["ai"]["attempts"][-1]
             result["samples"].append(
@@ -154,6 +157,7 @@ def measure_jobs(instance, store, runtime):
                     ),
                     "consumption": {k: row[k] for k in ("units", "micros", "usage_source")},
                     "result_fingerprint": job["ai"]["result_fingerprint"],
+                    "binding": inputs.plan.binding,
                     "worker": runtime.last_observation,
                     "adapter_phases": adapter.last_observation,
                     "authority_polling": dict(polling),

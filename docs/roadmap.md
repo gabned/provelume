@@ -1457,7 +1457,9 @@ the sole owner ledger retains final exact-head integration and actual-main check
 S06 (#322) implements [durable governed execution](architecture/ai-durable-jobs.md),
 with qualification/integration pending its owner gates. The same owner is
 addressing observed latency/responsiveness failures with bounded
-polling optimization and native phase measurements, without changing ADR 0031 caps.
+polling optimization, exact prefix computation reuse within a worker/Instance and
+native phase measurements, without changing ADR 0031 caps. Full payload validation,
+fresh authorization and token accounting remain mandatory for every job.
 AI remains off by default;
 installation and binding do not enqueue or authorize work. S07–S09 remain unstarted.
 Package/runtime/embedded/Windows identity stays at published 0.11.0.
