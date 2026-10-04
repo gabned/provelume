@@ -69,13 +69,46 @@ No sample is discarded, payload shortened, threshold raised or S05 PASS transfer
 The next corrected head requires its own full observation; integration stays blocked
 while any mandatory gate fails. Exact-head outcomes and all attempts belong in PR #323.
 
+On `8da33e31aa9bf8345e66fb8823809d5eecfcafd3`, independent full-suite
+[CI 37193010041](https://github.com/gabned/provelume/actions/runs/37193010041)
+passed (Linux 3453 passed/23 skipped; Windows 3386 passed/90 skipped).
+The synthetic demo passed 58 tests. The local full Windows suite again reached
+the canonical 540-second deadline (561.31 s including closure); the known host
+DPAPI/protected-directory failures remain recorded rather than waived.
+[Native run 37193010036](https://github.com/gabned/provelume/actions/runs/37193010036)
+still failed: S06 warm first output max 6.622 s Linux/5.047 s Windows; Linux also
+had a 2.846 s concurrent capture and a 5.833 s inherited S05 warm-first sample.
+Both native profiles passed independent no-egress observation, cancellations,
+cleanup, next caller and the nine-receipt checks. The
+[complete ledger](https://github.com/gabned/provelume/pull/323#issuecomment-5978767470)
+also records the separate trusted-base guard's HTTP 403 before validation. No
+integration occurred and no existing failure is erased by subsequent runs.
+
+### Latency/responsiveness follow-up
+
+Profiling identified repeated S01/S02 context reconstruction at every 20 ms
+supervision poll. The same owner now reuses only that pure computation within an
+attempt, comparing all fresh authoritative inputs with a private deep copy.
+Controlled concurrent tests invalidate reuse for in-place policy/consent changes,
+Version, qualification and profile changes; controls, lease, deadline, strict route
+types, adapter checkpoints and subsequent attempts retain independent checks.
+`scripts/profile_ai_job_polling.py` measures five alternating before/after pairs
+on the same synthetic host without removing current reads or journal locks.
+
+Native numeric phase timings now distinguish adapter/model admission, polling,
+worker prefill/generation and capture submit/process. Full S02 payload, locked
+candidate/configuration, byte verification, containment and ADR 0031 thresholds
+are unchanged. This optimization does not itself establish a native PASS: fresh
+unchanged-head Windows/Linux observations belong in the sole PR ledger. The user
+requested this follow-up before reconsidering integration; the owner remains draft.
+
 ## Gate state before final ledger
 
 | Gate | Current declaration |
 | --- | --- |
-| Full native Windows/Linux suites and CI on exact head | Pending observation |
-| Real governed Windows execution/no-egress | First head: latency FAIL, no-egress PASS; corrected head needs fresh measurement |
-| Real governed Linux execution/no-egress | First head: latency FAIL, no-egress PASS; corrected head needs fresh measurement |
+| Full native Windows/Linux suites and CI on exact head | 8da33e3 PASS in independent CI; latency follow-up needs fresh observation |
+| Real governed Windows execution/no-egress | 8da33e3: latency FAIL, no-egress PASS; follow-up needs fresh measurement |
+| Real governed Linux execution/no-egress | 8da33e3: latency/responsiveness FAIL, no-egress PASS; follow-up needs fresh measurement |
 | Complete reviews, threads and technical findings | Pending final inventory |
 | Integration and actual-main post-merge qualification | Not yet performed |
 | Lifecycle v2 enrollment/signing/recovery | DEFERRED_BY_MAINTAINER; accepted PR-local legacy route |

@@ -27,6 +27,16 @@ cancel future work best-effort and cannot recall already authorized bytes. The
 adapter rechecks current authority at its existing pre-send checkpoints too.
 This is not a distributed transaction with a provider or arbitrary file editor.
 
+Cancellation polling may reuse only the pure S01/S02 preparation of inputs equal
+in full value to an independently copied, previously validated snapshot in that
+same attempt. Every poll still calls the authoritative host source and rereads
+control, ownership, lease and deadline under the journal lock. Nested in-place
+changes invalidate the snapshot; object identity and stored job fingerprints are
+not freshness proofs. The private snapshot never leaves the poll closure. Claim,
+authorization, adapter pre-send checks and completion always prepare afresh.
+No preparation is shared across attempts, jobs or sessions. This avoids repeatedly
+rebuilding unchanged context while preserving current revocation checks.
+
 Every writer checks the current lease token and deadline. Lease expiry fences the
 old owner; it does not prove termination. An expired RESERVED attempt can release
 its reservation because dispatch requires a second owned transaction. An expired

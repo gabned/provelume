@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import asdict, dataclass
 
 from .ai_context import task_payload
@@ -63,6 +64,7 @@ class NativeJobAdapter:
 
     def __init__(self, runtime, model_store):
         self.runtime, self.model_store = runtime, model_store
+        self.last_observation = None
 
     def exchange(self, current, *, cancel):
         # Reuse the runtime's reentrant ownership lock. A rejected concurrent
@@ -78,6 +80,8 @@ class NativeJobAdapter:
         from .ai_runtime import native_selection
 
         entered = False
+        started = time.monotonic()
+        self.last_observation = None
         try:
             inputs = current()
             request, profile = inputs.prepare()
@@ -95,12 +99,21 @@ class NativeJobAdapter:
             payload = task_payload(inputs.preview, inputs.current["template"]).decode()
             check(len(payload.encode()) <= CONFIGURATION["input_bytes"], "ai_native_limit")
             selection = native_selection()
+            prepared_at = time.monotonic()
             with self.model_store.use(selection) as model:
+                admitted_at = time.monotonic()
                 current().prepare()
                 if cancel():
                     raise ProviderError(Failure.CANCELLED)
                 entered = True
+                inference_at = time.monotonic()
                 value = self.runtime._infer(model, selection, payload, cancel=cancel)
+            self.last_observation = {
+                "prepare_seconds": prepared_at - started,
+                "model_admission_seconds": admitted_at - prepared_at,
+                "revalidate_seconds": inference_at - admitted_at,
+                "runtime_seconds": time.monotonic() - inference_at,
+            }
             return JobOutcome(
                 {"kind": "untrusted_text", "value": value["text"]},
                 units=value["input_tokens"] + value["output_tokens"],

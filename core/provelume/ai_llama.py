@@ -175,10 +175,14 @@ class Llama:
         n = self.tokenize(self.vocab, raw, len(raw), tokens, 1536, True, True)
         check(0 < n <= 1536, "limit")
         self.clear(self.memory, True)
+        prefill_started, prefill_cpu = time.monotonic(), time.process_time()
         for start in range(0, n, 512):
             count = min(512, n - start)
             pointer = c.cast(c.byref(tokens, start * c.sizeof(INT)), P)
             check(self.decode(self.context, self.batch(pointer, count)) == 0, "limit")
+        prefill_seconds = time.monotonic() - prefill_started
+        prefill_cpu_seconds = time.process_time() - prefill_cpu
+        generation_started = time.monotonic()
         result = bytearray()
         output_tokens = 0
         first = None
@@ -203,6 +207,12 @@ class Llama:
             "text": result.decode("utf-8", errors="strict"),
             "first_seconds": first,
             "seconds": time.monotonic() - started,
+            "phases": {
+                "tokenize_and_reset_seconds": prefill_started - started,
+                "prefill_seconds": prefill_seconds,
+                "prefill_cpu_seconds": prefill_cpu_seconds,
+                "generation_seconds": time.monotonic() - generation_started,
+            },
         }
 
     def close(self):

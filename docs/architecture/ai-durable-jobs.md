@@ -32,6 +32,14 @@ checked by existing transport checkpoints, but cannot retract bytes or external 
 This is not an atomic transaction with arbitrary external policy editors or providers.
 Fingerprints bind evidence; neither a hash, localhost nor a local label proves locality.
 
+Each cancellation poll still reads that authoritative callback, current control and
+the owned durable job under the journal lock. Only the pure preparation of an
+unchanged complete `CallInputs` value is reused within that attempt. The comparison
+baseline is a private deep copy, so changing a nested host dictionary in place is
+detected. No saved job fingerprint or object identity establishes freshness. Route
+types remain strict (Python's `False == 0` cannot reuse a prepared route). Dispatch
+checkpoints and completion always prepare afresh; the snapshot dies with the attempt.
+
 ## Records and transitions
 
 Schema-1/2 scheduler jobs stay readable. New AI jobs use schema 3 and kind `ai.execute`.
@@ -143,6 +151,12 @@ prints all scenarios and writes `.agent/s06-synthetic-demo.xml`; real spawned-pr
 barriers and fault injection test contention/crash recovery, not sequential mocks.
 No private data, model, credential or external provider is needed.
 
+`python scripts/profile_ai_job_polling.py` compares five alternating pairs of 200
+synthetic polls with and without pure preparation reuse, retaining every sample.
+Run it alone, without concurrent test/build processes. Both paths assert a fresh
+authoritative read for every poll, the same successful job and a single receipt.
+It reports wall and thread CPU time; it is not a real-model latency qualification.
+
 `scripts/qualify_ai_runtime.py` preserves every S05 sample and frozen ADR 0031 gate
 and adds `qualify_ai_jobs.measure_jobs`: three cold and three warm governed generic
 executions, actual token usage, load/generation cancellation, next caller and nine
@@ -151,6 +165,14 @@ the complete run. WFP is applied and verified only by the existing disposable CI
 controller; bare local Windows stays BLOCKED. Linux requires observed seccomp controls.
 The S06 boundary is measured separately; the old S05 PASS is not inherited. These
 generic executions are not an S08 synthesis-quality qualification. Recommended is S09.
+
+Native reports separate adapter preparation, verified model admission, final
+revalidation and runtime; worker tokenization/reset, prefill wall/process CPU and
+generation; polling count/wall/thread CPU; and deterministic capture submit/process.
+These are numeric phase observations only. Existing end-to-end timing still includes
+all admission/persistence overhead and every sample remains subject to ADR 0031.
+The model, payload, byte-substitution checks, two-thread configuration, isolation,
+single supervisor deadline and thresholds are unchanged by this instrumentation.
 
 All full native Ruff/pytest, inherited S01–S05/SSRF/lifecycle regressions, exact-head CI,
 Protocol policy/ownership/review gates and actual-main checks remain mandatory. Logs

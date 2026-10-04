@@ -20,6 +20,7 @@ def deterministic_probe(instance, number):
         "captured_at": "2026-10-03T12:00:00+00:00", "mode": "text",
         "channel": "local_browser",
     }, channel="local_browser")
+    submit_seconds = time.monotonic() - start
     receipt = adapter.process(device, client, channel="local_browser")["receipt"]
     capture = time.monotonic() - start
     preserved = instance.store.original_bytes(receipt["original_id"]) == payload
@@ -27,6 +28,8 @@ def deterministic_probe(instance, number):
     results = instance.search("orchid")
     search = time.monotonic() - start
     return {"sample": number, "capture_seconds": capture, "search_seconds": search,
+            "capture_submit_seconds": submit_seconds,
+            "capture_process_seconds": capture - submit_seconds,
             "preserved": preserved, "search_found": bool(results),
             "product_dispatch_blocked": not ProvelumeInstance.ai_execution_status()["enabled"]}
 

@@ -36,6 +36,24 @@ from .scheduler_model import (
 RETRYABLE = {Failure.DNS, Failure.CONNECTION, Failure.RATE_LIMIT}
 
 
+class _PollPreparation:
+    """Attempt-local pure calculation; never an authority or dispatch grant."""
+
+    def __init__(self):
+        self._snapshot = None
+        self._prepared = None
+
+    def __call__(self, inputs):
+        # The authoritative callback is still invoked on every poll. Keep a deep,
+        # private copy so an in-place mutation of the host's nested current dict
+        # cannot silently change our comparison baseline. No time-based TTL.
+        if self._snapshot is None or inputs != self._snapshot:
+            snapshot = copy.deepcopy(inputs)
+            prepared = snapshot.prepare()
+            self._snapshot, self._prepared = snapshot, prepared
+        return self._prepared
+
+
 def recover_ai_locked(journal, job, now):
     """Called under the original journal lock, before ordinary lease recovery."""
     if job["job_kind"] != AI_JOB_KIND:
@@ -210,16 +228,18 @@ class AiJobs:
                 self._save_control(value)
             return change()
 
-    def _inputs(self, ref, route):
+    def _inputs(self, ref, route, *, prepare=None):
         check(self.current is not None, "ai_authority_unavailable")
         try:
             inputs = self.current(ref, route)
         except Exception:
             raise SchedulerError("ai_authority_unavailable") from None
         check(type(inputs) is CallInputs, "ai_authority_unavailable")
-        request, profile = inputs.prepare()
+        # CallInputs is a host seam, not a validated Contract. bool/float compare
+        # equal to an integer route in Python but must never hit the poll cache.
+        check(type(inputs.route_index) is int and inputs.route_index == route, "ai_route_changed")
+        request, profile = inputs.prepare() if prepare is None else prepare(inputs)
         check(request.context.instance_id == self.journal.instance_id, "ai_wrong_instance")
-        check(inputs.route_index == route, "ai_route_changed")
         return inputs, request, profile
 
     def enqueue(self, request_ref, *, request_key, budget, acknowledge_duplicate_risk=False):
@@ -316,7 +336,7 @@ class AiJobs:
             self.fault("enqueued")
             return job
 
-    def _validate(self, job, now):
+    def _validate(self, job, now, *, prepare=None):
         ai, control = job["ai"], self._control()
         check(self.session_authorized, "ai_session_not_enabled")
         check(not ai["restored"], "ai_restored_requires_new_request")
@@ -336,7 +356,7 @@ class AiJobs:
         )
         check(ai["cancel"] is None, "ai_cancel_requested")
         check(utc_instant(job["created_at"]) <= now < utc_instant(ai["deadline"]), "ai_deadline")
-        inputs, request, profile = self._inputs(ai["request_ref"], ai["route"])
+        inputs, request, profile = self._inputs(ai["request_ref"], ai["route"], prepare=prepare)
         check(
             inputs.plan.binding == ai["binding"] and request.as_record() == ai["request"],
             "ai_authority_changed",
@@ -460,19 +480,23 @@ class AiJobs:
         started = time.monotonic()
         dispatched = False
         self.fault("reserved")
+        poll_preparation = _PollPreparation()
 
-        def current():
+        def read_current(prepare=None):
             try:
                 with self.journal.hold():
                     clock = utc_instant(now)
                     job = self._owned(job_id, token, clock)
-                    return self._validate(job, clock)[0]
+                    return self._validate(job, clock, prepare=prepare)[0]
             except SchedulerError:
                 raise ProviderError(Failure.POLICY) from None
 
+        def current():
+            return read_current()
+
         def cancel():
             try:
-                current()
+                read_current(poll_preparation)
                 return (
                     time.monotonic() - started >= claimed["ai"]["request"]["limits"]["max_seconds"]
                 )

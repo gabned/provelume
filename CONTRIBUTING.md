@@ -30,6 +30,8 @@ the accepted independent native Linux/Windows qualification route where applicab
 For S06 run `python scripts/demonstrate_ai_jobs.py` in the native virtual environment;
 see the [durable execution contract](docs/architecture/ai-durable-jobs.md). It includes
 real process contention, crash injection and portable recovery with public fixtures.
+For a paired synthetic polling profile, run `python scripts/profile_ai_job_polling.py`
+alone without other tests/builds. That profile is not real-model qualification.
 Real governed candidate execution runs separately under the existing native CI
 observer. Keep all full-suite, S01–S05, SSRF and lifecycle gates; never substitute a
 synthetic PASS for actual runtime/network qualification or change ADR 0031 thresholds.

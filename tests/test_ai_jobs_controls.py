@@ -152,6 +152,7 @@ def test_active_controls_with_confirmed_local_quiescence(case, action):
         network_used = False
 
         def exchange(self, current, *, cancel):
+            assert all(not cancel() for _ in range(3))
             entered.set()
             assert released.wait(10)
             assert cancel()
@@ -294,3 +295,126 @@ def test_budget_tightened_after_claim_refuses_dispatch(case):
     result = jobs.execute_claimed(job)
     assert result["status"] == "failed"
     assert jobs.status()["accounting"]["units"] == 0
+
+
+@pytest.mark.parametrize("mutation", ["consent", "policy", "version", "qualification", "profile"])
+def test_poll_detects_current_authority_change_after_unchanged_polls(case, mutation):
+    jobs, holder = case
+    entered, changed = threading.Event(), threading.Event()
+    observations = []
+
+    class Controlled:
+        network_used = False
+
+        def exchange(self, current, *, cancel):
+            observations.extend(cancel() for _ in range(3))
+            entered.set()
+            assert changed.wait(10)
+            observations.append(cancel())
+            return LocalFailure(Failure.CANCELLED)
+
+    jobs.adapters = {key: Controlled() for key in jobs.adapters}
+    job = enqueue(jobs)
+    results = []
+    worker = threading.Thread(
+        target=lambda: results.append(jobs.coordinator.run_one(job_id=job["id"]))
+    )
+    worker.start()
+    assert entered.wait(10)
+
+    def change():
+        before = holder[0]
+        if mutation == "consent":
+            # Same CallInputs object and same nested dict: shallow identity caches
+            # must not retain the old grant after this supported host mutation.
+            before.current["snapshot"] = replace(before.current["snapshot"], consent_granted=False)
+        elif mutation == "policy":
+            before.current["rules"] = ()
+        elif mutation == "version":
+            holder[0] = replace(before, source=replace(
+                before.source, version=replace(before.source.version, version_id="other")))
+        elif mutation == "qualification":
+            holder[0] = replace(before, evidence=())
+        else:
+            holder[0] = replace(before, profiles=(
+                replace(before.profiles[0], revision=digest("changed")),))
+
+    try:
+        jobs.change_authority(change)
+    finally:
+        changed.set()
+        worker.join(10)
+    assert not worker.is_alive() and len(results) == 1
+    assert observations == [False, False, False, True]
+    assert results[0]["ai"]["result"] is None
+    assert jobs.status()["accounting"]["active"] == 0
+
+
+def test_poll_reuses_pure_preparation_but_reads_authority_each_time(case, monkeypatch):
+    from provelume.ai_provider import CallInputs
+
+    jobs, _ = case
+    original_current, original_prepare = jobs.current, CallInputs.prepare
+    reads, preparations, observations = [], [], []
+
+    def read(*args):
+        reads.append(True)
+        return original_current(*args)
+
+    def prepare(inputs):
+        preparations.append(True)
+        return original_prepare(inputs)
+
+    class Controlled:
+        network_used = False
+
+        def exchange(self, current, *, cancel):
+            reads.clear()
+            preparations.clear()
+            for _ in range(5):
+                assert cancel() is False
+            observations.append((len(reads), len(preparations)))
+            current().prepare()  # Adapter checkpoints never reuse poll preparation.
+            observations.append((len(reads), len(preparations)))
+            return JobOutcome({"kind": "untrusted_text", "value": "synthetic"}, 9, 0, "LOCAL")
+
+    jobs.current = read
+    monkeypatch.setattr(CallInputs, "prepare", prepare)
+    jobs.adapters = {key: Controlled() for key in jobs.adapters}
+    for key in ("first", "next"):
+        result = jobs.coordinator.run_one(job_id=enqueue(jobs, key)["id"])
+        assert result["status"] == "succeeded"
+    assert observations == [(5, 1), (6, 3), (5, 1), (6, 3)]
+
+
+@pytest.mark.parametrize("mutation", ["lease", "deadline", "route_type"])
+def test_poll_preparation_never_caches_lease_time_or_python_numeric_aliases(case, mutation):
+    from provelume.scheduler_model import instant_text
+
+    jobs, _ = case
+    observations = []
+
+    class Controlled:
+        network_used = False
+
+        def exchange(self, current, *, cancel):
+            observations.extend(cancel() for _ in range(3))
+            with jobs._transaction():
+                row = jobs.journal.get_job(job["id"])
+                if mutation == "lease":
+                    row["lease"]["token"] = "lease_" + "f" * 32
+                elif mutation == "deadline":
+                    row["ai"]["deadline"] = instant_text(utc_instant() - timedelta(seconds=1))
+                else:
+                    authoritative = jobs.current
+                    jobs.current = lambda ref, route: replace(
+                        authoritative(ref, route), route_index=False)
+                jobs.journal._write_job(row)
+            observations.append(cancel())
+            return LocalFailure(Failure.CANCELLED)
+
+    jobs.adapters = {key: Controlled() for key in jobs.adapters}
+    job = enqueue(jobs)
+    result = jobs.coordinator.run_one(job_id=job["id"])
+    assert observations == [False, False, False, True]
+    assert result["ai"]["result"] is None

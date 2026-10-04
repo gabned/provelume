@@ -1455,7 +1455,10 @@ GGUF Q4_K_M under precommitted ADR 0031 thresholds. The implementation and
 selection, observed-profile technical qualification and S09 Recommended promotion;
 the sole owner ledger retains final exact-head integration and actual-main checks.
 S06 (#322) implements [durable governed execution](architecture/ai-durable-jobs.md),
-with qualification/integration pending its owner gates. AI remains off by default;
+with qualification/integration pending its owner gates. The same owner is
+addressing observed latency/responsiveness failures with bounded
+polling optimization and native phase measurements, without changing ADR 0031 caps.
+AI remains off by default;
 installation and binding do not enqueue or authorize work. S07–S09 remain unstarted.
 Package/runtime/embedded/Windows identity stays at published 0.11.0.
 

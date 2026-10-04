@@ -93,6 +93,7 @@ def measure_jobs(instance, store, runtime):
     original_exchange = adapter.exchange
     sample_start = 0
     sample_observed = False
+    polling = {}
 
     def observed_exchange(current, *, cancel):
         def observe():
@@ -106,7 +107,14 @@ def measure_jobs(instance, store, runtime):
                 probe = deterministic_probe(instance, len(result["deterministic_busy"]))
                 probe["worker_observed"] = runtime.loaded
                 result["deterministic_busy"].append(probe)
-            return cancel()
+            started = time.monotonic()
+            cpu = time.thread_time()
+            try:
+                return cancel()
+            finally:
+                polling["calls"] += 1
+                polling["seconds"] += time.monotonic() - started
+                polling["cpu_seconds"] += time.thread_time() - cpu
 
         return original_exchange(current, cancel=observe)
 
@@ -117,10 +125,11 @@ def measure_jobs(instance, store, runtime):
         store.activate(MODEL_ID, selection, evidence, requested=True)
 
     def execute(key):
-        nonlocal sample_start, sample_observed
+        nonlocal sample_start, sample_observed, polling
         job = jobs.enqueue(REF, request_key=key, budget=budget)
         started = time.monotonic()
         sample_start, sample_observed = started, False
+        polling = {"calls": 0, "seconds": 0, "cpu_seconds": 0}
         completed = jobs.coordinator.run_one(job_id=job["id"])
         return completed, time.monotonic() - started
 
@@ -146,6 +155,8 @@ def measure_jobs(instance, store, runtime):
                     "consumption": {k: row[k] for k in ("units", "micros", "usage_source")},
                     "result_fingerprint": job["ai"]["result_fingerprint"],
                     "worker": runtime.last_observation,
+                    "adapter_phases": adapter.last_observation,
+                    "authority_polling": dict(polling),
                 }
             )
     adapter.exchange = original_exchange
