@@ -2591,7 +2591,22 @@ def scheduler_state_findings(store: InstanceStore) -> list[dict[str, str]]:
                 "path": "state/scheduler",
             }
         ]
-    allowed_children = {"policies", "jobs", "receipts", "ai-control.json"}
+    allowed_children = {"policies", "jobs", "receipts", "ai-control.json", "ai-setup.json"}
+    ai_setup = scheduler.root / "ai-setup.json"
+    if ai_setup.exists() or ai_setup.is_symlink():
+        from .ai_setup import AiSetup
+        from .maintenance_local_files import open_local_file
+
+        try:
+            with open_local_file(ai_setup) as stream:
+                raw = stream.read(8193)
+            if len(raw) > 8192:
+                raise ValueError("AI setup exceeds its bound")
+            AiSetup.validate(json.loads(raw), scheduler.instance_id)
+        except (OSError, TypeError, ValueError):
+            findings.append({"code": "scheduler_record_invalid",
+                             "message": "AI setup state is invalid",
+                             "path": "state/scheduler/ai-setup.json"})
     ai_control = scheduler.root / "ai-control.json"
     if ai_control.exists() or ai_control.is_symlink():
         from .ai_jobs import AiJobs

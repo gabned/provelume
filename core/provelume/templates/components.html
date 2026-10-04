@@ -1,6 +1,7 @@
 {% extends base_layout %}
 {% block title %}{{ t('components.title') }} · {{ t('brand') }}{% endblock %}
 {% block content %}
+<section class="panel"><h2>{{ t('ai.local_setup') }}</h2><p>{{ t('ai.candidate') }}</p><a href="/settings/ai?lang={{ lang }}">{{ t('ai.title') }}</a></section>
 <section class="hero">
   <p class="eyebrow">{{ t('components.eyebrow') }}</p>
   <h1>{{ t('components.title') }}</h1>

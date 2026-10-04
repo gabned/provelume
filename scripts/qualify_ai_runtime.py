@@ -180,6 +180,10 @@ def measure(root, output):
         evidence = store.self_test(MODEL_ID, selection, runtime, requested=True)
         store.activate(MODEL_ID, selection, evidence, requested=True)
         report["s06"] = measure_jobs(instance, store, runtime)
+        from qualify_ai_setup import measure_setup
+
+        report["s07_required"] = True
+        report["s07"] = measure_setup(instance, store, runtime)
         # Change one byte only in this disposable installed test model, then restore
         # in finally; no acquisition, fallback or fabricated evidence on corruption.
         model = store.verify(MODEL_ID, selection)

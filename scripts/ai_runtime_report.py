@@ -121,6 +121,21 @@ def evaluate(report):
             passed &= (governed["parent_after"]["rss"] - governed["parent_before"]["rss"]
                        <= 64 * 1024**2)
             gates["s06_governed"] = "PASS" if passed else "FAIL"
+    if report.get("s07_required"):
+        setup = report.get("s07", {})
+        rows = setup.get("samples", [])
+        gates["s07_setup"] = "NOT_RUN"
+        if setup.get("status") == "MEASURED" and len(rows) == 2:
+            passed = (setup.get("session_off") and setup.get("final_off")
+                      and setup.get("worker_absent"))
+            for row in rows:
+                passed &= (row["status"] == "succeeded" and row["attempts"] == 1
+                           and row["generation_observed"] and row["receipt"] is not None
+                           and row["worker"]["memory"]["peak_rss"] <= 2 * 1024**3
+                           and row["seconds"] <= (60 if row["phase"] == "cold" else 30)
+                           and row["first_seconds"] <= (20 if row["phase"] == "cold" else 5)
+                           and row["probe"]["preserved"] and row["probe"]["search_found"])
+            gates["s07_setup"] = "PASS" if passed else "FAIL"
     report["gates"] = gates
     report["status"] = ("FAIL" if report.get("failures") or "FAIL" in gates.values() else
                          "BLOCKED" if any(v != "PASS" for v in gates.values()) else "PASS")
