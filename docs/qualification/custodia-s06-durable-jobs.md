@@ -130,6 +130,19 @@ this source still needs fresh exact-head Windows/Linux measurement before any PA
 
 ## Gate state before final ledger
 
+After the maintainer authorized integration, marking the owner ready triggered an
+automatic repository review. Finding
+[4178574477](https://github.com/gabned/provelume/pull/323#discussion_r4178574477)
+identified an unexpected pre-adapter exception being labeled possibly transmitted.
+Three controlled regression cases reproduced retained budget/concurrency before
+adapter entry; two post-entry cases correctly retained uncertainty. The correction
+uses actual adapter-entry state for the generic exception handler. The five cases
+also check absence of hidden retry, accounting, one receipt, private error redaction
+and availability of the next caller. Abrupt process-death recovery remains unchanged.
+Integration requires fresh qualification of the corrected exact head; no prior
+PASS is silently transferred and this technical finding is binding despite no
+maintainer-requested Codex Review.
+
 | Gate | Current declaration |
 | --- | --- |
 | Full native Windows/Linux suites and CI on exact head | 976e72d PASS in independent CI; prefix correction needs fresh observation |

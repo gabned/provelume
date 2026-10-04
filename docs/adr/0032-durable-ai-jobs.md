@@ -27,6 +27,13 @@ cancel future work best-effort and cannot recall already authorized bytes. The
 adapter rechecks current authority at its existing pre-send checkpoints too.
 This is not a distributed transaction with a provider or arbitrary file editor.
 
+A surviving coordinator can establish NOT_SENT when an unexpected exception occurs
+before adapter entry, including a failed current quote lookup. It releases that
+attempt without an implicit retry; the following caller may reserve the capacity.
+Once adapter entry occurs, an unexpected exception remains uncertain. Process death
+after the durable possible-execution marker still requires conservative recovery:
+an in-memory dispatch flag is never reconstructed as proof of non-transmission.
+
 Cancellation polling may reuse only the pure S01/S02 preparation of inputs equal
 in full value to an independently copied, previously validated snapshot in that
 same attempt. Every poll still calls the authoritative host source and rereads

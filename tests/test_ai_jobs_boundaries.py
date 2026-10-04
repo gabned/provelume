@@ -5,15 +5,17 @@ from datetime import timedelta
 from types import SimpleNamespace
 
 import pytest
-from ai_jobs_fakes import BUDGET, manager
+from ai_jobs_fakes import BUDGET, UNITS, manager
 from test_ai_jobs import claim, enqueue
 
+from provelume.ai_contract import digest
+from provelume.ai_job_contract import Budget, Quote
 from provelume.ai_job_runtime import JobOutcome, NativeJobAdapter
 from provelume.ai_jobs import AiJobs
 from provelume.ai_provider import ProviderError, Transmission
 from provelume.instance_lifecycle import InstanceLifecycleManager
 from provelume.scheduler import SchedulerCoordinator
-from provelume.scheduler_model import SchedulerBusyError, utc_instant
+from provelume.scheduler_model import SchedulerBusyError, instant_text, utc_instant
 from provelume.service import ProvelumeInstance
 from provelume.storage import InstanceStore
 
@@ -186,3 +188,55 @@ def test_restore_lifecycle_lock_fences_ai_mutations(case, operation):
                 job["lease"]["token"],
                 outcome=JobOutcome({"kind": "untrusted_text", "value": "late"}),
             )
+
+
+@pytest.mark.parametrize("stage", ["quote", "authorized", "possible", "adapter", "response"])
+def test_unexpected_error_respects_actual_adapter_entry(case, stage):
+    _, jobs, holder = case
+    budget = Budget(UNITS, UNITS, concurrency=1, job_micros=2, period_micros=2)
+    jobs.configure(mode="enabled", budget=budget)
+    now = utc_instant()
+    quote = Quote(holder[0].profiles[0].fingerprint, "USD",
+                  instant_text(now - timedelta(days=1)), instant_text(now + timedelta(days=1)),
+                  2, UNITS, digest("public fixed quote"), True)
+    quote_reads, calls = [], []
+
+    def fail():
+        raise RuntimeError("synthetic exception detail must remain private")
+
+    def quotes(route):
+        quote_reads.append(route)
+        if stage == "quote" and len(quote_reads) == 2:
+            fail()  # Reservation succeeded; current price lookup fails before adapter entry.
+        return quote
+
+    class Controlled:
+        network_used = False
+
+        def exchange(self, current, *, cancel):
+            calls.append(True)
+            if stage == "adapter":
+                fail()
+            return JobOutcome({"kind": "untrusted_text", "value": "synthetic"}, 9, 0, "LOCAL")
+
+    jobs.quotes = quotes
+    jobs.adapters = {key: Controlled() for key in jobs.adapters}
+    jobs.fault = lambda boundary: fail() if boundary == stage else None
+    result = jobs.coordinator.run_one(job_id=enqueue(jobs, budget=budget)["id"])
+    entered = stage in {"adapter", "response"}
+    assert len(calls) == int(entered)  # No hidden retry or fallback.
+    assert result["status"] == ("manual_intervention" if entered else "failed")
+    row = result["ai"]["attempts"][0]
+    assert row["phase"] == ("uncertain" if entered else "released")
+    assert row["usage_source"] == ("UNKNOWN" if entered else "NOT_SENT")
+    assert row["units"] == (None if entered else 0)
+    assert jobs.status()["accounting"]["active"] == int(entered)
+    assert jobs.status()["accounting"]["units"] == (UNITS if entered else 0)
+    assert jobs.status()["accounting"]["micros"] == (2 if entered else 0)
+    assert len(jobs.journal.list_receipts()) == 1 and result["ai"]["result"] is None
+    assert "synthetic exception detail" not in str(result)
+    if not entered:
+        jobs.fault = lambda _: None
+        jobs.quotes = lambda _: quote
+        following = jobs.coordinator.run_one(job_id=enqueue(jobs, "following", budget)["id"])
+        assert following["status"] == "succeeded" and len(calls) == 1

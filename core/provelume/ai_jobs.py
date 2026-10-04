@@ -547,7 +547,13 @@ class AiJobs:
                 return self.journal.get_job(job_id)
         except Exception:
             return self.complete(
-                job_id, token, error=ProviderError(Failure.REMOTE, Transmission.POSSIBLE), now=now
+                job_id,
+                token,
+                error=ProviderError(
+                    Failure.REMOTE,
+                    Transmission.POSSIBLE if dispatched else Transmission.NOT_SENT,
+                ),
+                now=now,
             )
 
     def complete(self, job_id, token, *, outcome=None, error=None, elapsed_ms=0, now=None):
