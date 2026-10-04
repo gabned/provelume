@@ -1690,6 +1690,7 @@
   "scheduler.cli_control": "Richtlinienänderungen erfordern eine explizite lokale CLI-Aktion.",
   "scheduler.eyebrow": "Dauerhafte lokale Automatisierung",
   "scheduler.jobs": "Jobs",
+  "scheduler.kind.ai.execute": "Kontrollierte KI-Ausführung",
   "scheduler.kind.email.intake": "E-Mail-Import",
   "scheduler.kind.google.intake": "Google-Import",
   "scheduler.kind.maintenance.backup_verify": "Backup überprüfen",

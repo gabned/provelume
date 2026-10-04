@@ -1,4 +1,4 @@
-name: Custodia S05 real CPU candidate measurements
+name: Custodia S05-S06 real CPU candidate and governed jobs
 on:
   pull_request:
   push:

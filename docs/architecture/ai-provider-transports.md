@@ -69,12 +69,13 @@ S02 `ValidatedCandidate` plus content-free ephemeral transport evidence. S01 `Ba
 retains its existing planned/denied/simulated meaning; S03 does not rewrite old receipts or
 pretend they recorded a real transmission. Nothing writes canonical or derived data.
 
-The service has only pure `ai_provider_configuration`, pure `ai_execution_status` and
-explicit `ai_connection_diagnostic`. **There is no product inference dispatcher** or
-adapter registration, UI route, API or CLI. Plans, previews, adapters and successful
-diagnostics cannot enable execution; status always says `disabled_until_s06` / requires
-S06. S06 must implement the existing budget/job enforcement before adding a product caller.
-S07 owns user surfaces. S04–S09 are not implemented by this slice.
+The service preserves pure `ai_provider_configuration`, pure static `ai_execution_status`
+and explicit `ai_connection_diagnostic`. S06 adds the internal
+[governed job dispatcher](ai-durable-jobs.md), using this unchanged single-transmission
+transport contract. Plans, previews, adapters and successful diagnostics cannot enable
+execution; standalone status says `governed_job_required`. Current host authority and
+durable reservation are mandatory. There is no external adapter-registration API or UI;
+S07 owns user surfaces. S03's synthetic conformance is not live provider qualification.
 
 ## Endpoint, locality and actual peer
 

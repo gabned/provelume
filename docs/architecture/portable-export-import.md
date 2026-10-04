@@ -97,6 +97,14 @@ Import intentionally preserves the exported Instance identity, acquired Original
 provenance, hierarchy IDs, classifications, dispositions and associations. It replaces rather than
 merges the target; multi-master synchronization and conflict resolution are outside this contract.
 
+For [Custodia S06 AI accounting](ai-durable-jobs.md), the staged transaction has an
+additional conservative rule: incoming/current AI records must belong to the same
+Instance. Newer destination liabilities are retained, waiting jobs are cancelled,
+active attempts become uncertain, and AI is forced off. No model installation or
+self-test qualification is restored from metadata. These rules prevent an older
+portable snapshot from erasing debt or replaying inference; ordinary non-AI transfers
+retain their established identity-replacement behavior.
+
 ## Local authority and qualification
 
 The same application-service authority is exposed by `export_portable()` and `import_portable()`.

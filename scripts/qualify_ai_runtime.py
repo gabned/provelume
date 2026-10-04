@@ -42,8 +42,9 @@ def measure(root, output):
         "network": "NOT_RUN",
         "profile_scope": "observed host only; minimum laptop NOT_RUN",
         "cold_condition": "fresh process; OS file cache not flushed",
-        "product_dispatch": "REQUIRES_S06",
+        "product_dispatch": "governed_job_required",
         "recommended": False,
+        "s06_required": True,
     }
 
     def save():
@@ -174,6 +175,11 @@ def measure(root, output):
             runtime._infer(model, selection, " a" * 2048)
         except ModelError as exc:
             report["worker_error"] = {"code": exc.code, "worker_absent": not runtime.loaded}
+        from qualify_ai_jobs import measure_jobs
+
+        evidence = store.self_test(MODEL_ID, selection, runtime, requested=True)
+        store.activate(MODEL_ID, selection, evidence, requested=True)
+        report["s06"] = measure_jobs(instance, store, runtime)
         # Change one byte only in this disposable installed test model, then restore
         # in finally; no acquisition, fallback or fabricated evidence on corruption.
         model = store.verify(MODEL_ID, selection)

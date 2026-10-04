@@ -257,14 +257,16 @@ class LocalRuntime:
             if self._timer is marker:
                 self._stop()
 
-    def _infer(self, model, selection, prompt, *, cancel=lambda: False):
-        """Only explicit lifecycle self-test/qualification calls this internal seam."""
+    def _infer(self, model, selection, prompt, *, cancel=lambda: False, reuse_scope=None):
+        """Internal primitive for lifecycle qualification and governed S06 attempts."""
         check(self._lock.acquire(blocking=False), "busy")
         try:
             selection.validate(model.entry)
             check(selection.platform == native_selection().platform, "compatibility")
             check(type(prompt) is str and 0 < len(prompt.encode("utf-8")) <= 4096, "limit")
             check(not any(token in prompt for token in ("<|im_start|>", "<|im_end|>")), "limit")
+            check(reuse_scope is None or (type(reuse_scope) is str and len(reuse_scope) == 64
+                  and all(ch in "0123456789abcdef" for ch in reuse_scope)), "state")
             deadline = time.monotonic() + 60
             started = time.monotonic()
             self._first_received = None
@@ -278,7 +280,10 @@ class LocalRuntime:
                 self._stop()
                 self._start(model, deadline=deadline, cancel=cancel)
             check(self._model == model.entry.model_sha256, "stale")
-            self._send({"prompt": prompt}, deadline=deadline, cancel=cancel)
+            message = {"prompt": prompt}
+            if reuse_scope is not None:
+                message["scope"] = reuse_scope
+            self._send(message, deadline=deadline, cancel=cancel)
             value = self._receive("result", deadline=deadline, cancel=cancel)
             check(
                 type(value.get("text")) is str and len(value["text"].encode("utf-8")) <= 4096,
@@ -336,5 +341,5 @@ class LocalRuntime:
             "qualification": "CANDIDATE_NOT_QUALIFIED",
             "offline_qualified": False,
             "inference_authorized": False,
-            "product_dispatch": "REQUIRES_S06",
+            "product_dispatch": "governed_job_required",
         }

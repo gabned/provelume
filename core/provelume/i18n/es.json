@@ -1690,6 +1690,7 @@
   "scheduler.cli_control": "Los cambios de política requieren una acción explícita en la CLI local.",
   "scheduler.eyebrow": "Automatización local persistente",
   "scheduler.jobs": "Tareas",
+  "scheduler.kind.ai.execute": "Ejecución de IA controlada",
   "scheduler.kind.email.intake": "Ingesta de correo electrónico",
   "scheduler.kind.google.intake": "Ingesta de Google",
   "scheduler.kind.maintenance.backup_verify": "Verificar copia de seguridad",

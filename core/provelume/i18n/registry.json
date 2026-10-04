@@ -1284,6 +1284,7 @@
         "scheduler.kind.maintenance.resource_snapshot",
         "scheduler.kind.maintenance.backup_verify",
         "scheduler.kind.ocr.execute",
+        "scheduler.kind.ai.execute",
         "scheduler.kind.email.intake",
         "scheduler.kind.google.intake",
         "scheduler.kind.transcript.intake"
@@ -11938,6 +11939,12 @@
     },
     "scheduler.jobs": {
       "context": "scheduler: label/navigation; templates/scheduler.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "scheduler.kind.ai.execute": {
+      "context": "scheduler: job label; governed AI execution in existing Operations",
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false

@@ -546,7 +546,7 @@ def test_configuration_status_and_diagnostics_do_not_dispatch(monkeypatch):
         ProvelumeInstance.ai_provider_configuration(inputs.profiles[0], inputs.config)[
             "product_execution"
         ]
-        == "disabled_until_s06"
+        == "governed_job_required"
     )
     assert ProvelumeInstance.ai_execution_status() == {
         "enabled": False,

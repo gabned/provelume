@@ -1447,12 +1447,21 @@ network transparency.
 S03 (#316/#317) is completed with bounded replaceable transports and explicit diagnostics;
 live provider/model was NOT_RUN within S03. S04 (#318/#319) is integrated and qualified at
 main `9fabc34a870a98c63bcd589f1f4ab337855b335d`, using synthetic lifecycle fixtures.
-S05 (#320/#321) evaluates one CPU candidate: llama.cpp b11379 with Qwen2.5-1.5B-Instruct
+S05 (#320/#321) is integrated and qualified at main `d7f33d908912b7644cc074354ec68a8552c081fb`
+([final ledger](https://github.com/gabned/provelume/pull/321#issuecomment-5974454025)).
+It selected one CPU candidate: llama.cpp b11379 with Qwen2.5-1.5B-Instruct
 GGUF Q4_K_M under precommitted ADR 0031 thresholds. The implementation and
 [native measurement record](qualification/custodia-s05-cpu-runtime.md) distinguish
 selection, observed-profile technical qualification and S09 Recommended promotion;
 the sole owner ledger retains final exact-head integration and actual-main checks.
-Product inference remains disabled until S06. S06–S09 remain planned and unstarted.
+S06 (#322) implements [durable governed execution](architecture/ai-durable-jobs.md),
+with qualification/integration pending its owner gates. The same owner is
+addressing observed latency/responsiveness failures with bounded
+polling optimization, exact prefix computation reuse within a worker/Instance and
+native phase measurements, without changing ADR 0031 caps. Full payload validation,
+fresh authorization and token accounting remain mandatory for every job.
+AI remains off by default;
+installation and binding do not enqueue or authorize work. S07–S09 remain unstarted.
 Package/runtime/embedded/Windows identity stays at published 0.11.0.
 
 **Outcome:** optional AI off / Local Recommended / External / Explicit Hybrid, with a first

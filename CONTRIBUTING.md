@@ -26,3 +26,15 @@ for registry/install/update tests; never commit model weights or substitute thei
 S05/S09 model evidence. Run the executable demonstration, complete native checks and existing
 S01–S03/SSRF regressions. Preserve actual local-host failures in the sole owner ledger and use
 the accepted independent native Linux/Windows qualification route where applicable.
+
+For S06 run `python scripts/demonstrate_ai_jobs.py` in the native virtual environment;
+see the [durable execution contract](docs/architecture/ai-durable-jobs.md). It includes
+real process contention, crash injection and portable recovery with public fixtures.
+For a paired synthetic polling profile, run `python scripts/profile_ai_job_polling.py`
+alone without other tests/builds. That profile is not real-model qualification.
+The demo also verifies warm prefix divergence, shortening, generated-tail removal,
+Instance isolation and closed failure on invalid native truncation. Native S06 warm
+samples use changed public document content/bindings, not only identical prompts.
+Real governed candidate execution runs separately under the existing native CI
+observer. Keep all full-suite, S01–S05, SSRF and lifecycle gates; never substitute a
+synthetic PASS for actual runtime/network qualification or change ADR 0031 thresholds.

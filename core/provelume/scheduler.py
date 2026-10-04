@@ -71,6 +71,13 @@ def _receipt_matches_job(
     receipt: Mapping[str, Any],
     job: Mapping[str, Any],
 ) -> bool:
+    if job["job_kind"] == "ai.execute":
+        from .ai_job_contract import receipt_snapshot
+
+        snapshot = receipt_snapshot(job["ai"])
+        keys = ("request_ref", "binding", "result_fingerprint", "outcome")
+        if any(receipt.get("ai", {}).get(k) != snapshot[k] for k in keys):
+            return False
     return all(
         (
             receipt["job_id"] == job["id"],
@@ -112,6 +119,8 @@ def public_job_record(job: Mapping[str, Any]) -> dict[str, Any]:
     """Remove lease authority while retaining observable timing and worker state."""
 
     result = dict(job)
+    if "ai" in result:
+        result["ai"] = {k: v for k, v in job["ai"].items() if k != "result"}
     lease = job.get("lease")
     if isinstance(lease, Mapping):
         result["lease"] = {
@@ -498,6 +507,7 @@ class SchedulerStore:
         idempotency_key: str,
         now: datetime,
         execution_plan=None,
+        ai=None,
     ) -> tuple[dict[str, Any], bool]:
         if reason not in RUN_REASONS:
             raise SchedulerError("unsupported scheduler run reason")
@@ -535,6 +545,8 @@ class SchedulerStore:
         }
         if execution_plan is not None:
             job = {**promote(job), "execution_plan": execution_plan}
+        if ai is not None:
+            job = {**promote(job), "schema_version": 3, "ai": ai}
         return self._write_job(job), True
 
     def run_now(
@@ -648,6 +660,11 @@ class SchedulerStore:
             }
         for path in sorted(self.jobs.glob("*.json")):
             job = validate_job_record(self._read_json(path))
+            if job["job_kind"] == "ai.execute":
+                from .ai_jobs import recover_ai_locked
+
+                recover_ai_locked(self, job, now)
+                continue
             if job["status"] in TERMINAL_JOB_STATUSES:
                 if job.get("control", {}).get("restart"):
                     JobControl(self, lambda _: None).finish_restart(job, now=now)
@@ -987,6 +1004,7 @@ class SchedulerStore:
         job_id: str | None = None,
         lease_seconds: int = DEFAULT_LEASE_SECONDS,
         now: datetime | str | None = None,
+        ai_admit=None,
     ) -> dict[str, Any] | None:
         selected_worker = validate_worker_id(worker_id)
         selected_now = utc_instant(now)
@@ -1000,10 +1018,15 @@ class SchedulerStore:
         if job_id is not None and self.get_job(job_id) is None:
             raise SchedulerNotFoundError("scheduler job not found")
         with self.hold():
+            # A timestamp sampled while waiting can predate the winner's heartbeat.
+            # It is not a clock reversal and must not fence a live reservation.
+            selected_now = utc_instant(now)
             self._recover_locked(selected_now)
             candidates = []
             for job in self._all_jobs():
                 if job["status"] != "queued" or job["job_kind"] not in kinds:
+                    continue
+                if job["job_kind"] == "ai.execute" and ai_admit is None:
                     continue
                 if job_id is not None and job["id"] != job_id:
                     continue
@@ -1020,6 +1043,8 @@ class SchedulerStore:
                 )
             )
             job = candidates[0]
+            if job["job_kind"] == "ai.execute" and not ai_admit(job, selected_now):
+                return None
             parent_id = job.get("control", {}).get("parent_job_id")
             if parent_id is not None:
                 validate_restart_lineage(self.get_job(parent_id), job)
@@ -1166,6 +1191,11 @@ class SchedulerStore:
                 "error_code": error_code,
             }
         receipt_id = f"receipt_{str(job['id']).removeprefix('job_')}"
+        ai_receipt = {}
+        if job["job_kind"] == "ai.execute":
+            from .ai_job_contract import receipt_snapshot
+
+            ai_receipt = {"schema_version": 2, "ai": receipt_snapshot(job["ai"])}
         receipt = self._write_receipt_once(
             {
                 "schema_version": SCHEDULER_SCHEMA_VERSION,
@@ -1185,6 +1215,7 @@ class SchedulerStore:
                 "network_used": bool(network_used),
                 "canonical_mutation": bool(canonical_mutation),
                 "automatic_deletion": False,
+                **ai_receipt,
             }
         )
         return self._write_job(
@@ -1456,6 +1487,12 @@ class SchedulerCoordinator:
             "expected_checkpoint": expected_checkpoint,
             "now": now,
         }
+        selected = self.journal.get_job(job_id)
+        if selected is not None and selected["job_kind"] == "ai.execute":
+            from .ai_jobs import AiJobs
+
+            result = AiJobs(self).request_control(job_id, action, **arguments)
+            return {**result, "job": public_job_record(result["job"])}
         # Intent must be reachable while the worker owns lifecycle for execution.
         if action in {"pause", "cancel"}:
             result = self._controls().request(job_id, action, **arguments)
@@ -2335,6 +2372,8 @@ class SchedulerCoordinator:
         now: datetime | str | None = None,
         live_clock: bool = False,
         job_id: str | None = None,
+        defer_ai: bool = False,
+        allow_ai: bool = False,
     ) -> dict[str, Any] | None:
         selected_now = datetime.now(UTC) if live_clock else utc_instant(now)
         job = self.journal.claim_next(
@@ -2343,9 +2382,15 @@ class SchedulerCoordinator:
             job_id=job_id,
             lease_seconds=lease_seconds,
             now=selected_now,
+            ai_admit=getattr(self, "ai_jobs", None).admit_locked
+            if allow_ai and getattr(self, "ai_jobs", None) is not None else None,
         )
         if job is None:
             return None
+        if job["job_kind"] == "ai.execute":
+            if defer_ai:
+                return job
+            return self.ai_jobs.execute_claimed(job, now=None if live_clock or now is None else now)
         lease_token = str(job["lease"]["token"])
         checkpoint_now = None if live_clock else selected_now
         job = self.journal.checkpoint(
@@ -2477,13 +2522,20 @@ class SchedulerCoordinator:
         if not self.journal.root.exists():
             return None
         with self._hold_lifecycle("scheduler-job-execution"):
-            return self._run_one_locked(
+            result = self._run_one_locked(
                 worker_id=worker_id,
                 lease_seconds=lease_seconds,
                 now=now,
                 live_clock=now is None,
                 job_id=job_id,
+                defer_ai=True,
+                allow_ai=True,
             )
+        # AI consumes an immutable bounded context and writes only its own journal.
+        # Restore can fence it as uncertain; capture/search need not wait for inference.
+        if result is not None and result["job_kind"] == "ai.execute":
+            return self.ai_jobs.execute_claimed(result, now=now)
+        return result
 
     def cycle(
         self,
@@ -2539,7 +2591,17 @@ def scheduler_state_findings(store: InstanceStore) -> list[dict[str, str]]:
                 "path": "state/scheduler",
             }
         ]
-    allowed_children = {"policies", "jobs", "receipts"}
+    allowed_children = {"policies", "jobs", "receipts", "ai-control.json"}
+    ai_control = scheduler.root / "ai-control.json"
+    if ai_control.exists() or ai_control.is_symlink():
+        from .ai_jobs import AiJobs
+
+        try:
+            AiJobs(SchedulerCoordinator(store))._control()
+        except (SchedulerError, OSError, TypeError, ValueError):
+            findings.append({"code": "scheduler_record_invalid",
+                             "message": "AI control state is invalid",
+                             "path": "state/scheduler/ai-control.json"})
     for child in sorted(scheduler.root.iterdir()):
         if child.name not in allowed_children:
             findings.append(

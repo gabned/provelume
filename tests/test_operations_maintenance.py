@@ -34,6 +34,13 @@ def store(tmp_path):
 
 
 def queued(store, kind="maintenance.validate", *, key="one"):
+    if kind == "ai.execute":
+        from ai_jobs_fakes import BUDGET, REF, manager
+
+        jobs, _ = manager(store.paths.root)
+        jobs.configure(mode="enabled", budget=BUDGET)
+        job = jobs.enqueue(REF, request_key=key, budget=BUDGET)
+        return jobs.journal, jobs.journal.get_policy(job["policy_id"]), job
     journal = SchedulerStore(store)
     scope = {"kind": "instance", "id": journal.instance_id}
     if kind in SOURCE_SCOPED_JOB_KINDS:

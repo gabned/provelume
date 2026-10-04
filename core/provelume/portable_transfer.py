@@ -799,6 +799,9 @@ class PortableInstanceTransfer:
                 "import staging identity or canonical fingerprint does not match"
             )
 
+        from .ai_job_portability import prepare_restored_ai
+
+        prepare_restored_ai(staged_store, self.store)
         policy = manifest["derived_state"]
         if policy["mode"] == "rebuild":
             shutil.rmtree(staged_store.paths.indexes, ignore_errors=True)

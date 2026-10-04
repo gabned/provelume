@@ -29,6 +29,13 @@ except OSError:
     pass
 '@
     & $workerPython -I -c $probeCode
+    $appliedRule = Get-NetFirewallRule -Name $ruleName
+    $appliedProgram = $appliedRule | Get-NetFirewallApplicationFilter
+    if ($appliedRule.Enabled -ne 'True' -or $appliedRule.Action -ne 'Block' -or
+        $appliedRule.Direction -ne 'Outbound' -or $appliedProgram.Program -ne $workerPython) {
+        throw 'S06 requires the independently observed exact-interpreter WFP control.'
+    }
+    $env:S06_WFP_VERIFIED = '1'
     & .venv/Scripts/python.exe scripts/qualify_ai_runtime.py --artifacts $Artifacts `
         --output .agent/s05-real.json
     $measurementExit = $LASTEXITCODE
@@ -46,6 +53,7 @@ except OSError:
     @{audit_enabled=$true; probe_denied=($probe.Count -gt 0); events=$events} |
         ConvertTo-Json -Depth 6 | Set-Content -Encoding utf8 .agent/s05-wfp.json
 } finally {
+    Remove-Item Env:S06_WFP_VERIFIED -ErrorAction SilentlyContinue
     Get-NetFirewallRule -Name $ruleName -ErrorAction SilentlyContinue | Remove-NetFirewallRule
     & auditpol /restore "/file:$auditFile" | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Audit policy restoration failed.' }

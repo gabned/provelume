@@ -23,11 +23,11 @@ from provelume.representations import canonical_json_bytes
 SYNTHETIC_SECRET = "synthetic-only-token"
 
 
-def provider_case(url="http://127.0.0.1:44859/v1/chat/completions", *, config=None):
+def provider_case(url="http://127.0.0.1:44859/v1/chat/completions", *, config=None, text=None):
     config = config or ProviderConfig(
         url, Destination.MANAGED, CredentialReference("system_keyring", "synthetic.ai")
     )
-    source, selections, current, gateway = context_case()
+    source, selections, current, gateway = context_case() if text is None else context_case(text)
     profile = replace(
         gateway["profiles"][0], provider="synthetic_compatible", route_revision=config.fingerprint
     )
