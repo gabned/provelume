@@ -86,8 +86,10 @@ S06 restore forces execution off and preserves uncertainty and accounting.
 
 Run `python scripts/demonstrate_ai_setup.py` in the bootstrapped environment. It
 uses public synthetic fixtures, the real HTTP controls and existing S06 process
-contention/crash tests. For Windows, supply fresh `--basetemp` and pytest cache
-directories when identities differ between sandbox and ordinary execution.
+contention/crash tests. For this targeted Windows demonstration, supply fresh
+`--basetemp` and pytest cache directories when process identities differ. For the
+full suite, let the canonical supervisor allocate separate shard temporaries;
+never share a `--basetemp` through `PYTEST_ADDOPTS` across its child processes.
 
 The existing `ai-runtime-candidate.yml` observer additionally invokes
 `qualify_ai_setup.measure_setup`: real locked model/runtime, S07 configuration,

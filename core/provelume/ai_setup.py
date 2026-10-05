@@ -648,7 +648,7 @@ class AiSetup:
             configuration=self.configuration(),
             governance=governance,
         )
-        return prepared, document
+        return prepared, {**document, "ai_selected_text": raw.decode("utf-8")[start:end]}
 
     def document_choices(self, document_id):
         document = self.instance.get_document(document_id)

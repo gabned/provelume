@@ -4,6 +4,7 @@ import asyncio
 import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import timedelta
 from html import unescape
 
@@ -53,6 +54,158 @@ def test_first_read_is_off_and_has_no_model_or_provider_effects(setup, monkeypat
     assert not setup.path.exists()
     assert not setup.models.root.exists()
     assert not setup.jobs.journal.list_jobs()
+
+
+@pytest.mark.parametrize("mutation", ["redaction", "template", "limits", "source", "route"])
+def test_in_place_authority_mutation_invalidates_approved_preview(setup, mutation):
+    from provelume.ai_context import RedactionConfig, TaskTemplate
+
+    configure(setup)
+    ref, prepared = setup.preview_test()
+    setup.approve(ref)
+    if mutation == "redaction":
+        prepared[2]["redaction"] = RedactionConfig(email=False)
+    elif mutation == "template":
+        prepared[2]["template"] = TaskTemplate("context-check-complete-v1", False)
+    elif mutation == "limits":
+        prepared[2]["request_limits"] = replace(prepared[2]["request_limits"], max_input_bytes=1)
+    elif mutation == "source":
+        source = setup.previews[ref]["source"]
+        setup.previews[ref]["source"] = replace(
+            source, outputs=(replace(source.outputs[0], data=b"changed public fixture"),)
+        )
+    else:
+        prepared[5].clear()
+    with pytest.raises(ValueError):
+        setup.enqueue(ref)
+    assert not setup.jobs.journal.list_jobs()
+
+
+def test_http_two_tabs_cannot_overwrite_newer_configuration(setup, tmp_path):
+    app = create_app(setup.instance.root, shell_settings_file=tmp_path / "shell.json")
+    with TestClient(app) as client:
+        pages = [client.get("/settings/ai") for _ in range(2)]
+        configuration = app.state.ai_setup.configuration()
+        values = {
+            k: str(v)
+            for k, v in configuration.items()
+            if k not in {"instance_id", "schema_version"}
+        }
+        first = client.post("/settings/ai", data={**form(pages[0]), **values, "mode": "local"})
+        assert first.status_code == 200
+        stale = client.post("/settings/ai", data={**form(pages[1]), **values, "mode": "off"})
+        assert stale.status_code == 409
+        assert app.state.ai_setup.configuration()["mode"] == "local"
+        assert not app.state.ai_setup.jobs.session_authorized
+
+
+def test_http_concurrent_form_replay_has_one_effect(setup, tmp_path):
+    app = create_app(setup.instance.root, shell_settings_file=tmp_path / "shell.json")
+    with TestClient(app) as client:
+        values = {**form(client.get("/settings/ai")), "action": "off", "revision": "0"}
+        barrier = threading.Barrier(2)
+
+        def submit():
+            barrier.wait(timeout=10)
+            return client.post(
+                "/settings/ai/control", data=values, follow_redirects=False
+            ).status_code
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            outcomes = list(pool.map(lambda _: submit(), range(2)))
+        assert sorted(outcomes) == [303, 409]
+
+
+def test_http_local_setup_cancel_remains_requested_until_worker_exits(setup, tmp_path, monkeypatch):
+    from provelume.ai_models import ModelError
+
+    app = create_app(setup.instance.root, shell_settings_file=tmp_path / "shell.json")
+    host = app.state.ai_setup
+    entered, release = threading.Event(), threading.Event()
+
+    def controlled_import(*args, cancel, **kwargs):
+        entered.set()
+        assert release.wait(10)
+        assert cancel()
+        raise ModelError("cancelled")
+
+    monkeypatch.setattr(host.models, "import_offline", controlled_import)
+    with TestClient(app) as client:
+        try:
+            response = client.post(
+                "/settings/ai/model",
+                data={
+                    **form(client.get("/settings/ai")),
+                    "action": "import",
+                    "path": "public-model.gguf",
+                    "acknowledge": "explicit",
+                },
+            )
+            assert response.status_code == 200 and entered.wait(5)
+            assert client.get("/search?q=public").status_code == 200
+            response = client.post(
+                "/settings/ai/model/cancel",
+                data={**form(response), "operation_id": host.operation["id"]},
+            )
+            assert response.status_code == 200
+            assert host.operation["cancel_requested"]
+            assert host.operation["state"] == "running"
+        finally:
+            release.set()
+
+        async def complete():
+            await asyncio.gather(*tuple(app.state.ai_tasks))
+
+        client.portal.call(complete)
+        assert host.operation["state"] == "cancelled"
+        assert "public-model.gguf" not in client.get("/settings/ai").text
+        assert "import" in host.model_actions()
+
+
+def test_current_budget_blocks_dispatch_before_model_entry(setup, monkeypatch):
+    configure(setup)
+    setup.save({"job_units": 1}, 1)
+    setup.enable()
+    ref, _ = setup.preview_test()
+    setup.approve(ref)
+    job = setup.enqueue(ref)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("budget denial must precede runtime entry")
+
+    monkeypatch.setattr(setup.runtime, "_infer", forbidden)
+    setup.instance.run_ai_job(job["id"])
+    current = setup.jobs.public(job["id"])
+    assert current["attempt"] == 0
+    assert current["ai"]["blocked"] == "ai_budget_exhausted"
+
+
+@pytest.mark.parametrize("language", ["de", "en", "es", "fr", "it", "pt", "ro"])
+def test_preview_and_security_errors_use_the_selected_catalog(setup, tmp_path, language):
+    from provelume.i18n import translator
+
+    app = create_app(setup.instance.root, shell_settings_file=tmp_path / "shell.json")
+    host = app.state.ai_setup
+    host.save({"mode": "local"}, 0)  # Unqualified: preview must explain locality, not execute.
+    t = translator(language)
+    with TestClient(app) as client:
+        page = client.get("/settings/ai", params={"lang": language})
+        preview = client.post(
+            "/settings/ai/test/preview", params={"lang": language}, data=form(page)
+        )
+        assert preview.status_code == 200
+        assert t("ai.reason_locality") in unescape(preview.text)
+        assert t("ai.duration_limit") in unescape(preview.text)
+        assert "<dd>60</dd>" in preview.text
+        assert "<dd>4224</dd>" in preview.text
+        assert "/settings/ai/test/consent" not in preview.text
+        invalid = client.post(
+            "/settings/ai/control",
+            params={"lang": language},
+            data={**form(page), "csrf_token": "invalid", "action": "off", "revision": "1"},
+        )
+        assert invalid.status_code == 403
+        assert invalid.json()["detail"] == t("ai.error")
 
 
 def test_consent_enqueue_and_dispatch_are_distinct(setup):
@@ -282,3 +435,52 @@ def test_exact_document_selection_is_private_and_not_executable(setup, tmp_path)
     assert prepared[0].manifest.coverage == "partial"
     assert not setup.previews
     assert not setup.jobs.journal.list_jobs()
+
+
+@pytest.mark.parametrize("language", ["de", "en", "es", "fr", "it", "pt", "ro"])
+def test_document_http_exact_version_private_text_escaping_and_staleness(tmp_path, language):
+    from test_representations import _implementation, _seed
+
+    from provelume.representations import RepresentationBundleManager
+
+    instance, version = _seed(tmp_path)
+    text = "<script>public</script> ada@example.test"
+    bundle = RepresentationBundleManager(instance.store).materialize(
+        version,
+        recipe_id="s07-public-escape",
+        recipe_version="1",
+        recipe_settings={},
+        output_payloads={"public.txt": ("text/plain", text.encode())},
+        implementation=_implementation(),
+        anchor_targets=({"kind": "page", "page": 1},),
+        created_at="2026-10-05T00:00:00+00:00",
+    )
+    app = create_app(instance.root, shell_settings_file=tmp_path / "shell.json")
+    host = app.state.ai_setup
+    configure(host)
+    document = instance.store.list_canonical("documents")[0]
+    path = "/documents/" + document["id"] + "/ai"
+    choice = (bundle["representation_id"], bundle["outputs"][0]["id"], bundle["anchors"][0]["id"])
+    with TestClient(app) as client:
+        selection = client.get(path, params={"lang": language})
+        assert selection.status_code == 200
+        values = {
+            "selection": ":".join(choice),
+            "version_id": version,
+            "start": "0",
+            "end": str(len(text)),
+        }
+        preview = client.post(path, params={"lang": language}, data={**form(selection), **values})
+        assert preview.status_code == 200
+        assert "&lt;script&gt;public&lt;/script&gt; ada@example.test" in preview.text
+        assert "<script>public</script>" not in preview.text
+        assert "[REDACTED]" in preview.text
+        assert preview.headers["cache-control"] == "no-store"
+        assert "/test/consent" not in preview.text and "/test/enqueue" not in preview.text
+        assert not host.previews and not host.jobs.journal.list_jobs()
+        assert "ada@example.test" not in client.get("/operations/ai").text
+        stale = client.get(path, params={"lang": language})
+        (tmp_path / "source" / "note.txt").write_text("Changed public version", encoding="utf-8")
+        instance.ingest(tmp_path / "source")
+        response = client.post(path, params={"lang": language}, data={**form(stale), **values})
+        assert response.status_code == 409

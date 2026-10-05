@@ -16,6 +16,36 @@ from .ai_setup import AiSetup
 from .shell_activity import MutationNonces, _loopback_request
 
 
+def reason_key(code):
+    """Translate only closed diagnostics; arbitrary exception text never reaches UI."""
+    groups = {
+        "reason_off": {"ai_off"},
+        "reason_policy": {"ai_explicit_deny", "ai_missing_policy", "ai_conflicting_policy"},
+        "reason_locality": {"ai_locality_unqualified"},
+        "reason_limit": {"ai_limit_exceeded", "ai_budget_exhausted", "ai_attempts_exhausted"},
+        "reason_stale": {
+            "ai_context_mismatch",
+            "ai_consent_missing",
+            "ai_stale_plan",
+            "ai_setup_stale",
+            "ai_authority_changed",
+        },
+        "reason_route": {
+            "ai_unsupported_capability",
+            "ai_profile_not_allowed",
+            "ai_route_not_configured",
+            "ai_route_changed",
+        },
+        "reason_network": {"ai_local_only", "ai_network_disabled"},
+        "reason_uncertain": {"ai_outcome_uncertain"},
+        "price_block": {"ai_price_unknown", "ai_price_expired", "ai_price_invalid_bound"},
+    }
+    return next(
+        ("ai." + key for key, codes in groups.items() if isinstance(code, str) and code in codes),
+        "ai.error",
+    )
+
+
 def attach_ai_routes(app, instance, templates, context_factory):
     setup = AiSetup(instance)
     app.state.ai_setup = setup
@@ -24,9 +54,12 @@ def attach_ai_routes(app, instance, templates, context_factory):
     tasks = set()
     app.state.ai_tasks = tasks
 
+    def failure(request, status):
+        return HTTPException(status, context_factory(request, instance)["t"]("ai.error"))
+
     def local(request):
         if not _loopback_request(request):
-            raise HTTPException(403, "AI controls require the local browser")
+            raise failure(request, 403)
 
     def page(request, name="ai_settings.html", *, status_code=200, **values):
         local(request)
@@ -36,6 +69,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
             csrf_token=csrf,
             mutation_nonce=nonces.issue(),
             selected_instance_id=setup.instance_id,
+            ai_reason_key=reason_key,
         )
         response = templates.TemplateResponse(
             request=request, name=name, context=context, status_code=status_code
@@ -49,29 +83,29 @@ def attach_ai_routes(app, instance, templates, context_factory):
         if request.headers.get("content-type", "").split(";", 1)[0].strip() != (
             "application/x-www-form-urlencoded"
         ):
-            raise HTTPException(415, "unsupported AI form")
+            raise failure(request, 415)
         body = bytearray()
         async for chunk in request.stream():
             body.extend(chunk)
             if len(body) > 8192:
-                raise HTTPException(413, "AI form exceeds bound")
+                raise failure(request, 413)
         try:
             raw = parse_qs(
                 body.decode(), keep_blank_values=True, strict_parsing=True, max_num_fields=20
             )
         except (ValueError, UnicodeError):
-            raise HTTPException(400, "invalid AI form") from None
+            raise failure(request, 400) from None
         if set(raw) != required | {"csrf_token", "mutation_nonce", "instance_id"} or any(
             len(v) != 1 for v in raw.values()
         ):
-            raise HTTPException(400, "invalid AI fields")
+            raise failure(request, 400)
         result = {k: v[0] for k, v in raw.items()}
         if not hmac.compare_digest(result["csrf_token"], csrf):
-            raise HTTPException(403, "invalid AI token")
+            raise failure(request, 403)
         if result["instance_id"] != setup.instance_id:
-            raise HTTPException(409, "AI Instance changed")
+            raise failure(request, 409)
         if not nonces.consume(result["mutation_nonce"]):
-            raise HTTPException(409, "AI form expired or already submitted")
+            raise failure(request, 409)
         return result
 
     def redirect(request, path):
@@ -126,8 +160,13 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 },
                 int(values["revision"]),
             )
-        except (ValueError, OSError):
-            return page(request, error=True, status_code=409)
+        except (ValueError, OSError) as exc:
+            return page(
+                request,
+                error=True,
+                status_code=409,
+                error_key=reason_key(getattr(exc, "code", exc.args[0] if exc.args else None)),
+            )
         return redirect(request, "/settings/ai")
 
     @app.post("/settings/ai/control")
@@ -135,8 +174,13 @@ def attach_ai_routes(app, instance, templates, context_factory):
         values = await fields(request, {"action", "revision"})
         try:
             setup.control(values["action"], int(values["revision"]))
-        except (ValueError, OSError):
-            return page(request, error=True, status_code=409)
+        except (ValueError, OSError) as exc:
+            return page(
+                request,
+                error=True,
+                status_code=409,
+                error_key=reason_key(getattr(exc, "code", exc.args[0] if exc.args else None)),
+            )
         return redirect(request, "/settings/ai")
 
     @app.post("/settings/ai/model")
@@ -147,8 +191,13 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 raise ValueError("consent")
             identity = setup.begin_operation(values["action"])
             launch(setup.run_operation, identity, path=values["path"] or None)
-        except (ValueError, OSError):
-            return page(request, error=True, status_code=409)
+        except (ValueError, OSError) as exc:
+            return page(
+                request,
+                error=True,
+                status_code=409,
+                error_key=reason_key(getattr(exc, "code", exc.args[0] if exc.args else None)),
+            )
         return redirect(request, "/settings/ai")
 
     @app.post("/settings/ai/model/cancel")
@@ -156,8 +205,13 @@ def attach_ai_routes(app, instance, templates, context_factory):
         values = await fields(request, {"operation_id"})
         try:
             setup.cancel_operation(values["operation_id"])
-        except ValueError:
-            return page(request, error=True, status_code=409)
+        except ValueError as exc:
+            return page(
+                request,
+                error=True,
+                status_code=409,
+                error_key=reason_key(getattr(exc, "code", exc.args[0] if exc.args else None)),
+            )
         return redirect(request, "/settings/ai")
 
     @app.post("/settings/ai/test/preview")
@@ -173,8 +227,13 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 payload=setup.payload(prepared),
                 phase="preview",
             )
-        except (ValueError, OSError):
-            return page(request, error=True, status_code=409)
+        except (ValueError, OSError) as exc:
+            return page(
+                request,
+                error=True,
+                status_code=409,
+                error_key=reason_key(getattr(exc, "code", exc.args[0] if exc.args else None)),
+            )
 
     @app.post("/settings/ai/test/consent")
     async def consent(request: Request):
@@ -192,16 +251,26 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 payload=setup.payload(prepared),
                 phase="consented",
             )
-        except (ValueError, OSError):
-            return page(request, error=True, status_code=409)
+        except (ValueError, OSError) as exc:
+            return page(
+                request,
+                error=True,
+                status_code=409,
+                error_key=reason_key(getattr(exc, "code", exc.args[0] if exc.args else None)),
+            )
 
     @app.post("/settings/ai/test/enqueue")
     async def enqueue(request: Request):
         values = await fields(request, {"ref"})
         try:
             setup.enqueue(values["ref"])
-        except (ValueError, OSError):
-            return page(request, error=True, status_code=409)
+        except (ValueError, OSError) as exc:
+            return page(
+                request,
+                error=True,
+                status_code=409,
+                error_key=reason_key(getattr(exc, "code", exc.args[0] if exc.args else None)),
+            )
         return redirect(request, "/operations/ai")
 
     @app.get("/operations/ai")
@@ -244,8 +313,13 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 )
             else:
                 raise ValueError("unavailable")
-        except (ValueError, OSError):
-            return page(request, error=True, status_code=409)
+        except (ValueError, OSError) as exc:
+            return page(
+                request,
+                error=True,
+                status_code=409,
+                error_key=reason_key(getattr(exc, "code", exc.args[0] if exc.args else None)),
+            )
         return redirect(request, "/operations/ai")
 
     @app.get("/documents/{document_id}/ai")
@@ -254,8 +328,13 @@ def attach_ai_routes(app, instance, templates, context_factory):
         try:
             document, choices = setup.document_choices(document_id)
             return page(request, "ai_document.html", document=document, choices=choices)
-        except (ValueError, OSError):
-            return page(request, error=True, status_code=409)
+        except (ValueError, OSError) as exc:
+            return page(
+                request,
+                error=True,
+                status_code=409,
+                error_key=reason_key(getattr(exc, "code", exc.args[0] if exc.args else None)),
+            )
 
     @app.post("/operations/ai/reconcile")
     async def reconcile(request: Request):
@@ -270,8 +349,13 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 quiescent=True,
                 acknowledge_duplicate_risk=True,
             )
-        except (ValueError, OSError):
-            return page(request, error=True, status_code=409)
+        except (ValueError, OSError) as exc:
+            return page(
+                request,
+                error=True,
+                status_code=409,
+                error_key=reason_key(getattr(exc, "code", exc.args[0] if exc.args else None)),
+            )
         return redirect(request, "/operations/ai")
 
     @app.post("/documents/{document_id}/ai")
@@ -300,5 +384,10 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 payload=setup.payload(prepared),
                 phase="document",
             )
-        except (ValueError, OSError):
-            return page(request, error=True, status_code=409)
+        except (ValueError, OSError) as exc:
+            return page(
+                request,
+                error=True,
+                status_code=409,
+                error_key=reason_key(getattr(exc, "code", exc.args[0] if exc.args else None)),
+            )

@@ -4,7 +4,7 @@
 <p><a href="/operations?lang={{ lang }}">{{ t('nav.operations') }}</a> · <a href="/settings/ai?lang={{ lang }}">{{ t('ai.title') }}</a></p>
 <section class="hero"><h1>{{ t('ai.operations') }}</h1><p>{{ t('ai.cancel_help') }}</p><p>{{ t('ai.unknown') }}</p></section>
 {% for job in jobs %}<section class="panel"><h2>{{ t('ai.test') }}</h2><p class="hash">{{ job.id }}</p><p role="status">{{ t('om.state.' ~ ('completed' if job.status == 'succeeded' else 'interrupted' if job.status == 'manual_intervention' else job.status)) }}</p>
-{% if job.ai.blocked %}<p>{{ t('ai.blocked_help') }}</p>{% endif %}
+{% if job.ai.blocked %}<p>{{ t(ai_reason_key(job.ai.blocked)) }}</p>{% endif %}
 <dl><dt>{{ t('ai.attempts') }}</dt><dd>{{ job.attempt }} / {{ job.retry.max_attempts }}</dd><dt>{{ t('ai.fingerprint') }}</dt><dd class="hash">{{ job.ai.binding }}</dd></dl>
 {% for attempt in job.ai.attempts %}<dl><dt>{{ t('ai.attempts') }}</dt><dd>{{ loop.index }}</dd><dt>{{ t('ai.fingerprint') }}</dt><dd class="hash">{{ attempt.route }}</dd><dt>{{ t('ai.reserved') }}</dt><dd>{{ attempt.reserved_units }}</dd><dt>{{ t('ai.consumption') }}</dt><dd>{{ attempt.units if attempt.units is not none else t('ai.unknown') }}</dd><dt>{{ t('ai.state') }}</dt><dd>{{ t('ai.not_sent') if attempt.usage_source == 'NOT_SENT' else t('ai.unknown') if attempt.usage_source == 'UNKNOWN' else t('ai.local') if attempt.usage_source == 'LOCAL' else t('ai.external') }}</dd></dl>{% endfor %}
 {% set actions = job.ai.actions + (['dispatch'] if job.status == 'queued' else []) %}
