@@ -286,8 +286,24 @@ def attach_ai_routes(app, instance, templates, context_factory):
         receipts = [
             r for r in setup.jobs.journal.list_receipts(limit=100) if r["job_kind"] == "ai.execute"
         ]
+        dispatchable = set()
+        control = setup.jobs.status()
+        if control["session_authorized"] and control["mode"] == "enabled":
+            for job in jobs:
+                if job["status"] == "queued":
+                    try:
+                        # Pure bounded synthetic preflight, never DNS/credentials/model work.
+                        setup.current(job["ai"]["request_ref"], job["ai"]["route"]).prepare()
+                        dispatchable.add(job["id"])
+                    except (ValueError, OSError):
+                        pass
         return page(
-            request, "ai_operations.html", jobs=jobs, receipts=receipts, revisions=revisions
+            request,
+            "ai_operations.html",
+            jobs=jobs,
+            receipts=receipts,
+            revisions=revisions,
+            dispatchable=dispatchable,
         )
 
     @app.post("/operations/ai/control")

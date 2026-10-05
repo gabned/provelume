@@ -484,3 +484,47 @@ def test_document_http_exact_version_private_text_escaping_and_staleness(tmp_pat
         instance.ingest(tmp_path / "source")
         response = client.post(path, params={"lang": language}, data={**form(stale), **values})
         assert response.status_code == 409
+
+
+def test_operations_hides_dispatch_after_session_revocation(setup, tmp_path):
+    app = create_app(setup.instance.root, shell_settings_file=tmp_path / "shell.json")
+    host = app.state.ai_setup
+    configure(host)
+    ref, _ = host.preview_test()
+    host.approve(ref)
+    host.enqueue(ref)
+    with TestClient(app) as client:
+        assert 'value="dispatch"' in client.get("/operations/ai").text
+        host.control("off", 1)
+        assert 'value="dispatch"' not in client.get("/operations/ai").text
+
+
+def test_non_cancellable_model_operation_does_not_accept_cancellation(setup):
+    identity = setup.begin_operation("runtime")
+    with pytest.raises(ValueError):
+        setup.cancel_operation(identity)
+    assert not setup.operation["cancel_requested"]
+    assert "verify" not in setup.model_actions()  # No installed model to verify.
+
+
+def test_external_preview_names_actual_destination_without_network_or_vault(
+    setup, tmp_path, monkeypatch
+):
+    import socket
+
+    app = create_app(setup.instance.root, shell_settings_file=tmp_path / "shell.json")
+    host = app.state.ai_setup
+    destination = "https://provider.example.test/v1/chat/completions"
+    host.save({"mode": "external", "endpoint": destination, "model": "public-model"}, 0)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("preview must not probe network or credentials")
+
+    monkeypatch.setattr(socket, "getaddrinfo", forbidden)
+    host.credentials = forbidden
+    with TestClient(app) as client:
+        response = client.post("/settings/ai/test/preview", data=form(client.get("/settings/ai")))
+        assert response.status_code == 200
+        assert destination in response.text
+        assert "/test/consent" not in response.text
+        assert not host.jobs.journal.list_jobs()

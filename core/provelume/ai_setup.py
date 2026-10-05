@@ -460,13 +460,13 @@ class AiSetup:
         entry = self.models.registry.entry(MODEL_ID)
         installed = self.models._path(entry).is_file()
         state = self.models._state()
-        actions = ["runtime", "verify", "recover"]
+        actions = ["runtime", "recover"]
         if state["active"] != MODEL_ID:
             actions += ["install", "import"]
             if installed:
                 actions += ["remove"]
         if installed:
-            actions += ["self_test"]
+            actions += ["verify", "self_test"]
         if self.local_evidence is not None and self.self_test_evidence is not None:
             actions += ["activate"]
         if state["active"] is not None:
@@ -495,7 +495,8 @@ class AiSetup:
             check(
                 self.operation is not None
                 and self.operation["id"] == identity
-                and self.operation["state"] == "running",
+                and self.operation["state"] == "running"
+                and self.operation["action"] in {"install", "import", "self_test"},
                 "ai_setup_stale",
             )
             self.operation["cancel_requested"] = True

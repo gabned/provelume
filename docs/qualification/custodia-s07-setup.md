@@ -33,9 +33,9 @@ must be recorded against their actual candidate; these failures remain failures.
 | Gate | Current recorded outcome |
 | --- | --- |
 | Full Ruff and diff whitespace | PASS on working implementation; repeat exact head |
-| S07 synthetic HTTP/consent/controls and S06 process demonstration | Follow-up: 113 PASS, 99.33s, native Windows; not a full-suite result. Initial 18 PASS retained. |
+| S07 synthetic HTTP/consent/controls and S06 process demonstration | Latest follow-up: 116 PASS, 141.21s, native Windows; not a full-suite result. Initial 18 and intermediate 113 PASS retained. |
 | Full native Windows/Linux suite | Initial exact-head public CI PASS; local full runs FAIL as recorded below; follow-up exact head pending |
-| S07 real governed Windows/Linux test | Initial Linux PASS / Windows FAIL; follow-up exact head pending |
+| S07 real governed Windows/Linux test | Initial Linux PASS / Windows FAIL; `1e12e99` PASS all 19 gates on both hosts; later UI corrections require their own exact-head CI |
 | S01–S06, SSRF, lifecycle regression suite | NOT_RUN on final exact head |
 | Seven catalog keys and rendered pages | Initial Settings/Operations cases passed; expanded surfaces pending |
 | Keyboard/focus, mobile/zoom, System/Light/Dark screenshots | Partial historical Settings observations retained in the [visual matrix](custodia-s07/visual-matrix.md); final-head browser gate BLOCKED |
@@ -92,3 +92,34 @@ fixture constructed an invalid template identifier/partialness pair; seven tried
 to extract a form from a correctly blocked preview that exposed no consent form.
 Both fixture mistakes were corrected without changing production authority rules.
 The successful successor run is recorded in the owner ledger against its commit.
+
+## Follow-up measurements on 1e12e99
+
+Exact head `1e12e993cae7e39271e368fd2ffed3b4055b082f` passed independent full
+Windows/Linux CI and all 19 native observer gates in
+[run 37279663170](https://github.com/gabned/provelume/actions/runs/37279663170).
+The stronger S07 checks passed without relaxing ADR thresholds:
+
+| Native host | Cold first / total (s) | Warm first / total (s) | Warm prefix reused | Concurrent capture maximum (s) |
+| --- | --- | --- | --- | --- |
+| Windows 2025 | 9.625 / 15.516 | 3.469 / 9.094 | 175 tokens | 0.391 |
+| Ubuntu 24.04 | 10.839 / 19.069 | 3.635 / 12.365 | 175 tokens | 0.525 |
+
+Both samples on each host observed the live worker throughout capture/search and
+passed matched-idle relative limits. Network observation passed independently.
+These are the observed CI profiles, not a laptop or live external-provider claim.
+
+The local exact-head full run used a new short temporary root and still returned
+canonical exit124/540s (supervisor with cleanup: 542.58s). Before interruption,
+2477 passed, 99 skipped and 29 failed nodes were observed; no complete-suite total
+is claimed. This does not establish a common cause for the failed nodes. Log hash:
+`d6f0dbf22b0bc884cbd882209c8df6fd5fa9a7f35669a040a7b48cdfdb67a031`.
+The accepted independent native CI route remains necessary; no timeout increase,
+security modification or identical local rerun is used to manufacture a pass.
+
+The final UI follow-up restricts dispatch visibility to a currently valid session
+and synthetic preflight, cancellation to lifecycle operations with actual cancel
+support, and verification to present model files. The server retains every check.
+External destination, current budget and accounting are visible in the private
+preview without DNS, credential or network activity. The expanded demonstration
+passes 116 tests; final-head CI/review observations remain in the same owner PR.

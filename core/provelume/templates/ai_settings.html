@@ -25,7 +25,7 @@
 <p>{{ t('ai.price_block') }}</p><button type="submit">{{ t('ai.save') }}</button>
 </form></section>
 <section class="panel"><h2>{{ t('ai.controls') }}</h2><p>{{ t('ai.enable_help') }}</p>
-{% for action in ['enable','paused','off'] %}<form method="post" action="/settings/ai/control?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="revision" value="{{ ai.configuration.revision }}"><input type="hidden" name="action" value="{{ action }}"><button type="submit" class="secondary">{{ t('ai.' ~ action) }}</button></form>{% endfor %}
+{% for action in ['enable','paused','off'] if (action == 'enable' and ai.configuration.mode != 'off') or (action != 'enable' and ai.control.session_authorized and ai.control.mode != action) %}<form method="post" action="/settings/ai/control?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="revision" value="{{ ai.configuration.revision }}"><input type="hidden" name="action" value="{{ action }}"><button type="submit" class="secondary">{{ t('ai.' ~ action) }}</button></form>{% endfor %}
 </section>
 <section class="panel"><h2>{{ t('ai.local_setup') }}</h2><p>{{ t('ai.candidate') }}</p>
 <p role="status">{{ t('ai.present_model') if 'self_test' in ai.model_actions else t('ai.missing_model') }}</p>
@@ -34,7 +34,7 @@
 {% for entry in ai.registry.entries if entry.runtime_id == 'llama.cpp' %}<dl><dt>{{ t('ai.model') }}</dt><dd>{{ entry.id }}</dd><dt>{{ t('ai.size') }}</dt><dd>{{ entry.size_bytes }} B</dd><dt>{{ t('ai.license') }}</dt><dd>{{ entry.license }} · llama.cpp {{ entry.runtime_version }} · MIT</dd><dt>SHA-256</dt><dd class="hash">{{ entry.expected_sha256 }}</dd></dl>{% endfor %}
 <p>{{ t('ai.runtime_help') }}</p>
 {% if ai.operation %}<div role="status" aria-live="polite"><p>{{ t('ai.' ~ ai.operation.state) }} · {{ ai.operation.bytes }} B</p>{% if ai.operation.error %}<p>{{ t('ai.error') }}</p>{% endif %}{% if ai.operation.cancel_requested %}<p>{{ t('ai.cancel_help') }}</p>{% endif %}</div>{% endif %}
-{% if ai.operation and ai.operation.state == 'running' %}<form method="post" action="/settings/ai/model/cancel?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="operation_id" value="{{ ai.operation.id }}"><button type="submit">{{ t('ai.cancel') }}</button></form>
+{% if ai.operation and ai.operation.state == 'running' %}{% if ai.operation.action in ['install','import','self_test'] %}<form method="post" action="/settings/ai/model/cancel?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="operation_id" value="{{ ai.operation.id }}"><button type="submit">{{ t('ai.cancel') }}</button></form>{% endif %}
 {% else %}<form method="post" action="/settings/ai/model?lang={{ lang }}" class="settings-form">{% include 'ai_fields.html' %}
 <label for="ai-local-action">{{ t('ai.action') }}</label><select id="ai-local-action" name="action">{% for action in ai.model_actions %}<option value="{{ action }}">{{ t('ai.' ~ action) }}</option>{% endfor %}</select>
 <label for="ai-import-path">{{ t('ai.import_path') }}</label><input id="ai-import-path" name="path" autocomplete="off" maxlength="2048">
