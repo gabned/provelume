@@ -89,14 +89,18 @@ read-only service/CLI/API/EN/IT Browser model. It keeps support, component ident
 uncertainty, reversible correction annotations and exact anchors together without adding a parser,
 model or mutation route. See the [integrated pilot guide](docs/perceptio.md).
 
-The release lane retains immutable earlier previews and the published Cura personal
-daily-use beta inside its qualified perimeter. [Custodia development](docs/releases/0.12.0.md)
-tracks #311: S01 (#312/#313) delivered internal policy preflight; S02 (#314/#315) delivered
-bounded context, local redaction and untrusted-result isolation. S03 (#316/#317) delivered
-replaceable transports and connection diagnostics with synthetic fixture qualification.
-S04 (#318) adds the governed registry and verified artifact lifecycle, including offline
-import, self-test/internal activation and rollback; its fixtures qualify no real model.
-Real AI inference remains unavailable; package identity stays 0.11.0.
+The release lane retains immutable earlier previews and the published **0.11.0 — Cura**
+personal daily-use beta inside its qualified perimeter.
+[Custodia development](docs/releases/0.12.0.md), tracked by
+[#311](https://github.com/gabned/provelume/issues/311), has integrated S01–S06.
+S05 and S06 include bounded real local runtime and governed-job qualification on the
+observed native Windows/Linux profiles, as recorded in the
+[S06 final integration ledger](https://github.com/gabned/provelume/pull/323#issuecomment-5982834212);
+these source capabilities are not a published 0.12 release. AI remains off by default,
+and Recommended promotion remains subject to S09.
+[S07 #324](https://github.com/gabned/provelume/issues/324) /
+[PR #325](https://github.com/gabned/provelume/pull/325) is active and not integrated;
+S08–S09 are not started. Package identity and published preview remain **0.11.0**.
 Later portfolio forecasts remain inactive from 0.13 onward; their release numbers
 and activation gates are unchanged.
 It does not use `0.9.5` for feature work.
