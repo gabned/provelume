@@ -3,6 +3,11 @@
 Owner issue #324; PR #325; branch `product/0.12-s07-ai-privacy`; parent #311 remains open.
 Status: implementation and qualification in progress, not integrated.
 
+The [2026-10-07 continuation](custodia-s07/cloud-2026-10-07/README.md) records
+completed cloud browser/keyboard/zoom checks, the Components reflow correction,
+Italian copy corrections and new native Linux evidence. Historical results below
+remain unchanged; final candidate checks and manual evidence belong to owner PR #325.
+
 Accepted baseline main: `cace42aaa1744f6b0012c2a0264b1dec8f660234`.
 Protocol 1.5.0: `7287e2c3c6dd42d1aad1c7eac3c68043f8a0cf69`, 97 verified files.
 Development follows CLI/PRODUCT PR-local legacy, PRODUCT/v2 repository policy;

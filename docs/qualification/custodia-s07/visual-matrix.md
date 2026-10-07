@@ -1,5 +1,11 @@
 # S07 rendered-page observations
 
+The [2026-10-07 cloud continuation](cloud-2026-10-07/README.md) completes the
+automated rendered, keyboard and native-zoom matrix in a new permitted environment
+and records a Components overflow correction. The observations below retain their
+original source and historical blocked state. Manual screen-reader evidence remains
+separate; current integration readiness is recorded in owner PR #325.
+
 Public synthetic Instance only. The retained screenshots describe initial head
 `537376dfc239cadd51ca7ada81f5d4d10c983e32`, before the subsequent copy, status and
 preview-detail corrections. They are historical evidence, not final-head approval.

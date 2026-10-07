@@ -1,0 +1,66 @@
+[
+  {
+    "width": 1280,
+    "scroll": 1280,
+    "surface": "settings",
+    "viewport": "desktop",
+    "theme": "light",
+    "catalog": "it",
+    "copy_pass": true
+  },
+  {
+    "width": 1280,
+    "scroll": 1280,
+    "surface": "blocked-test",
+    "viewport": "desktop",
+    "theme": "light",
+    "catalog": "it",
+    "copy_pass": true
+  },
+  {
+    "width": 1280,
+    "scroll": 1280,
+    "surface": "document-preview",
+    "viewport": "desktop",
+    "theme": "light",
+    "catalog": "it",
+    "copy_pass": true
+  },
+  {
+    "width": 390,
+    "scroll": 390,
+    "surface": "settings",
+    "viewport": "mobile",
+    "theme": "dark",
+    "catalog": "it",
+    "copy_pass": true
+  },
+  {
+    "width": 390,
+    "scroll": 390,
+    "surface": "blocked-test",
+    "viewport": "mobile",
+    "theme": "dark",
+    "catalog": "it",
+    "copy_pass": true
+  },
+  {
+    "width": 390,
+    "scroll": 390,
+    "surface": "document-preview",
+    "viewport": "mobile",
+    "theme": "dark",
+    "catalog": "it",
+    "copy_pass": true
+  },
+  {
+    "native_zoom_capture": {
+      "inner": 640,
+      "outer": 1280,
+      "dpr": 2,
+      "scale": 1,
+      "width": 640,
+      "scroll": 640
+    }
+  }
+]
