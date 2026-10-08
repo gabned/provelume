@@ -70,14 +70,15 @@ class MaintenanceTests(unittest.TestCase):
             self.git(root, "init", "-q")
             self.git(root, "config", "user.name", "Synthetic")
             self.git(root, "config", "user.email", "synthetic@example.invalid")
+            self.git(root, "config", "core.autocrlf", "false")
         self.path = "compat/legacy/tools/runner.py"
         target = self.destination / self.path
         target.parent.mkdir(parents=True)
-        target.write_text("before\n")
+        target.write_bytes(b"before\n")
         (self.destination / "guard.py").write_text("unchanged gate\n")
         self.base = self.commit(self.destination)
         self.before = self.git(self.destination, "rev-parse", self.base + ":" + self.path)
-        target.write_text("after\n")
+        target.write_bytes(b"after\n")
         self.head = self.commit(self.destination)
         self.record = {
             "schema": "agent-protocol-maintenance/v1", "predecessor": "gabned/provelume",
@@ -198,6 +199,22 @@ class MaintenanceTests(unittest.TestCase):
                                  capture_output=True, text=True, check=False)
         self.assertEqual(refused.returncode, 2)
         self.assertIn("accepted Git bytes only", refused.stdout)
+
+        for root, revision in ((self.predecessor, self.accepted),
+                               (self.destination, self.head)):
+            with self.subTest(missing_from=root.name):
+                obj = root / ".git" / "objects" / revision[:2] / revision[2:]
+                retained = obj.read_bytes()
+                obj.unlink()
+                try:
+                    missing = subprocess.run(command, capture_output=True, text=True, check=False)
+                finally:
+                    obj.write_bytes(retained)
+                self.assertEqual(missing.returncode, 2, missing.stdout + missing.stderr)
+                self.assertEqual(json.loads(missing.stdout), {
+                    "result": "BLOCKED", "reason": "Required Git evidence unavailable",
+                })
+                self.assertEqual(missing.stderr, "")
 
 
 class TransferTests(unittest.TestCase):

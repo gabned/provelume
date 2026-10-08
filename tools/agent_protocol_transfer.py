@@ -521,12 +521,15 @@ def read_maintenance_record(document):
 
 def maintenance_git(root, *arguments):
     """Offline object reads only, never lazy fetches or replacement ancestry."""
-    return subprocess.check_output(
-        ["git", "--no-replace-objects", "-c", "protocol.allow=never", "-C", str(root),
-         *arguments],
-        env={**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"},
-        stderr=subprocess.PIPE,
-    )
+    try:
+        return subprocess.check_output(
+            ["git", "--no-replace-objects", "-c", "protocol.allow=never", "-C", str(root),
+             *arguments],
+            env={**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"},
+            stderr=subprocess.PIPE,
+        )
+    except subprocess.CalledProcessError as error:
+        raise ValueError("Required Git evidence unavailable") from error
 
 
 def verify_maintenance(predecessor_root, destination_root, *, accepted_predecessor,
