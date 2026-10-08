@@ -193,7 +193,9 @@ class AiSetup:
         configs = {local.id: NativeConfig()}
         profiles = [local]
         evidence = []
-        if self.local_evidence is not None:
+        if self.local_evidence is not None and self.models.active_evidence(
+            MODEL_ID, native_selection(), self.self_test_evidence
+        ):
             evidence.append(
                 LocalityEvidence(
                     local.fingerprint,

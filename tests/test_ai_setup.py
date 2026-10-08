@@ -3,6 +3,7 @@
 import asyncio
 import re
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import timedelta
@@ -14,6 +15,9 @@ from fastapi.testclient import TestClient
 from provelume.ai_contract import digest
 from provelume.ai_job_contract import Quote
 from provelume.ai_job_runtime import JobOutcome
+from provelume.ai_model_store import SelfTestEvidence
+from provelume.ai_runtime import native_selection
+from provelume.ai_runtime_contract import MODEL_ID
 from provelume.ai_setup import AiSetup
 from provelume.scheduler_model import instant_text, utc_instant
 from provelume.service import ProvelumeInstance
@@ -25,11 +29,81 @@ def setup(tmp_path):
     return AiSetup(ProvelumeInstance.initialise(tmp_path / "i"))
 
 
-def configure(setup):
+def configure(setup, *, valid_seconds=60):
     setup.save({"mode": "local"}, 0)
     # Test-owned evidence/transport; this seam is never available over HTTP.
     setup.local_evidence = digest("public-s07-synthetic-only")
+    entry = setup.models.registry.entry(MODEL_ID)
+    evidence = SelfTestEvidence(
+        MODEL_ID, setup.models._binding(entry, native_selection()), "PASSED",
+        time.monotonic() + valid_seconds,
+    )
+    setup.self_test_evidence = evidence
+    setup.models._evidence[MODEL_ID] = evidence
+    setup.models._native_runners[MODEL_ID] = setup.runtime
+    setup.models._prepare()
+    setup.models._write_state({"schema_version": 1, "active": MODEL_ID, "previous": None})
     setup.enable()
+
+
+@pytest.mark.parametrize("state", ["not_active", "expired", "replaced", "wrong_binding"])
+def test_local_route_requires_current_activation_before_consent(setup, state, monkeypatch):
+    configure(setup)
+    if state == "not_active":
+        setup.models._write_state({"schema_version": 1, "active": None, "previous": None})
+    elif state == "expired":
+        evidence = replace(setup.self_test_evidence, expires=time.monotonic() - 1)
+        setup.self_test_evidence = setup.models._evidence[MODEL_ID] = evidence
+    elif state == "replaced":
+        setup.models._evidence.pop(MODEL_ID)
+    else:
+        evidence = replace(setup.self_test_evidence, binding=digest("different-session"))
+        setup.self_test_evidence = setup.models._evidence[MODEL_ID] = evidence
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("planning verified or loaded model/runtime bytes")
+
+    monkeypatch.setattr(setup.models, "_verify", forbidden)
+    monkeypatch.setattr(setup.runtime, "validate_installation", forbidden)
+    ref, prepared = setup.preview_test()
+    assert not any(route.eligible for route in prepared[1].routes)
+    with pytest.raises(ValueError):
+        setup.approve(ref)
+    with pytest.raises(ValueError):
+        setup.enqueue(ref)
+    assert not setup.jobs.journal.list_jobs()
+    assert setup.jobs.status()["accounting"]["units"] == 0
+
+
+@pytest.mark.parametrize("change", ["deactivate", "expire"])
+def test_model_activation_change_invalidates_already_approved_preview(setup, change):
+    configure(setup)
+    ref, _ = setup.preview_test()
+    setup.approve(ref)
+    if change == "deactivate":
+        setup.models._write_state({"schema_version": 1, "active": None, "previous": None})
+    else:
+        evidence = replace(setup.self_test_evidence, expires=time.monotonic() - 1)
+        setup.self_test_evidence = setup.models._evidence[MODEL_ID] = evidence
+    with pytest.raises(ValueError):
+        setup.enqueue(ref)
+    assert not setup.jobs.journal.list_jobs()
+
+
+def test_expired_model_evidence_blocks_queued_job_before_reservation(setup):
+    configure(setup)
+    ref, _ = setup.preview_test()
+    setup.approve(ref)
+    job = setup.enqueue(ref)
+    evidence = replace(setup.self_test_evidence, expires=time.monotonic() - 1)
+    setup.self_test_evidence = setup.models._evidence[MODEL_ID] = evidence
+    assert setup.jobs.journal.claim_next(
+        worker_id="s07-stale-model", job_id=job["id"], ai_admit=setup.jobs.admit_locked
+    ) is None
+    stored = setup.jobs.journal.get_job(job["id"])
+    assert stored["attempt"] == 0
+    assert stored["ai"]["attempts"] == []
+    assert setup.jobs.status()["accounting"]["units"] == 0
 
 
 def form(response):

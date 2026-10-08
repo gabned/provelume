@@ -28,10 +28,9 @@ from provelume.ai_job_contract import Quote
 from provelume.ai_job_runtime import JobOutcome
 from provelume.scheduler_model import instant_text, utc_instant
 host = app.state.ai_setup
-host.save({'mode': 'local'}, 0)
 # Isolated fixture-owned evidence; never available in a product HTTP request.
-host.local_evidence = digest('public-s07-synthetic-only')
-host.enable()
+from test_ai_setup import configure
+configure(host, valid_seconds=3600)
 class Transport:
     network_used = False
     def exchange(self, current, *, cancel):
