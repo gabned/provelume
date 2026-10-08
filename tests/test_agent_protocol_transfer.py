@@ -105,7 +105,9 @@ class MaintenanceTests(unittest.TestCase):
     def save_record(self):
         path = self.predecessor / transfer.MAINTENANCE_DOCUMENT
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(transfer.MAINTENANCE_MARKER + json.dumps(self.record) + "\n```\n")
+        path.write_bytes(
+            (transfer.MAINTENANCE_MARKER + json.dumps(self.record) + "\n```\n").encode("utf-8")
+        )
         self.accepted = self.commit(self.predecessor)
 
     def verify(self, **overrides):
@@ -200,16 +202,13 @@ class MaintenanceTests(unittest.TestCase):
         self.assertEqual(refused.returncode, 2)
         self.assertIn("accepted Git bytes only", refused.stdout)
 
-        for root, revision in ((self.predecessor, self.accepted),
-                               (self.destination, self.head)):
-            with self.subTest(missing_from=root.name):
-                obj = root / ".git" / "objects" / revision[:2] / revision[2:]
-                retained = obj.read_bytes()
-                obj.unlink()
-                try:
-                    missing = subprocess.run(command, capture_output=True, text=True, check=False)
-                finally:
-                    obj.write_bytes(retained)
+        for option, absent in (("--accepted-predecessor", "a" * 40),
+                               ("--destination", str(self.root / "absent"))):
+            with self.subTest(unavailable=option):
+                missing_command = command.copy()
+                missing_command[command.index(option) + 1] = absent
+                missing = subprocess.run(missing_command, capture_output=True,
+                                         text=True, check=False)
                 self.assertEqual(missing.returncode, 2, missing.stdout + missing.stderr)
                 self.assertEqual(json.loads(missing.stdout), {
                     "result": "BLOCKED", "reason": "Required Git evidence unavailable",
