@@ -212,7 +212,7 @@ print(json.dumps({'denied':observed,'limits':limits}))
 
 
 @pytest.mark.skipif(sys.platform not in ("linux", "win32"), reason="native supported OS only")
-def test_inference_worker_yields_priority_without_changing_parent():
+def test_worker_priority_is_lowered_only_on_windows():
     import os
     import sysconfig
 
@@ -220,6 +220,7 @@ def test_inference_worker_yields_priority_without_changing_parent():
 import sys,os,json,ctypes
 sys.path[:0]=sys.argv[1:3]
 from provelume.ai_runtime_limits import contain
+inherited=os.getpriority(os.PRIO_PROCESS,0) if os.name!='nt' else None
 job,limits=contain()
 if os.name=='nt':
     k=ctypes.WinDLL('kernel32',use_last_error=True)
@@ -230,7 +231,7 @@ if os.name=='nt':
     assert limits['priority']=='JobObject:below-normal'
 else:
     observed=os.getpriority(os.PRIO_PROCESS,0)
-    assert observed>=5 and limits['priority']=='nice:'+str(observed)
+    assert observed==inherited and 'priority' not in limits
 print(json.dumps({'priority':observed}))
 '''
     before = os.getpriority(os.PRIO_PROCESS, 0) if os.name != "nt" else None
@@ -239,7 +240,7 @@ print(json.dumps({'priority':observed}))
          str(Path(__file__).resolve().parents[1] / "core"), sysconfig.get_path("purelib")],
         capture_output=True, timeout=10, check=True,
     )
-    assert json.loads(result.stdout)["priority"] >= 5
+    assert json.loads(result.stdout)["priority"] == (0x4000 if os.name == "nt" else before)
     if before is not None:
         assert os.getpriority(os.PRIO_PROCESS, 0) == before
 

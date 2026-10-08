@@ -96,10 +96,10 @@ and before accepting completion. This reduces metadata contention with Capture
 without caching mutable policy or changing the two-second cancellation/cleanup gate,
 model configuration, CPU budget or ADR measurement thresholds.
 
-The inference worker yields scheduling priority to ordinary foreground work:
-Linux nice at least 5 (preserving a lower inherited priority), Windows Job Object
-below-normal priority. Only the disposable worker is changed; the application
-process keeps its priority. Observations include the effective worker priority.
+On Windows the inference worker yields scheduling priority to ordinary foreground
+work through Job Object below-normal priority. Only the disposable Windows worker
+is changed; the application process and Linux retain their inherited priority.
+Windows observations include the effective worker priority.
 The same two-CPU affinity, model, thread count, containment and fixed ADR latency
 and capture/search thresholds still apply to fresh native qualification.
 
