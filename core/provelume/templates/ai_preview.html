@@ -1,0 +1,21 @@
+{% extends base_layout %}
+{% block title %}{{ t('ai.preview') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+{% if document %}<p><a href="/documents/{{ document.id }}?lang={{ lang }}">{{ document.title }}</a></p>{% endif %}
+<p><a href="/settings/ai?lang={{ lang }}">{{ t('ai.title') }}</a></p>
+<section class="hero"><h1>{{ t('ai.preview') }}</h1><p>{{ t('ai.document_help') if phase == 'document' else t('ai.test_help') }}</p></section>
+<section class="panel">{% if document %}<h2>{{ t('ai.selected_text') }}</h2><pre class="preview">{{ document.ai_selected_text }}</pre>{% endif %}<h2>{{ t('ai.payload') }}</h2><p>{{ t('ai.redaction_help') }}</p><pre class="preview">{{ payload }}</pre>
+<dl><dt>{{ t('document.version_history') }}</dt><dd>{{ prepared[0].manifest.version.version_id }}</dd><dt>{{ t('ai.coverage') }}</dt><dd>{{ t('ai.' ~ prepared[0].manifest.coverage) }}</dd><dt>{{ t('ai.size') }}</dt><dd>{{ prepared[0].payload_bytes }} / {{ prepared[0].manifest.request_limits.max_input_bytes }} B</dd><dt>{{ t('ai.fingerprint') }}</dt><dd class="hash">{{ prepared[0].fingerprint }}</dd></dl>
+<p>{{ t('ai.unknown') }}</p><p>{{ t('ai.price_block') }}</p>
+<dl><dt>{{ t('ai.job_limit') }}</dt><dd>{{ ai.configuration.job_units }}</dd><dt>{{ t('ai.period_limit') }}</dt><dd>{{ ai.configuration.period_units }}</dd><dt>{{ t('ai.reserved') }}</dt><dd>{{ ai.control.accounting.units }}</dd></dl>
+{% set limits = prepared[1].limits or prepared[0].manifest.request_limits %}
+<dl><dt>{{ t('ai.output_limit') }}</dt><dd>{{ limits.max_output_tokens }}</dd><dt>{{ t('ai.attempts') }}</dt><dd>{{ limits.max_attempts }}</dd><dt>{{ t('ai.duration_limit') }}</dt><dd>{{ limits.max_seconds }}</dd><dt>{{ t('ai.upper_units') }}</dt><dd>{{ limits.max_input_bytes + limits.max_output_tokens }}</dd></dl><p>{{ t('ai.units_help') }}</p>
+{% for selection in prepared[0].manifest.selections %}<dl><dt>{{ t('ai.selection') }}</dt><dd class="hash">{{ selection.representation_id }} / {{ selection.output_id }} / {{ selection.anchor_id }}</dd><dt>{{ t('ai.start') }}</dt><dd>{{ selection.start }}</dd><dt>{{ t('ai.end') }}</dt><dd>{{ selection.end }}</dd></dl>{% endfor %}
+{% for reason in prepared[1].reasons %}<p role="alert">{{ t(ai_reason_key(reason)) }}</p>{% endfor %}
+<dl><dt>{{ t('ai.included') }}</dt><dd>{{ prepared[0].manifest.included|length }}</dd><dt>{{ t('ai.excluded') }}</dt><dd>{{ prepared[0].manifest.excluded|length }}</dd><dt>{{ t('ai.redactions') }}</dt><dd>{{ prepared[0].events|length }}</dd></dl>
+{% for route in prepared[1].routes %}<p>{{ loop.index }} · {% for profile in prepared[3] if profile.fingerprint == route.profile_fingerprint %}{{ t('ai.external') if profile.id == 'external' else profile.provider }} · {{ profile.model }}{% if prepared[5][profile.id].endpoint_url is defined %} · {{ t('ai.endpoint') }}: {{ prepared[5][profile.id].endpoint_url }}{% else %} · {{ t('ai.local') }}{% endif %}{% endfor %} · {{ t('ai.allowed') if route.eligible else t('ai.blocked') }}</p>{% for reason in route.reasons %}<p>{{ t(ai_reason_key(reason)) }}</p>{% endfor %}{% endfor %}
+{% if phase == 'document' %}<p>{{ t('ai.document_help') }}</p>
+{% elif prepared[1].outcome != 'planned' %}<p role="alert">{{ t('ai.blocked_help') }}</p>
+{% elif phase == 'preview' %}<form method="post" action="/settings/ai/test/consent?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="ref" value="{{ ref }}"><label><input type="checkbox" name="acknowledge" value="synthetic-test" required>{{ t('ai.test_consent') }}</label><button type="submit">{{ t('ai.confirm') }}</button></form>
+{% else %}<form method="post" action="/settings/ai/test/enqueue?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="ref" value="{{ ref }}"><p>{{ t('ai.enqueue_help') }}</p><button type="submit">{{ t('ai.enqueue') }}</button></form>{% endif %}
+</section>{% endblock %}

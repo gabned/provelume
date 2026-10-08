@@ -1,0 +1,541 @@
+[
+  {
+    "surface": "settings",
+    "catalog": "de",
+    "keyboard": {
+      "expected_focusable": 28,
+      "visited": 28,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "advanced_keyboard_open": true,
+    "expanded_keyboard": {
+      "expected_focusable": 32,
+      "visited": 32,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "escape_returns_focus": true,
+    "back_refresh_preserves_revision": true
+  },
+  {
+    "surface": "blocked-test",
+    "catalog": "de",
+    "keyboard": {
+      "expected_focusable": 14,
+      "visited": 14,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "document",
+    "catalog": "de",
+    "keyboard": {
+      "expected_focusable": 19,
+      "visited": 19,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "document-preview",
+    "catalog": "de",
+    "keyboard": {
+      "expected_focusable": 15,
+      "visited": 15,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "operations",
+    "catalog": "de",
+    "keyboard": {
+      "expected_focusable": 16,
+      "visited": 16,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "components",
+    "catalog": "de",
+    "keyboard": {
+      "expected_focusable": 15,
+      "visited": 15,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "table_keyboard_scroll": true
+  },
+  {
+    "surface": "settings",
+    "catalog": "en",
+    "keyboard": {
+      "expected_focusable": 28,
+      "visited": 28,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "advanced_keyboard_open": true,
+    "expanded_keyboard": {
+      "expected_focusable": 32,
+      "visited": 32,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "escape_returns_focus": true,
+    "back_refresh_preserves_revision": true
+  },
+  {
+    "surface": "blocked-test",
+    "catalog": "en",
+    "keyboard": {
+      "expected_focusable": 14,
+      "visited": 14,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "document",
+    "catalog": "en",
+    "keyboard": {
+      "expected_focusable": 19,
+      "visited": 19,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "document-preview",
+    "catalog": "en",
+    "keyboard": {
+      "expected_focusable": 15,
+      "visited": 15,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "operations",
+    "catalog": "en",
+    "keyboard": {
+      "expected_focusable": 16,
+      "visited": 16,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "components",
+    "catalog": "en",
+    "keyboard": {
+      "expected_focusable": 15,
+      "visited": 15,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "table_keyboard_scroll": true
+  },
+  {
+    "surface": "settings",
+    "catalog": "es",
+    "keyboard": {
+      "expected_focusable": 28,
+      "visited": 28,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "advanced_keyboard_open": true,
+    "expanded_keyboard": {
+      "expected_focusable": 32,
+      "visited": 32,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "escape_returns_focus": true,
+    "back_refresh_preserves_revision": true
+  },
+  {
+    "surface": "blocked-test",
+    "catalog": "es",
+    "keyboard": {
+      "expected_focusable": 14,
+      "visited": 14,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "document",
+    "catalog": "es",
+    "keyboard": {
+      "expected_focusable": 19,
+      "visited": 19,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "document-preview",
+    "catalog": "es",
+    "keyboard": {
+      "expected_focusable": 15,
+      "visited": 15,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "operations",
+    "catalog": "es",
+    "keyboard": {
+      "expected_focusable": 16,
+      "visited": 16,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "components",
+    "catalog": "es",
+    "keyboard": {
+      "expected_focusable": 15,
+      "visited": 15,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "table_keyboard_scroll": true
+  },
+  {
+    "surface": "settings",
+    "catalog": "fr",
+    "keyboard": {
+      "expected_focusable": 28,
+      "visited": 28,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "advanced_keyboard_open": true,
+    "expanded_keyboard": {
+      "expected_focusable": 32,
+      "visited": 32,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "escape_returns_focus": true,
+    "back_refresh_preserves_revision": true
+  },
+  {
+    "surface": "blocked-test",
+    "catalog": "fr",
+    "keyboard": {
+      "expected_focusable": 14,
+      "visited": 14,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "document",
+    "catalog": "fr",
+    "keyboard": {
+      "expected_focusable": 19,
+      "visited": 19,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "document-preview",
+    "catalog": "fr",
+    "keyboard": {
+      "expected_focusable": 15,
+      "visited": 15,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "operations",
+    "catalog": "fr",
+    "keyboard": {
+      "expected_focusable": 16,
+      "visited": 16,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "components",
+    "catalog": "fr",
+    "keyboard": {
+      "expected_focusable": 15,
+      "visited": 15,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "table_keyboard_scroll": true
+  },
+  {
+    "surface": "settings",
+    "catalog": "it",
+    "keyboard": {
+      "expected_focusable": 28,
+      "visited": 28,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "advanced_keyboard_open": true,
+    "expanded_keyboard": {
+      "expected_focusable": 32,
+      "visited": 32,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "escape_returns_focus": true,
+    "back_refresh_preserves_revision": true
+  },
+  {
+    "surface": "blocked-test",
+    "catalog": "it",
+    "keyboard": {
+      "expected_focusable": 14,
+      "visited": 14,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "document",
+    "catalog": "it",
+    "keyboard": {
+      "expected_focusable": 19,
+      "visited": 19,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "document-preview",
+    "catalog": "it",
+    "keyboard": {
+      "expected_focusable": 15,
+      "visited": 15,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "operations",
+    "catalog": "it",
+    "keyboard": {
+      "expected_focusable": 16,
+      "visited": 16,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "components",
+    "catalog": "it",
+    "keyboard": {
+      "expected_focusable": 15,
+      "visited": 15,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "table_keyboard_scroll": true
+  },
+  {
+    "surface": "settings",
+    "catalog": "pt",
+    "keyboard": {
+      "expected_focusable": 28,
+      "visited": 28,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "advanced_keyboard_open": true,
+    "expanded_keyboard": {
+      "expected_focusable": 32,
+      "visited": 32,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "escape_returns_focus": true,
+    "back_refresh_preserves_revision": true
+  },
+  {
+    "surface": "blocked-test",
+    "catalog": "pt",
+    "keyboard": {
+      "expected_focusable": 14,
+      "visited": 14,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "document",
+    "catalog": "pt",
+    "keyboard": {
+      "expected_focusable": 19,
+      "visited": 19,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "document-preview",
+    "catalog": "pt",
+    "keyboard": {
+      "expected_focusable": 15,
+      "visited": 15,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "operations",
+    "catalog": "pt",
+    "keyboard": {
+      "expected_focusable": 16,
+      "visited": 16,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "components",
+    "catalog": "pt",
+    "keyboard": {
+      "expected_focusable": 15,
+      "visited": 15,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "table_keyboard_scroll": true
+  },
+  {
+    "surface": "settings",
+    "catalog": "ro",
+    "keyboard": {
+      "expected_focusable": 28,
+      "visited": 28,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "advanced_keyboard_open": true,
+    "expanded_keyboard": {
+      "expected_focusable": 32,
+      "visited": 32,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "escape_returns_focus": true,
+    "back_refresh_preserves_revision": true
+  },
+  {
+    "surface": "blocked-test",
+    "catalog": "ro",
+    "keyboard": {
+      "expected_focusable": 14,
+      "visited": 14,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "document",
+    "catalog": "ro",
+    "keyboard": {
+      "expected_focusable": 19,
+      "visited": 19,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "document-preview",
+    "catalog": "ro",
+    "keyboard": {
+      "expected_focusable": 15,
+      "visited": 15,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "operations",
+    "catalog": "ro",
+    "keyboard": {
+      "expected_focusable": 16,
+      "visited": 16,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    }
+  },
+  {
+    "surface": "components",
+    "catalog": "ro",
+    "keyboard": {
+      "expected_focusable": 15,
+      "visited": 15,
+      "unnamed": [],
+      "invisible_focus": [],
+      "pass": true
+    },
+    "table_keyboard_scroll": true
+  }
+]

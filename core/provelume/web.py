@@ -491,6 +491,9 @@ def create_app(
             yield
         finally:
             stop.set()
+            await asyncio.to_thread(app.state.ai_setup.close)
+            if app.state.ai_tasks:
+                await asyncio.gather(*tuple(app.state.ai_tasks), return_exceptions=True)
             with suppress(asyncio.CancelledError):
                 await worker
 
@@ -516,6 +519,9 @@ def create_app(
         instance,
         installation_verification=installation_verification,
     )
+    from .ai_activity import attach_ai_routes
+
+    attach_ai_routes(app, instance, TEMPLATES, _context)
     attach_activity_routes(app, instance, TEMPLATES, _context)
     attach_action_center_routes(app, instance, TEMPLATES, _context, action_center)
     attach_annotation_routes(app, instance, TEMPLATES, _context)

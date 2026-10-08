@@ -1,6 +1,7 @@
 {% extends base_layout %}
 {% block title %}{{ t('components.title') }} · {{ t('brand') }}{% endblock %}
 {% block content %}
+<section class="panel"><h2>{{ t('ai.local_setup') }}</h2><p>{{ t('ai.candidate') }}</p><a href="/settings/ai?lang={{ lang }}">{{ t('ai.title') }}</a></section>
 <section class="hero">
   <p class="eyebrow">{{ t('components.eyebrow') }}</p>
   <h1>{{ t('components.title') }}</h1>
@@ -14,17 +15,17 @@
   <article><span>{{ t('components.unverified') }}</span><strong>{{ inventory.summary.states.unverified }}</strong></article>
 </section>
 <section class="panel">
-  <h2>{{ t('components.catalogue') }}</h2>
-  <div class="table-wrap">
+  <h2 id="components-catalogue">{{ t('components.catalogue') }}</h2>
+  <div class="table-wrap components-table" role="region" aria-labelledby="components-catalogue" tabindex="0">
     <table>
       <thead><tr>
-        <th>{{ t('components.component') }}</th>
-        <th>{{ t('components.category') }}</th>
-        <th>{{ t('components.purpose') }}</th>
-        <th>{{ t('components.version') }}</th>
-        <th>{{ t('components.status') }}</th>
-        <th>{{ t('components.license') }}</th>
-        <th>{{ t('components.delivery') }}</th>
+        <th scope="col">{{ t('components.component') }}</th>
+        <th scope="col">{{ t('components.category') }}</th>
+        <th scope="col">{{ t('components.purpose') }}</th>
+        <th scope="col">{{ t('components.version') }}</th>
+        <th scope="col">{{ t('components.status') }}</th>
+        <th scope="col">{{ t('components.license') }}</th>
+        <th scope="col">{{ t('components.delivery') }}</th>
       </tr></thead>
       <tbody>
       {% for row in inventory.components %}

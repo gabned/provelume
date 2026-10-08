@@ -1454,14 +1454,17 @@ GGUF Q4_K_M under precommitted ADR 0031 thresholds. The implementation and
 [native measurement record](qualification/custodia-s05-cpu-runtime.md) distinguish
 selection, observed-profile technical qualification and S09 Recommended promotion;
 the sole owner ledger retains final exact-head integration and actual-main checks.
-S06 (#322) implements [durable governed execution](architecture/ai-durable-jobs.md),
-with qualification/integration pending its owner gates. The same owner is
-addressing observed latency/responsiveness failures with bounded
+S06 (#322/#323) delivered [durable governed execution](architecture/ai-durable-jobs.md),
+integrated and qualified at main `cace42aaa1744f6b0012c2a0264b1dec8f660234`
+([final ledger](https://github.com/gabned/provelume/pull/323#issuecomment-5982834212)).
+The same owner addressed observed latency/responsiveness failures with bounded
 polling optimization, exact prefix computation reuse within a worker/Instance and
 native phase measurements, without changing ADR 0031 caps. Full payload validation,
 fresh authorization and token accounting remain mandatory for every job.
 AI remains off by default;
-installation and binding do not enqueue or authorize work. S07–S09 remain unstarted.
+installation and binding do not enqueue or authorize work. S07 (#324) now owns
+[AI/privacy setup and previews](architecture/ai-setup-previews.md), with qualification
+and integration still pending. S08–S09 remain unstarted.
 Package/runtime/embedded/Windows identity stays at published 0.11.0.
 
 **Outcome:** optional AI off / Local Recommended / External / Explicit Hybrid, with a first

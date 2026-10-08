@@ -391,11 +391,29 @@ class ModelStore:
                     self._native_runners[identifier] = runner
             return evidence
 
-    def _admit_evidence(self, entry, runtime, evidence):
+    def _check_evidence(self, entry, runtime, evidence):
         check(type(evidence) is SelfTestEvidence and evidence.result == "PASSED", "self_test")
         check(self._evidence.get(entry.id) is evidence and
               evidence.binding == self._binding(entry, runtime) and
               time.monotonic() < evidence.expires, "stale")
+        if entry.format == "gguf-v3-q4_k_m":
+            check(self._native_runners.get(entry.id) is not None, "stale")
+
+    def active_evidence(self, identifier, runtime, evidence):
+        """Read current activation metadata without hashing/loading model or runtime bytes.
+
+        Planning is not admission: use() still verifies the files under its lifetime lock.
+        This read takes no model operation lock, so an in-flight job can revalidate it.
+        """
+        try:
+            entry = self._entry(identifier, runtime)
+            self._check_evidence(entry, runtime, evidence)
+            return self._state()["active"] == identifier
+        except (ModelError, MaintenanceTargetError, OSError):
+            return False
+
+    def _admit_evidence(self, entry, runtime, evidence):
+        self._check_evidence(entry, runtime, evidence)
         if entry.format == "gguf-v3-q4_k_m":
             runner = self._native_runners.get(entry.id)
             check(runner is not None, "stale")

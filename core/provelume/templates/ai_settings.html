@@ -1,0 +1,45 @@
+{% extends base_layout %}
+{% block title %}{{ t('ai.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb"><a href="/settings?lang={{ lang }}">{{ t('nav.settings') }}</a><span>/</span><span>{{ t('ai.title') }}</span></nav>
+<section class="hero"><h1>{{ t('ai.title') }}</h1><p class="lead">{{ t('ai.boundary') }}</p></section>
+{% if error %}<p role="alert" class="notice">{{ t(error_key or 'ai.error') }}</p>{% endif %}
+<section class="panel" aria-labelledby="ai-state"><h2 id="ai-state">{{ t('ai.state') }}</h2>
+<p role="status" aria-live="polite">{{ t('ai.' ~ ai.control.mode) }}{% if not ai.control.session_authorized %} · {{ t('ai.session_off') }}{% endif %}</p>
+<p>{{ t('ai.unknown') }}</p><dl><dt>{{ t('ai.reserved') }}</dt><dd>{{ ai.control.accounting.units }}</dd></dl>
+<p><a href="/operations/ai?lang={{ lang }}">{{ t('ai.operations') }}</a> · <a href="/components?lang={{ lang }}">{{ t('nav.components') }}</a></p>
+</section>
+<section class="panel"><h2>{{ t('ai.configuration') }}</h2>
+<form method="post" action="/settings/ai?lang={{ lang }}" class="settings-form">
+{% include 'ai_fields.html' %}<input type="hidden" name="revision" value="{{ ai.configuration.revision }}">
+<label for="ai-mode">{{ t('ai.mode') }}</label><select id="ai-mode" name="mode">{% for mode in ['off','local','external','hybrid'] %}<option value="{{ mode }}"{% if ai.configuration.mode == mode %} selected{% endif %}>{{ t('ai.' ~ mode) }}</option>{% endfor %}</select>
+<p>{{ t('ai.candidate') }}</p>
+<details><summary>{{ t('ai.advanced') }}</summary><p>{{ t('ai.compatibility') }}</p>
+<label for="ai-endpoint">{{ t('ai.endpoint') }}</label><input id="ai-endpoint" name="endpoint" type="url" maxlength="2048" value="{{ ai.configuration.endpoint }}">
+<label for="ai-model">{{ t('ai.model') }}</label><input id="ai-model" name="model" maxlength="80" value="{{ ai.configuration.model }}">
+<label for="ai-credential">{{ t('ai.credential') }}</label><input id="ai-credential" name="credential" maxlength="80" value="{{ ai.configuration.credential }}" autocomplete="off" aria-describedby="credential-help"><p id="credential-help">{{ t('ai.credential_help') }}</p>
+<label for="ai-order">{{ t('ai.order') }}</label><select id="ai-order" name="order"><option value="local,external"{% if ai.configuration.order == 'local,external' %} selected{% endif %}>{{ t('ai.local') }} → {{ t('ai.external') }}</option><option value="external,local"{% if ai.configuration.order == 'external,local' %} selected{% endif %}>{{ t('ai.external') }} → {{ t('ai.local') }}</option></select>
+</details>
+<label for="ai-job-units">{{ t('ai.job_limit') }}</label><input id="ai-job-units" name="job_units" type="number" min="1" max="9007199254740991" value="{{ ai.configuration.job_units }}" required>
+<label for="ai-period-units">{{ t('ai.period_limit') }}</label><input id="ai-period-units" name="period_units" type="number" min="1" max="9007199254740991" value="{{ ai.configuration.period_units }}" required>
+<p>{{ t('ai.price_block') }}</p><button type="submit">{{ t('ai.save') }}</button>
+</form></section>
+<section class="panel"><h2>{{ t('ai.controls') }}</h2><p>{{ t('ai.enable_help') }}</p>
+{% for action in ['enable','paused','off'] if (action == 'enable' and ai.configuration.mode != 'off') or (action != 'enable' and ai.control.session_authorized and ai.control.mode != action) %}<form method="post" action="/settings/ai/control?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="revision" value="{{ ai.configuration.revision }}"><input type="hidden" name="action" value="{{ action }}"><button type="submit" class="secondary">{{ t('ai.' ~ action) }}</button></form>{% endfor %}
+</section>
+<section class="panel"><h2>{{ t('ai.local_setup') }}</h2><p>{{ t('ai.candidate') }}</p>
+<p role="status">{{ t('ai.present_model') if 'self_test' in ai.model_actions else t('ai.missing_model') }}</p>
+{% if ai.self_test %}<p>{{ t('ai.self_test') }}: {{ t('ai.completed') if ai.self_test.result == 'PASSED' else t('ai.failed') }}</p>{% endif %}
+{% if not ai.locality_verified %}<p>{{ t('ai.reason_locality') }}</p>{% endif %}
+{% for entry in ai.registry.entries if entry.runtime_id == 'llama.cpp' %}<dl><dt>{{ t('ai.model') }}</dt><dd>{{ entry.id }}</dd><dt>{{ t('ai.size') }}</dt><dd>{{ entry.size_bytes }} B</dd><dt>{{ t('ai.license') }}</dt><dd>{{ entry.license }} · llama.cpp {{ entry.runtime_version }} · MIT</dd><dt>SHA-256</dt><dd class="hash">{{ entry.expected_sha256 }}</dd></dl>{% endfor %}
+<p>{{ t('ai.runtime_help') }}</p>
+{% if ai.operation %}<div role="status" aria-live="polite"><p>{{ t('ai.' ~ ai.operation.state) }} · {{ ai.operation.bytes }} B</p>{% if ai.operation.error %}<p>{{ t('ai.error') }}</p>{% endif %}{% if ai.operation.cancel_requested %}<p>{{ t('ai.cancel_help') }}</p>{% endif %}</div>{% endif %}
+{% if ai.operation and ai.operation.state == 'running' %}{% if ai.operation.action in ['install','import','self_test'] %}<form method="post" action="/settings/ai/model/cancel?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="operation_id" value="{{ ai.operation.id }}"><button type="submit">{{ t('ai.cancel') }}</button></form>{% endif %}
+{% else %}<form method="post" action="/settings/ai/model?lang={{ lang }}" class="settings-form">{% include 'ai_fields.html' %}
+<label for="ai-local-action">{{ t('ai.action') }}</label><select id="ai-local-action" name="action">{% for action in ai.model_actions %}<option value="{{ action }}">{{ t('ai.' ~ action) }}</option>{% endfor %}</select>
+<label for="ai-import-path">{{ t('ai.import_path') }}</label><input id="ai-import-path" name="path" autocomplete="off" maxlength="2048">
+<label><input type="checkbox" name="acknowledge" value="explicit" required>{{ t('ai.model_consent') }}</label>
+<button type="submit">{{ t('ai.confirm') }}</button></form>{% endif %}
+<p><a href="/settings/ai?lang={{ lang }}">{{ t('ai.refresh') }}</a></p></section>
+<section class="panel"><h2>{{ t('ai.test') }}</h2><p>{{ t('ai.test_help') }}</p><form method="post" action="/settings/ai/test/preview?lang={{ lang }}">{% include 'ai_fields.html' %}<button type="submit">{{ t('ai.preview') }}</button></form></section>
+{% endblock %}

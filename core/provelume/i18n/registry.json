@@ -2802,6 +2802,536 @@
       "rendering": "text",
       "sensitive_review_required": false
     },
+    "ai.action": {
+      "context": "Custodia AI setup, private previews and receipts: action",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.activate": {
+      "context": "Custodia AI setup, private previews and receipts: activate",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.advanced": {
+      "context": "Custodia AI setup, private previews and receipts: advanced",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.allowed": {
+      "context": "Custodia AI setup, private previews and receipts: allowed",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.attempts": {
+      "context": "Custodia AI setup, private previews and receipts: attempts",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.blocked": {
+      "context": "Custodia AI setup, private previews and receipts: blocked",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.blocked_help": {
+      "context": "Custodia AI setup, private previews and receipts: blocked_help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.boundary": {
+      "context": "Custodia AI setup, private previews and receipts: boundary",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.cancel": {
+      "context": "Custodia AI setup, private previews and receipts: cancel",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.cancel_help": {
+      "context": "Custodia AI setup, private previews and receipts: cancel_help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.cancelled": {
+      "context": "Custodia AI setup, private previews and receipts: cancelled",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.candidate": {
+      "context": "Custodia AI setup, private previews and receipts: candidate",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.compatibility": {
+      "context": "Custodia AI setup, private previews and receipts: compatibility",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.complete": {
+      "context": "Custodia AI setup, private previews and receipts: complete",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.completed": {
+      "context": "Custodia AI setup, private previews and receipts: completed",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.configuration": {
+      "context": "Custodia AI setup, private previews and receipts: configuration",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.confirm": {
+      "context": "Custodia AI setup, private previews and receipts: confirm",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.consumption": {
+      "context": "Custodia AI setup, private previews and receipts: consumption",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.controls": {
+      "context": "Custodia AI setup, private previews and receipts: controls",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.coverage": {
+      "context": "Custodia AI setup, private previews and receipts: coverage",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.credential": {
+      "context": "Custodia AI setup, private previews and receipts: credential",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.credential_help": {
+      "context": "Custodia AI setup, private previews and receipts: credential_help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.deactivate": {
+      "context": "Custodia AI setup, private previews and receipts: deactivate",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.dispatch": {
+      "context": "Custodia AI setup, private previews and receipts: dispatch",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.document_help": {
+      "context": "Custodia AI setup, private previews and receipts: document_help",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.duration_limit": {
+      "context": "Custodia S07 current restrictions and private preview: duration_limit",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.empty": {
+      "context": "Custodia AI setup, private previews and receipts: empty",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.enable": {
+      "context": "Custodia AI setup, private previews and receipts: enable",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.enable_help": {
+      "context": "Custodia AI setup, private previews and receipts: enable_help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.enabled": {
+      "context": "Custodia AI setup, private previews and receipts: enabled",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.end": {
+      "context": "Custodia AI setup, private previews and receipts: end",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.endpoint": {
+      "context": "Custodia AI setup, private previews and receipts: endpoint",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.enqueue": {
+      "context": "Custodia AI setup, private previews and receipts: enqueue",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.enqueue_help": {
+      "context": "Custodia AI setup, private previews and receipts: enqueue_help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.error": {
+      "context": "Custodia AI setup, private previews and receipts: error",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.evidence": {
+      "context": "Custodia AI setup, private previews and receipts: evidence",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.excluded": {
+      "context": "Custodia AI setup, private previews and receipts: excluded",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.external": {
+      "context": "Custodia AI setup, private previews and receipts: external",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.failed": {
+      "context": "Custodia AI setup, private previews and receipts: failed",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.fingerprint": {
+      "context": "Custodia AI setup, private previews and receipts: fingerprint",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.hybrid": {
+      "context": "Custodia AI setup, private previews and receipts: hybrid",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.import": {
+      "context": "Custodia AI setup, private previews and receipts: import",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.import_path": {
+      "context": "Custodia AI setup, private previews and receipts: import_path",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.included": {
+      "context": "Custodia AI setup, private previews and receipts: included",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.install": {
+      "context": "Custodia AI setup, private previews and receipts: install",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.job_limit": {
+      "context": "Custodia AI setup, private previews and receipts: job_limit",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.license": {
+      "context": "Custodia AI setup, private previews and receipts: license",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.local": {
+      "context": "Custodia AI setup, private previews and receipts: local",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.local_setup": {
+      "context": "Custodia AI setup, private previews and receipts: local_setup",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.missing_model": {
+      "context": "Custodia S07 current restrictions and private preview: missing_model",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.mode": {
+      "context": "Custodia AI setup, private previews and receipts: mode",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.model": {
+      "context": "Custodia AI setup, private previews and receipts: model",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.model_consent": {
+      "context": "Custodia AI setup, private previews and receipts: model_consent",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.no_selection": {
+      "context": "Custodia AI setup, private previews and receipts: no_selection",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.not_sent": {
+      "context": "Custodia AI setup, private previews and receipts: not_sent",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.off": {
+      "context": "Custodia AI setup, private previews and receipts: off",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.operations": {
+      "context": "Custodia AI setup, private previews and receipts: operations",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.order": {
+      "context": "Custodia AI setup, private previews and receipts: order",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.output_limit": {
+      "context": "Custodia S07 current restrictions and private preview: output_limit",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.partial": {
+      "context": "Custodia AI setup, private previews and receipts: partial",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.pause": {
+      "context": "Custodia AI setup, private previews and receipts: pause",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.paused": {
+      "context": "Custodia AI setup, private previews and receipts: paused",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.payload": {
+      "context": "Custodia AI setup, private previews and receipts: payload",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.period_limit": {
+      "context": "Custodia AI setup, private previews and receipts: period_limit",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.present_model": {
+      "context": "Custodia S07 current restrictions and private preview: present_model",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.preview": {
+      "context": "Custodia AI setup, private previews and receipts: preview",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.price_block": {
+      "context": "Custodia AI setup, private previews and receipts: price_block",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.reason_limit": {
+      "context": "Custodia S07 current restrictions and private preview: reason_limit",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.reason_locality": {
+      "context": "Custodia S07 current restrictions and private preview: reason_locality",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.reason_network": {
+      "context": "Custodia S07 current restrictions and private preview: reason_network",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.reason_off": {
+      "context": "Custodia S07 current restrictions and private preview: reason_off",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.reason_policy": {
+      "context": "Custodia S07 current restrictions and private preview: reason_policy",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.reason_route": {
+      "context": "Custodia S07 current restrictions and private preview: reason_route",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.reason_stale": {
+      "context": "Custodia S07 current restrictions and private preview: reason_stale",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.reason_uncertain": {
+      "context": "Custodia S07 current restrictions and private preview: reason_uncertain",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.receipts": {
+      "context": "Custodia AI setup, private previews and receipts: receipts",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.reconcile": {
+      "context": "Custodia AI setup, private previews and receipts: reconcile",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.reconcile_help": {
+      "context": "Custodia AI setup, private previews and receipts: reconcile_help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.recover": {
+      "context": "Custodia AI setup, private previews and receipts: recover",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.redaction_help": {
+      "context": "Custodia AI setup, private previews and receipts: redaction_help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.redactions": {
+      "context": "Custodia AI setup, private previews and receipts: redactions",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.refresh": {
+      "context": "Custodia AI setup, private previews and receipts: refresh",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.remove": {
+      "context": "Custodia AI setup, private previews and receipts: remove",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.reserved": {
+      "context": "Custodia AI setup, private previews and receipts: reserved",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.resume": {
+      "context": "Custodia AI setup, private previews and receipts: resume",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.retry": {
+      "context": "Custodia AI setup, private previews and receipts: retry",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.rollback": {
+      "context": "Custodia AI setup, private previews and receipts: rollback",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.running": {
+      "context": "Custodia AI setup, private previews and receipts: running",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.runtime": {
+      "context": "Custodia AI setup, private previews and receipts: runtime",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.runtime_help": {
+      "context": "Custodia AI setup, private previews and receipts: runtime_help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.save": {
+      "context": "Custodia AI setup, private previews and receipts: save",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.selected_text": {
+      "context": "Custodia S07 current restrictions and private preview: selected_text",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.selection": {
+      "context": "Custodia AI setup, private previews and receipts: selection",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.self_test": {
+      "context": "Custodia AI setup, private previews and receipts: self_test",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.session_off": {
+      "context": "Custodia AI setup, private previews and receipts: session_off",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.size": {
+      "context": "Custodia AI setup, private previews and receipts: size",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.start": {
+      "context": "Custodia AI setup, private previews and receipts: start",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.state": {
+      "context": "Custodia AI setup, private previews and receipts: state",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.test": {
+      "context": "Custodia AI setup, private previews and receipts: test",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.test_consent": {
+      "context": "Custodia AI setup, private previews and receipts: test_consent",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.test_help": {
+      "context": "Custodia AI setup, private previews and receipts: test_help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.title": {
+      "context": "Custodia AI setup, private previews and receipts: title",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.units_help": {
+      "context": "Custodia S07 current restrictions and private preview: units_help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.unknown": {
+      "context": "Custodia AI setup, private previews and receipts: unknown",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.upper_units": {
+      "context": "Custodia S07 current restrictions and private preview: upper_units",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.verify": {
+      "context": "Custodia AI setup, private previews and receipts: verify",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
     "annotation.after": {
       "context": "annotation: label/navigation; annotation_i18n.py / annotation.after",
       "linguistic_review": "UNVERIFIED",

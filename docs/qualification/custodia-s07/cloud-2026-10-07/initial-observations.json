@@ -1,0 +1,822 @@
+{
+  "pre_css_load_measurements_invalid": [
+    {
+      "surface": "blocked-test",
+      "catalog": "de",
+      "appearance": "light",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "de",
+      "appearance": "light",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "en",
+      "appearance": "light",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "en",
+      "appearance": "light",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "es",
+      "appearance": "light",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "es",
+      "appearance": "light",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "fr",
+      "appearance": "light",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "fr",
+      "appearance": "light",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "it",
+      "appearance": "light",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "it",
+      "appearance": "light",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "pt",
+      "appearance": "light",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "pt",
+      "appearance": "light",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "ro",
+      "appearance": "light",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "ro",
+      "appearance": "light",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "de",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "de",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "en",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "en",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "es",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "es",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "fr",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "fr",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "it",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "it",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "pt",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "pt",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "ro",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "ro",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "de",
+      "appearance": "dark",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "de",
+      "appearance": "dark",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "en",
+      "appearance": "dark",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "en",
+      "appearance": "dark",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "es",
+      "appearance": "dark",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "es",
+      "appearance": "dark",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "fr",
+      "appearance": "dark",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "fr",
+      "appearance": "dark",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "it",
+      "appearance": "dark",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "it",
+      "appearance": "dark",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "pt",
+      "appearance": "dark",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "pt",
+      "appearance": "dark",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "ro",
+      "appearance": "dark",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "ro",
+      "appearance": "dark",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "de",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "en",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "en",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "es",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "fr",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "fr",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "it",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "it",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "pt",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "ro",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "ro",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "de",
+      "appearance": "system",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "de",
+      "appearance": "system",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "en",
+      "appearance": "system",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "en",
+      "appearance": "system",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "es",
+      "appearance": "system",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "es",
+      "appearance": "system",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "fr",
+      "appearance": "system",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "fr",
+      "appearance": "system",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "it",
+      "appearance": "system",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "it",
+      "appearance": "system",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "pt",
+      "appearance": "system",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "pt",
+      "appearance": "system",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "ro",
+      "appearance": "system",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "ro",
+      "appearance": "system",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "de",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "en",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "es",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "es",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "fr",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "fr",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "it",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "pt",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "pt",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    },
+    {
+      "surface": "blocked-test",
+      "catalog": "ro",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4861
+    },
+    {
+      "surface": "document-preview",
+      "catalog": "ro",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 4947
+    }
+  ],
+  "components_overflow_confirmed": [
+    {
+      "surface": "components",
+      "catalog": "de",
+      "appearance": "light",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 1334
+    },
+    {
+      "surface": "components",
+      "catalog": "de",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 1066
+    },
+    {
+      "surface": "components",
+      "catalog": "en",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 889
+    },
+    {
+      "surface": "components",
+      "catalog": "es",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 877
+    },
+    {
+      "surface": "components",
+      "catalog": "fr",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 879
+    },
+    {
+      "surface": "components",
+      "catalog": "it",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 943
+    },
+    {
+      "surface": "components",
+      "catalog": "pt",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 980
+    },
+    {
+      "surface": "components",
+      "catalog": "ro",
+      "appearance": "light",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 812
+    },
+    {
+      "surface": "components",
+      "catalog": "de",
+      "appearance": "dark",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 1334
+    },
+    {
+      "surface": "components",
+      "catalog": "de",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 1066
+    },
+    {
+      "surface": "components",
+      "catalog": "en",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 889
+    },
+    {
+      "surface": "components",
+      "catalog": "es",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 877
+    },
+    {
+      "surface": "components",
+      "catalog": "fr",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 879
+    },
+    {
+      "surface": "components",
+      "catalog": "it",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 943
+    },
+    {
+      "surface": "components",
+      "catalog": "pt",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 980
+    },
+    {
+      "surface": "components",
+      "catalog": "ro",
+      "appearance": "dark",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 812
+    },
+    {
+      "surface": "components",
+      "catalog": "de",
+      "appearance": "system",
+      "viewport": "desktop",
+      "width": 1280,
+      "scroll": 1334
+    },
+    {
+      "surface": "components",
+      "catalog": "de",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 1066
+    },
+    {
+      "surface": "components",
+      "catalog": "en",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 889
+    },
+    {
+      "surface": "components",
+      "catalog": "es",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 877
+    },
+    {
+      "surface": "components",
+      "catalog": "fr",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 879
+    },
+    {
+      "surface": "components",
+      "catalog": "it",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 943
+    },
+    {
+      "surface": "components",
+      "catalog": "pt",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 980
+    },
+    {
+      "surface": "components",
+      "catalog": "ro",
+      "appearance": "system",
+      "viewport": "mobile",
+      "width": 390,
+      "scroll": 812
+    }
+  ]
+}

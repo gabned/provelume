@@ -1,0 +1,8 @@
+{
+  "base_candidate": "ae94b34e4f562233a1be22b5222d168c023e900b",
+  "files": {
+    "core/provelume/i18n/it.json": "cc1b2d37c33215063e1d77aa55ee439e5f2da9308bce31a76d9aa15e0b0b8ba6",
+    "core/provelume/static/app.css": "01679391a9ca099664e88829c97361d3b9ac7d9a951fcde0f10947476bce8abf",
+    "core/provelume/templates/components.html": "a533294db0b0d24310c3734bf478f4f6d674adfaeac918e4febe0b7fe3772e55"
+  }
+}

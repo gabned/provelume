@@ -1,0 +1,17 @@
+{% extends base_layout %}
+{% block title %}{{ t('ai.operations') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<p><a href="/operations?lang={{ lang }}">{{ t('nav.operations') }}</a> · <a href="/settings/ai?lang={{ lang }}">{{ t('ai.title') }}</a></p>
+<section class="hero"><h1>{{ t('ai.operations') }}</h1><p>{{ t('ai.cancel_help') }}</p><p>{{ t('ai.unknown') }}</p></section>
+{% for job in jobs %}<section class="panel"><h2>{{ t('ai.test') }}</h2><p class="hash">{{ job.id }}</p><p role="status">{{ t('om.state.' ~ ('completed' if job.status == 'succeeded' else 'interrupted' if job.status == 'manual_intervention' else job.status)) }}</p>
+{% if job.ai.blocked %}<p>{{ t(ai_reason_key(job.ai.blocked)) }}</p>{% endif %}
+{% if job.ai.cancel and job.status == 'running' %}<p role="status">{{ t('om.cooperative') }}</p>{% endif %}
+<dl><dt>{{ t('ai.attempts') }}</dt><dd>{{ job.attempt }} / {{ job.retry.max_attempts }}</dd><dt>{{ t('ai.fingerprint') }}</dt><dd class="hash">{{ job.ai.binding }}</dd></dl>
+{% for attempt in job.ai.attempts %}<dl><dt>{{ t('ai.attempts') }}</dt><dd>{{ loop.index }}</dd><dt>{{ t('ai.fingerprint') }}</dt><dd class="hash">{{ attempt.route }}</dd><dt>{{ t('ai.reserved') }}</dt><dd>{{ attempt.reserved_units }}</dd><dt>{{ t('ai.consumption') }}</dt><dd>{{ attempt.units if attempt.units is not none else t('ai.unknown') }}</dd><dt>{{ t('ai.state') }}</dt><dd>{{ t('ai.not_sent') if attempt.usage_source == 'NOT_SENT' else t('ai.unknown') if attempt.usage_source == 'UNKNOWN' else t('ai.local') if attempt.usage_source == 'LOCAL' else t('ai.external') }}</dd></dl>{% endfor %}
+{% set actions = job.ai.actions + (['dispatch'] if job.id in dispatchable else []) %}
+{% for action in actions if action != 'reconcile' %}<form method="post" action="/operations/ai/control?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="job_id" value="{{ job.id }}"><input type="hidden" name="revision" value="{{ revisions[job.id] }}"><input type="hidden" name="action" value="{{ action }}"><button type="submit">{{ t('ai.' ~ action) }}</button></form>{% endfor %}
+{% if 'reconcile' in job.ai.actions %}<p>{{ t('ai.reconcile_help') }}</p>{% for attempt in job.ai.attempts if attempt.phase == 'uncertain' %}<form method="post" action="/operations/ai/reconcile?lang={{ lang }}" class="settings-form">{% include 'ai_fields.html' %}<input type="hidden" name="job_id" value="{{ job.id }}"><input type="hidden" name="attempt" value="{{ attempt.number }}"><label for="evidence-{{ job.id }}-{{ attempt.number }}">{{ t('ai.evidence') }}</label><input id="evidence-{{ job.id }}-{{ attempt.number }}" name="evidence" pattern="[0-9a-f]{64}" maxlength="64" required><label><input type="checkbox" name="acknowledge" value="quiescent-and-duplicate-risk" required>{{ t('ai.reconcile_help') }}</label><button type="submit">{{ t('ai.reconcile') }}</button></form>{% endfor %}{% endif %}
+</section>{% else %}<p>{{ t('ai.empty') }}</p>{% endfor %}
+<section class="panel"><h2>{{ t('ai.receipts') }}</h2>{% for receipt in receipts %}<dl><dt>{{ t('ai.fingerprint') }}</dt><dd class="hash">{{ receipt.id }}</dd><dt>{{ t('ai.state') }}</dt><dd>{{ t('om.state.' ~ ('completed' if receipt.status == 'succeeded' else receipt.status)) }}</dd><dt>{{ t('ai.fingerprint') }}</dt><dd class="hash">{{ receipt.ai.binding }}</dd></dl>{% else %}<p>{{ t('ai.empty') }}</p>{% endfor %}</section>
+<p><a href="/operations/ai?lang={{ lang }}">{{ t('ai.refresh') }}</a></p>
+{% endblock %}
