@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -56,6 +57,147 @@ def fixture():
         "seed": None,
     }
     return manifest, observation
+
+
+class MaintenanceTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="protocol-maintenance-")
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.predecessor, self.destination = self.root / "predecessor", self.root / "destination"
+        for root in (self.predecessor, self.destination):
+            root.mkdir()
+            self.git(root, "init", "-q")
+            self.git(root, "config", "user.name", "Synthetic")
+            self.git(root, "config", "user.email", "synthetic@example.invalid")
+        self.path = "compat/legacy/tools/runner.py"
+        target = self.destination / self.path
+        target.parent.mkdir(parents=True)
+        target.write_text("before\n")
+        (self.destination / "guard.py").write_text("unchanged gate\n")
+        self.base = self.commit(self.destination)
+        self.before = self.git(self.destination, "rev-parse", self.base + ":" + self.path)
+        target.write_text("after\n")
+        self.head = self.commit(self.destination)
+        self.record = {
+            "schema": "agent-protocol-maintenance/v1", "predecessor": "gabned/provelume",
+            "repository": "gabned/agent-protocol", "repository_id": 1393711644, "pr": 4,
+            "base": self.base, "head": self.head,
+            "tree": self.git(self.destination, "rev-parse", self.head + "^{tree}"),
+            "files": [{"path": self.path, "mode": "100644", "before_blob": self.before,
+                       "after_blob": self.git(self.destination, "rev-parse",
+                                              self.head + ":" + self.path),
+                       "sha256": hashlib.sha256(target.read_bytes()).hexdigest()}],
+        }
+        self.save_record()
+
+    @staticmethod
+    def git(root, *args):
+        return subprocess.check_output(["git", "-C", str(root), *args],
+                                       stderr=subprocess.PIPE).decode().strip()
+
+    def commit(self, root):
+        self.git(root, "add", ".")
+        self.git(root, "commit", "-qm", "synthetic fixture")
+        return self.git(root, "rev-parse", "HEAD")
+
+    def save_record(self):
+        path = self.predecessor / transfer.MAINTENANCE_DOCUMENT
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(transfer.MAINTENANCE_MARKER + json.dumps(self.record) + "\n```\n")
+        self.accepted = self.commit(self.predecessor)
+
+    def verify(self, **overrides):
+        args = {"accepted_predecessor": self.accepted, "repository": "gabned/agent-protocol",
+                "repository_id": 1393711644, "pr": 4, "expected_base": self.base,
+                "expected_head": self.head}
+        args.update(overrides)
+        return transfer.verify_maintenance(self.predecessor, self.destination, **args)
+
+    def test_accepted_record_is_read_from_git_and_does_not_grant_merge_authority(self):
+        (self.predecessor / transfer.MAINTENANCE_DOCUMENT).write_text("unaccepted working copy")
+        result = self.verify()
+        self.assertEqual(result["result"], "BYTES_VERIFIED")
+        self.assertEqual(result["head"], self.head)
+        self.assertFalse(result["merge_authorized"])
+        self.assertFalse(result["publication_authorized"])
+
+    def test_independent_destination_coordinates_cannot_be_reassigned(self):
+        for field, value in (("repository", "different/repo"), ("repository_id", 123),
+                             ("pr", 5), ("expected_base", "a" * 40),
+                             ("expected_head", "b" * 40)):
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                self.verify(**{field: value})
+
+    def test_record_bytes_modes_and_complete_delta_are_required(self):
+        original = copy.deepcopy(self.record)
+        mutations = [
+            lambda r: r.update(waiver=True),
+            lambda r: r.update(tree="a" * 40),
+            lambda r: r["files"][0].update(before_blob="a" * 40),
+            lambda r: r["files"][0].update(after_blob="b" * 40),
+            lambda r: r["files"][0].update(sha256="c" * 64),
+            lambda r: r["files"][0].update(mode="100755"),
+            lambda r: r["files"][0].update(path="tools/guard.py"),
+            lambda r: r["files"].append(copy.deepcopy(r["files"][0])),
+            lambda r: r.update(files=[]),
+        ]
+        for mutate in mutations:
+            self.record = copy.deepcopy(original)
+            mutate(self.record)
+            self.save_record()
+            with self.subTest(mutation=mutate), self.assertRaises(ValueError):
+                self.verify()
+
+    def test_hidden_gate_change_cannot_hide_behind_listed_legacy_files(self):
+        (self.destination / "guard.py").write_text("unexpected gate change\n")
+        self.git(self.destination, "add", ".")
+        self.git(self.destination, "commit", "--amend", "--no-edit", "-q")
+        self.head = self.git(self.destination, "rev-parse", "HEAD")
+        self.record.update(head=self.head,
+                           tree=self.git(self.destination, "rev-parse", self.head + "^{tree}"))
+        self.save_record()
+        with self.assertRaisesRegex(ValueError, "incomplete or out of scope"):
+            self.verify()
+
+    def test_multiple_commits_and_replacement_history_are_refused(self):
+        (self.destination / self.path).write_text("another change\n")
+        newer = self.commit(self.destination)
+        self.record.update(head=newer)
+        self.save_record()
+        with self.assertRaisesRegex(ValueError, "one direct successor"):
+            self.verify(expected_head=newer)
+        self.git(self.destination, "replace", newer, self.head)
+        with self.assertRaisesRegex(ValueError, "Replaced history"):
+            self.verify(expected_head=newer)
+
+    def test_record_must_be_single_and_complete(self):
+        for text in ("none", transfer.MAINTENANCE_MARKER + "{}",
+                     transfer.MAINTENANCE_MARKER * 2,
+                     transfer.MAINTENANCE_MARKER + '{"pr": 4, "pr": 5}\n```'):
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                transfer.read_maintenance_record(text)
+
+    def test_shallow_history_is_not_complete_evidence(self):
+        clone = self.root / "shallow"
+        self.git(self.root, "clone", "--depth=1", self.destination.as_uri(), str(clone))
+        self.destination = clone
+        with self.assertRaisesRegex(ValueError, "Complete history"):
+            self.verify()
+
+    def test_public_cli_uses_accepted_record_and_refuses_caller_manifest(self):
+        command = [sys.executable, str(Path(transfer.__file__)), "verify-maintenance",
+                   "--source-root", str(self.predecessor), "--destination", str(self.destination),
+                   "--accepted-predecessor", self.accepted, "--repository", "gabned/agent-protocol",
+                   "--repository-id", "1393711644", "--pr", "4", "--expected-base", self.base,
+                   "--expected-head", self.head]
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout)["result"], "BYTES_VERIFIED")
+        refused = subprocess.run([*command, "--manifest", "candidate.json"],
+                                 capture_output=True, text=True, check=False)
+        self.assertEqual(refused.returncode, 2)
+        self.assertIn("accepted Git bytes only", refused.stdout)
 
 
 class TransferTests(unittest.TestCase):

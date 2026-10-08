@@ -500,22 +500,146 @@ def materialize(manifest, source_root, destination, *, trusted_manifest, accepte
     }
 
 
+MAINTENANCE_DOCUMENT = "docs/agent-protocol/adoption.md"
+MAINTENANCE_MARKER = "```agent-protocol-maintenance\n"
+
+
+def read_maintenance_record(document):
+    """Read one exact record; prose and a candidate cannot grant acceptance."""
+    def unique_fields(pairs):
+        result = {}
+        for key, value in pairs:
+            require(key not in result, "Duplicate maintenance field")
+            result[key] = value
+        return result
+
+    require(document.count(MAINTENANCE_MARKER) == 1, "One maintenance record required")
+    payload = document.split(MAINTENANCE_MARKER, 1)[1].split("\n```", 1)
+    require(len(payload) == 2, "Unterminated maintenance record")
+    return json.loads(payload[0], object_pairs_hook=unique_fields)
+
+
+def maintenance_git(root, *arguments):
+    """Offline object reads only, never lazy fetches or replacement ancestry."""
+    return subprocess.check_output(
+        ["git", "--no-replace-objects", "-c", "protocol.allow=never", "-C", str(root),
+         *arguments],
+        env={**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"},
+        stderr=subprocess.PIPE,
+    )
+
+
+def verify_maintenance(predecessor_root, destination_root, *, accepted_predecessor,
+                       repository, repository_id, pr, expected_base, expected_head):
+    """Bind retained bytes to host-authenticated predecessor/PR observations.
+
+    This implements the separately predecessor-qualified maintenance route, not
+    an override in the destination guard. The host must authenticate acceptance,
+    current refs, conformance and reviews independently before any normal merge.
+    """
+    for sha in (accepted_predecessor, expected_base, expected_head):
+        require(isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{40}", sha),
+                "Exact host-selected commits required")
+    for root in (predecessor_root, destination_root):
+        require(maintenance_git(root, "rev-parse", "--is-shallow-repository").strip()
+                == b"false", "Complete history required")
+        graft = maintenance_git(root, "rev-parse", "--git-path", "info/grafts").decode().strip()
+        graft = Path(graft) if Path(graft).is_absolute() else Path(root) / graft
+        require(not graft.exists()
+                and not maintenance_git(root, "for-each-ref", "refs/replace/").strip(),
+                "Replaced history refused")
+    document = maintenance_git(
+        predecessor_root, "show", accepted_predecessor + ":" + MAINTENANCE_DOCUMENT
+    ).decode("utf-8")
+    record = read_maintenance_record(document)
+    require(set(record) == {"schema", "predecessor", "repository", "repository_id", "pr",
+                            "base", "head", "tree", "files"}, "Unknown maintenance fields")
+    require(record["schema"] == "agent-protocol-maintenance/v1"
+            and record["predecessor"] == "gabned/provelume", "Unknown maintenance route")
+    require(type(record["repository_id"]) is int and type(record["pr"]) is int,
+            "Integer maintenance identities required")
+    require((repository, repository_id) == ("gabned/agent-protocol", 1393711644)
+            and type(repository_id) is int and type(pr) is int and pr > 0,
+            "Independent destination identity required")
+    require((record["repository"], record["repository_id"], record["pr"],
+             record["base"], record["head"])
+            == (repository, repository_id, pr, expected_base, expected_head),
+            "Maintenance record differs from host observations")
+    require(maintenance_git(destination_root, "rev-list", "--parents", "-n", "1",
+                            expected_head).decode().split() == [expected_head, expected_base],
+            "Maintenance requires one direct successor of the accepted destination base")
+    require(maintenance_git(destination_root, "rev-parse", expected_head + "^{tree}")
+            .decode().strip() == record["tree"], "Maintenance tree mismatch")
+    rows = record["files"]
+    require(isinstance(rows, list) and 0 < len(rows) <= 16, "Bounded maintenance files required")
+    paths = []
+    for row in rows:
+        require(set(row) == {"path", "mode", "before_blob", "after_blob", "sha256"},
+                "Unknown maintenance file fields")
+        path = valid_path(row["path"])
+        require(path.startswith(("compat/legacy/tools/", "compat/legacy/tests/"))
+                and path.endswith((".py", ".mjs")), "Only legacy code/test maintenance allowed")
+        require(path.casefold() not in {p.casefold() for p in paths}, "Duplicate maintenance path")
+        paths.append(path)
+        require(row["mode"] in {"100644", "100755"}, "Unsafe maintenance mode")
+        for revision, blob in ((expected_base, row["before_blob"]),
+                               (expected_head, row["after_blob"])):
+            observed = maintenance_git(destination_root, "ls-tree", revision, "--", path)
+            require(observed == f"{row['mode']} blob {blob}\t{path}\n".encode(),
+                    "Maintenance blob/mode mismatch")
+        content = maintenance_git(destination_root, "show", expected_head + ":" + path)
+        require(hashlib.sha256(content).hexdigest() == row["sha256"],
+                "Maintenance content mismatch")
+    delta = maintenance_git(destination_root, "diff", "--no-renames", "--name-status", "-z",
+                            expected_base, expected_head).decode().rstrip("\0").split("\0")
+    require(len(delta) == 2 * len(paths)
+            and all(delta[i] == "M" for i in range(0, len(delta), 2))
+            and set(delta[1::2]) == set(paths), "Maintenance delta is incomplete or out of scope")
+    return {"schema": "agent-protocol-maintenance-receipt/v1", "result": "BYTES_VERIFIED",
+            "accepted_predecessor": accepted_predecessor, "record_sha256": digest(record),
+            "repository": repository, "pr": pr, "base": expected_base, "head": expected_head,
+            "tree": record["tree"], "files": len(paths), "effects": "NO_PRODUCTION",
+            "authority": "HOST_AUTHENTICATED_ACCEPTANCE_AND_QUALIFICATION_REQUIRED",
+            "merge_authorized": False, "publication_authorized": False}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "operation",
-        choices=["validate-manifest", "verify-source", "verify-destination", "materialize"],
+        choices=["validate-manifest", "verify-source", "verify-destination", "materialize",
+                 "verify-maintenance"],
     )
-    parser.add_argument("--manifest", type=Path, required=True)
-    parser.add_argument("--trusted-manifest", required=True)
+    parser.add_argument("--manifest", type=Path)
+    parser.add_argument("--trusted-manifest")
     parser.add_argument("--accepted-predecessor", required=True)
     parser.add_argument("--observations", type=Path)
     parser.add_argument("--source-root", type=Path)
     parser.add_argument("--destination", type=Path)
     parser.add_argument("--accepted-history", type=Path)
     parser.add_argument("--trusted-history")
+    parser.add_argument("--repository")
+    parser.add_argument("--repository-id", type=int)
+    parser.add_argument("--pr", type=int)
+    parser.add_argument("--expected-base")
+    parser.add_argument("--expected-head")
     args = parser.parse_args()
     try:
+        if args.operation == "verify-maintenance":
+            require(args.source_root is not None and args.destination is not None,
+                    "Predecessor and destination Git checkouts required")
+            require(args.manifest is None and args.trusted_manifest is None
+                    and args.observations is None and args.accepted_history is None
+                    and args.trusted_history is None, "Maintenance uses accepted Git bytes only")
+            result = verify_maintenance(
+                args.source_root, args.destination, accepted_predecessor=args.accepted_predecessor,
+                repository=args.repository, repository_id=args.repository_id, pr=args.pr,
+                expected_base=args.expected_base, expected_head=args.expected_head,
+            )
+            print(json.dumps(result, sort_keys=True))
+            return 0
+        require(args.manifest is not None and args.trusted_manifest is not None,
+                "Manifest and independently trusted digest required")
         manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
         trust = {
             "trusted_manifest": args.trusted_manifest,
