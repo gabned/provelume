@@ -353,6 +353,12 @@ def _windows_manifest(
 ) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise UpdateError("Windows update manifest must be one JSON object")
+    schema = value.get("schema_version")
+    if type(schema) is int and schema > 2:
+        raise UpdateError(
+            "This update requires a newer manifest reader; use the official installation kit",
+            code="unsupported_manifest",
+        )
     expected_fields = {
         "schema_version",
         "source_repository",
@@ -611,6 +617,21 @@ def check_for_updates(
         fetch_manifest=fetch_manifest,
         resolve_tag_commit=resolve_tag_commit,
     )
+    # A catalog hint is not a validated download or permission to change channels.
+    # Do not fetch excluded preview manifests until the user selects that channel.
+    preview_versions = []
+    if candidate is None and channel == "stable":
+        current = SemanticVersion.parse(current_version)
+        for release in releases:
+            if release.get("draft") is True or release.get("prerelease") is not True:
+                continue
+            tag = str(release.get("tag_name") or "")
+            try:
+                version = SemanticVersion.parse(tag[1:]) if tag.startswith("v") else current
+            except UpdateError:
+                continue
+            if version > current:
+                preview_versions.append(version)
     return {
         "schema_version": UPDATE_SCHEMA_VERSION,
         "status": "update_available" if candidate is not None else "up_to_date",
@@ -626,6 +647,7 @@ def check_for_updates(
             "Windows code signing are not established by the unsigned preview."
         ),
         "candidate": candidate.as_dict() if candidate is not None else None,
+        "newer_preview_version": str(max(preview_versions)) if preview_versions else None,
     }
 
 
