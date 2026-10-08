@@ -75,16 +75,18 @@ def test_local_route_requires_current_activation_before_consent(setup, state, mo
     assert setup.jobs.status()["accounting"]["units"] == 0
 
 
-@pytest.mark.parametrize("change", ["deactivate", "expire"])
+@pytest.mark.parametrize("change", ["deactivate", "expire", "revoke"])
 def test_model_activation_change_invalidates_already_approved_preview(setup, change):
     configure(setup)
     ref, _ = setup.preview_test()
     setup.approve(ref)
     if change == "deactivate":
         setup.models._write_state({"schema_version": 1, "active": None, "previous": None})
-    else:
+    elif change == "expire":
         evidence = replace(setup.self_test_evidence, expires=time.monotonic() - 1)
         setup.self_test_evidence = setup.models._evidence[MODEL_ID] = evidence
+    else:
+        setup.models.allowed_ids = ()
     with pytest.raises(ValueError):
         setup.enqueue(ref)
     assert not setup.jobs.journal.list_jobs()

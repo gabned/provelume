@@ -76,6 +76,31 @@ def test_governed_manifest_separates_identity_trust_and_qualification():
         ModelRegistry(raw)  # Even a consistent caller-supplied hash is not approval.
 
 
+def test_admitted_registry_reads_reuse_immutable_parse(monkeypatch):
+    from provelume import ai_models
+
+    registry = ModelRegistry.packaged()
+    entries = registry.entries
+
+    def unexpected_parse(*args):
+        pytest.fail("immutable admitted manifest reparsed in the polling path")
+
+    monkeypatch.setattr(ai_models, "parse_manifest", unexpected_parse)
+    for _ in range(3):
+        assert registry.entry(V1) == entries[0]
+        assert registry.discover(requested=True) == tuple(e.id for e in entries)
+        assert registry.inventory()["recommended"] is None
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        registry.raw = b"{}"
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        entries[0].channel = "stable"
+    # Cached entries cannot be supplied to bypass construction/trust checks.
+    with pytest.raises(TypeError):
+        ModelRegistry(b"{}", _entries=entries)
+    with pytest.raises(ModelError, match="untrusted"):
+        ModelRegistry(b"{}")
+
+
 @pytest.mark.parametrize(("field", "value"), [
     ("unknown", "hook.py"), ("runtime_id", "llama.cpp"), ("runtime_version", "2"),
     ("format", "pickle"), ("format", "gguf-v3"), ("format", "onnx"),

@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib.resources import files
 from typing import Any
 
@@ -235,11 +235,15 @@ class ModelRegistry:
     """Only the exact shipped manifest can cross the repository trust boundary."""
 
     raw: bytes
+    _entries: tuple[ModelEntry, ...] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self):
         check(type(self.raw) is bytes and len(self.raw) <= MAX_MANIFEST_BYTES, "untrusted")
         check(sha256(self.raw) == MANIFEST_SHA256, "untrusted")
-        parse_manifest(self.raw)
+        # Both the admitted bytes and parsed entries are immutable. Reuse this
+        # pure calculation during cancellation polls; activation, revocation
+        # and self-test freshness still come from ModelStore on every call.
+        object.__setattr__(self, "_entries", parse_manifest(self.raw))
 
     @classmethod
     def packaged(cls):
@@ -247,7 +251,7 @@ class ModelRegistry:
 
     @property
     def entries(self):
-        return parse_manifest(self.raw)
+        return self._entries
 
     def entry(self, identifier: str) -> ModelEntry:
         for entry in self.entries:
