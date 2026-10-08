@@ -531,7 +531,7 @@ class DesktopShell:
         self._tray_observation_running = False
 
         self.status = tk.StringVar(value=self.text["instance_ready"])
-        self.update_status = tk.StringVar(value=self.text["current"])
+        self.update_status = tk.StringVar(value=self.text["not_checked"])
         self.instance_text = tk.StringVar(value=str(self.instance))
         self.check_on_start = tk.BooleanVar(value=self.settings.check_on_start)
         self.channel = tk.StringVar(value=self.settings.update_channel)
@@ -1152,7 +1152,9 @@ class DesktopShell:
         if not self.closed:
             self.root.after(
                 0,
-                lambda: self._update_checked(candidate, generation, channel),
+                lambda: self._update_checked(
+                    candidate, generation, channel, result.get("newer_preview_version")
+                ),
             )
 
     def _is_current_update_request(self, generation: int, channel: str) -> bool:
@@ -1165,7 +1167,7 @@ class DesktopShell:
     def _invalidate_update_result(self) -> None:
         self.update_generation += 1
         self.candidate = None
-        self.update_status.set(self.text["current"])
+        self.update_status.set(self.text["not_checked"])
         self.download_button.configure(state="disabled")
         self.check_button.configure(state="normal")
 
@@ -1183,13 +1185,19 @@ class DesktopShell:
         candidate: UpdateCandidate | None,
         generation: int,
         channel: str,
+        newer_preview_version: str | None = None,
     ) -> None:
         if not self._is_current_update_request(generation, channel):
             return
         self.candidate = candidate
         self.check_button.configure(state="normal")
         if candidate is None:
-            self.update_status.set(self.text["current"])
+            status = self.text["current"].format(channel=channel)
+            if channel == "stable" and newer_preview_version:
+                status += " " + self.text["preview_other_channel"].format(
+                    version=newer_preview_version
+                )
+            self.update_status.set(status)
             self.download_button.configure(state="disabled")
         else:
             self.update_status.set(self.text["available"].format(version=candidate.version))

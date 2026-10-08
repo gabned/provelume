@@ -425,6 +425,43 @@ def test_stale_update_results_cannot_replace_the_current_channel() -> None:
     assert shell.download_button.state == "normal"
 
 
+@pytest.mark.parametrize("language", sorted(STRINGS))
+def test_update_channel_hint_is_not_a_download_and_invalidation_is_not_success(language) -> None:
+    shell = DesktopShell.__new__(DesktopShell)
+    shell.closed = False
+    shell.update_generation = 2
+    shell.channel = _Value("stable")
+    shell.candidate = None
+    shell.update_status = _Value("checking")
+    shell.download_button = _Button()
+    shell.check_button = _Button()
+    shell.text = STRINGS[language]
+
+    shell._update_checked(None, 2, "stable", "0.11.0")
+    assert "stable" in shell.update_status.get()
+    assert "0.11.0" in shell.update_status.get()
+    assert "preview" in shell.update_status.get()
+    assert shell.candidate is None
+    assert shell.download_button.state == "disabled"
+
+    shell.channel.set("preview")
+    shell._invalidate_update_result()
+    assert shell.update_status.get() == shell.text["not_checked"]
+    shell._update_checked(None, 2, "stable", "0.12.0")
+    assert shell.update_status.get() == shell.text["not_checked"]
+    shell._update_checked(_candidate(channel="preview"), 3, "preview")
+    assert shell.download_button.state == "normal"
+
+
+@pytest.mark.parametrize("language", sorted(STRINGS))
+def test_future_update_format_has_localized_manual_recovery(language) -> None:
+    error = UpdateError("untrusted remote detail", code="unsupported_manifest",
+                        stage="release_manifest")
+    message = format_update_failure(error, STRINGS[language])
+    assert "untrusted remote detail" not in message
+    assert STRINGS[language]["update_error_unsupported_manifest"] in message
+
+
 def test_stale_server_readiness_cannot_stop_a_replacement(monkeypatch) -> None:
     shell = DesktopShell.__new__(DesktopShell)
     old_process = _Process()

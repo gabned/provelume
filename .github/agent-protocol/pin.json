@@ -2,14 +2,14 @@
   "schema": "agent-protocol-consumer-pin/v2",
   "consumer": "gabned/provelume",
   "consumer_id": 1343746770,
-  "operational_revision": "7287e2c3c6dd42d1aad1c7eac3c68043f8a0cf69",
-  "work_revision": "7287e2c3c6dd42d1aad1c7eac3c68043f8a0cf69",
+  "operational_revision": "1a11fe76712ee65ca2160d2ae3789330946a57f2",
+  "work_revision": "1a11fe76712ee65ca2160d2ae3789330946a57f2",
   "source_manifest": {
     "schema": "agent-protocol-source/v1",
     "repository": "gabned/agent-protocol",
     "repository_id": 1393711644,
-    "revision": "7287e2c3c6dd42d1aad1c7eac3c68043f8a0cf69",
-    "version": "1.5.0",
+    "revision": "1a11fe76712ee65ca2160d2ae3789330946a57f2",
+    "version": "1.5.1",
     "files": [
       {
         "path": ".gitattributes",
@@ -38,8 +38,8 @@
       {
         "path": ".github/agent-protocol/release.json",
         "mode": "100644",
-        "blob": "952792ae5ab71a5eb2f2b3aba6311d9776f2b9bb",
-        "sha256": "773a1b55fcf04c619314b3728b493d8e3d0025dacb663f6fd3b65ca207417490"
+        "blob": "13b0fcd28cbad409971104e255979df0b32f4bc4",
+        "sha256": "eb449432caff91087c36fe2faa0502df915ffa06fc9d331afae9eeb235481a0f"
       },
       {
         "path": ".github/agent-protocol/source.json",
@@ -266,8 +266,8 @@
       {
         "path": "compat/legacy/tests/test_agent_protocol_work_check.py",
         "mode": "100644",
-        "blob": "29b83ff18422a9a60bc862de2a2e29924fb12bfe",
-        "sha256": "b8ef7b39416b5bb0d327264b5679ae3dc2b294c0e5764969c32bf0f80701dc5c"
+        "blob": "4b545e3328284303c5de2651b0ab636f42b53f77",
+        "sha256": "dfd433f8a2b3607a171a072a71dc307adabda2ca32357e58c283dedace0d6f20"
       },
       {
         "path": "compat/legacy/tests/test_agent_protocol_work_collect.mjs",
@@ -338,8 +338,8 @@
       {
         "path": "compat/legacy/tools/agent_protocol_work_check.py",
         "mode": "100644",
-        "blob": "eb0487ba00e938c17df536526c58ceb644683137",
-        "sha256": "8d2630b52f80f6e217b39c0fb18d781c29cff6265d2b14a6d53a75c2f5c00c7e"
+        "blob": "53f7f1ef669d7c4a451a36be540ff1e8197f8714",
+        "sha256": "192dc9f81c2f567240146cd738227d455554f8fdbea5e5b7b4a46f28b0ee5a6e"
       },
       {
         "path": "compat/legacy/tools/agent_protocol_work_collect.mjs",
@@ -416,8 +416,8 @@
       {
         "path": "pyproject.toml",
         "mode": "100644",
-        "blob": "2a8bc9cc156e2553a9acccabf880adf915e5b6ad",
-        "sha256": "9fad71f70363698687e819b648b40680658c12e6aafcc1447e11f0040b954231"
+        "blob": "7692cdddf12796b35dc3453a26514a0c3f2c643d",
+        "sha256": "f0514276d53d986a21455c0fb4e5d63727a13bdc17ee1b35e170a86292def33d"
       },
       {
         "path": "requirements-test.txt",
@@ -428,8 +428,8 @@
       {
         "path": "src/agent_protocol/__init__.py",
         "mode": "100644",
-        "blob": "4e0000f9ad2d48a272e2fc895104d74a8ebb3a5a",
-        "sha256": "f28a0c7b1ba1a87e2b286bfc6568dfb6d89c89fd38566ee3f5be64b8e65fc4b7"
+        "blob": "bf38edb3d885c0ff12e67204e9d19bf9b0f5b129",
+        "sha256": "46765cc566e9e980e3be2cfb143ede97e16707c693b73cc58093134086ef54fb"
       },
       {
         "path": "src/agent_protocol/__main__.py",
@@ -488,8 +488,8 @@
       {
         "path": "src/agent_protocol/source.py",
         "mode": "100644",
-        "blob": "7cd82e3277f966740dc3ae919740604118f3e25d",
-        "sha256": "4f5035595489987fa47e7ba732e2657faedb3078e119869d92aad90210803f56"
+        "blob": "81b754df2115201be2ce04233bc63150f94c35cd",
+        "sha256": "5dfad67030e072f6d958abaabd4c144d8a6d0be4e358146bb9b45b0510b80148"
       },
       {
         "path": "tests/fixtures/lifecycle.json",
@@ -554,8 +554,8 @@
       {
         "path": "tests/test_packaging.py",
         "mode": "100644",
-        "blob": "2059c6f7a89e78ee2ee25eeb0a7649e1bcef9d6d",
-        "sha256": "6c35e18361ebc7f177d62cd574d690f68accfa9d3239439db8124c8454a1fc44"
+        "blob": "f2ae98901def69ef6e2f8d53a92b3f67967ba7e0",
+        "sha256": "2b7928daf1fdcac762b0c94efdae248745a4b61201f1bddcfea4af0633e449bd"
       },
       {
         "path": "tests/test_qualification.py",
@@ -566,8 +566,8 @@
       {
         "path": "tests/test_source.py",
         "mode": "100644",
-        "blob": "3fa26756bbed755848198b8fd27ecee4f58a5fee",
-        "sha256": "59f90b8fcb2d816abdaa2a628355173392db7ccc300acec049af6edb0a01b6bd"
+        "blob": "10e032618108aff4931be93df5e6eda6fa7debbb",
+        "sha256": "53a01f540ea619ca2ddaa91bc52868f5e22ffdf15c4ec30a16e89f352c1d287d"
       },
       {
         "path": "tools/check.py",
@@ -590,36 +590,36 @@
       {
         "path": "tools/package.py",
         "mode": "100644",
-        "blob": "e99737722a7b5996e71ca8df1e1ebc6407c84bf6",
-        "sha256": "ebc71c0f7706284e015ccd48de98f221b2f6d98550b989ef4e786820e60b0672"
+        "blob": "3c24e1947d29704acd4095689dea521e4531a1e3",
+        "sha256": "8f052b5d4508296c24015bec24f4c83047a9b5883124481bb97683681a20726a"
       }
     ]
   },
-  "manifest_digest": "00b0a6babb0fb94a685f239dd45ddf4c25bdfe46d59767d2f7b0f9d534e11df6",
+  "manifest_digest": "349e5eaf7cbfe5edeb0f61f08d8ae8ea3c14c844ba95c7f2f88b89916ff3b72b",
   "documents_digest": "a5e8ea8a51ef964abca7092c7e6d18502fa0ca526aed49efa6b069485c895f06",
-  "archive_sha256": "192ab551e19082e593e4cf4866c3affbeb4f277ec3b946a053743aae025560eb",
-  "release_url": "https://github.com/gabned/agent-protocol/releases/tag/v1.5.0",
+  "archive_sha256": "094407538a3a99889d75f37162c6dd415b9c0a13cbcb5359784a11979473ccd2",
+  "release_url": "https://github.com/gabned/agent-protocol/releases/tag/v1.5.1",
   "vendor_prefix": "tools/agent_protocol_core",
   "release_artifacts": {
-    "agent_protocol_core-1.5.0-py3-none-any.whl": {
-      "sha256": "c52672be3b970ebf85498344ae07dc08f33121831a281b0c5d7956fc691f46a0",
-      "size": 441192
-    },
-    "conformance.json": {
-      "sha256": "ab45ca9e941668ee041e58d9f4057eaec98a664324b7a6506c769110f3bdc3c5",
-      "size": 2782
-    },
     "SHA256SUMS": {
-      "sha256": "1dd43ad2323f99d48789d9ecc41a4038c9228fa9f2bb9c2fdfc262951f8097cc",
+      "sha256": "a41b4d5404e6ccf665a742e296ebc7205f512141a4b7d05c2798bbb70e2de886",
       "size": 359
     },
+    "agent_protocol_core-1.5.1-py3-none-any.whl": {
+      "sha256": "e5cdcf7fb736447b40d68ac5e2ba62d579d392edaef58b974bf4e262ba410271",
+      "size": 441314
+    },
+    "conformance.json": {
+      "sha256": "006b39465016b2cc68b47f455065ff6890a7200925d2643c7136f0209e243b08",
+      "size": 3979
+    },
     "source-manifest.json": {
-      "sha256": "d25a81bdfbbdc157124f5c2fb1aa7a744004cb7d06e68119980d30e9c776df0c",
+      "sha256": "70c759a9f787bff2b38a83108da5497716a3d2cf32953cb0e7d1e519b396f2d4",
       "size": 22639
     },
     "source.tar.gz": {
-      "sha256": "192ab551e19082e593e4cf4866c3affbeb4f277ec3b946a053743aae025560eb",
-      "size": 372774
+      "sha256": "094407538a3a99889d75f37162c6dd415b9c0a13cbcb5359784a11979473ccd2",
+      "size": 372918
     }
   }
 }

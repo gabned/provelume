@@ -72,13 +72,29 @@ def test_acquisition_refuses_preview_and_preserves_corrupt_offline_cache(tmp_pat
                 "source-manifest.json",
                 "SHA256SUMS",
                 "conformance.json",
-                "agent_protocol_core-1.5.0-py3-none-any.whl",
+                f"agent_protocol_core-{pin['source_manifest']['version']}-py3-none-any.whl",
             )
         },
     }
     with pytest.raises(ValueError, match="Cached artifact differs"):
         adapter.acquire(pin, offline=True)
     assert damaged.read_bytes() == b"retain damaged artifact for diagnosis"
+
+
+def test_acquisition_refuses_wheel_from_another_release(tmp_path, monkeypatch):
+    spec = importlib.util.spec_from_file_location(
+        "consumer_acquire_mismatch", ROOT / "tools/agent_protocol_v2.py"
+    )
+    adapter = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(adapter)
+    pin = adapter.verify()
+    artifacts = dict(pin["release_artifacts"])
+    wheel = next(name for name in artifacts if name.endswith(".whl"))
+    artifacts["agent_protocol_core-0.0.0-py3-none-any.whl"] = artifacts.pop(wheel)
+    monkeypatch.setattr(adapter, "ROOT", tmp_path)
+    with pytest.raises(ValueError, match="Incomplete release artifact inventory"):
+        adapter.acquire({**pin, "release_artifacts": artifacts}, offline=True)
+    assert not (tmp_path / ".agent").exists()
 
 
 def test_native_engine_uses_canonical_preconditions_without_write_authority():
