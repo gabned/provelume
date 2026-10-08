@@ -143,7 +143,7 @@ def acquire(pin, *, offline=False):
             "source-manifest.json",
             "SHA256SUMS",
             "conformance.json",
-            "agent_protocol_core-1.5.0-py3-none-any.whl",
+            f"agent_protocol_core-{pin['source_manifest']['version']}-py3-none-any.whl",
         },
         "Incomplete release artifact inventory",
     )

@@ -1,8 +1,8 @@
 {
   "schema": "agent-protocol-consumer-provenance/v2",
   "source_repository": "gabned/agent-protocol",
-  "source_revision": "7287e2c3c6dd42d1aad1c7eac3c68043f8a0cf69",
-  "source_manifest_digest": "00b0a6babb0fb94a685f239dd45ddf4c25bdfe46d59767d2f7b0f9d534e11df6",
+  "source_revision": "1a11fe76712ee65ca2160d2ae3789330946a57f2",
+  "source_manifest_digest": "349e5eaf7cbfe5edeb0f61f08d8ae8ea3c14c844ba95c7f2f88b89916ff3b72b",
   "predecessor": {
     "repository": "gabned/provelume",
     "revision": "f4bc7af7088dbcded954a4e4e41153a0ac5a8446",
@@ -55,7 +55,7 @@
       "source": ".github/agent-protocol/release.json",
       "destination": "tools/agent_protocol_core/.github/agent-protocol/release.json",
       "mode": "100644",
-      "sha256": "773a1b55fcf04c619314b3728b493d8e3d0025dacb663f6fd3b65ca207417490",
+      "sha256": "eb449432caff91087c36fe2faa0502df915ffa06fc9d331afae9eeb235481a0f",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -321,7 +321,7 @@
       "source": "compat/legacy/tests/test_agent_protocol_work_check.py",
       "destination": "tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_work_check.py",
       "mode": "100644",
-      "sha256": "b8ef7b39416b5bb0d327264b5679ae3dc2b294c0e5764969c32bf0f80701dc5c",
+      "sha256": "dfd433f8a2b3607a171a072a71dc307adabda2ca32357e58c283dedace0d6f20",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -405,7 +405,7 @@
       "source": "compat/legacy/tools/agent_protocol_work_check.py",
       "destination": "tools/agent_protocol_core/compat/legacy/tools/agent_protocol_work_check.py",
       "mode": "100644",
-      "sha256": "8d2630b52f80f6e217b39c0fb18d781c29cff6265d2b14a6d53a75c2f5c00c7e",
+      "sha256": "192dc9f81c2f567240146cd738227d455554f8fdbea5e5b7b4a46f28b0ee5a6e",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -496,7 +496,7 @@
       "source": "pyproject.toml",
       "destination": "tools/agent_protocol_core/pyproject.toml",
       "mode": "100644",
-      "sha256": "9fad71f70363698687e819b648b40680658c12e6aafcc1447e11f0040b954231",
+      "sha256": "f0514276d53d986a21455c0fb4e5d63727a13bdc17ee1b35e170a86292def33d",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -510,7 +510,7 @@
       "source": "src/agent_protocol/__init__.py",
       "destination": "tools/agent_protocol_core/src/agent_protocol/__init__.py",
       "mode": "100644",
-      "sha256": "f28a0c7b1ba1a87e2b286bfc6568dfb6d89c89fd38566ee3f5be64b8e65fc4b7",
+      "sha256": "46765cc566e9e980e3be2cfb143ede97e16707c693b73cc58093134086ef54fb",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -580,7 +580,7 @@
       "source": "src/agent_protocol/source.py",
       "destination": "tools/agent_protocol_core/src/agent_protocol/source.py",
       "mode": "100644",
-      "sha256": "4f5035595489987fa47e7ba732e2657faedb3078e119869d92aad90210803f56",
+      "sha256": "5dfad67030e072f6d958abaabd4c144d8a6d0be4e358146bb9b45b0510b80148",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -657,7 +657,7 @@
       "source": "tests/test_packaging.py",
       "destination": "tools/agent_protocol_core/tests/test_packaging.py",
       "mode": "100644",
-      "sha256": "6c35e18361ebc7f177d62cd574d690f68accfa9d3239439db8124c8454a1fc44",
+      "sha256": "2b7928daf1fdcac762b0c94efdae248745a4b61201f1bddcfea4af0633e449bd",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -671,7 +671,7 @@
       "source": "tests/test_source.py",
       "destination": "tools/agent_protocol_core/tests/test_source.py",
       "mode": "100644",
-      "sha256": "59f90b8fcb2d816abdaa2a628355173392db7ccc300acec049af6edb0a01b6bd",
+      "sha256": "53a01f540ea619ca2ddaa91bc52868f5e22ffdf15c4ec30a16e89f352c1d287d",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -699,7 +699,7 @@
       "source": "tools/package.py",
       "destination": "tools/agent_protocol_core/tools/package.py",
       "mode": "100644",
-      "sha256": "ebc71c0f7706284e015ccd48de98f221b2f6d98550b989ef4e786820e60b0672",
+      "sha256": "8f052b5d4508296c24015bec24f4c83047a9b5883124481bb97683681a20726a",
       "treatment": "VENDOR_CANONICAL"
     }
   ],
@@ -1314,7 +1314,7 @@
       "destination": "tests/test_agent_protocol_work_check.py",
       "treatment": "COMPATIBILITY",
       "baseline_sha256": "b8ef7b39416b5bb0d327264b5679ae3dc2b294c0e5764969c32bf0f80701dc5c",
-      "current_sha256": "b8ef7b39416b5bb0d327264b5679ae3dc2b294c0e5764969c32bf0f80701dc5c",
+      "current_sha256": "dfd433f8a2b3607a171a072a71dc307adabda2ca32357e58c283dedace0d6f20",
       "references": [
         ".github/agent-protocol/transfer-v1.5.0.json",
         "tests/test_agent_protocol_v1_2.py",
@@ -1575,7 +1575,7 @@
       "destination": "tools/agent_protocol_work_check.py",
       "treatment": "COMPATIBILITY",
       "baseline_sha256": "8d2630b52f80f6e217b39c0fb18d781c29cff6265d2b14a6d53a75c2f5c00c7e",
-      "current_sha256": "8d2630b52f80f6e217b39c0fb18d781c29cff6265d2b14a6d53a75c2f5c00c7e",
+      "current_sha256": "192dc9f81c2f567240146cd738227d455554f8fdbea5e5b7b4a46f28b0ee5a6e",
       "references": [
         ".github/agent-protocol/transfer-v1.5.0.json",
         ".github/workflows/ci.yml",
