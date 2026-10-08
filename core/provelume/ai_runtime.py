@@ -132,7 +132,11 @@ class LocalRuntime:
         while True:
             checkpoint(cancel, deadline)
             try:
-                value = self._messages.get(timeout=0.02)
+                # Worker messages wake this wait immediately. During generation,
+                # re-read authority at 10 Hz rather than contending with Capture
+                # for metadata I/O at 50 Hz. Every poll still checks current
+                # authority; cancellation/cleanup retains its two-second bound.
+                value = self._messages.get(timeout=0.1)
             except queue.Empty:
                 check(self.loaded, "state")
                 continue

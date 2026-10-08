@@ -108,6 +108,72 @@ def test_expired_model_evidence_blocks_queued_job_before_reservation(setup):
     assert setup.jobs.status()["accounting"]["units"] == 0
 
 
+@pytest.mark.parametrize("owner", ["scheduler", "ai_task"])
+def test_shutdown_revokes_before_joining_the_lifecycle_owner(tmp_path, monkeypatch, owner):
+    instance = ProvelumeInstance.initialise(tmp_path / "i")
+    app = create_app(instance.root, shell_settings_file=tmp_path / "shell.json")
+    host = app.state.ai_setup
+    configure(host)
+    ref, _ = host.preview_test()
+    host.approve(ref)
+    entered, release = threading.Event(), threading.Event()
+
+    def cycle(**kwargs):
+        with host.instance.scheduler._hold_lifecycle("synthetic-shutdown-race"):
+            entered.set()
+            assert release.wait(10)
+
+    monkeypatch.setattr(
+        host.instance, "run_scheduler_cycle", cycle if owner == "scheduler" else lambda **kw: None
+    )
+
+    async def start_owned_task():
+        task = asyncio.create_task(asyncio.to_thread(cycle))
+        app.state.ai_tasks.add(task)
+        task.add_done_callback(app.state.ai_tasks.discard)
+
+    def serve():
+        with TestClient(app) as client:
+            if owner == "ai_task":
+                client.portal.call(start_owned_task)
+            assert entered.wait(10)
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        closing = pool.submit(serve)
+        try:
+            assert host.cancel.wait(10)
+            assert not host.jobs.session_authorized
+            assert not host.previews
+            assert not closing.done()
+            with pytest.raises(ValueError):
+                host.current(ref, 0)
+        finally:
+            release.set()
+        closing.result(timeout=10)
+    assert host.jobs._control()["mode"] == "off"
+    assert not host.runtime.loaded
+    assert not host.jobs.journal.list_jobs()
+
+
+def test_failed_shutdown_write_still_revokes_and_closes_runtime(setup, monkeypatch):
+    from provelume.scheduler_model import SchedulerBusyError
+
+    configure(setup)
+    closed = []
+
+    def busy(**kwargs):
+        raise SchedulerBusyError("synthetic competing Instance owner")
+
+    monkeypatch.setattr(setup.jobs, "configure", busy)
+    monkeypatch.setattr(setup.runtime, "close", lambda: closed.append(True))
+    with pytest.raises(SchedulerBusyError):
+        setup.close()
+    assert setup.cancel.is_set()
+    assert not setup.jobs.session_authorized
+    assert not setup.previews
+    assert closed == [True]
+
+
 def form(response):
     return {
         key: unescape(re.search(r'name="' + key + r'" value="([^"]+)"', response.text)[1])

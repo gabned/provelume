@@ -82,6 +82,18 @@ paths, model bytes, secret values, private previews and self-test evidence are n
 part of this file. Reopening creates no consent and does not authorize a session;
 S06 restore forces execution off and preserves uncertainty and accounting.
 
+Shutdown first revokes the in-memory session and previews and requests cancellation,
+without taking an Instance lock. The Browser then joins its scheduler cycle and AI
+tasks before persisting Off. The existing lifecycle barrier remains nonblocking;
+an unrelated owner can still refuse the persistent write. Runtime cleanup runs even
+if that write fails, and reopening still cannot restore session authorization.
+
+While the native worker is silent, authority polling uses a 100 ms wait. A worker
+message wakes that wait immediately; current authority is still read on every poll
+and before accepting completion. This reduces metadata contention with Capture
+without caching mutable policy or changing the two-second cancellation/cleanup gate,
+model configuration, CPU budget or ADR measurement thresholds.
+
 ## Reproduction and qualification
 
 Run `python scripts/demonstrate_ai_setup.py` in the bootstrapped environment. It
