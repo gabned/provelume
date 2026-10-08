@@ -82,9 +82,11 @@ paths, model bytes, secret values, private previews and self-test evidence are n
 part of this file. Reopening creates no consent and does not authorize a session;
 S06 restore forces execution off and preserves uncertainty and accounting.
 
-Shutdown first revokes the in-memory session and previews and requests cancellation,
-without taking an Instance lock. The Browser then joins its scheduler cycle and AI
-tasks before persisting Off. The existing lifecycle barrier remains nonblocking;
+After ASGI request draining, shutdown stops new scheduler cycles and joins the
+running cycle before revoking the in-memory session and previews and requesting
+AI cancellation. This lets a stopped AI task settle its attempt without competing
+with the scheduler's lifecycle barrier. The Browser joins its AI tasks before
+persisting Off. The existing lifecycle barrier remains nonblocking;
 an unrelated owner can still refuse the persistent write. Runtime cleanup runs even
 if that write fails, and reopening still cannot restore session authorization.
 
@@ -93,6 +95,13 @@ message wakes that wait immediately; current authority is still read on every po
 and before accepting completion. This reduces metadata contention with Capture
 without caching mutable policy or changing the two-second cancellation/cleanup gate,
 model configuration, CPU budget or ADR measurement thresholds.
+
+The inference worker yields scheduling priority to ordinary foreground work:
+Linux nice at least 5 (preserving a lower inherited priority), Windows Job Object
+below-normal priority. Only the disposable worker is changed; the application
+process keeps its priority. Observations include the effective worker priority.
+The same two-CPU affinity, model, thread count, containment and fixed ADR latency
+and capture/search thresholds still apply to fresh native qualification.
 
 ## Reproduction and qualification
 

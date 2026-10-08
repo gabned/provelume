@@ -211,6 +211,39 @@ print(json.dumps({'denied':observed,'limits':limits}))
     assert json.loads(result.stdout)["denied"] == ["denied", "denied"]
 
 
+@pytest.mark.skipif(sys.platform not in ("linux", "win32"), reason="native supported OS only")
+def test_inference_worker_yields_priority_without_changing_parent():
+    import os
+    import sysconfig
+
+    code = '''
+import sys,os,json,ctypes
+sys.path[:0]=sys.argv[1:3]
+from provelume.ai_runtime_limits import contain
+job,limits=contain()
+if os.name=='nt':
+    k=ctypes.WinDLL('kernel32',use_last_error=True)
+    k.GetCurrentProcess.restype=ctypes.c_void_p
+    k.GetPriorityClass.argtypes=[ctypes.c_void_p]
+    observed=k.GetPriorityClass(k.GetCurrentProcess())
+    assert observed==0x4000
+    assert limits['priority']=='JobObject:below-normal'
+else:
+    observed=os.getpriority(os.PRIO_PROCESS,0)
+    assert observed>=5 and limits['priority']=='nice:'+str(observed)
+print(json.dumps({'priority':observed}))
+'''
+    before = os.getpriority(os.PRIO_PROCESS, 0) if os.name != "nt" else None
+    result = subprocess.run(
+        [getattr(sys, "_base_executable", sys.executable), "-I", "-c", code,
+         str(Path(__file__).resolve().parents[1] / "core"), sysconfig.get_path("purelib")],
+        capture_output=True, timeout=10, check=True,
+    )
+    assert json.loads(result.stdout)["priority"] >= 5
+    if before is not None:
+        assert os.getpriority(os.PRIO_PROCESS, 0) == before
+
+
 def test_failed_termination_keeps_process_ownership_and_global_slot(monkeypatch, tmp_path):
     host = runtime.LocalRuntime(tmp_path)
     assert runtime._SLOT.acquire(blocking=False)

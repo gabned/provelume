@@ -491,13 +491,13 @@ def create_app(
             yield
         finally:
             stop.set()
-            app.state.ai_setup.request_close()
             try:
-                # The running cycle and AI tasks may own the same lifecycle
-                # barrier needed to persist Off. Revoke first, join our owners,
-                # then write; never race them or weaken the nonblocking guard.
+                # Drain the scheduler's lifecycle barrier before cancellation
+                # makes an AI task settle its attempt under that same barrier.
+                # ASGI request draining precedes this lifespan shutdown.
                 with suppress(asyncio.CancelledError):
                     await worker
+                app.state.ai_setup.request_close()
                 if app.state.ai_tasks:
                     await asyncio.gather(*tuple(app.state.ai_tasks), return_exceptions=True)
             finally:
