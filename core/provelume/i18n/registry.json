@@ -574,7 +574,10 @@
         "close",
         "open_repository",
         "open_releases",
-        "open_installed_release"
+        "open_installed_release",
+        "not_checked",
+        "preview_other_channel",
+        "update_error_unsupported_manifest"
       ],
       "namespace": "desktop"
     },
@@ -5548,10 +5551,10 @@
       "sensitive_review_required": false
     },
     "desktop.current": {
-      "context": "desktop: label/navigation; desktop supported shell text / desktop.current",
+      "context": "Windows updater status and recovery guidance / desktop.current",
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
-      "sensitive_review_required": false
+      "sensitive_review_required": true
     },
     "desktop.diagnostic_code": {
       "context": "desktop: label/navigation; desktop supported shell text / desktop.diagnostic_code",
@@ -5643,6 +5646,12 @@
       "rendering": "text",
       "sensitive_review_required": true
     },
+    "desktop.not_checked": {
+      "context": "Windows updater status and recovery guidance / desktop.not_checked",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
     "desktop.offline": {
       "context": "desktop: label/navigation; desktop supported shell text / desktop.offline",
       "linguistic_review": "UNVERIFIED",
@@ -5675,6 +5684,12 @@
     },
     "desktop.port_unavailable": {
       "context": "desktop: status/error; desktop supported shell text / desktop.port_unavailable",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.preview_other_channel": {
+      "context": "Windows updater status and recovery guidance / desktop.preview_other_channel",
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": true
@@ -5804,6 +5819,12 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "desktop.update_error_unsupported_manifest": {
+      "context": "Windows updater status and recovery guidance / desktop.update_error_unsupported_manifest",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     },
     "desktop.update_error_update_error": {
       "context": "desktop: status/error; desktop supported shell text / desktop.update_error_update_error",

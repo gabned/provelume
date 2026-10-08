@@ -18,6 +18,28 @@ Python are not required. The original shell contract remains in
 
 ## What is installed
 
+### Updating from 0.10.1
+
+The published 0.11.0 release belongs to the **preview** channel. A 0.10.1
+installation checking **stable** excludes it and can misleadingly report that it
+is up to date. Selecting preview reaches a second, known compatibility boundary:
+the 0.10.1 updater accepts only manifest schema 1, while 0.11.0 uses schema 2 with
+required publication metadata. The old client reports
+`Windows update manifest fields are incomplete or unsupported`.
+
+For this transition, obtain and verify the official 0.11.0 installation kit using
+the [publication installation procedure](publication-installation.md). Extract the
+complete kit, stop the running Provelume instance and close its launcher, then run
+`release/Provelume-Setup-0.11.0-x64.exe` in place. Keep the adjacent release manifest
+and `publication/` directory so Setup can import the matching receipt. Upgrade
+preserves the separate Instance; do not create a replacement Instance or delete
+its existing directory. A normal backup before upgrading remains advisable.
+
+A future patch cannot change the parser already installed in 0.10.1. Published
+0.11.0 assets remain unchanged. The newer reader accepts both existing schemas;
+an unknown future schema must stop download and explain the official manual route,
+without accepting unknown required fields or bypassing publication finalization.
+
 The setup places a frozen launcher and bundled runtime under the current user's application
 directory and creates a Start-menu shortcut. A desktop shortcut is optional. The first launch
 creates `Documents\\Provelume` unless another Instance is selected.

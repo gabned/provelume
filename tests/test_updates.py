@@ -124,6 +124,46 @@ def test_stable_channel_ignores_preview_and_never_downgrades() -> None:
     )
 
 
+def test_stable_check_reports_newer_preview_without_fetching_excluded_metadata() -> None:
+    calls = []
+
+    class Client:
+        def get_json(self, url, *, maximum_bytes):
+            calls.append(url)
+            assert url.endswith("releases?per_page=30")
+            return [_release("0.11.0"), _release("0.10.1"),
+                    {**_release("0.12.0"), "draft": True}]
+
+    result = check_for_updates(current_version="0.10.1", channel="stable", client=Client())
+    assert result["candidate"] is None
+    assert result["channel"] == "stable"
+    assert result["newer_preview_version"] == "0.11.0"
+    assert len(calls) == 1
+
+
+def test_old_or_invalid_preview_does_not_become_an_update_hint() -> None:
+    class Client:
+        def get_json(self, url, *, maximum_bytes):
+            assert url.endswith("releases?per_page=30")
+            return [_release("0.10.1"), {**_release("0.11.0"), "tag_name": "vnot-a-version"}]
+
+    result = check_for_updates(current_version="0.10.1", channel="stable", client=Client())
+    assert result["newer_preview_version"] is None
+    assert result["candidate"] is None
+
+
+def test_future_manifest_has_actionable_diagnostic_before_new_fields_are_rejected() -> None:
+    manifest = {**_manifest("0.11.0"), "schema_version": 3, "future_required_field": True}
+    with pytest.raises(UpdateError) as failure:
+        select_update_candidate(
+            [_release("0.11.0")], current_version="0.10.1", channel="preview",
+            fetch_manifest=lambda _url: manifest,
+            resolve_tag_commit=lambda _tag: pytest.fail("unsupported manifest cannot be selected"),
+        )
+    assert failure.value.code == "unsupported_manifest"
+    assert failure.value.stage == "release_manifest"
+
+
 def test_update_manifest_fails_closed_on_identity_or_apply_claim() -> None:
     wrong = _manifest("0.4.0")
     wrong["artifact"]["automatic_apply"] = True
