@@ -7,7 +7,9 @@ from .ai_job_contract import check
 from .scheduler_model import SchedulerBusyError
 
 
-def attach_synthesis_routes(app, setup, *, page, fields, redirect, launch_job, local, tasks):
+def attach_synthesis_routes(
+    app, setup, *, page, fields, redirect, launch_job, local, tasks, mutation
+):
     synthesis = setup.synthesis
 
     def error(request, exc):
@@ -65,8 +67,8 @@ def attach_synthesis_routes(app, setup, *, page, fields, redirect, launch_job, l
     async def policy(request: Request, document_id: str):
         values = await fields(request, {"kind", "scope_id", "restriction", "revision"})
         try:
-            synthesis.restrict(document_id, values["kind"], values["scope_id"],
-                               values["restriction"], int(values["revision"]))
+            await mutation(synthesis.restrict, document_id, values["kind"], values["scope_id"],
+                           values["restriction"], int(values["revision"]))
             return redirect(request, f"/documents/{document_id}/synthesis")
         except (ValueError, OSError, SchedulerBusyError) as exc:
             return error(request, exc)
@@ -79,8 +81,8 @@ def attach_synthesis_routes(app, setup, *, page, fields, redirect, launch_job, l
             row = setup.previews.get(values["ref"])
             check(row is not None and "recipe" in row, "ai_consent_missing")
             check(len(tasks) < 2, "ai_limit_exceeded")
-            setup.approve(values["ref"])
-            job = setup.enqueue(values["ref"])
+            await mutation(setup.approve, values["ref"])
+            job = await mutation(setup.enqueue, values["ref"])
             if job["status"] == "queued":
                 await launch_job(job["id"])
             return redirect(request, "/operations/ai")

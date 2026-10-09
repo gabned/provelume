@@ -126,6 +126,17 @@ def attach_ai_routes(app, instance, templates, context_factory):
         tasks.add(task)
         task.add_done_callback(tasks.discard)
 
+    async def mutation(function, *args, **kwargs):
+        if len(tasks) >= 2:
+            raise ValueError("unavailable")
+        # Lifecycle acquisition can wait. Keep read-only navigation responsive,
+        # and retain ownership if the HTTP caller disconnects before it returns.
+        task = asyncio.create_task(asyncio.to_thread(function, *args, **kwargs))
+        tasks.add(task)
+        task.add_done_callback(tasks.discard)
+        task.add_done_callback(lambda done: None if done.cancelled() else done.exception())
+        return await asyncio.shield(task)
+
     async def launch_job(job_id):
         if len(tasks) >= 2:
             raise ValueError("unavailable")
@@ -172,7 +183,8 @@ def attach_ai_routes(app, instance, templates, context_factory):
             },
         )
         try:
-            setup.save(
+            await mutation(
+                setup.save,
                 {
                     k: (int(values[k]) if k.endswith("units") else values[k])
                     for k in (
@@ -200,7 +212,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
     async def control(request: Request):
         values = await fields(request, {"action", "revision"})
         try:
-            setup.control(values["action"], int(values["revision"]))
+            await mutation(setup.control, values["action"], int(values["revision"]))
         except (ValueError, OSError, SchedulerBusyError) as exc:
             return page(
                 request,
@@ -270,7 +282,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
         try:
             if values["acknowledge"] != "synthetic-test":
                 raise ValueError("consent")
-            setup.approve(values["ref"])
+            await mutation(setup.approve, values["ref"])
             prepared = setup.previews[values["ref"]]["prepared"]
             return page(
                 request,
@@ -292,7 +304,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
     async def enqueue(request: Request):
         values = await fields(request, {"ref"})
         try:
-            setup.enqueue(values["ref"])
+            await mutation(setup.enqueue, values["ref"])
         except (ValueError, OSError, SchedulerBusyError) as exc:
             return page(
                 request,
@@ -440,4 +452,4 @@ def attach_ai_routes(app, instance, templates, context_factory):
     from .ai_synthesis_activity import attach_synthesis_routes
 
     attach_synthesis_routes(app, setup, page=page, fields=fields, redirect=redirect,
-                            launch_job=launch_job, local=local, tasks=tasks)
+                            launch_job=launch_job, local=local, tasks=tasks, mutation=mutation)

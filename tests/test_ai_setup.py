@@ -713,7 +713,7 @@ def test_http_ai_authorization_waits_before_mutating_and_never_replays(
                     control["generation"] += 1
                     host.jobs._save_control(control)
 
-        with ThreadPoolExecutor(max_workers=2) as pool:
+        with ThreadPoolExecutor(max_workers=3) as pool:
             owner = pool.submit(hold_other_operation)
             try:
                 assert held.wait(5)
@@ -723,6 +723,10 @@ def test_http_ai_authorization_waits_before_mutating_and_never_replays(
                 assert not pending.done()
                 assert host.previews[ref]["approved"] is (action == "enqueue")
                 assert not host.jobs.journal.list_jobs()
+                # Waiting for a writer cannot block the ASGI loop or read-only
+                # navigation. The other operation is still holding the barrier.
+                navigation = pool.submit(client.get, "/search?q=synthetic")
+                assert navigation.result(timeout=1).status_code == 200
                 if contention != "persistent":
                     release_lock.set()
                 response = pending.result(timeout=5)

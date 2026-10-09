@@ -49,6 +49,8 @@ Consent/configuration and enqueue also tolerate up to two seconds of lifecycle
 contention before entering their transaction; current authority is checked after
 acquisition. Persistent contention returns the existing localized conflict. Used
 forms cannot replay, and no provider/model call is started by a refused mutation.
+These waits run in owned thread tasks under the existing two-task cap. Request
+disconnection cannot abandon the mutation; read-only navigation stays responsive.
 
 The S08 model payload contains the task ID, instructions and indexed approved
 redacted paragraphs. Authority fingerprints and template revision hashes stay in

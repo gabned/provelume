@@ -55,3 +55,10 @@ the existing localized HTTP conflict, consumes the old form and performs no repl
 Cancellation polling/control and settlement do not gain a new wait. Deterministic
 tests hold the real Instance lock, exercise release/timeout/revocation, and verify
 zero job/adaptor work on refusal. This does not relax any native quality gate.
+The bounded wait runs in an owned thread task, outside the ASGI event loop, so
+search/navigation remains responsive while the Instance is busy. The existing
+two-task cap remains. Disconnecting a request does not abandon its accepted
+mutation; shutdown retains ownership and drains it. A concurrent-navigation
+regression fails against the initial synchronous candidate and passes only after
+moving these waits off the event loop. The interrupted initial full run remains
+unqualified; all final checks must run again on unchanged source.
