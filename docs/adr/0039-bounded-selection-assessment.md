@@ -29,6 +29,11 @@ an unbounded thinking mode. The worker grammar admits exactly an object containi
 excluding double quote and backslash; decisions contain exactly one KEEP or DROP
 per source paragraph, with the same two/three-KEEP ceiling. Two fixed bilingual
 editorial examples illustrate this format without using qualification fixtures.
+After revalidating the host's indexed envelope, native input is the corresponding
+ordered JSON array of paragraph strings, matching those examples. No text is
+filtered, reordered or rewritten; checked positions still bind every citation.
+Dropping redundant native index wrappers also saves input bytes. Provider payloads
+and the original host consent envelope retain their existing contracts.
 
 The worker validates the entire object, discards assessment and losslessly maps
 KEEP positions to source indexes. Assessment is untrusted, is not scored as truth,

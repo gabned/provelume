@@ -138,5 +138,10 @@ def chat_parts(payload, value):
               and type(segment["text"]) is str, "state")
         check(not any(token in segment["text"] for token in ("<|im_start|>", "<|im_end|>")),
               "limit")
-    return (native_instructions(maximum),
-            json.dumps(source, ensure_ascii=False, separators=(",", ":")))
+    # The host has already checked contiguous indexes. Use the same ordered,
+    # quoted paragraph array as the editorial examples: redundant index objects
+    # are not document content and consume the bounded native input needlessly.
+    return (native_instructions(maximum), json.dumps(
+        [segment["text"] for segment in source["segments"]],
+        ensure_ascii=False, separators=(",", ":"),
+    ))

@@ -75,7 +75,8 @@ AI and editorial boilerplate are not. Selection does not verify a claim's truth.
 The native adapter supplies a closed task descriptor separately from the approved
 JSON envelope. The worker rechecks task identity, exact trusted instructions,
 segment count and contiguous indexes, then places the task in the system role and
-quoted source paragraphs in the user role. A fresh grammar/greedy sampler per
+the exact ordered array of quoted paragraph strings in the user role, matching
+the editorial examples without redundant native index wrappers. A fresh grammar/greedy sampler per
 request requires a bounded assessment and exactly one KEEP/DROP decision per
 paragraph within the task maximum. Assessment is 1–160 printable ASCII characters
 and is discarded, never interpreted as authority or included in results/logs. The

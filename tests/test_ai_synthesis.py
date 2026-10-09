@@ -318,7 +318,8 @@ def test_native_framing_quotes_source_question_markers(synthesis, task, language
         "profile": PROFILE, "segments": 1, "maximum": 2 if task == "summary" else 3,
     })
     assert text not in system
-    assert json.loads(source)["segments"] == [{"segment": 0, "text": text}]
+    assert json.loads(source) == [text]
+    assert json.loads(payload)["untrusted"]["segments"] == [{"segment": 0, "text": text}]
     assert len(payload) <= prepared[0].payload_bytes <= 4096
 
 
