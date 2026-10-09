@@ -221,6 +221,9 @@ class LocalRuntime:
             raise
 
     def _stop(self):
+        # Revoke reuse before termination: even an unconfirmed exit must never
+        # let a late response from this worker satisfy a subsequent request.
+        self._model = None
         timer, self._timer = self._timer, None
         if timer is not None:
             timer.cancel()

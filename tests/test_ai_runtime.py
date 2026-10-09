@@ -350,7 +350,7 @@ print(json.dumps({'priority':observed}))
         assert os.getpriority(os.PRIO_PROCESS, 0) == before
 
 
-def test_failed_termination_keeps_process_ownership_and_global_slot(monkeypatch, tmp_path):
+def test_failed_termination_keeps_process_ownership_and_global_slot(monkeypatch, tmp_path, model):
     host = runtime.LocalRuntime(tmp_path)
     assert runtime._SLOT.acquire(blocking=False)
     host._slot = True
@@ -365,6 +365,13 @@ def test_failed_termination_keeps_process_ownership_and_global_slot(monkeypatch,
                              stdin=SimpleNamespace(close=lambda: None),
                              stdout=SimpleNamespace(close=lambda: None))
     host._process = worker
+    host._model = model.entry.model_sha256
+    sent = []
+    monkeypatch.setattr(host, "validate_installation", lambda: None)
+    monkeypatch.setattr(host, "_send", lambda *a, **k: sent.append(True))
+    monkeypatch.setattr(host, "_receive", lambda *a, **k: {
+        "event": "result", "text": "OLD-RESPONSE", "seconds": 0.1, "memory": {},
+    })
     if sys.platform != "win32":
         monkeypatch.setattr(runtime.os, "killpg", lambda *args: None)
     try:
@@ -372,6 +379,11 @@ def test_failed_termination_keeps_process_ownership_and_global_slot(monkeypatch,
             host.close()
         assert host._process is worker and host._slot
         assert not runtime._SLOT.acquire(blocking=False)
+        # A late response from the unconfirmed old worker cannot satisfy a new
+        # request, even when its model bytes and installation still match.
+        with pytest.raises(ModelError, match="busy"):
+            host._infer(model, runtime.native_selection(), "new request")
+        assert sent == []
     finally:
         alive = False
         host.close()

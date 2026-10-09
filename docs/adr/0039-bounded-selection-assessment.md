@@ -60,6 +60,11 @@ callers fail busy immediately. Cleanup retains the global process slot until exi
 is confirmed. The wait counts inside the original sixty-second request deadline.
 Regression tests first reproduce the race, then cover completion, cancellation,
 timeout, concurrent refusal and cancellation of an already loaded worker.
+Stopping also revokes model reuse before attempting termination. If exit cannot
+be confirmed, process ownership and the global slot remain held, but a new request
+cannot send a payload or accept a late response from that worker. A regression
+first reproduced this stale-response bug and now verifies refusal and recovery
+only after confirmed exit.
 
 The native report declares S06, S07 and S08 requirements before any measurement,
 so early failures retain all 26 gates as NOT_RUN where appropriate. This repairs
