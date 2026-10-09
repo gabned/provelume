@@ -593,7 +593,10 @@ def run_ingestion_filesystem(
 ) -> IngestionRunResult:
     """Ingest one filesystem Source under the Instance mutation lock."""
 
-    with InstanceLifecycleManager(store)._hold(purpose="filesystem-ingestion"):
+    # A short scheduler cycle may own the Instance between preview and ingestion.
+    # Wait only before mutation; read current source/authority after acquisition.
+    # Persistent contention still fails without an ingestion run or partial write.
+    with InstanceLifecycleManager(store)._hold(purpose="filesystem-ingestion", wait_seconds=2):
         result = _run_ingestion_filesystem_locked(
             store,
             source_path,

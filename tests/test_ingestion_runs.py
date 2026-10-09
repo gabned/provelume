@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import threading
 from dataclasses import replace
 from pathlib import Path
 
@@ -18,6 +19,82 @@ from provelume.ingestion_runs import (
 )
 from provelume.service import ProvelumeInstance
 from provelume.web import create_app
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_ingestion_waits_for_a_short_scheduler_cycle(tmp_path, monkeypatch, existing):
+    source = tmp_path / "source"
+    source.mkdir()
+    note = source / "note.txt"
+    note.write_text("Previous public source", encoding="utf-8")
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    if existing:
+        instance.ingest(source)
+    before = instance.store.list_canonical("originals")
+    journal = instance.scheduler.journal
+    with journal.hold():
+        pass
+    entered, release = threading.Event(), threading.Event()
+    errors = []
+    evaluate = journal.evaluate
+
+    def evaluate_while_owned(*args, **kwargs):
+        entered.set()
+        assert release.wait(3)
+        return evaluate(*args, **kwargs)
+
+    def cycle():
+        try:
+            instance.run_scheduler_cycle()
+        except BaseException as exc:
+            errors.append(exc)
+
+    monkeypatch.setattr(journal, "evaluate", evaluate_while_owned)
+    worker = threading.Thread(target=cycle)
+    worker.start()
+    timer = None
+    try:
+        assert entered.wait(3)
+        note.write_text("Current public orchid", encoding="utf-8")
+        timer = threading.Timer(0.15, release.set)
+        timer.start()
+        result = instance.ingest_run(source)
+    finally:
+        release.set()
+        if timer is not None:
+            timer.cancel()
+            timer.join(3)
+        worker.join(3)
+    assert not worker.is_alive() and not errors
+    assert result["run"]["status"] == "completed"
+    assert len(result["acquisitions"]) == 1
+    originals = instance.store.list_canonical("originals")
+    assert len(originals) == len(before) + 1
+    assert all(row in originals for row in before)
+    assert instance.search("orchid")[0]["title"] == "note.txt"
+    document = instance.store.list_canonical("documents")[0]
+    version = instance.store.read_canonical("versions", document["current_version_id"])
+    assert instance.store.original_bytes(version["original_id"]) == note.read_bytes()
+
+
+def test_persistently_busy_ingestion_leaves_source_and_domain_unchanged(tmp_path):
+    from provelume.instance_lifecycle import InstanceLifecycleBusy, InstanceLifecycleManager
+
+    source = tmp_path / "note.txt"
+    original_bytes = b"Public source remains outside the busy Instance"
+    source.write_bytes(original_bytes)
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    before = {path.relative_to(instance.root): path.read_bytes()
+              for path in instance.root.rglob("*") if path.is_file()}
+    with (
+        InstanceLifecycleManager(instance.store)._hold(purpose="persistent-owner"),
+        pytest.raises(InstanceLifecycleBusy),
+    ):
+        instance.ingest_run(source)
+    after = {path.relative_to(instance.root): path.read_bytes()
+             for path in instance.root.rglob("*") if path.is_file()}
+    assert after == before
+    assert source.read_bytes() == original_bytes
 
 
 def test_mixed_run_is_durable_and_retries_only_failed_items(tmp_path: Path) -> None:

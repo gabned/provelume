@@ -135,6 +135,14 @@ forms cannot replay, and no provider/model call is started by a refused mutation
 These waits run in owned thread tasks under the existing two-task cap. Request
 disconnection cannot abandon the mutation; read-only navigation stays responsive.
 
+An explicit filesystem ingestion likewise waits at most two seconds before taking
+the same Instance mutation lock. A short background scheduler cycle must not make
+an ordinary source update fail immediately between preview and confirmation.
+Ingestion reads the current source only after acquiring the lock; it never replays
+an already-started ingestion. Persistent contention leaves the domain unchanged.
+This does not suppress version changes: any preview for the preceding Version
+still fails fresh validation after the source update.
+
 The S08 model payload contains the task ID, instructions and indexed approved
 redacted paragraphs. Authority fingerprints and template revision hashes stay in
 the host manifest and job binding rather than adding random non-content tokens to
