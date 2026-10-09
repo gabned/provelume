@@ -268,6 +268,29 @@ def test_http_preview_result_evidence_discard_csrf_and_private_headers(
         assert not re.search(r">synthesis\.[a-z_]+<", regenerated.text)
 
 
+def test_equal_synthesis_payloads_keep_separate_host_consent_and_candidate_bindings(synthesis):
+    setup, _, _ = synthesis
+    first_ref, first, _ = preview(synthesis)
+    second_ref, second, _ = preview(synthesis)
+    assert first[0].fingerprint != second[0].fingerprint
+    assert setup.payload(first) == setup.payload(second)
+    wire = json.loads(setup.payload(first))
+    assert wire["trusted"]["template"] == {"id": "summary-en-v1"}
+    assert set(wire["untrusted"]) == {"segments"}
+    assert first[0].fingerprint not in setup.payload(first)
+    setup.approve(first_ref)
+    with pytest.raises(ValueError, match="ai_consent_missing"):
+        setup.enqueue(second_ref)
+    assert not setup.jobs.journal.list_jobs()
+    for ref, prepared in ((first_ref, first), (second_ref, second)):
+        row = setup.previews[ref]
+        candidate = validate_candidate(
+            b'{"schema_version":1,"status":"selected","references":[0]}',
+            prepared[0], row["source"], row["selections"], **prepared[2],
+        )
+        assert candidate.preview_fingerprint == prepared[0].fingerprint
+
+
 def test_corpus_gold_contract_preserves_whole_paragraphs_and_redaction(synthesis):
     setup, document, _ = synthesis
     cases = json.loads((Path(__file__).parent / "fixtures/ai_synthesis_quality.json").read_text())

@@ -31,6 +31,14 @@ native/provider adapters use the same closed candidate validator; the native zer
 monetary quote continues to depend on the exact trusted adapter type. External
 pricing and live provider qualification are not invented for this task.
 
+The S08 model payload contains the task ID, instructions and indexed approved
+redacted paragraphs. Authority fingerprints and template revision hashes stay in
+the host manifest and job binding rather than adding random non-content tokens to
+the model input. Equal text payloads still have distinct consent and candidate
+bindings. The legacy context-check payload remains unchanged. Negative,
+conditional and masked statements are eligible document content; commands to the
+AI and editorial boilerplate are not. Selection does not verify a claim's truth.
+
 Optional `state/scheduler/ai-scope-policies.json` stores at most 128 deny/local-only
 restrictions with Instance identity and revision. Absent rules explicitly inherit
 the global AI settings. All applicable Source, category, Area/Project and ancestor
