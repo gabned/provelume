@@ -15,13 +15,13 @@ from .ai_synthesis_profile import PROFILE, framing_identity
 
 RUNTIME_ID = "llama.cpp"
 RUNTIME_VERSION = "b11379"
-MODEL_ID = "granite-4.0-1b-q8-0"
-MODEL_FORMAT = "gguf-v3-q8_0"
-MODEL_SIZE = 1737791232
-MODEL_SHA256 = "0660c20c3d3d3672b90f0468f62dc128a82a6e3ee2ec05d310d242969be06140"
+MODEL_ID = "granite-3.3-2b-instruct-q4-k-m"
+MODEL_FORMAT = "gguf-v3-q4_k_m"
+MODEL_SIZE = 1545303328
+MODEL_SHA256 = "ac71e9e32c0bea919b409c5918f69ca74339854b0319c5065e4e9fb6d95c4852"
 MODEL_LICENSE = "granite-LICENSE.txt"
-MODEL_URL = ("https://huggingface.co/ibm-granite/granite-4.0-1b-GGUF/resolve/"
-             "b27c2fe3f211b7f44e80fa620177aea371099aaa/granite-4.0-1b-Q8_0.gguf")
+MODEL_URL = ("https://huggingface.co/ibm-granite/granite-3.3-2b-instruct-GGUF/resolve/"
+             "7cdf86ccd1f1bb3491c9b7017b033f2e51367397/granite-3.3-2b-instruct-Q4_K_M.gguf")
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,7 +38,14 @@ class NativeModelPin:
 NATIVE_MODEL_PINS = (
     NativeModelPin(
         MODEL_ID, MODEL_FORMAT, MODEL_SIZE, MODEL_SHA256, MODEL_URL, MODEL_LICENSE,
-        "repository:docs/adr/0044-higher-precision-synthesis-candidate.md",
+        "repository:docs/adr/0045-granite33-capacity-candidate.md",
+    ),
+    NativeModelPin(
+        "granite-4.0-1b-q8-0", "gguf-v3-q8_0", 1737791232,
+        "0660c20c3d3d3672b90f0468f62dc128a82a6e3ee2ec05d310d242969be06140",
+        "https://huggingface.co/ibm-granite/granite-4.0-1b-GGUF/resolve/"
+        "b27c2fe3f211b7f44e80fa620177aea371099aaa/granite-4.0-1b-Q8_0.gguf",
+        "granite-LICENSE.txt", "repository:docs/adr/0045-granite33-capacity-candidate.md",
     ),
     NativeModelPin(
         "granite-4.0-1b-q5-k-m", "gguf-v3-q5_k_m", 1178310400,
@@ -99,7 +106,7 @@ CONFIGURATION = {
     "sampling": "greedy",
     "synthesis_format": PROFILE,
     "synthesis_instructions": {str(cap): framing_identity(cap) for cap in (2, 3)},
-    "chat_template": "granite4-roles-v1",
+    "chat_template": "granite33-roles-v1",
 }
 
 

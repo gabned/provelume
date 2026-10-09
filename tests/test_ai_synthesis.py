@@ -326,6 +326,62 @@ def test_native_framing_quotes_source_question_markers(synthesis, task, language
     assert len(payload) <= prepared[0].payload_bytes <= 4096
 
 
+@pytest.mark.parametrize("text", ["\\" * 1400, "The manual spells <|start_of_role|> literally."],
+                         ids=["quoted-frame-overflow", "native-role-delimiter"])
+def test_native_source_limit_is_reported_before_consent(synthesis, monkeypatch, text):
+    setup, document, _ = synthesis
+    version = setup.instance.get_document(document)["current_version"]["id"]
+    bundle = setup.instance.representations.bundles.materialize(
+        version, recipe_id="native-preconsent-limit", recipe_version="1", recipe_settings={},
+        output_payloads={"text.txt": ("text/plain", text.encode())},
+        implementation=_implementation(), anchor_targets=({"kind": "page", "page": 1},),
+    )
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("preview loaded or verified model bytes")
+
+    monkeypatch.setattr(setup.models, "_verify", forbidden)
+    monkeypatch.setattr(setup.runtime, "validate_installation", forbidden)
+    with pytest.raises(ValueError, match="ai_limit_exceeded"):
+        setup.synthesis.preview(document, bundle["representation_id"],
+                                bundle["outputs"][0]["id"], "summary", "en")
+    assert not setup.previews
+    assert not setup.jobs.journal.list_jobs()
+    assert setup.jobs.status()["accounting"]["units"] == 0
+
+
+@pytest.mark.parametrize("mode,characters", [("local", 1000), ("external", 1400)])
+def test_native_frame_check_keeps_fitting_source_and_separate_external_contract(
+    synthesis, monkeypatch, mode, characters
+):
+    import socket
+
+    setup, document, _ = synthesis
+    if mode == "external":
+        setup.save({"mode": mode, "endpoint": "https://provider.example.test/v1/chat/completions",
+                    "model": "public-model"}, setup.configuration()["revision"])
+    version = setup.instance.get_document(document)["current_version"]["id"]
+    text = "\\" * characters
+    bundle = setup.instance.representations.bundles.materialize(
+        version, recipe_id="native-frame-boundary", recipe_version="1", recipe_settings={},
+        output_payloads={"text.txt": ("text/plain", text.encode())},
+        implementation=_implementation(), anchor_targets=({"kind": "page", "page": 1},),
+    )
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("preparation probed network, credentials or model bytes")
+
+    monkeypatch.setattr(socket, "getaddrinfo", forbidden)
+    monkeypatch.setattr(setup.models, "_verify", forbidden)
+    monkeypatch.setattr(setup.runtime, "validate_installation", forbidden)
+    setup.credentials = forbidden
+    ref, prepared, _ = setup.synthesis.preview(document, bundle["representation_id"],
+        bundle["outputs"][0]["id"], "summary", "en")
+    assert [segment.text for segment in prepared[0].segments] == [text]
+    assert not setup.previews[ref]["approved"]
+    assert not setup.jobs.journal.list_jobs()
+
+
 def test_corpus_gold_contract_preserves_whole_paragraphs_and_redaction(synthesis):
     setup, document, _ = synthesis
     cases = json.loads((Path(__file__).parent / "fixtures/ai_synthesis_quality.json").read_text())

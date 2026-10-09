@@ -54,6 +54,21 @@ required abstentions on each platform.
 Q8_0 artifact of the same model and publisher revision while keeping the complete
 v7 task/framing/grammar unchanged. Q5_K_M joins the three retired Qwen artifacts;
 all remain explicitly removable. All prior failed observations remain retained.
+That Q8_0 candidate also failed: Linux selected 19/32 gold results and five of
+eight required abstentions; Windows timed out with 20 S08 cases and failed
+partial latency measurements. [ADR 0045](../adr/0045-granite33-capacity-candidate.md)
+selects the official Granite-3.3-2B-Instruct Q4_K_M artifact with identical v7
+task/framing/grammar bytes and unchanged numeric limits. Both Granite-4 artifacts
+and all three Qwen artifacts stay retired with explicit removal. This new identity
+requires fresh native qualification, activation and consent.
+
+Before local or hybrid consent, preparation constructs the actual native frame
+to check quotation expansion, trusted-dialogue overhead and unsupported role
+delimiters against the unchanged limit. It reads no model bytes and probes no
+network or credentials. A rejected frame creates no approvable preview or job;
+fitting source is preserved exactly. External-only requests retain their own
+closed contract and do not inherit the local model's role-token restriction.
+
 Summarize and Key points select excerpts,
 not model-authored facts. The task/language matrix is EN/IT, independently of the
 seven interface catalogs. All real quality/performance outcomes belong to the

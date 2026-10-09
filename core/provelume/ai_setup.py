@@ -15,6 +15,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 from .ai_context import (
+    SYNTHESIS_TEMPLATES,
     ContextLimits,
     OutputBytes,
     RedactionConfig,
@@ -27,6 +28,7 @@ from .ai_context import (
     task_payload,
 )
 from .ai_contract import (
+    AiContractError,
     Assurance,
     Capability,
     ContextBinding,
@@ -37,6 +39,7 @@ from .ai_contract import (
     Mode,
     PolicyRule,
     Profile,
+    Reason,
     Scope,
     ScopeRef,
     digest,
@@ -48,7 +51,7 @@ from .ai_models import ModelError
 from .ai_provider import CallInputs, CredentialReference, Destination, ProviderConfig
 from .ai_provider_http import ChatJsonAdapter
 from .ai_runtime import LocalRuntime, native_selection
-from .ai_runtime_contract import MODEL_ID
+from .ai_runtime_contract import CONFIGURATION, MODEL_ID
 from .maintenance_local_files import open_local_file
 from .representations import build_representation_bundle, canonical_json_bytes
 
@@ -332,6 +335,23 @@ class AiSetup:
             rules=rules,
         )
         preview = preview_context(source, selections, **current)
+        task = current["template"].id
+        if task in SYNTHESIS_TEMPLATES and configuration["mode"] in {"local", "hybrid"}:
+            # Validate the actual native frame before consent, without touching
+            # model bytes. Quoting and trusted dialogue also consume its limit.
+            from .ai_synthesis_profile import PROFILE, native_prompt
+
+            try:
+                frame = native_prompt(task_payload(preview, current["template"]).decode(), {
+                    "profile": PROFILE, "segments": len(preview.segments),
+                    "maximum": 2 if task.startswith("summary-") else 3,
+                })
+            except ModelError as exc:
+                if exc.code == "limit":
+                    raise AiContractError(Reason.LIMIT) from exc
+                raise
+            check(len(frame.encode("utf-8")) <= CONFIGURATION["input_bytes"],
+                  "ai_limit_exceeded")
         plan = explain_prepared(
             preview, source, selections, profiles=profiles, evidence=evidence, **current
         )
