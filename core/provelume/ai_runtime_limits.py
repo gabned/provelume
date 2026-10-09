@@ -7,7 +7,7 @@ import os
 
 MEMORY = 3 * 1024**3
 # Exact reviewed raw GGUF size; needed for its sealed Linux snapshot, not RAM.
-MODEL_FILE_BYTES = 1669499616
+MODEL_FILE_BYTES = 1107408544
 
 
 def check(condition, code):

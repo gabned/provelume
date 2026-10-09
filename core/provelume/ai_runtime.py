@@ -54,6 +54,7 @@ class LocalRuntime:
         # Pure construction; no probing, worker, acquisition or implicit self-test.
         self.directory = Path(runtime_directory)
         self._lock = threading.RLock()
+        self._request_lock = threading.Lock()
         self._process = None
         self._reader = None
         self._writer = None
@@ -261,10 +262,38 @@ class LocalRuntime:
             if self._timer is marker:
                 self._stop()
 
+    @contextlib.contextmanager
+    def _admit(self, *, deadline, cancel):
+        # An idle timer may already be terminating the previous worker. Reserve
+        # the sole request immediately, then allow its bounded cleanup to finish.
+        # Other requests still fail immediately: there is no waiting request queue.
+        check(self._request_lock.acquire(blocking=False), "busy")
+        acquired = False
+        try:
+            cleanup_deadline = min(deadline, time.monotonic() + 2)
+            acquired = self._lock.acquire(blocking=False)
+            while not acquired:
+                checkpoint(cancel, cleanup_deadline)
+                acquired = self._lock.acquire(timeout=0.02)
+            yield
+        finally:
+            if acquired:
+                self._lock.release()
+            self._request_lock.release()
+
     def _infer(self, model, selection, prompt, *, cancel=lambda: False, reuse_scope=None,
                response_format=None):
         """Internal primitive for lifecycle qualification and governed S06 attempts."""
-        check(self._lock.acquire(blocking=False), "busy")
+        started = time.monotonic()
+        deadline = started + 60
+        with self._admit(deadline=deadline, cancel=cancel):
+            return self._infer_owned(
+                model, selection, prompt, cancel=cancel, reuse_scope=reuse_scope,
+                response_format=response_format, started=started, deadline=deadline,
+            )
+
+    def _infer_owned(self, model, selection, prompt, *, cancel, reuse_scope,
+                     response_format, started, deadline):
         try:
             selection.validate(model.entry)
             check(selection.platform == native_selection().platform, "compatibility")
@@ -277,8 +306,6 @@ class LocalRuntime:
 
                 chat_parts(prompt, response_format)
                 response_format = dict(response_format)
-            deadline = time.monotonic() + 60
-            started = time.monotonic()
             self._first_received = None
             checkpoint(cancel, deadline)
             self.validate_installation()
@@ -316,8 +343,6 @@ class LocalRuntime:
         except Exception:
             self._stop()
             raise ModelError("state") from None
-        finally:
-            self._lock.release()
 
     def __call__(self, model, selection, cancel):
         value = self._infer(

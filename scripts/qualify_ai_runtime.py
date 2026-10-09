@@ -45,6 +45,7 @@ def measure(root, output):
         "product_dispatch": "governed_job_required",
         "recommended": False,
         "s06_required": True,
+        "s07_required": True,
         "s08_required": True,
     }
 
@@ -183,7 +184,6 @@ def measure(root, output):
         report["s06"] = measure_jobs(instance, store, runtime)
         from qualify_ai_setup import measure_setup
 
-        report["s07_required"] = True
         report["s07"] = measure_setup(instance, store, runtime)
         from qualify_ai_synthesis import measure_synthesis
 

@@ -6,6 +6,7 @@ import hashlib
 import json
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -60,7 +61,7 @@ def test_candidate_and_shipped_runtime_lock_have_no_execution_authority():
     entry = ModelRegistry.packaged().entry(MODEL_ID)
     assert entry.qualification == "CANDIDATE_NOT_QUALIFIED"
     assert entry.model_sha256 == MODEL_SHA256
-    assert entry.model_size == 1669499616
+    assert entry.model_size == 1107408544
     assert entry.profile.model == MODEL_ID
     assert runtime_lock()["version"] == "b11379"
     assert set(runtime_lock()["platforms"]) == {"windows", "linux"}
@@ -89,8 +90,8 @@ def test_native_pin_keeps_exact_artifact_bound_and_each_retired_license():
 
 @pytest.mark.parametrize("field,value", [
     ("id", "qwen3-unreviewed"), ("format", "gguf-v3-q8_0"),
-    ("format", "gguf-v3-q4_k_m"), ("model_sha256", "1" * 64),
-    ("package_size", 1669499617),
+    ("format", "gguf-v3-q2_k"), ("model_sha256", "1" * 64),
+    ("package_size", 1107408545),
     ("url", "https://huggingface.co/another/model.gguf"),
 ])
 def test_native_manifest_refuses_unreviewed_or_mixed_artifact_pins(field, value):
@@ -125,6 +126,76 @@ def test_lazy_reuse_unload_and_next_explicit_caller(host, model):
     host.close()
     assert not host.loaded
     assert host._infer(model, runtime.native_selection(), "again")["cold"]
+
+
+@pytest.mark.parametrize("interruption", [None, "cancelled", "timeout"])
+def test_explicit_caller_can_follow_idle_cleanup_without_a_request_queue(
+    host, model, monkeypatch, interruption,
+):
+    first = host._infer(model, runtime.native_selection(), "first")
+    marker = host._timer
+    marker.cancel()
+    stopping, release, waiting, cancelled = (threading.Event() for _ in range(4))
+    original_stop = host._stop
+
+    def delayed_stop():
+        stopping.set()
+        assert release.wait(4)
+        original_stop()
+
+    monkeypatch.setattr(host, "_stop", delayed_stop)
+    idle = threading.Thread(target=host._idle, args=(marker,))
+    outcomes = []
+
+    def checkpoint():
+        waiting.set()
+        return cancelled.is_set()
+
+    def request():
+        try:
+            outcomes.append(host._infer(
+                model, runtime.native_selection(), "next", cancel=checkpoint))
+        except ModelError as exc:
+            outcomes.append(exc.code)
+
+    caller = threading.Thread(target=request)
+    idle.start()
+    try:
+        assert stopping.wait(1)
+        caller.start()
+        assert waiting.wait(1)
+        with pytest.raises(ModelError, match="busy"):
+            host._infer(model, runtime.native_selection(), "concurrent")
+        if interruption is not None:
+            began = time.monotonic()
+            if interruption == "cancelled":
+                cancelled.set()
+            bound = 1 if interruption == "cancelled" else 3
+            caller.join(bound)
+            assert not caller.is_alive() and time.monotonic() - began < bound
+            assert outcomes == [interruption]
+            # Cleanup still owns the original worker and the process-wide slot.
+            assert host._slot and len(host.worker_history) == 1
+        release.set()
+        idle.join(1)
+        caller.join(1)
+        assert not idle.is_alive() and not caller.is_alive()
+        if interruption is None:
+            assert len(outcomes) == 1 and outcomes[0]["cold"]
+            assert outcomes[0]["load"]["pid"] != first["load"]["pid"]
+    finally:
+        release.set()
+        idle.join(2)
+        if caller.ident is not None:
+            caller.join(2)
+
+
+def test_cancelled_admitted_request_unloads_an_existing_worker(host, model):
+    host._infer(model, runtime.native_selection(), "first")
+    with pytest.raises(ModelError, match="cancelled"):
+        host._infer(model, runtime.native_selection(), "cancelled", cancel=lambda: True)
+    assert not host.loaded and not host._slot
+    assert host._infer(model, runtime.native_selection(), "next")["cold"]
 
 
 @pytest.mark.parametrize("kind", ["crash", "malformed", "oversized", "hang"])
@@ -375,6 +446,25 @@ def test_measurement_report_never_promotes_missing_or_failed_observations():
     assert set(report["gates"].values()) == {"NOT_RUN"}
     report["cancel_load"] = {"seconds": 2.1, "worker_absent": True, "code": "cancelled"}
     assert evaluate(report)["status"] == "FAIL"
+
+
+def test_early_native_failure_retains_every_required_slice_gate(tmp_path, monkeypatch):
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "scripts"))
+    from scripts import qualify_ai_runtime
+
+    monkeypatch.setattr(qualify_ai_runtime.subprocess, "check_output", lambda *a, **k: "1" * 40)
+
+    def unavailable():
+        raise ModelError("compatibility")
+
+    monkeypatch.setattr(qualify_ai_runtime, "hardware", unavailable)
+    output = tmp_path / "report.json"
+    report = qualify_ai_runtime.measure(tmp_path, output)
+    assert report["status"] == "FAIL" and report["failures"] == ["compatibility"]
+    assert len(report["gates"]) == 26
+    assert set(report["gates"].values()) == {"NOT_RUN"}
+    assert report["gates"]["s07_setup"] == "NOT_RUN"
+    assert json.loads(output.read_text(encoding="utf-8")) == report
 
 
 def test_native_library_change_invalidates_lifecycle_evidence_and_closes_runner(

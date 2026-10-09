@@ -22,7 +22,11 @@ they are never source paragraphs, selectable evidence or a quality oracle.
 Qwen3-4B-Instruct-2507 Q2_K candidate after those examples still failed semantic
 qualification on both hosts. Its instruction-model chat template has no thinking
 block; the synthesis instructions, examples and frozen evaluation stay unchanged.
-Both preceding model identities remain retired and explicitly removable.
+[ADR 0039](../adr/0039-bounded-selection-assessment.md) records that candidate's
+failure to meet inherited latency gates and re-evaluates the same pinned Qwen3-1.7B
+with a bounded assessment before selection. Its previous failed semantic profiles
+remain retained. Qwen2.5 and the 4B entry stay retired and explicitly removable;
+the 1.7B candidate requires fresh technical evidence and consent, not old activation.
 Summarize and Key points select excerpts,
 not model-authored facts. The task/language matrix is EN/IT, independently of the
 seven interface catalogs. All real quality/performance outcomes belong to the
@@ -72,10 +76,14 @@ The native adapter supplies a closed task descriptor separately from the approve
 JSON envelope. The worker rechecks task identity, exact trusted instructions,
 segment count and contiguous indexes, then places the task in the system role and
 quoted source paragraphs in the user role. A fresh grammar/greedy sampler per
-request requires exactly one KEEP/DROP decision per paragraph within the task
-maximum. The worker validates and losslessly converts the complete array to the
-closed public schema: every KEEP becomes its exact index, and all DROP becomes
-abstention. No semantic filter, second inference or silent trimming is applied.
+request requires a bounded assessment and exactly one KEEP/DROP decision per
+paragraph within the task maximum. Assessment is 1–160 printable ASCII characters
+and is discarded, never interpreted as authority or included in results/logs. The
+worker validates the complete object and losslessly converts its decision array to
+the closed public schema: every KEEP becomes its exact index, and all DROP becomes
+abstention. Assessment and syntax consume the same 128-token generation budget;
+invalid/truncated responses fail closed. No semantic filter, second inference or
+silent trimming is applied.
 Native prefix reuse never retains sampler state.
 Practical subject-matter instructions remain eligible; commands to the assistant
 and editorial notices are excluded by the semantic task, not corpus-specific filters.
