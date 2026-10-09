@@ -19,7 +19,7 @@ from provelume.ai_setup import AiSetup
 from provelume.service import ProvelumeInstance
 
 
-def measure_synthesis(root, store, runtime):
+def measure_synthesis(root, store, runtime, *, checkpoint=None):
     corpus_path = Path(__file__).resolve().parents[1] / "tests/fixtures/ai_synthesis_quality.json"
     cases = json.loads(corpus_path.read_bytes())
     # Group task/language pairs for honest same-task cold/warm observations.
@@ -33,6 +33,12 @@ def measure_synthesis(root, store, runtime):
               "corpus_sha256": hashlib.sha256(corpus_path.read_bytes()).hexdigest(),
               "synthetic_content": True, "live_external": "NOT_RUN",
               "idle": [deterministic_probe(instance, 800+i) for i in range(3)]}
+
+    def save():
+        if checkpoint is not None:
+            checkpoint(result)
+
+    save()
 
     def activate():
         identity = setup.begin_operation("self_test")
@@ -139,6 +145,7 @@ def measure_synthesis(root, store, runtime):
                 })
             # Continue all cases after an invalid response: this is a distinct manual
             # corpus request, never a retry or removal of the failed observation.
+            save()
         # Separate explicit cancellation request through the same document path.
         activate()
         ref, prepared = preview_case({**cases[0], "id": "s08-cancel-public"})
@@ -178,4 +185,5 @@ def measure_synthesis(root, store, runtime):
         result["worker_absent"] = not runtime.loaded
         result["final_off"] = setup.jobs.status()["mode"] == "off"
         result["parent_after"] = memory_observation()
+        save()
     return result

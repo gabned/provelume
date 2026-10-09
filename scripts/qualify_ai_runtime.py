@@ -34,6 +34,7 @@ def measure(root, output):
     report = {
         "schema_version": 1,
         "status": "NOT_RUN",
+        "phase": "s05_base",
         "samples": [],
         "failures": [],
         "configuration": CONFIGURATION,
@@ -126,6 +127,8 @@ def measure(root, output):
                 }
                 report["samples"].append(row)
                 save()
+        report["phase"] = "s05_cancellation_and_unload"
+        save()
         # Explicit cancellation at the first wait during fresh-worker load.
         runtime.close()
         model = store.verify(MODEL_ID, selection)
@@ -181,13 +184,25 @@ def measure(root, output):
 
         evidence = store.self_test(MODEL_ID, selection, runtime, requested=True)
         store.activate(MODEL_ID, selection, evidence, requested=True)
+        report["phase"] = "s06_governed"
+        save()
         report["s06"] = measure_jobs(instance, store, runtime)
         from qualify_ai_setup import measure_setup
 
+        report["phase"] = "s07_setup"
+        save()
         report["s07"] = measure_setup(instance, store, runtime)
         from qualify_ai_synthesis import measure_synthesis
 
-        report["s08"] = measure_synthesis(root, store, runtime)
+        def synthesis_checkpoint(result):
+            report["s08"] = result
+            save()
+
+        report["phase"] = "s08_synthesis"
+        save()
+        report["s08"] = measure_synthesis(root, store, runtime, checkpoint=synthesis_checkpoint)
+        report["phase"] = "final_integrity_and_cleanup"
+        save()
         # Change one byte only in this disposable installed test model, then restore
         # in finally; no acquisition, fallback or fabricated evidence on corruption.
         model = store.verify(MODEL_ID, selection)

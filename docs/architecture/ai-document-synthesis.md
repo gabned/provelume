@@ -37,7 +37,12 @@ selections on Windows, 24/32 on Linux). [ADR 0041](../adr/0041-quoted-evidence-s
 clarifies that selection preserves evidence without adjudicating disputed claims
 or executing reader directions. It fixes four public editorial examples before
 fresh scoring, retaining the same model, grammar, assessment/output bounds and
-unfiltered position mapping. All fourteen native failures remain retained.
+unfiltered position mapping. That profile regressed to 17/32 gold selections on
+Linux, and Windows timed out without final qualification. [ADR 0042](../adr/0042-trusted-synthesis-demonstration-turns.md)
+replaces inline examples with four fixed trusted dialogue pairs and a shorter
+system classifier, retaining the model, grammar, assessment and all thresholds.
+Only the final user turn contains actual source; the complete demonstration prefix
+binds consent/runtime identity. All fifteen native failures remain retained.
 Summarize and Key points select excerpts,
 not model-authored facts. The task/language matrix is EN/IT, independently of the
 seven interface catalogs. All real quality/performance outcomes belong to the
@@ -86,8 +91,9 @@ AI and editorial boilerplate are not. Selection does not verify a claim's truth.
 The native adapter supplies a closed task descriptor separately from the approved
 JSON envelope. The worker rechecks task identity, exact trusted instructions,
 segment count and contiguous indexes, then places the task in the system role and
-the exact ordered array of quoted paragraph strings in the user role, matching
-the editorial examples without redundant native index wrappers. A fresh grammar/greedy sampler per
+the exact ordered array of quoted paragraph strings in the final user role, after
+the fixed trusted editorial demonstrations, without redundant native index wrappers.
+A fresh grammar/greedy sampler per
 request requires a bounded assessment and exactly one KEEP/DROP decision per
 paragraph within the task maximum. Assessment is 1–160 printable ASCII characters
 and is discarded, never interpreted as authority or included in results/logs. The
