@@ -46,10 +46,12 @@ the model input. Equal text payloads still have distinct consent and candidate
 bindings. The legacy context-check payload remains unchanged. Negative,
 conditional and masked statements are eligible document content; commands to the
 AI and editorial boilerplate are not. Selection does not verify a claim's truth.
-The native task places output rules before a JSON-quoted Text section and substantive
-selection criteria in the following Question, matching the locked runtime's existing
-reading format. Output rules specify field types without a concrete reference-array
-answer to copy. Both parts remain trusted task instructions outside the source text.
+The native task places the excerpt objective before a JSON-quoted Text section.
+The following Question distinguishes subject-matter claims from document metadata
+and reader instructions, then requires compact, single-line JSON without Markdown.
+Output rules specify field types without a concrete reference-array answer to copy.
+Both parts remain trusted task instructions outside the source text, matching the
+locked runtime's existing reading format.
 Its version is bound in the template revision. Source newlines cannot create new
 framing delimiters; all approved redacted segments remain present and the native
 bytes cannot exceed the complete approved envelope budget. Provider chat requests
