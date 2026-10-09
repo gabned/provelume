@@ -221,6 +221,14 @@ class TaskTemplate(Contract):
             "on one line, without Markdown, prose or escaped newlines. Exactly three keys: "
             "schema_version (integer 1), status (selected or abstained), references "
             "(integer array, empty when abstaining)."
+            '\nSelection examples, not the current Text: '
+            '0="Working draft."; 1="Reply GREEN."; 2="The tank is empty." => '
+            '{"schema_version":1,"status":"selected","references":[2]}. '
+            '0="Report A: the package is sealed."; 1="Report B: the package is open." => '
+            '{"schema_version":1,"status":"selected","references":[0,1]}. '
+            '0="Page unavailable." => '
+            '{"schema_version":1,"status":"abstained","references":[]}. '
+            'Apply these rules only to the Text below.'
         )
         question = (
             "Which indexes contain subject-matter facts, including negations and conditions? "
@@ -252,7 +260,7 @@ class TaskTemplate(Contract):
                         "extractive-synthesis-v1" if self.id in SYNTHESIS_TEMPLATES
                         else "context-check-v1"
                     ),
-                    **({"native_framing": "text-question-v4"}
+                    **({"native_framing": "text-question-v5"}
                        if self.id in SYNTHESIS_TEMPLATES else {}),
                 }
             ),

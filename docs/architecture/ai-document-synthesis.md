@@ -50,7 +50,11 @@ The native task places the excerpt objective and compact, single-line JSON rules
 before a JSON-quoted Text section, retaining the stable prefix for native reuse.
 The following Question distinguishes subject-matter claims from document metadata
 and reader instructions, then reiterates the JSON-only response requirement.
-Output rules specify field types without a concrete reference-array answer to copy.
+Three short, labelled examples use content outside the evaluation corpus: a fact
+after metadata and an instruction, two conflicting accounts, and missing content.
+They demonstrate selection at different indexes and abstention in the closed JSON
+format. They are trusted task instructions, never part of the approved source
+segments or rendered excerpts; only current source indexes can validate.
 Both parts remain trusted task instructions outside the source text, matching the
 locked runtime's existing reading format.
 Its version is bound in the template revision. Source newlines cannot create new
