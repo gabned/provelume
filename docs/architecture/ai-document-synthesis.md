@@ -47,8 +47,13 @@ required abstentions on both hosts, but still selected only 23/32 gold results o
 Windows and 22/32 on Linux. [ADR 0043](../adr/0043-canonical-synthesis-task-semantics.md)
 now reuses the existing canonical host semantic instruction for the native task,
 avoiding separately abbreviated exclusions and quota guidance. Its four dialogue
-examples, model and closed output format remain unchanged. All sixteen native
-failures remain retained.
+examples, model and closed output format remain unchanged. Both runs still
+failed: Windows selected 19/32 gold results, Linux 20/32, with seven of eight
+required abstentions on each platform.
+[ADR 0044](../adr/0044-higher-precision-synthesis-candidate.md) selects the official
+Q8_0 artifact of the same model and publisher revision while keeping the complete
+v7 task/framing/grammar unchanged. Q5_K_M joins the three retired Qwen artifacts;
+all remain explicitly removable. All prior failed observations remain retained.
 Summarize and Key points select excerpts,
 not model-authored facts. The task/language matrix is EN/IT, independently of the
 seven interface catalogs. All real quality/performance outcomes belong to the

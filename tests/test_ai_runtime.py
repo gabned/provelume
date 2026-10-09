@@ -61,7 +61,7 @@ def test_candidate_and_shipped_runtime_lock_have_no_execution_authority():
     entry = ModelRegistry.packaged().entry(MODEL_ID)
     assert entry.qualification == "CANDIDATE_NOT_QUALIFIED"
     assert entry.model_sha256 == MODEL_SHA256
-    assert entry.model_size == 1178310400
+    assert entry.model_size == 1737791232
     assert entry.profile.model == MODEL_ID
     assert runtime_lock()["version"] == "b11379"
     assert set(runtime_lock()["platforms"]) == {"windows", "linux"}
@@ -89,9 +89,9 @@ def test_native_pin_keeps_exact_artifact_bound_and_each_retired_license():
 
 
 @pytest.mark.parametrize("field,value", [
-    ("id", "qwen3-unreviewed"), ("format", "gguf-v3-q8_0"),
+    ("id", "granite-unreviewed"), ("format", "gguf-v3-q8_1"),
     ("format", "gguf-v3-q2_k"), ("model_sha256", "1" * 64),
-    ("package_size", 1178310401),
+    ("package_size", 1737791233),
     ("url", "https://huggingface.co/another/model.gguf"),
 ])
 def test_native_manifest_refuses_unreviewed_or_mixed_artifact_pins(field, value):
