@@ -177,7 +177,7 @@
   "ai.cancel": "Request cancellation",
   "ai.cancel_help": "Cancellation requested does not mean the worker has stopped. Data already sent to an external service cannot be recalled; charges or outcome may remain unknown.",
   "ai.cancelled": "Cancelled; operation has ended",
-  "ai.candidate": "Candidate only: llama.cpp b11379 with Qwen2.5-1.5B-Instruct Q4_K_M. Bounded Windows/Linux technical evidence exists; integrated Recommended promotion is still pending.",
+  "ai.candidate": "Local profile under evaluation. The compatibility test checks technical operation. Synthesis quality and network isolation require separate verification before this profile can be recommended.",
   "ai.compatibility": "Only the existing chat-json-v1 HTTPS profile is configurable. Arbitrary models and executable packages are unsupported. Localhost does not prove local execution.",
   "ai.complete": "Complete for the admitted output",
   "ai.completed": "Completed",

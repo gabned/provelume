@@ -177,7 +177,7 @@
   "ai.cancel": "Abbruch anfordern",
   "ai.cancel_help": "Eine Abbruchanforderung bedeutet nicht, dass der Prozess beendet ist. Bereits extern gesendete Daten können nicht zurückgerufen werden; Kosten oder Ergebnis können unbekannt bleiben.",
   "ai.cancelled": "Abgebrochen; Vorgang beendet",
-  "ai.candidate": "Nur Kandidat: llama.cpp b11379 mit Qwen2.5-1.5B-Instruct Q4_K_M. Begrenzte technische Windows/Linux-Nachweise liegen vor; die integrierte Empfehlung steht noch aus.",
+  "ai.candidate": "Lokales Profil in Prüfung. Der Kompatibilitätstest prüft die technische Funktion. Zusammenfassungsqualität und Netzwerkisolierung müssen gesondert geprüft werden, bevor dieses Profil empfohlen werden kann.",
   "ai.compatibility": "Nur das bestehende HTTPS-Profil chat-json-v1 ist konfigurierbar. Beliebige Modelle und ausführbare Pakete werden nicht unterstützt. Localhost beweist keine lokale Ausführung.",
   "ai.complete": "Vollständig für die zugelassenen Daten",
   "ai.completed": "Abgeschlossen",

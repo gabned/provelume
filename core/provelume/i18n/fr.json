@@ -177,7 +177,7 @@
   "ai.cancel": "Demander l’annulation",
   "ai.cancel_help": "Demander l’annulation ne signifie pas que le processus est arrêté. Les données déjà envoyées à un service externe ne peuvent être rappelées ; coûts ou résultat peuvent rester inconnus.",
   "ai.cancelled": "Annulé ; l’opération est terminée",
-  "ai.candidate": "Candidat uniquement : llama.cpp b11379 avec Qwen2.5-1.5B-Instruct Q4_K_M. Des preuves techniques limitées existent sous Windows/Linux ; la recommandation intégrée reste en attente.",
+  "ai.candidate": "Profil local en cours d’évaluation. Le test de compatibilité vérifie le fonctionnement technique. La qualité des synthèses et l’isolation réseau nécessitent des vérifications distinctes avant de recommander ce profil.",
   "ai.compatibility": "Seul le profil HTTPS chat-json-v1 existant est configurable. Les modèles arbitraires et paquets exécutables ne sont pas pris en charge. Localhost ne prouve pas une exécution locale.",
   "ai.complete": "Complète pour le contenu admis",
   "ai.completed": "Terminé",
