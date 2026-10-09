@@ -151,10 +151,12 @@ class AiJobs:
         self.session_authorized = True
 
     @contextmanager
-    def _transaction(self):
+    def _transaction(self, *, wait_seconds=0):
         # Same lock order as scheduler admission and staged restore. A directory
         # swap cannot erase a reservation or settlement written to the old root.
-        with self.coordinator._hold_lifecycle("ai-job-transaction"), self.journal.hold():
+        with self.coordinator._hold_lifecycle(
+            "ai-job-transaction", wait_seconds=wait_seconds
+        ), self.journal.hold():
             yield
 
     def _control(self):
@@ -192,7 +194,7 @@ class AiJobs:
 
     def configure(self, *, mode, budget=None):
         check(mode in {"off", "enabled", "paused"})
-        with self._transaction():
+        with self._transaction(wait_seconds=2):
             value = self._control()
             if budget is not None:
                 record = budget_record(budget)
@@ -221,7 +223,10 @@ class AiJobs:
 
     def change_authority(self, change, *, revoke=None):
         """Serialize supported host-source mutation against dispatch authorization."""
-        with self._transaction():
+        # A scheduler cycle can briefly own the Instance at startup or between
+        # requests. Wait only before entering the transaction; never replay a
+        # consent/configuration mutation, and validate it under the acquired lock.
+        with self._transaction(wait_seconds=2):
             if revoke is not None:
                 fingerprint(revoke)
                 value = self._control()
@@ -249,7 +254,7 @@ class AiJobs:
         budget_record(budget)
         check(type(request_key) is str and 1 <= len(request_key) <= 200)
         check(type(acknowledge_duplicate_risk) is bool)
-        with self._transaction():
+        with self._transaction(wait_seconds=2):
             control = self._control()
             check(control["mode"] != "off", "ai_off")
             inputs, request, _ = self._inputs(request_ref, 0)

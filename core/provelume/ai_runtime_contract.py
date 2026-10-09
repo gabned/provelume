@@ -42,7 +42,7 @@ CONFIGURATION = {
     "idle_seconds": 5,
     "termination_seconds": 2,
     "sampling": "greedy",
-    "synthesis_format": "extractive-gbnf-v1",
+    "synthesis_format": "extractive-decisions-v2",
     "chat_template": "qwen3-non-thinking-v1",
 }
 

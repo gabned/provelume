@@ -8,7 +8,7 @@ import pytest
 from provelume.ai_context import TaskTemplate
 from provelume.ai_llama import Llama, SamplerParams
 from provelume.ai_models import ModelError
-from provelume.ai_synthesis_profile import PROFILE, chat_parts, grammar
+from provelume.ai_synthesis_profile import PROFILE, candidate, chat_parts, grammar
 
 FORMAT = {"profile": PROFILE, "segments": 2, "maximum": 2}
 
@@ -60,6 +60,47 @@ def test_decoded_role_delimiters_cannot_cross_native_boundary():
 def test_closed_format_rejects_unbounded_or_caller_supplied_grammar(value):
     with pytest.raises(ModelError):
         grammar(value)
+
+
+@pytest.mark.parametrize("segments,maximum", [(1, 2), (16, 2), (16, 3)])
+def test_every_decision_grammar_alternative_translates_without_semantic_filtering(
+    segments, maximum
+):
+    from itertools import combinations
+
+    value = {"profile": PROFILE, "segments": segments, "maximum": maximum}
+    expected = {row for size in range(min(segments, maximum) + 1)
+                for row in combinations(range(segments), size)}
+    literals = grammar(value).decode().removeprefix("root ::= ").strip().split(" | ")
+    observed = []
+    for literal in literals:
+        text = json.loads(literal)
+        decisions = json.loads(text)
+        result = candidate(text, value)
+        assert len(result.encode()) <= 128
+        record = json.loads(result)
+        references = tuple(i for i, decision in enumerate(decisions) if decision == "KEEP")
+        assert record == {"schema_version": 1,
+                          "status": "selected" if references else "abstained",
+                          "references": list(references)}
+        observed.append(references)
+    assert len(observed) == len(expected) and set(observed) == expected
+
+
+@pytest.mark.parametrize("text", [
+    '[]', '["KEEP"]', '["KEEP","DROP","KEEP"]',
+    '["keep","DROP"]', '[true,"DROP"]', '[0,1]',
+    '{"references":[0]}', '["KEEP","DROP"] extra', '```["DROP","DROP"]```',
+    '[[[["KEEP"]]],"DROP"]', '["KEEP",null]',
+])
+def test_invalid_or_incomplete_decisions_never_become_a_successful_candidate(text):
+    with pytest.raises(ModelError):
+        candidate(text, FORMAT)
+
+
+def test_excess_decisions_are_rejected_not_silently_trimmed():
+    with pytest.raises(ModelError, match="limit"):
+        candidate('["KEEP","KEEP","KEEP"]', {**FORMAT, "segments": 3})
 
 
 @pytest.fixture
@@ -119,3 +160,20 @@ def test_sampler_cleanup_on_initialization_or_generation_failure(sampler_engine,
     assert engine.events[-1] == ("free", 10)
     assert [event for event in engine.events if event[0] == "free"] == [("free", 10)]
     assert ("add", 10, 0) not in engine.events
+
+
+def test_worker_translates_one_native_result_and_preserves_actual_usage(sampler_engine):
+    engine = sampler_engine
+    calls = []
+
+    def generate(raw, emit, **kwargs):
+        calls.append(raw.decode())
+        return {"text": '["DROP","KEEP"]', "input_tokens": 123, "output_tokens": 7,
+                "seconds": 0.4}
+
+    engine._generate = generate
+    result = engine.generate(json.dumps(envelope()), lambda event: None, response_format=FORMAT)
+    assert len(calls) == 1 and 'one "KEEP" or "DROP"' in calls[0]
+    assert json.loads(result["text"])["references"] == [1]
+    assert (result["input_tokens"], result["output_tokens"], result["seconds"]) == (123, 7, 0.4)
+    assert engine.events[-1] == ("free", 10)

@@ -668,6 +668,87 @@ def test_http_preview_consent_job_controls_receipt_are_governed(
         assert len(host.jobs.journal.list_receipts()) == 1
 
 
+@pytest.mark.parametrize("action", ["consent", "enqueue"])
+@pytest.mark.parametrize("contention", ["brief", "persistent", "revoked"])
+def test_http_ai_authorization_waits_before_mutating_and_never_replays(
+    setup, tmp_path, monkeypatch, action, contention
+):
+    from provelume import instance_lifecycle
+
+    app = create_app(setup.instance.root, shell_settings_file=tmp_path / "shell.json")
+    host = app.state.ai_setup
+    configure(host)
+    # Hold the real lifecycle lock at a controlled point instead of depending on
+    # the timing of the first background scheduler cycle (the Windows failure).
+    monkeypatch.setattr(host.instance, "run_scheduler_cycle", lambda **kwargs: None)
+    held, attempted, release_lock = threading.Event(), threading.Event(), threading.Event()
+    acquire = instance_lifecycle._acquire_os_lock
+
+    def observe_acquire(descriptor):
+        try:
+            return acquire(descriptor)
+        except instance_lifecycle.InstanceLifecycleBusy:
+            attempted.set()
+            raise
+
+    monkeypatch.setattr(instance_lifecycle, "_acquire_os_lock", observe_acquire)
+    with TestClient(app) as client:
+        preview = client.post("/settings/ai/test/preview", data=form(client.get("/settings/ai")))
+        ref = re.search(r'name="ref" value="([^"]+)"', preview.text)[1]
+        values = {**form(preview), "ref": ref}
+        if action == "consent":
+            values["acknowledge"] = "synthetic-test"
+        else:
+            host.approve(ref)
+
+        def hold_other_operation():
+            with instance_lifecycle.InstanceLifecycleManager(host.instance.store)._hold(
+                purpose="synthetic-ai-authorization-contention"
+            ):
+                held.set()
+                assert release_lock.wait(10)
+                if contention == "revoked":
+                    # A supported authoritative change while owning the barrier.
+                    control = host.jobs._control()
+                    control["generation"] += 1
+                    host.jobs._save_control(control)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            owner = pool.submit(hold_other_operation)
+            try:
+                assert held.wait(5)
+                started = time.monotonic()
+                pending = pool.submit(client.post, f"/settings/ai/test/{action}", data=values)
+                assert attempted.wait(5)
+                assert not pending.done()
+                assert host.previews[ref]["approved"] is (action == "enqueue")
+                assert not host.jobs.journal.list_jobs()
+                if contention != "persistent":
+                    release_lock.set()
+                response = pending.result(timeout=5)
+                assert time.monotonic() - started < 5
+            finally:
+                release_lock.set()
+                owner.result(timeout=5)
+        if contention == "brief":
+            assert response.status_code == 200
+            assert host.previews[ref]["approved"]
+            assert len(host.jobs.journal.list_jobs()) == (action == "enqueue")
+        else:
+            assert response.status_code == 409
+            assert not host.jobs.journal.list_jobs()
+            assert host.jobs.status()["accounting"]["units"] == 0
+            if action == "consent":
+                assert not host.previews[ref]["approved"]
+        # The used form cannot repeat a mutation, even after the owner releases.
+        assert client.post(f"/settings/ai/test/{action}", data=values).status_code == 409
+        assert len(host.jobs.journal.list_jobs()) == (
+            action == "enqueue" and contention == "brief"
+        )
+        assert not app.state.ai_tasks
+        assert not host.runtime.loaded
+
+
 def test_exact_document_selection_is_private_and_not_executable(setup, tmp_path):
     from test_representations import _materialize
 

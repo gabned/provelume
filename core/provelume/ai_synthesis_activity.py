@@ -4,6 +4,7 @@ from fastapi import Request
 
 from .ai_activity import reason_key
 from .ai_job_contract import check
+from .scheduler_model import SchedulerBusyError
 
 
 def attach_synthesis_routes(app, setup, *, page, fields, redirect, launch_job, local, tasks):
@@ -41,7 +42,7 @@ def attach_synthesis_routes(app, setup, *, page, fields, redirect, launch_job, l
             return page(request, "ai_synthesis.html", phase="selection", document=document,
                         choices=list(dict.fromkeys(c[:2] for c in choices)),
                         scopes=names, policies=policies)
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return error(request, exc)
 
     @app.post("/documents/{document_id}/synthesis/preview")
@@ -57,7 +58,7 @@ def attach_synthesis_routes(app, setup, *, page, fields, redirect, launch_job, l
             check(result[1][0].manifest.version.version_id == values["version_id"],
                   "ai_setup_stale")
             return preview_page(request, result)
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return error(request, exc)
 
     @app.post("/documents/{document_id}/synthesis/policy")
@@ -67,7 +68,7 @@ def attach_synthesis_routes(app, setup, *, page, fields, redirect, launch_job, l
             synthesis.restrict(document_id, values["kind"], values["scope_id"],
                                values["restriction"], int(values["revision"]))
             return redirect(request, f"/documents/{document_id}/synthesis")
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return error(request, exc)
 
     @app.post("/operations/ai/synthesis/execute")
@@ -83,7 +84,7 @@ def attach_synthesis_routes(app, setup, *, page, fields, redirect, launch_job, l
             if job["status"] == "queued":
                 await launch_job(job["id"])
             return redirect(request, "/operations/ai")
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return error(request, exc)
 
     @app.get("/operations/ai/{job_id}/synthesis")
@@ -94,12 +95,12 @@ def attach_synthesis_routes(app, setup, *, page, fields, redirect, launch_job, l
             body, document, unavailable = None, None, None
             try:
                 body, reference, document, job = synthesis.read(job_id)
-            except (ValueError, OSError):
+            except (ValueError, OSError, SchedulerBusyError):
                 unavailable = True
             return page(request, "ai_synthesis.html", phase="result", job=job,
                         reference=reference, body=body, document=document, unavailable=unavailable,
                         document_id=selections[0].version.document_id)
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return error(request, exc)
 
     @app.get("/operations/ai/{job_id}/synthesis/evidence/{index}")
@@ -110,7 +111,7 @@ def attach_synthesis_routes(app, setup, *, page, fields, redirect, launch_job, l
             check(index in body["references"], "ai_result_invalid")
             return page(request, "ai_synthesis.html", phase="evidence", job=job,
                         reference=reference, document=document, segment=body["segments"][index])
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return error(request, exc)
 
     @app.post("/operations/ai/{job_id}/synthesis/discard")
@@ -119,7 +120,7 @@ def attach_synthesis_routes(app, setup, *, page, fields, redirect, launch_job, l
         try:
             synthesis.discard(job_id)
             return redirect(request, f"/operations/ai/{job_id}/synthesis")
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return error(request, exc)
 
     @app.post("/operations/ai/{job_id}/synthesis/regenerate")
@@ -127,5 +128,5 @@ def attach_synthesis_routes(app, setup, *, page, fields, redirect, launch_job, l
         await fields(request, set())
         try:
             return preview_page(request, synthesis.regenerate(job_id))
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return error(request, exc)

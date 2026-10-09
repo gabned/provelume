@@ -213,7 +213,12 @@ class Llama:
         ).encode("utf-8")
         started = time.monotonic()
         with self._request_sampler(response_format) as sampler:
-            return self._generate(raw, emit, scope=scope, sampler=sampler, started=started)
+            result = self._generate(raw, emit, scope=scope, sampler=sampler, started=started)
+        if response_format is not None:
+            from .ai_synthesis_profile import candidate
+
+            result["text"] = candidate(result["text"], response_format)
+        return result
 
     def _generate(self, raw, emit, *, scope, sampler, started):
         tokens = (INT * 1536)()

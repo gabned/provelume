@@ -12,6 +12,8 @@ structured runtime revision after seven failed candidates. Its first Qwen2.5
 measurement passed format/abstention but failed semantic quality on both hosts.
 [ADR 0035](../adr/0035-qwen3-synthesis-candidate.md) pins the Qwen3-1.7B Q4_K_M
 replacement and non-thinking chat template before separate native scoring.
+[ADR 0036](../adr/0036-synthesis-paragraph-decisions.md) replaces its unsuccessful
+index selection with explicit per-paragraph decisions in one native inference.
 Summarize and Key points select excerpts,
 not model-authored facts. The task/language matrix is EN/IT, independently of the
 seven interface catalogs. All real quality/performance outcomes belong to the
@@ -43,6 +45,10 @@ returns a visible error with no consumed attempt; trying again requires a fresh
 explicit request. The host owns the claim/execution task before awaiting this
 acknowledgement, so request cancellation cannot abandon a newly reserved job.
 Inference itself stays asynchronous and is never automatically resent.
+Consent/configuration and enqueue also tolerate up to two seconds of lifecycle
+contention before entering their transaction; current authority is checked after
+acquisition. Persistent contention returns the existing localized conflict. Used
+forms cannot replay, and no provider/model call is started by a refused mutation.
 
 The S08 model payload contains the task ID, instructions and indexed approved
 redacted paragraphs. Authority fingerprints and template revision hashes stay in
@@ -55,8 +61,11 @@ The native adapter supplies a closed task descriptor separately from the approve
 JSON envelope. The worker rechecks task identity, exact trusted instructions,
 segment count and contiguous indexes, then places the task in the system role and
 quoted source paragraphs in the user role. A fresh grammar/greedy sampler per
-request limits output to the closed JSON schema, abstention or unique source-ordered
-references within the task maximum. Native prefix reuse never retains sampler state.
+request requires exactly one KEEP/DROP decision per paragraph within the task
+maximum. The worker validates and losslessly converts the complete array to the
+closed public schema: every KEEP becomes its exact index, and all DROP becomes
+abstention. No semantic filter, second inference or silent trimming is applied.
+Native prefix reuse never retains sampler state.
 Practical subject-matter instructions remain eligible; commands to the assistant
 and editorial notices are excluded by the semantic task, not corpus-specific filters.
 Grammar proves shape, not relevance. The existing result validator remains mandatory.

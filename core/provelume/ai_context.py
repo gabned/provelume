@@ -241,7 +241,7 @@ class TaskTemplate(Contract):
                         "extractive-synthesis-v1" if self.id in SYNTHESIS_TEMPLATES
                         else "context-check-v1"
                     ),
-                    **({"native_framing": "extractive-gbnf-v1"}
+                    **({"native_framing": "extractive-decisions-v2"}
                        if self.id in SYNTHESIS_TEMPLATES else {}),
                 }
             ),

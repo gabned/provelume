@@ -13,7 +13,7 @@ from fastapi.responses import RedirectResponse
 
 from .ai_jobs import ai_capabilities
 from .ai_setup import AiSetup
-from .scheduler_model import SchedulerError
+from .scheduler_model import SchedulerBusyError, SchedulerError
 from .shell_activity import MutationNonces, _loopback_request
 
 
@@ -119,7 +119,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
         # One explicit operation, no periodic loop or second durable queue. AI jobs
         # are claimed/fenced/executed solely by the existing SchedulerCoordinator.
         async def run():
-            with suppress(ValueError, OSError):
+            with suppress(ValueError, OSError, SchedulerBusyError):
                 await asyncio.to_thread(function, *args, **kwargs)
 
         task = asyncio.create_task(run())
@@ -138,7 +138,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
                     return
                 accepted.set_result(True)
                 await asyncio.to_thread(setup.jobs.execute_claimed, claimed)
-            except (ValueError, OSError, SchedulerError):
+            except (ValueError, OSError, SchedulerError, SchedulerBusyError):
                 pass
             finally:
                 if not accepted.done():
@@ -187,7 +187,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 },
                 int(values["revision"]),
             )
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return page(
                 request,
                 error=True,
@@ -201,7 +201,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
         values = await fields(request, {"action", "revision"})
         try:
             setup.control(values["action"], int(values["revision"]))
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return page(
                 request,
                 error=True,
@@ -220,7 +220,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 raise ValueError("unavailable")
             identity = setup.begin_operation(values["action"])
             launch(setup.run_operation, identity, path=values["path"] or None)
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return page(
                 request,
                 error=True,
@@ -256,7 +256,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 payload=setup.payload(prepared),
                 phase="preview",
             )
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return page(
                 request,
                 error=True,
@@ -280,7 +280,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 payload=setup.payload(prepared),
                 phase="consented",
             )
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return page(
                 request,
                 error=True,
@@ -293,7 +293,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
         values = await fields(request, {"ref"})
         try:
             setup.enqueue(values["ref"])
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return page(
                 request,
                 error=True,
@@ -324,7 +324,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
                         # Pure bounded synthetic preflight, never DNS/credentials/model work.
                         setup.current(job["ai"]["request_ref"], job["ai"]["route"]).prepare()
                         dispatchable.add(job["id"])
-                    except (ValueError, OSError):
+                    except (ValueError, OSError, SchedulerBusyError):
                         pass
         return page(
             request,
@@ -358,7 +358,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 )
             else:
                 raise ValueError("unavailable")
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return page(
                 request,
                 error=True,
@@ -373,7 +373,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
         try:
             document, choices = setup.document_choices(document_id)
             return page(request, "ai_document.html", document=document, choices=choices)
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return page(
                 request,
                 error=True,
@@ -394,7 +394,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 quiescent=True,
                 acknowledge_duplicate_risk=True,
             )
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return page(
                 request,
                 error=True,
@@ -429,7 +429,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 payload=setup.payload(prepared),
                 phase="document",
             )
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, SchedulerBusyError) as exc:
             return page(
                 request,
                 error=True,
