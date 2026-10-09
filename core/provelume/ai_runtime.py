@@ -261,7 +261,8 @@ class LocalRuntime:
             if self._timer is marker:
                 self._stop()
 
-    def _infer(self, model, selection, prompt, *, cancel=lambda: False, reuse_scope=None):
+    def _infer(self, model, selection, prompt, *, cancel=lambda: False, reuse_scope=None,
+               response_format=None):
         """Internal primitive for lifecycle qualification and governed S06 attempts."""
         check(self._lock.acquire(blocking=False), "busy")
         try:
@@ -271,6 +272,11 @@ class LocalRuntime:
             check(not any(token in prompt for token in ("<|im_start|>", "<|im_end|>")), "limit")
             check(reuse_scope is None or (type(reuse_scope) is str and len(reuse_scope) == 64
                   and all(ch in "0123456789abcdef" for ch in reuse_scope)), "state")
+            if response_format is not None:
+                from .ai_synthesis_profile import chat_parts
+
+                chat_parts(prompt, response_format)
+                response_format = dict(response_format)
             deadline = time.monotonic() + 60
             started = time.monotonic()
             self._first_received = None
@@ -287,6 +293,8 @@ class LocalRuntime:
             message = {"prompt": prompt}
             if reuse_scope is not None:
                 message["scope"] = reuse_scope
+            if response_format is not None:
+                message["response_format"] = response_format
             self._send(message, deadline=deadline, cancel=cancel)
             value = self._receive("result", deadline=deadline, cancel=cancel)
             check(

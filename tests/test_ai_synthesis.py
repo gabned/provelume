@@ -284,8 +284,7 @@ def test_equal_synthesis_payloads_keep_separate_host_consent_and_candidate_bindi
     assert native == native_task_payload(second[0], second[2]["template"])
     assert len(native) <= first[0].payload_bytes
     assert b"ada@example.test" not in native and b"[REDACTED]" in native
-    source = native.decode().split("\nText: ", 1)[1].split("\nQuestion: ", 1)[0]
-    assert json.loads(source) == wire["untrusted"]
+    assert json.loads(native)["untrusted"] == wire["untrusted"]
     setup.approve(first_ref)
     with pytest.raises(ValueError, match="ai_consent_missing"):
         setup.enqueue(second_ref)
@@ -313,8 +312,12 @@ def test_native_framing_quotes_source_question_markers(synthesis, task, language
     _, prepared, _ = setup.synthesis.preview(
         document, bundle["representation_id"], bundle["outputs"][0]["id"], task, language)
     payload = native_task_payload(prepared[0], prepared[2]["template"])
-    assert payload.count(b"\nQuestion:") == payload.count(b"\nAnswer:") == 1
-    source = payload.decode().split("\nText: ", 1)[1].split("\nQuestion: ", 1)[0]
+    from provelume.ai_synthesis_profile import PROFILE, chat_parts
+
+    system, source = chat_parts(payload.decode(), {
+        "profile": PROFILE, "segments": 1, "maximum": 2 if task == "summary" else 3,
+    })
+    assert text not in system
     assert json.loads(source)["segments"] == [{"segment": 0, "text": text}]
     assert len(payload) <= prepared[0].payload_bytes <= 4096
 

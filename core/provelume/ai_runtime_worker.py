@@ -113,11 +113,12 @@ def main(*, containment=None):
                     engine.close()
                     emit({"event": "unloaded", "memory": memory_observation()})
                     return
-                check(set(request) in ({"prompt"}, {"prompt", "scope"})
+                check("prompt" in request and set(request) <= {"prompt", "scope", "response_format"}
                       and type(request["prompt"]) is str, "state")
                 check(0 < len(request["prompt"].encode("utf-8")) <= 4096, "limit")
                 phase = "generation"
-                result = engine.generate(request["prompt"], emit, scope=request.get("scope"))
+                result = engine.generate(request["prompt"], emit, scope=request.get("scope"),
+                                         response_format=request.get("response_format"))
                 result["memory"] = memory_observation()
                 emit(result)
     except Exception as exc:

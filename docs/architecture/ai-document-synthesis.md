@@ -6,8 +6,9 @@ S07 was accepted through #325 then #331 at actual main
 observation remains historical. This development does not publish a release or
 promote the model. Package/runtime identity remains 0.11.0 — Cura.
 
-[ADR 0033](../adr/0033-extractive-document-synthesis.md) fixes the profile and
-evaluation before real scoring. Summarize and Key points select source excerpts,
+[ADR 0033](../adr/0033-extractive-document-synthesis.md) fixes the evaluation;
+[ADR 0034](../adr/0034-structured-synthesis-runtime.md) records the authorized
+structured runtime revision after seven failed candidates. Summarize and Key points select excerpts,
 not model-authored facts. The task/language matrix is EN/IT, independently of the
 seven interface catalogs. All real quality/performance outcomes belong to the
 exact-head and actual-main owner ledgers; synthetic tests are not native proof.
@@ -46,22 +47,19 @@ the model input. Equal text payloads still have distinct consent and candidate
 bindings. The legacy context-check payload remains unchanged. Negative,
 conditional and masked statements are eligible document content; commands to the
 AI and editorial boilerplate are not. Selection does not verify a claim's truth.
-The native task places the excerpt objective and compact, single-line JSON rules
-before a JSON-quoted Text section, retaining the stable prefix for native reuse.
-The following Question distinguishes subject-matter claims from document metadata
-and reader instructions, then reiterates the JSON-only response requirement.
-Three short, labelled examples use content outside the evaluation corpus: a fact
-after metadata and an instruction, two conflicting accounts, and missing content.
-They demonstrate selection at different indexes and abstention in the closed JSON
-format. They are trusted task instructions, never part of the approved source
-segments or rendered excerpts; only current source indexes can validate.
-Both parts remain trusted task instructions outside the source text, matching the
-locked runtime's existing reading format.
-Its version is bound in the template revision. Source newlines cannot create new
-framing delimiters; all approved redacted segments remain present and the native
-bytes cannot exceed the complete approved envelope budget. Provider chat requests
-retain their JSON envelope and existing system/user role separation. The candidate
-byte bound applies before both JSON and literal `UNKNOWN` parsing.
+The native adapter supplies a closed task descriptor separately from the approved
+JSON envelope. The worker rechecks task identity, exact trusted instructions,
+segment count and contiguous indexes, then places the task in the system role and
+quoted source paragraphs in the user role. A fresh grammar/greedy sampler per
+request limits output to the closed JSON schema, abstention or unique source-ordered
+references within the task maximum. Native prefix reuse never retains sampler state.
+Practical subject-matter instructions remain eligible; commands to the assistant
+and editorial notices are excluded by the semantic task, not corpus-specific filters.
+Grammar proves shape, not relevance. The existing result validator remains mandatory.
+The profile is bound in template and runtime configuration identities, invalidating
+old consent and self-test evidence. The full native envelope keeps the approved byte
+budget. Provider chat retains its existing role separation and result validation.
+The candidate byte bound applies before both JSON and literal `UNKNOWN` parsing.
 
 Optional `state/scheduler/ai-scope-policies.json` stores at most 128 deny/local-only
 restrictions with Instance identity and revision. Absent rules explicitly inherit

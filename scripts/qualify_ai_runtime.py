@@ -227,6 +227,9 @@ def measure(root, output):
             report["warm_total_max"] = max(r["total_seconds"] for r in report["samples"])
         # No successful offline run substitutes for an OS observation of all phases.
         report["status"] = "BLOCKED_NO_EGRESS_OBSERVATION"
+        from diagnose_ai_capture import diagnose
+
+        report["capture_diagnostic"] = diagnose(instance, store, runtime)
     except Exception as exc:
         report["status"] = "FAIL"
         report["failures"].append(exc.code if isinstance(exc, ModelError) else type(exc).__name__)

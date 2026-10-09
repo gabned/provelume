@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from dataclasses import asdict, dataclass
 
-from .ai_context import native_task_payload
+from .ai_context import SYNTHESIS_TEMPLATES, native_task_payload
 from .ai_contract import digest
 from .ai_job_contract import check, integer
 from .ai_models import ModelError
@@ -98,6 +98,15 @@ class NativeJobAdapter:
             )
             payload = native_task_payload(inputs.preview, inputs.current["template"]).decode()
             check(len(payload.encode()) <= CONFIGURATION["input_bytes"], "ai_native_limit")
+            task = inputs.current["template"].id
+            options = {}
+            if task in SYNTHESIS_TEMPLATES:
+                from .ai_synthesis_profile import PROFILE
+
+                options["response_format"] = {
+                    "profile": PROFILE, "segments": len(inputs.preview.segments),
+                    "maximum": 2 if task.startswith("summary-") else 3,
+                }
             selection = native_selection()
             prepared_at = time.monotonic()
             with self.model_store.use(selection) as model:
@@ -110,6 +119,7 @@ class NativeJobAdapter:
                 value = self.runtime._infer(
                     model, selection, payload, cancel=cancel,
                     reuse_scope=digest({"instance": request.context.instance_id}),
+                    **options,
                 )
             self.last_observation = {
                 "prepare_seconds": prepared_at - started,

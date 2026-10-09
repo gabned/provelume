@@ -36,6 +36,7 @@ CONFIGURATION = {
     "idle_seconds": 5,
     "termination_seconds": 2,
     "sampling": "greedy",
+    "synthesis_format": "extractive-gbnf-v1",
 }
 
 
