@@ -29,7 +29,7 @@ DECISION_EXAMPLES = (
 
 
 def _message(role, text):
-    return f"<|start_of_role|>{role}<|end_of_role|>{text}<|end_of_text|>\n"
+    return f"<|im_start|>{role}\n{text}<|im_end|>\n"
 
 
 def native_prefix(maximum):
@@ -166,4 +166,4 @@ def native_prompt(payload, value):
     """Examples are separate trusted turns; only the final user turn is source."""
     _, source = chat_parts(payload, value)
     return (native_prefix(value["maximum"]) + _message("user", source)
-            + "<|start_of_role|>assistant<|end_of_role|>")
+            + "<|im_start|>assistant\n")

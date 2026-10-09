@@ -21,7 +21,7 @@ bartowski's Q2_K conversion, revision `ac104788567ef76beaf5f30b6cccb1f99a69afbe`
 This third-party quantization uses Apache-2.0, Copyright 2024 Alibaba Cloud;
 the complete terms are retained in `qwen-LICENSE.txt`.
 [ADR 0038](docs/adr/0038-qwen3-instruct-synthesis-candidate.md) pins its identity
-before scoring. It failed latency qualification; Qwen2.5 also remains RETIRED.
+before scoring. It failed latency qualification; its metadata remains RETIRED.
 The earlier S08 candidates include IBM's official Granite-4.0-1B conversions,
 `ibm-granite/granite-4.0-1b-GGUF` revision
 `b27c2fe3f211b7f44e80fa620177aea371099aaa`, Apache-2.0. The complete unchanged
@@ -30,14 +30,18 @@ digest, model identity and qualification conditions are recorded in
 [ADR 0040](docs/adr/0040-granite-document-synthesis-candidate.md) and
 [ADR 0044](docs/adr/0044-higher-precision-synthesis-candidate.md). Both
 Q5_K_M and Q8_0 remain RETIRED with their identities and licenses retained.
-The current candidate is IBM's official Granite-3.3-2B-Instruct Q4_K_M,
+The retired Granite-3.3-2B-Instruct Q4_K_M candidate is IBM's official artifact,
 `ibm-granite/granite-3.3-2b-instruct-GGUF` revision
 `7cdf86ccd1f1bb3491c9b7017b033f2e51367397`, also Apache-2.0. Its publisher's
 complete license is byte-identical to `granite-LICENSE.txt`.
 [ADR 0045](docs/adr/0045-granite33-capacity-candidate.md) records its immutable
 artifact, license source and the official conversion's preview-workflow history.
-Publisher language support, model size and quantization precision do not
-establish Provelume task quality.
+Both native hosts reached the workflow timeout with incomplete S08 evidence.
+[ADR 0046](docs/adr/0046-canonical-task-qwen25-requalification.md) requalifies the
+original Qwen2.5 artifact with the current canonical task and fixed dialogue
+examples. Its earlier S08 failures remain failures; no old activation or
+qualification is inherited. Publisher language support, model size and
+quantization precision do not establish Provelume task quality.
 No model is promoted to Recommended or bundled in the wheel.
 See [ADR 0031](docs/adr/0031-cpu-local-runtime-candidate.md) for immutable origins,
 digests, quantization and redistribution conditions. The candidate input's SBOM

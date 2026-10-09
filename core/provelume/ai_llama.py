@@ -209,9 +209,9 @@ class Llama:
             raw = native_prompt(prompt, response_format).encode("utf-8")
         else:
             raw = (
-                "<|start_of_role|>system<|end_of_role|>" + system
-                + "<|end_of_text|>\n<|start_of_role|>user<|end_of_role|>" + prompt
-                + "<|end_of_text|>\n<|start_of_role|>assistant<|end_of_role|>"
+                "<|im_start|>system\n" + system
+                + "<|im_end|>\n<|im_start|>user\n" + prompt
+                + "<|im_end|>\n<|im_start|>assistant\n"
             ).encode("utf-8")
         check(len(raw) <= 4096, "limit")
         started = time.monotonic()

@@ -62,6 +62,18 @@ task/framing/grammar bytes and unchanged numeric limits. Both Granite-4 artifact
 and all three Qwen artifacts stay retired with explicit removal. This new identity
 requires fresh native qualification, activation and consent.
 
+Both Granite-3.3 jobs reached the fixed 20-minute timeout. Their partial cold-first
+results exceeded 20 seconds and observed English selections still failed semantics;
+remaining Italian and final network/integrity observations stay incomplete.
+[ADR 0046](../adr/0046-canonical-task-qwen25-requalification.md) requalifies the
+original lighter Qwen2.5 artifact with the current canonical v7 task, four dialogue
+examples, discarded assessment and KEEP/DROP grammar. That combination was not
+tested by its earlier v1 index-list candidate. Semantic rules and examples stay
+unchanged; native roles use its original ChatML template. Both Qwen3 and all three
+Granite entries remain retired and removable, within the unchanged registry bound.
+Earlier Qwen2.5 failures remain failures and no old activation, self-test or consent
+authorizes this new runtime/template identity. Fresh complete qualification is required.
+
 Before local or hybrid consent, preparation constructs the actual native frame
 to check quotation expansion, trusted-dialogue overhead and unsupported role
 delimiters against the unchanged limit. It reads no model bytes and probes no

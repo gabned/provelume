@@ -15,13 +15,13 @@ from .ai_synthesis_profile import PROFILE, framing_identity
 
 RUNTIME_ID = "llama.cpp"
 RUNTIME_VERSION = "b11379"
-MODEL_ID = "granite-3.3-2b-instruct-q4-k-m"
+MODEL_ID = "qwen2.5-1.5b-instruct-q4-k-m"
 MODEL_FORMAT = "gguf-v3-q4_k_m"
-MODEL_SIZE = 1545303328
-MODEL_SHA256 = "ac71e9e32c0bea919b409c5918f69ca74339854b0319c5065e4e9fb6d95c4852"
-MODEL_LICENSE = "granite-LICENSE.txt"
-MODEL_URL = ("https://huggingface.co/ibm-granite/granite-3.3-2b-instruct-GGUF/resolve/"
-             "7cdf86ccd1f1bb3491c9b7017b033f2e51367397/granite-3.3-2b-instruct-Q4_K_M.gguf")
+MODEL_SIZE = 1117320736
+MODEL_SHA256 = "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+MODEL_LICENSE = "qwen-LICENSE.txt"
+MODEL_URL = ("https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/"
+             "91cad51170dc346986eccefdc2dd33a9da36ead9/qwen2.5-1.5b-instruct-q4_k_m.gguf")
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +38,14 @@ class NativeModelPin:
 NATIVE_MODEL_PINS = (
     NativeModelPin(
         MODEL_ID, MODEL_FORMAT, MODEL_SIZE, MODEL_SHA256, MODEL_URL, MODEL_LICENSE,
+        "repository:docs/adr/0046-canonical-task-qwen25-requalification.md",
+    ),
+    NativeModelPin(
+        "granite-3.3-2b-instruct-q4-k-m", "gguf-v3-q4_k_m", 1545303328,
+        "ac71e9e32c0bea919b409c5918f69ca74339854b0319c5065e4e9fb6d95c4852",
+        "https://huggingface.co/ibm-granite/granite-3.3-2b-instruct-GGUF/resolve/"
+        "7cdf86ccd1f1bb3491c9b7017b033f2e51367397/granite-3.3-2b-instruct-Q4_K_M.gguf",
+        "granite-LICENSE.txt",
         "repository:docs/adr/0045-granite33-capacity-candidate.md",
     ),
     NativeModelPin(
@@ -67,13 +75,6 @@ NATIVE_MODEL_PINS = (
         "https://huggingface.co/bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF/resolve/"
         "ac104788567ef76beaf5f30b6cccb1f99a69afbe/Qwen_Qwen3-4B-Instruct-2507-Q2_K.gguf",
         "qwen-LICENSE.txt", "repository:docs/adr/0038-qwen3-instruct-synthesis-candidate.md",
-    ),
-    NativeModelPin(
-        "qwen2.5-1.5b-instruct-q4-k-m", "gguf-v3-q4_k_m", 1117320736,
-        "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e",
-        "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/"
-        "91cad51170dc346986eccefdc2dd33a9da36ead9/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-        "qwen-LICENSE.txt", "repository:docs/adr/0031-cpu-local-runtime-candidate.md",
     ),
 )
 RETIRED_MODEL_IDS = tuple(pin.id for pin in NATIVE_MODEL_PINS if pin.id != MODEL_ID)
@@ -106,7 +107,7 @@ CONFIGURATION = {
     "sampling": "greedy",
     "synthesis_format": PROFILE,
     "synthesis_instructions": {str(cap): framing_identity(cap) for cap in (2, 3)},
-    "chat_template": "granite33-roles-v1",
+    "chat_template": "qwen25-canonical-chatml-v1",
 }
 
 
