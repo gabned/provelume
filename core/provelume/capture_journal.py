@@ -108,6 +108,66 @@ def _read_pinned_windows_record(path: Path, limit: int) -> bytes:
 
 
 @contextmanager
+def _posix_inventory_handles(root: Path):
+    # Descriptor-relative traversal refuses links at every component. POSIX open
+    # directories can be renamed, so check every binding again before returning
+    # an inventory. No ancestor or record validation survives this operation.
+    with ExitStack() as stack:
+        bindings, devices = [], {}
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+
+        def pin(name, parent=None):
+            fd = os.open(name, flags, dir_fd=parent)
+            stack.callback(os.close, fd)
+            info = os.fstat(fd)
+            bindings.append((parent, name, info.st_dev, info.st_ino))
+            return fd
+
+        root = root.absolute()
+        root_fd = pin(root.anchor)
+        for name in root.parts[1:]:
+            root_fd = pin(name, root_fd)
+
+        def pin_device(path):
+            if path.parent != root or path.name in devices:
+                raise CaptureJournalError("invalid Capture device directory")
+            devices[path.name] = pin(path.name, root_fd)
+            return devices[path.name]
+
+        def read_record(path, limit):
+            if path.parent.parent != root or path.parent.name not in devices:
+                raise CaptureJournalError("invalid Capture record path")
+            parent = devices[path.parent.name]
+            fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC,
+                         dir_fd=parent)
+
+            def identity(info):
+                return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+            with os.fdopen(fd, "rb") as stream:
+                before = os.fstat(fd)
+                if not stat.S_ISREG(before.st_mode) or before.st_size > limit:
+                    raise CaptureJournalError("invalid Capture record size or kind")
+                data = stream.read(before.st_size + 1)
+                after = os.fstat(fd)
+                current = os.stat(path.name, dir_fd=parent, follow_symlinks=False)
+                if (len(data) != before.st_size or identity(before) != identity(after)
+                        or identity(before) != identity(current)):
+                    raise CaptureJournalError("Capture record changed")
+                return data
+
+        yield root_fd, pin_device, read_record
+        for parent, name, device, inode in bindings:
+            try:
+                current = os.stat(name, dir_fd=parent, follow_symlinks=False)
+                if not stat.S_ISDIR(current.st_mode) or (current.st_dev, current.st_ino) != (
+                        device, inode):
+                    raise CaptureJournalError("Capture directory changed during inventory")
+            except OSError as exc:
+                raise CaptureJournalError("Capture directory changed during inventory") from exc
+
+
+@contextmanager
 def _inventory_handles(root: Path):
     with ExitStack() as stack:
         try:
@@ -119,11 +179,13 @@ def _inventory_handles(root: Path):
 
                 def pin_device(path):
                     stack.callback(os.close, _windows_open(path, directory=True))
+                    return path
 
-                yield pin_device, _read_pinned_windows_record
+                yield root, pin_device, _read_pinned_windows_record
             else:
-                yield _safe, _read
-        except MaintenanceTargetError as exc:
+                with _posix_inventory_handles(root) as handles:
+                    yield handles
+        except (MaintenanceTargetError, OSError) as exc:
             raise CaptureJournalError("unsafe or unavailable Capture path") from exc
 
 
@@ -188,22 +250,24 @@ class CaptureJournal:
         instance_id = self._instance_id()
         result = {}
         total = 0
-        with _inventory_handles(self.root) as (pin_device, read_record), os.scandir(
-            self.root
+        with _inventory_handles(self.root) as (scan_root, pin_device, read_record), os.scandir(
+            scan_root
         ) as devices:
             for index, device in enumerate(devices):
                 if index >= MAX_RECORDS or not re.fullmatch(r"dev_[0-9a-f]{32}", device.name):
                     raise CaptureJournalError("invalid or full Capture device inventory")
-                pin_device(Path(device.path))
+                device_path = self.root / device.name
+                scan_device = pin_device(device_path)
                 if not device.is_dir(follow_symlinks=False):
                     raise CaptureJournalError("invalid Capture device directory")
-                with os.scandir(device.path) as records:
+                with os.scandir(scan_device) as records:
                     for record in records:
                         relative = f"state/capture/{device.name}/{record.name}"
                         if len(result) >= MAX_RECORDS or not _PATH.fullmatch(relative):
                             raise CaptureJournalError("invalid or full Capture inventory")
                         data = read_record(
-                            Path(record.path), min(MAX_RECORD_BYTES, MAX_JOURNAL_BYTES - total)
+                            device_path / record.name,
+                            min(MAX_RECORD_BYTES, MAX_JOURNAL_BYTES - total),
                         )
                         total += len(data)
                         result[relative] = self._validate(data, relative, instance_id=instance_id)

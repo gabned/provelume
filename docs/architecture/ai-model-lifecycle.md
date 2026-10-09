@@ -53,7 +53,9 @@ sizes, digests and license bytes are then verified. Only verified bytes are publ
 `verified/<archive-sha256>.pkg`. Installation never moves the active selection.
 
 Limits: 128 KiB archive, two members, 64 KiB per file, 96 KiB total member bytes, eight installed
-packages and eight staging entries. Compression, encryption, unknown/duplicate/colliding names,
+packages and eight staging entries. The reviewed registry has a separate nine-entry
+bound so retired identities remain removable without increasing installed storage.
+Compression, encryption, unknown/duplicate/colliding names,
 extra ZIP metadata, directories, link modes, absolute/traversal/ADS/reserved names are refused.
 Source hardlinks, symlinks and Windows reparse points, including parent components, are refused.
 Identities are checked around bounded reads. Members become immutable byte snapshots, never

@@ -511,7 +511,10 @@ class AiJobs:
                 return True
 
         try:
-            with self._transaction():
+            # Claiming releases the lifecycle lock before this owned task runs.
+            # A short scheduler/capture transaction may enter that gap. Wait
+            # before authorizing once; never turn it into an inference retry.
+            with self._transaction(wait_seconds=2):
                 clock = utc_instant(now)
                 job = self._owned(job_id, token, clock)
                 inputs, _, profile, _ = self._validate(job, clock)
@@ -564,7 +567,9 @@ class AiJobs:
             )
 
     def complete(self, job_id, token, *, outcome=None, error=None, elapsed_ms=0, now=None):
-        with self._transaction():
+        # Keep an already observed outcome while a brief competing transaction
+        # finishes. Fresh lease/authority checks still happen under the lock.
+        with self._transaction(wait_seconds=2):
             clock = utc_instant(now)
             job = self.journal.get_job(job_id)
             check(job is not None and job["job_kind"] == AI_JOB_KIND)

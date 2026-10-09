@@ -74,6 +74,16 @@ Granite entries remain retired and removable, within the unchanged registry boun
 Earlier Qwen2.5 failures remain failures and no old activation, self-test or consent
 authorizes this new runtime/template identity. Fresh complete qualification is required.
 
+That combination still failed: Windows selected 24/32 gold results and five of
+eight required abstentions; Linux selected 22/32 and four of eight, also failing
+inherited Capture latency. [ADR 0047](../adr/0047-hybrid-cpu-synthesis-candidate.md)
+selects the reviewed Unsloth Q5_K_M conversion of Qwen3.5-2B with its upstream
+non-thinking template and a bounded recurrent sequence checkpoint. The complete
+canonical task, fixed examples, grammar and all numeric acceptance gates remain
+unchanged. All six preceding native artifacts remain retired and removable;
+nine registry identities fit independently of the unchanged eight-package install
+bound. New source/model/runtime identities require full independent qualification.
+
 Before local or hybrid consent, preparation constructs the actual native frame
 to check quotation expansion, trusted-dialogue overhead and unsupported role
 delimiters against the unchanged limit. It reads no model bytes and probes no
@@ -112,6 +122,12 @@ returns a visible error with no consumed attempt; trying again requires a fresh
 explicit request. The host owns the claim/execution task before awaiting this
 acknowledgement, so request cancellation cannot abandon a newly reserved job.
 Inference itself stays asynchronous and is never automatically resent.
+After the claim releases its lock, execution and completion each tolerate a
+bounded two-second competing lifecycle transaction. Both recheck current lease
+and authority after acquisition. A received outcome is retained while settlement
+waits; cancellation suppresses publication while preserving known usage. An
+expired/fenced lease cannot complete another owner's job. This adds no inference
+retry or automatic recovery of an uncertain outcome.
 Consent/configuration and enqueue also tolerate up to two seconds of lifecycle
 contention before entering their transaction; current authority is checked after
 acquisition. Persistent contention returns the existing localized conflict. Used
@@ -140,7 +156,11 @@ the closed public schema: every KEEP becomes its exact index, and all DROP becom
 abstention. Assessment and syntax consume the same 128-token generation budget;
 invalid/truncated responses fail closed. No semantic filter, second inference or
 silent trimming is applied.
-Native prefix reuse never retains sampler state.
+Native prefix reuse never retains sampler state. The hybrid candidate stores one
+bounded complete prefix checkpoint in worker memory, rather than truncating an
+unsupported recurrent suffix. Reuse requires exact token equality and the same
+Instance scope; changed/unscoped calls clear it. No generated output is retained
+in that checkpoint. Checkpoint costs count inside the existing time/RSS limits.
 Practical subject-matter instructions remain eligible; commands to the assistant
 and editorial notices are excluded by the semantic task, not corpus-specific filters.
 Grammar proves shape, not relevance. The existing result validator remains mandatory.
@@ -208,7 +228,12 @@ Capture inventory reads pin ancestor/device directory handles for one operation
 and deny writers/delete on each record while reading it. This avoids repeating
 full ancestor metadata walks per record without caching records or mutable
 authority. Every record and the Instance identity remain freshly validated; all
-handles close on success and failure. POSIX retains its existing read path.
+handles close on success and failure. POSIX traverses through no-follow directory
+descriptors once per inventory, reads current records relative to the pinned
+device, and checks every directory binding again before returning. Record kind,
+size, identity, fingerprint and fresh Instance identity remain checked; no
+validation or descriptor is cached between operations. Rename/replacement during
+inventory fails visibly, and all descriptors close on success or failure.
 
 The profile handles one text output, at most 1 MiB actual Original/output, sixteen
 whole paragraphs and 2,000 selected UTF-8 bytes; the complete envelope stays below

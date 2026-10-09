@@ -10,6 +10,7 @@ from .ai_models import check, parse_json
 
 PROFILE = "extractive-canonical-decisions-v7"
 ASSESSMENT_CHARACTERS = 160
+GENERATION_PREFIX = "<|im_start|>assistant\n<think>\n\n</think>\n\n"
 
 # Public, trusted editorial examples, fixed before native scoring. They are not
 # source paragraphs and never enter a result or a source-dependent grammar.
@@ -88,7 +89,7 @@ def native_instructions(maximum):
 
 
 def framing_identity(maximum):
-    fingerprint = hashlib.sha256(native_prefix(maximum).encode()).hexdigest()
+    fingerprint = hashlib.sha256((native_prefix(maximum) + GENERATION_PREFIX).encode()).hexdigest()
     return {"profile": PROFILE, "instructions_sha256": fingerprint}
 
 
@@ -166,4 +167,4 @@ def native_prompt(payload, value):
     """Examples are separate trusted turns; only the final user turn is source."""
     _, source = chat_parts(payload, value)
     return (native_prefix(value["maximum"]) + _message("user", source)
-            + "<|im_start|>assistant\n")
+            + GENERATION_PREFIX)

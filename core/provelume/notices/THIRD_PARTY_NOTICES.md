@@ -41,7 +41,18 @@ Both native hosts reached the workflow timeout with incomplete S08 evidence.
 original Qwen2.5 artifact with the current canonical task and fixed dialogue
 examples. Its earlier S08 failures remain failures; no old activation or
 qualification is inherited. Publisher language support, model size and
-quantization precision do not establish Provelume task quality.
+quantization precision do not establish Provelume task quality. Its new measurement
+also failed; Qwen2.5 is now RETIRED with its original license retained.
+[ADR 0047](docs/adr/0047-hybrid-cpu-synthesis-candidate.md) selects Qwen3.5-2B,
+upstream revision `15852e8c16360a2fea060d615a32b45270f8a8fc`, Apache-2.0,
+Copyright 2026 Alibaba Cloud, in the reviewed Unsloth Q5_K_M conversion
+`unsloth/Qwen3.5-2B-GGUF` revision `f6d5376be1edb4d416d56da11e5397a961aca8ae`.
+This is a third-party conversion, not an official Qwen GGUF. The complete upstream
+license is retained byte-for-byte as `qwen35-LICENSE.txt` (including CRLF),
+11,544 bytes, SHA-256 `bbedc3fda3305820b977265f01b8619d87570a6739de3a5582c3464840f1e57a`.
+The immutable model SHA-256 is
+`1885b3a9195f8cc09da9a7a7a75afdc1e8d5cbf9fc4a499c3961dddea37098ac`.
+Neither the publisher's benchmarks nor this notice constitutes product acceptance.
 No model is promoted to Recommended or bundled in the wheel.
 See [ADR 0031](docs/adr/0031-cpu-local-runtime-candidate.md) for immutable origins,
 digests, quantization and redistribution conditions. The candidate input's SBOM

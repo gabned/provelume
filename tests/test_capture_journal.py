@@ -170,6 +170,77 @@ def test_inventory_identity_is_fresh_for_each_operation(journal):
     assert journal.lookup(DEVICE, CLIENT, authorize=allow) == receipt
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX directory descriptors permit renames")
+@pytest.mark.parametrize("boundary", ["capture", "device"])
+def test_inventory_rejects_directory_replacement_after_last_record(journal, monkeypatch, boundary):
+    submit(journal)
+    validate_record = journal._validate
+    path = journal.root if boundary == "capture" else journal.root / DEVICE
+    moved = path.with_name(path.name + "-moved")
+
+    def replace_after_read(*args, **kwargs):
+        value = validate_record(*args, **kwargs)
+        path.rename(moved)
+        path.mkdir()
+        return value
+
+    monkeypatch.setattr(journal, "_validate", replace_after_read)
+    with pytest.raises(CaptureJournalError, match="changed"):
+        journal.lookup(DEVICE, CLIENT, authorize=allow)
+    assert moved.is_dir() and list(path.iterdir()) == []
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX descriptor-relative traversal")
+@pytest.mark.parametrize("fail_read", [False, True])
+def test_posix_inventory_closes_every_pinned_directory_on_exit(tmp_path, monkeypatch, fail_read):
+    root = tmp_path / "capture"
+    directory = root / DEVICE
+    directory.mkdir(parents=True)
+    path = directory / "record.json"
+    path.write_bytes(b"public receipt")
+    opened = []
+    original = os.open
+
+    def track(path, flags, *args, **kwargs):
+        fd = original(path, flags, *args, **kwargs)
+        opened.append(fd)
+        return fd
+
+    monkeypatch.setattr(module.os, "open", track)
+    try:
+        with module._inventory_handles(root) as (_, pin_device, read_record):
+            pin_device(directory)
+            if fail_read:
+                raise CaptureJournalError("synthetic failure")
+            assert read_record(path, 32) == b"public receipt"
+    except CaptureJournalError:
+        assert fail_read
+    assert opened
+    for fd in opened:
+        with pytest.raises(OSError):
+            os.fstat(fd)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file kinds")
+@pytest.mark.parametrize("kind", ["symlink", "fifo"])
+def test_posix_inventory_rejects_unsafe_leaf_without_opening_its_target(tmp_path, kind):
+    root = tmp_path / "capture"
+    directory = root / DEVICE
+    directory.mkdir(parents=True)
+    path = directory / "record.json"
+    if kind == "symlink":
+        outside = tmp_path / "outside"
+        outside.write_bytes(b"outside data")
+        path.symlink_to(outside)
+    else:
+        os.mkfifo(path)
+    with pytest.raises(CaptureJournalError), module._inventory_handles(root) as (
+        _, pin_device, read_record
+    ):
+        pin_device(directory)
+        read_record(path, 32)
+
+
 @pytest.mark.skipif(os.name != "nt", reason="Windows directory share-access contract")
 @pytest.mark.parametrize("fail_validation", [False, True])
 def test_inventory_pins_ancestors_and_releases_handles(journal, monkeypatch, fail_validation):

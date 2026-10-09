@@ -492,6 +492,59 @@ def test_http_explicit_execution_is_idempotent_and_operations_links_result(synth
         assert TEXT.split("\n\n")[0] not in operations.text
 
 
+@pytest.mark.parametrize("phase", ["reserved", "response"])
+@pytest.mark.parametrize("cancel_during_wait", [False, True])
+def test_claimed_synthesis_waits_for_brief_lifecycle_contention(
+    synthesis, phase, cancel_during_wait
+):
+    setup, _, _ = synthesis
+    entered = threading.Event()
+    finished = threading.Event()
+    threads = []
+    phases = []
+
+    def contend():
+        try:
+            with setup.instance.scheduler._hold_lifecycle("synthetic-competing-cycle"):
+                entered.set()
+                # A genuine overlapping owner, without retrying any model request.
+                finished.wait(0.15)
+                if cancel_during_wait:
+                    with setup.jobs.journal.hold():
+                        running = next(j for j in setup.jobs.journal._all_jobs()
+                                       if j["status"] == "running")
+                        setup.jobs._control_job_locked(running, "cancel", utc_instant())
+        finally:
+            finished.set()
+
+    def observe(current_phase):
+        phases.append(current_phase)
+        if current_phase == phase:
+            thread = threading.Thread(target=contend)
+            threads.append(thread)
+            thread.start()
+            assert entered.wait(2)
+
+    setup.jobs.fault = observe
+    try:
+        job = execute(synthesis)
+        assert job["attempt"] == 1 and len(job["ai"]["attempts"]) == 1
+        attempt = job["ai"]["attempts"][0]
+        if cancel_during_wait:
+            assert job["status"] == "cancelled" and job["ai"]["result"] is None
+            assert attempt["units"] == (0 if phase == "reserved" else 19)
+            assert ("possible" in phases) is (phase == "response")
+        else:
+            assert job["status"] == "succeeded" and attempt["units"] == 19
+            assert phases.count("possible") == phases.count("response") == 1
+            assert setup.synthesis.read(job["id"])[0]["references"] == [0]
+    finally:
+        finished.set()
+        for thread in threads:
+            thread.join(2)
+            assert not thread.is_alive()
+
+
 @pytest.mark.parametrize("action", ["preview", "regenerate"])
 def test_document_preparation_keeps_navigation_live_during_contention(
     synthesis, tmp_path, monkeypatch, action

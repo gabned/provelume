@@ -15,13 +15,13 @@ from .ai_synthesis_profile import PROFILE, framing_identity
 
 RUNTIME_ID = "llama.cpp"
 RUNTIME_VERSION = "b11379"
-MODEL_ID = "qwen2.5-1.5b-instruct-q4-k-m"
-MODEL_FORMAT = "gguf-v3-q4_k_m"
-MODEL_SIZE = 1117320736
-MODEL_SHA256 = "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
-MODEL_LICENSE = "qwen-LICENSE.txt"
-MODEL_URL = ("https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/"
-             "91cad51170dc346986eccefdc2dd33a9da36ead9/qwen2.5-1.5b-instruct-q4_k_m.gguf")
+MODEL_ID = "qwen3.5-2b-q5-k-m"
+MODEL_FORMAT = "gguf-v3-q5_k_m"
+MODEL_SIZE = 1435238656
+MODEL_SHA256 = "1885b3a9195f8cc09da9a7a7a75afdc1e8d5cbf9fc4a499c3961dddea37098ac"
+MODEL_LICENSE = "qwen35-LICENSE.txt"
+MODEL_URL = ("https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/"
+             "f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q5_K_M.gguf")
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +38,14 @@ class NativeModelPin:
 NATIVE_MODEL_PINS = (
     NativeModelPin(
         MODEL_ID, MODEL_FORMAT, MODEL_SIZE, MODEL_SHA256, MODEL_URL, MODEL_LICENSE,
+        "repository:docs/adr/0047-hybrid-cpu-synthesis-candidate.md",
+    ),
+    NativeModelPin(
+        "qwen2.5-1.5b-instruct-q4-k-m", "gguf-v3-q4_k_m", 1117320736,
+        "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e",
+        "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/"
+        "91cad51170dc346986eccefdc2dd33a9da36ead9/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+        "qwen-LICENSE.txt",
         "repository:docs/adr/0046-canonical-task-qwen25-requalification.md",
     ),
     NativeModelPin(
@@ -107,7 +115,11 @@ CONFIGURATION = {
     "sampling": "greedy",
     "synthesis_format": PROFILE,
     "synthesis_instructions": {str(cap): framing_identity(cap) for cap in (2, 3)},
-    "chat_template": "qwen25-canonical-chatml-v1",
+    "chat_template": "qwen35-canonical-nonthinking-v1",
+    "prefix_state": "single-sequence-checkpoint-v1",
+    "prefix_state_bytes": 64 * 1024**2,
+    "prefix_min_tokens": 128,
+    "recurrent_rollback": 0,
 }
 
 

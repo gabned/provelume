@@ -19,6 +19,7 @@ MAX_FILE_BYTES = 64 * 1024
 MAX_FILES = 2
 MAX_TOTAL_BYTES = 96 * 1024
 MAX_INSTALLED = 8
+MAX_REGISTRY_ENTRIES = 9
 FORMAT = "synthetic-bytes-v1"
 NATIVE_FORMATS = ("gguf-v3-q4_k_m", "gguf-v3-q2_k", "gguf-v3-q5_k_m", "gguf-v3-q8_0")
 RUNTIME = "provelume.synthetic-fixture"
@@ -26,7 +27,7 @@ RUNTIME_VERSION = "1"
 CONFIGURATION = {"schema_version": 1, "purpose": "lifecycle-self-test-only"}
 # Governed together with the manifest by ordinary application distribution gates.
 # This pin is not accepted from an offline package or a download response.
-MANIFEST_SHA256 = "23ca1939ccf7acc788da37440773c6f29c908f353a2226b4a96dc3272f2e6bd3"
+MANIFEST_SHA256 = "6c14e15079a035faf6d3d1cd03e56791cd225ec61b423da72146315a53ad0e9c"
 _ID = re.compile(r"[a-z][a-z0-9_.-]{0,79}\Z")
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -175,7 +176,7 @@ def parse_manifest(raw: bytes) -> tuple[ModelEntry, ...]:
     check(type(value["schema_version"]) is int and value["schema_version"] == 1)
     check(value["repository"] == "gabned/provelume")
     rows = value["entries"]
-    check(type(rows) is list and 1 <= len(rows) <= MAX_INSTALLED)
+    check(type(rows) is list and 1 <= len(rows) <= MAX_REGISTRY_ENTRIES)
     entries = []
     seen = set()
     for row in rows:

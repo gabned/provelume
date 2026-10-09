@@ -43,7 +43,7 @@ def test_source_cannot_rewrite_trusted_demonstration_turns():
     assert text not in prefix
     assert json.loads(source.split("<|im_end|>", 1)[0]) == [
         text, "Another public paragraph."]
-    assert source.endswith("<|im_end|>\n<|im_start|>assistant\n")
+    assert source.endswith("<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n")
 
 
 @pytest.mark.parametrize("change", [
@@ -85,6 +85,15 @@ def test_trusted_native_examples_are_bound_by_template_identity(monkeypatch):
     assert template.identity != original
     assert TaskTemplate("context-check-partial-v1", True).identity == legacy
     assert CONFIGURATION["synthesis_instructions"]["2"] != profile.framing_identity(2)
+
+
+def test_assistant_framing_changes_invalidate_template_authority(monkeypatch):
+    from provelume import ai_synthesis_profile as profile
+
+    template = TaskTemplate("summary-en-v1", True)
+    previous = template.identity
+    monkeypatch.setattr(profile, "GENERATION_PREFIX", "<|im_start|>assistant\n")
+    assert template.identity != previous
 
 
 @pytest.mark.parametrize("value", [
@@ -227,8 +236,8 @@ def test_worker_translates_one_native_result_and_preserves_actual_usage(sampler_
     result = engine.generate(json.dumps(envelope()), lambda event: None, response_format=FORMAT)
     assert len(calls) == 1 and 'one "KEEP" or "DROP"' in calls[0]
     assert calls[0].startswith("<|im_start|>system\n")
-    assert calls[0].endswith("<|im_end|>\n<|im_start|>assistant\n")
-    assert "<think>" not in calls[0] and "<|start_of_role|>" not in calls[0]
+    assert calls[0].endswith("<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n")
+    assert calls[0].count("<think>") == 1 and "<|start_of_role|>" not in calls[0]
     assert json.loads(result["text"])["references"] == [1]
     assert (result["input_tokens"], result["output_tokens"], result["seconds"]) == (123, 27, 0.4)
     assert "assessment" not in result["text"]
