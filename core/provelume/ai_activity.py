@@ -13,6 +13,7 @@ from fastapi.responses import RedirectResponse
 
 from .ai_jobs import ai_capabilities
 from .ai_setup import AiSetup
+from .scheduler_model import SchedulerError
 from .shell_activity import MutationNonces, _loopback_request
 
 
@@ -125,6 +126,32 @@ def attach_ai_routes(app, instance, templates, context_factory):
         tasks.add(task)
         task.add_done_callback(tasks.discard)
 
+    async def launch_job(job_id):
+        if len(tasks) >= 2:
+            raise ValueError("unavailable")
+        accepted = asyncio.get_running_loop().create_future()
+
+        async def run_job():
+            try:
+                claimed = await asyncio.to_thread(instance.scheduler.claim_ai_job, job_id)
+                if claimed is None:
+                    return
+                accepted.set_result(True)
+                await asyncio.to_thread(setup.jobs.execute_claimed, claimed)
+            except (ValueError, OSError, SchedulerError):
+                pass
+            finally:
+                if not accepted.done():
+                    accepted.set_result(False)
+
+        # Own the claim and execution before awaiting: a disconnected request
+        # cannot abandon a newly reserved job, and shutdown drains this task.
+        task = asyncio.create_task(run_job())
+        tasks.add(task)
+        task.add_done_callback(tasks.discard)
+        if not await asyncio.shield(accepted):
+            raise ValueError("unavailable")
+
     @app.get("/settings/ai")
     def settings(request: Request):
         return page(request)
@@ -189,6 +216,8 @@ def attach_ai_routes(app, instance, templates, context_factory):
         try:
             if values["acknowledge"] != "explicit":
                 raise ValueError("consent")
+            if len(tasks) >= 2:
+                raise ValueError("unavailable")
             identity = setup.begin_operation(values["action"])
             launch(setup.run_operation, identity, path=values["path"] or None)
         except (ValueError, OSError) as exc:
@@ -319,7 +348,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
                     raise ValueError("stale")
                 # Validate before scheduling and again under the durable claim.
                 setup.current(job["ai"]["request_ref"], job["ai"]["route"]).prepare()
-                launch(instance.run_ai_job, job["id"])
+                await launch_job(job["id"])
             elif values["action"] in {"cancel", "pause", "resume", "retry"}:
                 setup.jobs.request_control(
                     job["id"],
@@ -411,4 +440,4 @@ def attach_ai_routes(app, instance, templates, context_factory):
     from .ai_synthesis_activity import attach_synthesis_routes
 
     attach_synthesis_routes(app, setup, page=page, fields=fields, redirect=redirect,
-                            launch=launch, local=local, tasks=tasks)
+                            launch_job=launch_job, local=local, tasks=tasks)

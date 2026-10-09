@@ -543,7 +543,10 @@ def test_all_catalogs_render(setup, tmp_path, language):
         assert "ai." not in re.sub(r"<[^>]*>", "", response.text)
 
 
-def test_http_preview_consent_job_controls_receipt_are_governed(setup, tmp_path):
+@pytest.mark.parametrize("contention", ["none", "brief", "persistent"])
+def test_http_preview_consent_job_controls_receipt_are_governed(
+    setup, tmp_path, monkeypatch, contention
+):
     app = create_app(setup.instance.root, shell_settings_file=tmp_path / "shell.json")
     host = app.state.ai_setup
     configure(host)
@@ -598,15 +601,55 @@ def test_http_preview_consent_job_controls_receipt_are_governed(setup, tmp_path)
         job_id = host.previews[ref]["job"]
         revision = re.search(r'name="revision" value="([^"]+)"', queued.text)[1]
         try:
-            dispatch = client.post(
-                "/operations/ai/control",
-                data={
-                    **form(queued),
-                    "job_id": job_id,
-                    "action": "dispatch",
-                    "revision": revision,
-                },
-            )
+            values = {**form(queued), "job_id": job_id, "action": "dispatch",
+                      "revision": revision}
+            if contention == "none":
+                dispatch = client.post("/operations/ai/control", data=values)
+            else:
+                from provelume.instance_lifecycle import InstanceLifecycleManager
+
+                held, release_lock, claim_started = (
+                    threading.Event(), threading.Event(), threading.Event()
+                )
+                claim = host.instance.scheduler.claim_ai_job
+
+                def observe_claim(selected):
+                    claim_started.set()
+                    return claim(selected)
+
+                def hold_other_operation():
+                    with InstanceLifecycleManager(host.instance.store)._hold(
+                        purpose="synthetic-dispatch-contention"
+                    ):
+                        held.set()
+                        assert release_lock.wait(10)
+
+                monkeypatch.setattr(host.instance.scheduler, "claim_ai_job", observe_claim)
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    owner = pool.submit(hold_other_operation)
+                    try:
+                        assert held.wait(5)
+                        pending = pool.submit(client.post, "/operations/ai/control", data=values)
+                        assert claim_started.wait(5)
+                        assert not entered.is_set()
+                        if contention == "brief":
+                            assert not pending.done()
+                            release_lock.set()
+                        dispatch = pending.result(timeout=5)
+                        if contention == "persistent":
+                            assert dispatch.status_code == 409
+                            job = host.jobs.public(job_id)
+                            assert job["status"] == "queued" and job["attempt"] == 0
+                            assert not job["ai"]["attempts"] and not entered.is_set()
+                    finally:
+                        release_lock.set()
+                        owner.result(timeout=5)
+                if contention == "persistent":
+                    # A fresh explicit request after a visible busy response;
+                    # neither the host nor the adapter resends automatically.
+                    dispatch = client.post("/operations/ai/control", data={
+                        **values, **form(dispatch),
+                    })
             assert dispatch.status_code == 200
             assert entered.wait(5)
             assert client.get("/search?q=synthetic").status_code == 200

@@ -6,7 +6,7 @@ from .ai_activity import reason_key
 from .ai_job_contract import check
 
 
-def attach_synthesis_routes(app, setup, *, page, fields, redirect, launch, local, tasks):
+def attach_synthesis_routes(app, setup, *, page, fields, redirect, launch_job, local, tasks):
     synthesis = setup.synthesis
 
     def error(request, exc):
@@ -81,7 +81,7 @@ def attach_synthesis_routes(app, setup, *, page, fields, redirect, launch, local
             setup.approve(values["ref"])
             job = setup.enqueue(values["ref"])
             if job["status"] == "queued":
-                launch(setup.instance.run_ai_job, job["id"])
+                await launch_job(job["id"])
             return redirect(request, "/operations/ai")
         except (ValueError, OSError) as exc:
             return error(request, exc)

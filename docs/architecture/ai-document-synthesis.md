@@ -31,6 +31,14 @@ native/provider adapters use the same closed candidate validator; the native zer
 monetary quote continues to depend on the exact trusted adapter type. External
 pricing and live provider qualification are not invented for this task.
 
+Explicit HTTP execution is acknowledged only after the existing scheduler claims
+the job under its lifecycle barrier and fresh admission checks. A bounded two-second
+wait can absorb brief contention before any attempt starts. A persistent conflict
+returns a visible error with no consumed attempt; trying again requires a fresh
+explicit request. The host owns the claim/execution task before awaiting this
+acknowledgement, so request cancellation cannot abandon a newly reserved job.
+Inference itself stays asynchronous and is never automatically resent.
+
 The S08 model payload contains the task ID, instructions and indexed approved
 redacted paragraphs. Authority fingerprints and template revision hashes stay in
 the host manifest and job binding rather than adding random non-content tokens to
@@ -38,9 +46,13 @@ the model input. Equal text payloads still have distinct consent and candidate
 bindings. The legacy context-check payload remains unchanged. Negative,
 conditional and masked statements are eligible document content; commands to the
 AI and editorial boilerplate are not. Selection does not verify a claim's truth.
-General worked examples distinguish document facts from editorial notes and
-instructions addressed to the model; they are not document evidence. The existing
-candidate byte bound applies before both JSON and literal `UNKNOWN` parsing.
+The native task places trusted instructions outside a JSON-quoted Text section,
+with an explicit Question matching the locked runtime's existing reading format.
+Its version is bound in the template revision. Source newlines cannot create new
+framing delimiters; all approved redacted segments remain present and the native
+bytes cannot exceed the complete approved envelope budget. Provider chat requests
+retain their JSON envelope and existing system/user role separation. The candidate
+byte bound applies before both JSON and literal `UNKNOWN` parsing.
 
 Optional `state/scheduler/ai-scope-policies.json` stores at most 128 deny/local-only
 restrictions with Instance identity and revision. Absent rules explicitly inherit

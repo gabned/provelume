@@ -1520,7 +1520,7 @@ class SchedulerCoordinator:
             return self.journal.recover(now=now)
 
     @contextmanager
-    def _hold_lifecycle(self, purpose: str) -> Iterator[None]:
+    def _hold_lifecycle(self, purpose: str, *, wait_seconds: float = 0) -> Iterator[None]:
         from .instance_lifecycle import (
             InstanceLifecycleBusy,
             InstanceLifecycleError,
@@ -1528,7 +1528,9 @@ class SchedulerCoordinator:
         )
 
         try:
-            with InstanceLifecycleManager(self.store)._hold(purpose=purpose):
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose=purpose, wait_seconds=wait_seconds
+            ):
                 yield
         except InstanceLifecycleBusy as exc:
             raise SchedulerBusyError("another Instance operation is active") from exc
@@ -2510,6 +2512,17 @@ class SchedulerCoordinator:
             canonical_mutation=canonical_mutation,
             now=completed_at,
         )
+
+    def claim_ai_job(self, job_id: str) -> dict[str, Any] | None:
+        # An explicit HTTP dispatch must claim before reporting acceptance. Wait
+        # only for this pre-execution barrier, never retry an inference attempt.
+        with self._hold_lifecycle("scheduler-ai-claim", wait_seconds=2):
+            job = self.journal.get_job(job_id)
+            if job is None or job["job_kind"] != "ai.execute":
+                raise SchedulerError("ai_job_invalid")
+            return self._run_one_locked(
+                job_id=job_id, live_clock=True, defer_ai=True, allow_ai=True
+            )
 
     def run_one(
         self,
