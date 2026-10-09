@@ -103,6 +103,44 @@ def test_occurrences_and_devices_remain_distinct(journal):
     assert journal.lookup(other, CLIENT, authorize=allow) == three
 
 
+@pytest.mark.parametrize("operation", ["lookup", "list", "replay"])
+def test_inventory_rejects_identity_change_after_last_record(journal, monkeypatch, operation):
+    submit(journal)
+    before = tree(journal.root)
+    validate_record = journal._validate
+
+    def change_after_validation(*args, **kwargs):
+        value = validate_record(*args, **kwargs)
+        config = journal.store.read_config()
+        config["instance"]["id"] = "instance_foreign"
+        journal.store.write_config(config)
+        return value
+
+    monkeypatch.setattr(journal, "_validate", change_after_validation)
+    with pytest.raises(CaptureJournalError, match="identity changed"):
+        if operation == "lookup":
+            journal.lookup(DEVICE, CLIENT, authorize=allow)
+        elif operation == "list":
+            journal.list_receipts(DEVICE, authorize=allow)
+        else:
+            submit(journal)
+    assert tree(journal.root) == before
+
+
+def test_inventory_identity_is_fresh_for_each_operation(journal):
+    receipt = submit(journal)
+    config = journal.store.read_config()
+    assert journal.lookup(DEVICE, CLIENT, authorize=allow) == receipt
+    foreign = {**config, "instance": {**config["instance"], "id": "instance_foreign"}}
+    journal.store.write_config(foreign)
+    before = tree(journal.root)
+    with pytest.raises(CaptureJournalError, match="invalid Capture record"):
+        journal.lookup(DEVICE, CLIENT, authorize=allow)
+    assert tree(journal.root) == before
+    journal.store.write_config(config)
+    assert journal.lookup(DEVICE, CLIENT, authorize=allow) == receipt
+
+
 @pytest.mark.parametrize("operation", ["new", "replay", "lookup"])
 def test_revocation_rechecked(journal, operation):
     if operation != "new":
