@@ -6,9 +6,11 @@ import socket
 import subprocess
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from provelume import desktop
 from provelume.about import current_about
 from provelume.desktop import (
     STRINGS,
@@ -27,6 +29,7 @@ from provelume.desktop import (
     write_native_tray_smoke,
     write_ui_diagnostics,
 )
+from provelume.instance_lifecycle import InstanceLifecycleBusy
 from provelume.service import ProvelumeInstance
 from provelume.updates import UpdateCandidate, UpdateError
 
@@ -355,6 +358,61 @@ def test_startup_update_opt_in_is_visible_in_instance_network_status(tmp_path: P
     assert update["enabled"] is False
     assert disabled["policy"]["external_access"] is False
     assert startup_update_policy_enabled(root) is False
+
+
+@pytest.mark.parametrize("failure", ["transient", "persistent", "invalid"])
+def test_startup_policy_open_retries_only_bounded_lifecycle_contention(
+    tmp_path: Path, monkeypatch, failure: str
+) -> None:
+    root = tmp_path / "instance"
+    instance = ProvelumeInstance.initialise(root)
+    before = instance.store.read_config()
+    elapsed = 0.0
+    attempts = 0
+    writes = []
+    write_config = instance.store.write_config
+    error = (
+        ValueError("invalid instance") if failure == "invalid" else InstanceLifecycleBusy("busy")
+    )
+
+    def sleep(seconds):
+        nonlocal elapsed
+        assert 0 < seconds <= 0.025
+        elapsed += seconds
+
+    def open_instance(path):
+        nonlocal attempts
+        assert path == root
+        attempts += 1
+        if failure == "transient" and attempts == 3:
+            return instance
+        raise error
+
+    def write_once(config):
+        writes.append(config)
+        write_config(config)
+
+    monkeypatch.setattr(desktop, "time", SimpleNamespace(monotonic=lambda: elapsed, sleep=sleep))
+    monkeypatch.setattr(desktop, "ProvelumeInstance", open_instance)
+    monkeypatch.setattr(instance.store, "write_config", write_once)
+    if failure == "transient":
+        declare_startup_update_policy(root, enabled=True)
+        assert attempts == 3
+        assert elapsed == 0.05
+        assert len(writes) == 1
+        assert instance.store.read_config()["network"]["update_checks"] is True
+    else:
+        with pytest.raises(type(error)) as raised:
+            declare_startup_update_policy(root, enabled=True)
+        assert raised.value is error
+        assert writes == []
+        assert instance.store.read_config() == before
+        if failure == "persistent":
+            assert elapsed == 2.0
+            assert 80 <= attempts <= 82
+        else:
+            assert attempts == 1
+            assert elapsed == 0
 
 
 def test_background_update_check_fails_closed_without_both_policy_flags(
