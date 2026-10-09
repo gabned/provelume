@@ -1,0 +1,86 @@
+# Manual document synthesis — S08 development candidate
+
+Owner [#332](https://github.com/gabned/provelume/issues/332), parent #311.
+S07 was accepted through #325 then #331 at actual main
+`b4cebcfb16a67eb7375d11a9217f25818d141e3f`; its original failed post-merge
+observation remains historical. This development does not publish a release or
+promote the model. Package/runtime identity remains 0.11.0 — Cura.
+
+[ADR 0033](../adr/0033-extractive-document-synthesis.md) fixes the profile and
+evaluation before real scoring. Summarize and Key points select source excerpts,
+not model-authored facts. The task/language matrix is EN/IT, independently of the
+seven interface catalogs. All real quality/performance outcomes belong to the
+exact-head and actual-main owner ledgers; synthetic tests are not native proof.
+
+## User path and authority
+
+Document → Synthesis (`/documents/{id}/synthesis`) → select text, task and language
+→ explicit private preview → consent and Generate → existing AI Operations →
+result and exact evidence (`/operations/ai/{job}/synthesis`). GET never executes,
+downloads, probes or looks up credentials. Existing authentication, loopback checks,
+Instance identity, CSRF, one-use nonces and owned task shutdown apply to every
+route. Only a supported new template can enter the document execution path;
+S07's legacy document preview remains non-executable.
+
+Every queued/active call reads fresh current Version, bounded actual Original
+bytes, canonical bundle and selected output, related acquisitions/classification
+ancestors, configuration and Instance network policy. Original/bundle/output hashes
+and selections bind the recipe. Pure preparation reuse never caches mutable
+authority. Local session/self-test evidence is still required to execute. Existing
+native/provider adapters use the same closed candidate validator; the native zero
+monetary quote continues to depend on the exact trusted adapter type. External
+pricing and live provider qualification are not invented for this task.
+
+Optional `state/scheduler/ai-scope-policies.json` stores at most 128 deny/local-only
+restrictions with Instance identity and revision. Absent rules explicitly inherit
+the global AI settings. All applicable Source, category, Area/Project and ancestor
+scopes go through the existing S01 resolver. No separate policy resolver is added.
+The advanced document controls can only edit a currently associated scope and
+cannot grant a provider, network or model permission. Changes clear consent under
+the existing authority/lifecycle transaction. Scheduler validation/portability
+recognizes and validates this closed bounded record.
+
+## Result commit, read, discard and regeneration
+
+The trusted result projector runs in the existing job completion transaction,
+after usage settlement and current-authority revalidation. It rejects unsupported
+references and projects literal approved redacted segments into a private bounded
+file under `state/derived/ai-synthesis-job_*.json`. Up to 128 bodies of 32 KiB each
+are admitted. A pinned local parent and atomic no-overwrite write avoid following
+symlinks or publishing over another record. Jobs retain a closed `derived_ref`
+with exact non-payload recipe, source/policy association, body digest, model and
+route. Public job projections omit the entire result; receipts contain no text.
+
+Validation/storage failure settles known usage and fails without automatic resend.
+A crash between file publication and the job commit can leave an orphan file;
+the HTTP path requires a successful authoritative job association, so that orphan
+is not a result. Terminal replay never recreates a discarded body. Unknown remote
+outcomes keep the existing conservative accounting and manual reconciliation.
+
+Reads recheck current source/policy association, the body digest, source-derived
+redacted segments and candidate references. Session disablement, self-test expiry
+and restart alone do not invalidate a stored result. Changed source/configuration
+or restrictions do. A private cited-evidence route shows the exact recorded
+Version/anchor/offsets and approved masking; it does not claim an unmasked original
+quote. Responses use no-store/no-referrer and normal template escaping.
+
+Discard removes only the private body under the lifecycle/journal exclusion and
+works even when its source association is stale. Receipt, recipe and accounting
+remain. Missing bodies are reported as unavailable, not attributed to an invented
+deletion event. Regeneration creates a fresh visible preview and requires new
+consent. A changed source needs a newly selected current representation. There is
+no automatic regeneration or bitwise result guarantee. Portable exports/backups
+include the private derived body; existing backups can retain discarded copies.
+
+## Limits and remaining qualification
+
+The profile handles one text output, at most 1 MiB actual Original/output, sixteen
+whole paragraphs and 2,000 selected UTF-8 bytes; the complete envelope stays below
+4,096 bytes. No paragraph truncation. Coverage is relative to the selected admitted
+representation, not all representations or the entire Original. Scope inventory
+reads are bounded to 512 records in each relevant canonical collection.
+
+Browser/keyboard/zoom and seven-catalog checks are separate from actual screen-reader
+and human linguistic review. S07's maintainer Narrator report is not extended to
+these new surfaces. No generic chat, multi-document RAG, canonical classification,
+new scheduler, autonomous operation, Recommended promotion or publication.

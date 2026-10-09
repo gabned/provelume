@@ -231,11 +231,12 @@ class ProvelumeInstance:
         """Pure governed metadata, separate from availability or inference authority."""
         return self.components.model_registry()
 
-    def bind_ai_execution(self, *, current, adapters, quotes=None):
+    def bind_ai_execution(self, *, current, adapters, quotes=None, result_projector=None):
         """Internal trusted host wiring; does not enable AI or enqueue any work."""
         from .ai_jobs import AiJobs
 
-        self.ai_jobs = AiJobs(self.scheduler, current=current, adapters=adapters, quotes=quotes)
+        self.ai_jobs = AiJobs(self.scheduler, current=current, adapters=adapters, quotes=quotes,
+                              result_projector=result_projector)
         self.scheduler.ai_jobs = self.ai_jobs
         return self.ai_jobs
 

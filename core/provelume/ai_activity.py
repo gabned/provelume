@@ -407,3 +407,8 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 status_code=409,
                 error_key=reason_key(getattr(exc, "code", exc.args[0] if exc.args else None)),
             )
+
+    from .ai_synthesis_activity import attach_synthesis_routes
+
+    attach_synthesis_routes(app, setup, page=page, fields=fields, redirect=redirect,
+                            launch=launch, local=local, tasks=tasks)

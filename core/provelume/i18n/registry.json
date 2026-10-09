@@ -13562,6 +13562,156 @@
       "rendering": "text",
       "sensitive_review_required": false
     },
+    "synthesis.abstained": {
+      "context": "Custodia S08 manual extractive synthesis: abstained",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.choose": {
+      "context": "Custodia S08 manual extractive synthesis: choose",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.consent": {
+      "context": "Custodia S08 manual extractive synthesis: consent",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.coverage_help": {
+      "context": "Custodia S08 manual extractive synthesis: coverage_help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.deny": {
+      "context": "Custodia S08 manual extractive synthesis: deny",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.details": {
+      "context": "Custodia S08 manual extractive synthesis: details",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.discard": {
+      "context": "Custodia S08 manual extractive synthesis: discard",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.discard_help": {
+      "context": "Custodia S08 manual extractive synthesis: discard_help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.evidence": {
+      "context": "Custodia S08 manual extractive synthesis: evidence",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.evidence_help": {
+      "context": "Custodia S08 manual extractive synthesis: evidence_help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.generate": {
+      "context": "Custodia S08 manual extractive synthesis: generate",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.help": {
+      "context": "Custodia S08 manual extractive synthesis: help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.inherit": {
+      "context": "Custodia S08 manual extractive synthesis: inherit",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.key_points": {
+      "context": "Custodia S08 manual extractive synthesis: key_points",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.language": {
+      "context": "Custodia S08 manual extractive synthesis: language",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.limits": {
+      "context": "Custodia S08 manual extractive synthesis: limits",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.local_only": {
+      "context": "Custodia S08 manual extractive synthesis: local_only",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.new_preview": {
+      "context": "Custodia S08 manual extractive synthesis: new_preview",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.regenerate": {
+      "context": "Custodia S08 manual extractive synthesis: regenerate",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.restrictions": {
+      "context": "Custodia S08 manual extractive synthesis: restrictions",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.restrictions_help": {
+      "context": "Custodia S08 manual extractive synthesis: restrictions_help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.result": {
+      "context": "Custodia S08 manual extractive synthesis: result",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.save_restriction": {
+      "context": "Custodia S08 manual extractive synthesis: save_restriction",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.setup_required": {
+      "context": "Custodia S08 manual extractive synthesis: setup_required",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.summary": {
+      "context": "Custodia S08 manual extractive synthesis: summary",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.task": {
+      "context": "Custodia S08 manual extractive synthesis: task",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.text_version": {
+      "context": "Custodia S08 manual extractive synthesis: text_version",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.title": {
+      "context": "Custodia S08 manual extractive synthesis: title",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "synthesis.unavailable": {
+      "context": "Custodia S08 manual extractive synthesis: unavailable",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.uncertainty": {
+      "context": "Custodia S08 manual extractive synthesis: uncertainty",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
     "tagline": {
       "context": "tagline: label/navigation; templates/base.html; templates/cura/base.html",
       "linguistic_review": "UNVERIFIED",

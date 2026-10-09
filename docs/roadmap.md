@@ -1462,9 +1462,12 @@ polling optimization, exact prefix computation reuse within a worker/Instance an
 native phase measurements, without changing ADR 0031 caps. Full payload validation,
 fresh authorization and token accounting remain mandatory for every job.
 AI remains off by default;
-installation and binding do not enqueue or authorize work. S07 (#324) now owns
-[AI/privacy setup and previews](architecture/ai-setup-previews.md), with qualification
-and integration still pending. S08–S09 remain unstarted.
+installation and binding do not enqueue or authorize work. S07 (#324) delivered
+[AI/privacy setup and previews](architecture/ai-setup-previews.md) through ordered
+owner #325 and correction #331, accepted at main `b4cebcfb16a67eb7375d11a9217f25818d141e3f`
+([final ledger](https://github.com/gabned/provelume/pull/331#issuecomment-6071873322)).
+S08 (#332) now develops [manual extractive synthesis](architecture/ai-document-synthesis.md),
+with exact references and removable derived output. S09 remains unstarted.
 Package/runtime/embedded/Windows identity stays at published 0.11.0.
 
 **Outcome:** optional AI off / Local Recommended / External / Explicit Hybrid, with a first

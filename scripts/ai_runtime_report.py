@@ -147,6 +147,52 @@ def evaluate(report):
                         limit = min(1, 2 * statistics.median(r[key] for r in baseline) + 0.1)
                         passed &= row["probe"][key] <= limit
             gates["s07_setup"] = "PASS" if passed else "FAIL"
+    if report.get("s08_required"):
+        synthesis = report.get("s08", {})
+        rows = synthesis.get("samples", [])
+        complete = (synthesis.get("status") == "MEASURED" and len(rows) == 32
+                    and len({r["id"] for r in rows}) == 32)
+        gates["s08_references"] = (
+            "NOT_RUN" if not complete else "PASS"
+            if all(r["valid"] and r["status"] == "succeeded" for r in rows) else "FAIL"
+        )
+        gates["s08_abstention"] = (
+            "NOT_RUN" if not complete else "PASS"
+            if sum(r["require_abstention"] for r in rows) == 8
+            and all(r["abstained"] for r in rows if r["require_abstention"]) else "FAIL"
+        )
+        for language in ("en", "it"):
+            for task in ("summary", "key-points"):
+                selected = [r for r in rows if r["language"] == language and r["task"] == task]
+                gates[f"s08_quality_{language}_{task}"] = (
+                    "NOT_RUN" if len(selected) != 8 else "PASS"
+                    if sum(r["gold"] for r in selected) / 8 >= 0.9 else "FAIL"
+                )
+        performance = synthesis.get("performance", [])
+        idle = synthesis.get("idle", [])
+        gates["s08_performance"] = "NOT_RUN"
+        if len(performance) == 2 and len(idle) == 3:
+            passed = bool(synthesis.get("final_off") and synthesis.get("worker_absent"))
+            cancel = synthesis.get("cancellation", {})
+            passed &= bool(cancel.get("generation_observed") and cancel.get("status") == "cancelled"
+                       and cancel.get("seconds", 3) <= 2 and cancel.get("worker_absent")
+                       and cancel.get("active") == 0)
+            before, after = synthesis.get("parent_before"), synthesis.get("parent_after")
+            passed &= bool(before and after and after["rss"] - before["rss"] <= 64 * 1024**2)
+            for row in performance:
+                cold = row["phase"] == "cold"
+                worker, probe = row["worker"], row["probe"]
+                passed &= (row["status"] == "succeeded" and row["generation_observed"]
+                           and row["seconds"] <= (60 if cold else 30)
+                           and row["first_seconds"] <= (20 if cold else 5)
+                           and worker["memory"]["peak_rss"] <= 2 * 1024**3
+                           and (not cold or worker["load"]["seconds"] <= 15)
+                           and probe["worker_observed"] and probe["preserved"]
+                           and probe["search_found"] and probe["product_dispatch_blocked"])
+                for key in ("capture_seconds", "search_seconds"):
+                    limit = min(1, 2 * statistics.median(r[key] for r in idle) + 0.1)
+                    passed &= probe[key] <= limit
+            gates["s08_performance"] = "PASS" if passed else "FAIL"
     report["gates"] = gates
     report["status"] = ("FAIL" if report.get("failures") or "FAIL" in gates.values() else
                          "BLOCKED" if any(v != "PASS" for v in gates.values()) else "PASS")

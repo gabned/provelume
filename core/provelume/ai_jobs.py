@@ -132,7 +132,9 @@ class AiJobs:
     This internal dependency is never taken from a request, document or job record.
     """
 
-    def __init__(self, coordinator, *, current=None, adapters=None, quotes=None, fault=None):
+    def __init__(self, coordinator, *, current=None, adapters=None, quotes=None, fault=None,
+                 result_projector=None):
+        self.result_projector = result_projector
         self.coordinator = coordinator
         self.journal = coordinator.journal
         self.current = current
@@ -603,11 +605,18 @@ class AiJobs:
                         blocked="ai_authority_changed",
                     )
                 else:
-                    ai.update(
-                        result=outcome.result,
-                        result_fingerprint=digest(outcome.result),
-                        terminal="succeeded",
-                    )
+                    try:
+                        result = (
+                            self.result_projector(job, outcome.result)
+                            if self.result_projector else outcome.result
+                        )
+                    except Exception:
+                        # A known completed call still settles its usage when output
+                        # validation/storage fails. Never turn this into a resend.
+                        ai.update(terminal="failed", blocked="ai_result_invalid")
+                    else:
+                        ai.update(result=result, result_fingerprint=digest(result),
+                                  terminal="succeeded")
             else:
                 check(type(error) is ProviderError)
                 if error.transmission != Transmission.NOT_SENT:
