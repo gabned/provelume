@@ -52,6 +52,21 @@ def test_decoded_role_delimiters_cannot_cross_native_boundary():
         chat_parts(payload, FORMAT)
 
 
+def test_trusted_native_examples_are_bound_by_template_identity(monkeypatch):
+    from provelume import ai_synthesis_profile as profile
+    from provelume.ai_runtime_contract import CONFIGURATION
+
+    template = TaskTemplate("summary-it-v1", True)
+    original = template.identity
+    legacy = TaskTemplate("context-check-partial-v1", True).identity
+    assert CONFIGURATION["synthesis_instructions"]["2"] == profile.framing_identity(2)
+    assert CONFIGURATION["synthesis_instructions"]["3"] == profile.framing_identity(3)
+    monkeypatch.setattr(profile, "DECISION_EXAMPLES", profile.DECISION_EXAMPLES + " Changed guide.")
+    assert template.identity != original
+    assert TaskTemplate("context-check-partial-v1", True).identity == legacy
+    assert CONFIGURATION["synthesis_instructions"]["2"] != profile.framing_identity(2)
+
+
 @pytest.mark.parametrize("value", [
     {**FORMAT, "segments": True}, {**FORMAT, "segments": 0}, {**FORMAT, "segments": 17},
     {**FORMAT, "maximum": 16}, {**FORMAT, "profile": "arbitrary"},
@@ -177,3 +192,35 @@ def test_worker_translates_one_native_result_and_preserves_actual_usage(sampler_
     assert json.loads(result["text"])["references"] == [1]
     assert (result["input_tokens"], result["output_tokens"], result["seconds"]) == (123, 7, 0.4)
     assert engine.events[-1] == ("free", 10)
+
+
+def test_full_source_budget_stays_in_user_role_and_examples_cannot_be_citations(sampler_engine):
+    engine = sampler_engine
+    value = envelope()
+    texts = [chr(65 + i) * 125 for i in range(16)]
+    value["untrusted"]["segments"] = [{"segment": i, "text": text}
+                                       for i, text in enumerate(texts)]
+    payload = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    response_format = {**FORMAT, "segments": 16}
+    # Use the real frame but a synthetic single native result, not a quality claim.
+    from contextlib import nullcontext
+    engine._request_sampler = lambda value: nullcontext(99)
+
+    def generate(raw, emit, **kwargs):
+        assert len(raw) <= 4096
+        system, user = raw.decode().split("<|im_start|>user\n")
+        for text in texts:
+            assert text not in system and text in user
+        assert "La pompa assorbe" in system and "La pompa assorbe" not in user
+        return {"text": json.dumps(["DROP"] * 15 + ["KEEP"])}
+
+    engine._generate = generate
+    result = engine.generate(payload, lambda event: None, response_format=response_format)
+    assert json.loads(result["text"])["references"] == [15]
+
+
+def test_complete_native_frame_cannot_expand_past_input_byte_budget(sampler_engine):
+    engine = sampler_engine
+    with pytest.raises(ModelError, match="limit"):
+        engine.generate("x" * 4000, lambda event: None)
+    assert engine.events == []  # Refused before sampler allocation or native decoding.

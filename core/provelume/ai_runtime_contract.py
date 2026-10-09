@@ -10,6 +10,7 @@ import sys
 from importlib.resources import files
 
 from .ai_models import check
+from .ai_synthesis_profile import PROFILE, framing_identity
 
 RUNTIME_ID = "llama.cpp"
 RUNTIME_VERSION = "b11379"
@@ -42,7 +43,8 @@ CONFIGURATION = {
     "idle_seconds": 5,
     "termination_seconds": 2,
     "sampling": "greedy",
-    "synthesis_format": "extractive-decisions-v2",
+    "synthesis_format": PROFILE,
+    "synthesis_instructions": {str(cap): framing_identity(cap) for cap in (2, 3)},
     "chat_template": "qwen3-non-thinking-v1",
 }
 

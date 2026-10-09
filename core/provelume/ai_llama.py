@@ -211,6 +211,7 @@ class Llama:
             + prompt + "<|im_end|>\n<|im_start|>assistant\n"
             "<think>\n\n</think>\n\n"
         ).encode("utf-8")
+        check(len(raw) <= 4096, "limit")
         started = time.monotonic()
         with self._request_sampler(response_format) as sampler:
             result = self._generate(raw, emit, scope=scope, sampler=sampler, started=started)

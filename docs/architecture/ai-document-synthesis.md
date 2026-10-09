@@ -14,6 +14,10 @@ measurement passed format/abstention but failed semantic quality on both hosts.
 replacement and non-thinking chat template before separate native scoring.
 [ADR 0036](../adr/0036-synthesis-paragraph-decisions.md) replaces its unsuccessful
 index selection with explicit per-paragraph decisions in one native inference.
+[ADR 0037](../adr/0037-synthesis-editorial-examples.md) adds fixed bilingual
+editorial examples after that decision format also failed semantic qualification.
+Their exact trusted instruction bytes bind both consent and runtime identities;
+they are never source paragraphs, selectable evidence or a quality oracle.
 Summarize and Key points select excerpts,
 not model-authored facts. The task/language matrix is EN/IT, independently of the
 seven interface catalogs. All real quality/performance outcomes belong to the
