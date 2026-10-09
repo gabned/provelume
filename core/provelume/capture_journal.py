@@ -8,6 +8,7 @@ import os
 import re
 import stat
 from collections.abc import Callable
+from contextlib import ExitStack, contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,7 @@ from .capture_requests import (
     validate_capture_metadata,
 )
 from .instance_lifecycle import InstanceLifecycleManager
+from .maintenance_local_files import MaintenanceTargetError, _windows_open
 from .storage import InstanceStore, utc_now
 
 MAX_RECORD_BYTES = 36 * 1024 * 1024
@@ -84,6 +86,42 @@ def _read(path: Path, limit: int = MAX_RECORD_BYTES) -> bytes:
     ):
         raise CaptureJournalError("Capture record changed")
     return data
+
+
+def _read_pinned_windows_record(path: Path, limit: int) -> bytes:
+    # The inventory holds every ancestor against rename. This leaf handle rejects
+    # reparse points and denies writes/delete for the duration of the fresh read.
+    with os.fdopen(_windows_open(path, directory=False), "rb") as stream:
+        before = os.fstat(stream.fileno())
+        if not stat.S_ISREG(before.st_mode) or before.st_size > limit:
+            raise CaptureJournalError("invalid Capture record size or kind")
+        data = stream.read(limit + 1)
+        after = os.fstat(stream.fileno())
+        if len(data) > limit or (
+            before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns
+        ) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
+            raise CaptureJournalError("Capture record changed")
+        return data
+
+
+@contextmanager
+def _inventory_handles(root: Path):
+    with ExitStack() as stack:
+        try:
+            if os.name == "nt":
+                # Pin top-down once per operation, never cache authority across
+                # inventories. Retained device handles are bounded by MAX_RECORDS.
+                for parent in reversed((root, *root.parents)):
+                    stack.callback(os.close, _windows_open(parent, directory=True))
+
+                def pin_device(path):
+                    stack.callback(os.close, _windows_open(path, directory=True))
+
+                yield pin_device, _read_pinned_windows_record
+            else:
+                yield _safe, _read
+        except MaintenanceTargetError as exc:
+            raise CaptureJournalError("unsafe or unavailable Capture path") from exc
 
 
 class CaptureJournal:
@@ -147,11 +185,13 @@ class CaptureJournal:
         instance_id = self._instance_id()
         result = {}
         total = 0
-        with os.scandir(self.root) as devices:
+        with _inventory_handles(self.root) as (pin_device, read_record), os.scandir(
+            self.root
+        ) as devices:
             for index, device in enumerate(devices):
                 if index >= MAX_RECORDS or not re.fullmatch(r"dev_[0-9a-f]{32}", device.name):
                     raise CaptureJournalError("invalid or full Capture device inventory")
-                _safe(Path(device.path))
+                pin_device(Path(device.path))
                 if not device.is_dir(follow_symlinks=False):
                     raise CaptureJournalError("invalid Capture device directory")
                 with os.scandir(device.path) as records:
@@ -159,7 +199,7 @@ class CaptureJournal:
                         relative = f"state/capture/{device.name}/{record.name}"
                         if len(result) >= MAX_RECORDS or not _PATH.fullmatch(relative):
                             raise CaptureJournalError("invalid or full Capture inventory")
-                        data = _read(
+                        data = read_record(
                             Path(record.path), min(MAX_RECORD_BYTES, MAX_JOURNAL_BYTES - total)
                         )
                         total += len(data)

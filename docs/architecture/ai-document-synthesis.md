@@ -38,6 +38,9 @@ the model input. Equal text payloads still have distinct consent and candidate
 bindings. The legacy context-check payload remains unchanged. Negative,
 conditional and masked statements are eligible document content; commands to the
 AI and editorial boilerplate are not. Selection does not verify a claim's truth.
+General worked examples distinguish document facts from editorial notes and
+instructions addressed to the model; they are not document evidence. The existing
+candidate byte bound applies before both JSON and literal `UNKNOWN` parsing.
 
 Optional `state/scheduler/ai-scope-policies.json` stores at most 128 deny/local-only
 restrictions with Instance identity and revision. Absent rules explicitly inherit
@@ -81,6 +84,13 @@ no automatic regeneration or bitwise result guarantee. Portable exports/backups
 include the private derived body; existing backups can retain discarded copies.
 
 ## Limits and remaining qualification
+
+The inherited Capture responsiveness gate still applies during synthesis. Windows
+Capture inventory reads pin ancestor/device directory handles for one operation
+and deny writers/delete on each record while reading it. This avoids repeating
+full ancestor metadata walks per record without caching records or mutable
+authority. Every record and the Instance identity remain freshly validated; all
+handles close on success and failure. POSIX retains its existing read path.
 
 The profile handles one text output, at most 1 MiB actual Original/output, sixteen
 whole paragraphs and 2,000 selected UTF-8 bytes; the complete envelope stays below

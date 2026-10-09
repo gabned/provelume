@@ -141,6 +141,61 @@ def test_inventory_identity_is_fresh_for_each_operation(journal):
     assert journal.lookup(DEVICE, CLIENT, authorize=allow) == receipt
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows directory share-access contract")
+@pytest.mark.parametrize("fail_validation", [False, True])
+def test_inventory_pins_ancestors_and_releases_handles(journal, monkeypatch, fail_validation):
+    receipt = submit(journal)
+    validate_record = journal._validate
+    paths = [journal.store.paths.root, journal.root, journal.root / DEVICE]
+
+    def while_pinned(*args, **kwargs):
+        for path in paths:
+            with pytest.raises(OSError):
+                path.rename(path.with_name(path.name + "-moved"))
+        if fail_validation:
+            raise CaptureJournalError("test validation failure")
+        return validate_record(*args, **kwargs)
+
+    monkeypatch.setattr(journal, "_validate", while_pinned)
+    if fail_validation:
+        with pytest.raises(CaptureJournalError, match="test validation failure"):
+            journal.lookup(DEVICE, CLIENT, authorize=allow)
+    else:
+        assert journal.lookup(DEVICE, CLIENT, authorize=allow) == receipt
+    for path in paths:
+        moved = path.with_name(path.name + "-moved")
+        path.rename(moved)
+        moved.rename(path)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows record share-access contract")
+def test_inventory_record_denies_writes_and_delete_during_read(journal, monkeypatch):
+    receipt = submit(journal)
+    path = next(journal.root.rglob("*.json"))
+    original_fstat = os.fstat
+    observed = []
+
+    def while_open(descriptor):
+        info = original_fstat(descriptor)
+        if info.st_ino == path.stat().st_ino:
+            with pytest.raises(OSError):
+                path.write_bytes(b"corruption")
+            with pytest.raises(OSError):
+                path.unlink()
+            observed.append(True)
+        return info
+
+    monkeypatch.setattr(module.os, "fstat", while_open)
+    assert journal.lookup(DEVICE, CLIENT, authorize=allow) == receipt
+    assert observed
+    monkeypatch.setattr(module.os, "fstat", original_fstat)
+    # Release is observable: a subsequent modification is read and rejected,
+    # rather than hidden by a cached inventory or a leaked read handle.
+    path.write_bytes(b"corruption")
+    with pytest.raises(CaptureJournalError, match="invalid Capture record"):
+        journal.lookup(DEVICE, CLIENT, authorize=allow)
+
+
 @pytest.mark.parametrize("operation", ["new", "replay", "lookup"])
 def test_revocation_rechecked(journal, operation):
     if operation != "new":

@@ -117,6 +117,7 @@ def test_derived_result_private_exact_citations_discard_restart_and_regenerate(s
     '{"schema_version":1,"status":"selected","references":[0],"text":"invented"}',
     '```json\n{"schema_version":1,"status":"selected","references":[0]}\n```',
     'not a result',
+    " " * 122 + "UNKNOWN",
 ])
 def test_invalid_model_output_settles_known_usage_without_retry(synthesis, raw):
     setup, _, _ = synthesis
@@ -131,6 +132,7 @@ def test_invalid_model_output_settles_known_usage_without_retry(synthesis, raw):
 
 @pytest.mark.parametrize("raw", [
     "UNKNOWN", '{"schema_version":1,"status":"abstained","references":[]}',
+    " " * 121 + "UNKNOWN",
 ])
 def test_abstention_has_no_assertions(synthesis, raw):
     setup, _, _ = synthesis
