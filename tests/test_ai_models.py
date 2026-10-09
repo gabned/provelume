@@ -25,6 +25,7 @@ from provelume.ai_models import (
     parse_manifest,
     sha256,
 )
+from provelume.ai_runtime_contract import MODEL_ID, RETIRED_MODEL_IDS
 from provelume.component_inventory import ComponentInventory
 from provelume.service import ProvelumeInstance
 
@@ -76,11 +77,11 @@ def test_governed_manifest_separates_identity_trust_and_qualification():
         ModelRegistry(raw)  # Even a consistent caller-supplied hash is not approval.
 
 
-def test_retired_native_selection_remains_readable_and_explicitly_removable(store):
+@pytest.mark.parametrize("identifier", RETIRED_MODEL_IDS)
+def test_retired_native_selection_remains_readable_and_explicitly_removable(store, identifier):
     from provelume.ai_runtime import native_selection
-    from provelume.ai_runtime_contract import RETIRED_MODEL_ID
 
-    entry = store.registry.entry(RETIRED_MODEL_ID)
+    entry = store.registry.entry(identifier)
     assert entry.qualification == "RETIRED"
     assert entry.id not in store.registry.discover(requested=True)
     with store._hold():
@@ -446,7 +447,7 @@ def test_no_implicit_network_or_dispatch(store, runtime, monkeypatch):
     assert not store.root.exists()
     with pytest.raises(ModelError, match="consent"):
         store.registry.discover()
-    assert store.registry.discover(requested=True) == (V1, V2, "qwen3-1.7b-q4-k-m")
+    assert store.registry.discover(requested=True) == (V1, V2, MODEL_ID)
     install(store, runtime)
     activate(store, runtime)
     assert ProvelumeInstance.ai_execution_status()["enabled"] is False

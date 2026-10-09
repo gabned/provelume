@@ -70,11 +70,11 @@ class SelfTestEvidence:
     expires: float
 
     def public_record(self):
-        from .ai_runtime_contract import MODEL_ID, RETIRED_MODEL_ID
+        from .ai_runtime_contract import MODEL_ID, RETIRED_MODEL_IDS
 
         return {"model_id": self.model_id, "binding": self.binding, "result": self.result,
                 "scope": ("REAL_RUNTIME_SELF_TEST" if self.model_id in
-                          {MODEL_ID, RETIRED_MODEL_ID} else "SYNTHETIC_ONLY"),
+                          (MODEL_ID, *RETIRED_MODEL_IDS) else "SYNTHETIC_ONLY"),
                 "inference_authorized": False}
 
 
@@ -213,7 +213,7 @@ class ModelStore:
         return self.root / "verified" / (entry.package_sha256 + ".pkg")
 
     def _verify(self, entry):
-        if entry.format == "gguf-v3-q4_k_m":
+        if entry.native:
             from .ai_model_file import verify_file
 
             return verify_file(self._path(entry), entry)
@@ -278,7 +278,7 @@ class ModelStore:
                         total = 0
                         for chunk in chunks(entry, deadline):
                             checkpoint(cancel, deadline)
-                            chunk_limit = 1024 * 1024 if entry.format == "gguf-v3-q4_k_m" else 4096
+                            chunk_limit = 1024 * 1024 if entry.native else 4096
                             check(type(chunk) is bytes and 0 < len(chunk) <= chunk_limit, "limit")
                             total += len(chunk)
                             check(total <= entry.package_size, "limit")
@@ -288,7 +288,7 @@ class ModelStore:
                         check(total == entry.package_size, "integrity")
                         output.flush()
                         os.fsync(output.fileno())
-                if entry.format == "gguf-v3-q4_k_m":
+                if entry.native:
                     from .ai_model_file import publish_file
 
                     publish_file(stage, target, entry, cancel=cancel, deadline=deadline)
@@ -338,7 +338,7 @@ class ModelStore:
                 before = file_identity(handle)
                 while True:
                     checkpoint(cancel, deadline)
-                    chunk = handle.read(1024 * 1024 if entry.format == "gguf-v3-q4_k_m" else 4096)
+                    chunk = handle.read(1024 * 1024 if entry.native else 4096)
                     if not chunk:
                         break
                     yield chunk
@@ -368,7 +368,7 @@ class ModelStore:
             model = self._verify(entry)
             started = time.monotonic()
             seconds = OPERATION_SECONDS
-            if entry.format == "gguf-v3-q4_k_m":
+            if entry.native:
                 from .ai_runtime_contract import CONFIGURATION
 
                 seconds = CONFIGURATION["seconds"]
@@ -376,7 +376,7 @@ class ModelStore:
             checkpoint(cancel, deadline)
             try:
                 # Trusted host implementation only; packages never supply a runner.
-                if entry.format == "gguf-v3-q4_k_m":
+                if entry.native:
                     from .ai_runtime import LocalRuntime
 
                     check(type(runner) is LocalRuntime, "self_test")
@@ -391,7 +391,7 @@ class ModelStore:
                                         started + SELF_TEST_TTL_SECONDS)
             if result == "PASSED":
                 self._evidence[identifier] = evidence
-                if entry.format == "gguf-v3-q4_k_m":
+                if entry.native:
                     self._native_runners[identifier] = runner
             return evidence
 
@@ -400,7 +400,7 @@ class ModelStore:
         check(self._evidence.get(entry.id) is evidence and
               evidence.binding == self._binding(entry, runtime) and
               time.monotonic() < evidence.expires, "stale")
-        if entry.format == "gguf-v3-q4_k_m":
+        if entry.native:
             check(self._native_runners.get(entry.id) is not None, "stale")
 
     def active_evidence(self, identifier, runtime, evidence):
@@ -418,7 +418,7 @@ class ModelStore:
 
     def _admit_evidence(self, entry, runtime, evidence):
         self._check_evidence(entry, runtime, evidence)
-        if entry.format == "gguf-v3-q4_k_m":
+        if entry.native:
             runner = self._native_runners.get(entry.id)
             check(runner is not None, "stale")
             try:

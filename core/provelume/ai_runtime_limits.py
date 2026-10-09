@@ -6,6 +6,8 @@ import ctypes as c
 import os
 
 MEMORY = 3 * 1024**3
+# Exact reviewed raw GGUF size; needed for its sealed Linux snapshot, not RAM.
+MODEL_FILE_BYTES = 1669499616
 
 
 def check(condition, code):
@@ -30,7 +32,7 @@ def _linux():
     resource.setrlimit(resource.RLIMIT_AS, (MEMORY, MEMORY))
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))
-    resource.setrlimit(resource.RLIMIT_FSIZE, (1117320736, 1117320736))
+    resource.setrlimit(resource.RLIMIT_FSIZE, (MODEL_FILE_BYTES, MODEL_FILE_BYTES))
 
     # x86-64 only: check audit architecture before interpreting syscall numbers.
     # EPERM for socket operations, execution and process creation. clone is allowed

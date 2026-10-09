@@ -20,12 +20,13 @@ MAX_FILES = 2
 MAX_TOTAL_BYTES = 96 * 1024
 MAX_INSTALLED = 8
 FORMAT = "synthetic-bytes-v1"
+NATIVE_FORMATS = ("gguf-v3-q4_k_m", "gguf-v3-q2_k")
 RUNTIME = "provelume.synthetic-fixture"
 RUNTIME_VERSION = "1"
 CONFIGURATION = {"schema_version": 1, "purpose": "lifecycle-self-test-only"}
 # Governed together with the manifest by ordinary application distribution gates.
 # This pin is not accepted from an offline package or a download response.
-MANIFEST_SHA256 = "812112e40ce52b519686a5dc13b91556dd96adc952098f1f1dc793b3623bf353"
+MANIFEST_SHA256 = "bdbbab6242c33bc40c7e36b9f5c1bd53b540715c3894fb3dc6221aa1e63686f8"
 _ID = re.compile(r"[a-z][a-z0-9_.-]{0,79}\Z")
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -142,6 +143,10 @@ class ModelEntry:
     evidence: str
 
     @property
+    def native(self):
+        return self.format in NATIVE_FORMATS
+
+    @property
     def file_inventory(self):
         return {
             "model.bin": (self.model_size, self.model_sha256),
@@ -181,19 +186,20 @@ def parse_manifest(raw: bytes) -> tuple[ModelEntry, ...]:
         seen.add(item.id)
         check(type(item.version) is str and re.fullmatch(r"[1-9][0-9]{0,3}", item.version))
         check(item.channel in ("candidate", "stable"))
-        native = item.format == "gguf-v3-q4_k_m"
+        native = item.native
         retired = False
         if native:
-            from .ai_runtime_contract import RETIRED_MODEL_ID
+            from .ai_runtime_contract import RETIRED_MODEL_IDS, native_model_pin
 
-            retired = item.id == RETIRED_MODEL_ID
+            pin = native_model_pin(item.id)
+            retired = item.id in RETIRED_MODEL_IDS
         check(item.qualification == ("RETIRED" if retired else
               "CANDIDATE_NOT_QUALIFIED" if native else "SYNTHETIC_ONLY"))
         check(item.app_version == "0.11.0")
         check(
             (item.runtime_id, item.runtime_version, item.format)
             == (
-                ("llama.cpp", "b11379", "gguf-v3-q4_k_m")
+                ("llama.cpp", "b11379", pin.format)
                 if native
                 else (RUNTIME, RUNTIME_VERSION, FORMAT)
             ),
@@ -205,15 +211,14 @@ def parse_manifest(raw: bytes) -> tuple[ModelEntry, ...]:
         check(
             item.evidence
             == (
-                ("repository:docs/adr/0031-cpu-local-runtime-candidate.md" if retired else
-                 "repository:docs/adr/0035-qwen3-synthesis-candidate.md")
+                pin.evidence
                 if native
                 else "repository:docs/architecture/ai-model-lifecycle.md#provenance"
             )
         )
         for value in (item.package_sha256, item.model_sha256, item.license_sha256):
             _hash(value)
-        maximum_model = 1117320736 if native else MAX_FILE_BYTES
+        maximum_model = pin.size if native else MAX_FILE_BYTES
         for size, maximum in (
             (item.package_size, maximum_model if native else MAX_PACKAGE_BYTES),
             (item.model_size, maximum_model),
@@ -221,24 +226,12 @@ def parse_manifest(raw: bytes) -> tuple[ModelEntry, ...]:
         ):
             check(type(size) is int and 1 <= size <= maximum, "limit")
         if native:
-            from .ai_runtime_contract import (
-                MODEL_ID,
-                MODEL_SHA256,
-                MODEL_SIZE,
-                RETIRED_MODEL_ID,
-                RETIRED_MODEL_SHA256,
-                RETIRED_MODEL_SIZE,
-            )
-
-            identifier, size, checksum = ((RETIRED_MODEL_ID, RETIRED_MODEL_SIZE,
-                RETIRED_MODEL_SHA256) if retired else (MODEL_ID, MODEL_SIZE, MODEL_SHA256))
-
             check(
-                item.id == identifier
-                and item.model_size == size
-                and item.package_size == size
-                and item.model_sha256 == checksum
-                and item.package_sha256 == checksum,
+                item.model_size == pin.size
+                and item.package_size == pin.size
+                and item.model_sha256 == pin.sha256
+                and item.package_sha256 == pin.sha256
+                and item.url == pin.url,
                 "compatibility",
             )
         else:

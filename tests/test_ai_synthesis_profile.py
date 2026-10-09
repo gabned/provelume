@@ -189,6 +189,8 @@ def test_worker_translates_one_native_result_and_preserves_actual_usage(sampler_
     engine._generate = generate
     result = engine.generate(json.dumps(envelope()), lambda event: None, response_format=FORMAT)
     assert len(calls) == 1 and 'one "KEEP" or "DROP"' in calls[0]
+    assert calls[0].endswith("<|im_end|>\n<|im_start|>assistant\n")
+    assert "<think>" not in calls[0]
     assert json.loads(result["text"])["references"] == [1]
     assert (result["input_tokens"], result["output_tokens"], result["seconds"]) == (123, 7, 0.4)
     assert engine.events[-1] == ("free", 10)

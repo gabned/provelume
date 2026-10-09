@@ -10,11 +10,17 @@ texts are retained under `core/provelume/runtime_notices/` and accompany the
 deterministic native build input. Qwen/Qwen2.5-1.5B-Instruct-GGUF revision
 `91cad51170dc346986eccefdc2dd33a9da36ead9` is Apache-2.0; its full license is retained
 there as `qwen-LICENSE.txt`. Weights are acquired explicitly, not shipped in wheels.
-S08's authorized replacement candidate is Qwen/Qwen3-1.7B-GGUF, revision
+The retained Qwen3-1.7B candidate is Qwen/Qwen3-1.7B-GGUF, revision
 `7fb011e9aee6e4dc7adf8430df9ea8de6a466aa3`, Apache-2.0, Copyright 2025 Alibaba Cloud.
 Its complete license is retained as `qwen3-LICENSE.txt` with normalized LF line
 endings. [ADR 0035](docs/adr/0035-qwen3-synthesis-candidate.md) pins the selected
-quantization, origin and digest before evaluation; it is not Recommended yet.
+quantization, origin and digest. It and Qwen2.5 remain RETIRED after failed
+synthesis qualification. The current candidate is Qwen3-4B-Instruct-2507 in
+bartowski's Q2_K conversion, revision `ac104788567ef76beaf5f30b6cccb1f99a69afbe`.
+This third-party quantization uses Apache-2.0, Copyright 2024 Alibaba Cloud;
+the complete terms are retained in `qwen-LICENSE.txt`.
+[ADR 0038](docs/adr/0038-qwen3-instruct-synthesis-candidate.md) pins its identity
+before scoring. No model is promoted to Recommended or bundled in the wheel.
 See [ADR 0031](docs/adr/0031-cpu-local-runtime-candidate.md) for immutable origins,
 digests, quantization and redistribution conditions. The candidate input's SBOM
 lists each shipped native library and exact hash; host Python/C runtimes remain

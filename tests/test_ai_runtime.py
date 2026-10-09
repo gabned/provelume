@@ -60,12 +60,46 @@ def test_candidate_and_shipped_runtime_lock_have_no_execution_authority():
     entry = ModelRegistry.packaged().entry(MODEL_ID)
     assert entry.qualification == "CANDIDATE_NOT_QUALIFIED"
     assert entry.model_sha256 == MODEL_SHA256
-    assert entry.model_size == 1107408544
+    assert entry.model_size == 1669499616
     assert entry.profile.model == MODEL_ID
     assert runtime_lock()["version"] == "b11379"
     assert set(runtime_lock()["platforms"]) == {"windows", "linux"}
     assert CONFIGURATION["queue"] == 0
     assert ProvelumeInstance.ai_execution_status()["enabled"] is False
+
+
+def test_native_pin_keeps_exact_artifact_bound_and_each_retired_license():
+    from importlib.resources import files
+
+    from provelume.ai_runtime_contract import MODEL_SIZE, NATIVE_MODEL_PINS
+    from provelume.ai_runtime_limits import MODEL_FILE_BYTES
+
+    assert MODEL_FILE_BYTES == MODEL_SIZE
+    registry = ModelRegistry.packaged()
+    for pin in NATIVE_MODEL_PINS:
+        entry = registry.entry(pin.id)
+        assert entry.native
+        assert entry.model_size == pin.size and entry.format == pin.format
+        assert entry.model_sha256 == pin.sha256 and entry.url == pin.url
+        license_bytes = files("provelume").joinpath(
+            "runtime_notices", pin.license_file).read_bytes()
+        assert len(license_bytes) == entry.license_size
+        assert hashlib.sha256(license_bytes).hexdigest() == entry.license_sha256
+
+
+@pytest.mark.parametrize("field,value", [
+    ("id", "qwen3-unreviewed"), ("format", "gguf-v3-q8_0"),
+    ("format", "gguf-v3-q4_k_m"), ("model_sha256", "1" * 64),
+    ("package_size", 1669499617),
+    ("url", "https://huggingface.co/another/model.gguf"),
+])
+def test_native_manifest_refuses_unreviewed_or_mixed_artifact_pins(field, value):
+    from provelume.ai_models import parse_manifest
+
+    record = json.loads(ModelRegistry.packaged().raw)
+    next(row for row in record["entries"] if row["id"] == MODEL_ID)[field] = value
+    with pytest.raises(ModelError):
+        parse_manifest(json.dumps(record).encode())
 
 
 @pytest.mark.parametrize("field,value", [

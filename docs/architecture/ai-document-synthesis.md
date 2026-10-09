@@ -18,6 +18,11 @@ index selection with explicit per-paragraph decisions in one native inference.
 editorial examples after that decision format also failed semantic qualification.
 Their exact trusted instruction bytes bind both consent and runtime identities;
 they are never source paragraphs, selectable evidence or a quality oracle.
+[ADR 0038](../adr/0038-qwen3-instruct-synthesis-candidate.md) selects the
+Qwen3-4B-Instruct-2507 Q2_K candidate after those examples still failed semantic
+qualification on both hosts. Its instruction-model chat template has no thinking
+block; the synthesis instructions, examples and frozen evaluation stay unchanged.
+Both preceding model identities remain retired and explicitly removable.
 Summarize and Key points select excerpts,
 not model-authored facts. The task/language matrix is EN/IT, independently of the
 seven interface catalogs. All real quality/performance outcomes belong to the
