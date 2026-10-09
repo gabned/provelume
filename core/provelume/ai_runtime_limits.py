@@ -145,9 +145,11 @@ def _windows():
         cpus = [1 << n for n in range(64) if process_mask.value & (1 << n)]
         check(len(cpus) >= 2, "compatibility")
         limits = Extended()
-        # ACTIVE_PROCESS, AFFINITY, PROCESS_MEMORY, JOB_MEMORY, KILL_ON_JOB_CLOSE.
-        limits.basic.flags = 0x8 | 0x10 | 0x100 | 0x200 | 0x2000
+        # ACTIVE_PROCESS, AFFINITY, PRIORITY_CLASS, PROCESS_MEMORY, JOB_MEMORY,
+        # KILL_ON_JOB_CLOSE. Inference yields to normal interactive work.
+        limits.basic.flags = 0x8 | 0x10 | 0x20 | 0x100 | 0x200 | 0x2000
         limits.basic.active, limits.basic.affinity = 1, cpus[0] | cpus[1]
+        limits.basic.priority = 0x4000  # BELOW_NORMAL_PRIORITY_CLASS
         limits.process_memory = limits.job_memory = MEMORY
         check(
             bool(kernel.SetInformationJobObject(job, 9, c.byref(limits), c.sizeof(limits))),
@@ -162,6 +164,7 @@ def _windows():
         "memory": "JobObject:committed-memory",
         "memory_bytes": MEMORY,
         "cpu": "JobObject:affinity:2",
+        "priority": "JobObject:below-normal",
         "processes": "JobObject:active-process:1",
         "network_control": "NONE",
         "network_observation": "NOT_RUN",

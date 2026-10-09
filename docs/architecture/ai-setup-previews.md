@@ -82,6 +82,34 @@ paths, model bytes, secret values, private previews and self-test evidence are n
 part of this file. Reopening creates no consent and does not authorize a session;
 S06 restore forces execution off and preserves uncertainty and accounting.
 
+After ASGI request draining, shutdown stops new scheduler cycles and joins the
+running cycle before revoking the in-memory session and previews and requesting
+AI cancellation. This lets a stopped AI task settle its attempt without competing
+with the scheduler's lifecycle barrier. The Browser joins its AI tasks before
+persisting Off. The existing lifecycle barrier remains nonblocking;
+an unrelated owner can still refuse the persistent write. Runtime cleanup runs even
+if that write fails, and reopening still cannot restore session authorization.
+
+While the native worker is silent, authority polling uses a 100 ms wait. A worker
+message wakes that wait immediately; current authority is still read on every poll
+and before accepting completion. This reduces metadata contention with Capture
+without caching mutable policy or changing the two-second cancellation/cleanup gate,
+model configuration, CPU budget or ADR measurement thresholds.
+
+On Windows the inference worker yields scheduling priority to ordinary foreground
+work through Job Object below-normal priority. Only the disposable Windows worker
+is changed; the application process and Linux retain their inherited priority.
+Windows observations include the effective worker priority.
+The same two-CPU affinity, model, thread count, containment and fixed ADR latency
+and capture/search thresholds still apply to fresh native qualification.
+
+Capture still reads and validates every retained receipt, but observes the Instance
+identity once per inventory and checks it again before returning. It no longer
+reads and deep-copies the full configuration for each receipt. The identity is
+never cached between operations; a changed or foreign Instance fails closed.
+Payload checks, filesystem guards, admission, lifecycle locks and durable writes
+remain unchanged.
+
 ## Reproduction and qualification
 
 Run `python scripts/demonstrate_ai_setup.py` in the bootstrapped environment. It

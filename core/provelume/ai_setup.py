@@ -434,12 +434,21 @@ class AiSetup:
             check(action in {"paused", "off"}, "ai_setup_invalid")
             return self.jobs.configure(mode=action)
 
-    def close(self):
-        self.cancel.set()
-        if self.jobs.session_authorized:
-            self.jobs.configure(mode="off")
-        self.runtime.close()
+    def request_close(self):
+        """Revoke this host immediately, before waiting for its owned work to stop."""
+        self.jobs.session_authorized = False
         self.previews.clear()
+        self.cancel.set()
+
+    def close(self):
+        self.request_close()
+        try:
+            if self.jobs._control()["mode"] != "off":
+                self.jobs.configure(mode="off")
+        finally:
+            # An unrelated Instance owner can still refuse the persistent write.
+            # It must never keep this host's runtime or session alive.
+            self.runtime.close()
 
     def read(self):
         # Registry/control reads only. ModelStore.status verifies gigabytes and must

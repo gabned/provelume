@@ -98,7 +98,7 @@ class CaptureJournal:
             raise CaptureJournalError("Capture Instance identity unavailable")
         return value
 
-    def _validate(self, data: bytes, relative: str) -> dict:
+    def _validate(self, data: bytes, relative: str, *, instance_id: str | None = None) -> dict:
         try:
             value = json.loads(data, object_pairs_hook=_unique)
             if set(value) != {"schema_version", "instance_id", "receipt", "payload_base64"}:
@@ -121,7 +121,8 @@ class CaptureJournal:
             if (
                 type(value["schema_version"]) is not int
                 or value["schema_version"] != 1
-                or value["instance_id"] != self._instance_id()
+                or value["instance_id"]
+                != (self._instance_id() if instance_id is None else instance_id)
                 or relative != expected
                 or receipt["id"] != key
                 or receipt["status"] != "committed"
@@ -140,6 +141,10 @@ class CaptureJournal:
         _safe(self.root)
         if not self.root.exists():
             return {}
+        # Bind this inventory to one observed identity, rather than rereading
+        # and deep-copying the full config for every retained receipt. This is
+        # operation-local, with a fresh identity check before returning results.
+        instance_id = self._instance_id()
         result = {}
         total = 0
         with os.scandir(self.root) as devices:
@@ -158,7 +163,9 @@ class CaptureJournal:
                             Path(record.path), min(MAX_RECORD_BYTES, MAX_JOURNAL_BYTES - total)
                         )
                         total += len(data)
-                        result[relative] = self._validate(data, relative)
+                        result[relative] = self._validate(data, relative, instance_id=instance_id)
+        if self._instance_id() != instance_id:
+            raise CaptureJournalError("Capture Instance identity changed during inventory")
         return result
 
     def _read_ready(self):

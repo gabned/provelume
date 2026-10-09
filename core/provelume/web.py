@@ -491,11 +491,17 @@ def create_app(
             yield
         finally:
             stop.set()
-            await asyncio.to_thread(app.state.ai_setup.close)
-            if app.state.ai_tasks:
-                await asyncio.gather(*tuple(app.state.ai_tasks), return_exceptions=True)
-            with suppress(asyncio.CancelledError):
-                await worker
+            try:
+                # Drain the scheduler's lifecycle barrier before cancellation
+                # makes an AI task settle its attempt under that same barrier.
+                # ASGI request draining precedes this lifespan shutdown.
+                with suppress(asyncio.CancelledError):
+                    await worker
+                app.state.ai_setup.request_close()
+                if app.state.ai_tasks:
+                    await asyncio.gather(*tuple(app.state.ai_tasks), return_exceptions=True)
+            finally:
+                await asyncio.to_thread(app.state.ai_setup.close)
 
     app = FastAPI(
         title="Provelume Knowledge API",

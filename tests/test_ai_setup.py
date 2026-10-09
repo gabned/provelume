@@ -14,8 +14,9 @@ from fastapi.testclient import TestClient
 
 from provelume.ai_contract import digest
 from provelume.ai_job_contract import Quote
-from provelume.ai_job_runtime import JobOutcome
+from provelume.ai_job_runtime import JobOutcome, LocalFailure
 from provelume.ai_model_store import SelfTestEvidence
+from provelume.ai_provider import Failure
 from provelume.ai_runtime import native_selection
 from provelume.ai_runtime_contract import MODEL_ID
 from provelume.ai_setup import AiSetup
@@ -106,6 +107,145 @@ def test_expired_model_evidence_blocks_queued_job_before_reservation(setup):
     assert stored["attempt"] == 0
     assert stored["ai"]["attempts"] == []
     assert setup.jobs.status()["accounting"]["units"] == 0
+
+
+def test_shutdown_revokes_before_joining_an_ai_task(tmp_path, monkeypatch):
+    instance = ProvelumeInstance.initialise(tmp_path / "i")
+    app = create_app(instance.root, shell_settings_file=tmp_path / "shell.json")
+    host = app.state.ai_setup
+    configure(host)
+    ref, _ = host.preview_test()
+    host.approve(ref)
+    entered, release = threading.Event(), threading.Event()
+
+    def cycle(**kwargs):
+        with host.instance.scheduler._hold_lifecycle("synthetic-shutdown-race"):
+            entered.set()
+            assert release.wait(10)
+
+    monkeypatch.setattr(host.instance, "run_scheduler_cycle", lambda **kw: None)
+
+    async def start_owned_task():
+        task = asyncio.create_task(asyncio.to_thread(cycle))
+        app.state.ai_tasks.add(task)
+        task.add_done_callback(app.state.ai_tasks.discard)
+
+    def serve():
+        with TestClient(app) as client:
+            client.portal.call(start_owned_task)
+            assert entered.wait(10)
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        closing = pool.submit(serve)
+        try:
+            assert host.cancel.wait(10)
+            assert not host.jobs.session_authorized
+            assert not host.previews
+            assert not closing.done()
+            with pytest.raises(ValueError):
+                host.current(ref, 0)
+        finally:
+            release.set()
+        closing.result(timeout=10)
+    assert host.jobs._control()["mode"] == "off"
+    assert not host.runtime.loaded
+    assert not host.jobs.journal.list_jobs()
+
+
+def test_shutdown_joins_scheduler_before_cancelling_and_settling_ai(tmp_path, monkeypatch):
+    instance = ProvelumeInstance.initialise(tmp_path / "i")
+    app = create_app(instance.root, shell_settings_file=tmp_path / "shell.json")
+    host = app.state.ai_setup
+    configure(host)
+    ref, prepared = host.preview_test()
+    host.approve(ref)
+    job = host.enqueue(ref)
+    ai_entered, cycle_entered, release_cycle = (
+        threading.Event(), threading.Event(), threading.Event()
+    )
+
+    class Transport:
+        network_used = False
+
+        def exchange(self, current, *, cancel):
+            current().prepare()
+            ai_entered.set()
+            assert host.cancel.wait(10)
+            assert cancel()
+            # Test-owned local worker has now stopped. Unknown token consumption
+            # remains charged, but confirmed quiescence must be committed.
+            return LocalFailure(Failure.CANCELLED)
+
+    host.jobs.adapters = {prepared[3][0].fingerprint: Transport()}
+    now = utc_instant()
+    host.jobs.quotes = lambda fingerprint: Quote(
+        fingerprint, "USD", instant_text(now - timedelta(days=1)),
+        instant_text(now + timedelta(days=1)), 0, 8448,
+        digest("synthetic-shutdown-zero-cost"), True,
+    )
+
+    def cycle(**kwargs):
+        assert ai_entered.wait(10)
+        with host.instance.scheduler._hold_lifecycle("synthetic-concurrent-shutdown"):
+            cycle_entered.set()
+            assert release_cycle.wait(10)
+
+    monkeypatch.setattr(host.instance, "run_scheduler_cycle", cycle)
+
+    async def exercise():
+        context = app.router.lifespan_context(app)
+        await context.__aenter__()
+        task = asyncio.create_task(asyncio.to_thread(host.instance.run_ai_job, job["id"]))
+        app.state.ai_tasks.add(task)
+        task.add_done_callback(app.state.ai_tasks.discard)
+        closing = None
+        try:
+            assert await asyncio.to_thread(cycle_entered.wait, 10)
+            closing = asyncio.create_task(context.__aexit__(None, None, None))
+            await asyncio.sleep(0)  # Let shutdown reach its first join, not a timed race.
+            assert not closing.done()
+            assert not host.cancel.is_set()
+            assert host.jobs.session_authorized
+        finally:
+            release_cycle.set()
+            if closing is None:
+                closing = asyncio.create_task(context.__aexit__(None, None, None))
+            await closing
+            await task  # Do not hide a completion error behind lifespan's gather.
+
+    asyncio.run(exercise())
+    stored = host.jobs.journal.get_job(job["id"])
+    attempt = stored["ai"]["attempts"][-1]
+    assert attempt["phase"] == "settled"
+    assert attempt["quiescent"] is True
+    assert attempt["usage_source"] == "LOCAL"
+    assert attempt["micros"] == 0
+    assert stored["ai"]["terminal"] == "failed"
+    assert stored["ai"]["blocked"] == "ai_local_stopped"
+    assert host.jobs.status()["accounting"]["active"] == 0
+    assert len(host.jobs.journal.list_receipts()) == 1
+    assert host.jobs._control()["mode"] == "off"
+    assert not host.jobs.session_authorized
+    assert not host.previews
+
+
+def test_failed_shutdown_write_still_revokes_and_closes_runtime(setup, monkeypatch):
+    from provelume.scheduler_model import SchedulerBusyError
+
+    configure(setup)
+    closed = []
+
+    def busy(**kwargs):
+        raise SchedulerBusyError("synthetic competing Instance owner")
+
+    monkeypatch.setattr(setup.jobs, "configure", busy)
+    monkeypatch.setattr(setup.runtime, "close", lambda: closed.append(True))
+    with pytest.raises(SchedulerBusyError):
+        setup.close()
+    assert setup.cancel.is_set()
+    assert not setup.jobs.session_authorized
+    assert not setup.previews
+    assert closed == [True]
 
 
 def form(response):
