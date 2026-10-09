@@ -31,6 +31,13 @@ selects the official Granite-4.0-1B Q5_K_M candidate with its canonical role fra
 and the same bounded assessment, examples and thresholds. All three Qwen entries
 stay retired and explicitly removable. The new candidate requires fresh technical
 evidence and consent; an earlier model's activation cannot authorize it.
+
+Granite's first native profile still failed semantic qualification (26/32 gold
+selections on Windows, 24/32 on Linux). [ADR 0041](../adr/0041-quoted-evidence-selection.md)
+clarifies that selection preserves evidence without adjudicating disputed claims
+or executing reader directions. It fixes four public editorial examples before
+fresh scoring, retaining the same model, grammar, assessment/output bounds and
+unfiltered position mapping. All fourteen native failures remain retained.
 Summarize and Key points select excerpts,
 not model-authored facts. The task/language matrix is EN/IT, independently of the
 seven interface catalogs. All real quality/performance outcomes belong to the
