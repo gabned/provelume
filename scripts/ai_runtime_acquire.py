@@ -14,7 +14,12 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
-from provelume.ai_runtime_contract import MODEL_SHA256, MODEL_SIZE, runtime_lock  # noqa: E402
+from provelume.ai_runtime_contract import (  # noqa: E402
+    MODEL_SHA256,
+    MODEL_SIZE,
+    MODEL_URL,
+    runtime_lock,
+)
 
 ARCHIVES = {
     "windows": ("llama-b11379-bin-win-cpu-x64.zip", 19352297,
@@ -22,8 +27,6 @@ ARCHIVES = {
     "linux": ("llama-b11379-bin-ubuntu-x64.tar.gz", 17658949,
               "8ab0e8588e2b282ed4882a47a26dbf1a2ae920578deb24a8dfe390110c1bb924"),
 }
-MODEL_URL = ("https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/"
-             "91cad51170dc346986eccefdc2dd33a9da36ead9/qwen2.5-1.5b-instruct-q4_k_m.gguf")
 
 
 class Redirects(urllib.request.HTTPRedirectHandler):

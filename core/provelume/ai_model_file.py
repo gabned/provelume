@@ -41,10 +41,12 @@ def verify_stream(handle, entry, *, cancel=lambda: False, deadline=float("inf"))
 
 def verify_file(path, entry):
     from .ai_model_store import VerifiedModel
+    from .ai_runtime_contract import MODEL_LICENSE, RETIRED_MODEL_ID
 
     with open_local_file(path) as handle:
         verify_stream(handle, entry)
-    license_bytes = files("provelume").joinpath("runtime_notices/qwen-LICENSE.txt").read_bytes()
+    license_file = "qwen-LICENSE.txt" if entry.id == RETIRED_MODEL_ID else MODEL_LICENSE
+    license_bytes = files("provelume").joinpath("runtime_notices", license_file).read_bytes()
     check(
         len(license_bytes) == entry.license_size and sha256(license_bytes) == entry.license_sha256,
         "license",

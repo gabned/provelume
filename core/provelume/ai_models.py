@@ -25,7 +25,7 @@ RUNTIME_VERSION = "1"
 CONFIGURATION = {"schema_version": 1, "purpose": "lifecycle-self-test-only"}
 # Governed together with the manifest by ordinary application distribution gates.
 # This pin is not accepted from an offline package or a download response.
-MANIFEST_SHA256 = "a044827dad8ab3e5a1597d17d039b16e7127215fa64c8b2ae3561f50746814be"
+MANIFEST_SHA256 = "812112e40ce52b519686a5dc13b91556dd96adc952098f1f1dc793b3623bf353"
 _ID = re.compile(r"[a-z][a-z0-9_.-]{0,79}\Z")
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -182,7 +182,13 @@ def parse_manifest(raw: bytes) -> tuple[ModelEntry, ...]:
         check(type(item.version) is str and re.fullmatch(r"[1-9][0-9]{0,3}", item.version))
         check(item.channel in ("candidate", "stable"))
         native = item.format == "gguf-v3-q4_k_m"
-        check(item.qualification == ("CANDIDATE_NOT_QUALIFIED" if native else "SYNTHETIC_ONLY"))
+        retired = False
+        if native:
+            from .ai_runtime_contract import RETIRED_MODEL_ID
+
+            retired = item.id == RETIRED_MODEL_ID
+        check(item.qualification == ("RETIRED" if retired else
+              "CANDIDATE_NOT_QUALIFIED" if native else "SYNTHETIC_ONLY"))
         check(item.app_version == "0.11.0")
         check(
             (item.runtime_id, item.runtime_version, item.format)
@@ -199,7 +205,8 @@ def parse_manifest(raw: bytes) -> tuple[ModelEntry, ...]:
         check(
             item.evidence
             == (
-                "repository:docs/adr/0031-cpu-local-runtime-candidate.md"
+                ("repository:docs/adr/0031-cpu-local-runtime-candidate.md" if retired else
+                 "repository:docs/adr/0035-qwen3-synthesis-candidate.md")
                 if native
                 else "repository:docs/architecture/ai-model-lifecycle.md#provenance"
             )
@@ -214,14 +221,24 @@ def parse_manifest(raw: bytes) -> tuple[ModelEntry, ...]:
         ):
             check(type(size) is int and 1 <= size <= maximum, "limit")
         if native:
-            from .ai_runtime_contract import MODEL_ID, MODEL_SHA256, MODEL_SIZE
+            from .ai_runtime_contract import (
+                MODEL_ID,
+                MODEL_SHA256,
+                MODEL_SIZE,
+                RETIRED_MODEL_ID,
+                RETIRED_MODEL_SHA256,
+                RETIRED_MODEL_SIZE,
+            )
+
+            identifier, size, checksum = ((RETIRED_MODEL_ID, RETIRED_MODEL_SIZE,
+                RETIRED_MODEL_SHA256) if retired else (MODEL_ID, MODEL_SIZE, MODEL_SHA256))
 
             check(
-                item.id == MODEL_ID
-                and item.model_size == MODEL_SIZE
-                and item.package_size == MODEL_SIZE
-                and item.model_sha256 == MODEL_SHA256
-                and item.package_sha256 == MODEL_SHA256,
+                item.id == identifier
+                and item.model_size == size
+                and item.package_size == size
+                and item.model_sha256 == checksum
+                and item.package_sha256 == checksum,
                 "compatibility",
             )
         else:
@@ -262,7 +279,7 @@ class ModelRegistry:
     def discover(self, *, requested: bool = False):
         check(requested is True, "consent")
         # Deliberately local: future registry changes ship with the app, not an updater.
-        return tuple(entry.id for entry in self.entries)
+        return tuple(entry.id for entry in self.entries if entry.qualification != "RETIRED")
 
     def inventory(self):
         return {
@@ -309,6 +326,7 @@ class RuntimeSelection:
     configuration: bytes = canonical_json_bytes(CONFIGURATION)
 
     def validate(self, entry: ModelEntry):
+        check(entry.qualification != "RETIRED", "revoked")
         check(
             (self.id, self.version, self.format, self.app_version)
             == (entry.runtime_id, entry.runtime_version, entry.format, entry.app_version),

@@ -8,7 +8,11 @@ promote the model. Package/runtime identity remains 0.11.0 — Cura.
 
 [ADR 0033](../adr/0033-extractive-document-synthesis.md) fixes the evaluation;
 [ADR 0034](../adr/0034-structured-synthesis-runtime.md) records the authorized
-structured runtime revision after seven failed candidates. Summarize and Key points select excerpts,
+structured runtime revision after seven failed candidates. Its first Qwen2.5
+measurement passed format/abstention but failed semantic quality on both hosts.
+[ADR 0035](../adr/0035-qwen3-synthesis-candidate.md) pins the Qwen3-1.7B Q4_K_M
+replacement and non-thinking chat template before separate native scoring.
+Summarize and Key points select excerpts,
 not model-authored facts. The task/language matrix is EN/IT, independently of the
 seven interface catalogs. All real quality/performance outcomes belong to the
 exact-head and actual-main owner ledgers; synthetic tests are not native proof.

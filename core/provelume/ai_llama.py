@@ -209,6 +209,7 @@ class Llama:
         raw = (
             "<|im_start|>system\n" + system + "<|im_end|>\n<|im_start|>user\n"
             + prompt + "<|im_end|>\n<|im_start|>assistant\n"
+            "<think>\n\n</think>\n\n"
         ).encode("utf-8")
         started = time.monotonic()
         with self._request_sampler(response_format) as sampler:

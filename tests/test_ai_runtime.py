@@ -60,7 +60,7 @@ def test_candidate_and_shipped_runtime_lock_have_no_execution_authority():
     entry = ModelRegistry.packaged().entry(MODEL_ID)
     assert entry.qualification == "CANDIDATE_NOT_QUALIFIED"
     assert entry.model_sha256 == MODEL_SHA256
-    assert entry.model_size == 1117320736
+    assert entry.model_size == 1107408544
     assert entry.profile.model == MODEL_ID
     assert runtime_lock()["version"] == "b11379"
     assert set(runtime_lock()["platforms"]) == {"windows", "linux"}

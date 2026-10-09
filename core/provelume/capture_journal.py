@@ -77,10 +77,10 @@ def _read(path: Path, limit: int = MAX_RECORD_BYTES) -> bytes:
     with os.fdopen(fd, "rb") as stream:
         if identity(os.fstat(stream.fileno())) != identity(before):
             raise CaptureJournalError("Capture record changed")
-        data = stream.read(limit + 1)
+        data = stream.read(before.st_size + 1)
         after = os.fstat(stream.fileno())
     if (
-        len(data) > limit
+        len(data) != before.st_size
         or identity(after) != identity(before)
         or identity(path.lstat()) != identity(before)
     ):
@@ -95,9 +95,12 @@ def _read_pinned_windows_record(path: Path, limit: int) -> bytes:
         before = os.fstat(stream.fileno())
         if not stat.S_ISREG(before.st_mode) or before.st_size > limit:
             raise CaptureJournalError("invalid Capture record size or kind")
-        data = stream.read(limit + 1)
+        # A small receipt must not allocate the 36 MiB maximum on every read.
+        # The checked size bounds allocation; the extra byte and fresh identity
+        # check still reject growth, truncation or replacement during the read.
+        data = stream.read(before.st_size + 1)
         after = os.fstat(stream.fileno())
-        if len(data) > limit or (
+        if len(data) != before.st_size or (
             before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns
         ) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
             raise CaptureJournalError("Capture record changed")

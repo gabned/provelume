@@ -13,10 +13,16 @@ from .ai_models import check
 
 RUNTIME_ID = "llama.cpp"
 RUNTIME_VERSION = "b11379"
-MODEL_ID = "qwen2.5-1.5b-instruct-q4-k-m"
+MODEL_ID = "qwen3-1.7b-q4-k-m"
 MODEL_FORMAT = "gguf-v3-q4_k_m"
-MODEL_SIZE = 1117320736
-MODEL_SHA256 = "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+MODEL_SIZE = 1107408544
+MODEL_SHA256 = "228fb5627f7510b8b3516cdb6435e4b0d2a2bf330fe5b0ab19284a3570a8bb1f"
+MODEL_LICENSE = "qwen3-LICENSE.txt"
+RETIRED_MODEL_ID = "qwen2.5-1.5b-instruct-q4-k-m"
+RETIRED_MODEL_SIZE = 1117320736
+RETIRED_MODEL_SHA256 = "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+MODEL_URL = ("https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/"
+             "7fb011e9aee6e4dc7adf8430df9ea8de6a466aa3/Qwen3-1.7B-Q4_K_M.gguf")
 LOCK_SHA256 = "0e508965cddc60d6cfb57c42d2c4039c637e8812bb25cc21b525b6d6047a4404"
 CONFIGURATION = {
     "schema_version": 1,
@@ -37,6 +43,7 @@ CONFIGURATION = {
     "termination_seconds": 2,
     "sampling": "greedy",
     "synthesis_format": "extractive-gbnf-v1",
+    "chat_template": "qwen3-non-thinking-v1",
 }
 
 

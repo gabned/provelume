@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from threading import Event
 from uuid import uuid4
 
@@ -18,6 +19,34 @@ from provelume.storage import InstanceStore
 
 DEVICE = "dev_" + "a" * 32
 CLIENT = "b5f127f9-1d95-4f6e-8c08-4c0729c775fa"
+
+
+@pytest.mark.parametrize("reader", [module._read, module._read_pinned_windows_record])
+def test_small_record_read_does_not_allocate_the_maximum(tmp_path, monkeypatch, reader):
+    path = tmp_path / "small.json"
+    payload = b'{"synthetic":"small public receipt"}'
+    path.write_bytes(payload)
+    requested = []
+    fdopen = os.fdopen
+
+    @contextmanager
+    def observed(descriptor, mode):
+        with fdopen(descriptor, mode) as stream:
+            class Reader:
+                def fileno(self):
+                    return stream.fileno()
+
+                def read(self, amount):
+                    requested.append(amount)
+                    return stream.read(amount)
+
+            yield Reader()
+
+    monkeypatch.setattr(os, "fdopen", observed)
+    if os.name != "nt":
+        monkeypatch.setattr(module, "_windows_open", lambda p, **_: os.open(p, os.O_RDONLY))
+    assert reader(path, module.MAX_RECORD_BYTES) == payload
+    assert requested == [len(payload) + 1]
 
 
 def allow(device):

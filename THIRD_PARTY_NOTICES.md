@@ -10,6 +10,11 @@ texts are retained under `core/provelume/runtime_notices/` and accompany the
 deterministic native build input. Qwen/Qwen2.5-1.5B-Instruct-GGUF revision
 `91cad51170dc346986eccefdc2dd33a9da36ead9` is Apache-2.0; its full license is retained
 there as `qwen-LICENSE.txt`. Weights are acquired explicitly, not shipped in wheels.
+S08's authorized replacement candidate is Qwen/Qwen3-1.7B-GGUF, revision
+`7fb011e9aee6e4dc7adf8430df9ea8de6a466aa3`, Apache-2.0, Copyright 2025 Alibaba Cloud.
+Its complete license is retained as `qwen3-LICENSE.txt` with normalized LF line
+endings. [ADR 0035](docs/adr/0035-qwen3-synthesis-candidate.md) pins the selected
+quantization, origin and digest before evaluation; it is not Recommended yet.
 See [ADR 0031](docs/adr/0031-cpu-local-runtime-candidate.md) for immutable origins,
 digests, quantization and redistribution conditions. The candidate input's SBOM
 lists each shipped native library and exact hash; host Python/C runtimes remain

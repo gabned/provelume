@@ -70,9 +70,11 @@ class SelfTestEvidence:
     expires: float
 
     def public_record(self):
+        from .ai_runtime_contract import MODEL_ID, RETIRED_MODEL_ID
+
         return {"model_id": self.model_id, "binding": self.binding, "result": self.result,
-                "scope": ("REAL_RUNTIME_SELF_TEST" if self.model_id ==
-                          "qwen2.5-1.5b-instruct-q4-k-m" else "SYNTHETIC_ONLY"),
+                "scope": ("REAL_RUNTIME_SELF_TEST" if self.model_id in
+                          {MODEL_ID, RETIRED_MODEL_ID} else "SYNTHETIC_ONLY"),
                 "inference_authorized": False}
 
 
@@ -139,7 +141,8 @@ class ModelStore:
         self.root = Path(root)
         check(self.root.is_absolute(), "unsafe_path")
         self.registry = registry or ModelRegistry.packaged()
-        self.allowed_ids = (tuple(entry.id for entry in self.registry.entries)
+        self.allowed_ids = (tuple(entry.id for entry in self.registry.entries
+                                  if entry.qualification != "RETIRED")
                             if allowed_ids is None else allowed_ids)
         check(type(self.allowed_ids) is tuple and
               len(set(self.allowed_ids)) == len(self.allowed_ids))
@@ -156,6 +159,7 @@ class ModelStore:
 
     def _entry(self, identifier: str, runtime: RuntimeSelection | None = None):
         entry = self.registry.entry(identifier)
+        check(entry.qualification != "RETIRED", "revoked")
         check(identifier in self.allowed_ids, "revoked")
         if runtime is not None:
             runtime.validate(entry)
