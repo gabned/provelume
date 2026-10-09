@@ -631,3 +631,58 @@ def test_quality_evaluator_rejects_always_abstaining_and_missing_cases():
                for lang in ("en", "it") for task in ("summary", "key-points"))
     rows.pop()
     assert evaluate(report)["gates"]["s08_references"] == "NOT_RUN"
+
+
+@pytest.mark.parametrize("surface", ["synthesis", "settings"])
+def test_error_rendering_keeps_unrelated_navigation_live(
+    synthesis, tmp_path, monkeypatch, surface
+):
+    setup, document, bundle = synthesis
+    app = create_app(setup.instance.root, shell_settings_file=tmp_path / "shell.json")
+    host = app.state.ai_setup
+    monkeypatch.setattr(host.instance, "run_scheduler_cycle", lambda **kwargs: None)
+    held, attempted, release = threading.Event(), threading.Event(), threading.Event()
+    original = host.read
+
+    def observed_read():
+        if held.is_set():
+            attempted.set()
+        return original()
+
+    monkeypatch.setattr(host, "read", observed_read)
+
+    def owner():
+        with host.lock:
+            held.set()
+            assert release.wait(10)
+
+    with TestClient(app) as client:
+        if surface == "synthesis":
+            path = f"/documents/{document}/synthesis"
+            values = form(client.get(path))
+            path += "/preview"
+            values.update(selection="invalid", version_id=bundle["version"]["id"],
+                          task="summary", language="en")
+        else:
+            values = form(client.get("/settings/ai"))
+            path = "/settings/ai/control"
+            values.update(action="enable", revision="invalid")
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            holding = pool.submit(owner)
+            pending = None
+            try:
+                assert held.wait(5)
+                pending = pool.submit(client.post, path, data=values)
+                assert attempted.wait(5)
+                assert not pending.done()
+                navigation = pool.submit(client.get, "/search?q=synthetic")
+                assert navigation.result(timeout=1).status_code == 200
+            finally:
+                release.set()
+                holding.result(timeout=5)
+                if pending is not None:
+                    assert pending.result(timeout=5).status_code == 409
+        assert not host.previews
+        assert host.jobs.journal.list_jobs() == []
+        assert client.post(path, data=values).status_code == 409
+        assert not app.state.ai_tasks

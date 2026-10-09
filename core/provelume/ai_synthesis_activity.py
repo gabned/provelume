@@ -1,6 +1,7 @@
 """Private SSR synthesis surfaces using the existing AI host's form/task controls."""
 
 from fastapi import Request
+from starlette.concurrency import run_in_threadpool
 
 from .ai_activity import reason_key
 from .ai_job_contract import check
@@ -62,9 +63,9 @@ def attach_synthesis_routes(
         values = await fields(request, {"selection", "version_id", "task", "language"})
         try:
             result = await mutation(selected_preview, document_id, values)
-            return preview_page(request, result)
+            return await run_in_threadpool(preview_page, request, result)
         except (ValueError, OSError, SchedulerBusyError) as exc:
-            return error(request, exc)
+            return await run_in_threadpool(error, request, exc)
 
     @app.post("/documents/{document_id}/synthesis/policy")
     async def policy(request: Request, document_id: str):
@@ -74,7 +75,7 @@ def attach_synthesis_routes(
                            values["restriction"], int(values["revision"]))
             return redirect(request, f"/documents/{document_id}/synthesis")
         except (ValueError, OSError, SchedulerBusyError) as exc:
-            return error(request, exc)
+            return await run_in_threadpool(error, request, exc)
 
     @app.post("/operations/ai/synthesis/execute")
     async def execute(request: Request):
@@ -90,7 +91,7 @@ def attach_synthesis_routes(
                 await launch_job(job["id"])
             return redirect(request, "/operations/ai")
         except (ValueError, OSError, SchedulerBusyError) as exc:
-            return error(request, exc)
+            return await run_in_threadpool(error, request, exc)
 
     @app.get("/operations/ai/{job_id}/synthesis")
     def result(request: Request, job_id: str):
@@ -126,12 +127,13 @@ def attach_synthesis_routes(
             await mutation(synthesis.discard, job_id)
             return redirect(request, f"/operations/ai/{job_id}/synthesis")
         except (ValueError, OSError, SchedulerBusyError) as exc:
-            return error(request, exc)
+            return await run_in_threadpool(error, request, exc)
 
     @app.post("/operations/ai/{job_id}/synthesis/regenerate")
     async def regenerate(request: Request, job_id: str):
         await fields(request, set())
         try:
-            return preview_page(request, await mutation(synthesis.regenerate, job_id))
+            result = await mutation(synthesis.regenerate, job_id)
+            return await run_in_threadpool(preview_page, request, result)
         except (ValueError, OSError, SchedulerBusyError) as exc:
-            return error(request, exc)
+            return await run_in_threadpool(error, request, exc)

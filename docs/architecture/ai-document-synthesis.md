@@ -168,6 +168,11 @@ mutation boundary. File reads and setup/lifecycle-lock waits run outside the
 ASGI event loop, keeping unrelated navigation responsive. Disconnecting the
 request does not abandon an already owned operation; the same bounded task set,
 form nonce, current-version checks and fresh consent requirements remain in force.
+Async AI responses also render their pages in the existing HTTP thread pool:
+rendering reads the protected setup snapshot even on early validation errors.
+An invalid form must not block unrelated navigation behind that lock. Synchronous
+GET handlers already use FastAPI's thread pool. This changes presentation work,
+not mutation ownership, admission, status codes or replay/consent requirements.
 
 ## Limits and remaining qualification
 
