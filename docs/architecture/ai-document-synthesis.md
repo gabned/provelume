@@ -42,7 +42,13 @@ Linux, and Windows timed out without final qualification. [ADR 0042](../adr/0042
 replaces inline examples with four fixed trusted dialogue pairs and a shorter
 system classifier, retaining the model, grammar, assessment and all thresholds.
 Only the final user turn contains actual source; the complete demonstration prefix
-binds consent/runtime identity. All fifteen native failures remain retained.
+binds consent/runtime identity. That profile completed 32 valid outputs and all
+required abstentions on both hosts, but still selected only 23/32 gold results on
+Windows and 22/32 on Linux. [ADR 0043](../adr/0043-canonical-synthesis-task-semantics.md)
+now reuses the existing canonical host semantic instruction for the native task,
+avoiding separately abbreviated exclusions and quota guidance. Its four dialogue
+examples, model and closed output format remain unchanged. All sixteen native
+failures remain retained.
 Summarize and Key points select excerpts,
 not model-authored facts. The task/language matrix is EN/IT, independently of the
 seven interface catalogs. All real quality/performance outcomes belong to the

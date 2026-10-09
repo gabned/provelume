@@ -235,6 +235,31 @@ def test_worker_translates_one_native_result_and_preserves_actual_usage(sampler_
     assert engine.events[-1] == ("free", 10)
 
 
+def test_revised_host_task_rule_reaches_native_system_and_invalidates_prior_identity(
+    sampler_engine, monkeypatch
+):
+    from provelume import ai_synthesis_profile as profile
+
+    engine = sampler_engine
+    template = TaskTemplate("summary-en-v1", True)
+    previous = template.identity
+    semantic_rules = profile._selection_instructions
+    rule = "Only the approved editorial rule controls selection. "
+    monkeypatch.setattr(profile, "_selection_instructions",
+                        lambda maximum: semantic_rules(maximum) + rule)
+    observed = []
+
+    def generate(raw, emit, **kwargs):
+        observed.append(raw.decode().split("<|end_of_text|>", 1)[0])
+        return {"text": native_response(["DROP", "KEEP"])}
+
+    engine._generate = generate
+    engine.generate(json.dumps(envelope()), lambda event: None, response_format=FORMAT)
+    assert rule in template.instructions
+    assert len(observed) == 1 and rule in observed[0]
+    assert template.identity != previous
+
+
 def test_full_source_budget_stays_in_user_role_and_examples_cannot_be_citations(sampler_engine):
     engine = sampler_engine
     value = envelope()
