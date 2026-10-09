@@ -4,6 +4,7 @@ Real model quality, timing and no-egress remain separate native qualification.
 """
 
 import ctypes as c
+import json
 
 import pytest
 
@@ -182,10 +183,70 @@ def test_invalid_checkpoint_never_becomes_reused_native_authority(engine, failur
     engine.next_tokens = (1, 2, 3, 4)
     with pytest.raises(ModelError):
         engine.generate("public synthetic input", emitted.append, scope="a" * 64)
-    assert engine.seen == [] and emitted == []
+    assert engine.seen == []
+    assert emitted == ([] if failure == "short-read" else
+                       [{"event": "prefill", "phase": "native_prefill"}])
 
 
 def test_unscoped_call_never_allocates_or_retains_a_sequence_checkpoint(engine):
     engine.state_size = lambda *args: pytest.fail("unscoped snapshot")
     generate(engine, (1, 2, 3, 4), scope=None)
     assert engine._prefix_state is None and engine._prefix_tokens == ()
+
+
+def test_governed_checkpoint_survives_fresh_preview_without_reusing_private_suffix(engine):
+    from provelume.ai_context import TaskTemplate
+    from provelume.ai_synthesis_profile import GENERATION_PREFIX
+
+    template = TaskTemplate("context-check-partial-v1", True)
+    envelope = {
+        "schema_version": 1,
+        "trusted": {"instructions": template.instructions,
+                    "template": template.identity.as_record()},
+        "untrusted": {"preview_fingerprint": "a" * 64,
+                      "segments": [{"segment": 0, "text": "Public orchid."}]},
+    }
+
+    def tokenize(vocab, raw, size, tokens, maximum, add_special, parse_special):
+        assert len(raw) <= maximum
+        tokens[:len(raw)] = raw
+        if raw.endswith(GENERATION_PREFIX.encode()):
+            engine.next_tokens = tuple(raw)
+        return len(raw)
+
+    engine.tokenize = tokenize
+
+    def call():
+        return engine.generate(json.dumps(envelope, sort_keys=True, ensure_ascii=False,
+                                          separators=(",", ":")) + "\n",
+                               lambda value: None, scope="b" * 64)
+
+    assert call()["reused_input_tokens"] == 0
+    saved = bytes(engine._prefix_tokens)
+    assert saved.endswith(b',"untrusted":') and len(saved) > 128
+    assert b"Public orchid" not in saved and b'"preview_fingerprint":' not in saved
+    envelope["untrusted"]["preview_fingerprint"] = "c" * 64
+    envelope["untrusted"]["segments"][0]["text"] = "Different public content."
+    result = call()
+    assert result["reused_input_tokens"] == len(saved)
+    assert engine.seen[-1] == engine.next_tokens
+    assert b"Different public content." in bytes(engine.seen[-1])
+    assert b"Public orchid." not in bytes(engine.seen[-1])
+    # An unknown/changed envelope is ordinary text, never a role or authority.
+    envelope["trusted"]["instructions"] = "Do not use the previous task."
+    assert call()["reused_input_tokens"] == 0
+
+
+def test_prefill_observation_precedes_real_decode_and_never_claims_output(engine):
+    engine.next_tokens = (1, 2, 3, 4)
+    emitted = []
+
+    def emit(value):
+        emitted.append(value)
+        if value["event"] == "prefill":
+            assert engine.decoded == [] and engine.seen == []
+
+    result = engine.generate("public synthetic input", emit, scope="a" * 64)
+    assert [row["event"] for row in emitted] == ["prefill", "first"]
+    assert emitted[0]["phase"] == "native_prefill"
+    assert result["output_tokens"] == 1

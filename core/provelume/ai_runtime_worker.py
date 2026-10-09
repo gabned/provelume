@@ -113,11 +113,21 @@ def main(*, containment=None):
                     engine.close()
                     emit({"event": "unloaded", "memory": memory_observation()})
                     return
-                check("prompt" in request and set(request) <= {"prompt", "scope", "response_format"}
+                check({"prompt", "request"} <= set(request)
+                      and set(request) <= {"prompt", "request", "scope", "response_format"}
                       and type(request["prompt"]) is str, "state")
+                request_id = request["request"]
+                check(type(request_id) is str and len(request_id) == 32
+                      and all(ch in "0123456789abcdef" for ch in request_id), "state")
                 check(0 < len(request["prompt"].encode("utf-8")) <= 4096, "limit")
                 phase = "generation"
-                result = engine.generate(request["prompt"], emit, scope=request.get("scope"),
+
+                def observe(value, request_id=request_id):
+                    if value["event"] == "prefill":
+                        value = {**value, "request": request_id, "pid": os.getpid()}
+                    emit(value)
+
+                result = engine.generate(request["prompt"], observe, scope=request.get("scope"),
                                          response_format=request.get("response_format"))
                 result["memory"] = memory_observation()
                 emit(result)

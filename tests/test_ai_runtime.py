@@ -25,11 +25,21 @@ import sys,json,time,os
 json.loads(sys.stdin.readline())
 print(json.dumps({'event':'loaded','seconds':0.01,'pid':os.getpid(),'memory':{},'limits':{}}),flush=True)
 for line in sys.stdin:
-    p=json.loads(line)['prompt']
+    request=json.loads(line)
+    p=request['prompt']
     if p=='hang': time.sleep(120)
     if p=='crash': os._exit(7)
     if p=='malformed': print('not JSON',flush=True);time.sleep(120)
     if p=='oversized': print('x'*40000,flush=True);time.sleep(120)
+    observation={'event':'prefill','phase':'native_prefill',
+                 'request':request['request'],'pid':os.getpid()}
+    if p=='wrong-request': observation['request']='0'*32
+    if p=='wrong-pid': observation['pid']=os.getpid()+1
+    if p=='wrong-phase': observation['phase']='idle'
+    if p=='extra-field': observation['text']='public synthetic canary'
+    if p=='first-before-prefill': print(json.dumps({'event':'first'}),flush=True)
+    print(json.dumps(observation),flush=True)
+    if p=='duplicate-prefill': print(json.dumps(observation),flush=True)
     print(json.dumps({'event':'result','text':'ORCHID','seconds':0.01,'memory':{}}),flush=True)
 '''
 
@@ -319,7 +329,8 @@ print(json.dumps({'denied':observed,'limits':limits}))
 
 
 @pytest.mark.skipif(sys.platform not in ("linux", "win32"), reason="native supported OS only")
-def test_worker_priority_is_lowered_only_on_windows():
+@pytest.mark.parametrize("inherited_nice", [0, 15])
+def test_worker_priority_yields_to_application_without_raising_inherited_priority(inherited_nice):
     import os
     import sysconfig
 
@@ -327,6 +338,9 @@ def test_worker_priority_is_lowered_only_on_windows():
 import sys,os,json,ctypes
 sys.path[:0]=sys.argv[1:3]
 from provelume.ai_runtime_limits import contain
+if os.name!='nt':
+    inherited=os.getpriority(os.PRIO_PROCESS,0)
+    os.setpriority(os.PRIO_PROCESS,0,max(inherited,int(sys.argv[3])))
 inherited=os.getpriority(os.PRIO_PROCESS,0) if os.name!='nt' else None
 job,limits=contain()
 if os.name=='nt':
@@ -338,16 +352,19 @@ if os.name=='nt':
     assert limits['priority']=='JobObject:below-normal'
 else:
     observed=os.getpriority(os.PRIO_PROCESS,0)
-    assert observed==inherited and 'priority' not in limits
+    assert observed==max(inherited,10) and limits['priority']=='nice:at-least-10'
+    assert limits['nice']==observed
 print(json.dumps({'priority':observed}))
 '''
     before = os.getpriority(os.PRIO_PROCESS, 0) if os.name != "nt" else None
     result = subprocess.run(
         [getattr(sys, "_base_executable", sys.executable), "-I", "-c", code,
-         str(Path(__file__).resolve().parents[1] / "core"), sysconfig.get_path("purelib")],
+         str(Path(__file__).resolve().parents[1] / "core"), sysconfig.get_path("purelib"),
+         str(inherited_nice)],
         capture_output=True, timeout=10, check=True,
     )
-    assert json.loads(result.stdout)["priority"] == (0x4000 if os.name == "nt" else before)
+    assert json.loads(result.stdout)["priority"] == (
+        0x4000 if os.name == "nt" else max(before, inherited_nice, 10))
     if before is not None:
         assert os.getpriority(os.PRIO_PROCESS, 0) == before
 
@@ -460,6 +477,61 @@ def test_measurement_report_never_promotes_missing_or_failed_observations():
     assert set(report["gates"].values()) == {"NOT_RUN"}
     report["cancel_load"] = {"seconds": 2.1, "worker_absent": True, "code": "cancelled"}
     assert evaluate(report)["status"] == "FAIL"
+
+
+@pytest.mark.parametrize("prompt", ["wrong-request", "wrong-pid", "wrong-phase", "extra-field",
+                                   "first-before-prefill", "duplicate-prefill"])
+def test_supervisor_rejects_unbound_or_out_of_order_native_observations(host, model, prompt):
+    with pytest.raises(ModelError, match="state"):
+        host._infer(model, runtime.native_selection(), prompt)
+    assert not host.loaded
+
+
+def test_fresh_native_observation_cannot_reuse_previous_request_identity(host, model):
+    first = host._infer(model, runtime.native_selection(), "public synthetic first")
+    before = time.monotonic()
+    second = host._infer(model, runtime.native_selection(), "public synthetic second")
+    assert first["prefill"]["request"] != second["prefill"]["request"]
+    assert first["prefill"]["pid"] == second["prefill"]["pid"] == host._process.pid
+    assert first["prefill"]["received"] < before <= second["prefill"]["received"]
+    assert second["prefill"]["phase"] == "native_prefill"
+
+
+@pytest.mark.parametrize("missing", ["observation", "phase", "request", "pid", "worker", "probe"])
+def test_s07_measurement_requires_bound_inference_and_complete_concurrent_probe(missing):
+    import copy
+
+    from scripts.ai_runtime_report import evaluate
+
+    probe = {"capture_seconds": 0.1, "search_seconds": 0.1, "preserved": True,
+             "search_found": True, "product_dispatch_blocked": True, "worker_observed": True}
+    report = {"samples": [], "failures": [], "s07_required": True,
+              "deterministic_idle": [dict(probe) for _ in range(3)],
+              "s07": {"status": "MEASURED", "session_off": True, "final_off": True,
+                      "worker_absent": True, "samples": []}}
+    for phase in ("cold", "warm"):
+        prefill = {"phase": "native_prefill", "request": "a" * 32, "pid": 7, "received": 1.0}
+        report["s07"]["samples"].append({
+            "phase": phase, "status": "succeeded", "attempts": 1, "inference_observed": True,
+            "receipt": "public-receipt", "seconds": 3, "first_seconds": 2,
+            "worker": {"prefill": dict(prefill), "memory": {"peak_rss": 1024**2},
+                       "load": {"pid": 7, "seconds": 1}, "input_tokens": 10,
+                       "reused_input_tokens": 0 if phase == "cold" else 5},
+            "probe": dict(probe), "concurrency": dict(prefill),
+        })
+    assert evaluate(copy.deepcopy(report))["gates"]["s07_setup"] == "PASS"
+    row = report["s07"]["samples"][0]
+    if missing == "observation":
+        del row["inference_observed"]
+        row["generation_observed"] = True  # Old report is not retroactively accepted.
+    elif missing == "worker":
+        row["worker"]["prefill"]["request"] = "b" * 32
+    elif missing == "probe":
+        row["probe"]["worker_observed"] = False
+    else:
+        del row["concurrency"][missing]
+        del row["worker"]["prefill"][missing]
+    assert evaluate(report)["gates"]["s07_setup"] == "FAIL"
 
 
 def test_early_native_failure_retains_every_required_slice_gate(tmp_path, monkeypatch):

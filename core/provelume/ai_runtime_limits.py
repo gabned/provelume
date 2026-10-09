@@ -29,6 +29,10 @@ def _linux():
     import resource
 
     os.sched_setaffinity(0, sorted(os.sched_getaffinity(0))[:2])
+    inherited_priority = os.getpriority(os.PRIO_PROCESS, 0)
+    priority = max(inherited_priority, 10)
+    os.setpriority(os.PRIO_PROCESS, 0, priority)
+    check(os.getpriority(os.PRIO_PROCESS, 0) == priority, "compatibility")
     resource.setrlimit(resource.RLIMIT_AS, (MEMORY, MEMORY))
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))
@@ -93,6 +97,8 @@ def _linux():
         "memory": "RLIMIT_AS",
         "memory_bytes": MEMORY,
         "cpu": "sched_setaffinity:2",
+        "priority": "nice:at-least-10",
+        "nice": priority,
         "processes": "seccomp:thread-clone-only",
         "network_control": "seccomp:socket-syscalls-EPERM",
         "network_observation": "NOT_RUN",

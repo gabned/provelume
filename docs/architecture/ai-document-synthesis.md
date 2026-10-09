@@ -84,6 +84,15 @@ unchanged. All six preceding native artifacts remain retired and removable;
 nine registry identities fit independently of the unchanged eight-package install
 bound. New source/model/runtime identities require full independent qualification.
 
+That hybrid's first run completed 32 valid selections and eight required abstentions
+on each host, but selected 30 gold results on Windows and 28 on Linux. It discarded
+useful facts alongside hostile instructions. [ADR 0048](../adr/0048-hybrid-selection-and-inference-observation.md)
+keeps the model, examples and grammar; canonical v8 clarifies independent paragraph
+selection and distinguishes real object names/labels from editorial labels. It also
+extends exact legacy input-prefix reuse, lowers Linux worker priority, and binds
+S07's concurrent-inference probe to actual native prefill. All earlier failures and
+numeric gates remain unchanged; this revision needs fresh complete qualification.
+
 Before local or hybrid consent, preparation constructs the actual native frame
 to check quotation expansion, trusted-dialogue overhead and unsupported role
 delimiters against the unchanged limit. It reads no model bytes and probes no

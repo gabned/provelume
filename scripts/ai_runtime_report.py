@@ -129,8 +129,16 @@ def evaluate(report):
             passed = (setup.get("session_off") and setup.get("final_off")
                       and setup.get("worker_absent"))
             for row in rows:
+                concurrency = row.get("concurrency", {})
+                prefill = row["worker"].get("prefill") or {}
                 passed &= (row["status"] == "succeeded" and row["attempts"] == 1
-                           and row["generation_observed"] and row["receipt"] is not None
+                           and bool(row.get("inference_observed")) and row["receipt"] is not None
+                           and concurrency.get("phase") == "native_prefill"
+                           and type(concurrency.get("request")) is str
+                           and len(concurrency["request"]) == 32
+                           and all(ch in "0123456789abcdef" for ch in concurrency["request"])
+                           and concurrency == prefill
+                           and concurrency.get("pid") == row["worker"]["load"].get("pid")
                            and row["worker"]["memory"]["peak_rss"] <= 2 * 1024**3
                            and row["seconds"] <= (60 if row["phase"] == "cold" else 30)
                            and row["first_seconds"] <= (20 if row["phase"] == "cold" else 5)

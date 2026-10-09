@@ -7,6 +7,7 @@ code, dynamic backend discovery, remote model resolver or inference server.
 from __future__ import annotations
 
 import ctypes as c
+import json
 import os
 import time
 from contextlib import contextmanager
@@ -14,6 +15,32 @@ from contextlib import contextmanager
 from .ai_models import check
 
 P, INT, U, F, B = c.c_void_p, c.c_int32, c.c_uint32, c.c_float, c.c_bool
+
+
+def _governed_prefix(prompt):
+    """Computation boundary only: never change input bytes or promote a role."""
+    from .ai_context import TaskTemplate
+
+    if len(prompt.encode()) > 4096:
+        return b""
+    try:
+        row = json.loads(prompt)
+        if (type(row) is not dict or set(row) != {"schema_version", "trusted", "untrusted"}
+                or type(row["schema_version"]) is not int or row["schema_version"] != 1):
+            return b""
+        for partial in (False, True):
+            template = TaskTemplate("context-check-partial-v1" if partial else
+                                    "context-check-complete-v1", partial)
+            trusted = {"instructions": template.instructions,
+                       "template": template.identity.as_record()}
+            if row["trusted"] == trusted:
+                prefix = json.dumps({"schema_version": 1, "trusted": trusted},
+                                    sort_keys=True, ensure_ascii=False,
+                                    separators=(",", ":"))[:-1] + ',"untrusted":'
+                return prefix.encode() if prompt.startswith(prefix) else b""
+    except (ValueError, RecursionError):
+        pass
+    return b""
 
 
 class ModelParams(c.Structure):
@@ -220,6 +247,8 @@ class Llama:
             raw = (
                 prefix.decode() + prompt + "<|im_end|>\n" + GENERATION_PREFIX
             ).encode("utf-8")
+            if scope is not None:
+                prefix += _governed_prefix(prompt)
         check(len(raw) <= 4096, "limit")
         started = time.monotonic()
         with self._request_sampler(response_format) as sampler:
@@ -289,6 +318,7 @@ class Llama:
             checkpoint = min(n - 1, max(CONFIGURATION["prefix_min_tokens"], matching))
         prefill_started, prefill_cpu = time.monotonic(), time.process_time()
         start = reused
+        emit({"event": "prefill", "phase": "native_prefill"})
         for end in ([checkpoint, n] if checkpoint else [n]):
             while start < end:
                 count = min(512, end - start)
