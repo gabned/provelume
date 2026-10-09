@@ -301,7 +301,7 @@ class LocalRuntime:
             selection.validate(model.entry)
             check(selection.platform == native_selection().platform, "compatibility")
             check(type(prompt) is str and 0 < len(prompt.encode("utf-8")) <= 4096, "limit")
-            check(not any(token in prompt for token in ("<|im_start|>", "<|im_end|>")), "limit")
+            check("<|" not in prompt, "limit")
             check(reuse_scope is None or (type(reuse_scope) is str and len(reuse_scope) == 64
                   and all(ch in "0123456789abcdef" for ch in reuse_scope)), "state")
             if response_format is not None:

@@ -15,13 +15,13 @@ from .ai_synthesis_profile import PROFILE, framing_identity
 
 RUNTIME_ID = "llama.cpp"
 RUNTIME_VERSION = "b11379"
-MODEL_ID = "qwen3-1.7b-q4-k-m"
-MODEL_FORMAT = "gguf-v3-q4_k_m"
-MODEL_SIZE = 1107408544
-MODEL_SHA256 = "228fb5627f7510b8b3516cdb6435e4b0d2a2bf330fe5b0ab19284a3570a8bb1f"
-MODEL_LICENSE = "qwen3-LICENSE.txt"
-MODEL_URL = ("https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/"
-             "7fb011e9aee6e4dc7adf8430df9ea8de6a466aa3/Qwen3-1.7B-Q4_K_M.gguf")
+MODEL_ID = "granite-4.0-1b-q5-k-m"
+MODEL_FORMAT = "gguf-v3-q5_k_m"
+MODEL_SIZE = 1178310400
+MODEL_SHA256 = "3d977db90ec00a2152cc3cdb788f7273c6258f49394a914046cc90c266831598"
+MODEL_LICENSE = "granite-LICENSE.txt"
+MODEL_URL = ("https://huggingface.co/ibm-granite/granite-4.0-1b-GGUF/resolve/"
+             "b27c2fe3f211b7f44e80fa620177aea371099aaa/granite-4.0-1b-Q5_K_M.gguf")
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,8 +36,17 @@ class NativeModelPin:
 
 
 NATIVE_MODEL_PINS = (
-    NativeModelPin(MODEL_ID, MODEL_FORMAT, MODEL_SIZE, MODEL_SHA256, MODEL_URL,
-                   MODEL_LICENSE, "repository:docs/adr/0039-bounded-selection-assessment.md"),
+    NativeModelPin(
+        MODEL_ID, MODEL_FORMAT, MODEL_SIZE, MODEL_SHA256, MODEL_URL, MODEL_LICENSE,
+        "repository:docs/adr/0040-granite-document-synthesis-candidate.md",
+    ),
+    NativeModelPin(
+        "qwen3-1.7b-q4-k-m", "gguf-v3-q4_k_m", 1107408544,
+        "228fb5627f7510b8b3516cdb6435e4b0d2a2bf330fe5b0ab19284a3570a8bb1f",
+        "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/"
+        "7fb011e9aee6e4dc7adf8430df9ea8de6a466aa3/Qwen3-1.7B-Q4_K_M.gguf",
+        "qwen3-LICENSE.txt", "repository:docs/adr/0039-bounded-selection-assessment.md",
+    ),
     NativeModelPin(
         "qwen3-4b-instruct-2507-q2-k", "gguf-v3-q2_k", 1669499616,
         "7f9efe8a86c1d200139801642dcf8c0d9f2cf09c89ef4e8f0ea525536368c4ca",
@@ -83,7 +92,7 @@ CONFIGURATION = {
     "sampling": "greedy",
     "synthesis_format": PROFILE,
     "synthesis_instructions": {str(cap): framing_identity(cap) for cap in (2, 3)},
-    "chat_template": "qwen3-nonthinking-v1",
+    "chat_template": "granite4-roles-v1",
 }
 
 

@@ -71,7 +71,7 @@ def measure(root, output):
         except ModelError as exc:
             report["absent_model"] = exc.code
         report["installation"] = store.import_offline(
-            MODEL_ID, root / "qwen.gguf", selection, requested=True, license_accepted="Apache-2.0"
+            MODEL_ID, root / "model.gguf", selection, requested=True, license_accepted="Apache-2.0"
         )
         corpus_path = ROOT / "tests/fixtures/ai_runtime_quality.json"
         report["corpus_sha256"] = hashlib.sha256(corpus_path.read_bytes()).hexdigest()

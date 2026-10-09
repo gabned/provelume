@@ -136,8 +136,7 @@ def chat_parts(payload, value):
         check(type(segment) is dict and set(segment) == {"segment", "text"}, "state")
         check(type(segment["segment"]) is int and segment["segment"] == index
               and type(segment["text"]) is str, "state")
-        check(not any(token in segment["text"] for token in ("<|im_start|>", "<|im_end|>")),
-              "limit")
+        check("<|" not in segment["text"], "limit")
     # The host has already checked contiguous indexes. Use the same ordered,
     # quoted paragraph array as the editorial examples: redundant index objects
     # are not document content and consume the bounded native input needlessly.

@@ -61,7 +61,7 @@ def test_candidate_and_shipped_runtime_lock_have_no_execution_authority():
     entry = ModelRegistry.packaged().entry(MODEL_ID)
     assert entry.qualification == "CANDIDATE_NOT_QUALIFIED"
     assert entry.model_sha256 == MODEL_SHA256
-    assert entry.model_size == 1107408544
+    assert entry.model_size == 1178310400
     assert entry.profile.model == MODEL_ID
     assert runtime_lock()["version"] == "b11379"
     assert set(runtime_lock()["platforms"]) == {"windows", "linux"}
@@ -91,7 +91,7 @@ def test_native_pin_keeps_exact_artifact_bound_and_each_retired_license():
 @pytest.mark.parametrize("field,value", [
     ("id", "qwen3-unreviewed"), ("format", "gguf-v3-q8_0"),
     ("format", "gguf-v3-q2_k"), ("model_sha256", "1" * 64),
-    ("package_size", 1107408545),
+    ("package_size", 1178310401),
     ("url", "https://huggingface.co/another/model.gguf"),
 ])
 def test_native_manifest_refuses_unreviewed_or_mixed_artifact_pins(field, value):
@@ -244,7 +244,9 @@ def test_global_process_ceiling_has_no_queue(host, model, tmp_path):
         other.close()
 
 
-@pytest.mark.parametrize("prompt", ["", "x" * 4097, "<|im_start|>", "<|im_end|>"])
+@pytest.mark.parametrize("prompt", ["", "x" * 4097, "<|im_start|>", "<|im_end|>",
+                                    "<|start_of_role|>", "<|end_of_role|>", "<|end_of_text|>",
+                                    "<|tool_call|>", "<|unused_1|>"])
 def test_input_refused_before_worker(host, model, prompt):
     with pytest.raises(ModelError, match="limit"):
         host._infer(model, runtime.native_selection(), prompt)

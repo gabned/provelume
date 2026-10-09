@@ -25,8 +25,12 @@ block; the synthesis instructions, examples and frozen evaluation stay unchanged
 [ADR 0039](../adr/0039-bounded-selection-assessment.md) records that candidate's
 failure to meet inherited latency gates and re-evaluates the same pinned Qwen3-1.7B
 with a bounded assessment before selection. Its previous failed semantic profiles
-remain retained. Qwen2.5 and the 4B entry stay retired and explicitly removable;
-the 1.7B candidate requires fresh technical evidence and consent, not old activation.
+remain retained. That profile completed all 32 cases but matched only 19 gold
+selections on each native platform. [ADR 0040](../adr/0040-granite-document-synthesis-candidate.md)
+selects the official Granite-4.0-1B Q5_K_M candidate with its canonical role framing
+and the same bounded assessment, examples and thresholds. All three Qwen entries
+stay retired and explicitly removable. The new candidate requires fresh technical
+evidence and consent; an earlier model's activation cannot authorize it.
 Summarize and Key points select excerpts,
 not model-authored facts. The task/language matrix is EN/IT, independently of the
 seven interface catalogs. All real quality/performance outcomes belong to the

@@ -105,7 +105,7 @@ def prepare(root, system, *, model):
             with path.open("xb") as stream:
                 stream.write(raw)
     if model:
-        acquire(MODEL_URL, root / "qwen.gguf", MODEL_SIZE, MODEL_SHA256)
+        acquire(MODEL_URL, root / "model.gguf", MODEL_SIZE, MODEL_SHA256)
     return destination
 
 

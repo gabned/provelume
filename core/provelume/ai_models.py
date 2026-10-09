@@ -20,13 +20,13 @@ MAX_FILES = 2
 MAX_TOTAL_BYTES = 96 * 1024
 MAX_INSTALLED = 8
 FORMAT = "synthetic-bytes-v1"
-NATIVE_FORMATS = ("gguf-v3-q4_k_m", "gguf-v3-q2_k")
+NATIVE_FORMATS = ("gguf-v3-q4_k_m", "gguf-v3-q2_k", "gguf-v3-q5_k_m")
 RUNTIME = "provelume.synthetic-fixture"
 RUNTIME_VERSION = "1"
 CONFIGURATION = {"schema_version": 1, "purpose": "lifecycle-self-test-only"}
 # Governed together with the manifest by ordinary application distribution gates.
 # This pin is not accepted from an offline package or a download response.
-MANIFEST_SHA256 = "fe5f57a33b1aff5eab60be367659ecd32690d05bfdc94ff015bae834c52e41ed"
+MANIFEST_SHA256 = "a6df65f54249736b66c9facdfcdbcdd57ccdcc104cf76faec273ffa572a60741"
 _ID = re.compile(r"[a-z][a-z0-9_.-]{0,79}\Z")
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
 

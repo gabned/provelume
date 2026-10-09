@@ -10,18 +10,25 @@ texts are retained under `core/provelume/runtime_notices/` and accompany the
 deterministic native build input. Qwen/Qwen2.5-1.5B-Instruct-GGUF revision
 `91cad51170dc346986eccefdc2dd33a9da36ead9` is Apache-2.0; its full license is retained
 there as `qwen-LICENSE.txt`. Weights are acquired explicitly, not shipped in wheels.
-The retained Qwen3-1.7B candidate is Qwen/Qwen3-1.7B-GGUF, revision
+The retired Qwen3-1.7B candidate is Qwen/Qwen3-1.7B-GGUF, revision
 `7fb011e9aee6e4dc7adf8430df9ea8de6a466aa3`, Apache-2.0, Copyright 2025 Alibaba Cloud.
 Its complete license is retained as `qwen3-LICENSE.txt` with normalized LF line
 endings. [ADR 0035](docs/adr/0035-qwen3-synthesis-candidate.md) pins the selected
 quantization, origin and digest. [ADR 0039](docs/adr/0039-bounded-selection-assessment.md)
-re-evaluates these same bytes under a new bounded selection profile; no earlier
-failed semantic result becomes qualified. The retired Qwen3-4B-Instruct-2507 is in
+re-evaluated these same bytes under a bounded selection profile, which also failed
+semantic qualification. The retired Qwen3-4B-Instruct-2507 is in
 bartowski's Q2_K conversion, revision `ac104788567ef76beaf5f30b6cccb1f99a69afbe`.
 This third-party quantization uses Apache-2.0, Copyright 2024 Alibaba Cloud;
 the complete terms are retained in `qwen-LICENSE.txt`.
 [ADR 0038](docs/adr/0038-qwen3-instruct-synthesis-candidate.md) pins its identity
 before scoring. It failed latency qualification; Qwen2.5 also remains RETIRED.
+The current S08 candidate is IBM's official Granite-4.0-1B Q5_K_M conversion,
+`ibm-granite/granite-4.0-1b-GGUF` revision
+`b27c2fe3f211b7f44e80fa620177aea371099aaa`, Apache-2.0. The complete unchanged
+publisher license is retained as `granite-LICENSE.txt`; its immutable source and
+digest, model identity and qualification conditions are recorded in
+[ADR 0040](docs/adr/0040-granite-document-synthesis-candidate.md). Publisher
+language support does not establish Provelume task quality.
 No model is promoted to Recommended or bundled in the wheel.
 See [ADR 0031](docs/adr/0031-cpu-local-runtime-candidate.md) for immutable origins,
 digests, quantization and redistribution conditions. The candidate input's SBOM
