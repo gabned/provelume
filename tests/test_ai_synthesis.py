@@ -3,6 +3,9 @@
 import asyncio
 import json
 import re
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import timedelta
 from html import unescape
 from pathlib import Path
@@ -431,6 +434,114 @@ def test_http_explicit_execution_is_idempotent_and_operations_links_result(synth
         assert repeated.status_code == 200 and len(host.jobs.journal.list_jobs()) == 2
         assert all(f'/operations/ai/{j["id"]}/synthesis' in operations.text for j in jobs)
         assert TEXT.split("\n\n")[0] not in operations.text
+
+
+@pytest.mark.parametrize("action", ["preview", "regenerate"])
+def test_document_preparation_keeps_navigation_live_during_contention(
+    synthesis, tmp_path, monkeypatch, action
+):
+    setup, document, bundle = synthesis
+    job = execute(synthesis) if action == "regenerate" else None
+    app = create_app(setup.instance.root, shell_settings_file=tmp_path / "shell.json")
+    host = app.state.ai_setup
+    host.models, host.runtime = setup.models, setup.runtime
+    host.local_evidence, host.self_test_evidence = setup.local_evidence, setup.self_test_evidence
+    host.enable()
+    monkeypatch.setattr(host.instance, "run_scheduler_cycle", lambda **kwargs: None)
+    held, attempted, release = threading.Event(), threading.Event(), threading.Event()
+    original = host.synthesis.preview
+
+    def observed_preview(*args, **kwargs):
+        attempted.set()
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(host.synthesis, "preview", observed_preview)
+
+    def owner():
+        with host.lock:
+            held.set()
+            assert release.wait(10)
+
+    with TestClient(app) as client:
+        path = f"/documents/{document}/synthesis"
+        values = form(client.get(path))
+        if action == "preview":
+            path += "/preview"
+            values.update(selection=bundle["representation_id"]+":"+bundle["outputs"][0]["id"],
+                          version_id=bundle["version"]["id"], task="summary", language="en")
+        else:
+            path = f"/operations/ai/{job['id']}/synthesis/regenerate"
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            holding = pool.submit(owner)
+            pending = None
+            try:
+                assert held.wait(5)
+                pending = pool.submit(client.post, path, data=values)
+                assert attempted.wait(5)
+                assert not pending.done()
+                # The actual setup lock is still held: navigation must be free
+                # to finish before that writer releases it.
+                navigation = pool.submit(client.get, "/search?q=synthetic")
+                assert navigation.result(timeout=1).status_code == 200
+            finally:
+                release.set()
+                holding.result(timeout=5)
+                if pending is not None:
+                    response = pending.result(timeout=5)
+                    assert response.status_code == 200
+                    assert re.search(r'name="ref" value="[a-f0-9]+"', response.text)
+        assert client.post(path, data=values).status_code == 409
+        assert len(host.jobs.journal.list_jobs()) == (action == "regenerate")
+        assert not app.state.ai_tasks
+
+
+def test_discard_keeps_navigation_live_during_journal_contention(
+    synthesis, tmp_path, monkeypatch
+):
+    setup, _, _ = synthesis
+    job = execute(synthesis)
+    app = create_app(setup.instance.root, shell_settings_file=tmp_path / "shell.json")
+    host = app.state.ai_setup
+    monkeypatch.setattr(host.instance, "run_scheduler_cycle", lambda **kwargs: None)
+    held, attempted, release = threading.Event(), threading.Event(), threading.Event()
+    hold = host.jobs.journal.hold
+
+    @contextmanager
+    def observed_hold():
+        attempted.set()
+        with hold():
+            yield
+
+    monkeypatch.setattr(host.jobs.journal, "hold", observed_hold)
+
+    def owner():
+        with host.jobs.journal._writer_lock:
+            held.set()
+            assert release.wait(10)
+
+    with TestClient(app) as client:
+        path = f"/operations/ai/{job['id']}/synthesis"
+        values = form(client.get(path))
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            holding = pool.submit(owner)
+            pending = None
+            try:
+                assert held.wait(5)
+                pending = pool.submit(client.post, path+"/discard", data=values)
+                assert attempted.wait(5)
+                assert not pending.done()
+                assert host.synthesis.path(job["id"]).is_file()
+                navigation = pool.submit(client.get, "/search?q=synthetic")
+                assert navigation.result(timeout=1).status_code == 200
+            finally:
+                release.set()
+                holding.result(timeout=5)
+                if pending is not None:
+                    assert pending.result(timeout=5).status_code == 200
+        assert not host.synthesis.path(job["id"]).exists()
+        assert host.jobs.journal.get_job(job["id"]) == job
+        assert client.post(path+"/discard", data=values).status_code == 409
+        assert not app.state.ai_tasks
 
 
 def test_structured_transport_candidate_uses_same_result_contract(synthesis):

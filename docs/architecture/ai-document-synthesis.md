@@ -158,6 +158,12 @@ consent. A changed source needs a newly selected current representation. There i
 no automatic regeneration or bitwise result guarantee. Portable exports/backups
 include the private derived body; existing backups can retain discarded copies.
 
+HTTP preview, regeneration and discard use the existing owned asynchronous
+mutation boundary. File reads and setup/lifecycle-lock waits run outside the
+ASGI event loop, keeping unrelated navigation responsive. Disconnecting the
+request does not abandon an already owned operation; the same bounded task set,
+form nonce, current-version checks and fresh consent requirements remain in force.
+
 ## Limits and remaining qualification
 
 The inherited Capture responsiveness gate still applies during synthesis. Windows

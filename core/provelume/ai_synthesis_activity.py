@@ -21,6 +21,16 @@ def attach_synthesis_routes(
         return page(request, "ai_synthesis.html", phase="preview", ref=ref,
                     prepared=prepared, document=document, payload=setup.payload(prepared))
 
+    def selected_preview(document_id, values):
+        document = setup.instance.get_document(document_id)
+        check(document is not None and document["current_version"] is not None
+              and document["current_version"]["id"] == values["version_id"], "ai_setup_stale")
+        choice = values["selection"].split(":")
+        check(len(choice) == 2)
+        result = synthesis.preview(document_id, *choice, values["task"], values["language"])
+        check(result[1][0].manifest.version.version_id == values["version_id"], "ai_setup_stale")
+        return result
+
     @app.get("/documents/{document_id}/synthesis")
     def selection(request: Request, document_id: str):
         local(request)
@@ -51,14 +61,7 @@ def attach_synthesis_routes(
     async def preview(request: Request, document_id: str):
         values = await fields(request, {"selection", "version_id", "task", "language"})
         try:
-            document = setup.instance.get_document(document_id)
-            check(document is not None
-                  and document["current_version"]["id"] == values["version_id"], "ai_setup_stale")
-            choice = values["selection"].split(":")
-            check(len(choice) == 2)
-            result = synthesis.preview(document_id, *choice, values["task"], values["language"])
-            check(result[1][0].manifest.version.version_id == values["version_id"],
-                  "ai_setup_stale")
+            result = await mutation(selected_preview, document_id, values)
             return preview_page(request, result)
         except (ValueError, OSError, SchedulerBusyError) as exc:
             return error(request, exc)
@@ -120,7 +123,7 @@ def attach_synthesis_routes(
     async def discard(request: Request, job_id: str):
         await fields(request, set())
         try:
-            synthesis.discard(job_id)
+            await mutation(synthesis.discard, job_id)
             return redirect(request, f"/operations/ai/{job_id}/synthesis")
         except (ValueError, OSError, SchedulerBusyError) as exc:
             return error(request, exc)
@@ -129,6 +132,6 @@ def attach_synthesis_routes(
     async def regenerate(request: Request, job_id: str):
         await fields(request, set())
         try:
-            return preview_page(request, synthesis.regenerate(job_id))
+            return preview_page(request, await mutation(synthesis.regenerate, job_id))
         except (ValueError, OSError, SchedulerBusyError) as exc:
             return error(request, exc)
