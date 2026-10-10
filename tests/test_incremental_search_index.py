@@ -35,6 +35,56 @@ def _metadata(instance: ProvelumeInstance) -> dict[str, object]:
     )
 
 
+def test_index_check_reads_each_canonical_document_once(tmp_path, monkeypatch):
+    instance, _source = _instance_with_two_documents(tmp_path)
+    reads = []
+    read_json = instance.store._read_json
+
+    def observe(path):
+        if path.parent == instance.store.paths.canonical_dir("documents"):
+            reads.append(path)
+        return read_json(path)
+
+    monkeypatch.setattr(instance.store, "_read_json", observe)
+    assert index_status(instance.store) == "ready"
+    assert len(reads) == len(set(reads)) == 2
+
+
+def test_index_refresh_reads_each_canonical_document_once(tmp_path, monkeypatch):
+    instance, _source = _instance_with_two_documents(tmp_path)
+    document = instance.store.list_canonical("documents")[0]
+    reads = []
+    read_json = instance.store._read_json
+
+    def observe(path):
+        if path.parent == instance.store.paths.canonical_dir("documents"):
+            reads.append(path)
+        return read_json(path)
+
+    monkeypatch.setattr(instance.store, "_read_json", observe)
+    assert index_module.refresh_search_index(instance.store, [document["id"]]) == 2
+    assert len(reads) == len(set(reads)) == 2
+
+
+def test_index_catalog_is_fresh_and_rejects_orphan_dispositions(tmp_path):
+    from provelume.retention_model import RetentionIntegrityError
+
+    instance, _source = _instance_with_two_documents(tmp_path)
+    document = instance.store.list_canonical("documents")[0]
+    assert index_status(instance.store) == "ready"
+    instance.trash_document(document["id"])
+    assert document["id"] not in _metadata(instance)["documents"]
+    assert index_status(instance.store) == "ready"
+    instance.restore_document_from_trash(document["id"])
+    assert document["id"] in _metadata(instance)["documents"]
+    disposition = instance.store.list_canonical("dispositions")[0]
+    canonical = instance.store.paths.canonical_dir("documents") / (document["id"] + ".json")
+    canonical.unlink()
+    with pytest.raises(RetentionIntegrityError):
+        index_status(instance.store)
+    assert instance.store.read_canonical("dispositions", disposition["id"]) == disposition
+
+
 def test_ingestion_refresh_reads_only_changed_document_text(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

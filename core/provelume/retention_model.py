@@ -174,10 +174,9 @@ def canonical_disposition_errors(
     return errors
 
 
-def disposition_records(store: InstanceStore) -> dict[str, dict[str, Any]]:
-    documents = {
-        str(item["id"]): item for item in store.list_canonical("documents")
-    }
+def _disposition_records(
+    store: InstanceStore, documents: Mapping[str, Mapping[str, Any]]
+) -> dict[str, dict[str, Any]]:
     raw_records = store.list_canonical("dispositions")
     records = {
         str(item.get("id", "")): item
@@ -191,9 +190,25 @@ def disposition_records(store: InstanceStore) -> dict[str, dict[str, Any]]:
     return {str(item["document_id"]): item for item in records.values()}
 
 
-def effective_dispositions(store: InstanceStore) -> dict[str, dict[str, Any]]:
-    recorded = disposition_records(store)
-    return {
+def disposition_records(store: InstanceStore) -> dict[str, dict[str, Any]]:
+    documents = {
+        str(item["id"]): item for item in store.list_canonical("documents")
+    }
+    return _disposition_records(store, documents)
+
+
+def documents_with_dispositions(
+    store: InstanceStore,
+) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
+    """Read one fresh catalog for both retention validation and its consumer.
+
+    This observation is local to the call, never cached across a mutation or
+    subsequent search. Every recorded disposition still validates against the
+    complete canonical Document inventory, including trashed Documents.
+    """
+    documents = store.list_canonical("documents")
+    recorded = _disposition_records(store, {str(item["id"]): item for item in documents})
+    dispositions = {
         str(document["id"]): disposition_view(
             {
                 **recorded.get(
@@ -203,5 +218,10 @@ def effective_dispositions(store: InstanceStore) -> dict[str, dict[str, Any]]:
                 "recorded": str(document["id"]) in recorded,
             }
         )
-        for document in store.list_canonical("documents")
+        for document in documents
     }
+    return documents, dispositions
+
+
+def effective_dispositions(store: InstanceStore) -> dict[str, dict[str, Any]]:
+    return documents_with_dispositions(store)[1]
