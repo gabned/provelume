@@ -101,12 +101,9 @@ class NativeJobAdapter:
             task = inputs.current["template"].id
             options = {}
             if task in SYNTHESIS_TEMPLATES:
-                from .ai_synthesis_profile import PROFILE
+                from .ai_synthesis_profile import native_format
 
-                options["response_format"] = {
-                    "profile": PROFILE, "segments": len(inputs.preview.segments),
-                    "maximum": 2 if task.startswith("summary-") else 3,
-                }
+                options["response_format"] = native_format(task, len(inputs.preview.segments))
             selection = native_selection()
             prepared_at = time.monotonic()
             with self.model_store.use(selection) as model:

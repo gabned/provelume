@@ -114,7 +114,8 @@ CONFIGURATION = {
     "termination_seconds": 2,
     "sampling": "greedy",
     "synthesis_format": PROFILE,
-    "synthesis_instructions": {str(cap): framing_identity(cap) for cap in (2, 3)},
+    "synthesis_instructions": {f"{language}-{cap}": framing_identity(cap, language)
+                               for language in ("en", "it") for cap in (2, 3)},
     "chat_template": "qwen35-canonical-nonthinking-v1",
     "prefix_state": "single-sequence-checkpoint-v1",
     "governed_prefix": "canonical-context-header-v1",

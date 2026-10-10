@@ -93,6 +93,15 @@ extends exact legacy input-prefix reuse, lowers Linux worker priority, and binds
 S07's concurrent-inference probe to actual native prefill. All earlier failures and
 numeric gates remain unchanged; this revision needs fresh complete qualification.
 
+That revision passed 24/26 gates on each host, including English quality and every
+performance gate, but still failed Italian selection: Windows selected 29/32 gold
+results and Linux 30/32. [ADR 0049](../adr/0049-language-matched-synthesis-demonstrations.md)
+keeps the complete canonical semantic task and English frame while using Italian
+translations of the same four trusted demonstrations for Italian tasks. A closed
+language field must match the host template; all task/language frames bind runtime
+and template identities. Source text never selects a frame. New complete native
+qualification is required; preceding failed reports retain their original status.
+
 Before local or hybrid consent, preparation constructs the actual native frame
 to check quotation expansion, trusted-dialogue overhead and unsupported role
 delimiters against the unchanged limit. It reads no model bytes and probes no
@@ -164,6 +173,9 @@ JSON envelope. The worker rechecks task identity, exact trusted instructions,
 segment count and contiguous indexes, then places the task in the system role and
 the exact ordered array of quoted paragraph strings in the final user role, after
 the fixed trusted editorial demonstrations, without redundant native index wrappers.
+The demonstration language comes only from the exact host template identity;
+the worker rejects a mismatched native descriptor. It does not infer a language
+from source content or translate the paragraphs selected as evidence.
 A fresh grammar/greedy sampler per
 request requires a bounded assessment and exactly one KEEP/DROP decision per
 paragraph within the task maximum. Assessment is 1–160 printable ASCII characters

@@ -238,7 +238,8 @@ class Llama:
             from .ai_synthesis_profile import native_prefix, native_prompt
 
             raw = native_prompt(prompt, response_format).encode("utf-8")
-            prefix = (native_prefix(response_format["maximum"]) + "<|im_start|>user\n").encode()
+            prefix = (native_prefix(response_format["maximum"], response_format["language"])
+                      + "<|im_start|>user\n").encode()
         else:
             from .ai_synthesis_profile import GENERATION_PREFIX
 

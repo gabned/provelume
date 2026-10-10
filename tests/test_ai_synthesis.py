@@ -319,6 +319,7 @@ def test_native_framing_quotes_source_question_markers(synthesis, task, language
 
     system, source = chat_parts(payload.decode(), {
         "profile": PROFILE, "segments": 1, "maximum": 2 if task == "summary" else 3,
+        "language": language,
     })
     assert text not in system
     assert json.loads(source) == [text]

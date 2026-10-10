@@ -339,13 +339,11 @@ class AiSetup:
         if task in SYNTHESIS_TEMPLATES and configuration["mode"] in {"local", "hybrid"}:
             # Validate the actual native frame before consent, without touching
             # model bytes. Quoting and trusted dialogue also consume its limit.
-            from .ai_synthesis_profile import PROFILE, native_prompt
+            from .ai_synthesis_profile import native_format, native_prompt
 
             try:
-                frame = native_prompt(task_payload(preview, current["template"]).decode(), {
-                    "profile": PROFILE, "segments": len(preview.segments),
-                    "maximum": 2 if task.startswith("summary-") else 3,
-                })
+                frame = native_prompt(task_payload(preview, current["template"]).decode(),
+                                      native_format(task, len(preview.segments)))
             except ModelError as exc:
                 if exc.code == "limit":
                     raise AiContractError(Reason.LIMIT) from exc

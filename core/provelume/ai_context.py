@@ -231,7 +231,13 @@ class TaskTemplate(Contract):
 
     @property
     def identity(self) -> TemplateIdentity:
-        from .ai_synthesis_profile import framing_identity
+        from .ai_synthesis_profile import framing_identity, native_format
+
+        native = {}
+        if self.id in SYNTHESIS_TEMPLATES:
+            descriptor = native_format(self.id, 1)
+            native = {"native_framing": framing_identity(
+                descriptor["maximum"], descriptor["language"])}
 
         return TemplateIdentity(
             self.id,
@@ -243,9 +249,7 @@ class TaskTemplate(Contract):
                         "extractive-synthesis-v1" if self.id in SYNTHESIS_TEMPLATES
                         else "context-check-v1"
                     ),
-                    **({"native_framing": framing_identity(
-                        2 if self.id.startswith("summary-") else 3)}
-                       if self.id in SYNTHESIS_TEMPLATES else {}),
+                    **native,
                 }
             ),
         )
