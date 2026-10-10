@@ -1,0 +1,10 @@
+<section class="panel" aria-labelledby="ai-state" data-ai-session="{{ 'enabled' if ai.control.session_authorized else 'off' }}"><h2 id="ai-state">{{ t('ai.state') }}</h2>
+<p role="status" aria-live="polite">{{ t('ai.' ~ ai.control.mode) if ai.control.session_authorized else t('ai.off') }}{% if not ai.control.session_authorized %} · {{ t('ai.session_off') }}{% endif %}</p>
+{% if ai.control.accounting.units %}<details><summary>{{ t('ai.reserved') }} · {{ ai.control.accounting.units }}</summary><p>{{ t('ai.unknown') }}</p></details>{% endif %}
+<p><a href="/operations/ai?lang={{ lang }}">{{ t('ai.operations') }}</a> · <a href="/components?lang={{ lang }}">{{ t('nav.components') }}</a></p>
+</section>
+{% if ai.control.session_authorized or ai.configuration.mode in ['external','hybrid'] %}
+<section class="panel"><h2>{{ t('ai.controls') }}</h2>{% if not ai.control.session_authorized %}<p>{{ t('ai.enable_help') }}</p>{% endif %}
+<div class="ai-controls">{% for action in ['enable','paused','off'] if (action == 'enable' and ai.configuration.mode in ['external','hybrid'] and (not ai.control.session_authorized or ai.control.mode != 'enabled')) or (action != 'enable' and ai.control.session_authorized and ai.control.mode != action) %}<form method="post" action="/settings/ai/control?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="revision" value="{{ ai.configuration.revision }}"><input type="hidden" name="action" value="{{ action }}"><button type="submit" class="secondary">{{ t('ai.disable') if action == 'off' else t('ai.' ~ action) }}</button></form>{% endfor %}</div>
+</section>
+{% endif %}

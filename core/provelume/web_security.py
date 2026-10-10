@@ -120,6 +120,7 @@ class LocalWebSecurityMiddleware(BaseHTTPMiddleware):
             for name in (
                 "cura_script_integrity",
                 "navigation_script_integrity",
+                "ai_progress_integrity",
                 "annotation_script_integrity",
                 "review_script_integrity",
                 "capture_script_integrity",

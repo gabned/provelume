@@ -1,10 +1,10 @@
 {% extends base_layout %}
 {% block title %}{{ t('ai.preview') }} · {{ t('brand') }}{% endblock %}
 {% block content %}
-<p><a href="/documents/{{ document.id }}?lang={{ lang }}">{{ document.title }}</a> · <a href="/settings/ai?lang={{ lang }}">{{ t('ai.title') }}</a></p>
+<p><a href="{{ document_link(document.id) }}">{{ document.title }}</a> · <a href="/settings/ai?lang={{ lang }}{% if return_to %}&amp;return_to={{ return_to|urlencode }}{% endif %}">{{ t('ai.title') }}</a></p>
 <section class="panel"><h1>{{ t('ai.preview') }}</h1><p>{{ t('ai.document_help') }}</p>
 <p class="hash">{{ document.current_version.id }}</p>
-{% if choices %}<form method="post" action="/documents/{{ document.id }}/ai?lang={{ lang }}" class="settings-form">
+{% if choices %}<form method="post" action="/documents/{{ document.id }}/ai?lang={{ lang }}{% if return_to %}&amp;return_to={{ return_to|urlencode }}{% endif %}" class="settings-form">
 {% include 'ai_fields.html' %}<input type="hidden" name="version_id" value="{{ document.current_version.id }}">
 <label for="ai-selection">{{ t('ai.selection') }}</label><select id="ai-selection" name="selection">{% for choice in choices %}<option value="{{ choice|join(':') }}">{{ loop.index }} · {{ choice[0] }} · {{ choice[2] }}</option>{% endfor %}</select>
 <label for="ai-start">{{ t('ai.start') }}</label><input id="ai-start" type="number" min="0" name="start" value="0" required>

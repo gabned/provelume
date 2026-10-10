@@ -4,6 +4,25 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Improved
+
+- Management provides direct access to AI & Privacy, AI operations, preferences and
+  notifications in Cura. Document AI journeys retain the originating search filters.
+- Cura is labelled as the standard interface. Upgrades that retained the previous
+  layout without an explicit selection offer a reversible choice in Shell settings;
+  explicit rollback preferences remain respected.
+
+### Fixed
+
+- AI model downloads update their progress automatically in both interfaces without
+  losing unsaved settings. Completion shows fresh available actions; errors and
+  connection loss remain distinct, with manual refresh available. Cancellation stays
+  available during long downloads. Refresh never enables AI or repeats an operation.
+
+Affected surfaces: `/management`, `/settings/ai`, `/settings/shell`, document AI
+preview/synthesis and `/operations/ai`. Requested together for the next release in #339/#340; release number not yet
+assigned and changes not yet published.
+
 ## 0.12.0 - 2026-10-10
 
 Custodia prepares optional local AI and accountable document assistance after

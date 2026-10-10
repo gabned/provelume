@@ -325,7 +325,7 @@ def _base_context(request: Request, language: str) -> dict[str, Any]:
     security_t = installation_translator(language)
     loaded = shell_snapshot(request)
     theme = loaded.settings.theme if loaded is not None else "system"
-    mode = loaded.settings.interface_mode if loaded is not None else "current"
+    mode = loaded.settings.interface_mode if loaded is not None else "preview"
     preview = mode == "preview"
     navigation = _navigation(language, request.url.path, t, security_t)
     integrity = script_integrity() if preview else None
@@ -342,6 +342,8 @@ def _base_context(request: Request, language: str) -> dict[str, Any]:
         "navigation": navigation,
         "theme": theme,
         "interface_mode": "preview" if preview else "current",
+        "offer_cura": loaded is not None and mode == "current"
+        and loaded.settings.interface_mode_change is None,
         "base_layout": "cura/base.html" if preview else "base.html",
         "cura_script_integrity": integrity,
         "navigation_script_integrity": navigation_script,

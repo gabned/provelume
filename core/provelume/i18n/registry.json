@@ -2939,6 +2939,16 @@
       "rendering": "text",
       "sensitive_review_required": true
     },
+    "ai.download_progress": {
+      "context": "Cura AI completion: ai download_progress",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.download_verifying": {
+      "context": "Cura AI completion: ai download_verifying",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
     "ai.duration_limit": {
       "context": "Custodia S07 current restrictions and private preview: duration_limit",
       "rendering": "text",
@@ -3233,6 +3243,21 @@
     },
     "ai.refresh": {
       "context": "Custodia AI setup, private previews and receipts: refresh",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.refresh_automatic": {
+      "context": "Cura AI completion: ai refresh_automatic",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.refresh_stale": {
+      "context": "Cura AI completion: ai refresh_stale",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "ai.refresh_unavailable": {
+      "context": "Cura AI completion: ai refresh_unavailable",
       "rendering": "text",
       "sensitive_review_required": false
     },
@@ -13244,6 +13269,11 @@
       "rendering": "text",
       "sensitive_review_required": false
     },
+    "shell.interface.choose_cura": {
+      "context": "Cura AI completion: shell interface choose_cura",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
     "shell.interface.current": {
       "context": "shell: label/navigation; shell_i18n.py / shell.interface.current",
       "linguistic_review": "UNVERIFIED",
@@ -13303,6 +13333,11 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "shell.interface.upgrade": {
+      "context": "Cura AI completion: shell interface upgrade",
+      "rendering": "text",
+      "sensitive_review_required": true
     },
     "shell.language": {
       "context": "shell: label/navigation; templates/shell_settings.html",
