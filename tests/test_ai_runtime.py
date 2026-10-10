@@ -493,7 +493,9 @@ def test_fresh_native_observation_cannot_reuse_previous_request_identity(host, m
     second = host._infer(model, runtime.native_selection(), "public synthetic second")
     assert first["prefill"]["request"] != second["prefill"]["request"]
     assert first["prefill"]["pid"] == second["prefill"]["pid"] == host._process.pid
-    assert first["prefill"]["received"] < before <= second["prefill"]["received"]
+    # A monotonic clock is nondecreasing; consecutive observations can share a
+    # Windows clock tick. Freshness is bound to the distinct request IDs above.
+    assert first["prefill"]["received"] <= before <= second["prefill"]["received"]
     assert second["prefill"]["phase"] == "native_prefill"
 
 
