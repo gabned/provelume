@@ -112,7 +112,7 @@
     <input type="hidden" name="action" value="set-interface-mode">
     <label for="interface-mode"><span>{{ t('shell.interface.choice') }}</span>
       <select id="interface-mode" name="interface_mode" aria-describedby="interface-mode-help">
-        {% for value in ['current', 'preview'] %}
+        {% for value in ['preview', 'current'] %}
         <option value="{{ value }}"{% if shell.shell.interface_mode == value %} selected{% endif %}>{{ t('shell.interface.' ~ value) }}</option>
         {% endfor %}
       </select>

@@ -27,6 +27,11 @@ request, tag, release or delivery commitment. Planned-version movement follows
 
 ## Release lane
 
+Next-release maintenance requested in #339/#340: live model-download progress,
+Cura functional parity and reversible standard-interface adoption. Implementation
+is in progress; the release number and activation remain to be determined. See the
+[completion audit](qualification/cura-ai-completion.md).
+
 | State | Version | Product outcome | Activation | Latin name |
 | --- | --- | --- | --- | --- |
 | Published preview | `0.1.0` | Local provenance-first Instance and verified release foundation | #40 (completed) | `Fundamentum` |
@@ -44,7 +49,7 @@ request, tag, release or delivery commitment. Planned-version movement follows
 | Published preview | `0.10.0` | Multimedia, universal content representations and component inventory | #160 (completed); S01–S07 completed by #163/#168/#170/#172/#173/#175/#179/#182; release #183 | `Perceptio` |
 | Published preview | `0.10.1` | Source onboarding, filtering and canonical brand correction | #198 completed; release #251 | `Emendatio` |
 | Published preview | `0.11.0` | Daily-use UX, Unified Capture, Action Center and multilingual interface | #255 S01–S09 delivered; #308 release record; [public identity/readiness](https://github.com/gabned/provelume/releases/tag/v0.11.0) | `Cura` |
-| Prepared preview | `0.12.0` | Optional local AI, privacy gateway and accountable document assistance | #311 S01–S09 delivered; __RELEASE_OWNER__; [release plan](releases/0.12.0.md) | `Custodia` |
+| Published preview | `0.12.0` | Optional local AI, privacy gateway and accountable document assistance | #311 S01–S09 delivered; #337/#338; [public release](https://github.com/gabned/provelume/releases/tag/v0.12.0) | `Custodia` |
 | Forecast | `0.13.0` | AI classification, confidence and controlled application extending Custodia receipts/templates | issue just in time | `Iudicium` |
 | Forecast | `0.14.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
 | Forecast | `0.15.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
@@ -1473,10 +1478,13 @@ with exact references and removable derived output through #333/#334 at accepted
 [final ledger](https://github.com/gabned/provelume/pull/334#issuecomment-6097065742)
 retains prior failures. S09 (#335/#336) integrates ordinary installation, AI lifecycle,
 navigation and release qualification under [ADR 0052](adr/0052-custodia-integrated-lifecycle.md),
-accepted at __S09_MAIN__. [The recommendation](qualification/custodia-local-profile.md)
+accepted in [the S09 integration ledger](https://github.com/gabned/provelume/pull/336).
+[The recommendation](qualification/custodia-local-profile.md)
 qualifies the exact observed model/configuration and EN/IT extractive tasks.
-Release owner __RELEASE_OWNER__ aligns package/runtime/embedded/Windows identity to 0.12.0;
-publication requires the official workflow and public readiness reconciliation.
+Release owner #337/#338 aligned package/runtime/embedded/Windows identity to 0.12.0.
+The [published release](https://github.com/gabned/provelume/releases/tag/v0.12.0)
+and [final publication ledger](https://github.com/gabned/provelume/pull/338#issuecomment-6101359995)
+record official workflow completion and public readiness reconciliation.
 The maintainer directed skipping Narrator on 2026-10-10; its result remains NOT_RUN,
 and unobserved human language/appearance results remain UNVERIFIED.
 

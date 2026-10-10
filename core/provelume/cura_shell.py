@@ -172,6 +172,19 @@ def navigation_context(
                     category = "operations"
                 management[category]["links"].append(item)
 
+    # Existing shared pages are first-class destinations in Cura. In particular,
+    # AI setup must not require finding a link inside folder settings.
+    for category, route, label in (
+        ("preferences", "/settings/ai", "ai.title"),
+        ("preferences", "/settings/preferences", "preferences.title"),
+        ("preferences", "/settings/notifications", "action.settings"),
+        ("operations", "/operations/ai", "ai.operations"),
+    ):
+        management[category]["links"].append({
+            "href": f"{route}?lang={language}", "label": t(label),
+            "current": path == route or path.startswith(route + "/"),
+        })
+
     def filter_link(**changes: str | None) -> str:
         values = dict(request.query_params.multi_items())
         values["lang"] = language

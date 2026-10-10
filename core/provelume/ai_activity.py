@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import hashlib
 import hmac
 import secrets
+import time
 from contextlib import suppress
-from urllib.parse import parse_qs
+from pathlib import Path
+from urllib.parse import parse_qs, urlencode
 
 from fastapi import HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.concurrency import run_in_threadpool
 
 from .ai_jobs import ai_capabilities
@@ -52,6 +56,8 @@ def attach_ai_routes(app, instance, templates, context_factory):
     setup = AiSetup(instance)
     app.state.ai_setup = setup
     csrf = secrets.token_urlsafe(32)
+    status_session = secrets.token_urlsafe(24)
+    status_cancel_nonce = None
     nonces = MutationNonces()
     tasks = set()
     app.state.ai_tasks = tasks
@@ -72,7 +78,13 @@ def attach_ai_routes(app, instance, templates, context_factory):
             mutation_nonce=nonces.issue(),
             selected_instance_id=setup.instance_id,
             ai_reason_key=reason_key,
+            ai_status_session=status_session,
         )
+        if name == "ai_settings.html":
+            raw = (Path(__file__).parent / "static/ai-model-progress.js").read_bytes()
+            integrity = "sha256-" + base64.b64encode(hashlib.sha256(raw).digest()).decode()
+            request.state.ai_progress_integrity = integrity
+            context["ai_progress_integrity"] = integrity
         response = templates.TemplateResponse(
             request=request, name=name, context=context, status_code=status_code
         )
@@ -116,9 +128,12 @@ def attach_ai_routes(app, instance, templates, context_factory):
         return result
 
     def redirect(request, path):
-        language = context_factory(request, instance)["lang"]
+        context = context_factory(request, instance)
+        query = {"lang": context["lang"]}
+        if context["return_to"]:
+            query["return_to"] = context["return_to"]
         return RedirectResponse(
-            f"{path}?lang={language}", status_code=303, headers={"Cache-Control": "no-store"}
+            f"{path}?{urlencode(query)}", status_code=303, headers={"Cache-Control": "no-store"}
         )
 
     def launch(function, *args, **kwargs):
@@ -172,6 +187,55 @@ def attach_ai_routes(app, instance, templates, context_factory):
     @app.get("/settings/ai")
     def settings(request: Request):
         return page(request)
+
+    @app.get("/settings/ai/model/status")
+    def model_status(request: Request, operation: str, session: str):
+        nonlocal status_cancel_nonce
+        local(request)
+        # Bind observations to this service and the displayed operation. GET never
+        # acquires, verifies, enables or restarts anything, including after reboot.
+        if session != status_session:
+            raise failure(request, 409)
+        with setup.lock:
+            if not setup.operation or setup.operation["id"] != operation:
+                raise failure(request, 409)
+            ai = setup.read()
+            current = ai["operation"]
+            context = context_factory(request, instance)
+            result = {
+                "instance": setup.instance_id,
+                "session": status_session,
+                "operation": current["id"],
+                "state": current["state"],
+                "bytes": current["bytes"],
+                "total": ai["current_model"]["size_bytes"],
+                "action": current["action"],
+                "cancel_requested": current.get("cancel_requested", False),
+            }
+            if current["state"] == "running":
+                # Long downloads must still be cancellable after the original
+                # page's ten-minute nonce expires. One bounded renewal per five
+                # minutes/operation avoids evicting other open forms every poll.
+                now = time.monotonic()
+                if (status_cancel_nonce is None or status_cancel_nonce[0] != operation
+                        or now - status_cancel_nonce[1] >= 300):
+                    status_cancel_nonce = (operation, now, nonces.issue())
+                result["cancel_nonce"] = status_cancel_nonce[2]
+            if current["state"] != "running":
+                context.update(ai=ai, csrf_token=csrf, mutation_nonce=nonces.issue(),
+                               selected_instance_id=setup.instance_id)
+                # Only the operation-owned regions are replaced at completion;
+                # unrelated settings and their unsaved values stay in the DOM.
+                result["fragments"] = {
+                    key: templates.get_template(name).render(context)
+                    for key, name in {
+                        "ai-model-progress": "ai_model_progress.html",
+                        "ai-model-actions": "ai_model_actions.html",
+                        "ai-session-state": "ai_session_state.html",
+                    }.items()
+                }
+        return JSONResponse(result, headers={"Cache-Control": "no-store",
+                                             "Referrer-Policy": "no-referrer"})
 
     @app.post("/settings/ai")
     async def save(request: Request):

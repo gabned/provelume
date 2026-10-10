@@ -34,6 +34,7 @@
     {% include 'language_menu.html' %}
   </header>
   <main id="main-content" class="page-shell" tabindex="-1">
+    {% if offer_cura %}<aside class="notice" aria-label="{{ t('shell.interface.title') }}"><p>{{ t('shell.interface.upgrade') }}</p><a class="button" href="/settings/shell?lang={{ lang }}#interface-mode-heading">{{ t('shell.interface.choose_cura') }}</a></aside>{% endif %}
     {% if language_fallback %}<p role="status">{{ t('common.language_fallback') }}</p>{% endif %}
     {% block content %}{% endblock %}
   </main>

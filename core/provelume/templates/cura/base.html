@@ -35,7 +35,7 @@
     <div class="cura-topbar">
       <span class="cura-instance">{% if instance is defined %}{{ instance.name }}{% else %}{{ t('brand') }}{% endif %}</span>
       <div class="cura-topbar-actions">
-        <a class="cura-preview-label" href="/settings/shell?lang={{ lang }}">{{ t('cura.preview') }}</a>
+        <a class="cura-preview-label" href="/settings/shell?lang={{ lang }}#interface-mode-heading">{{ t('shell.interface.preview') }}</a>
     {% include 'language_menu.html' %}
       </div>
     </div>

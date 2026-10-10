@@ -18,6 +18,7 @@ html[data-theme="dark"] .button.secondary { color:var(--accent); }
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); }
 a { color: var(--accent); text-underline-offset: .18em; }
+#ai-model-progress progress { width: min(100%, 28rem); height: 1rem; accent-color: var(--accent); }
 .site-header { position: sticky; top: 0; z-index: 10; display: grid; grid-template-columns: minmax(180px,1fr) auto auto; gap: 28px; align-items: center; padding: 16px clamp(20px,5vw,72px); border-bottom: 1px solid var(--line); background: var(--bg); }
 .brand { display: grid; grid-template-columns: 40px auto; column-gap: 10px; align-items: center; text-decoration: none; color: var(--text); }
 .brand > .brand-mark { grid-row: 1 / 3; }
