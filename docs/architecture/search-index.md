@@ -44,9 +44,10 @@ catalog to prove that non-selected rows remain valid. A future revision counter
 or catalog index may reduce that catalog check further without changing the
 canonical authority boundary.
 
-Each index check or refresh reads that canonical Document catalog once, using the
-same observation to validate all disposition records and select searchable
-Documents. There is no catalog cache across calls: subsequent checks reread both
+Each catalog observation during an index check or refresh reads the canonical
+Documents once, using the same observation to validate all disposition records
+and select searchable Documents. A fallback rebuild makes its own fresh
+observation. There is no catalog cache across calls: subsequent checks reread both
 Documents and dispositions, so trash, restore and orphaned/corrupt disposition
 records remain visible. This avoids three duplicate catalog scans per operation
 while preserving the existing integrity checks and complete-rebuild fallback.

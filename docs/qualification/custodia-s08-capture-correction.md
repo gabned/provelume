@@ -19,7 +19,7 @@ ledger. This failed main observation is not replaced by the preceding head's PAS
 The synthetic diagnostic identifies repeated catalog and path metadata reads.
 With 21 Documents, Capture followed by search reads 126 canonical Document
 records: each of the two index observations reads the catalog three times.
-Retention validation and index selection now share one fresh catalog per call,
+Retention validation and index selection now share each fresh catalog observation,
 reducing those reads to 42. Disposition records are still validated against all
 Documents; there is no persistent cache and later calls observe trash, restore
 and corrupt/orphaned records afresh. The two duplicate-I/O regressions fail on
