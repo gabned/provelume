@@ -12,7 +12,7 @@ promotion. The package remains 0.11.0 until the separate release-preparation cha
 | Genuine Windows PDF dependency resolution, other pins retained | Windows run 38049242831 PASS; pypdf 6.20.0; candidate installer/rebuild run 38056161287 PASS |
 | Native install/import, exact verification and cancellation | Installed run 38056161111: actual HTTPS acquisition, revoke/cancel, verification, removal and offline import PASS; revised configuration PENDING |
 | Global network revocation across restart and acquisition | Source regressions and actual installed transfer denial/revocation in run 38056161111 PASS; revised configuration PENDING |
-| Ordinary installed Windows AppContainer, creation-time Job and parent lifetime | Run 38056161111: all 13 checks PASS, including 32/32 gold, token, live-worker parent death and ordinary HTTP restart Off without replay; revised configuration PENDING |
+| Ordinary installed Windows AppContainer, creation-time Job and parent lifetime | Run 38056161111: all 12 named checks PASS, including 32/32 gold, token, live-worker parent death and ordinary HTTP restart Off without replay; revised configuration PENDING |
 | Non-root Linux/container install, offline execution and persistence | Runs 38058512159/38059042705 PASS, including actual HTTP restart, 32/32 gold and separate model persistence; 38057680651 failure retained; revised configuration PENDING |
 | Both native resource trees, notices/SBOM and independent offline reconstruction | Run 38056161287 PASS, including complete assembly/offline verifier; original composition failure retained |
 | Guided setup, freshness, explicit consent and retired-model removal | Source and production browser regression PASS; artifact-bound human observation PENDING |
