@@ -12,6 +12,7 @@ from importlib.resources import files
 
 from .ai_models import check
 from .ai_runtime_cpu import SELECTION as CPU_SELECTION
+from .ai_runtime_identity import LOCK_SHA256
 from .ai_synthesis_profile import PROFILE, framing_identity
 
 RUNTIME_ID = "llama.cpp"
@@ -95,7 +96,6 @@ def native_model_pin(identifier):
     return pin
 
 
-LOCK_SHA256 = "0e508965cddc60d6cfb57c42d2c4039c637e8812bb25cc21b525b6d6047a4404"
 CONFIGURATION = {
     "schema_version": 1,
     "purpose": "internal-runtime-qualification-only",

@@ -441,6 +441,50 @@ class AiSetup:
             # Consent is not session enablement, enqueue or dispatch.
             self.jobs.change_authority(approve_current)
 
+    def verify_preview(self, ref, *, fresh=False):
+        """Explicit user verification; never upgrade a denied consent in place."""
+        with self.lock:
+            self._expire()
+            row = self.previews.get(ref)
+            check(row is not None and "recipe" in row and row["job"] is None,
+                  "ai_consent_missing")
+            check(self.configuration() == row["configuration"]
+                  and self.jobs._control()["generation"] == row["generation"], "ai_setup_stale")
+            check(self.jobs.session_authorized and self.jobs._control()["mode"] == "enabled",
+                  "ai_off")
+            check(row["configuration"]["mode"] in {"local", "hybrid"}, "ai_route_changed")
+            check(fresh or row["prepared"][1].outcome == "planned", "ai_consent_missing")
+            self.synthesis.revalidate(row)
+            operation = self.begin_operation("self_test")
+        # Background form owner holds no setup lock while hashing/loading. Reads,
+        # cancel, Off and Pause can proceed and invalidate the captured authority.
+        self.run_operation(operation)
+        with self.lock:
+            check(self.operation["id"] == operation and self.operation["state"] == "completed",
+                  "ai_locality_unqualified")
+            check(self.previews.get(ref) is row and self.configuration() == row["configuration"]
+                  and self.jobs._control()["generation"] == row["generation"]
+                  and time.monotonic() - row["created"] < PREVIEW_SECONDS, "ai_setup_stale")
+            self.synthesis.revalidate(row)
+            if fresh:
+                first = row["selections"][0]
+                task, language, _ = row["recipe"]["template"].rsplit("-", 2)
+                return self.synthesis.preview(first.version.document_id, first.representation_id,
+                                              first.output_id, task, language)
+            profiles, evidence, configs, _ = self.profiles(row["configuration"])
+            check((profiles, evidence, configs) == row["prepared"][3:], "ai_setup_stale")
+
+    def approve_generation(self, ref):
+        # The Generate label explicitly includes verification. Automatic polling,
+        # raw approve(), admission and queued dispatch never renew expired proof.
+        row = self.previews.get(ref)
+        check(row is not None and "recipe" in row, "ai_consent_missing")
+        if (row["configuration"]["mode"] in {"local", "hybrid"}
+                and not self.models.active_evidence(
+                    MODEL_ID, native_selection(), self.self_test_evidence)):
+            self.verify_preview(ref)
+        self.approve(ref)
+
     def enqueue(self, ref):
         with self.lock:
             self.current(ref, 0).prepare()
@@ -494,28 +538,56 @@ class AiSetup:
         # Registry/control reads only. ModelStore.status verifies gigabytes and must
         # not be called by page rendering/polling. Only an explicit operation does it.
         with self.lock:
+            registry = self.models.registry.inventory()
+            current = next(row for row in registry["entries"] if row["id"] == MODEL_ID)
             return {
                 "configuration": self.configuration(),
                 "control": self.jobs.status(),
-                "registry": self.models.registry.inventory(),
+                "registry": registry,
+                "current_model": current,
+                "model_store": str(self.models.root),
+                "model_authority": self.model_authority(),
+                "network_enabled": self.instance.store.read_config()["network"]["external_access"],
+                "network_revision": digest(self.instance.store.read_config()["network"]),
                 "operation": dict(self.operation) if self.operation else None,
                 "self_test": self.self_test_evidence.public_record()
                 if self.self_test_evidence
                 else None,
-                "locality_verified": self.local_evidence is not None,
+                "locality_verified": self.local_evidence is not None and
+                self.models.active_evidence(MODEL_ID, native_selection(), self.self_test_evidence),
                 "observed_model": self.observed_model,
                 "model_actions": self.model_actions(),
             }
+
+    def model_authority(self):
+        # Metadata only; never hash weights from GET. This token binds a displayed
+        # form to the live session, configuration, installation and runtime owner.
+        return digest({"configuration": self.configuration(), "control": self.jobs._control(),
+                       "session": self.jobs.session_authorized, "models": self.models._state(),
+                       "runtime": id(self.runtime), "allowed": self.models.allowed_ids,
+                       "network": self.instance.store.read_config()["network"],
+                       "selection": hashlib.sha256(native_selection().configuration).hexdigest()})
+
+    def set_network(self, enabled, revision):
+        check(type(enabled) is bool, "ai_setup_invalid")
+        with self.lock:
+            def publish():
+                config = self.instance.store.read_config()
+                check(digest(config["network"]) == revision, "ai_setup_stale")
+                config["network"]["external_access"] = enabled
+                self.instance.store.write_config(config)
+                self.previews.clear()
+            self.jobs.change_authority(publish)
 
     def model_actions(self):
         entry = self.models.registry.entry(MODEL_ID)
         installed = self.models._path(entry).is_file()
         state = self.models._state()
         actions = ["runtime", "recover"]
-        if state["active"] != MODEL_ID:
+        if not installed:
             actions += ["install", "import"]
-            if installed:
-                actions += ["remove"]
+        elif state["active"] != MODEL_ID:
+            actions += ["remove"]
         if installed:
             actions += ["enable_local", "verify", "self_test"]
         if self.local_evidence is not None and self.self_test_evidence is not None:
@@ -524,12 +596,17 @@ class AiSetup:
             actions += ["deactivate"]
         if state["previous"] is not None and self.local_evidence is not None:
             actions += ["rollback"]
+        actions += ["remove:" + item.id for item in self.models.registry.entries
+                    if item.id != MODEL_ID and state["active"] != item.id
+                    and self.models._path(item).is_file()]
         return actions
 
-    def begin_operation(self, action):
+    def begin_operation(self, action, *, expected_authority=None):
         from .ai_setup_lifecycle import authority
 
         with self.lock:
+            check(expected_authority is None or expected_authority == self.model_authority(),
+                  "ai_setup_stale")
             check(self.operation is None or self.operation["state"] != "running", "ai_setup_busy")
             check(action in self.model_actions(), "ai_setup_invalid")
             self.cancel = threading.Event()
@@ -632,19 +709,29 @@ class AiSetup:
                     enable_local(self, operation, evidence)
             elif action == "activate":
                 check(self.local_evidence is not None, "ai_locality_unqualified")
+
+                def commit(write):
+                    with self.lock:
+                        def publish():
+                            require_current(self, operation)
+                            write()
+                        return self.jobs.change_authority(publish)
+
                 self.models.activate(MODEL_ID, selection, self.self_test_evidence, requested=True,
-                                     cancel=cancel)
+                                     cancel=cancel, commit=commit)
             elif action == "deactivate":
                 self.jobs.configure(mode="off")
                 self.runtime.close()
                 self.models.deactivate(requested=True)
                 self.self_test_evidence = None
                 self.local_evidence = None
-            elif action == "remove":
-                self.models.remove(MODEL_ID, requested=True)
-                self.observed_model = "missing"
-                self.self_test_evidence = None
-                self.local_evidence = None
+            elif action == "remove" or action.startswith("remove:"):
+                target = MODEL_ID if action == "remove" else action.removeprefix("remove:")
+                self.models.remove(target, requested=True)
+                if target == MODEL_ID:
+                    self.observed_model = "missing"
+                    self.self_test_evidence = None
+                    self.local_evidence = None
             elif action == "recover":
                 self.models.recover(requested=True)
                 self.self_test_evidence = None

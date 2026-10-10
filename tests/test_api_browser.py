@@ -8,7 +8,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from fastapi.testclient import TestClient
 
-from provelume.cura_shell import script_integrity
+from provelume.cura_shell import navigation_integrity, script_integrity
 from provelume.service import ProvelumeInstance
 from provelume.web import create_app
 from provelume.web_security import CONTENT_SECURITY_POLICY
@@ -221,10 +221,9 @@ def test_local_web_security_and_accessibility_boundary(tmp_path: Path, shell_mod
     home = client.get("/")
     assert home.status_code == 200
     expected_policy = CONTENT_SECURITY_POLICY
-    if mode == "preview":
-        expected_policy = expected_policy.replace(
-            "script-src 'none'", f"script-src '{script_integrity()}'"
-        )
+    scripts = ([script_integrity()] if mode == "preview" else []) + [navigation_integrity()]
+    expected_policy = expected_policy.replace(
+        "script-src 'none'", "script-src " + " ".join(f"'{value}'" for value in scripts))
     assert home.headers["content-security-policy"] == expected_policy
     assert home.headers["cache-control"] == "no-store"
     assert home.headers["cross-origin-opener-policy"] == "same-origin"

@@ -134,9 +134,13 @@ class WindowsWorkerProcess:
             # after launch, no uncontained fallback, no inherited Job handle.
             flags = 0x08000000 | 0x00080000 | 0x00000400 | 0x00000004
             self.phase = "process-create"
-            check(kernel.CreateProcessW(str(executable), command, None, None, True, flags,
-                                        env, str(executable.parent), c.byref(startup),
-                                        c.byref(process)), "compatibility")
+            created = kernel.CreateProcessW(str(executable), command, None, None, True, flags,
+                                             env, str(executable.parent), c.byref(startup),
+                                             c.byref(process))
+            # Capture immediately: Python's frozen error import may itself query
+            # environment variables and replace the thread-local Win32 error.
+            self.native_code = None if created else c.get_last_error()
+            check(created, "compatibility")
             self._handle, self.pid = process.process, process.pid
             self._resources.callback(kernel.CloseHandle, self._handle)
             creation.callback(kernel.CloseHandle, process.thread)

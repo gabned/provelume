@@ -2927,6 +2927,12 @@
       "rendering": "text",
       "sensitive_review_required": false
     },
+    "ai.download_network_help": {
+      "context": "AI setup: guided model lifecycle; templates/ai_settings.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
     "ai.duration_limit": {
       "context": "Custodia S07 current restrictions and private preview: duration_limit",
       "rendering": "text",
@@ -3007,6 +3013,12 @@
       "context": "Custodia AI setup, private previews and receipts: fingerprint",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "ai.guided_help": {
+      "context": "AI setup: guided model lifecycle; templates/ai_settings.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     },
     "ai.hybrid": {
       "context": "Custodia AI setup, private previews and receipts: hybrid",
@@ -3297,6 +3309,12 @@
       "context": "Custodia AI setup, private previews and receipts: state",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "ai.storage_location": {
+      "context": "AI setup: guided model lifecycle; templates/ai_settings.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     },
     "ai.test": {
       "context": "Custodia AI setup, private previews and receipts: test",
@@ -13835,6 +13853,18 @@
     },
     "synthesis.uncertainty": {
       "context": "Custodia S08 manual extractive synthesis: uncertainty",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.verify_generate": {
+      "context": "Document synthesis: explicit verification of expired local proof; templates/ai_synthesis.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.verify_preview": {
+      "context": "Document synthesis: explicit verification of expired local proof; templates/ai_synthesis.html",
+      "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": true
     },

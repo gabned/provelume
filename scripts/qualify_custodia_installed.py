@@ -105,7 +105,8 @@ def run(args):
         page = settings(client)
         fields = {k: page.hidden[k] for k in ("csrf_token", "mutation_nonce", "instance_id")}
         response = client.post("/settings/ai/model?lang=en", data={
-            **fields, "action": name, "acknowledge": "explicit", "path": "", **values})
+            **fields, "action": name, "acknowledge": "explicit", "path": "",
+            "authority": page.hidden["authority"], **values})
         if response.status_code != 303:
             raise ValueError("model_action_http")
         end = time.monotonic() + (910 if name == "import" else 70)

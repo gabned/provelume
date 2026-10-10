@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 import provelume.library_projection as library_projection
 from provelume.cli import main
-from provelume.cura_shell import script_integrity
+from provelume.cura_shell import navigation_integrity, script_integrity
 from provelume.library_projection import (
     LIBRARY_MANIFEST,
     MAX_LIBRARY_DOCUMENTS,
@@ -354,15 +354,21 @@ def test_viewer_blocks_active_html_links_and_resource_loading(
         f'<script src="/static/cura-shell.js" integrity="{script_integrity()}" '
         'crossorigin="anonymous" defer></script>'
     )
+    navigation_script = (
+        f'<script src="/static/navigation.js" integrity="{navigation_integrity()}" '
+        'crossorigin="anonymous" defer></script>'
+    )
+    assert rendered.text.count(navigation_script) == 1
+    scripts = ([script_integrity()] if mode == "preview" else []) + [navigation_integrity()]
+    expected_policy = expected_policy.replace(
+        "script-src 'none'", "script-src " + " ".join(f"'{value}'" for value in scripts))
     if mode == "preview":
-        expected_policy = expected_policy.replace(
-            "script-src 'none'", f"script-src '{script_integrity()}'"
-        )
         assert rendered.text.count(trusted_script) == 1
     assert rendered.headers["content-security-policy"] == expected_policy
     assert "<h1>Safe heading</h1>" in rendered.text
     assert "&lt;script&gt;alert" in rendered.text
-    assert "<script" not in rendered.text.replace(trusted_script, "").casefold()
+    assert "<script" not in rendered.text.replace(trusted_script, "").replace(
+        navigation_script, "").casefold()
     assert "<iframe" not in rendered.text.casefold()
     assert "javascript:" not in rendered.text.casefold()
     assert 'src="file:///' not in rendered.text.casefold()

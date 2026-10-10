@@ -355,6 +355,7 @@ def test_http_local_setup_cancel_remains_requested_until_worker_exits(setup, tmp
                     "action": "import",
                     "path": "public-model.gguf",
                     "acknowledge": "explicit",
+                    "authority": host.model_authority(),
                 },
             )
             assert response.status_code == 200 and entered.wait(5)

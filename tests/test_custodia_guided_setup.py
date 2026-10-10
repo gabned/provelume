@@ -16,6 +16,10 @@ from provelume.service import ProvelumeInstance
 @pytest.fixture
 def installed(tmp_path, monkeypatch):
     setup = AiSetup(ProvelumeInstance.initialise(tmp_path / "instance"))
+    return setup, install_inert_model(setup, monkeypatch)
+
+
+def install_inert_model(setup, monkeypatch):
     raw = b"GGUF\x03\0\0\0Public inert lifecycle fixture, never passed to a model."
     entry = replace(setup.models.registry.entry(MODEL_ID), model_size=len(raw),
                     model_sha256=hashlib.sha256(raw).hexdigest())
@@ -30,7 +34,7 @@ def installed(tmp_path, monkeypatch):
         return "PASSED"
 
     monkeypatch.setattr(LocalRuntime, "__call__", synthetic)
-    return setup, synthetic
+    return synthetic
 
 
 def test_guided_action_explicitly_enables_local_only_for_current_session(installed):
@@ -97,3 +101,28 @@ def test_explicit_self_test_alone_never_enables_or_activates(installed):
     assert setup.models._state()["active"] is None
     assert setup.configuration()["mode"] == "off"
     assert not setup.jobs.session_authorized
+
+
+def test_displayed_setup_authority_rejects_a_newer_configuration(installed):
+    setup, _ = installed
+    displayed = setup.model_authority()
+    setup.save({"period_units": 90000}, 0)
+    with pytest.raises(ValueError, match="ai_setup_stale"):
+        setup.begin_operation("enable_local", expected_authority=displayed)
+    assert setup.operation is None
+    assert not setup.jobs.session_authorized
+
+
+def test_removal_targets_the_displayed_retired_installation(installed):
+    setup, _ = installed
+    current = setup.models._path(setup.models.registry.entry(MODEL_ID)).read_bytes()
+    retired = next(row for row in setup.models.registry.entries if row.qualification == "RETIRED")
+    path = setup.models._path(retired)
+    path.write_bytes(b"Public inert retired installation for deletion test")
+    setup.run_operation(setup.begin_operation("remove:" + retired.id,
+                                               expected_authority=setup.model_authority()))
+    assert setup.operation["state"] == "completed"
+    assert not path.exists()
+    assert setup.models._path(setup.models.registry.entry(MODEL_ID)).read_bytes() == current
+    with pytest.raises(ValueError):
+        setup.begin_operation("remove:../../outside")

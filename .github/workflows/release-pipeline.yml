@@ -171,6 +171,19 @@ jobs:
             --output "$root/build-input-manifest.json" \
             --commit "$SOURCE_COMMIT"
 
+      - name: Acquire and compose both governed native build inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/provelume-release-candidate"
+          python scripts/ai_runtime_acquire.py --directory "$RUNNER_TEMP/custodia-native" \
+            --platform all --accept-licenses
+          for target in windows linux; do
+            python scripts/build_ai_runtime_input.py \
+              --directory "$RUNNER_TEMP/custodia-native/$target" --platform "$target" \
+              --output "$root/native-inputs/$target.zip"
+          done
+
       - name: Build candidate from reviewed offline inputs
         shell: bash
         env:
@@ -194,6 +207,8 @@ jobs:
           fi
           PIP_NO_INDEX=1 "$root/build-env/bin/python" -m scripts.deterministic_build \
             --commit "$SOURCE_COMMIT" \
+            --native-windows "$root/native-inputs/windows.zip" \
+            --native-linux "$root/native-inputs/linux.zip" \
             --output-dir "$root/dist" \
             --evidence "$root/deterministic-build-report.json" \
             "${identity_args[@]}"
@@ -244,6 +259,7 @@ jobs:
           path: |
             ${{ runner.temp }}/provelume-release-candidate/wheelhouse/
             ${{ runner.temp }}/provelume-release-candidate/dist/
+            ${{ runner.temp }}/provelume-release-candidate/native-inputs/
             ${{ runner.temp }}/provelume-release-candidate/build-input-manifest.json
             ${{ runner.temp }}/provelume-release-candidate/deterministic-build-report.json
             ${{ runner.temp }}/provelume-release-candidate/candidate-identity.json
@@ -330,6 +346,8 @@ jobs:
           fi
           PIP_NO_INDEX=1 "$rebuild/build-env/bin/python" -m scripts.deterministic_build \
             --commit "$SOURCE_COMMIT" \
+            --native-windows "$target/native-inputs/windows.zip" \
+            --native-linux "$target/native-inputs/linux.zip" \
             --output-dir "$rebuild/dist" \
             --evidence "$rebuild/rebuild-deterministic-build-report.json" \
             "${identity_args[@]}"

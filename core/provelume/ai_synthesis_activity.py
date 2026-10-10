@@ -85,11 +85,24 @@ def attach_synthesis_routes(
             row = setup.previews.get(values["ref"])
             check(row is not None and "recipe" in row, "ai_consent_missing")
             check(len(tasks) < 2, "ai_limit_exceeded")
-            await mutation(setup.approve, values["ref"])
+            await mutation(setup.approve_generation, values["ref"])
             job = await mutation(setup.enqueue, values["ref"])
             if job["status"] == "queued":
                 await launch_job(job["id"])
             return redirect(request, "/operations/ai")
+        except (ValueError, OSError, SchedulerBusyError) as exc:
+            return await run_in_threadpool(error, request, exc)
+
+    @app.post("/documents/{document_id}/synthesis/verify-preview")
+    async def verify_preview(request: Request, document_id: str):
+        values = await fields(request, {"selection", "version_id", "task", "language"})
+        try:
+            # First freeze the existing selected source/policy without a model
+            # read. A denied plan remains denied; success displays a new preview
+            # and requires new consent before any document job is enqueued.
+            original = await mutation(selected_preview, document_id, values)
+            result = await mutation(setup.verify_preview, original[0], fresh=True)
+            return await run_in_threadpool(preview_page, request, result)
         except (ValueError, OSError, SchedulerBusyError) as exc:
             return await run_in_threadpool(error, request, exc)
 

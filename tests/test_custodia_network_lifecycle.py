@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from provelume.ai_contract import digest
 from provelume.ai_models import ModelError
 from provelume.ai_setup import AiSetup
 from provelume.desktop import declare_startup_update_policy, startup_update_policy_enabled
@@ -54,3 +55,44 @@ def test_explicit_model_download_still_requires_global_network_consent(tmp_path,
     instance.google_connection.set_network(enabled=True, consent=True)
     setup.run_operation(setup.begin_operation("install"))
     assert calls == [1]
+
+
+def test_revocation_during_native_transfer_prevents_publication(tmp_path, monkeypatch):
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    setup = AiSetup(instance)
+    instance.google_connection.set_network(enabled=True, consent=True)
+    chunks = []
+
+    def transport(*args, **kwargs):
+        chunks.append(1)
+        yield b"GGUF\x03\0\0\0" + b"P" * (65536 - 8)
+        instance.google_connection.set_network(enabled=False, consent=True)
+        chunks.append(2)
+        yield b"P" * 65536
+        pytest.fail("revoked transfer continued")
+
+    monkeypatch.setattr("provelume.ai_setup.ArtifactDownload.fetch", transport)
+    setup.run_operation(setup.begin_operation("install"))
+    assert setup.operation["state"] == "failed"
+    assert setup.operation["error"] == "network"
+    assert chunks == [1, 2]
+    assert not list((setup.models.root / "verified").glob("*.pkg"))
+    assert not list((setup.models.root / "staging").iterdir())
+    assert not instance.store.read_config()["network"]["external_access"]
+
+
+def test_explicit_network_setting_is_narrow_stale_checked_and_never_enables_ai(tmp_path):
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    setup = AiSetup(instance)
+    before = instance.store.read_config()
+    revision = digest(before["network"])
+    setup.set_network(True, revision)
+    after = instance.store.read_config()
+    assert after == {**before, "network": {**before["network"], "external_access": True}}
+    assert setup.jobs._control()["mode"] == "off" and not setup.jobs.session_authorized
+    assert setup.configuration()["mode"] == "off"
+    assert setup.operation is None
+    with pytest.raises(ValueError, match="ai_setup_stale"):
+        setup.set_network(False, revision)
+    setup.set_network(False, digest(after["network"]))
+    assert instance.store.read_config() == before

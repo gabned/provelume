@@ -11,7 +11,7 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 import pytest
 from fastapi.testclient import TestClient
 
-from provelume.cura_shell import script_integrity
+from provelume.cura_shell import navigation_integrity, script_integrity
 from provelume.google_connection import GoogleConnectionManager
 from provelume.google_contract import GOOGLE_CAPABILITY_SCOPES, GoogleItem, GooglePage
 from provelume.google_credentials import GoogleCredentialError, GoogleCredentialVault
@@ -430,22 +430,17 @@ def test_ordinary_http_connect_callback_reconnect_and_evidence_binding(
     page = client.get("/google/connect?lang=it")
     google_page_policy = GOOGLE_CONNECTION_SECURITY_POLICY
     page_policy = CONTENT_SECURITY_POLICY
-    if mode == "preview":
-        google_page_policy = google_page_policy.replace(
-            "script-src 'none'", f"script-src '{script_integrity()}'"
-        )
-        page_policy = page_policy.replace(
-            "script-src 'none'", f"script-src '{script_integrity()}'"
-        )
+    scripts = ([script_integrity()] if mode == "preview" else []) + [navigation_integrity()]
+    trusted = " ".join(f"'{value}'" for value in scripts)
+    google_page_policy = google_page_policy.replace("script-src 'none'", "script-src " + trusted)
+    page_policy = page_policy.replace("script-src 'none'", "script-src " + trusted)
     assert page.headers["content-security-policy"] == google_page_policy
     directives = dict(
         part.strip().split(" ", 1) for part in google_page_policy.split(";")
     )
     assert directives["form-action"] == "'self' https://accounts.google.com"
     assert directives["connect-src"] == directives["style-src"] == "'self'"
-    assert directives["script-src"] == (
-        "'none'" if mode == "current" else f"'{script_integrity()}'"
-    )
+    assert directives["script-src"] == trusted
     for path in ("/", "/google", "/api/v1/google/connection"):
         expected = CONTENT_SECURITY_POLICY if path.startswith("/api/") else page_policy
         assert client.get(path).headers["content-security-policy"] == expected

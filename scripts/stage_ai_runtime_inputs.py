@@ -12,7 +12,8 @@ import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
-from provelume.ai_runtime_contract import LOCK_SHA256, runtime_lock  # noqa: E402
+from provelume.ai_runtime_identity import LOCK_SHA256  # noqa: E402
+from provelume.ai_runtime_identity import read_runtime_lock as runtime_lock  # noqa: E402
 
 MAX_INPUT_BYTES = 32 * 1024**2
 
