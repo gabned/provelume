@@ -5,6 +5,7 @@ import io
 import json
 import os
 import tempfile
+import time
 from collections.abc import Iterable
 from copy import deepcopy
 from dataclasses import dataclass
@@ -45,48 +46,32 @@ from .paths import native_path, portable_config_path, resolve_config_path, safe_
 
 def replace_file(source: str | Path, target: str | Path) -> None:
     """Atomically replace a validated path, including long Windows destinations."""
-    os.replace(native_path(source), native_path(target))
+    source, target = native_path(source), native_path(target)
+    deadline = time.monotonic() + 0.2
+    while True:
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError as exc:
+            # Short-lived CRT readers (including another process) can deny a
+            # Windows rename. Retry only the same atomic rename, never the
+            # surrounding operation, and retain the original error when bounded
+            # waiting cannot resolve it. No permissions or writer locks change.
+            remaining = deadline - time.monotonic()
+            if os.name != "nt" or getattr(exc, "winerror", None) not in {5, 32} or remaining <= 0:
+                raise
+            time.sleep(min(0.01, remaining))
 
 
 def read_json_snapshot(path: Path) -> Any:
-    """Read one complete file while allowing a writer's atomic replacement.
+    """Close the snapshot before parsing, so a UI read does not pin a journal file.
 
-    Windows CRT read handles deny deletion/rename. Explicit delete sharing gives
-    readers the same old-file snapshot semantics as POSIX, without blocking the
-    UI on the writer lock or weakening the writer's durable commit protocol.
+    Writers publish complete files by atomic replacement. Reading the bytes from
+    one handle retains the old or new complete snapshot, without holding a Windows
+    CRT handle during decoding/validation or taking the journal mutation lock.
     """
-    if os.name != "nt":
-        with native_path(path).open("r", encoding="utf-8") as handle:
-            return json.load(handle)
-
-    import ctypes
-    import msvcrt
-    from ctypes import wintypes
-
-    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel.CreateFileW.argtypes = (
-        wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
-        wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
-    )
-    kernel.CreateFileW.restype = wintypes.HANDLE
-    kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
-    kernel.CloseHandle.restype = wintypes.BOOL
-    # GENERIC_READ, FILE_SHARE_READ | WRITE | DELETE, OPEN_EXISTING, NORMAL.
-    handle = kernel.CreateFileW(str(native_path(path)), 0x80000000, 0x7, None, 3, 0x80, None)
-    if handle == ctypes.c_void_p(-1).value:
-        raise ctypes.WinError(ctypes.get_last_error())
-    try:
-        descriptor = msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY)
-    except BaseException:
-        kernel.CloseHandle(handle)
-        raise
-    # open_osfhandle transfers ownership to the descriptor. Close it exactly once
-    # even if constructing or decoding the text stream fails.
-    try:
-        with os.fdopen(descriptor, "r", encoding="utf-8", closefd=False) as stream:
-            return json.load(stream)
-    finally:
-        os.close(descriptor)
+    payload = native_path(path).read_bytes()
+    return json.loads(payload.decode("utf-8"))
 
 
 SCHEMA_VERSION = CURRENT_INSTANCE_SCHEMA_VERSION

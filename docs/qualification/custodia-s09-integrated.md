@@ -208,3 +208,18 @@ before the correction. Recognition now honors an existing cancellation before an
 capability subprocess or temporary output is started; ordinary deadlines and
 in-flight cooperative cancellation remain unchanged. New exact-head checks are
 required for both corrections before integration and release preparation #337.
+
+
+The subsequent 4282568 Windows Core run
+[38070550111](https://github.com/gabned/provelume/actions/runs/38070550111)
+passed the original synthetic HTTP path and group 0, but the new real Windows
+snapshot regression exposed a limitation: delete sharing alone did not allow
+`os.replace` to replace an open target (WinError 5). That candidate is not qualified.
+The correction closes the complete byte snapshot before JSON decoding and permits
+only a bounded 200 ms retry of the identical atomic rename for Windows sharing/
+access-denied errors. Other errors retain immediate failure; no write transaction
+or inference is replayed. A real Windows negative control keeps the old CRT handle
+open and must still fail, while a second test releases a transient reader after an
+observed native conflict and requires successful replacement. Search remains
+available while the journal's mutation lock is held. The superseded local full
+suites were interrupted after this native finding; they are not successful checks.
