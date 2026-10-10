@@ -189,6 +189,7 @@
   "ai.credential": "Riferimento credenziale esterna",
   "ai.credential_help": "Inserisci solo un riferimento esterno, mai un segreto. Configurazione e lettura delle pagine non aprono l’archivio credenziali.",
   "ai.deactivate": "Disattiva il modello locale",
+  "ai.disable": "Disattiva IA",
   "ai.dispatch": "Esegui questo test ora",
   "ai.document_help": "Solo anteprima privata. La copertura descrive la rappresentazione selezionata, non l’Originale o altre rappresentazioni. Qui non è possibile eseguire attività sul documento.",
   "ai.download_network_help": "L’accesso online è disattivato. Puoi importare il modello offline oppure consentire esplicitamente la rete nelle impostazioni prima di scaricarlo.",

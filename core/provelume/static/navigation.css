@@ -30,6 +30,10 @@ html:not(.cura) #main-content { scroll-margin-block-start:10rem; }
 .media-technical > summary { min-height:44px; padding:.5rem; cursor:pointer; font-weight:600; }
 .media-technical .hero h2 { font-size:1.5rem; }
 .media-technical .table-wrap { max-width:100%; overflow-x:auto; }
+.ai-controls { display:flex; flex-wrap:wrap; gap:.75rem; }
+.ai-controls form { margin:0; }
+.settings-form label:has(> input[type="checkbox"]) { display:flex; align-items:flex-start; gap:.75rem; font-size:1rem; line-height:1.5; min-height:44px; padding-block:.5rem; }
+.settings-form input[type="checkbox"] { flex:0 0 auto; width:1.15rem; min-width:1.15rem; height:1.15rem; min-height:1.15rem; margin:.2em 0 0; }
 @media (max-width:60rem) { .cura-topbar-actions { margin-inline-start:auto; } }
 @media (max-width:860px) {
   html:not(.cura) #main-content { scroll-margin-block-start:0; }

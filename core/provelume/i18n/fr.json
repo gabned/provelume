@@ -189,6 +189,7 @@
   "ai.credential": "Référence du secret externe",
   "ai.credential_help": "Saisir uniquement une référence externe, jamais un secret. La configuration et la lecture des pages n’ouvrent pas le coffre de secrets.",
   "ai.deactivate": "Désactiver le modèle local",
+  "ai.disable": "Désactiver l’IA",
   "ai.dispatch": "Exécuter ce test maintenant",
   "ai.document_help": "Aperçu privé uniquement. La couverture concerne la représentation sélectionnée, pas l’Original ni les autres représentations. Aucune tâche sur le document ne peut être exécutée ici.",
   "ai.download_network_help": "L’accès en ligne est désactivé. Vous pouvez importer le modèle hors ligne ou autoriser explicitement le réseau dans les paramètres avant de le télécharger.",

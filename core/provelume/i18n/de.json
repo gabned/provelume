@@ -189,6 +189,7 @@
   "ai.credential": "Externe Zugangsdatenreferenz",
   "ai.credential_help": "Nur eine externe Referenz eingeben, niemals ein Geheimnis. Konfiguration und Seitenaufrufe öffnen keinen Zugangsdaten-Speicher.",
   "ai.deactivate": "Lokales Modell deaktivieren",
+  "ai.disable": "KI ausschalten",
   "ai.dispatch": "Diesen Test jetzt ausführen",
   "ai.document_help": "Nur private Vorschau. Die Abdeckung beschreibt die gewählte Darstellung, nicht das Original oder andere Darstellungen. Hier kann keine Dokumentaufgabe ausgeführt werden.",
   "ai.download_network_help": "Der Onlinezugriff ist deaktiviert. Sie können das Modell offline importieren oder vor dem Download den Netzwerkzugriff in den Einstellungen ausdrücklich erlauben.",

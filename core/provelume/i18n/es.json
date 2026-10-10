@@ -189,6 +189,7 @@
   "ai.credential": "Referencia de credencial externa",
   "ai.credential_help": "Introduzca solo una referencia externa, nunca un secreto. Configurar y leer páginas no abre el almacén de credenciales.",
   "ai.deactivate": "Desactivar el modelo local",
+  "ai.disable": "Desactivar IA",
   "ai.dispatch": "Ejecutar esta prueba ahora",
   "ai.document_help": "Solo vista previa privada. La cobertura describe la representación seleccionada, no el Original ni otras representaciones. Aquí no se pueden ejecutar tareas sobre el documento.",
   "ai.download_network_help": "El acceso en línea está desactivado. Puedes importar el modelo sin conexión o permitir expresamente el acceso a la red en Configuración antes de descargarlo.",

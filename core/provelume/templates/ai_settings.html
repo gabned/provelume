@@ -9,14 +9,14 @@
 {% if ai.control.accounting.units %}<details><summary>{{ t('ai.reserved') }} · {{ ai.control.accounting.units }}</summary><p>{{ t('ai.unknown') }}</p></details>{% endif %}
 <p><a href="/operations/ai?lang={{ lang }}">{{ t('ai.operations') }}</a> · <a href="/components?lang={{ lang }}">{{ t('nav.components') }}</a></p>
 </section>
-{% if ai.configuration.mode != 'off' %}
-<section class="panel"><h2>{{ t('ai.controls') }}</h2><p>{{ t('ai.enable_help') }}</p>
-{% for action in ['enable','paused','off'] if (action == 'enable' and ai.configuration.mode != 'off') or (action != 'enable' and ai.control.session_authorized and ai.control.mode != action) %}<form method="post" action="/settings/ai/control?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="revision" value="{{ ai.configuration.revision }}"><input type="hidden" name="action" value="{{ action }}"><button type="submit" class="secondary">{{ t('ai.' ~ action) }}</button></form>{% endfor %}
+{% if ai.control.session_authorized or ai.configuration.mode in ['external','hybrid'] %}
+<section class="panel"><h2>{{ t('ai.controls') }}</h2>{% if not ai.control.session_authorized %}<p>{{ t('ai.enable_help') }}</p>{% endif %}
+<div class="ai-controls">{% for action in ['enable','paused','off'] if (action == 'enable' and ai.configuration.mode in ['external','hybrid'] and (not ai.control.session_authorized or ai.control.mode != 'enabled')) or (action != 'enable' and ai.control.session_authorized and ai.control.mode != action) %}<form method="post" action="/settings/ai/control?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="revision" value="{{ ai.configuration.revision }}"><input type="hidden" name="action" value="{{ action }}"><button type="submit" class="secondary">{{ t('ai.disable') if action == 'off' else t('ai.' ~ action) }}</button></form>{% endfor %}</div>
 </section>
 {% endif %}
 <section class="panel" aria-labelledby="local-ai-setup"><h2 id="local-ai-setup">{{ t('ai.local_setup') }}</h2>
 <p>{{ t('ai.guided_help') }}</p><h3>Qwen3.5 2B</h3>
-<p role="status">{{ t('ai.present_model') if 'enable_local' in ai.model_actions else t('ai.missing_model') }}{% if ai.locality_verified %} · {{ t('ai.completed') }}{% endif %}</p>
+<p role="status">{{ t('ai.present_model') if 'enable_local' in ai.model_actions else t('ai.missing_model') }}</p>
 <dl><dt>{{ t('ai.size') }}</dt><dd>1.44 GB</dd><dt>{{ t('ai.license') }}</dt><dd>{{ ai.current_model.license }}</dd><dt>{{ t('ai.storage_location') }}</dt><dd class="hash">{{ ai.model_store }}</dd></dl>
 {% if ai.operation %}<div id="ai-model-operation" role="status" aria-live="polite" data-state="{{ ai.operation.state }}" data-action="{{ ai.operation.action }}" data-bytes="{{ ai.operation.bytes }}" data-error="{{ ai.operation.error or '' }}" data-diagnostic-stage="{{ ai.operation.diagnostic_stage or '' }}" data-native-code="{{ ai.operation.native_code if ai.operation.native_code is defined else '' }}"><p>{{ t('ai.' ~ ai.operation.state) }} · {{ ai.operation.bytes }} B</p>{% if ai.operation.error %}<p>{{ t('ai.error') }}</p>{% endif %}{% if ai.operation.cancel_requested %}<p>{{ t('ai.cancel_help') }}</p>{% endif %}{% if ai.operation.diagnostic_stage %}<details><summary>{{ t('ai.advanced') }}</summary><p><code>{{ ai.operation.diagnostic_stage }}{% if ai.operation.native_code is defined %} · {{ ai.operation.native_code }}{% endif %}</code></p></details>{% endif %}</div>{% endif %}
 

@@ -189,6 +189,7 @@
   "ai.credential": "External credential reference",
   "ai.credential_help": "Enter only an external reference, never a secret. Configuration and page reads do not open the credential store.",
   "ai.deactivate": "Deactivate local model",
+  "ai.disable": "Disable AI",
   "ai.dispatch": "Execute this test now",
   "ai.document_help": "Private preview only. Coverage describes the selected representation, not the Original or other representations. No document task can be executed here.",
   "ai.download_network_help": "Online access is off. You can import the model offline or explicitly allow network access in Settings before downloading.",

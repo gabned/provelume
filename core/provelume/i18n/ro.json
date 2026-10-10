@@ -189,6 +189,7 @@
   "ai.credential": "Referință la acreditarea externă",
   "ai.credential_help": "Introdu doar o referință externă, niciodată un secret. Configurarea și citirea paginilor nu deschid depozitul de acreditări.",
   "ai.deactivate": "Dezactivează modelul local",
+  "ai.disable": "Dezactivează IA",
   "ai.dispatch": "Execută acest test acum",
   "ai.document_help": "Doar previzualizare privată. Acoperirea descrie reprezentarea selectată, nu Originalul sau alte reprezentări. Aici nu se pot executa sarcini pe document.",
   "ai.download_network_help": "Accesul online este dezactivat. Poți importa modelul offline sau permite explicit accesul la rețea în setări înainte de descărcare.",

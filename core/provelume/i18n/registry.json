@@ -2917,6 +2917,12 @@
       "rendering": "text",
       "sensitive_review_required": false
     },
+    "ai.disable": {
+      "context": "AI session control: explicit disabling action; templates/ai_settings.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
     "ai.dispatch": {
       "context": "Custodia AI setup, private previews and receipts: dispatch",
       "rendering": "text",
