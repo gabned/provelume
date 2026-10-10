@@ -1,0 +1,136 @@
+# ADR 0052 — Custodia integrated installation and lifecycle
+
+Status: accepted design for [S09 #335](https://github.com/gabned/provelume/issues/335),
+2026-10-10. S08 was accepted at actual main
+`8b2403a091f927debd3718ba3ae0ea90ece657ee` in its
+[final ledger](https://github.com/gabned/provelume/pull/334#issuecomment-6097065742).
+This decision is fixed before integrated candidate scoring. It grants no waiver,
+model promotion or release-publication authority.
+
+The selected source-reporting v11 profile, model bytes, runtime lock, frozen
+corpora/gold and all 26 S08 native criteria remain unchanged. S09 qualifies their
+ordinary installed path and complete user lifecycle. Keep every failed observation.
+
+Freeze a new execution-configuration identity for parent-process lifetime, ordinary
+Windows AppContainer containment and effective resource admission before integrated
+scoring. The semantic profile, model/runtime bytes, corpus/gold and numeric gates
+above stay fixed; prior configuration-bound consent and self-test evidence cannot
+qualify the changed execution boundary.
+
+## Installed resources and reconstruction
+
+Use one portable Core distribution containing both optional, independently pinned
+Windows and Linux x64 library resource trees, 19,333,560 uncompressed bytes across
+12 closed inventory members. No model weights. Select only the supported host tree
+after hardware/ABI admission; portable Core availability does not imply portable AI.
+The source distribution includes the same verified inputs, preserving offline
+sdist-to-wheel reconstruction. The ignored packaging study already demonstrates
+byte-identical two-build and sdist rebuild results; it is not installed qualification.
+
+Keep original reviewed source identity and verified native input composition
+distinct in build evidence. Release packaging must require both closed inputs and
+their lock, notices and SBOM; a missing/substituted member blocks packaging. The
+independent runner rebuilds with the same transferred, byte-verified inputs, with
+network disabled. Frozen inventory checks include the selected libraries and
+private worker entry. Never download executable code through model acquisition.
+Source-only development without supplied inputs remains explicitly unavailable.
+
+Linux static requirements observed in the exact libraries are GLIBC >=2.34,
+GLIBCXX >=3.4.29, libgomp and x64 loader/CPU support. Container builds must supply
+the required system dependencies, recorded base digest and governed native inputs.
+Run as UID 10001, retain the read-only root/no-new-privileges/capability-drop
+boundary, and mount a separate model-store volume outside portable Instance data.
+Effective admission uses inherited cgroup/ancestor memory and CPU limits as well
+as physical hardware; unknown limits fail closed.
+
+## Installation ownership and budgets
+
+Keep synthetic ZIP acquisition at its existing 30-second envelope. Select a
+separate **900-second total native installation/import budget**, including transfer,
+hashing and atomic publication, before measurement. This accommodates a 1.44 GB
+explicit download without changing any inference, self-test or cancellation cap.
+Do not reset the deadline at redirects, retries, verification or publication.
+There is no automatic retry or activation. Cancellation stays required within
+the existing two-second bound on measured hosts. Buffered headers remain bounded
+at 16 KiB/32 fields; native body reads stay bounded at 64 KiB and hash/copy reads
+at 1 MiB with pre/post checkpoints. Retain a finite short socket wait so a stalled
+peer cannot suppress cancellation. At most three redirects, only the reviewed
+HTTPS origin/CDN set, with every DNS answer and numeric TLS peer validated.
+
+Exact size, magic, complete hash and license acceptance gate atomic publication.
+Global network denial is checked before DNS and throughout transfer; install
+never broadens global consent. Newer global revocation survives launcher restart
+and Instance selection even when the saved update-check preference remains on.
+Verification/admission/self-test use the owning cancellation/deadline before the
+first read and between chunks, while preserving complete verification before use.
+
+## Ordinary worker containment
+
+The installed Windows windowed executable dispatches its private worker role
+before desktop/Tk imports. Explicit binary GetStdHandle pipes avoid absent default
+Python stdio. Create the worker suspended with a capability-free AppContainer,
+verify the real token and absence of loopback exemptions. A parent-owned,
+noninherited kill-on-close Job is supplied through PROC_THREAD_ATTRIBUTE_JOB_LIST
+at process creation; verify membership before resume. Creating a suspended child
+and only then assigning its Job leaves an unacceptable parent-crash gap. Do not
+fall back to that sequence if creation-time Job assignment is unsupported. Inherit only explicit
+stdio and the read-only pinned model handle. Public installed code gets only the
+necessary AppContainer read/execute access; private Instance/model-store/ancestor
+permissions are never broadened. Preserve the locked same-UCRT FILE-pointer
+lifetime contract through model_free. No administrator/firewall prerequisite and
+no arbitrary executable path from documents, models or environment variables.
+
+Linux retains seccomp/rlimits and a parent-process lifetime guard using pidfd.
+Creator-thread exit must not terminate a valid warm worker; actual parent death
+must terminate it promptly. The parent opens its own pidfd before spawning and passes
+that exact descriptor. Start the child watchdog only after containment so its
+thread inherits the seccomp filter; check parent death before further native work.
+Native proof observes cleanup independently and
+retains uncertain accounting after interrupted dispatch without automatic replay.
+
+## User actions and recovery
+
+Use the existing setup/background-operation and durable job owners. Present one
+current model and action appropriate to its state, with size/license/destination
+visible. Put retired inventory, hashes and manual runtime configuration in
+technical detail; actual retired installations retain explicit removal controls.
+Preserve Off initially and after restart. An explicit Generate action may own a
+fresh synthetic self-test when evidence expires, then must revalidate all original
+preview/source/policy/configuration/route bindings. Never recreate consent.
+
+One header disclosure is open at a time. Toggle, Escape, outside click and focus
+leaving the header dismiss correctly without stealing the destination. Use the
+same compact labelled globe/native-language selector in both layouts. GET changes
+only the current request; saving preference uses a narrow revision/nonce/CSRF
+action, preserving unrelated shell and network state. Keep System and seven
+catalogs. Perceptio uses four task cards and collapses diagnostics; synthesis
+retains route, coverage, cost/limits and consent without making internal identifiers
+primary navigation. Input-limit errors retain document context and fresh selection.
+
+Backup/restore/portable transfer preserve canonical records and included private
+bodies/recipes while excluding external weights and credentials. Explicit bounded
+orphan cleanup must protect active/uncertain jobs, maintain receipts/accounting
+and require fresh ownership; missing job authority is not permission to delete.
+No automatic regeneration or retry during recovery.
+
+## Observations required before acceptance
+
+Keep the 26 original native gates on both recorded Windows/Linux profiles, plus
+actual installed Windows and non-root container lifecycle/network/resource
+evidence. Record observed hardware rather than claiming an unmeasured laptop.
+Exercise provider substitution/policy adversaries; specific live providers remain
+unqualified without separately authorized credentials and bounded cost.
+
+Retain immutable 0.10.1/0.11 upgrade inputs and the existing baseline, same AppId,
+preserved Instance, correct update/About identity and restart Off. The old schema1
+client requires one manual complete-kit upgrade; never mutate published 0.11.
+Resolve the narrow PDF dependency correction on a genuine Windows resolver and
+preserve extraction-failure evidence without claiming every advisory is covered.
+
+Browser proof covers both layouts/seven catalogs, light/dark/System, keyboard and
+pointer/touch, 390px reflow, real 200% zoom, forced colors and reduced motion.
+Human screen-reader/linguistic evidence is bound to the final concrete artifact;
+prior S07 attestations are not extended. Full unchanged-source checks, complete
+exact-head CI/reviews, expected-head merge and actual-main acceptance precede S09
+closure or promotion of the exact observed model/task/language profile. Version
+alignment and official preview publication remain a separate release workstream.
