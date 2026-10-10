@@ -7,6 +7,7 @@ import pytest
 from test_ai_synthesis import preview, synthesis  # noqa: F401
 from test_custodia_guided_setup import install_inert_model
 
+from provelume.ai_contract import Assurance, Locality, LocalityEvidence, digest
 from provelume.ai_runtime import LocalRuntime
 from provelume.ai_runtime_contract import MODEL_ID
 
@@ -25,9 +26,86 @@ def ready(synthesis, monkeypatch):  # noqa: F811
     return synthesis, runner
 
 
-def test_verify_and_generate_renews_only_the_original_planned_preview(ready):
+def external_first(setup, monkeypatch):
+    setup.instance.google_connection.set_network(enabled=True, consent=True)
+    setup.save({"mode": "hybrid", "order": "external,local",
+                "endpoint": "https://provider.example.test/v1/chat/completions",
+                "model": "public-model"}, setup.configuration()["revision"])
+    profiles = setup.profiles
+
+    def qualified(value):
+        items, evidence, configs, route = profiles(value)
+        external = next(p for p in items if p.id == "external")
+        # Test-owned remote qualification, never inferred from an endpoint label.
+        evidence += (LocalityEvidence(external.fingerprint, Locality.REMOTE,
+                                     Assurance.REMOTE, digest("public-remote-fixture")),)
+        return items, evidence, configs, route
+
+    monkeypatch.setattr(setup, "profiles", qualified)
+    setup.enable()
+
+
+@pytest.mark.parametrize("local_state", ["missing", "expired", "installed_expired"])
+def test_external_primary_approves_without_renewing_unavailable_local_fallback(
+    synthesis, monkeypatch, local_state,  # noqa: F811
+):
+    setup = synthesis[0]
+    external_first(setup, monkeypatch)
+    if local_state == "missing":
+        setup.models._write_state({"schema_version": 1, "active": None, "previous": None})
+        setup.local_evidence = setup.self_test_evidence = None
+    else:
+        if local_state == "installed_expired":
+            install_inert_model(setup, monkeypatch)
+            setup.run_operation(setup.begin_operation("self_test"))
+            assert setup.operation["state"] == "completed"
+        expire(setup)
+    ref, prepared, _ = preview(synthesis)
+    assert prepared[1].outcome == "planned"
+    assert [route.eligible for route in prepared[1].routes] == [True, False]
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("an external primary must not renew or load the local model")
+
+    monkeypatch.setattr(setup, "verify_preview", forbidden)
+    setup.approve_generation(ref)
+    job = setup.enqueue(ref)
+    assert job["status"] == "queued"
+    assert setup.previews[ref]["prepared"] is prepared
+    setup.current(ref, 0).prepare()
+    with pytest.raises(ValueError):
+        setup.current(ref, 1).prepare()
+    assert not job["ai"]["attempts"]
+
+
+def test_external_primary_cannot_restore_local_fallback_after_consent_snapshot_changes(
+    synthesis, monkeypatch,  # noqa: F811
+):
+    setup = synthesis[0]
+    external_first(setup, monkeypatch)
+    ref, prepared, _ = preview(synthesis)
+    assert [route.eligible for route in prepared[1].routes] == [True, True]
+    expire(setup)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("external consent must not silently restore a local fallback")
+
+    monkeypatch.setattr(setup, "verify_preview", forbidden)
+    with pytest.raises(ValueError, match="ai_setup_stale"):
+        setup.approve_generation(ref)
+    assert not setup.previews[ref]["approved"]
+    assert not setup.jobs.journal.list_jobs()
+
+
+@pytest.mark.parametrize("mode", ["local", "hybrid"])
+def test_verify_and_generate_renews_only_the_original_planned_preview(ready, mode):
     fixture, _ = ready
     setup = fixture[0]
+    if mode == "hybrid":
+        setup.save({"mode": mode, "order": "local,external",
+                    "endpoint": "https://provider.example.test/v1/chat/completions",
+                    "model": "public-model"}, setup.configuration()["revision"])
+        setup.enable()
     ref, prepared, _ = preview(fixture)
     expire(setup)
     with pytest.raises(ValueError):

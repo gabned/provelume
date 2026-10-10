@@ -479,7 +479,14 @@ class AiSetup:
         # raw approve(), admission and queued dispatch never renew expired proof.
         row = self.previews.get(ref)
         check(row is not None and "recipe" in row, "ai_consent_missing")
-        if (row["configuration"]["mode"] in {"local", "hybrid"}
+        _, plan, _, profiles, _, configs = row["prepared"]
+        local_primary = bool(plan.routes) and any(
+            p.fingerprint == plan.routes[0].profile_fingerprint
+            and isinstance(configs[p.id], NativeConfig) for p in profiles
+        )
+        # Renew only the selected primary. An unavailable local fallback stays
+        # unavailable; changing its evidence would change the consent snapshot.
+        if (local_primary
                 and not self.models.active_evidence(
                     MODEL_ID, native_selection(), self.self_test_evidence)):
             self.verify_preview(ref)

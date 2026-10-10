@@ -150,3 +150,22 @@ seconds, with 12/4/5/12 complete probes and unchanged full hashes. An earlier
 study run overlapped the test suite and is retained separately; it is not a
 controlled timing comparison. Neither study runs native inference or supplies
 qualification for the new execution configuration.
+
+The ready-for-review check subsequently found that Generate renewed local proof
+for every hybrid configuration, including an external primary whose local
+fallback was already unavailable in the consent preview. The correction selects
+the frozen primary route's actual configuration before renewing local evidence.
+Four reproductions failed before the change; regressions cover absent and expired
+local proof, an installed but expired model, and loss of a previously eligible
+fallback. The last case still requires a new preview rather than silently restoring
+fallback authority. Local and local-first hybrid previews retain explicit renewal.
+Remote qualification in these regressions is test-owned synthetic evidence; no
+live external provider is newly qualified.
+
+On 2026-10-10 the maintainer explicitly instructed: "salta narratore e passa a
+pubblicare la prossima versione". This supersedes the pending human handoff for
+this release. Narrator remains NOT_RUN, and unobserved human linguistic or visual
+checks remain UNVERIFIED. The [decision record](https://github.com/gabned/provelume/pull/336#issuecomment-6099628733)
+authorizes proceeding through normal integration, actual-main qualification and
+the separate official 0.12 publication workflow; it does not turn skipped checks
+into successful observations or relax automated acceptance gates.
