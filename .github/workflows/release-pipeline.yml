@@ -482,7 +482,33 @@ jobs:
             -ExpectedCommit "${{ needs.candidate.outputs.commit }}" `
             -ExpectedChannel "${{ needs.candidate.outputs.channel }}"
 
+      - name: Exercise immutable 0.10.1 and 0.11 upgrades with preserved public knowledge
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $output = "$env:RUNNER_TEMP\provelume-windows-output"
+          $evidence = Join-Path $output "windows-hardening-evidence"
+          Copy-Item -Recurse -LiteralPath $evidence -Destination (Join-Path $output "upgrade-0.10.0")
+          foreach ($baselineVersion in @("0.10.1", "0.11.0")) {
+            $installer = "$env:RUNNER_TEMP\Provelume-Setup-$baselineVersion-public.exe"
+            $wheel = "$env:RUNNER_TEMP\provelume-$baselineVersion-py3-none-any.whl"
+            Invoke-WebRequest -Uri "https://github.com/gabned/provelume/releases/download/v$baselineVersion/Provelume-Setup-$baselineVersion-x64.exe" -OutFile $installer
+            Invoke-WebRequest -Uri "https://github.com/gabned/provelume/releases/download/v$baselineVersion/provelume-$baselineVersion-py3-none-any.whl" -OutFile $wheel
+            # The existing harness admits only its pinned size/hash/commit inventory
+            # before executing either downloaded installer or published wheel.
+            ./scripts/test_windows_installer.ps1 `
+              -Installer "$output\Provelume-Setup-${{ needs.candidate.outputs.version }}-x64.exe" `
+              -PreviousInstaller $installer -PreviousWheel $wheel `
+              -InstallDirectory "$env:RUNNER_TEMP\Upgrade $baselineVersion Próvelume 日本" `
+              -InstanceDirectory "$env:RUNNER_TEMP\Upgrade $baselineVersion Instance – sintética 日本" `
+              -ExpectedVersion "${{ needs.candidate.outputs.version }}" `
+              -ExpectedCommit "${{ needs.candidate.outputs.commit }}" `
+              -ExpectedChannel "${{ needs.candidate.outputs.channel }}"
+            Copy-Item -Recurse -LiteralPath $evidence -Destination (Join-Path $output "upgrade-$baselineVersion")
+          }
+
       - name: Upload Windows package evidence
+        if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: provelume-windows-package-${{ github.run_id }}

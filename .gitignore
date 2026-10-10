@@ -29,7 +29,6 @@ build/
 dist/
 release/
 build-determinism.json
-build-native/
 
 # Agent Protocol local evidence
 .agent/

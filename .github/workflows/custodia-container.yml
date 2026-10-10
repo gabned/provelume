@@ -25,7 +25,7 @@ jobs:
         run: |
           python scripts/ai_runtime_acquire.py --directory "$RUNNER_TEMP/custodia-inputs" --platform all --accept-licenses --include-model
           for target in windows linux; do
-            python scripts/build_ai_runtime_input.py --directory "$RUNNER_TEMP/custodia-inputs/$target" --platform "$target" --output "build-native/$target.zip"
+            python scripts/build_ai_runtime_input.py --directory "$RUNNER_TEMP/custodia-inputs/$target" --platform "$target" --output "build/native/$target.zip"
           done
       - name: Build the ordinary non-root image with exact source identity
         run: |

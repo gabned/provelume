@@ -84,7 +84,7 @@ def test_source_fingerprint_ignores_generated_outputs(tmp_path: Path) -> None:
     (source / "__pycache__" / "module.pyc").write_bytes(b"cache")
     # Source gates populate Protocol caches on the candidate runner; the
     # independent offline runner has none. Neither cache is a build input.
-    for name in (".agent", "build-native"):
+    for name in (".agent", "build"):
         (source / name).mkdir()
         (source / name / "generated-input.zip").write_bytes(b"runner-local input")
     assert deterministic_build.source_fingerprint(source) == before

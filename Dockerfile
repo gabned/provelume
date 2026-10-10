@@ -14,7 +14,7 @@ LABEL org.opencontainers.image.source="https://github.com/gabned/provelume" \
 COPY pyproject.toml README.md LICENSE COMMERCIAL-LICENSE.md ./
 COPY core ./core
 COPY scripts/stage_ai_runtime_inputs.py ./scripts/stage_ai_runtime_inputs.py
-COPY build-native/windows.zip build-native/linux.zip /native-inputs/
+COPY build/native/windows.zip build/native/linux.zip /native-inputs/
 RUN python scripts/stage_ai_runtime_inputs.py --source /app \
       --windows /native-inputs/windows.zip --linux /native-inputs/linux.zip \
     && rm -rf /native-inputs

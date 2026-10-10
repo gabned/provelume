@@ -40,7 +40,6 @@ IGNORED_NAMES = {
     ".venv",
     "__pycache__",
     "build",
-    "build-native",
     "dist",
     "release",
 }

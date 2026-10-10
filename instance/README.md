@@ -8,9 +8,9 @@ First prepare the closed native build inputs from the repository root, using the
 development environment installed by `python scripts/bootstrap.py`:
 
 ```bash
-.venv/bin/python scripts/ai_runtime_acquire.py --directory build-native/acquired --platform all --accept-licenses
+.venv/bin/python scripts/ai_runtime_acquire.py --directory build/native/acquired --platform all --accept-licenses
 for platform in windows linux; do
-  .venv/bin/python scripts/build_ai_runtime_input.py --directory "build-native/acquired/$platform" --platform "$platform" --output "build-native/$platform.zip"
+  .venv/bin/python scripts/build_ai_runtime_input.py --directory "build/native/acquired/$platform" --platform "$platform" --output "build/native/$platform.zip"
 done
 ```
 

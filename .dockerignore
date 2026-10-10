@@ -10,9 +10,10 @@
 !core/**
 !scripts/
 !scripts/stage_ai_runtime_inputs.py
-!build-native/
-!build-native/windows.zip
-!build-native/linux.zip
+!build/
+!build/native/
+!build/native/windows.zip
+!build/native/linux.zip
 **/__pycache__/
 **/*.pyc
 **/.env*
