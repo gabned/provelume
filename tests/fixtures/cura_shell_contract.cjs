@@ -1,9 +1,14 @@
 "use strict";
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const path = require("node:path");
 const vm = require("node:vm");
 const source = fs.readFileSync(process.argv[2], "utf8");
-const navigationSource = fs.readFileSync(process.argv[3], "utf8");
+// The retained Windows preflight supplies only the shell path. Always exercise
+// its sibling navigation module too; the explicit second script stays supported.
+const navigationSource = fs.readFileSync(
+  process.argv[3] || path.join(path.dirname(process.argv[2]), "navigation.js"), "utf8"
+);
 
 function page({compact = false, seconds = 3, expires = 13000, badge = true} = {}) {
   const callbacks = {};

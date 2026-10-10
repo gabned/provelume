@@ -7,7 +7,10 @@ from pathlib import Path
 import pytest
 
 
-def test_browser_enhancement_navigation_focus_and_live_publication_expiry() -> None:
+@pytest.mark.parametrize("explicit_navigation", [False, True])
+def test_browser_enhancement_navigation_focus_and_live_publication_expiry(
+    explicit_navigation,
+) -> None:
     node = shutil.which("node")
     if node is None:
         pytest.skip("Node.js is unavailable for the browser enhancement contract")
@@ -15,7 +18,8 @@ def test_browser_enhancement_navigation_focus_and_live_publication_expiry() -> N
     result = subprocess.run(
         [node, str(repository / "tests/fixtures/cura_shell_contract.cjs"),
          str(repository / "core/provelume/static/cura-shell.js"),
-         str(repository / "core/provelume/static/navigation.js")],
+         *([str(repository / "core/provelume/static/navigation.js")]
+           if explicit_navigation else [])],
         capture_output=True, text=True, timeout=15, check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
