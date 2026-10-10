@@ -195,6 +195,7 @@
   "ai.empty": "Niciun test IA înregistrat",
   "ai.enable": "Activează această sesiune",
   "ai.enable_help": "Activarea permite verificări de admitere în această sesiune. Nu creează și nu execută sarcini. Salvarea dezactivează execuția și invalidează previzualizările.",
+  "ai.enable_local": "Verifică și activează AI local pentru această sesiune",
   "ai.enabled": "Sesiune activată",
   "ai.end": "Caracter final (exclus)",
   "ai.endpoint": "Adresa furnizorului (HTTPS)",

@@ -195,6 +195,7 @@
   "ai.empty": "No recorded AI tests",
   "ai.enable": "Enable this session",
   "ai.enable_help": "Enablement permits admission checks in this session. It does not create or dispatch a job. Saving configuration disables execution and invalidates previews.",
+  "ai.enable_local": "Verify and enable local AI for this session",
   "ai.enabled": "Session enabled",
   "ai.end": "End character (excluded)",
   "ai.endpoint": "Provider address (HTTPS)",

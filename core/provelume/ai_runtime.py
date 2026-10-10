@@ -177,6 +177,7 @@ class LocalRuntime:
                 return value
 
     def _start(self, model, *, deadline, cancel):
+        self.last_observation = {"phase": "hardware-admission"}
         check(
             type(model.model) is VerifiedModelFile and model.entry.id == MODEL_ID, "compatibility"
         )
@@ -265,6 +266,18 @@ class LocalRuntime:
                 self._load["limits"].update(self._process.validate_containment())
             self._model = model.entry.model_sha256
         except BaseException:
+            if os.name == "nt" and getattr(sys, "frozen", False) and self._process is not None:
+                import ctypes
+
+                # Fixed stage names and numeric native diagnostics only. Capture
+                # before cleanup changes GetLastError; no path, SID or prompt.
+                self.last_observation = {
+                    **(self.last_observation or {}),
+                    "phase": self._process.phase,
+                    "native_code": (self._process.native_code if
+                                    self._process.native_code is not None
+                                    else ctypes.get_last_error()),
+                }
             self._stop()
             raise
 

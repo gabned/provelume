@@ -449,17 +449,23 @@ class ModelStore:
         return model
 
     def activate(self, identifier: str, runtime: RuntimeSelection, evidence: SelfTestEvidence, *,
-                 requested: bool = False, cancel=lambda: False, deadline=None):
+                 requested: bool = False, cancel=lambda: False, deadline=None, commit=None):
         check(requested is True, "consent")
         deadline = time.monotonic() + OPERATION_SECONDS if deadline is None else deadline
         with self._hold():
             entry = self._entry(identifier, runtime)
             self._admit_evidence(entry, runtime, evidence, cancel=cancel, deadline=deadline)
             state = self._state()
-            if state["active"] != identifier:
-                state["previous"], state["active"] = state["active"], identifier
+            def write():
                 checkpoint(cancel, deadline)
-                self._write_state(state)
+                self._check_evidence(entry, runtime, evidence)
+                if state["active"] != identifier:
+                    state["previous"], state["active"] = state["active"], identifier
+                    self._write_state(state)
+
+            # The owning host can fence the tiny publication against its current
+            # authority. Gigabyte verification above never holds that host lock.
+            write() if commit is None else commit(write)
             return {"id": identifier, "state": "internally_active", "inference_authorized": False}
 
     @contextmanager

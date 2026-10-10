@@ -195,6 +195,7 @@
   "ai.empty": "Aucun test IA enregistré",
   "ai.enable": "Activer cette session",
   "ai.enable_help": "L’activation permet les contrôles d’admission dans cette session. Elle ne crée ni n’exécute de tâche. Enregistrer désactive l’exécution et invalide les aperçus.",
+  "ai.enable_local": "Vérifier et activer l’IA locale pour cette session",
   "ai.enabled": "Session activée",
   "ai.end": "Caractère final (exclu)",
   "ai.endpoint": "Adresse du fournisseur (HTTPS)",

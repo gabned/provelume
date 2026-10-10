@@ -38,7 +38,8 @@ class Page(HTMLParser):
             self.hidden[row["name"]] = row.get("value", "")
         if row.get("id") == "ai-model-operation":
             self.operation = {key.removeprefix("data-"): value for key, value in row.items()
-                              if key in {"data-state", "data-action", "data-error"}}
+                              if key in {"data-state", "data-action", "data-error",
+                                         "data-diagnostic-stage", "data-native-code"}}
 
 
 def children(parent):

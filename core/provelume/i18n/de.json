@@ -195,6 +195,7 @@
   "ai.empty": "Keine KI-Tests erfasst",
   "ai.enable": "Diese Sitzung aktivieren",
   "ai.enable_help": "Die Aktivierung erlaubt Zulassungsprüfungen in dieser Sitzung. Sie erstellt oder startet keinen Auftrag. Speichern deaktiviert die Ausführung und verwirft Vorschauen.",
+  "ai.enable_local": "Lokale KI prüfen und für diese Sitzung aktivieren",
   "ai.enabled": "Sitzung aktiviert",
   "ai.end": "Endzeichen (ausgeschlossen)",
   "ai.endpoint": "Anbieteradresse (HTTPS)",

@@ -192,7 +192,7 @@ class AiJobs:
     def _save_control(self, value):
         self.journal.store._atomic_json(self.path, value)
 
-    def configure(self, *, mode, budget=None):
+    def configure(self, *, mode, budget=None, before=None):
         check(mode in {"off", "enabled", "paused"})
         with self._transaction(wait_seconds=2):
             value = self._control()
@@ -204,6 +204,10 @@ class AiJobs:
                 )
                 value["budget"] = record
             check(mode == "off" or value["budget"] is not None, "ai_budget_missing")
+            if before is not None:
+                # Internal owner callback, never request data. It only publishes
+                # already verified setup metadata under the dispatch barrier.
+                before()
             if mode == "off":
                 value["generation"] += 1
             value["mode"] = mode

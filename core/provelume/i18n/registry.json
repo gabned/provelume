@@ -2947,6 +2947,12 @@
       "rendering": "text",
       "sensitive_review_required": true
     },
+    "ai.enable_local": {
+      "context": "AI setup: explicit verification and session enablement; templates/ai_settings.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
     "ai.enabled": {
       "context": "Custodia AI setup, private previews and receipts: enabled",
       "rendering": "text",

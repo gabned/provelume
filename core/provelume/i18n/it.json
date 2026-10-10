@@ -195,6 +195,7 @@
   "ai.empty": "Nessun test IA registrato",
   "ai.enable": "Abilita questa sessione",
   "ai.enable_help": "L’abilitazione permette i controlli di ammissione in questa sessione. Non crea né esegue attività. Salvare la configurazione disabilita l’esecuzione e invalida le anteprime.",
+  "ai.enable_local": "Verifica e abilita AI locale per questa sessione",
   "ai.enabled": "Sessione abilitata",
   "ai.end": "Carattere finale (escluso)",
   "ai.endpoint": "Indirizzo del fornitore (HTTPS)",

@@ -195,6 +195,7 @@
   "ai.empty": "No hay pruebas de IA registradas",
   "ai.enable": "Activar esta sesión",
   "ai.enable_help": "La activación permite controles de admisión en esta sesión. No crea ni ejecuta tareas. Guardar desactiva la ejecución e invalida las vistas previas.",
+  "ai.enable_local": "Verificar y activar la IA local para esta sesión",
   "ai.enabled": "Sesión activada",
   "ai.end": "Carácter final (excluido)",
   "ai.endpoint": "Dirección del proveedor (HTTPS)",
