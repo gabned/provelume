@@ -169,3 +169,42 @@ checks remain UNVERIFIED. The [decision record](https://github.com/gabned/provel
 authorizes proceeding through normal integration, actual-main qualification and
 the separate official 0.12 publication workflow; it does not turn skipped checks
 into successful observations or relax automated acceptance gates.
+
+
+## Subsequent fixed-threshold observations
+
+On `57544c475e8f726d11ac258659122db238f0ed74`, native run
+[38068333064](https://github.com/gabned/provelume/actions/runs/38068333064)
+passed all 26 Windows gates. Linux EPYC 9V74 passed 24, including every model
+quality/reference/abstention check, but failed the two concurrent-Capture timing
+gates. Capture took 0.944434 s against 0.476050 s in S05, and 0.499871 s against
+0.417535 s in S08. S08 warm first response itself passed at 2.448230 s.
+The subsequent diagnostic showed substantial fsync time, but did not observe a
+live worker for its labelled busy rows; it cannot establish causal attribution.
+The original report and failures remain retained. No threshold, corpus, runtime
+lock, model or execution-configuration identity is changed by the follow-up.
+
+Public CI [38068333058](https://github.com/gabned/provelume/actions/runs/38068333058)
+failed one Windows synthetic HTTP job before dispatch (`ai_execution_blocked`).
+Its internal exception was not captured, so the precise cause remains unknown.
+A diagnostic rerun passed that group, but the aggregate correctly rejected the
+incomplete current-attempt pair. Groups from different attempts are not combined;
+a complete new run is required. Twenty unchanged Linux repetitions passed.
+
+Inspection found a separate reproducible journal-reader hazard: the default
+Windows CRT handle prevents atomic replacement while a UI reader holds the file.
+Journal reads now explicitly permit delete sharing on Windows, retaining the
+already-open file snapshot and closing the descriptor even after a decoding error.
+Writes retain their original locks, fsync and atomic replacement. The regression
+keeps the reader open until the writer completes; its Windows-only negative control
+uses the original CRT handle and requires an actual sharing failure. The change
+does not claim to prove the unknown CI exception. An exclusive reader-lock approach
+was rejected because an existing regression showed that it blocked navigation.
+
+The unchanged 57544c4 local suite retained 3,973 passes, 38 skips and one failure:
+a pre-cancelled Tesseract request returned engine-unavailable after probing the
+engine. Its isolated rerun passed, but a deterministic no-process regression failed
+before the correction. Recognition now honors an existing cancellation before any
+capability subprocess or temporary output is started; ordinary deadlines and
+in-flight cooperative cancellation remain unchanged. New exact-head checks are
+required for both corrections before integration and release preparation #337.

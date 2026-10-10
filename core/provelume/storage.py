@@ -48,6 +48,47 @@ def replace_file(source: str | Path, target: str | Path) -> None:
     os.replace(native_path(source), native_path(target))
 
 
+def read_json_snapshot(path: Path) -> Any:
+    """Read one complete file while allowing a writer's atomic replacement.
+
+    Windows CRT read handles deny deletion/rename. Explicit delete sharing gives
+    readers the same old-file snapshot semantics as POSIX, without blocking the
+    UI on the writer lock or weakening the writer's durable commit protocol.
+    """
+    if os.name != "nt":
+        with native_path(path).open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.CreateFileW.argtypes = (
+        wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
+        wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
+    )
+    kernel.CreateFileW.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+    kernel.CloseHandle.restype = wintypes.BOOL
+    # GENERIC_READ, FILE_SHARE_READ | WRITE | DELETE, OPEN_EXISTING, NORMAL.
+    handle = kernel.CreateFileW(str(native_path(path)), 0x80000000, 0x7, None, 3, 0x80, None)
+    if handle == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        descriptor = msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY)
+    except BaseException:
+        kernel.CloseHandle(handle)
+        raise
+    # open_osfhandle transfers ownership to the descriptor. Close it exactly once
+    # even if constructing or decoding the text stream fails.
+    try:
+        with os.fdopen(descriptor, "r", encoding="utf-8", closefd=False) as stream:
+            return json.load(stream)
+    finally:
+        os.close(descriptor)
+
+
 SCHEMA_VERSION = CURRENT_INSTANCE_SCHEMA_VERSION
 REQUIRED_CANONICAL_KINDS = (
     "sources",
