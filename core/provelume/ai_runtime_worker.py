@@ -58,31 +58,53 @@ def pinned_input(stack, path):
             if os.name == "nt" else open_local_file(path))
 
 
-def main(*, containment=None):
+def main(*, containment=None, inherited_model=False):
     started = time.monotonic()
     phase = "initialization"
     try:
         initial = read()
-        check(set(initial) == {"runtime", "model"}, "state")
+        check(set(initial) == {"runtime", "model_handle" if inherited_model else "model"}, "state")
         job, limits = containment if containment is not None else contain()
         phase = "model_verification"
         entry = ModelRegistry.packaged().entry(MODEL_ID)
         with ExitStack() as stack:
-            with pinned_input(stack, initial["model"]) as source:
+            model_stream = None
+            if inherited_model:
+                import msvcrt
+
+                from .ai_windows_api import libraries
+
+                handle = initial["model_handle"]
+                kernel, _, _, _ = libraries()
+                check(type(handle) is int and 0 < handle < 2**64
+                      and kernel.GetFileType(handle) == 1, "unsafe_path")
+                source = stack.enter_context(os.fdopen(msvcrt.open_osfhandle(
+                    handle, os.O_BINARY | os.O_RDONLY), "rb"))
                 verify_stream(source, entry)
-                model_path = initial["model"]
-                phase = "model_snapshot"
-                if os.name != "nt":
-                    model_path = sealed_snapshot(
-                        stack, source, entry.model_size, entry.model_sha256)
+                model_stream, model_path = source, None
+            else:
+                with pinned_input(stack, initial["model"]) as source:
+                    verify_stream(source, entry)
+                    model_path = initial["model"]
+                    phase = "model_snapshot"
+                    if os.name != "nt":
+                        model_path = sealed_snapshot(
+                            stack, source, entry.model_size, entry.model_sha256)
             directory = Path(initial["runtime"])
+            if inherited_model:
+                check(directory == Path(sys._MEIPASS) / "provelume/native-ai/windows",
+                      "unsafe_path")
             system = "windows" if os.name == "nt" else "linux"
             inventory = runtime_lock()["platforms"][system]
             library_paths = {}
             phase = "runtime_verification"
             check({p.name for p in directory.iterdir()} == set(inventory), "untrusted")
             for name, expected in inventory.items():
-                with pinned_input(stack, directory / name) as stream:
+                # The broker pins every public ancestor and byte for this lifetime.
+                # The capability-free child must not list private user ancestors.
+                access = ((directory / name).open("rb") if inherited_model
+                          else pinned_input(stack, directory / name))
+                with access as stream:
                     check(os.fstat(stream.fileno()).st_nlink == 1, "unsafe_path")
                     check(
                         os.fstat(stream.fileno()).st_size == expected["size"]
@@ -96,7 +118,8 @@ def main(*, containment=None):
             from .ai_llama import Llama
 
             phase = "native_load"
-            engine = Llama(directory, model_path, library_paths)
+            engine = Llama(directory, model_path, library_paths, model_stream=model_stream)
+            stack.callback(engine.close)
             emit(
                 {
                     "event": "loaded",

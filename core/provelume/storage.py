@@ -5,6 +5,7 @@ import io
 import json
 import os
 import tempfile
+import time
 from collections.abc import Iterable
 from copy import deepcopy
 from dataclasses import dataclass
@@ -45,7 +46,32 @@ from .paths import native_path, portable_config_path, resolve_config_path, safe_
 
 def replace_file(source: str | Path, target: str | Path) -> None:
     """Atomically replace a validated path, including long Windows destinations."""
-    os.replace(native_path(source), native_path(target))
+    source, target = native_path(source), native_path(target)
+    deadline = time.monotonic() + 0.2
+    while True:
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError as exc:
+            # Short-lived CRT readers (including another process) can deny a
+            # Windows rename. Retry only the same atomic rename, never the
+            # surrounding operation, and retain the original error when bounded
+            # waiting cannot resolve it. No permissions or writer locks change.
+            remaining = deadline - time.monotonic()
+            if os.name != "nt" or getattr(exc, "winerror", None) not in {5, 32} or remaining <= 0:
+                raise
+            time.sleep(min(0.01, remaining))
+
+
+def read_json_snapshot(path: Path) -> Any:
+    """Close the snapshot before parsing, so a UI read does not pin a journal file.
+
+    Writers publish complete files by atomic replacement. Reading the bytes from
+    one handle retains the old or new complete snapshot, without holding a Windows
+    CRT handle during decoding/validation or taking the journal mutation lock.
+    """
+    payload = native_path(path).read_bytes()
+    return json.loads(payload.decode("utf-8"))
 
 
 SCHEMA_VERSION = CURRENT_INSTANCE_SCHEMA_VERSION

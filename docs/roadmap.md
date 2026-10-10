@@ -1466,8 +1466,14 @@ installation and binding do not enqueue or authorize work. S07 (#324) delivered
 [AI/privacy setup and previews](architecture/ai-setup-previews.md) through ordered
 owner #325 and correction #331, accepted at main `b4cebcfb16a67eb7375d11a9217f25818d141e3f`
 ([final ledger](https://github.com/gabned/provelume/pull/331#issuecomment-6071873322)).
-S08 (#332) now develops [manual extractive synthesis](architecture/ai-document-synthesis.md),
-with exact references and removable derived output. S09 remains unstarted.
+S08 (#332) delivered [manual extractive synthesis](architecture/ai-document-synthesis.md)
+with exact references and removable derived output through #333/#334 at accepted main
+`8b2403a091f927debd3718ba3ae0ea90ece657ee`: all 26 native gates on both observed platforms,
+32/32 gold selections and 8/8 required abstentions. Its
+[final ledger](https://github.com/gabned/provelume/pull/334#issuecomment-6097065742)
+retains prior failures. S09 (#335) now integrates ordinary installation, AI lifecycle,
+navigation and release qualification under [ADR 0052](adr/0052-custodia-integrated-lifecycle.md).
+Recommended promotion and publication remain pending.
 Package/runtime/embedded/Windows identity stays at published 0.11.0.
 
 **Outcome:** optional AI off / Local Recommended / External / Explicit Hybrid, with a first

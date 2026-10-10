@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import secrets
 import threading
 import time
@@ -72,13 +73,15 @@ class AiSetup:
         self.instance_id = instance.scheduler.journal.instance_id
         self.path = instance.scheduler.journal.root / "ai-setup.json"
         self.models = instance.ai_model_lifecycle()
-        self.runtime = LocalRuntime(runtime_directory or Path(__file__).parent / "native-ai")
+        self.runtime = LocalRuntime(runtime_directory or Path(__file__).parent / "native-ai" /
+                                    ("windows" if os.name == "nt" else "linux"))
         self.credentials = credentials or (lambda *_: None)
         self.lock = threading.RLock()
         self.previews = {}
         self.local_evidence = None
         self.self_test_evidence = None
         self.operation = None
+        self._operation_authority = None
         self.observed_model = None
         self.cancel = threading.Event()
         from .ai_synthesis import DocumentSynthesis
@@ -438,6 +441,57 @@ class AiSetup:
             # Consent is not session enablement, enqueue or dispatch.
             self.jobs.change_authority(approve_current)
 
+    def verify_preview(self, ref, *, fresh=False):
+        """Explicit user verification; never upgrade a denied consent in place."""
+        with self.lock:
+            self._expire()
+            row = self.previews.get(ref)
+            check(row is not None and "recipe" in row and row["job"] is None,
+                  "ai_consent_missing")
+            check(self.configuration() == row["configuration"]
+                  and self.jobs._control()["generation"] == row["generation"], "ai_setup_stale")
+            check(self.jobs.session_authorized and self.jobs._control()["mode"] == "enabled",
+                  "ai_off")
+            check(row["configuration"]["mode"] in {"local", "hybrid"}, "ai_route_changed")
+            check(fresh or row["prepared"][1].outcome == "planned", "ai_consent_missing")
+            self.synthesis.revalidate(row)
+            operation = self.begin_operation("self_test")
+        # Background form owner holds no setup lock while hashing/loading. Reads,
+        # cancel, Off and Pause can proceed and invalidate the captured authority.
+        self.run_operation(operation)
+        with self.lock:
+            check(self.operation["id"] == operation and self.operation["state"] == "completed",
+                  "ai_locality_unqualified")
+            check(self.previews.get(ref) is row and self.configuration() == row["configuration"]
+                  and self.jobs._control()["generation"] == row["generation"]
+                  and time.monotonic() - row["created"] < PREVIEW_SECONDS, "ai_setup_stale")
+            self.synthesis.revalidate(row)
+            if fresh:
+                first = row["selections"][0]
+                task, language, _ = row["recipe"]["template"].rsplit("-", 2)
+                return self.synthesis.preview(first.version.document_id, first.representation_id,
+                                              first.output_id, task, language)
+            profiles, evidence, configs, _ = self.profiles(row["configuration"])
+            check((profiles, evidence, configs) == row["prepared"][3:], "ai_setup_stale")
+
+    def approve_generation(self, ref):
+        # The Generate label explicitly includes verification. Automatic polling,
+        # raw approve(), admission and queued dispatch never renew expired proof.
+        row = self.previews.get(ref)
+        check(row is not None and "recipe" in row, "ai_consent_missing")
+        _, plan, _, profiles, _, configs = row["prepared"]
+        local_primary = bool(plan.routes) and any(
+            p.fingerprint == plan.routes[0].profile_fingerprint
+            and isinstance(configs[p.id], NativeConfig) for p in profiles
+        )
+        # Renew only the selected primary. An unavailable local fallback stays
+        # unavailable; changing its evidence would change the consent snapshot.
+        if (local_primary
+                and not self.models.active_evidence(
+                    MODEL_ID, native_selection(), self.self_test_evidence)):
+            self.verify_preview(ref)
+        self.approve(ref)
+
     def enqueue(self, ref):
         with self.lock:
             self.current(ref, 0).prepare()
@@ -449,16 +503,19 @@ class AiSetup:
         with self.lock:
             config = self.configuration()
             check(config["mode"] != "off", "ai_off")
-            profiles, _, configs, _ = self.profiles(config)
-            self.jobs.adapters = {
-                p.fingerprint: (
-                    NativeJobAdapter(self.runtime, self.models)
-                    if isinstance(configs[p.id], NativeConfig)
-                    else ProviderJobAdapter(ChatJsonAdapter(credentials=self.credentials))
-                )
-                for p in profiles
-            }
+            self.bind_adapters(config)
             return self.jobs.configure(mode="enabled", budget=self.budget(config))
+
+    def bind_adapters(self, config):
+        profiles, _, configs, _ = self.profiles(config)
+        self.jobs.adapters = {
+            p.fingerprint: (
+                NativeJobAdapter(self.runtime, self.models)
+                if isinstance(configs[p.id], NativeConfig)
+                else ProviderJobAdapter(ChatJsonAdapter(credentials=self.credentials))
+            )
+            for p in profiles
+        }
 
     def control(self, action, revision):
         with self.lock:
@@ -488,40 +545,75 @@ class AiSetup:
         # Registry/control reads only. ModelStore.status verifies gigabytes and must
         # not be called by page rendering/polling. Only an explicit operation does it.
         with self.lock:
+            registry = self.models.registry.inventory()
+            current = next(row for row in registry["entries"] if row["id"] == MODEL_ID)
             return {
                 "configuration": self.configuration(),
                 "control": self.jobs.status(),
-                "registry": self.models.registry.inventory(),
+                "registry": registry,
+                "current_model": current,
+                "model_store": str(self.models.root),
+                "model_authority": self.model_authority(),
+                "network_enabled": self.instance.store.read_config()["network"]["external_access"],
+                "network_revision": digest(self.instance.store.read_config()["network"]),
                 "operation": dict(self.operation) if self.operation else None,
                 "self_test": self.self_test_evidence.public_record()
                 if self.self_test_evidence
                 else None,
-                "locality_verified": self.local_evidence is not None,
+                "locality_verified": self.local_evidence is not None and
+                self.models.active_evidence(MODEL_ID, native_selection(), self.self_test_evidence),
                 "observed_model": self.observed_model,
                 "model_actions": self.model_actions(),
             }
+
+    def model_authority(self):
+        # Metadata only; never hash weights from GET. This token binds a displayed
+        # form to the live session, configuration, installation and runtime owner.
+        return digest({"configuration": self.configuration(), "control": self.jobs._control(),
+                       "session": self.jobs.session_authorized, "models": self.models._state(),
+                       "runtime": id(self.runtime), "allowed": self.models.allowed_ids,
+                       "network": self.instance.store.read_config()["network"],
+                       "selection": hashlib.sha256(native_selection().configuration).hexdigest()})
+
+    def set_network(self, enabled, revision):
+        check(type(enabled) is bool, "ai_setup_invalid")
+        with self.lock:
+            def publish():
+                config = self.instance.store.read_config()
+                check(digest(config["network"]) == revision, "ai_setup_stale")
+                config["network"]["external_access"] = enabled
+                self.instance.store.write_config(config)
+                self.previews.clear()
+            self.jobs.change_authority(publish)
 
     def model_actions(self):
         entry = self.models.registry.entry(MODEL_ID)
         installed = self.models._path(entry).is_file()
         state = self.models._state()
         actions = ["runtime", "recover"]
-        if state["active"] != MODEL_ID:
+        if not installed:
             actions += ["install", "import"]
-            if installed:
-                actions += ["remove"]
+        elif state["active"] != MODEL_ID:
+            actions += ["remove"]
         if installed:
-            actions += ["verify", "self_test"]
+            actions += ["enable_local", "verify", "self_test"]
         if self.local_evidence is not None and self.self_test_evidence is not None:
             actions += ["activate"]
         if state["active"] is not None:
             actions += ["deactivate"]
         if state["previous"] is not None and self.local_evidence is not None:
             actions += ["rollback"]
+        actions += ["remove:" + item.id for item in self.models.registry.entries
+                    if item.id != MODEL_ID and state["active"] != item.id
+                    and self.models._path(item).is_file()]
         return actions
 
-    def begin_operation(self, action):
+    def begin_operation(self, action, *, expected_authority=None):
+        from .ai_setup_lifecycle import authority
+
         with self.lock:
+            check(expected_authority is None or expected_authority == self.model_authority(),
+                  "ai_setup_stale")
             check(self.operation is None or self.operation["state"] != "running", "ai_setup_busy")
             check(action in self.model_actions(), "ai_setup_invalid")
             self.cancel = threading.Event()
@@ -533,6 +625,7 @@ class AiSetup:
                 "error": None,
                 "cancel_requested": False,
             }
+            self._operation_authority = authority(self)
             return self.operation["id"]
 
     def cancel_operation(self, identity):
@@ -541,31 +634,62 @@ class AiSetup:
                 self.operation is not None
                 and self.operation["id"] == identity
                 and self.operation["state"] == "running"
-                and self.operation["action"] in {"install", "import", "self_test"},
+                and self.operation["action"] in {"install", "import", "verify", "self_test",
+                                                   "activate", "rollback", "enable_local"},
                 "ai_setup_stale",
             )
             self.operation["cancel_requested"] = True
             self.cancel.set()
 
     def run_operation(self, identity, *, path=None):
+        from .ai_model_file import ReadAuthority
+        from .ai_setup_lifecycle import (
+            cancelled,
+            enable_local,
+            record_evidence,
+            require_current,
+        )
+
         with self.lock:
             check(self.operation is not None and self.operation["id"] == identity)
             operation = self.operation
         action, selection = operation["action"], native_selection()
+        cancel = ReadAuthority(lambda: cancelled(self, operation), immediate=self.cancel.is_set)
+
+        def change(callback, *, turn_off=False):
+            with self.lock:
+                def publish():
+                    require_current(self, operation)
+                    callback()
+                if turn_off:
+                    return self.jobs.configure(mode="off", before=publish)
+                return self.jobs.change_authority(publish)
+
         try:
-            if action in {"self_test", "activate", "rollback"}:
+            require_current(self, operation)
+            if action in {"self_test", "activate", "rollback", "enable_local"}:
                 self.runtime.validate_installation()
             if action == "runtime":
                 check(path is not None, "ai_setup_invalid")
                 candidate = LocalRuntime(Path(path))
                 candidate.validate_installation()
-                self.jobs.configure(mode="off")
-                self.runtime.close()
-                self.runtime = candidate
-                self.local_evidence = None
-                self.self_test_evidence = None
+
+                def replace_runtime():
+                    self.runtime.close()
+                    self.runtime = candidate
+                    self.local_evidence = None
+                    self.self_test_evidence = None
+
+                change(replace_runtime, turn_off=True)
             elif action == "install":
                 host = self
+
+                def download_cancelled():
+                    if cancel():
+                        return True
+                    if not self.instance.store.read_config()["network"]["external_access"]:
+                        raise ModelError("network")
+                    return False
 
                 class Progress:
                     def fetch(self, entry, **kwargs):
@@ -579,7 +703,7 @@ class AiSetup:
                     selection,
                     requested=True,
                     license_accepted=self.models.registry.entry(MODEL_ID).license,
-                    cancel=self.cancel.is_set,
+                    cancel=download_cancelled,
                     transport=Progress(),
                 )
             elif action == "import":
@@ -590,46 +714,62 @@ class AiSetup:
                     selection,
                     requested=True,
                     license_accepted=self.models.registry.entry(MODEL_ID).license,
-                    cancel=self.cancel.is_set,
+                    cancel=cancel,
                 )
             elif action == "verify":
-                self.models.verify(MODEL_ID, selection)
+                self.models.verify(MODEL_ID, selection, cancel=cancel)
                 self.observed_model = "verified_bytes"
-            elif action == "self_test":
+            elif action in {"self_test", "enable_local"}:
                 self.self_test_evidence = None
                 self.local_evidence = None
                 evidence = self.models.self_test(
-                    MODEL_ID, selection, self.runtime, requested=True, cancel=self.cancel.is_set
+                    MODEL_ID, selection, self.runtime, requested=True, cancel=cancel
                 )
-                self.self_test_evidence = evidence
-                observation = self.runtime.last_observation or {}
-                proof = observation.get("load", {}).get("limits", {})
-                if (
-                    evidence.result == "PASSED"
-                    and proof.get("network_control") == "seccomp:socket-syscalls-EPERM"
-                ):
-                    self.local_evidence = digest(proof)
+                record_evidence(self, operation, evidence)
+                if action == "enable_local":
+                    enable_local(self, operation, evidence)
             elif action == "activate":
                 check(self.local_evidence is not None, "ai_locality_unqualified")
-                self.models.activate(MODEL_ID, selection, self.self_test_evidence, requested=True)
+
+                def commit(write):
+                    with self.lock:
+                        def publish():
+                            require_current(self, operation)
+                            write()
+                        return self.jobs.change_authority(publish)
+
+                self.models.activate(MODEL_ID, selection, self.self_test_evidence, requested=True,
+                                     cancel=cancel, commit=commit)
             elif action == "deactivate":
-                self.jobs.configure(mode="off")
-                self.runtime.close()
-                self.models.deactivate(requested=True)
-                self.self_test_evidence = None
-                self.local_evidence = None
-            elif action == "remove":
-                self.models.remove(MODEL_ID, requested=True)
-                self.observed_model = "missing"
-                self.self_test_evidence = None
-                self.local_evidence = None
+                def deactivate():
+                    self.runtime.close()
+                    self.models.deactivate(requested=True)
+                    self.self_test_evidence = None
+                    self.local_evidence = None
+
+                change(deactivate, turn_off=True)
+            elif action == "remove" or action.startswith("remove:"):
+                target = MODEL_ID if action == "remove" else action.removeprefix("remove:")
+
+                def remove():
+                    self.models.remove(target, requested=True)
+                    if target == MODEL_ID:
+                        self.observed_model = "missing"
+                        self.self_test_evidence = None
+                        self.local_evidence = None
+
+                change(remove)
             elif action == "recover":
-                self.models.recover(requested=True)
-                self.self_test_evidence = None
-                self.local_evidence = None
+                def recover():
+                    self.models.recover(requested=True)
+                    self.self_test_evidence = None
+                    self.local_evidence = None
+
+                change(recover)
             elif action == "rollback":
                 check(self.local_evidence is not None, "ai_locality_unqualified")
-                self.models.rollback(selection, self.runtime, requested=True)
+                self.models.rollback(selection, self.runtime, requested=True,
+                                     cancel=cancel, commit=lambda write: change(write))
             with self.lock:
                 operation["state"] = "completed"
         except Exception as exc:
@@ -637,6 +777,17 @@ class AiSetup:
                 operation["state"] = "cancelled" if self.cancel.is_set() else "failed"
                 # Closed error vocabulary only; arbitrary paths/exception text are private.
                 operation["error"] = exc.code if isinstance(exc, ModelError) else "unavailable"
+                observation = self.runtime.last_observation or {}
+                if observation.get("phase") in {
+                    "hardware-admission", "runtime-path", "profile-create", "loopback-exemptions",
+                    "public-inventory", "private-model-handle", "job-create", "stdio-handles",
+                    "process-attributes", "process-create", "process-verification",
+                    "process-resume", "worker-bootstrap",
+                }:
+                    operation["diagnostic_stage"] = observation["phase"]
+                    code = observation.get("native_code")
+                    if type(code) is int and -(2**31) <= code < 2**32:
+                        operation["native_code"] = code
 
     def payload(self, prepared):
         return task_payload(prepared[0], prepared[2]["template"]).decode()

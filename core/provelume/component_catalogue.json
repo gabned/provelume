@@ -332,7 +332,7 @@
       "license": "ISC AND MIT",
       "notices": "Lucide Icons and Contributors; Cole Bemis. Complete upstream LICENSE: notices/lucide-LICENSE.txt; provenance: static/icons/lucide/subset.json",
       "purl": null,
-      "expected_sha256": "3e0e084b3d246dd5346934e800361236e06c00a10a54394025521e1103f27292",
+      "expected_sha256": "a37797c5187628644c5c04e09b38d2cd53e061ef6b909e8356b010ce4930692d",
       "required": true,
       "approved_version": "1.45.0",
       "version_constraint": "==1.45.0",

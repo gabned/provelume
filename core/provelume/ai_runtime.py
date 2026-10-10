@@ -80,6 +80,8 @@ class LocalRuntime:
                     check(os.fstat(stream.fileno()).st_size == expected["size"] and
                           hashlib.file_digest(stream, "sha256").hexdigest() == expected["sha256"],
                           "integrity")
+            if self.loaded and os.name == "nt" and getattr(sys, "frozen", False):
+                self._process.validate_containment()
         except ModelError:
             raise
         except Exception:
@@ -175,6 +177,7 @@ class LocalRuntime:
                 return value
 
     def _start(self, model, *, deadline, cancel):
+        self.last_observation = {"phase": "hardware-admission"}
         check(
             type(model.model) is VerifiedModelFile and model.entry.id == MODEL_ID, "compatibility"
         )
@@ -205,6 +208,8 @@ class LocalRuntime:
                 "-c",
                 "import sys;sys.path[:0]=sys.argv[1:3];"
                 "from provelume.ai_runtime_limits import contain;limits=contain();"
+                + ("from provelume.ai_runtime_parent import watch_parent;"
+                   "watch_parent(int(sys.argv[3]));" if os.name != "nt" else "") +
                 "from provelume.ai_runtime_worker import main;main(containment=limits)",
                 root,
                 sysconfig.get_path("purelib"),
@@ -214,28 +219,65 @@ class LocalRuntime:
                 if os.name == "nt"
                 else {"start_new_session": True}
             )
-            self._process = subprocess.Popen(
-                command,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                env=env,
-                cwd=root,
-                bufsize=0,
-                **options,
-            )
+            parent_fd = None
+            try:
+                if os.name == "nt" and getattr(sys, "frozen", False):
+                    from .ai_windows_process import WindowsWorkerProcess
+
+                    self._process = WindowsWorkerProcess()
+                    self._process.start(model.model, self.directory, environment=env,
+                                        deadline=deadline, cancel=cancel)
+                elif os.name != "nt":
+                    # Open our own process identity BEFORE launch. No getppid race,
+                    # PID reuse fallback or signal tied to a temporary Python thread.
+                    parent_fd = os.pidfd_open(os.getpid())
+                    command.append(str(parent_fd))
+                    options["pass_fds"] = (parent_fd,)
+                if not (os.name == "nt" and getattr(sys, "frozen", False)):
+                    self._process = subprocess.Popen(
+                        command,
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.DEVNULL,
+                        env=env,
+                        cwd=root,
+                        bufsize=0,
+                        **options,
+                    )
+            finally:
+                if parent_fd is not None:
+                    os.close(parent_fd)
             self.worker_history.append(self._process.pid)
             self._messages = queue.Queue(maxsize=8)
             self._reader = threading.Thread(
                 target=self._drain, args=(self._process, self._messages), daemon=True
             )
             self._reader.start()
-            self._send({"runtime": str(self.directory), "model": str(model.model.path)},
+            selected = ({"model_handle": self._process.model_handle}
+                        if os.name == "nt" and getattr(sys, "frozen", False)
+                        else {"model": str(model.model.path)})
+            self._send({"runtime": str(self.directory), **selected},
                        deadline=deadline, cancel=cancel)
             self._load = self._receive("loaded", deadline=deadline, cancel=cancel)
             check(self._load.get("pid") == self._process.pid, "state")
+            if os.name == "nt" and getattr(sys, "frozen", False):
+                # Authority comes from independently inspecting the actual child,
+                # never from the worker's self-reported network-control string.
+                self._load["limits"].update(self._process.validate_containment())
             self._model = model.entry.model_sha256
         except BaseException:
+            if os.name == "nt" and getattr(sys, "frozen", False) and self._process is not None:
+                import ctypes
+
+                # Fixed stage names and numeric native diagnostics only. Capture
+                # before cleanup changes GetLastError; no path, SID or prompt.
+                self.last_observation = {
+                    **(self.last_observation or {}),
+                    "phase": self._process.phase,
+                    "native_code": (self._process.native_code if
+                                    self._process.native_code is not None
+                                    else ctypes.get_last_error()),
+                }
             self._stop()
             raise
 
@@ -262,8 +304,12 @@ class LocalRuntime:
                     self._reader.join(timeout=0.25)
                 if self._writer is not None and self._writer.ident is not None:
                     self._writer.join(timeout=0.25)
-                process.stdin.close()
-                process.stdout.close()
+                if process.stdin is not None:
+                    process.stdin.close()
+                if process.stdout is not None:
+                    process.stdout.close()
+                if os.name == "nt" and getattr(sys, "frozen", False):
+                    process.close()
         finally:
             # If termination cannot be confirmed, keep both ownership and the slot.
             # A later explicit close may recover it; another worker must not start.
@@ -304,10 +350,10 @@ class LocalRuntime:
             self._request_lock.release()
 
     def _infer(self, model, selection, prompt, *, cancel=lambda: False, reuse_scope=None,
-               response_format=None):
+               response_format=None, deadline=None):
         """Internal primitive for lifecycle qualification and governed S06 attempts."""
         started = time.monotonic()
-        deadline = started + 60
+        deadline = min(deadline, started + 60) if deadline is not None else started + 60
         with self._admit(deadline=deadline, cancel=cancel):
             return self._infer_owned(
                 model, selection, prompt, cancel=cancel, reuse_scope=reuse_scope,
@@ -370,13 +416,14 @@ class LocalRuntime:
             self._stop()
             raise ModelError("state") from None
 
-    def __call__(self, model, selection, cancel):
+    def __call__(self, model, selection, cancel, *, deadline=None):
         value = self._infer(
             model,
             selection,
             "Text: The synthetic code is ORCHID. Question: What is the code? "
             "Return only the code.",
             cancel=cancel,
+            deadline=deadline,
         )
         return "PASSED" if value["text"].strip().strip(".").upper() == "ORCHID" else "FAILED"
 
@@ -384,10 +431,11 @@ class LocalRuntime:
         check(requested is True, "consent")
         selection = native_selection()
         started = time.monotonic()
+        deadline = started + 60
         try:
-            with store.use(selection) as model:
+            with store.use(selection, cancel=cancel, deadline=deadline) as model:
                 admission = time.monotonic() - started
-                result = self._infer(model, selection, prompt, cancel=cancel)
+                result = self._infer(model, selection, prompt, cancel=cancel, deadline=deadline)
                 result["total_seconds"] = time.monotonic() - started
                 if result["first_wall_seconds"] is not None:
                     result["first_wall_seconds"] += admission

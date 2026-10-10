@@ -711,7 +711,7 @@ def test_oauth_revocation_after_transport_and_before_commit_fails_closed(
     assert URL not in evidence
 
 
-class _ConcurrentGlobalDisable:
+class _ConcurrentUpdateDisable:
     def __init__(self, transport: GuardedWebTransport, instance_root: Path):
         self.transport = transport
         self.instance_root = instance_root
@@ -743,7 +743,7 @@ class _ConcurrentGlobalDisable:
 
 
 @pytest.mark.parametrize("open_during_commit", [False, True])
-def test_global_policy_writer_serializes_after_canonical_commit(
+def test_update_preference_writer_serializes_and_preserves_global_consent(
     tmp_path: Path, monkeypatch, open_during_commit
 ) -> None:
     instance, connector, source = _configured(tmp_path / "instance")
@@ -754,7 +754,7 @@ def test_global_policy_writer_serializes_after_canonical_commit(
         resolver=network.resolver,
         connection_factory=network.factory,
     )
-    guarded = _ConcurrentGlobalDisable(base, instance.root)
+    guarded = _ConcurrentUpdateDisable(base, instance.root)
     instance.web_transport = guarded
     staged, busy = Event(), Event()
     if open_during_commit:
@@ -785,7 +785,8 @@ def test_global_policy_writer_serializes_after_canonical_commit(
     assert guarded.thread is not None
     guarded.thread.join(timeout=5)
     assert guarded.finished.is_set()
-    assert instance.store.read_config()["network"]["external_access"] is False
+    assert instance.store.read_config()["network"]["external_access"] is True
+    assert instance.store.read_config()["network"]["update_checks"] is False
     assert result["status"] == "completed"
     assert busy.is_set() is open_during_commit
     assert inspect_instance(instance.root, deep=True)["status"] == "valid"

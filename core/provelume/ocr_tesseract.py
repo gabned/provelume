@@ -342,6 +342,8 @@ class TesseractCliAdapter:
     def recognise_page(
         self, request: OcrPageRequest, staged_page_path: Path
     ) -> OcrPageResult:
+        if self.cancelled is not None and self.cancelled():
+            raise OcrContractError("ocr_cancelled", "OCR execution was cancelled")
         capability = self.capability()
         if not capability.engine_available or capability.engine_executable is None:
             raise OcrContractError(

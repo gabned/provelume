@@ -19,6 +19,8 @@ from pathlib import Path
 from typing import Any
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
 CORE_ROOT = REPOSITORY_ROOT / "core"
 if str(CORE_ROOT) not in sys.path:
     sys.path.insert(0, str(CORE_ROOT))
@@ -28,6 +30,7 @@ from provelume.build_info import BuildInfoError, create_build_info  # noqa: E402
 SOURCE_REPOSITORY = "gabned/provelume"
 EVIDENCE_SCHEMA_VERSION = 1
 IGNORED_NAMES = {
+    ".agent",
     ".git",
     ".local",
     ".mypy_cache",
@@ -276,6 +279,7 @@ def run(
     tag: str | None = None,
     channel: str = "development",
     official: bool = False,
+    native_inputs: dict[str, Path] | None = None,
 ) -> dict[str, Any]:
     source = source.expanduser().resolve(strict=True)
     if not (source / "pyproject.toml").is_file():
@@ -297,8 +301,15 @@ def run(
 
     with tempfile.TemporaryDirectory(prefix="provelume-build-") as temporary:
         root = Path(temporary)
-        first = build_once(source, root / "first", epoch, identity)
-        second = build_once(source, root / "second", epoch, identity)
+        composition, native_evidence = source, None
+        if native_inputs is not None:
+            from scripts.stage_ai_runtime_inputs import stage
+
+            composition = root / "composition"
+            shutil.copytree(source, composition, ignore=_copy_ignore, copy_function=shutil.copy2)
+            native_evidence = stage(composition, native_inputs)
+        first = build_once(composition, root / "first", epoch, identity)
+        second = build_once(composition, root / "second", epoch, identity)
         records = compare_builds(first, second)
         payload = evidence_payload(
             source=source,
@@ -306,6 +317,9 @@ def run(
             commit=commit,
             records=records,
         )
+        if native_evidence is not None:
+            payload["native_inputs"] = native_evidence
+            payload["build_composition_sha256"] = source_fingerprint(composition)
         evidence.parent.mkdir(parents=True, exist_ok=True)
         evidence.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         mismatches = [record for record in records if not record["byte_identical"]]
@@ -334,7 +348,11 @@ def main() -> int:
     parser.add_argument("--tag")
     parser.add_argument("--channel", default="development")
     parser.add_argument("--official", action="store_true")
+    parser.add_argument("--native-windows", type=Path)
+    parser.add_argument("--native-linux", type=Path)
     args = parser.parse_args()
+    if bool(args.native_windows) != bool(args.native_linux):
+        parser.error("both --native-windows and --native-linux are required together")
     try:
         payload = run(
             source=args.source,
@@ -344,6 +362,8 @@ def main() -> int:
             tag=args.tag,
             channel=args.channel,
             official=args.official,
+            native_inputs=({"windows": args.native_windows, "linux": args.native_linux}
+                           if args.native_windows else None),
         )
     except (DeterministicBuildError, subprocess.CalledProcessError) as exc:
         print(f"deterministic build failed: {exc}", file=sys.stderr)

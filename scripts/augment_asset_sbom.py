@@ -12,6 +12,8 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
+from provelume.ai_native_inventory import inventory as native_inventory
+from provelume.ai_native_inventory import is_native_component
 from provelume.cura_icons import (
     BOM_REF,
     LICENSE_RESOURCE_PATH,
@@ -30,7 +32,7 @@ def _require(condition: bool, message: str) -> None:
         raise ValueError(message)
 
 
-def assert_installed_resources() -> str:
+def assert_installed_resources(*, require_native=False) -> str:
     """Reject checkout/editable fallback: release augmentation reads the installed wheel."""
     distribution = importlib.metadata.distribution("provelume")
     root = files("provelume")
@@ -53,10 +55,12 @@ def assert_installed_resources() -> str:
     }
     expected.add("provelume/" + LICENSE_RESOURCE_PATH)
     _require(expected <= members, "installed distribution RECORD omits declared icon resources")
+    _, native_members = native_inventory(required=require_native)
+    _require(native_members <= members, "installed distribution RECORD omits native resources")
     return distribution.version
 
 
-def augment_sbom(payload: dict[str, Any]) -> dict[str, Any]:
+def augment_sbom(payload: dict[str, Any], *, require_native=False) -> dict[str, Any]:
     """Deterministic, idempotent augmentation; never overwrite conflicting asset provenance."""
     _require(
         isinstance(payload, dict)
@@ -90,6 +94,15 @@ def augment_sbom(payload: dict[str, Any]) -> dict[str, Any]:
     _require(not selected or selected == [asset], "conflicting or duplicate Lucide provenance")
     if not selected:
         components.append(asset)
+    native, _ = native_inventory(required=require_native)
+    existing_native = [row for row in components if is_native_component(row)]
+    _require(not existing_native or sorted(existing_native, key=lambda row: row["bom-ref"]) ==
+             sorted(native, key=lambda row: row["bom-ref"]),
+             "conflicting or duplicate native provenance")
+    if not existing_native:
+        components.extend(native)
+    _require(len(components) <= MAX_COMPONENTS, "component inventory exceeds its bound")
+    assets = {BOM_REF} | {row["bom-ref"] for row in native}
     references = [row["bom-ref"] for row in components if "bom-ref" in row]
     _require(
         all(isinstance(ref, str) and ref for ref in references)
@@ -115,17 +128,16 @@ def augment_sbom(payload: dict[str, Any]) -> dict[str, Any]:
     _require(len(dependency_refs) == len(set(dependency_refs)), "duplicate dependency reference")
     roots = [row for row in dependencies if row["ref"] == application_ref]
     if roots:
-        roots[0]["dependsOn"] = sorted(set(roots[0].get("dependsOn", [])) | {BOM_REF})
+        roots[0]["dependsOn"] = sorted(set(roots[0].get("dependsOn", [])) | assets)
     else:
-        dependencies.append({"ref": application_ref, "dependsOn": [BOM_REF]})
-    if BOM_REF not in dependency_refs:
-        dependencies.append({"ref": BOM_REF, "dependsOn": []})
-    else:
-        _require(
-            next(row for row in dependencies if row["ref"] == BOM_REF)
-            == {"ref": BOM_REF, "dependsOn": []},
-            "conflicting Lucide dependency relationship",
-        )
+        dependencies.append({"ref": application_ref, "dependsOn": sorted(assets)})
+    for reference in sorted(assets):
+        if reference not in dependency_refs:
+            dependencies.append({"ref": reference, "dependsOn": []})
+        else:
+            _require(next(row for row in dependencies if row["ref"] == reference)
+                     == {"ref": reference, "dependsOn": []},
+                     "conflicting asset dependency relationship")
     dependencies.sort(key=lambda row: row["ref"])
     return result
 
@@ -133,8 +145,9 @@ def augment_sbom(payload: dict[str, Any]) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sbom", type=Path, required=True)
+    parser.add_argument("--require-native", action="store_true")
     args = parser.parse_args()
-    installed_version = assert_installed_resources()
+    installed_version = assert_installed_resources(require_native=args.require_native)
     path = args.sbom
     _require(path.is_file() and not path.is_symlink(), "SBOM must be a regular local file")
     with path.open("rb") as stream:
@@ -147,7 +160,7 @@ def main() -> int:
         isinstance(application, dict) and application.get("version") == installed_version,
         "SBOM application version differs from the installed distribution",
     )
-    result = augment_sbom(payload)
+    result = augment_sbom(payload, require_native=args.require_native)
     encoded = (json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode()
     _require(len(encoded) <= MAX_SBOM_BYTES, "augmented SBOM exceeds its byte limit")
     temporary = None

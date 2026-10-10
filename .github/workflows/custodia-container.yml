@@ -1,0 +1,67 @@
+name: Custodia non-root offline container lifecycle
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  container:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      QUALIFIED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e ".[dev]"
+      - name: Acquire reviewed public inputs outside image context and artifacts
+        run: |
+          python scripts/ai_runtime_acquire.py --directory "$RUNNER_TEMP/custodia-inputs" --platform all --accept-licenses --include-model
+          for target in windows linux; do
+            python scripts/build_ai_runtime_input.py --directory "$RUNNER_TEMP/custodia-inputs/$target" --platform "$target" --output "build/native/$target.zip"
+          done
+      - name: Build the ordinary non-root image with exact source identity
+        run: |
+          docker build --build-arg PROVELUME_SOURCE_COMMIT="$QUALIFIED_SHA" --build-arg SOURCE_DATE_EPOCH="$(git show -s --format=%ct "$QUALIFIED_SHA")" -t provelume:custodia .
+          mkdir "$RUNNER_TEMP/custodia-evidence"
+          docker image inspect provelume:custodia --format '{{json .Id}}' > "$RUNNER_TEMP/custodia-evidence/image.json"
+          chmod g+w "$RUNNER_TEMP/custodia-evidence"
+          sudo chown 10001 "$RUNNER_TEMP/custodia-evidence"
+      - name: Observe offline import, consent, real document jobs and separate model persistence
+        run: |
+          docker volume create custodia-instance
+          docker volume create custodia-models
+          for mode in initial restart; do
+            extra=()
+            if [ "$mode" = restart ]; then extra+=(--restart); fi
+            docker run --rm --network=none --read-only --tmpfs /tmp --cap-drop=ALL \
+              --security-opt no-new-privileges:true --memory=12g --cpus=4 \
+              --mount type=volume,src=custodia-instance,dst=/instance \
+              --mount type=volume,src=custodia-models,dst=/.instance.provelume \
+              --mount "type=bind,src=$RUNNER_TEMP/custodia-inputs/model.gguf,dst=/import/model.gguf,readonly" \
+              --mount "type=bind,src=$GITHUB_WORKSPACE/scripts,dst=/qualification,readonly" \
+              --mount "type=bind,src=$GITHUB_WORKSPACE/tests/fixtures/ai_synthesis_quality.json,dst=/corpus.json,readonly" \
+              --mount "type=bind,src=$RUNNER_TEMP/custodia-evidence,dst=/evidence" \
+              provelume:custodia python /qualification/qualify_custodia_container.py \
+              --instance /instance --model /import/model.gguf --corpus /corpus.json \
+              --commit "$QUALIFIED_SHA" --output "/evidence/$mode.json" "${extra[@]}"
+          done
+      - name: Retain exact dependency observation, without image or model weights
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/custodia-evidence"
+          docker run --rm --network=none provelume:custodia python -m pip list --format=json > "$RUNNER_TEMP/custodia-evidence/packages.json"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: custodia-container-${{ github.run_id }}
+          path: ${{ runner.temp }}/custodia-evidence/*.json
+          if-no-files-found: warn
+          retention-days: 30

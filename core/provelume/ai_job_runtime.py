@@ -106,7 +106,12 @@ class NativeJobAdapter:
                 options["response_format"] = native_format(task, len(inputs.preview.segments))
             selection = native_selection()
             prepared_at = time.monotonic()
-            with self.model_store.use(selection) as model:
+            deadline = started + CONFIGURATION["seconds"]
+            from .ai_model_file import ReadAuthority
+
+            with self.model_store.use(
+                selection, cancel=ReadAuthority(cancel), deadline=deadline
+            ) as model:
                 admitted_at = time.monotonic()
                 current().prepare()
                 if cancel():
@@ -114,7 +119,7 @@ class NativeJobAdapter:
                 entered = True
                 inference_at = time.monotonic()
                 value = self.runtime._infer(
-                    model, selection, payload, cancel=cancel,
+                    model, selection, payload, cancel=cancel, deadline=deadline,
                     reuse_scope=digest({"instance": request.context.instance_id}),
                     **options,
                 )

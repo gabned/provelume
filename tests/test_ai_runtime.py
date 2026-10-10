@@ -621,9 +621,9 @@ def test_lifecycle_self_test_honors_its_closed_runtime_budget(
     clock = [0.0]
     monkeypatch.setattr(storage.time, "monotonic", lambda: clock[0])
     monkeypatch.setattr(store, "_hold", nullcontext)
-    monkeypatch.setattr(store, "_verify", lambda entry: object())
+    monkeypatch.setattr(store, "_verify", lambda entry, **kwargs: object())
 
-    def result(*args):
+    def result(*args, **kwargs):
         clock[0] = elapsed
         return "PASSED"
 

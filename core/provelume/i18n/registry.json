@@ -2917,6 +2917,12 @@
       "rendering": "text",
       "sensitive_review_required": false
     },
+    "ai.disable": {
+      "context": "AI session control: explicit disabling action; templates/ai_settings.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
     "ai.dispatch": {
       "context": "Custodia AI setup, private previews and receipts: dispatch",
       "rendering": "text",
@@ -2926,6 +2932,12 @@
       "context": "Custodia AI setup, private previews and receipts: document_help",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "ai.download_network_help": {
+      "context": "AI setup: guided model lifecycle; templates/ai_settings.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     },
     "ai.duration_limit": {
       "context": "Custodia S07 current restrictions and private preview: duration_limit",
@@ -2944,6 +2956,12 @@
     },
     "ai.enable_help": {
       "context": "Custodia AI setup, private previews and receipts: enable_help",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "ai.enable_local": {
+      "context": "AI setup: explicit verification and session enablement; templates/ai_settings.html",
+      "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": true
     },
@@ -3001,6 +3019,12 @@
       "context": "Custodia AI setup, private previews and receipts: fingerprint",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "ai.guided_help": {
+      "context": "AI setup: guided model lifecycle; templates/ai_settings.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     },
     "ai.hybrid": {
       "context": "Custodia AI setup, private previews and receipts: hybrid",
@@ -3291,6 +3315,12 @@
       "context": "Custodia AI setup, private previews and receipts: state",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "ai.storage_location": {
+      "context": "AI setup: guided model lifecycle; templates/ai_settings.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     },
     "ai.test": {
       "context": "Custodia AI setup, private previews and receipts: test",
@@ -9278,6 +9308,114 @@
       "rendering": "text",
       "sensitive_review_required": false
     },
+    "media.audio.action": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.audio.description": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.audio.title": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.capture": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.count": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.file_family.action": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.file_family.description": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.file_family.title": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.intro": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.photo.action": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.photo.description": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.photo.title": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.readonly": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "media.technical": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.title": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.video.action": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.video.description": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.video.title": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
     "nav.about": {
       "context": "nav: label/navigation; templates/about.html",
       "linguistic_review": "UNVERIFIED",
@@ -13172,6 +13310,18 @@
       "rendering": "text",
       "sensitive_review_required": false
     },
+    "shell.language_help": {
+      "context": "Narrow persisted language preference; templates/shell_settings.html. Header language links change only the current URL.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "shell.language_save": {
+      "context": "Narrow persisted language preference; templates/shell_settings.html. Header language links change only the current URL.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
     "shell.lead": {
       "context": "shell: help/explanation; templates/shell_settings.html",
       "linguistic_review": "UNVERIFIED",
@@ -13572,6 +13722,18 @@
       "rendering": "text",
       "sensitive_review_required": false
     },
+    "synthesis.cleanup": {
+      "context": "Document synthesis: explicit incomplete-result disposal or fresh preview recovery; templates/ai_synthesis.html; templates/ai_operations.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.cleanup_help": {
+      "context": "Document synthesis: explicit incomplete-result disposal or fresh preview recovery; templates/ai_synthesis.html; templates/ai_operations.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
     "synthesis.consent": {
       "context": "Custodia S08 manual extractive synthesis: consent",
       "rendering": "text",
@@ -13626,6 +13788,12 @@
       "context": "Custodia S08 manual extractive synthesis: inherit",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "synthesis.input_recovery": {
+      "context": "Document synthesis: explicit incomplete-result disposal or fresh preview recovery; templates/ai_synthesis.html; templates/ai_operations.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     },
     "synthesis.key_points": {
       "context": "Custodia S08 manual extractive synthesis: key_points",
@@ -13709,6 +13877,18 @@
     },
     "synthesis.uncertainty": {
       "context": "Custodia S08 manual extractive synthesis: uncertainty",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.verify_generate": {
+      "context": "Document synthesis: explicit verification of expired local proof; templates/ai_synthesis.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.verify_preview": {
+      "context": "Document synthesis: explicit verification of expired local proof; templates/ai_synthesis.html",
+      "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": true
     },

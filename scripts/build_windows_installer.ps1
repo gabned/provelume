@@ -85,6 +85,11 @@ try {
     if (-not (Test-Path $Executable)) {
         throw "PyInstaller did not produce Provelume.exe."
     }
+    & $BuildPython -I (Join-Path $SourceRoot "scripts\embed_windows_worker_inventory.py") `
+        --root (Join-Path $Dist "Provelume") --commit $Commit
+    if ($LASTEXITCODE -ne 0) {
+        throw "The public frozen worker inventory could not be embedded."
+    }
     & (Join-Path $SourceRoot "scripts\verify_windows_brand.ps1") `
         -Artifact $Executable -CanonicalIcon $Icon | Out-Null
     $ExecutableVersion = (Get-Item -LiteralPath $Executable).VersionInfo

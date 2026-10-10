@@ -58,6 +58,11 @@ def script_integrity() -> str:
     return "sha256-" + base64.b64encode(hashlib.sha256(raw).digest()).decode("ascii")
 
 
+def navigation_integrity() -> str:
+    raw = (Path(__file__).parent / "static/navigation.js").read_bytes()
+    return "sha256-" + base64.b64encode(hashlib.sha256(raw).digest()).decode("ascii")
+
+
 def retrieval_url(path: str, values: list[tuple[str, str]], *, fragment: str = "") -> str:
     if path not in RETRIEVAL_KEYS:
         return ""

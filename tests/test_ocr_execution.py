@@ -976,6 +976,25 @@ def test_fake_tesseract_cli_timeout_and_cooperative_cancellation(
     assert cancel_error.value.code == "ocr_cancelled"
 
 
+def test_precancelled_tesseract_does_not_probe_or_launch_a_process(tmp_path, monkeypatch):
+    executable = _fake_tesseract(tmp_path, "valid")
+    settings = OcrSettings(mode="forced", engine_executable=str(executable), languages=("eng",))
+    image = tmp_path / "page.png"
+    image.write_bytes(_PNG)
+    adapter = TesseractCliAdapter(
+        settings, _renderer_capability(), tmp_path, cancelled=lambda: True
+    )
+
+    def forbidden_process(*args, **kwargs):
+        raise AssertionError("a cancelled page must not launch capability or OCR processes")
+
+    monkeypatch.setattr("provelume.ocr_tesseract.run_bounded_process", forbidden_process)
+    with pytest.raises(OcrContractError) as error:
+        adapter.recognise_page(_tesseract_request(settings, image), image)
+    assert error.value.code == "ocr_cancelled"
+    assert not (tmp_path / "tesseract-output.tsv").exists()
+
+
 def test_capability_distinguishes_missing_engine_renderer_version_and_language(
     tmp_path: Path,
 ) -> None:

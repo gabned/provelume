@@ -59,8 +59,8 @@ def test_pinned_subset_preserves_exact_upstream_sources_and_both_licenses(monkey
 
     monkeypatch.setattr(socket, "create_connection", forbidden)
     subset = verify_icon_subset()
-    assert len(subset.svgs) == 18
-    assert sum(map(len, subset.svgs.values())) == 5999
+    assert len(subset.svgs) == 23
+    assert sum(map(len, subset.svgs.values())) == 7854
     assert subset.manifest["source"]["commit"] == "b998e2892b90b88004d62da2d0b64dab9959a520"
     assert subset.manifest["version"] == "1.45.0"
     assert subset.manifest["license_expression"] == "ISC AND MIT"

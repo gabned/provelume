@@ -12,6 +12,7 @@ services:
       - "127.0.0.1:8042:8000"
     volumes:
       - provelume-instance:/instance
+      - provelume-models:/.instance.provelume
       - ${PROVELUME_SOURCE_DIR:-../examples/demo-source}:/sources/local:ro
     read_only: true
     tmpfs:
@@ -24,3 +25,4 @@ services:
 
 volumes:
   provelume-instance:
+  provelume-models:

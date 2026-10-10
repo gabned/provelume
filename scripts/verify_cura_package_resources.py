@@ -27,6 +27,8 @@ MAX_RESOURCE_TOTAL_BYTES = 16 * 1024 * 1024
 MAX_RESOURCE_FILES = 4096
 SUBTREES = ("templates", "static/icons/lucide", "i18n", "notices")
 STATIC_FILES = (
+    "static/navigation.css",
+    "static/navigation.js",
     "static/cura.css",
     "static/cura-shell.js",
     "static/capture.css",
@@ -163,9 +165,9 @@ def _wheel_resources(wheel: Path) -> tuple[dict[str, bytes], str]:
     if not resources.keys() >= REQUIRED:
         raise CuraResourceError("wheel missing required Cura resources")
     lucide = {name for name in resources if name.startswith("static/icons/lucide/")}
-    if len(lucide) != 19 or sum(name.endswith(".svg") for name in lucide) != 18:
+    if len(lucide) != 24 or sum(name.endswith(".svg") for name in lucide) != 23:
         raise CuraResourceError(
-            "wheel must contain 19 Lucide assets plus the required packaged license"
+            "wheel must contain 24 Lucide assets plus the required packaged license"
         )
     for tree in ("i18n", "notices"):
         if {name for name in resources if name.startswith(tree + "/")} != {

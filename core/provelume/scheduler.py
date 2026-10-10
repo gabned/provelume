@@ -248,11 +248,12 @@ class SchedulerStore:
 
     @staticmethod
     def _read_json(path: Path) -> dict[str, Any]:
+        from .storage import read_json_snapshot
+
         if path.is_symlink() or not path.is_file():
             raise SchedulerError("scheduler state is not a regular file")
         try:
-            with path.open("r", encoding="utf-8") as handle:
-                value = json.load(handle)
+            value = read_json_snapshot(path)
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
             raise SchedulerError("scheduler state is unreadable") from exc
         if not isinstance(value, dict):

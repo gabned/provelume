@@ -1,0 +1,13 @@
+<details class="language nav-group" name="provelume-header" data-header-menu>
+  <summary aria-label="{{ t('common.language') }}: {% for option in language_options %}{% if option.id == lang %}{{ option.label }}{% endif %}{% endfor %}">
+    {{ icon('globe') }}
+    <span>{% for option in language_options %}{% if option.id == lang %}{{ option.label }}{% endif %}{% endfor %}</span>
+    {{ icon('chevron-down') }}
+  </summary>
+  <div class="nav-menu">
+    <a href="{{ language_urls.system }}"{% if language_choice == 'system' %} aria-current="true"{% endif %}>{{ t('common.language_system') }}</a>
+    {% for option in language_options %}
+    <a href="{{ language_urls[option.id] }}" hreflang="{{ option.id }}" lang="{{ option.id }}"{% if language_choice == option.id %} aria-current="true"{% endif %}>{{ option.label }}</a>
+    {% endfor %}
+  </div>
+</details>

@@ -1,0 +1,37 @@
+name: Windows PDF lock resolution
+on:
+  pull_request:
+    paths:
+      - 'build-lock/**'
+      - 'scripts/resolve_windows_pdf_lock.py'
+      - '.github/workflows/windows-pdf-lock.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'build-lock/**'
+      - 'scripts/resolve_windows_pdf_lock.py'
+      - '.github/workflows/windows-pdf-lock.yml'
+permissions:
+  contents: read
+jobs:
+  resolve:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Resolve the PDF correction while preserving all other pins
+        run: python scripts/resolve_windows_pdf_lock.py --output .agent/windows-pdf-lock
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: windows-pdf-lock-${{ github.run_id }}
+          path: .agent/windows-pdf-lock
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30

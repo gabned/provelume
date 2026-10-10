@@ -1,8 +1,14 @@
 "use strict";
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const path = require("node:path");
 const vm = require("node:vm");
 const source = fs.readFileSync(process.argv[2], "utf8");
+// The retained Windows preflight supplies only the shell path. Always exercise
+// its sibling navigation module too; the explicit second script stays supported.
+const navigationSource = fs.readFileSync(
+  process.argv[3] || path.join(path.dirname(process.argv[2]), "navigation.js"), "utf8"
+);
 
 function page({compact = false, seconds = 3, expires = 13000, badge = true} = {}) {
   const callbacks = {};
@@ -12,6 +18,7 @@ function page({compact = false, seconds = 3, expires = 13000, badge = true} = {}
   const inside = {};
   const navigation = {
     open: true, querySelector: () => summary,
+    setAttribute: () => {}, removeAttribute: () => {},
     contains: (node) => node === inside || node === summary,
     addEventListener: listeners("navigation"),
   };
@@ -22,8 +29,9 @@ function page({compact = false, seconds = 3, expires = 13000, badge = true} = {}
   };
   const document = {
     querySelector: (selector) => selector === "[data-cura-navigation]" ? navigation : null,
-    querySelectorAll: () => badge ? [cue] : [],
+    querySelectorAll: selector => selector === "[data-release-cue]" && badge ? [cue] : [],
     addEventListener: listeners("document"),
+    activeElement: inside,
   };
   const window = {
     matchMedia: () => media, addEventListener: listeners("window"),
@@ -31,8 +39,8 @@ function page({compact = false, seconds = 3, expires = 13000, badge = true} = {}
     clearInterval: () => { state.intervals = 0; },
   };
   const forbidden = () => { throw new Error("Presentation accessed a forbidden capability"); };
-  vm.runInNewContext(source, {
-    document, window, performance: {now: () => state.monotonic},
+  vm.runInNewContext(source + navigationSource, {
+    document, window, matchMedia: window.matchMedia, performance: {now: () => state.monotonic},
     Date: {parse: Date.parse, now: () => state.wall},
     fetch: forbidden, XMLHttpRequest: forbidden,
     localStorage: new Proxy({}, {get: forbidden, set: forbidden}),
@@ -42,7 +50,7 @@ function page({compact = false, seconds = 3, expires = 13000, badge = true} = {}
 
 const desktop = page();
 assert.equal(desktop.navigation.open, true);
-desktop.callbacks["document:keydown"]({key: "Escape"});
+desktop.callbacks["document:keydown"]({key: "Escape", preventDefault() {}});
 assert.equal(desktop.navigation.open, true);
 assert.equal(desktop.state.focuses, 0);
 desktop.media.matches = true;
@@ -55,11 +63,11 @@ desktop.callbacks["document:click"]({target: {}});
 assert.equal(desktop.navigation.open, false);
 assert.equal(desktop.state.focuses, 0);
 desktop.navigation.open = true;
-desktop.callbacks["document:keydown"]({key: "Escape"});
+desktop.callbacks["document:keydown"]({key: "Escape", preventDefault() {}});
 assert.equal(desktop.navigation.open, false);
 assert.equal(desktop.state.focuses, 1);
 desktop.navigation.open = true;
-desktop.callbacks["navigation:focusout"]({relatedTarget: {}});
+desktop.callbacks["navigation:focusout"]({relatedTarget: {closest: () => null}});
 assert.equal(desktop.navigation.open, false);
 assert.equal(desktop.state.focuses, 1);
 desktop.media.matches = false;

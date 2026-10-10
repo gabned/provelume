@@ -230,13 +230,14 @@ def attach_ai_routes(app, instance, templates, context_factory):
 
     @app.post("/settings/ai/model")
     async def model(request: Request):
-        values = await fields(request, {"action", "path", "acknowledge"})
+        values = await fields(request, {"action", "path", "acknowledge", "authority"})
         try:
             if values["acknowledge"] != "explicit":
                 raise ValueError("consent")
             if len(tasks) >= 2:
                 raise ValueError("unavailable")
-            identity = setup.begin_operation(values["action"])
+            identity = setup.begin_operation(values["action"],
+                                             expected_authority=values["authority"])
             launch(setup.run_operation, identity, path=values["path"] or None)
         except (ValueError, OSError, SchedulerBusyError) as exc:
             return await render(
@@ -245,6 +246,19 @@ def attach_ai_routes(app, instance, templates, context_factory):
                 status_code=409,
                 error_key=reason_key(getattr(exc, "code", exc.args[0] if exc.args else None)),
             )
+        return redirect(request, "/settings/ai")
+
+    @app.post("/settings/ai/network")
+    async def network(request: Request):
+        values = await fields(request, {"enabled", "revision", "acknowledge"})
+        try:
+            if (values["acknowledge"] != "instance-network"
+                    or values["enabled"] not in {"yes", "no"}):
+                raise ValueError("consent")
+            await mutation(setup.set_network, values["enabled"] == "yes", values["revision"])
+        except (ValueError, OSError, SchedulerBusyError) as exc:
+            return await render(request, error=True, status_code=409,
+                                error_key=reason_key(getattr(exc, "code", None)))
         return redirect(request, "/settings/ai")
 
     @app.post("/settings/ai/model/cancel")
@@ -322,6 +336,8 @@ def attach_ai_routes(app, instance, templates, context_factory):
 
     @app.get("/operations/ai")
     def operations(request: Request):
+        from .ai_synthesis_recovery import candidate
+
         local(request)
         records = setup.jobs.journal.list_jobs(limit=100)
         jobs = [setup.jobs.public(j["id"]) for j in records if j["job_kind"] == "ai.execute"]
@@ -334,6 +350,10 @@ def attach_ai_routes(app, instance, templates, context_factory):
             r for r in setup.jobs.journal.list_receipts(limit=100) if r["job_kind"] == "ai.execute"
         ]
         dispatchable = set()
+        orphaned = {}
+        for job in jobs:
+            with suppress(ValueError, OSError, SchedulerBusyError):
+                orphaned[job["id"]] = candidate(setup.synthesis, job["id"])
         control = setup.jobs.status()
         if control["session_authorized"] and control["mode"] == "enabled":
             for job in jobs:
@@ -351,6 +371,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
             receipts=receipts,
             revisions=revisions,
             dispatchable=dispatchable,
+            orphaned=orphaned,
         )
 
     @app.post("/operations/ai/control")

@@ -88,6 +88,22 @@ $ApprovedPreviousBaselines = @(
         sha256 = "c197f021a0c45512eb760a83e59f177ce22d946e0239ddf311296b6c7dc0e954"
         wheel_size = 785803
         wheel_sha256 = "31c10a4f0b1ab93f16321d343800f000c41163b38fa28cab15a82715058f9860"
+    },
+    @{
+        version = "0.10.1"
+        commit = "700625662fb8ad7b71c2986b4f6fecd942b176fd"
+        size = 19894172
+        sha256 = "14ad03405c759f45faea8531b65e583c676a38551d6182626ca04664ea969241"
+        wheel_size = 858954
+        wheel_sha256 = "1cfd2221888f061fe46d96da085a0b58b8e8c6e31d51915afaae3bd0a34e9e92"
+    },
+    @{
+        version = "0.11.0"
+        commit = "3414612e23891d1d3ac44610ee8a0d4fb6c305e7"
+        size = 20658239
+        sha256 = "e4d4237f7681e3849402fb25580993c39888bef1b975057014565a0967447d68"
+        wheel_size = 1416491
+        wheel_sha256 = "c621c389e417c0173d21078b1e73e98553eadd431c8ba3453d01d356304beea5"
     }
 )
 $IdentifiedBaseline = $ApprovedPreviousBaselines |

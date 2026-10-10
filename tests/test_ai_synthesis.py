@@ -4,6 +4,7 @@ import asyncio
 import json
 import re
 import threading
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import timedelta
@@ -265,21 +266,52 @@ def test_storage_failure_retains_known_usage_and_terminal_replay_never_recreates
     assert len(setup.jobs.journal.list_jobs()) == 2
 
 
-def test_backup_restore_preserves_private_body_recipe_and_off_state(synthesis, tmp_path):
+@pytest.mark.parametrize("transfer", ["extract-backup", "restore-backup", "portable"])
+def test_transfer_preserves_private_body_recipe_and_off_state(synthesis, tmp_path, transfer):
     setup, document, _ = synthesis
     setup.synthesis.restrict(document, "instance", setup.instance_id, "local_only", 0)
     job = execute(synthesis)
-    body = setup.synthesis.read(job["id"])[0]
+    body, reference, _, _ = setup.synthesis.read(job["id"])
+    canonical = _snapshots(setup.instance.store)
+    external = setup.models.root / "public-exclusion-marker.gguf"
+    external.write_bytes(b"public external model marker")
+
+    def credential_probe(*_):
+        pytest.fail("backup or transfer requested provider credentials")
+
+    setup.credentials = credential_probe
     setup.close()
-    backup = setup.instance.backup(destination=tmp_path / "backups")
-    restored_path = tmp_path / "restored"
-    extract_backup(Path(backup["archive"]), restored_path)
+    if transfer == "portable":
+        archive = tmp_path / "portable.zip"
+        setup.instance.export_portable(archive)
+        # AI accounting is bound to the same Instance; replacing a newly created
+        # foreign Instance remains rejected by the S06 portability contract.
+        setup.synthesis.discard(job["id"])
+        setup.instance.import_portable(archive)
+        restored_path = setup.instance.root
+    else:
+        archive = Path(setup.instance.backup(destination=tmp_path / "backups")["archive"])
+        if transfer == "restore-backup":
+            setup.synthesis.discard(job["id"])
+            setup.instance.restore(archive)
+            restored_path = setup.instance.root
+        else:
+            restored_path = tmp_path / "restored"
+            extract_backup(archive, restored_path)
+    with zipfile.ZipFile(archive) as bundle:
+        assert not any(name.endswith((".gguf", ".dll", ".so")) for name in bundle.namelist())
+        assert not any(b"public external model marker" in bundle.read(name)
+                       for name in bundle.namelist() if not name.endswith("/"))
     restored = AiSetup(ProvelumeInstance(restored_path))
-    assert restored.synthesis.read(job["id"])[0] == body
+    assert restored.synthesis.read(job["id"])[0:2] == (body, reference)
+    assert _snapshots(restored.instance.store) == canonical
     assert not restored.jobs.session_authorized
     assert restored.jobs.status()["mode"] == "off"
     assert restored.jobs.status()["accounting"]["units"] == 19
     assert restored.synthesis.policies()["rules"][0]["restriction"] == "local_only"
+    assert len(restored.jobs.journal.list_jobs()) == 1
+    assert external.read_bytes() == b"public external model marker"
+    restored.close()
 
 
 @pytest.mark.parametrize("language", ["en", "it", "de", "es", "fr", "pt", "ro"])
@@ -404,6 +436,38 @@ def test_native_source_limit_is_reported_before_consent(synthesis, monkeypatch, 
     assert not setup.previews
     assert not setup.jobs.journal.list_jobs()
     assert setup.jobs.status()["accounting"]["units"] == 0
+
+
+@pytest.mark.parametrize("action", ["preview", "verify-preview"])
+def test_input_error_keeps_document_and_choices_but_requires_a_fresh_preview(
+    synthesis, tmp_path, action,
+):
+    setup, document, _ = synthesis
+    version = setup.instance.get_document(document)["current_version"]["id"]
+    bundle = setup.instance.representations.bundles.materialize(
+        version, recipe_id="synthetic-overlong-paragraph", recipe_version="1", recipe_settings={},
+        output_payloads={"text.txt": ("text/plain", b"x" * 2001)},
+        implementation=_implementation(), anchor_targets=({"kind": "page", "page": 1},),
+    )
+    app = create_app(setup.instance.root, shell_settings_file=tmp_path / "shell.json")
+    path = f"/documents/{document}/synthesis"
+    selected = bundle["representation_id"] + ":" + bundle["outputs"][0]["id"]
+    with TestClient(app) as client:
+        first = client.get(path + "?lang=it")
+        values = {**form(first), "version_id": version, "selection": selected,
+                  "task": "key-points", "language": "en"}
+        response = client.post(path + "/" + action + "?lang=it", data=values)
+        assert response.status_code == 409
+        assert f'action="{path}/preview?lang=it"' in response.text
+        assert f'value="{selected}" selected' in response.text
+        assert 'value="key-points" selected' in response.text
+        assert 'value="en" selected' in response.text
+        assert f'name="version_id" value="{version}"' in response.text
+        assert 'role="alert"' in response.text
+        assert 'action="/operations/ai/synthesis/execute' not in response.text
+        assert form(response)["mutation_nonce"] != values["mutation_nonce"]
+        assert not app.state.ai_setup.previews
+        assert not app.state.ai_setup.jobs.journal.list_jobs()
 
 
 @pytest.mark.parametrize("language,mode,characters", [

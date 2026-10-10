@@ -498,7 +498,9 @@ Run all tests with:
 
 ## Docker Compose
 
-A generic self-hosted example is available in `instance/docker-compose.yml`:
+A generic self-hosted example is available in `instance/docker-compose.yml`.
+First prepare its pinned native library inputs as described in
+[the Instance guide](instance/README.md#docker-compose-demo), then:
 
 ```bash
 cd instance

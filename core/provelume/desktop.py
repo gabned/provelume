@@ -87,7 +87,7 @@ def save_settings(settings: LauncherSettings, path: Path | None = None) -> Path:
 
 
 def declare_startup_update_policy(instance_path: Path, *, enabled: bool) -> None:
-    """Keep the Instance capability inventory aligned with launcher startup policy."""
+    """Declare a component preference without changing independent global consent."""
 
     # A concurrent canonical commit can expose a pending transaction while holding
     # the lifecycle lock. Wait before opening, without reversing lifecycle/policy
@@ -107,7 +107,6 @@ def declare_startup_update_policy(instance_path: Path, *, enabled: bool) -> None
         network = config.setdefault("network", {})
         if not isinstance(network, dict):
             raise ValueError("Instance network configuration must be an object")
-        network["external_access"] = bool(enabled)
         network["update_checks"] = bool(enabled)
         network["update_endpoint"] = "https://api.github.com"
         network["update_data_categories"] = []
