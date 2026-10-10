@@ -1,4 +1,4 @@
-"""Closed S05 candidate identity. Import never probes or acquires."""
+"""Closed native identity and qualified scope. Import never probes or acquires."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from .ai_models import check
 from .ai_runtime_cpu import SELECTION as CPU_SELECTION
 from .ai_runtime_identity import LOCK_SHA256
 from .ai_synthesis_profile import PROFILE, framing_identity
+from .representations import canonical_json_bytes
 
 RUNTIME_ID = "llama.cpp"
 RUNTIME_VERSION = "b11379"
@@ -40,7 +41,7 @@ class NativeModelPin:
 NATIVE_MODEL_PINS = (
     NativeModelPin(
         MODEL_ID, MODEL_FORMAT, MODEL_SIZE, MODEL_SHA256, MODEL_URL, MODEL_LICENSE,
-        "repository:docs/adr/0047-hybrid-cpu-synthesis-candidate.md",
+        "repository:docs/qualification/custodia-local-profile.md",
     ),
     NativeModelPin(
         "qwen2.5-1.5b-instruct-q4-k-m", "gguf-v3-q4_k_m", 1117320736,
@@ -133,6 +134,35 @@ CONFIGURATION = {
     "prefix_min_tokens": 128,
     "recurrent_rollback": 0,
 }
+
+
+def qualified_local_profile():
+    """Repository recommendation for exact measured bytes, never session authority.
+
+    A future model, runtime or execution configuration needs new qualification;
+    changing its ordinary constants cannot silently inherit this recommendation.
+    """
+    expected = (
+        "qwen3.5-2b-q5-k-m",
+        "1885b3a9195f8cc09da9a7a7a75afdc1e8d5cbf9fc4a499c3961dddea37098ac",
+        "0e508965cddc60d6cfb57c42d2c4039c637e8812bb25cc21b525b6d6047a4404",
+        "51c7539e89a4a29c6bc3ad04fb7b1e2b1cf8afdf33ed2f23261a47c6ccc56640",
+    )
+    configuration = hashlib.sha256(canonical_json_bytes(CONFIGURATION)).hexdigest()
+    if (MODEL_ID, MODEL_SHA256, LOCK_SHA256, configuration) != expected:
+        return None
+    return {
+        "model": MODEL_ID,
+        "model_sha256": MODEL_SHA256,
+        "runtime_lock_sha256": LOCK_SHA256,
+        "configuration_sha256": configuration,
+        "tasks": ["summary", "key-points"],
+        "languages": ["en", "it"],
+        "platforms": ["windows-x86_64-avx2", "linux-x86_64-avx2"],
+        "hardware_scope": "observed-hosted-profiles",
+        "evidence": "repository:docs/qualification/custodia-local-profile.md",
+        "inference_authorized": False,
+    }
 
 
 def runtime_lock():

@@ -1,7 +1,7 @@
 {
   "entries": [
     {
-      "app_version": "0.11.0",
+      "app_version": "0.12.0",
       "channel": "candidate",
       "evidence": "repository:docs/architecture/ai-model-lifecycle.md#provenance",
       "format": "synthetic-bytes-v1",
@@ -21,7 +21,7 @@
       "version": "1"
     },
     {
-      "app_version": "0.11.0",
+      "app_version": "0.12.0",
       "channel": "candidate",
       "evidence": "repository:docs/architecture/ai-model-lifecycle.md#provenance",
       "format": "synthetic-bytes-v1",
@@ -41,9 +41,9 @@
       "version": "2"
     },
     {
-      "app_version": "0.11.0",
+      "app_version": "0.12.0",
       "channel": "candidate",
-      "evidence": "repository:docs/adr/0047-hybrid-cpu-synthesis-candidate.md",
+      "evidence": "repository:docs/qualification/custodia-local-profile.md",
       "format": "gguf-v3-q5_k_m",
       "id": "qwen3.5-2b-q5-k-m",
       "license": "Apache-2.0",
@@ -54,14 +54,14 @@
       "origin": "https://huggingface.co",
       "package_sha256": "1885b3a9195f8cc09da9a7a7a75afdc1e8d5cbf9fc4a499c3961dddea37098ac",
       "package_size": 1435238656,
-      "qualification": "CANDIDATE_NOT_QUALIFIED",
+      "qualification": "QUALIFIED_EN_IT_EXTRACTIVE",
       "runtime_id": "llama.cpp",
       "runtime_version": "b11379",
       "url": "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q5_K_M.gguf",
       "version": "1"
     },
     {
-      "app_version": "0.11.0",
+      "app_version": "0.12.0",
       "channel": "candidate",
       "evidence": "repository:docs/adr/0046-canonical-task-qwen25-requalification.md",
       "format": "gguf-v3-q4_k_m",
@@ -81,7 +81,7 @@
       "version": "1"
     },
     {
-      "app_version": "0.11.0",
+      "app_version": "0.12.0",
       "channel": "candidate",
       "evidence": "repository:docs/adr/0045-granite33-capacity-candidate.md",
       "format": "gguf-v3-q4_k_m",
@@ -101,7 +101,7 @@
       "version": "1"
     },
     {
-      "app_version": "0.11.0",
+      "app_version": "0.12.0",
       "channel": "candidate",
       "evidence": "repository:docs/adr/0045-granite33-capacity-candidate.md",
       "format": "gguf-v3-q8_0",
@@ -121,7 +121,7 @@
       "version": "1"
     },
     {
-      "app_version": "0.11.0",
+      "app_version": "0.12.0",
       "channel": "candidate",
       "evidence": "repository:docs/adr/0044-higher-precision-synthesis-candidate.md",
       "format": "gguf-v3-q5_k_m",
@@ -141,7 +141,7 @@
       "version": "1"
     },
     {
-      "app_version": "0.11.0",
+      "app_version": "0.12.0",
       "channel": "candidate",
       "evidence": "repository:docs/adr/0038-qwen3-instruct-synthesis-candidate.md",
       "format": "gguf-v3-q2_k",
@@ -161,7 +161,7 @@
       "version": "1"
     },
     {
-      "app_version": "0.11.0",
+      "app_version": "0.12.0",
       "channel": "candidate",
       "evidence": "repository:docs/adr/0039-bounded-selection-assessment.md",
       "format": "gguf-v3-q4_k_m",

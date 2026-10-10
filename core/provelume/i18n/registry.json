@@ -2858,7 +2858,7 @@
       "sensitive_review_required": false
     },
     "ai.candidate": {
-      "context": "Custodia AI setup, private previews and receipts: candidate",
+      "context": "Custodia qualified local profile scope, separate device checks and source review",
       "rendering": "text",
       "sensitive_review_required": true
     },

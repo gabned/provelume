@@ -69,7 +69,7 @@ def host(tmp_path, monkeypatch):
 
 def test_candidate_and_shipped_runtime_lock_have_no_execution_authority():
     entry = ModelRegistry.packaged().entry(MODEL_ID)
-    assert entry.qualification == "CANDIDATE_NOT_QUALIFIED"
+    assert entry.qualification == "QUALIFIED_EN_IT_EXTRACTIVE"
     assert entry.model_sha256 == MODEL_SHA256
     assert entry.model_size == 1435238656
     assert entry.profile.model == MODEL_ID
@@ -115,7 +115,7 @@ def test_native_manifest_refuses_unreviewed_or_mixed_artifact_pins(field, value)
 
 @pytest.mark.parametrize("field,value", [
     ("id", "onnx"), ("version", "other"), ("format", "pickle"),
-    ("platform", "darwin"), ("app_version", "0.12.0"), ("configuration", b"{}"),
+    ("platform", "darwin"), ("app_version", "0.13.0"), ("configuration", b"{}"),
 ])
 def test_closed_runtime_matrix(field, value):
     selection = dataclasses.replace(runtime.native_selection(), **{field: value})

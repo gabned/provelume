@@ -7,6 +7,17 @@ S04 is integrated through #319 with exact-head and actual-main qualification. S0
 adds the [one-candidate extension](ai-local-runtime.md); S06 owns dispatch enforcement; S07 owns complete
 user surfaces. This internal lifecycle creates no inference, resolver, scheduler or budget engine.
 
+## Current 0.12 recommendation
+
+The S04 sections below retain the original synthetic-only contract and historical
+scope. Provelume 0.12 ships a [bounded local recommendation](../qualification/custodia-local-profile.md)
+for the exact Qwen3.5-2B Q5_K_M, runtime lock and execution configuration qualified
+through S08/S09. `recommended_scope` is descriptive distribution evidence for
+EN/IT extractive summary/key points, not per-device compatibility, local-network
+proof or authorization to execute. Synthetic entries remain synthetic; retired
+models remain blocked/removable. Every current application/model registry entry
+matches the 0.12 package identity. Fresh consent/session checks remain mandatory.
+
 ## Provenance
 
 `model_registry.json` is governed and distributed with application code. Its expected SHA-256
