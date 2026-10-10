@@ -29,6 +29,7 @@ from .ai_runtime_contract import (
     RUNTIME_ID,
     RUNTIME_VERSION,
     hardware,
+    qualified_local_profile,
     runtime_lock,
 )
 from .maintenance_local_files import open_local_file
@@ -445,11 +446,15 @@ class LocalRuntime:
             raise
 
     def status(self):
+        profile = qualified_local_profile()
         return {
             "runtime": RUNTIME_ID,
             "version": RUNTIME_VERSION,
             "loaded": self.loaded,
-            "qualification": "CANDIDATE_NOT_QUALIFIED",
+            "qualification": (
+                "QUALIFIED_EN_IT_EXTRACTIVE" if profile else "CANDIDATE_NOT_QUALIFIED"
+            ),
+            "qualified_scope": profile,
             "offline_qualified": False,
             "inference_authorized": False,
             "product_dispatch": "governed_job_required",

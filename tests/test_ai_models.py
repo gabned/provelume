@@ -66,7 +66,7 @@ def test_governed_manifest_separates_identity_trust_and_qualification():
         assert entry.profile.revision == entry.model_sha256
     record = registry.inventory()
     assert record == ComponentInventory.model_registry()
-    assert record["recommended"] is None
+    assert record["recommended"] == MODEL_ID
     assert all(e["status"] == "unverified" and not e["offline_qualified"]
                for e in record["entries"])
     changed = json.loads(registry.raw)
@@ -121,7 +121,7 @@ def test_admitted_registry_reads_reuse_immutable_parse(monkeypatch):
     for _ in range(3):
         assert registry.entry(V1) == entries[0]
         assert registry.discover(requested=True) == discovered
-        assert registry.inventory()["recommended"] is None
+        assert registry.inventory()["recommended"] == MODEL_ID
     with pytest.raises(dataclasses.FrozenInstanceError):
         registry.raw = b"{}"
     with pytest.raises(dataclasses.FrozenInstanceError):
@@ -137,7 +137,7 @@ def test_admitted_registry_reads_reuse_immutable_parse(monkeypatch):
     ("unknown", "hook.py"), ("runtime_id", "llama.cpp"), ("runtime_version", "2"),
     ("format", "pickle"), ("format", "gguf-v3"), ("format", "onnx"),
     ("qualification", "OFFLINE_QUALIFIED"), ("channel", "recommended"),
-    ("app_version", "0.12.0"), ("id", "../model"), ("version", True),
+    ("app_version", "0.13.0"), ("id", "../model"), ("version", True),
     ("license", "unknown"), ("origin", "https://other.invalid"),
     ("url", "http://fixtures.invalid/a.zip"), ("url", "https://user:secret@fixtures.invalid/a"),
     ("url", "https://fixtures.invalid/a?secret=value"),
@@ -239,7 +239,7 @@ def test_package_structure_bounds_even_with_consistent_outer_hash(kind):
         inspect_package(raw, entry)
 
 
-@pytest.mark.parametrize("field,value", [("app_version", "0.12.0"), ("id", "other.runtime"),
+@pytest.mark.parametrize("field,value", [("app_version", "0.13.0"), ("id", "other.runtime"),
                                          ("version", "2"), ("platform", "darwin"),
                                          ("format", "gguf"), ("configuration", b"{}")])
 def test_unqualified_runtime_fails_before_acquisition(store, runtime, field, value):
@@ -570,7 +570,7 @@ def test_service_metadata_and_factory_are_pure(tmp_path, monkeypatch):
     instance.components = ComponentInventory(distribution_versions={})
     before = list(tmp_path.iterdir())
     monkeypatch.setattr(socket, "socket", lambda *_: pytest.fail("implicit socket"))
-    assert instance.ai_model_registry()["recommended"] is None
+    assert instance.ai_model_registry()["recommended"] == MODEL_ID
     lifecycle = instance.ai_model_lifecycle()
     assert not lifecycle.root.is_relative_to(instance.root)
     assert list(tmp_path.iterdir()) == before

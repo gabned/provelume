@@ -2,8 +2,10 @@
 
 Provelume's public license does not replace the licenses of third-party dependencies.
 
-Custodia S05 evaluates one optional native runtime/model pair; it is not bundled
-in the published 0.11.0 preview or promoted to Recommended. llama.cpp b11379,
+Custodia 0.12 includes the reviewed optional native runtime libraries, with model
+weights acquired separately. They were absent from the published 0.11.0 preview.
+The local recommendation is limited to the documented EN/IT extractive profile.
+llama.cpp b11379,
 commit `1537a0a8b2f8711d840878b0a0677ab2213c882c`, is MIT. The selected Windows
 distribution's LLVM OpenMP library is Apache-2.0 WITH LLVM-exception. Full upstream
 texts are retained under `core/provelume/runtime_notices/` and accompany the
@@ -53,9 +55,10 @@ license is retained byte-for-byte as `qwen35-LICENSE.txt` (including CRLF),
 The immutable model SHA-256 is
 `1885b3a9195f8cc09da9a7a7a75afdc1e8d5cbf9fc4a499c3961dddea37098ac`.
 Neither the publisher's benchmarks nor this notice constitutes product acceptance.
-No model is promoted to Recommended or bundled in the wheel.
+The [Custodia local profile](docs/qualification/custodia-local-profile.md) records
+the exact bounded recommendation. No model weights are bundled in the wheel.
 See [ADR 0031](docs/adr/0031-cpu-local-runtime-candidate.md) for immutable origins,
-digests, quantization and redistribution conditions. The candidate input's SBOM
+digests, quantization and redistribution conditions. The native input's SBOM
 lists each shipped native library and exact hash; host Python/C runtimes remain
 host prerequisites rather than newly redistributed components.
 

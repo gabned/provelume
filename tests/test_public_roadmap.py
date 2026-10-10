@@ -30,7 +30,7 @@ EXPECTED_CONTRACT = {
 }
 
 FORECAST_VERSIONS = (
-    tuple(f"0.{minor}.0" for minor in range(12, 24))
+    tuple(f"0.{minor}.0" for minor in range(13, 24))
     + tuple(f"1.{minor}.0" for minor in range(0, 5))
 )
 LATIN_RELEASE_NAMES = {
@@ -138,7 +138,7 @@ def test_published_release_records_align_current_and_historical_identity() -> No
 
     lectio = _read(ROOT / "docs" / "releases" / "0.9.0.md")
     perceptio = _read(PERCEPTIO_RELEASE_PLAN_PATH)
-    assert package_version == "0.11.0"
+    assert package_version == "0.12.0"
     assert "CURRENT_PACKAGE_VERSION: 0.9.0" in lectio
     assert "PUBLISHED_TAG: v0.9.0" in lectio
     assert "CURRENT_PACKAGE_VERSION: 0.10.0" in perceptio
@@ -687,7 +687,7 @@ def test_perceptio_publication_is_consistent_across_public_surfaces() -> None:
     assert "| Forecast | `0.10.0` |" not in roadmap
     assert roadmap.count("| Published preview | `0.10.0` |") == 1
     assert "S06 is delivered under #177/#179; S07 is delivered under #180/#182" in roadmap
-    assert "Current status: 0.11.0 Cura preview" in readme
+    assert "Current status: 0.12.0 Custodia prepared preview" in readme
     assert "[0.10.0 release record](docs/releases/0.10.0.md)" in readme
     assert "activated planning-only development for `0.10.0 — Perceptio`" in changelog
     assert "CURRENT_PACKAGE_VERSION: 0.10.0" in perceptio

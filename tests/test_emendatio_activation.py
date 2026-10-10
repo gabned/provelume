@@ -177,6 +177,6 @@ def test_activation_status_distinguishes_campaign_and_repository_protocol() -> N
     assert "tools/agent_protocol_v1_4_1.py" in plan
     assert "repository protocol" in plan
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "## Current status: 0.11.0 Cura preview" in readme
+    assert "## Current status: 0.12.0 Custodia prepared preview" in readme
     assert "docs/releases/0.10.1.md" in readme
     assert "Later portfolio" in readme and "forecasts remain inactive" in readme

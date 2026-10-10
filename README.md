@@ -8,7 +8,37 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.11.0 Cura preview
+## Current status: 0.12.0 Custodia prepared preview
+
+**0.12.0 — Custodia** adds optional local AI and evidence-linked document assistance.
+The [release owner](__RELEASE_OWNER_URL__) prepares publication after accepted S01–S09;
+[qualification](docs/qualification/0.12.0.md) separates source and installed checks,
+actual publication and human observations. The official release workflow must finish
+and its public receipt/installation kit/readiness marker must agree before the release
+is considered ready. The release channel remains **preview**; Windows is unsigned.
+
+- Guided explicit download/offline import and activation of the local Qwen3.5 2B
+  profile, with verified origin, size, hash and license. Model weights stay outside
+  the application and portable Instance; AI is off initially and after restart.
+- Extractive summaries and key points for one exact Document Version in English
+  or Italian, with preview, consent, exact source references and removable results.
+  Capture, preservation, reading and existing search remain useful with AI off.
+- One governed job and budget path, explicit cancellation and recovery, with no
+  automatic replay of uncertain work. External providers require their own explicit
+  configuration and consent; untested live providers are not advertised as qualified.
+- Easier menu dismissal, a compact labelled language selector, readable media task
+  cards and guided AI setup in both retained presentations and seven offline catalogs.
+- Corrected updater diagnostics and publication-manifest compatibility, persistent
+  network revocation and a bounded PDF parser dependency correction.
+
+See the [0.12.0 release record](docs/releases/0.12.0.md) and
+[local profile scope](docs/qualification/custodia-local-profile.md). Narrator was
+explicitly skipped by the maintainer; unobserved human results remain NOT_RUN or
+UNVERIFIED. No earlier screen-reader attestation is extended to changed views.
+For 0.10.1, the first upgrade uses the complete installation kit manually because
+that older client does not understand the current update manifest.
+
+## Published baseline: 0.11.0 Cura preview
 
 **0.11.0 — Cura** is the published, independently verified preview.
 All nine slices of [parent #255](https://github.com/gabned/provelume/issues/255)
@@ -90,17 +120,11 @@ uncertainty, reversible correction annotations and exact anchors together withou
 model or mutation route. See the [integrated pilot guide](docs/perceptio.md).
 
 The release lane retains immutable earlier previews and the published **0.11.0 — Cura**
-personal daily-use beta inside its qualified perimeter.
-[Custodia development](docs/releases/0.12.0.md), tracked by
-[#311](https://github.com/gabned/provelume/issues/311), has integrated S01–S06.
-S05 and S06 include bounded real local runtime and governed-job qualification on the
-observed native Windows/Linux profiles, as recorded in the
-[S06 final integration ledger](https://github.com/gabned/provelume/pull/323#issuecomment-5982834212);
-these source capabilities are not a published 0.12 release. AI remains off by default,
-and Recommended promotion remains subject to S09.
-[S07 #324](https://github.com/gabned/provelume/issues/324) /
-[PR #325](https://github.com/gabned/provelume/pull/325) is active and not integrated;
-S08–S09 are not started. Package identity and published preview remain **0.11.0**.
+personal daily-use beta inside its original qualified perimeter. Custodia S01–S09
+are delivered under [#311](https://github.com/gabned/provelume/issues/311), with
+S08's [final integration ledger](https://github.com/gabned/provelume/pull/334#issuecomment-6097065742)
+and S09/release evidence linked in the [0.12 qualification record](docs/qualification/0.12.0.md).
+Package identity is **0.12.0**; actual public readiness is a separate observation.
 Later portfolio forecasts remain inactive from 0.13 onward; their release numbers
 and activation gates are unchanged.
 It does not use `0.9.5` for feature work.

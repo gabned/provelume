@@ -9,6 +9,7 @@ import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
+from provelume import __version__  # noqa: E402
 from provelume.ai_runtime_contract import LOCK_SHA256, runtime_lock  # noqa: E402
 
 
@@ -37,8 +38,8 @@ def build(directory, platform, output):
         members["notices/" + name] = (notices / name).read_bytes()
     sbom = {"bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1,
             "metadata": {"component": {"type": "application", "name": "Provelume",
-                "version": "0.11.0", "properties": [
-                    {"name": "provelume:qualification", "value": "CANDIDATE_NOT_QUALIFIED"},
+                "version": __version__, "properties": [
+                    {"name": "provelume:qualification", "value": "NATIVE_LIBRARIES_ONLY"},
                     {"name": "provelume:platform", "value": platform},
                     {"name": "provelume:runtime-lock-sha256", "value": LOCK_SHA256}]}},
             "components": components}

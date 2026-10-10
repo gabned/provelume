@@ -1,18 +1,18 @@
 # Windows product shell preview
 
-Cura 0.11.0 uses the verified outer installation kit and its unchanged Setup,
+Custodia 0.12.0 uses the verified outer installation kit and its unchanged Setup,
 with the actual-publication receipt imported offline. Download only from the
-[official v0.11.0 preview release](https://github.com/gabned/provelume/releases/tag/v0.11.0)
+[official release page](https://github.com/gabned/provelume/releases)
 after its matching installation-readiness marker has been verified.
 See [publication metadata installation](publication-installation.md) and the
-[release qualification](qualification/0.11.0.md). Preparation of source or a
+[release qualification](qualification/0.12.0.md). Preparation of source or a
 development installer does not establish public readiness. Historical previews
 retain their original contracts.
 
-Provelume `0.11.0` is the Cura Windows preview with configurable loopback endpoint,
+Provelume `0.12.0` is the Custodia Windows preview with configurable loopback endpoint,
 canonical icon/AppUserModelID, authoritative minimal tray, System/Light/Dark,
 seven offline languages and the qualified daily-use presentation. Run its unchanged
-`Provelume-Setup-0.11.0-x64.exe` as the current user. Git and a separately installed
+`Provelume-Setup-0.12.0-x64.exe` as the current user. Git and a separately installed
 Python are not required. The original shell contract remains in
 [windows-shell.md](windows-shell.md).
 
@@ -27,15 +27,15 @@ the 0.10.1 updater accepts only manifest schema 1, while 0.11.0 uses schema 2 wi
 required publication metadata. The old client reports
 `Windows update manifest fields are incomplete or unsupported`.
 
-For this transition, obtain and verify the official 0.11.0 installation kit using
+For this transition, obtain and verify the official 0.12.0 installation kit using
 the [publication installation procedure](publication-installation.md). Extract the
 complete kit, stop the running Provelume instance and close its launcher, then run
-`release/Provelume-Setup-0.11.0-x64.exe` in place. Keep the adjacent release manifest
+`release/Provelume-Setup-0.12.0-x64.exe` in place. Keep the adjacent release manifest
 and `publication/` directory so Setup can import the matching receipt. Upgrade
 preserves the separate Instance; do not create a replacement Instance or delete
 its existing directory. A normal backup before upgrading remains advisable.
 
-A future patch cannot change the parser already installed in 0.10.1. Published
+The 0.12 correction cannot change the parser already installed in 0.10.1. Published
 0.11.0 assets remain unchanged. The newer reader accepts both existing schemas;
 an unknown future schema must stop download and explain the official manual route,
 without accepting unknown required fields or bypassing publication finalization.
@@ -53,11 +53,11 @@ Three locations remain intentionally separate:
 | portable Instance and preserved originals | `%USERPROFILE%\\Documents\\Provelume` | no |
 
 An upgrade replaces only launcher/runtime files. The portable Instance is opened by the new
-runtime after installation. `0.11.0` retains the derived Perceptio representations and component
+runtime after installation. `0.12.0` retains the derived Perceptio representations and component
 evidence and read-only integration over the `0.9.0` contracts without making Originals
 non-authoritative. The registered schema-1 to schema-2 migration from `0.6.0` remains available.
 
-The official release evidence installs the immutable public `0.10.0` executable and uses its matching immutable public wheel to prepare the qualified N-1 state. Before installing `0.11.0`, the test fingerprints the complete Instance tree; the `0.11.0` installer must preserve configuration, manifest, canonical records,
+The official release evidence installs the immutable public `0.10.0` executable and uses its matching immutable public wheel to prepare the qualified N-1 state. Before installing `0.12.0`, the test fingerprints the complete Instance tree; the `0.12.0` installer must preserve configuration, manifest, canonical records,
 Original bytes and durable ingestion state byte-for-byte. First startup must expose the preserved
 knowledge while leaving policies, jobs, receipts, maintenance/reconciliation runs and resource
 snapshots empty. Stable AppId, launcher settings, startup, reinstall and uninstall remain verified.
@@ -145,7 +145,7 @@ integrity or signature verdict.
 6. Provelume requires another confirmation before starting the normal installer and closing the
    local server.
 
-No background check is enabled by default. `0.11.0` never applies an update silently.
+No background check is enabled by default. `0.12.0` never applies an update silently.
 
 ## Recovery and limitations
 
@@ -173,7 +173,7 @@ verification of the exact artifact; no key or certificate is included here.
 ## Rollback and removal
 
 Export shell preferences and make a verified Instance backup before upgrading. To roll back,
-uninstall `0.11.0`, install an earlier immutable official installer, and restore only a backup that
+uninstall `0.12.0`, install an earlier immutable official installer, and restore only a backup that
 was created by or proved compatible with that version into a separate directory. There is no
 silent schema downgrade. Uninstall removes program files, shortcuts and registration but preserves
 launcher settings, downloaded-update state and every Instance; delete those only as a separate,

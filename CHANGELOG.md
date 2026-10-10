@@ -4,27 +4,72 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
-- Custodia `0.12/S04` (#318): repository-governed model metadata and explicit bounded
-  install/update/offline import, verified byte snapshots, self-test/internal activation,
-  restart recovery, removal and last-good rollback. Synthetic lifecycle fixtures only;
-  no real runtime/Recommended qualification, inference or version/publication change.
+## 0.12.0 - 2026-10-10
+
+Custodia prepares optional local AI and accountable document assistance after
+S01–S09 delivery. Publication and installation readiness are established by the
+permanent official workflow, unchanged public assets, publication receipt and
+matching installation kit/readiness marker.
 
 ### Added
 
-- Custodia `0.12/S03` (#316): restricted Chat Completions JSON transport and synthetic fake
-  substitution, explicit bound endpoint/model/capability and external-secret references,
-  pinned DNS/actual peer, bounded HTTP I/O, redirect refusal and cancellation/uncertain
-  outcome without replay. Connection-only diagnostics never enable product inference,
-  which stays disabled until S06. Live provider/model verification remains NOT_RUN.
-- Custodia `0.12/S02` (#314): bounded exact-Version context manifests, explicit coverage,
-  validated representation/page selections, local literal/email redaction previews and
-  closed untrusted-result validation. Internal synthetic-only exercise; no inference,
-  user synthesis, new API/screen or package-version change.
+- Guided local setup with explicit verified model download or offline import,
+  compatibility checks and session activation. The selected Qwen3.5 2B profile
+  supports extractive summaries and key points in English and Italian on the
+  recorded Windows/Linux CPU profiles. Model weights are not bundled with the app.
+- Single-document synthesis with exact Version/text selection, redaction and
+  private preview, explicit consent, evidence-linked excerpts and removable
+  derived results. Originals and canonical knowledge remain unchanged.
+- Durable AI jobs with bounded resources/budgets, cancellation, readable receipts
+  and explicit recovery. An uncertain attempt is never automatically replayed;
+  AI remains off initially and after restart.
+- Replaceable external-provider transports and explicit ordered fallback through
+  the same gateway. Synthetic conformance is separate from live provider quality;
+  no untested external profile is advertised as qualified.
+- Ordinary installed Windows AppContainer/Job isolation, Linux parent-lifetime
+  enforcement and a non-root offline container with separate model persistence.
+- Verified native runtime resources, notices and SBOM in governed application
+  packages, with independent offline wheel/source reconstruction.
 
-- Custodia `0.12/S01`: versioned internal AI descriptors, pure fail-closed scope-policy
-  preflight, stale-plan validation and synthetic-only adapter conformance. No real inference,
-  model download, new user surface or package-version change is enabled. The nine-slice
-  release plan adopts #224's Custodia subset and preserves later release boundaries.
+### Improved
+
+- Menus close with a second click, Escape, outside click or focus departure.
+  A compact labelled language selector replaces the language row; media task
+  cards and guided AI setup reduce the initial amount of technical detail.
+- Synthesis input-limit errors preserve the selected document context. Consent
+  labels, keyboard interaction, narrow layouts and 200% zoom work across both
+  presentations and the seven offline catalogs.
+- Repeated complete authority checks during model hashing use the qualified
+  read budget while preserving full-file integrity, cancellation and fresh
+  source/policy/consent validation before dispatch and publication.
+
+### Fixed
+
+- Windows update checks distinguish a newer preview from an empty stable channel,
+  recognize current publication metadata and explain unsupported future manifests.
+  The already installed 0.10.1 schema-1 reader needs one manual complete-kit upgrade.
+- Global network revocation persists across restart and Instance selection without
+  being overwritten by the saved startup-update preference.
+- Frozen Windows workers receive the correct OS local-application directory without
+  broadening private-data ACLs. Workers terminate when the parent exits.
+- PDF parsing uses the narrowly resolved pypdf 6.20.0 correction; malformed inputs
+  remain preserved Originals with explicit extraction-failure evidence.
+- Recovery preserves accounting/receipts and active work while explicitly removing
+  abandoned private result bodies under fresh ownership checks.
+- Hybrid previews with an external primary can proceed without renewing an
+  unavailable local model. Changed fallback authority still requires a new preview.
+- Windows scheduler readers keep a complete snapshot while jobs update their
+  records, allowing atomic replacement without blocking navigation.
+- Already cancelled OCR requests stop before engine probing or process launch.
+
+### Qualification limits
+
+- Narrator was explicitly skipped by the maintainer on 2026-10-10. Unobserved human
+  language, contrast/DPI and screen-reader results are not reported as passed.
+- Windows artifacts remain unsigned previews. Measured hosted CPU/RAM profiles do
+  not certify an unmeasured laptop; live external providers remain unqualified.
+- Package/runtime/embedded/Windows and first-party component identity align to
+  0.12.0. Published 0.11.0 and earlier assets, records and tags remain immutable.
 
 ## 0.11.0 - 2026-10-02
 

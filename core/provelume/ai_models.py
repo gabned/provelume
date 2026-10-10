@@ -1,4 +1,4 @@
-"""Governed S04 artifact identities, not inference or Recommended authority."""
+"""Governed artifact identities and a scoped recommendation, never execution authority."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from importlib.resources import files
 from typing import Any
 
+from . import __version__
 from .ai_contract import Capability, Limits, Profile, digest
 from .representations import canonical_json_bytes
 from .web_transport import GuardedWebLimits, canonical_web_origin, canonical_web_url
@@ -27,7 +28,7 @@ RUNTIME_VERSION = "1"
 CONFIGURATION = {"schema_version": 1, "purpose": "lifecycle-self-test-only"}
 # Governed together with the manifest by ordinary application distribution gates.
 # This pin is not accepted from an offline package or a download response.
-MANIFEST_SHA256 = "6c14e15079a035faf6d3d1cd03e56791cd225ec61b423da72146315a53ad0e9c"
+MANIFEST_SHA256 = "95baf00e07bfe4eee82eafa3335b5e5de5e4633132784696f8c4de426f6f5adc"
 _ID = re.compile(r"[a-z][a-z0-9_.-]{0,79}\Z")
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -190,13 +191,23 @@ def parse_manifest(raw: bytes) -> tuple[ModelEntry, ...]:
         native = item.native
         retired = False
         if native:
-            from .ai_runtime_contract import RETIRED_MODEL_IDS, native_model_pin
+            from .ai_runtime_contract import (
+                RETIRED_MODEL_IDS,
+                native_model_pin,
+                qualified_local_profile,
+            )
 
             pin = native_model_pin(item.id)
             retired = item.id in RETIRED_MODEL_IDS
-        check(item.qualification == ("RETIRED" if retired else
-              "CANDIDATE_NOT_QUALIFIED" if native else "SYNTHETIC_ONLY"))
-        check(item.app_version == "0.11.0")
+        expected_qualification = "SYNTHETIC_ONLY"
+        if native:
+            profile = qualified_local_profile()
+            expected_qualification = (
+                "RETIRED" if retired else
+                "QUALIFIED_EN_IT_EXTRACTIVE" if profile else "CANDIDATE_NOT_QUALIFIED"
+            )
+        check(item.qualification == expected_qualification)
+        check(item.app_version == __version__)
         check(
             (item.runtime_id, item.runtime_version, item.format)
             == (
@@ -276,12 +287,16 @@ class ModelRegistry:
         return tuple(entry.id for entry in self.entries if entry.qualification != "RETIRED")
 
     def inventory(self):
+        from .ai_runtime_contract import qualified_local_profile
+
+        profile = qualified_local_profile()
         return {
             "schema_version": 1,
             "manifest_sha256": sha256(self.raw),
             "provenance": "application_distribution",
             "network_used": False,
-            "recommended": None,
+            "recommended": profile["model"] if profile else None,
+            "recommended_scope": profile,
             "advanced_byom": "UNSUPPORTED_NO_QUALIFIED_RUNTIME",
             "entries": [
                 {
@@ -315,7 +330,7 @@ class RuntimeSelection:
     id: str = RUNTIME
     version: str = RUNTIME_VERSION
     format: str = FORMAT
-    app_version: str = "0.11.0"
+    app_version: str = __version__
     platform: str = "unknown"
     configuration: bytes = canonical_json_bytes(CONFIGURATION)
 
