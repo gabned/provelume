@@ -170,6 +170,26 @@ def run(args):
             if elapsed > 2:
                 raise ValueError("parent_death_bound")
             report["checks"]["kill_on_parent_death"] = "PASS"
+            before = instance.scheduler.journal.list_jobs(limit=100)
+            report["phase"] = "ordinary_restart"
+            process = subprocess.Popen([str(args.executable), "--serve", str(args.instance),
+                                        "--port", str(port)])
+            end = time.monotonic() + 30
+            while True:
+                try:
+                    response = client.get("/settings/ai?lang=en")
+                    response.raise_for_status()
+                    break
+                except httpx.ConnectError:
+                    if time.monotonic() >= end or process.poll() is not None:
+                        raise ValueError("service_timeout") from None
+                    time.sleep(.1)
+            if ('data-ai-session="off"' not in response.text or children(process.pid)
+                    or instance.scheduler.journal.list_jobs(limit=100) != before):
+                raise ValueError("restart_authority")
+            report["checks"]["ordinary_installed_restart_off_without_replay"] = "PASS"
+            process.terminate()
+            process.wait(timeout=5)
             report["restart"] = restart_off(args.instance)
             report["checks"]["restart_session_off"] = "PASS"
         report["status"], report["phase"] = "PASS", "completed"

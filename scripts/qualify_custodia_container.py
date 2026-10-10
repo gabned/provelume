@@ -82,6 +82,26 @@ def run(args):
             raise ValueError("native_inventory")
         report["checks"]["installed_native_resources"] = "PASS"
         if args.restart:
+            instance = ProvelumeInstance(args.instance)
+            before = instance.scheduler.journal.list_jobs(limit=100)
+            process = subprocess.Popen([
+                "provelume", "serve", str(args.instance), "--host", "127.0.0.1", "--port", "8079"
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            client, end = Client(8079), time.monotonic() + 30
+            while True:
+                try:
+                    response = client.get("/settings/ai?lang=en")
+                    response.raise_for_status()
+                    break
+                except urllib.error.URLError:
+                    if time.monotonic() >= end or process.poll() is not None:
+                        raise ValueError("service_start") from None
+                    time.sleep(.1)
+            if ('data-ai-session="off"' not in response.text
+                    or instance.scheduler.journal.list_jobs(limit=100) != before):
+                raise ValueError("restart_authority")
+            process.terminate()
+            process.wait(timeout=10)
             report["restart"] = restart_off(args.instance)
             if report["restart"]["model_present"] is None:
                 raise ValueError("model_persistence")

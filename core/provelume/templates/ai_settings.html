@@ -4,7 +4,7 @@
 <nav class="breadcrumb"><a href="/settings?lang={{ lang }}">{{ t('nav.settings') }}</a><span>/</span><span>{{ t('ai.title') }}</span></nav>
 <section class="hero"><h1>{{ t('ai.title') }}</h1><p class="lead">{{ t('ai.boundary') }}</p></section>
 {% if error %}<p role="alert" class="notice">{{ t(error_key or 'ai.error') }}</p>{% endif %}
-<section class="panel" aria-labelledby="ai-state"><h2 id="ai-state">{{ t('ai.state') }}</h2>
+<section class="panel" aria-labelledby="ai-state" data-ai-session="{{ 'enabled' if ai.control.session_authorized else 'off' }}"><h2 id="ai-state">{{ t('ai.state') }}</h2>
 <p role="status" aria-live="polite">{{ t('ai.' ~ ai.control.mode) if ai.control.session_authorized else t('ai.off') }}{% if not ai.control.session_authorized %} · {{ t('ai.session_off') }}{% endif %}</p>
 {% if ai.control.accounting.units %}<details><summary>{{ t('ai.reserved') }} · {{ ai.control.accounting.units }}</summary><p>{{ t('ai.unknown') }}</p></details>{% endif %}
 <p><a href="/operations/ai?lang={{ lang }}">{{ t('ai.operations') }}</a> · <a href="/components?lang={{ lang }}">{{ t('nav.components') }}</a></p>
