@@ -120,7 +120,7 @@ def test_read_authority_preserves_cancellation_and_final_boundary(tmp_path, monk
             def read(self, amount):
                 block = handle.read(amount)
                 reads.append(clock[0])
-                clock[0] += 0.003
+                clock[0] += 0.009
                 if signal == "immediate":
                     immediate.set()
                 elif (signal == "authority" and len(reads) == 1) or (
@@ -135,12 +135,12 @@ def test_read_authority_preserves_cancellation_and_final_boundary(tmp_path, monk
         )):
             ai_model_file.verify_stream(
                 ObservedRead(), entry, cancel=probe,
-                deadline=100.008 if signal == "deadline" else float("inf"),
+                deadline=100.024 if signal == "deadline" else float("inf"),
             )
     if signal == "immediate":
         assert len(reads) == 1
     elif signal == "authority":
-        assert clock[0] - 100.003 < 0.021
+        assert clock[0] - 100.009 < 0.101
         assert len(checks) < len(reads)
     elif signal == "deadline":
         assert len(reads) == 3
@@ -165,7 +165,7 @@ def test_expensive_source_check_does_not_turn_each_hash_chunk_into_another_audit
 
     def authority():
         calls.append(clock[0])
-        clock[0] += 0.040  # The measured document audit can exceed the poll interval.
+        clock[0] += 0.140  # A document audit can exceed even the new poll interval.
         return False
 
     probe = ai_model_file.ReadAuthority(authority, immediate=stopped.is_set)
@@ -174,7 +174,7 @@ def test_expensive_source_check_does_not_turn_each_hash_chunk_into_another_audit
         clock[0] += 0.001
         assert not probe.reading()
     assert len(calls) == 1
-    clock[0] += 0.011
+    clock[0] += 0.091
     assert not probe.reading() and len(calls) == 2
     stopped.set()
     assert probe.reading() is True

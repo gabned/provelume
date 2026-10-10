@@ -26,7 +26,7 @@ class ReadAuthority:
 
     Callers outside that read loop always run the complete probe. The loop still
     checks its deadline and any immediate cancellation before/after every MiB;
-    durable authority is polled after at most 20 ms of reading between completed
+    durable authority is polled after at most 100 ms of reading between completed
     checks, plus both read boundaries.
     No cached result authorizes publication or native dispatch.
     """

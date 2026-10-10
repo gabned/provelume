@@ -8,17 +8,17 @@ promotion. The package remains 0.11.0 until the separate release-preparation cha
 
 | Required observation | Current S09 status |
 | --- | --- |
-| Inherited 26 real-runtime gates, both observed platforms | Run 38056161108: Windows 26/26 PASS, Linux 25/26 with S08 warm-first 6.096 s FAIL; locality correction in ADR 0052 awaits fresh measurement |
+| Inherited 26 real-runtime gates, both observed platforms | Runs 38057680589/38058512132: 26/26 PASS each platform; subsequent 38059042758: Windows PASS, Linux S08 warm-first 5.646 s FAIL; revised hash-loop polling in ADR 0052 requires fresh qualification |
 | Genuine Windows PDF dependency resolution, other pins retained | Windows run 38049242831 PASS; pypdf 6.20.0; candidate installer/rebuild run 38056161287 PASS |
-| Native install/import, exact verification and cancellation | Windows installed offline import PASS at 8f0690f; public network transfer PENDING; source cancellation regressions PASS |
-| Global network revocation across restart and acquisition | Restart, global/component separation and zero-transport-denial regression PASS; installed transfer PENDING |
-| Ordinary installed Windows AppContainer, creation-time Job and parent lifetime | Run 38055192806: ordinary forms, 32/32 gold, token and live-worker parent-death PASS; expanded acquisition/HTTP restart PENDING |
-| Non-root Linux/container install, offline execution and persistence | Run 38055192869: UID 10001, 12 GiB/4 CPU, no network, 32/32 gold, parent death and separate model persistence PASS; expanded HTTP restart PENDING |
+| Native install/import, exact verification and cancellation | Installed run 38056161111: actual HTTPS acquisition, revoke/cancel, verification, removal and offline import PASS; revised configuration PENDING |
+| Global network revocation across restart and acquisition | Source regressions and actual installed transfer denial/revocation in run 38056161111 PASS; revised configuration PENDING |
+| Ordinary installed Windows AppContainer, creation-time Job and parent lifetime | Run 38056161111: all 13 checks PASS, including 32/32 gold, token, live-worker parent death and ordinary HTTP restart Off without replay; revised configuration PENDING |
+| Non-root Linux/container install, offline execution and persistence | Runs 38058512159/38059042705 PASS, including actual HTTP restart, 32/32 gold and separate model persistence; 38057680651 failure retained; revised configuration PENDING |
 | Both native resource trees, notices/SBOM and independent offline reconstruction | Run 38056161287 PASS, including complete assembly/offline verifier; original composition failure retained |
-| Guided setup, freshness, explicit consent and retired-model removal | Source regression PASS; final artifact/browser observation PENDING |
+| Guided setup, freshness, explicit consent and retired-model removal | Source and production browser regression PASS; artifact-bound human observation PENDING |
 | Backup/restore/export/import, disable/remove/rollback and crash recovery | Source crash/quiescence/stale-action regressions PASS; synthesis extraction, actual restore and same-Instance portable import PASS; newer liabilities and foreign-Instance refusal retained |
 | Immutable 0.10.1/0.11 Windows upgrade inputs | Run 38056161287 PASS for 0.10.0, 0.10.1 and 0.11.0; final 0.12 version transition is separate |
-| Seven-catalog browser, keyboard, pointer/touch, zoom/reflow and themes | Production-source 034a7ef: 402 observations PASS, zero page errors, including real 200% zoom; final artifact and subsequent consent-label layout correction remain separate |
+| Seven-catalog browser, keyboard, pointer/touch, zoom/reflow and themes | Production-source 28836df: 402 observations PASS, zero page errors, including real 200% zoom and inline consent labels; unchanged UI dependencies only, human artifact review separate |
 | Exact-artifact human screen reader and linguistic observations | NOT_RUN; prior S07 evidence is not extended |
 | Specific live external provider | NOT_RUN; no credentials/cost authority supplied |
 | Complete exact-head CI/reviews and actual-main reconciliation | PENDING |
@@ -138,3 +138,15 @@ navigation synchronization resolves the latter with the same production source.
 These automated observations do not establish human screen-reader or linguistic
 approval. The installed lifecycle workflow retains its exact successfully
 exercised installer and identity reports for that final, artifact-bound review.
+
+The later `f09d39d` unchanged-source checkout passes 3,969 tests (38 skips),
+Ruff and diff checks. Its native Windows run passes all 26 gates, while Linux
+EPYC 7763 retains the 5.646-second S08 warm-first failure described in ADR 0052.
+The revised 100 ms read-loop configuration passes 143 focused cancellation,
+deadline, source/consent, setup, network and synthesis/job regressions. In a
+separate engineering-only 128 MiB inert-file study using the public 32-document
+authority graph, alternating 20/100/100/20 ms reads took 0.439/0.261/0.289/0.422
+seconds, with 12/4/5/12 complete probes and unchanged full hashes. An earlier
+study run overlapped the test suite and is retained separately; it is not a
+controlled timing comparison. Neither study runs native inference or supplies
+qualification for the new execution configuration.

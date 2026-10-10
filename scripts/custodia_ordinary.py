@@ -181,6 +181,11 @@ def document_jobs(client, instance, cases, report, *, observe=lambda: None, save
         response = client.post("/operations/ai/synthesis/execute", data={
             **page.fields(), "ref": page.hidden["ref"], "acknowledge": "selected-document"})
         if response.status_code != 303:
+            report["consent_refusal"] = {
+                "case": case["id"], "http_status": response.status_code,
+                "completed_cases": len(report["synthesis"]),
+            }
+            save()
             raise ValueError("synthesis_consent")
         end, job = time.monotonic() + 70, None
         while time.monotonic() < end:
@@ -207,11 +212,16 @@ def document_jobs(client, instance, cases, report, *, observe=lambda: None, save
                 for index in references)
         gold = bool(valid and ((abstained and case["allow_abstention"]) or (
             not abstained and references in case["allowed_references"])))
+        attempt = job["ai"]["attempts"][-1] if job["ai"]["attempts"] else {}
         report["synthesis"].append({
             "case": case["id"], "task": case["task"], "language": case["language"],
             "status": job["status"], "valid": bool(valid), "gold": gold,
             "abstained": abstained, "required_abstention": case["require_abstention"],
             "references": references, "attempts": job["attempt"],
+            # Closed scheduler diagnostics only; never copy prompts or output.
+            "terminal": job["ai"]["terminal"], "blocked": job["ai"]["blocked"],
+            "attempt_phase": attempt.get("phase"), "quiescent": attempt.get("quiescent"),
+            "usage_source": attempt.get("usage_source"), "elapsed_ms": attempt.get("elapsed_ms"),
             "seconds": time.monotonic() - started})
         save()
     if not all(row["gold"] and row["attempts"] == 1 for row in report["synthesis"]):

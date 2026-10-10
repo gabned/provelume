@@ -73,6 +73,36 @@ authority/read/dispatch checkpoint unchanged. This neither caches locality nor
 changes the execution configuration, selected model, task framing or numeric gates.
 Native measurements also retain model-admission and revalidation phase durations.
 
+Runs 38057680589 and 38058512132 pass all 26 gates on both observed native
+platforms after that correction. Retain the subsequent Linux failure in run
+38059042758 at `f09d39d`: on EPYC 7763, all 32 document cases and eight required
+abstentions pass, but S08 warm first response is 5.646 seconds. Model admission
+alone takes 4.227 seconds; native warm prefill takes 0.800 seconds. Windows passes
+all 26 gates. The passing newer-CPU observations do not qualify this failed host.
+
+Before the next measurement, select **100 ms of actual file reading between
+completed durable-authority probes** inside the GGUF hash loop, matching the
+existing 10 Hz generation authority observation. This replaces the 20 ms
+implementation parameter, not an acceptance limit. Every MiB still observes
+the deadline and immediate cancellation; full source/policy/consent revalidation
+still runs at both read boundaries, before native dispatch and before publication.
+No cached grant permits execution. Global revocation during the read is observed
+at the next bounded probe, while the existing two-second cancellation criterion
+remains mandatory. Complete model hashing, file identity, locality and licence
+checks are unchanged. Freeze configuration SHA-256
+`51c7539e89a4a29c6bc3ad04fb7b1e2b1cf8afdf33ed2f23261a47c6ccc56640`;
+old configuration-bound self-tests and consent cannot authorize this candidate.
+The next native/installed/container observations must qualify it afresh.
+
+Also retain container run 38057680651 at `28836df`: import and enablement passed,
+but 20 document jobs failed before a later consent refusal; the other 12 cases
+and restart were not observed. Its report did not retain per-job failure reasons,
+so the cause is not established and subsequent container passes are not a claimed
+fix. Record the closed scheduler terminal/block/attempt/accounting states and a
+refused consent's HTTP status in future public-fixture qualification reports.
+Do not log prompts, candidate bodies or private document paths. All gold and
+single-attempt requirements remain unchanged.
+
 A successful native self-test records a measurement, not network authority. Only
 actual seccomp or the parent's verified AppContainer proof grants product-local
 activation. The legacy source-only Windows CI observer may add its independently
