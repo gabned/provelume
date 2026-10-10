@@ -3,7 +3,8 @@
 {% block content %}
 <p><a href="/operations?lang={{ lang }}">{{ t('nav.operations') }}</a> · <a href="/settings/ai?lang={{ lang }}">{{ t('ai.title') }}</a></p>
 <section class="hero"><h1>{{ t('ai.operations') }}</h1><p>{{ t('ai.cancel_help') }}</p><p>{{ t('ai.unknown') }}</p></section>
-{% for job in jobs %}<section class="panel"><h2>{{ t('ai.test') }}</h2><p class="hash">{{ job.id }}</p><p role="status">{{ t('om.state.' ~ ('completed' if job.status == 'succeeded' else 'interrupted' if job.status == 'manual_intervention' else job.status)) }}</p>
+{% for job in jobs %}{% set synthesis_job = job.ai.request.template.id.startswith('summary-') or job.ai.request.template.id.startswith('key-points-') %}<section class="panel"><h2>{{ t('synthesis.summary') if job.ai.request.template.id.startswith('summary-') else t('synthesis.key_points') if synthesis_job else t('ai.test') }}</h2><p class="hash">{{ job.id }}</p><p role="status">{{ t('om.state.' ~ ('completed' if job.status == 'succeeded' else 'interrupted' if job.status == 'manual_intervention' else job.status)) }}</p>
+{% if synthesis_job and job.status == 'succeeded' %}<p><a href="/operations/ai/{{ job.id }}/synthesis?lang={{ lang }}">{{ t('synthesis.result') }}</a></p>{% endif %}
 {% if job.ai.blocked %}<p>{{ t(ai_reason_key(job.ai.blocked)) }}</p>{% endif %}
 {% if job.ai.cancel and job.status == 'running' %}<p role="status">{{ t('om.cooperative') }}</p>{% endif %}
 <dl><dt>{{ t('ai.attempts') }}</dt><dd>{{ job.attempt }} / {{ job.retry.max_attempts }}</dd><dt>{{ t('ai.fingerprint') }}</dt><dd class="hash">{{ job.ai.binding }}</dd></dl>

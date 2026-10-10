@@ -176,15 +176,18 @@ single supervisor deadline and thresholds are unchanged by this instrumentation.
 
 After measurements isolated native prefill as the remaining warm-latency failure,
 the governed adapter also supplies an opaque Instance scope to its existing worker.
-Within that scope the worker reuses only an exactly matching input-token prefix,
-removes every divergent/old generated position, checks the resulting native position,
-and decodes at least the final current input token for fresh logits. Different scopes
-and unscoped S05 qualification/self-test clear the full cache. Logical token usage
-still counts the complete current prompt; no budget is refunded for reused computation.
-The bounded token tuple/KV state remains only in worker memory, never portable data.
-Removing positions makes their values unreachable to subsequent attention; physical
-zeroization of every removed native cell is not claimed. Scope changes clear data;
-worker termination/unload ends the cache lifetime. No cached output or authority exists.
+Within that scope the hybrid worker keeps one bounded sequence checkpoint of an
+exact input-token prefix, clears the live sequence and restores only an entirely
+matching checkpoint. It verifies the resulting native position and decodes the
+complete remaining current input for fresh logits. It never truncates a recurrent
+suffix or saves output. The canonical legacy schema/trusted header is eligible up
+to the untrusted-data boundary; complete model input bytes and roles are unchanged.
+Different scopes and unscoped S05 qualification/self-test clear state. Logical token
+usage counts the complete current prompt; reused computation grants no refund.
+The bounded token tuple and 64 MiB maximum checkpoint remain only in worker memory;
+replacing or closing zeroes the saved buffer. Native allocator zeroization beyond
+that explicit buffer is not claimed. Worker termination/unload ends the lifetime.
+No cached output or authority exists; see ADRs 0047 and 0048.
 
 All three native warm S06 samples change public document content and approved binding
 after their corresponding cold jobs. Qualification requires partial (not whole-prompt)

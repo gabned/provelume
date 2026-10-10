@@ -10,6 +10,50 @@ texts are retained under `core/provelume/runtime_notices/` and accompany the
 deterministic native build input. Qwen/Qwen2.5-1.5B-Instruct-GGUF revision
 `91cad51170dc346986eccefdc2dd33a9da36ead9` is Apache-2.0; its full license is retained
 there as `qwen-LICENSE.txt`. Weights are acquired explicitly, not shipped in wheels.
+The retired Qwen3-1.7B candidate is Qwen/Qwen3-1.7B-GGUF, revision
+`7fb011e9aee6e4dc7adf8430df9ea8de6a466aa3`, Apache-2.0, Copyright 2025 Alibaba Cloud.
+Its complete license is retained as `qwen3-LICENSE.txt` with normalized LF line
+endings. [ADR 0035](docs/adr/0035-qwen3-synthesis-candidate.md) pins the selected
+quantization, origin and digest. [ADR 0039](docs/adr/0039-bounded-selection-assessment.md)
+re-evaluated these same bytes under a bounded selection profile, which also failed
+semantic qualification. The retired Qwen3-4B-Instruct-2507 is in
+bartowski's Q2_K conversion, revision `ac104788567ef76beaf5f30b6cccb1f99a69afbe`.
+This third-party quantization uses Apache-2.0, Copyright 2024 Alibaba Cloud;
+the complete terms are retained in `qwen-LICENSE.txt`.
+[ADR 0038](docs/adr/0038-qwen3-instruct-synthesis-candidate.md) pins its identity
+before scoring. It failed latency qualification; its metadata remains RETIRED.
+The earlier S08 candidates include IBM's official Granite-4.0-1B conversions,
+`ibm-granite/granite-4.0-1b-GGUF` revision
+`b27c2fe3f211b7f44e80fa620177aea371099aaa`, Apache-2.0. The complete unchanged
+publisher license is retained as `granite-LICENSE.txt`; its immutable source and
+digest, model identity and qualification conditions are recorded in
+[ADR 0040](docs/adr/0040-granite-document-synthesis-candidate.md) and
+[ADR 0044](docs/adr/0044-higher-precision-synthesis-candidate.md). Both
+Q5_K_M and Q8_0 remain RETIRED with their identities and licenses retained.
+The retired Granite-3.3-2B-Instruct Q4_K_M candidate is IBM's official artifact,
+`ibm-granite/granite-3.3-2b-instruct-GGUF` revision
+`7cdf86ccd1f1bb3491c9b7017b033f2e51367397`, also Apache-2.0. Its publisher's
+complete license is byte-identical to `granite-LICENSE.txt`.
+[ADR 0045](docs/adr/0045-granite33-capacity-candidate.md) records its immutable
+artifact, license source and the official conversion's preview-workflow history.
+Both native hosts reached the workflow timeout with incomplete S08 evidence.
+[ADR 0046](docs/adr/0046-canonical-task-qwen25-requalification.md) requalifies the
+original Qwen2.5 artifact with the current canonical task and fixed dialogue
+examples. Its earlier S08 failures remain failures; no old activation or
+qualification is inherited. Publisher language support, model size and
+quantization precision do not establish Provelume task quality. Its new measurement
+also failed; Qwen2.5 is now RETIRED with its original license retained.
+[ADR 0047](docs/adr/0047-hybrid-cpu-synthesis-candidate.md) selects Qwen3.5-2B,
+upstream revision `15852e8c16360a2fea060d615a32b45270f8a8fc`, Apache-2.0,
+Copyright 2026 Alibaba Cloud, in the reviewed Unsloth Q5_K_M conversion
+`unsloth/Qwen3.5-2B-GGUF` revision `f6d5376be1edb4d416d56da11e5397a961aca8ae`.
+This is a third-party conversion, not an official Qwen GGUF. The complete upstream
+license is retained byte-for-byte as `qwen35-LICENSE.txt` (including CRLF),
+11,544 bytes, SHA-256 `bbedc3fda3305820b977265f01b8619d87570a6739de3a5582c3464840f1e57a`.
+The immutable model SHA-256 is
+`1885b3a9195f8cc09da9a7a7a75afdc1e8d5cbf9fc4a499c3961dddea37098ac`.
+Neither the publisher's benchmarks nor this notice constitutes product acceptance.
+No model is promoted to Recommended or bundled in the wheel.
 See [ADR 0031](docs/adr/0031-cpu-local-runtime-candidate.md) for immutable origins,
 digests, quantization and redistribution conditions. The candidate input's SBOM
 lists each shipped native library and exact hash; host Python/C runtimes remain

@@ -96,10 +96,10 @@ and before accepting completion. This reduces metadata contention with Capture
 without caching mutable policy or changing the two-second cancellation/cleanup gate,
 model configuration, CPU budget or ADR measurement thresholds.
 
-On Windows the inference worker yields scheduling priority to ordinary foreground
-work through Job Object below-normal priority. Only the disposable Windows worker
-is changed; the application process and Linux retain their inherited priority.
-Windows observations include the effective worker priority.
+The inference worker yields scheduling priority to ordinary foreground work:
+Job Object below-normal priority on Windows; a nice floor of 10 on Linux, retaining
+an already lower inherited priority. Only the disposable worker changes; the
+application keeps its inherited priority. Observations record effective priority.
 The same two-CPU affinity, model, thread count, containment and fixed ADR latency
 and capture/search thresholds still apply to fresh native qualification.
 
@@ -125,6 +125,12 @@ self-test/activation, private preview, consent, S06 job execution and receipts o
 native Windows/Linux. Its separate `s07_setup` gate retains source/runtime/model
 identities and the same ADR 0031 latency/memory limits; network observation covers
 the additional workers. A prior S06 PASS is not substituted for this measurement.
+The concurrent Capture/search probe starts at observed native prefill, bound to
+the current request and child PID, and requires that same inference to remain
+active before and after the complete probe. First output and total latency are
+measured separately. This does not claim overlap with output decoding: see
+[ADR 0048](../adr/0048-hybrid-selection-and-inference-observation.md). Earlier
+inconclusive first-output probes remain failed evidence, never rescored.
 
 Full native pytest, Ruff, exact-head CI, complete review/finding inventories,
 rendered UI observations and actual-main checks still gate integration. See the

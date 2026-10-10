@@ -19,13 +19,15 @@ MAX_FILE_BYTES = 64 * 1024
 MAX_FILES = 2
 MAX_TOTAL_BYTES = 96 * 1024
 MAX_INSTALLED = 8
+MAX_REGISTRY_ENTRIES = 9
 FORMAT = "synthetic-bytes-v1"
+NATIVE_FORMATS = ("gguf-v3-q4_k_m", "gguf-v3-q2_k", "gguf-v3-q5_k_m", "gguf-v3-q8_0")
 RUNTIME = "provelume.synthetic-fixture"
 RUNTIME_VERSION = "1"
 CONFIGURATION = {"schema_version": 1, "purpose": "lifecycle-self-test-only"}
 # Governed together with the manifest by ordinary application distribution gates.
 # This pin is not accepted from an offline package or a download response.
-MANIFEST_SHA256 = "a044827dad8ab3e5a1597d17d039b16e7127215fa64c8b2ae3561f50746814be"
+MANIFEST_SHA256 = "6c14e15079a035faf6d3d1cd03e56791cd225ec61b423da72146315a53ad0e9c"
 _ID = re.compile(r"[a-z][a-z0-9_.-]{0,79}\Z")
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -142,6 +144,10 @@ class ModelEntry:
     evidence: str
 
     @property
+    def native(self):
+        return self.format in NATIVE_FORMATS
+
+    @property
     def file_inventory(self):
         return {
             "model.bin": (self.model_size, self.model_sha256),
@@ -170,7 +176,7 @@ def parse_manifest(raw: bytes) -> tuple[ModelEntry, ...]:
     check(type(value["schema_version"]) is int and value["schema_version"] == 1)
     check(value["repository"] == "gabned/provelume")
     rows = value["entries"]
-    check(type(rows) is list and 1 <= len(rows) <= MAX_INSTALLED)
+    check(type(rows) is list and 1 <= len(rows) <= MAX_REGISTRY_ENTRIES)
     entries = []
     seen = set()
     for row in rows:
@@ -181,13 +187,20 @@ def parse_manifest(raw: bytes) -> tuple[ModelEntry, ...]:
         seen.add(item.id)
         check(type(item.version) is str and re.fullmatch(r"[1-9][0-9]{0,3}", item.version))
         check(item.channel in ("candidate", "stable"))
-        native = item.format == "gguf-v3-q4_k_m"
-        check(item.qualification == ("CANDIDATE_NOT_QUALIFIED" if native else "SYNTHETIC_ONLY"))
+        native = item.native
+        retired = False
+        if native:
+            from .ai_runtime_contract import RETIRED_MODEL_IDS, native_model_pin
+
+            pin = native_model_pin(item.id)
+            retired = item.id in RETIRED_MODEL_IDS
+        check(item.qualification == ("RETIRED" if retired else
+              "CANDIDATE_NOT_QUALIFIED" if native else "SYNTHETIC_ONLY"))
         check(item.app_version == "0.11.0")
         check(
             (item.runtime_id, item.runtime_version, item.format)
             == (
-                ("llama.cpp", "b11379", "gguf-v3-q4_k_m")
+                ("llama.cpp", "b11379", pin.format)
                 if native
                 else (RUNTIME, RUNTIME_VERSION, FORMAT)
             ),
@@ -199,14 +212,14 @@ def parse_manifest(raw: bytes) -> tuple[ModelEntry, ...]:
         check(
             item.evidence
             == (
-                "repository:docs/adr/0031-cpu-local-runtime-candidate.md"
+                pin.evidence
                 if native
                 else "repository:docs/architecture/ai-model-lifecycle.md#provenance"
             )
         )
         for value in (item.package_sha256, item.model_sha256, item.license_sha256):
             _hash(value)
-        maximum_model = 1117320736 if native else MAX_FILE_BYTES
+        maximum_model = pin.size if native else MAX_FILE_BYTES
         for size, maximum in (
             (item.package_size, maximum_model if native else MAX_PACKAGE_BYTES),
             (item.model_size, maximum_model),
@@ -214,14 +227,12 @@ def parse_manifest(raw: bytes) -> tuple[ModelEntry, ...]:
         ):
             check(type(size) is int and 1 <= size <= maximum, "limit")
         if native:
-            from .ai_runtime_contract import MODEL_ID, MODEL_SHA256, MODEL_SIZE
-
             check(
-                item.id == MODEL_ID
-                and item.model_size == MODEL_SIZE
-                and item.package_size == MODEL_SIZE
-                and item.model_sha256 == MODEL_SHA256
-                and item.package_sha256 == MODEL_SHA256,
+                item.model_size == pin.size
+                and item.package_size == pin.size
+                and item.model_sha256 == pin.sha256
+                and item.package_sha256 == pin.sha256
+                and item.url == pin.url,
                 "compatibility",
             )
         else:
@@ -262,7 +273,7 @@ class ModelRegistry:
     def discover(self, *, requested: bool = False):
         check(requested is True, "consent")
         # Deliberately local: future registry changes ship with the app, not an updater.
-        return tuple(entry.id for entry in self.entries)
+        return tuple(entry.id for entry in self.entries if entry.qualification != "RETIRED")
 
     def inventory(self):
         return {
@@ -309,6 +320,7 @@ class RuntimeSelection:
     configuration: bytes = canonical_json_bytes(CONFIGURATION)
 
     def validate(self, entry: ModelEntry):
+        check(entry.qualification != "RETIRED", "revoked")
         check(
             (self.id, self.version, self.format, self.app_version)
             == (entry.runtime_id, entry.runtime_version, entry.format, entry.app_version),

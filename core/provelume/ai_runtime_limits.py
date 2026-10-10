@@ -6,6 +6,8 @@ import ctypes as c
 import os
 
 MEMORY = 3 * 1024**3
+# Exact reviewed raw GGUF size; needed for its sealed Linux snapshot, not RAM.
+MODEL_FILE_BYTES = 1435238656
 
 
 def check(condition, code):
@@ -26,11 +28,22 @@ def contain():
 def _linux():
     import resource
 
-    os.sched_setaffinity(0, sorted(os.sched_getaffinity(0))[:2])
+    from .ai_runtime_cpu import linux_pair
+
+    try:
+        cpus, topology = linux_pair(os.sched_getaffinity(0))
+    except (OSError, ValueError):
+        check(False, "compatibility")
+    os.sched_setaffinity(0, cpus)
+    check(os.sched_getaffinity(0) == set(cpus), "compatibility")
+    inherited_priority = os.getpriority(os.PRIO_PROCESS, 0)
+    priority = max(inherited_priority, 10)
+    os.setpriority(os.PRIO_PROCESS, 0, priority)
+    check(os.getpriority(os.PRIO_PROCESS, 0) == priority, "compatibility")
     resource.setrlimit(resource.RLIMIT_AS, (MEMORY, MEMORY))
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))
-    resource.setrlimit(resource.RLIMIT_FSIZE, (1117320736, 1117320736))
+    resource.setrlimit(resource.RLIMIT_FSIZE, (MODEL_FILE_BYTES, MODEL_FILE_BYTES))
 
     # x86-64 only: check audit architecture before interpreting syscall numbers.
     # EPERM for socket operations, execution and process creation. clone is allowed
@@ -91,6 +104,9 @@ def _linux():
         "memory": "RLIMIT_AS",
         "memory_bytes": MEMORY,
         "cpu": "sched_setaffinity:2",
+        "cpu_topology": topology,
+        "priority": "nice:at-least-10",
+        "nice": priority,
         "processes": "seccomp:thread-clone-only",
         "network_control": "seccomp:socket-syscalls-EPERM",
         "network_observation": "NOT_RUN",
@@ -99,6 +115,8 @@ def _linux():
 
 def _windows():
     from ctypes import wintypes as w
+
+    from .ai_runtime_cpu import windows_pair
 
     class Basic(c.Structure):
         _fields_ = [
@@ -142,13 +160,15 @@ def _windows():
             ),
             "compatibility",
         )
-        cpus = [1 << n for n in range(64) if process_mask.value & (1 << n)]
-        check(len(cpus) >= 2, "compatibility")
+        try:
+            cpus, topology = windows_pair(kernel, process_mask.value)
+        except (OSError, ValueError):
+            check(False, "compatibility")
         limits = Extended()
         # ACTIVE_PROCESS, AFFINITY, PRIORITY_CLASS, PROCESS_MEMORY, JOB_MEMORY,
         # KILL_ON_JOB_CLOSE. Inference yields to normal interactive work.
         limits.basic.flags = 0x8 | 0x10 | 0x20 | 0x100 | 0x200 | 0x2000
-        limits.basic.active, limits.basic.affinity = 1, cpus[0] | cpus[1]
+        limits.basic.active, limits.basic.affinity = 1, sum(1 << cpu for cpu in cpus)
         limits.basic.priority = 0x4000  # BELOW_NORMAL_PRIORITY_CLASS
         limits.process_memory = limits.job_memory = MEMORY
         check(
@@ -156,6 +176,9 @@ def _windows():
             "compatibility",
         )
         check(bool(kernel.AssignProcessToJobObject(job, process)), "compatibility")
+        check(bool(kernel.GetProcessAffinityMask(process, c.byref(process_mask),
+                                                c.byref(system_mask)))
+              and process_mask.value == limits.basic.affinity, "compatibility")
     except BaseException:
         kernel.CloseHandle(job)
         raise
@@ -164,6 +187,7 @@ def _windows():
         "memory": "JobObject:committed-memory",
         "memory_bytes": MEMORY,
         "cpu": "JobObject:affinity:2",
+        "cpu_topology": topology,
         "priority": "JobObject:below-normal",
         "processes": "JobObject:active-process:1",
         "network_control": "NONE",

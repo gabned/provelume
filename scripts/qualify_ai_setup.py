@@ -54,11 +54,15 @@ def measure_setup(instance, store, runtime):
             adapter = setup.jobs.adapters[prepared[3][0].fingerprint]
             original = adapter.exchange
             observed = threading.Event()
+            inference = {}
             started = time.monotonic()
 
-            def exchange(current, *, cancel, started=started, observed=observed, original=original):
+            def exchange(current, *, cancel, started=started, observed=observed, original=original,
+                         inference=inference):
                 def observe():
-                    if runtime._first_received is not None and runtime._first_received >= started:
+                    current = runtime._prefill_observation
+                    if current is not None and current["received"] >= started:
+                        inference.update(current)
                         observed.set()
                     return cancel()
 
@@ -70,9 +74,13 @@ def measure_setup(instance, store, runtime):
             with ThreadPoolExecutor(max_workers=1) as pool:
                 future = pool.submit(instance.run_ai_job, job["id"])
                 reached = observed.wait(25)
-                busy_before = runtime.loaded and not future.done()
+                busy_before = (reached and runtime.loaded and not future.done()
+                               and runtime._process.pid == inference["pid"])
                 probe = deterministic_probe(instance, 700 if phase == "cold" else 701)
-                probe["worker_observed"] = busy_before and runtime.loaded and not future.done()
+                probe["worker_observed"] = (
+                    busy_before and runtime.loaded and not future.done()
+                    and runtime._process.pid == inference["pid"]
+                    and runtime._prefill_observation == inference)
                 completed = future.result()
             elapsed = time.monotonic() - started
             adapter.exchange = original
@@ -89,7 +97,8 @@ def measure_setup(instance, store, runtime):
                     ),
                     "worker": observation,
                     "probe": probe,
-                    "generation_observed": reached,
+                    "inference_observed": reached,
+                    "concurrency": dict(inference),
                     "receipt": setup.jobs.journal.list_receipts(limit=100)[0]["id"],
                     "model": MODEL_ID,
                 }

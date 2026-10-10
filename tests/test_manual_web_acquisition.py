@@ -6,7 +6,7 @@ import json
 import os as stdlib_os
 from dataclasses import dataclass, field
 from pathlib import Path
-from threading import Event, Thread
+from threading import Event, Thread, current_thread
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
 
@@ -14,9 +14,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from provelume import connector_cli, web_acquisition
+from provelume.atomic_commit import AtomicInstanceCommit
 from provelume.cli import main
 from provelume.desktop import declare_startup_update_policy
 from provelume.instance_backup import verify_backup
+from provelume.instance_lifecycle import InstanceLifecycleBusy, InstanceLifecycleManager
 from provelume.instance_schema import build_instance_manifest
 from provelume.instance_validation import inspect_instance
 from provelume.oauth_authorization import (
@@ -740,7 +742,10 @@ class _ConcurrentGlobalDisable:
         return authority
 
 
-def test_global_policy_writer_serializes_after_canonical_commit(tmp_path: Path) -> None:
+@pytest.mark.parametrize("open_during_commit", [False, True])
+def test_global_policy_writer_serializes_after_canonical_commit(
+    tmp_path: Path, monkeypatch, open_during_commit
+) -> None:
     instance, connector, source = _configured(tmp_path / "instance")
     network = SyntheticNetwork([SyntheticResponse(body=b"locked policy commit")])
     base = GuardedWebTransport(
@@ -751,6 +756,29 @@ def test_global_policy_writer_serializes_after_canonical_commit(tmp_path: Path) 
     )
     guarded = _ConcurrentGlobalDisable(base, instance.root)
     instance.web_transport = guarded
+    staged, busy = Event(), Event()
+    if open_during_commit:
+        prepare = InstanceLifecycleManager.prepare
+        stage = AtomicInstanceCommit._prepare
+
+        def open_at_stage(manager):
+            if current_thread() is guarded.thread:
+                assert staged.wait(2)
+                try:
+                    return prepare(manager)
+                except InstanceLifecycleBusy:
+                    busy.set()
+                    raise
+            return prepare(manager)
+
+        def hold_prepared(transaction):
+            result = stage(transaction)
+            staged.set()
+            assert busy.wait(2)
+            return result
+
+        monkeypatch.setattr(InstanceLifecycleManager, "prepare", open_at_stage)
+        monkeypatch.setattr(AtomicInstanceCommit, "_prepare", hold_prepared)
 
     result = _acquire(instance, connector, source)
 
@@ -759,6 +787,7 @@ def test_global_policy_writer_serializes_after_canonical_commit(tmp_path: Path) 
     assert guarded.finished.is_set()
     assert instance.store.read_config()["network"]["external_access"] is False
     assert result["status"] == "completed"
+    assert busy.is_set() is open_during_commit
     assert inspect_instance(instance.root, deep=True)["status"] == "valid"
 
 

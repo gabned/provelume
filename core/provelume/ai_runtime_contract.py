@@ -7,22 +7,101 @@ import json
 import os
 import platform
 import sys
+from dataclasses import dataclass
 from importlib.resources import files
 
 from .ai_models import check
+from .ai_runtime_cpu import SELECTION as CPU_SELECTION
+from .ai_synthesis_profile import PROFILE, framing_identity
 
 RUNTIME_ID = "llama.cpp"
 RUNTIME_VERSION = "b11379"
-MODEL_ID = "qwen2.5-1.5b-instruct-q4-k-m"
-MODEL_FORMAT = "gguf-v3-q4_k_m"
-MODEL_SIZE = 1117320736
-MODEL_SHA256 = "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+MODEL_ID = "qwen3.5-2b-q5-k-m"
+MODEL_FORMAT = "gguf-v3-q5_k_m"
+MODEL_SIZE = 1435238656
+MODEL_SHA256 = "1885b3a9195f8cc09da9a7a7a75afdc1e8d5cbf9fc4a499c3961dddea37098ac"
+MODEL_LICENSE = "qwen35-LICENSE.txt"
+MODEL_URL = ("https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/"
+             "f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q5_K_M.gguf")
+
+
+@dataclass(frozen=True, slots=True)
+class NativeModelPin:
+    id: str
+    format: str
+    size: int
+    sha256: str
+    url: str
+    license_file: str
+    evidence: str
+
+
+NATIVE_MODEL_PINS = (
+    NativeModelPin(
+        MODEL_ID, MODEL_FORMAT, MODEL_SIZE, MODEL_SHA256, MODEL_URL, MODEL_LICENSE,
+        "repository:docs/adr/0047-hybrid-cpu-synthesis-candidate.md",
+    ),
+    NativeModelPin(
+        "qwen2.5-1.5b-instruct-q4-k-m", "gguf-v3-q4_k_m", 1117320736,
+        "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e",
+        "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/"
+        "91cad51170dc346986eccefdc2dd33a9da36ead9/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+        "qwen-LICENSE.txt",
+        "repository:docs/adr/0046-canonical-task-qwen25-requalification.md",
+    ),
+    NativeModelPin(
+        "granite-3.3-2b-instruct-q4-k-m", "gguf-v3-q4_k_m", 1545303328,
+        "ac71e9e32c0bea919b409c5918f69ca74339854b0319c5065e4e9fb6d95c4852",
+        "https://huggingface.co/ibm-granite/granite-3.3-2b-instruct-GGUF/resolve/"
+        "7cdf86ccd1f1bb3491c9b7017b033f2e51367397/granite-3.3-2b-instruct-Q4_K_M.gguf",
+        "granite-LICENSE.txt",
+        "repository:docs/adr/0045-granite33-capacity-candidate.md",
+    ),
+    NativeModelPin(
+        "granite-4.0-1b-q8-0", "gguf-v3-q8_0", 1737791232,
+        "0660c20c3d3d3672b90f0468f62dc128a82a6e3ee2ec05d310d242969be06140",
+        "https://huggingface.co/ibm-granite/granite-4.0-1b-GGUF/resolve/"
+        "b27c2fe3f211b7f44e80fa620177aea371099aaa/granite-4.0-1b-Q8_0.gguf",
+        "granite-LICENSE.txt", "repository:docs/adr/0045-granite33-capacity-candidate.md",
+    ),
+    NativeModelPin(
+        "granite-4.0-1b-q5-k-m", "gguf-v3-q5_k_m", 1178310400,
+        "3d977db90ec00a2152cc3cdb788f7273c6258f49394a914046cc90c266831598",
+        "https://huggingface.co/ibm-granite/granite-4.0-1b-GGUF/resolve/"
+        "b27c2fe3f211b7f44e80fa620177aea371099aaa/granite-4.0-1b-Q5_K_M.gguf",
+        "granite-LICENSE.txt", "repository:docs/adr/0044-higher-precision-synthesis-candidate.md",
+    ),
+    NativeModelPin(
+        "qwen3-1.7b-q4-k-m", "gguf-v3-q4_k_m", 1107408544,
+        "228fb5627f7510b8b3516cdb6435e4b0d2a2bf330fe5b0ab19284a3570a8bb1f",
+        "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/"
+        "7fb011e9aee6e4dc7adf8430df9ea8de6a466aa3/Qwen3-1.7B-Q4_K_M.gguf",
+        "qwen3-LICENSE.txt", "repository:docs/adr/0039-bounded-selection-assessment.md",
+    ),
+    NativeModelPin(
+        "qwen3-4b-instruct-2507-q2-k", "gguf-v3-q2_k", 1669499616,
+        "7f9efe8a86c1d200139801642dcf8c0d9f2cf09c89ef4e8f0ea525536368c4ca",
+        "https://huggingface.co/bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF/resolve/"
+        "ac104788567ef76beaf5f30b6cccb1f99a69afbe/Qwen_Qwen3-4B-Instruct-2507-Q2_K.gguf",
+        "qwen-LICENSE.txt", "repository:docs/adr/0038-qwen3-instruct-synthesis-candidate.md",
+    ),
+)
+RETIRED_MODEL_IDS = tuple(pin.id for pin in NATIVE_MODEL_PINS if pin.id != MODEL_ID)
+
+
+def native_model_pin(identifier):
+    pin = next((item for item in NATIVE_MODEL_PINS if item.id == identifier), None)
+    check(pin is not None, "compatibility")
+    return pin
+
+
 LOCK_SHA256 = "0e508965cddc60d6cfb57c42d2c4039c637e8812bb25cc21b525b6d6047a4404"
 CONFIGURATION = {
     "schema_version": 1,
     "purpose": "internal-runtime-qualification-only",
     "runtime_lock": LOCK_SHA256,
     "threads": 2,
+    "cpu_selection": CPU_SELECTION,
     "context_tokens": 2048,
     "input_tokens": 1536,
     "input_bytes": 4096,
@@ -36,6 +115,17 @@ CONFIGURATION = {
     "idle_seconds": 5,
     "termination_seconds": 2,
     "sampling": "greedy",
+    "synthesis_format": PROFILE,
+    "synthesis_instructions": {f"{language}-{cap}": framing_identity(cap, language)
+                               for language in ("en", "it") for cap in (2, 3)},
+    "chat_template": "qwen35-canonical-nonthinking-v1",
+    "prefix_state": "single-sequence-checkpoint-v1",
+    "governed_prefix": "canonical-context-header-v1",
+    "inference_observation": "request-pid-prefill-v1",
+    "linux_worker_nice_floor": 10,
+    "prefix_state_bytes": 64 * 1024**2,
+    "prefix_min_tokens": 128,
+    "recurrent_rollback": 0,
 }
 
 

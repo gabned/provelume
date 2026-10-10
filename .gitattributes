@@ -5,3 +5,4 @@
 *.yml text eol=lf
 *.yaml text eol=lf
 *.md text eol=lf
+core/provelume/runtime_notices/qwen35-LICENSE.txt -text

@@ -23,6 +23,7 @@ from .about import RELEASES_URL, current_about
 from .about import SOURCE_REPOSITORY_URL as SOURCE_REPOSITORY_URL
 from .about import public_about_links as public_about_links
 from .catalog_registry import exported_catalogs, namespace_catalog, resolve_language
+from .instance_lifecycle import InstanceLifecycleBusy
 from .publication import RECEIPT_NAME, PublicationError, import_publication
 from .service import ProvelumeInstance
 from .shell_settings import (
@@ -88,7 +89,19 @@ def save_settings(settings: LauncherSettings, path: Path | None = None) -> Path:
 def declare_startup_update_policy(instance_path: Path, *, enabled: bool) -> None:
     """Keep the Instance capability inventory aligned with launcher startup policy."""
 
-    instance = ProvelumeInstance(instance_path)
+    # A concurrent canonical commit can expose a pending transaction while holding
+    # the lifecycle lock. Wait before opening, without reversing lifecycle/policy
+    # lock order or retrying any policy write.
+    deadline = time.monotonic() + 2.0
+    while True:
+        try:
+            instance = ProvelumeInstance(instance_path)
+            break
+        except InstanceLifecycleBusy:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise
+            time.sleep(min(0.025, remaining))
     with instance.connectors.policy_commit_guard(purpose="startup-update-policy"):
         config = instance.store.read_config()
         network = config.setdefault("network", {})

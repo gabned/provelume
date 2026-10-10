@@ -28,7 +28,35 @@ plus a character interval (zero-based start, excluded end). Its coverage describ
 that representation, not the Original or all other representations. Redaction
 detects the documented ASCII email pattern and exact configured literals only;
 it is not anonymization. The preview is private and cannot execute a document
-task. This slice does not add summaries, key points or saved AI output.
+task. The separate S08 development path below adds removable selected excerpts.
+
+## Document synthesis (S08 development candidate)
+
+Open a document, including an already captured note, and choose **Document
+synthesis**. Select an available text version, Summary or Key points, and the
+EN/IT document-language profile. The interface language remains your preference.
+Read the preview: up to sixteen whole paragraphs and 2,000 source-text bytes,
+with oversized paragraphs excluded. Only the shown, redacted text is processed;
+coverage concerns that selected representation, not every part of the Original.
+
+When an eligible session is enabled, approve the exact preview and choose Generate
+excerpts. This action queues and explicitly starts one governed job. Operations
+shows its progress, controls, accounting and result link. No other document is
+processed automatically. Read the selected excerpts and reopen each cited passage;
+valid references establish origin, not truth or completeness. An abstention is
+visible and does not invent an answer.
+
+Delete derived output removes only the saved result. Source, recipe, receipt and
+usage remain; backups can retain copies. Preview regeneration starts a new preview,
+requiring fresh consent. If the source changed, select its current text again.
+Results remain readable after session expiry/restart if their source and policy
+association is unchanged; changed restrictions/configuration can make them stale.
+Advanced restrictions inherit global settings or add local-only/deny limits for
+associated scopes. They cannot authorize a provider or network access.
+
+The locked local candidate's S08 quality remains subject to real native evaluation;
+this is not Recommended promotion or a newly published installer. See
+[the synthesis contract](architecture/ai-document-synthesis.md).
 
 Restarting, restoring or changing configuration requires fresh authorization.
 Session-only runtime paths, weights, credentials and self-test evidence are not

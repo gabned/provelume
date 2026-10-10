@@ -34,6 +34,7 @@ def measure(root, output):
     report = {
         "schema_version": 1,
         "status": "NOT_RUN",
+        "phase": "s05_base",
         "samples": [],
         "failures": [],
         "configuration": CONFIGURATION,
@@ -45,6 +46,8 @@ def measure(root, output):
         "product_dispatch": "governed_job_required",
         "recommended": False,
         "s06_required": True,
+        "s07_required": True,
+        "s08_required": True,
     }
 
     def save():
@@ -69,7 +72,7 @@ def measure(root, output):
         except ModelError as exc:
             report["absent_model"] = exc.code
         report["installation"] = store.import_offline(
-            MODEL_ID, root / "qwen.gguf", selection, requested=True, license_accepted="Apache-2.0"
+            MODEL_ID, root / "model.gguf", selection, requested=True, license_accepted="Apache-2.0"
         )
         corpus_path = ROOT / "tests/fixtures/ai_runtime_quality.json"
         report["corpus_sha256"] = hashlib.sha256(corpus_path.read_bytes()).hexdigest()
@@ -124,6 +127,8 @@ def measure(root, output):
                 }
                 report["samples"].append(row)
                 save()
+        report["phase"] = "s05_cancellation_and_unload"
+        save()
         # Explicit cancellation at the first wait during fresh-worker load.
         runtime.close()
         model = store.verify(MODEL_ID, selection)
@@ -179,11 +184,25 @@ def measure(root, output):
 
         evidence = store.self_test(MODEL_ID, selection, runtime, requested=True)
         store.activate(MODEL_ID, selection, evidence, requested=True)
+        report["phase"] = "s06_governed"
+        save()
         report["s06"] = measure_jobs(instance, store, runtime)
         from qualify_ai_setup import measure_setup
 
-        report["s07_required"] = True
+        report["phase"] = "s07_setup"
+        save()
         report["s07"] = measure_setup(instance, store, runtime)
+        from qualify_ai_synthesis import measure_synthesis
+
+        def synthesis_checkpoint(result):
+            report["s08"] = result
+            save()
+
+        report["phase"] = "s08_synthesis"
+        save()
+        report["s08"] = measure_synthesis(root, store, runtime, checkpoint=synthesis_checkpoint)
+        report["phase"] = "final_integrity_and_cleanup"
+        save()
         # Change one byte only in this disposable installed test model, then restore
         # in finally; no acquisition, fallback or fabricated evidence on corruption.
         model = store.verify(MODEL_ID, selection)
@@ -223,6 +242,9 @@ def measure(root, output):
             report["warm_total_max"] = max(r["total_seconds"] for r in report["samples"])
         # No successful offline run substitutes for an OS observation of all phases.
         report["status"] = "BLOCKED_NO_EGRESS_OBSERVATION"
+        from diagnose_ai_capture import diagnose
+
+        report["capture_diagnostic"] = diagnose(instance, store, runtime)
     except Exception as exc:
         report["status"] = "FAIL"
         report["failures"].append(exc.code if isinstance(exc, ModelError) else type(exc).__name__)

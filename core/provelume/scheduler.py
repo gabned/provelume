@@ -1520,7 +1520,7 @@ class SchedulerCoordinator:
             return self.journal.recover(now=now)
 
     @contextmanager
-    def _hold_lifecycle(self, purpose: str) -> Iterator[None]:
+    def _hold_lifecycle(self, purpose: str, *, wait_seconds: float = 0) -> Iterator[None]:
         from .instance_lifecycle import (
             InstanceLifecycleBusy,
             InstanceLifecycleError,
@@ -1528,7 +1528,9 @@ class SchedulerCoordinator:
         )
 
         try:
-            with InstanceLifecycleManager(self.store)._hold(purpose=purpose):
+            with InstanceLifecycleManager(self.store)._hold(
+                purpose=purpose, wait_seconds=wait_seconds
+            ):
                 yield
         except InstanceLifecycleBusy as exc:
             raise SchedulerBusyError("another Instance operation is active") from exc
@@ -2511,6 +2513,17 @@ class SchedulerCoordinator:
             now=completed_at,
         )
 
+    def claim_ai_job(self, job_id: str) -> dict[str, Any] | None:
+        # An explicit HTTP dispatch must claim before reporting acceptance. Wait
+        # only for this pre-execution barrier, never retry an inference attempt.
+        with self._hold_lifecycle("scheduler-ai-claim", wait_seconds=2):
+            job = self.journal.get_job(job_id)
+            if job is None or job["job_kind"] != "ai.execute":
+                raise SchedulerError("ai_job_invalid")
+            return self._run_one_locked(
+                job_id=job_id, live_clock=True, defer_ai=True, allow_ai=True
+            )
+
     def run_one(
         self,
         *,
@@ -2591,7 +2604,23 @@ def scheduler_state_findings(store: InstanceStore) -> list[dict[str, str]]:
                 "path": "state/scheduler",
             }
         ]
-    allowed_children = {"policies", "jobs", "receipts", "ai-control.json", "ai-setup.json"}
+    allowed_children = {"policies", "jobs", "receipts", "ai-control.json", "ai-setup.json",
+                        "ai-scope-policies.json"}
+    ai_scopes = scheduler.root / "ai-scope-policies.json"
+    if ai_scopes.exists() or ai_scopes.is_symlink():
+        from .ai_synthesis import DocumentSynthesis
+        from .maintenance_local_files import open_local_file
+
+        try:
+            with open_local_file(ai_scopes) as stream:
+                raw = stream.read(32769)
+            if len(raw) > 32768:
+                raise ValueError("AI scope policy exceeds its bound")
+            DocumentSynthesis.validate_policies(json.loads(raw), scheduler.instance_id)
+        except (OSError, TypeError, ValueError):
+            findings.append({"code": "scheduler_record_invalid",
+                             "message": "AI scope policy state is invalid",
+                             "path": "state/scheduler/ai-scope-policies.json"})
     ai_setup = scheduler.root / "ai-setup.json"
     if ai_setup.exists() or ai_setup.is_symlink():
         from .ai_setup import AiSetup

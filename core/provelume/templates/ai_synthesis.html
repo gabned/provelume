@@ -1,0 +1,38 @@
+{% extends base_layout %}
+{% block title %}{{ t('synthesis.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<p>{% if document %}<a href="/documents/{{ document.id }}?lang={{ lang }}">{{ document.title }}</a> · {% endif %}<a href="/operations/ai?lang={{ lang }}">{{ t('ai.operations') }}</a> · <a href="/settings/ai?lang={{ lang }}">{{ t('ai.title') }}</a></p>
+<section class="hero"><h1>{{ t('synthesis.title') }}</h1><p>{{ t('synthesis.help') }}</p></section>
+{% if phase == 'selection' %}
+<section class="panel"><h2>{{ t('synthesis.choose') }}</h2><p>{{ t('synthesis.limits') }}</p>
+{% if choices %}<form method="post" action="/documents/{{ document.id }}/synthesis/preview?lang={{ lang }}" class="settings-form">
+{% include 'ai_fields.html' %}<input type="hidden" name="version_id" value="{{ document.current_version.id }}">
+<label for="synthesis-selection">{{ t('ai.selection') }}</label><select id="synthesis-selection" name="selection">{% for choice in choices %}<option value="{{ choice|join(':') }}">{{ t('synthesis.text_version') }} {{ loop.index }}</option>{% endfor %}</select>
+<label for="synthesis-task">{{ t('synthesis.task') }}</label><select id="synthesis-task" name="task"><option value="summary">{{ t('synthesis.summary') }}</option><option value="key-points">{{ t('synthesis.key_points') }}</option></select>
+<label for="synthesis-language">{{ t('synthesis.language') }}</label><select id="synthesis-language" name="language"><option value="en"{% if lang != 'it' %} selected{% endif %}>English</option><option value="it"{% if lang == 'it' %} selected{% endif %}>Italiano</option></select>
+<button type="submit">{{ t('ai.preview') }}</button></form>{% else %}<p role="status">{{ t('ai.no_selection') }}</p>{% endif %}</section>
+<section class="panel"><details><summary>{{ t('synthesis.restrictions') }}</summary><p>{{ t('synthesis.restrictions_help') }}</p>
+{% for scope, label, restriction in scopes %}<form method="post" action="/documents/{{ document.id }}/synthesis/policy?lang={{ lang }}" class="settings-form">
+{% include 'ai_fields.html' %}<input type="hidden" name="revision" value="{{ policies.revision }}"><input type="hidden" name="kind" value="{{ scope.kind }}"><input type="hidden" name="scope_id" value="{{ scope.id }}">
+<label for="restriction-{{ loop.index }}">{{ label }}</label><select id="restriction-{{ loop.index }}" name="restriction">{% for option in ['inherit', 'local_only', 'deny'] %}<option value="{{ option }}"{% if restriction == option %} selected{% endif %}>{{ t('synthesis.' ~ option) }}</option>{% endfor %}</select><button type="submit">{{ t('synthesis.save_restriction') }}</button></form>{% endfor %}</details></section>
+{% elif phase == 'preview' %}
+<section class="panel"><h2>{{ t('ai.preview') }}</h2><p>{{ t('synthesis.limits') }}</p><p>{{ t('ai.redaction_help') }}</p><p>{{ t('synthesis.coverage_help') }}</p>
+<ol>{% for segment in prepared[0].segments %}<li><pre class="preview">{{ segment.text }}</pre></li>{% endfor %}</ol>
+<p>{{ t('ai.coverage') }}: {{ t('ai.' ~ prepared[0].manifest.coverage) }} · {{ prepared[0].payload_bytes }} / 4096 B</p>
+{% for route in prepared[1].routes %}{% for profile in prepared[3] if profile.fingerprint == route.profile_fingerprint %}<p>{{ t('ai.local') if profile.id != 'external' else t('ai.external') }} · {{ profile.model }}{% if prepared[5][profile.id].endpoint_url is defined %} · {{ prepared[5][profile.id].endpoint_url }}{% endif %}</p>{% endfor %}{% endfor %}
+<p>{{ t('ai.upper_units') }}: {{ prepared[0].manifest.request_limits.max_input_bytes + prepared[0].manifest.request_limits.max_output_tokens }} · {{ t('ai.duration_limit') }}: {{ prepared[0].manifest.request_limits.max_seconds }}</p><p>{{ t('ai.unknown') }}</p>
+{% for reason in prepared[1].reasons %}<p role="alert">{{ t(ai_reason_key(reason)) }}</p>{% endfor %}
+{% if prepared[1].outcome == 'planned' and ai.control.session_authorized and ai.control.mode == 'enabled' %}<form method="post" action="/operations/ai/synthesis/execute?lang={{ lang }}" class="settings-form">{% include 'ai_fields.html' %}<input type="hidden" name="ref" value="{{ ref }}"><label class="action-check"><input type="checkbox" name="acknowledge" value="selected-document" required>{{ t('synthesis.consent') }}</label><button type="submit">{{ t('synthesis.generate') }}</button></form>{% else %}<p role="status">{{ t('synthesis.setup_required') }}</p>{% endif %}
+<details><summary>{{ t('synthesis.details') }}</summary><p class="hash">{{ prepared[0].manifest.version.version_id }} · {{ prepared[0].fingerprint }}</p><pre class="preview">{{ payload }}</pre><p>{{ t('ai.job_limit') }}: {{ ai.configuration.job_units }} · {{ t('ai.period_limit') }}: {{ ai.configuration.period_units }} · {{ t('ai.reserved') }}: {{ ai.control.accounting.units }}</p></details></section>
+{% elif phase == 'result' %}
+<section class="panel"><h2>{{ t('synthesis.result') }}</h2>
+{% if unavailable %}<p role="status">{{ t('synthesis.unavailable') }}</p>{% else %}<p>{{ t('ai.coverage') }}: {{ t('ai.' ~ body.coverage) }}</p>
+{% if body.status == 'abstained' %}<p role="status">{{ t('synthesis.abstained') }}</p>{% else %}<ol>{% for index in body.references %}<li><blockquote>{{ body.segments[index].text }}</blockquote><a href="/operations/ai/{{ job.id }}/synthesis/evidence/{{ index }}?lang={{ lang }}">{{ t('synthesis.evidence') }} {{ loop.index }}</a></li>{% endfor %}</ol>{% endif %}<p>{{ t('synthesis.uncertainty') }}</p>{% endif %}
+<p>{{ t('ai.' ~ reference.execution) }} · {{ reference.model }}</p><details><summary>{{ t('synthesis.details') }}</summary><p>{{ t('synthesis.coverage_help') }}</p><p class="hash">{{ job.id }} · {{ reference.route }}</p><p class="hash">{{ reference.recipe.selections[0].version.version_id }}</p><p>{{ t('ai.receipts') }}: receipt_{{ job.id[4:] }}</p></details>
+<form method="post" action="/operations/ai/{{ job.id }}/synthesis/discard?lang={{ lang }}">{% include 'ai_fields.html' %}<button type="submit">{{ t('synthesis.discard') }}</button></form><p>{{ t('synthesis.discard_help') }}</p>
+<form method="post" action="/operations/ai/{{ job.id }}/synthesis/regenerate?lang={{ lang }}">{% include 'ai_fields.html' %}<button type="submit">{{ t('synthesis.regenerate') }}</button></form>
+<p><a href="/documents/{{ document_id }}/synthesis?lang={{ lang }}">{{ t('synthesis.new_preview') }}</a></p></section>
+{% elif phase == 'evidence' %}
+<section class="panel"><h2>{{ t('synthesis.evidence') }}</h2><p>{{ t('synthesis.evidence_help') }}</p><pre class="preview">{{ segment.text }}</pre><dl><dt>{{ t('document.version_history') }}</dt><dd class="hash">{{ segment.selection.version.version_id }}</dd><dt>{{ t('ai.start') }}</dt><dd>{{ segment.selection.start }}</dd><dt>{{ t('ai.end') }}</dt><dd>{{ segment.selection.end }}</dd></dl><details><summary>{{ t('synthesis.details') }}</summary><p class="hash">{{ segment.selection.representation_id }} · {{ segment.selection.output_id }} · {{ segment.selection.anchor_id }}</p></details><a href="/operations/ai/{{ job.id }}/synthesis?lang={{ lang }}">{{ t('synthesis.result') }}</a></section>
+{% endif %}
+{% endblock %}

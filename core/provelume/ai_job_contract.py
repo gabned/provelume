@@ -211,7 +211,11 @@ def validate_ai(value, job):
         check(value["result_fingerprint"] is None)
     else:
         check(type(result) is dict and set(result) == {"kind", "value"})
-        check(result["kind"] in {"context_check", "untrusted_text"})
+        check(result["kind"] in {"context_check", "untrusted_text", "derived_ref"})
+        if result["kind"] == "derived_ref":
+            from .ai_synthesis import validate_reference
+
+            validate_reference(result["value"])
         check(len(json.dumps(result).encode()) <= 32768)
         check(value["result_fingerprint"] == digest(result))
     terminal = value["terminal"]

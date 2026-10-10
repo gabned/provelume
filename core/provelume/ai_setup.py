@@ -1,7 +1,7 @@
 """Instance-owned S07 configuration and private, expiring consent previews.
 
 This host composes the S01-S06 contracts. It is not an adapter or a scheduler.
-Only the fixed public test fixture can be enqueued; document previews cannot execute.
+The public test and explicit S08 document tasks share the same governed scheduler.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 from .ai_context import (
+    SYNTHESIS_TEMPLATES,
     ContextLimits,
     OutputBytes,
     RedactionConfig,
@@ -27,6 +28,7 @@ from .ai_context import (
     task_payload,
 )
 from .ai_contract import (
+    AiContractError,
     Assurance,
     Capability,
     ContextBinding,
@@ -37,6 +39,7 @@ from .ai_contract import (
     Mode,
     PolicyRule,
     Profile,
+    Reason,
     Scope,
     ScopeRef,
     digest,
@@ -48,7 +51,7 @@ from .ai_models import ModelError
 from .ai_provider import CallInputs, CredentialReference, Destination, ProviderConfig
 from .ai_provider_http import ChatJsonAdapter
 from .ai_runtime import LocalRuntime, native_selection
-from .ai_runtime_contract import MODEL_ID
+from .ai_runtime_contract import CONFIGURATION, MODEL_ID
 from .maintenance_local_files import open_local_file
 from .representations import build_representation_bundle, canonical_json_bytes
 
@@ -78,7 +81,11 @@ class AiSetup:
         self.operation = None
         self.observed_model = None
         self.cancel = threading.Event()
-        self.jobs = instance.bind_ai_execution(current=self.current, adapters={})
+        from .ai_synthesis import DocumentSynthesis
+
+        self.synthesis = DocumentSynthesis(self)
+        self.jobs = instance.bind_ai_execution(current=self.current, adapters={},
+                                               result_projector=self.synthesis.project)
 
     def configuration(self):
         if not self.path.exists():
@@ -268,7 +275,8 @@ class AiSetup:
         )
         return source, (selection,)
 
-    def prepare(self, key, source, selections, *, configuration, redaction=None, governance=None):
+    def prepare(self, key, source, selections, *, configuration, redaction=None, governance=None,
+                template=None, scope_policy=None, external_access=None):
         profiles, evidence, configs, route = self.profiles(configuration)
         # S07's executable test has no document associations. Real document preview
         # never borrows this synthetic policy inventory or obtains dispatch authority.
@@ -286,22 +294,30 @@ class AiSetup:
             digest(asdict(source.version)),
             digest(key),
         )
+        revision = {
+            "configuration": configuration,
+            "associations": governance[1] if governance else "public_test",
+        }
+        if scope_policy is not None:
+            revision["scope_policy"] = scope_policy
+        restrictions = {
+            (row["kind"], row["id"]): row["restriction"]
+            for row in (scope_policy or {}).get("rules", [])
+        }
         snapshot = GovernanceSnapshot(
             context,
             scopes,
-            digest(
-                {
-                    "configuration": configuration,
-                    "associations": governance[1] if governance else "public_test",
-                }
-            ),
-            configuration["mode"] in {"external", "hybrid"},
+            digest(revision),
+            configuration["mode"] in {"external", "hybrid"}
+            if external_access is None else external_access,
             True,
         )
         rules = tuple(
             PolicyRule(
                 scope,
                 digest(configuration),
+                deny=restrictions.get((scope.kind, scope.id)) == "deny",
+                local_only=restrictions.get((scope.kind, scope.id)) == "local_only",
                 limits=LIMITS,
                 allowed_profiles=tuple(p.id for p in profiles) if i == 0 else None,
                 allowed_capabilities=(Capability.STRUCTURED_OUTPUT,) if i == 0 else None,
@@ -313,12 +329,27 @@ class AiSetup:
         current = dict(
             limits=ContextLimits(),
             request_limits=LIMITS,
-            template=TaskTemplate("context-check-partial-v1", True),
+            template=template or TaskTemplate("context-check-partial-v1", True),
             redaction=redaction or RedactionConfig(),
             snapshot=snapshot,
             rules=rules,
         )
         preview = preview_context(source, selections, **current)
+        task = current["template"].id
+        if task in SYNTHESIS_TEMPLATES and configuration["mode"] in {"local", "hybrid"}:
+            # Validate the actual native frame before consent, without touching
+            # model bytes. Quoting and trusted dialogue also consume its limit.
+            from .ai_synthesis_profile import native_format, native_prompt
+
+            try:
+                frame = native_prompt(task_payload(preview, current["template"]).decode(),
+                                      native_format(task, len(preview.segments)))
+            except ModelError as exc:
+                if exc.code == "limit":
+                    raise AiContractError(Reason.LIMIT) from exc
+                raise
+            check(len(frame.encode("utf-8")) <= CONFIGURATION["input_bytes"],
+                  "ai_limit_exceeded")
         plan = explain_prepared(
             preview, source, selections, profiles=profiles, evidence=evidence, **current
         )
@@ -363,7 +394,10 @@ class AiSetup:
         config = self.configuration()
         check(config == row["configuration"], "ai_setup_stale")
         check(self.jobs._control()["generation"] == row["generation"], "ai_setup_stale")
-        check(row["source"].version.document_id == "synthetic_test", "ai_document_preview_only")
+        if "recipe" in row:
+            self.synthesis.revalidate(row)
+        else:
+            check(row["source"].version.document_id == "synthetic_test", "ai_document_preview_only")
         prepared = row["prepared"]
         profiles_now, evidence_now, configs_now, _ = self.profiles(config)
         check((profiles_now, evidence_now, configs_now) == prepared[3:], "ai_setup_stale")

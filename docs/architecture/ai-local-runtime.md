@@ -14,7 +14,9 @@ exact-head and actual-main qualification are linked from the sole owner ledger.
 
 ## Boundary and compatibility
 
-The closed tuple is llama.cpp b11379 / Qwen2.5-1.5B-Instruct / GGUF v3 Q4_K_M on
+The historical S05 tuple was llama.cpp b11379 / Qwen2.5-1.5B-Instruct / GGUF v3 Q4_K_M.
+The S08 development candidate is the reviewed Qwen3.5-2B Q5_K_M conversion in
+[ADR 0047](../adr/0047-hybrid-cpu-synthesis-candidate.md), using the same locked libraries on
 native Linux x86-64 or Windows x64 with AVX2, CPython 3.12, four logical CPUs,
 8 GiB RAM and 4 GiB available. Arm, macOS, GPU paths, ONNX, arbitrary GGUF/BYOM,
 frozen-launcher inference and unknown configurations fail closed. The ordinary
@@ -43,13 +45,25 @@ output, cancellation and timeout close the operation without retry or fallback.
 
 ## OS controls, byte integrity and limits
 
+[ADR 0051](../adr/0051-source-reporting-and-physical-cpu-selection.md) selects one
+logical CPU from each of two OS-reported physical cores within inherited affinity.
+Linux reads kernel package/core identities; Windows reads bounded current-group
+processor-core relationships. Missing, ambiguous or insufficient topology fails
+closed. Native observations retain selected CPU indexes, allowed core counts and
+whether the former first-two-logical choice would share a core. This describes
+the topology exposed by the OS, not an unobserved hypervisor placement guarantee.
+The runtime configuration binds the policy; two threads/CPUs and all gates remain
+unchanged, with fresh complete native measurements required.
+
 Linux applies a two-CPU affinity and a 3 GiB RLIMIT_AS ceiling. Seccomp checks the
 x86-64 audit architecture, rejects x32, networking and io_uring syscalls, fork,
 non-thread clone and exec; thread clone remains available to inference. It is not
 a filesystem sandbox. File/core/descriptor limits are also imposed. Model and
 small native libraries are copied in bounded chunks to sealed memfd snapshots;
 no whole-weight Python bytes object or unbounded copies exist. One model snapshot
-per worker can consume about 1.04 GiB of additional file-backed system memory.
+per worker can consume about 1.34 GiB of additional file-backed system memory for
+the current artifact. This is separate from the unchanged 2 GiB qualification RSS
+gate and 3 GiB worker virtual-memory ceiling.
 
 Windows uses a Job Object with two-CPU affinity, one active process, 3 GiB committed
 process/job memory and kill-on-close. It launches the base Python interpreter
@@ -80,15 +94,19 @@ configuration fail closed. Rollback follows S04's fresh verification/self-test.
 Restore hints never recreate installation or qualification. Installed weights,
 staging and snapshots remain outside portable Instance backup/export and Git.
 
-Governed S06 requests may reuse the exact common input-token prefix in the same
-loaded worker and Instance. Every request still receives the full current payload;
-all old suffix/generated positions are removed before decoding, and at least the
-last input token is decoded for fresh logits. The worker asserts the resulting
-native position and fails closed if truncation fails. Unscoped qualification calls
-and Instance changes clear the complete cache. This bounded memory-only computation
-does not reuse permission, output or accounting: all input tokens remain charged.
-Cancellation, errors and idle unload destroy it. See ADR 0032 for the isolation
-contract and separate native qualification of this changed execution boundary.
+Governed requests may reuse one exact input-prefix sequence checkpoint in the same
+loaded worker and Instance. The hybrid recurrent state cannot support arbitrary
+suffix removal. Its 64 MiB checkpoint is captured before the final input token,
+after the trusted prefix or at 128 tokens if that prefix is shorter. Every saved
+token must match the new full current input; otherwise all state is cleared. A
+matching restore is checked for complete byte count and native position, then all
+remaining current tokens are decoded for fresh logits. No previous response or
+sampler state enters the checkpoint. Unscoped calls and Instance changes clear it.
+Buffers are zeroed on replacement/close, never persisted. All copy costs remain
+in the existing time/memory bounds and every logical input token remains charged.
+This computation reuses no permission, output or accounting. Cancellation, errors
+and idle unload destroy it. ADR 0032's isolation contract remains mandatory;
+ADR 0047 specifies the changed mechanism requiring fresh native qualification.
 
 ## Reproduction and build inputs
 

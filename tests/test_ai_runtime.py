@@ -6,6 +6,7 @@ import hashlib
 import json
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -24,11 +25,21 @@ import sys,json,time,os
 json.loads(sys.stdin.readline())
 print(json.dumps({'event':'loaded','seconds':0.01,'pid':os.getpid(),'memory':{},'limits':{}}),flush=True)
 for line in sys.stdin:
-    p=json.loads(line)['prompt']
+    request=json.loads(line)
+    p=request['prompt']
     if p=='hang': time.sleep(120)
     if p=='crash': os._exit(7)
     if p=='malformed': print('not JSON',flush=True);time.sleep(120)
     if p=='oversized': print('x'*40000,flush=True);time.sleep(120)
+    observation={'event':'prefill','phase':'native_prefill',
+                 'request':request['request'],'pid':os.getpid()}
+    if p=='wrong-request': observation['request']='0'*32
+    if p=='wrong-pid': observation['pid']=os.getpid()+1
+    if p=='wrong-phase': observation['phase']='idle'
+    if p=='extra-field': observation['text']='public synthetic canary'
+    if p=='first-before-prefill': print(json.dumps({'event':'first'}),flush=True)
+    print(json.dumps(observation),flush=True)
+    if p=='duplicate-prefill': print(json.dumps(observation),flush=True)
     print(json.dumps({'event':'result','text':'ORCHID','seconds':0.01,'memory':{}}),flush=True)
 '''
 
@@ -60,12 +71,46 @@ def test_candidate_and_shipped_runtime_lock_have_no_execution_authority():
     entry = ModelRegistry.packaged().entry(MODEL_ID)
     assert entry.qualification == "CANDIDATE_NOT_QUALIFIED"
     assert entry.model_sha256 == MODEL_SHA256
-    assert entry.model_size == 1117320736
+    assert entry.model_size == 1435238656
     assert entry.profile.model == MODEL_ID
     assert runtime_lock()["version"] == "b11379"
     assert set(runtime_lock()["platforms"]) == {"windows", "linux"}
     assert CONFIGURATION["queue"] == 0
     assert ProvelumeInstance.ai_execution_status()["enabled"] is False
+
+
+def test_native_pin_keeps_exact_artifact_bound_and_each_retired_license():
+    from importlib.resources import files
+
+    from provelume.ai_runtime_contract import MODEL_SIZE, NATIVE_MODEL_PINS
+    from provelume.ai_runtime_limits import MODEL_FILE_BYTES
+
+    assert MODEL_FILE_BYTES == MODEL_SIZE
+    registry = ModelRegistry.packaged()
+    for pin in NATIVE_MODEL_PINS:
+        entry = registry.entry(pin.id)
+        assert entry.native
+        assert entry.model_size == pin.size and entry.format == pin.format
+        assert entry.model_sha256 == pin.sha256 and entry.url == pin.url
+        license_bytes = files("provelume").joinpath(
+            "runtime_notices", pin.license_file).read_bytes()
+        assert len(license_bytes) == entry.license_size
+        assert hashlib.sha256(license_bytes).hexdigest() == entry.license_sha256
+
+
+@pytest.mark.parametrize("field,value", [
+    ("id", "granite-unreviewed"), ("format", "gguf-v3-q8_1"),
+    ("format", "gguf-v3-q2_k"), ("model_sha256", "1" * 64),
+    ("package_size", 1737791233),
+    ("url", "https://huggingface.co/another/model.gguf"),
+])
+def test_native_manifest_refuses_unreviewed_or_mixed_artifact_pins(field, value):
+    from provelume.ai_models import parse_manifest
+
+    record = json.loads(ModelRegistry.packaged().raw)
+    next(row for row in record["entries"] if row["id"] == MODEL_ID)[field] = value
+    with pytest.raises(ModelError):
+        parse_manifest(json.dumps(record).encode())
 
 
 @pytest.mark.parametrize("field,value", [
@@ -91,6 +136,76 @@ def test_lazy_reuse_unload_and_next_explicit_caller(host, model):
     host.close()
     assert not host.loaded
     assert host._infer(model, runtime.native_selection(), "again")["cold"]
+
+
+@pytest.mark.parametrize("interruption", [None, "cancelled", "timeout"])
+def test_explicit_caller_can_follow_idle_cleanup_without_a_request_queue(
+    host, model, monkeypatch, interruption,
+):
+    first = host._infer(model, runtime.native_selection(), "first")
+    marker = host._timer
+    marker.cancel()
+    stopping, release, waiting, cancelled = (threading.Event() for _ in range(4))
+    original_stop = host._stop
+
+    def delayed_stop():
+        stopping.set()
+        assert release.wait(4)
+        original_stop()
+
+    monkeypatch.setattr(host, "_stop", delayed_stop)
+    idle = threading.Thread(target=host._idle, args=(marker,))
+    outcomes = []
+
+    def checkpoint():
+        waiting.set()
+        return cancelled.is_set()
+
+    def request():
+        try:
+            outcomes.append(host._infer(
+                model, runtime.native_selection(), "next", cancel=checkpoint))
+        except ModelError as exc:
+            outcomes.append(exc.code)
+
+    caller = threading.Thread(target=request)
+    idle.start()
+    try:
+        assert stopping.wait(1)
+        caller.start()
+        assert waiting.wait(1)
+        with pytest.raises(ModelError, match="busy"):
+            host._infer(model, runtime.native_selection(), "concurrent")
+        if interruption is not None:
+            began = time.monotonic()
+            if interruption == "cancelled":
+                cancelled.set()
+            bound = 1 if interruption == "cancelled" else 3
+            caller.join(bound)
+            assert not caller.is_alive() and time.monotonic() - began < bound
+            assert outcomes == [interruption]
+            # Cleanup still owns the original worker and the process-wide slot.
+            assert host._slot and len(host.worker_history) == 1
+        release.set()
+        idle.join(1)
+        caller.join(1)
+        assert not idle.is_alive() and not caller.is_alive()
+        if interruption is None:
+            assert len(outcomes) == 1 and outcomes[0]["cold"]
+            assert outcomes[0]["load"]["pid"] != first["load"]["pid"]
+    finally:
+        release.set()
+        idle.join(2)
+        if caller.ident is not None:
+            caller.join(2)
+
+
+def test_cancelled_admitted_request_unloads_an_existing_worker(host, model):
+    host._infer(model, runtime.native_selection(), "first")
+    with pytest.raises(ModelError, match="cancelled"):
+        host._infer(model, runtime.native_selection(), "cancelled", cancel=lambda: True)
+    assert not host.loaded and not host._slot
+    assert host._infer(model, runtime.native_selection(), "next")["cold"]
 
 
 @pytest.mark.parametrize("kind", ["crash", "malformed", "oversized", "hang"])
@@ -139,7 +254,9 @@ def test_global_process_ceiling_has_no_queue(host, model, tmp_path):
         other.close()
 
 
-@pytest.mark.parametrize("prompt", ["", "x" * 4097, "<|im_start|>", "<|im_end|>"])
+@pytest.mark.parametrize("prompt", ["", "x" * 4097, "<|im_start|>", "<|im_end|>",
+                                    "<|start_of_role|>", "<|end_of_role|>", "<|end_of_text|>",
+                                    "<|tool_call|>", "<|unused_1|>"])
 def test_input_refused_before_worker(host, model, prompt):
     with pytest.raises(ModelError, match="limit"):
         host._infer(model, runtime.native_selection(), prompt)
@@ -212,7 +329,8 @@ print(json.dumps({'denied':observed,'limits':limits}))
 
 
 @pytest.mark.skipif(sys.platform not in ("linux", "win32"), reason="native supported OS only")
-def test_worker_priority_is_lowered_only_on_windows():
+@pytest.mark.parametrize("inherited_nice", [0, 15])
+def test_worker_priority_yields_to_application_without_raising_inherited_priority(inherited_nice):
     import os
     import sysconfig
 
@@ -220,8 +338,15 @@ def test_worker_priority_is_lowered_only_on_windows():
 import sys,os,json,ctypes
 sys.path[:0]=sys.argv[1:3]
 from provelume.ai_runtime_limits import contain
+if os.name!='nt':
+    inherited=os.getpriority(os.PRIO_PROCESS,0)
+    os.setpriority(os.PRIO_PROCESS,0,max(inherited,int(sys.argv[3])))
 inherited=os.getpriority(os.PRIO_PROCESS,0) if os.name!='nt' else None
 job,limits=contain()
+topology=limits['cpu_topology']
+assert topology['selection']=='distinct-physical-cores-v1'
+assert topology['selected_physical_cores']==2
+assert len(set(topology['selected_logical_cpus']))==2
 if os.name=='nt':
     k=ctypes.WinDLL('kernel32',use_last_error=True)
     k.GetCurrentProcess.restype=ctypes.c_void_p
@@ -230,22 +355,26 @@ if os.name=='nt':
     assert observed==0x4000
     assert limits['priority']=='JobObject:below-normal'
 else:
+    assert os.sched_getaffinity(0)==set(topology['selected_logical_cpus'])
     observed=os.getpriority(os.PRIO_PROCESS,0)
-    assert observed==inherited and 'priority' not in limits
+    assert observed==max(inherited,10) and limits['priority']=='nice:at-least-10'
+    assert limits['nice']==observed
 print(json.dumps({'priority':observed}))
 '''
     before = os.getpriority(os.PRIO_PROCESS, 0) if os.name != "nt" else None
     result = subprocess.run(
         [getattr(sys, "_base_executable", sys.executable), "-I", "-c", code,
-         str(Path(__file__).resolve().parents[1] / "core"), sysconfig.get_path("purelib")],
+         str(Path(__file__).resolve().parents[1] / "core"), sysconfig.get_path("purelib"),
+         str(inherited_nice)],
         capture_output=True, timeout=10, check=True,
     )
-    assert json.loads(result.stdout)["priority"] == (0x4000 if os.name == "nt" else before)
+    assert json.loads(result.stdout)["priority"] == (
+        0x4000 if os.name == "nt" else max(before, inherited_nice, 10))
     if before is not None:
         assert os.getpriority(os.PRIO_PROCESS, 0) == before
 
 
-def test_failed_termination_keeps_process_ownership_and_global_slot(monkeypatch, tmp_path):
+def test_failed_termination_keeps_process_ownership_and_global_slot(monkeypatch, tmp_path, model):
     host = runtime.LocalRuntime(tmp_path)
     assert runtime._SLOT.acquire(blocking=False)
     host._slot = True
@@ -260,6 +389,13 @@ def test_failed_termination_keeps_process_ownership_and_global_slot(monkeypatch,
                              stdin=SimpleNamespace(close=lambda: None),
                              stdout=SimpleNamespace(close=lambda: None))
     host._process = worker
+    host._model = model.entry.model_sha256
+    sent = []
+    monkeypatch.setattr(host, "validate_installation", lambda: None)
+    monkeypatch.setattr(host, "_send", lambda *a, **k: sent.append(True))
+    monkeypatch.setattr(host, "_receive", lambda *a, **k: {
+        "event": "result", "text": "OLD-RESPONSE", "seconds": 0.1, "memory": {},
+    })
     if sys.platform != "win32":
         monkeypatch.setattr(runtime.os, "killpg", lambda *args: None)
     try:
@@ -267,6 +403,11 @@ def test_failed_termination_keeps_process_ownership_and_global_slot(monkeypatch,
             host.close()
         assert host._process is worker and host._slot
         assert not runtime._SLOT.acquire(blocking=False)
+        # A late response from the unconfirmed old worker cannot satisfy a new
+        # request, even when its model bytes and installation still match.
+        with pytest.raises(ModelError, match="busy"):
+            host._infer(model, runtime.native_selection(), "new request")
+        assert sent == []
     finally:
         alive = False
         host.close()
@@ -341,6 +482,82 @@ def test_measurement_report_never_promotes_missing_or_failed_observations():
     assert set(report["gates"].values()) == {"NOT_RUN"}
     report["cancel_load"] = {"seconds": 2.1, "worker_absent": True, "code": "cancelled"}
     assert evaluate(report)["status"] == "FAIL"
+
+
+@pytest.mark.parametrize("prompt", ["wrong-request", "wrong-pid", "wrong-phase", "extra-field",
+                                   "first-before-prefill", "duplicate-prefill"])
+def test_supervisor_rejects_unbound_or_out_of_order_native_observations(host, model, prompt):
+    with pytest.raises(ModelError, match="state"):
+        host._infer(model, runtime.native_selection(), prompt)
+    assert not host.loaded
+
+
+def test_fresh_native_observation_cannot_reuse_previous_request_identity(host, model):
+    first = host._infer(model, runtime.native_selection(), "public synthetic first")
+    before = time.monotonic()
+    second = host._infer(model, runtime.native_selection(), "public synthetic second")
+    assert first["prefill"]["request"] != second["prefill"]["request"]
+    assert first["prefill"]["pid"] == second["prefill"]["pid"] == host._process.pid
+    # A monotonic clock is nondecreasing; consecutive observations can share a
+    # Windows clock tick. Freshness is bound to the distinct request IDs above.
+    assert first["prefill"]["received"] <= before <= second["prefill"]["received"]
+    assert second["prefill"]["phase"] == "native_prefill"
+
+
+@pytest.mark.parametrize("missing", ["observation", "phase", "request", "pid", "worker", "probe"])
+def test_s07_measurement_requires_bound_inference_and_complete_concurrent_probe(missing):
+    import copy
+
+    from scripts.ai_runtime_report import evaluate
+
+    probe = {"capture_seconds": 0.1, "search_seconds": 0.1, "preserved": True,
+             "search_found": True, "product_dispatch_blocked": True, "worker_observed": True}
+    report = {"samples": [], "failures": [], "s07_required": True,
+              "deterministic_idle": [dict(probe) for _ in range(3)],
+              "s07": {"status": "MEASURED", "session_off": True, "final_off": True,
+                      "worker_absent": True, "samples": []}}
+    for phase in ("cold", "warm"):
+        prefill = {"phase": "native_prefill", "request": "a" * 32, "pid": 7, "received": 1.0}
+        report["s07"]["samples"].append({
+            "phase": phase, "status": "succeeded", "attempts": 1, "inference_observed": True,
+            "receipt": "public-receipt", "seconds": 3, "first_seconds": 2,
+            "worker": {"prefill": dict(prefill), "memory": {"peak_rss": 1024**2},
+                       "load": {"pid": 7, "seconds": 1}, "input_tokens": 10,
+                       "reused_input_tokens": 0 if phase == "cold" else 5},
+            "probe": dict(probe), "concurrency": dict(prefill),
+        })
+    assert evaluate(copy.deepcopy(report))["gates"]["s07_setup"] == "PASS"
+    row = report["s07"]["samples"][0]
+    if missing == "observation":
+        del row["inference_observed"]
+        row["generation_observed"] = True  # Old report is not retroactively accepted.
+    elif missing == "worker":
+        row["worker"]["prefill"]["request"] = "b" * 32
+    elif missing == "probe":
+        row["probe"]["worker_observed"] = False
+    else:
+        del row["concurrency"][missing]
+        del row["worker"]["prefill"][missing]
+    assert evaluate(report)["gates"]["s07_setup"] == "FAIL"
+
+
+def test_early_native_failure_retains_every_required_slice_gate(tmp_path, monkeypatch):
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "scripts"))
+    from scripts import qualify_ai_runtime
+
+    monkeypatch.setattr(qualify_ai_runtime.subprocess, "check_output", lambda *a, **k: "1" * 40)
+
+    def unavailable():
+        raise ModelError("compatibility")
+
+    monkeypatch.setattr(qualify_ai_runtime, "hardware", unavailable)
+    output = tmp_path / "report.json"
+    report = qualify_ai_runtime.measure(tmp_path, output)
+    assert report["status"] == "FAIL" and report["failures"] == ["compatibility"]
+    assert len(report["gates"]) == 26
+    assert set(report["gates"].values()) == {"NOT_RUN"}
+    assert report["gates"]["s07_setup"] == "NOT_RUN"
+    assert json.loads(output.read_text(encoding="utf-8")) == report
 
 
 def test_native_library_change_invalidates_lifecycle_evidence_and_closes_runner(

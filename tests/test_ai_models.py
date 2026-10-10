@@ -25,6 +25,7 @@ from provelume.ai_models import (
     parse_manifest,
     sha256,
 )
+from provelume.ai_runtime_contract import MODEL_ID, RETIRED_MODEL_IDS
 from provelume.component_inventory import ComponentInventory
 from provelume.service import ProvelumeInstance
 
@@ -76,11 +77,42 @@ def test_governed_manifest_separates_identity_trust_and_qualification():
         ModelRegistry(raw)  # Even a consistent caller-supplied hash is not approval.
 
 
+@pytest.mark.parametrize("identifier", RETIRED_MODEL_IDS)
+def test_retired_native_selection_remains_readable_and_explicitly_removable(store, identifier):
+    from provelume.ai_runtime import native_selection
+
+    entry = store.registry.entry(identifier)
+    assert entry.qualification == "RETIRED"
+    assert entry.id not in store.registry.discover(requested=True)
+    with store._hold():
+        store._write_state({"schema_version": 1, "active": entry.id, "previous": None})
+        # Even corrupt retired bytes must be removable, never executable.
+        path = store._path(entry)
+        path.write_bytes(b"synthetic retired cache")
+    assert store._state()["active"] == entry.id
+    with pytest.raises(ModelError, match="revoked"), store.use(native_selection()):
+        pytest.fail("retired model admitted")
+    with pytest.raises(ModelError, match="revoked"):
+        store.install(entry.id, native_selection(), requested=True,
+                      license_accepted=entry.license, transport=object())
+    with pytest.raises(ModelError, match="revoked"):
+        native_selection().validate(entry)
+    assert path.read_bytes() == b"synthetic retired cache"
+    store.deactivate(requested=True)
+    assert store._state()["previous"] == entry.id
+    with pytest.raises(ModelError, match="revoked"):
+        store.rollback(native_selection(), runner, requested=True)
+    store.remove(entry.id, requested=True)
+    assert not path.exists()
+    assert store._state() == {"schema_version": 1, "active": None, "previous": None}
+
+
 def test_admitted_registry_reads_reuse_immutable_parse(monkeypatch):
     from provelume import ai_models
 
     registry = ModelRegistry.packaged()
     entries = registry.entries
+    discovered = registry.discover(requested=True)
 
     def unexpected_parse(*args):
         pytest.fail("immutable admitted manifest reparsed in the polling path")
@@ -88,7 +120,7 @@ def test_admitted_registry_reads_reuse_immutable_parse(monkeypatch):
     monkeypatch.setattr(ai_models, "parse_manifest", unexpected_parse)
     for _ in range(3):
         assert registry.entry(V1) == entries[0]
-        assert registry.discover(requested=True) == tuple(e.id for e in entries)
+        assert registry.discover(requested=True) == discovered
         assert registry.inventory()["recommended"] is None
     with pytest.raises(dataclasses.FrozenInstanceError):
         registry.raw = b"{}"
@@ -415,7 +447,7 @@ def test_no_implicit_network_or_dispatch(store, runtime, monkeypatch):
     assert not store.root.exists()
     with pytest.raises(ModelError, match="consent"):
         store.registry.discover()
-    assert store.registry.discover(requested=True) == (V1, V2, "qwen2.5-1.5b-instruct-q4-k-m")
+    assert store.registry.discover(requested=True) == (V1, V2, MODEL_ID)
     install(store, runtime)
     activate(store, runtime)
     assert ProvelumeInstance.ai_execution_status()["enabled"] is False

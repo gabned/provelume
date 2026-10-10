@@ -132,7 +132,9 @@ class AiJobs:
     This internal dependency is never taken from a request, document or job record.
     """
 
-    def __init__(self, coordinator, *, current=None, adapters=None, quotes=None, fault=None):
+    def __init__(self, coordinator, *, current=None, adapters=None, quotes=None, fault=None,
+                 result_projector=None):
+        self.result_projector = result_projector
         self.coordinator = coordinator
         self.journal = coordinator.journal
         self.current = current
@@ -149,10 +151,12 @@ class AiJobs:
         self.session_authorized = True
 
     @contextmanager
-    def _transaction(self):
+    def _transaction(self, *, wait_seconds=0):
         # Same lock order as scheduler admission and staged restore. A directory
         # swap cannot erase a reservation or settlement written to the old root.
-        with self.coordinator._hold_lifecycle("ai-job-transaction"), self.journal.hold():
+        with self.coordinator._hold_lifecycle(
+            "ai-job-transaction", wait_seconds=wait_seconds
+        ), self.journal.hold():
             yield
 
     def _control(self):
@@ -190,7 +194,7 @@ class AiJobs:
 
     def configure(self, *, mode, budget=None):
         check(mode in {"off", "enabled", "paused"})
-        with self._transaction():
+        with self._transaction(wait_seconds=2):
             value = self._control()
             if budget is not None:
                 record = budget_record(budget)
@@ -219,7 +223,10 @@ class AiJobs:
 
     def change_authority(self, change, *, revoke=None):
         """Serialize supported host-source mutation against dispatch authorization."""
-        with self._transaction():
+        # A scheduler cycle can briefly own the Instance at startup or between
+        # requests. Wait only before entering the transaction; never replay a
+        # consent/configuration mutation, and validate it under the acquired lock.
+        with self._transaction(wait_seconds=2):
             if revoke is not None:
                 fingerprint(revoke)
                 value = self._control()
@@ -247,7 +254,7 @@ class AiJobs:
         budget_record(budget)
         check(type(request_key) is str and 1 <= len(request_key) <= 200)
         check(type(acknowledge_duplicate_risk) is bool)
-        with self._transaction():
+        with self._transaction(wait_seconds=2):
             control = self._control()
             check(control["mode"] != "off", "ai_off")
             inputs, request, _ = self._inputs(request_ref, 0)
@@ -504,7 +511,10 @@ class AiJobs:
                 return True
 
         try:
-            with self._transaction():
+            # Claiming releases the lifecycle lock before this owned task runs.
+            # A short scheduler/capture transaction may enter that gap. Wait
+            # before authorizing once; never turn it into an inference retry.
+            with self._transaction(wait_seconds=2):
                 clock = utc_instant(now)
                 job = self._owned(job_id, token, clock)
                 inputs, _, profile, _ = self._validate(job, clock)
@@ -557,7 +567,9 @@ class AiJobs:
             )
 
     def complete(self, job_id, token, *, outcome=None, error=None, elapsed_ms=0, now=None):
-        with self._transaction():
+        # Keep an already observed outcome while a brief competing transaction
+        # finishes. Fresh lease/authority checks still happen under the lock.
+        with self._transaction(wait_seconds=2):
             clock = utc_instant(now)
             job = self.journal.get_job(job_id)
             check(job is not None and job["job_kind"] == AI_JOB_KIND)
@@ -603,11 +615,18 @@ class AiJobs:
                         blocked="ai_authority_changed",
                     )
                 else:
-                    ai.update(
-                        result=outcome.result,
-                        result_fingerprint=digest(outcome.result),
-                        terminal="succeeded",
-                    )
+                    try:
+                        result = (
+                            self.result_projector(job, outcome.result)
+                            if self.result_projector else outcome.result
+                        )
+                    except Exception:
+                        # A known completed call still settles its usage when output
+                        # validation/storage fails. Never turn this into a resend.
+                        ai.update(terminal="failed", blocked="ai_result_invalid")
+                    else:
+                        ai.update(result=result, result_fingerprint=digest(result),
+                                  terminal="succeeded")
             else:
                 check(type(error) is ProviderError)
                 if error.transmission != Transmission.NOT_SENT:

@@ -17,6 +17,7 @@ import sysconfig
 import threading
 import time
 from pathlib import Path
+from uuid import uuid4
 
 from .ai_model_download import checkpoint
 from .ai_model_file import VerifiedModelFile
@@ -54,6 +55,7 @@ class LocalRuntime:
         # Pure construction; no probing, worker, acquisition or implicit self-test.
         self.directory = Path(runtime_directory)
         self._lock = threading.RLock()
+        self._request_lock = threading.Lock()
         self._process = None
         self._reader = None
         self._writer = None
@@ -62,6 +64,9 @@ class LocalRuntime:
         self._model = None
         self._messages = queue.Queue(maxsize=8)
         self._load = None
+        self._first_received = None
+        self._prefill_observation = None
+        self._request_id = None
         self.last_observation = None
         self.worker_history = []
 
@@ -148,10 +153,25 @@ class LocalRuntime:
             if value.get("event") == "eof":
                 self.last_observation = {"failure": "worker_exit",
                                          "returncode": self._process.poll()}
-            check(value.get("event") in (event, "first"), "state")
+            check(value.get("event") in (event, "prefill", "first"), "state")
+            if value["event"] == "prefill":
+                check(event == "result" and self._prefill_observation is None
+                      and self._first_received is None
+                      and set(value) == {"event", "phase", "request", "pid"}
+                      and value["phase"] == "native_prefill"
+                      and type(value["request"]) is str
+                      and value["request"] == self._request_id
+                      and type(value["pid"]) is int
+                      and value["pid"] == self._process.pid, "state")
+                self._prefill_observation = {"phase": value["phase"],
+                                            "request": value["request"], "pid": value["pid"],
+                                            "received": time.monotonic()}
             if value["event"] == "first":
+                check(event == "result" and self._prefill_observation is not None
+                      and self._first_received is None, "state")
                 self._first_received = time.monotonic()
             if value["event"] == event:
+                check(event != "result" or self._prefill_observation is not None, "state")
                 return value
 
     def _start(self, model, *, deadline, cancel):
@@ -220,6 +240,9 @@ class LocalRuntime:
             raise
 
     def _stop(self):
+        # Revoke reuse before termination: even an unconfirmed exit must never
+        # let a late response from this worker satisfy a subsequent request.
+        self._model = None
         timer, self._timer = self._timer, None
         if timer is not None:
             timer.cancel()
@@ -261,19 +284,53 @@ class LocalRuntime:
             if self._timer is marker:
                 self._stop()
 
-    def _infer(self, model, selection, prompt, *, cancel=lambda: False, reuse_scope=None):
+    @contextlib.contextmanager
+    def _admit(self, *, deadline, cancel):
+        # An idle timer may already be terminating the previous worker. Reserve
+        # the sole request immediately, then allow its bounded cleanup to finish.
+        # Other requests still fail immediately: there is no waiting request queue.
+        check(self._request_lock.acquire(blocking=False), "busy")
+        acquired = False
+        try:
+            cleanup_deadline = min(deadline, time.monotonic() + 2)
+            acquired = self._lock.acquire(blocking=False)
+            while not acquired:
+                checkpoint(cancel, cleanup_deadline)
+                acquired = self._lock.acquire(timeout=0.02)
+            yield
+        finally:
+            if acquired:
+                self._lock.release()
+            self._request_lock.release()
+
+    def _infer(self, model, selection, prompt, *, cancel=lambda: False, reuse_scope=None,
+               response_format=None):
         """Internal primitive for lifecycle qualification and governed S06 attempts."""
-        check(self._lock.acquire(blocking=False), "busy")
+        started = time.monotonic()
+        deadline = started + 60
+        with self._admit(deadline=deadline, cancel=cancel):
+            return self._infer_owned(
+                model, selection, prompt, cancel=cancel, reuse_scope=reuse_scope,
+                response_format=response_format, started=started, deadline=deadline,
+            )
+
+    def _infer_owned(self, model, selection, prompt, *, cancel, reuse_scope,
+                     response_format, started, deadline):
         try:
             selection.validate(model.entry)
             check(selection.platform == native_selection().platform, "compatibility")
             check(type(prompt) is str and 0 < len(prompt.encode("utf-8")) <= 4096, "limit")
-            check(not any(token in prompt for token in ("<|im_start|>", "<|im_end|>")), "limit")
+            check("<|" not in prompt, "limit")
             check(reuse_scope is None or (type(reuse_scope) is str and len(reuse_scope) == 64
                   and all(ch in "0123456789abcdef" for ch in reuse_scope)), "state")
-            deadline = time.monotonic() + 60
-            started = time.monotonic()
+            if response_format is not None:
+                from .ai_synthesis_profile import chat_parts
+
+                chat_parts(prompt, response_format)
+                response_format = dict(response_format)
             self._first_received = None
+            self._prefill_observation = None
+            self._request_id = uuid4().hex
             checkpoint(cancel, deadline)
             self.validate_installation()
             if self._timer is not None:
@@ -284,9 +341,11 @@ class LocalRuntime:
                 self._stop()
                 self._start(model, deadline=deadline, cancel=cancel)
             check(self._model == model.entry.model_sha256, "stale")
-            message = {"prompt": prompt}
+            message = {"prompt": prompt, "request": self._request_id}
             if reuse_scope is not None:
                 message["scope"] = reuse_scope
+            if response_format is not None:
+                message["response_format"] = response_format
             self._send(message, deadline=deadline, cancel=cancel)
             value = self._receive("result", deadline=deadline, cancel=cancel)
             check(
@@ -296,6 +355,8 @@ class LocalRuntime:
             value.update(cold=cold, total_seconds=time.monotonic() - started, load=self._load)
             value["first_wall_seconds"] = (self._first_received - started
                                            if self._first_received is not None else None)
+            value["prefill"] = (dict(self._prefill_observation)
+                                if self._prefill_observation is not None else None)
             self.last_observation = {k: v for k, v in value.items() if k != "text"}
             timer = threading.Timer(5, lambda: self._idle(timer))
             self._timer = timer
@@ -308,8 +369,6 @@ class LocalRuntime:
         except Exception:
             self._stop()
             raise ModelError("state") from None
-        finally:
-            self._lock.release()
 
     def __call__(self, model, selection, cancel):
         value = self._infer(
