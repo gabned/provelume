@@ -25,15 +25,27 @@ Documents; there is no persistent cache and later calls observe trash, restore
 and corrupt/orphaned records afresh. The two duplicate-I/O regressions fail on
 the preceding source and pass with the correction.
 
-Atomic commit path checks now inspect each existing path component once, rather
-than repeatedly resolving the same chain per entry. The absolute Instance root
-was resolved by InstanceStore on open; each subsequent check still freshly
-observes the entire path, including root ancestors. Symbolic links, Windows
+Atomic commit path checks inspect each existing path component and then resolve
+the complete target once, rather than resolving the same chain three times per
+entry. The absolute Instance root was resolved by InstanceStore on open; each
+subsequent check freshly observes the entire path, including root ancestors,
+and rejects a resolved target differing from that lexical path. Symbolic links, Windows
 junctions, non-directory parents and unreadable components fail closed. Missing
 components remain admissible without creating them during validation. The same
 checks run during add, preparation, replacement and recovery; observations never
 survive between those boundaries. Real-link tests also reproduce the previous
 acceptance of a root or ancestor replaced with a symbolic link after open.
+
+Review of the first corrective candidate (`8a312608`) found that omitting the
+final resolution could accept a parent replaced after its component observation.
+Deterministic interposition now tests real links replacing an ancestor, root or
+middle directory after `lstat` returns, both during add and after preparation
+before replacement. Those six Linux cases fail on that candidate; the replacement
+cases actually publish outside the Instance. The final resolution is restored,
+with equivalent native Windows junction cases included. No descriptor-pinned
+filesystem transaction or immunity to arbitrary later external renames is claimed.
+The original candidate's native PASS remains historical evidence; the changed
+source requires its own full qualification.
 
 The journal schema, file and directory flushes, byte/digest/preimage checks,
 replacement order, rollback/recovery, bounds, authorization and acknowledgement

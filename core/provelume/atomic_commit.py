@@ -467,10 +467,10 @@ def _instance_target(
         selected = normalise_locator(relative)
         if selected == ".":
             raise error_type()
-        # InstanceStore fixes an absolute root on open. Re-observe every existing
-        # component once here, including its ancestors, without resolving that
-        # same chain three times for each journal entry. Never cache observations
-        # between add, prepare, replacement or recovery.
+        # InstanceStore fixes an absolute root on open. Observe every existing
+        # component, including its ancestors, then resolve the full path once
+        # more to reject a parent replaced during those observations. Never cache
+        # observations between add, prepare, replacement or recovery.
         root = store.paths.root
         if not root.is_absolute():
             raise error_type()
@@ -489,7 +489,10 @@ def _instance_target(
                 raise error_type()
             if current != lexical and not stat.S_ISDIR(observed.st_mode):
                 raise error_type()
-        target = native_path(lexical) if os.name == "nt" and len(str(lexical)) >= 248 else lexical
+        resolved = lexical.resolve()
+        if native_path(resolved) != native_path(lexical):
+            raise error_type()
+        target = native_path(resolved) if os.name == "nt" and len(str(resolved)) >= 248 else resolved
     except (OSError, RuntimeError, ValueError):
         raise error_type() from None
     return target, selected
