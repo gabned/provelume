@@ -67,6 +67,8 @@
         if (cancelNonce && typeof value.cancel_nonce === "string") {
           cancelNonce.value = value.cancel_nonce;
         }
+        const cancelButton = root.querySelector("#ai-model-actions button");
+        if (cancelButton) cancelButton.disabled = value.cancel_requested;
         const operation = root.querySelector("#ai-model-operation");
         operation.dataset.bytes = String(value.bytes);
         operation.querySelector("[data-ai-bytes]").textContent =

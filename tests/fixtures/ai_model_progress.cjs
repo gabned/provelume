@@ -7,12 +7,12 @@ function fixture() {
   const timers = new Map(), requests = [], listeners = {}, windowListeners = {};
   let next = 0;
   const node = () => ({textContent:'', value:'', dataset:{}, removeAttribute(key) {delete this[key];}});
-  const notice=node(), manual=node(), bytes=node(), progress=node(), phase=node(), nonce=node();
+  const notice=node(), manual=node(), bytes=node(), progress=node(), phase=node(), nonce=node(), cancel=node();
   const operation=node(); operation.querySelector=()=>bytes;
   manual.addEventListener=(_, callback)=>{manual.click=callback;};
   const fields = {'[data-ai-refresh-status]':notice,'[data-ai-refresh]':manual,
     '[data-ai-phase]':phase,'#ai-model-operation':operation,'[data-ai-progress]':progress,
-    '#ai-model-actions input[name="mutation_nonce"]':nonce};
+    '#ai-model-actions input[name="mutation_nonce"]':nonce,'#ai-model-actions button':cancel};
   const root={dataset:{state:'running',url:'/settings/ai/model/status?lang=en',
     instance:'instance',session:'session',operation:'operation',unavailable:'unavailable',
     stale:'stale',running:'running',verifying:'verifying',cancelling:'cancelling'},
@@ -38,7 +38,7 @@ function fixture() {
       cancel_requested:false,cancel_nonce:'fresh',...value})});await settle();
   };
   return {timers,requests,listeners,windowListeners,document,root,notice,manual,bytes,progress,
-    phase,nonce,operation,tick,reply};
+    phase,nonce,cancel,operation,tick,reply};
 }
 (async()=>{
   let f=fixture();await f.tick();await f.reply();
@@ -48,6 +48,7 @@ function fixture() {
   await f.tick();await f.reply({bytes:1440000000});
   assert.equal(f.progress.value,undefined);assert.equal(f.phase.textContent,'verifying');
   await f.tick();await f.reply({cancel_requested:true});assert.equal(f.phase.textContent,'cancelling');
+  assert.equal(f.cancel.disabled,true);
   await f.tick();const count=f.requests.length;
   f.manual.click({preventDefault(){}});assert.equal(f.requests.length,count);
   f.requests.at(-1).reject(new Error('offline'));await settle();
