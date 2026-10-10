@@ -30,6 +30,7 @@ from provelume.build_info import BuildInfoError, create_build_info  # noqa: E402
 SOURCE_REPOSITORY = "gabned/provelume"
 EVIDENCE_SCHEMA_VERSION = 1
 IGNORED_NAMES = {
+    ".agent",
     ".git",
     ".local",
     ".mypy_cache",
@@ -39,6 +40,7 @@ IGNORED_NAMES = {
     ".venv",
     "__pycache__",
     "build",
+    "build-native",
     "dist",
     "release",
 }

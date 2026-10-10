@@ -13716,6 +13716,18 @@
       "rendering": "text",
       "sensitive_review_required": false
     },
+    "synthesis.cleanup": {
+      "context": "Document synthesis: explicit incomplete-result disposal or fresh preview recovery; templates/ai_synthesis.html; templates/ai_operations.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "synthesis.cleanup_help": {
+      "context": "Document synthesis: explicit incomplete-result disposal or fresh preview recovery; templates/ai_synthesis.html; templates/ai_operations.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
     "synthesis.consent": {
       "context": "Custodia S08 manual extractive synthesis: consent",
       "rendering": "text",
@@ -13770,6 +13782,12 @@
       "context": "Custodia S08 manual extractive synthesis: inherit",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "synthesis.input_recovery": {
+      "context": "Document synthesis: explicit incomplete-result disposal or fresh preview recovery; templates/ai_synthesis.html; templates/ai_operations.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     },
     "synthesis.key_points": {
       "context": "Custodia S08 manual extractive synthesis: key_points",

@@ -96,3 +96,63 @@ def test_raw_verification_observes_cancellation_at_eof(tmp_path):
 
         with pytest.raises(ModelError, match="model_cancelled"):
             ai_model_file.verify_stream(CancelAtEof(), entry, cancel=stopped.is_set)
+
+
+@pytest.mark.parametrize("signal", ["immediate", "authority", "at_eof", "deadline"])
+def test_read_authority_preserves_cancellation_and_final_boundary(tmp_path, monkeypatch, signal):
+    data = b"GGUF\x03\0\0\0" + bytes(12 * 1024 * 1024)
+    path = tmp_path / "bounded.gguf"
+    path.write_bytes(data)
+    entry = SimpleNamespace(model_size=len(data), model_sha256=hashlib.sha256(data).hexdigest())
+    clock, reads, checks = [100.0], [], []
+    changed, immediate = threading.Event(), threading.Event()
+    monkeypatch.setattr(ai_model_file.time, "monotonic", lambda: clock[0])
+
+    def authority():
+        checks.append(clock[0])
+        return changed.is_set()
+
+    with path.open("rb") as handle:
+        class ObservedRead:
+            def __getattr__(self, name):
+                return getattr(handle, name)
+
+            def read(self, amount):
+                block = handle.read(amount)
+                reads.append(clock[0])
+                clock[0] += 0.003
+                if signal == "immediate":
+                    immediate.set()
+                elif (signal == "authority" and len(reads) == 1) or (
+                    signal == "at_eof" and not block
+                ):
+                    changed.set()
+                return block
+
+        probe = ai_model_file.ReadAuthority(authority, immediate=immediate.is_set)
+        with pytest.raises(ModelError, match="model_" + (
+            "timeout" if signal == "deadline" else "cancelled"
+        )):
+            ai_model_file.verify_stream(
+                ObservedRead(), entry, cancel=probe,
+                deadline=100.008 if signal == "deadline" else float("inf"),
+            )
+    if signal == "immediate":
+        assert len(reads) == 1
+    elif signal == "authority":
+        assert clock[0] - 100.003 < 0.021
+        assert len(checks) < len(reads)
+    elif signal == "deadline":
+        assert len(reads) == 3
+    else:
+        assert len(reads) == 14 and changed.is_set()
+
+
+def test_read_authority_never_caches_dispatch_or_publication_authority(monkeypatch):
+    monkeypatch.setattr(ai_model_file.time, "monotonic", lambda: 100.0)
+    denied = threading.Event()
+    probe = ai_model_file.ReadAuthority(denied.is_set)
+    assert not probe.reading()
+    denied.set()
+    # Same clock tick: only internal file-read polling may coalesce its probe.
+    assert probe() is True

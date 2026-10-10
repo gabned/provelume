@@ -5,11 +5,41 @@
 <section class="hero"><h1>{{ t('ai.title') }}</h1><p class="lead">{{ t('ai.boundary') }}</p></section>
 {% if error %}<p role="alert" class="notice">{{ t(error_key or 'ai.error') }}</p>{% endif %}
 <section class="panel" aria-labelledby="ai-state"><h2 id="ai-state">{{ t('ai.state') }}</h2>
-<p role="status" aria-live="polite">{{ t('ai.' ~ ai.control.mode) }}{% if not ai.control.session_authorized %} · {{ t('ai.session_off') }}{% endif %}</p>
-<p>{{ t('ai.unknown') }}</p><dl><dt>{{ t('ai.reserved') }}</dt><dd>{{ ai.control.accounting.units }}</dd></dl>
+<p role="status" aria-live="polite">{{ t('ai.' ~ ai.control.mode) if ai.control.session_authorized else t('ai.off') }}{% if not ai.control.session_authorized %} · {{ t('ai.session_off') }}{% endif %}</p>
+{% if ai.control.accounting.units %}<details><summary>{{ t('ai.reserved') }} · {{ ai.control.accounting.units }}</summary><p>{{ t('ai.unknown') }}</p></details>{% endif %}
 <p><a href="/operations/ai?lang={{ lang }}">{{ t('ai.operations') }}</a> · <a href="/components?lang={{ lang }}">{{ t('nav.components') }}</a></p>
 </section>
-<section class="panel"><h2>{{ t('ai.configuration') }}</h2>
+{% if ai.configuration.mode != 'off' %}
+<section class="panel"><h2>{{ t('ai.controls') }}</h2><p>{{ t('ai.enable_help') }}</p>
+{% for action in ['enable','paused','off'] if (action == 'enable' and ai.configuration.mode != 'off') or (action != 'enable' and ai.control.session_authorized and ai.control.mode != action) %}<form method="post" action="/settings/ai/control?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="revision" value="{{ ai.configuration.revision }}"><input type="hidden" name="action" value="{{ action }}"><button type="submit" class="secondary">{{ t('ai.' ~ action) }}</button></form>{% endfor %}
+</section>
+{% endif %}
+<section class="panel" aria-labelledby="local-ai-setup"><h2 id="local-ai-setup">{{ t('ai.local_setup') }}</h2>
+<p>{{ t('ai.guided_help') }}</p><h3>Qwen3.5 2B</h3>
+<p role="status">{{ t('ai.present_model') if 'enable_local' in ai.model_actions else t('ai.missing_model') }}{% if ai.locality_verified %} · {{ t('ai.completed') }}{% endif %}</p>
+<dl><dt>{{ t('ai.size') }}</dt><dd>1.44 GB</dd><dt>{{ t('ai.license') }}</dt><dd>{{ ai.current_model.license }}</dd><dt>{{ t('ai.storage_location') }}</dt><dd class="hash">{{ ai.model_store }}</dd></dl>
+{% if ai.operation %}<div id="ai-model-operation" role="status" aria-live="polite" data-state="{{ ai.operation.state }}" data-action="{{ ai.operation.action }}" data-error="{{ ai.operation.error or '' }}" data-diagnostic-stage="{{ ai.operation.diagnostic_stage or '' }}" data-native-code="{{ ai.operation.native_code if ai.operation.native_code is defined else '' }}"><p>{{ t('ai.' ~ ai.operation.state) }} · {{ ai.operation.bytes }} B</p>{% if ai.operation.error %}<p>{{ t('ai.error') }}</p>{% endif %}{% if ai.operation.cancel_requested %}<p>{{ t('ai.cancel_help') }}</p>{% endif %}{% if ai.operation.diagnostic_stage %}<details><summary>{{ t('ai.advanced') }}</summary><p><code>{{ ai.operation.diagnostic_stage }}{% if ai.operation.native_code is defined %} · {{ ai.operation.native_code }}{% endif %}</code></p></details>{% endif %}</div>{% endif %}
+
+{% if ai.operation and ai.operation.state == 'running' %}
+{% if ai.operation.action in ['install','import','verify','self_test','activate','rollback','enable_local'] %}<form method="post" action="/settings/ai/model/cancel?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="operation_id" value="{{ ai.operation.id }}"><button type="submit">{{ t('ai.cancel') }}</button></form>{% endif %}
+{% else %}
+{% if 'enable_local' in ai.model_actions %}
+<form method="post" action="/settings/ai/model?lang={{ lang }}" class="settings-form">{% include 'ai_fields.html' %}<input type="hidden" name="authority" value="{{ ai.model_authority }}"><input type="hidden" name="path" value=""><input type="hidden" name="action" value="enable_local"><input type="hidden" name="acknowledge" value="explicit"><button type="submit">{{ t('ai.enable_local') }}</button></form>
+{% else %}
+{% if ai.network_enabled %}<form method="post" action="/settings/ai/model?lang={{ lang }}" class="settings-form">{% include 'ai_fields.html' %}<input type="hidden" name="authority" value="{{ ai.model_authority }}"><input type="hidden" name="path" value=""><input type="hidden" name="action" value="install"><label><input type="checkbox" name="acknowledge" value="explicit" required>{{ t('ai.model_consent') }}</label><button type="submit">{{ t('ai.install') }} · 1.44 GB</button></form>{% else %}<p>{{ t('ai.download_network_help') }} <a href="#ai-network">{{ t('nav.network') }}</a></p>{% endif %}
+<details><summary>{{ t('ai.import') }}</summary><form method="post" action="/settings/ai/model?lang={{ lang }}" class="settings-form">{% include 'ai_fields.html' %}<input type="hidden" name="authority" value="{{ ai.model_authority }}"><input type="hidden" name="action" value="import"><label for="ai-import-path">{{ t('ai.import_path') }}</label><input id="ai-import-path" name="path" autocomplete="off" maxlength="2048" required><label><input type="checkbox" name="acknowledge" value="explicit" required>{{ t('ai.model_consent') }}</label><button type="submit">{{ t('ai.import') }}</button></form></details>
+{% endif %}
+<details><summary>{{ t('ai.advanced') }}</summary><p>{{ t('ai.candidate') }}</p><p>{{ t('ai.runtime_help') }}</p>
+<form method="post" action="/settings/ai/model?lang={{ lang }}" class="settings-form">{% include 'ai_fields.html' %}<input type="hidden" name="authority" value="{{ ai.model_authority }}">
+<label for="ai-local-action">{{ t('ai.action') }}</label><select id="ai-local-action" name="action">{% for action in ai.model_actions if action not in ['enable_local','install','import'] %}<option value="{{ action }}">{% if action.startswith('remove:') %}{{ t('ai.remove') }} · {{ action[7:] }}{% else %}{{ t('ai.' ~ action) }}{% endif %}</option>{% endfor %}</select>
+<label for="ai-runtime-path">{{ t('ai.import_path') }}</label><input id="ai-runtime-path" name="path" autocomplete="off" maxlength="2048"><label><input type="checkbox" name="acknowledge" value="explicit" required>{{ t('ai.model_consent') }}</label><button type="submit">{{ t('ai.confirm') }}</button></form>
+{% for entry in ai.registry.entries if entry.runtime_id == 'llama.cpp' %}<dl><dt>{{ t('ai.model') }}</dt><dd>{{ entry.id }}</dd><dt>{{ t('ai.size') }}</dt><dd>{{ entry.size_bytes }} B</dd><dt>{{ t('ai.license') }}</dt><dd>{{ entry.license }} · llama.cpp {{ entry.runtime_version }} · MIT</dd><dt>SHA-256</dt><dd class="hash">{{ entry.expected_sha256 }}</dd></dl>{% endfor %}</details>
+{% endif %}
+<p><a href="/settings/ai?lang={{ lang }}">{{ t('ai.refresh') }}</a></p></section>
+<section class="panel" id="ai-network"><details{% if not ai.network_enabled %} open{% endif %}><summary>{{ t('nav.network') }}</summary>
+<form method="post" action="/settings/ai/network?lang={{ lang }}" class="settings-form">{% include 'ai_fields.html' %}<input type="hidden" name="revision" value="{{ ai.network_revision }}"><input type="hidden" name="enabled" value="{{ 'no' if ai.network_enabled else 'yes' }}"><label><input type="checkbox" name="acknowledge" value="instance-network" required>{{ t('google_connection.network_consent') }}</label><button type="submit" class="secondary">{{ t('google_connection.disable_network') if ai.network_enabled else t('google_connection.enable_network') }}</button></form>
+<a href="/security/network?lang={{ lang }}">{{ t('network.title') }}</a></details></section>
+<section class="panel"><details><summary>{{ t('ai.advanced') }}</summary><h2>{{ t('ai.configuration') }}</h2>
 <form method="post" action="/settings/ai?lang={{ lang }}" class="settings-form">
 {% include 'ai_fields.html' %}<input type="hidden" name="revision" value="{{ ai.configuration.revision }}">
 <label for="ai-mode">{{ t('ai.mode') }}</label><select id="ai-mode" name="mode">{% for mode in ['off','local','external','hybrid'] %}<option value="{{ mode }}"{% if ai.configuration.mode == mode %} selected{% endif %}>{{ t('ai.' ~ mode) }}</option>{% endfor %}</select>
@@ -23,34 +53,6 @@
 <label for="ai-job-units">{{ t('ai.job_limit') }}</label><input id="ai-job-units" name="job_units" type="number" min="1" max="9007199254740991" value="{{ ai.configuration.job_units }}" required>
 <label for="ai-period-units">{{ t('ai.period_limit') }}</label><input id="ai-period-units" name="period_units" type="number" min="1" max="9007199254740991" value="{{ ai.configuration.period_units }}" required>
 <p>{{ t('ai.price_block') }}</p><button type="submit">{{ t('ai.save') }}</button>
-</form></section>
-<section class="panel"><h2>{{ t('ai.controls') }}</h2><p>{{ t('ai.enable_help') }}</p>
-{% for action in ['enable','paused','off'] if (action == 'enable' and ai.configuration.mode != 'off') or (action != 'enable' and ai.control.session_authorized and ai.control.mode != action) %}<form method="post" action="/settings/ai/control?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="revision" value="{{ ai.configuration.revision }}"><input type="hidden" name="action" value="{{ action }}"><button type="submit" class="secondary">{{ t('ai.' ~ action) }}</button></form>{% endfor %}
-</section>
-<section class="panel" aria-labelledby="local-ai-setup"><h2 id="local-ai-setup">{{ t('ai.local_setup') }}</h2>
-<p>{{ t('ai.guided_help') }}</p><h3>Qwen3.5 2B</h3>
-<p role="status">{{ t('ai.present_model') if 'enable_local' in ai.model_actions else t('ai.missing_model') }}{% if ai.locality_verified %} · {{ t('ai.completed') }}{% endif %}</p>
-<dl><dt>{{ t('ai.size') }}</dt><dd>1.44 GB</dd><dt>{{ t('ai.license') }}</dt><dd>{{ ai.current_model.license }}</dd><dt>{{ t('ai.storage_location') }}</dt><dd class="hash">{{ ai.model_store }}</dd></dl>
-{% if ai.operation %}<div id="ai-model-operation" role="status" aria-live="polite" data-state="{{ ai.operation.state }}" data-action="{{ ai.operation.action }}" data-error="{{ ai.operation.error or '' }}" data-diagnostic-stage="{{ ai.operation.diagnostic_stage or '' }}" data-native-code="{{ ai.operation.native_code if ai.operation.native_code is defined else '' }}"><p>{{ t('ai.' ~ ai.operation.state) }} · {{ ai.operation.bytes }} B</p>{% if ai.operation.error %}<p>{{ t('ai.error') }}</p>{% endif %}{% if ai.operation.cancel_requested %}<p>{{ t('ai.cancel_help') }}</p>{% endif %}{% if ai.operation.diagnostic_stage %}<details><summary>{{ t('ai.advanced') }}</summary><p><code>{{ ai.operation.diagnostic_stage }}{% if ai.operation.native_code is defined %} · {{ ai.operation.native_code }}{% endif %}</code></p></details>{% endif %}</div>{% endif %}
-
-{% if ai.operation and ai.operation.state == 'running' %}
-{% if ai.operation.action in ['install','import','verify','self_test','activate','rollback','enable_local'] %}<form method="post" action="/settings/ai/model/cancel?lang={{ lang }}">{% include 'ai_fields.html' %}<input type="hidden" name="operation_id" value="{{ ai.operation.id }}"><button type="submit">{{ t('ai.cancel') }}</button></form>{% endif %}
-{% else %}
-{% if 'enable_local' in ai.model_actions %}
-<form method="post" action="/settings/ai/model?lang={{ lang }}" class="settings-form">{% include 'ai_fields.html' %}<input type="hidden" name="authority" value="{{ ai.model_authority }}"><input type="hidden" name="path" value=""><input type="hidden" name="action" value="enable_local"><input type="hidden" name="acknowledge" value="explicit"><button type="submit">{{ t('ai.enable_local') }}</button></form>
-{% else %}
-{% if ai.network_enabled %}<form method="post" action="/settings/ai/model?lang={{ lang }}" class="settings-form">{% include 'ai_fields.html' %}<input type="hidden" name="authority" value="{{ ai.model_authority }}"><input type="hidden" name="path" value=""><input type="hidden" name="action" value="install"><label><input type="checkbox" name="acknowledge" value="explicit" required>{{ t('ai.model_consent') }}</label><button type="submit">{{ t('ai.install') }} · 1.44 GB</button></form>{% else %}<p>{{ t('ai.download_network_help') }} <a href="/security/network?lang={{ lang }}">{{ t('nav.network') }}</a></p>{% endif %}
-<details><summary>{{ t('ai.import') }}</summary><form method="post" action="/settings/ai/model?lang={{ lang }}" class="settings-form">{% include 'ai_fields.html' %}<input type="hidden" name="authority" value="{{ ai.model_authority }}"><input type="hidden" name="action" value="import"><label for="ai-import-path">{{ t('ai.import_path') }}</label><input id="ai-import-path" name="path" autocomplete="off" maxlength="2048" required><label><input type="checkbox" name="acknowledge" value="explicit" required>{{ t('ai.model_consent') }}</label><button type="submit">{{ t('ai.import') }}</button></form></details>
-{% endif %}
-<details><summary>{{ t('ai.advanced') }}</summary><p>{{ t('ai.candidate') }}</p><p>{{ t('ai.runtime_help') }}</p>
-<form method="post" action="/settings/ai/model?lang={{ lang }}" class="settings-form">{% include 'ai_fields.html' %}<input type="hidden" name="authority" value="{{ ai.model_authority }}">
-<label for="ai-local-action">{{ t('ai.action') }}</label><select id="ai-local-action" name="action">{% for action in ai.model_actions if action not in ['enable_local','install','import'] %}<option value="{{ action }}">{% if action.startswith('remove:') %}{{ t('ai.remove') }} · {{ action[7:] }}{% else %}{{ t('ai.' ~ action) }}{% endif %}</option>{% endfor %}</select>
-<label for="ai-runtime-path">{{ t('ai.import_path') }}</label><input id="ai-runtime-path" name="path" autocomplete="off" maxlength="2048"><label><input type="checkbox" name="acknowledge" value="explicit" required>{{ t('ai.model_consent') }}</label><button type="submit">{{ t('ai.confirm') }}</button></form>
-{% for entry in ai.registry.entries if entry.runtime_id == 'llama.cpp' %}<dl><dt>{{ t('ai.model') }}</dt><dd>{{ entry.id }}</dd><dt>{{ t('ai.size') }}</dt><dd>{{ entry.size_bytes }} B</dd><dt>{{ t('ai.license') }}</dt><dd>{{ entry.license }} · llama.cpp {{ entry.runtime_version }} · MIT</dd><dt>SHA-256</dt><dd class="hash">{{ entry.expected_sha256 }}</dd></dl>{% endfor %}</details>
-{% endif %}
-<p><a href="/settings/ai?lang={{ lang }}">{{ t('ai.refresh') }}</a></p></section>
-<section class="panel"><details><summary>{{ t('nav.network') }}</summary>
-<form method="post" action="/settings/ai/network?lang={{ lang }}" class="settings-form">{% include 'ai_fields.html' %}<input type="hidden" name="revision" value="{{ ai.network_revision }}"><input type="hidden" name="enabled" value="{{ 'no' if ai.network_enabled else 'yes' }}"><label><input type="checkbox" name="acknowledge" value="instance-network" required>{{ t('google_connection.network_consent') }}</label><button type="submit" class="secondary">{{ t('google_connection.disable_network') if ai.network_enabled else t('google_connection.enable_network') }}</button></form>
-<a href="/security/network?lang={{ lang }}">{{ t('network.title') }}</a></details></section>
-<section class="panel"><h2>{{ t('ai.test') }}</h2><p>{{ t('ai.test_help') }}</p><form method="post" action="/settings/ai/test/preview?lang={{ lang }}">{% include 'ai_fields.html' %}<button type="submit">{{ t('ai.preview') }}</button></form></section>
+</form></details></section>
+<section class="panel"><details><summary>{{ t('ai.test') }}</summary><p>{{ t('ai.test_help') }}</p><form method="post" action="/settings/ai/test/preview?lang={{ lang }}">{% include 'ai_fields.html' %}<button type="submit">{{ t('ai.preview') }}</button></form></details></section>
 {% endblock %}

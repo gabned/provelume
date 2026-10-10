@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import time
 from dataclasses import dataclass
 from importlib.resources import files
 from pathlib import Path
@@ -20,8 +21,38 @@ class VerifiedModelFile:
     sha256: str
 
 
+class ReadAuthority:
+    """Bound expensive authority polling only while hashing a regular model file.
+
+    Callers outside that read loop always run the complete probe. The loop still
+    checks its deadline and any immediate cancellation before/after every MiB;
+    durable authority is polled at most 20 ms apart, plus both read boundaries.
+    No cached result authorizes publication or native dispatch.
+    """
+
+    def __init__(self, probe, *, immediate=lambda: False):
+        self.probe = probe
+        self.immediate = immediate
+        self.next_check = 0.0
+
+    def __call__(self):
+        return self.immediate() or self.probe()
+
+    def reading(self):
+        if self.immediate():
+            return True
+        now = time.monotonic()
+        if now >= self.next_check:
+            from .ai_runtime_contract import CONFIGURATION
+
+            self.next_check = now + CONFIGURATION["model_verification_authority_poll_ms"] / 1000
+            return self.probe()
+        return False
+
+
 def verify_stream(handle, entry, *, cancel=lambda: False, deadline=float("inf")):
     checkpoint(cancel, deadline)
+    read_cancel = cancel.reading if type(cancel) is ReadAuthority else cancel
     before = file_identity(handle)
     info = os.fstat(handle.fileno())
     check(info.st_size == entry.model_size and info.st_nlink == 1, "integrity")
@@ -29,9 +60,9 @@ def verify_stream(handle, entry, *, cancel=lambda: False, deadline=float("inf"))
     digest = hashlib.sha256()
     count = 0
     while True:
-        checkpoint(cancel, deadline)
+        checkpoint(read_cancel, deadline)
         block = handle.read(1024 * 1024)
-        checkpoint(cancel, deadline)
+        checkpoint(read_cancel, deadline)
         if not block:
             break
         if count == 0:
@@ -39,6 +70,7 @@ def verify_stream(handle, entry, *, cancel=lambda: False, deadline=float("inf"))
         count += len(block)
         check(count <= entry.model_size, "limit")
         digest.update(block)
+    checkpoint(cancel, deadline)
     check(count == entry.model_size and digest.hexdigest() == entry.model_sha256, "integrity")
     check(file_identity(handle) == before, "integrity")
     handle.seek(0)

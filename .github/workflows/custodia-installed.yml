@@ -62,6 +62,7 @@ jobs:
             python scripts/qualify_custodia_installed.py `
               --executable "$target/Provelume.exe" --commit $env:QUALIFIED_SHA `
               --model "$env:RUNNER_TEMP/custodia-inputs/model.gguf" `
+              --corpus "tests/fixtures/ai_synthesis_quality.json" `
               --instance "$env:RUNNER_TEMP/Custodia Synthetic Instance" `
               --output "$env:RUNNER_TEMP/custodia-evidence/installed.json"
             if ($LASTEXITCODE -ne 0) { throw "Installed lifecycle qualification failed." }

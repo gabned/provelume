@@ -481,7 +481,7 @@ class ModelStore:
             yield model
 
     def rollback(self, runtime: RuntimeSelection, runner, *, requested: bool = False,
-                 cancel=lambda: False):
+                 cancel=lambda: False, commit=None):
         check(requested is True, "consent")
         deadline = time.monotonic() + SELF_TEST_TTL_SECONDS
         with self._hold():
@@ -496,8 +496,13 @@ class ModelStore:
             self._admit_evidence(self._entry(identifier, runtime), runtime, evidence,
                                  cancel=cancel, deadline=deadline)
             checkpoint(cancel, deadline)
-            self._write_state({"schema_version": 1, "active": identifier,
-                               "previous": before["active"]})
+            def write():
+                self._write_state({"schema_version": 1, "active": identifier,
+                                   "previous": before["active"]})
+            if commit is None:
+                write()
+            else:
+                commit(write)
             return {"id": identifier, "state": "internally_active", "inference_authorized": False}
 
     def deactivate(self, *, requested: bool = False):

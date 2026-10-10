@@ -107,7 +107,11 @@ class NativeJobAdapter:
             selection = native_selection()
             prepared_at = time.monotonic()
             deadline = started + CONFIGURATION["seconds"]
-            with self.model_store.use(selection, cancel=cancel, deadline=deadline) as model:
+            from .ai_model_file import ReadAuthority
+
+            with self.model_store.use(
+                selection, cancel=ReadAuthority(cancel), deadline=deadline
+            ) as model:
                 admitted_at = time.monotonic()
                 current().prepare()
                 if cancel():

@@ -205,7 +205,10 @@ jobs:
           if [ "$PUBLISH" = "true" ]; then
             identity_args=(--tag "$TAG" --channel "$CHANNEL" --official)
           fi
+          mkdir -p "$root/source"
+          git archive "$SOURCE_COMMIT" | tar -x -C "$root/source"
           PIP_NO_INDEX=1 "$root/build-env/bin/python" -m scripts.deterministic_build \
+            --source "$root/source" \
             --commit "$SOURCE_COMMIT" \
             --native-windows "$root/native-inputs/windows.zip" \
             --native-linux "$root/native-inputs/linux.zip" \
@@ -344,7 +347,10 @@ jobs:
           if [ "$PUBLISH" = "true" ]; then
             identity_args=(--tag "$TAG" --channel "$CHANNEL" --official)
           fi
+          mkdir -p "$rebuild/source"
+          git archive "$SOURCE_COMMIT" | tar -x -C "$rebuild/source"
           PIP_NO_INDEX=1 "$rebuild/build-env/bin/python" -m scripts.deterministic_build \
+            --source "$rebuild/source" \
             --commit "$SOURCE_COMMIT" \
             --native-windows "$target/native-inputs/windows.zip" \
             --native-linux "$target/native-inputs/linux.zip" \
@@ -374,6 +380,7 @@ jobs:
             --commit "$SOURCE_COMMIT"
 
       - name: Upload separate-runner rebuild evidence
+        if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: provelume-release-rebuild-${{ github.run_id }}
@@ -632,7 +639,7 @@ jobs:
             --mc-type application \
             --output-file "$assembly/provelume-${VERSION}.cdx.json" \
             "$runtime/bin/python"
-          "$runtime/bin/python" -I scripts/augment_asset_sbom.py --sbom "$assembly/provelume-${VERSION}.cdx.json"
+          "$runtime/bin/python" -I scripts/augment_asset_sbom.py --require-native --sbom "$assembly/provelume-${VERSION}.cdx.json"
           export SBOM_PATH="$assembly/provelume-${VERSION}.cdx.json"
           export SBOM_IDENTITY="https://github.com/gabned/provelume/tree/${SOURCE_COMMIT}#v${VERSION}"
           python - <<'PY'

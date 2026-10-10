@@ -103,6 +103,43 @@ def test_explicit_self_test_alone_never_enables_or_activates(installed):
     assert not setup.jobs.session_authorized
 
 
+@pytest.mark.parametrize("action", ["runtime", "deactivate", "remove", "recover"])
+def test_newer_control_at_publication_fences_setup_mutations(installed, monkeypatch, action):
+    setup, _ = installed
+    setup.jobs.configure(mode="off", budget=setup.budget(setup.configuration()))
+    if action == "deactivate":
+        setup.models._write_state({"schema_version": 1, "active": MODEL_ID, "previous": None})
+    path = setup.models._path(setup.models.registry.entry(MODEL_ID))
+    before_bytes, before_state, runtime = path.read_bytes(), setup.models._state(), setup.runtime
+    touched = []
+    original_change = setup.jobs.change_authority
+    original_configure = setup.jobs.configure
+
+    def newer_control():
+        touched.append(True)
+        original_configure(mode="off")
+
+    def change(callback, **kwargs):
+        newer_control()
+        return original_change(callback, **kwargs)
+
+    def configure(*, before=None, **kwargs):
+        if before is not None:
+            newer_control()
+        return original_configure(before=before, **kwargs)
+
+    monkeypatch.setattr(setup.jobs, "change_authority", change)
+    monkeypatch.setattr(setup.jobs, "configure", configure)
+    setup.run_operation(setup.begin_operation(action), path=path.parent)
+    assert touched == [True]
+    assert setup.operation["state"] == "failed"
+    assert setup.models._state() == before_state
+    assert path.read_bytes() == before_bytes
+    assert setup.runtime is runtime
+    assert setup.jobs._control()["mode"] == "off"
+    assert not setup.jobs.session_authorized
+
+
 def test_successful_inference_without_isolation_never_grants_locality(installed, monkeypatch):
     setup, _ = installed
 

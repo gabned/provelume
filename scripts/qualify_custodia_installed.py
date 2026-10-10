@@ -15,31 +15,17 @@ import socket
 import subprocess
 import sys
 import time
-from html.parser import HTMLParser
 from pathlib import Path
 
 import httpx
+from custodia_ordinary import Page, document_jobs, model_action, public_documents, restart_off
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
 
 from provelume.ai_runtime import native_selection  # noqa: E402
+from provelume.ai_runtime_contract import hardware  # noqa: E402
 from provelume.ai_windows_api import D, H, P, bind, libraries, verify_token  # noqa: E402
-
-
-class Page(HTMLParser):
-    def __init__(self, text):
-        super().__init__()
-        self.hidden, self.operation = {}, None
-        self.feed(text)
-
-    def handle_starttag(self, tag, attrs):
-        row = dict(attrs)
-        if tag == "input" and row.get("type") == "hidden" and row.get("name"):
-            self.hidden[row["name"]] = row.get("value", "")
-        if row.get("id") == "ai-model-operation":
-            self.operation = {key.removeprefix("data-"): value for key, value in row.items()
-                              if key in {"data-state", "data-action", "data-error",
-                                         "data-diagnostic-stage", "data-native-code"}}
+from provelume.service import ProvelumeInstance  # noqa: E402
 
 
 def children(parent):
@@ -102,25 +88,7 @@ def run(args):
         return Page(response.text)
 
     def action(client, name, **values):
-        page = settings(client)
-        fields = {k: page.hidden[k] for k in ("csrf_token", "mutation_nonce", "instance_id")}
-        response = client.post("/settings/ai/model?lang=en", data={
-            **fields, "action": name, "acknowledge": "explicit", "path": "",
-            "authority": page.hidden["authority"], **values})
-        if response.status_code != 303:
-            raise ValueError("model_action_http")
-        end = time.monotonic() + (910 if name == "import" else 70)
-        while time.monotonic() < end:
-            observe()
-            operation = settings(client).operation
-            if operation and operation["action"] == name and operation["state"] != "running":
-                report["operations"] = {**report.get("operations", {}), name: operation}
-                save()
-                if operation["state"] != "completed":
-                    raise ValueError("model_operation")
-                return
-            time.sleep(.1)
-        raise ValueError("operation_timeout")
+        return model_action(client, name, report, observe=observe, save=save, **values)
 
     try:
         save()
@@ -133,16 +101,19 @@ def run(args):
         if not identity["frozen"] or identity["about"]["commit"] != args.commit:
             raise ValueError("installed_identity")
         report["checks"]["installed_exact_source"] = "PASS"
+        report["hardware"] = hardware()
         subprocess.run([str(args.executable), "--bootstrap-instance", str(args.instance),
                         "--instance-name", "Custodia public synthetic lifecycle"],
                        check=True, timeout=30)
+        instance = ProvelumeInstance(args.instance)
+        cases = public_documents(instance, args.corpus, args.output.parent.parent / "public-corpus")
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
             port = listener.getsockname()[1]
         process = subprocess.Popen([str(args.executable), "--serve", str(args.instance),
                                     "--port", str(port)])
         report["phase"] = "service_start"
-        client = httpx.Client(base_url=f"http://127.0.0.1:{port}", timeout=5, trust_env=False)
+        client = httpx.Client(base_url=f"http://127.0.0.1:{port}", timeout=70, trust_env=False)
         with client:
             end = time.monotonic() + 30
             while time.monotonic() < end:
@@ -170,10 +141,16 @@ def run(args):
             report["phase"] = "activation"
             action(client, "activate")
             report["checks"]["ordinary_activation"] = "PASS"
+            action(client, "enable_local")
+            report["checks"]["ordinary_guided_enablement"] = "PASS"
+            report["phase"] = "ordinary_document_synthesis"
+            document_jobs(client, instance, cases, report, observe=observe, save=save)
             # Keep the already-observed worker warm, then kill the actual parent.
             # Handle waits observe process identity, with no PID-reuse ambiguity.
             report["phase"] = "parent_death"
             action(client, "self_test")
+            if not any(kernel.WaitForSingleObject(h, 0) == 258 for h in observed.values()):
+                raise ValueError("unobserved_live_worker")
             process.kill()
             process.wait(timeout=5)
             started = time.monotonic()
@@ -184,6 +161,8 @@ def run(args):
             if elapsed > 2:
                 raise ValueError("parent_death_bound")
             report["checks"]["kill_on_parent_death"] = "PASS"
+            report["restart"] = restart_off(args.instance)
+            report["checks"]["restart_session_off"] = "PASS"
         report["status"], report["phase"] = "PASS", "completed"
     except Exception as exc:
         report["status"] = "FAIL"
@@ -194,6 +173,8 @@ def run(args):
             "model_action_http", "model_operation", "operation_timeout", "native_windows_required",
             "installed_identity", "service_exit", "service_timeout", "network_default",
             "unobserved_worker", "orphan_worker", "parent_death_bound",
+            "unobserved_live_worker", "corpus_identity", "synthesis_preview",
+            "synthesis_consent", "synthesis_job_identity", "synthesis_quality", "restart_authority",
         }:
             report["failure_code"] = str(exc)
         else:
@@ -211,7 +192,7 @@ def run(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("executable", "model", "instance", "output"):
+    for name in ("executable", "model", "instance", "output", "corpus"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--commit", required=True)
     raise SystemExit(run(parser.parse_args()))

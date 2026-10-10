@@ -336,6 +336,8 @@ def attach_ai_routes(app, instance, templates, context_factory):
 
     @app.get("/operations/ai")
     def operations(request: Request):
+        from .ai_synthesis_recovery import candidate
+
         local(request)
         records = setup.jobs.journal.list_jobs(limit=100)
         jobs = [setup.jobs.public(j["id"]) for j in records if j["job_kind"] == "ai.execute"]
@@ -348,6 +350,10 @@ def attach_ai_routes(app, instance, templates, context_factory):
             r for r in setup.jobs.journal.list_receipts(limit=100) if r["job_kind"] == "ai.execute"
         ]
         dispatchable = set()
+        orphaned = {}
+        for job in jobs:
+            with suppress(ValueError, OSError, SchedulerBusyError):
+                orphaned[job["id"]] = candidate(setup.synthesis, job["id"])
         control = setup.jobs.status()
         if control["session_authorized"] and control["mode"] == "enabled":
             for job in jobs:
@@ -365,6 +371,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
             receipts=receipts,
             revisions=revisions,
             dispatchable=dispatchable,
+            orphaned=orphaned,
         )
 
     @app.post("/operations/ai/control")

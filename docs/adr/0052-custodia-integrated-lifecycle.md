@@ -37,6 +37,19 @@ It replaces the initial configuration above without changing gates or model byte
 The independent [Windows launcher experiment](https://github.com/Convira/convira-sandbox/issues/1#issuecomment-5225682721)
 supports the diagnosis; only this product's installed run can establish the fix.
 
+Installed run 38053390090 passed the AppContainer, ordinary import/self-test/
+activation and parent-death observations on that configuration. Native run
+38053390064 retained a distinct performance failure: full document authority was
+reconstructed about 2,800 times per model hash, costing up to 17 seconds before
+inference. Poll that expensive authority at 20 ms intervals **only inside the
+regular-file hash loop**. Retain per-MiB deadline/immediate-cancel checkpoints,
+full authority at both hash boundaries and every publication/dispatch boundary;
+inference polling is unchanged. Freeze the explicit polling property before the
+next measurement as configuration
+`af9bfc85f5b1968f74a65f5a3207614a6bc059b8306a7ed751c047c3c206fdd5`.
+No threshold, model, corpus or task framing changes. Prior results remain scoped
+to their original configuration.
+
 A successful native self-test records a measurement, not network authority. Only
 actual seccomp or the parent's verified AppContainer proof grants product-local
 activation. The legacy source-only Windows CI observer may add its independently

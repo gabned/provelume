@@ -635,6 +635,7 @@ class AiSetup:
             self.cancel.set()
 
     def run_operation(self, identity, *, path=None):
+        from .ai_model_file import ReadAuthority
         from .ai_setup_lifecycle import (
             cancelled,
             enable_local,
@@ -646,8 +647,17 @@ class AiSetup:
             check(self.operation is not None and self.operation["id"] == identity)
             operation = self.operation
         action, selection = operation["action"], native_selection()
-        def cancel():
-            return cancelled(self, operation)
+        cancel = ReadAuthority(lambda: cancelled(self, operation), immediate=self.cancel.is_set)
+
+        def change(callback, *, turn_off=False):
+            with self.lock:
+                def publish():
+                    require_current(self, operation)
+                    callback()
+                if turn_off:
+                    return self.jobs.configure(mode="off", before=publish)
+                return self.jobs.change_authority(publish)
+
         try:
             require_current(self, operation)
             if action in {"self_test", "activate", "rollback", "enable_local"}:
@@ -656,16 +666,20 @@ class AiSetup:
                 check(path is not None, "ai_setup_invalid")
                 candidate = LocalRuntime(Path(path))
                 candidate.validate_installation()
-                self.jobs.configure(mode="off")
-                self.runtime.close()
-                self.runtime = candidate
-                self.local_evidence = None
-                self.self_test_evidence = None
+
+                def replace_runtime():
+                    self.runtime.close()
+                    self.runtime = candidate
+                    self.local_evidence = None
+                    self.self_test_evidence = None
+
+                change(replace_runtime, turn_off=True)
             elif action == "install":
                 host = self
 
                 def download_cancelled():
-                    cancel()
+                    if cancel():
+                        return True
                     if not self.instance.store.read_config()["network"]["external_access"]:
                         raise ModelError("network")
                     return False
@@ -720,26 +734,35 @@ class AiSetup:
                 self.models.activate(MODEL_ID, selection, self.self_test_evidence, requested=True,
                                      cancel=cancel, commit=commit)
             elif action == "deactivate":
-                self.jobs.configure(mode="off")
-                self.runtime.close()
-                self.models.deactivate(requested=True)
-                self.self_test_evidence = None
-                self.local_evidence = None
-            elif action == "remove" or action.startswith("remove:"):
-                target = MODEL_ID if action == "remove" else action.removeprefix("remove:")
-                self.models.remove(target, requested=True)
-                if target == MODEL_ID:
-                    self.observed_model = "missing"
+                def deactivate():
+                    self.runtime.close()
+                    self.models.deactivate(requested=True)
                     self.self_test_evidence = None
                     self.local_evidence = None
+
+                change(deactivate, turn_off=True)
+            elif action == "remove" or action.startswith("remove:"):
+                target = MODEL_ID if action == "remove" else action.removeprefix("remove:")
+
+                def remove():
+                    self.models.remove(target, requested=True)
+                    if target == MODEL_ID:
+                        self.observed_model = "missing"
+                        self.self_test_evidence = None
+                        self.local_evidence = None
+
+                change(remove)
             elif action == "recover":
-                self.models.recover(requested=True)
-                self.self_test_evidence = None
-                self.local_evidence = None
+                def recover():
+                    self.models.recover(requested=True)
+                    self.self_test_evidence = None
+                    self.local_evidence = None
+
+                change(recover)
             elif action == "rollback":
                 check(self.local_evidence is not None, "ai_locality_unqualified")
                 self.models.rollback(selection, self.runtime, requested=True,
-                                     cancel=cancel)
+                                     cancel=cancel, commit=lambda write: change(write))
             with self.lock:
                 operation["state"] = "completed"
         except Exception as exc:

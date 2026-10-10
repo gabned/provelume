@@ -5,6 +5,7 @@ from __future__ import annotations
 from .ai_contract import digest
 from .ai_job_contract import check
 from .ai_model_download import checkpoint
+from .ai_model_file import ReadAuthority
 from .ai_runtime import native_selection
 from .ai_runtime_contract import MODEL_ID
 
@@ -71,5 +72,6 @@ def enable_local(setup, operation, evidence):
 
     setup.models.activate(
         MODEL_ID, native_selection(), evidence, requested=True,
-        cancel=lambda: cancelled(setup, operation), commit=commit,
+        cancel=ReadAuthority(lambda: cancelled(setup, operation), immediate=setup.cancel.is_set),
+        commit=commit,
     )

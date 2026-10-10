@@ -406,6 +406,38 @@ def test_native_source_limit_is_reported_before_consent(synthesis, monkeypatch, 
     assert setup.jobs.status()["accounting"]["units"] == 0
 
 
+@pytest.mark.parametrize("action", ["preview", "verify-preview"])
+def test_input_error_keeps_document_and_choices_but_requires_a_fresh_preview(
+    synthesis, tmp_path, action,
+):
+    setup, document, _ = synthesis
+    version = setup.instance.get_document(document)["current_version"]["id"]
+    bundle = setup.instance.representations.bundles.materialize(
+        version, recipe_id="synthetic-overlong-paragraph", recipe_version="1", recipe_settings={},
+        output_payloads={"text.txt": ("text/plain", b"x" * 2001)},
+        implementation=_implementation(), anchor_targets=({"kind": "page", "page": 1},),
+    )
+    app = create_app(setup.instance.root, shell_settings_file=tmp_path / "shell.json")
+    path = f"/documents/{document}/synthesis"
+    selected = bundle["representation_id"] + ":" + bundle["outputs"][0]["id"]
+    with TestClient(app) as client:
+        first = client.get(path + "?lang=it")
+        values = {**form(first), "version_id": version, "selection": selected,
+                  "task": "key-points", "language": "en"}
+        response = client.post(path + "/" + action + "?lang=it", data=values)
+        assert response.status_code == 409
+        assert f'action="{path}/preview?lang=it"' in response.text
+        assert f'value="{selected}" selected' in response.text
+        assert 'value="key-points" selected' in response.text
+        assert 'value="en" selected' in response.text
+        assert f'name="version_id" value="{version}"' in response.text
+        assert 'role="alert"' in response.text
+        assert 'action="/operations/ai/synthesis/execute' not in response.text
+        assert form(response)["mutation_nonce"] != values["mutation_nonce"]
+        assert not app.state.ai_setup.previews
+        assert not app.state.ai_setup.jobs.journal.list_jobs()
+
+
 @pytest.mark.parametrize("language,mode,characters", [
     ("en", "local", 1000), ("en", "external", 1400),
     ("it", "local", 1000), ("it", "external", 1400),

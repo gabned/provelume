@@ -1,0 +1,18 @@
+# Build from the explicit public source and separately verified native inputs.
+# Private Instance data, models, credentials and agent evidence never enter context.
+**
+!Dockerfile
+!pyproject.toml
+!README.md
+!LICENSE
+!COMMERCIAL-LICENSE.md
+!core/
+!core/**
+!scripts/
+!scripts/stage_ai_runtime_inputs.py
+!build-native/
+!build-native/windows.zip
+!build-native/linux.zip
+**/__pycache__/
+**/*.pyc
+**/.env*
