@@ -16,7 +16,7 @@ from .derived import materialize_extracted_text
 from .domain import as_record
 from .extractors import ExtractionError, extract_web_readable_text, extractor_for
 from .paths import safe_instance_path
-from .retention_model import effective_dispositions
+from .retention_model import documents_with_dispositions
 from .storage import InstanceStore, utc_now
 
 INDEX_SCHEMA = 2
@@ -188,10 +188,10 @@ def _ensure_extracted(
 def _documents_and_versions(
     store: InstanceStore,
 ) -> tuple[list[dict[str, Any]], dict[str, str]]:
-    dispositions = effective_dispositions(store)
+    catalog, dispositions = documents_with_dispositions(store)
     documents = [
         document
-        for document in store.list_canonical("documents")
+        for document in catalog
         if dispositions[str(document["id"])]["status"] != "trashed"
     ]
     current = {

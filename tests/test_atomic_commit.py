@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
 from dataclasses import replace
 from pathlib import Path
 
@@ -71,6 +73,152 @@ def _transaction(
         owner_id=owner_id,
         replace=replace_file,
     )
+
+
+@pytest.mark.parametrize("position", ["ancestor", "root", "middle", "leaf"])
+@pytest.mark.parametrize("link_kind", ["symlink", "junction"])
+def test_atomic_paths_reject_links_in_every_existing_component(tmp_path, position, link_kind):
+    if link_kind == "junction" and os.name != "nt":
+        pytest.skip("Real Windows junction")
+    holder = tmp_path / "holder"
+    store = InstanceStore.initialise(holder / "instance")
+    control = tmp_path / "control"
+    directory = position != "leaf" or link_kind == "junction"
+    if position == "ancestor":
+        link = holder
+    elif position == "root":
+        link = store.paths.root
+    else:
+        link = store.paths.root / ("state/redirect" if position == "middle" else "state/item.bin")
+    destination = tmp_path / "destination"
+    if link.exists():
+        link.rename(destination)
+    elif directory:
+        destination.mkdir()
+    else:
+        destination.write_bytes(b"untouched")
+    if link_kind == "junction":
+        command = shutil.which("cmd.exe")
+        assert command is not None
+        result = subprocess.run(
+            [command, "/d", "/c", "mklink", "/J", str(link), str(destination)],
+            capture_output=True, check=False, creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+        assert result.returncode == 0, (result.stdout, result.stderr)
+        assert link.is_junction()
+    else:
+        try:
+            link.symlink_to(destination, target_is_directory=directory)
+        except OSError as error:
+            if os.name == "nt" and error.winerror == 1314:
+                pytest.skip("Windows denied symbolic-link privilege")
+            raise
+    relative = "state/redirect/item.bin" if position == "middle" else "state/item.bin"
+    transaction = _transaction(store, control, profile=_profile())
+    with pytest.raises(AtomicCommitIntegrityError):
+        transaction.add(relative, b"candidate", immutable=True)
+    assert not control.exists()
+    if not directory:
+        assert destination.read_bytes() == b"untouched"
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows drive-relative semantics")
+def test_atomic_paths_reject_another_drive_before_observing_it(tmp_path, monkeypatch):
+    store, control = _store(tmp_path)
+    other_drive = "Z:" if store.paths.root.drive.casefold() != "z:" else "Y:"
+    transaction = _transaction(store, control, profile=_profile())
+
+    def unexpected_observation(_path):
+        pytest.fail("An outside drive must be rejected before filesystem observation")
+
+    monkeypatch.setattr(Path, "lstat", unexpected_observation)
+    with pytest.raises(AtomicCommitIntegrityError):
+        transaction.add(other_drive + "outside.bin", b"candidate", immutable=True)
+
+
+def test_atomic_path_rechecks_new_link_before_prepare(tmp_path):
+    store, control = _store(tmp_path)
+    target = store.paths.root / "state/new"
+    transaction = _transaction(store, control, profile=_profile())
+    transaction.add("state/new/item.bin", b"candidate", immutable=True)
+    destination = tmp_path / "outside"
+    destination.mkdir()
+    try:
+        target.symlink_to(destination, target_is_directory=True)
+    except OSError as error:
+        if os.name == "nt" and error.winerror == 1314:
+            pytest.skip("Windows denied symbolic-link privilege")
+        raise
+    with pytest.raises(AtomicCommitIntegrityError):
+        transaction.commit()
+    assert list(destination.iterdir()) == []
+
+
+@pytest.mark.parametrize("boundary", ["add", "replacement"])
+@pytest.mark.parametrize("position", ["ancestor", "root", "middle"])
+@pytest.mark.parametrize("link_kind", ["symlink", "junction"])
+def test_atomic_path_rejects_parent_swapped_after_observation(
+    tmp_path, monkeypatch, boundary, position, link_kind,
+):
+    if link_kind == "junction" and os.name != "nt":
+        pytest.skip("Real Windows junction")
+    holder = tmp_path / "holder"
+    store = InstanceStore.initialise(holder / "instance")
+    control = tmp_path / "control"
+    parent = store.paths.root / "state/checked"
+    parent.mkdir()
+    target = parent / "item.bin"
+    link = {"ancestor": holder, "root": store.paths.root, "middle": parent}[position]
+    destination = tmp_path / "relocated"
+    outside_target = destination / target.relative_to(link)
+    transaction = _transaction(store, control, profile=_profile())
+    armed = boundary == "add"
+    swapped = False
+    original_lstat = Path.lstat
+
+    def swap_after_observation(path):
+        nonlocal swapped
+        observed = original_lstat(path)
+        if armed and not swapped and path == atomic_commit.native_path(link):
+            swapped = True
+            link.rename(destination)
+            if link_kind == "junction":
+                command = shutil.which("cmd.exe")
+                assert command is not None
+                result = subprocess.run(
+                    [command, "/d", "/c", "mklink", "/J", str(link), str(destination)],
+                    capture_output=True, check=False,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+                assert result.returncode == 0, (result.stdout, result.stderr)
+            else:
+                try:
+                    link.symlink_to(destination, target_is_directory=True)
+                except OSError as error:
+                    if os.name == "nt" and error.winerror == 1314:
+                        pytest.skip("Windows denied symbolic-link privilege")
+                    raise
+        return observed
+
+    if boundary == "replacement":
+        transaction.add("state/checked/item.bin", b"candidate", immutable=True)
+        original_prepare = transaction._prepare
+
+        def arm_after_prepare():
+            nonlocal armed
+            result = original_prepare()
+            armed = True
+            return result
+
+        monkeypatch.setattr(transaction, "_prepare", arm_after_prepare)
+    monkeypatch.setattr(Path, "lstat", swap_after_observation)
+    with pytest.raises(AtomicCommitError):
+        if boundary == "add":
+            transaction.add("state/checked/item.bin", b"candidate", immutable=True)
+        else:
+            transaction.commit()
+    assert swapped
+    assert not outside_target.exists()
 
 
 def test_builtin_profiles_publish_closed_limits() -> None:

@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shutil
+import stat
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
@@ -466,16 +467,34 @@ def _instance_target(
         selected = normalise_locator(relative)
         if selected == ".":
             raise error_type()
-        root = store.paths.root.resolve()
-        lexical = root.joinpath(*PurePosixPath(selected).parts)
-        current = root
-        for part in PurePosixPath(selected).parts:
-            current /= part
-            if current.is_symlink():
-                raise error_type()
-        target = safe_instance_path(root, selected)
-        if native_path(target) != native_path(lexical):
+        # InstanceStore fixes an absolute root on open. Observe every existing
+        # component, including its ancestors, then resolve the full path once
+        # more to reject a parent replaced during those observations. Never cache
+        # observations between add, prepare, replacement or recovery.
+        root = store.paths.root
+        if not root.is_absolute():
             raise error_type()
+        lexical = root.joinpath(*PurePosixPath(selected).parts)
+        # Windows drive-relative components can replace the root's drive even
+        # though their portable spelling is not an absolute Posix path.
+        lexical.relative_to(root)
+        for current in (*reversed(lexical.parents), lexical):
+            try:
+                observed = native_path(current).lstat()
+            except FileNotFoundError:
+                continue
+            if stat.S_ISLNK(observed.st_mode) or getattr(observed, "st_reparse_tag", 0) == (
+                getattr(stat, "IO_REPARSE_TAG_MOUNT_POINT", 0xA0000003)
+            ):
+                raise error_type()
+            if current != lexical and not stat.S_ISDIR(observed.st_mode):
+                raise error_type()
+        resolved = lexical.resolve()
+        if native_path(resolved) != native_path(lexical):
+            raise error_type()
+        target = (
+            native_path(resolved) if os.name == "nt" and len(str(resolved)) >= 248 else resolved
+        )
     except (OSError, RuntimeError, ValueError):
         raise error_type() from None
     return target, selected
