@@ -18,7 +18,14 @@ import time
 from pathlib import Path
 
 import httpx
-from custodia_ordinary import Page, document_jobs, model_action, public_documents, restart_off
+from custodia_ordinary import (
+    Page,
+    acquisition,
+    document_jobs,
+    model_action,
+    public_documents,
+    restart_off,
+)
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
 
@@ -129,6 +136,8 @@ def run(args):
             network = client.get("/api/v1/security/network").json()
             if network["policy"]["external_access"]:
                 raise ValueError("network_default")
+            report["phase"] = "ordinary_network_acquisition"
+            acquisition(client, report, save=save)
             report["phase"] = "offline_import"
             action(client, "import", path=str(args.model))
             report["checks"]["ordinary_offline_import"] = "PASS"
@@ -175,6 +184,10 @@ def run(args):
             "unobserved_worker", "orphan_worker", "parent_death_bound",
             "unobserved_live_worker", "corpus_identity", "synthesis_preview",
             "synthesis_consent", "synthesis_job_identity", "synthesis_quality", "restart_authority",
+            "acquisition_form", "acquisition_network_state", "acquisition_network_consent",
+            "acquisition_denial", "acquisition_cancel", "acquisition_unobserved_transfer",
+            "acquisition_size",
+            "acquisition_cancellation_bound",
         }:
             report["failure_code"] = str(exc)
         else:

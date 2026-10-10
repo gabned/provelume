@@ -11,17 +11,26 @@ from html.parser import HTMLParser
 class Page(HTMLParser):
     def __init__(self, text):
         super().__init__()
-        self.hidden, self.operation = {}, None
+        self.hidden, self.operation, self.forms, self.current_form = {}, None, [], None
         self.feed(text)
 
     def handle_starttag(self, tag, attrs):
         row = dict(attrs)
+        if tag == "form":
+            self.current_form = {"action": row.get("action", "").split("?", 1)[0], "fields": {}}
+            self.forms.append(self.current_form)
         if tag == "input" and row.get("type") == "hidden" and row.get("name"):
             self.hidden[row["name"]] = row.get("value", "")
+            if self.current_form is not None:
+                self.current_form["fields"][row["name"]] = row.get("value", "")
         if row.get("id") == "ai-model-operation":
             self.operation = {key.removeprefix("data-"): value for key, value in row.items()
                               if key in {"data-state", "data-action", "data-error",
-                                         "data-diagnostic-stage", "data-native-code"}}
+                                         "data-diagnostic-stage", "data-native-code", "data-bytes"}}
+
+    def handle_endtag(self, tag):
+        if tag == "form":
+            self.current_form = None
 
     def fields(self):
         return {k: self.hidden[k] for k in ("csrf_token", "mutation_nonce", "instance_id")}
@@ -57,14 +66,18 @@ def public_documents(instance, corpus, directory):
     return result
 
 
-def model_action(client, name, report, *, observe=lambda: None, save=lambda: None, **values):
+def submit_model(client, name, **values):
     response = client.get("/settings/ai?lang=en")
     response.raise_for_status()
     page = Page(response.text)
-    response = client.post("/settings/ai/model?lang=en", data={
+    return client.post("/settings/ai/model?lang=en", data={
         **page.fields(), "action": name, "acknowledge": "explicit", "path": "",
         "authority": page.hidden["authority"], **values})
-    if response.status_code != 303:
+
+
+def model_action(client, name, report, *, observe=lambda: None, save=lambda: None,
+                 during=lambda _operation: None, expected="completed", **values):
+    if submit_model(client, name, **values).status_code != 303:
         raise ValueError("model_action_http")
     end = time.monotonic() + (910 if name in {"import", "install"} else 70)
     while time.monotonic() < end:
@@ -72,14 +85,80 @@ def model_action(client, name, report, *, observe=lambda: None, save=lambda: Non
         response = client.get("/settings/ai?lang=en")
         response.raise_for_status()
         operation = Page(response.text).operation
+        if operation and operation["action"] == name and operation["state"] == "running":
+            during(operation)
         if operation and operation["action"] == name and operation["state"] != "running":
             report.setdefault("operations", {})[name] = operation
+            report.setdefault("operation_history", []).append(operation)
             save()
-            if operation["state"] != "completed":
+            if operation["state"] != expected:
                 raise ValueError("model_operation")
             return
         time.sleep(.1)
     raise ValueError("operation_timeout")
+
+
+def acquisition(client, report, *, save=lambda: None):
+    """Actual governed HTTPS transfer, with ordinary global consent/revoke/cancel."""
+    def form(path):
+        response = client.get("/settings/ai?lang=en")
+        response.raise_for_status()
+        rows = [row["fields"] for row in Page(response.text).forms if row["action"] == path]
+        if len(rows) != 1:
+            raise ValueError("acquisition_form")
+        return rows[0]
+
+    def network(enabled):
+        path = "/settings/ai/network"
+        fields = form(path)
+        if fields["enabled"] != ("yes" if enabled else "no"):
+            raise ValueError("acquisition_network_state")
+        response = client.post(path, data={**fields, "acknowledge": "instance-network"})
+        if response.status_code != 303:
+            raise ValueError("acquisition_network_consent")
+
+    model_action(client, "install", report, expected="failed", save=save)
+    denied = report["operations"]["install"]
+    if denied["error"] != "network" or int(denied["bytes"]) != 0:
+        raise ValueError("acquisition_denial")
+    report["checks"]["ordinary_network_denial"] = "PASS"
+    for interruption in ("revoke", "cancel"):
+        network(True)
+        interrupted = []
+
+        def during(operation, interrupted=interrupted, interruption=interruption):
+            if int(operation["bytes"]) < 65536 or interrupted:
+                return
+            interrupted.append(time.monotonic())
+            if interruption == "revoke":
+                network(False)
+            else:
+                path = "/settings/ai/model/cancel"
+                if client.post(path, data=form(path)).status_code != 303:
+                    raise ValueError("acquisition_cancel")
+
+        model_action(client, "install", report, save=save, during=during,
+                     expected="failed" if interruption == "revoke" else "cancelled")
+        if not interrupted:
+            raise ValueError("acquisition_unobserved_transfer")
+        elapsed = time.monotonic() - interrupted[0]
+        report.setdefault("interrupted_acquisition", {})[interruption] = {
+            "ordinary_http_observation_seconds": elapsed,
+            "transfer_observed": True,
+        }
+        if elapsed > 2:
+            raise ValueError("acquisition_cancellation_bound")
+        if interruption == "cancel":
+            network(False)
+    network(True)
+    model_action(client, "install", report, save=save)
+    if int(report["operations"]["install"]["bytes"]) != 1435238656:
+        raise ValueError("acquisition_size")
+    network(False)
+    model_action(client, "verify", report, save=save)
+    model_action(client, "remove", report, save=save)
+    report["checks"]["ordinary_download_revoke_cancel_verify_remove"] = "PASS"
+    save()
 
 
 def document_jobs(client, instance, cases, report, *, observe=lambda: None, save=lambda: None):

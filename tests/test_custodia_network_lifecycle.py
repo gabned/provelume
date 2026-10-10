@@ -96,3 +96,34 @@ def test_explicit_network_setting_is_narrow_stale_checked_and_never_enables_ai(t
         setup.set_network(False, revision)
     setup.set_network(False, digest(after["network"]))
     assert instance.store.read_config() == before
+
+
+def test_ordinary_acquisition_forms_keep_network_and_ai_revisions_separate(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from provelume.web import create_app
+    from scripts.custodia_ordinary import Page, model_action
+
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    app = create_app(instance.root)
+    calls = []
+    monkeypatch.setattr("provelume.ai_setup.ArtifactDownload.fetch",
+                        lambda *_args, **_kwargs: calls.append(True))
+    with TestClient(app, follow_redirects=False) as client:
+        report = {}
+        model_action(client, "install", report, expected="failed")
+        assert report["operations"]["install"]["error"] == "network"
+        assert report["operations"]["install"]["bytes"] == "0"
+        assert calls == []
+        for enabled in (True, False):
+            parsed = Page(client.get("/settings/ai").text)
+            form = next(row["fields"] for row in parsed.forms
+                        if row["action"] == "/settings/ai/network")
+            assert len(form["revision"]) == 64
+            assert form["enabled"] == ("yes" if enabled else "no")
+            response = client.post("/settings/ai/network", data={
+                **form, "acknowledge": "instance-network"})
+            assert response.status_code == 303
+            assert instance.store.read_config()["network"]["external_access"] is enabled
+            assert app.state.ai_setup.configuration()["mode"] == "off"
+            assert not app.state.ai_setup.jobs.session_authorized
