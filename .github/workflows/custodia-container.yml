@@ -32,6 +32,8 @@ jobs:
           docker build --build-arg PROVELUME_SOURCE_COMMIT="$QUALIFIED_SHA" --build-arg SOURCE_DATE_EPOCH="$(git show -s --format=%ct "$QUALIFIED_SHA")" -t provelume:custodia .
           mkdir "$RUNNER_TEMP/custodia-evidence"
           docker image inspect provelume:custodia --format '{{json .Id}}' > "$RUNNER_TEMP/custodia-evidence/image.json"
+          sudo chown 10001 "$RUNNER_TEMP/custodia-evidence"
+          chmod g+w "$RUNNER_TEMP/custodia-evidence"
       - name: Observe offline import, consent, real document jobs and separate model persistence
         run: |
           docker volume create custodia-instance
@@ -46,9 +48,10 @@ jobs:
               --mount "type=bind,src=$RUNNER_TEMP/custodia-inputs/model.gguf,dst=/import/model.gguf,readonly" \
               --mount "type=bind,src=$GITHUB_WORKSPACE/scripts,dst=/qualification,readonly" \
               --mount "type=bind,src=$GITHUB_WORKSPACE/tests/fixtures/ai_synthesis_quality.json,dst=/corpus.json,readonly" \
+              --mount "type=bind,src=$RUNNER_TEMP/custodia-evidence,dst=/evidence" \
               provelume:custodia python /qualification/qualify_custodia_container.py \
               --instance /instance --model /import/model.gguf --corpus /corpus.json \
-              --commit "$QUALIFIED_SHA" "${extra[@]}" > "$RUNNER_TEMP/custodia-evidence/$mode.json"
+              --commit "$QUALIFIED_SHA" --output "/evidence/$mode.json" "${extra[@]}"
           done
       - name: Retain exact dependency observation, without image or model weights
         if: always()

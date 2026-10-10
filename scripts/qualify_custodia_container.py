@@ -71,7 +71,15 @@ def run(args):
               "network": "Docker --network=none; ordinary in-container loopback HTTP",
               "configuration_sha256": hashlib.sha256(native_selection().configuration).hexdigest()}
     process, observed = None, {}
+
+    def save():
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        temporary = args.output.with_suffix(".tmp")
+        temporary.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        temporary.replace(args.output)
+
     try:
+        save()
         if os.getuid() != 10001:
             raise ValueError("nonroot_identity")
         report["hardware"] = hardware()
@@ -152,15 +160,15 @@ def run(args):
                         raise ValueError("worker_containment")
 
             report["phase"] = "offline_import"
-            model_action(client, "import", report, path=str(args.model), observe=observe)
+            model_action(client, "import", report, path=str(args.model), observe=observe, save=save)
             report["checks"]["ordinary_offline_import"] = "PASS"
             report["phase"] = "guided_enablement"
-            model_action(client, "enable_local", report, observe=observe)
+            model_action(client, "enable_local", report, observe=observe, save=save)
             report["checks"]["ordinary_guided_enablement"] = "PASS"
             report["phase"] = "document_synthesis"
-            document_jobs(client, instance, cases, report, observe=observe)
+            document_jobs(client, instance, cases, report, observe=observe, save=save)
             report["phase"] = "parent_death"
-            model_action(client, "self_test", report, observe=observe)
+            model_action(client, "self_test", report, observe=observe, save=save)
             live = [fd for fd in observed.values() if not select.select([fd], [], [], 0)[0]]
             if not live:
                 raise ValueError("unobserved_live_worker")
@@ -194,6 +202,7 @@ def run(args):
             process.wait(timeout=5)
         for fd in observed.values():
             os.close(fd)
+        save()
     print(json.dumps(report, indent=2))
     return 0 if report["status"] == "PASS" else 1
 
@@ -203,5 +212,6 @@ if __name__ == "__main__":
     for name in ("instance", "model", "corpus"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--commit", required=True)
+    parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--restart", action="store_true")
     raise SystemExit(run(parser.parse_args()))

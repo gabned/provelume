@@ -156,3 +156,26 @@ def test_read_authority_never_caches_dispatch_or_publication_authority(monkeypat
     denied.set()
     # Same clock tick: only internal file-read polling may coalesce its probe.
     assert probe() is True
+
+
+def test_expensive_source_check_does_not_turn_each_hash_chunk_into_another_audit(monkeypatch):
+    clock, calls = [100.0], []
+    stopped = threading.Event()
+    monkeypatch.setattr(ai_model_file.time, "monotonic", lambda: clock[0])
+
+    def authority():
+        calls.append(clock[0])
+        clock[0] += 0.040  # The measured document audit can exceed the poll interval.
+        return False
+
+    probe = ai_model_file.ReadAuthority(authority, immediate=stopped.is_set)
+    assert not probe.reading()
+    for _ in range(10):
+        clock[0] += 0.001
+        assert not probe.reading()
+    assert len(calls) == 1
+    clock[0] += 0.011
+    assert not probe.reading() and len(calls) == 2
+    stopped.set()
+    assert probe.reading() is True
+    assert len(calls) == 2

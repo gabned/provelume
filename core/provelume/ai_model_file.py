@@ -26,7 +26,8 @@ class ReadAuthority:
 
     Callers outside that read loop always run the complete probe. The loop still
     checks its deadline and any immediate cancellation before/after every MiB;
-    durable authority is polled at most 20 ms apart, plus both read boundaries.
+    durable authority is polled after at most 20 ms of reading between completed
+    checks, plus both read boundaries.
     No cached result authorizes publication or native dispatch.
     """
 
@@ -45,8 +46,14 @@ class ReadAuthority:
         if now >= self.next_check:
             from .ai_runtime_contract import CONFIGURATION
 
-            self.next_check = now + CONFIGURATION["model_verification_authority_poll_ms"] / 1000
-            return self.probe()
+            result = self.probe()
+            # Schedule from completion. A source/policy read can itself take
+            # longer than the interval; using its start time would immediately
+            # repeat that same expensive check before doing any useful I/O.
+            self.next_check = (
+                time.monotonic() + CONFIGURATION["model_verification_authority_poll_ms"] / 1000
+            )
+            return result
         return False
 
 
