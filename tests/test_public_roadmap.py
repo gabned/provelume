@@ -687,7 +687,9 @@ def test_perceptio_publication_is_consistent_across_public_surfaces() -> None:
     assert "| Forecast | `0.10.0` |" not in roadmap
     assert roadmap.count("| Published preview | `0.10.0` |") == 1
     assert "S06 is delivered under #177/#179; S07 is delivered under #180/#182" in roadmap
-    assert "Current status: 0.12.0 Custodia prepared preview" in readme
+    assert "Current status: 0.12.0 Custodia published preview" in readme
+    assert roadmap.count("| Published preview | `0.12.0` |") == 1
+    assert "__RELEASE_OWNER__" not in roadmap
     assert "[0.10.0 release record](docs/releases/0.10.0.md)" in readme
     assert "activated planning-only development for `0.10.0 — Perceptio`" in changelog
     assert "CURRENT_PACKAGE_VERSION: 0.10.0" in perceptio
