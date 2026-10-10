@@ -60,6 +60,19 @@ Schedule the unchanged interval from audit **completion**. Immediate cancellatio
 per-read deadlines and complete publication/dispatch revalidation remain unchanged.
 This is an implementation correction, not a larger interval or acceptance waiver.
 
+The next Linux observation, run 38056161108 on ff562b2, passes 25/26 gates,
+including every gold reference and abstention, but S08 warm first response is
+6.096 seconds against the unchanged five-second bound. Retain that failure.
+A public 32-document profile identifies repeated construction of every path
+ancestor for every Linux mount as the main cost of local-file authority reads.
+Compare normalized path components against mount components once instead. Read
+the complete kernel mount observation afresh for each call, retain nearest-mount
+selection and remote/unknown refusals, and decode all four kernel escapes,
+including newline. Keep descriptor-pinned, no-follow file access and every
+authority/read/dispatch checkpoint unchanged. This neither caches locality nor
+changes the execution configuration, selected model, task framing or numeric gates.
+Native measurements also retain model-admission and revalidation phase durations.
+
 A successful native self-test records a measurement, not network authority. Only
 actual seccomp or the parent's verified AppContainer proof grants product-local
 activation. The legacy source-only Windows CI observer may add its independently

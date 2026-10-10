@@ -56,13 +56,21 @@ def absolute_local_path(value: Path | str) -> Path:
         # Linux mountinfo is a local kernel observation; unknown platforms fail closed.
         try:
             rows = Path("/proc/self/mountinfo").read_text(encoding="utf-8").splitlines()
+            parts = path.parts
             matches = []
             for row in rows:
                 left, right = row.split(" - ", 1)
                 mount = left.split()[4]
-                for encoded, decoded in (("\\040", " "), ("\\011", "\t"), ("\\134", "\\")):
+                for encoded, decoded in (
+                    ("\\040", " "), ("\\011", "\t"), ("\\012", "\n"), ("\\134", "\\"),
+                ):
                     mount = mount.replace(encoded, decoded)
-                if path.is_relative_to(Path(mount)):
+                # Compare normalized components once, without constructing every
+                # ancestor for every mount. Read the complete kernel observation
+                # afresh on each call; no cached locality grants survive a remount.
+                mount_path = Path(mount)
+                mount_parts = mount_path.parts
+                if mount_path.is_absolute() and parts[:len(mount_parts)] == mount_parts:
                     matches.append((len(mount), right.split()[0]))
             filesystem = max(matches)[1] if matches else "unknown"
         except (OSError, ValueError, IndexError):

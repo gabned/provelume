@@ -142,6 +142,7 @@ def measure_synthesis(root, store, runtime, *, checkpoint=None):
                     + elapsed - observation["total_seconds"],
                     "worker": observation, "probe": probe, "generation_observed": observed,
                     "status": completed["status"],
+                    "adapter_phases": adapter.last_observation,
                 })
             # Continue all cases after an invalid response: this is a distinct manual
             # corpus request, never a retry or removal of the failed observation.

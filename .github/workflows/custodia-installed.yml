@@ -82,3 +82,15 @@ jobs:
             ${{ runner.temp }}/custodia-installer/cura-package-resources.json
           if-no-files-found: warn
           retention-days: 30
+      - name: Retain the exact exercised installer for artifact-bound review
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: custodia-reviewed-installer-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/custodia-installer/Provelume-Setup-*.exe
+            ${{ runner.temp }}/custodia-installer/provelume-windows-update.json
+            ${{ runner.temp }}/custodia-installer/cura-package-resources.json
+            ${{ runner.temp }}/custodia-evidence/build.json
+            ${{ runner.temp }}/custodia-evidence/installed.json
+          if-no-files-found: error
+          retention-days: 30
