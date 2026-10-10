@@ -17,6 +17,14 @@ scoring. The semantic profile, model/runtime bytes, corpus/gold and numeric gate
 above stay fixed; prior configuration-bound consent and self-test evidence cannot
 qualify the changed execution boundary.
 
+The S09 canonical execution-configuration SHA-256 is
+`3fc42d6c5e1e6e565e9888acc4fceb163d0fe751b7b4a4199f339a94d77bc808`,
+fixed before the first S09 native scoring. Its four explicit lifecycle properties
+record the frozen Windows AppContainer/creation-time Job/model-handle worker,
+Linux pidfd lifetime guard after seccomp, and host/visible-cgroup-ancestor
+admission. This supersedes S08 configuration evidence; no result threshold or
+task framing changes. Unobserved cgroup ancestors remain explicitly unobserved.
+
 ## Installed resources and reconstruction
 
 Use one portable Core distribution containing both optional, independently pinned

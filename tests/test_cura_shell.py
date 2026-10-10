@@ -210,22 +210,24 @@ def test_preview_script_has_exact_response_hash_sri_and_narrow_csp(shell_fixture
     _select(fixture, "preview")
     home, page = _get(client, "/?lang=en")
     scripts = page.tags("script")
-    assert len(scripts) == 1
-    script = scripts[0]
-    assert script["src"] == "/static/cura-shell.js"
-    raw = client.get(script["src"])
-    assert raw.status_code == 200 and raw.content
-    expected = "sha256-" + base64.b64encode(hashlib.sha256(raw.content).digest()).decode("ascii")
-    assert script["integrity"] == expected and script["crossorigin"] == "anonymous"
-    assert "defer" in script
-    assert _policy(home)["script-src"] == [f"'{expected}'"]
+    assert [script["src"] for script in scripts] == [
+        "/static/cura-shell.js", "/static/navigation.js"]
+    expected = []
+    for script in scripts:
+        raw = client.get(script["src"])
+        assert raw.status_code == 200 and raw.content
+        value = "sha256-" + base64.b64encode(hashlib.sha256(raw.content).digest()).decode("ascii")
+        assert script["integrity"] == value and script["crossorigin"] == "anonymous"
+        assert "defer" in script
+        expected.append(f"'{value}'")
+    assert _policy(home)["script-src"] == expected
     assert _policy(home)["form-action"] == ["'self'"]
     assert "unsafe-inline" not in home.headers["content-security-policy"]
     assert "unsafe-eval" not in home.headers["content-security-policy"]
     google, google_page = _get(client, "/google/connect?lang=en")
-    assert _policy(google)["script-src"] == [f"'{expected}'"]
+    assert _policy(google)["script-src"] == expected
     assert _policy(google)["form-action"] == ["'self'", "https://accounts.google.com"]
-    assert google_page.tags("script")[0]["integrity"] == expected
+    assert [f"'{s['integrity']}'" for s in google_page.tags("script")] == expected
     for route in (
         "/api/v1/documents",
         f"/api/v1/documents/{fixture['document']['id']}/original",
@@ -239,8 +241,8 @@ def test_preview_script_has_exact_response_hash_sri_and_narrow_csp(shell_fixture
     assert denied.status_code == 400 and _policy(denied)["script-src"] == ["'none'"]
     _select(fixture, "current")
     current, current_page = _get(client, "/?lang=en")
-    assert current_page.tags("script") == []
-    assert _policy(current)["script-src"] == ["'none'"]
+    assert [s["src"] for s in current_page.tags("script")] == ["/static/navigation.js"]
+    assert _policy(current)["script-src"] == expected[1:]
 
 
 @pytest.mark.parametrize("mode", ["current", "preview"])
@@ -253,7 +255,8 @@ def test_untrusted_document_markup_never_gains_script_execution(shell_fixture, m
         response, page = _get(client, f"/documents/{identifier}?mode={viewer}&lang=en")
         assert "document-script" in response.text
         assert [s.get("src") for s in page.tags("script")] == (
-            ["/static/cura-shell.js"] if mode == "preview" else []
+            ["/static/cura-shell.js", "/static/navigation.js"] if mode == "preview"
+            else ["/static/navigation.js"]
         )
         for tag, attrs in page.elements:
             assert not any(key.casefold().startswith("on") for key in attrs), (tag, attrs)

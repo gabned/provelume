@@ -1,9 +1,33 @@
 {% extends base_layout %}
-{% block title %}{{ t('perceptio.title') }} · {{ t('brand') }}{% endblock %}
+{% block title %}{{ t('media.title') }} · {{ t('brand') }}{% endblock %}
 {% block content %}
+<section class="media-hub" aria-labelledby="media-hub-title">
+  <h1 id="media-hub-title">{{ t('media.title') }}</h1>
+  <p class="media-intro">{{ t('media.intro') }}</p>
+  {% set family_icons = {'photo':'image', 'audio':'audio-lines', 'video':'video', 'file_family':'file-spreadsheet'} %}
+  <div class="media-grid">
+    {% for family in model.support %}
+    <a class="media-card" href="{{ family.browser_path }}?lang={{ lang }}" aria-labelledby="media-family-{{ family.family }} media-action-{{ family.family }}">
+      <span class="media-icon">{{ icon(family_icons[family.family]) }}</span>
+      <h2 id="media-family-{{ family.family }}">{{ t('media.' ~ family.family ~ '.title') }}</h2>
+      <p class="media-description">{{ t('media.' ~ family.family ~ '.description') }}</p>
+      <p class="media-count">{{ t('media.count') | replace('{count}', ui_number(family.representation_count)) }}</p>
+      <span class="media-cta" id="media-action-{{ family.family }}">{{ t('media.' ~ family.family ~ '.action') }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  <div class="media-tools">
+    <a class="button" href="/capture/?lang={{ lang }}">{{ t('media.capture') }}</a>
+    <a href="/review/annotations?lang={{ lang }}">{{ t('review.corrections') }}</a>
+  </div>
+  <p>{{ t('media.readonly') }}</p>
+  {% if not model['items'] %}<p class="empty">{{ t('perceptio.empty') }}</p>{% endif %}
+  <details class="media-technical">
+    <summary>{{ t('media.technical') }}</summary>
+
 <section class="hero" aria-labelledby="perceptio-title">
   <p class="eyebrow">{{ t('perceptio.eyebrow') }}</p>
-  <h1 id="perceptio-title">{{ t('perceptio.title') }}</h1>
+  <h2 id="perceptio-title">{{ t('perceptio.title') }}</h2>
   <p class="lead">{{ t('perceptio.lead') }}</p>
   <p><a href="/review/annotations?lang={{ lang }}">{{ t('review.corrections') }}</a></p>
   <p class="technical-note" role="status"><strong>{{ model.publication.state }}</strong> · {% if model.publication.state == 'official_metadata_present' %}{{ t('perceptio.release_metadata') | replace('0.10.1', model.publication.current_package_version) }}{% else %}{{ t('perceptio.unpublished') | replace('0.10.1', model.publication.current_package_version) }}{% endif %}</p>
@@ -17,7 +41,7 @@
 
 <section class="panel" aria-labelledby="support-title">
   <h2 id="support-title">{{ t('perceptio.support') }}</h2>
-  <div class="table-wrap">
+  <div class="table-wrap" role="region" aria-labelledby="support-title" tabindex="0">
     <table>
       <thead><tr><th scope="col">{{ t('perceptio.family') }}</th><th scope="col">{{ t('perceptio.surface') }}</th><th scope="col">{{ t('perceptio.profiles') }}</th><th scope="col">{{ t('perceptio.representations') }}</th><th scope="col">{{ t('perceptio.jobs') }}</th></tr></thead>
       <tbody>
@@ -73,5 +97,7 @@
   <h2 id="qualification-title">{{ t('perceptio.qualification') }}</h2>
   <p>{{ t('perceptio.qualification_text') }}</p>
   <p><code>{{ model.qualification.platforms.ubuntu_24_04 }}</code> · <code>{{ model.qualification.platforms.windows_2025 }}</code> · N-1 {{ model.qualification.recovery.n_minus_one }}</p>
+</section>
+  </details>
 </section>
 {% endblock %}

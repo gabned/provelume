@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import secrets
 import threading
 import time
@@ -72,7 +73,8 @@ class AiSetup:
         self.instance_id = instance.scheduler.journal.instance_id
         self.path = instance.scheduler.journal.root / "ai-setup.json"
         self.models = instance.ai_model_lifecycle()
-        self.runtime = LocalRuntime(runtime_directory or Path(__file__).parent / "native-ai")
+        self.runtime = LocalRuntime(runtime_directory or Path(__file__).parent / "native-ai" /
+                                    ("windows" if os.name == "nt" else "linux"))
         self.credentials = credentials or (lambda *_: None)
         self.lock = threading.RLock()
         self.previews = {}
@@ -541,7 +543,8 @@ class AiSetup:
                 self.operation is not None
                 and self.operation["id"] == identity
                 and self.operation["state"] == "running"
-                and self.operation["action"] in {"install", "import", "self_test"},
+                and self.operation["action"] in {"install", "import", "verify", "self_test",
+                                                   "activate", "rollback"},
                 "ai_setup_stale",
             )
             self.operation["cancel_requested"] = True
@@ -567,6 +570,13 @@ class AiSetup:
             elif action == "install":
                 host = self
 
+                def download_cancelled():
+                    if self.cancel.is_set():
+                        return True
+                    if not self.instance.store.read_config()["network"]["external_access"]:
+                        raise ModelError("network")
+                    return False
+
                 class Progress:
                     def fetch(self, entry, **kwargs):
                         for chunk in ArtifactDownload().fetch(entry, **kwargs):
@@ -579,7 +589,7 @@ class AiSetup:
                     selection,
                     requested=True,
                     license_accepted=self.models.registry.entry(MODEL_ID).license,
-                    cancel=self.cancel.is_set,
+                    cancel=download_cancelled,
                     transport=Progress(),
                 )
             elif action == "import":
@@ -593,7 +603,7 @@ class AiSetup:
                     cancel=self.cancel.is_set,
                 )
             elif action == "verify":
-                self.models.verify(MODEL_ID, selection)
+                self.models.verify(MODEL_ID, selection, cancel=self.cancel.is_set)
                 self.observed_model = "verified_bytes"
             elif action == "self_test":
                 self.self_test_evidence = None
@@ -606,12 +616,16 @@ class AiSetup:
                 proof = observation.get("load", {}).get("limits", {})
                 if (
                     evidence.result == "PASSED"
-                    and proof.get("network_control") == "seccomp:socket-syscalls-EPERM"
+                    and proof.get("network_control") in {
+                        "seccomp:socket-syscalls-EPERM",
+                        "AppContainer:no-capabilities-no-loopback-exemption",
+                    }
                 ):
                     self.local_evidence = digest(proof)
             elif action == "activate":
                 check(self.local_evidence is not None, "ai_locality_unqualified")
-                self.models.activate(MODEL_ID, selection, self.self_test_evidence, requested=True)
+                self.models.activate(MODEL_ID, selection, self.self_test_evidence, requested=True,
+                                     cancel=self.cancel.is_set)
             elif action == "deactivate":
                 self.jobs.configure(mode="off")
                 self.runtime.close()
@@ -629,7 +643,8 @@ class AiSetup:
                 self.local_evidence = None
             elif action == "rollback":
                 check(self.local_evidence is not None, "ai_locality_unqualified")
-                self.models.rollback(selection, self.runtime, requested=True)
+                self.models.rollback(selection, self.runtime, requested=True,
+                                     cancel=self.cancel.is_set)
             with self.lock:
                 operation["state"] = "completed"
         except Exception as exc:

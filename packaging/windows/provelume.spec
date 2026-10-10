@@ -10,6 +10,19 @@ if not ICON.is_file() or not VERSION_INFO.is_file():
     raise RuntimeError("Versioned Windows icon or executable metadata is missing.")
 
 datas = collect_data_files("provelume") + [(str(ICON), "assets")]
+# collect_data_files intentionally omits native extensions. These governed
+# optional resources must retain their exact package-relative paths and bytes.
+package_root = Path(find_spec("provelume").origin).parent
+native_root = package_root / "native-ai"
+if native_root.exists():
+    from provelume.ai_runtime_contract import runtime_lock
+
+    for platform, inventory in runtime_lock()["platforms"].items():
+        root = native_root / platform
+        if {path.name for path in root.iterdir()} != set(inventory):
+            raise RuntimeError("Native runtime resource inventory is incomplete.")
+        datas.extend((str(root / name), "provelume/native-ai/" + platform)
+                     for name in sorted(inventory))
 hiddenimports = collect_submodules("uvicorn")
 pydantic_core_spec = find_spec("pydantic_core._pydantic_core")
 if pydantic_core_spec is None or pydantic_core_spec.origin is None:

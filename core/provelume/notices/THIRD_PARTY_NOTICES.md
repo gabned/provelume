@@ -89,7 +89,7 @@ These components have their own copyright notices and license terms. Transitive 
 
 ## Cura UI icons — vendored Lucide subset in 0.11/S02
 
-Provelume includes 18 unchanged SVG sources from [Lucide 1.45.0](https://github.com/lucide-icons/lucide/releases/tag/1.45.0),
+Provelume includes 23 unchanged SVG sources from [Lucide 1.45.0](https://github.com/lucide-icons/lucide/releases/tag/1.45.0),
 commit `b998e2892b90b88004d62da2d0b64dab9959a520`, for decorative icons beside visible
 navigation and status labels. Lucide's ISC license and the applicable MIT notices for its
 Feather-derived icons are both retained: the aggregate subset is **ISC AND MIT**, not MIT-only

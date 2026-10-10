@@ -334,6 +334,7 @@ def test_startup_update_opt_in_is_visible_in_instance_network_status(tmp_path: P
     root = tmp_path / "instance"
     instance = ProvelumeInstance.initialise(root)
 
+    instance.google_connection.set_network(enabled=True, consent=True)
     declare_startup_update_policy(root, enabled=True)
     enabled = instance.network_status()
     update = next(
@@ -356,7 +357,7 @@ def test_startup_update_opt_in_is_visible_in_instance_network_status(tmp_path: P
         if component["id"] == "builtin.update_checks"
     )
     assert update["enabled"] is False
-    assert disabled["policy"]["external_access"] is False
+    assert disabled["policy"]["external_access"] is True
     assert startup_update_policy_enabled(root) is False
 
 

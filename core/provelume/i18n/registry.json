@@ -9278,6 +9278,114 @@
       "rendering": "text",
       "sensitive_review_required": false
     },
+    "media.audio.action": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.audio.description": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.audio.title": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.capture": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.count": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.file_family.action": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.file_family.description": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.file_family.title": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.intro": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.photo.action": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.photo.description": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.photo.title": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.readonly": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "media.technical": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.title": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.video.action": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.video.description": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "media.video.title": {
+      "context": "File overview; templates/perceptio.html; visible navigation label or explanation.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
     "nav.about": {
       "context": "nav: label/navigation; templates/about.html",
       "linguistic_review": "UNVERIFIED",
@@ -13168,6 +13276,18 @@
     },
     "shell.language": {
       "context": "shell: label/navigation; templates/shell_settings.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "shell.language_help": {
+      "context": "Narrow persisted language preference; templates/shell_settings.html. Header language links change only the current URL.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "shell.language_save": {
+      "context": "Narrow persisted language preference; templates/shell_settings.html. Header language links change only the current URL.",
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false

@@ -16,7 +16,7 @@ from scripts import verify_cura_package_resources as verifier
 def package(tmp_path: Path) -> tuple[Path, Path, dict[str, bytes]]:
     # Deliberately synthetic bytes: these tests prove detection, never a frozen build.
     resources = {name: (name + " synthetic fixture\n").encode() for name in verifier.REQUIRED}
-    resources.update({f"static/icons/lucide/icon-{i}.svg": b"<svg/>" for i in range(18)})
+    resources.update({f"static/icons/lucide/icon-{i}.svg": b"<svg/>" for i in range(23)})
     resources["templates/cura/home.html"] = b"synthetic Cura home"
     resources["templates/legacy/base.html"] = b"synthetic optional nested legacy template"
     resources["templates/search.html"] = b"synthetic existing search"

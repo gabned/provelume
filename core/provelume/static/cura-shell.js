@@ -22,29 +22,6 @@
       }
     });
   }
-  const navigation = document.querySelector("[data-cura-navigation]");
-  const compact = window.matchMedia("(max-width: 60rem)");
-  if (navigation) {
-    const summary = navigation.querySelector("summary");
-    const synchronize = () => { navigation.open = !compact.matches; };
-    synchronize();
-    compact.addEventListener("change", synchronize);
-    navigation.addEventListener("focusout", (event) => {
-      if (compact.matches && navigation.open && event.relatedTarget &&
-          !navigation.contains(event.relatedTarget)) navigation.open = false;
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && compact.matches && navigation.open) {
-        navigation.open = false;
-        summary.focus();
-      }
-    });
-    document.addEventListener("click", (event) => {
-      if (compact.matches && navigation.open && !navigation.contains(event.target)) {
-        navigation.open = false;
-      }
-    });
-  }
   // A server-validated receipt supplies the initial interval. Both elapsed monotonic
   // time and the wall deadline can expire it; changing the clock cannot extend it.
   const started = performance.now();

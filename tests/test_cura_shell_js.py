@@ -14,7 +14,8 @@ def test_browser_enhancement_navigation_focus_and_live_publication_expiry() -> N
     repository = Path(__file__).resolve().parents[1]
     result = subprocess.run(
         [node, str(repository / "tests/fixtures/cura_shell_contract.cjs"),
-         str(repository / "core/provelume/static/cura-shell.js")],
+         str(repository / "core/provelume/static/cura-shell.js"),
+         str(repository / "core/provelume/static/navigation.js")],
         capture_output=True, text=True, timeout=15, check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr

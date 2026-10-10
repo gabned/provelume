@@ -47,6 +47,25 @@
   </section>
 </div>
 {% if editable %}
+<section class="panel" aria-labelledby="language-preference-title">
+  <h2 id="language-preference-title">{{ t('shell.language') }}</h2>
+  <p id="language-preference-help">{{ t('shell.language_help') }}</p>
+  <form id="language-preference-form" method="post" action="/settings/shell?lang={{ lang }}" class="settings-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="mutation_nonce" value="{{ language_mutation_nonce }}">
+    <input type="hidden" name="revision" value="{{ shell.revision }}">
+    <input type="hidden" name="action" value="set-language">
+    <label for="shell-language"><span>{{ t('shell.language') }}</span>
+      <select id="shell-language" name="language" aria-describedby="language-preference-help">
+        <option value="system"{% if shell.shell.language == 'system' %} selected{% endif %}>{{ t('common.language_system') }}</option>
+        {% for option in language_options %}
+        <option value="{{ option.id }}"{% if shell.shell.language == option.id %} selected{% endif %}>{{ option.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">{{ t('shell.language_save') }}</button>
+  </form>
+</section>
 <section class="panel">
   <h2>{{ t('shell.title') }}</h2>
   <form method="post" action="/settings/shell?lang={{ lang }}" class="settings-form">
@@ -74,14 +93,7 @@
         {% endfor %}
       </select>
     </label>
-    <label for="shell-language"><span>{{ t('shell.language') }}</span>
-      <select id="shell-language" name="language">
-        <option value="system"{% if language_choice == 'system' %} selected{% endif %}>{{ t('common.language_system') }}</option>
-        {% for option in language_options %}
-        <option value="{{ option.id }}"{% if language_choice == option.id %} selected{% endif %}>{{ option.label }}</option>
-        {% endfor %}
-      </select>
-    </label>
+    <input type="hidden" name="language" value="{{ shell.shell.language }}">
     <div class="form-actions">
       <button type="submit" name="action" value="save">{{ t('shell.save') }}</button>
       <button class="button secondary" type="submit" name="action" value="reset-port">{{ t('shell.reset') }}</button>

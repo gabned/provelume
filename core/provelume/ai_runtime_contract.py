@@ -122,6 +122,10 @@ CONFIGURATION = {
     "prefix_state": "single-sequence-checkpoint-v1",
     "governed_prefix": "canonical-context-header-v1",
     "inference_observation": "request-pid-prefill-v1",
+    "integrated_lifecycle": "custodia-s09-v1",
+    "windows_worker": "frozen-appcontainer-creation-job-model-handle-v1",
+    "linux_parent_lifetime": "pidfd-guard-after-seccomp-v1",
+    "resource_admission": "host-and-visible-cgroup-v2-ancestors-v1",
     "linux_worker_nice_floor": 10,
     "prefix_state_bytes": 64 * 1024**2,
     "prefix_min_tokens": 128,
@@ -139,7 +143,12 @@ def hardware():
     """Observed resources, not qualification of a reference laptop."""
     system = platform.system().lower()
     cpu = platform.processor()
-    check(not getattr(sys, "frozen", False), "compatibility")
+    resource_limits = {}
+    if getattr(sys, "frozen", False):
+        from pathlib import Path
+
+        check(system == "windows" and getattr(sys, "_MEIPASS", None)
+              and Path(sys.executable).name == "Provelume.exe", "compatibility")
     check(sys.version_info[:2] == (3, 12), "compatibility")
     check(system in ("windows", "linux"), "compatibility")
     check(platform.machine().lower() in ("amd64", "x86_64"), "compatibility")
@@ -182,6 +191,11 @@ def hardware():
         flags = [set(line.split(":", 1)[1].split()) for line in cpuinfo.splitlines()
                  if line.startswith("flags")]
         check(bool(flags) and all("avx2" in row for row in flags), "compatibility")
+        from .ai_runtime_resources import effective_limits
+
+        resource_limits = effective_limits(total, available, os.sched_getaffinity(0))
+        total, available = resource_limits["ram_total"], resource_limits["ram_available"]
+        cpus = resource_limits["logical_cpus"]
     check(cpus >= 4 and total >= 8 * 1024**3 and available >= 4 * 1024**3, "limit")
     return {
         "os": platform.platform(),
@@ -193,4 +207,5 @@ def hardware():
         "logical_cpus": cpus,
         "ram_total": total,
         "ram_available": available,
+        **resource_limits,
     }

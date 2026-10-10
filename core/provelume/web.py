@@ -29,8 +29,14 @@ from .catalog_registry import (
     registry,
     resolve_language,
 )
-from .cura_icons import icon_renderer, render_icon
-from .cura_shell import navigation_context, script_integrity, shell_snapshot, validated_return
+from .cura_icons import icon_renderer
+from .cura_shell import (
+    navigation_context,
+    navigation_integrity,
+    script_integrity,
+    shell_snapshot,
+    validated_return,
+)
 from .domain_review_activity import attach_domain_review_routes
 from .email_activity import attach_email_routes
 from .file_family_activity import attach_file_family_routes
@@ -324,6 +330,8 @@ def _base_context(request: Request, language: str) -> dict[str, Any]:
     navigation = _navigation(language, request.url.path, t, security_t)
     integrity = script_integrity() if preview else None
     request.state.cura_script_integrity = integrity
+    navigation_script = navigation_integrity()
+    request.state.navigation_script_integrity = navigation_script
     return {
         "request": request,
         "lang": language,
@@ -336,7 +344,8 @@ def _base_context(request: Request, language: str) -> dict[str, Any]:
         "interface_mode": "preview" if preview else "current",
         "base_layout": "cura/base.html" if preview else "base.html",
         "cura_script_integrity": integrity,
-        "icon": icon_renderer() if preview else render_icon,
+        "navigation_script_integrity": navigation_script,
+        "icon": icon_renderer(),
         "shell_about": current_about() if preview else None,
         **navigation_context(request, language, t, navigation),
         "language_urls": {

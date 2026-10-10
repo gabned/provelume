@@ -1,0 +1,83 @@
+name: Custodia installed Windows lifecycle
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  installed:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      QUALIFIED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Install reviewed development and build tools
+        run: python -m pip install -e ".[dev]" -r requirements-release.txt
+      - name: Acquire exact optional libraries and public model, outside artifacts
+        run: python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/custodia-inputs" --platform all --accept-licenses --include-model
+      - name: Compose both verified native inputs and build twice
+        shell: pwsh
+        run: |
+          $env:SOURCE_DATE_EPOCH = git show -s --format=%ct $env:QUALIFIED_SHA
+          foreach ($target in @("windows", "linux")) {
+            python scripts/build_ai_runtime_input.py `
+              --directory "$env:RUNNER_TEMP/custodia-inputs/$target" --platform $target `
+              --output "$env:RUNNER_TEMP/custodia-$target.zip"
+            if ($LASTEXITCODE -ne 0) { throw "Native input verification failed." }
+          }
+          python scripts/deterministic_build.py --commit $env:QUALIFIED_SHA `
+            --native-windows "$env:RUNNER_TEMP/custodia-windows.zip" `
+            --native-linux "$env:RUNNER_TEMP/custodia-linux.zip" `
+            --output-dir "$env:RUNNER_TEMP/custodia-wheel" `
+            --evidence "$env:RUNNER_TEMP/custodia-evidence/build.json"
+      - name: Build ordinary frozen executable and unsigned development installer
+        shell: pwsh
+        run: |
+          $version = python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"
+          $wheel = Get-ChildItem "$env:RUNNER_TEMP/custodia-wheel/*.whl" | Select-Object -First 1
+          ./scripts/build_windows_installer.ps1 -CandidateWheel $wheel.FullName `
+            -OutputDirectory "$env:RUNNER_TEMP/custodia-installer" -Version $version `
+            -Tag "v$version" -Channel development -Commit $env:QUALIFIED_SHA
+      - name: Observe ordinary installed model actions and independent worker token
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $target = "$env:RUNNER_TEMP/Custodia Installed"
+          $setup = Get-ChildItem "$env:RUNNER_TEMP/custodia-installer/Provelume-Setup-*.exe" | Select-Object -First 1
+          $install = Start-Process -FilePath $setup.FullName -ArgumentList @(
+            "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=`"$target`"", "/TASKS=`"`"") -PassThru
+          if (-not $install.WaitForExit(90000) -or $install.ExitCode -ne 0) {
+            throw "Disposable installation did not complete."
+          }
+          try {
+            python scripts/qualify_custodia_installed.py `
+              --executable "$target/Provelume.exe" --commit $env:QUALIFIED_SHA `
+              --model "$env:RUNNER_TEMP/custodia-inputs/model.gguf" `
+              --instance "$env:RUNNER_TEMP/Custodia Synthetic Instance" `
+              --output "$env:RUNNER_TEMP/custodia-evidence/installed.json"
+            if ($LASTEXITCODE -ne 0) { throw "Installed lifecycle qualification failed." }
+          } finally {
+            $uninstall = Start-Process -FilePath "$target/unins000.exe" -ArgumentList @(
+              "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") -PassThru
+            if (-not $uninstall.WaitForExit(90000) -or $uninstall.ExitCode -ne 0) {
+              throw "Disposable uninstall did not complete."
+            }
+          }
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: custodia-installed-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/custodia-evidence/*.json
+            ${{ runner.temp }}/custodia-installer/cura-package-resources.json
+          if-no-files-found: warn
+          retention-days: 30

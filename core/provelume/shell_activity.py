@@ -20,6 +20,7 @@ from .service import ProvelumeInstance
 from .shell_settings import (
     DEFAULT_LOCAL_PORT,
     INTERFACE_MODES,
+    LANGUAGES,
     MAX_SETTINGS_REVISION,
     ShellSettingsError,
     ShellSettingsManager,
@@ -158,6 +159,7 @@ def attach_shell_routes(
                 csrf_token=csrf_token if editable else None,
                 mutation_nonce=nonces.issue() if editable else None,
                 interface_mutation_nonce=nonces.issue() if editable else None,
+                language_mutation_nonce=nonces.issue() if editable else None,
                 saved=saved,
                 reset=reset,
                 error_code=error_code,
@@ -225,6 +227,11 @@ def attach_shell_routes(
                 "csrf_token", "mutation_nonce", "revision", "action", "interface_mode"
             } or values["interface_mode"][0] not in INTERFACE_MODES:
                 raise HTTPException(status_code=400, detail="invalid shell settings fields")
+        elif action == "set-language":
+            if set(values) != {
+                "csrf_token", "mutation_nonce", "revision", "action", "language"
+            } or values["language"][0] not in LANGUAGES:
+                raise HTTPException(status_code=400, detail="invalid shell settings fields")
         elif (
             action not in {"save", "reset-port"}
             or "interface_mode" in values
@@ -283,6 +290,11 @@ def attach_shell_routes(
                     theme=values.get("theme", ["system"])[0],
                     language=values.get("language", ["en"])[0],
                     expected_revision=expected_revision,
+                )
+                reset = False
+            elif action == "set-language":
+                committed = manager.set_preferences(
+                    language=values["language"][0], expected_revision=expected_revision,
                 )
                 reset = False
             else:

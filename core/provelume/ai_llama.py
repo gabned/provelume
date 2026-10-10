@@ -147,8 +147,10 @@ def bind(lib, name, result, *args):
 
 
 class Llama:
-    def __init__(self, directory, model_path, library_paths):
+    def __init__(self, directory, model_path, library_paths, *, model_stream=None):
         windows = os.name == "nt"
+        self._model_file = None
+        self._closed = False
         self._directory = os.add_dll_directory(str(directory)) if windows else None
         mode = getattr(c, "RTLD_GLOBAL", 0)
         names = (
@@ -173,9 +175,23 @@ class Llama:
         mp.use_extra_bufts = False
         # Force MMAP; sealed snapshot/deny-write handle stays alive for this lifetime.
         mp.load_mode = 1
-        self.model = bind(lib, "llama_model_load_from_file", P, c.c_char_p, ModelParams)(
-            os.fsencode(model_path), mp
-        )
+        if model_stream is not None:
+            check(windows and model_path is None, "compatibility")
+            crt = c.CDLL("ucrtbase")
+            descriptor = bind(crt, "_dup", INT, INT)(model_stream.fileno())
+            check(descriptor >= 0, "compatibility")
+            pointer = bind(crt, "_fdopen", P, INT, c.c_char_p)(descriptor, b"rb")
+            if not pointer:
+                bind(crt, "_close", INT, INT)(descriptor)
+                check(False, "compatibility")
+            self._model_file = (crt, pointer)
+            # The locked llama ABI borrows FILE* (owns_fp=false). Same UCRT as its
+            # imported _fileno/_get_osfhandle; retain until after llama_model_free.
+            self.model = bind(lib, "llama_model_load_from_file_ptr", P, P, ModelParams)(pointer, mp)
+        else:
+            self.model = bind(lib, "llama_model_load_from_file", P, c.c_char_p, ModelParams)(
+                os.fsencode(model_path), mp
+            )
         check(bool(self.model), "compatibility")
         cp = bind(lib, "llama_context_default_params", ContextParams)()
         cp.n_ctx, cp.n_batch, cp.n_ubatch, cp.n_seq_max = 2048, 512, 128, 1
@@ -365,7 +381,14 @@ class Llama:
         }
 
     def close(self):
+        if self._closed:
+            return
+        self._closed = True
         self._drop_prefix()
         bind(self.lib, "llama_sampler_free", None, P)(self.sampler)
         bind(self.lib, "llama_free", None, P)(self.context)
         bind(self.lib, "llama_model_free", None, P)(self.model)
+        if self._model_file is not None:
+            crt, pointer = self._model_file
+            bind(crt, "fclose", INT, P)(pointer)
+            self._model_file = None

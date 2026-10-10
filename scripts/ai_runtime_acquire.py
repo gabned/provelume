@@ -55,7 +55,8 @@ def acquire(url, path, size, digest):
         return
     stage = path.with_suffix(path.suffix + ".part")
     # No ambient proxy, cookies, credentials or retry. Redirects exist only in
-    # this explicit upstream acquisition tool, never in S04's product transport.
+    # this explicit build tool. The native product downloader separately pins
+    # its smaller model-only origin set and numeric peers (ADR 0052).
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), Redirects())
     deadline = time.monotonic() + 300
     with opener.open(url, timeout=15) as response, stage.open("xb") as out:
@@ -114,8 +115,11 @@ def main():
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--accept-licenses", action="store_true", required=True)
     parser.add_argument("--include-model", action="store_true")
+    parser.add_argument("--platform", choices=("windows", "linux", "all"))
     args = parser.parse_args()
-    prepare(args.directory, "windows" if os.name == "nt" else "linux", model=args.include_model)
+    selected = args.platform or ("windows" if os.name == "nt" else "linux")
+    for system in (("windows", "linux") if selected == "all" else (selected,)):
+        prepare(args.directory, system, model=args.include_model)
     print("Locked artifacts verified; no activation or product inference authorized.")
 
 

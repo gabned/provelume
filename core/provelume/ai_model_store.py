@@ -49,6 +49,7 @@ from .representations import canonical_json_bytes
 
 SELF_TEST_TTL_SECONDS = 60
 OPERATION_SECONDS = 30
+NATIVE_INSTALL_SECONDS = 900
 FREE_SPACE_RESERVE = 1024 * 1024
 _PACKAGE_NAME = re.compile(r"[0-9a-f]{64}\.pkg\Z")
 _STAGE_NAME = re.compile(r"[0-9a-f]{32}\.part\Z")
@@ -212,16 +213,21 @@ class ModelStore:
     def _path(self, entry):
         return self.root / "verified" / (entry.package_sha256 + ".pkg")
 
-    def _verify(self, entry):
+    def _verify(self, entry, *, cancel=lambda: False, deadline=float("inf")):
+        checkpoint(cancel, deadline)
         if entry.native:
             from .ai_model_file import verify_file
 
-            return verify_file(self._path(entry), entry)
-        return inspect_package(_read(self._path(entry), MAX_PACKAGE_BYTES), entry)
+            return verify_file(self._path(entry), entry, cancel=cancel, deadline=deadline)
+        model = inspect_package(_read(self._path(entry), MAX_PACKAGE_BYTES), entry)
+        checkpoint(cancel, deadline)
+        return model
 
-    def verify(self, identifier: str, runtime: RuntimeSelection) -> VerifiedModel:
+    def verify(self, identifier: str, runtime: RuntimeSelection, *,
+               cancel=lambda: False, deadline=None) -> VerifiedModel:
+        deadline = time.monotonic() + OPERATION_SECONDS if deadline is None else deadline
         with self._hold():
-            return self._verify(self._entry(identifier, runtime))
+            return self._verify(self._entry(identifier, runtime), cancel=cancel, deadline=deadline)
 
     def _state(self):
         path = self.root / "selection.json"
@@ -254,7 +260,7 @@ class ModelStore:
         with self._hold():
             target = self._path(entry)
             if target.exists():
-                self._verify(entry)
+                self._verify(entry, cancel=cancel, deadline=deadline)
                 return {"id": entry.id, "state": "verified", "activated": False}
             installed = list((self.root / "verified").iterdir())
             staged = list((self.root / "staging").iterdir())
@@ -297,7 +303,7 @@ class ModelStore:
                     inspect_package(raw, entry)
                     checkpoint(cancel, deadline)
                     write_local_bytes(target, raw, replace=True)
-                self._verify(entry)
+                self._verify(entry, cancel=cancel, deadline=deadline)
                 return {"id": entry.id, "state": "verified", "activated": False}
             finally:
                 self._delete(stage, missing=True)
@@ -319,17 +325,21 @@ class ModelStore:
     def install(self, identifier: str, runtime: RuntimeSelection, *, requested: bool = False,
                 license_accepted: str, cancel=lambda: False, transport=None):
         check(requested is True, "consent")
+        seconds = (NATIVE_INSTALL_SECONDS if self._entry(identifier, runtime).native
+                   else OPERATION_SECONDS)
         # No transport is opened until inside the storage lock and after admission.
         downloader = transport or ArtifactDownload()
         return self._install(identifier, runtime,
                              lambda entry, deadline: downloader.fetch(
                                  entry, cancel=cancel, deadline=deadline),
                              license_accepted=license_accepted, cancel=cancel,
-                             deadline=time.monotonic() + OPERATION_SECONDS)
+                             deadline=time.monotonic() + seconds)
 
     def import_offline(self, identifier: str, path: Path | str, runtime: RuntimeSelection, *,
                        requested: bool = False, license_accepted: str, cancel=lambda: False):
         check(requested is True, "consent")
+        seconds = (NATIVE_INSTALL_SECONDS if self._entry(identifier, runtime).native
+                   else OPERATION_SECONDS)
 
         def chunks(entry, deadline):
             with open_local_file(path) as handle:
@@ -345,7 +355,7 @@ class ModelStore:
                 check(file_identity(handle) == before, "integrity")
 
         return self._install(identifier, runtime, chunks, license_accepted=license_accepted,
-                             cancel=cancel, deadline=time.monotonic() + OPERATION_SECONDS)
+                             cancel=cancel, deadline=time.monotonic() + seconds)
 
     def update(self, identifier: str, runtime: RuntimeSelection, **request):
         # Installation is explicit and never moves the active pointer by itself.
@@ -359,34 +369,39 @@ class ModelStore:
                        "admission": self.allowed_ids, "session": self._session})
 
     def self_test(self, identifier: str, runtime: RuntimeSelection, runner, *,
-                  requested: bool = False, cancel=lambda: False):
+                  requested: bool = False, cancel=lambda: False, deadline=None):
         check(requested is True, "consent")
+        started = time.monotonic()
         with self._hold():
             entry = self._entry(identifier, runtime)
             self._evidence.pop(identifier, None)
             self._native_runners.pop(identifier, None)
-            model = self._verify(entry)
-            started = time.monotonic()
             seconds = OPERATION_SECONDS
             if entry.native:
                 from .ai_runtime_contract import CONFIGURATION
 
                 seconds = CONFIGURATION["seconds"]
-            deadline = started + seconds
+            deadline = (min(deadline, started + seconds) if deadline is not None
+                        else started + seconds)
             checkpoint(cancel, deadline)
+            model = self._verify(entry, cancel=cancel, deadline=deadline)
             try:
                 # Trusted host implementation only; packages never supply a runner.
                 if entry.native:
                     from .ai_runtime import LocalRuntime
 
                     check(type(runner) is LocalRuntime, "self_test")
-                result = runner(model, runtime, cancel)
+                    result = runner(model, runtime, cancel, deadline=deadline)
+                else:
+                    result = runner(model, runtime, cancel)
+            except ModelError:
+                raise
             except Exception:
                 raise ModelError("self_test") from None
             checkpoint(cancel, deadline)
             check(type(result) is str and result in ("PASSED", "FAILED", "UNKNOWN"), "self_test")
             # A callback cannot validate bytes that changed while it was running.
-            self._verify(self._entry(identifier, runtime))
+            self._verify(self._entry(identifier, runtime), cancel=cancel, deadline=deadline)
             evidence = SelfTestEvidence(identifier, self._binding(entry, runtime), result,
                                         started + SELF_TEST_TTL_SECONDS)
             if result == "PASSED":
@@ -416,7 +431,9 @@ class ModelStore:
         except (ModelError, MaintenanceTargetError, OSError):
             return False
 
-    def _admit_evidence(self, entry, runtime, evidence):
+    def _admit_evidence(self, entry, runtime, evidence, *, cancel=lambda: False,
+                        deadline=float("inf")):
+        checkpoint(cancel, deadline)
         self._check_evidence(entry, runtime, evidence)
         if entry.native:
             runner = self._native_runners.get(entry.id)
@@ -427,41 +444,52 @@ class ModelStore:
                 self._evidence.pop(entry.id, None)
                 runner.close()
                 raise ModelError("stale") from None
-        return self._verify(entry)
+        model = self._verify(entry, cancel=cancel, deadline=deadline)
+        self._check_evidence(entry, runtime, evidence)
+        return model
 
     def activate(self, identifier: str, runtime: RuntimeSelection, evidence: SelfTestEvidence, *,
-                 requested: bool = False):
+                 requested: bool = False, cancel=lambda: False, deadline=None):
         check(requested is True, "consent")
+        deadline = time.monotonic() + OPERATION_SECONDS if deadline is None else deadline
         with self._hold():
             entry = self._entry(identifier, runtime)
-            self._admit_evidence(entry, runtime, evidence)
+            self._admit_evidence(entry, runtime, evidence, cancel=cancel, deadline=deadline)
             state = self._state()
             if state["active"] != identifier:
                 state["previous"], state["active"] = state["active"], identifier
+                checkpoint(cancel, deadline)
                 self._write_state(state)
             return {"id": identifier, "state": "internally_active", "inference_authorized": False}
 
     @contextmanager
-    def use(self, runtime: RuntimeSelection):
+    def use(self, runtime: RuntimeSelection, *, cancel=lambda: False, deadline=None):
+        deadline = time.monotonic() + OPERATION_SECONDS if deadline is None else deadline
         # Lifetime lock excludes update/removal in another process as well.
         with self._hold():
             identifier = self._state()["active"]
             check(identifier is not None, "missing")
             entry = self._entry(identifier, runtime)
-            model = self._admit_evidence(entry, runtime, self._evidence.get(identifier))
+            model = self._admit_evidence(entry, runtime, self._evidence.get(identifier),
+                                         cancel=cancel, deadline=deadline)
             yield model
 
-    def rollback(self, runtime: RuntimeSelection, runner, *, requested: bool = False):
+    def rollback(self, runtime: RuntimeSelection, runner, *, requested: bool = False,
+                 cancel=lambda: False):
         check(requested is True, "consent")
+        deadline = time.monotonic() + SELF_TEST_TTL_SECONDS
         with self._hold():
             before = self._state()
             identifier = before["previous"]
             check(identifier is not None, "missing")
-            self._verify(self._entry(identifier, runtime))
-        evidence = self.self_test(identifier, runtime, runner, requested=True)
+            self._verify(self._entry(identifier, runtime), cancel=cancel, deadline=deadline)
+        evidence = self.self_test(identifier, runtime, runner, requested=True,
+                                  cancel=cancel, deadline=deadline)
         with self._hold():
             check(self._state() == before, "stale")
-            self._admit_evidence(self._entry(identifier, runtime), runtime, evidence)
+            self._admit_evidence(self._entry(identifier, runtime), runtime, evidence,
+                                 cancel=cancel, deadline=deadline)
+            checkpoint(cancel, deadline)
             self._write_state({"schema_version": 1, "active": identifier,
                                "previous": before["active"]})
             return {"id": identifier, "state": "internally_active", "inference_authorized": False}

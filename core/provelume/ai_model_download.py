@@ -59,7 +59,7 @@ def _resolve(host: str, deadline: float, cancel, resolver) -> tuple[str, ...]:
 
 
 class ArtifactDownload:
-    """One bounded HTTPS request to the exact governed URL; no retry or redirect."""
+    """Governed HTTPS acquisition; ZIPs never redirect, native routes are closed."""
 
     def __init__(self, *, resolver=None, connector=None, tls_context=None):
         # Internal host/test seams. Product callers use the defaults.
@@ -68,6 +68,11 @@ class ArtifactDownload:
         self._tls_context = tls_context
 
     def fetch(self, entry: ModelEntry, *, cancel, deadline: float) -> Iterator[bytes]:
+        if entry.native:
+            from .ai_model_download_native import fetch_native
+
+            yield from fetch_native(self, entry, cancel=cancel, deadline=deadline)
+            return
         parts = urlsplit(artifact_url(entry.url))
         checkpoint(cancel, deadline)
         addresses = _resolve(parts.hostname, deadline, cancel, self._resolver)

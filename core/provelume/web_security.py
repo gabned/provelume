@@ -119,6 +119,7 @@ class LocalWebSecurityMiddleware(BaseHTTPMiddleware):
             getattr(request.state, name, None)
             for name in (
                 "cura_script_integrity",
+                "navigation_script_integrity",
                 "annotation_script_integrity",
                 "review_script_integrity",
                 "capture_script_integrity",

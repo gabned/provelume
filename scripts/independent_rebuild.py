@@ -178,6 +178,12 @@ def compare_independent_rebuild(
         raise IndependentRebuildError(
             "candidate and rebuild use different direct build tool versions"
         )
+    native = candidate_report.get("native_inputs")
+    if native != rebuild_report.get("native_inputs") or (
+        native is not None and candidate_report.get("build_composition_sha256")
+        != rebuild_report.get("build_composition_sha256")
+    ):
+        raise IndependentRebuildError("candidate and rebuild native composition differs")
 
     try:
         identities = compare_artifact_sets(candidate, rebuild)
@@ -203,6 +209,9 @@ def compare_independent_rebuild(
             "the evidence covers Python wheel and source distribution only",
         ],
     }
+    if native is not None:
+        report["native_inputs"] = native
+        report["build_composition_sha256"] = candidate_report["build_composition_sha256"]
     _write_json(output_report_path, report)
     return report
 
