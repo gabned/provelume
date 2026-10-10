@@ -124,6 +124,7 @@ CONFIGURATION = {
     "inference_observation": "request-pid-prefill-v1",
     "integrated_lifecycle": "custodia-s09-v1",
     "windows_worker": "frozen-appcontainer-creation-job-model-handle-v1",
+    "windows_environment": "os-known-localappdata-minimal-v1",
     "linux_parent_lifetime": "pidfd-guard-after-seccomp-v1",
     "resource_admission": "host-and-visible-cgroup-v2-ancestors-v1",
     "linux_worker_nice_floor": 10,

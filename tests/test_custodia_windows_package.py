@@ -59,3 +59,13 @@ def test_reparse_or_symlink_directory_is_never_traversed(tmp_path):
         pytest.skip("host does not permit symlink creation")
     with pytest.raises(ModelError, match="unsafe_path"):
         inventory(root, installed=True)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="actual Windows Known Folder API")
+def test_appcontainer_profile_root_is_os_resolved_not_ambient(tmp_path, monkeypatch):
+    from provelume.ai_windows_api import local_app_data
+
+    observed = local_app_data()
+    assert observed and os.path.isabs(observed) and os.path.isdir(observed)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "untrusted-profile-location"))
+    assert local_app_data() == observed

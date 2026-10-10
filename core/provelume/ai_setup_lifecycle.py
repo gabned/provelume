@@ -36,17 +36,21 @@ def cancelled(setup, operation):
 def record_evidence(setup, operation, evidence):
     observation = setup.runtime.last_observation or {}
     proof = observation.get("load", {}).get("limits", {})
-    check(evidence.result == "PASSED" and proof.get("network_control") in {
+    check(evidence.result == "PASSED", "ai_locality_unqualified")
+    confined = proof.get("network_control") in {
         "seccomp:socket-syscalls-EPERM", "AppContainer:no-capabilities-no-loopback-exemption",
-    }, "ai_locality_unqualified")
+    }
     with setup.lock:
         require_current(setup, operation)
         setup.self_test_evidence = evidence
-        setup.local_evidence = digest(proof)
+        # A native self-test can succeed without establishing network isolation.
+        # Retain its measurement, but never grant locality or activation from it.
+        setup.local_evidence = digest(proof) if confined else None
 
 
 def enable_local(setup, operation, evidence):
     """Only the explicitly labelled operation may configure and enable a session."""
+    check(setup.local_evidence is not None, "ai_locality_unqualified")
     snapshot = setup._operation_authority
     updated = {**snapshot["configuration"], "mode": "local",
                "revision": snapshot["configuration"]["revision"] + 1}

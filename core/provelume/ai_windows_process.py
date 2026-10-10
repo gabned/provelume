@@ -22,6 +22,7 @@ from .ai_windows_api import (
     StartupExtended,
     create_job,
     libraries,
+    local_app_data,
     no_loopback_exemption,
     verify_job,
     verify_token,
@@ -124,6 +125,10 @@ class WindowsWorkerProcess:
             startup.attributes = c.cast(attributes, P)
             command = c.create_unicode_buffer(subprocess.list2cmdline(
                 [str(executable), "--internal-ai-worker"]))
+            # CreateProcessW resolves the AppContainer profile using this field.
+            # Omitting it returns ERROR_ENVVAR_NOT_FOUND (203) before child entry.
+            # Obtain only this OS-owned location, not the parent's complete env.
+            environment = {**environment, "LOCALAPPDATA": local_app_data()}
             check(all("=" not in key and "\0" not in key + value
                       for key, value in environment.items()), "compatibility")
             env = c.create_unicode_buffer("\0".join(

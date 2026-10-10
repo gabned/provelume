@@ -25,6 +25,23 @@ Linux pidfd lifetime guard after seccomp, and host/visible-cgroup-ancestor
 admission. This supersedes S08 configuration evidence; no result threshold or
 task framing changes. Unobserved cgroup ancestors remain explicitly unobserved.
 
+The initial installed observations (runs 38051898250, 38052240494 and 38052818420)
+failed before worker entry; retain them. The last two report Win32 203 at
+CreateProcessW. Resolve the required LOCALAPPDATA from SHGetKnownFolderPath for
+the current user and add only that field to the minimal child environment. Do
+not inherit the ambient environment or grant the private profile directory an
+ACL. Freeze this explicit environment property before its next native run:
+configuration SHA-256
+`9b8c5e44224fdaf34f947eb969ce53dce3c3398b6068eed854bc0979ade09b9c`.
+It replaces the initial configuration above without changing gates or model bytes.
+The independent [Windows launcher experiment](https://github.com/Convira/convira-sandbox/issues/1#issuecomment-5225682721)
+supports the diagnosis; only this product's installed run can establish the fix.
+
+A successful native self-test records a measurement, not network authority. Only
+actual seccomp or the parent's verified AppContainer proof grants product-local
+activation. The legacy source-only Windows CI observer may add its independently
+measured WFP evidence after the test; that does not qualify the installed worker.
+
 ## Installed resources and reconstruction
 
 Use one portable Core distribution containing both optional, independently pinned

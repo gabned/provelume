@@ -103,6 +103,27 @@ def test_explicit_self_test_alone_never_enables_or_activates(installed):
     assert not setup.jobs.session_authorized
 
 
+def test_successful_inference_without_isolation_never_grants_locality(installed, monkeypatch):
+    setup, _ = installed
+
+    def unconfined(runtime, *_args, **_kwargs):
+        runtime.last_observation = {"load": {"limits": {"network_control": "NONE"}}}
+        return "PASSED"
+
+    monkeypatch.setattr(LocalRuntime, "__call__", unconfined)
+    setup.run_operation(setup.begin_operation("self_test"))
+    assert setup.operation["state"] == "completed"
+    assert setup.self_test_evidence.result == "PASSED"
+    assert setup.local_evidence is None
+    assert not setup.read()["locality_verified"]
+    assert "activate" not in setup.model_actions()
+    setup.run_operation(setup.begin_operation("enable_local"))
+    assert setup.operation["state"] == "failed"
+    assert setup.models._state()["active"] is None
+    assert setup.configuration()["mode"] == "off"
+    assert not setup.jobs.session_authorized
+
+
 def test_displayed_setup_authority_rejects_a_newer_configuration(installed):
     setup, _ = installed
     displayed = setup.model_authority()

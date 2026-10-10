@@ -4,11 +4,36 @@ from __future__ import annotations
 
 import ctypes as c
 from functools import lru_cache
+from pathlib import Path
+from uuid import UUID
 
 from .ai_runtime_limits import check
 
 P, D, B, W, H = c.c_void_p, c.c_uint32, c.c_int32, c.c_wchar_p, c.c_void_p
 SIZE = c.c_size_t
+
+
+def local_app_data():
+    """Resolve the current user's OS profile root, without copying ambient env.
+
+    AppContainer creation needs LOCALAPPDATA even with an explicit Unicode
+    environment. The path is not an access grant: only the verified public
+    inventory receives read/execute ACLs, never this private parent directory.
+    """
+    shell = c.WinDLL("shell32", use_last_error=True)
+    ole = c.WinDLL("ole32", use_last_error=True)
+    folder = c.create_string_buffer(UUID("F1B32785-6FBA-4FCF-9D55-7B8E7F157091").bytes_le)
+    result = W()
+    get = bind(shell, "SHGetKnownFolderPath", c.c_int32, P, D, H, P)
+    free = bind(ole, "CoTaskMemFree", None, P)
+    check(get(folder, 0, None, c.byref(result)) == 0, "compatibility")
+    try:
+        value = result.value
+        check(value and len(value) <= 32767 and Path(value).is_absolute()
+              and not value.startswith("\\\\"), "compatibility")
+        return value
+    finally:
+        free(c.cast(result, P))
 
 
 class SidAttributes(c.Structure):
