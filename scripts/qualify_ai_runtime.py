@@ -30,12 +30,47 @@ from provelume.ai_runtime_limits import memory_observation  # noqa: E402
 from provelume.service import ProvelumeInstance  # noqa: E402
 
 
+def measure_warm_case(report, store, runtime, selection, evidence, case, run):
+    """Renew authority explicitly, then establish and record the warm condition."""
+    renewed = time.monotonic() + 20 >= evidence.expires
+    if renewed:
+        evidence = store.self_test(MODEL_ID, selection, runtime, requested=True)
+        store.activate(MODEL_ID, selection, evidence, requested=True)
+    index = len(report["samples"])
+    initial = index % 20 == 0  # The fixed corpus has ten cases per language.
+    if initial or renewed:
+        # Full-file checks during renewal can outlast the five-second idle timer.
+        # Observe that startup separately before measuring the unchanged corpus;
+        # never discard a cold result or score it against the warm latency limit.
+        preparation = runtime.qualify(
+            store, "Text: The synthetic code is ORCHID. Question: What is the code? "
+            "Return only the code.", requested=True,
+        )
+        report["warm_preparations"].append({
+            "sample_index": index, "run": run, "case": case["id"],
+            "reason": "initial" if initial else "authority_renewal",
+            "pass": preparation["text"].strip().strip(".\"' ").upper() == "ORCHID",
+            **preparation,
+        })
+    result = runtime.qualify(
+        store, "Text: " + case["text"] + "\nQuestion: " + case["question"], requested=True,
+    )
+    normalized = result["text"].strip().strip(".\"' ").casefold()
+    report["samples"].append({
+        "id": case["id"], "language": case["language"], "run": run,
+        "expected": case["expected"], "pass": normalized == case["expected"].casefold(),
+        "authority_renewed": renewed, **result,
+    })
+    return evidence
+
+
 def measure(root, output):
     report = {
         "schema_version": 1,
         "status": "NOT_RUN",
         "phase": "s05_base",
         "samples": [],
+        "warm_preparations": [],
         "failures": [],
         "configuration": CONFIGURATION,
         "runtime_lock_sha256": LOCK_SHA256,
@@ -108,24 +143,9 @@ def measure(root, output):
             for case in corpus:
                 # Fresh evidence has a 60-second TTL. Refresh explicitly; no inferred
                 # authority, persisted qualification or implicit inference retry.
-                if time.monotonic() + 20 >= evidence.expires:
-                    evidence = store.self_test(MODEL_ID, selection, runtime, requested=True)
-                    store.activate(MODEL_ID, selection, evidence, requested=True)
-                result = runtime.qualify(
-                    store,
-                    "Text: " + case["text"] + "\nQuestion: " + case["question"],
-                    requested=True,
+                evidence = measure_warm_case(
+                    report, store, runtime, selection, evidence, case, cold_run,
                 )
-                normalized = result["text"].strip().strip(".\"' ").casefold()
-                row = {
-                    "id": case["id"],
-                    "language": case["language"],
-                    "run": cold_run,
-                    "expected": case["expected"],
-                    "pass": normalized == case["expected"].casefold(),
-                    **result,
-                }
-                report["samples"].append(row)
                 save()
         report["phase"] = "s05_cancellation_and_unload"
         save()

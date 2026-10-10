@@ -18,6 +18,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   losing unsaved settings. Completion shows fresh available actions; errors and
   connection loss remain distinct, with manual refresh available. Cancellation stays
   available during long downloads. Refresh never enables AI or repeats an operation.
+- Runtime qualification records startup after authority renewal separately from
+  warm latency, retaining every observation and the existing acceptance limits.
 
 Affected surfaces: `/management`, `/settings/ai`, `/settings/shell`, document AI
 preview/synthesis and `/operations/ai`. Requested together for the next release in #339/#340; release number not yet

@@ -112,3 +112,26 @@ No live model acquisition/inference, real external account, new Windows installe
 observation, human linguistic review or screen-reader attestation is claimed by
 this audit. Native CI and final installed-release checks remain separate; previous
 attestations are not extended to changed views.
+
+## Warm-measurement precondition found after integration
+
+PR #341 merged as `9d0ea66a6fbceaaee9ee5fca38b4e89e2edc7b9d` with its qualified
+tree unchanged. Both Windows CPU attempts of run `38092776501` then failed only
+`warm_first`: six intended warm samples actually reported `cold=true`, reaching
+6.735 s and 7.984 s on two Intel runners. Candidate AMD measurements had no such
+cold samples and passed. All original reports and failures remain authoritative;
+neither a rerun nor this correction retroactively promotes them.
+The second Intel attempt also had one genuinely warm `it02` result at 5.594 s,
+above the unchanged 5 s limit. This is a real latency failure, not explained away
+by the preparation correction; future native runs must still reject such a sample.
+
+Full-file authority renewal can outlast the existing five-second idle timeout.
+Qualification now records an explicit fixed synthetic preparation after renewal
+and at the start of each corpus run, then measures every original corpus case.
+All 60 scored samples must actually be warm. Each preparation remains in the raw
+report, bound to the next case and the same worker, and must pass the existing
+cold or warm time limits, model-load/RSS bounds and its fixed expected answer.
+Missing or failed preparation blocks qualification. No outlier is dropped, no
+threshold is increased and no product runtime, authority or idle policy changes.
+Native qualification of the corrected measurement is recorded in its owner PR;
+this does not extend a measured host's performance claim to other hardware.
