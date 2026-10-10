@@ -1478,10 +1478,13 @@ with exact references and removable derived output through #333/#334 at accepted
 [final ledger](https://github.com/gabned/provelume/pull/334#issuecomment-6097065742)
 retains prior failures. S09 (#335/#336) integrates ordinary installation, AI lifecycle,
 navigation and release qualification under [ADR 0052](adr/0052-custodia-integrated-lifecycle.md),
-accepted at __S09_MAIN__. [The recommendation](qualification/custodia-local-profile.md)
+accepted in [the S09 integration ledger](https://github.com/gabned/provelume/pull/336).
+[The recommendation](qualification/custodia-local-profile.md)
 qualifies the exact observed model/configuration and EN/IT extractive tasks.
-Release owner __RELEASE_OWNER__ aligns package/runtime/embedded/Windows identity to 0.12.0;
-publication requires the official workflow and public readiness reconciliation.
+Release owner #337/#338 aligned package/runtime/embedded/Windows identity to 0.12.0.
+The [published release](https://github.com/gabned/provelume/releases/tag/v0.12.0)
+and [final publication ledger](https://github.com/gabned/provelume/pull/338#issuecomment-6101359995)
+record official workflow completion and public readiness reconciliation.
 The maintainer directed skipping Narrator on 2026-10-10; its result remains NOT_RUN,
 and unobserved human language/appearance results remain UNVERIFIED.
 
