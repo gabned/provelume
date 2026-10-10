@@ -196,6 +196,58 @@ def test_fresh_authority_blocks_preview_and_stored_result_after_mutation(
     assert setup.jobs.journal.get_job(job["id"])["ai"]["attempts"][0]["units"] == 19
 
 
+@pytest.mark.parametrize("change", ["ingestion", "policy"])
+def test_stored_result_read_serializes_concurrent_source_or_policy_change(
+    synthesis, tmp_path, monkeypatch, change,
+):
+    from provelume.instance_lifecycle import InstanceLifecycleBusy
+    from provelume.scheduler import SchedulerBusyError
+
+    setup, document, _ = synthesis
+    job = execute(synthesis)
+    before = _snapshots(setup.instance.store)
+    checked, release = threading.Event(), threading.Event()
+    original = setup.synthesis.association
+
+    def observed_association(*args):
+        value = original(*args)
+        checked.set()
+        assert release.wait(10)
+        return value
+
+    def mutate():
+        if change == "ingestion":
+            (tmp_path / "source" / "note.txt").write_text("A new current document version.")
+            setup.instance.ingest(tmp_path / "source")
+        else:
+            setup.synthesis.restrict(document, "instance", setup.instance_id, "deny", 0)
+
+    monkeypatch.setattr(setup.synthesis, "association", observed_association)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pending = pool.submit(setup.synthesis.read, job["id"])
+        blocked = False
+        try:
+            assert checked.wait(5)
+            # The actual supported mutation must not commit after validation and
+            # before the stored body is returned. Persistent contention is bounded.
+            try:
+                mutate()
+            except (InstanceLifecycleBusy, SchedulerBusyError):
+                blocked = True
+        finally:
+            release.set()
+            body, _, read_document, _ = pending.result(timeout=5)
+    assert blocked, "source/policy mutation committed while a read returned its old association"
+    assert body["references"] == [0]
+    current = setup.instance.get_document(document)
+    assert read_document["current_version"] == current["current_version"]
+    assert _snapshots(setup.instance.store) == before
+    monkeypatch.setattr(setup.synthesis, "association", original)
+    mutate()  # A separate explicit mutation succeeds after the reader has exited.
+    with pytest.raises(ValueError):
+        setup.synthesis.read(job["id"])
+
+
 def test_storage_failure_retains_known_usage_and_terminal_replay_never_recreates(
     synthesis, monkeypatch,
 ):
@@ -608,6 +660,50 @@ def test_document_preparation_keeps_navigation_live_during_contention(
                     assert re.search(r'name="ref" value="[a-f0-9]+"', response.text)
         assert client.post(path, data=values).status_code == 409
         assert len(host.jobs.journal.list_jobs()) == (action == "regenerate")
+        assert not app.state.ai_tasks
+
+
+def test_stored_result_read_keeps_navigation_live_while_waiting_for_mutation(
+    synthesis, tmp_path, monkeypatch,
+):
+    setup, _, _ = synthesis
+    job = execute(synthesis)
+    app = create_app(setup.instance.root, shell_settings_file=tmp_path / "shell.json")
+    host = app.state.ai_setup
+    host.models, host.runtime = setup.models, setup.runtime
+    host.local_evidence, host.self_test_evidence = setup.local_evidence, setup.self_test_evidence
+    monkeypatch.setattr(host.instance, "run_scheduler_cycle", lambda **kwargs: None)
+    held, attempted, release = threading.Event(), threading.Event(), threading.Event()
+    original = host.synthesis.read
+
+    def observed_read(*args):
+        attempted.set()
+        return original(*args)
+
+    monkeypatch.setattr(host.synthesis, "read", observed_read)
+
+    def owner():
+        with host.instance.scheduler._hold_lifecycle("synthetic-concurrent-mutation"):
+            held.set()
+            assert release.wait(10)
+
+    with TestClient(app) as client, ThreadPoolExecutor(max_workers=3) as pool:
+        holding = pool.submit(owner)
+        pending = None
+        try:
+            assert held.wait(5)
+            pending = pool.submit(client.get, f"/operations/ai/{job['id']}/synthesis")
+            assert attempted.wait(5)
+            navigation = pool.submit(client.get, "/search?q=synthetic")
+            assert navigation.result(timeout=1).status_code == 200
+            assert not pending.done()
+        finally:
+            release.set()
+            holding.result(timeout=5)
+            if pending is not None:
+                response = pending.result(timeout=5)
+                assert response.status_code == 200
+                assert TEXT.split("\n\n")[0] in unescape(response.text)
         assert not app.state.ai_tasks
 
 

@@ -247,7 +247,11 @@ is not a result. Terminal replay never recreates a discarded body. Unknown remot
 outcomes keep the existing conservative accounting and manual reconciliation.
 
 Reads recheck current source/policy association, the body digest, source-derived
-redacted segments and candidate references. Session disablement, self-test expiry
+redacted segments and candidate references inside one lifecycle/journal transaction.
+Supported source, policy and Instance mutations cannot commit between these checks
+and the returned snapshot. A reader waits at most two seconds for the lifecycle
+barrier, then reports unavailable if contention persists; it never retries inference.
+Session disablement, self-test expiry
 and restart alone do not invalidate a stored result. Changed source/configuration
 or restrictions do. A private cited-evidence route shows the exact recorded
 Version/anchor/offsets and approved masking; it does not claim an unmasked original

@@ -332,6 +332,12 @@ class DocumentSynthesis:
         return job, result["value"], selections
 
     def read(self, job_id):
+        # Return one validated snapshot: supported ingestion, policy changes,
+        # discard and Instance replacement cannot commit halfway through this read.
+        with self.setup.jobs._transaction(wait_seconds=2):
+            return self._read_locked(job_id)
+
+    def _read_locked(self, job_id):
         job, ref, selections = self.reference(job_id)
         first = selections[0]
         document, _, source = self.source(first.version.document_id, first.representation_id,
