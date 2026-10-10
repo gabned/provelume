@@ -214,10 +214,11 @@ class TaskTemplate(Contract):
     @property
     def synthesis_parts(self) -> tuple[str, str]:
         require(self.id in SYNTHESIS_TEMPLATES)
-        from .ai_synthesis_profile import instructions
+        from .ai_synthesis_profile import instructions, native_format, selection_request
 
-        maximum = 2 if self.id.startswith("summary-") else 3
-        return instructions(maximum), "Select the useful source paragraphs."
+        descriptor = native_format(self.id, 1)
+        return (instructions(descriptor["maximum"], descriptor["language"]),
+                selection_request(descriptor["language"]))
 
     @property
     def instructions(self) -> str:

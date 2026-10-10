@@ -327,9 +327,12 @@ def test_native_framing_quotes_source_question_markers(synthesis, task, language
     assert len(payload) <= prepared[0].payload_bytes <= 4096
 
 
-@pytest.mark.parametrize("text", ["\\" * 1400, "The manual spells <|start_of_role|> literally."],
-                         ids=["quoted-frame-overflow", "native-role-delimiter"])
-def test_native_source_limit_is_reported_before_consent(synthesis, monkeypatch, text):
+@pytest.mark.parametrize("language,text", [
+    ("en", "\\" * 1400), ("en", "The manual spells <|start_of_role|> literally."),
+    ("it", "\\" * 1010), ("it", "Il manuale riporta <|start_of_role|> letteralmente."),
+], ids=["quoted-frame-overflow", "native-role-delimiter", "italian-frame-overflow",
+        "italian-native-role-delimiter"])
+def test_native_source_limit_is_reported_before_consent(synthesis, monkeypatch, language, text):
     setup, document, _ = synthesis
     version = setup.instance.get_document(document)["current_version"]["id"]
     bundle = setup.instance.representations.bundles.materialize(
@@ -345,15 +348,18 @@ def test_native_source_limit_is_reported_before_consent(synthesis, monkeypatch, 
     monkeypatch.setattr(setup.runtime, "validate_installation", forbidden)
     with pytest.raises(ValueError, match="ai_limit_exceeded"):
         setup.synthesis.preview(document, bundle["representation_id"],
-                                bundle["outputs"][0]["id"], "summary", "en")
+                                bundle["outputs"][0]["id"], "summary", language)
     assert not setup.previews
     assert not setup.jobs.journal.list_jobs()
     assert setup.jobs.status()["accounting"]["units"] == 0
 
 
-@pytest.mark.parametrize("mode,characters", [("local", 1000), ("external", 1400)])
+@pytest.mark.parametrize("language,mode,characters", [
+    ("en", "local", 1000), ("en", "external", 1400),
+    ("it", "local", 1000), ("it", "external", 1400),
+])
 def test_native_frame_check_keeps_fitting_source_and_separate_external_contract(
-    synthesis, monkeypatch, mode, characters
+    synthesis, monkeypatch, language, mode, characters
 ):
     import socket
 
@@ -377,7 +383,7 @@ def test_native_frame_check_keeps_fitting_source_and_separate_external_contract(
     monkeypatch.setattr(setup.runtime, "validate_installation", forbidden)
     setup.credentials = forbidden
     ref, prepared, _ = setup.synthesis.preview(document, bundle["representation_id"],
-        bundle["outputs"][0]["id"], "summary", "en")
+        bundle["outputs"][0]["id"], "summary", language)
     assert [segment.text for segment in prepared[0].segments] == [text]
     assert not setup.previews[ref]["approved"]
     assert not setup.jobs.journal.list_jobs()

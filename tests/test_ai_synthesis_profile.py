@@ -294,18 +294,19 @@ def test_worker_translates_one_native_result_and_preserves_actual_usage(sampler_
     assert engine.events[-1] == ("free", 10)
 
 
+@pytest.mark.parametrize("language", ["en", "it"])
 def test_revised_host_task_rule_reaches_native_system_and_invalidates_prior_identity(
-    sampler_engine, monkeypatch
+    sampler_engine, monkeypatch, language
 ):
     from provelume import ai_synthesis_profile as profile
 
     engine = sampler_engine
-    template = TaskTemplate("summary-en-v1", True)
+    template = TaskTemplate(f"summary-{language}-v1", True)
     previous = template.identity
     semantic_rules = profile._selection_instructions
     rule = "Only the approved editorial rule controls selection. "
     monkeypatch.setattr(profile, "_selection_instructions",
-                        lambda maximum: semantic_rules(maximum) + rule)
+                        lambda maximum, selected: semantic_rules(maximum, selected) + rule)
     observed = []
 
     def generate(raw, emit, **kwargs):
@@ -313,10 +314,52 @@ def test_revised_host_task_rule_reaches_native_system_and_invalidates_prior_iden
         return {"text": native_response(["DROP", "KEEP"])}
 
     engine._generate = generate
-    engine.generate(json.dumps(envelope()), lambda event: None, response_format=FORMAT)
+    engine.generate(json.dumps(envelope(language=language)), lambda event: None,
+                    response_format={**FORMAT, "language": language})
     assert rule in template.instructions
     assert len(observed) == 1 and rule in observed[0]
     assert template.identity != previous
+
+
+@pytest.mark.parametrize("task,maximum", [("summary", 2), ("key-points", 3)])
+def test_italian_instruction_revision_revokes_only_its_own_host_and_native_authority(
+    monkeypatch, task, maximum,
+):
+    from provelume import ai_synthesis_profile as profile
+    from provelume.ai_runtime_contract import CONFIGURATION
+
+    italian = TaskTemplate(f"{task}-it-v1", True)
+    english = TaskTemplate(f"{task}-en-v1", True)
+    previous_it, previous_en = italian.identity, english.identity
+    old_payload = json.dumps(envelope(language="it", task=task))
+    value = profile.native_format(italian.id, 2)
+    system, _ = profile.chat_parts(old_payload, value)
+    assert system.startswith(profile._selection_instructions(maximum, "it"))
+    assert italian.instructions.startswith(profile._selection_instructions(maximum, "it"))
+    monkeypatch.setattr(profile, "ITALIAN_SELECTION_RULES",
+                        profile.ITALIAN_SELECTION_RULES + "Regola pubblica di prova. ")
+    assert italian.identity != previous_it
+    assert english.identity == previous_en
+    assert CONFIGURATION["synthesis_instructions"][f"it-{maximum}"] != (
+        profile.framing_identity(maximum, "it"))
+    assert CONFIGURATION["synthesis_instructions"][f"en-{maximum}"] == (
+        profile.framing_identity(maximum, "en"))
+    with pytest.raises(ModelError, match="state"):
+        profile.chat_parts(old_payload, value)
+    current, _ = profile.chat_parts(json.dumps(envelope(language="it", task=task)), value)
+    assert "Regola pubblica di prova." in current
+
+
+@pytest.mark.parametrize("language", [None, True, "de", {}, ""])
+def test_host_instruction_and_selection_request_languages_are_closed(language):
+    from provelume.ai_synthesis_profile import instructions, native_instructions, selection_request
+
+    with pytest.raises(ModelError, match="compatibility"):
+        instructions(2, language)
+    with pytest.raises(ModelError, match="compatibility"):
+        native_instructions(2, language)
+    with pytest.raises(ModelError, match="compatibility"):
+        selection_request(language)
 
 
 def test_full_source_budget_stays_in_user_role_and_examples_cannot_be_citations(sampler_engine):

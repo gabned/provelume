@@ -102,6 +102,17 @@ language field must match the host template; all task/language frames bind runti
 and template identities. Source text never selects a frame. New complete native
 qualification is required; preceding failed reports retain their original status.
 
+That language-example revision passed all 26 gates and all 32 gold selections on
+Linux. Windows passed 25 gates and 31 gold selections, omitting one contradictory
+Italian account in a summary; all performance and remaining quality gates passed.
+[ADR 0050](../adr/0050-language-matched-synthesis-instructions.md) translates the
+complete canonical selection rules and host request for Italian tasks. Host and
+worker share the exact trusted translation, preserving every semantic criterion.
+The same demonstrations, closed output format, grammar, model and English native
+frames remain unchanged. Language-specific instruction revisions revoke stale
+template/consent authority; source text cannot select them. This new profile needs
+fresh complete Windows/Linux qualification with all existing gates intact.
+
 Before local or hybrid consent, preparation constructs the actual native frame
 to check quotation expansion, trusted-dialogue overhead and unsupported role
 delimiters against the unchanged limit. It reads no model bytes and probes no
