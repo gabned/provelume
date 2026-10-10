@@ -122,6 +122,20 @@ def test_atomic_paths_reject_links_in_every_existing_component(tmp_path, positio
         assert destination.read_bytes() == b"untouched"
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows drive-relative semantics")
+def test_atomic_paths_reject_another_drive_before_observing_it(tmp_path, monkeypatch):
+    store, control = _store(tmp_path)
+    other_drive = "Z:" if store.paths.root.drive.casefold() != "z:" else "Y:"
+    transaction = _transaction(store, control, profile=_profile())
+
+    def unexpected_observation(_path):
+        pytest.fail("An outside drive must be rejected before filesystem observation")
+
+    monkeypatch.setattr(Path, "lstat", unexpected_observation)
+    with pytest.raises(AtomicCommitIntegrityError):
+        transaction.add(other_drive + "outside.bin", b"candidate", immutable=True)
+
+
 def test_atomic_path_rechecks_new_link_before_prepare(tmp_path):
     store, control = _store(tmp_path)
     target = store.paths.root / "state/new"

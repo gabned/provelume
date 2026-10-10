@@ -475,6 +475,9 @@ def _instance_target(
         if not root.is_absolute():
             raise error_type()
         lexical = root.joinpath(*PurePosixPath(selected).parts)
+        # Windows drive-relative components can replace the root's drive even
+        # though their portable spelling is not an absolute Posix path.
+        lexical.relative_to(root)
         for current in (*reversed(lexical.parents), lexical):
             try:
                 observed = native_path(current).lstat()
