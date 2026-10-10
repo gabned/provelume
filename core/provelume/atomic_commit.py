@@ -492,7 +492,9 @@ def _instance_target(
         resolved = lexical.resolve()
         if native_path(resolved) != native_path(lexical):
             raise error_type()
-        target = native_path(resolved) if os.name == "nt" and len(str(resolved)) >= 248 else resolved
+        target = (
+            native_path(resolved) if os.name == "nt" and len(str(resolved)) >= 248 else resolved
+        )
     except (OSError, RuntimeError, ValueError):
         raise error_type() from None
     return target, selected
