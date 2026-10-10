@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from importlib.resources import files
 
 from .ai_models import check
+from .ai_runtime_cpu import SELECTION as CPU_SELECTION
 from .ai_synthesis_profile import PROFILE, framing_identity
 
 RUNTIME_ID = "llama.cpp"
@@ -100,6 +101,7 @@ CONFIGURATION = {
     "purpose": "internal-runtime-qualification-only",
     "runtime_lock": LOCK_SHA256,
     "threads": 2,
+    "cpu_selection": CPU_SELECTION,
     "context_tokens": 2048,
     "input_tokens": 1536,
     "input_bytes": 4096,

@@ -45,6 +45,16 @@ output, cancellation and timeout close the operation without retry or fallback.
 
 ## OS controls, byte integrity and limits
 
+[ADR 0051](../adr/0051-source-reporting-and-physical-cpu-selection.md) selects one
+logical CPU from each of two OS-reported physical cores within inherited affinity.
+Linux reads kernel package/core identities; Windows reads bounded current-group
+processor-core relationships. Missing, ambiguous or insufficient topology fails
+closed. Native observations retain selected CPU indexes, allowed core counts and
+whether the former first-two-logical choice would share a core. This describes
+the topology exposed by the OS, not an unobserved hypervisor placement guarantee.
+The runtime configuration binds the policy; two threads/CPUs and all gates remain
+unchanged, with fresh complete native measurements required.
+
 Linux applies a two-CPU affinity and a 3 GiB RLIMIT_AS ceiling. Seccomp checks the
 x86-64 audit architecture, rejects x32, networking and io_uring syscalls, fork,
 non-thread clone and exec; thread clone remains available to inference. It is not

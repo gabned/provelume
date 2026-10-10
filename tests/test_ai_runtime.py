@@ -343,6 +343,10 @@ if os.name!='nt':
     os.setpriority(os.PRIO_PROCESS,0,max(inherited,int(sys.argv[3])))
 inherited=os.getpriority(os.PRIO_PROCESS,0) if os.name!='nt' else None
 job,limits=contain()
+topology=limits['cpu_topology']
+assert topology['selection']=='distinct-physical-cores-v1'
+assert topology['selected_physical_cores']==2
+assert len(set(topology['selected_logical_cpus']))==2
 if os.name=='nt':
     k=ctypes.WinDLL('kernel32',use_last_error=True)
     k.GetCurrentProcess.restype=ctypes.c_void_p
@@ -351,6 +355,7 @@ if os.name=='nt':
     assert observed==0x4000
     assert limits['priority']=='JobObject:below-normal'
 else:
+    assert os.sched_getaffinity(0)==set(topology['selected_logical_cpus'])
     observed=os.getpriority(os.PRIO_PROCESS,0)
     assert observed==max(inherited,10) and limits['priority']=='nice:at-least-10'
     assert limits['nice']==observed

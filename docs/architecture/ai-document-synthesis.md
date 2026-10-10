@@ -113,6 +113,17 @@ frames remain unchanged. Language-specific instruction revisions revoke stale
 template/consent authority; source text cannot select them. This new profile needs
 fresh complete Windows/Linux qualification with all existing gates intact.
 
+That translation failed: both jobs reached twenty minutes, with incomplete final
+integrity/network evidence. Linux retained 30/32 gold results and Windows 20/21
+completed cases; mixed Italian content/injection incorrectly abstained.
+[ADR 0051](../adr/0051-source-reporting-and-physical-cpu-selection.md) returns to
+shared canonical English instructions and the same language-matched examples,
+clarifying that selection preserves reports without deciding which one is true.
+The worker also selects two OS-reported distinct cores within its inherited
+affinity and records the observed topology. These are unqualified hypotheses;
+model/grammar/corpora and every numeric gate remain unchanged. Both instruction
+and CPU-selection identities invalidate prior technical/consent authority.
+
 Before local or hybrid consent, preparation constructs the actual native frame
 to check quotation expansion, trusted-dialogue overhead and unsupported role
 delimiters against the unchanged limit. It reads no model bytes and probes no

@@ -329,7 +329,7 @@ def test_native_framing_quotes_source_question_markers(synthesis, task, language
 
 @pytest.mark.parametrize("language,text", [
     ("en", "\\" * 1400), ("en", "The manual spells <|start_of_role|> literally."),
-    ("it", "\\" * 1010), ("it", "Il manuale riporta <|start_of_role|> letteralmente."),
+    ("it", "\\" * 1100), ("it", "Il manuale riporta <|start_of_role|> letteralmente."),
 ], ids=["quoted-frame-overflow", "native-role-delimiter", "italian-frame-overflow",
         "italian-native-role-delimiter"])
 def test_native_source_limit_is_reported_before_consent(synthesis, monkeypatch, language, text):

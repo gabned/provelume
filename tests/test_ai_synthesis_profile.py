@@ -322,7 +322,7 @@ def test_revised_host_task_rule_reaches_native_system_and_invalidates_prior_iden
 
 
 @pytest.mark.parametrize("task,maximum", [("summary", 2), ("key-points", 3)])
-def test_italian_instruction_revision_revokes_only_its_own_host_and_native_authority(
+def test_shared_instruction_revision_revokes_both_languages_host_and_native_authority(
     monkeypatch, task, maximum,
 ):
     from provelume import ai_synthesis_profile as profile
@@ -336,18 +336,19 @@ def test_italian_instruction_revision_revokes_only_its_own_host_and_native_autho
     system, _ = profile.chat_parts(old_payload, value)
     assert system.startswith(profile._selection_instructions(maximum, "it"))
     assert italian.instructions.startswith(profile._selection_instructions(maximum, "it"))
-    monkeypatch.setattr(profile, "ITALIAN_SELECTION_RULES",
-                        profile.ITALIAN_SELECTION_RULES + "Regola pubblica di prova. ")
+    original = profile._selection_instructions
+    monkeypatch.setattr(profile, "_selection_instructions",
+                        lambda cap, language: original(cap, language) + "Public test rule. ")
     assert italian.identity != previous_it
-    assert english.identity == previous_en
+    assert english.identity != previous_en
     assert CONFIGURATION["synthesis_instructions"][f"it-{maximum}"] != (
         profile.framing_identity(maximum, "it"))
-    assert CONFIGURATION["synthesis_instructions"][f"en-{maximum}"] == (
+    assert CONFIGURATION["synthesis_instructions"][f"en-{maximum}"] != (
         profile.framing_identity(maximum, "en"))
     with pytest.raises(ModelError, match="state"):
         profile.chat_parts(old_payload, value)
     current, _ = profile.chat_parts(json.dumps(envelope(language="it", task=task)), value)
-    assert "Regola pubblica di prova." in current
+    assert "Public test rule." in current
 
 
 @pytest.mark.parametrize("language", [None, True, "de", {}, ""])
