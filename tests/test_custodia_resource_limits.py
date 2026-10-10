@@ -1,9 +1,16 @@
+"""Physical Linux cgroup fixtures; Windows uses its separate native Job limits."""
+
+import sys
 from pathlib import Path
 
 import pytest
 
 from provelume.ai_models import ModelError
 from provelume.ai_runtime_resources import effective_limits
+
+pytestmark = pytest.mark.skipif(
+    sys.platform != "linux", reason="Linux mountinfo and cgroup v2 filesystem semantics"
+)
 
 GIB = 1024**3
 
