@@ -4,6 +4,7 @@ import json
 import os
 import socket
 import subprocess
+import sys
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -27,7 +28,6 @@ from provelume.desktop import (
     save_settings,
     startup_update_policy_enabled,
     write_native_tray_smoke,
-    write_ui_diagnostics,
 )
 from provelume.instance_lifecycle import InstanceLifecycleBusy
 from provelume.service import ProvelumeInstance
@@ -694,27 +694,39 @@ def test_windows_mutex_rejects_a_second_launcher() -> None:
 
 
 @pytest.mark.skipif(os.name != "nt", reason="real Tk layout probe")
+@pytest.mark.parametrize("theme", ["system", "light", "dark"])
+@pytest.mark.parametrize("dpi", [100, 200])
 def test_windows_tk_layout_probe_is_offline_and_scrollable(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, theme: str, dpi: int,
 ) -> None:
-    first_run_calls = []
-
-    def unexpected_first_run(self) -> None:
-        first_run_calls.append(self)
-
-    monkeypatch.setattr(DesktopShell, "show_first_run", unexpected_first_run)
     output = tmp_path / "layout.json"
-    write_ui_diagnostics(
-        output,
-        language="it",
-        dpi_percent=200,
-        viewport_width=640,
-        viewport_height=480,
+    # Each launcher owns one Tk interpreter. Probe that actual process lifetime:
+    # repeated Tk()/destroy() in one Windows process can lose Tcl library state.
+    probe = """
+import sys
+from pathlib import Path
+from provelume.desktop import DesktopShell, write_ui_diagnostics
+
+def unexpected_first_run(self):
+    raise AssertionError("offline layout diagnostics must remain non-interactive")
+
+DesktopShell.show_first_run = unexpected_first_run
+write_ui_diagnostics(Path(sys.argv[1]), language="it", theme=sys.argv[2],
+                     dpi_percent=int(sys.argv[3]), viewport_width=640, viewport_height=480)
+"""
+    subprocess.run(
+        [sys.executable, "-c", probe, str(output), theme, str(dpi)],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=60,
     )
     value = json.loads(output.read_text(encoding="utf-8"))
-    assert first_run_calls == [], "offline layout diagnostics must remain non-interactive"
     assert value["language"] == "it"
-    assert value["dpi_percent"] == 200
+    assert value["dpi_percent"] == dpi
+    assert value["theme"] == theme
+    assert value["controls_fit"] is True
+    assert all(row["contrast"] >= 4.5 for row in value["appearance"].values())
     assert value["network_used"] is False
     assert value["instance_content_sent"] is False
     assert value["all_action_labels_present"] is True

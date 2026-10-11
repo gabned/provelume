@@ -577,7 +577,8 @@
         "open_installed_release",
         "not_checked",
         "preview_other_channel",
-        "update_error_unsupported_manifest"
+        "update_error_unsupported_manifest",
+        "launcher_hint"
       ],
       "namespace": "desktop"
     },
@@ -1729,7 +1730,8 @@
         "settings",
         "restart",
         "quit",
-        "tooltip"
+        "tooltip",
+        "launcher"
       ],
       "namespace": "tray"
     }
@@ -6215,6 +6217,12 @@
     },
     "desktop.invalid_instance": {
       "context": "desktop: label/navigation; desktop supported shell text / desktop.invalid_instance",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "desktop.launcher_hint": {
+      "context": "Launcher role and browser/local-service boundary",
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
@@ -14196,6 +14204,12 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": true
+    },
+    "tray.launcher": {
+      "context": "Open the native local control panel, separately from the browser application",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
     },
     "tray.open": {
       "context": "tray: label/navigation; windows_tray supported shell text / tray.open",

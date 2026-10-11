@@ -4,6 +4,11 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+- Windows local control panel explains its browser/service role, separates tray
+  actions for the application and panel, and keeps buttons reachable at high DPI.
+  Light/dark control states, channel dropdown, checkbox, scrollbar and native
+  caption are styled coherently while preserving Windows high-contrast colors.
+
 ### Improved
 
 - Management provides direct access to AI & Privacy, AI operations, preferences and
