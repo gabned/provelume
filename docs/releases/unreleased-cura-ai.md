@@ -24,6 +24,8 @@ forecast 0.13.0 Iudicium classification scope. No roadmap shift is needed.
 - The release pipeline qualifies ordinary AI on its own transferred installer,
   binds source/version/channel/tag and installer hash/size, and includes its report
   in the checksum-covered bundle before the publisher can run.
+- Upgrade/preservation qualification also starts from the immutable public 0.12.0
+  installer and matching wheel, retaining the 0.10.0/0.10.1/0.11.0 baselines.
 
 No classification, RAG, new connector/provider/model, autonomy, consent change or
 new renderer enters this follow-up. All earlier failures and unobserved hardware

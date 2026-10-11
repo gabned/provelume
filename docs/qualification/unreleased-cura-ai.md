@@ -15,6 +15,16 @@ dependency updates, outside this scope. Published v0.12.0 is a preview with 25
 assets; no later publication is observed. The optional warm-resume cache is absent
 in this workspace. GitHub and the source/PR ledgers remain authoritative.
 
+Public 0.12.0 Setup and wheel were independently downloaded and matched to the
+manifest and tag commit `1ed289e6cacbc08c4425d461dfce72e37fe0ca30` before adding
+that upgrade baseline. Setup: 24574033 bytes, SHA-256
+`e82f90cbe6d8b49255d8e5b713f855afa74de9322eb1fafaf0204c473ae8a0f1`;
+wheel: 8613651 bytes, SHA-256
+`9c1b21ee58e495f88d16075c918b88fedf08ca63747cd39cb6864d15725688e5`.
+The unchanged hardening harness verifies these bytes before execution and retains
+Instance/config/preferences/Originals fingerprints. All three older upgrade
+baselines remain. The new distribution identity still requires its own observations.
+
 Fresh GitHub inventory confirms all 14 actual-main push workflows completed
 successfully on attempt 1. The
 [final #342 ledger](https://github.com/gabned/provelume/pull/342#issuecomment-6108892619)
@@ -59,6 +69,15 @@ Current candidate checks and artifact results are recorded in the owner PR, neve
 inferred from the preceding main. This preparation makes no current official-build,
 publication or ready-installation-kit claim. Final artifact qualification requires
 the separately authorized version-setting candidate and official pipeline.
+
+The first local full run on `8658d890ff36df634c2e076e2510326d49f0a73a` remains
+FAIL: one failed PDF 17-filter boundary, 4062 passed, 40 skipped. The recovered
+environment had pypdf 6.19.0 and editable package metadata 0.11.0; canonical bootstrap
+installed pypdf 6.20.0 and the current 0.12.0 package. No extraction code or test was
+changed. Corrected dependencies and each subsequent source head require fresh full
+qualification. The first source candidate's workflows retain their original results;
+adding the 0.12.0 upgrade baseline invalidates its head-bound acceptance for the final
+candidate. The rejected selector/binding inputs and corrected calls are in the PR ledger.
 
 Windows hosted Server 2025 and the measured AMD Linux/Windows profiles do not
 qualify Windows 10 22H2, Intel latency in general, minimum laptops or other hardware.
