@@ -26,6 +26,7 @@ from custodia_ordinary import (
     public_documents,
     restart_off,
 )
+from release_installed import build_identity, installer_identity
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
 
@@ -99,14 +100,15 @@ def run(args):
 
     try:
         save()
+        report["installer"] = installer_identity(args.installer)
         if os.name != "nt" or args.executable.name != "Provelume.exe":
             raise ValueError("native_windows_required")
         diagnostic = args.output.parent / "installed-identity.json"
         subprocess.run([str(args.executable), "--diagnostics-file", str(diagnostic)],
                        check=True, timeout=30)
         identity = json.loads(diagnostic.read_text(encoding="utf-8"))
-        if not identity["frozen"] or identity["about"]["commit"] != args.commit:
-            raise ValueError("installed_identity")
+        report["installed_build"] = build_identity(
+            identity, version=args.version, commit=args.commit, channel=args.channel)
         report["checks"]["installed_exact_source"] = "PASS"
         report["hardware"] = hardware()
         subprocess.run([str(args.executable), "--bootstrap-instance", str(args.instance),
@@ -192,6 +194,8 @@ def run(args):
             process.wait(timeout=5)
             report["restart"] = restart_off(args.instance)
             report["checks"]["restart_session_off"] = "PASS"
+        if report["installer"] != installer_identity(args.installer):
+            raise ValueError("installer_identity")
         report["status"], report["phase"] = "PASS", "completed"
     except Exception as exc:
         report["status"] = "FAIL"
@@ -200,7 +204,8 @@ def run(args):
         if type(exc) is ValueError and str(exc) in {
             "process_observation", "unexpected_child", "worker_count", "worker_observation",
             "model_action_http", "model_operation", "operation_timeout", "native_windows_required",
-            "installed_identity", "service_exit", "service_timeout", "network_default",
+            "installed_identity", "installer_identity", "service_exit", "service_timeout",
+            "network_default",
             "unobserved_worker", "orphan_worker", "parent_death_bound",
             "unobserved_live_worker", "corpus_identity", "synthesis_preview",
             "synthesis_consent", "synthesis_job_identity", "synthesis_execution",
@@ -226,7 +231,9 @@ def run(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("executable", "model", "instance", "output", "corpus"):
+    for name in ("executable", "model", "instance", "output", "corpus", "installer"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--commit", required=True)
+    parser.add_argument("--version", required=True)
+    parser.add_argument("--channel", required=True)
     raise SystemExit(run(parser.parse_args()))

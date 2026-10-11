@@ -260,3 +260,23 @@ checks and native Linux/Windows/installed qualification remain binding. Current
 outcomes and exact candidate/main identities are recorded in the owner PR #342;
 integration remains blocked until those real checks complete. Changes remain
 Unreleased, with no version assignment, tag or release publication.
+
+## Reconciled completion and release follow-up — 11 October 2026
+
+The preceding pending/blocked states retain their historical coordinates. #342 is
+now merged as `854550fbddb3f0e9e2550e777e2cd708035e2498`; its qualified candidate is
+`3847b0e1ca4e4c41aad4da5383d8107bc708b2d8`, with the same tree
+`de424eb52f4b6b4915d414e78bcb84c7cdf1aa38`. The
+[final owner audit](https://github.com/gabned/provelume/pull/342#issuecomment-6108892619)
+records all 14 actual-main push workflows successful on attempt 1, 4048 tests
+passed / 40 skipped, real CPU 27/27 gates per recorded host and installed Windows
+12/12 checks / 32 valid first-attempt syntheses. The prior failures and all causal/
+hardware/human limitations above remain unchanged. This paragraph reconciles the
+functional audit; it does not rewrite old results or qualify unobserved hardware.
+
+The exercised Windows artifact is development, not a release delivery. #340 stays
+open for publication of this scope and #339 together. The separate
+[Unreleased release preparation](unreleased-cura-ai.md) and
+[Cura/AI guide](../releases/unreleased-cura-ai.md) bind the finite follow-up and
+require qualification on the future official pipeline's own distribution installer.
+No version, tag or publication is assigned here.

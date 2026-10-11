@@ -18,8 +18,11 @@ record official artifacts and installation readiness. The
 observations. The release channel remains **preview**; Windows is unsigned.
 
 The [next-release completion audit](docs/qualification/cura-ai-completion.md) covers live model-download
-progress and Cura navigation/default completion. These changes are under development;
-package identity remains 0.12.0 until separate release preparation.
+progress and Cura navigation/default completion, integrated through #341/#342.
+The [Unreleased guide and finite scope](docs/releases/unreleased-cura-ai.md) and
+[preparation evidence](docs/qualification/unreleased-cura-ai.md) distinguish source
+qualification from the future distribution. Package identity remains 0.12.0;
+the follow-up has no assigned version, tag or publication.
 
 - Guided explicit download/offline import and activation of the local Qwen3.5 2B
   profile, with verified origin, size, hash and license. Model weights stay outside
