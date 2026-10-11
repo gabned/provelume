@@ -135,3 +135,68 @@ Missing or failed preparation blocks qualification. No outlier is dropped, no
 threshold is increased and no product runtime, authority or idle policy changes.
 Native qualification of the corrected measurement is recorded in its owner PR;
 this does not extend a measured host's performance claim to other hardware.
+
+## Follow-up #342: execution refusal and Capture I/O
+
+The original `3c1a2b482395d6c7a5663a431c57ea43a9fd7ee4` qualification remains
+failed. [CPU run 38095557507](https://github.com/gabned/provelume/actions/runs/38095557507)
+passes all 27 Windows AMD gates, but Linux concurrent Capture takes 0.635 s in
+S06 and 0.669 s in S07 against 0.449 s; S08 cold Capture takes 2.085 s against
+0.557 s. Its 60 genuinely warm samples and six retained preparations pass, with
+maximum first response 2.419 s. Search, citations, quality and abstention pass.
+
+[Installed run 38095557425](https://github.com/gabned/provelume/actions/runs/38095557425)
+fails its first `en-summary-facts` synthesis: one attempt, `ai_execution_blocked`,
+`NOT_SENT`, 94 ms. The following 31 cases pass. Acquisition, model integrity,
+self-test, independent AppContainer token observation, activation and explicit
+enablement pass; parent death and restart were not reached. The original
+`synthesis_quality` diagnostic is not evidence of a model-quality cause.
+[Artifact 11686820875](https://github.com/gabned/provelume/actions/runs/38095557425/artifacts/11686820875)
+and both job logs are retained; neither failure is retried or replaced.
+
+The native adapter previously acquired the runtime ownership lock without waiting.
+The idle timer uses that same lock while stopping its worker. A deterministic
+interposition of idle cleanup reproduces a refusal before any preflight/inference;
+the supervisor's existing bounded admission handles that state, but the adapter
+bypassed it. This mechanism is compatible with the first-only installed refusal;
+the original record does not preserve the provider code and cannot retrospectively
+prove which refusal occurred. The adapter now reserves the sole request through
+that same admission, waits at most the existing two seconds for cleanup, and checks
+cancellation/deadline while waiting. Other requests still fail immediately. There
+is no queue, repeated inference, added warm-up, idle-policy or model change.
+Waiting consumes the original 60-second adapter budget as well as the job deadline.
+Closed provider causes are now retained in the job while the receipt remains
+generic. Installed qualification distinguishes execution failure from quality.
+
+The retained Linux profile attributes a busy diagnostic Capture of 0.709 s to
+49 fsync calls, with 0.502 s in fsync. Atomic journal preparation now overlaps
+independent candidate/preimage writes with at most four I/O threads. Ordered
+target replacement overlaps its directory flushes with the same bounded pool.
+Every original file and directory flush still runs. All payload writers join
+before the prepared marker; all target flushes join before the committed marker
+or acknowledgement. Failures join pending work before rollback/removal, so no
+late writer can race restoration. Candidate/preimage directories additionally
+flush before preparation. Bounds, paths, digests, preimages and recovery remain
+mandatory. Crash recovery still starts from the durable prepared journal.
+
+Local focused checks: 346 passed, 16 skipped, plus five closed-cause/accounting
+regressions passed. Three idle-admission cases fail before the correction. New
+barrier tests cover delayed/failed publication flushes and failed preparation
+with another writer still active, alongside existing interruption, tampering,
+real-link/junction, Capture, consent and recovery tests. The sandbox's initial
+HTTP runs were interrupted and retained after a blocking TestClient observation;
+the diagnostic case passes when sandbox network access is enabled. These are
+environment observations, not a promoted native qualification.
+The first full local run retained one failure, 4030 passes and 40 skips: the
+recovered virtualenv contained pypdf 6.19.0, below the declared minimum 6.20,
+and accepted the adversarial 17-filter PDF. Canonical bootstrap installed 6.20.0;
+no PDF code or test was relaxed. The dependency correction requires a fresh full
+run on the final candidate, not promotion of that failed run.
+
+The six unfiltered local synthetic Capture samples before/after have medians
+0.090799/0.084574 s. These are development measurements without native inference,
+not proof that Linux's acceptance gate passes. Complete unchanged-candidate
+checks and native Linux/Windows/installed qualification remain binding. Current
+outcomes and exact candidate/main identities are recorded in the owner PR #342;
+integration remains blocked until those real checks complete. Changes remain
+Unreleased, with no version assignment, tag or release publication.

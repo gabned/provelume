@@ -52,6 +52,7 @@ class Destination(StrEnum):
 
 class Failure(StrEnum):
     CONFIG = "ai_transport_configuration"
+    BUSY = "ai_native_busy"
     DISABLED = "ai_governed_job_required"
     POLICY = "ai_transport_policy_or_stale"
     CREDENTIAL = "ai_credential_unavailable"

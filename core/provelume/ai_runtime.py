@@ -356,10 +356,19 @@ class LocalRuntime:
         started = time.monotonic()
         deadline = min(deadline, started + 60) if deadline is not None else started + 60
         with self._admit(deadline=deadline, cancel=cancel):
-            return self._infer_owned(
-                model, selection, prompt, cancel=cancel, reuse_scope=reuse_scope,
-                response_format=response_format, started=started, deadline=deadline,
-            )
+            return self._infer_admitted(model, selection, prompt, cancel=cancel,
+                                        reuse_scope=reuse_scope, response_format=response_format,
+                                        deadline=deadline, started=started)
+
+    def _infer_admitted(self, model, selection, prompt, *, cancel, reuse_scope=None,
+                        response_format=None, deadline, started=None):
+        # The governed adapter reserves the same sole request before model admission.
+        # Its caller holds _admit throughout; never reserve again or queue a request.
+        started = time.monotonic() if started is None else started
+        return self._infer_owned(
+            model, selection, prompt, cancel=cancel, reuse_scope=reuse_scope,
+            response_format=response_format, started=started, deadline=deadline,
+        )
 
     def _infer_owned(self, model, selection, prompt, *, cancel, reuse_scope,
                      response_format, started, deadline):

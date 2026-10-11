@@ -20,6 +20,10 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   available during long downloads. Refresh never enables AI or repeats an operation.
 - Runtime qualification records startup after authority renewal separately from
   warm latency, retaining every observation and the existing acceptance limits.
+- Explicit local AI requests can follow an idle worker's bounded cleanup without
+  retrying generation. Pre-inference refusals retain their closed execution cause.
+- Atomic Capture journals overlap independent I/O while retaining file and directory
+  flushes, integrity checks, ordered replacement and recovery before acknowledgement.
 
 Affected surfaces: `/management`, `/settings/ai`, `/settings/shell`, document AI
 preview/synthesis and `/operations/ai`. Requested together for the next release in #339/#340; release number not yet
