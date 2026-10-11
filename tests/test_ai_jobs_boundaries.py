@@ -2,7 +2,6 @@
 
 import threading
 from datetime import timedelta
-from types import SimpleNamespace
 
 import pytest
 from ai_jobs_fakes import BUDGET, UNITS, manager
@@ -12,7 +11,7 @@ from provelume.ai_contract import digest
 from provelume.ai_job_contract import Budget, Quote
 from provelume.ai_job_runtime import JobOutcome, NativeJobAdapter
 from provelume.ai_jobs import AiJobs
-from provelume.ai_provider import ProviderError, Transmission
+from provelume.ai_provider import Failure, ProviderError, Transmission
 from provelume.instance_lifecycle import InstanceLifecycleManager
 from provelume.scheduler import SchedulerCoordinator
 from provelume.scheduler_model import SchedulerBusyError, instant_text, utc_instant
@@ -115,19 +114,22 @@ def test_active_inference_does_not_hold_instance_lifecycle(case, tmp_path, resto
         assert completed[0]["status"] == "succeeded"
 
 
-def test_busy_native_adapter_never_closes_other_worker():
+def test_busy_native_adapter_never_closes_other_worker(tmp_path):
+    from provelume.ai_runtime import LocalRuntime
+
     owned, release = threading.Event(), threading.Event()
-    lock = threading.RLock()
+    runtime = LocalRuntime(tmp_path)
+    lock = runtime._lock
 
     def existing():
-        with lock:
+        with runtime._request_lock, lock:
             owned.set()
             assert release.wait(10)
 
     thread = threading.Thread(target=existing)
     thread.start()
     assert owned.wait(10)
-    runtime = SimpleNamespace(_lock=lock, close=lambda: pytest.fail("closed unrelated worker"))
+    runtime.close = lambda: pytest.fail("closed unrelated worker")
     try:
         with pytest.raises(ProviderError) as exc:
             NativeJobAdapter(runtime, None).exchange(
@@ -137,6 +139,69 @@ def test_busy_native_adapter_never_closes_other_worker():
     finally:
         release.set()
         thread.join(10)
+
+
+@pytest.mark.parametrize("interruption", [None, "cancelled", "timeout"])
+def test_native_adapter_reserves_before_waiting_for_idle_cleanup(tmp_path, interruption):
+    import time
+
+    from provelume.ai_runtime import LocalRuntime
+
+    runtime = LocalRuntime(tmp_path)
+    owned, release, waiting, cancelled = (threading.Event() for _ in range(4))
+    calls, outcomes = [], []
+    adapter = NativeJobAdapter(runtime, None)
+
+    def exchange(current, *, cancel, started, deadline):
+        calls.append(True)
+        assert not cancel()
+        assert deadline == started + 60  # Waiting consumes the original budget.
+        return JobOutcome({"kind": "untrusted_text", "value": "synthetic"}, 9, 0, "LOCAL")
+
+    adapter._exchange = exchange
+
+    def cleanup():
+        with runtime._lock:
+            owned.set()
+            assert release.wait(5)
+
+    def cancel():
+        waiting.set()
+        return cancelled.is_set()
+
+    def request():
+        try:
+            outcomes.append(adapter.exchange(lambda: None, cancel=cancel))
+        except ProviderError as exc:
+            outcomes.append(exc)
+
+    idle, caller = threading.Thread(target=cleanup), threading.Thread(target=request)
+    idle.start()
+    try:
+        assert owned.wait(1)
+        began = time.monotonic()
+        caller.start()
+        assert waiting.wait(1)
+        # No second request may queue behind the reserved request or steal its cleanup.
+        with pytest.raises(ProviderError) as exc:
+            adapter.exchange(lambda: pytest.fail("unexpected preflight"), cancel=lambda: False)
+        assert exc.value.transmission == Transmission.NOT_SENT
+        if interruption:
+            if interruption == "cancelled":
+                cancelled.set()
+            caller.join(1 if interruption == "cancelled" else 3)
+            assert not caller.is_alive()
+            assert outcomes[0].transmission == Transmission.NOT_SENT and not calls
+            assert time.monotonic() - began < (1 if interruption == "cancelled" else 3)
+        release.set()
+        caller.join(1)
+        if interruption is None:
+            assert len(calls) == len(outcomes) == 1 and type(outcomes[0]) is JobOutcome
+    finally:
+        release.set()
+        idle.join(2)
+        if caller.ident:
+            caller.join(2)
 
 
 def test_global_pause_allows_already_authorized_result(case):
@@ -149,6 +214,30 @@ def test_global_pause_allows_already_authorized_result(case):
     jobs.fault = fault
     result = jobs.coordinator.run_one(job_id=enqueue(jobs)["id"])
     assert result["status"] == "succeeded"
+
+
+@pytest.mark.parametrize("code", [Failure.BUSY, Failure.CONFIG, Failure.POLICY,
+                                  Failure.CANCELLED, Failure.TIMEOUT])
+def test_pre_inference_refusal_retains_closed_cause_without_retry_or_usage(case, code):
+    _, jobs, _ = case
+    calls = []
+
+    class Refused:
+        network_used = False
+
+        def exchange(self, current, *, cancel):
+            calls.append(True)
+            raise ProviderError(code, Transmission.NOT_SENT)
+
+    jobs.adapters = {key: Refused() for key in jobs.adapters}
+    result = jobs.coordinator.run_one(job_id=enqueue(jobs)["id"])
+    assert calls == [True] and result["attempt"] == 1
+    assert result["ai"]["blocked"] == code.value and result["ai"]["result"] is None
+    attempt = result["ai"]["attempts"][0]
+    assert attempt["usage_source"] == "NOT_SENT" and attempt["phase"] == "released"
+    assert attempt["quiescent"] and attempt["units"] == attempt["micros"] == 0
+    assert jobs.status()["accounting"]["active"] == jobs.status()["accounting"]["units"] == 0
+    assert jobs.journal.list_receipts()[0]["error_code"] == "ai_execution_blocked"
 
 
 def test_late_old_callback_cannot_modify_retry_attempt(case):

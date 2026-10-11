@@ -67,20 +67,23 @@ class NativeJobAdapter:
         self.last_observation = None
 
     def exchange(self, current, *, cancel):
-        # Reuse the runtime's reentrant ownership lock. A rejected concurrent
-        # caller must never close another operation's worker while cleaning up.
-        if not self.runtime._lock.acquire(blocking=False):
-            raise ProviderError(Failure.CONFIG)
+        # Reserve the sole request before waiting for the idle timer's bounded
+        # cleanup. Competing requests still fail immediately, with no queue/retry.
+        # Admission failure must never close a worker owned by another operation.
+        started = time.monotonic()
+        deadline = started + CONFIGURATION["seconds"]
         try:
-            return self._exchange(current, cancel=cancel)
-        finally:
-            self.runtime._lock.release()
+            with self.runtime._admit(deadline=deadline, cancel=cancel):
+                return self._exchange(current, cancel=cancel, started=started, deadline=deadline)
+        except ModelError as exc:
+            code = {"busy": Failure.BUSY, "cancelled": Failure.CANCELLED,
+                    "timeout": Failure.TIMEOUT}.get(exc.code, Failure.CONFIG)
+            raise ProviderError(code) from None
 
-    def _exchange(self, current, *, cancel):
+    def _exchange(self, current, *, cancel, started, deadline):
         from .ai_runtime import native_selection
 
         entered = False
-        started = time.monotonic()
         self.last_observation = None
         try:
             inputs = current()
@@ -106,7 +109,6 @@ class NativeJobAdapter:
                 options["response_format"] = native_format(task, len(inputs.preview.segments))
             selection = native_selection()
             prepared_at = time.monotonic()
-            deadline = started + CONFIGURATION["seconds"]
             from .ai_model_file import ReadAuthority
 
             with self.model_store.use(
@@ -118,7 +120,7 @@ class NativeJobAdapter:
                     raise ProviderError(Failure.CANCELLED)
                 entered = True
                 inference_at = time.monotonic()
-                value = self.runtime._infer(
+                value = self.runtime._infer_admitted(
                     model, selection, payload, cancel=cancel, deadline=deadline,
                     reuse_scope=digest({"instance": request.context.instance_id}),
                     **options,

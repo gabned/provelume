@@ -112,3 +112,151 @@ No live model acquisition/inference, real external account, new Windows installe
 observation, human linguistic review or screen-reader attestation is claimed by
 this audit. Native CI and final installed-release checks remain separate; previous
 attestations are not extended to changed views.
+
+## Warm-measurement precondition found after integration
+
+PR #341 merged as `9d0ea66a6fbceaaee9ee5fca38b4e89e2edc7b9d` with its qualified
+tree unchanged. Both Windows CPU attempts of run `38092776501` then failed only
+`warm_first`: six intended warm samples actually reported `cold=true`, reaching
+6.735 s and 7.984 s on two Intel runners. Candidate AMD measurements had no such
+cold samples and passed. All original reports and failures remain authoritative;
+neither a rerun nor this correction retroactively promotes them.
+The second Intel attempt also had one genuinely warm `it02` result at 5.594 s,
+above the unchanged 5 s limit. This is a real latency failure, not explained away
+by the preparation correction; future native runs must still reject such a sample.
+
+Full-file authority renewal can outlast the existing five-second idle timeout.
+Qualification now records an explicit fixed synthetic preparation after renewal
+and at the start of each corpus run, then measures every original corpus case.
+All 60 scored samples must actually be warm. Each preparation remains in the raw
+report, bound to the next case and the same worker, and must pass the existing
+cold or warm time limits, model-load/RSS bounds and its fixed expected answer.
+Missing or failed preparation blocks qualification. No outlier is dropped, no
+threshold is increased and no product runtime, authority or idle policy changes.
+Native qualification of the corrected measurement is recorded in its owner PR;
+this does not extend a measured host's performance claim to other hardware.
+
+## Follow-up #342: execution refusal and Capture I/O
+
+The original `3c1a2b482395d6c7a5663a431c57ea43a9fd7ee4` qualification remains
+failed. [CPU run 38095557507](https://github.com/gabned/provelume/actions/runs/38095557507)
+passes all 27 Windows AMD gates, but Linux concurrent Capture takes 0.635 s in
+S06 and 0.669 s in S07 against 0.449 s; S08 cold Capture takes 2.085 s against
+0.557 s. Its 60 genuinely warm samples and six retained preparations pass, with
+maximum first response 2.419 s. Search, citations, quality and abstention pass.
+
+[Installed run 38095557425](https://github.com/gabned/provelume/actions/runs/38095557425)
+fails its first `en-summary-facts` synthesis: one attempt, `ai_execution_blocked`,
+`NOT_SENT`, 94 ms. The following 31 cases pass. Acquisition, model integrity,
+self-test, independent AppContainer token observation, activation and explicit
+enablement pass; parent death and restart were not reached. The original
+`synthesis_quality` diagnostic is not evidence of a model-quality cause.
+[Artifact 11686820875](https://github.com/gabned/provelume/actions/runs/38095557425/artifacts/11686820875)
+and both job logs are retained; neither failure is retried or replaced.
+
+The native adapter previously acquired the runtime ownership lock without waiting.
+The idle timer uses that same lock while stopping its worker. A deterministic
+interposition of idle cleanup reproduces a refusal before any preflight/inference;
+the supervisor's existing bounded admission handles that state, but the adapter
+bypassed it. This mechanism is compatible with the first-only installed refusal;
+the original record does not preserve the provider code and cannot retrospectively
+prove which refusal occurred. The adapter now reserves the sole request through
+that same admission, waits at most the existing two seconds for cleanup, and checks
+cancellation/deadline while waiting. Other requests still fail immediately. There
+is no queue, repeated inference, added warm-up, idle-policy or model change.
+Waiting consumes the original 60-second adapter budget as well as the job deadline.
+Closed provider causes are now retained in the job while the receipt remains
+generic. Installed qualification distinguishes execution failure from quality.
+
+The retained Linux profile attributes a busy diagnostic Capture of 0.709 s to
+49 fsync calls, with 0.502 s in fsync. Atomic journal preparation now overlaps
+independent candidate/preimage writes with at most four I/O threads. Ordered
+target replacement overlaps its directory flushes with the same bounded pool.
+Every original file and directory flush still runs. All payload writers join
+before the prepared marker; all target flushes join before the committed marker
+or acknowledgement. Failures join pending work before rollback/removal, so no
+late writer can race restoration. Candidate/preimage directories additionally
+flush before preparation. Bounds, paths, digests, preimages and recovery remain
+mandatory. Crash recovery still starts from the durable prepared journal.
+
+Local focused checks: 346 passed, 16 skipped, plus five closed-cause/accounting
+regressions passed. Three idle-admission cases fail before the correction. New
+barrier tests cover delayed/failed publication flushes and failed preparation
+with another writer still active, alongside existing interruption, tampering,
+real-link/junction, Capture, consent and recovery tests. The sandbox's initial
+HTTP runs were interrupted and retained after a blocking TestClient observation;
+the diagnostic case passes when sandbox network access is enabled. These are
+environment observations, not a promoted native qualification.
+The first full local run retained one failure, 4030 passes and 40 skips: the
+recovered virtualenv contained pypdf 6.19.0, below the declared minimum 6.20,
+and accepted the adversarial 17-filter PDF. Canonical bootstrap installed 6.20.0;
+no PDF code or test was relaxed. The dependency correction requires a fresh full
+run on the final candidate, not promotion of that failed run.
+
+That fresh local suite on `985827743a88336c4d2cd1093e28a5b1947c84a0` passed:
+4036 tests, 40 skipped, 10 warnings. Its remote
+[core CI 38125089333](https://github.com/gabned/provelume/actions/runs/38125089333)
+retains failed Ubuntu Core and native workspace jobs. Both failures are in the
+new regression's exact floating-point subtraction: `started + 60` is the actual
+deadline, but subtracting retained starts 94.196329987 and 127.046597189 gives
+60.000000000000014. The test now checks `deadline == started + 60` directly;
+no product budget, responsiveness threshold or timeout is changed. Both failed
+jobs remain FAIL; complete checks must qualify the correction's new head.
+
+On that same `9858277` source,
+[CPU run 38125089349](https://github.com/gabned/provelume/actions/runs/38125089349)
+passes all 27 gates on Linux AMD EPYC 9V45 and Windows AMD Family 26 Model 2.
+Each host records all 60 genuinely warm scored samples and all six preparations;
+maximum warm first response is 1.956/2.094 s respectively. Linux Capture maxima
+are 0.218 s S06, 0.217 s S07, 0.211 s S08 cold and 0.228 s S08 warm, with inference
+observed. Linux/Windows artifacts 11697495799/11697375966 bind that source and
+retain every sample. The
+[non-root offline container lifecycle 38125089295](https://github.com/gabned/provelume/actions/runs/38125089295)
+also passes. These observations do not qualify other hardware or the subsequent
+test correction. The ordinary installed Windows cycle and complete exact-head
+and post-merge evidence are recorded in the owner PR; pending or failed results
+cannot be promoted through this audit.
+
+The subsequent `e53f9afc55efb7527cd7a6a6d3f20ed371bb2da3` passes local full checks
+(4036 tests, 40 skipped), all core CI and the offline container. Linux CPU passes
+27 gates, including Capture maxima 0.249 s S06, 0.225 s S07 and 0.251 s S08 cold.
+Its Windows Intel Family 6 Model 207
+[CPU job 114432056336](https://github.com/gabned/provelume/actions/runs/38126572458/job/114432056336)
+remains FAIL, with [artifact 11697878428](https://github.com/gabned/provelume/actions/runs/38126572458/artifacts/11697878428)
+and log retained. It completes 26/27 gates: all 60 genuinely warm scored samples
+pass (maximum first response 4.782 s), with ten retained preparations. The sole
+failure is S05 `deterministic`: the third probe has `worker_observed=false`.
+All three Capture latencies pass (maximum 0.109 s against 0.288 s), as do search,
+S06/S07/S08, quality and references. This is missing concurrency evidence, not
+an observed responsiveness-limit failure.
+
+S05 used a fixed 20 ms sleep after starting its existing generation thread.
+That cannot establish that the request has reached native inference: verification
+and an idle reload can outlast it, or the operation may finish before the probe.
+S05 now waits for the supervisor-validated `native_prefill` event of the current
+request within the existing 20-second cold-first bound. It checks the same live
+worker/request before and after the entire Capture/search flow and binds the
+observed event to the completed inference's event and timestamps. All three
+original probes and inference requests remain; a missing/late phase still keeps
+its failed sample. Missing, stale, late or nonoverlapping evidence cannot pass,
+nor can an incomplete or extra cohort. No preparation, retry, added inference,
+changed product source, idle policy, corpus, latency limit or integrity relaxation
+is introduced. Complete native checks must qualify this new measurement head.
+
+The `9858277` ordinary installed Windows
+[run 38125089297](https://github.com/gabned/provelume/actions/runs/38125089297)
+also completes PASS: all 12 checks, 32 valid/gold syntheses with one attempt each,
+including the first `en-summary-facts` (LOCAL, 18.422 s attempt). Independent
+AppContainer/no-capability/no-loopback observation, parent death in 0.187 s and
+restart with session off and no replay pass. Evidence artifact 11697886848 and
+exact exercised development installer artifact 11697647473 remain bound to that
+source. The original 94 ms refusal remains failed, with its causal limit above;
+these results do not replace exact-head qualification of the measurement change.
+
+The six unfiltered local synthetic Capture samples before/after have medians
+0.090799/0.084574 s. These are development measurements without native inference,
+not proof that Linux's acceptance gate passes. Complete unchanged-candidate
+checks and native Linux/Windows/installed qualification remain binding. Current
+outcomes and exact candidate/main identities are recorded in the owner PR #342;
+integration remains blocked until those real checks complete. Changes remain
+Unreleased, with no version assignment, tag or release publication.

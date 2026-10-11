@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import threading
 from dataclasses import replace
 from pathlib import Path
 
@@ -73,6 +74,100 @@ def _transaction(
         owner_id=owner_id,
         replace=replace_file,
     )
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_parallel_target_flush_barrier_precedes_commit_and_joins_before_rollback(
+    tmp_path, monkeypatch, fail,
+):
+    store, control = _store(tmp_path)
+    target = store.paths.root / "state/value.bin"
+    target.parent.mkdir(exist_ok=True)
+    target.write_bytes(b"before")
+    transaction = _transaction(store, control, profile=_profile())
+    transaction.add("state/value.bin", b"after", immutable=False)
+    entered, release = threading.Event(), threading.Event()
+    outcomes = []
+    original = atomic_commit._fsync_directory
+    first = True
+
+    def flush(path):
+        nonlocal first
+        if path == target.parent and first:
+            first = False
+            entered.set()
+            assert release.wait(5)
+            if fail:
+                raise OSError("synthetic flush failure")
+        return original(path)
+
+    monkeypatch.setattr(atomic_commit, "_fsync_directory", flush)
+
+    def commit():
+        try:
+            transaction.commit()
+            outcomes.append("acknowledged")
+        except AtomicCommitError:
+            outcomes.append("failed")
+
+    worker = threading.Thread(target=commit)
+    worker.start()
+    try:
+        assert entered.wait(2)
+        assert target.read_bytes() == b"after" and not outcomes
+        manifest = next((control / "transactions").glob("*/manifest.json"))
+        assert store._read_json(manifest)["status"] == "prepared"
+    finally:
+        release.set()
+        worker.join(5)
+    assert not worker.is_alive()
+    assert outcomes == ["failed" if fail else "acknowledged"]
+    assert target.read_bytes() == (b"before" if fail else b"after")
+    assert list((control / "transactions").iterdir()) == []
+
+
+def test_parallel_payload_failure_joins_writers_before_removing_unpublished_stage(
+    tmp_path, monkeypatch,
+):
+    store, control = _store(tmp_path)
+    transaction = _transaction(store, control, profile=_profile())
+    transaction.add("state/a.bin", b"a", immutable=True)
+    transaction.add("state/b.bin", b"b", immutable=True)
+    entered, release, failed = threading.Event(), threading.Event(), threading.Event()
+    outcomes = []
+    original = store._atomic_bytes
+
+    def write(path, data):
+        if path.name == "0000.bin":
+            assert entered.wait(2)
+            failed.set()
+            raise OSError("synthetic write failure")
+        if path.name == "0001.bin":
+            entered.set()
+            assert release.wait(5)
+        return original(path, data)
+
+    monkeypatch.setattr(store, "_atomic_bytes", write)
+
+    def commit():
+        try:
+            transaction.commit()
+        except AtomicCommitError:
+            outcomes.append("failed")
+
+    worker = threading.Thread(target=commit)
+    worker.start()
+    try:
+        assert failed.wait(2)
+        assert not outcomes and len(list((control / "transactions").iterdir())) == 1
+        assert not list((control / "transactions").glob("*/manifest.json"))
+        assert not (store.paths.root / "state/a.bin").exists()
+    finally:
+        release.set()
+        worker.join(5)
+    assert not worker.is_alive() and outcomes == ["failed"]
+    assert list((control / "transactions").iterdir()) == []
+    assert not (store.paths.root / "state/b.bin").exists()
 
 
 @pytest.mark.parametrize("position", ["ancestor", "root", "middle", "leaf"])

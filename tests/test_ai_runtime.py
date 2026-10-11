@@ -554,7 +554,7 @@ def test_early_native_failure_retains_every_required_slice_gate(tmp_path, monkey
     output = tmp_path / "report.json"
     report = qualify_ai_runtime.measure(tmp_path, output)
     assert report["status"] == "FAIL" and report["failures"] == ["compatibility"]
-    assert len(report["gates"]) == 26
+    assert len(report["gates"]) == 27
     assert set(report["gates"].values()) == {"NOT_RUN"}
     assert report["gates"]["s07_setup"] == "NOT_RUN"
     assert json.loads(output.read_text(encoding="utf-8")) == report

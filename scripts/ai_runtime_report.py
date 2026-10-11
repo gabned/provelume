@@ -34,6 +34,40 @@ def deterministic_probe(instance, number):
             "product_dispatch_blocked": not ProvelumeInstance.ai_execution_status()["enabled"]}
 
 
+def warm_preparation_gate(report):
+    """Keep every preparation and enforce the existing cold/warm/RSS bounds."""
+    samples, preparations = report.get("samples", []), report.get("warm_preparations", [])
+    if len(samples) != 60 or not 3 <= len(preparations) <= 60:
+        return "NOT_RUN"
+    try:
+        if any(type(row["authority_renewed"]) is not bool for row in samples):
+            return "NOT_RUN"
+        expected = [i for i, row in enumerate(samples) if i % 20 == 0 or row["authority_renewed"]]
+        indices = [row["sample_index"] for row in preparations]
+        if indices != expected or any(type(i) is not int for i in indices):
+            return "FAIL"
+        for row in preparations:
+            index = row["sample_index"]
+            sample = samples[index]
+            cold = row["cold"]
+            if type(cold) is not bool:
+                return "NOT_RUN"
+            expected_reason = "initial" if index % 20 == 0 else "authority_renewal"
+            if not (row["pass"] is True and row["run"] == sample["run"] == index // 20
+                    and row["case"] == sample["id"] and row["reason"] == expected_reason
+                    and row["load"]["pid"] == row["prefill"]["pid"]
+                    == sample["load"]["pid"] == sample["prefill"]["pid"]
+                    and row["prefill"]["request"] != sample["prefill"]["request"]
+                    and 0 <= row["first_wall_seconds"] <= (20 if cold else 5)
+                    and row["first_wall_seconds"] <= row["total_seconds"] <= (60 if cold else 30)
+                    and 0 <= row["load"]["seconds"] <= 15
+                    and 0 < row["memory"]["peak_rss"] <= 2 * 1024**3):
+                return "FAIL"
+    except (KeyError, TypeError, IndexError):
+        return "NOT_RUN"
+    return "PASS"
+
+
 def evaluate(report):
     """No missing dimension can become PASS; thresholds match the pre-measurement ADR."""
     gates = {}
@@ -48,6 +82,10 @@ def evaluate(report):
     bounded("cold_total", [r["total_seconds"] for r in cold], 3, 60)
     bounded("warm_first", [r.get("first_wall_seconds") for r in warm], 60, 5)
     bounded("warm_total", [r["total_seconds"] for r in warm], 60, 30)
+    # A fast cold load must not accidentally qualify as a warm observation either.
+    if len(warm) == 60 and any(r.get("cold") is not False for r in warm):
+        gates["warm_first"] = "FAIL"
+    gates["warm_preparation"] = warm_preparation_gate(report)
     bounded("worker_peak_rss", [r["memory"].get("peak_rss") for r in cold + warm],
             63, 2 * 1024**3)
     for name in ("cancel_load", "cancel_generation"):
@@ -69,9 +107,22 @@ def evaluate(report):
     baseline = report.get("deterministic_idle", [])
     concurrent = report.get("deterministic_busy", [])
     gates["deterministic"] = "NOT_RUN"
-    if len(baseline) >= 3 and len(concurrent) >= 3:
+    if len(baseline) == 3 and len(concurrent) == 3:
         passed = all(r["preserved"] and r["search_found"] and r["product_dispatch_blocked"]
-                     and r.get("worker_observed", True) for r in baseline + concurrent)
+                     for r in baseline + concurrent)
+        for row in concurrent:
+            phase = row.get("concurrency") or {}
+            passed &= (row.get("worker_observed") is True
+                       and phase.get("phase") == "native_prefill"
+                       and type(phase.get("request")) is str and bool(phase["request"])
+                       and type(phase.get("pid")) is int and phase["pid"] > 0
+                       and phase == row.get("inference")
+                       and row.get("inference_started_at", float("inf"))
+                       <= phase.get("received", -1)
+                       <= row.get("inference_started_at", -1) + 20
+                       and phase.get("received", float("inf"))
+                       <= row.get("probe_started_at", -1)
+                       <= row.get("probe_completed_at", -1))
         for key in ("capture_seconds", "search_seconds"):
             limit = min(1, 2 * statistics.median(r[key] for r in baseline) + 0.1)
             passed &= all(r[key] <= limit for r in concurrent)

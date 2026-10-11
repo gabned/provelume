@@ -674,7 +674,9 @@ class AiJobs:
                             retry_not_before=instant_text(clock + timedelta(seconds=delay)),
                         )
                     else:
-                        ai.update(terminal="failed", blocked="ai_execution_blocked")
+                        # Preserve the closed provider cause for pre-inference
+                        # refusals; the receipt's public error remains generic.
+                        ai.update(terminal="failed", blocked=error.code.value)
             # This single write is the accounting/result commit; receipts are projections.
             job = self.journal._write_job(job)
             self.fault("committed")

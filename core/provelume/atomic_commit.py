@@ -7,6 +7,7 @@ import re
 import shutil
 import stat
 from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -278,6 +279,7 @@ class AtomicInstanceCommit:
         stage.mkdir(mode=0o700)
         try:
             entries: list[dict[str, Any]] = []
+            payloads: list[tuple[Path, bytes]] = []
             candidate_bytes = 0
             preimage_bytes = 0
             for index, (relative, (data, immutable)) in enumerate(
@@ -311,12 +313,12 @@ class AtomicInstanceCommit:
                 candidate_bytes = next_candidate
                 preimage_bytes = next_preimage
                 candidate_ref = f"candidates/{index:04d}.bin"
-                self.store._atomic_bytes(stage / candidate_ref, data)
+                payloads.append((stage / candidate_ref, data))
                 preimage_ref = (
                     f"preimages/{index:04d}.bin" if before is not None else None
                 )
                 if before is not None and preimage_ref is not None:
-                    self.store._atomic_bytes(stage / preimage_ref, before)
+                    payloads.append((stage / preimage_ref, before))
                 entries.append(
                     {
                         "relative": relative,
@@ -334,6 +336,17 @@ class AtomicInstanceCommit:
                 )
             if not entries:
                 raise self._integrity_error_type()
+            # Unreferenced journal files are independent. Retain every file
+            # fsync but overlap I/O with a bounded pool. Join all writers, even
+            # on failure, before a prepared manifest can authorize publication.
+            with ThreadPoolExecutor(max_workers=4) as writers:
+                pending = [writers.submit(self.store._atomic_bytes, path, data)
+                           for path, data in payloads]
+                for write in pending:
+                    write.result()
+            for directory in (stage / "candidates", stage / "preimages"):
+                if directory.exists():
+                    _fsync_directory(directory)
             manifest = {
                 "schema_version": ATOMIC_COMMIT_SCHEMA_VERSION,
                 "transaction_id": transaction_id,
@@ -368,46 +381,12 @@ class AtomicInstanceCommit:
         except Exception:
             raise self._error_type() from None
         try:
-            for entry in manifest["entries"]:
-                target, _ = _instance_target(
-                    self.store,
-                    str(entry["relative"]),
-                    error_type=self._error_type,
-                )
-                before = _bounded_file_bytes(
-                    target,
-                    limit=self.profile.limits.max_entry_bytes,
-                    missing_ok=True,
-                    integrity_error_type=self._error_type,
-                    limit_error_type=self._error_type,
-                )
-                expected_before = (
-                    _journal_bytes(
-                        stage,
-                        str(entry["preimage_ref"]),
-                        limit=self.profile.limits.max_entry_bytes,
-                        error_type=self._error_type,
-                    )
-                    if entry["had_preimage"]
-                    else None
-                )
-                if before != expected_before:
-                    raise self._error_type()
-                candidate = _journal_path(
-                    stage,
-                    str(entry["candidate_ref"]),
-                    error_type=self._error_type,
-                )
-                candidate_digest, _ = _bounded_file_digest(
-                    candidate,
-                    limit=self.profile.limits.max_entry_bytes,
-                    error_type=self._error_type,
-                )
-                if candidate_digest != entry["candidate_sha256"]:
-                    raise self._error_type()
-                target.parent.mkdir(parents=True, exist_ok=True)
-                self._replace(candidate, target)
-                _fsync_directory(target.parent)
+            # Every directory flush still runs. The prepared journal recovers
+            # an interrupted subset; no committed marker or acknowledgement may
+            # precede completion of all flushes. Failure also joins the pool
+            # before rollback so no late writer can race with restoration.
+            with ThreadPoolExecutor(max_workers=4) as flushers:
+                self._publish_entries(stage, manifest, flushers)
             committed = {
                 **manifest,
                 "status": "committed",
@@ -445,6 +424,51 @@ class AtomicInstanceCommit:
         # A durable committed marker makes later journal cleanup recoverable on open.
         with suppress(OSError):
             _fsync_directory(self.stage_parent)
+
+    def _publish_entries(self, stage, manifest, flushers):
+        pending = []
+        for entry in manifest["entries"]:
+            target, _ = _instance_target(
+                self.store,
+                str(entry["relative"]),
+                error_type=self._error_type,
+            )
+            before = _bounded_file_bytes(
+                target,
+                limit=self.profile.limits.max_entry_bytes,
+                missing_ok=True,
+                integrity_error_type=self._error_type,
+                limit_error_type=self._error_type,
+            )
+            expected_before = (
+                _journal_bytes(
+                    stage,
+                    str(entry["preimage_ref"]),
+                    limit=self.profile.limits.max_entry_bytes,
+                    error_type=self._error_type,
+                )
+                if entry["had_preimage"]
+                else None
+            )
+            if before != expected_before:
+                raise self._error_type()
+            candidate = _journal_path(
+                stage,
+                str(entry["candidate_ref"]),
+                error_type=self._error_type,
+            )
+            candidate_digest, _ = _bounded_file_digest(
+                candidate,
+                limit=self.profile.limits.max_entry_bytes,
+                error_type=self._error_type,
+            )
+            if candidate_digest != entry["candidate_sha256"]:
+                raise self._error_type()
+            target.parent.mkdir(parents=True, exist_ok=True)
+            self._replace(candidate, target)
+            pending.append(flushers.submit(_fsync_directory, target.parent))
+        for flush in pending:
+            flush.result()
 
 
 def _fsync_directory(path: Path) -> None:

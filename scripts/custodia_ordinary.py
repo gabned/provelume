@@ -224,6 +224,8 @@ def document_jobs(client, instance, cases, report, *, observe=lambda: None, save
             "usage_source": attempt.get("usage_source"), "elapsed_ms": attempt.get("elapsed_ms"),
             "seconds": time.monotonic() - started})
         save()
+    if any(row["status"] != "succeeded" for row in report["synthesis"]):
+        raise ValueError("synthesis_execution")
     if not all(row["gold"] and row["attempts"] == 1 for row in report["synthesis"]):
         raise ValueError("synthesis_quality")
     report["checks"]["ordinary_document_synthesis_32_cases"] = "PASS"
