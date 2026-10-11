@@ -2089,7 +2089,7 @@
   "transcript.text": "Testo derivato",
   "transcript.title": "Intake locale delle trascrizioni",
   "tray.endpoint": "Endpoint: {value}",
-  "tray.first_close": "Chiudere questa finestra lascia Provelume attivo nell’area di notifica. Apri ripristina la finestra; Esci arresta servizio e applicazione. L’avvio all’accesso è una preferenza separata.",
+  "tray.first_close": "Chiudere questa finestra lascia Provelume attivo nell’area di notifica. Pannello locale ripristina questa finestra; Apri Provelume apre l’applicazione nel browser. Esci arresta servizio e applicazione. L’avvio all’accesso è una preferenza separata.",
   "tray.launcher": "Pannello locale",
   "tray.open": "Apri Provelume",
   "tray.pause": "Pausa / Riprendi…",

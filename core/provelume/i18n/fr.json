@@ -2089,7 +2089,7 @@
   "transcript.text": "Texte dérivé",
   "transcript.title": "Acquisition de transcription locale",
   "tray.endpoint": "Point de terminaison : {value}",
-  "tray.first_close": "Fermer la fenêtre laisse Provelume actif dans la zone de notification. Ouvrir restaure la fenêtre ; Quitter arrête le service et l’application. Le démarrage à la connexion est indépendant.",
+  "tray.first_close": "Fermer la fenêtre laisse Provelume actif dans la zone de notification. Panneau local restaure cette fenêtre ; Ouvrir Provelume ouvre l’application dans le navigateur. Quitter arrête le service et l’application. Le démarrage à la connexion est indépendant.",
   "tray.launcher": "Panneau local",
   "tray.open": "Ouvrir Provelume",
   "tray.pause": "Suspendre / Reprendre…",

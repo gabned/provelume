@@ -2089,7 +2089,7 @@
   "transcript.text": "Text derivat",
   "transcript.title": "Preluare locală transcript",
   "tray.endpoint": "Punct final: {value}",
-  "tray.first_close": "Închiderea ferestrei menține Provelume în zona de notificare. Deschide restabilește fereastra; Ieșire oprește serviciul și aplicația. Pornirea la autentificare este separată.",
+  "tray.first_close": "Închiderea ferestrei menține Provelume în zona de notificare. Panou local restabilește această fereastră; Deschide Provelume deschide aplicația în browser. Ieșire oprește serviciul și aplicația. Pornirea la autentificare este separată.",
   "tray.launcher": "Panou local",
   "tray.open": "Deschide Provelume",
   "tray.pause": "Pauză / Reluare…",

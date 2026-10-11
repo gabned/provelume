@@ -2089,7 +2089,7 @@
   "transcript.text": "Abgeleiteter Text",
   "transcript.title": "Lokale Transkriptionsaufnahme",
   "tray.endpoint": "Endpunkt: {value}",
-  "tray.first_close": "Beim Schließen läuft Provelume im Infobereich weiter. Öffnen stellt das Fenster wieder her; Beenden stoppt Dienst und Anwendung. Autostart ist eine separate Einstellung.",
+  "tray.first_close": "Beim Schließen läuft Provelume im Infobereich weiter. Lokales Bedienfeld stellt dieses Fenster wieder her; Provelume öffnen öffnet die Anwendung im Browser. Beenden stoppt Dienst und Anwendung. Autostart ist eine separate Einstellung.",
   "tray.launcher": "Lokales Bedienfeld",
   "tray.open": "Provelume öffnen",
   "tray.pause": "Anhalten / Fortsetzen…",

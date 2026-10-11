@@ -2089,7 +2089,7 @@
   "transcript.text": "Derived text",
   "transcript.title": "Local transcript intake",
   "tray.endpoint": "Endpoint: {value}",
-  "tray.first_close": "Closing this window keeps Provelume running in the tray. Open restores the window; Exit stops the service and application. Start at login is a separate preference.",
+  "tray.first_close": "Closing this window keeps Provelume running in the tray. Local control panel restores this window; Open Provelume opens the browser application. Exit stops the service and application. Start at login is a separate preference.",
   "tray.launcher": "Local control panel",
   "tray.open": "Open Provelume",
   "tray.pause": "Pause / Resume…",

@@ -2089,7 +2089,7 @@
   "transcript.text": "Texto derivado",
   "transcript.title": "Entrada de transcrição local",
   "tray.endpoint": "Endpoint: {value}",
-  "tray.first_close": "Fechar a janela mantém Provelume na área de notificação. Abrir restaura a janela; Sair para o serviço e a aplicação. Iniciar ao entrar é uma opção separada.",
+  "tray.first_close": "Fechar a janela mantém Provelume na área de notificação. Painel local restaura esta janela; Abrir Provelume abre a aplicação no navegador. Sair para o serviço e a aplicação. Iniciar ao entrar é uma opção separada.",
   "tray.launcher": "Painel local",
   "tray.open": "Abrir Provelume",
   "tray.pause": "Pausar / Retomar…",

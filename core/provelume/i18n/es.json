@@ -2089,7 +2089,7 @@
   "transcript.text": "Texto derivado",
   "transcript.title": "Ingesta de transcripción local",
   "tray.endpoint": "Punto final: {value}",
-  "tray.first_close": "Cerrar esta ventana mantiene Provelume en la bandeja. Abrir restaura la ventana; Salir detiene el servicio y la aplicación. Iniciar al acceder es una opción separada.",
+  "tray.first_close": "Cerrar esta ventana mantiene Provelume en la bandeja. Panel local restaura esta ventana; Abrir Provelume abre la aplicación en el navegador. Salir detiene el servicio y la aplicación. Iniciar al acceder es una opción separada.",
   "tray.launcher": "Panel local",
   "tray.open": "Abrir Provelume",
   "tray.pause": "Pausar / Reanudar…",
