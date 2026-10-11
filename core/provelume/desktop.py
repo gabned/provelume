@@ -168,6 +168,7 @@ def write_ui_diagnostics(
     dpi_percent: int,
     viewport_width: int,
     viewport_height: int,
+    theme: str = "system",
 ) -> Path:
     """Build the real Tk launcher off-loop and record bounded layout evidence."""
 
@@ -193,6 +194,7 @@ def write_ui_diagnostics(
                 initial_settings=LauncherSettings(
                     instance_path=str(instance),
                     language=language,
+                    theme=theme,
                 ),
                 auto_start_service=False,
                 enable_native_tray=False,
@@ -221,9 +223,25 @@ def write_ui_diagnostics(
                 str(shell.check_button.cget("text")),
                 str(shell.download_button.cget("text")),
             ]
+            from .shell_appearance import appearance_evidence
+
+            appearance = appearance_evidence(root, shell.channel_box)
+            measured = [shell.open_button, shell.stop_button, shell.choose_button,
+                        shell.create_button, shell.check_button, shell.download_button,
+                        shell.channel_box, shell.startup_check, shell.shell_settings_button]
+            control_bounds = [{"requested_width": widget.winfo_reqwidth(),
+                               "width": widget.winfo_width(),
+                               "requested_height": widget.winfo_reqheight(),
+                               "height": widget.winfo_height()} for widget in measured]
             payload = {
                 "schema_version": 1,
                 "language": language,
+                "theme": theme,
+                "appearance": appearance,
+                "control_bounds": control_bounds,
+                "controls_fit": all(row["requested_width"] <= row["width"]
+                                    and row["requested_height"] <= row["height"]
+                                    for row in control_bounds),
                 "dpi_percent": dpi_percent,
                 "dpi_awareness": dpi_awareness,
                 "modeled_viewport": {
@@ -317,6 +335,7 @@ def write_native_tray_smoke(path: Path) -> bool:
             restart_service=lambda: actions.append("restart"),
             quit_application=lambda: actions.append("quit"),
             icon_path=_versioned_icon_path(),
+            open_launcher=lambda: actions.append("launcher"),
         )
         if not tray.start():
             raise RuntimeError("native notification icon was not created")
@@ -336,11 +355,11 @@ def write_native_tray_smoke(path: Path) -> bool:
             raise RuntimeError("native notification icon was not updated")
 
         payload["failure_code"] = "native_tray_actions_failed"
-        for command_id in (1, 2, 3, 4):
+        for command_id in (1, 7, 2, 3, 4):
             tray.exercise_action(command_id)
         root.update_idletasks()
         root.update()
-        if actions != ["open", "settings", "restart", "quit"]:
+        if actions != ["open", "launcher", "settings", "restart", "quit"]:
             raise RuntimeError("native tray actions were not dispatched")
 
         payload["failure_code"] = "native_tray_shutdown_failed"
@@ -575,7 +594,8 @@ class DesktopShell:
                     service_status="stopped",
                     endpoint=endpoint,
                 ),
-                open_interface=self.show_window,
+                open_interface=self.open_product,
+                open_launcher=self.show_window,
                 open_settings=self.open_shell_settings,
                 restart_service=self.restart_server,
                 quit_application=self.close,
@@ -632,20 +652,22 @@ class DesktopShell:
                 self.brand_image = self.tk.PhotoImage(file=str(brand_png))
                 title.configure(image=self.brand_image, compound="left", padding=(0, 0, 8, 0))
         title.pack(anchor="w")
-        ttk.Label(outer, text=self.text["tagline"]).pack(anchor="w", pady=(0, 20))
+        ttk.Label(outer, text=self.text["launcher_hint"], wraplength=560,
+                  justify="left").pack(anchor="w", fill="x", pady=(6, 16))
 
         identity = ttk.LabelFrame(outer, text=self.text["installed"], padding=14)
         identity.pack(fill="x", pady=(0, 14))
         about = current_about()
         ttk.Label(
             identity,
-            text=f"{about['version']} · {about['channel']} · {about['runtime']['packaging']}",
+            text=f"{about['version']} · {about['channel']}",
         ).pack(side="left")
         ttk.Button(identity, text=self.text["about"], command=self.show_about).pack(side="right")
 
         instance = ttk.LabelFrame(outer, text=self.text["instance"], padding=14)
         instance.pack(fill="x", pady=(0, 14))
-        ttk.Label(instance, textvariable=self.instance_text).pack(anchor="w")
+        ttk.Label(instance, textvariable=self.instance_text, wraplength=520,
+                  justify="left").pack(anchor="w", fill="x")
         ttk.Label(
             instance,
             textvariable=self.status,
@@ -659,27 +681,28 @@ class DesktopShell:
             text=self.text["open"],
             command=self.open_product,
             state="normal",
+            style="Primary.TButton",
         )
-        self.open_button.pack(side="left")
         self.stop_button = ttk.Button(
             row,
             text=self.text["stop"],
             command=self.stop_server,
             state="disabled",
         )
-        self.stop_button.pack(side="left", padx=8)
+        self._responsive_actions(row, [self.open_button, self.stop_button])
+        locations = ttk.Frame(instance)
+        locations.pack(fill="x", pady=(8, 0))
         self.choose_button = ttk.Button(
-            row,
+            locations,
             text=self.text["choose"],
             command=self.choose_instance,
         )
-        self.choose_button.pack(side="right")
         self.create_button = ttk.Button(
-            row,
+            locations,
             text=self.text["create"],
             command=self.create_instance,
         )
-        self.create_button.pack(side="right", padx=8)
+        self._responsive_actions(locations, [self.create_button, self.choose_button])
 
         shell = ttk.LabelFrame(outer, text=self.text["shell_settings"], padding=14)
         shell.pack(fill="x", pady=(0, 14))
@@ -691,17 +714,18 @@ class DesktopShell:
             ),
             wraplength=560,
             justify="left",
-        ).pack(side="left", fill="x", expand=True)
-        ttk.Button(
+        ).pack(anchor="w", fill="x")
+        self.shell_settings_button = ttk.Button(
             shell,
             text=self.text["shell_settings"],
             command=self.open_shell_settings,
-        ).pack(side="right")
+        )
+        self.shell_settings_button.pack(fill="x", pady=(8, 0))
 
         updates = ttk.LabelFrame(outer, text=self.text["updates"], padding=14)
         updates.pack(fill="x", pady=(0, 14))
         policy = ttk.Frame(updates)
-        policy.pack(fill="x")
+        policy.pack(fill="x", anchor="w")
         ttk.Label(policy, text=self.text["channel"]).pack(side="left")
         channels = ttk.Combobox(
             policy,
@@ -712,12 +736,15 @@ class DesktopShell:
         )
         channels.pack(side="left", padx=8)
         channels.bind("<<ComboboxSelected>>", lambda _event: self._save_policy())
-        ttk.Checkbutton(
-            policy,
+        self.channel_box = channels
+        self.startup_check = ttk.Checkbutton(
+            updates,
             text=self.text["check_start"],
             variable=self.check_on_start,
             command=self._save_policy,
-        ).pack(side="right")
+            style="Startup.TCheckbutton",
+        )
+        self.startup_check.pack(anchor="w", pady=(4, 0))
         ttk.Label(updates, textvariable=self.update_status, wraplength=600).pack(
             anchor="w", pady=(10, 10)
         )
@@ -729,16 +756,46 @@ class DesktopShell:
             command=self.check_updates,
             state="normal",
         )
-        self.check_button.pack(side="left")
         self.download_button = ttk.Button(
             actions,
             text=self.text["download"],
             command=self.download_candidate,
             state="disabled",
         )
-        self.download_button.pack(side="left", padx=8)
+        self._responsive_actions(actions, [self.check_button, self.download_button])
 
         ttk.Label(outer, text=self.text["offline"]).pack(anchor="w", pady=(6, 0))
+        def fit_text(event):
+            self.ttk.Style(root).configure("Startup.TCheckbutton",
+                                           wraplength=max(120, event.width - 90))
+            for frame in (outer, instance, shell, updates):
+                for widget in frame.winfo_children():
+                    if widget.winfo_class() == "TLabel" and widget.cget("wraplength"):
+                        widget.configure(wraplength=max(120, event.width - 60))
+        outer.bind("<Configure>", fit_text, add="+")
+        def scroll(event):
+            if event.widget.winfo_toplevel() is root and event.widget.winfo_class() != "TCombobox":
+                canvas.yview_scroll(-int(event.delta / 120), "units")
+                return "break"
+        root.bind("<MouseWheel>", scroll, add="+")
+
+    def _responsive_actions(self, frame, buttons) -> None:
+        """Keep every action reachable at high DPI without truncating its label."""
+        layout = None
+        def arrange(event=None):
+            nonlocal layout
+            width = event.width if event is not None else frame.winfo_width()
+            columns = len(buttons) if sum(b.winfo_reqwidth() + 8 for b in buttons) <= width else 1
+            if layout == columns:
+                return
+            layout = columns
+            for index, button in enumerate(buttons):
+                frame.columnconfigure(index, weight=1 if index < columns else 0)
+                button.grid(row=index // columns, column=index % columns, sticky="ew",
+                            padx=(0, 8) if columns > 1 and index < columns - 1 else 0,
+                            pady=(0, 6) if columns == 1 and index < len(buttons) - 1 else 0)
+        frame.bind("<Configure>", arrange)
+        arrange()
 
     def _show_instance_error(self, message: str) -> None:
         self.instance_available = False
@@ -1461,6 +1518,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--ui-diagnostics-width", type=int, default=800)
     parser.add_argument("--ui-diagnostics-height", type=int, default=600)
+    parser.add_argument("--ui-diagnostics-theme", choices=("system", "light", "dark"),
+                        default="system")
     parser.add_argument("--bootstrap-instance", type=Path)
     parser.add_argument("--instance-name", default="My Provelume")
     parser.add_argument("--validate-port", type=int)
@@ -1538,6 +1597,7 @@ def main(arguments: list[str] | None = None) -> int:
             dpi_percent=options.ui_diagnostics_dpi,
             viewport_width=options.ui_diagnostics_width,
             viewport_height=options.ui_diagnostics_height,
+            theme=options.ui_diagnostics_theme,
         )
         return 0
     if options.bootstrap_instance is not None:

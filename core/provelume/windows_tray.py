@@ -138,6 +138,7 @@ class WindowsTray:
         icon_path: Path | None = None,
         open_queue: Callable[[], None] | None = None,
         pause_resume: Callable[[], None] | None = None,
+        open_launcher: Callable[[], None] | None = None,
     ):
         self.root = root
         self.state = state.normalized()
@@ -148,6 +149,7 @@ class WindowsTray:
             4: quit_application,
             5: open_queue or open_interface,
             6: pause_resume or open_settings,
+            7: open_launcher or open_interface,
         }
         self.icon_path = icon_path
         self.available = False
@@ -524,6 +526,7 @@ class WindowsTray:
             menu = user32.CreatePopupMenu()
             try:
                 user32.AppendMenuW(menu, MF_STRING, 1, labels["open"])
+                user32.AppendMenuW(menu, MF_STRING, 7, labels["launcher"])
                 user32.AppendMenuW(menu, MF_STRING, 5, queue_labels["queue"])
                 user32.AppendMenuW(menu, MF_STRING | MF_GRAYED, 12, queue_text(value))
                 user32.AppendMenuW(

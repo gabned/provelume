@@ -77,6 +77,15 @@ Settings JSON export/import contains non-secret preferences only and previews ch
 
 Closing the window can keep the runtime active only under the selected tray policy;
 first close offers cancellation. Exit stops the runtime and removes the tray icon.
+
+The Unreleased launcher follow-up distinguishes **Open Provelume** (the application
+in your browser) from **Local control panel** (the native window for service,
+Instance and update controls). The panel identifies its role, labels the local
+service stop action and separates it from Instance selection. At high DPI its
+action rows stack and mouse-wheel scrolling keeps the lower controls reachable.
+Readonly update-channel fields and their dropdown follow Light/Dark/System colors;
+Windows high-contrast colors retain priority. Native title-bar dark mode is requested
+where supported. These changes are not yet present in the published 0.12.0 installer.
 Login startup is a separate opt-in. Tray counts are content-free projections of
 the authoritative job/attention queues; Pause/Resume opens their existing controls.
 

@@ -392,7 +392,7 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
         -not $NativeTray.frozen_executable -or
         $NativeTray.windows_identity -ne "configured" -or
         -not $NativeTray.labels_en_it_complete -or
-        ($NativeTray.action_sequence -join ",") -ne "open,settings,restart,quit" -or
+        ($NativeTray.action_sequence -join ",") -ne "open,launcher,settings,restart,quit" -or
         -not $NativeTray.notification.notification_added -or
         -not $NativeTray.notification.notification_updated -or
         -not $NativeTray.notification.notification_deleted -or

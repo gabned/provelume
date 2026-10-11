@@ -694,8 +694,10 @@ def test_windows_mutex_rejects_a_second_launcher() -> None:
 
 
 @pytest.mark.skipif(os.name != "nt", reason="real Tk layout probe")
+@pytest.mark.parametrize("theme", ["system", "light", "dark"])
+@pytest.mark.parametrize("dpi", [100, 200])
 def test_windows_tk_layout_probe_is_offline_and_scrollable(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, theme: str, dpi: int,
 ) -> None:
     first_run_calls = []
 
@@ -707,14 +709,18 @@ def test_windows_tk_layout_probe_is_offline_and_scrollable(
     write_ui_diagnostics(
         output,
         language="it",
-        dpi_percent=200,
+        dpi_percent=dpi,
+        theme=theme,
         viewport_width=640,
         viewport_height=480,
     )
     value = json.loads(output.read_text(encoding="utf-8"))
     assert first_run_calls == [], "offline layout diagnostics must remain non-interactive"
     assert value["language"] == "it"
-    assert value["dpi_percent"] == 200
+    assert value["dpi_percent"] == dpi
+    assert value["theme"] == theme
+    assert value["controls_fit"] is True
+    assert all(row["contrast"] >= 4.5 for row in value["appearance"].values())
     assert value["network_used"] is False
     assert value["instance_content_sent"] is False
     assert value["all_action_labels_present"] is True

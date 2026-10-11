@@ -572,11 +572,13 @@ try {
     # Exercise the actual frozen Tk layout at every supported DPI probe and reduced resolution.
     foreach ($Language in @("en", "it", "de", "es", "fr", "pt", "ro")) {
         foreach ($Dpi in @(100, 125, 150, 200)) {
-            $LayoutEvidence = Join-Path $EvidenceRoot "layout-$Language-$Dpi.json"
+          foreach ($Theme in @("system", "light", "dark")) {
+            $LayoutEvidence = Join-Path $EvidenceRoot "layout-$Language-$Dpi-$Theme.json"
             Invoke-WindowsProcess -FilePath $Executable -Arguments @(
                 "--ui-diagnostics-file", "`"$LayoutEvidence`"",
                 "--ui-diagnostics-language", $Language,
                 "--ui-diagnostics-dpi", "$Dpi",
+                "--ui-diagnostics-theme", $Theme,
                 "--ui-diagnostics-width", "640",
                 "--ui-diagnostics-height", "480"
             )
@@ -585,6 +587,7 @@ try {
                 $Layout.network_used -or
                 $Layout.instance_content_sent -or
                 -not $Layout.all_action_labels_present -or
+                -not $Layout.controls_fit -or
                 $Layout.window.width -gt $Layout.modeled_viewport.width -or
                 $Layout.window.height -gt $Layout.modeled_viewport.height -or
                 $Layout.scroll_surface.viewport_width -le 1 -or
@@ -598,8 +601,14 @@ try {
                 $Layout.controls.check -ne "normal" -or
                 $Layout.controls.download -ne "disabled"
             ) {
-                throw "Frozen launcher layout diagnostics failed for $Language at $Dpi percent."
+                throw "Frozen launcher layout diagnostics failed for $Language at $Dpi percent ($Theme)."
             }
+            foreach ($Color in $Layout.appearance.PSObject.Properties) {
+                if ($Color.Value.contrast -lt 4.5) {
+                    throw "Frozen launcher channel contrast failed: $Language/$Dpi/$Theme/$($Color.Name)."
+                }
+            }
+          }
         }
     }
 
