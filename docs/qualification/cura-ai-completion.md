@@ -217,6 +217,42 @@ test correction. The ordinary installed Windows cycle and complete exact-head
 and post-merge evidence are recorded in the owner PR; pending or failed results
 cannot be promoted through this audit.
 
+The subsequent `e53f9afc55efb7527cd7a6a6d3f20ed371bb2da3` passes local full checks
+(4036 tests, 40 skipped), all core CI and the offline container. Linux CPU passes
+27 gates, including Capture maxima 0.249 s S06, 0.225 s S07 and 0.251 s S08 cold.
+Its Windows Intel Family 6 Model 207
+[CPU job 114432056336](https://github.com/gabned/provelume/actions/runs/38126572458/job/114432056336)
+remains FAIL, with [artifact 11697878428](https://github.com/gabned/provelume/actions/runs/38126572458/artifacts/11697878428)
+and log retained. It completes 26/27 gates: all 60 genuinely warm scored samples
+pass (maximum first response 4.782 s), with ten retained preparations. The sole
+failure is S05 `deterministic`: the third probe has `worker_observed=false`.
+All three Capture latencies pass (maximum 0.109 s against 0.288 s), as do search,
+S06/S07/S08, quality and references. This is missing concurrency evidence, not
+an observed responsiveness-limit failure.
+
+S05 used a fixed 20 ms sleep after starting its existing generation thread.
+That cannot establish that the request has reached native inference: verification
+and an idle reload can outlast it, or the operation may finish before the probe.
+S05 now waits for the supervisor-validated `native_prefill` event of the current
+request within the existing 20-second cold-first bound. It checks the same live
+worker/request before and after the entire Capture/search flow and binds the
+observed event to the completed inference's event and timestamps. All three
+original probes and inference requests remain; a missing/late phase still keeps
+its failed sample. Missing, stale, late or nonoverlapping evidence cannot pass,
+nor can an incomplete or extra cohort. No preparation, retry, added inference,
+changed product source, idle policy, corpus, latency limit or integrity relaxation
+is introduced. Complete native checks must qualify this new measurement head.
+
+The `9858277` ordinary installed Windows
+[run 38125089297](https://github.com/gabned/provelume/actions/runs/38125089297)
+also completes PASS: all 12 checks, 32 valid/gold syntheses with one attempt each,
+including the first `en-summary-facts` (LOCAL, 18.422 s attempt). Independent
+AppContainer/no-capability/no-loopback observation, parent death in 0.187 s and
+restart with session off and no replay pass. Evidence artifact 11697886848 and
+exact exercised development installer artifact 11697647473 remain bound to that
+source. The original 94 ms refusal remains failed, with its causal limit above;
+these results do not replace exact-head qualification of the measurement change.
+
 The six unfiltered local synthetic Capture samples before/after have medians
 0.090799/0.084574 s. These are development measurements without native inference,
 not proof that Linux's acceptance gate passes. Complete unchanged-candidate

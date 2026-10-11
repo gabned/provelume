@@ -64,6 +64,34 @@ def measure_warm_case(report, store, runtime, selection, evidence, case, run):
     return evidence
 
 
+def measure_busy_probe(instance, runtime, thread, number, *, started, previous_request):
+    """Observe this request's native phase before and throughout Capture/search."""
+    observed = None
+    # Existing cold-first bound; the inference's original 60-second deadline
+    # still owns the operation. No extra inference or preparation is introduced.
+    while thread.is_alive() and time.monotonic() < started + 20:
+        phase = runtime._prefill_observation
+        if (phase and phase.get("phase") == "native_prefill"
+                and phase.get("request") == runtime._request_id != previous_request
+                and started <= phase.get("received", 0) <= started + 20):
+            observed = dict(phase)
+            break
+        time.sleep(0.02)
+
+    def active():
+        return (observed is not None and runtime.loaded and thread.is_alive()
+                and runtime._request_id == observed["request"]
+                and runtime._prefill_observation == observed)
+
+    before = active()
+    probe_started = time.monotonic()
+    row = deterministic_probe(instance, number)
+    row.update(worker_observed=before and active(), concurrency=observed,
+               inference_started_at=started, probe_started_at=probe_started,
+               probe_completed_at=time.monotonic())
+    return row
+
+
 def measure(root, output):
     report = {
         "schema_version": 1,
@@ -133,13 +161,15 @@ def measure(root, output):
                 except ModelError as exc:
                     report["failures"].append(exc.code)
 
+            started = time.monotonic()
+            previous_request = runtime._request_id
             thread = threading.Thread(target=generate)
             thread.start()
-            time.sleep(0.02)
-            row = deterministic_probe(instance, cold_run)
-            row["worker_observed"] = runtime.loaded and thread.is_alive()
+            row = measure_busy_probe(instance, runtime, thread, cold_run,
+                                     started=started, previous_request=previous_request)
             report.setdefault("deterministic_busy", []).append(row)
             thread.join()  # Runtime's single canonical operation deadline owns termination.
+            row["inference"] = outcome[0].get("prefill") if outcome else None
             for case in corpus:
                 # Fresh evidence has a 60-second TTL. Refresh explicitly; no inferred
                 # authority, persisted qualification or implicit inference retry.

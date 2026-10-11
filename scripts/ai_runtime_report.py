@@ -107,9 +107,22 @@ def evaluate(report):
     baseline = report.get("deterministic_idle", [])
     concurrent = report.get("deterministic_busy", [])
     gates["deterministic"] = "NOT_RUN"
-    if len(baseline) >= 3 and len(concurrent) >= 3:
+    if len(baseline) == 3 and len(concurrent) == 3:
         passed = all(r["preserved"] and r["search_found"] and r["product_dispatch_blocked"]
-                     and r.get("worker_observed", True) for r in baseline + concurrent)
+                     for r in baseline + concurrent)
+        for row in concurrent:
+            phase = row.get("concurrency") or {}
+            passed &= (row.get("worker_observed") is True
+                       and phase.get("phase") == "native_prefill"
+                       and type(phase.get("request")) is str and bool(phase["request"])
+                       and type(phase.get("pid")) is int and phase["pid"] > 0
+                       and phase == row.get("inference")
+                       and row.get("inference_started_at", float("inf"))
+                       <= phase.get("received", -1)
+                       <= row.get("inference_started_at", -1) + 20
+                       and phase.get("received", float("inf"))
+                       <= row.get("probe_started_at", -1)
+                       <= row.get("probe_completed_at", -1))
         for key in ("capture_seconds", "search_seconds"):
             limit = min(1, 2 * statistics.median(r[key] for r in baseline) + 0.1)
             passed &= all(r[key] <= limit for r in concurrent)

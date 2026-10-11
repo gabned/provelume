@@ -141,3 +141,109 @@ def test_slow_authority_renewal_cannot_turn_a_measured_warm_case_into_a_cold_loa
     else:
         assert calls == [("case", False)]
 
+
+@pytest.mark.parametrize("finish", [None, "completed", "other-request"])
+def test_busy_probe_waits_for_current_native_phase_and_checks_the_whole_flow(monkeypatch, finish):
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "scripts"))
+    from scripts import qualify_ai_runtime as measure
+
+    clock, waits = [100.0], []
+    thread = SimpleNamespace(alive=True)
+    thread.is_alive = lambda: thread.alive
+    old = {"phase": "native_prefill", "request": "previous", "pid": 7, "received": 99}
+    runtime = SimpleNamespace(loaded=False, _request_id="previous", _prefill_observation=old)
+    monkeypatch.setattr(measure.time, "monotonic", lambda: clock[0])
+
+    def wait(seconds):
+        assert seconds == .02
+        waits.append(seconds)
+        clock[0] += 1
+        if len(waits) == 3:  # Load/verification can outlast a fixed 20 ms sleep.
+            runtime.loaded = True
+            runtime._request_id = "current"
+            runtime._prefill_observation = {
+                "phase": "native_prefill", "request": "current", "pid": 8,
+                "received": clock[0],
+            }
+
+    monkeypatch.setattr(measure.time, "sleep", wait)
+
+    def probe(instance, number):
+        assert len(waits) == 3 and runtime._request_id == "current"
+        clock[0] += .1
+        if finish == "completed":
+            thread.alive = False
+        elif finish == "other-request":
+            runtime._request_id = "other"
+        return {"sample": number, "capture_seconds": .09, "search_seconds": .01,
+                "preserved": True, "search_found": True, "product_dispatch_blocked": True}
+
+    monkeypatch.setattr(measure, "deterministic_probe", probe)
+    row = measure.measure_busy_probe(None, runtime, thread, 2, started=100,
+                                     previous_request="previous")
+    assert row["worker_observed"] is (finish is None)
+    assert row["concurrency"]["request"] == "current"
+    assert row["inference_started_at"] <= row["concurrency"]["received"] <= row["probe_started_at"]
+    assert row["probe_completed_at"] == 103.1
+
+
+def busy_report():
+    baseline = [{"capture_seconds": .1, "search_seconds": .01, "preserved": True,
+                 "search_found": True, "product_dispatch_blocked": True} for _ in range(3)]
+    rows = []
+    for i in range(3):
+        phase = {"phase": "native_prefill", "request": str(i), "pid": i + 1,
+                 "received": 102}
+        rows.append({**baseline[i], "worker_observed": True, "concurrency": phase,
+                     "inference": dict(phase), "inference_started_at": 100,
+                     "probe_started_at": 103, "probe_completed_at": 103.1})
+    return {"deterministic_idle": baseline, "deterministic_busy": rows, "failures": []}
+
+
+def test_busy_probe_without_a_native_phase_is_bounded_and_keeps_the_failed_sample(monkeypatch):
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "scripts"))
+    from scripts import qualify_ai_runtime as measure
+
+    clock, probes = [100.0], []
+    runtime = SimpleNamespace(loaded=False, _request_id="current", _prefill_observation=None)
+    thread = SimpleNamespace(is_alive=lambda: True)
+    monkeypatch.setattr(measure.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(measure.time, "sleep", lambda _: clock.__setitem__(0, clock[0] + 1))
+
+    def probe(instance, number):
+        probes.append(number)
+        return {"sample": number, "capture_seconds": .1, "search_seconds": .01,
+                "preserved": True, "search_found": True, "product_dispatch_blocked": True}
+
+    monkeypatch.setattr(measure, "deterministic_probe", probe)
+    row = measure.measure_busy_probe(None, runtime, thread, 2, started=100,
+                                     previous_request="previous")
+    assert clock[0] == 120 and probes == [2]
+    assert row["worker_observed"] is False and row["concurrency"] is None
+
+
+@pytest.mark.parametrize("defect", ["missing", "stale", "late", "completed", "wrong-phase",
+                                    "no-overlap", "missing-sample", "extra-sample"])
+def test_concurrent_capture_cannot_qualify_missing_stale_or_nonoverlapping_inference(defect):
+    report = busy_report()
+    assert evaluate(report)["gates"]["deterministic"] == "PASS"
+    row = report["deterministic_busy"][2]
+    if defect == "missing":
+        del row["worker_observed"]
+    elif defect == "stale":
+        row["inference"]["request"] = "other"
+    elif defect == "late":
+        row["concurrency"]["received"] = 120.001
+        row["inference"]["received"] = 120.001
+    elif defect == "completed":
+        row["worker_observed"] = False
+    elif defect == "wrong-phase":
+        row["concurrency"]["phase"] = row["inference"]["phase"] = "load"
+    elif defect == "no-overlap":
+        row["probe_started_at"] = 101
+    elif defect == "missing-sample":
+        report["deterministic_busy"].pop()
+    else:
+        report["deterministic_busy"].append(copy.deepcopy(row))
+    assert evaluate(report)["gates"]["deterministic"] in {"FAIL", "NOT_RUN"}
+
