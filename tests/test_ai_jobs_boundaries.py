@@ -155,7 +155,7 @@ def test_native_adapter_reserves_before_waiting_for_idle_cleanup(tmp_path, inter
     def exchange(current, *, cancel, started, deadline):
         calls.append(True)
         assert not cancel()
-        assert deadline - started == 60  # Waiting consumes the original budget.
+        assert deadline == started + 60  # Waiting consumes the original budget.
         return JobOutcome({"kind": "untrusted_text", "value": "synthetic"}, 9, 0, "LOCAL")
 
     adapter._exchange = exchange

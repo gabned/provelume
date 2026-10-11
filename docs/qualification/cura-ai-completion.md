@@ -193,6 +193,30 @@ and accepted the adversarial 17-filter PDF. Canonical bootstrap installed 6.20.0
 no PDF code or test was relaxed. The dependency correction requires a fresh full
 run on the final candidate, not promotion of that failed run.
 
+That fresh local suite on `985827743a88336c4d2cd1093e28a5b1947c84a0` passed:
+4036 tests, 40 skipped, 10 warnings. Its remote
+[core CI 38125089333](https://github.com/gabned/provelume/actions/runs/38125089333)
+retains failed Ubuntu Core and native workspace jobs. Both failures are in the
+new regression's exact floating-point subtraction: `started + 60` is the actual
+deadline, but subtracting retained starts 94.196329987 and 127.046597189 gives
+60.000000000000014. The test now checks `deadline == started + 60` directly;
+no product budget, responsiveness threshold or timeout is changed. Both failed
+jobs remain FAIL; complete checks must qualify the correction's new head.
+
+On that same `9858277` source,
+[CPU run 38125089349](https://github.com/gabned/provelume/actions/runs/38125089349)
+passes all 27 gates on Linux AMD EPYC 9V45 and Windows AMD Family 26 Model 2.
+Each host records all 60 genuinely warm scored samples and all six preparations;
+maximum warm first response is 1.956/2.094 s respectively. Linux Capture maxima
+are 0.218 s S06, 0.217 s S07, 0.211 s S08 cold and 0.228 s S08 warm, with inference
+observed. Linux/Windows artifacts 11697495799/11697375966 bind that source and
+retain every sample. The
+[non-root offline container lifecycle 38125089295](https://github.com/gabned/provelume/actions/runs/38125089295)
+also passes. These observations do not qualify other hardware or the subsequent
+test correction. The ordinary installed Windows cycle and complete exact-head
+and post-merge evidence are recorded in the owner PR; pending or failed results
+cannot be promoted through this audit.
+
 The six unfiltered local synthetic Capture samples before/after have medians
 0.090799/0.084574 s. These are development measurements without native inference,
 not proof that Linux's acceptance gate passes. Complete unchanged-candidate
