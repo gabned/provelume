@@ -50,6 +50,7 @@ is in progress; the release number and activation remain to be determined. See t
 | Published preview | `0.10.1` | Source onboarding, filtering and canonical brand correction | #198 completed; release #251 | `Emendatio` |
 | Published preview | `0.11.0` | Daily-use UX, Unified Capture, Action Center and multilingual interface | #255 S01–S09 delivered; #308 release record; [public identity/readiness](https://github.com/gabned/provelume/releases/tag/v0.11.0) | `Cura` |
 | Published preview | `0.12.0` | Optional local AI, privacy gateway and accountable document assistance | #311 S01–S09 delivered; #337/#338; [public release](https://github.com/gabned/provelume/releases/tag/v0.12.0) | `Custodia` |
+| Prepared preview | `0.12.1` | Custodia corrections: Cura/AI access, model progress, Windows local panel and closed native diagnostics | #339/#340; #341/#342/#343/#344; [release preparation](releases/0.12.1.md), actual delivery pending | `Custodia` |
 | Forecast | `0.13.0` | AI classification, confidence and controlled application extending Custodia receipts/templates | issue just in time | `Iudicium` |
 | Forecast | `0.14.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
 | Forecast | `0.15.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
