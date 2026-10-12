@@ -285,6 +285,59 @@ def test_native_diagnostic_projection_rejects_private_or_open_fields():
     assert not valid_native_failure({**value, "stderr": "private"})
 
 
+def test_eof_precedes_native_process_signal_without_losing_exit_or_killing(tmp_path):
+    """Deterministic Windows ordering: EOF, poll pending, then process exit signals."""
+    host = runtime.LocalRuntime(tmp_path)
+    calls, signalled = [], []
+
+    def wait(*, timeout):
+        calls.append(timeout)
+        signalled.append(True)
+        return 0xC000001D
+
+    host._process = SimpleNamespace(
+        poll=lambda: 0xC000001D if signalled else None, wait=wait,
+        kill=lambda: pytest.fail("parent replaced the native exit code"), stdin=None, stdout=None)
+    host._failure = {"cause": "worker_exit", "phase": "native_prefill", "exit_code": None}
+    from provelume.ai_runtime_diagnostics import native_failure
+
+    host.last_observation = native_failure(host._failure, code="state")
+    host._stop()
+    assert calls[0] == .25 and all(0 <= timeout <= 2 for timeout in calls)
+    assert host.last_observation["exit_code"] == 0xC000001D
+    assert host.last_observation["parent_termination"] is False
+    assert host.last_observation["phase"] == "native_prefill"
+    assert host._process is None and not host._slot
+
+
+def test_eof_observation_never_relabels_parent_kill_as_native_exit(tmp_path, monkeypatch):
+    host = runtime.LocalRuntime(tmp_path)
+    killed, waits = [], []
+
+    def wait(*, timeout):
+        waits.append(timeout)
+        if not killed:
+            raise subprocess.TimeoutExpired('synthetic-worker', timeout)
+        return 9
+
+    def kill(*args):
+        killed.append(True)
+
+    if runtime.os.name == 'posix':
+        monkeypatch.setattr(runtime.os, 'killpg', kill)
+    host._process = SimpleNamespace(pid=123, poll=lambda: 9 if killed else None,
+                                    wait=wait, kill=kill, stdin=None, stdout=None)
+    host._failure = {'cause': 'worker_exit', 'phase': 'generation', 'exit_code': None}
+    from provelume.ai_runtime_diagnostics import native_failure
+
+    host.last_observation = native_failure(host._failure, code='state')
+    host._stop()
+    assert killed and len(waits) == 2 and all(0 <= timeout <= 2 for timeout in waits)
+    assert host.last_observation['exit_code'] is None
+    assert host.last_observation['parent_termination'] is True
+    assert host._process is None and not host._slot
+
+
 @pytest.mark.parametrize("stage", ["construct", "reader_start", "writer_start"])
 def test_construction_start_failure_releases_slot(host, model, monkeypatch, stage):
     target, attribute = ((runtime.subprocess, "Popen") if stage == "construct" else

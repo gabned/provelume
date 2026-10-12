@@ -316,11 +316,23 @@ class LocalRuntime:
         process = self._process
         try:
             if process is not None:
+                cleanup_deadline = time.monotonic() + 2
                 exit_code = process.poll()
+                if (exit_code is None and self._failure is not None
+                        and self._failure.get("cause") == "worker_exit"):
+                    # On Windows the stdio handle can close just before the
+                    # process handle signals. Observe that exit without killing
+                    # first, spending only part of the original cleanup budget.
+                    with contextlib.suppress(subprocess.TimeoutExpired):
+                        exit_code = process.wait(timeout=0.25)
                 if self._failure is not None:
                     # A code obtained after our kill would describe cleanup, not the failure.
-                    self._failure.setdefault("exit_code", exit_code)
-                    self._failure.setdefault("parent_termination", exit_code is None)
+                    if exit_code is not None:
+                        self._failure["exit_code"] = exit_code
+                    self._failure["parent_termination"] = exit_code is None
+                    if self.last_observation is not None and "cause" in self.last_observation:
+                        self.last_observation["exit_code"] = self._failure.get("exit_code")
+                        self.last_observation["parent_termination"] = exit_code is None
                 if exit_code is None:
                     if os.name == "posix":
                         import signal
@@ -329,7 +341,7 @@ class LocalRuntime:
                             os.killpg(process.pid, signal.SIGKILL)
                     else:
                         process.kill()  # Job active-process limit forbids descendants.
-                process.wait(timeout=2)
+                process.wait(timeout=max(0, cleanup_deadline - time.monotonic()))
                 if self._reader is not None and self._reader.ident is not None:
                     self._reader.join(timeout=0.25)
                 if self._writer is not None and self._writer.ident is not None:

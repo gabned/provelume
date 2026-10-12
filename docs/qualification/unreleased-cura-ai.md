@@ -197,6 +197,17 @@ gate or historical diagnosis. Exact new-head native and same-bundle-Setup result
 checksums, receipt validation/preflight and any merge are recorded in the owner
 ledger only after their real observations.
 
+The first instrumented Windows CI retains a real regression FAIL on `0623432`:
+the crash fixture's pipe EOF arrived before its process handle signalled, so the
+pre-cleanup poll observed null instead of exit code 7. The diagnostic correction
+waits at most 250 ms for that EOF-related process signal before parent termination,
+deducting the observation from the original two-second cleanup wait budget.
+The existing exit-code assertion is retained. Deterministic regressions prove both
+EOF-before-signal observation and that an imposed kill's code is never relabelled
+as the native exit. This is a verified diagnostic ordering defect, not evidence of
+the cause of either historical 31/32 failure. It changes no inference deadline,
+worker retry, accounting, model, corpus, consent or isolation limit.
+
 The recovered local environment again contained pypdf 6.19.0 and editable
 metadata 0.11.0. This was identified before running the new full suite; canonical
 bootstrap is required. The new unchanged-head outcomes belong in the owner PR.
