@@ -217,7 +217,7 @@ def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:
         (root / "core" / "provelume" / "build_info.json").read_text(encoding="utf-8")
     )
 
-    assert package_version == "0.12.0"
+    assert package_version == "0.12.1"
     assert init_match is not None
     assert init_match.group(1) == package_version
     assert value == {
@@ -235,7 +235,7 @@ def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:
 
 def test_emendatio_release_metadata_is_aligned_without_rewriting_published_history() -> None:
     root = Path(__file__).resolve().parents[1]
-    current_version = "0.12.0"
+    current_version = "0.12.1"
     lectio_manifests = (
         "packaging/email/local-email-intake.json",
         "packaging/google/google-readonly-adapters.json",
@@ -255,10 +255,10 @@ def test_emendatio_release_metadata_is_aligned_without_rewriting_published_histo
         assert payload["core_inspector"]["version"] == current_version
 
     metadata = (root / "packaging/windows/version_info.txt").read_text(encoding="utf-8")
-    assert "filevers=(0, 12, 0, 0)" in metadata
-    assert "prodvers=(0, 12, 0, 0)" in metadata
-    assert "StringStruct('FileVersion', '0.12.0')" in metadata
-    assert "StringStruct('ProductVersion', '0.12.0')" in metadata
+    assert "filevers=(0, 12, 1, 0)" in metadata
+    assert "prodvers=(0, 12, 1, 0)" in metadata
+    assert "StringStruct('FileVersion', '0.12.1')" in metadata
+    assert "StringStruct('ProductVersion', '0.12.1')" in metadata
 
     release = (root / "docs/releases/0.10.0.md").read_text(encoding="utf-8")
     qualification = (root / "docs/qualification/0.10.0.md").read_text(encoding="utf-8")

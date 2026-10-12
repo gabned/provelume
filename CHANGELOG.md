@@ -4,6 +4,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+## 0.12.1 - 2026-10-12
+
+Custodia follow-up prepared for official Preview publication. Actual public
+identity and complete installation readiness require the permanent publisher
+workflow, unchanged public-byte readback, publication receipt and matching kit.
+
 ### Improved
 
 - Windows local control panel explains its browser/service role, separates tray
@@ -28,16 +34,37 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   retrying generation. Pre-inference refusals retain their closed execution cause.
 - Atomic Capture journals overlap independent I/O while retaining file and directory
   flushes, integrity checks, ordered replacement and recovery before acknowledgement.
+- Linux atomic target validation retains fresh component checks and uses a kernel
+  no-symlink lookup to avoid repeating the Python metadata walk. Unsupported
+  kernels and other platforms retain the original resolver; no path result is cached.
+- Full-file model verification reuses one bounded MiB read buffer with the same
+  SHA-256 implementation, every-byte validation and cancellation/deadline
+  checkpoints. File identities, admission bounds and complete digest checks remain
+  unchanged; no verification result or model bytes are cached.
 - The release pipeline checks ordinary local AI on its exact distribution installer
   before assembly, binding installed identity and the complete first-attempt corpus
   to the installer bytes. Development evidence does not qualify an official release.
+- Native local AI failures retain closed cause, request/worker phase, observed
+  cancellation reason and numeric native/exit codes in durable job receipts.
+  Diagnostic cleanup preserves a naturally observed exit without labelling an
+  imposed termination code as the native cause; private content is not recorded.
 
 Affected surfaces: `/management`, `/settings/ai`, `/settings/shell`, document AI
 preview/synthesis, `/operations/ai` and the Windows tray/local panel. Requested
-together for the next release in #339/#340, including #344; release number not yet
-assigned and changes not yet published.
-See the [Unreleased scope and Cura/AI guide](docs/releases/unreleased-cura-ai.md)
+together in 0.12.1 for #339/#340, including #344 and the verified diagnostics
+in #343. Publication and delivery remain pending until their actual observations.
+See the [0.12.1 scope and Cura/AI guide](docs/releases/0.12.1.md)
 and [preparation evidence](docs/qualification/unreleased-cura-ai.md).
+
+### Qualification limits
+
+- Historical failed native runs remain FAIL; their unavailable causes are not
+  inferred from elapsed times or later successful hosts.
+- Human visual, Narrator, real high-contrast, linguistic and unobserved hardware
+  checks retain their recorded limits. Windows installers remain unsigned previews.
+- The complete development bundle exceeded the 32 MiB local transport limit;
+  remote full-bundle and downloaded-component checks retain distinct scopes.
+- Version 0.13.0 Iudicium and all later forecasts remain unchanged.
 
 ## 0.12.0 - 2026-10-10
 

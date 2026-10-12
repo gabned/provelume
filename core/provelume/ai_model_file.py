@@ -66,9 +66,12 @@ def verify_stream(handle, entry, *, cancel=lambda: False, deadline=float("inf"))
     handle.seek(0)
     digest = hashlib.sha256()
     count = 0
+    buffer = bytearray(1024 * 1024)
+    view = memoryview(buffer)
     while True:
         checkpoint(read_cancel, deadline)
-        block = handle.read(1024 * 1024)
+        size = handle.readinto(buffer)
+        block = view[:size]
         checkpoint(read_cancel, deadline)
         if not block:
             break

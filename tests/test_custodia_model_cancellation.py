@@ -46,9 +46,9 @@ def test_model_lifecycle_stops_file_reads_on_cancellation(tmp_path, monkeypatch,
         def __getattr__(self, name):
             return getattr(self.handle, name)
 
-        def read(self, amount):
+        def readinto(self, buffer):
             reads.append(stopped.is_set())
-            block = self.handle.read(amount)
+            block = self.handle.readinto(buffer)
             stopped.set()
             return block
 
@@ -88,8 +88,8 @@ def test_raw_verification_observes_cancellation_at_eof(tmp_path):
             def __getattr__(self, name):
                 return getattr(handle, name)
 
-            def read(self, amount):
-                result = handle.read(amount)
+            def readinto(self, buffer):
+                result = handle.readinto(buffer)
                 if not result:
                     stopped.set()
                 return result
@@ -117,8 +117,8 @@ def test_read_authority_preserves_cancellation_and_final_boundary(tmp_path, monk
             def __getattr__(self, name):
                 return getattr(handle, name)
 
-            def read(self, amount):
-                block = handle.read(amount)
+            def readinto(self, buffer):
+                block = handle.readinto(buffer)
                 reads.append(clock[0])
                 clock[0] += 0.009
                 if signal == "immediate":
