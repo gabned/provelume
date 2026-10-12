@@ -37,6 +37,10 @@ workflow, unchanged public-byte readback, publication receipt and matching kit.
 - Linux atomic target validation retains fresh component checks and uses a kernel
   no-symlink lookup to avoid repeating the Python metadata walk. Unsupported
   kernels and other platforms retain the original resolver; no path result is cached.
+- Windows full-file model verification can use the system SHA-256 provider while
+  retaining every byte, MiB cancellation/deadline checkpoint and file-identity
+  check. Hash state is per read and released on every exit; no verification result
+  or model bytes are cached.
 - The release pipeline checks ordinary local AI on its exact distribution installer
   before assembly, binding installed identity and the complete first-attempt corpus
   to the installer bytes. Development evidence does not qualify an official release.
