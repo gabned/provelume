@@ -9,6 +9,22 @@ from provelume.tray_queue import normalize_queue, queue_snapshot, queue_state
 from provelume.windows_tray import TRAY_STATUS_LABELS, TrayState, WindowsTray, queue_text
 
 
+def test_tray_browser_and_local_panel_are_distinct_actions():
+    class Root:
+        def after(self, _delay, callback):
+            callback()
+
+    actions = []
+    tray = WindowsTray(Root(), state=TrayState("it", "running", "http://127.0.0.1:44851"),
+                       open_interface=lambda: actions.append("browser"),
+                       open_launcher=lambda: actions.append("panel"),
+                       open_settings=lambda: None, restart_service=lambda: None,
+                       quit_application=lambda: None)
+    tray.exercise_action(1)
+    tray.exercise_action(7)
+    assert actions == ["browser", "panel"]
+
+
 @pytest.mark.parametrize(
     "field,state",
     [

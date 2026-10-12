@@ -1,7 +1,8 @@
 # Unreleased — Cura and local AI completion
 
 This finite follow-up to published **0.12.0 Custodia** includes #339/#340,
-implemented in #341 and corrected/qualified in #342. It is not a release identity.
+implemented in #341 and corrected/qualified in #342, plus the Windows tray and
+local-panel corrections integrated through #344. It is not a release identity.
 Package/runtime version and codename remain **0.12.0 / Custodia**; no new tag,
 dated changelog entry or publication is assigned here. The proposed next version
 is **0.12.1**, subject to a separate identity-setting preparation: the scope fixes
@@ -26,6 +27,9 @@ forecast 0.13.0 Iudicium classification scope. No roadmap shift is needed.
   in the checksum-covered bundle before the publisher can run.
 - Upgrade/preservation qualification also starts from the immutable public 0.12.0
   installer and matching wheel, retaining the 0.10.0/0.10.1/0.11.0 baselines.
+- Windows distinguishes the browser application from the native local panel,
+  explains service actions, stacks controls at high DPI and corrects Light/Dark
+  channel controls and menus while respecting system high-contrast colors.
 
 No classification, RAG, new connector/provider/model, autonomy, consent change or
 new renderer enters this follow-up. All earlier failures and unobserved hardware
@@ -55,6 +59,19 @@ The existing [local profile](../qualification/custodia-local-profile.md),
 The final version's complete installation kit will be the upgrade destination;
 the present development bundle is not that kit. The older 0.10.1 schema-1 updater
 still needs its documented manual complete-kit transition.
+
+## Windows application and local panel
+
+In Italian, **Apri Provelume** opens the application in your browser;
+**Pannello locale** opens the native launcher. The panel controls the local service,
+Instance selection and updates. Stopping the service differs from selecting an
+Instance or closing the panel according to the saved tray preference. At high DPI,
+actions stack and the lower controls remain reachable by scrolling.
+
+The automatic Windows layout probes cover seven languages, four DPI settings and
+System/Light/Dark themes across four public upgrade baselines. Their results do
+not attest human visual review, Narrator, a real high-contrast host or linguistic
+quality. Published 0.12.0 remains unchanged; this behavior belongs to Unreleased.
 
 ## Independent release gates
 

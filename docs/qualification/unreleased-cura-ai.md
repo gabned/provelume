@@ -1,15 +1,17 @@
 # Unreleased Cura/AI release preparation
 
 Owner branch: `product/cura-ai-release-preparation`, PRODUCT, PR-local legacy route.
-Accepted base: `854550fbddb3f0e9e2550e777e2cd708035e2498`.
+Original accepted baseline: `854550fbddb3f0e9e2550e777e2cd708035e2498`.
+Current integration baseline: `df19f7b651855546eee43ec57be26f44196907d5`.
+Original binding basis: `8658d890ff36df634c2e076e2510326d49f0a73a`.
 The accepted Agent Protocol pin remains 1.5.1, source
 `1a11fe76712ee65ca2160d2ae3789330946a57f2`; Lifecycle v2 activation remains deferred.
 The owner PR ledger records the final head, workflow/attempt/job inventories,
 artifact identifiers/hashes, merge identity and actual-main observations.
 
-## Reconciled baseline — 11 October 2026
+## Original baseline observation — 11 October 2026
 
-GitHub main matches the accepted base above. #341 and #342 are merged; #339 is
+At that observation GitHub main matched the original accepted baseline. #341 and #342 are merged; #339 is
 closed and #340 is open for future-release delivery. The only other open PRs are
 dependency updates, outside this scope. Published v0.12.0 is a preview with 25
 assets; no later publication is observed. The optional warm-resume cache is absent
@@ -85,6 +87,77 @@ Human Narrator/linguistic/appearance observations and live external-provider qua
 remain NOT_RUN/UNVERIFIED where unobserved; earlier attestations keep their scope.
 Unsigned Windows previews and same-provider wheel/sdist rebuild evidence retain
 their existing limits; frozen executables are not claimed reproducible.
+
+## Resume on the current default — 12 October 2026
+
+Fresh GitHub branch and native Git object observations agree on main `df19f7b`.
+#344 is merged/closed at expected source head `d1456f6`, with tree
+`7a36978342c7b5195682a2bd46f717b98e2e4197` and ordered parents `854550f`,
+`d1456f6`. #343 is still the open owner, initially at `bd9eac7`; its API base
+`854550f` is a retained PR coordinate, not proof of the current default.
+The candidate is reconstructed by a normal merge of actual main into the same
+branch, preserving both parent histories, the original baseline and binding basis.
+No rebase, reset, force-push, binding replacement or v2 activation is performed.
+The merge has no textual conflicts, including the shared Windows upgrade harness.
+Every head-dependent result is invalidated for new acceptance, with its original
+result and timestamps retained. New head qualification does not resolve old causes.
+
+All jobs of all observed attempts were re-read through the GitHub API. Exact
+inventories, including failed/cancelled jobs and steps, are retained in the ignored
+resume cache and summarized in the owner PR:
+
+| Source | Workflow runs | Terminal jobs |
+| --- | ---: | --- |
+| #342 `3847b0e` | 19 successful | 37 success, 41 inapplicable skips |
+| #343 `8658d89` | 14 success, 1 failure, 1 cancelled | 36 success, 9 skips, 1 failure, 1 cancelled |
+| #343 `bd9eac7` | 17 success, 1 failure | 39 success, 25 skips, 1 failure |
+| #344 `b6f3e99` | 14 success, 1 failure, 1 cancelled | 33 success, 9 skips, 3 failures, 1 cancelled |
+| #344 `d1456f6` | 18 successful | 39 success, 25 skips |
+| main `df19f7b` | 15 successful | 36 success, 1 skip |
+
+Each observed run above has attempt 1 only. #344's first-head failed Windows
+aggregate is retained alongside its failed source shard and Tk job; cancellation
+of the containing CI does not erase those completed failures. The corrected
+probes retain all themes, DPI cases and assertions in isolated processes.
+
+The two #343 failed report ZIPs were downloaded again and match the original
+SHA-256 values: artifact `11713036725`,
+`1baea2c377e57d9901a85b01ec4d21a86e678bf0412e07637341e34ec3099b01`;
+artifact `11714071064`,
+`e4eb88a2a54cce083b13a37230ab418fa71bb0746776ce49551b4975e9c8f456`.
+Both remain 31/32, `ai_local_stopped`, LOCAL, settled/quiescent, one attempt:
+`en-summary-conflict` at 45297 ms on `8658d89`, `en-key-points-injection` at
+51140 ms on `bd9eac7`, AMD Family 25 Model 1. Eight preceding checks pass;
+synthesis, parent-death and restart qualification do not complete. Reports retain
+no native failure detail, so neither a timeout nor a hardware cause is established.
+The diagnostic read does not rerun inference or modify reports.
+
+Separate retained successes are #343's exact pipeline installer on Family 26,
+#344's first source head on Family 25, final source head on Family 26, and actual
+main on Family 25: each 32/32 at the first attempt. #344/main retain the 336 actual
+layout observations across four upgrades, minimum contrast 7.1069. These mixed
+observations neither identify a CPU-family defect nor clear the two failures.
+Human appearance, Narrator, actual high-contrast-host and linguistic review remain
+unverified. The #344 PR bundle belongs to synthetic merge `c11bcd1`; main's bundle
+belongs to `df19f7b`. Neither can become this candidate's distribution identity.
+
+The optional `/workspace/provelume-cura-ai/.agent/warm-qualification-resume.json`
+and original `.agent/release-preparation/` cache are unavailable in this workspace.
+The user confirmed no recovery location/export is available. The GitHub owner
+ledger, original source history and failed reports survive; the original BOUND
+receipt bytes do not. They are not fabricated from PR prose or replaced with a
+new binding. Receipt verification/native integration preflight therefore remains
+blocked by this material gap even if new source/artifact checks pass. No historical
+state or failed preflight is rewritten to bypass it.
+
+The recovered local environment again contained pypdf 6.19.0 and editable
+metadata 0.11.0. This was identified before running the new full suite; canonical
+bootstrap is required. The new unchanged-head outcomes belong in the owner PR.
+The existing >32 MiB local complete-bundle transport limitation is retained;
+individual downloaded artifacts and remote full-bundle verification have distinct
+scopes. No actual publication receipt, kit or readiness exists for this Unreleased
+candidate. Future official identity/artifacts still require separately authorized
+fresh qualification and publication settlement.
 
 Package/runtime/codename remain 0.12.0/Custodia; all changes remain Unreleased.
 **Proposed version: 0.12.1**, a bounded Custodia correction, without assigning it,
