@@ -34,6 +34,9 @@ workflow, unchanged public-byte readback, publication receipt and matching kit.
   retrying generation. Pre-inference refusals retain their closed execution cause.
 - Atomic Capture journals overlap independent I/O while retaining file and directory
   flushes, integrity checks, ordered replacement and recovery before acknowledgement.
+- Linux atomic target validation retains fresh component checks and uses a kernel
+  no-symlink lookup to avoid repeating the Python metadata walk. Unsupported
+  kernels and other platforms retain the original resolver; no path result is cached.
 - The release pipeline checks ordinary local AI on its exact distribution installer
   before assembly, binding installed identity and the complete first-attempt corpus
   to the installer bytes. Development evidence does not qualify an official release.

@@ -14,6 +14,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from uuid import uuid4
 
+from .local_path_guard import kernel_no_links
 from .paths import native_path, normalise_locator, safe_instance_path
 from .storage import InstanceStore, replace_file, utc_now
 
@@ -513,7 +514,10 @@ def _instance_target(
                 raise error_type()
             if current != lexical and not stat.S_ISDIR(observed.st_mode):
                 raise error_type()
-        resolved = lexical.resolve()
+        # Keep all fresh component observations above. A kernel no-link lookup
+        # rejects a parent swapped after them without a second Python metadata
+        # walk; unsupported hosts retain the original full-path resolver.
+        resolved = lexical if kernel_no_links(lexical) else lexical.resolve()
         if native_path(resolved) != native_path(lexical):
             raise error_type()
         target = (
