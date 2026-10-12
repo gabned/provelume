@@ -13,6 +13,9 @@ on:
       - "scripts/independent_rebuild.py"
       - "scripts/offline_rebuild_evidence.py"
       - "scripts/release_*.py"
+      - "scripts/qualify_custodia_installed.py"
+      - "scripts/custodia_ordinary.py"
+      - "tests/fixtures/ai_synthesis_quality.json"
       - "scripts/publication_*.py"
       - "scripts/augment_asset_sbom.py"
       - "scripts/verify_cura_package_resources.py"
@@ -56,6 +59,9 @@ on:
       - "scripts/independent_rebuild.py"
       - "scripts/offline_rebuild_evidence.py"
       - "scripts/release_*.py"
+      - "scripts/qualify_custodia_installed.py"
+      - "scripts/custodia_ordinary.py"
+      - "tests/fixtures/ai_synthesis_quality.json"
       - "scripts/publication_*.py"
       - "scripts/augment_asset_sbom.py"
       - "scripts/verify_cura_package_resources.py"
@@ -98,6 +104,7 @@ jobs:
     with:
       publish: false
       expected_tag: ""
+      source_commit: ${{ github.event.pull_request.head.sha || github.sha }}
     permissions:
       contents: read
       actions: read

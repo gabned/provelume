@@ -4,13 +4,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Improved
+
 - Windows local control panel explains its browser/service role, separates tray
   actions for the application and panel, and keeps buttons reachable at high DPI.
   Light/dark control states, channel dropdown, checkbox, scrollbar and native
   caption are styled coherently while preserving Windows high-contrast colors.
-
-### Improved
-
 - Management provides direct access to AI & Privacy, AI operations, preferences and
   notifications in Cura. Document AI journeys retain the originating search filters.
 - Cura is labelled as the standard interface. Upgrades that retained the previous
@@ -29,10 +28,16 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   retrying generation. Pre-inference refusals retain their closed execution cause.
 - Atomic Capture journals overlap independent I/O while retaining file and directory
   flushes, integrity checks, ordered replacement and recovery before acknowledgement.
+- The release pipeline checks ordinary local AI on its exact distribution installer
+  before assembly, binding installed identity and the complete first-attempt corpus
+  to the installer bytes. Development evidence does not qualify an official release.
 
 Affected surfaces: `/management`, `/settings/ai`, `/settings/shell`, document AI
-preview/synthesis and `/operations/ai`. Requested together for the next release in #339/#340; release number not yet
+preview/synthesis, `/operations/ai` and the Windows tray/local panel. Requested
+together for the next release in #339/#340, including #344; release number not yet
 assigned and changes not yet published.
+See the [Unreleased scope and Cura/AI guide](docs/releases/unreleased-cura-ai.md)
+and [preparation evidence](docs/qualification/unreleased-cura-ai.md).
 
 ## 0.12.0 - 2026-10-10
 

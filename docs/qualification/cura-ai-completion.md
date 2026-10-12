@@ -260,3 +260,65 @@ checks and native Linux/Windows/installed qualification remain binding. Current
 outcomes and exact candidate/main identities are recorded in the owner PR #342;
 integration remains blocked until those real checks complete. Changes remain
 Unreleased, with no version assignment, tag or release publication.
+
+## Reconciled completion and release follow-up — 11 October 2026
+
+The preceding pending/blocked states retain their historical coordinates. #342 is
+now merged as `854550fbddb3f0e9e2550e777e2cd708035e2498`; its qualified candidate is
+`3847b0e1ca4e4c41aad4da5383d8107bc708b2d8`, with the same tree
+`de424eb52f4b6b4915d414e78bcb84c7cdf1aa38`. The
+[final owner audit](https://github.com/gabned/provelume/pull/342#issuecomment-6108892619)
+records all 14 actual-main push workflows successful on attempt 1, 4048 tests
+passed / 40 skipped, real CPU 27/27 gates per recorded host and installed Windows
+12/12 checks / 32 valid first-attempt syntheses. The prior failures and all causal/
+hardware/human limitations above remain unchanged. This paragraph reconciles the
+functional audit; it does not rewrite old results or qualify unobserved hardware.
+
+The exercised Windows artifact is development, not a release delivery. #340 stays
+open for publication of this scope and #339 together. The separate
+[Unreleased release preparation](unreleased-cura-ai.md) and
+[Cura/AI guide](../releases/unreleased-cura-ai.md) bind the finite follow-up and
+require qualification on the future official pipeline's own distribution installer.
+No version, tag or publication is assigned here.
+
+## Windows integration and release-owner resume — 12 October 2026
+
+#344 is integrated by normal expected-head merge at
+`df19f7b651855546eee43ec57be26f44196907d5`, tree
+`7a36978342c7b5195682a2bd46f717b98e2e4197`, parents
+`854550fbddb3f0e9e2550e777e2cd708035e2498` and
+`d1456f6ba965813f644fc6084b61c5dd0e6f6807`. Its
+[final audit](https://github.com/gabned/provelume/pull/344#issuecomment-6113855145)
+records 18/18 PR workflows and 15/15 main workflows successful, all attempt 1;
+main has 36 successful jobs and one inapplicable skip, suite 4049/45 and ordinary
+installed Windows 32/32 first-attempt syntheses / 12 checks on Family 25 Model 1.
+The 336 real frozen layouts across four upgrades have minimum contrast 7.1069.
+The PR pipeline source was the distinct synthetic merge `c11bcd1`; the subsequent
+main package binds `df19f7b`. Neither identifies the future release.
+
+Windows now distinguishes **Apri Provelume** (browser) from **Pannello locale**
+(native launcher), explains service actions, adapts layout to DPI and corrects
+channel controls/menu in the dark theme. First-head Tk initialization failures
+remain failed: the correction isolates every retained probe in its own process,
+without removing themes/assertions or changing thresholds. Human visual review,
+Narrator, an actual high-contrast host and linguistic review remain unverified.
+
+The release owner remains #343 / `product/cura-ai-release-preparation`, original
+baseline `854550f`, binding basis `8658d89`, retained blocked head `bd9eac7`.
+Both ordinary Windows failures remain FAIL, 31/32 on AMD Family 25 Model 1:
+`en-summary-conflict` / `ai_local_stopped` / 45297 ms on `8658d89` and
+`en-key-points-injection` / `ai_local_stopped` / 51140 ms on `bd9eac7`.
+The reports do not retain the native cause; these elapsed values alone do not
+prove a timeout. Family 25 and Family 26 successes on #344/main are mixed evidence,
+not diagnosis or cancellation of those failures. See the
+[blocked owner audit](https://github.com/gabned/provelume/pull/343#issuecomment-6113081015).
+
+The same owner reconstructs its candidate by merging the actual main without
+rebasing or replacing historical bindings/receipts. Every head-dependent gate and
+the exact distribution installer require new observations; no preceding installer
+or synthetic merge is reused as the new candidate's identity. The
+[release preparation record](unreleased-cura-ai.md) distinguishes these new results,
+the missing original local receipt bytes and unresolved native diagnosis from
+historical passes. Complete-bundle local transport above 32 MiB remains limited.
+All changes are Unreleased; 0.12.1 is only the Custodia patch proposal and 0.13.0
+remains Iudicium. #340 stays open until future release delivery.

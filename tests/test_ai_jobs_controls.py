@@ -156,7 +156,11 @@ def test_active_controls_with_confirmed_local_quiescence(case, action):
             entered.set()
             assert released.wait(10)
             assert cancel()
-            return LocalFailure(Failure.CANCELLED)
+            from provelume.ai_runtime_diagnostics import native_failure
+
+            return LocalFailure(Failure.CANCELLED, native_failure(
+                {"phase": "native_prefill", "exit_code": None, "parent_termination": True},
+                code="cancelled", cancellation=cancel.diagnostic_reason))
 
     jobs.adapters = {key: Local() for key in jobs.adapters}
     job = enqueue(jobs)
@@ -178,6 +182,10 @@ def test_active_controls_with_confirmed_local_quiescence(case, action):
     assert outcome[0]["status"] == ("paused" if action == "pause" else "cancelled")
     assert jobs.status()["accounting"]["active"] == 0
     assert jobs.status()["accounting"]["units"] == UNITS
+    diagnostic = outcome[0]["ai"]["attempts"][-1]["native_failure"]
+    assert diagnostic["cancellation_reason"] == (
+        "session_disabled" if action == "off" else "request_cancel")
+    assert jobs.journal.get_job(job["id"])["ai"]["attempts"][-1]["native_failure"] == diagnostic
 
 
 def test_cancel_completion_race_preserves_known_consumption(case):

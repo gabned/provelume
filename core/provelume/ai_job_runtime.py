@@ -44,6 +44,7 @@ class LocalFailure:
     """Only returned after the managed runtime confirms worker termination."""
 
     code: Failure
+    diagnostic: dict | None = None
 
 
 class ProviderJobAdapter:
@@ -141,7 +142,12 @@ class NativeJobAdapter:
             self.runtime.close()
             code = Failure.CANCELLED if exc.code == "cancelled" else Failure.CONFIG
             if entered:
-                return LocalFailure(code)
+                from .ai_runtime_diagnostics import native_failure
+
+                self.last_observation = native_failure(
+                    self.runtime.last_observation, code=exc.code,
+                    cancellation=getattr(cancel, "diagnostic_reason", None))
+                return LocalFailure(code, self.last_observation)
             raise ProviderError(
                 code, Transmission.POSSIBLE if entered else Transmission.NOT_SENT
             ) from None

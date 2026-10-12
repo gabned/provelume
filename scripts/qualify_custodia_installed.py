@@ -21,11 +21,13 @@ import httpx
 from custodia_ordinary import (
     Page,
     acquisition,
+    diagnostic_cancellation,
     document_jobs,
     model_action,
     public_documents,
     restart_off,
 )
+from release_installed import build_identity, installer_identity
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
 
@@ -99,14 +101,15 @@ def run(args):
 
     try:
         save()
+        report["installer"] = installer_identity(args.installer)
         if os.name != "nt" or args.executable.name != "Provelume.exe":
             raise ValueError("native_windows_required")
         diagnostic = args.output.parent / "installed-identity.json"
         subprocess.run([str(args.executable), "--diagnostics-file", str(diagnostic)],
                        check=True, timeout=30)
         identity = json.loads(diagnostic.read_text(encoding="utf-8"))
-        if not identity["frozen"] or identity["about"]["commit"] != args.commit:
-            raise ValueError("installed_identity")
+        report["installed_build"] = build_identity(
+            identity, version=args.version, commit=args.commit, channel=args.channel)
         report["checks"]["installed_exact_source"] = "PASS"
         report["hardware"] = hardware()
         subprocess.run([str(args.executable), "--bootstrap-instance", str(args.instance),
@@ -154,6 +157,29 @@ def run(args):
             report["checks"]["ordinary_guided_enablement"] = "PASS"
             report["phase"] = "ordinary_document_synthesis"
             document_jobs(client, instance, cases, report, observe=observe, save=save)
+            # Observe CPU on the actual child handle before cancelling one separate
+            # synthetic request. No fault injection or replacement runtime is used.
+            get_times = bind(kernel, "GetProcessTimes", c.c_int32, H, P, P, P, P)
+            baseline = {}
+
+            def cpu(handle):
+                values = [c.c_uint64() for _ in range(4)]
+                if not get_times(handle, *(c.byref(v) for v in values)):
+                    raise ValueError("worker_observation")
+                return values[2].value + values[3].value
+
+            for pid in children(process.pid):
+                baseline[pid] = cpu(observed[pid])
+
+            def executing():
+                observe()
+                return any(cpu(observed[pid]) > baseline.get(pid, 0) + 100000
+                           for pid in children(process.pid))
+
+            report["phase"] = "native_cancellation_diagnostic"
+            report["diagnostic_cancellation"] = diagnostic_cancellation(
+                client, instance, cases[0], executing=executing, save=save)
+            save()
             # Keep the already-observed worker warm, then kill the actual parent.
             # Handle waits observe process identity, with no PID-reuse ambiguity.
             report["phase"] = "parent_death"
@@ -192,6 +218,8 @@ def run(args):
             process.wait(timeout=5)
             report["restart"] = restart_off(args.instance)
             report["checks"]["restart_session_off"] = "PASS"
+        if report["installer"] != installer_identity(args.installer):
+            raise ValueError("installer_identity")
         report["status"], report["phase"] = "PASS", "completed"
     except Exception as exc:
         report["status"] = "FAIL"
@@ -200,7 +228,8 @@ def run(args):
         if type(exc) is ValueError and str(exc) in {
             "process_observation", "unexpected_child", "worker_count", "worker_observation",
             "model_action_http", "model_operation", "operation_timeout", "native_windows_required",
-            "installed_identity", "service_exit", "service_timeout", "network_default",
+            "installed_identity", "installer_identity", "service_exit", "service_timeout",
+            "network_default",
             "unobserved_worker", "orphan_worker", "parent_death_bound",
             "unobserved_live_worker", "corpus_identity", "synthesis_preview",
             "synthesis_consent", "synthesis_job_identity", "synthesis_execution",
@@ -226,7 +255,9 @@ def run(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("executable", "model", "instance", "output", "corpus"):
+    for name in ("executable", "model", "instance", "output", "corpus", "installer"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--commit", required=True)
+    parser.add_argument("--version", required=True)
+    parser.add_argument("--channel", required=True)
     raise SystemExit(run(parser.parse_args()))

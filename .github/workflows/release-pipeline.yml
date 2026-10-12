@@ -482,14 +482,14 @@ jobs:
             -ExpectedCommit "${{ needs.candidate.outputs.commit }}" `
             -ExpectedChannel "${{ needs.candidate.outputs.channel }}"
 
-      - name: Exercise immutable 0.10.1 and 0.11 upgrades with preserved public knowledge
+      - name: Exercise immutable 0.10.1, 0.11 and 0.12 upgrades with preserved public knowledge
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $output = "$env:RUNNER_TEMP\provelume-windows-output"
           $evidence = Join-Path $output "windows-hardening-evidence"
           Copy-Item -Recurse -LiteralPath $evidence -Destination (Join-Path $output "upgrade-0.10.0")
-          foreach ($baselineVersion in @("0.10.1", "0.11.0")) {
+          foreach ($baselineVersion in @("0.10.1", "0.11.0", "0.12.0")) {
             $installer = "$env:RUNNER_TEMP\Provelume-Setup-$baselineVersion-public.exe"
             $wheel = "$env:RUNNER_TEMP\provelume-$baselineVersion-py3-none-any.whl"
             Invoke-WebRequest -Uri "https://github.com/gabned/provelume/releases/download/v$baselineVersion/Provelume-Setup-$baselineVersion-x64.exe" -OutFile $installer
@@ -516,9 +516,83 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  installed-ai:
+    name: Qualify AI in the exact distribution installer
+    needs: [candidate, windows-package]
+    runs-on: windows-2025
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.source_commit || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+      - name: Install observation tools and acquire the locked optional model
+        shell: pwsh
+        run: |
+          python -m pip install -e ".[dev]"
+          if ($LASTEXITCODE -ne 0) { throw "Observation tools installation failed." }
+          python scripts/ai_runtime_acquire.py --directory "$env:RUNNER_TEMP/release-ai-inputs" --platform windows --accept-licenses --include-model
+          if ($LASTEXITCODE -ne 0) { throw "Locked model acquisition failed." }
+      - name: Download the unchanged distribution installer
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download $env:GITHUB_RUN_ID --repo $env:GITHUB_REPOSITORY `
+            --name "provelume-windows-package-$env:GITHUB_RUN_ID" --dir "$env:RUNNER_TEMP/release-ai-package"
+          if ($LASTEXITCODE -ne 0) { throw "Distribution installer transfer failed." }
+      - name: Exercise ordinary AI on that installed artifact
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = "${{ needs.candidate.outputs.version }}"
+          $channel = "${{ needs.candidate.outputs.channel }}"
+          $setup = "$env:RUNNER_TEMP/release-ai-package/Provelume-Setup-$version-x64.exe"
+          $target = "$env:RUNNER_TEMP/Release AI Installed"
+          $install = Start-Process -FilePath $setup -ArgumentList @(
+            "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=`"$target`"", "/TASKS=`"`"") -PassThru
+          if (-not $install.WaitForExit(90000) -or $install.ExitCode -ne 0) {
+            throw "Distribution installation did not complete."
+          }
+          try {
+            python scripts/qualify_custodia_installed.py `
+              --executable "$target/Provelume.exe" --commit $env:SOURCE_COMMIT `
+              --installer $setup --version $version --channel $channel `
+              --model "$env:RUNNER_TEMP/release-ai-inputs/model.gguf" `
+              --corpus "tests/fixtures/ai_synthesis_quality.json" `
+              --instance "$env:RUNNER_TEMP/Release AI Synthetic Instance" `
+              --output "$env:RUNNER_TEMP/release-ai-evidence/windows-installed-ai.json"
+            if ($LASTEXITCODE -ne 0) { throw "Distribution installed AI qualification failed." }
+            python -m scripts.release_installed `
+              --report "$env:RUNNER_TEMP/release-ai-evidence/windows-installed-ai.json" `
+              --installer $setup --corpus "tests/fixtures/ai_synthesis_quality.json" `
+              --version $version --commit $env:SOURCE_COMMIT --channel $channel
+            if ($LASTEXITCODE -ne 0) { throw "Installed artifact binding failed." }
+          } finally {
+            $uninstall = Start-Process -FilePath "$target/unins000.exe" -ArgumentList @(
+              "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") -PassThru
+            if (-not $uninstall.WaitForExit(90000) -or $uninstall.ExitCode -ne 0) {
+              throw "Distribution uninstall did not complete."
+            }
+          }
+      - name: Preserve every installed qualification outcome
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: provelume-release-installed-ai-${{ github.run_id }}
+          path: ${{ runner.temp }}/release-ai-evidence/*.json
+          if-no-files-found: warn
+          retention-days: 30
+
   assemble:
     name: Assemble and verify release bundle
-    needs: [candidate, offline-rebuild, windows-package]
+    needs: [candidate, offline-rebuild, windows-package, installed-ai]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -574,6 +648,10 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --name "provelume-windows-package-${GITHUB_RUN_ID}" \
             --dir "$windows"
+          gh run download "$GITHUB_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "provelume-release-installed-ai-${GITHUB_RUN_ID}" \
+            --dir "$RUNNER_TEMP/provelume-release-installed-ai"
 
       - name: Verify complete assurance chain
         shell: bash
@@ -603,6 +681,11 @@ jobs:
             --tag "$TAG" \
             --channel "$CHANNEL" \
             --commit "$SOURCE_COMMIT"
+          python -m scripts.release_installed \
+            --report "$RUNNER_TEMP/provelume-release-installed-ai/windows-installed-ai.json" \
+            --installer "$RUNNER_TEMP/provelume-release-windows/Provelume-Setup-${VERSION}-x64.exe" \
+            --corpus tests/fixtures/ai_synthesis_quality.json \
+            --version "$VERSION" --commit "$SOURCE_COMMIT" --channel "$CHANNEL"
 
       - name: Install candidate wheel, verify identity and generate runtime SBOM
         shell: bash
@@ -723,6 +806,7 @@ jobs:
           cp "$evidence/independent-rebuild-report.json" "$release"/
           cp "$evidence/offline-rebuild-evidence.json" "$release"/
           cp "$assembly/release-assurance.json" "$release"/
+          cp "$RUNNER_TEMP/provelume-release-installed-ai/windows-installed-ai.json" "$release"/
           cp "$assembly/provelume-${VERSION}.cdx.json" "$release"/
           cp "$windows"/Provelume-Setup-"${VERSION}"-x64.exe "$release"/
           cp "$windows"/provelume-windows-update.json "$release"/
@@ -753,6 +837,7 @@ jobs:
             --artifact "$release/independent-rebuild-report.json" \
             --artifact "$release/offline-rebuild-evidence.json" \
             --artifact "$release/release-assurance.json" \
+            --artifact "$release/windows-installed-ai.json" \
             --artifact "$release/Provelume-Setup-${VERSION}-x64.exe" \
             --artifact "$release/provelume-windows-update.json" \
             --artifact "$release/windows-py312-x86_64.in" \

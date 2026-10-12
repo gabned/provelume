@@ -53,6 +53,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           $target = "$env:RUNNER_TEMP/Custodia Installed"
           $setup = Get-ChildItem "$env:RUNNER_TEMP/custodia-installer/Provelume-Setup-*.exe" | Select-Object -First 1
+          $version = python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"
           $install = Start-Process -FilePath $setup.FullName -ArgumentList @(
             "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=`"$target`"", "/TASKS=`"`"") -PassThru
           if (-not $install.WaitForExit(90000) -or $install.ExitCode -ne 0) {
@@ -61,6 +62,7 @@ jobs:
           try {
             python scripts/qualify_custodia_installed.py `
               --executable "$target/Provelume.exe" --commit $env:QUALIFIED_SHA `
+              --installer $setup.FullName --version $version --channel development `
               --model "$env:RUNNER_TEMP/custodia-inputs/model.gguf" `
               --corpus "tests/fixtures/ai_synthesis_quality.json" `
               --instance "$env:RUNNER_TEMP/Custodia Synthetic Instance" `

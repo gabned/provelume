@@ -29,7 +29,14 @@ for line in sys.stdin:
     p=request['prompt']
     if p=='hang': time.sleep(120)
     if p=='crash': os._exit(7)
+    if p=='worker-error':
+        print(json.dumps({'event':'error','code':'limit','phase':'generation',
+                          'failure_type':'DoNotPersistPrivateException'}),flush=True)
+        time.sleep(120)
     if p=='malformed': print('not JSON',flush=True);time.sleep(120)
+    if p=='malformed-gated':
+        json.loads(sys.stdin.readline())
+        print('not JSON',flush=True);time.sleep(120)
     if p=='oversized': print('x'*40000,flush=True);time.sleep(120)
     observation={'event':'prefill','phase':'native_prefill',
                  'request':request['request'],'pid':os.getpid()}
@@ -217,6 +224,148 @@ def test_faults_cleanup_no_retry_and_following_caller(host, model, kind):
     assert time.monotonic() - began < 2
     assert not host.loaded
     assert host._infer(model, runtime.native_selection(), "next")["text"] == "ORCHID"
+
+
+@pytest.mark.parametrize("kind,cause,exit_code", [
+    ("crash", "worker_exit", 7), ("malformed-gated", "reader_protocol", None),
+    ("worker-error", "worker_error", None),
+])
+def test_native_failure_survives_cleanup_without_private_text(host, model, kind, cause, exit_code):
+    if kind == "malformed-gated":
+        receive, send = host._receive, host._send
+
+        def gated_receive(event, **kwargs):
+            if event == "result":
+                # Release the fixture's error only after the request was sent.
+                # Real early reader faults correctly retain request_send instead.
+                assert host._phase == "generation"
+                send({"fixture-release": True}, **kwargs)
+            return receive(event, **kwargs)
+
+        host._receive = gated_receive
+    with pytest.raises(ModelError):
+        host._infer(model, runtime.native_selection(), kind)
+    observation = host.last_observation
+    assert observation["cause"] == cause
+    assert observation["phase"] == "generation"
+    assert observation["exit_code"] == exit_code
+    if kind == "worker-error":
+        assert observation["worker_phase"] == "generation"
+        assert observation["model_code"] == "limit"
+    assert "DoNotPersistPrivateException" not in json.dumps(observation)
+    assert not host.loaded and not host._slot and len(host.worker_history) == 1
+
+
+@pytest.mark.parametrize("interrupt,cause,reason", [
+    ("cancelled", "cancelled", "authority_changed"), ("timeout", "deadline", None),
+])
+def test_observed_interruption_keeps_phase_and_pre_kill_exit(host, model, interrupt, cause, reason):
+    sent = threading.Event()
+    original = host._send
+
+    def send(value, **kwargs):
+        original(value, **kwargs)
+        if "prompt" in value:
+            sent.set()
+
+    host._send = send
+
+    def cancel():
+        return interrupt == "cancelled" and sent.is_set()
+
+    cancel.diagnostic_reason = reason
+    with pytest.raises(ModelError, match=interrupt):
+        host._infer(model, runtime.native_selection(), "hang", cancel=cancel,
+                    deadline=time.monotonic() + 0.5)
+    assert host.last_observation["cause"] == cause
+    assert host.last_observation["phase"] == "generation"
+    assert host.last_observation["exit_code"] is None
+    assert host.last_observation["parent_termination"] is True
+    assert host.last_observation["cancellation_reason"] == reason
+    assert not host.loaded and not host._slot and len(host.worker_history) == 1
+
+
+def test_native_diagnostic_projection_rejects_private_or_open_fields():
+    from provelume.ai_runtime_diagnostics import native_failure, valid_native_failure
+
+    value = native_failure({"cause": [], "phase": {"private": "text"}, "native_code": True,
+                            "exit_code": 0xC000001D, "stderr": "private native message"},
+                           code="private code", cancellation="private path")
+    assert value["exit_code"] == 0xC000001D
+    assert value["cause"] == "unknown" and value["phase"] is None
+    assert value["native_code"] is None and value["cancellation_reason"] is None
+    assert "private" not in json.dumps(value)
+    assert valid_native_failure(value)
+    assert not valid_native_failure({**value, "schema_version": True})
+    assert not valid_native_failure({**value, "stderr": "private"})
+
+
+def test_eof_precedes_native_process_signal_without_losing_exit_or_killing(tmp_path):
+    """Deterministic Windows ordering: EOF, poll pending, then process exit signals."""
+    host = runtime.LocalRuntime(tmp_path)
+    calls, signalled = [], []
+
+    def wait(*, timeout):
+        calls.append(timeout)
+        signalled.append(True)
+        return 0xC000001D
+
+    host._process = SimpleNamespace(
+        poll=lambda: 0xC000001D if signalled else None, wait=wait,
+        kill=lambda: pytest.fail("parent replaced the native exit code"), stdin=None, stdout=None)
+    host._failure = {"cause": "worker_exit", "phase": "native_prefill", "exit_code": None}
+    from provelume.ai_runtime_diagnostics import native_failure
+
+    host.last_observation = native_failure(host._failure, code="state")
+    host._stop()
+    assert calls[0] == .25 and all(0 <= timeout <= 2 for timeout in calls)
+    assert host.last_observation["exit_code"] == 0xC000001D
+    assert host.last_observation["parent_termination"] is False
+    assert host.last_observation["phase"] == "native_prefill"
+    assert host._process is None and not host._slot
+
+
+def test_eof_observation_never_relabels_parent_kill_as_native_exit(tmp_path, monkeypatch):
+    host = runtime.LocalRuntime(tmp_path)
+    killed, waits = [], []
+
+    def wait(*, timeout):
+        waits.append(timeout)
+        if not killed:
+            raise subprocess.TimeoutExpired('synthetic-worker', timeout)
+        return 9
+
+    def kill(*args):
+        killed.append(True)
+
+    if runtime.os.name == 'posix':
+        monkeypatch.setattr(runtime.os, 'killpg', kill)
+    host._process = SimpleNamespace(pid=123, poll=lambda: 9 if killed else None,
+                                    wait=wait, kill=kill, stdin=None, stdout=None)
+    host._failure = {'cause': 'worker_exit', 'phase': 'generation', 'exit_code': None}
+    from provelume.ai_runtime_diagnostics import native_failure
+
+    host.last_observation = native_failure(host._failure, code='state')
+    host._stop()
+    assert killed and len(waits) == 2 and all(0 <= timeout <= 2 for timeout in waits)
+    assert host.last_observation['exit_code'] is None
+    assert host.last_observation['parent_termination'] is True
+    assert host._process is None and not host._slot
+
+
+def test_reader_imposed_kill_code_is_not_native_failure(tmp_path):
+    host = runtime.LocalRuntime(tmp_path)
+    host._termination_imposed = True
+    host._failure = {'cause': 'reader_protocol', 'phase': 'generation', 'exit_code': None}
+    host._process = SimpleNamespace(poll=lambda: 9, wait=lambda **kw: 9,
+                                    stdin=None, stdout=None)
+    from provelume.ai_runtime_diagnostics import native_failure
+
+    host.last_observation = native_failure(host._failure, code='state')
+    host._stop()
+    assert host.last_observation['cause'] == 'reader_protocol'
+    assert host.last_observation['exit_code'] is None
+    assert host.last_observation['parent_termination'] is True
 
 
 @pytest.mark.parametrize("stage", ["construct", "reader_start", "writer_start"])
