@@ -34,6 +34,9 @@ for line in sys.stdin:
                           'failure_type':'DoNotPersistPrivateException'}),flush=True)
         time.sleep(120)
     if p=='malformed': print('not JSON',flush=True);time.sleep(120)
+    if p=='malformed-gated':
+        json.loads(sys.stdin.readline())
+        print('not JSON',flush=True);time.sleep(120)
     if p=='oversized': print('x'*40000,flush=True);time.sleep(120)
     observation={'event':'prefill','phase':'native_prefill',
                  'request':request['request'],'pid':os.getpid()}
@@ -224,10 +227,22 @@ def test_faults_cleanup_no_retry_and_following_caller(host, model, kind):
 
 
 @pytest.mark.parametrize("kind,cause,exit_code", [
-    ("crash", "worker_exit", 7), ("malformed", "reader_protocol", None),
+    ("crash", "worker_exit", 7), ("malformed-gated", "reader_protocol", None),
     ("worker-error", "worker_error", None),
 ])
 def test_native_failure_survives_cleanup_without_private_text(host, model, kind, cause, exit_code):
+    if kind == "malformed-gated":
+        receive, send = host._receive, host._send
+
+        def gated_receive(event, **kwargs):
+            if event == "result":
+                # Release the fixture's error only after the request was sent.
+                # Real early reader faults correctly retain request_send instead.
+                assert host._phase == "generation"
+                send({"fixture-release": True}, **kwargs)
+            return receive(event, **kwargs)
+
+        host._receive = gated_receive
     with pytest.raises(ModelError):
         host._infer(model, runtime.native_selection(), kind)
     observation = host.last_observation
