@@ -1,5 +1,12 @@
 # Cura functional audit and AI completion (#339 / #340)
 
+> Historical preparation/qualification record. Its original source identities,
+> failures, Unreleased statements and missing-material limits are preserved below.
+> The finite follow-up was subsequently delivered in
+> [0.12.1 Custodia Preview](../releases/0.12.1.md), published and ready on
+> 2026-10-12 from `cd7dc64f3ffb2a17689018b3350f0e1c073abdd4`.
+
+
 Baseline: accepted main `1ed289e6cacbc08c4425d461dfce72e37fe0ca30`, published 0.12.0.
 This updates the [Cura S01 inventory](cura-s01-baseline.md) and existing
 [information architecture](../architecture/cura-information-architecture.md).

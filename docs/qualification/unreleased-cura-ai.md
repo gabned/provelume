@@ -1,5 +1,12 @@
 # Unreleased Cura/AI release preparation
 
+> Historical preparation/qualification record. Its original source identities,
+> failures, Unreleased statements and missing-material limits are preserved below.
+> The finite follow-up was subsequently delivered in
+> [0.12.1 Custodia Preview](../releases/0.12.1.md), published and ready on
+> 2026-10-12 from `cd7dc64f3ffb2a17689018b3350f0e1c073abdd4`.
+
+
 Owner branch: `product/cura-ai-release-preparation`, PRODUCT, PR-local legacy route.
 Original accepted baseline: `854550fbddb3f0e9e2550e777e2cd708035e2498`.
 Current integration baseline: `df19f7b651855546eee43ec57be26f44196907d5`.

@@ -8,18 +8,19 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.12.1 Custodia prepared preview
+## Current status: 0.12.1 Custodia published preview
 
-**0.12.1 — Custodia** prepares the finite correction/completion requested in
+**0.12.1 — Custodia** delivers the finite correction/completion requested in
 #339/#340: live model-download progress, direct Cura AI/navigation access,
 reversible standard-interface selection, Windows tray/local-panel usability and
 closed native failure diagnostics. Package identity is **0.12.1**.
 
-The [0.12.1 release record and guide](docs/releases/0.12.1.md) and
-[release owner #345](https://github.com/gabned/provelume/pull/345) distinguish reviewed
-source qualification from actual official publication and installation readiness.
-Use the matching complete installation kit after its publication-ready marker has
-been observed. The release channel remains **preview**; Windows is unsigned.
+The [official 0.12.1 release](https://github.com/gabned/provelume/releases/tag/v0.12.1)
+and matching [complete installation kit](https://github.com/gabned/provelume/releases/download/v0.12.1/provelume-0.12.1-installation-kit.zip)
+were published and their readiness independently observed on 2026-10-12.
+Follow the [release record and installation guide](docs/releases/0.12.1.md);
+[owner #345](https://github.com/gabned/provelume/pull/345) preserves source,
+artifact and actual-publication evidence. The channel remains **preview**; Windows is unsigned.
 
 Published [0.12.0](https://github.com/gabned/provelume/releases/tag/v0.12.0) and its
 [publication ledger](https://github.com/gabned/provelume/pull/338#issuecomment-6101359995)

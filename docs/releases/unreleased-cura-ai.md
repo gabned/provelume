@@ -1,5 +1,12 @@
 # Unreleased — Cura and local AI completion
 
+> Historical preparation/qualification record. Its original source identities,
+> failures, Unreleased statements and missing-material limits are preserved below.
+> The finite follow-up was subsequently delivered in
+> [0.12.1 Custodia Preview](0.12.1.md), published and ready on
+> 2026-10-12 from `cd7dc64f3ffb2a17689018b3350f0e1c073abdd4`.
+
+
 This finite follow-up to published **0.12.0 Custodia** includes #339/#340,
 implemented in #341 and corrected/qualified in #342, plus the Windows tray and
 local-panel corrections integrated through #344. It is not a release identity.
