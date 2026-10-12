@@ -72,6 +72,7 @@ class LocalRuntime:
         self.worker_history = []
         self._phase = "request_admission"
         self._failure = None
+        self._termination_imposed = False
 
     def validate_installation(self):
         """Revalidate native bytes at activation/use, including a warm worker."""
@@ -109,6 +110,7 @@ class LocalRuntime:
             if self._process is process:
                 self._failure = {"cause": "reader_protocol", "phase": self._phase,
                                  "exit_code": process.poll(), "parent_termination": True}
+                self._termination_imposed = True
             process.kill()
         finally:
             with contextlib.suppress(queue.Full):
@@ -195,6 +197,7 @@ class LocalRuntime:
 
     def _start(self, model, *, deadline, cancel):
         self._phase = "hardware-admission"
+        self._termination_imposed = False
         self.last_observation = {"phase": "hardware-admission"}
         check(
             type(model.model) is VerifiedModelFile and model.entry.id == MODEL_ID, "compatibility"
@@ -318,7 +321,8 @@ class LocalRuntime:
             if process is not None:
                 cleanup_deadline = time.monotonic() + 2
                 exit_code = process.poll()
-                if (exit_code is None and self._failure is not None
+                if (exit_code is None and not self._termination_imposed
+                        and self._failure is not None
                         and self._failure.get("cause") == "worker_exit"):
                     # On Windows the stdio handle can close just before the
                     # process handle signals. Observe that exit without killing
@@ -327,13 +331,18 @@ class LocalRuntime:
                         exit_code = process.wait(timeout=0.25)
                 if self._failure is not None:
                     # A code obtained after our kill would describe cleanup, not the failure.
-                    if exit_code is not None:
+                    if exit_code is not None and not self._termination_imposed:
                         self._failure["exit_code"] = exit_code
-                    self._failure["parent_termination"] = exit_code is None
+                    self._failure["parent_termination"] = self._termination_imposed
                     if self.last_observation is not None and "cause" in self.last_observation:
                         self.last_observation["exit_code"] = self._failure.get("exit_code")
-                        self.last_observation["parent_termination"] = exit_code is None
+                        self.last_observation["parent_termination"] = self._termination_imposed
                 if exit_code is None:
+                    self._termination_imposed = True
+                    if self._failure is not None:
+                        self._failure["parent_termination"] = True
+                        if self.last_observation is not None and "cause" in self.last_observation:
+                            self.last_observation["parent_termination"] = True
                     if os.name == "posix":
                         import signal
 

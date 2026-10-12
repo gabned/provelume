@@ -338,6 +338,21 @@ def test_eof_observation_never_relabels_parent_kill_as_native_exit(tmp_path, mon
     assert host._process is None and not host._slot
 
 
+def test_reader_imposed_kill_code_is_not_native_failure(tmp_path):
+    host = runtime.LocalRuntime(tmp_path)
+    host._termination_imposed = True
+    host._failure = {'cause': 'reader_protocol', 'phase': 'generation', 'exit_code': None}
+    host._process = SimpleNamespace(poll=lambda: 9, wait=lambda **kw: 9,
+                                    stdin=None, stdout=None)
+    from provelume.ai_runtime_diagnostics import native_failure
+
+    host.last_observation = native_failure(host._failure, code='state')
+    host._stop()
+    assert host.last_observation['cause'] == 'reader_protocol'
+    assert host.last_observation['exit_code'] is None
+    assert host.last_observation['parent_termination'] is True
+
+
 @pytest.mark.parametrize("stage", ["construct", "reader_start", "writer_start"])
 def test_construction_start_failure_releases_slot(host, model, monkeypatch, stage):
     target, attribute = ((runtime.subprocess, "Popen") if stage == "construct" else
