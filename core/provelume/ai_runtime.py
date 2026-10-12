@@ -70,6 +70,8 @@ class LocalRuntime:
         self._request_id = None
         self.last_observation = None
         self.worker_history = []
+        self._phase = "request_admission"
+        self._failure = None
 
     def validate_installation(self):
         """Revalidate native bytes at activation/use, including a warm worker."""
@@ -103,6 +105,10 @@ class LocalRuntime:
                 check(type(value) is dict, "state")
                 messages.put_nowait(value)
         except Exception:
+            # Record the observed exit before imposing our own termination.
+            if self._process is process:
+                self._failure = {"cause": "reader_protocol", "phase": self._phase,
+                                 "exit_code": process.poll(), "parent_termination": True}
             process.kill()
         finally:
             with contextlib.suppress(queue.Full):
@@ -146,14 +152,22 @@ class LocalRuntime:
                 # authority; cancellation/cleanup retains its two-second bound.
                 value = self._messages.get(timeout=0.1)
             except queue.Empty:
+                if not self.loaded:
+                    self._failure = self._failure or {
+                        "cause": "worker_exit", "phase": self._phase,
+                        "exit_code": self._process.poll()}
                 check(self.loaded, "state")
                 continue
             if value.get("event") == "error":
+                self._failure = {"cause": "worker_error", "phase": self._phase,
+                                 "worker_phase": value.get("phase")}
                 self.last_observation = {"failure": value.get("code", "state"),
                                          "phase": value.get("phase"),
                                          "failure_type": value.get("failure_type")}
                 raise ModelError(value.get("code", "state"))
             if value.get("event") == "eof":
+                self._failure = self._failure or {"cause": "worker_exit", "phase": self._phase,
+                                                  "exit_code": self._process.poll()}
                 self.last_observation = {"failure": "worker_exit",
                                          "returncode": self._process.poll()}
             check(value.get("event") in (event, "prefill", "first"), "state")
@@ -169,15 +183,18 @@ class LocalRuntime:
                 self._prefill_observation = {"phase": value["phase"],
                                             "request": value["request"], "pid": value["pid"],
                                             "received": time.monotonic()}
+                self._phase = "native_prefill"
             if value["event"] == "first":
                 check(event == "result" and self._prefill_observation is not None
                       and self._first_received is None, "state")
                 self._first_received = time.monotonic()
+                self._phase = "native_decode"
             if value["event"] == event:
                 check(event != "result" or self._prefill_observation is not None, "state")
                 return value
 
     def _start(self, model, *, deadline, cancel):
+        self._phase = "hardware-admission"
         self.last_observation = {"phase": "hardware-admission"}
         check(
             type(model.model) is VerifiedModelFile and model.entry.id == MODEL_ID, "compatibility"
@@ -257,8 +274,10 @@ class LocalRuntime:
             selected = ({"model_handle": self._process.model_handle}
                         if os.name == "nt" and getattr(sys, "frozen", False)
                         else {"model": str(model.model.path)})
+            self._phase = "model_send"
             self._send({"runtime": str(self.directory), **selected},
                        deadline=deadline, cancel=cancel)
+            self._phase = "model_load"
             self._load = self._receive("loaded", deadline=deadline, cancel=cancel)
             check(self._load.get("pid") == self._process.pid, "state")
             if os.name == "nt" and getattr(sys, "frozen", False):
@@ -279,6 +298,11 @@ class LocalRuntime:
                                     self._process.native_code is not None
                                     else ctypes.get_last_error()),
                 }
+                self._failure = {**(self._failure or {}), "phase": self._phase,
+                                 "native_stage": self._process.phase,
+                                 "native_code": self.last_observation["native_code"],
+                                 "exit_code": self._process.poll(),
+                                 "parent_termination": self.loaded}
             self._stop()
             raise
 
@@ -292,7 +316,12 @@ class LocalRuntime:
         process = self._process
         try:
             if process is not None:
-                if process.poll() is None:
+                exit_code = process.poll()
+                if self._failure is not None:
+                    # A code obtained after our kill would describe cleanup, not the failure.
+                    self._failure.setdefault("exit_code", exit_code)
+                    self._failure.setdefault("parent_termination", exit_code is None)
+                if exit_code is None:
                     if os.name == "posix":
                         import signal
 
@@ -372,6 +401,8 @@ class LocalRuntime:
 
     def _infer_owned(self, model, selection, prompt, *, cancel, reuse_scope,
                      response_format, started, deadline):
+        self._phase, self._failure = "request_admission", None
+        self.last_observation = None
         try:
             selection.validate(model.entry)
             check(selection.platform == native_selection().platform, "compatibility")
@@ -402,8 +433,11 @@ class LocalRuntime:
                 message["scope"] = reuse_scope
             if response_format is not None:
                 message["response_format"] = response_format
+            self._phase = "request_send"
             self._send(message, deadline=deadline, cancel=cancel)
+            self._phase = "generation"
             value = self._receive("result", deadline=deadline, cancel=cancel)
+            self._phase = "result_validation"
             check(
                 type(value.get("text")) is str and len(value["text"].encode("utf-8")) <= 4096,
                 "limit",
@@ -419,12 +453,25 @@ class LocalRuntime:
             self._timer.daemon = True
             self._timer.start()
             return value
-        except ModelError:
+        except ModelError as exc:
+            self._record_failure(exc.code, cancel)
             self._stop()
             raise
         except Exception:
+            self._record_failure("state", cancel)
             self._stop()
             raise ModelError("state") from None
+
+    def _record_failure(self, code, cancel):
+        from .ai_runtime_diagnostics import native_failure
+
+        self._failure = self._failure or {"phase": self._phase}
+        if self._process is not None:
+            self._failure.setdefault("exit_code", self._process.poll())
+            self._failure.setdefault("native_code", getattr(self._process, "native_code", None))
+        self._failure.setdefault("parent_termination", self.loaded)
+        self.last_observation = native_failure(
+            self._failure, code=code, cancellation=getattr(cancel, "diagnostic_reason", None))
 
     def __call__(self, model, selection, cancel, *, deadline=None):
         value = self._infer(

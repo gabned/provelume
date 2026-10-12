@@ -21,6 +21,7 @@ import httpx
 from custodia_ordinary import (
     Page,
     acquisition,
+    diagnostic_cancellation,
     document_jobs,
     model_action,
     public_documents,
@@ -156,6 +157,29 @@ def run(args):
             report["checks"]["ordinary_guided_enablement"] = "PASS"
             report["phase"] = "ordinary_document_synthesis"
             document_jobs(client, instance, cases, report, observe=observe, save=save)
+            # Observe CPU on the actual child handle before cancelling one separate
+            # synthetic request. No fault injection or replacement runtime is used.
+            get_times = bind(kernel, "GetProcessTimes", c.c_int32, H, P, P, P, P)
+            baseline = {}
+
+            def cpu(handle):
+                values = [c.c_uint64() for _ in range(4)]
+                if not get_times(handle, *(c.byref(v) for v in values)):
+                    raise ValueError("worker_observation")
+                return values[2].value + values[3].value
+
+            for pid in children(process.pid):
+                baseline[pid] = cpu(observed[pid])
+
+            def executing():
+                observe()
+                return any(cpu(observed[pid]) > baseline.get(pid, 0) + 100000
+                           for pid in children(process.pid))
+
+            report["phase"] = "native_cancellation_diagnostic"
+            report["diagnostic_cancellation"] = diagnostic_cancellation(
+                client, instance, cases[0], executing=executing, save=save)
+            save()
             # Keep the already-observed worker warm, then kill the actual parent.
             # Handle waits observe process identity, with no PID-reuse ambiguity.
             report["phase"] = "parent_death"

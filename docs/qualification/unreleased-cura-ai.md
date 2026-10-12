@@ -145,10 +145,57 @@ The optional `/workspace/provelume-cura-ai/.agent/warm-qualification-resume.json
 and original `.agent/release-preparation/` cache are unavailable in this workspace.
 The user confirmed no recovery location/export is available. The GitHub owner
 ledger, original source history and failed reports survive; the original BOUND
-receipt bytes do not. They are not fabricated from PR prose or replaced with a
-new binding. Receipt verification/native integration preflight therefore remains
-blocked by this material gap even if new source/artifact checks pass. No historical
-state or failed preflight is rewritten to bypass it.
+receipt bytes do not. At `c406d70` the prior audit treated that gap as blocking
+every new binding and preflight. That historical BLOCKED observation remains in
+the PR ledger; no original receipt is reconstructed or relabelled.
+
+The resumed contract inspection distinguishes the PR/branch authoritative state
+from ignored stateless receipts. The accepted v1.2 contract's "Exact effect report
+and binding" requires a new report and binding after material head movement;
+1.4.9 forbids rewriting coherent existing bindings, not an additional current
+attestation for the materially changed candidate under the same owner. The current
+candidate therefore uses that ordinary path, with independently selected current
+policy context and the original validators. The original baseline `854550f`,
+binding basis `8658d89`, missing original receipt and failed preflight are retained
+separately from the current integration base/default `df19f7b`. There is no policy
+compensation, recovery of PRODUCTION material, second lifecycle or v2 activation.
+
+Required integration checks are selected by the accepted repository policy:
+complete exact-head PR and trusted-base CI, current findings/review/thread
+inventory, known review requirement, scope/effect binding, ownership, ancestry,
+native product/artifact checks and normal expected-head merge. The policy requires
+no unconditional Codex review, host enrollment, ruleset read or retrospective
+diagnosis of all historical failures. Actual-main push CI and merge parent/tree
+reconciliation remain required after integration. Future official publication
+identity and human/unobserved hardware acceptance remain separate and unqualified.
+
+## Native diagnostic follow-up
+
+The historical two 31/32 FAILs and all independent Family 25/26 and Intel results
+above keep their original scope. Their unavailable native cause cannot be inferred
+from elapsed time. The verified diagnostic defect is loss between runtime,
+`NativeJobAdapter`, `LocalFailure` and durable job/report: the latter retained only
+`ai_local_stopped`; reader cleanup could also erase the pre-termination exit code.
+No runtime root-cause fix follows from this observation.
+
+The new instrumentation projects only closed cause/model-code/request-phase,
+worker phase, native startup stage, numeric native/exit codes, observed parent
+termination and actual cancellation/deadline/authority reason. Unknown remains
+null; a cleanup exit code never becomes the worker's native failure. An optional
+strictly validated diagnostic in the existing atomic attempt journal survives
+settlement/restart and reaches the installed report. No exception text, stderr,
+prompt, output, private path or identity is retained. Accounting, reserves, limits,
+consent, isolation, integrity, durability and retry policy remain unchanged.
+
+Five deterministic diagnostic regressions fail on `c406d70` and pass with the
+instrumentation. The ordinary installed workflow still exercises the unchanged
+ordered 32 cases and 12 distribution checks. It separately observes one explicit
+synthetic request cancellation after child CPU activity through the real forms,
+scheduler and frozen worker, with no adapter substitution or repeated experiment.
+Its OBSERVED/NOT_OBSERVED result is diagnostic evidence, not an added distribution
+gate or historical diagnosis. Exact new-head native and same-bundle-Setup results,
+checksums, receipt validation/preflight and any merge are recorded in the owner
+ledger only after their real observations.
 
 The recovered local environment again contained pypdf 6.19.0 and editable
 metadata 0.11.0. This was identified before running the new full suite; canonical

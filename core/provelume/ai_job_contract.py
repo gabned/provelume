@@ -139,7 +139,7 @@ def validate_ai(value, job):
     for index, row in enumerate(value["attempts"], 1):
         check(
             type(row) is dict
-            and set(row)
+            and set(row) - {"native_failure"}
             == {
                 "number",
                 "route",
@@ -158,6 +158,10 @@ def validate_ai(value, job):
             }
         )
         check(row["number"] == index and row["phase"] in PHASES)
+        if "native_failure" in row:
+            from .ai_runtime_diagnostics import valid_native_failure
+
+            check(valid_native_failure(row["native_failure"]))
         check(type(row["quiescent"]) is bool)
         check(row["usage_source"] in {"UNKNOWN", "LOCAL", "PROVIDER", "NOT_SENT"})
         fingerprint(row["route"])

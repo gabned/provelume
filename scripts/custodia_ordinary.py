@@ -222,6 +222,7 @@ def document_jobs(client, instance, cases, report, *, observe=lambda: None, save
             "terminal": job["ai"]["terminal"], "blocked": job["ai"]["blocked"],
             "attempt_phase": attempt.get("phase"), "quiescent": attempt.get("quiescent"),
             "usage_source": attempt.get("usage_source"), "elapsed_ms": attempt.get("elapsed_ms"),
+            "native_failure": attempt.get("native_failure"),
             "seconds": time.monotonic() - started})
         save()
     if any(row["status"] != "succeeded" for row in report["synthesis"]):
@@ -242,3 +243,49 @@ def restart_off(instance):
         return {"session_authorized": False, "model_present": setup.models._state()["active"]}
     finally:
         setup.close()
+
+
+def diagnostic_cancellation(client, instance, case_row, *, executing, save=lambda: None):
+    """One additional explicit synthetic request; never retry to obtain a diagnostic."""
+    case, document, bundle = case_row
+    path = f"/documents/{document}/synthesis"
+    page = Page(client.get(path + "?lang=en").text)
+    response = client.post(path + "/verify-preview", data={
+        **page.fields(), "selection": bundle["representation_id"] + ":" +
+        bundle["outputs"][0]["id"], "version_id": bundle["version"]["id"],
+        "task": case["task"], "language": "en"})
+    response.raise_for_status()
+    page = Page(response.text)
+    before = {j["id"] for j in instance.scheduler.journal.list_jobs(limit=100)}
+    response = client.post("/operations/ai/synthesis/execute", data={
+        **page.fields(), "ref": page.hidden["ref"], "acknowledge": "selected-document"})
+    response.raise_for_status()
+    end, submitted, job = time.monotonic() + 70, False, None
+    while time.monotonic() < end:
+        rows = [j for j in instance.scheduler.journal.list_jobs(limit=100) if j["id"] not in before]
+        if len(rows) != 1:
+            raise ValueError("synthesis_job_identity")
+        job = rows[0]
+        if job["status"] not in {"queued", "running"}:
+            break
+        if not submitted and job["status"] == "running" and executing():
+            page = Page(client.get("/operations/ai?lang=en").text)
+            forms = [f for f in page.forms if f["action"] == "/operations/ai/control"
+                     and f["fields"].get("job_id") == job["id"]
+                     and f["fields"].get("action") == "cancel"]
+            if len(forms) == 1:
+                response = client.post(forms[0]["action"], data=forms[0]["fields"])
+                response.raise_for_status()
+                submitted = response.status_code == 303
+        time.sleep(.02)
+    diagnostic = (job["ai"]["attempts"][-1].get("native_failure")
+                  if job and job["ai"]["attempts"] else None)
+    from provelume.ai_runtime_diagnostics import valid_native_failure
+
+    observed = (submitted and job["status"] == "cancelled" and job["attempt"] == 1
+                and valid_native_failure(diagnostic) and diagnostic["cause"] == "cancelled"
+                and diagnostic["cancellation_reason"] == "request_cancel")
+    # This records a diagnostic experiment, not a thirteenth distribution gate.
+    return {"status": "OBSERVED" if observed else "NOT_OBSERVED",
+            "cancel_submitted": submitted, "attempts": job["attempt"] if job else None,
+            "native_failure": diagnostic}

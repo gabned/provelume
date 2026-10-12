@@ -29,6 +29,10 @@ for line in sys.stdin:
     p=request['prompt']
     if p=='hang': time.sleep(120)
     if p=='crash': os._exit(7)
+    if p=='worker-error':
+        print(json.dumps({'event':'error','code':'limit','phase':'generation',
+                          'failure_type':'DoNotPersistPrivateException'}),flush=True)
+        time.sleep(120)
     if p=='malformed': print('not JSON',flush=True);time.sleep(120)
     if p=='oversized': print('x'*40000,flush=True);time.sleep(120)
     observation={'event':'prefill','phase':'native_prefill',
@@ -217,6 +221,68 @@ def test_faults_cleanup_no_retry_and_following_caller(host, model, kind):
     assert time.monotonic() - began < 2
     assert not host.loaded
     assert host._infer(model, runtime.native_selection(), "next")["text"] == "ORCHID"
+
+
+@pytest.mark.parametrize("kind,cause,exit_code", [
+    ("crash", "worker_exit", 7), ("malformed", "reader_protocol", None),
+    ("worker-error", "worker_error", None),
+])
+def test_native_failure_survives_cleanup_without_private_text(host, model, kind, cause, exit_code):
+    with pytest.raises(ModelError):
+        host._infer(model, runtime.native_selection(), kind)
+    observation = host.last_observation
+    assert observation["cause"] == cause
+    assert observation["phase"] == "generation"
+    assert observation["exit_code"] == exit_code
+    if kind == "worker-error":
+        assert observation["worker_phase"] == "generation"
+        assert observation["model_code"] == "limit"
+    assert "DoNotPersistPrivateException" not in json.dumps(observation)
+    assert not host.loaded and not host._slot and len(host.worker_history) == 1
+
+
+@pytest.mark.parametrize("interrupt,cause,reason", [
+    ("cancelled", "cancelled", "authority_changed"), ("timeout", "deadline", None),
+])
+def test_observed_interruption_keeps_phase_and_pre_kill_exit(host, model, interrupt, cause, reason):
+    sent = threading.Event()
+    original = host._send
+
+    def send(value, **kwargs):
+        original(value, **kwargs)
+        if "prompt" in value:
+            sent.set()
+
+    host._send = send
+
+    def cancel():
+        return interrupt == "cancelled" and sent.is_set()
+
+    cancel.diagnostic_reason = reason
+    with pytest.raises(ModelError, match=interrupt):
+        host._infer(model, runtime.native_selection(), "hang", cancel=cancel,
+                    deadline=time.monotonic() + 0.5)
+    assert host.last_observation["cause"] == cause
+    assert host.last_observation["phase"] == "generation"
+    assert host.last_observation["exit_code"] is None
+    assert host.last_observation["parent_termination"] is True
+    assert host.last_observation["cancellation_reason"] == reason
+    assert not host.loaded and not host._slot and len(host.worker_history) == 1
+
+
+def test_native_diagnostic_projection_rejects_private_or_open_fields():
+    from provelume.ai_runtime_diagnostics import native_failure, valid_native_failure
+
+    value = native_failure({"cause": [], "phase": {"private": "text"}, "native_code": True,
+                            "exit_code": 0xC000001D, "stderr": "private native message"},
+                           code="private code", cancellation="private path")
+    assert value["exit_code"] == 0xC000001D
+    assert value["cause"] == "unknown" and value["phase"] is None
+    assert value["native_code"] is None and value["cancellation_reason"] is None
+    assert "private" not in json.dumps(value)
+    assert valid_native_failure(value)
+    assert not valid_native_failure({**value, "schema_version": True})
+    assert not valid_native_failure({**value, "stderr": "private"})
 
 
 @pytest.mark.parametrize("stage", ["construct", "reader_start", "writer_start"])

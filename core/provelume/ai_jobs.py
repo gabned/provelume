@@ -499,7 +499,11 @@ class AiJobs:
                     clock = utc_instant(now)
                     job = self._owned(job_id, token, clock)
                     return self._validate(job, clock, prepare=prepare)[0]
-            except SchedulerError:
+            except SchedulerError as exc:
+                cancel.diagnostic_reason = {
+                    "ai_cancel_requested": "request_cancel", "ai_deadline": "request_deadline",
+                    "ai_session_not_enabled": "session_disabled",
+                }.get(str(exc), "authority_changed")
                 raise ProviderError(Failure.POLICY) from None
 
         def current():
@@ -508,10 +512,16 @@ class AiJobs:
         def cancel():
             try:
                 read_current(poll_preparation)
-                return (
+                expired = (
                     time.monotonic() - started >= claimed["ai"]["request"]["limits"]["max_seconds"]
                 )
-            except (SchedulerError, SchedulerBusyError, ProviderError):
+                if expired:
+                    cancel.diagnostic_reason = "request_deadline"
+                return expired
+            except SchedulerBusyError:
+                cancel.diagnostic_reason = "scheduler_busy"
+                return True
+            except (SchedulerError, ProviderError):
                 return True
 
         try:
@@ -586,6 +596,11 @@ class AiJobs:
             from .ai_job_runtime import JobOutcome, LocalFailure
 
             if type(outcome) is LocalFailure:
+                if outcome.diagnostic is not None:
+                    from .ai_runtime_diagnostics import valid_native_failure
+
+                    check(valid_native_failure(outcome.diagnostic))
+                    row["native_failure"] = dict(outcome.diagnostic)
                 # The managed worker has confirmed termination, but interrupted
                 # token consumption is unknown and retains the resource reserve.
                 row.update(phase="settled", quiescent=True, micros=0, usage_source="LOCAL")
