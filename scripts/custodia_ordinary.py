@@ -259,7 +259,8 @@ def diagnostic_cancellation(client, instance, case_row, *, executing, save=lambd
     before = {j["id"] for j in instance.scheduler.journal.list_jobs(limit=100)}
     response = client.post("/operations/ai/synthesis/execute", data={
         **page.fields(), "ref": page.hidden["ref"], "acknowledge": "selected-document"})
-    response.raise_for_status()
+    if response.status_code != 303:
+        raise ValueError("synthesis_consent")
     end, submitted, job = time.monotonic() + 70, False, None
     while time.monotonic() < end:
         rows = [j for j in instance.scheduler.journal.list_jobs(limit=100) if j["id"] not in before]
@@ -275,7 +276,6 @@ def diagnostic_cancellation(client, instance, case_row, *, executing, save=lambd
                      and f["fields"].get("action") == "cancel"]
             if len(forms) == 1:
                 response = client.post(forms[0]["action"], data=forms[0]["fields"])
-                response.raise_for_status()
                 submitted = response.status_code == 303
         time.sleep(.02)
     diagnostic = (job["ai"]["attempts"][-1].get("native_failure")
