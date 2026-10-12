@@ -256,7 +256,7 @@ jobs:
           PY
 
       - name: Upload release candidate evidence
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: provelume-release-candidate-${{ github.run_id }}
           path: |
@@ -381,7 +381,7 @@ jobs:
 
       - name: Upload separate-runner rebuild evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: provelume-release-rebuild-${{ github.run_id }}
           path: |
@@ -509,7 +509,7 @@ jobs:
 
       - name: Upload Windows package evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: provelume-windows-package-${{ github.run_id }}
           path: ${{ runner.temp }}/provelume-windows-output/
@@ -583,7 +583,7 @@ jobs:
           }
       - name: Preserve every installed qualification outcome
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: provelume-release-installed-ai-${{ github.run_id }}
           path: ${{ runner.temp }}/release-ai-evidence/*.json
@@ -865,7 +865,7 @@ jobs:
           fi
 
       - name: Upload verified release bundle
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: provelume-verified-release-bundle-${{ github.run_id }}
           path: ${{ runner.temp }}/provelume-release-bundle/

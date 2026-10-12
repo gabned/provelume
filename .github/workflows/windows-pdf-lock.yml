@@ -27,7 +27,7 @@ jobs:
           python-version: '3.12'
       - name: Resolve the PDF correction while preserving all other pins
         run: python scripts/resolve_windows_pdf_lock.py --output .agent/windows-pdf-lock
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: windows-pdf-lock-${{ github.run_id }}
