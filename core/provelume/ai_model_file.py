@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import time
 from dataclasses import dataclass
@@ -11,7 +12,6 @@ from pathlib import Path
 from .ai_model_download import checkpoint
 from .ai_models import check, sha256
 from .maintenance_local_files import file_identity, open_local_file, pinned_parent
-from .model_file_digest import model_digest
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -64,22 +64,24 @@ def verify_stream(handle, entry, *, cancel=lambda: False, deadline=float("inf"))
     info = os.fstat(handle.fileno())
     check(info.st_size == entry.model_size and info.st_nlink == 1, "integrity")
     handle.seek(0)
+    digest = hashlib.sha256()
     count = 0
-    with model_digest() as digest:
-        while True:
-            checkpoint(read_cancel, deadline)
-            block = handle.read(1024 * 1024)
-            checkpoint(read_cancel, deadline)
-            if not block:
-                break
-            if count == 0:
-                check(block[:8] == b"GGUF\x03\0\0\0", "package")
-            count += len(block)
-            check(count <= entry.model_size, "limit")
-            digest.update(block)
-        checkpoint(cancel, deadline)
-        check(count == entry.model_size and digest.hexdigest() == entry.model_sha256,
-              "integrity")
+    buffer = bytearray(1024 * 1024)
+    view = memoryview(buffer)
+    while True:
+        checkpoint(read_cancel, deadline)
+        size = handle.readinto(buffer)
+        block = view[:size]
+        checkpoint(read_cancel, deadline)
+        if not block:
+            break
+        if count == 0:
+            check(block[:8] == b"GGUF\x03\0\0\0", "package")
+        count += len(block)
+        check(count <= entry.model_size, "limit")
+        digest.update(block)
+    checkpoint(cancel, deadline)
+    check(count == entry.model_size and digest.hexdigest() == entry.model_sha256, "integrity")
     check(file_identity(handle) == before, "integrity")
     handle.seek(0)
 
