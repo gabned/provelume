@@ -27,9 +27,11 @@ request, tag, release or delivery commitment. Planned-version movement follows
 
 ## Release lane
 
-Next-release maintenance requested in #339/#340: live model-download progress,
-Cura functional parity and reversible standard-interface adoption. Implementation
-is in progress; the release number and activation remain to be determined. See the
+The finite maintenance requested in #339/#340 is delivered in
+[published 0.12.1 Custodia Preview](https://github.com/gabned/provelume/releases/tag/v0.12.1):
+live model-download progress, Cura functional parity, reversible standard-interface
+adoption and Windows/native diagnostics. Actual installation-kit readiness was
+observed on 2026-10-12. See the [release guide](releases/0.12.1.md) and
 [completion audit](qualification/cura-ai-completion.md).
 
 | State | Version | Product outcome | Activation | Latin name |
@@ -50,7 +52,7 @@ is in progress; the release number and activation remain to be determined. See t
 | Published preview | `0.10.1` | Source onboarding, filtering and canonical brand correction | #198 completed; release #251 | `Emendatio` |
 | Published preview | `0.11.0` | Daily-use UX, Unified Capture, Action Center and multilingual interface | #255 S01–S09 delivered; #308 release record; [public identity/readiness](https://github.com/gabned/provelume/releases/tag/v0.11.0) | `Cura` |
 | Published preview | `0.12.0` | Optional local AI, privacy gateway and accountable document assistance | #311 S01–S09 delivered; #337/#338; [public release](https://github.com/gabned/provelume/releases/tag/v0.12.0) | `Custodia` |
-| Prepared preview | `0.12.1` | Custodia corrections: Cura/AI access, model progress, Windows local panel and closed native diagnostics | #339/#340; #341/#342/#343/#344; [release preparation](releases/0.12.1.md), actual delivery pending | Follow-up to `Custodia` |
+| Published preview | `0.12.1` | Custodia corrections: Cura/AI access, model progress, Windows local panel and closed native diagnostics | #339/#340; #341/#342/#343/#344; [release guide](releases/0.12.1.md); [public release/readiness](https://github.com/gabned/provelume/releases/tag/v0.12.1) | Follow-up to `Custodia` |
 | Forecast | `0.13.0` | AI classification, confidence and controlled application extending Custodia receipts/templates | issue just in time | `Iudicium` |
 | Forecast | `0.14.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
 | Forecast | `0.15.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
