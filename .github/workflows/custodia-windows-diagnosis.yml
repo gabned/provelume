@@ -1,0 +1,32 @@
+name: Custodia Windows phase diagnosis (not qualification)
+on:
+  push:
+    branches: [product/custodia-windows-phase-diagnosis]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Canonical dependency bootstrap
+        run: python scripts/bootstrap.py
+      - name: Explicit locked acquisition (no model in evidence)
+        run: .venv/Scripts/python.exe scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/diagnostic-inputs" --accept-licenses --include-model
+      - name: Single fixed instrumented observation
+        run: .venv/Scripts/python.exe scripts/diagnose_custodia_windows.py --artifacts "${{ runner.temp }}/diagnostic-inputs" --output .agent/custodia-diagnostics/diagnostic.json
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: custodia-windows-phase-diagnostic-only
+          path: .agent/custodia-diagnostics/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
