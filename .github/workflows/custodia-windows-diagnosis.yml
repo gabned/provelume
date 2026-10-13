@@ -1,28 +1,77 @@
-name: Custodia Windows telemetry capability probe (not qualification)
+name: Custodia bounded PDH QPC ETW observation (not qualification)
 on:
   push:
     branches: [product/custodia-windows-phase-diagnosis]
     paths:
-      - scripts/probe_custodia_windows_telemetry.ps1
+      - scripts/observe_custodia_guest_frequency.ps1
+      - scripts/test_custodia_frequency_observer.ps1
       - .github/workflows/custodia-windows-diagnosis.yml
 permissions:
   contents: read
 jobs:
-  capabilities:
+  diagnose:
     runs-on: windows-2025
-    timeout-minutes: 5
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
-      - name: Probe telemetry on this disposable guest without Core or model execution
+          fetch-depth: 0
+      - name: Synthetic wrapper behavior and cleanup before any model observation
         shell: pwsh
-        run: ./scripts/probe_custodia_windows_telemetry.ps1
+        run: ./scripts/test_custodia_frequency_observer.ps1
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Canonical dependency bootstrap
+        run: python scripts/bootstrap.py
+      - name: Build diagnostic-only ETW reader
+        run: dotnet build scripts/custodia_etw_reader/Custodia.Etw.csproj -c Release -o "${{ runner.temp }}/custodia-etw-reader" -p:BaseIntermediateOutputPath="${{ runner.temp }}/custodia-etw-obj/"
+      - name: Explicit locked acquisition (no model in evidence)
+        run: .venv/Scripts/python.exe scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/diagnostic-inputs" --accept-licenses --include-model
+      - name: Single fixed instrumented observation
+        shell: pwsh
+        run: ./scripts/observe_custodia_guest_frequency.ps1 -Artifacts "${{ runner.temp }}/diagnostic-inputs" -Output .agent/custodia-frequency-diagnosis
+      - name: Decode numeric scheduler and I/O evidence
+        if: always()
+        shell: pwsh
+        run: |
+          Get-ChildItem .agent/custodia-frequency-diagnosis/scheduler/run-*.etl -ErrorAction SilentlyContinue | ForEach-Object {
+            dotnet "${{ runner.temp }}/custodia-etw-reader/Custodia.Etw.dll" $_.FullName ($_.FullName + '.events.jsonl') ($_.FullName + '.metadata.json')
+            if ($LASTEXITCODE -ne 0) { throw 'ETW decoding failed; preserve original trace.' }
+          }
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         if: always()
         with:
-          name: custodia-windows-telemetry-capabilities
-          path: .agent/custodia-telemetry/
+          name: custodia-windows-bounded-frequency-only
+          path: |
+            .agent/custodia-frequency-synthetic/
+            .agent/custodia-frequency-diagnosis/
+            !.agent/custodia-frequency-diagnosis/scheduler/*.etl
           include-hidden-files: true
           if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: custodia-scheduler-etl-run-0
+          path: .agent/custodia-frequency-diagnosis/scheduler/run-0.etl
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: custodia-scheduler-etl-run-1
+          path: .agent/custodia-frequency-diagnosis/scheduler/run-1.etl
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: custodia-scheduler-etl-run-2
+          path: .agent/custodia-frequency-diagnosis/scheduler/run-2.etl
+          include-hidden-files: true
+          if-no-files-found: warn
           retention-days: 30

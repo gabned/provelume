@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import ctypes
 import functools
 import hashlib
 import json
@@ -232,6 +233,14 @@ def main():
               "observer": "wrappers, monotonic/QPC/process/thread clocks; buffered child trace",
               "causal_attribution_to_original": "NOT_DEMONSTRATED",
               "status": "STARTED"}
+    qpc, frequency = ctypes.c_longlong(), ctypes.c_longlong()
+    before = time.perf_counter_ns()
+    ctypes.windll.kernel32.QueryPerformanceCounter(ctypes.byref(qpc))
+    after = time.perf_counter_ns()
+    ctypes.windll.kernel32.QueryPerformanceFrequency(ctypes.byref(frequency))
+    report["clock_identity"] = {"python_before_ns": before, "python_after_ns": after,
+                                "windows_qpc": qpc.value, "qpc_frequency": frequency.value,
+                                "python_implementation": time.get_clock_info("perf_counter").implementation}
     capture = None
     if args.scheduler_trace:
         from custodia_windows_etw import SchedulerCapture
