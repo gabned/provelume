@@ -1,0 +1,11 @@
+{
+  "commit": "42d650b50da61622376a58307a10f8ecbf541713",
+  "transport": "GitHub connector immutable file base64",
+  "archive_bytes": 146657,
+  "archive_sha256": "05f70e901063ae2c41157255f10e9e0d816654466aaab0934cf7af8a6af91676",
+  "members": 40,
+  "all_members_restored_verified": "PASS",
+  "qualification": "NOT_EVALUATED",
+  "original_fail": "PRESERVED",
+  "prepared_proof": "NOT_EXECUTED"
+}
