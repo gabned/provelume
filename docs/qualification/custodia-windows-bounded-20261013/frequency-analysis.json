@@ -1,0 +1,268 @@
+{
+  "purpose": "DIAGNOSTIC_ONLY",
+  "qualification": "NOT_EVALUATED",
+  "original_cause": "NON_DIMOSTRATA",
+  "clock_identity": {
+    "python_before_ns": 243053609000,
+    "python_after_ns": 243053626100,
+    "windows_qpc": 2430536250,
+    "qpc_frequency": 10000000,
+    "python_implementation": "QueryPerformanceCounter()"
+  },
+  "clock_verified": true,
+  "anchor_offset_spread_seconds": 0.0011563301086425781,
+  "sampler": {
+    "qualification": "NOT_EVALUATED",
+    "job_errors": [],
+    "physical_host_contention": "UNOBSERVED",
+    "job_removed": true,
+    "pmc_instructions": "UNOBSERVED",
+    "samples": 235,
+    "observation_end_qpc": 4761332871,
+    "original_cause": "NON_DIMOSTRATA",
+    "collection": "COLLECTED_REQUIRES_ETW_AND_CLOCK_ANALYSIS",
+    "failed_before_stop": false,
+    "observation_start_qpc": 2414153658,
+    "state": "Completed",
+    "original_fail": 38289564204,
+    "forced_stop": false,
+    "purpose": "DIAGNOSTIC_ONLY"
+  },
+  "environment": {
+    "os": "Windows-2025Server-10.0.26100-SP0",
+    "platform": "windows",
+    "architecture": "AMD64",
+    "cpu": "AMD64 Family 25 Model 1 Stepping 1, AuthenticAMD",
+    "python": "3.12.10",
+    "avx2": true,
+    "logical_cpus": 4,
+    "ram_total": 17174360064,
+    "ram_available": 13429952512
+  },
+  "sample_count": 60,
+  "first_wall_over_5s": [],
+  "worker_absent": true,
+  "rows": [
+    {
+      "status": "OBSERVED",
+      "qualification": "NOT_EVALUATED",
+      "events_lost": 0,
+      "continuity_breaks": 0,
+      "bounds_covered": true,
+      "window_seconds": 1.423126,
+      "worker_pid": 9804,
+      "worker_tids": [
+        9424,
+        9740,
+        9744,
+        9768,
+        9800
+      ],
+      "worker_running_seconds": 2.720684500000001,
+      "worker_running_by_tid": {
+        "9800": 1.3866730000000003,
+        "9424": 1.3340115000000003
+      },
+      "worker_ready_wait_seconds": 0.1241517,
+      "worker_ready_by_tid": {
+        "9800": 0.036447299999999995,
+        "9424": 0.08770440000000002
+      },
+      "other_nonidle_running_on_affinity_seconds": 0.12428209999999998,
+      "other_nonidle_by_cpu": {
+        "2": 0.03644619999999999,
+        "0": 0.0878359
+      },
+      "context_switch_count": 25801,
+      "ready_event_count": 13298,
+      "worker_io_events": [],
+      "dynamic_cpu_frequency": "NOT_OBSERVED",
+      "interpretation": "Aggregate thread time is not additive wall latency; original run has no ETW trace",
+      "run": 0,
+      "request": "9d1c67387687432d9ecede072e599327",
+      "first_wall_seconds": 2.531000000000006,
+      "phases": {
+        "tokenize_and_reset_seconds": 0.0,
+        "prefill_seconds": 1.4220000000000255,
+        "prefill_cpu_seconds": 2.71875,
+        "generation_seconds": 0.1409999999999627
+      },
+      "decode_pdh_sample_count": 2,
+      "guest_frequency_mhz": {
+        "0,0": {
+          "min": 3242.710373877789,
+          "max": 3243.282866344914
+        },
+        "0,1": {
+          "min": 3243.09444809369,
+          "max": 3243.162546332506
+        },
+        "0,2": {
+          "min": 3242.751781584521,
+          "max": 3242.808592033136
+        },
+        "0,3": {
+          "min": 3242.964319350866,
+          "max": 3243.105606879947
+        },
+        "0,_total": {
+          "min": 3242.466782374764,
+          "max": 3243.0658449837697
+        },
+        "_total": {
+          "min": 3242.575901126598,
+          "max": 3243.014015679749
+        }
+      },
+      "slow_decode_discriminable": true
+    },
+    {
+      "status": "OBSERVED",
+      "qualification": "NOT_EVALUATED",
+      "events_lost": 0,
+      "continuity_breaks": 0,
+      "bounds_covered": true,
+      "window_seconds": 1.3605038,
+      "worker_pid": 5980,
+      "worker_tids": [
+        4560,
+        5712,
+        5724,
+        6896,
+        7880
+      ],
+      "worker_running_seconds": 2.6433574,
+      "worker_running_by_tid": {
+        "4560": 1.2836416999999998,
+        "5712": 1.3597157000000004
+      },
+      "worker_ready_wait_seconds": 0.0764022,
+      "worker_ready_by_tid": {
+        "4560": 0.0756184,
+        "5712": 0.0007838000000000001
+      },
+      "other_nonidle_running_on_affinity_seconds": 0.076513,
+      "other_nonidle_by_cpu": {
+        "0": 0.0757292,
+        "2": 0.0007838000000000001
+      },
+      "context_switch_count": 11926,
+      "ready_event_count": 5756,
+      "worker_io_events": [],
+      "dynamic_cpu_frequency": "NOT_OBSERVED",
+      "interpretation": "Aggregate thread time is not additive wall latency; original run has no ETW trace",
+      "run": 1,
+      "request": "2160f23e136b457fa2b54c5a5d14f878",
+      "first_wall_seconds": 2.4839999999999804,
+      "phases": {
+        "tokenize_and_reset_seconds": 0.016000000000019554,
+        "prefill_seconds": 1.3589999999999804,
+        "prefill_cpu_seconds": 2.609375,
+        "generation_seconds": 0.17200000000002547
+      },
+      "decode_pdh_sample_count": 1,
+      "guest_frequency_mhz": {
+        "0,0": {
+          "min": 3242.955345572837,
+          "max": 3242.955345572837
+        },
+        "0,1": {
+          "min": 3242.4838101457826,
+          "max": 3242.4838101457826
+        },
+        "0,2": {
+          "min": 3242.9173258635315,
+          "max": 3242.9173258635315
+        },
+        "0,3": {
+          "min": 3243.212255360331,
+          "max": 3243.212255360331
+        },
+        "0,_total": {
+          "min": 3242.660162608555,
+          "max": 3242.660162608555
+        },
+        "_total": {
+          "min": 3242.6639599877303,
+          "max": 3242.6639599877303
+        }
+      },
+      "slow_decode_discriminable": false
+    },
+    {
+      "status": "OBSERVED",
+      "qualification": "NOT_EVALUATED",
+      "events_lost": 0,
+      "continuity_breaks": 0,
+      "bounds_covered": true,
+      "window_seconds": 1.3635015,
+      "worker_pid": 9700,
+      "worker_tids": [
+        1388,
+        3628,
+        6940,
+        7888,
+        8624
+      ],
+      "worker_running_seconds": 2.6431556000000005,
+      "worker_running_by_tid": {
+        "1388": 1.2804490000000004,
+        "3628": 1.3627066
+      },
+      "worker_ready_wait_seconds": 0.08243529999999998,
+      "worker_ready_by_tid": {
+        "1388": 0.08164549999999998,
+        "3628": 0.0007898
+      },
+      "other_nonidle_running_on_affinity_seconds": 0.08254589999999999,
+      "other_nonidle_by_cpu": {
+        "2": 0.0007898,
+        "0": 0.0817561
+      },
+      "context_switch_count": 11829,
+      "ready_event_count": 5755,
+      "worker_io_events": [],
+      "dynamic_cpu_frequency": "NOT_OBSERVED",
+      "interpretation": "Aggregate thread time is not additive wall latency; original run has no ETW trace",
+      "run": 2,
+      "request": "b6c5ac8ba33541a693945fbe4c6b7147",
+      "first_wall_seconds": 2.468999999999994,
+      "phases": {
+        "tokenize_and_reset_seconds": 0.0,
+        "prefill_seconds": 1.3589999999999804,
+        "prefill_cpu_seconds": 2.609375,
+        "generation_seconds": 0.18799999999998818
+      },
+      "decode_pdh_sample_count": 2,
+      "guest_frequency_mhz": {
+        "0,0": {
+          "min": 3242.994844267236,
+          "max": 3243.2260388395057
+        },
+        "0,1": {
+          "min": 3242.3728695652176,
+          "max": 3242.9910030494193
+        },
+        "0,2": {
+          "min": 3242.786401402864,
+          "max": 3243.0591117677845
+        },
+        "0,3": {
+          "min": 3242.782866441939,
+          "max": 3243.183617843911
+        },
+        "0,_total": {
+          "min": 3242.6504639557097,
+          "max": 3243.077942332215
+        },
+        "_total": {
+          "min": 3242.6894948914214,
+          "max": 3243.0950846141145
+        }
+      },
+      "slow_decode_discriminable": true
+    }
+  ],
+  "physical_host_contention": "UNOBSERVED",
+  "hardware_pmc": "UNOBSERVED"
+}
