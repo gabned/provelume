@@ -23,7 +23,8 @@ _runtime = None
 
 
 def stamp():
-    return {"wall_ns": time.monotonic_ns(), "cpu_ns": time.process_time_ns(),
+    return {"wall_ns": time.monotonic_ns(), "performance_ns": time.perf_counter_ns(),
+            "cpu_ns": time.process_time_ns(),
             "thread_cpu_ns": time.thread_time_ns(), "pid": os.getpid(),
             "tid": threading.get_native_id()}
 
@@ -156,6 +157,16 @@ def install_parent(directory):
         return put(queue, value)
 
     ai_runtime.queue.Queue.put_nowait = observed_put
+    get = ai_runtime.queue.Queue.get
+
+    def observed_get(queue, *args, **kwargs):
+        value = get(queue, *args, **kwargs)
+        if type(value) is dict and value.get("event") in {"first", "prefill"}:
+            point = stamp()
+            record("supervisor.dequeue." + value["event"], point, point)
+        return value
+
+    ai_runtime.queue.Queue.get = observed_get
     popen = subprocess.Popen
 
     def observed_popen(command, *args, **kwargs):
@@ -201,7 +212,7 @@ def main():
               "source_runtime": SOURCE, "diagnostic_head": subprocess.check_output(
                   ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
               "environment": hardware(), "samples": [], "warm_preparations": [],
-              "observer": "wrappers, monotonic/process/thread clocks; buffered child trace",
+              "observer": "wrappers, monotonic/QPC/process/thread clocks; buffered child trace",
               "causal_attribution_to_original": "NOT_DEMONSTRATED",
               "status": "STARTED"}
     install_parent(directory)

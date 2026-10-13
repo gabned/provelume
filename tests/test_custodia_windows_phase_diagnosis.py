@@ -34,8 +34,9 @@ def test_wrapper_preserves_return_exception_and_cpu_wall_span():
         Target.work(None)
     assert len(module._rows) == 2
     for row in module._rows:
-        for field in ("wall_ns", "cpu_ns", "thread_cpu_ns"):
+        for field in ("wall_ns", "performance_ns", "cpu_ns", "thread_cpu_ns"):
             assert row["end"][field] >= row["start"][field]
+        assert row["end"]["performance_ns"] > row["start"]["performance_ns"]
 
 
 def test_worker_keeps_ipc_messages_and_correlates_first_decode(tmp_path, monkeypatch):
