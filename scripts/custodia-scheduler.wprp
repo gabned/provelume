@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WindowsPerformanceRecorder Version="1.0" Author="Provelume">
+  <Profiles>
+    <SystemCollector Id="SchedulerCollector" Name="Custodia scheduler observer">
+      <BufferSize Value="256"/>
+      <Buffers Value="128"/>
+    </SystemCollector>
+    <SystemProvider Id="SchedulerProvider">
+      <Keywords>
+        <Keyword Value="CSwitch"/>
+        <Keyword Value="ReadyThread"/>
+        <Keyword Value="SampledProfile"/>
+        <Keyword Value="DiskIO"/>
+        <Keyword Value="DiskIOInit"/>
+        <Keyword Value="HardFaults"/>
+      </Keywords>
+    </SystemProvider>
+    <Profile Id="CustodiaScheduler.Verbose.Memory" Name="CustodiaScheduler"
+             Description="Numeric scheduler and I/O diagnostic, not qualification"
+             LoggingMode="Memory" DetailLevel="Verbose">
+      <Collectors>
+        <SystemCollectorId Value="SchedulerCollector">
+          <SystemProviderId Value="SchedulerProvider"/>
+        </SystemCollectorId>
+      </Collectors>
+    </Profile>
+  </Profiles>
+</WindowsPerformanceRecorder>

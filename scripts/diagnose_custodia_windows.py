@@ -107,7 +107,7 @@ def install_worker(directory):
     ai_runtime_worker.emit = observed_emit
 
 
-def install_parent(directory):
+def install_parent(directory, capture=None):
     from provelume import ai_model_file, ai_model_store, ai_runtime
 
     wrap(ai_model_file, "verify_stream", "gguf.verify_stream")
@@ -181,6 +181,22 @@ def install_parent(directory):
         return popen(command, *args, **kwargs)
 
     subprocess.Popen = observed_popen
+    if capture is not None:
+        qualify = ai_runtime.LocalRuntime.qualify
+        target = next(row for row in json.loads(
+            (ROOT / "tests/fixtures/ai_runtime_quality.json").read_text()) if row["id"] == "en04")
+        target_prompt = "Text: " + target["text"] + "\nQuestion: " + target["question"]
+
+        def captured_qualify(runtime, store, prompt, **kwargs):
+            if _sample.endswith("/en01") and capture.active is None:
+                capture.start(int(_sample.split("/", 1)[0][3:]), runtime)
+            try:
+                return qualify(runtime, store, prompt, **kwargs)
+            finally:
+                if _sample.endswith("/en04") and prompt == target_prompt:
+                    capture.stop(runtime)
+
+        ai_runtime.LocalRuntime.qualify = captured_qualify
 
 
 def main():
@@ -188,6 +204,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--artifacts", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--scheduler-trace", action="store_true")
     args = parser.parse_args()
     if os.name != "nt" or os.environ.get("GITHUB_ACTIONS") != "true":
         parser.error("Requires a disposable GitHub Windows runner; no native run performed.")
@@ -215,7 +232,13 @@ def main():
               "observer": "wrappers, monotonic/QPC/process/thread clocks; buffered child trace",
               "causal_attribution_to_original": "NOT_DEMONSTRATED",
               "status": "STARTED"}
-    install_parent(directory)
+    capture = None
+    if args.scheduler_trace:
+        from custodia_windows_etw import SchedulerCapture
+
+        capture = SchedulerCapture(directory)
+        report["scheduler_sessions"] = capture.sessions
+    install_parent(directory, capture)
     store = ModelStore(args.artifacts / "diagnostic-store")
     selection = native_selection()
     _runtime = runtime = LocalRuntime((args.artifacts / "windows").resolve())
@@ -268,9 +291,13 @@ def main():
         report["error_type"] = type(exc).__name__
         raise
     finally:
-        runtime.close()
-        report["worker_absent"] = not runtime.loaded
-        save()
+        try:
+            if capture is not None:
+                capture.stop(runtime)
+        finally:
+            runtime.close()
+            report["worker_absent"] = not runtime.loaded
+            save()
 
 
 if __name__ == "__main__":
