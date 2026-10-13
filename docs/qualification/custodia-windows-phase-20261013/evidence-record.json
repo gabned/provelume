@@ -1,0 +1,57 @@
+{
+  "purpose": "DIAGNOSTIC_EVIDENCE_NOT_QUALIFICATION",
+  "owner": "product/custodia-windows-phase-diagnosis",
+  "documentary_pr": 348,
+  "documentary_head": "e750c0531a4be22f304ab47929db406213578ebd",
+  "runtime_source": "cd7dc64f3ffb2a17689018b3350f0e1c073abdd4",
+  "protocol_source": "1a11fe76712ee65ca2160d2ae3789330946a57f2",
+  "original_run": {
+    "id": 38289564204,
+    "attempt": 1,
+    "result": "FAIL",
+    "windows_gate_pass": 26,
+    "windows_gate_total": 27,
+    "en04_run2_first_wall_seconds": 5.797,
+    "limit": 5
+  },
+  "diagnostic_runs": [
+    {
+      "id": 38351912804,
+      "attempt": 1,
+      "head": "679a43dd8d4ecac70c36af781b92134f11317732",
+      "artifact": 11791566341,
+      "hardware": "AMD Family 25 Model 1",
+      "qualification": "NOT_EVALUATED"
+    },
+    {
+      "id": 38352677250,
+      "attempt": 1,
+      "head": "b1d3259538e2b75ac01a36d18e1c8bee1d84988d",
+      "artifact": 11790874778,
+      "hardware": "Intel Family 6 Model 207",
+      "qualification": "NOT_EVALUATED"
+    }
+  ],
+  "cause_of_original_slowdown": "NOT_DEMONSTRATED",
+  "compact": {
+    "name": "evidence.zip",
+    "files": 676,
+    "size_bytes": 9720125,
+    "sha256": "eff5b7f2a3072c15ab1f31d49837f4cfd8f65af291641f1a07947e20310ade54"
+  },
+  "full_local": {
+    "name": "provelume-0.12.1-closure-20261013-full-evidence.zip",
+    "files": 679,
+    "size_bytes": 55668532,
+    "sha256": "eb9486700b73ae9457dcc90e7f53dc6a2309c6d72e27714cdb318b9e9230a390"
+  },
+  "artifact_kind": "not installation kit",
+  "original_release": {
+    "id": 410870418,
+    "tag": "v0.12.1",
+    "full_kit_bytes": 47177228,
+    "full_kit_local": "NOT_DOWNLOADED_OVER_32_MIB"
+  },
+  "historical_bound_receipt": "MISSING_NOT_RECONSTRUCTED",
+  "archive_rule": "Archived source/evidence commits do not trigger another native diagnosis and are not qualified runtime candidates."
+}

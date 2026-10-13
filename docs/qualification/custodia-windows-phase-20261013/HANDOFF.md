@@ -1,0 +1,35 @@
+# Handoff #348 — diagnosi Windows separata
+
+Owner documentale: product/release-0.12.1-delivery-record, PRODUCT / REPOSITORY_POLICY, PR-local legacy.
+Head atteso e750c0531a4be22f304ab47929db406213578ebd; base/main/tag attesi cd7dc64f3ffb2a17689018b3350f0e1c073abdd4.
+Pin 1.5.1/source 1a11fe76712ee65ca2160d2ae3789330946a57f2; v2 DEFERRED_BY_MAINTAINER.
+
+Owner diagnostico separato: product/custodia-windows-phase-diagnosis. Gli osservatori vivono solo in scripts/tests/workflow del branch; nessun byte Core/runtime, corpus, soglia, qualifica, release, receipt, kit o readiness cambia in #348.
+
+Il run originale 38289564204 attempt 1 rimane FAIL Windows Family 25 Model 1, 26/27: en04/run2 first_wall_seconds 5.797 > 5.0. Native first 4.047, residuo 1.750 non ripartibile retrospettivamente. Conservati ZIP originali Windows/Linux, due report del log (prima/dopo WFP), WFP e replay dei gate. Linux 27/27, installer pubblicato e publisher 7/7 sono evidenze separate.
+
+Prima osservazione nuova: run 38351912804 attempt 1, head 679a43dd8d4ecac70c36af781b92134f11317732, artifact 11791566341. DIAGNOSTIC_ONLY / NOT_EVALUATED, 60 sample, Family 25 Model 1 su un altro host disposable. Nessun picco riprodotto. Tutte le partizioni first-wall si riconciliano. Clock monotonic Windows a granularità ~15-16 ms: controlli brevi registrati a zero non ne provano l'assenza. Secondo osservatore b1d3259... aggiunge QPC ad alta risoluzione e dequeue del supervisor; mantiene il clock e i risultati contrattuali. Non è retry invariato di qualifica.
+
+Gate applicabile bloccato: validate_ci originale rifiuta latest applicable attempt is not successful; il minimo repository-required ci.yml non esclude il workflow CPU senza path filter. Nessun nuovo gate Codex o approvazione inventata. Conservati tutti i precedenti preflight BLOCKED negli audit originali e i loro seal; file raw dei precedenti preflight assenti qui, non ricostruiti. Receipt BOUND storica MISSING; binding corrente originale 4a9e3828... recuperato dal commento 6129996130 e verificato, distinto dalla receipt mancante.
+
+Non eseguire retry di qualifica, correzione runtime, aumento soglia o waiver finché una causa correggibile non sia dimostrata. I tempi aggregati di CPU e i segmenti IPC non dimostrano da soli contesa, frequenza o disco. Una diagnosi nuova non misura retroattivamente il run originale.
+
+Prossimo passo concreto se la causa resta non dimostrata: usare i request/PID e le partizioni QPC per formulare una singola ipotesi verificabile; la prova discriminante deve osservare un nuovo rallentamento con CPU scheduling/context switch, tempi di ready-thread, frequenza e I/O associati agli stessi request/PID. Nessuna selezione di verde, nessuna qualifica da diagnostica. Non è autorizzato correggere una causa ipotizzata. Il runner originale non è accessibile da questo workspace e non dispone di tali tracce storiche nell'artifact/log acquisiti.
+
+Solo per un difetto dimostrato: correzione minima su PR e owner runtime separati, review e qualifica proprie. Poi riconciliare base/head/authority di #348 senza assorbire il codice runtime nel suo delta. Solo con tutti i gate applicabili soddisfatti: preflight fresco, merge normale GitHub expected-head, verificare parent e tree reali, tutti i workflow post-merge applicabili (ci.yml@push minimo). Ogni drift invalida i gate dipendenti; non promuovere vecchi PASS.
+
+Release originale v0.12.1 ID 410870418 immutata: 25/25 asset <=32 MiB nuovamente scaricati e verificati, bundle 23 file e receipt/readiness originali PASS. Kit completo 47177228 B oltre 32 MiB non scaricato localmente; prova nativa del publisher distinta. Verifiche umane/hardware non attestate, Windows 10 22H2 BLOCKED e cancellation diagnostica NOT_OBSERVED restano tali. Sito provelume.com separato dai gate Core. 0.12.0 immutabile; 0.13.0 Iudicium.
+
+## Esito QPC e conservazione
+
+Seconda diagnosi 38352677250, attempt 1, head b1d3259538e2b75ac01a36d18e1c8bee1d84988d; artifact 11790874778, ZIP SHA-256 85df850d1db5b403d88b49a1bcfc8e71372fcf57aea0f95581c4776d63f7c151. Host Intel Family 6 Model 207, distinto dall'AMD originale. OBSERVED / DIAGNOSTIC_ONLY / NOT_EVALUATED, 60 sample, worker absent confermato. en04/run2 first_wall 2.625 s; GGUF QPC 1.168077 s, runtime complessivo 0.0169304 s, decode prefill 1.4248256 s; request lock 22.9 microsecondi, send→worker-read 489.7 microsecondi, first-emit→reader 213.6 microsecondi, reader→supervisor-dequeue 101.9 microsecondi. I controlli runtime inclusi nell'ammissione non vengono sommati nuovamente al totale. Il dequeue precede la validazione del first originale, non la sostituisce.
+
+Nessuna delle due osservazioni riproduce il picco originale. Nessun difetto tecnico del runtime è dimostrato, nessuna correzione Core o PR runtime creata, nessun retry della qualifica originale eseguito. Non si ripete una diagnosi invariata per scegliere un host o un verde. La correzione QPC riguarda esclusivamente un difetto misurato dell'osservatore diagnostico. Il blocco e i dati originali restano attivi.
+
+Gli archivi storici fb893740..., 9af6e722... e 3c321c77... non sono presenti qui. Le loro osservazioni/audit sono conservate, senza sostituirne bytes o ricostruire preflight/BOUND mancanti. Nuovi archivi separati contengono le evidenze effettivamente recuperate. I componenti pubblici maggiori restano nel completo; il compatto include il loro inventario/digest e gli URL originali, con source-history Git completo. La copia remota e il suo ripristino devono essere verificati prima del handoff finale.
+
+Impostazioni di ripresa: mantenere il modello e il reasoning correnti se disponibili; identità/effort del modello non sono esposti dal runtime e restano UNKNOWN. Carico stimato HIGH per diagnosi causale, incertezza principale riproduzione del picco e disponibilità di telemetry di scheduling dell'host originale. Nessun nuovo modello o ambiente viene attivato.
+
+Prompt di ripresa: Riprendi #348 owner product/release-0.12.1-delivery-record, head e750c0531a4be22f304ab47929db406213578ebd, base/main cd7dc64f3ffb2a17689018b3350f0e1c073abdd4, pin 1.5.1/source 1a11fe76712ee65ca2160d2ae3789330946a57f2 e v2 differita. Parti dall'audit e dal materiale sul branch product/custodia-windows-phase-diagnosis. Il run originale 38289564204 resta FAIL 26/27, en04/run2 5.797 > 5 s; le due diagnosi sono NOT_EVALUATED e non dimostrano la causa del picco. Verifica una causa discriminabile prima di qualunque correzione minima o nuova qualifica; runtime soltanto in PR e owner separati. Nessun retry invariato, waiver o ricostruzione della BOUND storica. Solo con tutti i gate applicabili soddisfatti: preflight fresco, merge expected-head, parent/tree e post-merge reali. Conserva release/tag/receipt/kit/readiness originali, limiti >32 MiB e verifiche umane/hardware non attestate; sito separato, 0.12.0 immutabile e 0.13.0 Iudicium.
+
+
