@@ -1,0 +1,10 @@
+{
+  "source": "independent HTTPS GitHub clone",
+  "commit": "a620c39746f5f92d923915277078538518f829b3",
+  "archive_sha256": "a18d22b5423e866354e217e185451638602d8848f85a9b9eaf7b5a73fe615ecd",
+  "members_verified": 102,
+  "all_member_restore": "PASS",
+  "git_fsck": "PASS",
+  "source_history": "cloned",
+  "qualification": "NOT_EVALUATED"
+}
