@@ -9,6 +9,9 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - Internal Iudicium classification assessment templates and attributable receipts,
   with bounded synthetic confidence evaluation. These contracts do not enable
   production classification, autonomous application or a new model/provider.
+- Read-only Iudicium target resolution against current canonical Area, Project,
+  Collection and recorded MIME identities, with stale and invalid evidence denied.
+  This S02 prerequisite grants no inference, proposal or application authority.
 
 ## 0.12.1 - 2026-10-12
 

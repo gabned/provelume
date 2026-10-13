@@ -109,6 +109,12 @@ class ProvelumeInstance:
 
         return preview_context(source, selections, **current)
 
+    def ai_classification_targets(self, document_id, allowlist):
+        """Read current canonical targets; does not grant inference or application."""
+        from .ai_classification_targets import resolve_classification_targets
+
+        return resolve_classification_targets(self.store, document_id, allowlist)
+
     @staticmethod
     def ai_explain(
         request: RequestDescriptor | dict[str, Any],
