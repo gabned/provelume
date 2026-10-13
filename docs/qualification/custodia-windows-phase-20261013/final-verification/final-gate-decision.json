@@ -1,0 +1,18 @@
+{
+  "result": "OPEN_BLOCKED",
+  "observed_at": "2026-10-13T05:57:58Z",
+  "ci_inventory_valid": true,
+  "run_count": 18,
+  "source_runs": 14,
+  "target_runs": 4,
+  "blocking_run": 38289564204,
+  "blocking_attempt": 1,
+  "blocking_error": "latest applicable attempt is not successful",
+  "original_fail": "26/27; en04/run2 5.797 > 5 seconds",
+  "preflight_merge_condition": "NOT_SATISFIED",
+  "new_preflight": "NOT_RUN",
+  "merge": "NOT_ATTEMPTED",
+  "post_merge": "NOT_RUN",
+  "runtime_cause": "NOT_DEMONSTRATED",
+  "durable_download_restore": "PASS"
+}

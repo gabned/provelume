@@ -1,0 +1,104 @@
+{
+  "name": "main",
+  "commit": {
+    "sha": "cd7dc64f3ffb2a17689018b3350f0e1c073abdd4",
+    "node_id": "C_kwDOUBfy0toAKGNkN2RjNjRmM2ZmYjJhMTc2ODkwMThiMzM1MGYwZTFjMDczYWJkZDQ",
+    "commit": {
+      "author": {
+        "name": "gabned",
+        "email": "gabriele@neobeta.com",
+        "date": "2026-10-12T16:33:45Z"
+      },
+      "committer": {
+        "name": "GitHub",
+        "email": "noreply@github.com",
+        "date": "2026-10-12T16:33:45Z"
+      },
+      "message": "Merge pull request #345 from gabned/product/release-0.12.1-custodia\n\nPrepare and deliver 0.12.1 Custodia correction release",
+      "tree": {
+        "sha": "dcac8dc84e607a868ce46de82e617be7f757a379",
+        "url": "https://api.github.com/repos/gabned/provelume/git/trees/dcac8dc84e607a868ce46de82e617be7f757a379"
+      },
+      "url": "https://api.github.com/repos/gabned/provelume/git/commits/cd7dc64f3ffb2a17689018b3350f0e1c073abdd4",
+      "comment_count": 0,
+      "verification": {
+        "verified": true,
+        "reason": "valid",
+        "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqzQvpCRC1aQ7uu5UhlAAA2WUQAH9tIgxu0XSYeWWdJ7rxO/gs\nbucS3cERTi22dOtMMF48f6njEW9v6EHNY9RsWEP/OkH3U8as/QnD8U57TbsPLHqi\nXVyapajHoz0oUZ7JxKv5/8Q76nVujqfmHvNWkMF4oYR+85pov5y+YvAVDeQLbk1I\n4ytQv6/vNDiF+Q0aZIkqDBj0Adt7vKoG6xWG1NxP+NsBkGG2PhelQzC9z7cGZRin\nmu+VQJAE4nzmO5jF4xc0ixw9msyaGlOCs5rGmRNMN8jvVzFkdPV1MGIFvGPQVebZ\nGrYV8mJ3KvISdjtGezKndbAa6h6kWblL6J5L0IRAE3Rft21eSxx0/3kwfp8I7Xbe\n8vCGrWc3I5o+lA42GE2/+KjBQBDqQyuxsU35Mm1mvHVgEuWrDY/BwhjT8SJBUSij\ncPxYoRBvWpL+cnpmTd2x2RPt/PIOeSvxxg/2DW2pacqi3fCukifWhHBBT4cGH9vx\nPMIVoixNCxGg2BLvuJbRqTeD3ebZlKzfpAw4NQMzFmmSUDogyX3s6ha9hH6pXddP\nCB028g4B6h8TCnVuLFKi22S+LO0P8i3Fg6u48OI63pBB5+mcCUHGFa6VSFXlGSgP\nbNdCwQuaGckZatJWHglLg0F+Zuh8e0Pz9BnlO2kc3qc2I9Ct8ysqM51zUxJR+qtw\nEZUZ4NsyZVRe+m/xX7jU\n=IdDs\n-----END PGP SIGNATURE-----\n",
+        "payload": "tree dcac8dc84e607a868ce46de82e617be7f757a379\nparent c8818849857935210d216171fecd5d192f673b05\nparent f947d12159fd9b45a8debbad89307f6f207dc178\nauthor gabned <gabriele@neobeta.com> 1791822825 +0200\ncommitter GitHub <noreply@github.com> 1791822825 +0200\n\nMerge pull request #345 from gabned/product/release-0.12.1-custodia\n\nPrepare and deliver 0.12.1 Custodia correction release",
+        "verified_at": "2026-10-12T16:33:46Z"
+      }
+    },
+    "url": "https://api.github.com/repos/gabned/provelume/commits/cd7dc64f3ffb2a17689018b3350f0e1c073abdd4",
+    "html_url": "https://github.com/gabned/provelume/commit/cd7dc64f3ffb2a17689018b3350f0e1c073abdd4",
+    "comments_url": "https://api.github.com/repos/gabned/provelume/commits/cd7dc64f3ffb2a17689018b3350f0e1c073abdd4/comments",
+    "author": {
+      "login": "gabned",
+      "id": 25499689,
+      "node_id": "MDQ6VXNlcjI1NDk5Njg5",
+      "avatar_url": "https://avatars.githubusercontent.com/u/25499689?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/gabned",
+      "html_url": "https://github.com/gabned",
+      "followers_url": "https://api.github.com/users/gabned/followers",
+      "following_url": "https://api.github.com/users/gabned/following{/other_user}",
+      "gists_url": "https://api.github.com/users/gabned/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/gabned/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/gabned/subscriptions",
+      "organizations_url": "https://api.github.com/users/gabned/orgs",
+      "repos_url": "https://api.github.com/users/gabned/repos",
+      "events_url": "https://api.github.com/users/gabned/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/gabned/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "committer": {
+      "login": "web-flow",
+      "id": 19864447,
+      "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+      "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/web-flow",
+      "html_url": "https://github.com/web-flow",
+      "followers_url": "https://api.github.com/users/web-flow/followers",
+      "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+      "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+      "organizations_url": "https://api.github.com/users/web-flow/orgs",
+      "repos_url": "https://api.github.com/users/web-flow/repos",
+      "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/web-flow/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "parents": [
+      {
+        "sha": "c8818849857935210d216171fecd5d192f673b05",
+        "url": "https://api.github.com/repos/gabned/provelume/commits/c8818849857935210d216171fecd5d192f673b05",
+        "html_url": "https://github.com/gabned/provelume/commit/c8818849857935210d216171fecd5d192f673b05"
+      },
+      {
+        "sha": "f947d12159fd9b45a8debbad89307f6f207dc178",
+        "url": "https://api.github.com/repos/gabned/provelume/commits/f947d12159fd9b45a8debbad89307f6f207dc178",
+        "html_url": "https://github.com/gabned/provelume/commit/f947d12159fd9b45a8debbad89307f6f207dc178"
+      }
+    ]
+  },
+  "_links": {
+    "self": "https://api.github.com/repos/gabned/provelume/branches/main",
+    "html": "https://github.com/gabned/provelume/tree/main"
+  },
+  "protected": false,
+  "protection": {
+    "enabled": false,
+    "required_status_checks": {
+      "enforcement_level": "off",
+      "contexts": [],
+      "checks": []
+    }
+  },
+  "protection_url": "https://api.github.com/repos/gabned/provelume/branches/main/protection"
+}

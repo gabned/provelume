@@ -1,0 +1,735 @@
+{
+  "repository": "gabned/provelume",
+  "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+  "source": "GITHUB_CONNECTOR",
+  "observed_at": "2026-10-13T05:57:58Z",
+  "applicability": "REQUIRED",
+  "policy_ref": "cd7dc64f3ffb2a17689018b3350f0e1c073abdd4",
+  "required_workflows": [
+    ".github/workflows/ci.yml@pull_request",
+    ".github/workflows/ci.yml@pull_request_target"
+  ],
+  "runs": [
+    {
+      "run_id": 38353971776,
+      "workflow": ".github/workflows/ci.yml",
+      "event": "pull_request_target",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 115152479536,
+              "name": "Agent change control (trusted base)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 115152481036,
+              "name": "Windows Core execution (${{ matrix.group }})",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 115152481081,
+              "name": "Core tests (${{ matrix.os }})",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 115152481084,
+              "name": "Native Protocol workspace profile",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 115152481149,
+              "name": "Clean-room and repository hygiene",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 115152481222,
+              "name": "Independent Protocol extraction (${{ matrix.os }})",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 115152481228,
+              "name": "Windows preview install and uninstall",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 115152481600,
+              "name": "Deterministic release dry run",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 115152481663,
+              "name": "Core tests (windows-latest)",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38350785075,
+      "workflow": ".github/workflows/ci.yml",
+      "event": "pull_request_target",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 115142459053,
+              "name": "Agent change control (trusted base)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 115142459999,
+              "name": "Native Protocol workspace profile",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 115142460156,
+              "name": "Independent Protocol extraction (${{ matrix.os }})",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 115142460303,
+              "name": "Core tests (${{ matrix.os }})",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 115142460374,
+              "name": "Deterministic release dry run",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 115142460380,
+              "name": "Windows preview install and uninstall",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 115142460382,
+              "name": "Windows Core execution (${{ matrix.group }})",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 115142460425,
+              "name": "Core tests (windows-latest)",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 115142460503,
+              "name": "Clean-room and repository hygiene",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38303571022,
+      "workflow": ".github/workflows/ci.yml",
+      "event": "pull_request_target",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114992077453,
+              "name": "Agent change control (trusted base)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114992078835,
+              "name": "Independent Protocol extraction (${{ matrix.os }})",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 114992078967,
+              "name": "Windows Core execution (${{ matrix.group }})",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 114992079012,
+              "name": "Windows preview install and uninstall",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 114992079106,
+              "name": "Core tests (windows-latest)",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 114992079278,
+              "name": "Deterministic release dry run",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 114992079293,
+              "name": "Core tests (${{ matrix.os }})",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 114992079332,
+              "name": "Clean-room and repository hygiene",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 114992079674,
+              "name": "Native Protocol workspace profile",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38289564204,
+      "workflow": ".github/workflows/ai-runtime-candidate.yml",
+      "event": "pull_request",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "FAILURE",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114946100843,
+              "name": "measure (windows-2025)",
+              "status": "COMPLETED",
+              "conclusion": "FAILURE"
+            },
+            {
+              "id": 114946100956,
+              "name": "measure (ubuntu-24.04)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38289564160,
+      "workflow": ".github/workflows/custodia-container.yml",
+      "event": "pull_request",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114946100070,
+              "name": "container",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38289564292,
+      "workflow": ".github/workflows/ci.yml",
+      "event": "pull_request",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114946101589,
+              "name": "Clean-room and repository hygiene",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946101921,
+              "name": "Windows preview install and uninstall",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946101971,
+              "name": "Deterministic release dry run",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946101986,
+              "name": "Core tests (ubuntu-latest)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946101989,
+              "name": "Independent Protocol extraction (windows-latest)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946101990,
+              "name": "Windows Core execution (0)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946102007,
+              "name": "Native Protocol workspace profile",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946102026,
+              "name": "Windows Core execution (1)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946102216,
+              "name": "Independent Protocol extraction (ubuntu-latest)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946103720,
+              "name": "Agent change control (trusted base)",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 114948615468,
+              "name": "Core tests (windows-latest)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38289564280,
+      "workflow": ".github/workflows/transcript-smoke.yml",
+      "event": "pull_request",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114946101024,
+              "name": "ubuntu-x86_64",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946101151,
+              "name": "windows-x86_64",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38289564213,
+      "workflow": ".github/workflows/perceptio-final-qualification.yml",
+      "event": "pull_request",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114946100271,
+              "name": "Integrated read model (ubuntu-24.04)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946100539,
+              "name": "Integrated read model (windows-2025)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38289564177,
+      "workflow": ".github/workflows/google-smoke.yml",
+      "event": "pull_request",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114946099602,
+              "name": "Synthetic conformance (ubuntu-24.04)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946099962,
+              "name": "Synthetic conformance (windows-2025)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38289564081,
+      "workflow": ".github/workflows/file-family-smoke.yml",
+      "event": "pull_request",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114946099451,
+              "name": "ubuntu-x86_64",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946099764,
+              "name": "windows-x86_64",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38289564214,
+      "workflow": ".github/workflows/qualification-smoke.yml",
+      "event": "pull_request",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114946099876,
+              "name": "Synthetic conformance (ubuntu-24.04)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946100237,
+              "name": "Synthetic conformance (windows-2025)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38289564123,
+      "workflow": ".github/workflows/ocr-smoke.yml",
+      "event": "pull_request",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114946100006,
+              "name": "ubuntu-x86_64",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38289564207,
+      "workflow": ".github/workflows/email-smoke.yml",
+      "event": "pull_request",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114946099747,
+              "name": "windows-x86_64",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946100017,
+              "name": "ubuntu-x86_64",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38289564278,
+      "workflow": ".github/workflows/audio-smoke.yml",
+      "event": "pull_request",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114946100578,
+              "name": "ubuntu-whisper-cpp",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946101194,
+              "name": "windows-degraded",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38289564183,
+      "workflow": ".github/workflows/windows-shell-smoke.yml",
+      "event": "pull_request",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114946100502,
+              "name": "Exact-head Windows shell qualification",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38289564338,
+      "workflow": ".github/workflows/video-smoke.yml",
+      "event": "pull_request",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114946101003,
+              "name": "windows-degraded",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946101411,
+              "name": "ubuntu-ffmpeg",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38289564116,
+      "workflow": ".github/workflows/custodia-installed.yml",
+      "event": "pull_request",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114946099632,
+              "name": "installed",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": 38289561157,
+      "workflow": ".github/workflows/ci.yml",
+      "event": "pull_request_target",
+      "head_sha": "e750c0531a4be22f304ab47929db406213578ebd",
+      "latest_attempt": 1,
+      "attempts": [
+        {
+          "run_attempt": 1,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "jobs_complete": true,
+          "jobs": [
+            {
+              "id": 114946093190,
+              "name": "Agent change control (trusted base)",
+              "status": "COMPLETED",
+              "conclusion": "SUCCESS"
+            },
+            {
+              "id": 114946094299,
+              "name": "Clean-room and repository hygiene",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 114946094411,
+              "name": "Core tests (${{ matrix.os }})",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 114946094606,
+              "name": "Deterministic release dry run",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 114946094725,
+              "name": "Windows preview install and uninstall",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 114946094816,
+              "name": "Windows Core execution (${{ matrix.group }})",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 114946095260,
+              "name": "Core tests (windows-latest)",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 114946133415,
+              "name": "Independent Protocol extraction (${{ matrix.os }})",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            },
+            {
+              "id": 114946154800,
+              "name": "Native Protocol workspace profile",
+              "status": "COMPLETED",
+              "conclusion": "SKIPPED"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "runs_complete": true
+}

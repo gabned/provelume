@@ -1,0 +1,55 @@
+{
+  "review_threads": [
+    {
+      "id": "PRRT_kwDOUBfy0s6rklIA",
+      "is_resolved": true,
+      "is_outdated": false,
+      "path": "README.md",
+      "line": 11,
+      "diff_side": "RIGHT",
+      "start_line": 11,
+      "start_diff_side": null,
+      "original_line": 11,
+      "original_start_line": null,
+      "resolved_by": {
+        "login": "gabned",
+        "name": "gabned",
+        "email": null,
+        "avatar_url": "https://avatars.githubusercontent.com/u/25499689?v=4",
+        "id": null
+      },
+      "comments": [
+        {
+          "id": "PRRC_kwDOUBfy0s79YSxc",
+          "database_id": 4251003996,
+          "body": "**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Update the remaining prepared-preview assertion**\n\nAfter changing this heading, `tests/test_emendatio_activation.py:180` still asserts the old `0.12.1 Custodia prepared preview` text. Running `python -m pytest -q tests/test_public_roadmap.py tests/test_emendatio_activation.py` produces 50 passes and this failure, so the required pytest gate cannot pass until that remaining assertion is updated with the status transition.\n\nAGENTS.md reference: [AGENTS.md:L51-L58](https://github.com/gabned/provelume/blob/20dca858133587aaad6074df6b47550a55f3910c/AGENTS.md#L51-L58)\n\nUseful? React with 👍 / 👎.",
+          "created_at": "2026-10-12T18:08:26Z",
+          "updated_at": "2026-10-12T18:08:27Z",
+          "author": {
+            "login": "chatgpt-codex-connector",
+            "name": "chatgpt-codex-connector",
+            "email": null,
+            "avatar_url": "https://avatars.githubusercontent.com/in/1144995?v=4",
+            "id": null
+          },
+          "viewer_did_author": false
+        },
+        {
+          "id": "PRRC_kwDOUBfy0s79Yesj",
+          "database_id": 4251052835,
+          "body": "Addressed in e750c05: the remaining current-title assertion now expects '0.12.1 Custodia published preview'. Both existing status assertions now match the actual published/readiness state; no test is removed or weakened.54 related regressions PASS; full original20dca85 FAIL1/4078/45 and remote source failures are preserved. New-head full/source qualification is renewed; immutable official0.12.1 tag/payload/receipt/kit/readiness remain verified and unchanged.",
+          "created_at": "2026-10-12T18:14:54Z",
+          "updated_at": "2026-10-12T18:14:54Z",
+          "author": {
+            "login": "gabned",
+            "name": "gabned",
+            "email": null,
+            "avatar_url": "https://avatars.githubusercontent.com/u/25499689?v=4",
+            "id": null
+          },
+          "viewer_did_author": true
+        }
+      ]
+    }
+  ]
+}
