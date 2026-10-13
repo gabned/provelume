@@ -127,7 +127,7 @@ function Invoke-CustodiaFrequencyObservation {
             $previousQpc = 0L
             $previousTime = [DateTime]::MinValue
             foreach ($sample in $samples) {
-                $time = [DateTime]::Parse($sample.sample_utc).ToUniversalTime()
+                $time = if ($sample.sample_utc -is [DateTime]) { $sample.sample_utc.ToUniversalTime() } else { [DateTime]::Parse($sample.sample_utc).ToUniversalTime() }
                 if ($sample.qpc_frequency -ne [Diagnostics.Stopwatch]::Frequency -or
                     $sample.qpc_after_collect -le $previousQpc -or $time -le $previousTime -or
                     ($previousQpc -gt 0 -and ($sample.qpc_after_collect - $previousQpc) / $sample.qpc_frequency -gt 2.5)) {
