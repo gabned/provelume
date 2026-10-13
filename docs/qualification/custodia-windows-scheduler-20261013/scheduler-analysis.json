@@ -1,0 +1,134 @@
+{
+  "purpose": "DIAGNOSTIC_ONLY",
+  "rows": [
+    {
+      "status": "OBSERVED",
+      "qualification": "NOT_EVALUATED",
+      "events_lost": 0,
+      "continuity_breaks": 0,
+      "bounds_covered": true,
+      "window_seconds": 1.3153041,
+      "worker_pid": 8412,
+      "worker_tids": [
+        732,
+        920,
+        1472,
+        3348,
+        6648
+      ],
+      "worker_running_seconds": 2.6215087,
+      "worker_running_by_tid": {
+        "732": 1.3066845,
+        "920": 1.3148242
+      },
+      "worker_ready_wait_seconds": 0.007768899999999997,
+      "worker_ready_by_tid": {
+        "920": 0.0003844,
+        "732": 0.007384499999999997
+      },
+      "other_nonidle_running_on_affinity_seconds": 0.008066999999999996,
+      "other_nonidle_by_cpu": {
+        "2": 0.0006380999999999998,
+        "0": 0.007428899999999997
+      },
+      "context_switch_count": 9679,
+      "ready_event_count": 4617,
+      "worker_io_events": [],
+      "dynamic_cpu_frequency": "NOT_OBSERVED",
+      "interpretation": "Aggregate thread time is not additive wall latency; original run has no ETW trace",
+      "case": "en04",
+      "run": 0,
+      "request": "fb42d89253fb4fd183df71cc70e5ee80",
+      "cold": false,
+      "first_wall_seconds": 2.4069999999999823,
+      "native_prefill_cpu_seconds": 2.609375,
+      "original_spike_cause": "NOT_DEMONSTRATED"
+    },
+    {
+      "status": "OBSERVED",
+      "qualification": "NOT_EVALUATED",
+      "events_lost": 0,
+      "continuity_breaks": 0,
+      "bounds_covered": true,
+      "window_seconds": 1.3747658,
+      "worker_pid": 6404,
+      "worker_tids": [
+        1040,
+        1908,
+        6216,
+        6352,
+        7860
+      ],
+      "worker_running_seconds": 2.633166600000001,
+      "worker_running_by_tid": {
+        "1908": 1.3031433000000008,
+        "7860": 1.3300233000000001
+      },
+      "worker_ready_wait_seconds": 0.1151941,
+      "worker_ready_by_tid": {
+        "1908": 0.07045510000000002,
+        "7860": 0.04473899999999998
+      },
+      "other_nonidle_running_on_affinity_seconds": 0.11536589999999998,
+      "other_nonidle_by_cpu": {
+        "2": 0.04473899999999997,
+        "0": 0.0706269
+      },
+      "context_switch_count": 12489,
+      "ready_event_count": 6151,
+      "worker_io_events": [],
+      "dynamic_cpu_frequency": "NOT_OBSERVED",
+      "interpretation": "Aggregate thread time is not additive wall latency; original run has no ETW trace",
+      "case": "en04",
+      "run": 1,
+      "request": "2fdfa4b4bf3d489599d8d8e50feff944",
+      "cold": false,
+      "first_wall_seconds": 2.468999999999994,
+      "native_prefill_cpu_seconds": 2.640625,
+      "original_spike_cause": "NOT_DEMONSTRATED"
+    },
+    {
+      "status": "OBSERVED",
+      "qualification": "NOT_EVALUATED",
+      "events_lost": 0,
+      "continuity_breaks": 0,
+      "bounds_covered": true,
+      "window_seconds": 1.3399803,
+      "worker_pid": 9772,
+      "worker_tids": [
+        2080,
+        7228,
+        7260,
+        7372,
+        10048
+      ],
+      "worker_running_seconds": 2.639200399999999,
+      "worker_running_by_tid": {
+        "10048": 1.3000587999999995,
+        "7260": 1.3391415999999998
+      },
+      "worker_ready_wait_seconds": 0.03962359999999999,
+      "worker_ready_by_tid": {
+        "10048": 0.03878729999999999,
+        "7260": 0.0008363000000000001
+      },
+      "other_nonidle_running_on_affinity_seconds": 0.03972939999999999,
+      "other_nonidle_by_cpu": {
+        "2": 0.0008363000000000001,
+        "0": 0.03889309999999999
+      },
+      "context_switch_count": 11074,
+      "ready_event_count": 5355,
+      "worker_io_events": [],
+      "dynamic_cpu_frequency": "NOT_OBSERVED",
+      "interpretation": "Aggregate thread time is not additive wall latency; original run has no ETW trace",
+      "case": "en04",
+      "run": 2,
+      "request": "bd2e981ce3b143d7b1824c7cdb0786d6",
+      "cold": false,
+      "first_wall_seconds": 2.437999999999988,
+      "native_prefill_cpu_seconds": 2.640625,
+      "original_spike_cause": "NOT_DEMONSTRATED"
+    }
+  ]
+}

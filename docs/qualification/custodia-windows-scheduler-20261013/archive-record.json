@@ -1,0 +1,8 @@
+{
+  "path": ".agent/provelume-0.12.1-scheduler-20261013-evidence.zip",
+  "size_bytes": 24561069,
+  "sha256": "77c992ef8fd4479c76a47b6fcf959cc313751c118e4b6e51ea461c1631758295",
+  "members": 40,
+  "restore": "PASS",
+  "git_clone_fsck": "PASS"
+}
