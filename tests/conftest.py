@@ -1,5 +1,3 @@
-from dataclasses import replace
-
 import pytest
 
 from provelume.shell_settings import ShellSettingsManager, default_settings
@@ -9,7 +7,6 @@ from provelume.shell_settings import ShellSettingsManager, default_settings
 def shell_mode_settings(tmp_path, request):
     """Exercise retained Current contracts and the qualified Cura default separately."""
     path = tmp_path / "synthetic-launcher.json"
-    ShellSettingsManager(path, default_settings()).save(
-        replace(default_settings(), interface_mode=request.param)
-    )
+    manager = ShellSettingsManager(path, default_settings())
+    manager.set_interface_mode(request.param, expected_revision=0)
     return request.param, path

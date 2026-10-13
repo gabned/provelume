@@ -77,3 +77,34 @@ def test_fresh_creation_uses_product_default_without_a_backup_receipt(tmp_path):
     assert manager.load().settings.interface_mode == "preview"
     assert manager.load().settings.interface_mode_change is None
     assert not manager.path.exists()
+
+
+def test_failed_side_effect_restores_legacy_bytes_and_does_not_commit_inheritance(tmp_path):
+    defaults = replace(default_settings(), instance_path=str(tmp_path / "instance"))
+    manager = ShellSettingsManager(tmp_path / "launcher.json", defaults)
+    payload = replace(defaults, interface_mode="current", schema_version=2).as_payload()
+    raw = json.dumps(payload, separators=(",", ":")).encode()
+    manager.path.write_bytes(raw)
+
+    def fail(_):
+        raise RuntimeError("synthetic rejected preference side effect")
+
+    with pytest.raises(RuntimeError):
+        manager.mutate(lambda current: replace(current, theme="dark"),
+                       expected_revision=0, post_commit=fail)
+    assert manager.path.read_bytes() == raw
+    assert manager.load().settings.interface_mode_change is None
+    assert manager.load().settings.revision == 0
+
+
+def test_failed_first_preferences_transaction_restores_absence(tmp_path):
+    defaults = replace(default_settings(), instance_path=str(tmp_path / "instance"))
+    manager = ShellSettingsManager(tmp_path / "launcher.json", defaults)
+
+    def fail(_):
+        raise RuntimeError("synthetic rejected preference side effect")
+
+    with pytest.raises(RuntimeError):
+        manager.mutate(lambda current: replace(current, theme="dark"),
+                       expected_revision=0, post_commit=fail)
+    assert not manager.path.exists()

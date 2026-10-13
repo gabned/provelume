@@ -156,7 +156,7 @@ def test_slow_download_renews_cancellation_without_nonce_churn(ui, monkeypatch):
 
 
 @pytest.mark.parametrize("schema", [1, 2, 3, 4])
-def test_upgrade_offer_then_cura_and_explicit_rollback_preserve_preferences(ui, schema):
+def test_upgrade_inherits_cura_and_explicit_backup_preserves_preferences(ui, schema):
     app, client, manager = ui
     old = LauncherSettings(instance_path=str(app.state.ai_setup.instance.root),
                            language="it", theme="dark", check_on_start=True)
@@ -175,7 +175,8 @@ def test_upgrade_offer_then_cura_and_explicit_rollback_preserve_preferences(ui, 
         }))
     baseline = manager.load().settings
     original = manager.path.read_bytes()
-    assert "Scegli l’interfaccia" in client.get("/").text
+    assert 'class="cura"' in client.get("/").text
+    assert baseline.interface_mode == "preview" and baseline.interface_mode_change is None
     assert manager.path.read_bytes() == original  # Viewing never migrates on disk.
     for mode in ("preview", "current"):
         # Interface form has its own one-time reference, not the general form's.

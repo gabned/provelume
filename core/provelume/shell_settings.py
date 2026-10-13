@@ -699,7 +699,10 @@ class ShellSettingsManager:
     ) -> LauncherSettings:
         with self.hold():
             previous_path = _guard_path(self.path, allow_missing=True)
-            previous_bytes = previous_path.read_bytes() if previous_path.exists() else None
+            previous_bytes = None
+            if previous_path.exists():
+                with previous_path.open("rb") as previous_file:
+                    previous_bytes = previous_file.read(MAX_SETTINGS_BYTES + 1)
             if previous_bytes is not None and len(previous_bytes) > MAX_SETTINGS_BYTES:
                 raise ShellSettingsError("launcher settings exceed the size limit")
             current = self.load().settings
