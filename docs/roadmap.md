@@ -27,10 +27,14 @@ request, tag, release or delivery commitment. Planned-version movement follows
 
 ## Release lane
 
-Next-release maintenance requested in #339/#340: live model-download progress,
-Cura functional parity and reversible standard-interface adoption. Implementation
-is in progress; the release number and activation remain to be determined. See the
-[completion audit](qualification/cura-ai-completion.md).
+**Iudicium 0.13.0 development is active** through parent #349 and S01 #350,
+owner `product/0.13-s01-classification-evaluation`. The maintainer explicitly
+authorized this next development objective on 2026-10-13 after the bounded #348
+diagnostic, even while #348 remains OPEN / BLOCKED. Custodia v0.12.1 is already
+[public](https://github.com/gabned/provelume/releases/tag/v0.12.1); its prepared
+source records below still await the separate #348 documentary reconciliation.
+That residual and its original FAIL are not absorbed or requalified by Iudicium.
+Package identity remains 0.12.1; development activation does not authorize publication.
 
 | State | Version | Product outcome | Activation | Latin name |
 | --- | --- | --- | --- | --- |
@@ -51,7 +55,7 @@ is in progress; the release number and activation remain to be determined. See t
 | Published preview | `0.11.0` | Daily-use UX, Unified Capture, Action Center and multilingual interface | #255 S01–S09 delivered; #308 release record; [public identity/readiness](https://github.com/gabned/provelume/releases/tag/v0.11.0) | `Cura` |
 | Published preview | `0.12.0` | Optional local AI, privacy gateway and accountable document assistance | #311 S01–S09 delivered; #337/#338; [public release](https://github.com/gabned/provelume/releases/tag/v0.12.0) | `Custodia` |
 | Prepared preview | `0.12.1` | Custodia corrections: Cura/AI access, model progress, Windows local panel and closed native diagnostics | #339/#340; #341/#342/#343/#344; [release preparation](releases/0.12.1.md), actual delivery pending | Follow-up to `Custodia` |
-| Forecast | `0.13.0` | AI classification, confidence and controlled application extending Custodia receipts/templates | issue just in time | `Iudicium` |
+| Active development | `0.13.0` | AI classification, confidence and controlled application extending Custodia receipts/templates | #349; S01 #350; owner `product/0.13-s01-classification-evaluation` | `Iudicium` |
 | Forecast | `0.14.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
 | Forecast | `0.15.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
 | Forecast | `0.16.0` | Knowledge navigation, statistics, relations and deterministic discovery | issue just in time | `Itinerarium` |
@@ -1523,6 +1527,26 @@ classification, MCP, new connectors or remote OCR/vision/audio execution. #259 a
 network/tray/global capture remain 0.20; later release numbers stay unchanged.
 
 ### 0.13.0 — AI Classification, Controlled Autonomy, Receipts and Evaluation
+
+**Activation:** parent #349, first bounded slice #350; PRODUCT / REPOSITORY_POLICY,
+PR-local legacy. S01 extends existing templates/receipts and adds pure, bounded
+confidence evaluation with EN/IT synthetic fixtures. It does not enable production
+classification, create durable proposals, alter hierarchy or authorize application.
+See [ADR 0053](adr/0053-iudicium-assessment-evaluation.md). The current real model's
+classification quality is unqualified; this blocks later support/promotion claims,
+not independent S01 contract development. Subsequent slices remain just in time.
+
+**BUSINESS_IMPACT:** MATERIAL — reduce routine filing review time while preserving
+user control. Observe reviewed suggestion correctness, false-positive/abstention
+rate, review time and undo success after a qualified release, without new telemetry.
+
+**Adjacent work (#240):** `MERGE_WITH_CURRENT` the #224 classification/review portion;
+`KEEP_SEPARATE` Entitas object/migration work, Concordia provider writes, Excubitor
+OS-global capture and #348's remaining documentary qualification;
+`DEFER` additional adapters/providers, model profiles and unrelated refactors.
+Preserve all forecast version numbers and perform one final integrated release
+qualification after S01–S05. User journeys, threat/support boundaries and acceptance
+are recorded in #349; S01 has no new UI or human/hardware attestation.
 
 **Depends on:** the `0.12.0` gateway and the `0.11.0` Action Center.
 
