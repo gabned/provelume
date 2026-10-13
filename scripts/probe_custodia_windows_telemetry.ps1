@@ -68,11 +68,15 @@ public static class CustodiaTelemetryCalibration {
 '@
 Probe 'thread_cycle_accounting' { [CustodiaTelemetryCalibration]::Run(300) }
 $counterPaths = @(
+    '\Processor Information(*)\Actual Frequency',
     '\Processor Information(*)\Processor Frequency',
     '\Processor Information(*)\% Processor Performance',
     '\Processor Information(*)\% of Maximum Frequency',
     '\Processor Information(*)\% Processor Utility',
-    '\Processor Information(*)\% Processor Time'
+    '\Processor Information(*)\% Processor Time',
+    '\Hyper-V Hypervisor Virtual Processor(*)\CPU Wait Time Per Dispatch',
+    '\Hyper-V Hypervisor Logical Processor(*)\% Total Run Time',
+    '\Hyper-V Hypervisor Root Virtual Processor(*)\% Total Run Time'
 )
 # Bounded synthetic load on this new guest only. No Core/model/gate execution.
 $job = Start-Job { $w = [Diagnostics.Stopwatch]::StartNew(); while ($w.Elapsed.TotalSeconds -lt 8) { [Math]::Sqrt(1234567) | Out-Null } }
@@ -84,7 +88,7 @@ try {
                 semantics = 'GUEST_PDH_REPORTED_VALUES_NEED_CALIBRATION_NOT_PHYSICAL_HOST_TELEMETRY'
                 samples = @($samples | ForEach-Object {
                     @{ utc = $_.Timestamp.ToUniversalTime().ToString('o'); counters = @($_.CounterSamples | ForEach-Object {
-                        @{ instance = $_.InstanceName; value = $_.CookedValue; status = $_.Status; timestamp_100ns = $_.Timestamp100NS }
+                        @{ instance = $_.InstanceName; value = $_.CookedValue; status = $_.Status; timestamp_100ns = $_.Timestamp100nSec }
                     }) }
                 })
             }
