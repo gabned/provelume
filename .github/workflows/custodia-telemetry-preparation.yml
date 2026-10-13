@@ -1,0 +1,25 @@
+name: Custodia prepared telemetry observer syntax (no observation)
+on:
+  push:
+    branches: [product/custodia-windows-phase-diagnosis]
+    paths:
+      - scripts/observe_custodia_guest_frequency.ps1
+      - .github/workflows/custodia-telemetry-preparation.yml
+permissions:
+  contents: read
+jobs:
+  parse:
+    runs-on: windows-2025
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Parse prepared observer without execution
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          $null = [System.Management.Automation.Language.Parser]::ParseFile("$pwd/scripts/observe_custodia_guest_frequency.ps1", [ref]$tokens, [ref]$errors)
+          if ($errors.Count) { throw ($errors | Out-String) }
+          Write-Output 'Observer syntax PASS; frequency/model observation NOT_EXECUTED; qualification NOT_EVALUATED.'
