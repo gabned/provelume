@@ -107,20 +107,22 @@ def test_compatible_current_preferences_keep_schema_two_until_interface_selectio
     manager.path.write_text(json.dumps(payload), encoding="utf-8")
     before, modified = manager.path.read_bytes(), manager.path.stat().st_mtime_ns
     loaded = manager.load()
-    assert loaded.warning == ("legacy_settings_loaded_pending_migration" if schema == 1 else None)
-    assert loaded.settings.schema_version == 2
-    assert loaded.settings.interface_mode == "current"
+    assert loaded.warning == "legacy_settings_loaded_pending_migration"
+    assert loaded.settings.schema_version == 3
+    assert loaded.settings.interface_mode == "preview"
     assert loaded.settings.interface_mode_change is None
     assert manager.path.read_bytes() == before and manager.path.stat().st_mtime_ns == modified
     assert not manager.lock_path.exists()
     saved = manager.set_preferences(theme="light", expected_revision=loaded.settings.revision)
     assert saved == replace(loaded.settings, theme="light", revision=loaded.settings.revision + 1)
     serialized = json.loads(manager.path.read_bytes())
-    assert serialized["schema_version"] == 2
+    assert serialized["schema_version"] == 3
     assert serialized["shell"] == {
         "tray_enabled": saved.tray_enabled,
         "login_startup": saved.login_startup,
         "theme": "light",
+        "interface_mode": "preview",
+        "interface_mode_change": None,
     }
     assert manager.load().warning is None
     transferred = tmp_path / "ordinary-preferences.json"
@@ -130,8 +132,8 @@ def test_compatible_current_preferences_keep_schema_two_until_interface_selectio
         imported.endpoint_port, expected_revision=imported.revision
     )
     changed = manager.set_preferences(language="en", expected_revision=started.revision)
-    assert changed.schema_version == json.loads(manager.path.read_bytes())["schema_version"] == 2
-    assert changed.interface_mode == "current" and changed.interface_mode_change is None
+    assert changed.schema_version == json.loads(manager.path.read_bytes())["schema_version"] == 3
+    assert changed.interface_mode == "preview" and changed.interface_mode_change is None
 
 
 @pytest.mark.parametrize("mode", ["current", "preview"])
@@ -154,8 +156,8 @@ def test_first_interface_choice_promotes_schema_and_receipt_in_one_write(
     assert writes[0]["shell"]["interface_mode"] == mode
     receipt = writes[0]["shell"]["interface_mode_change"]
     assert receipt["revision"] == writes[0]["revision"] == saved.revision == 1
-    assert receipt["from"] == "current" and receipt["to"] == mode
-    assert receipt["changed"] is (mode != "current")
+    assert receipt["from"] == "preview" and receipt["to"] == mode
+    assert receipt["changed"] is (mode != "preview")
     assert manager.load().settings == saved
 
 
@@ -171,7 +173,9 @@ def test_existing_schema_three_without_receipt_survives_every_ordinary_save(
     manager.path.write_text(json.dumps(payload), encoding="utf-8")
     before, modified = manager.path.read_bytes(), manager.path.stat().st_mtime_ns
     loaded = manager.load()
-    assert loaded.warning is None and loaded.settings.schema_version == 3
+    assert loaded.warning == ("legacy_settings_loaded_pending_migration" if mode == "current"
+                              else None)
+    assert loaded.settings.schema_version == 3
     assert manager.path.read_bytes() == before and manager.path.stat().st_mtime_ns == modified
     saved = manager.set_preferences(theme="dark", language="en", expected_revision=7)
     started = manager.mark_endpoint_started(saved.endpoint_port, expected_revision=8)
@@ -180,7 +184,7 @@ def test_existing_schema_three_without_receipt_survives_every_ordinary_save(
     imported = manager.import_preferences(transfer, expected_revision=started.revision)
     desktop.save_settings(LauncherSettings(**asdict(imported)), manager.path)
     restarted = desktop.load_settings(manager.path)
-    assert restarted.schema_version == 3 and restarted.interface_mode == mode
+    assert restarted.schema_version == 3 and restarted.interface_mode == "preview"
     assert restarted.interface_mode_change is None
     assert json.loads(manager.path.read_bytes())["schema_version"] == 3
     assert restarted.public_view()["configuration_schema_version"] == 3
@@ -220,7 +224,7 @@ def test_mode_and_minimized_receipt_commit_once_without_unrelated_effects(tmp_pa
     monkeypatch.setattr("provelume.shell_settings.probe_port", forbidden)
     monkeypatch.setattr("provelume.shell_settings.configure_login_startup", forbidden)
     for revision, mode, changed in [
-        (1, "preview", True),
+        (1, "preview", False),
         (2, "preview", False),
         (3, "current", True),
     ]:
@@ -249,10 +253,10 @@ def test_mode_and_minimized_receipt_commit_once_without_unrelated_effects(tmp_pa
         assert (
             replace(
                 saved,
-                interface_mode="current",
+                interface_mode="preview",
                 interface_mode_change=None,
                 revision=0,
-                schema_version=2,
+                schema_version=3,
             )
             == initial
         )

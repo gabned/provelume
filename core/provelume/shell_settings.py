@@ -557,10 +557,13 @@ def _parse_settings(value: Any, defaults: LauncherSettings) -> LauncherSettings:
 
 
 def _atomic_json(path: Path, value: dict[str, Any], *, maximum: int) -> None:
+    payload = json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    _atomic_bytes(path, payload.encode("utf-8"), maximum=maximum)
+
+
+def _atomic_bytes(path: Path, encoded: bytes, *, maximum: int) -> None:
     selected = _guard_path(path, allow_missing=True)
     selected.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
-    encoded = payload.encode("utf-8")
     if len(encoded) > maximum:
         raise ShellSettingsError("shell configuration exceeds its size limit")
     temporary_name: str | None = None
@@ -605,9 +608,21 @@ class ShellSettingsManager:
                 raise ShellSettingsError("launcher settings exceed the size limit")
             value = json.loads(selected.read_text(encoding="utf-8"))
             settings = _parse_settings(value, self.defaults)
+            inherited_interface = (
+                settings.interface_mode == "current" and settings.interface_mode_change is None
+            )
+            if inherited_interface:
+                # An old default is not an explicit backup choice. Parse and
+                # validate the original schema first; project Cura without a
+                # write, revision bump or manufactured selection receipt. The
+                # next supported settings transaction persists this migration.
+                settings = replace(
+                    settings, interface_mode="preview",
+                    schema_version=max(3, settings.schema_version),
+                ).normalized()
             warning = (
                 "legacy_settings_loaded_pending_migration"
-                if isinstance(value, dict) and value.get("schema_version") == 1
+                if inherited_interface or value.get("schema_version") == 1
                 else None
             )
             return LoadedSettings(settings, warning)
@@ -683,6 +698,10 @@ class ShellSettingsManager:
         post_commit: Callable[[LauncherSettings], None] | None = None,
     ) -> LauncherSettings:
         with self.hold():
+            previous_path = _guard_path(self.path, allow_missing=True)
+            previous_bytes = previous_path.read_bytes() if previous_path.exists() else None
+            if previous_bytes is not None and len(previous_bytes) > MAX_SETTINGS_BYTES:
+                raise ShellSettingsError("launcher settings exceed the size limit")
             current = self.load().settings
             if expected_revision is not None and current.revision != expected_revision:
                 raise ShellSettingsStale("shell configuration changed; reload before retrying")
@@ -697,7 +716,10 @@ class ShellSettingsManager:
             except Exception:
                 # Restore the complete pre-transaction state if an external
                 # preference effect fails, including a not-yet-committed promotion.
-                _atomic_json(self.path, current.as_payload(), maximum=MAX_SETTINGS_BYTES)
+                if previous_bytes is None:
+                    _guard_path(self.path, allow_missing=False).unlink()
+                else:
+                    _atomic_bytes(self.path, previous_bytes, maximum=MAX_SETTINGS_BYTES)
                 raise
             return candidate
 

@@ -4,6 +4,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Changed
+
+- Cura also becomes the default for inherited previous-interface settings. An
+  explicit backup selection remains preserved and reversible through the existing
+  settings controls. Failed preference effects restore the exact prior settings.
+
 ### Added
 
 - Internal Iudicium classification assessment templates and attributable receipts,
