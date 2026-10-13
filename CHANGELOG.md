@@ -4,6 +4,12 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+### Added
+
+- Internal Iudicium classification assessment templates and attributable receipts,
+  with bounded synthetic confidence evaluation. These contracts do not enable
+  production classification, autonomous application or a new model/provider.
+
 ## 0.12.1 - 2026-10-12
 
 Custodia follow-up prepared for official Preview publication. Actual public
