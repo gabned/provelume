@@ -182,6 +182,16 @@ def test_pending_domain_transaction_requires_existing_lifecycle_recovery(current
         resolve(current)
 
 
+def test_linked_instance_configuration_is_not_a_trusted_target_source(current, tmp_path):
+    instance, _, _ = current
+    path = instance.store.paths.config
+    foreign = tmp_path / "foreign-config.yml"
+    path.rename(foreign)
+    path.symlink_to(foreign)
+    with pytest.raises(ReviewUnavailable):
+        resolve(current)
+
+
 @pytest.mark.parametrize("language", [None, True, "de", "en-v1", {"language": "en"}])
 def test_target_contract_does_not_invent_task_language(current, language):
     with pytest.raises(ReviewError):

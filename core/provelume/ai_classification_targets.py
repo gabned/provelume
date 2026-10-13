@@ -5,11 +5,13 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+import yaml
+
 from .ai_context import ClassificationTarget, TaskTemplate
 from .ai_contract import digest
 from .hierarchy_model import canonical_hierarchy_errors, classification_id
-from .review_decisions import assert_review_readable
-from .review_effects import ReviewError, ReviewStale, ReviewUnavailable
+from .review_decisions import assert_review_readable, read_bytes
+from .review_effects import ReviewError, ReviewStale, ReviewUnavailable, sha256
 from .review_routing import _document, _Inputs, _nodes
 
 MAX_TARGETS = 64
@@ -95,13 +97,21 @@ def _observe(store, document_id, allowlist):
         # Labels come only from the current canonical record. They remain untrusted
         # template payload data; they cannot carry policy or mutation instructions.
         targets.append(ClassificationTarget(kind, target_id, node["name"]))
-    config = store.read_config()
-    instance_id = config.get("instance", {}).get("id")
+    config_path = store.paths.config.relative_to(store.paths.root).as_posix()
+    raw_config = read_bytes(store, config_path, maximum=128 * 1024)
+    if raw_config is None:
+        raise ReviewUnavailable("Classification Instance configuration is missing")
+    try:
+        config = yaml.safe_load(raw_config)
+        instance_id = config["instance"]["id"]
+    except (yaml.YAMLError, TypeError, KeyError, UnicodeError) as exc:
+        raise ReviewUnavailable("Classification Instance configuration is invalid") from exc
     if type(instance_id) is not str or re.fullmatch(r"inst_[0-9a-f]{32}", instance_id) is None:
         raise ReviewUnavailable("Classification Instance identity is invalid")
+    inputs.hashes[config_path] = sha256(raw_config)
     return CurrentClassificationTargets(
         instance_id, document_id, version["id"], original["id"], document["source_id"],
-        allowlist, tuple(targets), digest({"records": inputs.hashes, "configuration": config}),
+        allowlist, tuple(targets), digest(inputs.hashes),
     )
 
 
