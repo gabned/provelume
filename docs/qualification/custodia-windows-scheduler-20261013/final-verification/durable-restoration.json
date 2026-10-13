@@ -1,0 +1,11 @@
+{
+  "result": "PASS",
+  "remote_commit": "bb5e688ab1b7b6b1d7b5796e00f112303345cc8a",
+  "size_bytes": 24561069,
+  "sha256": "77c992ef8fd4479c76a47b6fcf959cc313751c118e4b6e51ea461c1631758295",
+  "members": 40,
+  "download": "PASS",
+  "all_bytes_restored": "PASS",
+  "independent_git_clone_fsck": "PASS",
+  "original_workspace_used_for_restoration": false
+}

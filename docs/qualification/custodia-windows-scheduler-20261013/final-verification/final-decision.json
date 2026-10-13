@@ -1,0 +1,21 @@
+{
+  "release_delivery": "ORIGINAL_PUBLISHED_VERIFIED",
+  "release_id": 410870418,
+  "documentary_pr": 348,
+  "documentary_state": "OPEN_BLOCKED",
+  "head": "e750c0531a4be22f304ab47929db406213578ebd",
+  "base": "cd7dc64f3ffb2a17689018b3350f0e1c073abdd4",
+  "runs": 19,
+  "source_runs": 14,
+  "target_runs": 5,
+  "original_fail_run": 38289564204,
+  "attempt": 1,
+  "error": "latest applicable attempt is not successful",
+  "new_preflight": "NOT_RUN",
+  "merge": "NOT_ATTEMPTED",
+  "runtime_cause": "NOT_DEMONSTRATED",
+  "diagnostic_run": 38411371368,
+  "diagnostic_qualification": "NOT_EVALUATED",
+  "etw_complete": "3/3",
+  "durable_restore": "PASS"
+}
