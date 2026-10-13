@@ -1,0 +1,12 @@
+{
+  "size": 146657,
+  "sha256": "05f70e901063ae2c41157255f10e9e0d816654466aaab0934cf7af8a6af91676",
+  "members": 40,
+  "all_member_restore": "PASS",
+  "source_commit": "085856897e974518ed1f39167dc6bea557987e96",
+  "qualification": "NOT_EVALUATED",
+  "original_fail_run": 38289564204,
+  "original_fail_attempt": 1,
+  "original_bound": "MISSING",
+  "discriminating_proof": "PREPARED_NOT_EXECUTED"
+}
