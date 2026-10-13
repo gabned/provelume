@@ -49,10 +49,11 @@ and precision, required-abstention failures, false positives, and per-target
 support/precision with a 95% Wilson lower confidence bound (z=1.959963984540054).
 The point estimate is precision in this corpus for this predicted target, **not an
 individual document probability** or a calibrated real-world certainty. Zero
-support is null, not zero certainty or perfect accuracy. Fewer than 20 independent
-inputs per predicted target is `insufficient_support`; 20 or more is only
+support is null, not zero certainty or perfect accuracy. Fewer than 20 distinct
+input fingerprints per predicted target is `insufficient_support`; 20 or more is only
 `evaluated_unqualified`. Twenty is an evidence-display minimum, not a quality or
-autonomy threshold. A real release must freeze representative calibration/held-out
+autonomy threshold. Distinct fingerprints do not prove statistical independence.
+A real release must freeze representative calibration/held-out
 corpora and quality thresholds before scoring a model, without using this sample
 minimum to promote it. Reports always retain `qualification: NOT_EVALUATED` and
 `automation_authorized: false` in S01. Absence of evaluation leaves confidence null.
