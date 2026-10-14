@@ -77,6 +77,7 @@ def submit_model(client, name, **values):
 
 def model_action(client, name, report, *, observe=lambda: None, save=lambda: None,
                  during=lambda _operation: None, expected="completed", **values):
+    started = time.monotonic()
     if submit_model(client, name, **values).status_code != 303:
         raise ValueError("model_action_http")
     end = time.monotonic() + (910 if name in {"import", "install"} else 70)
@@ -88,6 +89,7 @@ def model_action(client, name, report, *, observe=lambda: None, save=lambda: Non
         if operation and operation["action"] == name and operation["state"] == "running":
             during(operation)
         if operation and operation["action"] == name and operation["state"] != "running":
+            operation = {**operation, "elapsed_seconds": time.monotonic() - started}
             report.setdefault("operations", {})[name] = operation
             report.setdefault("operation_history", []).append(operation)
             save()
@@ -288,4 +290,18 @@ def diagnostic_cancellation(client, instance, case_row, *, executing, save=lambd
     # This records a diagnostic experiment, not a thirteenth distribution gate.
     return {"status": "OBSERVED" if observed else "NOT_OBSERVED",
             "cancel_submitted": submitted, "attempts": job["attempt"] if job else None,
-            "native_failure": diagnostic}
+            "native_failure": diagnostic,
+            "settlement": {
+                "job_status": (job["status"] if job and job["status"] in {
+                    "queued", "running", "succeeded", "failed", "cancelled", "paused",
+                } else None),
+                "attempt_phase": (job["ai"]["attempts"][-1].get("phase")
+                                  if job and job["ai"]["attempts"] and
+                                  job["ai"]["attempts"][-1].get("phase") in {
+                                      "reserved", "possible", "settled", "uncertain",
+                                  } else None),
+                "quiescent": (job["ai"]["attempts"][-1].get("quiescent")
+                              if job and job["ai"]["attempts"] and
+                              type(job["ai"]["attempts"][-1].get("quiescent")) is bool
+                              else None),
+            }}
