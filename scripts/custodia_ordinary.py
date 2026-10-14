@@ -282,7 +282,9 @@ def diagnostic_cancellation(client, instance, case_row, *, executing, save=lambd
         time.sleep(.02)
     diagnostic = (job["ai"]["attempts"][-1].get("native_failure")
                   if job and job["ai"]["attempts"] else None)
+    from provelume.ai_job_contract import PHASES
     from provelume.ai_runtime_diagnostics import valid_native_failure
+    from provelume.scheduler_model import JOB_STATUSES
 
     observed = (submitted and job["status"] == "cancelled" and job["attempt"] == 1
                 and valid_native_failure(diagnostic) and diagnostic["cause"] == "cancelled"
@@ -292,14 +294,12 @@ def diagnostic_cancellation(client, instance, case_row, *, executing, save=lambd
             "cancel_submitted": submitted, "attempts": job["attempt"] if job else None,
             "native_failure": diagnostic,
             "settlement": {
-                "job_status": (job["status"] if job and job["status"] in {
-                    "queued", "running", "succeeded", "failed", "cancelled", "paused",
-                } else None),
+                "job_status": (job["status"] if job and job["status"] in JOB_STATUSES
+                               else None),
                 "attempt_phase": (job["ai"]["attempts"][-1].get("phase")
                                   if job and job["ai"]["attempts"] and
-                                  job["ai"]["attempts"][-1].get("phase") in {
-                                      "reserved", "possible", "settled", "uncertain",
-                                  } else None),
+                                  job["ai"]["attempts"][-1].get("phase") in PHASES
+                                  else None),
                 "quiescent": (job["ai"]["attempts"][-1].get("quiescent")
                               if job and job["ai"]["attempts"] and
                               type(job["ai"]["attempts"][-1].get("quiescent")) is bool

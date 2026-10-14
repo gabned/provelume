@@ -20,7 +20,9 @@ passing check. This corrects attribution, not runtime recovery.
 The existing ordinary driver retains elapsed time with each terminal model
 operation, including repeated self-tests in its original ordered history. The
 one extra cancellation experiment also records only closed job/attempt phase
-and boolean quiescence observations. Missing facts remain null. It continues
+and boolean quiescence observations. The projection uses the existing scheduler
+and AI attempt enums, including `manual_intervention` and `released`; it does not
+discard those known observations as null. Missing or unknown facts remain null. It continues
 to report NOT_OBSERVED unless the original cancellation diagnostic is actually
 observed; there is no additional distribution gate, consent, request or retry.
 

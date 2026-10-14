@@ -13,7 +13,15 @@ from provelume.ai_runtime_diagnostics import native_failure
 from scripts.custodia_ordinary import diagnostic_cancellation
 
 
-def test_installed_diagnostic_uses_one_consent_and_one_cancel_with_303():
+@pytest.mark.parametrize('status,phase,quiescent', [
+    ('cancelled', 'possible', None),
+    ('cancelled', 'released', True),
+    ('manual_intervention', 'uncertain', False),
+    ('unrecognized', 'unrecognized', 'unrecognized'),
+])
+def test_installed_diagnostic_uses_one_consent_and_one_cancel_with_303(
+    status, phase, quiescent,
+):
     hidden = ('<input type="hidden" name="csrf_token" value="csrf">'
               '<input type="hidden" name="mutation_nonce" value="nonce">'
               '<input type="hidden" name="instance_id" value="instance">')
@@ -43,8 +51,10 @@ def test_installed_diagnostic_uses_one_consent_and_one_cancel_with_303():
                              'ai': {'attempts': [{'phase': 'possible'}]}})
             else:
                 assert data['action'] == 'cancel' and data['revision'] == 'revision'
-                jobs[0]['status'] = 'cancelled'
-                jobs[0]['ai']['attempts'][0]['native_failure'] = diagnostic
+                jobs[0]['status'] = status
+                jobs[0]['ai']['attempts'][0].update(
+                    phase=phase, quiescent=quiescent, native_failure=diagnostic,
+                )
             return httpx.Response(303, request=httpx.Request('POST', 'http://test'+path))
 
     journal = SimpleNamespace(list_jobs=lambda **kw: copy.deepcopy(jobs))
@@ -52,10 +62,13 @@ def test_installed_diagnostic_uses_one_consent_and_one_cancel_with_303():
     case = ({'task': 'summary-en'}, 'document', {'representation_id': 'representation',
             'outputs': [{'id': 'text'}], 'version': {'id': 'version'}})
     result = diagnostic_cancellation(Client(), instance, case, executing=lambda: True)
-    assert result['status'] == 'OBSERVED' and result['native_failure'] == diagnostic
+    assert result['status'] == ('OBSERVED' if status == 'cancelled' else 'NOT_OBSERVED')
+    assert result['native_failure'] == diagnostic
     assert len(posts) == 3 and result['attempts'] == 1
     assert result['settlement'] == {
-        'job_status': 'cancelled', 'attempt_phase': 'possible', 'quiescent': None,
+        'job_status': status if status != 'unrecognized' else None,
+        'attempt_phase': phase if phase != 'unrecognized' else None,
+        'quiescent': quiescent if type(quiescent) is bool else None,
     }
 
 
