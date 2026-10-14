@@ -67,6 +67,17 @@ def children(parent):
         kernel.CloseHandle(snapshot)
 
 
+def prepare_parent_death(report, *, warm, live, save):
+    """A failed ordinary warm-up is not an observed parent-death measurement."""
+    report["phase"] = "parent_death_prepare"
+    save()
+    warm()
+    if not live():
+        raise ValueError("unobserved_live_worker")
+    report["phase"] = "parent_death"
+    save()
+
+
 def run(args):
     report = {"schema_version": 1, "source_commit": args.commit, "status": "NOT_RUN",
               "phase": "installation", "checks": {}, "observations": {},
@@ -182,10 +193,11 @@ def run(args):
             save()
             # Keep the already-observed worker warm, then kill the actual parent.
             # Handle waits observe process identity, with no PID-reuse ambiguity.
-            report["phase"] = "parent_death"
-            action(client, "self_test")
-            if not any(kernel.WaitForSingleObject(h, 0) == 258 for h in observed.values()):
-                raise ValueError("unobserved_live_worker")
+            prepare_parent_death(
+                report, warm=lambda: action(client, "self_test"),
+                live=lambda: any(kernel.WaitForSingleObject(h, 0) == 258
+                                 for h in observed.values()), save=save,
+            )
             process.kill()
             process.wait(timeout=5)
             started = time.monotonic()
