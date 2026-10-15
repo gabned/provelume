@@ -147,10 +147,10 @@ def test_notification_save_alone_promotes_and_preserves_renderer_and_receipts(co
     root, manager, _service = context
     manager.save(manager.load().settings)
     legacy_bytes = manager.path.read_bytes()
-    assert manager.load().settings.schema_version == 2
+    assert manager.load().settings.schema_version == 3
     assert manager.path.read_bytes() == legacy_bytes
     ordinary = manager.set_preferences(theme="dark", language="it", expected_revision=0)
-    assert ordinary.schema_version == 2
+    assert ordinary.schema_version == 3
     selected = manager.set_interface_mode("preview", expected_revision=1)
     assert selected.schema_version == 3
     interface_receipt = selected.interface_mode_change
