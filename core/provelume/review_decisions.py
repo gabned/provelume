@@ -15,6 +15,7 @@ from .instance_lifecycle import InstanceLifecycleManager
 from .review_effects import (
     ABSENT,
     MAX_ENTRY_BYTES,
+    PreparedClassificationRemoval,
     PreparedEffect,
     PreparedWrite,
     ReviewConflict,
@@ -459,7 +460,12 @@ class ReviewDecisions:
                     raise ReviewStale("Review write preimage changed")
             transaction = self.transaction_factory(identifier)
             for write in writes:
-                transaction.add(write.relative, write.data, immutable=write.immutable)
+                if isinstance(write, PreparedClassificationRemoval):
+                    transaction.remove_classification(
+                        write.relative, expected_sha256=write.expected_sha256,
+                    )
+                else:
+                    transaction.add(write.relative, write.data, immutable=write.immutable)
             transaction.commit()
             return {"receipt": receipt, "result": effect.result, "replayed": False}
 

@@ -239,7 +239,8 @@ class AtomicInstanceCommit:
         self._integrity_error_type = integrity_error_type
         self._limit_error_type = limit_error_type
         self._replace = replace
-        self._writes: dict[str, tuple[bytes, bool]] = {}
+        self._writes: dict[str, tuple[bytes | None, bool]] = {}
+        self._removal_preimages: dict[str, str] = {}
         self._candidate_bytes = 0
 
     def add(self, relative: str, data: bytes, *, immutable: bool) -> None:
@@ -266,6 +267,29 @@ class AtomicInstanceCommit:
             raise self._limit_error_type()
         self._writes[selected] = candidate
         self._candidate_bytes += len(payload)
+
+    def remove_classification(self, relative: str, *, expected_sha256: str) -> None:
+        """Remove only a reviewed classification, retaining an atomic rollback image."""
+        if (
+            self.profile != REVIEW_TRANSACTION_PROFILE
+            or not isinstance(relative, str)
+            or re.fullmatch(
+                r"knowledge/classifications/classification_[0-9a-f]{32}\.json", relative,
+            ) is None
+            or not isinstance(expected_sha256, str)
+            or _SHA256.fullmatch(expected_sha256) is None
+        ):
+            raise self._integrity_error_type()
+        _, selected = _instance_target(self.store, relative, error_type=self._integrity_error_type)
+        if selected in self._writes:
+            if (self._writes[selected] != (None, False)
+                    or self._removal_preimages.get(selected) != expected_sha256):
+                raise self._integrity_error_type()
+            return
+        if len(self._writes) >= self.profile.limits.max_entries:
+            raise self._limit_error_type()
+        self._writes[selected] = (None, False)
+        self._removal_preimages[selected] = expected_sha256
 
     def _prepare(self) -> tuple[Path, dict[str, Any]]:
         if not self._writes:
@@ -298,11 +322,19 @@ class AtomicInstanceCommit:
                     integrity_error_type=self._integrity_error_type,
                     limit_error_type=self._limit_error_type,
                 )
+                removing = data is None
+                if removing and (
+                    before is None
+                    or hashlib.sha256(before).hexdigest() != self._removal_preimages[relative]
+                ):
+                    raise self._integrity_error_type()
                 if before is not None and immutable and before != data:
                     raise self._integrity_error_type()
                 if before == data:
                     continue
-                next_candidate = candidate_bytes + len(data)
+                # Reserve the removed file's bytes as well as its retained copy.
+                candidate_data = before if removing else data
+                next_candidate = candidate_bytes + len(candidate_data)
                 next_preimage = preimage_bytes + (len(before) if before is not None else 0)
                 if (
                     next_candidate > self.profile.limits.max_candidate_bytes
@@ -314,7 +346,10 @@ class AtomicInstanceCommit:
                 candidate_bytes = next_candidate
                 preimage_bytes = next_preimage
                 candidate_ref = f"candidates/{index:04d}.bin"
-                payloads.append((stage / candidate_ref, data))
+                if removing:
+                    (stage / "candidates").mkdir(exist_ok=True)
+                else:
+                    payloads.append((stage / candidate_ref, data))
                 preimage_ref = (
                     f"preimages/{index:04d}.bin" if before is not None else None
                 )
@@ -332,11 +367,20 @@ class AtomicInstanceCommit:
                             else None
                         ),
                         "candidate_ref": candidate_ref,
-                        "candidate_sha256": hashlib.sha256(data).hexdigest(),
+                        "candidate_sha256": hashlib.sha256(candidate_data).hexdigest(),
                     }
                 )
             if not entries:
                 raise self._integrity_error_type()
+            # Only review removal needs the extended product transaction format.
+            # All existing write-only profiles retain their exact schema-1 shape.
+            schema = 2 if self._removal_preimages else ATOMIC_COMMIT_SCHEMA_VERSION
+            if schema == 2:
+                for entry in entries:
+                    entry["operation"] = (
+                        "remove-classification"
+                        if entry["relative"] in self._removal_preimages else "write"
+                    )
             # Unreferenced journal files are independent. Retain every file
             # fsync but overlap I/O with a bounded pool. Join all writers, even
             # on failure, before a prepared manifest can authorize publication.
@@ -349,7 +393,7 @@ class AtomicInstanceCommit:
                 if directory.exists():
                     _fsync_directory(directory)
             manifest = {
-                "schema_version": ATOMIC_COMMIT_SCHEMA_VERSION,
+                "schema_version": schema,
                 "transaction_id": transaction_id,
                 "kind": self.profile.kind,
                 "status": "prepared",
@@ -458,6 +502,21 @@ class AtomicInstanceCommit:
                 str(entry["candidate_ref"]),
                 error_type=self._error_type,
             )
+            if entry.get("operation") == "remove-classification":
+                if candidate.exists():
+                    raise self._error_type()
+                # Moving the live preimage into the private stage is both the
+                # atomic removal and durable proof that this transaction applied it.
+                self._replace(target, candidate)
+                moved_digest, _ = _bounded_file_digest(
+                    candidate, limit=self.profile.limits.max_entry_bytes,
+                    error_type=self._error_type,
+                )
+                if moved_digest != entry["preimage_sha256"]:
+                    raise self._error_type()
+                pending.append(flushers.submit(_fsync_directory, target.parent))
+                pending.append(flushers.submit(_fsync_directory, candidate.parent))
+                continue
             candidate_digest, _ = _bounded_file_digest(
                 candidate,
                 limit=self.profile.limits.max_entry_bytes,
@@ -692,8 +751,10 @@ def _validate_transaction_manifest(
         raise error_type()
     status = manifest.get("status")
     owner_id = manifest.get("operation_id")
+    schema = manifest.get("schema_version")
     if (
-        manifest.get("schema_version") != ATOMIC_COMMIT_SCHEMA_VERSION
+        (schema != ATOMIC_COMMIT_SCHEMA_VERSION
+         and not (schema == 2 and profile == REVIEW_TRANSACTION_PROFILE))
         or manifest.get("transaction_id") != stage.name
         or profile.transaction_pattern.fullmatch(stage.name) is None
         or manifest.get("kind") != profile.kind
@@ -717,7 +778,7 @@ def _validate_transaction_manifest(
     candidate_bytes = 0
     preimage_bytes = 0
     for entry in entries:
-        if not isinstance(entry, dict) or set(entry) != {
+        fields = {
             "relative",
             "immutable",
             "had_preimage",
@@ -725,7 +786,10 @@ def _validate_transaction_manifest(
             "preimage_sha256",
             "candidate_ref",
             "candidate_sha256",
-        }:
+        }
+        if schema == 2:
+            fields.add("operation")
+        if not isinstance(entry, dict) or set(entry) != fields:
             raise error_type()
         relative = entry.get("relative")
         if not isinstance(relative, str):
@@ -746,6 +810,16 @@ def _validate_transaction_manifest(
         ):
             raise error_type()
         candidate_refs.add(candidate_ref)
+        removing = entry.get("operation") == "remove-classification"
+        if schema == 2 and entry.get("operation") not in {"write", "remove-classification"}:
+            raise error_type()
+        if removing and (
+            re.fullmatch(r"knowledge/classifications/classification_[0-9a-f]{32}\.json", relative)
+            is None
+            or entry["immutable"] or not entry["had_preimage"]
+            or entry["candidate_sha256"] != entry["preimage_sha256"]
+        ):
+            raise error_type()
         if entry["had_preimage"]:
             preimage_ref = entry.get("preimage_ref")
             if (
@@ -775,6 +849,26 @@ def _validate_transaction_manifest(
 
         candidate_path = _journal_path(stage, candidate_ref, error_type=error_type)
         target, _ = _instance_target(store, relative, error_type=error_type)
+        if removing:
+            candidate_bytes += size  # The already verified retained preimage size.
+            if candidate_path.exists():
+                removed_digest, removed_size = _bounded_file_digest(
+                    candidate_path, limit=profile.limits.max_entry_bytes, error_type=error_type,
+                )
+                if removed_digest != entry["preimage_sha256"] or removed_size != size:
+                    raise error_type()
+                if target.exists():
+                    live_digest, _ = _bounded_file_digest(
+                        target, limit=profile.limits.max_entry_bytes, error_type=error_type,
+                    )
+                    if status != "prepared" or live_digest != entry["preimage_sha256"]:
+                        raise error_type()
+            elif status != "prepared":
+                raise error_type()
+            if (candidate_bytes > profile.limits.max_candidate_bytes
+                    or candidate_bytes + preimage_bytes > profile.limits.max_journal_payload_bytes):
+                raise error_type()
+            continue
         if candidate_path.exists():
             digest, size = _bounded_file_digest(
                 candidate_path,
@@ -838,6 +932,29 @@ def _rollback_prepared_transaction(
             str(entry["candidate_ref"]),
             error_type=error_type,
         )
+        if entry.get("operation") == "remove-classification":
+            if not candidate.exists():
+                continue  # No published removal; preserve unrelated live changes.
+            removed = _journal_bytes(
+                stage, str(entry["candidate_ref"]), limit=profile.limits.max_entry_bytes,
+                error_type=error_type,
+            )
+            before = _journal_bytes(
+                stage, str(entry["preimage_ref"]), limit=profile.limits.max_entry_bytes,
+                error_type=error_type,
+            )
+            if removed != before or hashlib.sha256(before).hexdigest() != entry["preimage_sha256"]:
+                raise error_type()
+            live = _bounded_file_bytes(
+                target, limit=profile.limits.max_entry_bytes, missing_ok=True,
+                integrity_error_type=error_type, limit_error_type=error_type,
+            )
+            if live is not None and live != before:
+                raise error_type()  # Never overwrite a foreign post-removal classification.
+            if live is None:
+                store._atomic_bytes(target, before)
+                _fsync_directory(target.parent)
+            continue
         candidate_present = candidate.exists()
         if candidate_present:
             digest, _ = _bounded_file_digest(
@@ -971,6 +1088,10 @@ def recover_atomic_transactions(
                         str(entry["relative"]),
                         error_type=error_type,
                     )
+                    if entry.get("operation") == "remove-classification":
+                        if target.exists():
+                            raise error_type()
+                        continue
                     digest, _ = _bounded_file_digest(
                         target,
                         limit=profile.limits.max_entry_bytes,

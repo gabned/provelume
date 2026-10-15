@@ -6,6 +6,7 @@ import base64
 import hashlib
 import re
 from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -21,7 +22,7 @@ from .review_routing import _Inputs, _nodes
 from .review_security import ReviewBrowserSessions, require_local_browser, review_json
 
 _ID = re.compile(r"[a-z][a-z0-9_]*_[0-9a-f]{32,64}\Z")
-_DOMAINS = {"placement", "routing", "duplicates", "versions", "capabilities"}
+_DOMAINS = {"placement", "routing", "duplicates", "versions", "capabilities", "iudicium"}
 _ERRORS = (
     ReviewError,
     InstanceLifecycleError,
@@ -38,7 +39,7 @@ def review_script_integrity() -> str:
     return "sha256-" + base64.b64encode(hashlib.sha256(raw).digest()).decode("ascii")
 
 
-def review_options(instance, domain, subject):
+def review_options(instance, domain, subject, *, job_id=None):
     """Bounded display choices; only the provider's fresh preview grants eligibility."""
     assert_review_readable(instance.store)
     result = {
@@ -52,9 +53,40 @@ def review_options(instance, domain, subject):
         "defaults": {},
     }
     inputs = _Inputs(instance.store)
-    if domain in {"placement", "routing"}:
+    if domain in {"placement", "routing", "iudicium"}:
         result["nodes"] = list(_nodes(inputs).values())
-    if domain == "placement":
+    if domain == "iudicium":
+        from .classification_autonomy import policy_identifier
+
+        controller = instance.classification_review
+        result["policies"] = controller.policies()
+        if subject.startswith("doc_"):
+            if re.fullmatch(r"doc_[0-9a-f]{32}", subject) is None:
+                raise ReviewError("Invalid classification subject")
+            result["documents"] = [inputs.record(f"knowledge/documents/{subject}.json")]
+            result["actions"] = ["apply", "undo"]
+            history = instance.review_decisions.history(domain=domain, subject=subject)
+            result["applications"] = [row for row in history["items"] if row["action"] == "apply"]
+        else:
+            policy_identifier(subject)
+            current = controller.policy(subject)
+            result["actions"] = ["save_policy", "revoke_policy"] if current else ["save_policy"]
+            result["defaults"] = current or {
+                "path_prefix": "", "languages": ["en"], "target_hashes": {},
+                "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat()
+                .replace("+00:00", "Z"), "mode": "confirm-each", "max_applications": 1,
+            }
+        jobs = instance.ai_jobs.journal.list_jobs(limit=100)
+        result["assessments"] = [
+            {"id": row["id"], "document_id": row["ai"]["request"]["context"]["document_id"]}
+            for row in jobs if row.get("job_kind") == "ai.execute"
+            and row["status"] == "succeeded" and row["ai"].get("result")
+            and row["ai"]["result"]["kind"] == "classification_ref"
+            and (not subject.startswith("doc_")
+                 or row["ai"]["request"]["context"]["document_id"] == subject)
+        ]
+        result["selected_job"] = job_id
+    elif domain == "placement":
         if re.fullmatch(r"doc_[0-9a-f]{32}", subject) is None:
             raise ReviewError("Invalid placement subject")
         document = inputs.record(f"knowledge/documents/{subject}.json")
@@ -108,7 +140,7 @@ def review_options(instance, domain, subject):
             "scope": {"subjects": [], "actions": [], "sources": []},
         }
         result["sources"] = list(inputs.inventory("knowledge/sources", 500).values())
-        if subject in {"placement", "routing"}:
+        if subject in {"placement", "routing", "iudicium"}:
             records = inputs.inventory("knowledge/documents", 500)
             result["subjects"] = [
                 {"id": key, "label": row.get("title", key)} for key, row in records.items()
@@ -117,6 +149,11 @@ def review_options(instance, domain, subject):
                 result["subjects"].extend(
                     {"id": row["id"], "label": row["path_prefix"] or row["source_id"]}
                     for row in instance.review_routing.rules()
+                )
+            elif subject == "iudicium":
+                result["subjects"].extend(
+                    {"id": row["id"], "label": row["path_prefix"] or row["source_id"]}
+                    for row in instance.classification_review.policies()
                 )
         elif subject == "duplicates":
             result["subjects"] = [
@@ -159,7 +196,26 @@ def review_summary(plan, labels):
     def change(label, before, after):
         changes.append({"label": label, "before": display(before), "after": display(after)})
 
-    if domain == "placement" or (domain == "routing" and action == "apply_rule"):
+    if domain == "iudicium":
+        if action in {"save_policy", "revoke_policy"}:
+            before, after = data["policy_before"] or {}, data["policy_after"]
+            for field, label in (
+                ("source_id", "source"), ("path_prefix", "path_prefix"),
+                ("languages", "task_languages"), ("target_hashes", "subjects"),
+                ("expires_at", "expires_at"), ("mode", "mode"),
+                ("max_applications", "max_applications"),
+            ):
+                change(labels[label], before.get(field), after[field])
+        else:
+            before = (data["placement"]["before"] if action == "apply"
+                      else data["current_classification"])
+            after = (data["placement"]["destinations"] if action == "apply"
+                     else data["undo_classification"])
+            for field, label in (("primary_node_id", "primary"),
+                                 ("secondary_node_ids", "secondary")):
+                change(labels[label], (before or {}).get(field), (after or {}).get(field))
+        effect, reverse = "effect_classification", "reverse_classification"
+    elif domain == "placement" or (domain == "routing" and action == "apply_rule"):
         snapshot = data["snapshot"]
         before, after = snapshot["before"], snapshot["destinations"]
         names = {key: row["name"] + " · " + key for key, row in snapshot["nodes"].items()}
@@ -229,7 +285,8 @@ def review_summary(plan, labels):
         "impact": labels[effect],
         "reversibility": labels[reverse],
         "confidence": data["confidence"],
-        "evidence": data["evidence"],
+        "evidence": ({**data["evidence"], "selected_source": data["segments"]}
+                     if domain == "iudicium" else data["evidence"]),
         "ambiguous": len(data.get("matched_rule_ids", [])) > 1,
     }
 
@@ -288,12 +345,24 @@ def attach_domain_review_routes(
                 request, "review_rules.html", status=503, rows=[], new_rule=None, unavailable=True
             )
 
+    @app.get("/review/iudicium")
+    def classification_policies(request: Request):
+        require_local_browser(request)
+        try:
+            rows = instance.classification_review.policies()
+            return page(request, "review_classification_policies.html", rows=rows,
+                        new_policy="autonomy_" + uuid4().hex, unavailable=False)
+        except _ERRORS:
+            return page(request, "review_classification_policies.html", status=503, rows=[],
+                        new_policy=None, unavailable=True)
+
     @app.get("/review/decisions/{domain}/{subject}")
     def decision(request: Request, domain: str, subject: str):
         require_local_browser(request)
         selected_scope = scope(domain, subject)
         try:
-            options = review_options(instance, domain, subject)
+            options = review_options(instance, domain, subject,
+                                     job_id=request.query_params.get("job"))
             history = instance.review_decisions.history(domain=domain, subject=subject)
             authorities = {
                 action: instance.review_decisions.authority_resolver(domain, subject, action)

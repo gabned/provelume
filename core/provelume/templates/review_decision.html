@@ -5,6 +5,7 @@
 <a href="/attention?lang={{ lang }}">{{ rl.back }}</a>
 <h1>{{ rl[subject] if domain == 'capabilities' else rl[domain] }}</h1>
 <p class="lead">{{ rl.lead }}</p>
+{% if domain == 'iudicium' %}<p>{{ rl.classification_manual }}</p><p><a href="/review/iudicium?lang={{ lang }}">{{ rl.iudicium }}</a></p>{% endif %}
 <p><a href="/review/capabilities?lang={{ lang }}">{{ rl.capabilities }}</a> · <a href="/review/routing?lang={{ lang }}">{{ rl.routing }}</a> · <a href="/review/decisions/{{ domain }}/{{ subject }}?lang={{ lang }}">{{ rl.fresh }}</a></p>
 {% if domain == 'placement' %}<p><a href="/review/decisions/routing/{{ subject }}?lang={{ lang }}">{{ rl.apply_rule }}</a></p>{% endif %}
 {% if unavailable %}<p class="panel" role="alert">{{ rl.unavailable }}</p>{% else %}
@@ -16,6 +17,26 @@
 <section class="panel">
 <form id="review-selection" class="settings-form">
 <label for="review-action">{{ rl.action }}</label><select id="review-action" name="action" required>{% for action in options.actions %}<option value="{{ action }}">{{ rl[action] }}</option>{% endfor %}</select>
+{% if domain == 'iudicium' %}
+<div data-actions="save_policy apply"><label for="review-assessment">{{ rl.assessment }}</label><select id="review-assessment" name="job_id">{% for assessment in options.assessments %}<option value="{{ assessment.id }}"{% if options.selected_job == assessment.id %} selected{% endif %}>{{ assessment.document_id }} · {{ assessment.id }}</option>{% endfor %}</select><p>{{ rl.assessment_help }}</p></div>
+{% if subject.startswith('autonomy_') %}
+<div data-actions="save_policy">
+<label for="review-prefix">{{ rl.path_prefix }}</label><input id="review-prefix" name="path_prefix" type="text" maxlength="512" value="{{ options.defaults.path_prefix }}"><p>{{ rl.path_help }}</p>
+<label for="review-targets">{{ rl.subjects }}</label><select id="review-targets" name="target_ids" multiple size="5">{% for node in options.nodes %}<option value="{{ node.id }}"{% if node.id in options.defaults.target_hashes %} selected{% endif %}>{{ node.name }} · {{ node.id }}</option>{% endfor %}</select>
+<label for="review-languages">{{ rl.task_languages }}</label><select id="review-languages" name="languages" multiple size="2">{% for language in ['en','it'] %}<option value="{{ language }}"{% if language in options.defaults.languages %} selected{% endif %}>{{ language }}</option>{% endfor %}</select>
+<label for="review-expiry">{{ rl.expires_at }}</label><input id="review-expiry" name="expires_at" type="text" maxlength="80" value="{{ options.defaults.expires_at }}">
+<label for="review-mode">{{ rl.mode }}</label><select id="review-mode" name="mode">{% for mode in ['disabled','proposal-only','confirm-each','controlled-automatic'] %}<option value="{{ mode }}"{% if options.defaults.mode == mode %} selected{% endif %}>{{ rl[mode] }}</option>{% endfor %}</select><p>{{ rl.classification_automatic_blocked }}</p>
+<label for="review-budget">{{ rl.max_applications }}</label><input id="review-budget" name="max_applications" type="number" min="1" max="1000" value="{{ options.defaults.max_applications }}">
+</div>
+{% else %}
+<div data-actions="apply"><label for="review-policy">{{ rl.policy }}</label><select id="review-policy" name="policy_id">{% for policy in options.policies %}<option value="{{ policy.id }}">{{ policy.path_prefix or policy.source_id }} · {{ rl.revision }} {{ policy.revision }} · {{ policy.id }}</option>{% endfor %}</select>
+<label for="review-primary">{{ rl.primary }}</label><select id="review-primary" name="primary_node_id">{% for node in options.nodes %}{% if node.kind != 'collection' %}<option value="{{ node.id }}">{{ node.name }} · {{ node.id }}</option>{% endif %}{% endfor %}</select>
+<label for="review-secondary">{{ rl.secondary }}</label><select id="review-secondary" name="secondary_node_ids" multiple size="5">{% for node in options.nodes %}<option value="{{ node.id }}">{{ node.name }} · {{ node.id }}</option>{% endfor %}</select>
+<label class="review-check"><input name="reviewed" type="checkbox"> {{ rl.classification_reviewed }}</label>
+</div>
+<div data-actions="undo"><label for="review-application">{{ rl.application }}</label><select id="review-application" name="application">{% for receipt in options.applications %}<option value="{{ receipt.id }}">{{ receipt.recorded_at }} · {{ receipt.id }}</option>{% endfor %}</select></div>
+{% endif %}
+{% endif %}
 {% if domain == 'placement' or (domain == 'routing' and subject.startswith('routing_')) %}
 <div data-actions="classify save_rule">
 {% if domain == 'routing' %}<label for="review-source">{{ rl.source }}</label><select id="review-source" name="source_id">{% for source in options.sources %}<option value="{{ source.id }}"{% if options.defaults.source_id == source.id %} selected{% endif %}>{{ source.name }} · {{ source.id }}</option>{% endfor %}</select>

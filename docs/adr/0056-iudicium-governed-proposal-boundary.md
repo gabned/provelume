@@ -1,6 +1,9 @@
 # ADR 0056 — Governed Iudicium assessment records and review
 
-Status: S02 request/execution/review candidate, #352, parent #349. Not accepted;
+Status: S02 accepted through #358 and corrective #359/#360, actual main
+`b3dbb03fd0eb0b9efa40a8a7d2151e8149fe89b5`; parent #349 remains incomplete.
+Acceptance: https://github.com/gabned/provelume/pull/360#issuecomment-6191754357 .
+The following design describes the accepted S02 boundary;
 unchanged-source machine qualification remains mandatory. Same distinct owner
 `iudicium-s02-governed-proposals`, started after prerequisite #353 acceptance on
 `fd0dde8628f36d6ffacaa9caf7af6519ca841261`, tree
@@ -155,8 +158,9 @@ CI, ownership, reviews, source/policy binding and integration gates remain intac
 Retain full unchanged-candidate native tests, every workflow attempt/job and
 failure, effect/policy binding, reviews/findings/threads, fresh preflight, normal
 expected-head merge, actual parents/tree and post-merge gates. Do not transfer the
-first design candidate's native/CI results to this implementation. S02 and #349
-remain open; no successor slice starts around a pending dependency. One final
+first design candidate's native/CI results to this implementation. S02 #352 is
+closed/completed only after its actual-main gates; #349 remains open. S03 #361
+starts from that accepted source, with separate qualification. One final
 integrated qualification includes S01 and Cura before the single authorized
 0.13.0 publication. Version identity stays 0.12.1 until that final workstream.
 Independent #348 and published 0.12.1/0.12.0 assets/receipts/kits/readiness are

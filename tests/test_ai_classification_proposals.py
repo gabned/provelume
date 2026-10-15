@@ -33,6 +33,9 @@ def governed(tmp_path, request):
     document = instance.store.list_canonical("documents")[0]["id"]
     label = getattr(request, "param", {}).get("label", "Work")
     area = instance.create_hierarchy_node("area", label)
+    if getattr(request, "param", {}).get("existing_placement"):
+        previous = instance.create_hierarchy_node("project", "Previous destination")
+        instance.classify_document(document, previous["id"])
     allowlist = (("area", area["id"]),)
     targets = instance.ai_classification_targets(document, allowlist)
     bundle = instance.representations.bundles.materialize(

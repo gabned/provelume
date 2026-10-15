@@ -69,7 +69,7 @@ PREVIEW_SECONDS = 600
 
 
 class AiSetup:
-    def __init__(self, instance, *, runtime_directory=None, credentials=None):
+    def __init__(self, instance, *, runtime_directory=None, credentials=None, bind_execution=True):
         self.instance = instance
         self.instance_id = instance.scheduler.journal.instance_id
         self.path = instance.scheduler.journal.root / "ai-setup.json"
@@ -91,8 +91,10 @@ class AiSetup:
         from .ai_classification_proposals import DocumentClassification
 
         self.classification = DocumentClassification(self)
-        self.jobs = instance.bind_ai_execution(current=self.current, adapters={},
-                                               result_projector=self.project_result)
+        self.jobs = (instance.bind_ai_execution(current=self.current, adapters={},
+                                                result_projector=self.project_result)
+                     if bind_execution else instance.ai_jobs)
+        instance.classification_review.bind(self.classification)
 
     def project_result(self, job, result):
         from .ai_context import CLASSIFICATION_TEMPLATES

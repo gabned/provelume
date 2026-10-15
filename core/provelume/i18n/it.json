@@ -2144,5 +2144,21 @@
   "classification.target_kind": "Gruppo di destinazioni",
   "classification.full_context": "Il testo selezionato completo deve rientrare nel limite esistente. Sono ammesse al massimo 64 destinazioni correnti di un gruppo; l’anteprima mostra tutte le destinazioni e il testo che può essere inviato.",
   "classification.consent": "Approvo questo solo suggerimento con il testo, le destinazioni e il percorso AI mostrati. La qualità non è valutata; nessuna classificazione viene applicata.",
-  "classification.generate": "Richiedi suggerimento"
+  "classification.generate": "Richiedi suggerimento",
+  "review.iudicium": "Revisione e autonomia della classificazione",
+  "review.save_policy": "Crea o modifica una regola",
+  "review.revoke_policy": "Disattiva la regola",
+  "review.apply": "Applica le destinazioni revisionate",
+  "review.policy": "Regole di classificazione",
+  "review.assessment": "Valutazione registrata",
+  "review.assessment_help": "Valutazioni recenti registrate. La conferma ricontrolla la fonte e le regole correnti.",
+  "review.task_languages": "Lingue del compito",
+  "review.expires_at": "Scadenza UTC (entro 90 giorni)",
+  "review.max_applications": "Numero massimo di applicazioni",
+  "review.application": "Ricevuta dell’applicazione da annullare",
+  "review.classification_manual": "Esamina la fonte e scegli personalmente le destinazioni. La qualità del classificatore non è stata valutata; la confidence del modello non concede permessi.",
+  "review.classification_automatic_blocked": "L’applicazione automatica resta bloccata fino alla qualifica reale del compito e a una nuova revisione della regola modificata.",
+  "review.classification_reviewed": "Ho esaminato autonomamente la fonte e scelto queste destinazioni.",
+  "review.effect_classification": "Modifica solo i metadati di classificazione entro fonte, destinazioni, scadenza e budget revisionati. Originali e Versioni sono conservati.",
+  "review.reverse_classification": "L’annullamento ripristina la classificazione precedente, anche lo stato iniziale non classificato. Modifiche successive lo bloccano; storia e utilizzo restano."
 }

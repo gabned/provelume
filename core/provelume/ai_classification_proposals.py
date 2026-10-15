@@ -216,36 +216,49 @@ class DocumentClassification:
 
     def read(self, job_id):
         with self.setup.jobs._transaction(wait_seconds=2):
-            job, ref, selections = self.reference(job_id)
-            first = selections[0]
-            document, _, source = self.setup.synthesis.source(
-                first.version.document_id, first.representation_id, first.output_id,
-            )
-            check(source.version == first.version, "ai_setup_stale")
-            recipe = ref["recipe"]
-            allowlist = tuple(tuple(p) for p in recipe["allowlist"])
-            targets = resolve_classification_targets(
-                self.instance.store, first.version.document_id, allowlist)
-            check(targets.revision == recipe["target_revision"], "ai_setup_stale")
-            language = recipe["template"].removeprefix("classification-").removesuffix("-v1")
-            template = targets.template(language)
-            check(template.identity.revision == recipe["template_revision"], "ai_setup_stale")
-            association, _, _, _ = self.setup.synthesis.association(
-                document, source, recipe, template=template)
-            check(association == ref["association"], "ai_setup_stale")
-            with open_local_file(self.path(job_id)) as stream:
-                raw = stream.read(MAX_RESULT_BYTES + 1)
-            body = _json(raw, MAX_RESULT_BYTES)
-            check(type(body) is dict and set(body) == {
-                "schema_version", "job_id", "source", "assessment", "target_revision", "segments",
-                "coverage", "policy_fingerprint", "classification_quality", "confidence",
-                "automation_authorized", "canonical_mutation",
-            }, "ai_result_invalid")
-            check(digest(body) == ref["body_sha256"] and body["job_id"] == job_id
-                  and VersionIdentity(**body["source"]) == source.version
-                  and body["target_revision"] == targets.revision, "ai_result_invalid")
-            targets.revalidate(self.instance.store)
-            return body, ref, document, job, targets
+            return self._read_locked(job_id)
+
+    def _read_locked(self, job_id):
+        """Read evidence under owner locks, or for a repeated pure preview observation."""
+        job, ref, selections = self.reference(job_id)
+        first = selections[0]
+        document, _, source = self.setup.synthesis.source(
+            first.version.document_id, first.representation_id, first.output_id,
+        )
+        check(source.version == first.version, "ai_setup_stale")
+        recipe = ref["recipe"]
+        allowlist = tuple(tuple(p) for p in recipe["allowlist"])
+        targets = resolve_classification_targets(
+            self.instance.store, first.version.document_id, allowlist)
+        check(targets.revision == recipe["target_revision"], "ai_setup_stale")
+        language = recipe["template"].removeprefix("classification-").removesuffix("-v1")
+        template = targets.template(language)
+        check(template.identity.revision == recipe["template_revision"], "ai_setup_stale")
+        association, _, _, _ = self.setup.synthesis.association(
+            document, source, recipe, template=template)
+        check(association == ref["association"], "ai_setup_stale")
+        with open_local_file(self.path(job_id)) as stream:
+            raw = stream.read(MAX_RESULT_BYTES + 1)
+        body = _json(raw, MAX_RESULT_BYTES)
+        check(type(body) is dict and set(body) == {
+            "schema_version", "job_id", "source", "assessment", "target_revision", "segments",
+            "coverage", "policy_fingerprint", "classification_quality", "confidence",
+            "automation_authorized", "canonical_mutation",
+        }, "ai_result_invalid")
+        check(digest(body) == ref["body_sha256"] and body["job_id"] == job_id
+              and VersionIdentity(**body["source"]) == source.version
+              and body["target_revision"] == targets.revision, "ai_result_invalid")
+        targets.revalidate(self.instance.store)
+        return body, ref, document, job, targets
+
+    def observe(self, job_id):
+        """Pure preview observation; confirmation recollects under both owner locks."""
+        first = self._read_locked(job_id)
+        second = self._read_locked(job_id)
+        for before, after in zip(first[:4], second[:4], strict=True):
+            check(digest(before) == digest(after), "ai_setup_stale")
+        check(first[4] == second[4], "ai_setup_stale")
+        return second
 
     def discard(self, job_id):
         # No source/policy/model/consent renewal, refund, queue write or regeneration.

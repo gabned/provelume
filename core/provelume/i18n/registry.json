@@ -1555,7 +1555,23 @@
         "review.reverse_version",
         "review.effect_permission",
         "review.reverse_permission",
-        "review.ambiguous"
+        "review.ambiguous",
+        "review.iudicium",
+        "review.save_policy",
+        "review.revoke_policy",
+        "review.apply",
+        "review.policy",
+        "review.assessment",
+        "review.assessment_help",
+        "review.task_languages",
+        "review.expires_at",
+        "review.max_applications",
+        "review.application",
+        "review.classification_manual",
+        "review.classification_automatic_blocked",
+        "review.classification_reviewed",
+        "review.effect_classification",
+        "review.reverse_classification"
       ],
       "namespace": ""
     },
@@ -14535,6 +14551,102 @@
       "rendering": "text",
       "sensitive_review_required": false,
       "linguistic_review": "UNVERIFIED"
+    },
+    "review.iudicium": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.save_policy": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.revoke_policy": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.apply": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.policy": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.assessment": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.assessment_help": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.task_languages": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.expires_at": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.max_applications": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.application": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.classification_manual": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.classification_automatic_blocked": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.classification_reviewed": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.effect_classification": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.reverse_classification": {
+      "context": "review: S03 classification scope, manual authority and conflict-safe undo; review_decision.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     }
   },
   "schema_version": 1,

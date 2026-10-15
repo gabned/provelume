@@ -2144,5 +2144,21 @@
   "classification.target_kind": "Grupo de destinos",
   "classification.full_context": "El texto seleccionado completo debe respetar el límite existente. Se admiten hasta 64 destinos actuales de un grupo; la vista previa muestra todos los destinos y el texto que puede enviarse.",
   "classification.consent": "Apruebo solo esta sugerencia con el texto, destinos y ruta de IA mostrados. Su calidad no se ha evaluado; no se aplica ninguna clasificación.",
-  "classification.generate": "Solicitar sugerencia"
+  "classification.generate": "Solicitar sugerencia",
+  "review.iudicium": "Revisión y autonomía de clasificación",
+  "review.save_policy": "Crear o revisar una regla",
+  "review.revoke_policy": "Desactivar la regla",
+  "review.apply": "Aplicar destinos revisados",
+  "review.policy": "Reglas de clasificación",
+  "review.assessment": "Evaluación registrada",
+  "review.assessment_help": "Evaluaciones recientes registradas. La confirmación vuelve a comprobar la fuente y las reglas actuales.",
+  "review.task_languages": "Idiomas de la tarea",
+  "review.expires_at": "Caducidad UTC (hasta 90 días)",
+  "review.max_applications": "Máximo de aplicaciones",
+  "review.application": "Recibo de la aplicación que se deshará",
+  "review.classification_manual": "Revise la fuente y elija los destinos personalmente. No se ha evaluado la calidad del clasificador; la confianza del modelo no concede permisos.",
+  "review.classification_automatic_blocked": "La aplicación automática sigue bloqueada hasta calificar la tarea real y revisar de nuevo la regla modificada.",
+  "review.classification_reviewed": "He revisado la fuente de forma independiente y elegido estos destinos.",
+  "review.effect_classification": "Solo cambia metadatos de clasificación dentro de la fuente, destinos, plazo y presupuesto revisados. Se conservan Originales y Versiones.",
+  "review.reverse_classification": "Deshacer restaura la clasificación anterior, incluido el estado inicial sin clasificar. Los cambios posteriores lo bloquean; se conservan historial y uso."
 }

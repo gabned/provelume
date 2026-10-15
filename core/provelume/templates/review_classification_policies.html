@@ -1,0 +1,11 @@
+{% extends base_layout %}
+{% block title %}{{ rl.iudicium }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<a href="/attention?lang={{ lang }}">{{ rl.back }}</a>
+<h1>{{ rl.iudicium }}</h1><p>{{ rl.classification_manual }}</p>
+<p><a href="/review/decisions/capabilities/iudicium?lang={{ lang }}">{{ rl.capabilities }}</a></p>
+{% if unavailable %}<p role="alert">{{ rl.unavailable }}</p>{% else %}
+<p><a href="/review/decisions/iudicium/{{ new_policy }}?lang={{ lang }}">{{ rl.save_policy }}</a></p>
+<ul>{% for policy in rows %}<li><a href="/review/decisions/iudicium/{{ policy.id }}?lang={{ lang }}">{{ policy.path_prefix or policy.source_id }}</a> · {{ rl[policy.mode] }} · {{ policy.used }}/{{ policy.max_applications }} · {{ policy.expires_at }}</li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}

@@ -2144,5 +2144,21 @@
   "classification.target_kind": "Destination group",
   "classification.full_context": "The complete selected text must fit the existing limit. The group must contain 1–64 current destinations; the preview shows every destination and all text that can be sent.",
   "classification.consent": "I approve this one suggestion using the displayed text, destinations and AI route. Its quality is unevaluated; this does not apply any classification.",
-  "classification.generate": "Request suggestion"
+  "classification.generate": "Request suggestion",
+  "review.iudicium": "Classification review and autonomy",
+  "review.save_policy": "Create or revise a policy",
+  "review.revoke_policy": "Disable the policy",
+  "review.apply": "Apply reviewed destinations",
+  "review.policy": "Classification policies",
+  "review.assessment": "Recorded assessment",
+  "review.assessment_help": "Recent recorded assessments. Confirmation rechecks the source and current policies.",
+  "review.task_languages": "Task languages",
+  "review.expires_at": "Expiry in UTC (up to 90 days)",
+  "review.max_applications": "Maximum applications",
+  "review.application": "Application receipt to undo",
+  "review.classification_manual": "Review the source and choose the destinations yourself. Classifier quality has not been evaluated; model confidence grants no permission.",
+  "review.classification_automatic_blocked": "Automatic application remains blocked until real task quality is qualified and the changed policy is reviewed again.",
+  "review.classification_reviewed": "I independently reviewed the source and selected these destinations.",
+  "review.effect_classification": "Changes only classification metadata within the reviewed source, destinations, expiry and budget. Originals and Versions are preserved.",
+  "review.reverse_classification": "Undo restores the previous classification, including an initially unclassified state. Later changes block undo; history and usage remain."
 }

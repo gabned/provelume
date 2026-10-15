@@ -2144,5 +2144,21 @@
   "classification.target_kind": "Zielgruppe",
   "classification.full_context": "Der vollständige ausgewählte Text muss innerhalb des bestehenden Limits liegen. Bis zu 64 aktuelle Ziele einer Gruppe sind zulässig; die Vorschau zeigt alle Ziele und den übertragbaren Text.",
   "classification.consent": "Ich genehmige nur diesen Vorschlag mit dem angezeigten Text, den Zielen und dem KI-Pfad. Seine Qualität wurde nicht bewertet; keine Klassifizierung wird angewendet.",
-  "classification.generate": "Vorschlag anfordern"
+  "classification.generate": "Vorschlag anfordern",
+  "review.iudicium": "Klassifikation prüfen und steuern",
+  "review.save_policy": "Richtlinie erstellen oder ändern",
+  "review.revoke_policy": "Richtlinie deaktivieren",
+  "review.apply": "Geprüfte Ziele anwenden",
+  "review.policy": "Klassifikationsrichtlinien",
+  "review.assessment": "Gespeicherte Bewertung",
+  "review.assessment_help": "Zuletzt gespeicherte Bewertungen. Die Bestätigung prüft Quelle und aktuelle Richtlinien erneut.",
+  "review.task_languages": "Aufgabensprachen",
+  "review.expires_at": "Ablauf in UTC (bis zu 90 Tage)",
+  "review.max_applications": "Maximale Anwendungen",
+  "review.application": "Beleg der rückgängig zu machenden Anwendung",
+  "review.classification_manual": "Prüfen Sie die Quelle und wählen Sie die Ziele selbst. Die Klassifikatorqualität wurde nicht bewertet; Modellkonfidenz erteilt keine Berechtigung.",
+  "review.classification_automatic_blocked": "Automatische Anwendung bleibt bis zur realen Aufgabenqualifikation und erneuter Prüfung der geänderten Richtlinie gesperrt.",
+  "review.classification_reviewed": "Ich habe die Quelle unabhängig geprüft und diese Ziele gewählt.",
+  "review.effect_classification": "Ändert nur Klassifikationsmetadaten innerhalb der geprüften Quelle, Ziele, Frist und Menge. Originale und Versionen bleiben erhalten.",
+  "review.reverse_classification": "Rückgängig stellt die vorherige Klassifikation wieder her, auch den unklassifizierten Anfangszustand. Spätere Änderungen verhindern dies; Verlauf und Verbrauch bleiben erhalten."
 }

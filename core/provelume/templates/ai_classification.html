@@ -3,6 +3,7 @@
 {% block content %}
 <p><a href="/operations/ai?lang={{ lang }}{% if return_to %}&amp;return_to={{ return_to|urlencode }}{% endif %}">{{ t('ai.operations') }}</a> · <a href="{{ document_link(document_id) }}">{{ t('action.link.document') }}</a></p>
 <section class="hero"><h1>{{ t('classification.title') }}</h1><p>{{ t('classification.unqualified') }}</p></section>
+<p><a href="/review/decisions/iudicium/{{ document_id }}?lang={{ lang }}&amp;job={{ job.id }}">{{ t('review.iudicium') }}</a> · <a href="/review/iudicium?lang={{ lang }}">{{ t('review.policy') }}</a></p>
 <section class="panel">
 {% if body is none %}<p role="status">{{ t('classification.unavailable') }}</p>
 {% else %}
