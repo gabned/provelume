@@ -320,13 +320,79 @@ class _Projection:
             )
         self.config = (
             self.reader.record(
-                store.paths.config, ("source_change", "extraction_error"), yaml_record=True
+                store.paths.config, ("source_change", "extraction_error", "classification"),
+                yaml_record=True,
             )
             or {}
         )
         self.scheduler_jobs = self.reader.rows(
-            store.paths.state / "scheduler" / "jobs", ("source_change", "extraction_error")
+            store.paths.state / "scheduler" / "jobs",
+            ("source_change", "extraction_error", "classification"),
         )
+
+    def classification_assessments(self):
+        """Recorded evidence only; opening it performs a fresh bounded source read."""
+        from .ai_classification_proposals import validate_reference
+        from .ai_contract import digest as ai_digest
+        from .scheduler import _receipt_matches_terminal_job
+
+        queues = ("classification",)
+        identity = self.config.get("instance")
+        instance_id = identity.get("id") if type(identity) is dict else None
+        for job in self.scheduler_jobs.values():
+            if job.get("job_kind") != "ai.execute" or job.get("status") != "succeeded":
+                continue
+            validate_job_record(job)
+            result = job["ai"]["result"]
+            if result is None or result["kind"] != "classification_ref":
+                continue
+            ref = result["value"]
+            selections = validate_reference(ref)
+            job_id = job["id"]
+            receipt = self.reader.record(
+                self.store.paths.state / "scheduler" / "receipts" /
+                ("receipt_" + job_id.removeprefix("job_") + ".json"), queues,
+            )
+            if receipt is None or not _receipt_matches_terminal_job(receipt, job):
+                self.reader.problem(queues, "classification_receipt_invalid")
+                continue
+            body = self.reader.record(
+                self.store.paths.derived_artifacts.parent /
+                ("ai-classification-" + job_id + ".json"),
+                queues, optional=True,
+            )
+            if body is None:  # Explicit disposal is not an extraction error.
+                continue
+            if ai_digest(body) != ref["body_sha256"] or body.get("job_id") != job_id:
+                self.reader.problem(queues, "classification_result_invalid")
+                continue
+            first = selections[0]
+            context = job["ai"]["request"]["context"]
+            if (first.version.instance_id != instance_id
+                    or first.version.instance_id != context["instance_id"]
+                    or first.version.document_id != context["document_id"]
+                    or first.version.version_id != context["version_id"]
+                    or ref["route"] != job["ai"]["attempts"][-1]["route"]):
+                self.reader.problem(queues, "classification_source_invalid")
+                continue
+            evidence = self.lineage(first.version.document_id, "classification",
+                                    first.version.version_id)
+            if evidence is None:
+                continue
+            if (first.version.original_id != evidence["original_id"]
+                    or first.version.original_sha256 != evidence["content_hash"]
+                    or first.version.original_size_bytes != evidence["size_bytes"]):
+                self.reader.problem(queues, "classification_source_invalid")
+                continue
+            self.reader.observed["classification"] += 1
+            self.emit(
+                "classification", "ai-classification:" + job_id,
+                "review_classification_assessment", "classification_assessment",
+                {**evidence, "job_id": job_id, "body_sha256": ref["body_sha256"],
+                 "profile_fingerprint": ref["route"], "requires_fresh_read": True,
+                 "classification_quality": "NOT_EVALUATED", "automation_authorized": False},
+                links=[{"href": f"/operations/ai/{job_id}/classification", "kind": "operation"}],
+            )
 
     def emit(
         self,
@@ -1319,6 +1385,8 @@ class _RecordedStore(InstanceStore):
 
 def domain_review_target(item: dict[str, Any]) -> dict[str, Any] | None:
     """Project a navigation target, never confer mutation authority from queue evidence."""
+    if item.get("proposal", {}).get("kind") == "review_classification_assessment":
+        return None  # Recorded AI data never grants the existing placement/apply path.
     selected = DOMAIN_REVIEW_ACTIONS.get(item.get("queue"))
     if selected is None or item.get("review_state") == "superseded":
         return None
@@ -1350,6 +1418,7 @@ def collect_proposals(store: InstanceStore) -> dict[str, Any]:
     """
     projection = _Projection(store)
     for adapter, owners in (
+        (projection.classification_assessments, ("classification",)),
         (projection.classification_retention, ("classification", "retention")),
         (projection.duplicates, ("exact_duplicate", "probable_duplicate")),
         (projection.intake, _INTAKE_QUEUES),

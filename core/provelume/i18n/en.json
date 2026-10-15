@@ -2132,5 +2132,17 @@
   "video.streams": "Streams",
   "video.subtitles": "Subtitle tracks",
   "video.support": "Effective support",
-  "video.title": "Video profiles"
+  "video.title": "Video profiles",
+  "classification.title": "Classification assessment",
+  "classification.unqualified": "Recorded suggestion. Classifier quality has not been evaluated and no evaluated confidence is available. Reviewing or deleting it does not apply classification or authorize automatic actions.",
+  "classification.target": "Suggested destination",
+  "classification.abstained": "No destination was selected.",
+  "classification.unavailable": "This assessment is unavailable or no longer matches the current source or policy. Its derived output can still be deleted.",
+  "action.reason.classification_assessment": "Recorded AI assessment; open it to check current evidence. It grants no classification authority.",
+  "classification.request": "Request a classification suggestion",
+  "classification.request_help": "Request a suggestion for one document using the current AI settings. Nothing is applied to your document.",
+  "classification.target_kind": "Destination group",
+  "classification.full_context": "The complete selected text must fit the existing limit. The group must contain 1–64 current destinations; the preview shows every destination and all text that can be sent.",
+  "classification.consent": "I approve this one suggestion using the displayed text, destinations and AI route. Its quality is unevaluated; this does not apply any classification.",
+  "classification.generate": "Request suggestion"
 }

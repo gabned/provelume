@@ -6,12 +6,19 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
+- Failed model setup operations show only bounded native diagnostics carried by
+  their own failure; observations from earlier calls are not attributed to them.
 - Cura also becomes the default for inherited previous-interface settings. An
   explicit backup selection remains preserved and reversible through the existing
   settings controls. Failed preference effects restore the exact prior settings.
 
 ### Added
 
+- Explicit document classification requests through the existing AI preview,
+  consent and scheduler, with receipt-bound private assessment records, review
+  and derived-output removal in the existing Action Center. Native and configured
+  provider routes reuse the existing model and controls. Classifier quality is
+  unevaluated; no application or automation authority is added.
 - Internal Iudicium classification assessment templates and attributable receipts,
   with bounded synthetic confidence evaluation. These contracts do not enable
   production classification, autonomous application or a new model/provider.

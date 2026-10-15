@@ -405,6 +405,11 @@ def attach_ai_routes(app, instance, templates, context_factory):
         local(request)
         records = setup.jobs.journal.list_jobs(limit=100)
         jobs = [setup.jobs.public(j["id"]) for j in records if j["job_kind"] == "ai.execute"]
+        classification_jobs = {
+            j["id"] for j in records if j["job_kind"] == "ai.execute"
+            and j["ai"]["result"] is not None
+            and j["ai"]["result"]["kind"] == "classification_ref"
+        }
         revisions = {
             j["id"]: ai_capabilities(j)["revision"]
             for j in records
@@ -417,7 +422,10 @@ def attach_ai_routes(app, instance, templates, context_factory):
         orphaned = {}
         for job in jobs:
             with suppress(ValueError, OSError, SchedulerBusyError):
-                orphaned[job["id"]] = candidate(setup.synthesis, job["id"])
+                producer = (setup.classification if job["ai"]["request"]["template"]["id"]
+                            in {"classification-en-v1", "classification-it-v1"}
+                            else setup.synthesis)
+                orphaned[job["id"]] = candidate(producer, job["id"])
         control = setup.jobs.status()
         if control["session_authorized"] and control["mode"] == "enabled":
             for job in jobs:
@@ -436,6 +444,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
             revisions=revisions,
             dispatchable=dispatchable,
             orphaned=orphaned,
+            classification_jobs=classification_jobs,
         )
 
     @app.post("/operations/ai/control")
@@ -544,3 +553,7 @@ def attach_ai_routes(app, instance, templates, context_factory):
 
     attach_synthesis_routes(app, setup, page=page, fields=fields, redirect=redirect,
                             launch_job=launch_job, local=local, tasks=tasks, mutation=mutation)
+    from .ai_classification_activity import attach_classification_routes
+
+    attach_classification_routes(app, setup, page=page, fields=fields, redirect=redirect,
+                                 local=local, mutation=mutation, launch_job=launch_job, tasks=tasks)

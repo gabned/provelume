@@ -2132,5 +2132,17 @@
   "video.streams": "Fluxuri",
   "video.subtitles": "Piste de subtitrare",
   "video.support": "Suport efectiv",
-  "video.title": "Profiluri video"
+  "video.title": "Profiluri video",
+  "classification.title": "Evaluare a clasificării",
+  "classification.unqualified": "Propunere înregistrată. Calitatea clasificatorului nu a fost evaluată și nu există un nivel de încredere evaluat. Citirea sau ștergerea nu aplică clasificarea și nu autorizează acțiuni automate.",
+  "classification.target": "Destinație sugerată",
+  "classification.abstained": "Nu a fost selectată nicio destinație.",
+  "classification.unavailable": "Această evaluare nu este disponibilă sau nu mai corespunde sursei ori politicii curente. Rezultatul derivat poate fi șters în continuare.",
+  "action.reason.classification_assessment": "Evaluare AI înregistrată; deschideți-o pentru a verifica dovezile curente. Nu conferă autoritate de clasificare.",
+  "classification.request": "Solicită o sugestie de clasificare",
+  "classification.request_help": "Solicită o sugestie pentru un document folosind setările AI curente. Nu se aplică nicio clasificare.",
+  "classification.target_kind": "Grup de destinații",
+  "classification.full_context": "Textul selectat complet trebuie să respecte limita existentă. Sunt permise cel mult 64 de destinații curente dintr-un grup; previzualizarea arată toate destinațiile și textul care poate fi trimis.",
+  "classification.consent": "Aprob doar această sugestie cu textul, destinațiile și ruta AI afișate. Calitatea nu este evaluată; nu se aplică nicio clasificare.",
+  "classification.generate": "Solicită sugestia"
 }

@@ -2132,5 +2132,17 @@
   "video.streams": "Flujos",
   "video.subtitles": "Pistas de subtítulos",
   "video.support": "Soporte efectivo",
-  "video.title": "Perfiles de vídeo"
+  "video.title": "Perfiles de vídeo",
+  "classification.title": "Evaluación de clasificación",
+  "classification.unqualified": "Propuesta guardada. La calidad del clasificador no se ha evaluado y no hay confianza evaluada disponible. Leerla o eliminarla no aplica la clasificación ni autoriza acciones automáticas.",
+  "classification.target": "Destino sugerido",
+  "classification.abstained": "No se seleccionó ningún destino.",
+  "classification.unavailable": "Esta evaluación no está disponible o ya no coincide con la fuente o política actual. El resultado derivado se puede eliminar.",
+  "action.reason.classification_assessment": "Evaluación de IA guardada; ábrala para comprobar las pruebas actuales. No otorga autoridad de clasificación.",
+  "classification.request": "Solicitar una sugerencia de clasificación",
+  "classification.request_help": "Solicita una sugerencia para un documento con la configuración actual de IA. No se aplica ninguna clasificación.",
+  "classification.target_kind": "Grupo de destinos",
+  "classification.full_context": "El texto seleccionado completo debe respetar el límite existente. Se admiten hasta 64 destinos actuales de un grupo; la vista previa muestra todos los destinos y el texto que puede enviarse.",
+  "classification.consent": "Apruebo solo esta sugerencia con el texto, destinos y ruta de IA mostrados. Su calidad no se ha evaluado; no se aplica ninguna clasificación.",
+  "classification.generate": "Solicitar sugerencia"
 }

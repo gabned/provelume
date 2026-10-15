@@ -7,8 +7,10 @@ from dataclasses import replace
 
 import pytest
 
+from provelume.ai_models import ModelError
 from provelume.ai_runtime import LocalRuntime
 from provelume.ai_runtime_contract import MODEL_ID
+from provelume.ai_runtime_diagnostics import native_failure
 from provelume.ai_setup import AiSetup
 from provelume.service import ProvelumeInstance
 
@@ -101,6 +103,44 @@ def test_explicit_self_test_alone_never_enables_or_activates(installed):
     assert setup.models._state()["active"] is None
     assert setup.configuration()["mode"] == "off"
     assert not setup.jobs.session_authorized
+
+
+@pytest.mark.parametrize("observation,stage,code", [
+    (None, None, None),
+    (native_failure({"phase": "hardware-admission", "native_stage": "public-inventory",
+                     "native_code": 5}, code="timeout"), "public-inventory", 5),
+    (native_failure({"phase": "hardware-admission", "native_code": 0}, code="timeout"),
+     "hardware-admission", 0),
+    ({**native_failure({}, code="timeout"), "private": "DoNotPublishPrivateText"}, None, None),
+    ({**native_failure({}, code="timeout"), "native_code": True}, None, None),
+])
+def test_failed_operation_uses_only_its_exception_observation(
+    installed, monkeypatch, observation, stage, code,
+):
+    import copy
+
+    setup, _ = installed
+    stale = native_failure({"phase": "hardware-admission", "native_code": 203}, code="timeout")
+    setup.runtime.last_observation = stale
+
+    def fail_before_runner(*args, **kwargs):
+        # Even a newly allocated ambient observation belongs to another call.
+        setup.runtime.last_observation = dict(stale)
+        error = ModelError("timeout")
+        if observation is not None:
+            error.runtime_observation = copy.deepcopy(observation)
+        raise error
+
+    monkeypatch.setattr(setup.models, "self_test", fail_before_runner)
+    setup.run_operation(setup.begin_operation("self_test"))
+    operation = setup.operation
+    assert operation["state"] == "failed" and operation["error"] == "timeout"
+    assert operation.get("diagnostic_stage") == stage
+    assert operation.get("native_code") == code
+    assert "DoNotPublishPrivateText" not in str(operation)
+    assert setup.runtime.last_observation == stale
+    assert setup.models._state()["active"] is None
+    assert not setup.jobs.session_authorized and not setup.jobs.journal.list_jobs()
 
 
 @pytest.mark.parametrize("action", ["runtime", "deactivate", "remove", "recover"])

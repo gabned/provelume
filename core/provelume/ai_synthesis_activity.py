@@ -98,7 +98,8 @@ def attach_synthesis_routes(
         try:
             check(values["acknowledge"] == "selected-document", "ai_consent_missing")
             row = setup.previews.get(values["ref"])
-            check(row is not None and "recipe" in row, "ai_consent_missing")
+            check(row is not None and "recipe" in row and "classification_targets" not in row,
+                  "ai_consent_missing")
             check(len(tasks) < 2, "ai_limit_exceeded")
             await mutation(setup.approve_generation, values["ref"])
             job = await mutation(setup.enqueue, values["ref"])

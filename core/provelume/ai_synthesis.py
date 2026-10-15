@@ -192,7 +192,7 @@ class DocumentSynthesis:
                     choices.append((bundle["representation_id"], output["id"]))
         return document, sorted(choices)
 
-    def association(self, document, source, recipe):
+    def association(self, document, source, recipe, *, template=None):
         # Bound inventory before the existing complete association collector reads it.
         for kind in ("acquisitions", "hierarchy", "classifications", "sources"):
             paths = self.instance.store.paths.canonical_dir(kind).glob("*.json")
@@ -201,6 +201,9 @@ class DocumentSynthesis:
         policies = self.policies()
         network = self.instance.store.read_config()["network"]["external_access"]
         check(type(network) is bool, "ai_missing_policy")
+        if template is None:
+            template = TaskTemplate(recipe["template"], True)
+        check(type(template) is TaskTemplate, "ai_job_invalid")
         association = digest({
             "source": {
                 "version": asdict(source.version),
@@ -210,13 +213,23 @@ class DocumentSynthesis:
             }, "recipe": recipe,
             "governance": governance[1], "policies": policies,
             "configuration": self.setup.configuration(), "network": network,
-            "current_template": TaskTemplate(recipe["template"], True).identity.revision,
+            "current_template": template.identity.revision,
             "current_redaction": digest(RedactionConfig().as_record()),
         })
         return association, governance, policies, network
 
-    def preview(self, document_id, representation_id, output_id, task, language):
-        check(task in {"summary", "key-points"} and language in {"en", "it"})
+    def preview(self, document_id, representation_id, output_id, task, language,
+                *, classification_targets=None):
+        check(language in {"en", "it"})
+        if classification_targets is None:
+            check(task in {"summary", "key-points"})
+        else:
+            from .ai_classification_targets import CurrentClassificationTargets
+
+            check(type(classification_targets) is CurrentClassificationTargets
+                  and task == "classification"
+                  and classification_targets.document_id == document_id)
+            classification_targets.revalidate(self.instance.store)
         with self.setup.lock:
             self.setup._expire()
             if len(self.setup.previews) >= 32:
@@ -239,6 +252,20 @@ class DocumentSynthesis:
             # Whole paragraphs preserve conditions and negations; never truncate a
             # paragraph to fit. Offsets precede normalization/redaction and remain exact.
             for page, content in enumerate(text.split("\f"), 1):
+                if classification_targets:
+                    # Classification requires complete context. Keep page whitespace
+                    # and fail rather than silently dropping paragraphs or pages.
+                    if content:
+                        length = len(content.encode("utf-8"))
+                        check(page in anchors and size + length <= MAX_TEXT
+                              and len(selections) < MAX_SEGMENTS, "ai_limit_exceeded")
+                        selections.append(Selection(
+                            source.version, representation_id, digest(bundle), output_id,
+                            anchors[page], offset, offset + len(content),
+                        ))
+                        size += length
+                    offset += len(content) + 1
+                    continue
                 for match in re.finditer(r"[^\r\n]+(?:(?:\r\n|\r|\n)(?![\r\n])[^\r\n]+)*", content):
                     part = match.group()
                     length = len(part.encode("utf-8"))
@@ -252,31 +279,51 @@ class DocumentSynthesis:
                     size += length
                 offset += len(content) + 1
             check(selections, "ai_limit_exceeded")
-            template = TaskTemplate(f"{task}-{language}-v1", True)
+            template = (classification_targets.template(language) if classification_targets
+                        else TaskTemplate(f"{task}-{language}-v1", True))
             recipe = {"template": template.id, "template_revision": template.identity.revision,
                       "redaction_revision": digest(RedactionConfig().as_record()),
                       "selections": [s.as_record() for s in selections]}
-            association, governance, policies, network = self.association(document, source, recipe)
+            if classification_targets:
+                recipe.update(allowlist=[list(p) for p in classification_targets.allowlist],
+                              target_revision=classification_targets.revision)
+            association, governance, policies, network = self.association(
+                document, source, recipe, template=template)
             key = secrets.token_hex(32)
             configuration = self.setup.configuration()
             prepared = self.setup.prepare(
                 key, source, tuple(selections), configuration=configuration,
-                governance=governance, template=TaskTemplate(recipe["template"], True),
+                governance=governance, template=template,
                 scope_policy=policies, external_access=network,
             )
-            self.setup.previews[key] = dict(
+            if classification_targets:
+                from .ai_classification_proposals import classification_request_ref
+
+                # The random context nonce is frozen in prepared; the scheduler
+                # reference additionally binds the exact preview and inventory.
+                key = classification_request_ref(prepared[0], classification_targets)
+            row = dict(
                 created=time.monotonic(), configuration=configuration, source=source,
                 selections=tuple(selections), prepared=prepared, approved=False, job=None,
                 generation=self.setup.jobs._control()["generation"], recipe=recipe,
                 association=association,
             )
+            if classification_targets:
+                row["classification_targets"] = classification_targets
+            self.setup.previews[key] = row
             return key, prepared, document
 
     def revalidate(self, row):
         selection = row["selections"][0]
         document, _, source = self.source(selection.version.document_id,
                                          selection.representation_id, selection.output_id)
-        association, _, _, _ = self.association(document, source, row["recipe"])
+        template = None
+        if "classification_targets" in row:
+            targets = row["classification_targets"].revalidate(self.instance.store)
+            language = row["recipe"]["template"].split("-")[1]
+            template = targets.template(language)
+        association, _, _, _ = self.association(document, source, row["recipe"],
+                                               template=template)
         check(source == row["source"] and association == row["association"], "ai_setup_stale")
 
     def path(self, job_id):

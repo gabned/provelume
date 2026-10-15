@@ -1,0 +1,19 @@
+{% extends base_layout %}
+{% block title %}{{ t('classification.title') }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<p><a href="/operations/ai?lang={{ lang }}{% if return_to %}&amp;return_to={{ return_to|urlencode }}{% endif %}">{{ t('ai.operations') }}</a> · <a href="{{ document_link(document_id) }}">{{ t('action.link.document') }}</a></p>
+<section class="hero"><h1>{{ t('classification.title') }}</h1><p>{{ t('classification.unqualified') }}</p></section>
+<section class="panel">
+{% if body is none %}<p role="status">{{ t('classification.unavailable') }}</p>
+{% else %}
+{% if document %}<h2>{{ document.title }}</h2>{% endif %}
+{% if body.assessment.status == 'abstained' %}<p role="status">{{ t('classification.abstained') }}</p>
+{% else %}<dl><dt>{{ t('classification.target') }}</dt><dd>{{ targets.targets[body.assessment.target].label }}</dd></dl>
+<ol>{% for index in body.assessment.references %}<li><blockquote>{{ body.segments[index].text }}</blockquote></li>{% endfor %}</ol>{% endif %}
+<p>{{ t('ai.coverage') }}: {{ t('ai.' ~ body.coverage) }}</p>
+{% endif %}
+<p>{{ t('ai.' ~ reference.execution) }} · {{ reference.model }}</p>
+<details><summary>{{ t('synthesis.details') }}</summary><p class="hash">{{ job.id }} · {{ reference.route }}</p><p class="hash">{{ reference.recipe.selections[0].version.version_id }}</p><p>{{ t('ai.receipts') }}: receipt_{{ job.id[4:] }}</p></details>
+<form method="post" action="/operations/ai/{{ job.id }}/classification/discard?lang={{ lang }}{% if return_to %}&amp;return_to={{ return_to|urlencode }}{% endif %}">{% include 'ai_fields.html' %}<button type="submit">{{ t('synthesis.discard') }}</button></form><p>{{ t('synthesis.discard_help') }}</p>
+</section>
+{% endblock %}

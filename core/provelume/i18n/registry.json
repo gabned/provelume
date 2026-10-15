@@ -151,7 +151,8 @@
         "action.link.duplicate_case",
         "action.link.source",
         "action.link.intake",
-        "action.evidence_unavailable"
+        "action.evidence_unavailable",
+        "action.reason.classification_assessment"
       ],
       "namespace": ""
     },
@@ -14462,6 +14463,78 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "classification.title": {
+      "context": "Iudicium S02 recorded assessment and explicit disposable-output review; templates/ai_classification.html; action center",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "classification.unqualified": {
+      "context": "Iudicium S02 recorded assessment and explicit disposable-output review; templates/ai_classification.html; action center",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "classification.target": {
+      "context": "Iudicium S02 recorded assessment and explicit disposable-output review; templates/ai_classification.html; action center",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "classification.abstained": {
+      "context": "Iudicium S02 recorded assessment and explicit disposable-output review; templates/ai_classification.html; action center",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "classification.unavailable": {
+      "context": "Iudicium S02 recorded assessment and explicit disposable-output review; templates/ai_classification.html; action center",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "action.reason.classification_assessment": {
+      "context": "Iudicium S02 recorded assessment and explicit disposable-output review; templates/ai_classification.html; action center",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "classification.request": {
+      "context": "Iudicium S02 explicit classification request/preview/consent; templates/ai_classification_request.html",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "classification.request_help": {
+      "context": "Iudicium S02 explicit classification request/preview/consent; templates/ai_classification_request.html",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "classification.target_kind": {
+      "context": "Iudicium S02 explicit classification request/preview/consent; templates/ai_classification_request.html",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "classification.full_context": {
+      "context": "Iudicium S02 explicit classification request/preview/consent; templates/ai_classification_request.html",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "classification.consent": {
+      "context": "Iudicium S02 explicit classification request/preview/consent; templates/ai_classification_request.html",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "classification.generate": {
+      "context": "Iudicium S02 explicit classification request/preview/consent; templates/ai_classification_request.html",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
     }
   },
   "schema_version": 1,
