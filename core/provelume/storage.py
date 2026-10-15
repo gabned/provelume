@@ -63,6 +63,39 @@ def replace_file(source: str | Path, target: str | Path) -> None:
             time.sleep(min(0.01, remaining))
 
 
+def _windows_snapshot_bytes(path: Path) -> bytes:
+    """Read one immutable published version without denying atomic replacement."""
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                                   ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD,
+                                   wintypes.HANDLE]
+    kernel.CreateFileW.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    # GENERIC_READ; share READ/WRITE/DELETE. The existing atomic writer can
+    # replace its directory entry while this handle retains the complete file.
+    # OPEN_EXISTING and non-inheritable handles grant no write/create access.
+    handle = kernel.CreateFileW(str(native_path(path)), 0x80000000, 7, None, 3, 0x80, None)
+    if handle == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        descriptor = msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY | os.O_NOINHERIT)
+    except BaseException:
+        kernel.CloseHandle(handle)
+        raise
+    try:
+        stream = os.fdopen(descriptor, "rb")
+    except BaseException:
+        os.close(descriptor)
+        raise
+    with stream:
+        return stream.read()
+
+
 def read_json_snapshot(path: Path) -> Any:
     """Close the snapshot before parsing, so a UI read does not pin a journal file.
 
@@ -70,7 +103,8 @@ def read_json_snapshot(path: Path) -> Any:
     one handle retains the old or new complete snapshot, without holding a Windows
     CRT handle during decoding/validation or taking the journal mutation lock.
     """
-    payload = native_path(path).read_bytes()
+    payload = (_windows_snapshot_bytes(path) if os.name == "nt"
+               else native_path(path).read_bytes())
     return json.loads(payload.decode("utf-8"))
 
 
