@@ -10,11 +10,14 @@ import argparse
 import ctypes as c
 import hashlib
 import json
+import math
 import os
+import re
 import socket
 import subprocess
 import sys
 import time
+from contextlib import suppress
 from pathlib import Path
 
 import httpx
@@ -76,6 +79,48 @@ def prepare_parent_death(report, *, warm, live, save):
         raise ValueError("unobserved_live_worker")
     report["phase"] = "parent_death"
     save()
+
+
+def summary(report):
+    """The existing CI output plus closed details of an actual failed operation."""
+    result = {key: report[key] for key in ("status", "phase", "checks")}
+    if (report.get("failure_type") != "ValueError"
+            or report.get("failure_code") != "model_operation"):
+        return result
+    result.update(failure_type="ValueError", failure_code="model_operation")
+    history = report.get("operation_history", [])
+    if not history or type(history[-1]) is not dict:
+        return result
+    row = history[-1]
+    if row.get("state") != "failed" or row.get("action") != "self_test":
+        return result
+    from provelume.ai_models import ModelError
+    from provelume.ai_runtime_diagnostics import (
+        NATIVE_STAGES,
+        PHASES,
+        public_inventory_observation,
+    )
+
+    failed = {"state": "failed", "action": "self_test"}
+    with suppress(TypeError, ValueError):
+        failed["error"] = ModelError(row.get("error")).code
+    stage = row.get("diagnostic-stage")
+    if type(stage) is str and stage in NATIVE_STAGES | PHASES:
+        failed["diagnostic_stage"] = stage
+    code = row.get("native-code")
+    if type(code) is str and re.fullmatch(r"-?[0-9]{1,10}", code):
+        code = int(code)
+    if type(code) is int and -(2**31) <= code < 2**32:
+        failed["native_code"] = code
+    elapsed = row.get("elapsed_seconds")
+    if (type(elapsed) in {int, float} and math.isfinite(elapsed)
+            and 0 <= elapsed <= 3600):
+        failed["elapsed_ms"] = round(elapsed * 1000)
+    inventory = public_inventory_observation(row.get("public_inventory"))
+    if stage == "public-inventory" and inventory is not None:
+        failed["public_inventory"] = inventory
+    result["failed_model_operation"] = failed
+    return result
 
 
 def run(args):
@@ -261,7 +306,7 @@ def run(args):
         for handle in observed.values():
             kernel.CloseHandle(handle)
         save()
-    print(json.dumps({key: report[key] for key in ("status", "phase", "checks")}))
+    print(json.dumps(summary(report)))
     return 0 if report["status"] == "PASS" else 1
 
 

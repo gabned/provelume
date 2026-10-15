@@ -6,6 +6,9 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
+- Failed Windows public-package admission retains bounded stage timing, remaining
+  request budget and verification counters; Installed CI prints closed failure
+  details without requiring the diagnostic ZIP for initial triage.
 - Windows journal snapshots share DELETE access with concurrent state publishers,
   close before parsing, and preserve complete snapshots and access-error handling.
 - Failed model setup operations show only bounded native diagnostics carried by

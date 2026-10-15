@@ -143,6 +143,55 @@ def test_failed_operation_uses_only_its_exception_observation(
     assert not setup.jobs.session_authorized and not setup.jobs.journal.list_jobs()
 
 
+def test_owned_public_inventory_observation_reaches_existing_operation_markup(
+    installed, monkeypatch,
+):
+    import json
+    from pathlib import Path
+
+    from jinja2 import Environment, FileSystemLoader
+
+    import provelume.ai_setup as module
+    from scripts.custodia_ordinary import Page
+
+    setup, _ = installed
+    progress = {
+        "stage": "hash-file", "elapsed_ms": 300, "stage_elapsed_ms": 100,
+        "budget_at_entry_ms": 40000, "budget_remaining_ms": 39700,
+        "files_total": 3, "files_verified": 1, "bytes_hashed": 1024,
+        "grants_total": 7, "grants_completed": 0,
+    }
+    owned = native_failure({"native_stage": "public-inventory", "native_code": 0,
+                            "public_inventory": progress}, code="timeout")
+    ambient = native_failure({"native_stage": "process-create", "native_code": 203},
+                             code="compatibility")
+    setup.runtime.last_observation = ambient
+
+    def fail(*args, **kwargs):
+        error = ModelError("timeout")
+        error.runtime_observation = owned
+        raise error
+
+    monkeypatch.setattr(setup.models, "self_test", fail)
+    setup.run_operation(setup.begin_operation("self_test"))
+    operation = setup.operation
+    assert operation["public_inventory"] == progress
+    assert operation["public_inventory"] is not owned["public_inventory"]
+    assert setup.runtime.last_observation == ambient
+    assert setup.read()["operation"]["public_inventory"] == progress
+    environment = Environment(
+        loader=FileSystemLoader(str(Path(module.__file__).parent / "templates")), autoescape=True)
+    markup = environment.get_template("ai_model_progress.html").render(
+        ai={"operation": operation, "model_actions": []},
+        t=lambda key: key, ui_number=lambda value, digits: str(value))
+    projected = Page(markup).operation
+    assert projected["diagnostic-stage"] == "public-inventory"
+    assert projected["native-code"] == "0"
+    assert json.loads(projected["public-inventory"]) == progress
+    assert setup.models._state()["active"] is None
+    assert not setup.jobs.session_authorized and not setup.jobs.journal.list_jobs()
+
+
 @pytest.mark.parametrize("action", ["runtime", "deactivate", "remove", "recover"])
 def test_newer_control_at_publication_fences_setup_mutations(installed, monkeypatch, action):
     setup, _ = installed

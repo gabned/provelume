@@ -26,7 +26,8 @@ class Page(HTMLParser):
         if row.get("id") == "ai-model-operation":
             self.operation = {key.removeprefix("data-"): value for key, value in row.items()
                               if key in {"data-state", "data-action", "data-error",
-                                         "data-diagnostic-stage", "data-native-code", "data-bytes"}}
+                                         "data-diagnostic-stage", "data-native-code", "data-bytes",
+                                         "data-public-inventory"}}
 
     def handle_endtag(self, tag):
         if tag == "form":
@@ -89,6 +90,16 @@ def model_action(client, name, report, *, observe=lambda: None, save=lambda: Non
         if operation and operation["action"] == name and operation["state"] == "running":
             during(operation)
         if operation and operation["action"] == name and operation["state"] != "running":
+            raw_inventory = operation.pop("public-inventory", "")
+            if raw_inventory:
+                from provelume.ai_runtime_diagnostics import public_inventory_observation
+
+                try:
+                    inventory = public_inventory_observation(json.loads(raw_inventory))
+                except (ValueError, TypeError):
+                    inventory = None
+                if inventory is not None:
+                    operation["public_inventory"] = inventory
             operation = {**operation, "elapsed_seconds": time.monotonic() - started}
             report.setdefault("operations", {})[name] = operation
             report.setdefault("operation_history", []).append(operation)

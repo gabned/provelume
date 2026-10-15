@@ -288,7 +288,7 @@ class LocalRuntime:
                 # never from the worker's self-reported network-control string.
                 self._load["limits"].update(self._process.validate_containment())
             self._model = model.entry.model_sha256
-        except BaseException:
+        except BaseException as exc:
             if os.name == "nt" and getattr(sys, "frozen", False) and self._process is not None:
                 import ctypes
 
@@ -306,6 +306,13 @@ class LocalRuntime:
                                  "native_code": self.last_observation["native_code"],
                                  "exit_code": self._process.poll(),
                                  "parent_termination": self.loaded}
+                if self._process.phase == "public-inventory":
+                    from .ai_runtime_diagnostics import public_inventory_observation
+
+                    inventory = public_inventory_observation(
+                        getattr(exc, "public_inventory", None))
+                    if inventory is not None:
+                        self._failure["public_inventory"] = inventory
             self._stop()
             raise
 

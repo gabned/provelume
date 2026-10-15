@@ -825,6 +825,8 @@ class AiSetup:
                     code = observation.get("native_code")
                     if type(code) is int and -(2**31) <= code < 2**32:
                         operation["native_code"] = code
+                    if "public_inventory" in observation:
+                        operation["public_inventory"] = dict(observation["public_inventory"])
 
     def payload(self, prepared):
         return task_payload(prepared[0], prepared[2]["template"]).decode()

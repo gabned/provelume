@@ -12,7 +12,9 @@ import json
 import os
 import re
 import stat
+from contextlib import suppress
 from pathlib import Path, PurePosixPath
+from time import monotonic
 
 from .ai_runtime_limits import check
 
@@ -100,7 +102,51 @@ def read_embedded_inventory():
     return value
 
 
+class _PublicInventoryObservation:
+    """In-memory progress only; no path, SID, file content or execution authority."""
+
+    def __init__(self, deadline):
+        self.started = self.stage_started = monotonic()
+        self.deadline = deadline
+        self.budget_at_entry_ms = int((deadline - self.started) * 1000)
+        self.stage = "pin-root"
+        self.files_total = self.grants_total = None
+        self.files_verified = self.bytes_hashed = self.grants_completed = 0
+
+    def mark(self, stage):
+        self.stage, self.stage_started = stage, monotonic()
+
+    def snapshot(self):
+        now = monotonic()
+        return {
+            "stage": self.stage, "elapsed_ms": int((now - self.started) * 1000),
+            "stage_elapsed_ms": int((now - self.stage_started) * 1000),
+            "budget_at_entry_ms": self.budget_at_entry_ms,
+            "budget_remaining_ms": int((self.deadline - now) * 1000),
+            "files_total": self.files_total, "files_verified": self.files_verified,
+            "bytes_hashed": self.bytes_hashed, "grants_total": self.grants_total,
+            "grants_completed": self.grants_completed,
+        }
+
+
 def pin_public_package(stack, executable, sid, *, cancel, deadline):
+    progress = _PublicInventoryObservation(deadline)
+    try:
+        return _pin_public_package(stack, executable, sid, cancel=cancel,
+                                   deadline=deadline, progress=progress)
+    except BaseException as exc:
+        # Keep the existing failure and native code, even if observation fails.
+        native_code = c.get_last_error() if os.name == "nt" else None
+        try:
+            with suppress(Exception):
+                exc.public_inventory = progress.snapshot()
+        finally:
+            if native_code is not None:
+                c.set_last_error(native_code)
+        raise
+
+
+def _pin_public_package(stack, executable, sid, *, cancel, deadline, progress):
     from .ai_model_download import checkpoint
     from .ai_windows_acl import grant_public_read, pin_acl_path
 
@@ -108,10 +154,15 @@ def pin_public_package(stack, executable, sid, *, cancel, deadline):
     check(executable.name == "Provelume.exe" and executable.is_absolute(), "compatibility")
     root = executable.parent
     root_handle = stack.enter_context(pin_acl_path(root, directory=True))
+    progress.mark("read-manifest")
     expected = read_embedded_inventory()
+    progress.mark("enumerate")
     files, directories = inventory(root, installed=True)
     check(directories == expected["directories"] and set(files) == set(expected["files"]),
           "untrusted")
+    progress.files_total = len(files)
+    progress.grants_total = len(files) + len(directories) + 2
+    progress.mark("pin-directories")
     directories = [(root, root_handle)] + [
         (root / name, stack.enter_context(pin_acl_path(root / name, directory=True)))
         for name in directories]
@@ -119,22 +170,29 @@ def pin_public_package(stack, executable, sid, *, cancel, deadline):
     # Verify every public byte before changing a single ACL. Keep the exact handles
     # until worker termination, including parents and the actual executable.
     for name, size in sorted(files.items()):
+        progress.mark("pin-file")
         checkpoint(cancel, deadline)
         handle = stack.enter_context(pin_acl_path(root / name, directory=False))
         pin = expected["files"][name]
         check(set(pin) == {"bytes", "sha256"} and size == pin["bytes"], "integrity")
         digest = hashlib.sha256()
+        progress.mark("hash-file")
         while True:
             checkpoint(cancel, deadline)
             block = os.read(handle, 1024 * 1024)
             if not block:
                 break
             digest.update(block)
+            progress.bytes_hashed += len(block)
         check(digest.hexdigest() == pin["sha256"], "integrity")
+        progress.files_verified += 1
         pinned.append(handle)
+    progress.mark("pin-executable")
     executable_handle = stack.enter_context(pin_acl_path(executable, directory=False))
     for handle in [h for _, h in directories] + pinned + [executable_handle]:
+        progress.mark("grant-acl")
         checkpoint(cancel, deadline)
         grant_public_read(handle, sid)
+        progress.grants_completed += 1
     return {"public_code_files": len(files) + 1, "public_code_inventory": hashlib.sha256(
         (json.dumps(expected, sort_keys=True, separators=(",", ":")) + "\n").encode()).hexdigest()}
