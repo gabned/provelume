@@ -56,7 +56,7 @@ def test_fresh_installer_uses_the_same_qualified_default(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("schema", [1, 2, 3])
-def test_upgrade_keeps_existing_current_preferences_byte_for_byte(tmp_path, monkeypatch, schema):
+def test_upgrade_projects_inherited_cura_and_keeps_original_bytes(tmp_path, monkeypatch, schema):
     path = tmp_path / "launcher.json"
     legacy = LauncherSettings(instance_path=str(tmp_path / "legacy-instance"), language="it")
     payload = legacy.as_payload()
@@ -77,12 +77,12 @@ def test_upgrade_keeps_existing_current_preferences_byte_for_byte(tmp_path, monk
     path.write_text(json.dumps(payload), encoding="utf-8")
     before = path.read_bytes()
     manager = ShellSettingsManager(path, default_settings())
-    assert manager.load().settings.interface_mode == "current"
+    assert manager.load().settings.interface_mode == "preview"
     monkeypatch.setattr(desktop, "settings_path", lambda: path)
     monkeypatch.setattr(desktop, "configure_login_startup", lambda *args, **kwargs: None)
     assert desktop.main(["--initialize-shell-settings"]) == 0
     assert path.read_bytes() == before
-    assert desktop.load_settings(path).interface_mode == "current"
+    assert desktop.load_settings(path).interface_mode == "preview"
 
 
 def test_explicit_reset_preview_and_undo_keep_selected_instance_and_legacy_rollback(tmp_path):
@@ -93,14 +93,15 @@ def test_explicit_reset_preview_and_undo_keep_selected_instance_and_legacy_rollb
     legacy = LauncherSettings(instance_path=str(instance), language="ro", theme="dark")
     manager = ShellSettingsManager(tmp_path / "launcher.json", default_settings())
     manager.path.write_text(json.dumps(legacy.as_payload()), encoding="utf-8")
+    legacy = manager.set_interface_mode("current", expected_revision=0)
     plan = reset_preview(legacy, "appearance_language")
     assert plan["before"]["interface_mode"] == "current"
     assert plan["after"]["interface_mode"] == "preview"
     assert plan["after"]["language"] == plan["after"]["theme"] == "system"
     assert manager.load().settings == legacy
-    saved = apply_preferences(manager, plan["after"], expected_revision=0)
+    saved = apply_preferences(manager, plan["after"], expected_revision=legacy.revision)
     assert saved.interface_mode == "preview" and saved.interface_mode_change.from_mode == "current"
-    undone = apply_preferences(manager, plan["before"], expected_revision=1)
+    undone = apply_preferences(manager, plan["before"], expected_revision=saved.revision)
     assert preference_payload(undone) == preference_payload(legacy)
     assert (
         undone.instance_path == str(instance)

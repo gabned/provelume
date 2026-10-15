@@ -114,7 +114,9 @@ def test_schema_one_upgrade_preserves_compatible_preferences(tmp_path: Path) -> 
     changed = manager.set_preferences(theme="dark", expected_revision=0)
     assert changed.language == "it"
     assert changed.update_channel == "stable"
-    assert json.loads(manager.path.read_text())["schema_version"] == 2
+    assert json.loads(manager.path.read_text())["schema_version"] == 3
+    assert changed.interface_mode == "preview"
+    assert changed.interface_mode_change is None
 
 
 @pytest.mark.parametrize(
@@ -424,6 +426,7 @@ def test_browser_theme_navigation_and_inert_markup_are_accessible(tmp_path: Path
         LauncherSettings(instance_path=str(instance_root), theme="dark"),
     )
     manager.save(manager.defaults)
+    manager.set_interface_mode("current", expected_revision=0)
     client = TestClient(create_app(instance_root, shell_settings_file=settings_file))
     page = client.get("/?lang=en")
 
