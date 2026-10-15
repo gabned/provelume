@@ -6,6 +6,10 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Added
 
+- Internal receipt-bound classification assessment records with private review
+  and derived-output removal in the existing Action Center. Real classifier
+  quality and production task activation remain unqualified; no application or
+  automation authority is added.
 - Internal Iudicium classification assessment templates and attributable receipts,
   with bounded synthetic confidence evaluation. These contracts do not enable
   production classification, autonomous application or a new model/provider.

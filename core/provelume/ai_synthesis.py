@@ -192,7 +192,7 @@ class DocumentSynthesis:
                     choices.append((bundle["representation_id"], output["id"]))
         return document, sorted(choices)
 
-    def association(self, document, source, recipe):
+    def association(self, document, source, recipe, *, template=None):
         # Bound inventory before the existing complete association collector reads it.
         for kind in ("acquisitions", "hierarchy", "classifications", "sources"):
             paths = self.instance.store.paths.canonical_dir(kind).glob("*.json")
@@ -201,6 +201,9 @@ class DocumentSynthesis:
         policies = self.policies()
         network = self.instance.store.read_config()["network"]["external_access"]
         check(type(network) is bool, "ai_missing_policy")
+        if template is None:
+            template = TaskTemplate(recipe["template"], True)
+        check(type(template) is TaskTemplate, "ai_job_invalid")
         association = digest({
             "source": {
                 "version": asdict(source.version),
@@ -210,7 +213,7 @@ class DocumentSynthesis:
             }, "recipe": recipe,
             "governance": governance[1], "policies": policies,
             "configuration": self.setup.configuration(), "network": network,
-            "current_template": TaskTemplate(recipe["template"], True).identity.revision,
+            "current_template": template.identity.revision,
             "current_redaction": digest(RedactionConfig().as_record()),
         })
         return association, governance, policies, network

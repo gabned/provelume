@@ -215,9 +215,15 @@ def validate_ai(value, job):
         check(value["result_fingerprint"] is None)
     else:
         check(type(result) is dict and set(result) == {"kind", "value"})
-        check(result["kind"] in {"context_check", "untrusted_text", "derived_ref"})
+        check(type(result["kind"]) is str and result["kind"] in {
+            "context_check", "untrusted_text", "derived_ref", "classification_ref",
+        })
         if result["kind"] == "derived_ref":
             from .ai_synthesis import validate_reference
+
+            validate_reference(result["value"])
+        if result["kind"] == "classification_ref":
+            from .ai_classification_proposals import validate_reference
 
             validate_reference(result["value"])
         check(len(json.dumps(result).encode()) <= 32768)

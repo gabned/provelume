@@ -2132,5 +2132,11 @@
   "video.streams": "Streams",
   "video.subtitles": "Untertitelspuren",
   "video.support": "Effektive Unterstützung",
-  "video.title": "Videoprofile"
+  "video.title": "Videoprofile",
+  "classification.title": "Klassifizierungsvorschlag",
+  "classification.unqualified": "Gespeicherter Vorschlag. Die Qualität des Klassifikators wurde nicht bewertet; eine bewertete Konfidenz liegt nicht vor. Lesen oder Löschen wendet keine Klassifizierung an und erlaubt keine automatischen Aktionen.",
+  "classification.target": "Vorgeschlagenes Ziel",
+  "classification.abstained": "Es wurde kein Ziel ausgewählt.",
+  "classification.unavailable": "Diese Bewertung ist nicht verfügbar oder entspricht nicht mehr der aktuellen Quelle oder Richtlinie. Die abgeleitete Ausgabe kann weiterhin gelöscht werden.",
+  "action.reason.classification_assessment": "Gespeicherte KI-Bewertung; öffnen Sie sie, um aktuelle Belege zu prüfen. Sie erteilt keine Klassifizierungsbefugnis."
 }

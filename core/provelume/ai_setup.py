@@ -87,8 +87,18 @@ class AiSetup:
         from .ai_synthesis import DocumentSynthesis
 
         self.synthesis = DocumentSynthesis(self)
+        from .ai_classification_proposals import DocumentClassification
+
+        self.classification = DocumentClassification(self)
         self.jobs = instance.bind_ai_execution(current=self.current, adapters={},
-                                               result_projector=self.synthesis.project)
+                                               result_projector=self.project_result)
+
+    def project_result(self, job, result):
+        from .ai_context import CLASSIFICATION_TEMPLATES
+
+        if job["ai"]["request"]["template"]["id"] in CLASSIFICATION_TEMPLATES:
+            return self.classification.project(job, result)
+        return self.synthesis.project(job, result)
 
     def configuration(self):
         if not self.path.exists():

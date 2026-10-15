@@ -1,118 +1,123 @@
-# ADR 0056 — Governed Iudicium proposals: proposed execution boundary
+# ADR 0056 — Governed Iudicium assessment records and review
 
-Status: S02 design candidate, #352, parent #349. Not implemented or accepted.
-Owner: `iudicium-s02-governed-proposals`, distinct from accepted prerequisite #353.
-Baseline: accepted main `fd0dde8628f36d6ffacaa9caf7af6519ca841261`, tree
+Status: S02 backend/review candidate, #352, parent #349. Not accepted; full S02
+task activation and real classifier quality remain pending. Same distinct owner
+`iudicium-s02-governed-proposals`, started after prerequisite #353 acceptance on
+`fd0dde8628f36d6ffacaa9caf7af6519ca841261`, tree
 `5b63de25842f401d6b897d4309e177f371eff39d`.
 
-## Dependency and present limits
+## Recorded output is not execution or application authority
 
-ADR 0054 resolves the current closed host allowlist of existing
-Area/Project/Collection/recorded-MIME identities. It grants no execution,
-proposal-persistence or canonical-classification authority. ADR 0053 validates
-supplied assessments and evaluates bounded synthetic observations; its receipts
-do not attest that a provider executed a task. Neither the existing Custodia
-synthesis qualification nor an S01 fixture qualifies a real classifier.
+ADR 0054 resolves current host-allowlisted Area/Project/Collection/recorded-MIME
+identities. ADR 0053 validates supplied assessments and evaluates synthetic
+observations. Neither establishes real model execution, quality or write authority.
 
-This first candidate records the composition and its missing evidence before
-implementation. Real classification quality is NOT_EVALUATED; real scoring,
-execution and proposal integration are NOT_RUN. No new surface or permission is
-enabled by this document. It does not mark the full S02 slice delivered.
+The new producer runs inside the existing `AiJobs` result projection, after known
+call settlement and fresh gateway validation, before terminal job/receipt
+publication. It accepts the closed classification schema against the exact
+current context/template. It does not dispatch, enqueue or create another worker
+or queue. Only an actually running journal job with its current lease can enter
+this projector. A supplied assessment or a completed job cannot be projected
+retroactively.
 
-## Proposed single-application journey
+The host computes `classification_request_ref` from the prepared preview and
+complete current target-observation revision before enqueue. It must revalidate
+that observation in its live current callback on admission and every authority
+poll. The producer independently resolves it again and verifies the exact
+request reference, source/Original/representation bytes, current targets/template,
+source scope, request/plan binding and actual attempted profile route. Changes to
+the observed hierarchy, placement or provenance cannot be rebound after execution.
 
-An explicit request selects the exact current Document/Version/Original and
-verified representation context, task language and host allowlist. Reuse existing
-context selection/redaction, scope policies, consent, profile/locality authority,
-budget and scheduler controls. Resolve current target identities before preview;
-target labels and source/model text remain untrusted display data. Never let a
-model select a provider, policy, tool, target outside the allowlist or action.
+Source text, target labels and model output remain untrusted data. Unknown,
+ambiguous, denied, stale, out-of-allowlist or malformed output fails closed.
+A known completed call still settles its recorded usage when projection fails;
+it is not resent or refunded. No model-supplied confidence, tools, commands,
+policy, provider selection, URLs or mutation instruction enters a proposal.
 
-Preview, consent, enqueue, admission, each authority poll and output acceptance
-must retain the existing live-source/policy/profile guarantees. A changed source,
-placement, hierarchy/target inventory, redaction, consent, scope, profile,
-qualification or network setting invalidates the captured request. Use the
-existing lifecycle/CAS and scheduler authority barrier; an immutable observation
-or cached plan is not permission. Preserve the existing cancellation and resource
-bounds while composing these checks; performance must be measured, not assumed.
+## Private storage, restart and disposal
 
-Execute only through existing `ai.execute` jobs and approved adapters. Retain
-attempts, route, actual transmission/accounting, cancellation and uncertain
-outcomes in the existing scheduler journal. No second queue, worker loop or
-automatic fallback/renewal is added. A possibly sent or uncertain operation cannot
-be replayed as a fresh suggestion or refunded without the existing evidence path.
+The private body is a bounded disposable derived artifact. The new closed
+`classification_ref` result anchors its complete SHA256 in the existing immutable
+terminal AI result/receipt. It binds source, recipe/selections/redaction, current
+target revision, policy fingerprint, template, actual profile/model/route and
+validated assessment. Bodies are at most 32 KiB and at most 128 retained bodies
+per Instance; exhaustion fails closed, without silent deletion or new inference.
 
-Accept only the closed classification assessment schema against the exact
-prepared context/template and current resolved targets. Bind the validated output
-to the actual successful job/attempt/route and host-established qualification;
-do not relabel a supplied-for-validation S01 receipt as executed. Unknown,
-ambiguous, stale, denied, malformed or unqualified evidence fails closed.
+A private read reuses the existing verified representation/Original producer,
+source-association policies and lifecycle/journal transaction. It rechecks the
+whole target observation, current source/policy/configuration association and body
+hash. A restart or offline model does not itself require renewed inference or
+consent to read an otherwise current record. Changed or unavailable source/policy
+shows an unavailable assessment while preserving safe removal.
 
-## Proposed derived record and existing Action Center
+Explicit removal unlinks only this derived body in a pinned parent. It preserves
+the job, recipe, receipt, actual usage and all canonical/Original bytes; existing
+backups may retain copies. Repetition is idempotent. A terminal job cannot reenter
+the projector and resurrect a removed result. There is no regeneration/apply route.
 
-The attributable proposal must bind exact source/Original/context, selections and
-redaction, target observation, task/template, policy/profile/qualification,
-job/attempt/route, validated output and available evaluation evidence. Use a
-bounded disposable derived record with an integrity-bound scheduler reference.
-Keep untrusted output out of scheduler authority, executable instructions,
-canonical hierarchy/placement and user-authored knowledge. Missing quality leaves
-confidence absent; corpus-level precision is not an individual probability.
+An interruption between body publication and terminal result publication can leave
+an orphan. It is not projected as a successful assessment. The existing explicit
+orphan-disposal contract is reused with the classification producer's path: the
+original job must be terminal and every attempt demonstrably quiescent; uncertain
+transmission requires its original reconciliation first. The requested revision
+binds Instance, job, control/session and exact body bytes. Cleanup neither changes
+accounting nor authorizes replay.
 
-Project it into the existing classification review flow and Cura Action Center,
-with exact evidence, abstention/uncertainty, staleness and provenance visible.
-Reuse the application's settings/services, scheduler and review controls. No new
-provider, ontology, queue or application is introduced. The previous interface
-remains the explicit reversible backup under the separate Cura owner #355.
+## Existing Action Center and application
 
-Removal discards only the derived proposal/body through a local authorized
-transaction. A stale source, offline model or expired consent must not force
-inference or block safe removal. Retain the existing minimal job/accounting and
-review receipts; removal must not erase budget liabilities, fabricate a refund,
-delete Originals or rewrite source/canonical records. Repeated requests follow
-existing idempotency semantics, with no automatic regeneration or execution.
+The existing classification queue projects only receipt-bound recorded metadata,
+without copying private excerpts into its queue evidence. Opening the record
+performs the fresh bounded source/policy/target checks above. The review page
+shows the target or abstention, exact retained excerpts, coverage, model/route and
+receipt identity, with an explicit unevaluated-quality warning. Stale, corrupt or
+missing bodies do not become current evidence.
 
-S02 proposes and removes; it does not apply canonical classification or authorize
-an autonomous write. Reviewed rules, scope/expiry and guarded reversible
-application remain S03 after its own acceptance and qualified task quality.
-Derived-processing autonomy remains separate S04; no inherited classification
-authority follows from a processing permission.
+The AI producer has no Action Center decision or canonical placement/application
+action; its domain-review projection is explicitly absent. Ordinary manual domain
+review remains independent. The existing local-only form controls, CSRF, mutation
+nonce, Instance binding, return context, settings/services and scheduler are reused
+for removal and explicit orphan cleanup. Cura and the explicit backup both render
+the same recorded result. No new provider, ontology, authority, queue, application
+or copy of canonical knowledge is introduced.
 
-## Evidence required before real task/profile scoring
+The seven shipped catalogs include the new result/unavailability copy. Automated
+rendering/escaping and form tests are conformance evidence. New sensitive copy is
+linguistically UNVERIFIED. Exact-candidate keyboard, Narrator/screen-reader,
+zoom/reflow, themes/contrast and native Windows/catalog journeys remain NOT_RUN;
+historical Cura/other-context checks do not automatically qualify these views.
 
-Freeze an identifiable representative EN/IT corpus and its lawful provenance;
-exact input/context/target manifests; independently reviewed labels with reviewer
-identity and recorded disagreements; calibration/held-out separation without
-duplicate/version/family leakage; exact profile/template/redaction/configuration;
-and numerical task/use-specific acceptance thresholds before reading model scores.
-Retain absent/ambiguous targets, required abstentions, incomplete context and
-hostile source/label cases. Do not drop failed, invalid, missing or difficult
-observations or tune thresholds from held-out results.
+## Real task/profile activation remains unavailable
 
-These inputs are currently MISSING/NOT_FROZEN/NOT_REVIEWED. This document does not
-invent reviewer attestations, representative data or quality thresholds. The S01
-minimum of twenty inputs per target is a display-support floor, not a quality or
-autonomy threshold. Hashes establish identity, never representativeness, label
-correctness, independent review, model execution or qualification. Synthetic
-fixtures remain useful conformance tests and cannot satisfy this real-quality
-gate. No real scoring is authorized by an editable report or this design.
+This candidate adds the governed projection and recorded-result review/disposal,
+not a production-classifier request builder or a newly qualified native/remote
+task profile. Ordinary AI settings acquire no classification execution route.
+Records retain `classification_quality: NOT_EVALUATED`, null confidence and
+false application/automation flags. Existing Custodia runtime/synthesis passes
+and synthetic job adapters cannot promote this task or grant application authority.
 
-## Implementation and acceptance still required
+Before real task/profile scoring, freeze a representative licensed EN/IT corpus,
+exact input/context/target manifests, independently reviewed labels with recorded
+disagreements, calibration/held-out separation without duplicate/version/family
+leakage, exact template/profile/redaction/configuration and numerical acceptance
+thresholds. Retain absent/ambiguous targets, required abstentions, incomplete
+context and hostile text/labels. Do not tune thresholds or discard cases from
+held-out results. These inputs are currently MISSING/NOT_FROZEN/NOT_REVIEWED.
+S01's twenty-input display floor is not a quality or autonomy threshold.
 
-Compose and test the actual governed execution, closed attributable disposable
-records, bounded read-only projection and removal transaction described above.
-Cover stale/concurrent/hostile/denied inputs, actual scheduler accounting,
-cancellation/recovery/uncertain transmission, no unintended writes/egress, and
-preservation of source records and independent processing authority. Changed
-views require all shipped catalogs, keyboard/screen reader, zoom/reflow,
-themes/contrast and exact-artifact native Windows journeys; historical checks
-do not automatically qualify new contexts. Current human/hardware checks are
-NOT_RUN, not PASS.
+The remaining S02 request/consent composition and real task/profile activation
+must use that independent qualification; this backend candidate does not claim
+full S02 delivery. Reviewed scoped/expiring rules and guarded reversible application
+remain S03, separate derived-processing autonomy S04 and integrated qualification
+S05. Missing mandatory human/data evidence blocks their applicable acceptance.
 
-Retain full unchanged-candidate native checks, every applicable workflow attempt
-and job including failures, effect/policy binding, reviews/findings/threads,
-fresh preflight, normal expected-head merge, actual parents/tree and post-merge
-gates. Missing mandatory evidence blocks acceptance. S02 and #349 remain open;
-S03-S05 do not start around this dependency. One final integrated qualification
-includes S01 and Cura before the single authorized 0.13.0 publication. Version
-identity stays 0.12.1 until that final release workstream. Independent #348 and
-published 0.12.1/0.12.0 artifacts/receipts/kits/readiness remain untouched.
+## Qualification and campaign boundary
+
+Retain full unchanged-candidate native tests, every workflow attempt/job and
+failure, effect/policy binding, reviews/findings/threads, fresh preflight, normal
+expected-head merge, actual parents/tree and post-merge gates. Do not transfer the
+first design candidate's native/CI results to this implementation. S02 and #349
+remain open; no successor slice starts around a pending dependency. One final
+integrated qualification includes S01 and Cura before the single authorized
+0.13.0 publication. Version identity stays 0.12.1 until that final workstream.
+Independent #348 and published 0.12.1/0.12.0 assets/receipts/kits/readiness are
+untouched; no runtime correction or old-host qualification is inferred.

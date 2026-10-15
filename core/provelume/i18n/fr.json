@@ -2132,5 +2132,11 @@
   "video.streams": "Flux",
   "video.subtitles": "Pistes de sous-titres",
   "video.support": "Prise en charge effective",
-  "video.title": "Profils vidéo"
+  "video.title": "Profils vidéo",
+  "classification.title": "Proposition de classement",
+  "classification.unqualified": "Proposition enregistrée. La qualité du classificateur et la confiance ne sont pas évaluées. La lecture ou la suppression ne classe pas le document et ne permet aucune action automatique.",
+  "classification.target": "Destination suggérée",
+  "classification.abstained": "Aucune destination n’a été sélectionnée.",
+  "classification.unavailable": "Cette évaluation est indisponible ou ne correspond plus à la source ou à la politique actuelle. Le résultat dérivé peut toujours être supprimé.",
+  "action.reason.classification_assessment": "Évaluation IA enregistrée ; ouvrez-la pour vérifier les éléments actuels. Elle n’accorde aucune autorité de classement."
 }

@@ -2132,5 +2132,11 @@
   "video.streams": "Streams",
   "video.subtitles": "Subtitle tracks",
   "video.support": "Effective support",
-  "video.title": "Video profiles"
+  "video.title": "Video profiles",
+  "classification.title": "Classification assessment",
+  "classification.unqualified": "Recorded suggestion. Classifier quality has not been evaluated and no evaluated confidence is available. Reviewing or deleting it does not apply classification or authorize automatic actions.",
+  "classification.target": "Suggested destination",
+  "classification.abstained": "No destination was selected.",
+  "classification.unavailable": "This assessment is unavailable or no longer matches the current source or policy. Its derived output can still be deleted.",
+  "action.reason.classification_assessment": "Recorded AI assessment; open it to check current evidence. It grants no classification authority."
 }

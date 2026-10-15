@@ -2132,5 +2132,11 @@
   "video.streams": "Stream",
   "video.subtitles": "Tracce sottotitoli",
   "video.support": "Supporto effettivo",
-  "video.title": "Profili video"
+  "video.title": "Profili video",
+  "classification.title": "Valutazione di classificazione",
+  "classification.unqualified": "Proposta registrata. La qualità del classificatore non è stata valutata e non è disponibile una confidenza valutata. La lettura o eliminazione non applica la classificazione e non autorizza azioni automatiche.",
+  "classification.target": "Destinazione suggerita",
+  "classification.abstained": "Non è stata selezionata alcuna destinazione.",
+  "classification.unavailable": "Questa valutazione non è disponibile o non corrisponde più alla fonte o alla policy corrente. Il suo risultato derivato può comunque essere eliminato.",
+  "action.reason.classification_assessment": "Valutazione AI registrata; aprila per verificare le prove correnti. Non conferisce autorità di classificazione."
 }

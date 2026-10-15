@@ -151,7 +151,8 @@
         "action.link.duplicate_case",
         "action.link.source",
         "action.link.intake",
-        "action.evidence_unavailable"
+        "action.evidence_unavailable",
+        "action.reason.classification_assessment"
       ],
       "namespace": ""
     },
@@ -14462,6 +14463,42 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "classification.title": {
+      "context": "Iudicium S02 recorded assessment and explicit disposable-output review; templates/ai_classification.html; action center",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "classification.unqualified": {
+      "context": "Iudicium S02 recorded assessment and explicit disposable-output review; templates/ai_classification.html; action center",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "classification.target": {
+      "context": "Iudicium S02 recorded assessment and explicit disposable-output review; templates/ai_classification.html; action center",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "classification.abstained": {
+      "context": "Iudicium S02 recorded assessment and explicit disposable-output review; templates/ai_classification.html; action center",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "classification.unavailable": {
+      "context": "Iudicium S02 recorded assessment and explicit disposable-output review; templates/ai_classification.html; action center",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "action.reason.classification_assessment": {
+      "context": "Iudicium S02 recorded assessment and explicit disposable-output review; templates/ai_classification.html; action center",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
     }
   },
   "schema_version": 1,

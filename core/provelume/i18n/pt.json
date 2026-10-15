@@ -2132,5 +2132,11 @@
   "video.streams": "Fluxos",
   "video.subtitles": "Faixas de legendas",
   "video.support": "Suporte eficaz",
-  "video.title": "Perfis de vídeo"
+  "video.title": "Perfis de vídeo",
+  "classification.title": "Avaliação de classificação",
+  "classification.unqualified": "Proposta guardada. A qualidade do classificador não foi avaliada e não existe confiança avaliada disponível. A leitura ou eliminação não aplica a classificação nem autoriza ações automáticas.",
+  "classification.target": "Destino sugerido",
+  "classification.abstained": "Não foi selecionado nenhum destino.",
+  "classification.unavailable": "Esta avaliação não está disponível ou já não corresponde à fonte ou política atual. O resultado derivado pode ser eliminado.",
+  "action.reason.classification_assessment": "Avaliação de IA guardada; abra-a para verificar as evidências atuais. Não confere autoridade de classificação."
 }
