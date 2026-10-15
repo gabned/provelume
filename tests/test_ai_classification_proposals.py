@@ -272,7 +272,7 @@ def test_read_remove_headers_csrf_and_catalogs_in_both_interfaces(
     app = create_app(setup.instance.root, shell_settings_file=manager.path)
     url = f"/operations/ai/{job_id}/classification"
     catalog = json.loads((Path(__file__).parents[1] / "core/provelume/i18n" /
-                          (language + ".json")).read_text())
+                          (language + ".json")).read_text(encoding="utf-8"))
     with TestClient(app) as client:
         response = client.get(url, params={"lang": language})
         assert response.status_code == 200
