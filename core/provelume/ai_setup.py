@@ -16,6 +16,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 from .ai_context import (
+    CLASSIFICATION_TEMPLATES,
     SYNTHESIS_TEMPLATES,
     ContextLimits,
     OutputBytes,
@@ -349,14 +350,24 @@ class AiSetup:
         )
         preview = preview_context(source, selections, **current)
         task = current["template"].id
-        if task in SYNTHESIS_TEMPLATES and configuration["mode"] in {"local", "hybrid"}:
+        if task in SYNTHESIS_TEMPLATES | CLASSIFICATION_TEMPLATES and configuration["mode"] in {
+            "local", "hybrid",
+        }:
             # Validate the actual native frame before consent, without touching
             # model bytes. Quoting and trusted dialogue also consume its limit.
-            from .ai_synthesis_profile import native_format, native_prompt
+            from .ai_native_format import native_prompt
 
             try:
+                if task in CLASSIFICATION_TEMPLATES:
+                    from .ai_classification_format import native_format
+
+                    descriptor = native_format(preview, current["template"])
+                else:
+                    from .ai_synthesis_profile import native_format
+
+                    descriptor = native_format(task, len(preview.segments))
                 frame = native_prompt(task_payload(preview, current["template"]).decode(),
-                                      native_format(task, len(preview.segments)))
+                                      descriptor)
             except ModelError as exc:
                 if exc.code == "limit":
                     raise AiContractError(Reason.LIMIT) from exc
@@ -409,6 +420,12 @@ class AiSetup:
         check(self.jobs._control()["generation"] == row["generation"], "ai_setup_stale")
         if "recipe" in row:
             self.synthesis.revalidate(row)
+            if "classification_targets" in row:
+                from .ai_classification_proposals import classification_request_ref
+
+                check(classification_request_ref(row["prepared"][0],
+                                                 row["classification_targets"]) == ref,
+                      "ai_setup_stale")
         else:
             check(row["source"].version.document_id == "synthetic_test", "ai_document_preview_only")
         prepared = row["prepared"]
@@ -479,6 +496,11 @@ class AiSetup:
             if fresh:
                 first = row["selections"][0]
                 task, language, _ = row["recipe"]["template"].rsplit("-", 2)
+                if "classification_targets" in row:
+                    return self.classification.preview(
+                        first.version.document_id, first.representation_id, first.output_id,
+                        row["classification_targets"].allowlist, language,
+                    )
                 return self.synthesis.preview(first.version.document_id, first.representation_id,
                                               first.output_id, task, language)
             profiles, evidence, configs, _ = self.profiles(row["configuration"])

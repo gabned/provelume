@@ -2138,5 +2138,11 @@
   "classification.target": "Destination suggérée",
   "classification.abstained": "Aucune destination n’a été sélectionnée.",
   "classification.unavailable": "Cette évaluation est indisponible ou ne correspond plus à la source ou à la politique actuelle. Le résultat dérivé peut toujours être supprimé.",
-  "action.reason.classification_assessment": "Évaluation IA enregistrée ; ouvrez-la pour vérifier les éléments actuels. Elle n’accorde aucune autorité de classement."
+  "action.reason.classification_assessment": "Évaluation IA enregistrée ; ouvrez-la pour vérifier les éléments actuels. Elle n’accorde aucune autorité de classement.",
+  "classification.request": "Demander une suggestion de classement",
+  "classification.request_help": "Demandez une suggestion pour un document avec les réglages IA actuels. Aucun classement ne sera appliqué.",
+  "classification.target_kind": "Groupe de destinations",
+  "classification.full_context": "Le texte sélectionné complet doit respecter la limite existante. Jusqu’à 64 destinations actuelles d’un groupe sont autorisées ; l’aperçu montre toutes les destinations et le texte pouvant être envoyé.",
+  "classification.consent": "J’approuve uniquement cette suggestion avec le texte, les destinations et le parcours IA affichés. Sa qualité n’est pas évaluée ; aucun classement n’est appliqué.",
+  "classification.generate": "Demander une suggestion"
 }

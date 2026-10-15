@@ -84,6 +84,29 @@ class DocumentClassification:
             "ai-classification-" + job_id + ".json"
         )
 
+    def preview(self, document_id, representation_id, output_id, allowlist, language):
+        with self.setup.lock:
+            targets = resolve_classification_targets(self.instance.store, document_id, allowlist)
+            return self.setup.synthesis.preview(
+                document_id, representation_id, output_id, "classification", language,
+                classification_targets=targets,
+            )
+
+    def group_targets(self, document_id, kind):
+        """A bounded host allowlist, shown in full before execution consent."""
+        check(kind in {"area", "project", "collection", "document_type"}, "ai_job_invalid")
+        if kind == "document_type":
+            document = self.instance.get_document(document_id)
+            check(document is not None, "ai_context_mismatch")
+            allowlist = ((kind, "media_" + digest(document["media_type"])),)
+        else:
+            paths = self.instance.store.paths.canonical_dir("hierarchy").glob("*.json")
+            check(len(list(islice(paths, 513))) <= 512, "ai_limit_exceeded")
+            nodes = self.instance.store.list_canonical("hierarchy")
+            allowlist = tuple(sorted((kind, n["id"]) for n in nodes if n["kind"] == kind))
+        check(1 <= len(allowlist) <= 64, "ai_limit_exceeded")
+        return resolve_classification_targets(self.instance.store, document_id, allowlist)
+
     def project(self, job, result):
         # Called by AiJobs under the original lifecycle/journal transaction after
         # known call settlement, before terminal result/receipt publication.

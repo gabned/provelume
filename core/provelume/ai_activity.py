@@ -556,4 +556,4 @@ def attach_ai_routes(app, instance, templates, context_factory):
     from .ai_classification_activity import attach_classification_routes
 
     attach_classification_routes(app, setup, page=page, fields=fields, redirect=redirect,
-                                 local=local, mutation=mutation)
+                                 local=local, mutation=mutation, launch_job=launch_job, tasks=tasks)

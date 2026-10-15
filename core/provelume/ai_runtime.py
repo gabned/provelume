@@ -432,7 +432,7 @@ class LocalRuntime:
             check(reuse_scope is None or (type(reuse_scope) is str and len(reuse_scope) == 64
                   and all(ch in "0123456789abcdef" for ch in reuse_scope)), "state")
             if response_format is not None:
-                from .ai_synthesis_profile import chat_parts
+                from .ai_native_format import chat_parts
 
                 chat_parts(prompt, response_format)
                 response_format = dict(response_format)

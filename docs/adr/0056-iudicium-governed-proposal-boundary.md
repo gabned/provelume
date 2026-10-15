@@ -1,7 +1,7 @@
 # ADR 0056 — Governed Iudicium assessment records and review
 
-Status: S02 backend/review candidate, #352, parent #349. Not accepted; full S02
-task activation and real classifier quality remain pending. Same distinct owner
+Status: S02 request/execution/review candidate, #352, parent #349. Not accepted;
+unchanged-source machine qualification remains mandatory. Same distinct owner
 `iudicium-s02-governed-proposals`, started after prerequisite #353 acceptance on
 `fd0dde8628f36d6ffacaa9caf7af6519ca841261`, tree
 `5b63de25842f401d6b897d4309e177f371eff39d`.
@@ -86,29 +86,69 @@ linguistically UNVERIFIED. Exact-candidate keyboard, Narrator/screen-reader,
 zoom/reflow, themes/contrast and native Windows/catalog journeys remain NOT_RUN;
 historical Cura/other-context checks do not automatically qualify these views.
 
-## Real task/profile activation remains unavailable
+## Explicit request and existing native/provider routes
 
-This candidate adds the governed projection and recorded-result review/disposal,
-not a production-classifier request builder or a newly qualified native/remote
-task profile. Ordinary AI settings acquire no classification execution route.
-Records retain `classification_quality: NOT_EVALUATED`, null confidence and
-false application/automation flags. Existing Custodia runtime/synthesis passes
-and synthetic job adapters cannot promote this task or grant application authority.
+The document page opens a classification request using an existing text
+representation, EN/IT task language and one current destination group. The host
+resolves at most 64 Area, Project or Collection identities of that group, or the
+document's recorded MIME identity. The preview displays every label, complete
+selected text, redaction, route/model/destination and existing budget. It does
+not enqueue, activate AI, renew consent or execute a model. Complete pages must
+fit the existing 2000-byte/16-segment selection bound; omitted context is refused.
 
-Before real task/profile scoring, freeze a representative licensed EN/IT corpus,
-exact input/context/target manifests, independently reviewed labels with recorded
-disagreements, calibration/held-out separation without duplicate/version/family
-leakage, exact template/profile/redaction/configuration and numerical acceptance
-thresholds. Retain absent/ambiguous targets, required abstentions, incomplete
-context and hostile text/labels. Do not tune thresholds or discard cases from
-held-out results. These inputs are currently MISSING/NOT_FROZEN/NOT_REVIEWED.
-S01's twenty-input display floor is not a quality or autonomy threshold.
+Explicit consent uses the existing expiring previews, form/session/Instance
+controls, source restrictions, current profile/locality evidence and scheduler.
+The random preview-context nonce is frozen first; the request reference then binds
+the exact prepared preview and current complete target observation. Revalidation
+on every authority poll rejects changed targets, source, policy or session.
+Synthesis and classification execute routes refuse each other's preview kinds.
 
-The remaining S02 request/consent composition and real task/profile activation
-must use that independent qualification; this backend candidate does not claim
-full S02 delivery. Reviewed scoped/expiring rules and guarded reversible application
-remain S03, separate derived-processing autonomy S04 and integrated qualification
-S05. Missing mandatory human/data evidence blocks their applicable acceptance.
+The native task adds a closed output format to the existing worker and model,
+not a provider, model profile, worker loop or model configuration. Trusted task
+framing is bound into the classification template revision. Labels and text stay
+in the user data role; decoded role delimiters and caller grammars are refused.
+Records made against a preceding template revision become unavailable on fresh
+read and remain explicitly removable; they are not silently upgraded or replayed.
+The grammar restricts output to the known fingerprint, target indexes and source
+references; structural validation still rejects duplicates, wrong fingerprints,
+extra fields and unsupported choices. Source/current-policy validation and receipt
+publication remain inside the original governed job boundary.
+
+The model's 128-token limit and request limits are unchanged. The candidate byte
+proxy accounts separately for the closed schema's exact host fingerprint field;
+the variable selection fields retain the original 128-byte bound and the total
+wire input remains bounded. This adds no capacity for text, tools or authority.
+Actual usage still settles from the original adapter observation. No runtime
+failure or historical host correction is claimed.
+
+The configured provider uses its existing structured-output transport and current
+qualification/price/network policy. Live external support is not inferred from
+synthetic adapters. The permanent CPU qualification adds exactly one governed
+native execution in each task language, then reads/removes its receipt-bound body
+and verifies source/accounting preservation and session-off/worker termination.
+Either a valid selection or abstention is accepted: this measures execution and
+schema conformance, not target accuracy, confidence, calibration or robustness.
+
+## Maintainer change to the human and label-review scope
+
+On 2026-10-15 the maintainer explicitly instructed: “saltiamo sia le prove umane,
+sia le label revisionate, procedi con la prossima slice”. Recorded authority:
+https://github.com/gabned/provelume/issues/349#issuecomment-6186153379 . Human
+Windows/accessibility/catalog observations and independent gold-label review are
+therefore non-blocking for this campaign. Factual states remain NOT_RUN,
+NOT_REVIEWED and UNVERIFIED; none is a PASS or a Protocol waiver. This supersedes
+the earlier wait-for-human wording above, without certifying those observations.
+
+Real classifier quality remains NOT_EVALUATED, confidence null and application/
+automation flags false. No accuracy benchmark or held-out scoring is performed.
+Any future semantic quality claim still needs a representative licensed corpus,
+frozen inputs/configuration/thresholds and an honest account of label provenance
+and review; synthetic execution passes do not provide it. S01's twenty-input
+display floor is not a quality or autonomy threshold.
+
+Reviewed scoped/expiring rules and guarded reversible application remain S03,
+separate derived-processing autonomy S04 and integrated qualification S05. Native,
+CI, ownership, reviews, source/policy binding and integration gates remain intact.
 
 ## Qualification and campaign boundary
 

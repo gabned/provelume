@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from dataclasses import asdict, dataclass
 
-from .ai_context import SYNTHESIS_TEMPLATES, native_task_payload
+from .ai_context import CLASSIFICATION_TEMPLATES, SYNTHESIS_TEMPLATES, native_task_payload
 from .ai_contract import digest
 from .ai_job_contract import check, integer
 from .ai_models import ModelError
@@ -108,6 +108,11 @@ class NativeJobAdapter:
                 from .ai_synthesis_profile import native_format
 
                 options["response_format"] = native_format(task, len(inputs.preview.segments))
+            elif task in CLASSIFICATION_TEMPLATES:
+                from .ai_classification_format import native_format
+
+                options["response_format"] = native_format(inputs.preview,
+                                                           inputs.current["template"])
             selection = native_selection()
             prepared_at = time.monotonic()
             from .ai_model_file import ReadAuthority

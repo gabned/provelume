@@ -2138,5 +2138,11 @@
   "classification.target": "Destino sugerido",
   "classification.abstained": "Não foi selecionado nenhum destino.",
   "classification.unavailable": "Esta avaliação não está disponível ou já não corresponde à fonte ou política atual. O resultado derivado pode ser eliminado.",
-  "action.reason.classification_assessment": "Avaliação de IA guardada; abra-a para verificar as evidências atuais. Não confere autoridade de classificação."
+  "action.reason.classification_assessment": "Avaliação de IA guardada; abra-a para verificar as evidências atuais. Não confere autoridade de classificação.",
+  "classification.request": "Pedir uma sugestão de classificação",
+  "classification.request_help": "Peça uma sugestão para um documento com as definições atuais de IA. Nenhuma classificação é aplicada.",
+  "classification.target_kind": "Grupo de destinos",
+  "classification.full_context": "O texto selecionado completo deve respeitar o limite existente. São permitidos até 64 destinos atuais de um grupo; a pré-visualização mostra todos os destinos e o texto que pode ser enviado.",
+  "classification.consent": "Aprovo apenas esta sugestão com o texto, destinos e percurso de IA apresentados. A qualidade não foi avaliada; nenhuma classificação é aplicada.",
+  "classification.generate": "Pedir sugestão"
 }

@@ -2138,5 +2138,11 @@
   "classification.target": "Vorgeschlagenes Ziel",
   "classification.abstained": "Es wurde kein Ziel ausgewählt.",
   "classification.unavailable": "Diese Bewertung ist nicht verfügbar oder entspricht nicht mehr der aktuellen Quelle oder Richtlinie. Die abgeleitete Ausgabe kann weiterhin gelöscht werden.",
-  "action.reason.classification_assessment": "Gespeicherte KI-Bewertung; öffnen Sie sie, um aktuelle Belege zu prüfen. Sie erteilt keine Klassifizierungsbefugnis."
+  "action.reason.classification_assessment": "Gespeicherte KI-Bewertung; öffnen Sie sie, um aktuelle Belege zu prüfen. Sie erteilt keine Klassifizierungsbefugnis.",
+  "classification.request": "Klassifizierungsvorschlag anfordern",
+  "classification.request_help": "Einen Vorschlag für ein Dokument mit den aktuellen KI-Einstellungen anfordern. Das Dokument wird nicht klassifiziert.",
+  "classification.target_kind": "Zielgruppe",
+  "classification.full_context": "Der vollständige ausgewählte Text muss innerhalb des bestehenden Limits liegen. Bis zu 64 aktuelle Ziele einer Gruppe sind zulässig; die Vorschau zeigt alle Ziele und den übertragbaren Text.",
+  "classification.consent": "Ich genehmige nur diesen Vorschlag mit dem angezeigten Text, den Zielen und dem KI-Pfad. Seine Qualität wurde nicht bewertet; keine Klassifizierung wird angewendet.",
+  "classification.generate": "Vorschlag anfordern"
 }

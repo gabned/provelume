@@ -252,6 +252,26 @@ def evaluate(report):
                     limit = min(1, 2 * statistics.median(r[key] for r in idle) + 0.1)
                     passed &= probe[key] <= limit
             gates["s08_performance"] = "PASS" if passed else "FAIL"
+    if report.get("iudicium_execution_required"):
+        observed = report.get("iudicium_execution", {})
+        rows = observed.get("samples", [])
+        complete = (observed.get("status") == "MEASURED" and len(rows) == 2
+                    and {r.get("language") for r in rows} == {"en", "it"})
+        passed = complete and observed.get("worker_absent") is True \
+            and observed.get("final_off") is True
+        if complete:
+            passed &= all(
+                r.get("status") == "succeeded"
+                and r.get("assessment") in {"selected", "abstained"}
+                and r.get("quality") == "NOT_EVALUATED" and r.get("confidence") is None
+                and r.get("application_authorized") is False
+                and all(r.get(key) is True for key in (
+                    "receipt_bound", "discarded", "source_preserved", "accounting_preserved",
+                )) for r in rows
+            )
+        gates["iudicium_execution_conformance"] = (
+            "FAIL" if observed.get("status") == "FAIL" else
+            "NOT_RUN" if not complete else "PASS" if passed else "FAIL")
     report["gates"] = gates
     report["status"] = ("FAIL" if report.get("failures") or "FAIL" in gates.values() else
                          "BLOCKED" if any(v != "PASS" for v in gates.values()) else "PASS")

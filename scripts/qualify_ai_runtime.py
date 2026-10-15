@@ -111,6 +111,7 @@ def measure(root, output):
         "s06_required": True,
         "s07_required": True,
         "s08_required": True,
+        "iudicium_execution_required": True,
     }
 
     def save():
@@ -251,6 +252,11 @@ def measure(root, output):
         report["phase"] = "s08_synthesis"
         save()
         report["s08"] = measure_synthesis(root, store, runtime, checkpoint=synthesis_checkpoint)
+        from qualify_ai_classification import measure_classification
+
+        report["phase"] = "iudicium_execution_conformance"
+        save()
+        report["iudicium_execution"] = measure_classification(root, store, runtime)
         report["phase"] = "final_integrity_and_cleanup"
         save()
         # Change one byte only in this disposable installed test model, then restore
