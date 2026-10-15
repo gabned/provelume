@@ -6,6 +6,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
+- Windows journal snapshots share DELETE access with concurrent state publishers,
+  close before parsing, and preserve complete snapshots and access-error handling.
 - Failed model setup operations show only bounded native diagnostics carried by
   their own failure; observations from earlier calls are not attributed to them.
 - Cura also becomes the default for inherited previous-interface settings. An
