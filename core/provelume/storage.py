@@ -64,7 +64,7 @@ def replace_file(source: str | Path, target: str | Path) -> None:
 
 
 def _windows_snapshot_bytes(path: Path) -> bytes:
-    """Read one immutable published version without denying atomic replacement."""
+    """Share existing DELETE access and close one snapshot before decoding."""
     import ctypes
     import msvcrt
     from ctypes import wintypes
@@ -76,8 +76,9 @@ def _windows_snapshot_bytes(path: Path) -> bytes:
     kernel.CreateFileW.restype = wintypes.HANDLE
     kernel.CloseHandle.argtypes = [wintypes.HANDLE]
     kernel.CloseHandle.restype = wintypes.BOOL
-    # GENERIC_READ; share READ/WRITE/DELETE. The existing atomic writer can
-    # replace its directory entry while this handle retains the complete file.
+    # GENERIC_READ; share READ/WRITE/DELETE, including an already-open writer's
+    # DELETE access. MoveFileEx can still deny replacement until this closes;
+    # the writer retains its existing bound and genuine errors propagate.
     # OPEN_EXISTING and non-inheritable handles grant no write/create access.
     handle = kernel.CreateFileW(str(native_path(path)), 0x80000000, 7, None, 3, 0x80, None)
     if handle == ctypes.c_void_p(-1).value:

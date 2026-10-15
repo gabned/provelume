@@ -116,24 +116,42 @@ def test_windows_reader_accepts_existing_delete_access_with_legacy_negative_cont
     assert storage.read_json_snapshot(path) == {"revision": 1}
 
 
-@pytest.mark.skipif(os.name != "nt", reason="actual Windows atomic replacement")
-def test_windows_open_snapshot_retains_old_file_while_new_file_is_published(tmp_path, monkeypatch):
+@pytest.mark.skipif(os.name != "nt", reason="actual Windows MoveFileEx denial and close")
+def test_windows_open_snapshot_retains_writer_denial_then_allows_publication(tmp_path, monkeypatch):
     path, replacement = tmp_path / "public.json", tmp_path / "replacement.json"
     path.write_text('{"revision":1}', encoding="utf-8")
     replacement.write_text('{"revision":2}', encoding="utf-8")
     original_fdopen = os.fdopen
-    swapped = []
+    denials = []
 
-    @contextmanager
-    def open_and_replace(descriptor, mode):
-        with original_fdopen(descriptor, mode) as stream:
-            storage.replace_file(replacement, path)
-            swapped.append(True)
-            yield stream
+    def observed_read(descriptor, mode):
+        stream = original_fdopen(descriptor, mode)
 
-    monkeypatch.setattr(os, "fdopen", open_and_replace)
+        class OpenSnapshot:
+            def __enter__(self):
+                stream.__enter__()
+                return self
+
+            def read(self):
+                # Sharing DELETE permits a reader to coexist with a writer's
+                # handle; it does not give MoveFileEx POSIX rename semantics.
+                with pytest.raises(PermissionError) as denied:
+                    storage.replace_file(replacement, path)
+                denials.append(denied.value.winerror)
+                assert replacement.exists()
+                return stream.read()
+
+            def __exit__(self, *args):
+                return stream.__exit__(*args)
+
+        return OpenSnapshot()
+
+    monkeypatch.setattr(os, "fdopen", observed_read)
     assert storage.read_json_snapshot(path) == {"revision": 1}
-    assert swapped == [True]
+    assert denials == [5]
+    assert json.loads(path.read_bytes()) == {"revision": 1}
+    storage.replace_file(replacement, path)  # The reader's actual handle is closed.
+    assert not replacement.exists()
     assert json.loads(path.read_bytes()) == {"revision": 2}
 
 
