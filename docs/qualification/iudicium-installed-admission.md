@@ -23,6 +23,8 @@ The original exception and native error survive diagnostic construction and
 cleanup. Native-failure schema1 retains its exact historical shape when this
 optional field is absent. Only a valid current exception at public-inventory
 can populate the existing local model-operation markup and ordinary form driver.
+Each operation read copies and validates the optional map independently; modifying
+a returned snapshot cannot alter the retained observation or a later read.
 Final Installed CI output includes closed details of a failed self-test; it does
 not print the entire artifact or private exception text. No new API, telemetry,
 runtime role, authority, provider or persistent journal is introduced.

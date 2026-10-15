@@ -178,6 +178,10 @@ def test_owned_public_inventory_observation_reaches_existing_operation_markup(
     assert operation["public_inventory"] == progress
     assert operation["public_inventory"] is not owned["public_inventory"]
     assert setup.runtime.last_observation == ambient
+    snapshot = setup.read()["operation"]
+    assert snapshot["public_inventory"] == progress
+    snapshot["public_inventory"]["files_verified"] = 2
+    assert operation["public_inventory"] == progress
     assert setup.read()["operation"]["public_inventory"] == progress
     environment = Environment(
         loader=FileSystemLoader(str(Path(module.__file__).parent / "templates")), autoescape=True)

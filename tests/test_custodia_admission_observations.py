@@ -15,6 +15,7 @@ import pytest
 from provelume import ai_windows_package as package
 from provelume.ai_models import ModelError
 from provelume.ai_runtime_diagnostics import (
+    model_operation_snapshot,
     native_failure,
     public_inventory_observation,
     valid_native_failure,
@@ -195,6 +196,26 @@ def test_historical_records_and_other_stages_do_not_acquire_new_data(observation
     assert "public_inventory" not in native_failure(
         {"native_stage": "process-create", "public_inventory": projected["public_inventory"]},
         code="timeout")
+
+
+@pytest.mark.parametrize("stage", ["public-inventory", "process-create"])
+def test_read_snapshot_keeps_historical_shape_and_drops_invalid_nested_data(observation, stage):
+    historical = {"state": "failed", "action": "self_test", "error": "timeout"}
+    assert model_operation_snapshot(None) is None
+    assert model_operation_snapshot(historical) == historical
+    assert model_operation_snapshot(historical) is not historical
+    operation = {**historical, "diagnostic_stage": stage,
+                 "public_inventory": copy.deepcopy(observation)}
+    snapshot = model_operation_snapshot(operation)
+    if stage == "public-inventory":
+        assert snapshot["public_inventory"] == observation
+        snapshot["public_inventory"]["files_verified"] = 2
+        assert operation["public_inventory"] == observation
+    else:
+        assert "public_inventory" not in snapshot
+    operation["public_inventory"]["path"] = "DoNotPublishPrivatePath"
+    assert "public_inventory" not in model_operation_snapshot(operation)
+    assert "DoNotPublish" not in json.dumps(model_operation_snapshot(operation))
 
 
 def test_diagnostic_failure_does_not_replace_original_exception_or_native_error(monkeypatch):

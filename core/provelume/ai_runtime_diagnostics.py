@@ -57,6 +57,17 @@ def public_inventory_observation(value):
     return dict(value)
 
 
+def model_operation_snapshot(operation):
+    """A read must not share the retained operation's optional diagnostic map."""
+    if not operation:
+        return None
+    result = dict(operation)
+    inventory = public_inventory_observation(result.pop("public_inventory", None))
+    if result.get("diagnostic_stage") == "public-inventory" and inventory is not None:
+        result["public_inventory"] = inventory
+    return result
+
+
 def native_failure(observation, *, code=None, cancellation=None):
     """Project only closed fields. Never retain exception text, paths or native stderr."""
     from .ai_models import ModelError

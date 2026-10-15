@@ -54,6 +54,7 @@ from .ai_provider import CallInputs, CredentialReference, Destination, ProviderC
 from .ai_provider_http import ChatJsonAdapter
 from .ai_runtime import LocalRuntime, native_selection
 from .ai_runtime_contract import CONFIGURATION, MODEL_ID
+from .ai_runtime_diagnostics import model_operation_snapshot
 from .maintenance_local_files import open_local_file
 from .representations import build_representation_bundle, canonical_json_bytes
 
@@ -588,7 +589,7 @@ class AiSetup:
                 "model_authority": self.model_authority(),
                 "network_enabled": self.instance.store.read_config()["network"]["external_access"],
                 "network_revision": digest(self.instance.store.read_config()["network"]),
-                "operation": dict(self.operation) if self.operation else None,
+                "operation": model_operation_snapshot(self.operation),
                 "self_test": self.self_test_evidence.public_record()
                 if self.self_test_evidence
                 else None,

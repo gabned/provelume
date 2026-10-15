@@ -89,7 +89,7 @@ def summary(report):
         return result
     result.update(failure_type="ValueError", failure_code="model_operation")
     history = report.get("operation_history", [])
-    if not history or type(history[-1]) is not dict:
+    if type(history) is not list or not history or type(history[-1]) is not dict:
         return result
     row = history[-1]
     if row.get("state") != "failed" or row.get("action") != "self_test":
