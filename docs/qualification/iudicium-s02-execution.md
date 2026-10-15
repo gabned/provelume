@@ -33,3 +33,12 @@ owner binding and fresh preflight. Use normal expected-head merge, then verify
 actual ordered parents/tree, fresh native and all applicable actual-main jobs.
 Accept the slice only after its applicable functional/machine gates are satisfied.
 S03 follows that accepted dependency. No intermediate release/version change.
+
+Failed model setup operations must not borrow the runtime's last observation
+from another call. Native failures carry a closed snapshot on their own exception;
+setup accepts only that validated snapshot and prefers its observed native stage.
+Pre-run verification failures and malformed observations expose no invented stage
+or code. Regression coverage includes prior and concurrent ambient observations,
+zero native codes, private fields, admission refusal and cleanup. This diagnostic
+attribution contract does not explain or repair a historical timeout, change a
+runtime limit, or turn a missing parent-death measurement into a completed gate.

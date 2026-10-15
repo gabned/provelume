@@ -243,9 +243,11 @@ def test_native_failure_survives_cleanup_without_private_text(host, model, kind,
             return receive(event, **kwargs)
 
         host._receive = gated_receive
-    with pytest.raises(ModelError):
+    with pytest.raises(ModelError) as failure:
         host._infer(model, runtime.native_selection(), kind)
     observation = host.last_observation
+    assert failure.value.runtime_observation == observation
+    assert failure.value.runtime_observation is not observation
     assert observation["cause"] == cause
     assert observation["phase"] == "generation"
     assert observation["exit_code"] == exit_code
@@ -254,6 +256,43 @@ def test_native_failure_survives_cleanup_without_private_text(host, model, kind,
         assert observation["model_code"] == "limit"
     assert "DoNotPersistPrivateException" not in json.dumps(observation)
     assert not host.loaded and not host._slot and len(host.worker_history) == 1
+    assert host._infer(model, runtime.native_selection(), "next")["text"] == "ORCHID"
+    assert failure.value.runtime_observation == observation
+    assert failure.value.runtime_observation != host.last_observation
+
+
+def test_unexpected_native_failure_carries_only_closed_current_observation(
+    host, model, monkeypatch,
+):
+    from provelume.ai_runtime_diagnostics import valid_native_failure
+
+    def fail():
+        raise RuntimeError("DoNotPersistPrivateException")
+
+    monkeypatch.setattr(host, "validate_installation", fail)
+    with pytest.raises(ModelError, match="state") as failure:
+        host._infer(model, runtime.native_selection(), "public synthetic request")
+    observation = failure.value.runtime_observation
+    assert valid_native_failure(observation)
+    assert observation["phase"] == "request_admission"
+    assert observation["cause"] == "runtime_error"
+    assert "DoNotPersistPrivateException" not in str(observation) + str(failure.value)
+    assert not host.loaded and not host._slot
+
+
+def test_unadmitted_native_failure_does_not_borrow_ambient_observation(host, model):
+    from provelume.ai_runtime_diagnostics import native_failure
+
+    stale = native_failure({"phase": "hardware-admission", "native_code": 203}, code="timeout")
+    host.last_observation = stale
+    assert host._request_lock.acquire(blocking=False)
+    try:
+        with pytest.raises(ModelError, match="busy") as failure:
+            host._infer(model, runtime.native_selection(), "public synthetic request")
+    finally:
+        host._request_lock.release()
+    assert not hasattr(failure.value, "runtime_observation")
+    assert host.last_observation is stale
 
 
 @pytest.mark.parametrize("interrupt,cause,reason", [

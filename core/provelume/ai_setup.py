@@ -809,14 +809,19 @@ class AiSetup:
                 operation["state"] = "cancelled" if self.cancel.is_set() else "failed"
                 # Closed error vocabulary only; arbitrary paths/exception text are private.
                 operation["error"] = exc.code if isinstance(exc, ModelError) else "unavailable"
-                observation = self.runtime.last_observation or {}
-                if observation.get("phase") in {
+                from .ai_runtime_diagnostics import valid_native_failure
+
+                observation = getattr(exc, "runtime_observation", None)
+                if not valid_native_failure(observation):
+                    observation = {}
+                stage = observation.get("native_stage") or observation.get("phase")
+                if stage in {
                     "hardware-admission", "runtime-path", "profile-create", "loopback-exemptions",
                     "public-inventory", "private-model-handle", "job-create", "stdio-handles",
                     "process-attributes", "process-create", "process-verification",
                     "process-resume", "worker-bootstrap",
                 }:
-                    operation["diagnostic_stage"] = observation["phase"]
+                    operation["diagnostic_stage"] = stage
                     code = observation.get("native_code")
                     if type(code) is int and -(2**31) <= code < 2**32:
                         operation["native_code"] = code

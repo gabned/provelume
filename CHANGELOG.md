@@ -6,6 +6,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
+- Failed model setup operations show only bounded native diagnostics carried by
+  their own failure; observations from earlier calls are not attributed to them.
 - Cura also becomes the default for inherited previous-interface settings. An
   explicit backup selection remains preserved and reversible through the existing
   settings controls. Failed preference effects restore the exact prior settings.

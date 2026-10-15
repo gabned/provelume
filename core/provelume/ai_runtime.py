@@ -477,11 +477,16 @@ class LocalRuntime:
         except ModelError as exc:
             self._record_failure(exc.code, cancel)
             self._stop()
+            # This exception belongs to the admitted call. A later lifecycle
+            # failure must never borrow the runtime's ambient last observation.
+            exc.runtime_observation = dict(self.last_observation)
             raise
         except Exception:
             self._record_failure("state", cancel)
             self._stop()
-            raise ModelError("state") from None
+            error = ModelError("state")
+            error.runtime_observation = dict(self.last_observation)
+            raise error from None
 
     def _record_failure(self, code, cancel):
         from .ai_runtime_diagnostics import native_failure
