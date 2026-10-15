@@ -348,6 +348,8 @@ class ClassificationReview:
             "extra_paths": [],
             "segments": [],
             "quality": None,
+            "target_labels": {},
+            "source_labels": {},
         }
         if action == "save_policy":
             policy_identifier(subject)
@@ -366,6 +368,9 @@ class ClassificationReview:
                 )
             body, ref, _doc, _job, targets = self._proposal(inputs, parameters["job_id"])
             nodes = _nodes(inputs)
+            source = inputs.record(f"knowledge/sources/{targets.source_id}.json")
+            data["target_labels"] = {key: row["name"] for key, row in nodes.items()}
+            data["source_labels"] = {targets.source_id: source["name"]}
             selected = parameters["target_ids"]
             if (
                 not isinstance(selected, list)

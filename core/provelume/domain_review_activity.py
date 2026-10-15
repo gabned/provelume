@@ -39,6 +39,15 @@ def review_script_integrity() -> str:
     return "sha256-" + base64.b64encode(hashlib.sha256(raw).digest()).decode("ascii")
 
 
+def _classification_source_names(store, policies):
+    inputs = _Inputs(store)
+    return {
+        source: (inputs.record(f"knowledge/sources/{source}.json", optional=True) or {})
+        .get("name", source)
+        for source in sorted({row["source_id"] for row in policies})
+    }
+
+
 def review_options(instance, domain, subject, *, job_id=None):
     """Bounded display choices; only the provider's fresh preview grants eligibility."""
     assert_review_readable(instance.store)
@@ -60,6 +69,7 @@ def review_options(instance, domain, subject, *, job_id=None):
 
         controller = instance.classification_review
         result["policies"] = controller.policies()
+        result["source_names"] = _classification_source_names(instance.store, result["policies"])
         if subject.startswith("doc_"):
             if re.fullmatch(r"doc_[0-9a-f]{32}", subject) is None:
                 raise ReviewError("Invalid classification subject")
@@ -77,7 +87,7 @@ def review_options(instance, domain, subject, *, job_id=None):
                 .replace("+00:00", "Z"), "mode": "confirm-each", "max_applications": 1,
             }
         jobs = instance.ai_jobs.journal.list_jobs(limit=100)
-        result["assessments"] = [
+        assessments = [
             {"id": row["id"], "document_id": row["ai"]["request"]["context"]["document_id"]}
             for row in jobs if row.get("job_kind") == "ai.execute"
             and row["status"] == "succeeded" and row["ai"].get("result")
@@ -85,6 +95,13 @@ def review_options(instance, domain, subject, *, job_id=None):
             and (not subject.startswith("doc_")
                  or row["ai"]["request"]["context"]["document_id"] == subject)
         ]
+        result["assessments"] = []
+        for assessment in assessments:
+            document = inputs.record(f"knowledge/documents/{assessment['document_id']}.json",
+                                     optional=True)
+            result["assessments"].append({
+                **assessment, "title": (document or {}).get("title", assessment["document_id"]),
+            })
         result["selected_job"] = job_id
     elif domain == "placement":
         if re.fullmatch(r"doc_[0-9a-f]{32}", subject) is None:
@@ -197,6 +214,13 @@ def review_summary(plan, labels):
         changes.append({"label": label, "before": display(before), "after": display(after)})
 
     if domain == "iudicium":
+        names = data["target_labels"]
+        if data["placement"] is not None:
+            names = {key: row["name"] for key, row in data["placement"]["nodes"].items()}
+
+        def destination(node_id):
+            return f"{names[node_id]} · {node_id}" if node_id in names else node_id
+
         if action in {"save_policy", "revoke_policy"}:
             before, after = data["policy_before"] or {}, data["policy_after"]
             for field, label in (
@@ -205,7 +229,16 @@ def review_summary(plan, labels):
                 ("expires_at", "expires_at"), ("mode", "mode"),
                 ("max_applications", "max_applications"),
             ):
-                change(labels[label], before.get(field), after[field])
+                old, new = before.get(field), after[field]
+                if field == "target_hashes":
+                    old, new = ([destination(key) for key in sorted(old or {})],
+                                [destination(key) for key in sorted(new)])
+                elif field == "source_id":
+                    old, new = (data["source_labels"].get(old, old),
+                                data["source_labels"].get(new, new))
+                elif field == "mode":
+                    old, new = labels.get(old, old), labels[new]
+                change(labels[label], old, new)
         else:
             before = (data["placement"]["before"] if action == "apply"
                       else data["current_classification"])
@@ -213,7 +246,13 @@ def review_summary(plan, labels):
                      else data["undo_classification"])
             for field, label in (("primary_node_id", "primary"),
                                  ("secondary_node_ids", "secondary")):
-                change(labels[label], (before or {}).get(field), (after or {}).get(field))
+                old, new = (before or {}).get(field), (after or {}).get(field)
+                if field == "secondary_node_ids":
+                    old, new = ([destination(key) for key in old or []],
+                                [destination(key) for key in new or []])
+                else:
+                    old, new = destination(old), destination(new)
+                change(labels[label], old, new)
         effect, reverse = "effect_classification", "reverse_classification"
     elif domain == "placement" or (domain == "routing" and action == "apply_rule"):
         snapshot = data["snapshot"]
@@ -351,6 +390,7 @@ def attach_domain_review_routes(
         try:
             rows = instance.classification_review.policies()
             return page(request, "review_classification_policies.html", rows=rows,
+                        source_names=_classification_source_names(instance.store, rows),
                         new_policy="autonomy_" + uuid4().hex, unavailable=False)
         except _ERRORS:
             return page(request, "review_classification_policies.html", status=503, rows=[],

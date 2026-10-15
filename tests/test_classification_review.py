@@ -219,6 +219,10 @@ def test_ordinary_browser_policy_apply_undo_local_nonce_and_pure_get(governed, t
         plan = _preview(client, policy_path, token, "save_policy",
                         _parameters(job, [allowlist[0][1]]))
         assert plan.status_code == 200, plan.text
+        changes = json.dumps(plan.json()["summary"]["changes"])
+        assert "Work" in changes
+        source_id = setup.instance.store.read_canonical("documents", document)["source_id"]
+        assert setup.instance.store.read_canonical("sources", source_id)["name"] in changes
         saved = browser_confirm(client, policy_path, token, plan)
         assert saved.status_code == 200, saved.text
         assert client.get("/review/iudicium").status_code == 200
