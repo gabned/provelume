@@ -14,7 +14,7 @@ from provelume import storage
 from provelume.paths import native_path
 
 
-@pytest.mark.parametrize("failure", [None, "open", "convert", "wrap", "read"])
+@pytest.mark.parametrize("failure", [None, "open", "convert", "wrap", "wrap_after_close", "read"])
 def test_windows_snapshot_handle_ownership_and_fail_closed_errors(tmp_path, monkeypatch, failure):
     path = tmp_path / "public.json"
     payload = b'{"revision":1}'
@@ -43,10 +43,15 @@ def test_windows_snapshot_handle_ownership_and_fail_closed_errors(tmp_path, monk
         descriptors.append(descriptor)
         return descriptor
 
-    def wrap(descriptor, mode):
+    def wrap(descriptor, mode, *, closefd=True):
         if failure == "wrap":
             raise OSError("synthetic wrapper failure")
-        stream = original_fdopen(descriptor, mode)
+        stream = original_fdopen(descriptor, mode, closefd=closefd)
+        if failure == "wrap_after_close":
+            # io.open may close its partially constructed wrapper before raising.
+            # The original error must survive without a second descriptor owner.
+            stream.close()
+            raise OSError("synthetic wrapper failure after close")
         if failure != "read":
             return stream
 
@@ -71,7 +76,7 @@ def test_windows_snapshot_handle_ownership_and_fail_closed_errors(tmp_path, monk
     monkeypatch.setattr(os, "O_NOINHERIT", 0x80, raising=False)
     monkeypatch.setattr(os, "fdopen", wrap)
     if failure:
-        with pytest.raises(OSError):
+        with pytest.raises(OSError, match="synthetic"):
             storage._windows_snapshot_bytes(path)
     else:
         assert storage._windows_snapshot_bytes(path) == payload
@@ -124,8 +129,8 @@ def test_windows_open_snapshot_retains_writer_denial_then_allows_publication(tmp
     original_fdopen = os.fdopen
     denials = []
 
-    def observed_read(descriptor, mode):
-        stream = original_fdopen(descriptor, mode)
+    def observed_read(descriptor, mode, *, closefd=True):
+        stream = original_fdopen(descriptor, mode, closefd=closefd)
 
         class OpenSnapshot:
             def __enter__(self):

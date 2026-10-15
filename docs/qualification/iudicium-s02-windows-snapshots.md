@@ -20,7 +20,10 @@ handle conflicts with the preceding CRT reader, while the snapshot reader still
 reads the complete JSON; the existing writer's denial during an open snapshot
 preserves both files, and publication after close produces complete new bytes.
 Mocked handle/descriptor failures must
-propagate once and release ownership. Existing scheduler and HTTP idempotence,
+propagate once and release ownership. The snapshot reader retains descriptor
+ownership through a non-owning buffered wrapper, so a wrapper-construction error
+that closes its partial wrapper cannot cause a second close or mask the error.
+Existing scheduler and HTTP idempotence,
 preservation and lifecycle tests remain unchanged and mandatory.
 
 These controls demonstrate a sharing-protocol defect and its correction; they do

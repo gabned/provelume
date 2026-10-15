@@ -88,13 +88,13 @@ def _windows_snapshot_bytes(path: Path) -> bytes:
     except BaseException:
         kernel.CloseHandle(handle)
         raise
+    # Keep one descriptor owner even if io.open closes a partial wrapper before
+    # raising: wrapper cleanup must not close a descriptor this finally owns.
     try:
-        stream = os.fdopen(descriptor, "rb")
-    except BaseException:
+        with os.fdopen(descriptor, "rb", closefd=False) as stream:
+            return stream.read()
+    finally:
         os.close(descriptor)
-        raise
-    with stream:
-        return stream.read()
 
 
 def read_json_snapshot(path: Path) -> Any:
