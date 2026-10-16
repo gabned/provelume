@@ -12,7 +12,7 @@ import json
 import os
 import re
 import stat
-from contextlib import suppress
+from contextlib import contextmanager, suppress
 from pathlib import Path, PurePosixPath
 from time import monotonic
 
@@ -112,13 +112,51 @@ class _PublicInventoryObservation:
         self.stage = "pin-root"
         self.files_total = self.grants_total = None
         self.files_verified = self.bytes_hashed = self.grants_completed = 0
+        self.checkpoint_calls = 0
+        self.timings = {"checkpoint": 0.0, "acl": 0.0}
+        self.timings_complete = True
 
     def mark(self, stage):
         self.stage, self.stage_started = stage, monotonic()
 
+    @contextmanager
+    def measuring(self, kind):
+        # Observation must not change either the call's exception or Win32 error.
+        native_code = c.get_last_error() if os.name == "nt" else None
+        started = None
+        try:
+            try:
+                started = monotonic()
+            except Exception:
+                self.timings_complete = False
+        finally:
+            if native_code is not None:
+                c.set_last_error(native_code)
+        try:
+            yield
+        finally:
+            native_code = c.get_last_error() if os.name == "nt" else None
+            try:
+                try:
+                    if started is not None:
+                        self._record_time(kind, started)
+                except Exception:
+                    self.timings_complete = False
+            finally:
+                if native_code is not None:
+                    c.set_last_error(native_code)
+
+    def _record_time(self, kind, started):
+        elapsed = monotonic() - started
+        if not 0 <= elapsed <= 86400:
+            raise ValueError("observation_clock")
+        self.timings[kind] += elapsed
+        if kind == "checkpoint":
+            self.checkpoint_calls += 1
+
     def snapshot(self):
         now = monotonic()
-        return {
+        result = {
             "stage": self.stage, "elapsed_ms": int((now - self.started) * 1000),
             "stage_elapsed_ms": int((now - self.stage_started) * 1000),
             "budget_at_entry_ms": self.budget_at_entry_ms,
@@ -127,6 +165,11 @@ class _PublicInventoryObservation:
             "bytes_hashed": self.bytes_hashed, "grants_total": self.grants_total,
             "grants_completed": self.grants_completed,
         }
+        if self.timings_complete:
+            result.update(checkpoint_calls=self.checkpoint_calls,
+                          checkpoint_elapsed_ms=int(self.timings["checkpoint"] * 1000),
+                          acl_elapsed_ms=int(self.timings["acl"] * 1000))
+        return result
 
 
 def pin_public_package(stack, executable, sid, *, cancel, deadline):
@@ -171,14 +214,16 @@ def _pin_public_package(stack, executable, sid, *, cancel, deadline, progress):
     # until worker termination, including parents and the actual executable.
     for name, size in sorted(files.items()):
         progress.mark("pin-file")
-        checkpoint(cancel, deadline)
+        with progress.measuring("checkpoint"):
+            checkpoint(cancel, deadline)
         handle = stack.enter_context(pin_acl_path(root / name, directory=False))
         pin = expected["files"][name]
         check(set(pin) == {"bytes", "sha256"} and size == pin["bytes"], "integrity")
         digest = hashlib.sha256()
         progress.mark("hash-file")
         while True:
-            checkpoint(cancel, deadline)
+            with progress.measuring("checkpoint"):
+                checkpoint(cancel, deadline)
             block = os.read(handle, 1024 * 1024)
             if not block:
                 break
@@ -191,8 +236,10 @@ def _pin_public_package(stack, executable, sid, *, cancel, deadline, progress):
     executable_handle = stack.enter_context(pin_acl_path(executable, directory=False))
     for handle in [h for _, h in directories] + pinned + [executable_handle]:
         progress.mark("grant-acl")
-        checkpoint(cancel, deadline)
-        grant_public_read(handle, sid)
+        with progress.measuring("checkpoint"):
+            checkpoint(cancel, deadline)
+        with progress.measuring("acl"):
+            grant_public_read(handle, sid)
         progress.grants_completed += 1
     return {"public_code_files": len(files) + 1, "public_code_inventory": hashlib.sha256(
         (json.dumps(expected, sort_keys=True, separators=(",", ":")) + "\n").encode()).hexdigest()}

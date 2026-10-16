@@ -94,3 +94,23 @@ run. The ordinary Installed source also retains its own grant-acl deadline:
 1849 files verified, 1433 of 1939 grants completed, admission budget exhausted
 before parent kill. These are distinct observations; narrower runtime causes
 remain NON_DIMOSTRATA. No runtime correction, changed threshold or waiver is claimed.
+
+## Checkpoint and ACL timing observations
+
+On ordinary Installed38956331091 attempt1, source89d42e11ec253989f28ec092bf1d1fee1cac3d29,
+the second self-test still times out before parent kill: 61015ms total,
+58577ms admission budget exhausted, all1849files/58973066bytes verified and
+1590of1939grants completed. Its current grant iteration lasts16ms. The original
+checkpoint evaluates live cancellation/authority before checking its deadline;
+the ACL helper itself does not raise timeout. These data do not establish how
+much of the total budget was spent in authority reads versus ACL operations.
+
+An optional complete group adds checkpoint_calls, checkpoint_elapsed_ms and
+acl_elapsed_ms. Each original checkpoint and ACL call executes once, at its
+original position, inside an observer that records elapsed time even on failure.
+The checkpoint measurement includes its unchanged live authority and deadline
+checks. No polling interval, cached authority, hash read or dispatch changes.
+Timing observation failures preserve the original exception and Win32 error,
+and omit the complete optional timing group. Old maps without that group retain
+their exact shape; partial, inconsistent, noninteger or private extensions are
+rejected as a whole. These measurements are diagnosis, never execution authority.

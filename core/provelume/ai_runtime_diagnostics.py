@@ -22,12 +22,18 @@ PUBLIC_INVENTORY_BOUNDS = {
     "bytes_hashed": (0, 512 * 1024**2),
     "grants_total": (0, 8194), "grants_completed": (0, 8194),
 }
+PUBLIC_INVENTORY_TIMING_BOUNDS = {
+    "checkpoint_calls": (0, 1000000),
+    "checkpoint_elapsed_ms": (0, 86400000), "acl_elapsed_ms": (0, 86400000),
+}
 
 
 def public_inventory_observation(value):
     """Accept a complete content-free observation, never a partially trusted map."""
+    original_keys = {"stage", *PUBLIC_INVENTORY_BOUNDS}
+    timed_keys = original_keys | PUBLIC_INVENTORY_TIMING_BOUNDS.keys()
     if (type(value) is not dict
-            or set(value) != {"stage", *PUBLIC_INVENTORY_BOUNDS}
+            or set(value) not in (original_keys, timed_keys)
             or type(value["stage"]) is not str
             or value["stage"] not in PUBLIC_INVENTORY_STAGES):
         return None
@@ -35,6 +41,15 @@ def public_inventory_observation(value):
         if key in {"files_total", "grants_total"} and value[key] is None:
             continue
         if type(value[key]) is not int or not low <= value[key] <= high:
+            return None
+    if set(value) != original_keys:
+        for key, (low, high) in PUBLIC_INVENTORY_TIMING_BOUNDS.items():
+            if type(value[key]) is not int or not low <= value[key] <= high:
+                return None
+        if (value["checkpoint_calls"] < value["files_verified"] + value["grants_completed"]
+                or (not value["checkpoint_calls"] and value["checkpoint_elapsed_ms"])
+                or value["checkpoint_elapsed_ms"] + value["acl_elapsed_ms"] > value["elapsed_ms"]
+                or (value["stage"] != "grant-acl" and value["acl_elapsed_ms"])):
             return None
     if (value["stage_elapsed_ms"] > value["elapsed_ms"]
             or value["budget_remaining_ms"] > value["budget_at_entry_ms"]):

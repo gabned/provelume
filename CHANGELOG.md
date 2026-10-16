@@ -12,6 +12,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 - Qualification reports preserve a failed classification job's owned native
   diagnostic, identify default Shell reinstall substages and transfer byte counts,
   and checkpoint classification and final integrity work before interruption.
+- Public-package failure observations optionally separate cumulative checkpoint
+  and ACL time, preserving original live checks and historical diagnostic shapes.
 - Windows journal snapshots share DELETE access with concurrent state publishers,
   close before parsing, and preserve complete snapshots and access-error handling.
 - Failed model setup operations show only bounded native diagnostics carried by

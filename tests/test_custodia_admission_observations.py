@@ -304,3 +304,100 @@ def test_ci_summary_never_prints_artifact_paths_or_arbitrary_failure_text(monkey
     assert "DoNotPublish" not in json.dumps(result)
     report["failure_type"] = "DoNotPublishPrivateType"
     assert set(summary(report)) == {"status", "phase", "checks"}
+
+
+def test_checkpoint_and_acl_costs_are_separate_and_every_original_call_remains(public_package):
+    p = public_package
+    calls = []
+
+    def live_authority():
+        calls.append(True)
+        p.clock[0] += 0.004
+        return False
+
+    def grant(descriptor, sid):
+        p.grants.append(descriptor)
+        p.clock[0] += 0.001
+        if len(p.grants) == 2:
+            raise OSError("DoNotPublishPrivatePath")
+
+    original = p.acl.grant_public_read
+    p.acl.grant_public_read = grant
+    try:
+        with pytest.raises(OSError) as failure, ExitStack() as stack:
+            package.pin_public_package(stack, p.executable, None, cancel=live_authority,
+                                       deadline=p.clock[0] + 60)
+    finally:
+        p.acl.grant_public_read = original
+    observed = failure.value.public_inventory
+    assert public_inventory_observation(observed) == observed
+    assert observed["checkpoint_calls"] == len(calls) == 3 * len(p.manifest["files"]) + 2
+    assert abs(observed["checkpoint_elapsed_ms"] - 4 * len(calls)) <= 1
+    assert 1 <= observed["acl_elapsed_ms"] <= 2
+    assert observed["files_verified"] == len(p.manifest["files"])
+    assert observed["grants_completed"] == 1 and len(p.grants) == 2
+    assert "DoNotPublish" not in json.dumps(observed)
+    assert_closed(p.handles)
+
+
+def test_optional_timing_failure_omits_all_new_fields_and_preserves_native_error(
+    public_package, monkeypatch,
+):
+    p = public_package
+    native = [0]
+    original = OSError("DoNotPublishPrivatePath")
+    monkeypatch.setattr(package, "os", SimpleNamespace(name="nt", read=os.read))
+    monkeypatch.setattr(package.c, "get_last_error", lambda: native[0], raising=False)
+    monkeypatch.setattr(package.c, "set_last_error", lambda v: native.__setitem__(0, v),
+                        raising=False)
+
+    def fail(descriptor, sid):
+        native[0] = 203
+        raise original
+
+    def broken(self, kind, started):
+        native[0] = 5
+        raise RuntimeError("DoNotPublishPrivateObservationError")
+
+    monkeypatch.setattr(p.acl, "grant_public_read", fail)
+    monkeypatch.setattr(package._PublicInventoryObservation, "_record_time", broken)
+    with pytest.raises(OSError) as failure, ExitStack() as stack:
+        package.pin_public_package(stack, p.executable, None, cancel=lambda: False,
+                                   deadline=p.clock[0] + 60)
+    assert failure.value is original and native[0] == 203
+    observed = failure.value.public_inventory
+    assert public_inventory_observation(observed) == observed
+    assert not {"checkpoint_calls", "checkpoint_elapsed_ms", "acl_elapsed_ms"} & observed.keys()
+    assert observed["stage"] == "grant-acl" and observed["grants_completed"] == 0
+    assert_closed(p.handles)
+
+
+@pytest.mark.parametrize("mutation", [
+    {"checkpoint_calls": True}, {"checkpoint_calls": 0},
+    {"checkpoint_elapsed_ms": 301}, {"acl_elapsed_ms": 1},
+    {"checkpoint_calls": 1000001}, {"checkpoint_elapsed_ms": -1},
+])
+def test_timing_projection_rejects_partial_invalid_or_inconsistent_data(observation, mutation):
+    profiled = {**observation, "checkpoint_calls": 4, "checkpoint_elapsed_ms": 123,
+                "acl_elapsed_ms": 0}
+    assert public_inventory_observation(profiled) == profiled
+    assert public_inventory_observation(observation) == observation
+    assert public_inventory_observation({**profiled, **mutation}) is None
+    for key in ("checkpoint_calls", "checkpoint_elapsed_ms", "acl_elapsed_ms"):
+        partial = dict(profiled)
+        partial.pop(key)
+        assert public_inventory_observation(partial) is None
+
+
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf"), -1.0])
+def test_invalid_timing_clock_keeps_original_exception_and_legacy_observation(monkeypatch, invalid):
+    clock = iter([100.0, 100.0, invalid, 100.1])
+    monkeypatch.setattr(package, "monotonic", lambda: next(clock))
+    progress = package._PublicInventoryObservation(160.0)
+    original = ModelError("timeout")
+    with pytest.raises(ModelError) as failure, progress.measuring("checkpoint"):
+        raise original
+    assert failure.value is original
+    observed = progress.snapshot()
+    assert public_inventory_observation(observed) == observed
+    assert not {"checkpoint_calls", "checkpoint_elapsed_ms", "acl_elapsed_ms"} & observed.keys()
