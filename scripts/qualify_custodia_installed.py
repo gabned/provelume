@@ -35,7 +35,7 @@ from release_installed import build_identity, installer_identity
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
 
 from provelume.ai_runtime import native_selection  # noqa: E402
-from provelume.ai_runtime_contract import hardware  # noqa: E402
+from provelume.ai_runtime_contract import MODEL_SIZE, hardware  # noqa: E402
 from provelume.ai_windows_api import D, H, P, bind, libraries, verify_token  # noqa: E402
 from provelume.service import ProvelumeInstance  # noqa: E402
 
@@ -92,7 +92,9 @@ def summary(report):
     if type(history) is not list or not history or type(history[-1]) is not dict:
         return result
     row = history[-1]
-    if row.get("state") != "failed" or row.get("action") != "self_test":
+    action = row.get("action")
+    if (row.get("state") != "failed" or type(action) is not str
+            or action not in {"self_test", "install"}):
         return result
     from provelume.ai_models import ModelError
     from provelume.ai_runtime_diagnostics import (
@@ -101,7 +103,13 @@ def summary(report):
         public_inventory_observation,
     )
 
-    failed = {"state": "failed", "action": "self_test"}
+    failed = {"state": "failed", "action": action}
+    if action == "install":
+        count = row.get("bytes")
+        if type(count) is str and re.fullmatch(r"[0-9]{1,12}", count):
+            count = int(count)
+        if type(count) is int and 0 <= count <= MODEL_SIZE:
+            failed["bytes"] = count
     with suppress(TypeError, ValueError):
         failed["error"] = ModelError(row.get("error")).code
     stage = row.get("diagnostic-stage")

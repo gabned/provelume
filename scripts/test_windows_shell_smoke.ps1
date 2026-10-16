@@ -30,6 +30,7 @@ $Evidence = [ordered]@{
     default_port = 44851
     configured_port = $null
     collision_installer_exit_code = $null
+    default_install_exit_code = $null
     final_uninstall_exit_code = $null
     service_exit_code = $null
     service_ready_attempts = 0
@@ -541,15 +542,20 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     $Evidence.checks.uninstall_preserves_preferences_and_instance = "PASS"
 
     Set-FailureCode "default_reinstall_failed"
+    Set-FailureCode "default_settings_reset_failed"
     Remove-Item -LiteralPath $SettingsPath -Force
+    Set-FailureCode "default_installer_failed"
     $DefaultInstall = Invoke-Installer `
         -Target $InstallRoot `
         -Port 44851 `
         -Tasks "traydefault,loginstartup"
+    $Evidence.default_install_exit_code = $DefaultInstall.ExitCode
     if ($DefaultInstall.ExitCode -ne 0) {
         throw "Default endpoint installation failed."
     }
+    Set-FailureCode "default_settings_read_failed"
     $DefaultSettings = Get-Content -LiteralPath $SettingsPath -Raw | ConvertFrom-Json
+    Set-FailureCode "default_settings_mismatch"
     if (
         $DefaultSettings.endpoint.port -ne 44851 -or
         -not $DefaultSettings.shell.tray_enabled -or
@@ -557,9 +563,11 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     ) {
         throw "Default endpoint or separate login-startup selection was not persisted."
     }
+    Set-FailureCode "default_login_startup_read_failed"
     $RunValue = Get-ItemPropertyValue `
         -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
         -Name "Provelume"
+    Set-FailureCode "default_login_startup_mismatch"
     if ($RunValue -notmatch '--tray') {
         throw "Explicit login-startup selection did not create the bounded Run entry."
     }
@@ -624,6 +632,12 @@ finally {
 }
 
 if ($Failed) {
+    $Summary = $Evidence | Select-Object `
+        schema_version, status, failure_code, expected_commit, exact_head, `
+        default_port, configured_port, collision_installer_exit_code, `
+        default_install_exit_code, final_uninstall_exit_code, service_exit_code, `
+        service_ready_attempts, checks, network_used_by_harness, private_content_logged
+    Write-Output ("WINDOWS_SHELL_REPORT=" + ($Summary | ConvertTo-Json -Depth 4 -Compress))
     throw "Windows shell smoke failed; the sanitized evidence records completed checks."
 }
 $Evidence | ConvertTo-Json -Depth 6
