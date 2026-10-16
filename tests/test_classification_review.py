@@ -290,9 +290,9 @@ def test_ordinary_browser_policy_apply_undo_local_nonce_and_pure_get(governed, t
     with TestClient(app) as client:
         # Browser host is a fresh Instance, with no inference/operational consent.
         policy_path = "/review/decisions/iudicium/" + POLICY
-        before = _bytes(setup.instance.root)
+        before = _bytes(setup.instance.root, active_scheduler=True)
         token = _token(client, policy_path)
-        assert _bytes(setup.instance.root) == before
+        assert _bytes(setup.instance.root, active_scheduler=True) == before
         plan = _preview(client, policy_path, token, "save_policy",
                         _parameters(job, [allowlist[0][1]]))
         assert plan.status_code == 200, plan.text

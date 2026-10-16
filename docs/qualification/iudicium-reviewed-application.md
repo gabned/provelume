@@ -50,6 +50,13 @@ that scope and preservation of unchanged outside-scope destinations,
 receipt replay, consumed assessment retention, expiry/budget/scope/current-policy
 denials, changed source and quality evidence, both ordinary interfaces, local
 Origin/nonce controls, pure reads and preservation of an existing execution owner.
+Pure-read snapshots with a running browser scheduler omit only its exact
+`state/locks/scheduler-journal.oslock` process-coordination byte, which Windows
+can deny reading while locked. All durable state, configurations, Originals,
+Versions and receipts remain byte-checked; other read errors propagate, and an
+Original named `.oslock` is still covered. Snapshots without a running host keep
+the complete-file boundary. The snapshot test exercises the real held lock and
+denied reads without changing the scheduler or its locking.
 Use full unchanged-candidate native tests/Ruff/diff before publication, then all
 permanent exact-source workflow attempts/jobs and reviews, effect binding, fresh
 preflight, normal expected-head merge, actual parents/tree and all post gates.

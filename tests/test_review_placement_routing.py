@@ -23,6 +23,7 @@ from provelume.review_effects import (
 )
 from provelume.review_routing import PlacementProvider, RoutingProvider
 from provelume.review_runtime import recover_review_transactions_locked, review_transaction_factory
+from provelume.scheduler import SCHEDULER_LOCK_NAME, SchedulerStore
 from provelume.service import ProvelumeInstance
 
 
@@ -94,12 +95,55 @@ def _save_rule(decisions, document, area, *, key="a", automatic=True, prefix="")
     return rule_id
 
 
-def _bytes(root: Path):
+def _bytes(root: Path, *, active_scheduler: bool = False):
+    # The running browser host can hold this Windows byte-range lock. Only
+    # explicitly running-host snapshots omit this process-coordination byte;
+    # canonical state and every other file, including .oslock Originals, remain
+    # byte-checked. Ordinary snapshots retain their complete-file boundary.
     return {
         path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
         for path in root.rglob("*")
         if path.is_file()
+        and not (active_scheduler and path.relative_to(root).parts
+                 == ("state", "locks", SCHEDULER_LOCK_NAME))
     }
+
+
+def test_running_host_snapshot_retains_durable_bytes_and_read_errors(tmp_path, monkeypatch):
+    instance = ProvelumeInstance.initialise(tmp_path / "snapshot")
+    journal = SchedulerStore(instance.store)
+    original = instance.store.paths.originals / "state" / "locks" / SCHEDULER_LOCK_NAME
+    version = instance.store.paths.canonical_dir("versions") / SCHEDULER_LOCK_NAME
+    receipt = journal.receipts / "snapshot-receipt.json"
+    for path in (original, version, receipt):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"synthetic durable evidence\n")
+    read_bytes = Path.read_bytes
+    denied = {journal.lock_path}
+
+    def read_with_windows_lock(path):
+        if path in denied:
+            raise PermissionError("active lock or unreadable durable evidence")
+        return read_bytes(path)
+
+    with journal.hold():
+        monkeypatch.setattr(Path, "read_bytes", read_with_windows_lock)
+        with pytest.raises(PermissionError):
+            _bytes(instance.root)
+        before = _bytes(instance.root, active_scheduler=True)
+        assert journal.lock_path.relative_to(instance.root).as_posix() not in before
+        assert "state/locks/" + SCHEDULER_LOCK_NAME in _bytes(instance.store.paths.originals)
+        for path in (original, version, receipt, instance.store.paths.config):
+            relative = path.relative_to(instance.root).as_posix()
+            payload = read_bytes(path)
+            assert before[relative] == hashlib.sha256(payload).hexdigest()
+            path.write_bytes(payload + b"changed\n")
+            assert _bytes(instance.root, active_scheduler=True)[relative] != before[relative]
+            path.write_bytes(payload)
+        assert _bytes(instance.root, active_scheduler=True) == before
+        denied.add(instance.store.paths.config)
+        with pytest.raises(PermissionError):
+            _bytes(instance.root, active_scheduler=True)
 
 
 def test_correct_existing_placement_retains_original_versions_old_edges_and_replays(review):
