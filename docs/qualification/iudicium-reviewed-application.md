@@ -45,6 +45,8 @@ any automatic permission can be considered. No existing pending rule is promoted
 by a confidence value, test fixture or historical attestation.
 
 Machine qualification covers atomic interruption/rollback/recovery, exact undo,
+destination role swaps inside the reviewed scope, denial of role changes outside
+that scope and preservation of unchanged outside-scope destinations,
 receipt replay, consumed assessment retention, expiry/budget/scope/current-policy
 denials, changed source and quality evidence, both ordinary interfaces, local
 Origin/nonce controls, pure reads and preservation of an existing execution owner.

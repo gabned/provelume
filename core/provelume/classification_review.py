@@ -38,7 +38,14 @@ from .review_effects import (
     ReviewUnavailable,
     sha256,
 )
-from .review_routing import _document, _Inputs, _nodes, _placement_paths, _placement_snapshot
+from .review_routing import (
+    _associations,
+    _document,
+    _Inputs,
+    _nodes,
+    _placement_paths,
+    _placement_snapshot,
+)
 from .review_routing import _placement_writes as placement_writes
 from .review_routing_model import identifier, placement_parameters, selector_prefix
 
@@ -466,16 +473,10 @@ class ClassificationReview:
                 now=self.clock(),
             )
             before = snapshot["before"]
-            previous = (
-                set()
-                if before is None
-                else {
-                    before["primary_node_id"],
-                    *before["secondary_node_ids"],
-                }
-            )
-            chosen = {destinations["primary_node_id"], *destinations["secondary_node_ids"]}
-            if not previous.symmetric_difference(chosen) <= set(hashes):
+            previous = set() if before is None else set(_associations(before))
+            chosen = set(_associations(destinations))
+            changed_targets = {node for _role, node in previous.symmetric_difference(chosen)}
+            if not changed_targets <= set(hashes):
                 raise ReviewDenied(
                     "Placement would change a destination outside reviewed policy scope"
                 )

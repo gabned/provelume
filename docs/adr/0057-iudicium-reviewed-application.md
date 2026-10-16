@@ -12,6 +12,10 @@ current canonical record bytes; labels never supply authority. Every changed
 scope is reviewed. A newly qualified quality scope also requires policy review;
 old pending automatic requests cannot become authority after qualification.
 
+Destination scope includes each primary or secondary role. Swapping roles requires
+both affected destinations to be reviewed even when the destination IDs are the
+same. An outside-scope destination can be preserved only with its role unchanged.
+
 An AI assessment supplies evidence for a separate manual domain decision, never
 write permission. That decision explicitly selects current destinations, retains
 the assessment/receipt association and uses existing independently configured

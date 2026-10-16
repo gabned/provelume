@@ -6,6 +6,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
+- Reviewed classification policies enforce destination scope for primary and
+  secondary role changes, including swaps that keep the same destination IDs.
 - Windows journal snapshots share DELETE access with concurrent state publishers,
   close before parsing, and preserve complete snapshots and access-error handling.
 - Failed model setup operations show only bounded native diagnostics carried by

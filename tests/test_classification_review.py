@@ -108,6 +108,83 @@ def test_preview_is_pure_and_disabled_host_authority_denies_application(governed
         _confirm(decisions, plan, "no-host-review-authority")
 
 
+@pytest.mark.parametrize("governed", [{"existing_placement": True, "existing_secondary": True}],
+                         indirect=True)
+@pytest.mark.parametrize("outside_role", ["primary", "secondary"])
+def test_policy_cannot_change_an_unreviewed_destination_role(governed, outside_role):
+    setup, job, allowlist, fake, _ = governed
+    instance, decisions = setup.instance, setup.instance.review_decisions
+    document = setup.jobs.journal.get_job(job)["ai"]["request"]["context"]["document_id"]
+    path = instance.root / _class_path(document)
+    before_class = json.loads(path.read_bytes())
+    primary, secondary = before_class["primary_node_id"], allowlist[0][1]
+    assert before_class["secondary_node_ids"] == [secondary]
+    reviewed = secondary if outside_role == "primary" else primary
+    _rule(setup, job, [reviewed])
+    before = _bytes(instance.root)
+    with pytest.raises(ReviewDenied, match="outside reviewed policy scope"):
+        decisions.preview("iudicium", document, "apply", {
+            "job_id": job, "policy_id": POLICY, "primary_node_id": secondary,
+            "secondary_node_ids": [primary], "reviewed": True,
+        })
+    assert _bytes(instance.root) == before
+    assert instance.classification_review.policy(POLICY)["used"] == 0
+    assert fake.calls == 1
+
+
+@pytest.mark.parametrize("governed", [{"existing_placement": True, "existing_secondary": True}],
+                         indirect=True)
+def test_reviewed_role_swap_can_be_applied_and_undone_exactly(governed):
+    setup, job, allowlist, fake, _ = governed
+    instance, decisions = setup.instance, setup.instance.review_decisions
+    document = setup.jobs.journal.get_job(job)["ai"]["request"]["context"]["document_id"]
+    path = instance.root / _class_path(document)
+    before = path.read_bytes()
+    primary, secondary = json.loads(before)["primary_node_id"], allowlist[0][1]
+    _rule(setup, job, [primary, secondary])
+    plan = decisions.preview("iudicium", document, "apply", {
+        "job_id": job, "policy_id": POLICY, "primary_node_id": secondary,
+        "secondary_node_ids": [primary], "reviewed": True,
+    })
+    applied = _confirm(decisions, plan, "reviewed-role-swap")
+    current = json.loads(path.read_bytes())
+    assert current["primary_node_id"] == secondary
+    assert current["secondary_node_ids"] == [primary]
+    undo = decisions.preview("iudicium", document, "undo", {
+        "application": applied["receipt"]["id"],
+    })
+    _confirm(decisions, undo, "undo-reviewed-role-swap")
+    assert path.read_bytes() == before
+    assert instance.classification_review.policy(POLICY)["used"] == 1
+    assert fake.calls == 1
+
+
+@pytest.mark.parametrize("governed", [{"existing_placement": True, "existing_secondary": True}],
+                         indirect=True)
+def test_policy_keeps_an_unchanged_destination_outside_its_scope(governed):
+    setup, job, allowlist, fake, _ = governed
+    instance, decisions = setup.instance, setup.instance.review_decisions
+    document = setup.jobs.journal.get_job(job)["ai"]["request"]["context"]["document_id"]
+    path = instance.root / _class_path(document)
+    before = path.read_bytes()
+    primary, secondary = json.loads(before)["primary_node_id"], allowlist[0][1]
+    _rule(setup, job, [secondary])
+    plan = decisions.preview("iudicium", document, "apply", {
+        "job_id": job, "policy_id": POLICY, "primary_node_id": primary,
+        "secondary_node_ids": [], "reviewed": True,
+    })
+    applied = _confirm(decisions, plan, "keep-outside-primary")
+    current = json.loads(path.read_bytes())
+    assert current["primary_node_id"] == primary and current["secondary_node_ids"] == []
+    undo = decisions.preview("iudicium", document, "undo", {
+        "application": applied["receipt"]["id"],
+    })
+    _confirm(decisions, undo, "restore-reviewed-secondary")
+    assert path.read_bytes() == before
+    assert instance.classification_review.policy(POLICY)["used"] == 1
+    assert fake.calls == 1
+
+
 @pytest.mark.parametrize("change", ["expiry", "budget", "mode", "prefix", "language", "node"])
 def test_expired_exhausted_or_outside_scope_policy_fails_closed(governed, change):
     setup, job, allowlist, _, _ = governed
