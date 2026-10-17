@@ -10,7 +10,7 @@ import pytest
 from provelume.ai_models import ModelError
 from provelume.ai_runtime import LocalRuntime
 from provelume.ai_runtime_contract import MODEL_ID
-from provelume.ai_runtime_diagnostics import native_failure
+from provelume.ai_runtime_diagnostics import PHASES, native_failure, valid_native_failure
 from provelume.ai_setup import AiSetup
 from provelume.service import ProvelumeInstance
 
@@ -113,11 +113,22 @@ def test_explicit_self_test_alone_never_enables_or_activates(installed):
      "hardware-admission", 0),
     ({**native_failure({}, code="timeout"), "private": "DoNotPublishPrivateText"}, None, None),
     ({**native_failure({}, code="timeout"), "native_code": True}, None, None),
+    *[(native_failure({"phase": phase}, code="timeout"), phase, None)
+      for phase in sorted(PHASES - {"hardware-admission"})],
 ])
 def test_failed_operation_uses_only_its_exception_observation(
     installed, monkeypatch, observation, stage, code,
 ):
     import copy
+    from pathlib import Path
+
+    from jinja2 import Environment, FileSystemLoader
+
+    import provelume.ai_setup as module
+    from scripts.custodia_ordinary import Page
+
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "scripts"))
+    from scripts.qualify_custodia_installed import summary
 
     setup, _ = installed
     stale = native_failure({"phase": "hardware-admission", "native_code": 203}, code="timeout")
@@ -139,6 +150,159 @@ def test_failed_operation_uses_only_its_exception_observation(
     assert operation.get("native_code") == code
     assert "DoNotPublishPrivateText" not in str(operation)
     assert setup.runtime.last_observation == stale
+    assert setup.models._state()["active"] is None
+    assert not setup.jobs.session_authorized and not setup.jobs.journal.list_jobs()
+    environment = Environment(
+        loader=FileSystemLoader(str(Path(module.__file__).parent / "templates")), autoescape=True)
+    markup = environment.get_template("ai_model_progress.html").render(
+        ai={"operation": operation, "model_actions": []},
+        t=lambda key: key, ui_number=lambda value, digits: str(value))
+    projected = Page(markup).operation
+    assert projected["diagnostic-stage"] == (stage or "")
+    report = {"status": "FAIL", "phase": "parent_death_prepare", "checks": [],
+              "failure_type": "ValueError", "failure_code": "model_operation",
+              "operation_history": [projected]}
+    failed = summary(report)["failed_model_operation"]
+    assert failed.get("diagnostic_stage") == stage
+    assert failed.get("native_code") == code
+    assert "DoNotPublishPrivateText" not in str(failed)
+
+
+@pytest.mark.parametrize("point", [
+    "admission", "model_verification", "runtime", "result_validation",
+    "final_verification", "evidence",
+])
+def test_self_test_failure_owns_its_lifecycle_phase_without_ambient_native_data(
+    installed, monkeypatch, point,
+):
+    from provelume.ai_runtime import native_selection
+
+    setup, synthetic = installed
+    stale = native_failure({"native_stage": "public-inventory", "native_code": 203},
+                           code="timeout")
+    setup.runtime.last_observation = stale
+    calls = []
+    original_verify = setup.models._verify
+
+    def fail(*args, **kwargs):
+        error = ModelError("timeout")
+        if point != "runtime":
+            error.runtime_observation = dict(stale)
+        raise error
+
+    def verify(*args, **kwargs):
+        calls.append("verify")
+        if ((point == "model_verification" and calls.count("verify") == 1)
+                or (point == "final_verification" and calls.count("verify") == 2)):
+            fail()
+        return original_verify(*args, **kwargs)
+
+    def run(runtime, *args, **kwargs):
+        calls.append("runtime")
+        if point == "runtime":
+            fail()
+        if point == "result_validation":
+            return "DoNotPublishPrivateResult"
+        return synthetic(runtime, *args, **kwargs)
+
+    monkeypatch.setattr(setup.models, "_verify", verify)
+    monkeypatch.setattr(LocalRuntime, "__call__", run)
+    if point == "admission":
+        monkeypatch.setattr(setup.models, "_entry", fail)
+    if point == "evidence":
+        monkeypatch.setattr(setup.models, "_binding", fail)
+    with pytest.raises(ModelError) as failure:
+        setup.models.self_test(MODEL_ID, native_selection(), setup.runtime, requested=True)
+    observed = failure.value.runtime_observation
+    assert valid_native_failure(observed)
+    assert observed["phase"] == "self_test_" + point
+    assert observed["native_stage"] is observed["native_code"] is None
+    assert "public_inventory" not in observed
+    assert observed["model_code"] == ("self_test" if point == "result_validation" else "timeout")
+    assert "DoNotPublishPrivateResult" not in str(observed) + str(failure.value)
+    assert calls.count("runtime") == (0 if point in {"admission", "model_verification"} else 1)
+    assert not setup.models._evidence and not setup.models._native_runners
+    assert not setup.jobs.session_authorized and not setup.jobs.journal.list_jobs()
+
+
+@pytest.mark.parametrize("phase", ["model_load", "native_prefill", "native_decode"])
+def test_self_test_preserves_the_current_runtime_exception_phase(installed, monkeypatch, phase):
+    from provelume.ai_runtime import native_selection
+
+    setup, _ = installed
+    owned = native_failure({"phase": phase}, code="timeout")
+    stale = native_failure({"native_stage": "process-create", "native_code": 203},
+                           code="compatibility")
+    setup.runtime.last_observation = stale
+
+    def fail(*args, **kwargs):
+        error = ModelError("timeout")
+        error.runtime_observation = dict(owned)
+        raise error
+
+    monkeypatch.setattr(LocalRuntime, "__call__", fail)
+    with pytest.raises(ModelError, match="timeout") as failure:
+        setup.models.self_test(MODEL_ID, native_selection(), setup.runtime, requested=True)
+    assert failure.value.runtime_observation == owned
+    assert failure.value.runtime_observation is not owned
+    assert setup.runtime.last_observation == stale
+    assert not setup.models._evidence and not setup.models._native_runners
+
+
+@pytest.mark.parametrize("profiled", [False, True])
+def test_owned_public_inventory_observation_reaches_existing_operation_markup(
+    installed, monkeypatch, profiled,
+):
+    import json
+    from pathlib import Path
+
+    from jinja2 import Environment, FileSystemLoader
+
+    import provelume.ai_setup as module
+    from scripts.custodia_ordinary import Page
+
+    setup, _ = installed
+    progress = {
+        "stage": "hash-file", "elapsed_ms": 300, "stage_elapsed_ms": 100,
+        "budget_at_entry_ms": 40000, "budget_remaining_ms": 39700,
+        "files_total": 3, "files_verified": 1, "bytes_hashed": 1024,
+        "grants_total": 7, "grants_completed": 0,
+    }
+    if profiled:
+        progress.update(checkpoint_calls=4, checkpoint_elapsed_ms=123, acl_elapsed_ms=0,
+                        **{f"checkpoint_{part}_elapsed_ms": 10
+                           for part in ("configuration", "control", "models", "selection")})
+    owned = native_failure({"native_stage": "public-inventory", "native_code": 0,
+                            "public_inventory": progress}, code="timeout")
+    ambient = native_failure({"native_stage": "process-create", "native_code": 203},
+                             code="compatibility")
+    setup.runtime.last_observation = ambient
+
+    def fail(*args, **kwargs):
+        error = ModelError("timeout")
+        error.runtime_observation = owned
+        raise error
+
+    monkeypatch.setattr(setup.models, "self_test", fail)
+    setup.run_operation(setup.begin_operation("self_test"))
+    operation = setup.operation
+    assert operation["public_inventory"] == progress
+    assert operation["public_inventory"] is not owned["public_inventory"]
+    assert setup.runtime.last_observation == ambient
+    snapshot = setup.read()["operation"]
+    assert snapshot["public_inventory"] == progress
+    snapshot["public_inventory"]["files_verified"] = 2
+    assert operation["public_inventory"] == progress
+    assert setup.read()["operation"]["public_inventory"] == progress
+    environment = Environment(
+        loader=FileSystemLoader(str(Path(module.__file__).parent / "templates")), autoescape=True)
+    markup = environment.get_template("ai_model_progress.html").render(
+        ai={"operation": operation, "model_actions": []},
+        t=lambda key: key, ui_number=lambda value, digits: str(value))
+    projected = Page(markup).operation
+    assert projected["diagnostic-stage"] == "public-inventory"
+    assert projected["native-code"] == "0"
+    assert json.loads(projected["public-inventory"]) == progress
     assert setup.models._state()["active"] is None
     assert not setup.jobs.session_authorized and not setup.jobs.journal.list_jobs()
 

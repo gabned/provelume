@@ -256,8 +256,14 @@ def measure(root, output):
 
         report["phase"] = "iudicium_execution_conformance"
         save()
-        report["iudicium_execution"] = measure_classification(root, store, runtime)
+        def classification_checkpoint(result):
+            report["iudicium_execution"] = result
+            save()
+
+        report["iudicium_execution"] = measure_classification(
+            root, store, runtime, checkpoint=classification_checkpoint)
         report["phase"] = "final_integrity_and_cleanup"
+        report["final_integrity_stage"] = "verify_original"
         save()
         # Change one byte only in this disposable installed test model, then restore
         # in finally; no acquisition, fallback or fabricated evidence on corruption.
@@ -265,11 +271,15 @@ def measure(root, output):
         with model.model.path.open("rb") as stream:
             stream.seek(128)
             original = stream.read(1)
+        report["final_integrity_stage"] = "alter_public_fixture"
+        save()
         try:
             with model.model.path.open("r+b") as stream:
                 stream.seek(128)
                 stream.write(bytes([original[0] ^ 1]))
                 stream.flush()
+            report["final_integrity_stage"] = "verify_altered"
+            save()
             try:
                 store.verify(MODEL_ID, selection)
             except ModelError as exc:
@@ -278,6 +288,8 @@ def measure(root, output):
             with model.model.path.open("r+b") as stream:
                 stream.seek(128)
                 stream.write(original)
+        report["final_integrity_stage"] = "aggregate_samples"
+        save()
         for language in ("en", "it"):
             rows = [r for r in report["samples"] if r["language"] == language]
             score = sum(r["pass"] for r in rows) / len(rows) if rows else 0
@@ -300,6 +312,8 @@ def measure(root, output):
         report["status"] = "BLOCKED_NO_EGRESS_OBSERVATION"
         from diagnose_ai_capture import diagnose
 
+        report["final_integrity_stage"] = "capture_diagnostic"
+        save()
         report["capture_diagnostic"] = diagnose(instance, store, runtime)
     except Exception as exc:
         report["status"] = "FAIL"

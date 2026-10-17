@@ -8,6 +8,18 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 - Reviewed classification policies enforce destination scope for primary and
   secondary role changes, including swaps that keep the same destination IDs.
+- Windows local-file verification avoids repeated API setup while retaining fresh
+  locality queries, file handles, metadata checks and content reads.
+- Failed Windows public-package admission retains bounded stage timing, remaining
+  request budget and verification counters; Installed CI prints closed failure
+  details without requiring the diagnostic ZIP for initial triage.
+- Qualification reports preserve a failed classification job's owned native
+  diagnostic, identify default Shell reinstall substages and transfer byte counts,
+  and checkpoint classification and final integrity work before interruption.
+- Public-package failure observations optionally separate cumulative checkpoint
+  and ACL time, preserving original live checks and historical diagnostic shapes.
+- Installed admission observations can separate fresh configuration, job control,
+  model selection and runtime-selection construction costs within those checkpoints.
 - Windows journal snapshots share DELETE access with concurrent state publishers,
   close before parsing, and preserve complete snapshots and access-error handling.
 - Failed model setup operations show only bounded native diagnostics carried by
