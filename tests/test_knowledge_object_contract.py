@@ -175,7 +175,9 @@ def test_relations_cannot_alias_self_or_grant_arbitrary_effects():
 
 @pytest.mark.parametrize("raw", [b'{"a":1,"a":2}', b'[]', b'{"a":NaN}',
                                 b'{"a":1.5}', b'\xff', b'[' * 2000,
-                                b' ' * (MAX_RECORD_BYTES + 1)])
+                                b' ' * (MAX_RECORD_BYTES + 1)],
+                         ids=["duplicate-keys", "array-root", "nonfinite", "float",
+                              "non-utf8", "deep-array", "oversize"])
 def test_parser_rejects_duplicate_non_json_unbounded_or_non_record_data(raw):
     with pytest.raises(KnowledgeObjectError):
         parse_record(raw)
