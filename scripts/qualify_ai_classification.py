@@ -3,18 +3,25 @@
 import os
 
 from provelume.ai_contract import digest
+from provelume.ai_runtime_diagnostics import native_failure, valid_native_failure
 from provelume.ai_setup import AiSetup
 from provelume.service import ProvelumeInstance
 
 
-def measure_classification(root, store, runtime):
+def measure_classification(root, store, runtime, *, checkpoint=lambda _result: None):
     instance = ProvelumeInstance.initialise(root / "iudicium-instance")
     setup = AiSetup(instance, runtime_directory=runtime.directory)
     setup.models, setup.runtime = store, runtime
     setup.save({"mode": "local"}, setup.configuration()["revision"])
     result = {"status": "NOT_RUN", "quality": "NOT_EVALUATED", "samples": [],
               "synthetic_content": True, "gold_labels": "NOT_REVIEWED"}
+
+    def stage(name):
+        result["stage"] = name
+        checkpoint(result)
+
     try:
+        stage("self_test")
         operation = setup.begin_operation("self_test")
         setup.run_operation(operation)
         if setup.operation["state"] != "completed":
@@ -28,6 +35,7 @@ def measure_classification(root, store, runtime):
                 "control": "verified-ci-exact-interpreter-wfp",
                 "self_test": setup.self_test_evidence.public_record(),
             })
+        stage("activation")
         operation = setup.begin_operation("activate")
         setup.run_operation(operation)
         if setup.operation["state"] != "completed":
@@ -60,12 +68,28 @@ def measure_classification(root, store, runtime):
             )
             setup.approve_generation(ref)
             job = setup.enqueue(ref)
+            stage("execution")
             terminal = instance.run_ai_job(job["id"])
+            if terminal["id"] != job["id"]:
+                result.update(status="FAIL", failure="classification_job_identity")
+                return result
             sample = {"language": language, "status": terminal["status"],
                       "blocked": terminal["ai"]["blocked"]}
             result["samples"].append(sample)
+            if terminal["status"] != "succeeded":
+                attempts = terminal["ai"].get("attempts", [])
+                observed = attempts[-1].get("native_failure") if attempts else None
+                if valid_native_failure(observed):
+                    sample["native_failure"] = native_failure(
+                        observed, code=observed.get("model_code"),
+                        cancellation=observed.get("cancellation_reason"))
+                result.update(status="FAIL", failure="classification_job_failed")
+                stage("execution_failed")
+                return result
+            stage("result_read")
             body, _, _, _, _ = setup.classification.read(job["id"])
             usage = setup.jobs.status()["accounting"]
+            stage("discard")
             setup.classification.discard(job["id"])
             retained, _, _ = setup.classification.reference(job["id"])
             sample.update({
@@ -83,7 +107,11 @@ def measure_classification(root, store, runtime):
     except Exception as exc:
         result.update(status="FAIL", failure=type(exc).__name__)
     finally:
+        if result["status"] == "FAIL":
+            result["failed_stage"] = result.get("stage")
+        result["stage"] = "cleanup"
         setup.close()
         result.update(worker_absent=not runtime.loaded,
                       final_off=setup.jobs.status()["mode"] == "off")
+        checkpoint(result)
     return result

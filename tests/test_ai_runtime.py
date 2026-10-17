@@ -86,6 +86,67 @@ def test_candidate_and_shipped_runtime_lock_have_no_execution_authority():
     assert ProvelumeInstance.ai_execution_status()["enabled"] is False
 
 
+def test_frozen_admission_failure_snapshot_precedes_cleanup_and_is_not_borrowed(
+    host, model, monkeypatch,
+):
+    from provelume import ai_windows_process
+    from provelume.ai_runtime_diagnostics import valid_native_failure
+
+    selection = runtime.native_selection()
+    progress = {
+        "stage": "hash-file", "elapsed_ms": 300, "stage_elapsed_ms": 100,
+        "budget_at_entry_ms": 40000, "budget_remaining_ms": 39700,
+        "files_total": 3, "files_verified": 1, "bytes_hashed": 1024,
+        "grants_total": 7, "grants_completed": 0,
+    }
+    original = ModelError("timeout")
+    original.public_inventory = dict(progress)
+    closed = []
+
+    class Process:
+        phase, native_code = "public-inventory", 0
+        stdin = stdout = None
+
+        def start(self, *args, **kwargs):
+            raise original
+
+        def poll(self):
+            return 0
+
+        def wait(self, **kwargs):
+            return 0
+
+        def close(self):
+            closed.append(True)
+            original.public_inventory["stage"] = "DoNotPublishPrivateCleanup"
+
+    # This tests the frozen supervisor interface, not a real Windows process.
+    monkeypatch.setattr(runtime, "os", SimpleNamespace(name="nt"))
+    monkeypatch.setattr(runtime, "sys", SimpleNamespace(frozen=True, executable=sys.executable))
+    monkeypatch.setattr(runtime.subprocess, "CREATE_NO_WINDOW", 0, raising=False)
+    monkeypatch.setattr(runtime, "native_selection", lambda: selection)
+    monkeypatch.setattr(ai_windows_process, "WindowsWorkerProcess", Process)
+    with pytest.raises(ModelError) as failure:
+        host._infer(model, selection, "public synthetic request")
+    assert failure.value is original and closed == [True]
+    observed = failure.value.runtime_observation
+    assert valid_native_failure(observed)
+    assert observed["native_stage"] == "public-inventory"
+    assert observed["native_code"] == 0 and observed["public_inventory"] == progress
+    assert "DoNotPublish" not in json.dumps(observed)
+    assert host._process is None and not host.loaded and not host._slot
+
+    def before_entry():
+        raise ModelError("integrity")
+
+    monkeypatch.setattr(host, "validate_installation", before_entry)
+    with pytest.raises(ModelError) as later:
+        host._infer(model, selection, "another public request")
+    assert "public_inventory" not in later.value.runtime_observation
+    assert later.value.runtime_observation["native_stage"] is None
+    assert failure.value.runtime_observation == observed
+
+
 def test_native_pin_keeps_exact_artifact_bound_and_each_retired_license():
     from importlib.resources import files
 

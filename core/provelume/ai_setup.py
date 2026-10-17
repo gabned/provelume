@@ -54,6 +54,7 @@ from .ai_provider import CallInputs, CredentialReference, Destination, ProviderC
 from .ai_provider_http import ChatJsonAdapter
 from .ai_runtime import LocalRuntime, native_selection
 from .ai_runtime_contract import CONFIGURATION, MODEL_ID
+from .ai_runtime_diagnostics import model_operation_snapshot
 from .maintenance_local_files import open_local_file
 from .representations import build_representation_bundle, canonical_json_bytes
 
@@ -588,7 +589,7 @@ class AiSetup:
                 "model_authority": self.model_authority(),
                 "network_enabled": self.instance.store.read_config()["network"]["external_access"],
                 "network_revision": digest(self.instance.store.read_config()["network"]),
-                "operation": dict(self.operation) if self.operation else None,
+                "operation": model_operation_snapshot(self.operation),
                 "self_test": self.self_test_evidence.public_record()
                 if self.self_test_evidence
                 else None,
@@ -809,22 +810,19 @@ class AiSetup:
                 operation["state"] = "cancelled" if self.cancel.is_set() else "failed"
                 # Closed error vocabulary only; arbitrary paths/exception text are private.
                 operation["error"] = exc.code if isinstance(exc, ModelError) else "unavailable"
-                from .ai_runtime_diagnostics import valid_native_failure
+                from .ai_runtime_diagnostics import NATIVE_STAGES, PHASES, valid_native_failure
 
                 observation = getattr(exc, "runtime_observation", None)
                 if not valid_native_failure(observation):
                     observation = {}
                 stage = observation.get("native_stage") or observation.get("phase")
-                if stage in {
-                    "hardware-admission", "runtime-path", "profile-create", "loopback-exemptions",
-                    "public-inventory", "private-model-handle", "job-create", "stdio-handles",
-                    "process-attributes", "process-create", "process-verification",
-                    "process-resume", "worker-bootstrap",
-                }:
+                if stage in NATIVE_STAGES | PHASES:
                     operation["diagnostic_stage"] = stage
                     code = observation.get("native_code")
                     if type(code) is int and -(2**31) <= code < 2**32:
                         operation["native_code"] = code
+                    if "public_inventory" in observation:
+                        operation["public_inventory"] = dict(observation["public_inventory"])
 
     def payload(self, prepared):
         return task_payload(prepared[0], prepared[2]["template"]).decode()
