@@ -603,7 +603,7 @@ try {
 
     # Installation never migrates. Exercise the operator's explicit frozen-runtime
     # command, retaining an external report before starting any backend.
-    $MigrationReportPath = Join-Path $EvidenceRoot "explicit-instance-migration.json"
+    $MigrationReportPath = Join-Path $EvidenceRoot "explicit-instance-migration-$PreviousVersion.json"
     try {
         $env:PATH = "$env:SystemRoot\System32"
         $env:PYTHONHOME = "Z:\synthetic-missing-python"
