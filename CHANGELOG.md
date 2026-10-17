@@ -30,6 +30,11 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Added
 
+- Integrated folder-to-knowledge qualification uses managed folder capture,
+  separately reviewed real extraction/representation/index jobs and the existing
+  governed EN/IT inference calls. Reopen, receipt/accounting preservation, manual
+  destination review and guarded undo are checked without claiming classifier
+  quality or enabling automatic classification.
 - Independent reviewed Source/prefix rules for bounded local extraction, text
   representations and scoped index refresh, with scheduler receipts, pause/resume
   and idempotent reconciliation. Originals continue to be acquired while derived

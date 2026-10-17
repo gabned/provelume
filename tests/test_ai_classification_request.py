@@ -255,6 +255,7 @@ def test_execution_smoke_cannot_promote_missing_preservation_or_quality():
     from copy import deepcopy
 
     from scripts.ai_runtime_report import evaluate
+    from scripts.iudicium_journey import FINAL_CHECKS, INPUTS_SHA256, ROW_CHECKS
 
     report = {"samples": [], "failures": [], "iudicium_execution_required": True}
     assert evaluate(deepcopy(report))["gates"]["iudicium_execution_conformance"] == "NOT_RUN"
@@ -262,9 +263,14 @@ def test_execution_smoke_cannot_promote_missing_preservation_or_quality():
     assert evaluate(failed)["gates"]["iudicium_execution_conformance"] == "FAIL"
     row = {"status": "succeeded", "assessment": "abstained", "quality": "NOT_EVALUATED",
            "confidence": None, "application_authorized": False, "receipt_bound": True,
-           "discarded": True, "source_preserved": True, "accounting_preserved": True}
+           "discarded": True, "source_preserved": True, "accounting_preserved": True,
+           "journey": {**dict.fromkeys(ROW_CHECKS, True), "inputs_sha256": INPUTS_SHA256,
+                       "destination_review": "NOT_APPLICABLE_ABSTENTION"}}
     report["iudicium_execution"] = {"status": "MEASURED", "worker_absent": True,
-                                    "final_off": True, "samples": [
+                                    "final_off": True,
+                                    "journey": {"status": "MEASURED",
+                                                "inputs_sha256": INPUTS_SHA256,
+                                                **dict.fromkeys(FINAL_CHECKS, True)}, "samples": [
                                         dict(row, language="en"), dict(row, language="it")]}
     assert evaluate(deepcopy(report))["gates"]["iudicium_execution_conformance"] == "PASS"
     for field, bad in (("source_preserved", False), ("receipt_bound", None),

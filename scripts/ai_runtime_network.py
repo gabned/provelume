@@ -7,8 +7,10 @@ import re
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
-from ai_runtime_report import evaluate  # noqa: E402
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "core"))
+from scripts.ai_runtime_report import evaluate  # noqa: E402
 
 
 def observe(report, *, trace=None, events=None):

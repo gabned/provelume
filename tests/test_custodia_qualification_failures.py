@@ -42,7 +42,7 @@ def classification_host(tmp_path, monkeypatch):
             state.reads.append(job_id)
             if state.terminals[-1]["status"] != "succeeded":
                 raise SchedulerError("DoNotPublishSecondaryReaderError")
-            return ({"assessment": {"status": "selected"},
+            return ({"assessment": {"status": "abstained", "target": None},
                      "classification_quality": "NOT_EVALUATED", "confidence": None,
                      "automation_authorized": False}, None, None, None, None)
 
@@ -109,6 +109,9 @@ def test_checkpoints_keep_both_successes_and_cleanup_without_claiming_accuracy(c
     assert any(row.get("stage") == "result_read" and row["samples"] for row in host.checkpoints)
     assert all(row["quality"] == "NOT_EVALUATED" for row in host.checkpoints)
     assert all(sample["confidence"] is None and not sample["application_authorized"]
+               for sample in result["samples"])
+    assert all(sample["assessment"] == "abstained"
+               and sample["journey"]["destination_review"] == "NOT_APPLICABLE_ABSTENTION"
                for sample in result["samples"])
 
 

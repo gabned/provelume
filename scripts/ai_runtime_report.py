@@ -253,12 +253,18 @@ def evaluate(report):
                     passed &= probe[key] <= limit
             gates["s08_performance"] = "PASS" if passed else "FAIL"
     if report.get("iudicium_execution_required"):
+        from scripts.iudicium_journey import FINAL_CHECKS, INPUTS_SHA256, ROW_CHECKS
+
         observed = report.get("iudicium_execution", {})
         rows = observed.get("samples", [])
         complete = (observed.get("status") == "MEASURED" and len(rows) == 2
                     and {r.get("language") for r in rows} == {"en", "it"})
         passed = complete and observed.get("worker_absent") is True \
             and observed.get("final_off") is True
+        journey = observed.get("journey", {})
+        passed &= (journey.get("status") == "MEASURED"
+                   and journey.get("inputs_sha256") == INPUTS_SHA256
+                   and all(journey.get(key) is True for key in FINAL_CHECKS))
         if complete:
             passed &= all(
                 r.get("status") == "succeeded"
@@ -267,7 +273,12 @@ def evaluate(report):
                 and r.get("application_authorized") is False
                 and all(r.get(key) is True for key in (
                     "receipt_bound", "discarded", "source_preserved", "accounting_preserved",
-                )) for r in rows
+                ))
+                and r.get("journey", {}).get("inputs_sha256") == INPUTS_SHA256
+                and all(r.get("journey", {}).get(key) is True for key in ROW_CHECKS)
+                and r.get("journey", {}).get("destination_review") == (
+                    "REVIEWED_APPLIED_UNDONE" if r.get("assessment") == "selected"
+                    else "NOT_APPLICABLE_ABSTENTION") for r in rows
             )
         gates["iudicium_execution_conformance"] = (
             "FAIL" if observed.get("status") == "FAIL" else
