@@ -14,6 +14,11 @@ including privacy, Source and resource settings. A classification rule, label,
 confidence value, document instruction or model response supplies no processing
 permission. Processing supplies no canonical classification or AI permission.
 
+Automatic dispatch requires both the reviewed rule and a separately confirmed
+controlled-automatic host capability limited to the `run` action. A confirm-each
+host grant cannot be upgraded by rule mode. To edit/disable a rule, first restore
+the appropriate confirm-each host actions through their existing explicit review.
+
 The automatic allowlist is deliberately bounded to existing deterministic local
 text extraction, universal text-representation materialization and scoped FTS
 refresh. OCR, ASR/transcription, photo/video/file-family transformations and AI

@@ -31,12 +31,12 @@ def processing(tmp_path):
     return instance, source, document
 
 
-def grant(instance, source_id):
+def grant(instance, source_id, *, request="grant-processing"):
     plan = instance.review_decisions.preview('capabilities', 'processing', 'configure', {
         'mode': 'confirm-each', 'scope': {'subjects': [source_id],
         'actions': ['revoke_policy', 'run', 'save_policy'], 'sources': [source_id]},
     })
-    return _confirm(instance.review_decisions, plan, 'grant-processing')
+    return _confirm(instance.review_decisions, plan, request)
 
 
 def parameters(**overrides):
@@ -50,7 +50,14 @@ def parameters(**overrides):
 def policy(instance, source_id, *, request='save-policy', **overrides):
     plan = instance.review_decisions.preview('processing', source_id, 'save_policy',
                                              parameters(**overrides))
-    return _confirm(instance.review_decisions, plan, request)
+    result = _confirm(instance.review_decisions, plan, request)
+    if overrides.get('mode') == 'controlled-automatic':
+        automatic = instance.review_decisions.preview('capabilities', 'processing', 'configure', {
+            'mode': 'controlled-automatic', 'scope': {'subjects': [source_id],
+            'actions': ['run'], 'sources': [source_id]},
+        })
+        _confirm(instance.review_decisions, automatic, 'auto-' + result['receipt']['id'])
+    return result
 
 
 def permit(instance, document, operation='extract', *, request='one-exact-job'):
@@ -205,6 +212,7 @@ def test_stale_queued_work_fails_before_any_derived_write(processing, change):
         })
         _confirm(instance.review_decisions, plan, 'disable-capability')
     else:
+        grant(instance, document['source_id'], request='restore-manual-revocation-capability')
         plan = instance.review_decisions.preview('processing', document['source_id'],
                                                  'revoke_policy', {})
         _confirm(instance.review_decisions, plan, 'revoke')
@@ -576,3 +584,20 @@ def test_policy_broadening_needs_fresh_review_after_host_privacy_revision_change
         _confirm(instance.review_decisions, plan, 'stale-broader-automation')
     assert _bytes(instance.root / 'state/review') == before
     assert instance.processing_review.policy(document['source_id'])['operations'] == ['extract']
+
+
+def test_a_processing_rule_cannot_upgrade_confirm_each_host_permission(processing):
+    instance, _source, document = processing
+    grant(instance, document['source_id'])
+    # Set the rule through the actual reviewed boundary, retaining confirm-each
+    # host permission. Rule mode alone must not silently upgrade that permission.
+    plan = instance.review_decisions.preview('processing', document['source_id'], 'save_policy',
+                                             parameters(mode='controlled-automatic'))
+    _confirm(instance.review_decisions, plan, 'automatic-rule-is-not-host-automatic-permission')
+    with pytest.raises(ReviewDenied):
+        queue(instance, document)
+    assert instance.processing.reconcile_automatic()['queued'] == []
+    approval = permit(instance, document)
+    reviewed = queue(instance, document, permit_receipt=approval)['job']
+    assert instance.scheduler.run_one(job_id=reviewed['id'])['status'] == 'succeeded'
+    assert instance.ai_jobs.status()['mode'] == 'off'

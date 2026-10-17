@@ -27,9 +27,10 @@
     });
     if (domain === "capabilities") {
       const automatic = value("mode") === "controlled-automatic";
+      const automaticAction = root.dataset.subject === "processing" ? "run" : "apply_rule";
       form.querySelectorAll('[name="scope_action"]').forEach(control => {
-        control.disabled = spent || (automatic && control.value !== "apply_rule");
-        if (automatic) control.checked = control.value === "apply_rule";
+        control.disabled = spent || (automatic && control.value !== automaticAction);
+        if (automatic) control.checked = control.value === automaticAction;
       });
       field("scope_subject").disabled = spent || field("all_subjects").checked;
     }

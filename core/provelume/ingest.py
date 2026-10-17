@@ -73,8 +73,11 @@ def _refresh_after_ingestion(
                             for acquisition in result.acquisitions):
         return
     try:
-        refresh_search_index(store, selected, recover_missing_derived=False,
-                             allow_full_rebuild=not has_processing_policies(store))
+        if has_processing_policies(store):
+            refresh_search_index(store, selected, recover_missing_derived=False,
+                                 allow_full_rebuild=False)
+        else:
+            refresh_search_index(store, selected, recover_missing_derived=False)
     except IndexScopeError:
         # Original acquisition committed. A scoped/background refresh cannot
         # rebuild another Source; the existing index status exposes this need.

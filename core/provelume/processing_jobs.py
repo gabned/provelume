@@ -112,7 +112,8 @@ class ProcessingJobs:
             "processing", source_id, "run",
         )
         if (authority["mode"] not in {"confirm-each", "controlled-automatic"}
-                or (not manual and policy["mode"] != "controlled-automatic")):
+                or (not manual and (policy["mode"] != "controlled-automatic"
+                                    or not authority["automatic_allowed"]))):
             raise ReviewDenied("A current independent processing authorization is required")
         # Only existing managed filesystem Originals enter generic extractors.
         source = inputs.record(f"knowledge/sources/{source_id}.json")

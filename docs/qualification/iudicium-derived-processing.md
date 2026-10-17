@@ -11,6 +11,11 @@ Follow its existing maintenance job link for progress, pause/cancel, resume and
 terminal receipt. Interrupted enqueue can call `instance.processing.queue` with
 the retained `permit_receipt`; it returns the existing reservation if already queued.
 
+Automatic dispatch requires both the reviewed rule and a separately confirmed
+controlled-automatic host capability limited to the `run` action. A confirm-each
+host grant cannot be upgraded by rule mode. To edit/disable a rule, first restore
+the appropriate confirm-each host actions through their existing explicit review.
+
 An explicitly reviewed `controlled-automatic` rule reconciles current Versions
 through the same existing scheduler. Exact Original acquisition continues with AI
 Off and processing disabled. Existing classification, OCR, transcription and AI
