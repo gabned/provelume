@@ -8,6 +8,7 @@ import os
 import re
 import stat
 from contextlib import ExitStack, contextmanager, suppress
+from functools import lru_cache
 from pathlib import Path
 from typing import BinaryIO
 from uuid import uuid4
@@ -17,6 +18,14 @@ class MaintenanceTargetError(ValueError):
     def __init__(self, code: str):
         self.code = code
         super().__init__(code)
+
+
+@lru_cache(maxsize=1)
+def _windows_drive_type_api():
+    """Retain only the typed function; every caller still queries its current drive."""
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.GetDriveTypeW.argtypes = [ctypes.c_wchar_p]
+    return kernel.GetDriveTypeW
 
 
 def absolute_local_path(value: Path | str) -> Path:
@@ -45,9 +54,7 @@ def absolute_local_path(value: Path | str) -> Path:
             )
         ):
             raise MaintenanceTargetError("target_unsafe")
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-        kernel.GetDriveTypeW.argtypes = [ctypes.c_wchar_p]
-        kind = kernel.GetDriveTypeW(path.anchor)
+        kind = _windows_drive_type_api()(path.anchor)
         if kind == 4:
             raise MaintenanceTargetError("target_remote")
         if kind not in {2, 3, 5, 6}:
@@ -108,8 +115,9 @@ def stream_digest(handle: BinaryIO, maximum: int) -> tuple[str, int]:
     return digest.hexdigest(), size
 
 
-def _windows_open(path: Path, *, directory: bool, create: bool = False, lock: bool = False) -> int:
-    import msvcrt
+@lru_cache(maxsize=1)
+def _windows_file_api():
+    """Bind the fixed ABI lazily; no path, handle, metadata or permission is retained."""
     from ctypes import wintypes
 
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -125,6 +133,14 @@ def _windows_open(path: Path, *, directory: bool, create: bool = False, lock: bo
     kernel.CreateFileW.restype = wintypes.HANDLE
     kernel.GetFileInformationByHandle.argtypes = [wintypes.HANDLE, ctypes.c_void_p]
     kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    return kernel
+
+
+def _windows_open(path: Path, *, directory: bool, create: bool = False, lock: bool = False) -> int:
+    import msvcrt
+    from ctypes import wintypes
+
+    kernel = _windows_file_api()
     # FILE_LIST_DIRECTORY participates in share-access checks. Attribute-only
     # handles do not deny rename, even when FILE_SHARE_DELETE is omitted.
     access = 0x1 if directory else 0xC0000000 if create or lock else 0x80000000
