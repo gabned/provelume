@@ -75,7 +75,7 @@ jobs:
               throw "Disposable uninstall did not complete."
             }
           }
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: custodia-installed-${{ github.run_id }}
@@ -85,7 +85,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Retain the exact exercised installer for artifact-bound review
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: custodia-reviewed-installer-${{ github.run_id }}
           path: |
