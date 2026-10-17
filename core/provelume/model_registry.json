@@ -1,7 +1,7 @@
 {
   "entries": [
     {
-      "app_version": "0.12.1",
+      "app_version": "0.13.0",
       "channel": "candidate",
       "evidence": "repository:docs/architecture/ai-model-lifecycle.md#provenance",
       "format": "synthetic-bytes-v1",
@@ -21,7 +21,7 @@
       "version": "1"
     },
     {
-      "app_version": "0.12.1",
+      "app_version": "0.13.0",
       "channel": "candidate",
       "evidence": "repository:docs/architecture/ai-model-lifecycle.md#provenance",
       "format": "synthetic-bytes-v1",
@@ -41,7 +41,7 @@
       "version": "2"
     },
     {
-      "app_version": "0.12.1",
+      "app_version": "0.13.0",
       "channel": "candidate",
       "evidence": "repository:docs/qualification/custodia-local-profile.md",
       "format": "gguf-v3-q5_k_m",
@@ -61,7 +61,7 @@
       "version": "1"
     },
     {
-      "app_version": "0.12.1",
+      "app_version": "0.13.0",
       "channel": "candidate",
       "evidence": "repository:docs/adr/0046-canonical-task-qwen25-requalification.md",
       "format": "gguf-v3-q4_k_m",
@@ -81,7 +81,7 @@
       "version": "1"
     },
     {
-      "app_version": "0.12.1",
+      "app_version": "0.13.0",
       "channel": "candidate",
       "evidence": "repository:docs/adr/0045-granite33-capacity-candidate.md",
       "format": "gguf-v3-q4_k_m",
@@ -101,7 +101,7 @@
       "version": "1"
     },
     {
-      "app_version": "0.12.1",
+      "app_version": "0.13.0",
       "channel": "candidate",
       "evidence": "repository:docs/adr/0045-granite33-capacity-candidate.md",
       "format": "gguf-v3-q8_0",
@@ -121,7 +121,7 @@
       "version": "1"
     },
     {
-      "app_version": "0.12.1",
+      "app_version": "0.13.0",
       "channel": "candidate",
       "evidence": "repository:docs/adr/0044-higher-precision-synthesis-candidate.md",
       "format": "gguf-v3-q5_k_m",
@@ -141,7 +141,7 @@
       "version": "1"
     },
     {
-      "app_version": "0.12.1",
+      "app_version": "0.13.0",
       "channel": "candidate",
       "evidence": "repository:docs/adr/0038-qwen3-instruct-synthesis-candidate.md",
       "format": "gguf-v3-q2_k",
@@ -161,7 +161,7 @@
       "version": "1"
     },
     {
-      "app_version": "0.12.1",
+      "app_version": "0.13.0",
       "channel": "candidate",
       "evidence": "repository:docs/adr/0039-bounded-selection-assessment.md",
       "format": "gguf-v3-q4_k_m",

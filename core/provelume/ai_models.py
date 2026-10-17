@@ -28,7 +28,7 @@ RUNTIME_VERSION = "1"
 CONFIGURATION = {"schema_version": 1, "purpose": "lifecycle-self-test-only"}
 # Governed together with the manifest by ordinary application distribution gates.
 # This pin is not accepted from an offline package or a download response.
-MANIFEST_SHA256 = "2656f3eef1437441efec691a5368ba33eab58a1e679c1f9cad03b37609dd5cbc"
+MANIFEST_SHA256 = "363c4286642f7aa5c8b83ee73760ae8f59d2018668f43cefb09450c0161248d0"
 _ID = re.compile(r"[a-z][a-z0-9_.-]{0,79}\Z")
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
 

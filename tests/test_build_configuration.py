@@ -14,7 +14,7 @@ def test_repository_pins_deterministic_build_inputs() -> None:
     assert configuration["build-system"]["requires"] == ["hatchling==1.31.0"]
     assert configuration["build-system"]["build-backend"] == "hatchling.build"
     assert configuration["tool"]["hatch"]["build"]["reproducible"] is True
-    assert configuration["tool"]["provelume"]["release"]["codename"] == "Custodia"
+    assert configuration["tool"]["provelume"]["release"]["codename"] == "Iudicium"
 
     release_requirements = {
         line.strip()
@@ -136,6 +136,19 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     windows_exercise = (root / "scripts/test_windows_installer.ps1").read_text(
         encoding="utf-8"
     )
+    assert '@("0.10.1", "0.11.0", "0.12.0", "0.12.1")' in release
+    assert 'version = "0.12.1"' in windows_exercise
+    assert 'commit = "cd7dc64f3ffb2a17689018b3350f0e1c073abdd4"' in windows_exercise
+    assert "size = 24593385" in windows_exercise
+    assert (
+        "fd613de0be45bbf3d2e74a8b341c4baf75626b32d40017f4ea258f219bf596ce"
+        in windows_exercise
+    )
+    assert "wheel_size = 8628204" in windows_exercise
+    assert (
+        "e0889d5c254b2ce9a245f49491b0461ce4aa9c07376d08542e6baa3c5bb25e96"
+        in windows_exercise
+    )
     assert "PreviousInstaller" in windows_exercise
     assert "ApprovedPreviousBaselines" in windows_exercise
     assert "Windows CI Instance – sintética 日本" in windows_exercise
@@ -217,7 +230,7 @@ def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:
         (root / "core" / "provelume" / "build_info.json").read_text(encoding="utf-8")
     )
 
-    assert package_version == "0.12.1"
+    assert package_version == "0.13.0"
     assert init_match is not None
     assert init_match.group(1) == package_version
     assert value == {
@@ -235,7 +248,7 @@ def test_tracked_build_identity_is_a_neutral_development_placeholder() -> None:
 
 def test_emendatio_release_metadata_is_aligned_without_rewriting_published_history() -> None:
     root = Path(__file__).resolve().parents[1]
-    current_version = "0.12.1"
+    current_version = "0.13.0"
     lectio_manifests = (
         "packaging/email/local-email-intake.json",
         "packaging/google/google-readonly-adapters.json",
@@ -255,10 +268,10 @@ def test_emendatio_release_metadata_is_aligned_without_rewriting_published_histo
         assert payload["core_inspector"]["version"] == current_version
 
     metadata = (root / "packaging/windows/version_info.txt").read_text(encoding="utf-8")
-    assert "filevers=(0, 12, 1, 0)" in metadata
-    assert "prodvers=(0, 12, 1, 0)" in metadata
-    assert "StringStruct('FileVersion', '0.12.1')" in metadata
-    assert "StringStruct('ProductVersion', '0.12.1')" in metadata
+    assert "filevers=(0, 13, 0, 0)" in metadata
+    assert "prodvers=(0, 13, 0, 0)" in metadata
+    assert "StringStruct('FileVersion', '0.13.0')" in metadata
+    assert "StringStruct('ProductVersion', '0.13.0')" in metadata
 
     release = (root / "docs/releases/0.10.0.md").read_text(encoding="utf-8")
     qualification = (root / "docs/qualification/0.10.0.md").read_text(encoding="utf-8")

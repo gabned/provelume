@@ -8,45 +8,51 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.12.1 Custodia prepared preview
+## Current status: 0.13.0 Iudicium preview
 
-**0.12.1 — Custodia** prepares the finite correction/completion requested in
-#339/#340: live model-download progress, direct Cura AI/navigation access,
-reversible standard-interface selection, Windows tray/local-panel usability and
-closed native failure diagnostics. Package identity is **0.12.1**.
+**0.13.0 — Iudicium** connects preserved documents to attributable classification
+proposals, separately reviewed organization and bounded derived work in the
+existing Cura Action Center. All five ordered slices of
+[campaign #349](https://github.com/gabned/provelume/issues/349) are accepted.
+[Final owner #373](https://github.com/gabned/provelume/issues/373) records the
+complete exact-source qualification and one official publication. Package identity
+is **0.13.0 / Iudicium**; actual public readiness is a separate observation.
 
-The [0.12.1 release record and guide](docs/releases/0.12.1.md) and
-[release owner #345](https://github.com/gabned/provelume/pull/345) distinguish reviewed
-source qualification from actual official publication and installation readiness.
-Use the matching complete installation kit after its publication-ready marker has
-been observed. The release channel remains **preview**; Windows is unsigned.
+Use the [0.13.0 release record and guide](docs/releases/0.13.0.md) and the matching
+complete installation kit only after its actual publication-readiness marker has
+been observed. See the [integrated qualification contract](docs/qualification/0.13.0.md).
+The release channel remains **preview**; Windows remains explicitly unsigned.
 
-Published [0.12.0](https://github.com/gabned/provelume/releases/tag/v0.12.0) and its
-[publication ledger](https://github.com/gabned/provelume/pull/338#issuecomment-6101359995)
-remain unchanged. The [next-release completion audit](docs/qualification/cura-ai-completion.md)
-and [historical preparation evidence](docs/qualification/unreleased-cura-ai.md)
-retain their original source/artifact/human scopes and all failures.
+- Cura is primary for new and inherited settings. An explicit Current backup
+  selection remains preserved, reachable and reversible through the browser and
+  launcher/local-panel controls; all seven interface catalogs remain available.
+- Managed folders capture exact Originals and Versions with AI Off. Separately
+  reviewed rules control bounded local extraction, text representations and scoped
+  indexing through the existing scheduler, with pause/recovery and receipts.
+- Classification uses one exact current Version, current destinations, preview,
+  explicit model/session/task consent and removable receipt-bound proposals.
+  The observed native execution scope is EN/IT on the existing local profile.
+- Independent manual destination/rule review supports attributable application and
+  guarded undo. Original bytes, canonical Versions, receipts and accounting remain
+  preserved through reopen and projection rebuild; AI stays Off after restart.
+- Real classifier quality is **NOT_EVALUATED**, confidence is unavailable and
+  automatic classification is **DENIED**. Synthetic fixtures and successful native
+  execution do not establish representative real accuracy or automatic permission.
+  Existing configured-provider contracts stay available; untested live external
+  providers receive no new qualification claim.
 
-- Guided explicit download/offline import and activation of the local Qwen3.5 2B
-  profile, with verified origin, size, hash and license. Model weights stay outside
-  the application and portable Instance; AI is off initially and after restart.
-- Extractive summaries and key points for one exact Document Version in English
-  or Italian, with preview, consent, exact source references and removable results.
-  Capture, preservation, reading and existing search remain useful with AI off.
-- One governed job and budget path, explicit cancellation and recovery, with no
-  automatic replay of uncertain work. External providers require their own explicit
-  configuration and consent; untested live providers are not advertised as qualified.
-- Easier menu dismissal, a compact labelled language selector, readable media task
-  cards and guided AI setup in both retained presentations and seven offline catalogs.
-- Corrected updater diagnostics and publication-manifest compatibility, persistent
-  network revocation and a bounded PDF parser dependency correction.
+Human Windows/UX/accessibility/catalog observations remain **NOT_RUN / UNVERIFIED**
+and independent classifier labels **NOT_REVIEWED**, nonblocking by the maintainer's
+[explicit decision](https://github.com/gabned/provelume/issues/349#issuecomment-6186153379).
+No historical screen-reader or linguistic attestation is extended to these views.
 
-See the [0.12.0 release record](docs/releases/0.12.0.md) and
-[local profile scope](docs/qualification/custodia-local-profile.md). Narrator was
-explicitly skipped by the maintainer; unobserved human results remain NOT_RUN or
-UNVERIFIED. No earlier screen-reader attestation is extended to changed views.
-For 0.10.1, the first upgrade uses the complete installation kit manually because
-that older client does not understand the current update manifest.
+Published [0.12.1](https://github.com/gabned/provelume/releases/tag/v0.12.1) and
+[0.12.0](https://github.com/gabned/provelume/releases/tag/v0.12.0), including their
+tag/assets/receipts/kits/readiness, remain immutable. The independent
+[#348 residual](https://github.com/gabned/provelume/issues/348) stays OPEN/BLOCKED,
+with diagnosis CONCLUSA/NON_DIMOSTRATA and its original FAIL retained. For 0.10.1,
+the first upgrade still uses the complete installation kit manually because that
+older client does not understand the current update manifest.
 
 ## Published baseline: 0.11.0 Cura preview
 
@@ -134,7 +140,7 @@ personal daily-use beta inside its original qualified perimeter. Custodia S01–
 are delivered under [#311](https://github.com/gabned/provelume/issues/311), with
 S08's [final integration ledger](https://github.com/gabned/provelume/pull/334#issuecomment-6097065742)
 and S09/release evidence linked in the [0.12 qualification record](docs/qualification/0.12.0.md).
-Package identity is **0.12.1**; actual public readiness is a separate observation.
+Package identity is **0.13.0**; actual public readiness is a separate observation.
 Later portfolio forecasts remain inactive from 0.13 onward; their release numbers
 and activation gates are unchanged.
 It does not use `0.9.5` for feature work.
