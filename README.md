@@ -433,8 +433,10 @@ Validate the Instance without changing it, or create a hash-verified backup outs
 .venv/bin/provelume backup .local/demo --output /path/to/demo-backup.zip
 ```
 
-Opening a supported schema-1 Instance runs the forward-only schema-2 migration only after deep
-preflight and a verified automatic backup. `validate` never migrates. An operator can make the
+Opening a supported schema-1 or schema-2 Instance requires the explicit `provelume migrate INSTANCE`
+operator command. Stop older runtimes first. Migration retains the schema-1-to-2 history, then
+stages schema 3 only after deep preflight and verified external backups. `validate`, backup and
+export never upgrade their source. An operator can make the
 transition explicit, or restore a same-Instance backup through staged validation and automatic
 rollback:
 

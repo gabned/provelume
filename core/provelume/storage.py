@@ -40,6 +40,7 @@ from .instance_schema import (
     build_instance_manifest,
     manifest_validation_errors,
 )
+from .knowledge_object_contract import OBJECT_CANONICAL_KINDS
 from .ocr_contract import default_ocr_config, ocr_settings_from_config
 from .paths import native_path, portable_config_path, resolve_config_path, safe_instance_path
 
@@ -134,7 +135,7 @@ ADDITIVE_CANONICAL_KINDS = (
     "qualification-decisions",
     "review-origins",
 )
-CANONICAL_KINDS = REQUIRED_CANONICAL_KINDS + ADDITIVE_CANONICAL_KINDS
+CANONICAL_KINDS = REQUIRED_CANONICAL_KINDS + ADDITIVE_CANONICAL_KINDS + OBJECT_CANONICAL_KINDS
 
 
 def utc_now() -> str:
@@ -218,6 +219,8 @@ class InstanceStore:
     ) -> InstanceStore:
         store = cls(root)
         existing = store.paths.config.exists()
+        if existing:
+            return cls.open(root)
         store.paths.root.mkdir(parents=True, exist_ok=True)
         for path in (
             store.paths.originals,
@@ -252,8 +255,6 @@ class InstanceStore:
                 store.paths.manifest,
                 build_instance_manifest(config),
             )
-        if existing:
-            return cls.open(root)
         store.validate()
         return store
 
@@ -369,6 +370,21 @@ class InstanceStore:
         self._atomic_json(path, payload)
 
     def read_canonical(self, kind: str, record_id: str) -> dict[str, Any] | None:
+        if kind in OBJECT_CANONICAL_KINDS:
+            from .knowledge_object_store import load_object_file
+
+            if (
+                not isinstance(record_id, str)
+                or not record_id
+                or any(char in record_id for char in "/\\:")
+            ):
+                raise ValueError("invalid canonical object ID")
+            path = self.paths.canonical_dir(kind) / f"{record_id}.json"
+            if path.parent.is_symlink() or path.parent.is_junction():
+                raise ValueError("canonical object directories cannot traverse links")
+            if path.is_symlink() or path.is_junction():
+                raise ValueError("canonical object records cannot traverse links")
+            return load_object_file(path, kind) if path.is_file() else None
         path = self.paths.canonical_dir(kind) / f"{record_id}.json"
         if not path.is_file():
             return None
@@ -378,6 +394,21 @@ class InstanceStore:
         directory = self.paths.canonical_dir(kind)
         if not directory.exists():
             return []
+        if kind in OBJECT_CANONICAL_KINDS:
+            from .knowledge_object_store import MAX_OBJECT_RECORDS
+
+            if directory.is_symlink() or directory.is_junction():
+                raise ValueError("canonical object directories cannot traverse links")
+            result = []
+            for path in sorted(directory.iterdir()):
+                if (
+                    not path.is_file()
+                    or path.suffix != ".json"
+                    or len(result) >= MAX_OBJECT_RECORDS
+                ):
+                    raise ValueError("invalid canonical object directory entry")
+                result.append(self.read_canonical(kind, path.stem))
+            return result
         return [self._read_json(path) for path in sorted(directory.glob("*.json"))]
 
     def write_source(self, source: Source) -> None:
@@ -408,6 +439,11 @@ class InstanceStore:
         self.write_canonical("provenance", edge)
 
     def write_hierarchy_node(self, node: HierarchyNode) -> None:
+        if node.kind in {"project", "collection"} and self.read_config()["schema_version"] == 3:
+            from .knowledge_object_store import write_hierarchy_object_locked
+
+            write_hierarchy_object_locked(self, node)
+            return
         self.write_canonical("hierarchy", node)
 
     def write_classification(self, classification: DocumentClassification) -> None:

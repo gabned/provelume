@@ -7,6 +7,7 @@ import json
 from collections.abc import Mapping
 from typing import Any
 
+from .instance_schema import SUPPORTED_INSTANCE_SCHEMAS
 from .scheduler_model import (
     TERMINAL_JOB_STATUSES,
     SchedulerConflictError,
@@ -164,7 +165,7 @@ def validate_execution_plan(value: Any, *, job_kind: str) -> dict[str, Any] | No
         or type(value["files"]) is not int
         or not 0 <= value["files"] <= 100_000
         or type(value["instance_schema_version"]) is not int
-        or value["instance_schema_version"] not in {1, 2}
+        or value["instance_schema_version"] not in SUPPORTED_INSTANCE_SCHEMAS
     ):
         raise SchedulerError("backup verification execution plan is invalid")
     return dict(value)

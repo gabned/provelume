@@ -667,7 +667,7 @@ def test_scheduler_state_survives_restart_backup_restore_and_portable_import(
     restored.import_portable(portable["archive"])
     imported = ProvelumeInstance(instance.root)
     assert imported.get_schedule_policy(policy["id"]) is not None
-    assert imported.store.read_config()["schema_version"] == 2
+    assert imported.store.read_config()["schema_version"] == 3
 
 
 def test_scheduler_cli_api_browser_and_state_validation(tmp_path: Path, capsys) -> None:

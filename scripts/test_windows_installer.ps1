@@ -527,6 +527,22 @@ try {
         Get-FileHash $SettingsPath -Algorithm SHA256
     ).Hash.ToLowerInvariant()
     $BaselineInstanceTreeSha256 = Get-InstanceTreeFingerprint -Root $InstanceRoot
+    $RetainedPayload = @(
+        Get-ChildItem -LiteralPath $InstanceRoot -File -Recurse | ForEach-Object {
+            $Relative = [System.IO.Path]::GetRelativePath($InstanceRoot, $_.FullName).Replace("\", "/")
+            if (
+                $Relative -notin @("provelume.yml", "instance-manifest.json") -and
+                $Relative -notmatch '^(indexes|library)/' -and
+                $Relative -notmatch '^state/locks/'
+            ) {
+                [pscustomobject]@{
+                    path = $Relative
+                    size = $_.Length
+                    sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+                }
+            }
+        }
+    )
     Assert-SingleProductRegistration -ExpectedInstallRoot $InstallRoot
 
     # Install the candidate over the public baseline. The stable AppId must replace one product.
@@ -584,6 +600,51 @@ try {
     ) {
         throw "In-place upgrade did not preserve the synthetic Instance."
     }
+
+    # Installation never migrates. Exercise the operator's explicit frozen-runtime
+    # command, retaining an external report before starting any backend.
+    $MigrationReportPath = Join-Path $EvidenceRoot "explicit-instance-migration-$PreviousVersion.json"
+    try {
+        $env:PATH = "$env:SystemRoot\System32"
+        $env:PYTHONHOME = "Z:\synthetic-missing-python"
+        $env:PYTHONPATH = "Z:\synthetic-missing-modules"
+        Invoke-WindowsProcess -FilePath $Executable -Arguments @(
+            "--instance-result-file", "`"$MigrationReportPath`"",
+            "--instance-command", "migrate", "`"$InstanceRoot`""
+        )
+    }
+    finally {
+        $env:PATH = $OriginalPath
+        $env:PYTHONHOME = $OriginalPythonHome
+        $env:PYTHONPATH = $OriginalPythonPath
+    }
+    $MigrationReport = Get-Content $MigrationReportPath -Raw | ConvertFrom-Json
+    if (
+        $MigrationReport.status -ne "migrated" -or
+        $MigrationReport.instance_schema_version -ne 3 -or
+        $MigrationReport.backup.instance_id -ne $LegacyInstanceId -or
+        $MigrationReport.backup.instance_schema_version -ne $ExpectedBaselineSchemaVersion -or
+        (Get-FileHash $MigrationReport.backup.archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne
+            $MigrationReport.backup.archive_sha256 -or
+        (Get-Item $MigrationReport.backup.archive).Length -ne $MigrationReport.backup.size_bytes
+    ) {
+        throw "Explicit frozen-runtime migration did not bind a verified source backup."
+    }
+    foreach ($Row in $RetainedPayload) {
+        $RetainedPath = Join-Path $InstanceRoot $Row.path
+        if (
+            -not (Test-Path $RetainedPath) -or
+            (Get-Item $RetainedPath).Length -ne $Row.size -or
+            (Get-FileHash $RetainedPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $Row.sha256
+        ) {
+            throw "Explicit migration changed a retained Original, canonical or state byte."
+        }
+    }
+    if ((Get-FileHash $SettingsPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedSettingsSha256) {
+        throw "Explicit migration changed launcher preferences."
+    }
+    $PostMigrationInstanceTreeSha256 = Get-InstanceTreeFingerprint -Root $InstanceRoot
+    $ExpectedMigrationCount = if ($BaselineRequiresMigration) { 2 } else { 1 }
 
     # Exercise the actual frozen Tk layout at every supported DPI probe and reduced resolution.
     foreach ($Language in @("en", "it", "de", "es", "fr", "pt", "ro")) {
@@ -659,7 +720,6 @@ try {
             }
             throw "The candidate backend did not become ready on loopback ($BackendState)."
         }
-        $ExpectedMigrationCount = if ($BaselineRequiresMigration) { 1 } else { 0 }
         $Build = Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/build-info" -TimeoutSec 2
         $Instance = Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/instance" -TimeoutSec 2
         $Network = Invoke-RestMethod "http://127.0.0.1:$Port/api/v1/security/network" -TimeoutSec 2
@@ -721,7 +781,7 @@ try {
             $Build.channel -ne $ExpectedChannel -or
             $Instance.id -ne $LegacyInstanceId -or
             $Instance.name -ne $LegacyInstanceName -or
-            $Instance.schema_version -ne 2 -or
+            $Instance.schema_version -ne 3 -or
             $Instance.manifest_schema_version -ne 1 -or
             $Instance.derived_state.indexes -ne "rebuild" -or
             $Instance.derived_state.library -ne "rebuild" -or
@@ -756,10 +816,9 @@ try {
     # Cover runtime access as well as installer replacement with the exact tree proof.
     $PostStartupInstanceTreeSha256 = Get-InstanceTreeFingerprint -Root $InstanceRoot
     if (
-        -not $BaselineRequiresMigration -and
-        $PostStartupInstanceTreeSha256 -ne $BaselineInstanceTreeSha256
+        $PostStartupInstanceTreeSha256 -ne $PostMigrationInstanceTreeSha256
     ) {
-        throw "Candidate startup mutated the preserved current-schema Instance tree."
+        throw "Candidate startup mutated the explicitly migrated Instance tree."
     }
 
     # Verify either the controlled legacy migration or exact current-schema preservation.
@@ -772,7 +831,7 @@ try {
     $Manifest = Get-Content $InstanceManifest -Raw | ConvertFrom-Json
     if (
         $Manifest.schema_version -ne 1 -or
-        $Manifest.instance_schema_version -ne 2 -or
+        $Manifest.instance_schema_version -ne 3 -or
         $Manifest.instance.id -ne $LegacyInstanceId -or
         $Manifest.instance.created_at -ne $LegacyInstanceCreatedAt -or
         $Manifest.derived_state.indexes -ne "rebuild" -or
@@ -827,21 +886,52 @@ try {
             Get-FileHash $MigrationBackupPath -Algorithm SHA256
         ).Hash.ToLowerInvariant()
     }
-    elseif (
-        (Test-Path $MigrationReceiptPath) -or
-        (Get-FileHash $InstanceConfig -Algorithm SHA256).Hash.ToLowerInvariant() -ne
-            $LegacyInstanceConfigSha256 -or
-        (Get-FileHash $InstanceManifest -Algorithm SHA256).Hash.ToLowerInvariant() -ne
-            $BaselineInstanceManifestSha256
-    ) {
-        throw "Current-schema baseline gained unexpected migration evidence or manifest changes."
+    elseif (Test-Path $MigrationReceiptPath) {
+        throw "Schema-2 baseline gained an invented schema-1 migration receipt."
     }
+    $ObjectMigrationReceiptPath = Join-Path $InstanceRoot (
+        "state\migrations\receipts\instance-schema-2-to-3.json"
+    )
+    $ObjectReceipt = Get-Content $ObjectMigrationReceiptPath -Raw | ConvertFrom-Json
+    if (
+        $Manifest.migrations[-1].id -ne "instance-schema-2-to-3" -or
+        $Manifest.migrations[-1].receipt -ne "state/migrations/receipts/instance-schema-2-to-3.json" -or
+        $ObjectReceipt.schema_version -ne 1 -or
+        $ObjectReceipt.status -ne "completed" -or
+        $ObjectReceipt.from_instance_schema_version -ne 2 -or
+        $ObjectReceipt.to_instance_schema_version -ne 3 -or
+        $ObjectReceipt.instance_id -ne $LegacyInstanceId -or
+        $ObjectReceipt.preflight_content_fingerprint -notmatch '^[0-9a-f]{64}$' -or
+        $ObjectReceipt.content_fingerprint -notmatch '^[0-9a-f]{64}$' -or
+        $ObjectReceipt.preserved_payload_sha256 -notmatch '^[0-9a-f]{64}$' -or
+        $ObjectReceipt.backup.archive_name -notmatch '^backup_[^\\/]+\.zip$' -or
+        $ObjectReceipt.backup.sha256 -notmatch '^[0-9a-f]{64}$' -or
+        $ObjectReceipt.backup.size_bytes -le 0
+    ) {
+        throw "Explicit object migration receipt does not bind its source and retained payload."
+    }
+    $BackupDirectory = Join-Path (Split-Path $InstanceRoot -Parent) (
+        ".$(Split-Path $InstanceRoot -Leaf).provelume\backups"
+    )
+    $ObjectMigrationBackupPath = Join-Path $BackupDirectory $ObjectReceipt.backup.archive_name
+    if (
+        -not (Test-Path $ObjectMigrationBackupPath) -or
+        (Get-Item $ObjectMigrationBackupPath).Length -ne $ObjectReceipt.backup.size_bytes -or
+        (Get-FileHash $ObjectMigrationBackupPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne
+            $ObjectReceipt.backup.sha256
+    ) {
+        throw "Object migration verified preimage backup is missing or changed."
+    }
+    $ExpectedObjectReceiptSha256 = (
+        Get-FileHash $ObjectMigrationReceiptPath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $ExpectedObjectBackupSha256 = $ObjectReceipt.backup.sha256
     $MigratedConfigText = [System.IO.File]::ReadAllText(
         $InstanceConfig,
         [System.Text.Encoding]::UTF8
     )
     if (
-        $MigratedConfigText -notmatch '(?m)^schema_version:\s+2\s*$' -or
+        $MigratedConfigText -notmatch '(?m)^schema_version:\s+3\s*$' -or
         (Get-YamlScalar -Text $MigratedConfigText -Key "id") -ne $LegacyInstanceId -or
         (Get-YamlScalar -Text $MigratedConfigText -Key "created_at") -ne
             $LegacyInstanceCreatedAt
@@ -879,6 +969,8 @@ try {
     }
     if (
         -not $SchemaEvidencePresent -or
+        -not (Test-Path $ObjectMigrationReceiptPath) -or
+        -not (Test-Path $ObjectMigrationBackupPath) -or
         -not (Test-Path (Join-Path $InstanceRoot "upgrade-preservation-marker.txt")) -or
         -not (Test-Path $SettingsPath)
     ) {
@@ -904,7 +996,7 @@ try {
     }
     $PostUninstallInstanceTreeSha256 = Get-InstanceTreeFingerprint -Root $InstanceRoot
     if (
-        $ConfigText -notmatch '(?m)^schema_version:\s+2\s*$' -or
+        $ConfigText -notmatch '(?m)^schema_version:\s+3\s*$' -or
         $ConfigText -notmatch '(?m)^instance:\s*$' -or
         (Get-YamlScalar -Text $ConfigText -Key "id") -ne $LegacyInstanceId -or
         (Get-YamlScalar -Text $ConfigText -Key "created_at") -ne
@@ -916,6 +1008,10 @@ try {
         (Get-FileHash $InstanceManifest -Algorithm SHA256).Hash.ToLowerInvariant() -ne
             $ExpectedInstanceManifestSha256 -or
         -not $SchemaEvidencePreserved -or
+        (Get-FileHash $ObjectMigrationReceiptPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne
+            $ExpectedObjectReceiptSha256 -or
+        (Get-FileHash $ObjectMigrationBackupPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne
+            $ExpectedObjectBackupSha256 -or
         (Get-FileHash (Join-Path $InstanceRoot "upgrade-preservation-marker.txt") `
             -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedMarkerSha256 -or
         (Get-FileHash $SettingsPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne
@@ -941,6 +1037,7 @@ try {
         }
         instance_tree_fingerprints = @{
             baseline = $BaselineInstanceTreeSha256
+            post_explicit_migration = $PostMigrationInstanceTreeSha256
             post_startup = $PostStartupInstanceTreeSha256
             post_reinstall = $PostReinstallInstanceTreeSha256
             post_uninstall = $PostUninstallInstanceTreeSha256
@@ -955,6 +1052,7 @@ try {
             launcher_settings_preserved = "PASS"
             instance_originals_canonical_knowledge_and_state_preserved = "PASS"
             instance_schema_compatibility = "PASS"
+            explicit_frozen_instance_migration = "PASS"
             scheduler_refresh_network_delete_and_repair_default_disabled = "PASS"
             bundled_runtime_without_python_or_git = "PASS"
             loopback_backend_identity_and_readiness = "PASS"

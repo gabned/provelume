@@ -19,7 +19,7 @@ from .instance_lifecycle import InstanceLifecycleError, InstanceLifecycleManager
 from .instance_schema import (
     CURRENT_INSTANCE_SCHEMA_VERSION,
     DERIVED_STATE_POLICY,
-    LEGACY_INSTANCE_SCHEMA_VERSION,
+    SUPPORTED_INSTANCE_SCHEMAS,
 )
 from .instance_validation import inspect_instance
 from .library_projection import LibraryProjectionManager
@@ -457,8 +457,8 @@ def _validate_manifest(manifest: dict[str, Any]) -> tuple[list[dict[str, Any]], 
         or export_id != _export_id(unsigned)
         or not isinstance(manifest.get("instance_id"), str)
         or _INSTANCE_ID.fullmatch(str(manifest["instance_id"])) is None
-        or manifest.get("instance_schema_version")
-        not in {LEGACY_INSTANCE_SCHEMA_VERSION, CURRENT_INSTANCE_SCHEMA_VERSION}
+        or type(manifest.get("instance_schema_version")) is not int
+        or manifest.get("instance_schema_version") not in SUPPORTED_INSTANCE_SCHEMAS
         or not isinstance(manifest.get("content_fingerprint"), str)
         or _SHA256.fullmatch(str(manifest["content_fingerprint"])) is None
         or mode not in DERIVED_STATE_MODES
@@ -509,14 +509,11 @@ def _validate_manifest(manifest: dict[str, Any]) -> tuple[list[dict[str, Any]], 
         validated.append(dict(row))
     _validate_path_set(paths)
     required = {"provelume.yml"}
-    if manifest["instance_schema_version"] == CURRENT_INSTANCE_SCHEMA_VERSION:
+    if manifest["instance_schema_version"] >= 2:
         required.add("instance-manifest.json")
     if not required.issubset(paths):
         raise PortableTransferError("portable bundle is missing required Instance files")
-    if (
-        manifest.get("entry_count") != len(validated)
-        or manifest.get("total_size_bytes") != total
-    ):
+    if manifest.get("entry_count") != len(validated) or manifest.get("total_size_bytes") != total:
         raise PortableTransferError("portable manifest totals do not match its entries")
     return validated, str(mode)
 
@@ -694,7 +691,7 @@ class PortableInstanceTransfer:
         derived_state: str = "rebuild",
     ) -> dict[str, Any]:
         _derived_policy(derived_state)
-        self.lifecycle.prepare()
+        self.lifecycle.prepare(allow_legacy=True)
         with self.lifecycle._hold(purpose="portable-instance-export"):
             validation = inspect_instance(self.store.paths.root, deep=True)
             if validation["status"] != "valid":
@@ -732,10 +729,8 @@ class PortableInstanceTransfer:
                 )
                 if (
                     final_validation["status"] != "valid"
-                    or final_validation["content_fingerprint"]
-                    != validation["content_fingerprint"]
-                    or [row for row, _path in final_rows]
-                    != [row for row, _path in rows]
+                    or final_validation["content_fingerprint"] != validation["content_fingerprint"]
+                    or [row for row, _path in final_rows] != [row for row, _path in rows]
                     or final_omitted != omitted_files
                 ):
                     raise PortableTransferError(
@@ -766,34 +761,49 @@ class PortableInstanceTransfer:
         migration = None
         if validation["status"] != "valid":
             raise PortableTransferError("import staging Instance failed validation")
-        if validation["instance_schema_version"] == LEGACY_INSTANCE_SCHEMA_VERSION:
-            staged_lifecycle = InstanceLifecycleManager(staged_store)
-            try:
-                migration = staged_lifecycle.prepare()
-                migration_backup = migration.get("backup")
-                if isinstance(migration_backup, dict):
-                    staged_archive = Path(str(migration_backup["archive"]))
-                    retained_archive = (
-                        self.lifecycle.control_root
-                        / "backups"
-                        / staged_archive.name
-                    )
-                    retained_archive.parent.mkdir(parents=True, exist_ok=True)
-                    if retained_archive.exists():
-                        raise PortableTransferError(
-                            "staged migration backup destination already exists"
-                        )
-                    os.replace(staged_archive, retained_archive)
-                    migration_backup["archive"] = str(retained_archive)
-            finally:
-                shutil.rmtree(staged_lifecycle.control_root, ignore_errors=True)
+        if (
+            validation["instance_id"] != manifest["instance_id"]
+            or validation["instance_schema_version"] != manifest["instance_schema_version"]
+            or validation["content_fingerprint"] != manifest["content_fingerprint"]
+        ):
+            raise PortableTransferError(
+                "import source identity or canonical fingerprint does not match"
+            )
+        policy = manifest["derived_state"]
+        if policy["mode"] == "include" and (
+            index_status(staged_store) != "ready"
+            or not search_index_content_matches(staged_store)
+            or LibraryProjectionManager(staged_store).status()["status"] != "ready"
+        ):
+            raise PortableTransferError("included derived state failed source validation")
+        if validation["instance_schema_version"] < CURRENT_INSTANCE_SCHEMA_VERSION:
+            from .object_migration import upgrade_objects_stage
+
+            backup = create_backup(
+                staged_store,
+                destination=self.lifecycle.control_root / "backups",
+                reason="pre_portable_object_migration",
+            )
+            migrations = upgrade_objects_stage(
+                staged_store,
+                backup=backup,
+                backup_directory=self.lifecycle.control_root / "backups",
+            )
+            migration = {
+                "status": "migrated",
+                "backup": backup,
+                "migrations": migrations,
+                "content_fingerprint": migrations[-1]["content_fingerprint"],
+            }
             validation = inspect_instance(stage, deep=True)
+        expected_fingerprint = (
+            migration["content_fingerprint"] if migration else manifest["content_fingerprint"]
+        )
         if (
             validation["status"] != "valid"
-            or validation["instance_schema_version"]
-            != CURRENT_INSTANCE_SCHEMA_VERSION
+            or validation["instance_schema_version"] != CURRENT_INSTANCE_SCHEMA_VERSION
             or validation["instance_id"] != manifest["instance_id"]
-            or validation["content_fingerprint"] != manifest["content_fingerprint"]
+            or validation["content_fingerprint"] != expected_fingerprint
         ):
             raise PortableTransferError(
                 "import staging identity or canonical fingerprint does not match"
@@ -802,8 +812,8 @@ class PortableInstanceTransfer:
         from .ai_job_portability import prepare_restored_ai
 
         prepare_restored_ai(staged_store, self.store)
-        policy = manifest["derived_state"]
-        if policy["mode"] == "rebuild":
+        rebuild_for_migration = expected_fingerprint != manifest["content_fingerprint"]
+        if policy["mode"] == "rebuild" or rebuild_for_migration:
             shutil.rmtree(staged_store.paths.indexes, ignore_errors=True)
             shutil.rmtree(staged_store.paths.library, ignore_errors=True)
             staged_store.paths.indexes.mkdir(parents=True)
@@ -815,6 +825,7 @@ class PortableInstanceTransfer:
                 "documents_indexed": indexed,
                 "library": "rebuilt",
                 "library_content_fingerprint": library["content_fingerprint"],
+                "schema_migration_required_rebuild": rebuild_for_migration,
             }
         else:
             included_index_status = index_status(staged_store)
@@ -832,9 +843,7 @@ class PortableInstanceTransfer:
                 "policy": dict(policy),
                 "indexes": "included_as_exported",
                 "library": "included_as_exported",
-                "library_content_fingerprint": included_library_status[
-                    "content_fingerprint"
-                ],
+                "library_content_fingerprint": included_library_status["content_fingerprint"],
             }
 
         import_id = f"import_{uuid4().hex}"
@@ -849,7 +858,8 @@ class PortableInstanceTransfer:
             "source_instance_id": manifest["instance_id"],
             "archive_sha256": extracted["archive_sha256"],
             "manifest_sha256": extracted["manifest_sha256"],
-            "content_fingerprint": manifest["content_fingerprint"],
+            "source_content_fingerprint": manifest["content_fingerprint"],
+            "content_fingerprint": expected_fingerprint,
             "prior_instance_backup_sha256": rollback["archive_sha256"],
             "derived_state": dict(policy),
             "migration_applied": migration is not None,
@@ -858,10 +868,7 @@ class PortableInstanceTransfer:
         }
         staged_store._atomic_json(stage / receipt_ref, receipt)
         final = inspect_instance(stage, deep=True)
-        if (
-            final["status"] != "valid"
-            or final["content_fingerprint"] != manifest["content_fingerprint"]
-        ):
+        if final["status"] != "valid" or final["content_fingerprint"] != expected_fingerprint:
             raise PortableTransferError(
                 "import staging changed canonical state while derived state was prepared"
             )
@@ -919,8 +926,7 @@ class PortableInstanceTransfer:
                 if (
                     installed["status"] != "valid"
                     or installed["instance_id"] != verified["instance_id"]
-                    or installed["content_fingerprint"]
-                    != verified["content_fingerprint"]
+                    or installed["content_fingerprint"] != receipt["value"]["content_fingerprint"]
                 ):
                     raise PortableTransferError(
                         "installed portable Instance failed final validation"
@@ -944,8 +950,7 @@ class PortableInstanceTransfer:
                     if (
                         restored["status"] != "valid"
                         or restored["instance_id"] != current["instance_id"]
-                        or restored["content_fingerprint"]
-                        != current["content_fingerprint"]
+                        or restored["content_fingerprint"] != current["content_fingerprint"]
                     ):
                         raise PortableTransferError(
                             "portable import rollback did not restore the target identity"
@@ -969,7 +974,8 @@ class PortableInstanceTransfer:
             "archive_sha256": verified["archive_sha256"],
             "manifest_sha256": verified["manifest_sha256"],
             "export_id": verified["export_id"],
-            "content_fingerprint": verified["content_fingerprint"],
+            "source_content_fingerprint": verified["content_fingerprint"],
+            "content_fingerprint": receipt["value"]["content_fingerprint"],
             "rollback_backup": rollback,
             "migration": migration,
             "derived_state": derived,
