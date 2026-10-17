@@ -372,43 +372,62 @@ class ModelStore:
                   requested: bool = False, cancel=lambda: False, deadline=None):
         check(requested is True, "consent")
         started = time.monotonic()
-        with self._hold():
-            entry = self._entry(identifier, runtime)
-            self._evidence.pop(identifier, None)
-            self._native_runners.pop(identifier, None)
-            seconds = OPERATION_SECONDS
-            if entry.native:
-                from .ai_runtime_contract import CONFIGURATION
-
-                seconds = CONFIGURATION["seconds"]
-            deadline = (min(deadline, started + seconds) if deadline is not None
-                        else started + seconds)
-            checkpoint(cancel, deadline)
-            model = self._verify(entry, cancel=cancel, deadline=deadline)
-            try:
-                # Trusted host implementation only; packages never supply a runner.
+        phase = "self_test_admission"
+        try:
+            with self._hold():
+                entry = self._entry(identifier, runtime)
+                self._evidence.pop(identifier, None)
+                self._native_runners.pop(identifier, None)
+                seconds = OPERATION_SECONDS
                 if entry.native:
-                    from .ai_runtime import LocalRuntime
+                    from .ai_runtime_contract import CONFIGURATION
 
-                    check(type(runner) is LocalRuntime, "self_test")
-                    result = runner(model, runtime, cancel, deadline=deadline)
-                else:
-                    result = runner(model, runtime, cancel)
-            except ModelError:
-                raise
-            except Exception:
-                raise ModelError("self_test") from None
-            checkpoint(cancel, deadline)
-            check(type(result) is str and result in ("PASSED", "FAILED", "UNKNOWN"), "self_test")
-            # A callback cannot validate bytes that changed while it was running.
-            self._verify(self._entry(identifier, runtime), cancel=cancel, deadline=deadline)
-            evidence = SelfTestEvidence(identifier, self._binding(entry, runtime), result,
-                                        started + SELF_TEST_TTL_SECONDS)
-            if result == "PASSED":
-                self._evidence[identifier] = evidence
-                if entry.native:
-                    self._native_runners[identifier] = runner
-            return evidence
+                    seconds = CONFIGURATION["seconds"]
+                deadline = (min(deadline, started + seconds) if deadline is not None
+                            else started + seconds)
+                checkpoint(cancel, deadline)
+                phase = "self_test_model_verification"
+                model = self._verify(entry, cancel=cancel, deadline=deadline)
+                phase = "self_test_runtime"
+                try:
+                    # Trusted host implementation only; packages never supply a runner.
+                    if entry.native:
+                        from .ai_runtime import LocalRuntime
+
+                        check(type(runner) is LocalRuntime, "self_test")
+                        result = runner(model, runtime, cancel, deadline=deadline)
+                    else:
+                        result = runner(model, runtime, cancel)
+                except ModelError:
+                    raise
+                except Exception:
+                    raise ModelError("self_test") from None
+                phase = "self_test_result_validation"
+                checkpoint(cancel, deadline)
+                check(type(result) is str and result in ("PASSED", "FAILED", "UNKNOWN"),
+                      "self_test")
+                # A callback cannot validate bytes that changed while it was running.
+                phase = "self_test_final_verification"
+                self._verify(self._entry(identifier, runtime), cancel=cancel, deadline=deadline)
+                phase = "self_test_evidence"
+                evidence = SelfTestEvidence(identifier, self._binding(entry, runtime), result,
+                                            started + SELF_TEST_TTL_SECONDS)
+                if result == "PASSED":
+                    self._evidence[identifier] = evidence
+                    if entry.native:
+                        self._native_runners[identifier] = runner
+                return evidence
+        except ModelError as exc:
+            from .ai_runtime_diagnostics import native_failure, valid_native_failure
+
+            # A failure outside the runner cannot inherit an earlier runtime's
+            # success or native stage. Annotate this exception only; no ambient read.
+            observation = getattr(exc, "runtime_observation", None)
+            if not (phase == "self_test_runtime" and valid_native_failure(observation)
+                    and (observation["phase"] is not None
+                         or observation["native_stage"] is not None)):
+                exc.runtime_observation = native_failure({"phase": phase}, code=exc.code)
+            raise
 
     def _check_evidence(self, entry, runtime, evidence):
         check(type(evidence) is SelfTestEvidence and evidence.result == "PASSED", "self_test")

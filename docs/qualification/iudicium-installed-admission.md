@@ -35,6 +35,26 @@ pinning, least-privilege grants, cancellation/deadline checkpoints, cleanup and
 containment remain in the same order. No hash cache, skipped verification,
 changed model/runtime, timeout, threshold, snapshot, retry or waiver is added.
 
+## Self-test failure attribution
+
+The operation projection accepts all validated, current-exception runtime phases,
+including model loading, prefill, decoding and result validation. Restricting that
+projection to native startup stages loses a later failure's observed attribution.
+An absent stage alone never establishes where a historical timeout occurred.
+
+The self-test also annotates its own failures outside the runtime with six fixed
+phases: admission, initial model verification, runtime call, result validation,
+final model verification and evidence construction. It preserves an owned, valid
+runtime observation from the runtime call. A later verification failure gets its
+own self-test phase, without copying the earlier successful runtime observation,
+native code or public inventory. Only fixed closed fields reach existing markup,
+the ordinary driver and CI summary; arbitrary exception or result text is omitted.
+
+The original self-test statements, lock and verification order, deadlines,
+single runner invocation and evidence publication remain unchanged. Synthetic
+regressions demonstrate diagnostic loss and its correction, without assigning a
+phase or cause to a past native run or qualifying any Windows lifecycle gate.
+
 Qualify the unchanged diagnostic source through full native/Ruff/diff and every
 applicable workflow/attempt/job, reviews/findings/threads, effects and actual
 owner binding, fresh preflight, normal expected-head merge and all actual-main

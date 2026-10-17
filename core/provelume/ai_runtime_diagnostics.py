@@ -4,8 +4,12 @@ from __future__ import annotations
 
 CAUSES = {"worker_exit", "worker_error", "reader_protocol", "cancelled", "deadline",
           "runtime_error", "unknown"}
+SELF_TEST_PHASES = {"self_test_admission", "self_test_model_verification", "self_test_runtime",
+                    "self_test_result_validation", "self_test_final_verification",
+                    "self_test_evidence"}
 PHASES = {"hardware-admission", "request_admission", "model_send", "model_load",
-          "request_send", "generation", "native_prefill", "native_decode", "result_validation"}
+          "request_send", "generation", "native_prefill", "native_decode", "result_validation",
+          *SELF_TEST_PHASES}
 WORKER_PHASES = {"initialization", "model_verification", "model_snapshot",
                  "runtime_verification", "native_load", "idle", "generation"}
 NATIVE_STAGES = {"runtime-path", "profile-create", "loopback-exemptions", "public-inventory",
