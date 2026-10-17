@@ -490,6 +490,7 @@ def test_unaccepted_locality_stops_before_target_open(tmp_path, monkeypatch, kin
     import provelume.maintenance_local_files as module
 
     if os.name == "nt":
+        module._windows_drive_type_api.cache_clear()
 
         class Classifier:
             def __call__(self, anchor):
@@ -511,11 +512,15 @@ def test_unaccepted_locality_stops_before_target_open(tmp_path, monkeypatch, kin
             return read(path, **kwargs)
 
         monkeypatch.setattr(Path, "read_text", mounts)
-    with (
-        pytest.raises(MaintenanceTargetError, match=code),
-        module.open_local_file(tmp_path / "absent.zip"),
-    ):
-        pytest.fail("unaccepted filesystem was opened")
+    try:
+        with (
+            pytest.raises(MaintenanceTargetError, match=code),
+            module.open_local_file(tmp_path / "absent.zip"),
+        ):
+            pytest.fail("unaccepted filesystem was opened")
+    finally:
+        if os.name == "nt":
+            module._windows_drive_type_api.cache_clear()
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows directory share-access boundary")
