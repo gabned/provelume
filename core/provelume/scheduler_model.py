@@ -15,6 +15,7 @@ from .transcript_contract import TRANSCRIPT_ERROR_CODES
 SCHEDULER_SCHEMA_VERSION = 1
 SCHEDULER_JOB_KINDS = (
     "ai.execute",
+    "processing.execute",
     "source.refresh",
     "search.reindex",
     "search.reindex.incremental",
@@ -34,13 +35,15 @@ USER_SCHEDULER_JOB_KINDS = tuple(
     kind
     for kind in SCHEDULER_JOB_KINDS
     if kind not in {
-        "ai.execute", "ocr.execute", "email.intake", "google.intake", "transcript.intake"
+        "ai.execute", "processing.execute", "ocr.execute", "email.intake", "google.intake",
+        "transcript.intake"
     }
 )
 EXECUTABLE_JOB_KINDS = SCHEDULER_JOB_KINDS
 SOURCE_SCOPED_JOB_KINDS = frozenset(
     {
         "source.refresh",
+        "processing.execute",
         "maintenance.source_reconcile",
         "email.intake",
         "google.intake",
@@ -71,6 +74,7 @@ ERROR_CODES = (
         "ai_execution_blocked",
         "ai_outcome_uncertain",
         "ai_retry",
+        "processing_denied",
         "committed_checkpoint_needs_review",
         "executor_unavailable",
         "instance_validation_failed",
@@ -710,6 +714,7 @@ def validate_job_record(value: Any) -> dict[str, Any]:
         or job_kind not in SCHEDULER_JOB_KINDS
         or status not in JOB_STATUSES
         or (not controlled and status in {"paused", "pausing", "cancelling"})
+        or (job_kind == "processing.execute" and not controlled)
         or reason not in RUN_REASONS
         or not isinstance(value.get("idempotency_key"), str)
         or _SHA256.fullmatch(str(value.get("idempotency_key"))) is None

@@ -1,0 +1,10 @@
+{% extends base_layout %}
+{% block title %}{{ rl.processing }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<a href="/attention?lang={{ lang }}">{{ rl.back }}</a>
+<h1>{{ rl.processing }}</h1><p>{{ rl.processing_help }}</p>
+<p><a href="/review/decisions/capabilities/processing?lang={{ lang }}">{{ rl.capabilities }}</a> · <a href="/ai/operations?lang={{ lang }}">{{ rl.processing_other }}</a></p>
+{% if unavailable %}<p role="alert">{{ rl.unavailable }}</p>{% else %}
+<ul class="document-list">{% for source in sources %}<li><a href="/review/decisions/processing/{{ source.id }}?lang={{ lang }}">{{ source.name }}</a>{% for policy in rows %}{% if policy.id == source.id %} · {{ rl[policy.mode] }} · {{ policy.expires_at }}{% endif %}{% endfor %}</li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}

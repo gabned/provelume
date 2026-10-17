@@ -154,6 +154,7 @@ class ProvelumeInstance:
         self.representations = RepresentationReadModel(self.store)
         from .annotation_store import AnnotationProvider
         from .classification_review import ClassificationReview
+        from .processing_autonomy import ProcessingReview
         from .review_authority import ReviewAuthority
         from .review_decisions import ReviewDecisions
         from .review_documents import DuplicateDecisionProvider, VersionDecisionProvider
@@ -165,12 +166,13 @@ class ProvelumeInstance:
         self.review_authority = ReviewAuthority(self.store, CAPABILITIES)
         self.review_routing = RoutingProvider(self.store)
         self.classification_review = ClassificationReview(self.store, instance=self)
+        self.processing_review = ProcessingReview(self.store)
         self.review_decisions = ReviewDecisions(
             self.store,
             [
                 self.review_authority, PlacementProvider(self.store), self.review_routing,
                 DuplicateDecisionProvider(self.store), VersionDecisionProvider(self.store),
-                self.annotations, self.classification_review,
+                self.annotations, self.classification_review, self.processing_review,
             ],
             authority_resolver=self.review_authority.resolve,
             transaction_factory=review_transaction_factory(self.store),
@@ -190,6 +192,10 @@ class ProvelumeInstance:
             representations=self.representations,
         )
         self.scheduler = SchedulerCoordinator(self.store)
+        from .processing_jobs import ProcessingJobs
+
+        self.processing = ProcessingJobs(self.store, coordinator=self.scheduler,
+                                         review=self.processing_review)
         from .ai_jobs import AiJobs
 
         self.ai_jobs = AiJobs(self.scheduler)
@@ -568,6 +574,7 @@ class ProvelumeInstance:
             max_files=max_files,
         )
         payload = result.as_dict()
+        payload["processing"] = self.processing.reconcile_automatic()
         routed = self.route_new_acquisitions(payload["acquisitions"])
         if routed:
             payload["review_routing"] = routed
@@ -584,6 +591,7 @@ class ProvelumeInstance:
     def retry_ingestion(self, run_id: str) -> dict[str, Any]:
         result = retry_ingestion_run(self.store, run_id)
         payload = result.as_dict()
+        payload["processing"] = self.processing.reconcile_automatic()
         routed = self.route_new_acquisitions(payload["acquisitions"])
         if routed:
             payload["review_routing"] = routed
@@ -610,7 +618,8 @@ class ProvelumeInstance:
         schedule: Mapping[str, Any],
         retry: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
-        if job_kind in {OCR_JOB_KIND, EMAIL_JOB_KIND, GOOGLE_JOB_KIND, TRANSCRIPT_JOB_KIND}:
+        if job_kind in {OCR_JOB_KIND, EMAIL_JOB_KIND, GOOGLE_JOB_KIND, TRANSCRIPT_JOB_KIND,
+                        "processing.execute"}:
             raise SchedulerError(
                 "this job kind requires an exact persisted request through its dedicated controls"
             )
@@ -654,6 +663,7 @@ class ProvelumeInstance:
 
     def run_scheduler_cycle(self, *, max_jobs: int = 1) -> dict[str, Any]:
         result = self.scheduler.cycle(max_jobs=max_jobs)
+        result["processing"] = self.processing.reconcile_automatic()
         self.scheduler_recovery = {
             **result["evaluation"]["recovery"],
             "deferred": False,

@@ -2160,5 +2160,22 @@
   "review.classification_automatic_blocked": "L’applicazione automatica resta bloccata fino alla qualifica reale del compito e a una nuova revisione della regola modificata.",
   "review.classification_reviewed": "Ho esaminato autonomamente la fonte e scelto queste destinazioni.",
   "review.effect_classification": "Modifica solo i metadati di classificazione entro fonte, destinazioni, scadenza e budget revisionati. Originali e Versioni sono conservati.",
-  "review.reverse_classification": "L’annullamento ripristina la classificazione precedente, anche lo stato iniziale non classificato. Modifiche successive lo bloccano; storia e utilizzo restano."
+  "review.reverse_classification": "L’annullamento ripristina la classificazione precedente, anche lo stato iniziale non classificato. Modifiche successive lo bloccano; storia e utilizzo restano.",
+  "review.processing": "Elaborazione dei documenti derivati",
+  "review.processing_help": "Scegli estrazione locale del testo, rappresentazioni testuali e aggiornamento circoscritto dell’indice separatamente dalla classificazione. Gli Originali vengono acquisiti anche con elaborazione disabilitata. Ogni regola modificata richiede revisione. OCR, trascrizione e sintesi AI mantengono i propri controlli espliciti, limiti di risorse e consensi di privacy; questa regola non può abilitarli.",
+  "review.processing_other": "Altri controlli di elaborazione",
+  "review.processing_operations": "Operazioni locali consentite",
+  "review.processing_operation": "Operazione locale",
+  "review.processing_extract": "Estrai il testo localmente",
+  "review.processing_representation": "Crea una rappresentazione testuale",
+  "review.processing_index": "Aggiorna questa Source nell’indice",
+  "review.processing_max_jobs": "Lavori massimi prenotati prima di una nuova revisione",
+  "review.processing_max_bytes": "Byte massimi di input e testo per lavoro",
+  "review.effect_processing": "Solo risultati derivati locali ricostruibili; nessuna modifica a Originali o classificazione.",
+  "review.reverse_processing": "Disabilita la regola; rimuovi e ricostruisci le rappresentazioni derivate con i controlli esistenti.",
+  "review.run": "Rivedi un singolo lavoro di elaborazione",
+  "review.processing_enqueue_pending": "Conferma conservata; l’accodamento richiede riconciliazione. Apri una nuova revisione.",
+  "review.processing_job": "Apri il lavoro di elaborazione",
+  "scheduler.kind.processing.execute": "Elaborazione dei documenti derivati",
+  "scheduler.error.processing_denied": "Elaborazione bloccata: rivedi versione, regola, privacy e limiti correnti."
 }

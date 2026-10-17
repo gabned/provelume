@@ -63,15 +63,22 @@ def _refresh_after_ingestion(
     store: InstanceStore,
     result: IngestionRunResult,
 ) -> None:
-    refresh_search_index(
-        store,
-        (
-            acquisition.document_id
-            for acquisition in result.acquisitions
-            if acquisition.outcome != "unchanged"
-        ),
-        recover_missing_derived=False,
-    )
+    from .index import IndexScopeError
+    from .processing_autonomy import defers_inline_processing, has_processing_policies
+
+    selected = [acquisition.document_id for acquisition in result.acquisitions
+                if acquisition.outcome != "unchanged"
+                and not defers_inline_processing(store, acquisition.source_id)]
+    if not selected and any(defers_inline_processing(store, acquisition.source_id)
+                            for acquisition in result.acquisitions):
+        return
+    try:
+        refresh_search_index(store, selected, recover_missing_derived=False,
+                             allow_full_rebuild=not has_processing_policies(store))
+    except IndexScopeError:
+        # Original acquisition committed. A scoped/background refresh cannot
+        # rebuild another Source; the existing index status exposes this need.
+        return
 
 
 def _stable_document_id(source_id: str, locator: str) -> str:
@@ -836,9 +843,12 @@ def _record_matching_acquisition(
     retry_extraction: bool,
     acquisition_id: str | None = None,
 ) -> Acquisition:
+    from .processing_autonomy import defers_inline_processing
+
     outcome = "unchanged"
     extraction_error: str | None = None
-    if retry_extraction and store.derived_artifact_for_version(version_id) is None:
+    if (retry_extraction and store.derived_artifact_for_version(version_id) is None
+            and not defers_inline_processing(store, source_id)):
         extraction_error = _extract_version(store, version_id, path, data)
         outcome = "extraction_failed" if extraction_error else "extraction_recovered"
 
@@ -890,8 +900,11 @@ def _record_version_acquisition(
     base_outcome: str,
     acquisition_id: str | None = None,
 ) -> Acquisition:
+    from .processing_autonomy import defers_inline_processing
+
     extraction_error: str | None = None
-    if store.derived_artifact_for_version(version_id) is None:
+    if (store.derived_artifact_for_version(version_id) is None
+            and not defers_inline_processing(store, source_id)):
         extraction_error = _extract_version(store, version_id, path, data)
     outcome = "extraction_failed" if extraction_error else base_outcome
     acquisition = Acquisition(

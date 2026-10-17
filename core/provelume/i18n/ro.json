@@ -2160,5 +2160,22 @@
   "review.classification_automatic_blocked": "Aplicarea automată rămâne blocată până la calificarea reală a sarcinii și o nouă revizuire a regulii modificate.",
   "review.classification_reviewed": "Am examinat independent sursa și am ales aceste destinații.",
   "review.effect_classification": "Modifică doar metadatele de clasificare în limitele sursei, destinațiilor, termenului și bugetului revizuite. Originalele și Versiunile sunt păstrate.",
-  "review.reverse_classification": "Anularea restabilește clasificarea precedentă, inclusiv starea inițială neclasificată. Modificările ulterioare blochează anularea; istoricul și utilizarea sunt păstrate."
+  "review.reverse_classification": "Anularea restabilește clasificarea precedentă, inclusiv starea inițială neclasificată. Modificările ulterioare blochează anularea; istoricul și utilizarea sunt păstrate.",
+  "review.processing": "Procesarea documentelor derivate",
+  "review.processing_help": "Alegeți extragerea locală, reprezentările text și actualizarea limitată a indexului separat de clasificare. Originalele sunt achiziționate chiar dacă procesarea este dezactivată. Fiecare regulă modificată necesită revizuire. OCR, transcrierea și rezumatele IA păstrează controalele explicite, limitele de resurse și consimțământul de confidențialitate; această regulă nu le poate activa.",
+  "review.processing_other": "Alte controale de procesare",
+  "review.processing_operations": "Operații locale permise",
+  "review.processing_operation": "Operație locală",
+  "review.processing_extract": "Extrage textul local",
+  "review.processing_representation": "Creează o reprezentare text",
+  "review.processing_index": "Actualizează această Sursă în index",
+  "review.processing_max_jobs": "Număr maxim de sarcini rezervate înainte de altă revizuire",
+  "review.processing_max_bytes": "Număr maxim de octeți de intrare și text per sarcină",
+  "review.effect_processing": "Doar rezultate derivate locale reconstruibile; fără modificări ale Originalelor sau clasificării.",
+  "review.reverse_processing": "Dezactivați regula; eliminați și reconstruiți reprezentările derivate folosind controalele existente.",
+  "review.run": "Revizuiește o sarcină de procesare",
+  "review.processing_enqueue_pending": "Confirmare păstrată; adăugarea în coadă necesită reconciliere. Deschideți o nouă revizuire.",
+  "review.processing_job": "Deschide sarcina de procesare",
+  "scheduler.kind.processing.execute": "Procesarea documentelor derivate",
+  "scheduler.error.processing_denied": "Revizuiește o sarcină de procesare"
 }

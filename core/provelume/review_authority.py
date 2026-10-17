@@ -181,6 +181,8 @@ class ReviewAuthority:
             if re.fullmatch(r"doc_[0-9a-f]{32}", subject):
                 record = read_json(self.store, f"knowledge/documents/{subject}.json")
                 source = record.get("source_id") if record else None
+            elif domain == "processing" and re.fullmatch(r"src_[0-9a-f]{32}", subject):
+                source = subject
             # A new rule has no retained source yet. Grant its exact subject
             # without source filtering, or create it before a source-scoped grant.
             allowed = allowed and source in scope["sources"]

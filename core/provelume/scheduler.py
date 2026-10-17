@@ -1386,6 +1386,10 @@ class SchedulerCoordinator:
 
     def _control_producer(self, job: Mapping[str, Any]) -> Any:
         execution = job.get("execution_plan")
+        if job["job_kind"] == "processing.execute":
+            from .processing_jobs import ProcessingJobs
+
+            return ProcessingJobs(self.store, coordinator=self).control_state(execution)
         current_execution = None
         if execution is not None and job["job_kind"] != "maintenance.backup_verify":
             from .maintenance import MaintenanceManager
@@ -1637,6 +1641,16 @@ class SchedulerCoordinator:
         self,
         job: Mapping[str, Any],
     ) -> tuple[bool, dict[str, int], str, str, bool, bool]:
+        if job["job_kind"] == "processing.execute":
+            from .processing_jobs import ProcessingJobs
+            from .review_effects import ReviewError
+
+            try:
+                progress = ProcessingJobs(self.store, coordinator=self).execute(job)
+            except (ReviewError, SchedulerError, OSError, ValueError, TypeError, KeyError):
+                return (False, self._progress(errors=1), "manual_intervention",
+                        "processing_denied", False, False)
+            return True, progress, "", "", False, False
         execution = job.get("execution_plan")
         if execution is not None and job["job_kind"] != "maintenance.backup_verify":
             from .maintenance import MaintenanceManager

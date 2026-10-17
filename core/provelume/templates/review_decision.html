@@ -6,6 +6,7 @@
 <h1>{{ rl[subject] if domain == 'capabilities' else rl[domain] }}</h1>
 <p class="lead">{{ rl.lead }}</p>
 {% if domain == 'iudicium' %}<p>{{ rl.classification_manual }}</p><p><a href="/review/iudicium?lang={{ lang }}">{{ rl.iudicium }}</a></p>{% endif %}
+{% if domain == 'processing' %}<p>{{ rl.processing_help }}</p><p><a href="/review/processing?lang={{ lang }}">{{ rl.processing }}</a></p>{% endif %}
 <p><a href="/review/capabilities?lang={{ lang }}">{{ rl.capabilities }}</a> · <a href="/review/routing?lang={{ lang }}">{{ rl.routing }}</a> · <a href="/review/decisions/{{ domain }}/{{ subject }}?lang={{ lang }}">{{ rl.fresh }}</a></p>
 {% if domain == 'placement' %}<p><a href="/review/decisions/routing/{{ subject }}?lang={{ lang }}">{{ rl.apply_rule }}</a></p>{% endif %}
 {% if unavailable %}<p class="panel" role="alert">{{ rl.unavailable }}</p>{% else %}
@@ -17,6 +18,19 @@
 <section class="panel">
 <form id="review-selection" class="settings-form">
 <label for="review-action">{{ rl.action }}</label><select id="review-action" name="action" required>{% for action in options.actions %}<option value="{{ action }}">{{ rl[action] }}</option>{% endfor %}</select>
+{% if domain == 'processing' %}
+<p>{% for source in options.sources %}{{ source.name }}{% endfor %}</p>
+<div data-actions="save_policy">
+<label for="processing-mode">{{ rl.mode }}</label><select id="processing-mode" name="mode">{% for mode in ['disabled','proposal-only','confirm-each','controlled-automatic'] %}<option value="{{ mode }}"{% if options.defaults.mode == mode %} selected{% endif %}>{{ rl[mode] }}</option>{% endfor %}</select>
+<label for="processing-prefix">{{ rl.path_prefix }}</label><input id="processing-prefix" name="path_prefix" maxlength="512" value="{{ options.defaults.path_prefix }}"><p>{{ rl.path_help }}</p>
+<label for="processing-operations">{{ rl.processing_operations }}</label><select id="processing-operations" name="operations" multiple size="3">{% for operation in options.operations %}<option value="{{ operation }}"{% if operation in options.defaults.operations %} selected{% endif %}>{{ rl['processing_' + operation] }}</option>{% endfor %}</select><p>{{ rl.multi_help }}</p>
+<label for="processing-expiry">{{ rl.expires_at }}</label><input id="processing-expiry" name="expires_at" type="text" maxlength="80" value="{{ options.defaults.expires_at }}">
+<label for="processing-jobs">{{ rl.processing_max_jobs }}</label><input id="processing-jobs" name="max_jobs" type="number" min="1" max="1000" value="{{ options.defaults.max_jobs }}">
+<label for="processing-bytes">{{ rl.processing_max_bytes }}</label><input id="processing-bytes" name="max_input_bytes" type="number" min="1" max="26214400" value="{{ options.defaults.max_input_bytes }}">
+</div>
+<div data-actions="run"><label for="processing-version">{{ rl.version }}</label><select id="processing-version" name="version_id">{% for version in options.versions %}<option value="{{ version.id }}">{{ version.title }} · {{ version.id }}</option>{% endfor %}</select>
+<label for="processing-operation">{{ rl.processing_operation }}</label><select id="processing-operation" name="operation">{% for operation in options.operations %}<option value="{{ operation }}">{{ rl['processing_' + operation] }}</option>{% endfor %}</select></div>
+{% endif %}
 {% if domain == 'iudicium' %}
 <div data-actions="save_policy apply"><label for="review-assessment">{{ rl.assessment }}</label><select id="review-assessment" name="job_id">{% for assessment in options.assessments %}<option value="{{ assessment.id }}"{% if options.selected_job == assessment.id %} selected{% endif %}>{{ assessment.title }} · {{ assessment.id }}</option>{% endfor %}</select><p>{{ rl.assessment_help }}</p></div>
 {% if subject.startswith('autonomy_') %}

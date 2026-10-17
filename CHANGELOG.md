@@ -30,6 +30,10 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Added
 
+- Independent reviewed Source/prefix rules for bounded local extraction, text
+  representations and scoped index refresh, with scheduler receipts, pause/resume
+  and idempotent reconciliation. Originals continue to be acquired while derived
+  work is disabled; processing rules grant no AI or classification permission.
 - Scoped classification policies and explicit manual destination review reuse the
   existing local permissions and atomic receipts. Conflict-safe undo restores the
   previous classification, including an initially unclassified state. Automatic

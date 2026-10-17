@@ -2160,5 +2160,22 @@
   "review.classification_automatic_blocked": "La aplicación automática sigue bloqueada hasta calificar la tarea real y revisar de nuevo la regla modificada.",
   "review.classification_reviewed": "He revisado la fuente de forma independiente y elegido estos destinos.",
   "review.effect_classification": "Solo cambia metadatos de clasificación dentro de la fuente, destinos, plazo y presupuesto revisados. Se conservan Originales y Versiones.",
-  "review.reverse_classification": "Deshacer restaura la clasificación anterior, incluido el estado inicial sin clasificar. Los cambios posteriores lo bloquean; se conservan historial y uso."
+  "review.reverse_classification": "Deshacer restaura la clasificación anterior, incluido el estado inicial sin clasificar. Los cambios posteriores lo bloquean; se conservan historial y uso.",
+  "review.processing": "Procesamiento de documentos derivados",
+  "review.processing_help": "Elige la extracción local, las representaciones de texto y la actualización acotada del índice por separado de la clasificación. Los Originales se adquieren aunque el procesamiento esté desactivado. Cada regla modificada requiere revisión. OCR, transcripción y resúmenes de IA conservan sus controles explícitos, límites de recursos y consentimientos de privacidad; esta regla no puede activarlos.",
+  "review.processing_other": "Otros controles de procesamiento",
+  "review.processing_operations": "Operaciones locales permitidas",
+  "review.processing_operation": "Operación local",
+  "review.processing_extract": "Extraer texto localmente",
+  "review.processing_representation": "Crear una representación de texto",
+  "review.processing_index": "Actualizar esta Fuente en el índice",
+  "review.processing_max_jobs": "Máximo de trabajos reservados antes de otra revisión",
+  "review.processing_max_bytes": "Máximo de bytes de entrada y texto por trabajo",
+  "review.effect_processing": "Solo resultados derivados locales reconstruibles; sin cambios en Originales ni clasificación.",
+  "review.reverse_processing": "Desactiva la regla; elimina y reconstruye las representaciones derivadas con los controles existentes.",
+  "review.run": "Revisar un trabajo de procesamiento",
+  "review.processing_enqueue_pending": "Confirmación conservada; el encolado requiere conciliación. Abre una nueva revisión.",
+  "review.processing_job": "Abrir el trabajo de procesamiento",
+  "scheduler.kind.processing.execute": "Procesamiento de documentos derivados",
+  "scheduler.error.processing_denied": "Revisar un trabajo de procesamiento"
 }

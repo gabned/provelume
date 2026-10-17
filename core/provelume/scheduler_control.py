@@ -26,6 +26,7 @@ COOPERATIVE_KINDS = frozenset(
         "search.reindex",
         "search.reindex.incremental",
         "maintenance.source_reconcile",
+        "processing.execute",
     }
 )
 ACTIVE_STATUSES = frozenset({"running", "pausing", "cancelling"})
@@ -88,6 +89,10 @@ def promote(job: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def validate_execution_plan(value: Any, *, job_kind: str) -> dict[str, Any] | None:
+    if job_kind == "processing.execute":
+        from .processing_jobs import validate_plan
+
+        return validate_plan(value)
     if job_kind != "maintenance.backup_verify":
         if value is None:
             return None
@@ -416,6 +421,8 @@ def capabilities(job: Mapping[str, Any], *, producer: Any = None, now=None) -> d
                 eligible, reason = False, "retry_not_before"
         elif action == "restart":
             eligible = cooperative and (status == "paused" or status in TERMINAL_JOB_STATUSES)
+            if isinstance(producer, dict) and producer.get("restartable") is False:
+                eligible, reason = False, "checkpoint_changed"
         if status in ACTIVE_STATUSES and (
             control["commit_started"] or job["checkpoint"]["phase"] == "committed"
         ):
