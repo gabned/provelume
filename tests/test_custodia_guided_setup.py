@@ -249,8 +249,9 @@ def test_self_test_preserves_the_current_runtime_exception_phase(installed, monk
     assert not setup.models._evidence and not setup.models._native_runners
 
 
+@pytest.mark.parametrize("profiled", [False, True])
 def test_owned_public_inventory_observation_reaches_existing_operation_markup(
-    installed, monkeypatch,
+    installed, monkeypatch, profiled,
 ):
     import json
     from pathlib import Path
@@ -267,6 +268,10 @@ def test_owned_public_inventory_observation_reaches_existing_operation_markup(
         "files_total": 3, "files_verified": 1, "bytes_hashed": 1024,
         "grants_total": 7, "grants_completed": 0,
     }
+    if profiled:
+        progress.update(checkpoint_calls=4, checkpoint_elapsed_ms=123, acl_elapsed_ms=0,
+                        **{f"checkpoint_{part}_elapsed_ms": 10
+                           for part in ("configuration", "control", "models", "selection")})
     owned = native_failure({"native_stage": "public-inventory", "native_code": 0,
                             "public_inventory": progress}, code="timeout")
     ambient = native_failure({"native_stage": "process-create", "native_code": 203},

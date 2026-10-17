@@ -244,14 +244,19 @@ def test_diagnostic_failure_does_not_replace_original_exception_or_native_error(
 
 
 @pytest.mark.parametrize("valid", [False, True])
+@pytest.mark.parametrize("profiled", [False, True])
 def test_form_driver_and_ci_summary_retain_only_closed_current_details(
-    observation, monkeypatch, valid,
+    observation, monkeypatch, valid, profiled,
 ):
     import scripts.custodia_ordinary as driver
 
     monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "scripts"))
     from scripts.qualify_custodia_installed import summary
 
+    if profiled:
+        observation.update(checkpoint_calls=4, checkpoint_elapsed_ms=123, acl_elapsed_ms=0,
+                           **{f"checkpoint_{part}_elapsed_ms": 10 for part in
+                              ("configuration", "control", "models", "selection")})
     candidate = observation if valid else {**observation, "path": "DoNotPublishPrivatePath"}
     hidden = "".join(f'<input type="hidden" name="{key}" value="synthetic">'
                      for key in ("csrf_token", "mutation_nonce", "instance_id", "authority"))

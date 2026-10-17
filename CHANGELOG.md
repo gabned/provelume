@@ -14,6 +14,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
   and checkpoint classification and final integrity work before interruption.
 - Public-package failure observations optionally separate cumulative checkpoint
   and ACL time, preserving original live checks and historical diagnostic shapes.
+- Installed admission observations can separate fresh configuration, job control,
+  model selection and runtime-selection construction costs within those checkpoints.
 - Windows journal snapshots share DELETE access with concurrent state publishers,
   close before parsing, and preserve complete snapshots and access-error handling.
 - Failed model setup operations show only bounded native diagnostics carried by

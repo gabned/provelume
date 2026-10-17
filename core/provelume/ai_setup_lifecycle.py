@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .ai_authority_observation import authority_value
 from .ai_contract import digest
 from .ai_job_contract import check
 from .ai_model_download import checkpoint
@@ -12,11 +13,11 @@ from .ai_runtime_contract import MODEL_ID
 
 def authority(setup):
     return {
-        "configuration": setup.configuration(),
-        "control": setup.jobs._control(),
+        "configuration": authority_value("configuration", setup.configuration),
+        "control": authority_value("control", setup.jobs._control),
         "session": setup.jobs.session_authorized,
-        "models": setup.models._state(),
-        "selection": native_selection(),
+        "models": authority_value("models", setup.models._state),
+        "selection": authority_value("selection", native_selection),
         "runtime": setup.runtime,
         "allowed": tuple(setup.models.allowed_ids),
     }
