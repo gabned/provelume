@@ -27,6 +27,10 @@ _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _DERIVED_ID = re.compile(r"derived_[0-9a-f]{32}\Z")
 
 
+class IndexScopeError(ValueError):
+    """A scoped refresh cannot authorize an Instance-wide rebuild."""
+
+
 def _email_message_for_version(
     store: InstanceStore,
     version_id: str,
@@ -497,25 +501,25 @@ def refresh_search_index(
     document_ids: Iterable[str],
     *,
     recover_missing_derived: bool = False,
+    allow_full_rebuild: bool = True,
 ) -> int:
+    def rebuild():
+        if not allow_full_rebuild:
+            raise IndexScopeError("Scoped index refresh needs a separate full rebuild review")
+        return rebuild_search_index(store, recover_missing_derived=recover_missing_derived)
+
     selected = {str(document_id) for document_id in document_ids}
     path = _database_path(store)
     metadata = _read_metadata(store)
     documents, current = _documents_and_versions(store)
     if metadata is None or not path.is_file():
-        return rebuild_search_index(
-            store,
-            recover_missing_derived=recover_missing_derived,
-        )
+        return rebuild()
 
     previous = {
         str(key): str(value) for key, value in metadata["documents"].items()
     }
     if metadata["knowledge_fingerprint"] != _knowledge_fingerprint(previous):
-        return rebuild_search_index(
-            store,
-            recover_missing_derived=recover_missing_derived,
-        )
+        return rebuild()
     unchanged_previous = {
         key: value for key, value in previous.items() if key not in selected
     }
@@ -523,22 +527,13 @@ def refresh_search_index(
         key: value for key, value in current.items() if key not in selected
     }
     if unchanged_previous != unchanged_current:
-        return rebuild_search_index(
-            store,
-            recover_missing_derived=recover_missing_derived,
-        )
+        return rebuild()
     try:
         existing_count = _database_count(path)
     except sqlite3.Error:
-        return rebuild_search_index(
-            store,
-            recover_missing_derived=recover_missing_derived,
-        )
+        return rebuild()
     if existing_count != int(metadata["documents_indexed"]):
-        return rebuild_search_index(
-            store,
-            recover_missing_derived=recover_missing_derived,
-        )
+        return rebuild()
     if not selected and previous == current:
         return existing_count
 
@@ -565,10 +560,7 @@ def refresh_search_index(
     except sqlite3.Error:
         connection.rollback()
         connection.close()
-        return rebuild_search_index(
-            store,
-            recover_missing_derived=recover_missing_derived,
-        )
+        return rebuild()
     finally:
         connection.close()
 

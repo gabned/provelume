@@ -2,7 +2,7 @@
 {% block title %}{{ t('cura.nav.attention') }} · {{ t('brand') }}{% endblock %}
 {% block content %}
 <p class="eyebrow">{{ t('cura.nav.overview') }}</p><h1>{{ t('action.title') }}</h1><p class="lead">{{ t('action.lead') }}</p>
-<div class="form-actions"><a href="/attention/notifications?lang={{ lang }}">{{ t('action.notifications') }}</a><a href="/attention/authority?lang={{ lang }}">{{ t('action.authority') }}</a><a href="/review/capabilities?lang={{ lang }}">{{ t('review.capabilities') }}</a></div>
+<div class="form-actions"><a href="/attention/notifications?lang={{ lang }}">{{ t('action.notifications') }}</a><a href="/attention/authority?lang={{ lang }}">{{ t('action.authority') }}</a><a href="/review/capabilities?lang={{ lang }}">{{ t('review.capabilities') }}</a><a href="/review/processing?lang={{ lang }}">{{ t('review.processing') }}</a></div>
 {% if not attention.complete %}<p class="status warn" role="status">{{ t('action.partial') }}</p>{% endif %}
 <section class="panel"><form method="get" action="/attention" class="settings-form">
 <input type="hidden" name="lang" value="{{ lang }}">

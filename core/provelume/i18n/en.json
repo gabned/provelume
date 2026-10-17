@@ -2160,5 +2160,22 @@
   "review.classification_automatic_blocked": "Automatic application remains blocked until real task quality is qualified and the changed policy is reviewed again.",
   "review.classification_reviewed": "I independently reviewed the source and selected these destinations.",
   "review.effect_classification": "Changes only classification metadata within the reviewed source, destinations, expiry and budget. Originals and Versions are preserved.",
-  "review.reverse_classification": "Undo restores the previous classification, including an initially unclassified state. Later changes block undo; history and usage remain."
+  "review.reverse_classification": "Undo restores the previous classification, including an initially unclassified state. Later changes block undo; history and usage remain.",
+  "review.processing": "Derived document work",
+  "review.processing_help": "Choose local text extraction, text representations and scoped index refresh separately from classification. Originals are acquired even while derived work is disabled. Each changed rule needs review. OCR, transcription and AI summaries retain their existing explicit controls, resource limits and privacy consent; this rule cannot enable them.",
+  "review.processing_other": "Other processing controls",
+  "review.processing_operations": "Allowed local operations",
+  "review.processing_operation": "Local operation",
+  "review.processing_extract": "Extract text locally",
+  "review.processing_representation": "Build a text representation",
+  "review.processing_index": "Refresh this Source in the index",
+  "review.processing_max_jobs": "Maximum reserved jobs before another review",
+  "review.processing_max_bytes": "Maximum input and text bytes per job",
+  "review.effect_processing": "Only rebuildable local derived outputs; no Original or classification changes.",
+  "review.reverse_processing": "Disable the rule; remove and rebuild derived representations with the existing controls.",
+  "review.run": "Review one processing job",
+  "review.processing_enqueue_pending": "Confirmation retained; enqueue needs reconciliation. Open a fresh review.",
+  "review.processing_job": "Open processing job",
+  "scheduler.kind.processing.execute": "Derived document work",
+  "scheduler.error.processing_denied": "Processing blocked: review current Version, rule, privacy and limits."
 }

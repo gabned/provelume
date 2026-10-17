@@ -1292,7 +1292,9 @@
         "scheduler.kind.ai.execute",
         "scheduler.kind.email.intake",
         "scheduler.kind.google.intake",
-        "scheduler.kind.transcript.intake"
+        "scheduler.kind.transcript.intake",
+        "scheduler.kind.processing.execute",
+        "scheduler.error.processing_denied"
       ],
       "namespace": ""
     },
@@ -1571,7 +1573,22 @@
         "review.classification_automatic_blocked",
         "review.classification_reviewed",
         "review.effect_classification",
-        "review.reverse_classification"
+        "review.reverse_classification",
+        "review.processing",
+        "review.processing_help",
+        "review.processing_other",
+        "review.processing_operations",
+        "review.processing_operation",
+        "review.processing_extract",
+        "review.processing_representation",
+        "review.processing_index",
+        "review.processing_max_jobs",
+        "review.processing_max_bytes",
+        "review.effect_processing",
+        "review.reverse_processing",
+        "review.run",
+        "review.processing_enqueue_pending",
+        "review.processing_job"
       ],
       "namespace": ""
     },
@@ -14647,6 +14664,108 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": true
+    },
+    "review.processing": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "review.processing_help": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "review.processing_other": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "review.processing_operations": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "review.processing_operation": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "review.processing_extract": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "review.processing_representation": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "review.processing_index": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "review.processing_max_jobs": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "review.processing_max_bytes": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "review.effect_processing": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "review.reverse_processing": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "review.run": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "review.processing_enqueue_pending": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "review.processing_job": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "scheduler.kind.processing.execute": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "scheduler.error.processing_denied": {
+      "context": "Iudicium S04: independent bounded local processing; review_processing_policies.html, review_decision.html and scheduler",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
     }
   },
   "schema_version": 1,

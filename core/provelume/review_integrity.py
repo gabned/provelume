@@ -14,6 +14,7 @@ CAPABILITIES = {
     "versions": ("select_current", "new_version"),
     "annotations": ("save", "undo"),
     "iudicium": ("save_policy", "revoke_policy", "apply", "undo"),
+    "processing": ("save_policy", "revoke_policy", "run"),
 }
 
 
@@ -109,6 +110,7 @@ def validate_review_origin(store, origin, records):
 def review_state_findings(store, records):
     from .annotation_store import annotation_state_findings
     from .classification_review import ClassificationReview
+    from .processing_autonomy import ProcessingReview
     from .review_authority import ReviewAuthority
     from .review_routing import RoutingProvider
 
@@ -127,6 +129,8 @@ def review_state_findings(store, records):
         RoutingProvider(store).rules()
         classification = ClassificationReview(store)
         classification.policies()
+        processing = ProcessingReview(store)
+        processing.policies()
         root = checked_path(store, "state/review/receipts")
         if root.exists():
             if not root.is_dir():
@@ -145,6 +149,10 @@ def review_state_findings(store, records):
                     from .review_routing import _Inputs
 
                     classification._history(receipt["id"], _Inputs(store))
+                if receipt["domain"] == "processing":
+                    from .review_routing import _Inputs
+
+                    processing.history_record(receipt["id"], _Inputs(store))
                 if (
                     receipt["domain"] in {"duplicates", "versions"}
                     and receipt["action"] == "new_version"

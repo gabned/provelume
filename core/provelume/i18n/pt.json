@@ -2160,5 +2160,22 @@
   "review.classification_automatic_blocked": "A aplicação automática permanece bloqueada até à qualificação real da tarefa e nova revisão da regra alterada.",
   "review.classification_reviewed": "Examinei a fonte de forma independente e escolhi estes destinos.",
   "review.effect_classification": "Altera apenas metadados de classificação dentro da fonte, destinos, prazo e orçamento revistos. Originais e Versões são preservados.",
-  "review.reverse_classification": "Anular repõe a classificação anterior, incluindo o estado inicial não classificado. Alterações posteriores impedem a anulação; histórico e utilização são preservados."
+  "review.reverse_classification": "Anular repõe a classificação anterior, incluindo o estado inicial não classificado. Alterações posteriores impedem a anulação; histórico e utilização são preservados.",
+  "review.processing": "Processamento de documentos derivados",
+  "review.processing_help": "Escolha a extração local, representações de texto e atualização delimitada do índice separadamente da classificação. Os Originais são adquiridos mesmo com processamento desativado. Cada regra alterada exige revisão. OCR, transcrição e resumos de IA mantêm os controlos explícitos, limites de recursos e consentimentos de privacidade; esta regra não os pode ativar.",
+  "review.processing_other": "Outros controlos de processamento",
+  "review.processing_operations": "Operações locais permitidas",
+  "review.processing_operation": "Operação local",
+  "review.processing_extract": "Extrair texto localmente",
+  "review.processing_representation": "Criar uma representação de texto",
+  "review.processing_index": "Atualizar esta Fonte no índice",
+  "review.processing_max_jobs": "Máximo de trabalhos reservados antes de nova revisão",
+  "review.processing_max_bytes": "Máximo de bytes de entrada e texto por trabalho",
+  "review.effect_processing": "Apenas resultados derivados locais reconstruíveis; sem alterações aos Originais ou à classificação.",
+  "review.reverse_processing": "Desative a regra; remova e reconstrua as representações derivadas com os controlos existentes.",
+  "review.run": "Rever um trabalho de processamento",
+  "review.processing_enqueue_pending": "Confirmação guardada; a colocação em fila exige reconciliação. Abra uma nova revisão.",
+  "review.processing_job": "Abrir o trabalho de processamento",
+  "scheduler.kind.processing.execute": "Processamento de documentos derivados",
+  "scheduler.error.processing_denied": "Rever um trabalho de processamento"
 }

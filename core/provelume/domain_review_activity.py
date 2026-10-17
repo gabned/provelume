@@ -20,9 +20,11 @@ from .review_effects import ReviewError, ReviewUnavailable
 from .review_i18n import review_labels
 from .review_routing import _Inputs, _nodes
 from .review_security import ReviewBrowserSessions, require_local_browser, review_json
+from .scheduler_model import SchedulerBusyError, SchedulerError
 
 _ID = re.compile(r"[a-z][a-z0-9_]*_[0-9a-f]{32,64}\Z")
-_DOMAINS = {"placement", "routing", "duplicates", "versions", "capabilities", "iudicium"}
+_DOMAINS = {"placement", "routing", "duplicates", "versions", "capabilities", "iudicium",
+            "processing"}
 _ERRORS = (
     ReviewError,
     InstanceLifecycleError,
@@ -64,7 +66,27 @@ def review_options(instance, domain, subject, *, job_id=None):
     inputs = _Inputs(instance.store)
     if domain in {"placement", "routing", "iudicium"}:
         result["nodes"] = list(_nodes(inputs).values())
-    if domain == "iudicium":
+    if domain == "processing":
+        from .processing_autonomy import MAX_INPUT_BYTES, OPERATIONS
+        from .review_routing_model import identifier
+
+        identifier(subject, "source")
+        current = instance.processing_review.policy(subject)
+        source = inputs.record(f"knowledge/sources/{subject}.json")
+        result["sources"] = [source]
+        result["actions"] = (["save_policy", "revoke_policy", "run"] if current
+                             else ["save_policy"])
+        result["operations"] = list(OPERATIONS)
+        result["defaults"] = current or {
+            "mode": "confirm-each", "path_prefix": "", "operations": ["extract"],
+            "max_jobs": 1, "max_input_bytes": MAX_INPUT_BYTES,
+            "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat()
+            .replace("+00:00", "Z"),
+        }
+        documents = inputs.inventory("knowledge/documents", 500)
+        result["versions"] = [{"id": row["current_version_id"], "title": row["title"]}
+                              for row in documents.values() if row["source_id"] == subject]
+    elif domain == "iudicium":
         from .classification_autonomy import policy_identifier
 
         controller = instance.classification_review
@@ -172,6 +194,9 @@ def review_options(instance, domain, subject, *, job_id=None):
                     {"id": row["id"], "label": row["path_prefix"] or row["source_id"]}
                     for row in instance.classification_review.policies()
                 )
+        elif subject == "processing":
+            result["subjects"] = [{"id": row["id"], "label": row["name"]}
+                                  for row in result["sources"]]
         elif subject == "duplicates":
             result["subjects"] = [
                 {"id": key, "label": key} for key in inputs.inventory("state/duplicates/cases", 500)
@@ -213,7 +238,26 @@ def review_summary(plan, labels):
     def change(label, before, after):
         changes.append({"label": label, "before": display(before), "after": display(after)})
 
-    if domain == "iudicium":
+    if domain == "processing":
+        if action == "run":
+            for field, label in (("version_id", "version"), ("operation", "processing_operation")):
+                value = data["execution"]["parameters"][field]
+                change(labels[label], None, labels.get("processing_" + value, value))
+        else:
+            before, after = data["before"] or {}, data["after"]
+            for field, label in (("mode", "mode"), ("path_prefix", "path_prefix"),
+                                 ("operations", "processing_operations"),
+                                 ("expires_at", "expires_at"), ("max_jobs", "processing_max_jobs"),
+                                 ("max_input_bytes", "processing_max_bytes")):
+                old, new = before.get(field), after[field]
+                if field == "mode":
+                    old, new = labels.get(old, old), labels[new]
+                elif field == "operations":
+                    old = [labels["processing_" + x] for x in old or []]
+                    new = [labels["processing_" + x] for x in new]
+                change(labels[label], old, new)
+        effect, reverse = "effect_processing", "reverse_processing"
+    elif domain == "iudicium":
         names = data["target_labels"]
         if data["placement"] is not None:
             names = {key: row["name"] for key, row in data["placement"]["nodes"].items()}
@@ -396,6 +440,18 @@ def attach_domain_review_routes(
             return page(request, "review_classification_policies.html", status=503, rows=[],
                         new_policy=None, unavailable=True)
 
+    @app.get("/review/processing")
+    def processing_policies(request: Request):
+        require_local_browser(request)
+        try:
+            rows = instance.processing_review.policies()
+            sources = _Inputs(instance.store).inventory("knowledge/sources", 500)
+            return page(request, "review_processing_policies.html", rows=rows,
+                        sources=list(sources.values()), unavailable=False)
+        except _ERRORS:
+            return page(request, "review_processing_policies.html", status=503, rows=[],
+                        sources=[], unavailable=True)
+
     @app.get("/review/decisions/{domain}/{subject}")
     def decision(request: Request, domain: str, subject: str):
         require_local_browser(request)
@@ -472,7 +528,7 @@ def attach_domain_review_routes(
             fields["request_id"],
         )
         try:
-            return instance.review_decisions.confirm(
+            result = instance.review_decisions.confirm(
                 domain,
                 subject,
                 plan["action"],
@@ -482,5 +538,18 @@ def attach_domain_review_routes(
                 request_id=fields["request_id"],
                 principal="local_browser",
             )
+            if domain == "processing" and plan["action"] == "run":
+                parameters = plan["parameters"]
+                try:
+                    queued = instance.processing.queue(
+                        subject, parameters["version_id"], parameters["operation"],
+                        permit_receipt=result["receipt"]["id"],
+                    )
+                    result["processing_job"] = queued["job"]["id"]
+                except (ReviewError, SchedulerError, SchedulerBusyError, OSError, ValueError):
+                    # Confirmation is committed even when enqueue is interrupted;
+                    # its retained permit can be reconciled without another write.
+                    result["processing_job"] = None
+            return result
         except _ERRORS as exc:
             raise HTTPException(409, "Review confirmation was denied; open a fresh review") from exc

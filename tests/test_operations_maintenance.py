@@ -41,6 +41,24 @@ def queued(store, kind="maintenance.validate", *, key="one"):
         jobs.configure(mode="enabled", budget=BUDGET)
         job = jobs.enqueue(REF, request_key=key, budget=BUDGET)
         return jobs.journal, jobs.journal.get_policy(job["policy_id"]), job
+    if kind == "processing.execute":
+        from test_processing_autonomy import grant, permit, policy
+
+        from provelume.service import ProvelumeInstance
+
+        source = store.paths.root.parent / "processing-source"
+        source.mkdir()
+        (source / "input.txt").write_text("Synthetic bounded local work", encoding="utf-8")
+        instance = ProvelumeInstance(store.paths.root)
+        instance.ingest(source)
+        document = instance.list_documents()[0]
+        grant(instance, document["source_id"])
+        policy(instance, document["source_id"])
+        receipt = permit(instance, document)
+        job = instance.processing.queue(document["source_id"], document["current_version_id"],
+                                        "extract", permit_receipt=receipt)["job"]
+        journal = instance.scheduler.journal
+        return journal, journal.get_policy(job["policy_id"]), job
     journal = SchedulerStore(store)
     scope = {"kind": "instance", "id": journal.instance_id}
     if kind in SOURCE_SCOPED_JOB_KINDS:

@@ -27,9 +27,10 @@
     });
     if (domain === "capabilities") {
       const automatic = value("mode") === "controlled-automatic";
+      const automaticAction = root.dataset.subject === "processing" ? "run" : "apply_rule";
       form.querySelectorAll('[name="scope_action"]').forEach(control => {
-        control.disabled = spent || (automatic && control.value !== "apply_rule");
-        if (automatic) control.checked = control.value === "apply_rule";
+        control.disabled = spent || (automatic && control.value !== automaticAction);
+        if (automatic) control.checked = control.value === automaticAction;
       });
       field("scope_subject").disabled = spent || field("all_subjects").checked;
     }
@@ -50,6 +51,15 @@
 
   function parameters() {
     const action = actionControl.value;
+    if (domain === "processing") {
+      if (action === "save_policy") return {
+        mode: value("mode"), path_prefix: value("path_prefix"), operations: selected("operations"),
+        expires_at: value("expires_at"), max_jobs: Number(value("max_jobs")),
+        max_input_bytes: Number(value("max_input_bytes")),
+      };
+      if (action === "run") return {version_id: value("version_id"), operation: value("operation")};
+      return {};
+    }
     if (domain === "iudicium") {
       if (action === "save_policy") return {
         job_id: value("job_id"), path_prefix: value("path_prefix"),
@@ -159,6 +169,16 @@
         request_id: plan.request_id,
       });
       status.textContent = `${labels.saved} ${result.receipt.id}`;
+      if (domain === "processing" && "processing_job" in result) {
+        if (result.processing_job) {
+          const jobLink = document.createElement("a");
+          jobLink.href = `/maintenance/jobs/${encodeURIComponent(result.processing_job)}` + window.location.search;
+          jobLink.textContent = labels.processing_job;
+          status.append(document.createTextNode(" "), jobLink);
+        } else {
+          status.append(document.createTextNode(" " + labels.processing_enqueue_pending));
+        }
+      }
       const link = document.createElement("a");
       link.href = endpoint + window.location.search;
       link.textContent = labels.fresh;

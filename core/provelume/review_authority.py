@@ -76,10 +76,13 @@ class ReviewAuthority:
             raise ReviewUnavailable("Wildcard scope cannot mix individual subjects")
         if any(re.fullmatch(r"src_[0-9a-f]{32}", x) is None for x in scope["sources"]):
             raise ReviewUnavailable("Capability source scope is invalid")
-        if mode == "controlled-automatic" and (
-            domain != "routing" or scope["actions"] != ["apply_rule"]
+        if mode == "controlled-automatic" and not (
+            (domain == "routing" and scope["actions"] == ["apply_rule"])
+            or (domain == "processing" and scope["actions"] == ["run"])
         ):
-            raise ReviewUnavailable("Only safe routing application can be automatic")
+            raise ReviewUnavailable(
+                "Only safe routing or bounded derived execution can be automatic"
+            )
         return value
 
     def read(self):
@@ -181,6 +184,8 @@ class ReviewAuthority:
             if re.fullmatch(r"doc_[0-9a-f]{32}", subject):
                 record = read_json(self.store, f"knowledge/documents/{subject}.json")
                 source = record.get("source_id") if record else None
+            elif domain == "processing" and re.fullmatch(r"src_[0-9a-f]{32}", subject):
+                source = subject
             # A new rule has no retained source yet. Grant its exact subject
             # without source filtering, or create it before a source-scoped grant.
             allowed = allowed and source in scope["sources"]
@@ -198,8 +203,8 @@ class ReviewAuthority:
             "scope": scope,
             "automatic_allowed": bool(
                 allowed
-                and domain == "routing"
-                and action == "apply_rule"
+                and ((domain == "routing" and action == "apply_rule")
+                     or (domain == "processing" and action == "run"))
                 and selected["mode"] == "controlled-automatic"
             ),
         }

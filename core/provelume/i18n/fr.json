@@ -2160,5 +2160,22 @@
   "review.classification_automatic_blocked": "L’application automatique reste bloquée jusqu’à la qualification réelle de la tâche et une nouvelle révision de la règle modifiée.",
   "review.classification_reviewed": "J’ai examiné la source indépendamment et choisi ces destinations.",
   "review.effect_classification": "Modifie uniquement les métadonnées de classification dans les limites de la source, des destinations, du délai et du budget révisés. Originaux et Versions sont conservés.",
-  "review.reverse_classification": "Annuler rétablit la classification précédente, y compris l’état initial non classé. Des modifications ultérieures bloquent l’annulation ; historique et usage restent conservés."
+  "review.reverse_classification": "Annuler rétablit la classification précédente, y compris l’état initial non classé. Des modifications ultérieures bloquent l’annulation ; historique et usage restent conservés.",
+  "review.processing": "Traitement des documents dérivés",
+  "review.processing_help": "Choisissez séparément de la classification l’extraction locale, les représentations textuelles et l’actualisation ciblée de l’index. Les Originaux sont acquis même si le traitement est désactivé. Toute règle modifiée nécessite une révision. OCR, transcription et résumés IA conservent leurs contrôles explicites, limites de ressources et consentements de confidentialité ; cette règle ne peut pas les activer.",
+  "review.processing_other": "Autres contrôles de traitement",
+  "review.processing_operations": "Opérations locales autorisées",
+  "review.processing_operation": "Opération locale",
+  "review.processing_extract": "Extraire le texte localement",
+  "review.processing_representation": "Créer une représentation textuelle",
+  "review.processing_index": "Actualiser cette Source dans l’index",
+  "review.processing_max_jobs": "Maximum de tâches réservées avant une nouvelle révision",
+  "review.processing_max_bytes": "Octets maximum d’entrée et de texte par tâche",
+  "review.effect_processing": "Uniquement des résultats dérivés locaux reconstructibles ; aucune modification des Originaux ou de la classification.",
+  "review.reverse_processing": "Désactivez la règle ; supprimez et reconstruisez les représentations dérivées avec les contrôles existants.",
+  "review.run": "Réviser une tâche de traitement",
+  "review.processing_enqueue_pending": "Confirmation conservée ; la mise en file nécessite une réconciliation. Ouvrez une nouvelle révision.",
+  "review.processing_job": "Ouvrir la tâche de traitement",
+  "scheduler.kind.processing.execute": "Traitement des documents dérivés",
+  "scheduler.error.processing_denied": "Réviser une tâche de traitement"
 }
