@@ -115,6 +115,31 @@ An explicitly purged Document does not erase independent object assertions or th
 attribution records: the retained reference becomes unavailable. No broader erasure is claimed.
 
 Settings, consents, permissions, language, interface selection and retained state are preserved.
+
+The same-host operator migration also preserves filesystem access control independently of
+payload byte hashes. Its bounded native profile covers POSIX modes, owner/group and extended
+attributes (including filesystem ACLs), or Windows owner/group, DACL protection/inheritance and
+the read-only attribute. Existing empty directories retain their access metadata; new canonical
+files and directories start private. Profiles are captured from the live source, never accepted
+as authority from a portable archive. Portable transfer retains application authorization records
+and keeps its existing private-file extraction policy across hosts.
+
+The lifecycle control directory outside the Instance retains three immutable permission-profile
+documents for the exact source, backup reconstruction and published image. Their byte hashes and
+access fingerprints are bound in the operation journal before the corresponding rename. Keep
+these private documents with the recovery journal and verified backups until the operation is
+settled. A permission-only concurrent change, changed profile or unknown legacy byte-only object
+journal stops recovery for inspection; it cannot overwrite current permissions. The native profile
+is limited to 200,000 entries, 16 MiB per profile and 256 KiB of metadata per entry. Unsupported
+metadata or a host unable to reproduce it fails before publication.
+
+Object-migration recovery records its deterministic receipt in the external lifecycle control
+directory so settling an image does not require changing a read-only Instance. It recognizes only
+the bound bytes and access metadata of its preimage, verified backup reconstruction or postimage.
+A foreign target appearing between renames or a newer image after publication is retained with
+the journal and backups. Object staging uses its own namespace; generic restore cleanup cannot
+erase those retained images. Read-only preimages that cannot be removed remain explicitly reported
+as inert residues for the operator, rather than causing rollback over a verified live image.
 Indexes/library remain disposable rebuilds; a schema transition can invalidate their old canonical
 fingerprint. Normal backup/export of an older Instance remains possible without upgrading its source.
 

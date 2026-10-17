@@ -116,6 +116,14 @@ portable round trips. Later owners separately qualify manual services, permissio
 CSRF-protected API/UI, proposal approval/edit/rejection and integrated resource/
 security/no-egress/compatibility behavior on the actual merged source.
 
+The S02 continuation for #384 retains merged #385 and its complete qualification history. An
+additional same-host access-metadata test on its actual merge found that umask022 changed private
+directories0700 to0755 and files0640 to0600. That image is not accepted for S02. The correction binds
+native filesystem permission profiles separately from canonical bytes and retains changed/foreign
+images instead of automatically repairing their metadata. POSIX ACL and native Windows DACL cases
+emit explicit machine observations; an unsupported host filesystem remains unqualified for that
+case. See the [same-host migration/recovery boundary](portable-instance.md).
+
 Existing AI receipts and Action Center remain the only proposal/review foundation.
 No object/Claim/Relation proposal creates canonical facts automatically. Human
 Windows/UX/accessibility/catalog checks and independent labels remain factual

@@ -425,7 +425,7 @@ def stop(source, target):
     real(source, target)
     if source == root and phase == "between_renames":
         os._exit(73)
-    if target == root and ".restore-stage-" in source.name and phase == "after_publish":
+    if target == root and ".object-stage-" in source.name and phase == "after_publish":
         os._exit(73)
 instance_lifecycle.os.replace = stop
 InstanceLifecycleManager(InstanceStore(root)).prepare(migrate_objects=True)
