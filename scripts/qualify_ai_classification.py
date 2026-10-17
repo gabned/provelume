@@ -6,6 +6,7 @@ from provelume.ai_contract import digest
 from provelume.ai_runtime_diagnostics import native_failure, valid_native_failure
 from provelume.ai_setup import AiSetup
 from provelume.service import ProvelumeInstance
+from scripts.iudicium_journey import finish, prepare, review_assessment
 
 
 def measure_classification(root, store, runtime, *, checkpoint=lambda _result: None):
@@ -21,6 +22,8 @@ def measure_classification(root, store, runtime, *, checkpoint=lambda _result: N
         checkpoint(result)
 
     try:
+        stage("folder_capture_and_reviewed_local_processing")
+        cases = prepare(root, instance)
         stage("self_test")
         operation = setup.begin_operation("self_test")
         setup.run_operation(operation)
@@ -42,28 +45,11 @@ def measure_classification(root, store, runtime, *, checkpoint=lambda _result: N
             raise ValueError("classification_activation_failed")
         setup.enable()
         area = instance.create_hierarchy_node("area", "Public synthetic Atlas")
-        for language, text in (("en", "Public synthetic Atlas workshop on Monday."),
-                               ("it", "Seminario pubblico sintetico Atlas di lunedì.")):
-            source = root / ("iudicium-source-" + language)
-            source.mkdir()
-            (source / "note.txt").write_text(text, encoding="utf-8")
-            instance.ingest(source)
-            # Resolve the source by its acquired text, never by fixture list order.
-            document = next(d for d in instance.store.list_canonical("documents")
-                            if instance.store.original_bytes(instance.get_document(
-                                d["id"])["current_version"]["original_id"]) == text.encode())
-            version = instance.get_document(document["id"])["current_version"]["id"]
-            bundle = instance.representations.bundles.materialize(
-                version, recipe_id="iudicium-public-execution", recipe_version="1",
-                recipe_settings={"language": language},
-                output_payloads={"text.txt": ("text/plain", text.encode())},
-                implementation={"component": "provelume.core", "component_version": "0.12.1",
-                                "adapter": "iudicium-public-fixture", "adapter_version": "1",
-                                "settings": {}}, anchor_targets=({"kind": "page", "page": 1},),
-            )
+        for case in cases:
+            language, bundle = case["language"], case["bundle"]
             before = instance.store.original_bytes(bundle["version"]["original_id"])
             ref, _, _ = setup.classification.preview(
-                document["id"], bundle["representation_id"], bundle["outputs"][0]["id"],
+                case["document_id"], bundle["representation_id"], bundle["outputs"][0]["id"],
                 (("area", area["id"]),), language,
             )
             setup.approve_generation(ref)
@@ -89,6 +75,8 @@ def measure_classification(root, store, runtime, *, checkpoint=lambda _result: N
             stage("result_read")
             body, _, _, _, _ = setup.classification.read(job["id"])
             usage = setup.jobs.status()["accounting"]
+            stage("independent_destination_review")
+            reviewed = review_assessment(instance, case, job["id"], body, area["id"])
             stage("discard")
             setup.classification.discard(job["id"])
             retained, _, _ = setup.classification.reference(job["id"])
@@ -102,7 +90,11 @@ def measure_classification(root, store, runtime, *, checkpoint=lambda _result: N
                 "source_preserved": before == instance.store.original_bytes(
                     bundle["version"]["original_id"]),
                 "accounting_preserved": usage == setup.jobs.status()["accounting"],
+                "journey": {**case["journey"], "destination_review": reviewed},
             })
+        stage("reopen_and_rebuild")
+        setup.close()
+        result["journey"] = finish(instance, cases)
         result["status"] = "MEASURED"
     except Exception as exc:
         result.update(status="FAIL", failure=type(exc).__name__)
