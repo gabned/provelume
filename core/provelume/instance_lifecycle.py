@@ -12,6 +12,8 @@ from time import monotonic, sleep
 from typing import Any
 from uuid import uuid4
 
+import yaml
+
 from .instance_backup import (
     BackupError,
     create_backup,
@@ -23,6 +25,8 @@ from .instance_schema import (
     LEGACY_INSTANCE_SCHEMA_VERSION,
     MIGRATION_1_TO_2,
     MIGRATION_RECEIPT_SCHEMA_VERSION,
+    PRE_OBJECT_INSTANCE_SCHEMA_VERSION,
+    SUPPORTED_INSTANCE_SCHEMAS,
     build_instance_manifest,
 )
 from .instance_validation import inspect_instance
@@ -101,9 +105,7 @@ class InstanceLifecycleManager:
         return value if isinstance(value, dict) else None
 
     @contextmanager
-    def _hold(
-        self, *, purpose: str, wait_seconds: float = 0
-    ) -> Iterator[dict[str, Any]]:
+    def _hold(self, *, purpose: str, wait_seconds: float = 0) -> Iterator[dict[str, Any]]:
         if (
             type(wait_seconds) not in {int, float}
             or not 0 <= wait_seconds <= 2
@@ -115,7 +117,8 @@ class InstanceLifecycleManager:
             raise ValueError("lifecycle purpose is required")
         if any(
             path.is_symlink() or path.is_junction()
-            for path in (self.control_root, self.lock_path, self.control_root / "transactions")
+            for path in (self.control_root, self.lock_path, self.pending_path,
+                         self.control_root / "transactions")
         ):
             raise InstanceLifecycleError("lifecycle control paths cannot traverse links")
         self.control_root.mkdir(parents=True, exist_ok=True)
@@ -161,6 +164,22 @@ class InstanceLifecycleManager:
                 handle.truncate()
                 handle.flush()
                 os.fsync(handle.fileno())
+            if (
+                selected_purpose == "instance-lifecycle-recovery"
+                and (self._read_json(self.pending_path) or {}).get("operation")
+                == "object-migration"
+            ):
+                # Settle this whole-tree publication before any domain recovery writes.
+                yield owner
+                return
+            if self.pending_path.exists() and selected_purpose not in {
+                "instance-lifecycle-recovery",
+                "instance-schema-migration",
+                "instance-restore",
+                "instance-import",
+                "instance-backup",
+            }:
+                raise InstanceLifecycleError("Instance lifecycle recovery is required")
             if selected_purpose != "instance-repair":
                 from .instance_repair import InstanceRepairError, InstanceRepairManager
                 from .scheduler import SchedulerStore
@@ -180,6 +199,7 @@ class InstanceLifecycleManager:
             from .capture_authority import recover_capture_authority_locked
             from .capture_journal import recover_capture_transactions_locked
             from .capture_quarantine import recover_capture_quarantine_locked
+            from .knowledge_object_store import recover_objects_locked
             from .review_runtime import recover_review_transactions_locked
 
             recover_capture_authority_locked(self.store)
@@ -187,6 +207,7 @@ class InstanceLifecycleManager:
             recover_capture_quarantine_locked(self.store)
             if selected_purpose != "instance-transaction-recovery":
                 recover_review_transactions_locked(self.store)
+                recover_objects_locked(self.store)
             yield owner
         finally:
             try:
@@ -201,6 +222,7 @@ class InstanceLifecycleManager:
         operation: str,
         rollback: dict[str, Any] | None,
         requested_archive_sha256: str | None = None,
+        binding: dict[str, Any] | None = None,
     ) -> None:
         self.control_root.mkdir(parents=True, exist_ok=True)
         payload = {
@@ -209,17 +231,17 @@ class InstanceLifecycleManager:
             "started_at": utc_now(),
             "pid": os.getpid(),
             "hostname": socket.gethostname(),
-            "instance_id": (
-                rollback.get("instance_id") if isinstance(rollback, dict) else None
-            ),
-            "rollback_archive": (
-                rollback.get("archive") if isinstance(rollback, dict) else None
-            ),
+            "instance_id": (rollback.get("instance_id") if isinstance(rollback, dict) else None),
+            "rollback_archive": (rollback.get("archive") if isinstance(rollback, dict) else None),
             "rollback_archive_sha256": (
                 rollback.get("archive_sha256") if isinstance(rollback, dict) else None
             ),
             "requested_archive_sha256": requested_archive_sha256,
         }
+        if binding is not None:
+            if set(binding) & set(payload):
+                raise ValueError("lifecycle binding cannot replace operation identity")
+            payload.update(binding)
         self.store._atomic_json(self.pending_path, payload)
 
     def _clear_pending(self) -> None:
@@ -276,6 +298,10 @@ class InstanceLifecycleManager:
         if pending is None or pending.get("schema_version") != LIFECYCLE_STATE_SCHEMA_VERSION:
             raise InstanceLifecycleError("pending lifecycle recovery record is invalid")
         operation = pending.get("operation")
+        if operation == "object-migration":
+            from .object_migration import recover_object_migration
+
+            return recover_object_migration(self, pending)
         if operation not in {"backup", "import", "migration", "restore"}:
             raise InstanceLifecycleError("pending lifecycle operation is unsupported")
         if operation == "backup":
@@ -311,12 +337,13 @@ class InstanceLifecycleManager:
         archive: Path,
         *,
         expected_instance_id: str,
+        prepare_ai: bool = True,
+        stage_transform=None,
+        before_publish=None,
     ) -> dict[str, Any]:
         verified = verify_backup(archive)
         if verified["instance_id"] != expected_instance_id:
-            raise InstanceLifecycleError(
-                "backup belongs to a different Provelume Instance"
-            )
+            raise InstanceLifecycleError("backup belongs to a different Provelume Instance")
         root = self.store.paths.root
         root.parent.mkdir(parents=True, exist_ok=True)
         stage = root.parent / f".{root.name}.restore-stage-{uuid4().hex}"
@@ -327,17 +354,29 @@ class InstanceLifecycleManager:
             extract_backup(archive, stage)
             staged = inspect_instance(stage, deep=True)
             if staged["status"] != "valid" or staged["instance_id"] != expected_instance_id:
-                raise InstanceLifecycleError(
-                    "restored staging Instance failed validation"
-                )
+                raise InstanceLifecycleError("restored staging Instance failed validation")
+            if stage_transform is not None:
+                stage_transform(InstanceStore(stage))
+                staged = inspect_instance(stage, deep=True)
+                if staged["status"] != "valid" or staged["instance_id"] != expected_instance_id:
+                    raise InstanceLifecycleError("transformed restore stage is invalid")
             from .ai_job_portability import prepare_restored_ai
 
-            prepare_restored_ai(InstanceStore(stage), self.store if root.exists() else None)
+            if prepare_ai:
+                prepare_restored_ai(InstanceStore(stage), self.store if root.exists() else None)
+            if before_publish is not None:
+                before_publish(stage, previous)
             if root.exists():
                 os.replace(root, previous)
                 moved_previous = True
+                from .atomic_commit import _fsync_directory
+
+                _fsync_directory(root.parent)
             os.replace(stage, root)
             installed_stage = True
+            from .atomic_commit import _fsync_directory
+
+            _fsync_directory(root.parent)
             installed = inspect_instance(root, deep=True)
             if installed["status"] != "valid":
                 raise InstanceLifecycleError("restored Instance failed final validation")
@@ -353,7 +392,7 @@ class InstanceLifecycleManager:
                 "files": verified["files"],
                 "derived_state": verified["derived_state"],
             }
-        except Exception:
+        except BaseException:
             if installed_stage and root.exists():
                 shutil.rmtree(root, ignore_errors=True)
             if moved_previous and previous.exists():
@@ -362,8 +401,8 @@ class InstanceLifecycleManager:
             raise
         finally:
             shutil.rmtree(stage, ignore_errors=True)
-            if moved_previous:
-                shutil.rmtree(previous, ignore_errors=True)
+            # An incomplete rollback must retain its only live preimage. The
+            # lifecycle journal owns recovery; cleanup cannot erase that evidence.
 
     def _apply_migration_1_to_2(
         self,
@@ -381,7 +420,7 @@ class InstanceLifecycleManager:
             "migration_id": MIGRATION_1_TO_2,
             "status": "completed",
             "from_instance_schema_version": LEGACY_INSTANCE_SCHEMA_VERSION,
-            "to_instance_schema_version": CURRENT_INSTANCE_SCHEMA_VERSION,
+            "to_instance_schema_version": PRE_OBJECT_INSTANCE_SCHEMA_VERSION,
             "instance_id": backup["instance_id"],
             "started_at": started_at,
             "completed_at": completed_at,
@@ -398,7 +437,7 @@ class InstanceLifecycleManager:
             ],
         }
         updated_config = dict(config)
-        updated_config["schema_version"] = CURRENT_INSTANCE_SCHEMA_VERSION
+        updated_config["schema_version"] = PRE_OBJECT_INSTANCE_SCHEMA_VERSION
         self.store.write_config(updated_config)
         self.store._atomic_json(
             self.store.paths.migration_receipts / f"{MIGRATION_1_TO_2}.json",
@@ -419,7 +458,30 @@ class InstanceLifecycleManager:
         )
         return receipt
 
-    def prepare(self) -> dict[str, Any]:
+    def prepare(
+        self, *, migrate_objects: bool = False, allow_legacy: bool = False
+    ) -> dict[str, Any]:
+        recovery = None
+        if (self._read_json(self.pending_path) or {}).get("operation") == "object-migration":
+            with self._hold(purpose="instance-lifecycle-recovery"):
+                recovery = self._recover_pending()
+        try:
+            schema = self.store.read_config().get("schema_version")
+        except (OSError, ValueError, yaml.YAMLError):
+            raise InstanceLifecycleError("Instance validation failed before open") from None
+        if type(schema) is not int or schema not in SUPPORTED_INSTANCE_SCHEMAS:
+            raise InstanceLifecycleError(
+                "Instance validation failed before open: "
+                "unsupported Instance schema; no writes performed"
+            )
+        if schema < CURRENT_INSTANCE_SCHEMA_VERSION and migrate_objects:
+            from .object_migration import migrate_objects_instance
+
+            result = migrate_objects_instance(self)
+            result["recovery"] = recovery or result.get("recovery")
+            return result
+        if schema < CURRENT_INSTANCE_SCHEMA_VERSION and not allow_legacy:
+            raise InstanceLifecycleError("explicit object migration required: provelume migrate")
         from .instance_repair import InstanceRepairError, InstanceRepairManager
 
         repair = InstanceRepairManager(self.store)
@@ -431,7 +493,6 @@ class InstanceLifecycleManager:
                 raise InstanceLifecycleError(
                     "repair recovery is pending or restored a known invalid state"
                 ) from exc
-        recovery = None
         if self.pending_path.exists():
             with self._hold(purpose="instance-lifecycle-recovery"):
                 recovery = self._recover_pending()
@@ -451,6 +512,7 @@ class InstanceLifecycleManager:
                 or any(transaction_root.glob("capture-*"))
                 or any(transaction_root.glob("device-authority-*"))
                 or any(transaction_root.glob("submission-quarantine-*"))
+                or any(transaction_root.glob("knowledge-object-*"))
             )
         )
         if has_registered_transactions:
@@ -463,6 +525,7 @@ class InstanceLifecycleManager:
                 AtomicRecoveryHandler,
                 recover_atomic_transactions,
             )
+            from .knowledge_object_store import object_recovery_handler
             from .web_acquisition import _manual_web_recovery_handler
 
             with self._hold(purpose="instance-transaction-recovery"):
@@ -481,6 +544,7 @@ class InstanceLifecycleManager:
                             profile=TRANSCRIPT_INTAKE_TRANSACTION_PROFILE,
                         ),
                         AtomicRecoveryHandler(profile=REVIEW_TRANSACTION_PROFILE),
+                        object_recovery_handler(),
                     ),
                 )
             if transaction_recovery is not None:
@@ -519,57 +583,11 @@ class InstanceLifecycleManager:
                 "email_intake_recovery": email_intake_recovery,
                 "retention_recovery": retention_recovery,
             }
-        if schema != LEGACY_INSTANCE_SCHEMA_VERSION:
-            raise InstanceLifecycleError("Instance schema has no supported migration path")
-
-        with self._hold(purpose="instance-schema-migration"):
-            current = self.validate(deep=True)
-            if current["status"] != "valid":
-                raise InstanceLifecycleError("Instance migration preflight failed")
-            if current["instance_schema_version"] == CURRENT_INSTANCE_SCHEMA_VERSION:
-                self.store.validate()
-                return {
-                    "schema_version": LIFECYCLE_STATE_SCHEMA_VERSION,
-                    "status": "ready",
-                    "instance_schema_version": CURRENT_INSTANCE_SCHEMA_VERSION,
-                    "migration": None,
-                    "recovery": recovery,
-                    "transaction_recovery": transaction_recovery,
-                    "manual_web_recovery": manual_web_recovery,
-                    "email_intake_recovery": email_intake_recovery,
-                    "retention_recovery": retention_recovery,
-                }
-            backup = create_backup(self.store, reason="pre_migration_1_to_2")
-            self._write_pending(operation="migration", rollback=backup)
-            try:
-                receipt = self._apply_migration_1_to_2(backup=backup)
-                final = self.validate(deep=True)
-                if final["status"] != "valid" or final[
-                    "instance_schema_version"
-                ] != CURRENT_INSTANCE_SCHEMA_VERSION:
-                    raise InstanceLifecycleError("Instance migration verification failed")
-                self._clear_pending()
-            except Exception as exc:
-                try:
-                    self._replace_from_archive(
-                        Path(str(backup["archive"])),
-                        expected_instance_id=str(backup["instance_id"]),
-                    )
-                    self._clear_pending()
-                except Exception as rollback_exc:
-                    raise InstanceLifecycleError(
-                        "Instance migration failed and rollback could not be verified"
-                    ) from rollback_exc
-                raise InstanceLifecycleError(
-                    "Instance migration failed; the verified pre-migration backup was restored"
-                ) from exc
-        self.store.validate()
         return {
             "schema_version": LIFECYCLE_STATE_SCHEMA_VERSION,
-            "status": "migrated",
-            "instance_schema_version": CURRENT_INSTANCE_SCHEMA_VERSION,
-            "migration": receipt,
-            "backup": backup,
+            "status": "migration_required",
+            "instance_schema_version": schema,
+            "migration": None,
             "recovery": recovery,
             "transaction_recovery": transaction_recovery,
             "manual_web_recovery": manual_web_recovery,
@@ -583,7 +601,7 @@ class InstanceLifecycleManager:
         destination: Path | str | None = None,
         reason: str = "manual",
     ) -> dict[str, Any]:
-        self.prepare()
+        self.prepare(allow_legacy=True)
         with self._hold(purpose="instance-backup"):
             self._write_pending(operation="backup", rollback=None)
             try:
@@ -598,8 +616,10 @@ class InstanceLifecycleManager:
                 self._clear_pending()
                 raise
 
-    def restore(self, archive: Path | str) -> dict[str, Any]:
-        self.prepare()
+    def restore(
+        self, archive: Path | str, *, preserve_source_schema: bool = False
+    ) -> dict[str, Any]:
+        self.prepare(allow_legacy=True)
         requested = verify_backup(archive)
         current = self.validate(deep=True)
         instance_id = current.get("instance_id")
@@ -615,20 +635,36 @@ class InstanceLifecycleManager:
                 requested_archive_sha256=requested["archive_sha256"],
             )
             try:
-                restored = self._replace_from_archive(
+                migrations = []
+
+                def upgrade(stage_store):
+                    if requested["instance_schema_version"] < CURRENT_INSTANCE_SCHEMA_VERSION:
+                        from .object_migration import upgrade_objects_stage
+
+                        migrations.extend(
+                            upgrade_objects_stage(
+                                stage_store,
+                                backup=requested,
+                                backup_directory=self.control_root / "backups",
+                            )
+                        )
+
+                self._replace_from_archive(
                     Path(archive).expanduser().resolve(),
                     expected_instance_id=instance_id,
+                    stage_transform=None if preserve_source_schema else upgrade,
                 )
-                migration = None
-                if (
-                    restored["instance_schema_version"]
-                    == LEGACY_INSTANCE_SCHEMA_VERSION
-                ):
-                    migration = self._apply_migration_1_to_2(backup=requested)
+                migration = migrations[-1] if migrations else None
                 final = self.validate(deep=True)
-                if final["status"] != "valid" or final[
-                    "instance_schema_version"
-                ] != CURRENT_INSTANCE_SCHEMA_VERSION:
+                expected_schema = (
+                    requested["instance_schema_version"]
+                    if preserve_source_schema
+                    else CURRENT_INSTANCE_SCHEMA_VERSION
+                )
+                if (
+                    final["status"] != "valid"
+                    or final["instance_schema_version"] != expected_schema
+                ):
                     raise InstanceLifecycleError("restored Instance failed verification")
                 self._clear_pending()
             except Exception as exc:
@@ -645,12 +681,13 @@ class InstanceLifecycleManager:
                 raise InstanceLifecycleError(
                     "Instance restore failed; the verified pre-restore backup was restored"
                 ) from exc
-        self.store.validate()
+        if final["instance_schema_version"] == CURRENT_INSTANCE_SCHEMA_VERSION:
+            self.store.validate()
         return {
             "schema_version": LIFECYCLE_STATE_SCHEMA_VERSION,
             "status": "restored",
             "instance_id": instance_id,
-            "instance_schema_version": CURRENT_INSTANCE_SCHEMA_VERSION,
+            "instance_schema_version": final["instance_schema_version"],
             "requested_archive_sha256": requested["archive_sha256"],
             "rollback_backup": rollback,
             "migration": migration,

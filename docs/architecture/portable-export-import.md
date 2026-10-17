@@ -1,7 +1,7 @@
 # Portable export/import and cross-platform transfer
 
-Status: active product contract for `0.6/S05` under issue #95. Package and embedded release
-identity remain `0.5.1` until the separate `0.6.0` release-preparation change.
+Active product contract, extended by Entitas S02 #384. Application identity remains unchanged until
+the campaign's final identity/publication workstream.
 
 ## Portable bundle
 
@@ -96,6 +96,17 @@ control directory.
 Import intentionally preserves the exported Instance identity, acquired Original bytes, Versions,
 provenance, hierarchy IDs, classifications, dispositions and associations. It replaces rather than
 merges the target; multi-master synchronization and conflict resolution are outside this contract.
+
+Schema-3 bundles include all five object/evidence/revision/relation canonical families. Heads,
+immutable history and exact evidence references contribute to the canonical fingerprint and retain
+their original bytes through include/rebuild transfers. Exporting schema 1 or 2 leaves the source
+schema unchanged. Import validates the exact old schema/Instance/fingerprint against the bundle
+before explicitly upgrading only its private stage; the retained pre-migration backup and migration
+receipt bind the resulting fingerprint. The import receipt reports both source and installed
+fingerprints, rather than accepting a changed fingerprint without evidence. An older `include`
+bundle is first checked as exported; if object promotion changes its canonical fingerprint,
+disposable index/library state is explicitly rebuilt and that result is reported. Schema-3 `include`
+retains the established byte-preserving behavior.
 
 For [Custodia S06 AI accounting](ai-durable-jobs.md), the staged transaction has an
 additional conservative rule: incoming/current AI records must belong to the same

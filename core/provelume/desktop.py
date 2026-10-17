@@ -1521,6 +1521,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ui-diagnostics-theme", choices=("system", "light", "dark"),
                         default="system")
     parser.add_argument("--bootstrap-instance", type=Path)
+    parser.add_argument(
+        "--instance-result-file", type=Path,
+        help="New JSON report outside the Instance; use before --instance-command",
+    )
+    parser.add_argument(
+        "--instance-command", nargs=argparse.REMAINDER,
+        help="Explicit validate/migrate/backup/restore/export/import operator command",
+    )
     parser.add_argument("--instance-name", default="My Provelume")
     parser.add_argument("--validate-port", type=int)
     parser.add_argument("--initialize-shell-settings", action="store_true")
@@ -1552,6 +1560,7 @@ def main(arguments: list[str] | None = None) -> int:
             options.google_credential_smoke_file,
             options.ui_diagnostics_file,
             options.bootstrap_instance,
+            options.instance_command,
             options.validate_port,
             True if options.initialize_shell_settings else None,
             True if options.remove_login_startup else None,
@@ -1559,6 +1568,14 @@ def main(arguments: list[str] | None = None) -> int:
     )
     if selected_modes > 1:
         raise SystemExit("select only one desktop execution mode")
+    if options.instance_command is not None:
+        if options.instance_result_file is None:
+            return 2
+        from .instance_desktop import run_instance_command
+
+        return run_instance_command(options.instance_command, options.instance_result_file)
+    if options.instance_result_file is not None:
+        raise SystemExit("Instance result file requires the explicit operator mode")
     if options.import_publication is not None:
         if options.publication_manifest is None or options.publication_payload is None:
             return 2

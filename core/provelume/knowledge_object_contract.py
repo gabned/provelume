@@ -11,6 +11,10 @@ from typing import Any
 
 MAX_RECORD_BYTES = 256 * 1024
 MAX_REFERENCES = 128
+OBJECT_CANONICAL_KINDS = (
+    "objects", "object-evidence", "object-revisions", "object-relations",
+    "object-relation-revisions",
+)
 OBJECT_KINDS = frozenset({
     "entity", "claim", "decision", "project", "collection", "task", "outcome",
     "calendar_event", "commitment",

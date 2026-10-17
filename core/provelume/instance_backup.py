@@ -12,9 +12,8 @@ from typing import Any
 from uuid import uuid4
 
 from .instance_schema import (
-    CURRENT_INSTANCE_SCHEMA_VERSION,
     DERIVED_STATE_POLICY,
-    LEGACY_INSTANCE_SCHEMA_VERSION,
+    SUPPORTED_INSTANCE_SCHEMAS,
 )
 from .instance_validation import inspect_instance
 from .paths import normalise_locator, safe_instance_path
@@ -108,7 +107,7 @@ def _payload_files(store: InstanceStore) -> list[tuple[str, Path, int, str]]:
         relative = path.relative_to(store.paths.root).as_posix()
         if _excluded(relative):
             continue
-        if path.is_symlink():
+        if path.is_symlink() or path.is_junction():
             raise BackupError(
                 f"Instance-internal symbolic link cannot be backed up: {relative}"
             )
@@ -266,8 +265,8 @@ def _validated_entries(
         or not isinstance(manifest.get("created_at"), str)
         or not isinstance(manifest.get("reason"), str)
         or not isinstance(manifest.get("instance_id"), str)
-        or manifest.get("instance_schema_version")
-        not in {LEGACY_INSTANCE_SCHEMA_VERSION, CURRENT_INSTANCE_SCHEMA_VERSION}
+        or type(manifest.get("instance_schema_version")) is not int
+        or manifest.get("instance_schema_version") not in SUPPORTED_INSTANCE_SCHEMAS
         or manifest.get("derived_state") != DERIVED_STATE_POLICY
         or manifest.get("excluded_prefixes") != list(BACKUP_EXCLUDED_PREFIXES)
         or not isinstance(manifest.get("entries"), list)
