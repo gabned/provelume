@@ -183,7 +183,7 @@ def test_native_manifest_refuses_unreviewed_or_mixed_artifact_pins(field, value)
 
 @pytest.mark.parametrize("field,value", [
     ("id", "onnx"), ("version", "other"), ("format", "pickle"),
-    ("platform", "darwin"), ("app_version", "0.13.0"), ("configuration", b"{}"),
+    ("platform", "darwin"), ("app_version", "0.0.0"), ("configuration", b"{}"),
 ])
 def test_closed_runtime_matrix(field, value):
     selection = dataclasses.replace(runtime.native_selection(), **{field: value})

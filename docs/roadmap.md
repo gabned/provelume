@@ -27,14 +27,23 @@ request, tag, release or delivery commitment. Planned-version movement follows
 
 ## Release lane
 
-**Iudicium 0.13.0 development is active** through parent #349 and S01 #350,
-owner `product/0.13-s01-classification-evaluation`. The maintainer explicitly
-authorized this next development objective on 2026-10-13 after the bounded #348
-diagnostic, even while #348 remains OPEN / BLOCKED. Custodia v0.12.1 is already
-[public](https://github.com/gabned/provelume/releases/tag/v0.12.1); its prepared
-source records below still await the separate #348 documentary reconciliation.
-That residual and its original FAIL are not absorbed or requalified by Iudicium.
-Package identity remains 0.12.1; development activation does not authorize publication.
+**Iudicium 0.13.0 is in final release preparation** through parent #349 and final
+owner [#373](https://github.com/gabned/provelume/issues/373), branch
+`product/0.13-final-release`. Ordered S01–S05 are accepted, most recently on actual
+main `d38a1e847a3a2329a45db4bc6b505e42a5cfdb12`; the
+[S05 acceptance](https://github.com/gabned/provelume/pull/372#issuecomment-6235228155)
+retains every earlier source and host scope. Package identity is now 0.13.0 /
+Iudicium. The maintainer authorizes one final publication only after complete
+integrated qualification and the official chain. Source preparation does not
+establish public receipt, kit or installation readiness.
+
+Custodia v0.12.1 is already
+[public](https://github.com/gabned/provelume/releases/tag/v0.12.1), with immutable
+tag/assets/receipt/kit/readiness. #348 remains independent OPEN / BLOCKED,
+diagnosis CONCLUSA / NON_DIMOSTRATA; its original FAIL is not requalified.
+Classifier quality remains NOT_EVALUATED, confidence unavailable and automatic
+classification DENIED. Human checks and independent labels remain explicitly
+NOT_RUN/UNVERIFIED/NOT_REVIEWED, nonblocking by the maintainer's #349 decision.
 
 | State | Version | Product outcome | Activation | Latin name |
 | --- | --- | --- | --- | --- |
@@ -54,8 +63,8 @@ Package identity remains 0.12.1; development activation does not authorize publi
 | Published preview | `0.10.1` | Source onboarding, filtering and canonical brand correction | #198 completed; release #251 | `Emendatio` |
 | Published preview | `0.11.0` | Daily-use UX, Unified Capture, Action Center and multilingual interface | #255 S01–S09 delivered; #308 release record; [public identity/readiness](https://github.com/gabned/provelume/releases/tag/v0.11.0) | `Cura` |
 | Published preview | `0.12.0` | Optional local AI, privacy gateway and accountable document assistance | #311 S01–S09 delivered; #337/#338; [public release](https://github.com/gabned/provelume/releases/tag/v0.12.0) | `Custodia` |
-| Prepared preview | `0.12.1` | Custodia corrections: Cura/AI access, model progress, Windows local panel and closed native diagnostics | #339/#340; #341/#342/#343/#344; [release preparation](releases/0.12.1.md), actual delivery pending | Follow-up to `Custodia` |
-| Active development | `0.13.0` | AI classification, confidence and controlled application extending Custodia receipts/templates | #349; S01 #350; owner `product/0.13-s01-classification-evaluation` | `Iudicium` |
+| Published preview | `0.12.1` | Custodia corrections: Cura/AI access, model progress, Windows local panel and closed native diagnostics | #339/#340; #341/#342/#343/#344; [immutable public release](https://github.com/gabned/provelume/releases/tag/v0.12.1); #348 residual independent | Follow-up to `Custodia` |
+| Prepared preview | `0.13.0` | Attributable classification proposals, independent manual rules/undo and bounded derived-work autonomy; real quality NOT_EVALUATED, automatic classification DENIED | #349 S01–S05 accepted; final owner #373; [release record](releases/0.13.0.md) | `Iudicium` |
 | Forecast | `0.14.0` | Knowledge Objects v1 | issue just in time | `Entitas` |
 | Forecast | `0.15.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
 | Forecast | `0.16.0` | Knowledge navigation, statistics, relations and deterministic discovery | issue just in time | `Itinerarium` |
@@ -115,8 +124,10 @@ names do not replace SemVer, package identity, tags or the immutable published r
   gateway, base receipts/templates and manual evidence-linked single-document synthesis.
   Privacy, redaction, budgets and explicit fallback remain user-controlled; AI off stays supported.
 - **`0.13.0` — `Iudicium`.** Extends Custodia receipts, templates and adversarial/conformance
-  foundations with guarded classification, calibrated confidence, autonomy levels, reviewed rules
-  and reversible controlled application.
+  foundations with guarded classification proposals, synthetic evaluation contracts,
+  autonomy levels, reviewed rules and reversible manual application. Real classifier
+  quality/calibration remains NOT_EVALUATED; confidence grants no permission and
+  automatic classification remains DENIED.
 - **`0.14.0` — `Entitas`.** Adds evidence-linked objects, claims, decisions, tasks, calendar items
   and relations. Derived structure remains traceable to exact Originals and canonical records.
 - **`0.15.0` — `Concordia`.** Adds productivity connectors, guarded task synchronization and

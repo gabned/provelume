@@ -4,6 +4,16 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
+No unreleased changes.
+
+## 0.13.0 - 2026-10-17
+
+Iudicium combines the accepted S01–S05 classification/review/derived-processing
+journey and Cura primary interface. This source prepares one official Preview;
+actual publication and installation readiness require the verified publisher,
+unchanged public-byte readback, receipt, exact-version kit and readiness marker.
+Real classifier quality remains unevaluated and automatic classification denied.
+
 ### Changed
 
 - Reviewed classification policies enforce destination scope for primary and

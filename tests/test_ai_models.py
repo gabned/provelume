@@ -137,7 +137,7 @@ def test_admitted_registry_reads_reuse_immutable_parse(monkeypatch):
     ("unknown", "hook.py"), ("runtime_id", "llama.cpp"), ("runtime_version", "2"),
     ("format", "pickle"), ("format", "gguf-v3"), ("format", "onnx"),
     ("qualification", "OFFLINE_QUALIFIED"), ("channel", "recommended"),
-    ("app_version", "0.13.0"), ("id", "../model"), ("version", True),
+    ("app_version", "0.0.0"), ("id", "../model"), ("version", True),
     ("license", "unknown"), ("origin", "https://other.invalid"),
     ("url", "http://fixtures.invalid/a.zip"), ("url", "https://user:secret@fixtures.invalid/a"),
     ("url", "https://fixtures.invalid/a?secret=value"),
@@ -239,7 +239,7 @@ def test_package_structure_bounds_even_with_consistent_outer_hash(kind):
         inspect_package(raw, entry)
 
 
-@pytest.mark.parametrize("field,value", [("app_version", "0.13.0"), ("id", "other.runtime"),
+@pytest.mark.parametrize("field,value", [("app_version", "0.0.0"), ("id", "other.runtime"),
                                          ("version", "2"), ("platform", "darwin"),
                                          ("format", "gguf"), ("configuration", b"{}")])
 def test_unqualified_runtime_fails_before_acquisition(store, runtime, field, value):
