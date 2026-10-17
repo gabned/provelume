@@ -21,6 +21,7 @@ from provelume.instance_schema import (
     CURRENT_INSTANCE_SCHEMA_VERSION,
     DERIVED_STATE_POLICY,
     MIGRATION_1_TO_2,
+    MIGRATION_2_TO_3,
 )
 from provelume.instance_validation import inspect_instance
 from provelume.service import ProvelumeInstance
@@ -142,13 +143,13 @@ def test_opening_current_schema_does_not_hash_every_original(
     )
 
 
-def test_open_migrates_schema_1_after_verified_backup(tmp_path: Path) -> None:
+def test_explicit_migrate_retains_schema_1_to_2_before_objects(tmp_path: Path) -> None:
     instance, _note = _seed(tmp_path)
     before = _canonical_snapshot(instance.store)
     instance_id = instance.instance_summary()["id"]
     _legacy_instance(instance)
 
-    result = InstanceLifecycleManager(InstanceStore(instance.root)).prepare()
+    result = InstanceLifecycleManager(InstanceStore(instance.root)).prepare(migrate_objects=True)
 
     reopened = InstanceStore(instance.root)
     reopened.validate()
@@ -160,19 +161,17 @@ def test_open_migrates_schema_1_after_verified_backup(tmp_path: Path) -> None:
     assert backup["status"] == "valid"
     assert backup["instance_schema_version"] == 1
     assert backup["instance_id"] == instance_id
-    assert reopened.read_config()["schema_version"] == 2
+    assert reopened.read_config()["schema_version"] == CURRENT_INSTANCE_SCHEMA_VERSION
     assert manifest["instance"]["id"] == instance_id
-    assert manifest["migrations"] == [
-        {
-            "id": MIGRATION_1_TO_2,
-            "applied_at": receipt["completed_at"],
-            "receipt": f"state/migrations/receipts/{MIGRATION_1_TO_2}.json",
-        }
-    ]
+    assert manifest["migrations"][0] == {
+        "id": MIGRATION_1_TO_2,
+        "applied_at": receipt["completed_at"],
+        "receipt": f"state/migrations/receipts/{MIGRATION_1_TO_2}.json",
+    }
+    assert [m["id"] for m in manifest["migrations"]] == [MIGRATION_1_TO_2, MIGRATION_2_TO_3]
+    assert receipt["to_instance_schema_version"] == 2
     assert receipt["backup"]["sha256"] == backup["archive_sha256"]
-    assert receipt["preflight_content_fingerprint"] == backup[
-        "content_fingerprint"
-    ]
+    assert receipt["preflight_content_fingerprint"] == backup["content_fingerprint"]
     assert _canonical_snapshot(reopened) == before
     assert not InstanceLifecycleManager(reopened).pending_path.exists()
     assert InstanceLifecycleManager(reopened).lock_path.is_file()
@@ -186,7 +185,7 @@ def test_unknown_future_schema_fails_before_backup_or_mutation(tmp_path: Path) -
     before = instance.store.paths.config.read_bytes()
 
     report = inspect_instance(instance.root)
-    with pytest.raises(InstanceLifecycleError, match="validation failed before open"):
+    with pytest.raises(InstanceLifecycleError, match="unsupported Instance schema"):
         InstanceLifecycleManager(InstanceStore(instance.root)).prepare()
 
     assert report["status"] == "invalid"
@@ -219,9 +218,9 @@ def test_failed_migration_restores_schema_1_and_canonical_bytes(
     manager = InstanceLifecycleManager(InstanceStore(root))
     with pytest.raises(
         InstanceLifecycleError,
-        match="verified pre-migration backup was restored",
+        match="verified pre-migration image was retained",
     ):
-        manager.prepare()
+        manager.prepare(migrate_objects=True)
 
     restored = InstanceStore(root)
     assert restored.read_config()["schema_version"] == 1
@@ -248,7 +247,7 @@ def test_pending_migration_is_rolled_back_then_retried(tmp_path: Path) -> None:
     pending["hostname"] = socket.gethostname()
     instance.store._atomic_json(manager.pending_path, pending)
 
-    result = InstanceLifecycleManager(InstanceStore(instance.root)).prepare()
+    result = InstanceLifecycleManager(InstanceStore(instance.root)).prepare(migrate_objects=True)
 
     assert result["status"] == "migrated"
     recovery = result["recovery"]
@@ -397,13 +396,14 @@ def test_failed_restore_reinstalls_verified_pre_restore_state(
     original_replace = InstanceLifecycleManager._replace_from_archive
     calls = 0
 
-    def fail_after_requested_install(self, archive, *, expected_instance_id):
+    def fail_after_requested_install(self, archive, *, expected_instance_id, **kwargs):
         nonlocal calls
         calls += 1
         result = original_replace(
             self,
             archive,
             expected_instance_id=expected_instance_id,
+            **kwargs,
         )
         if calls == 1:
             raise OSError("synthetic failure after requested archive install")

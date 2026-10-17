@@ -3,8 +3,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-CURRENT_INSTANCE_SCHEMA_VERSION = 2
+CURRENT_INSTANCE_SCHEMA_VERSION = 3
 LEGACY_INSTANCE_SCHEMA_VERSION = 1
+PRE_OBJECT_INSTANCE_SCHEMA_VERSION = 2
+SUPPORTED_INSTANCE_SCHEMAS = (1, 2, 3)
 INSTANCE_MANIFEST_SCHEMA_VERSION = 1
 MIGRATION_RECEIPT_SCHEMA_VERSION = 1
 
@@ -15,6 +17,7 @@ DERIVED_STATE_POLICY = {
 }
 
 MIGRATION_1_TO_2 = "instance-schema-1-to-2"
+MIGRATION_2_TO_3 = "instance-schema-2-to-3"
 
 
 def build_instance_manifest(
@@ -33,7 +36,7 @@ def build_instance_manifest(
         raise ValueError("Instance configuration has no valid creation time")
     return {
         "schema_version": INSTANCE_MANIFEST_SCHEMA_VERSION,
-        "instance_schema_version": CURRENT_INSTANCE_SCHEMA_VERSION,
+        "instance_schema_version": config.get("schema_version", CURRENT_INSTANCE_SCHEMA_VERSION),
         "instance": {
             "id": instance_id,
             "created_at": created_at,
@@ -53,14 +56,16 @@ def manifest_validation_errors(
     errors: list[str] = []
     if value.get("schema_version") != INSTANCE_MANIFEST_SCHEMA_VERSION:
         errors.append("unsupported Instance manifest schema version")
-    if value.get("instance_schema_version") != CURRENT_INSTANCE_SCHEMA_VERSION:
+    if (
+        config.get("schema_version") not in (2, 3)
+        or type(value.get("instance_schema_version")) is not int
+        or value.get("instance_schema_version") != config.get("schema_version")
+    ):
         errors.append("Instance manifest schema identity does not match this Core")
 
     config_instance = config.get("instance")
     manifest_instance = value.get("instance")
-    if not isinstance(config_instance, Mapping) or not isinstance(
-        manifest_instance, Mapping
-    ):
+    if not isinstance(config_instance, Mapping) or not isinstance(manifest_instance, Mapping):
         errors.append("Instance manifest identity is invalid")
     else:
         for key in ("id", "created_at"):

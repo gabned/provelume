@@ -17,6 +17,7 @@ from provelume.cli import main
 from provelume.instance_backup import create_backup, verify_backup
 from provelume.instance_lifecycle import InstanceLifecycleManager
 from provelume.instance_validation import inspect_instance
+from provelume.knowledge_object_contract import OBJECT_CANONICAL_KINDS
 from provelume.portable_transfer import (
     PORTABLE_MANIFEST_NAME,
     PortableInstanceTransfer,
@@ -367,13 +368,16 @@ def test_import_round_trip_preserves_authoritative_state_and_rebuilds_views(
     assert rollback["content_fingerprint"] == replaced["content_fingerprint"]
 
 
-def test_export_migrates_n_minus_one_before_portable_snapshot(tmp_path: Path) -> None:
+def test_export_preserves_older_source_schema_without_migration(tmp_path: Path) -> None:
     instance = _seed(tmp_path / "instance")
     originals_before = _original_snapshot(instance.store)
     config = instance.store.read_config()
     config["schema_version"] = 1
     instance.store.write_config(config)
     instance.store.paths.manifest.unlink()
+    for kind in OBJECT_CANONICAL_KINDS:
+        for path in instance.store.paths.canonical_dir(kind).glob("*.json"):
+            path.unlink()
 
     result = PortableInstanceTransfer(InstanceStore(instance.root)).export(
         tmp_path / "migrated.zip"
@@ -381,10 +385,10 @@ def test_export_migrates_n_minus_one_before_portable_snapshot(tmp_path: Path) ->
     verified = verify_portable_bundle(tmp_path / "migrated.zip")
 
     assert result["status"] == "completed"
-    assert verified["instance_schema_version"] == 2
-    assert InstanceStore(instance.root).read_config()["schema_version"] == 2
+    assert verified["instance_schema_version"] == 1
+    assert InstanceStore(instance.root).read_config()["schema_version"] == 1
     assert _original_snapshot(InstanceStore(instance.root)) == originals_before
-    assert list(instance.store.paths.migration_receipts.glob("*.json"))
+    assert not list(instance.store.paths.migration_receipts.glob("*.json"))
 
 
 def test_import_migrates_a_valid_n_minus_one_portable_payload_in_staging(
@@ -396,6 +400,9 @@ def test_import_migrates_a_valid_n_minus_one_portable_payload_in_staging(
     config["schema_version"] = 1
     source.store.write_config(config)
     source.store.paths.manifest.unlink()
+    for kind in OBJECT_CANONICAL_KINDS:
+        for path in source.store.paths.canonical_dir(kind).glob("*.json"):
+            path.unlink()
     validation = inspect_instance(source.root, deep=True)
     rows, omitted = portable_transfer._payload_files(
         source.store,
@@ -416,7 +423,7 @@ def test_import_migrates_a_valid_n_minus_one_portable_payload_in_staging(
     assert imported["migration"]["status"] == "migrated"
     assert migrated_backup.is_file()
     assert verify_backup(migrated_backup)["instance_schema_version"] == 1
-    assert inspect_instance(target.root, deep=True)["instance_schema_version"] == 2
+    assert inspect_instance(target.root, deep=True)["instance_schema_version"] == 3
     assert _original_snapshot(InstanceStore(target.root)) == expected_originals
 
 

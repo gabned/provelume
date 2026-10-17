@@ -24,9 +24,10 @@ from .hierarchy_model import (
 from .instance_schema import (
     CURRENT_INSTANCE_SCHEMA_VERSION,
     DERIVED_STATE_POLICY,
-    LEGACY_INSTANCE_SCHEMA_VERSION,
+    SUPPORTED_INSTANCE_SCHEMAS,
     manifest_validation_errors,
 )
+from .knowledge_object_contract import OBJECT_CANONICAL_KINDS, KnowledgeObjectError
 from .ocr_contract import OcrContractError, ocr_settings_from_config
 from .paths import UnsafePathError, native_path, safe_instance_path
 from .retention_model import canonical_disposition_errors
@@ -1052,6 +1053,13 @@ def _canonical_records(
         directory = store.paths.canonical_dir(kind)
         selected: dict[str, dict[str, Any]] = {}
         records[kind] = selected
+        if directory.is_symlink() or directory.is_junction():
+            errors.append(
+                _finding(
+                    "canonical_directory_invalid", "Canonical directories cannot traverse links"
+                )
+            )
+            continue
         if not directory.is_dir() and (directory.exists() or directory.is_symlink()):
             errors.append(
                 _finding(
@@ -1072,9 +1080,39 @@ def _canonical_records(
             continue
         if not directory.is_dir():
             continue
+        if kind in OBJECT_CANONICAL_KINDS:
+            from .knowledge_object_store import MAX_OBJECT_RECORDS
+
+            children = sorted(directory.iterdir())
+            if len(children) > MAX_OBJECT_RECORDS or any(
+                not p.is_file() or p.suffix != ".json" for p in children
+            ):
+                errors.append(
+                    _finding(
+                        "canonical_record_invalid", "Object directories contain unsupported entries"
+                    )
+                )
+                continue
         for path in sorted(directory.glob("*.json")):
             relative = path.relative_to(store.paths.root).as_posix()
-            value, problem = _load_json(path)
+            if path.is_symlink() or path.is_junction():
+                errors.append(
+                    _finding(
+                        "canonical_record_invalid",
+                        "Canonical records cannot traverse links",
+                        path=relative,
+                    )
+                )
+                continue
+            if kind in OBJECT_CANONICAL_KINDS:
+                from .knowledge_object_store import load_object_file
+
+                try:
+                    value, problem = load_object_file(path, kind), None
+                except (KnowledgeObjectError, OSError, ValueError):
+                    value, problem = None, "invalid bounded object record"
+            else:
+                value, problem = _load_json(path)
             if problem is not None or value is None:
                 errors.append(
                     _finding(
@@ -1664,7 +1702,9 @@ def _validate_originals(
 
 
 def inspect_instance(
-    root: Path | str, *, deep: bool = True,
+    root: Path | str,
+    *,
+    deep: bool = True,
     _config_source: InstanceStore | None = None,
 ) -> dict[str, Any]:
     """Validate one Instance without migrating, repairing or rebuilding it."""
@@ -1717,10 +1757,7 @@ def inspect_instance(
                 path="provelume.yml",
             )
         )
-    elif schema not in {
-        LEGACY_INSTANCE_SCHEMA_VERSION,
-        CURRENT_INSTANCE_SCHEMA_VERSION,
-    }:
+    elif schema not in SUPPORTED_INSTANCE_SCHEMAS:
         errors.append(
             _finding(
                 "unsupported_legacy_schema",
@@ -1757,16 +1794,16 @@ def inspect_instance(
             )
         )
 
-    migration_required = schema == LEGACY_INSTANCE_SCHEMA_VERSION
+    migration_required = type(schema) is int and schema in SUPPORTED_INSTANCE_SCHEMAS and schema < 3
     if migration_required:
         warnings.append(
             _finding(
                 "migration_required",
-                "Instance schema 1 requires the supported forward migration to schema 2",
+                "Instance requires the explicit supported forward migration to schema 3",
                 path="provelume.yml",
             )
         )
-    elif schema == CURRENT_INSTANCE_SCHEMA_VERSION:
+    if schema in (2, 3):
         manifest, manifest_problem = _load_json(store.paths.manifest)
         if manifest_problem is not None or manifest is None:
             errors.append(
@@ -1786,15 +1823,18 @@ def inspect_instance(
                     )
                 )
 
+    if schema == 3:
+        for kind in OBJECT_CANONICAL_KINDS:
+            directory = store.paths.canonical_dir(kind)
+            if not directory.is_dir() or directory.is_symlink() or directory.is_junction():
+                errors.append(_finding("object_directory_missing",
+                                       "A canonical object directory is missing or unsafe"))
     records = {kind: {} for kind in CANONICAL_KINDS}
     fingerprint_rows = []
     original_files = 0
-    if deep and schema in {
-        LEGACY_INSTANCE_SCHEMA_VERSION,
-        CURRENT_INSTANCE_SCHEMA_VERSION,
-    }:
+    if deep and type(schema) is int and schema in SUPPORTED_INSTANCE_SCHEMAS:
         for path in sorted(store.paths.root.rglob("*")):
-            if path.is_symlink():
+            if path.is_symlink() or path.is_junction():
                 errors.append(
                     _finding(
                         "instance_symlink_unsupported",
@@ -1803,6 +1843,24 @@ def inspect_instance(
                     )
                 )
         records = _canonical_records(store, errors)
+        for entry in store.paths.knowledge.iterdir() if store.paths.knowledge.is_dir() else ():
+            if entry.name not in CANONICAL_KINDS and (entry.is_dir() or entry.suffix == ".json"):
+                errors.append(
+                    _finding(
+                        "unknown_canonical_state",
+                        "Unknown canonical state cannot be migrated or exported",
+                    )
+                )
+        if schema < 3 and any(records[kind] for kind in OBJECT_CANONICAL_KINDS):
+            errors.append(
+                _finding(
+                    "objects_require_schema_3", "Object-bearing state requires Instance schema 3"
+                )
+            )
+        if schema == 3:
+            from .knowledge_object_store import object_findings
+
+            object_findings(store, records, errors, warnings)
         _validate_references(store, records, errors)
         from .capture_integrity import capture_state_findings
         from .folder_sources import folder_source_state_findings

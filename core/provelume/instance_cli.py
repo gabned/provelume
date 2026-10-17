@@ -50,6 +50,11 @@ def add_instance_lifecycle_commands(subparsers: Any) -> None:
     )
     restore.add_argument("instance", type=Path)
     restore.add_argument("archive", type=Path)
+    restore.add_argument(
+        "--preserve-source-schema",
+        action="store_true",
+        help="Restore the exact older schema for an explicit source rollback",
+    )
 
     export = subparsers.add_parser(
         "export",
@@ -89,11 +94,13 @@ def handle_instance_lifecycle_command(args: argparse.Namespace) -> int | None:
             print(json.dumps(result, indent=2, sort_keys=True))
             return 0 if result["status"] == "valid" else 2
         if args.command == "migrate":
-            result = manager.prepare()
+            result = manager.prepare(migrate_objects=True)
         elif args.command == "backup":
             result = manager.backup(destination=args.output, reason="manual_cli")
         elif args.command == "restore":
-            result = manager.restore(args.archive)
+            result = manager.restore(
+                args.archive, preserve_source_schema=args.preserve_source_schema
+            )
         elif args.command == "export":
             result = PortableInstanceTransfer(manager.store).export(
                 args.output,

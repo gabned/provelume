@@ -1,8 +1,9 @@
 # Knowledge Objects v1: closed records and migration design
 
-S01 candidate for #376, parent #375. The pure contract in
-`core/provelume/knowledge_object_contract.py` defines inert JSON; it is not an
-activated store, API, migration or canonical write path. Valid syntax, an evidence
+S01 #376 defines the pure contract; S02 #384 adds canonical storage and explicit portable migration.
+The pure contract in `core/provelume/knowledge_object_contract.py` defines inert JSON. The storage
+backend has no application/review authority; manual services, API/UI and proposal workflows remain
+separate ordered slices. Valid syntax, an evidence
 digest and a `reviewed_proposal` origin never establish factual truth or permission.
 
 ## Identity, revisions and evidence
