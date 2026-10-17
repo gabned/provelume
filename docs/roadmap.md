@@ -1539,13 +1539,18 @@ network/tray/global capture remain 0.20; later release numbers stay unchanged.
 
 ### 0.13.0 — AI Classification, Controlled Autonomy, Receipts and Evaluation
 
-**Activation:** parent #349, first bounded slice #350; PRODUCT / REPOSITORY_POLICY,
-PR-local legacy. S01 extends existing templates/receipts and adds pure, bounded
-confidence evaluation with EN/IT synthetic fixtures. It does not enable production
-classification, create durable proposals, alter hierarchy or authorize application.
-See [ADR 0053](adr/0053-iudicium-assessment-evaluation.md). The current real model's
-classification quality is unqualified; this blocks later support/promotion claims,
-not independent S01 contract development. Subsequent slices remain just in time.
+**Current checkpoint:** parent #349 has all ordered S01–S05 accepted on actual
+main `d38a1e847a3a2329a45db4bc6b505e42a5cfdb12`; final identity, integrated Cura
+qualification and one official publication are owned by #373. PRODUCT /
+REPOSITORY_POLICY, PR-local legacy. S01's pure bounded confidence evaluation uses
+EN/IT synthetic fixtures; S02 adds attributable removable proposals, S03 independent
+manual review/application/undo, S04 separately controlled local derivation and S05
+the complete folder-to-knowledge execution journey. See
+[ADR 0053](adr/0053-iudicium-assessment-evaluation.md) and the
+[final qualification contract](qualification/0.13.0.md). Real classifier quality
+remains NOT_EVALUATED, confidence absent and automatic classification DENIED.
+Human observations and independent labels remain factual NOT_RUN/UNVERIFIED/
+NOT_REVIEWED, nonblocking by the maintainer's explicit #349 decision.
 
 **BUSINESS_IMPACT:** MATERIAL — reduce routine filing review time while preserving
 user control. Observe reviewed suggestion correctness, false-positive/abstention
@@ -1565,7 +1570,7 @@ are recorded in #349; S01 has no new UI or human/hardware attestation.
 classification attributable, reviewable, safely applicable and replaceable.
 
 **Includes:** extensions of Custodia's privacy-safe receipts, versioned templates, adversarial
-isolation and adapter conformance for classification, calibrated confidence and controlled
+isolation and adapter conformance for classification, evaluation contracts and controlled manual
 application. Document, metadata and hierarchical-classification proposals use the same gateway
 and Action Center; application receipts retain source/policy/output identity, reversibility and
 bounded retention. Extracted Markdown and AI-authored output stay separate. Additional optional
@@ -1575,9 +1580,11 @@ Classification maps the internal `disabled`, `proposal-only`, `confirm-each` and
 `controlled-automatic` policies to the plain-language autonomy levels established by Cura. Every
 proposal is bound to the exact Document Version/Original hash and may select only current
 allowlisted Area, Project, Collection and document-type identities through a closed schema. It
-includes reason, evidence references and confidence calibrated through qualified task/profile
-fixtures rather than raw or self-reported model certainty; stale or conflicting proposals
-fail before mutation.
+retains closed source/target references and an explicit assessment or abstention;
+stale or conflicting proposals fail before mutation. Calibrated confidence requires
+independent qualified task/profile evidence rather than raw or self-reported model
+certainty. That real evidence is not supplied by this release, so confidence stays
+absent and automatic classification stays denied.
 
 Confidence alone never grants authority. Controlled automation requires all of: an allowlisted
 reversible action class, an evaluated confidence threshold, an explicit Source/Area/Project scope,
@@ -1590,7 +1597,10 @@ threshold and expiry, with pause, dry-run, undo/compensation and a visible opera
 The autonomy choice is separate for classification and for derived document work. OCR,
 transcription, representation building, indexing and summarization may run automatically only as
 rebuildable derived jobs inside their own resource/privacy policy; a higher processing level never
-authorizes canonical classification. Destructive actions, permanent purge, retention decisions,
+authorizes canonical classification. The current reviewed automatic derivation allowlist is
+extraction, local text representation and scoped index refresh; OCR, transcription, media and
+synthesis keep their existing separate component/resource/privacy/consent controls.
+Destructive actions, permanent purge, retention decisions,
 external provider writes, sending, identity merges and unsupported transformations remain outside
 controlled automation.
 
