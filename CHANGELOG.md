@@ -6,6 +6,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
+- Windows local-file verification avoids repeated API setup while retaining fresh
+  locality queries, file handles, metadata checks and content reads.
 - Failed Windows public-package admission retains bounded stage timing, remaining
   request budget and verification counters; Installed CI prints closed failure
   details without requiring the diagnostic ZIP for initial triage.
