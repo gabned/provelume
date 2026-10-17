@@ -555,3 +555,122 @@ def test_unrepresentable_legacy_hierarchy_is_rejected_without_inventing_identity
     after = {row["path"]: row for row in tree_inventory(instance.root)}
     assert all(after[path] == row for path, row in before.items())
     assert instance.store.read_config()["schema_version"] == 2
+
+
+def test_frozen_operator_explicit_migration_and_backup_rollback_without_gui_or_server(
+    tmp_path, monkeypatch
+):
+    from provelume import desktop
+    from provelume.shell_settings import default_settings
+
+    instance, _ = _legacy(tmp_path)
+    monkeypatch.setattr(desktop, "load_settings", default_settings)
+    monkeypatch.setattr(desktop, "run_ui", lambda **kw: pytest.fail("operator command opened GUI"))
+    monkeypatch.setattr(desktop.uvicorn, "run", lambda *a, **kw: pytest.fail("unexpected server"))
+    with pytest.raises(InstanceLifecycleError, match="explicit object migration"):
+        desktop.main(["--serve", str(instance.root), "--port", "8123"])
+    before = tree_inventory(instance.root)
+    validate = tmp_path / "validate.json"
+    assert (
+        desktop.main(
+            [
+                "--instance-result-file",
+                str(validate),
+                "--instance-command",
+                "validate",
+                str(instance.root),
+            ]
+        )
+        == 0
+    )
+    assert json.loads(validate.read_text())["migration_required"] is True
+    assert tree_inventory(instance.root) == before
+    result = tmp_path / "migration.json"
+    assert (
+        desktop.main(
+            [
+                "--instance-result-file",
+                str(result),
+                "--instance-command",
+                "migrate",
+                str(instance.root),
+            ]
+        )
+        == 0
+    )
+    migration = json.loads(result.read_text())
+    assert migration["status"] == "migrated" and migration["instance_schema_version"] == 3
+    assert ProvelumeInstance(instance.root).instance_summary()["schema_version"] == 3
+    backup_result = tmp_path / "backup-result.json"
+    assert (
+        desktop.main(
+            [
+                "--instance-result-file",
+                str(backup_result),
+                "--instance-command",
+                "backup",
+                str(instance.root),
+            ]
+        )
+        == 0
+    )
+    assert verify_backup(json.loads(backup_result.read_text())["archive"])["status"] == "valid"
+    _persist(instance.store, _entity(instance.store))
+    later = inspect_instance(instance.root, deep=True)["content_fingerprint"]
+    restore = tmp_path / "restore.json"
+    assert (
+        desktop.main(
+            [
+                "--instance-result-file",
+                str(restore),
+                "--instance-command",
+                "restore",
+                str(instance.root),
+                migration["backup"]["archive"],
+                "--preserve-source-schema",
+            ]
+        )
+        == 0
+    )
+    restored = json.loads(restore.read_text())
+    assert restored["instance_schema_version"] == 2
+    assert verify_backup(restored["rollback_backup"]["archive"])["content_fingerprint"] == later
+
+
+@pytest.mark.parametrize("destination", ["inside_instance", "existing_file", "missing_parent"])
+def test_frozen_operator_requires_a_new_external_report_before_mutating(tmp_path, destination):
+    from provelume.desktop import main
+
+    instance, _ = _legacy(tmp_path)
+    report = tmp_path / "result.json"
+    if destination == "inside_instance":
+        report = instance.root / "result.json"
+    elif destination == "existing_file":
+        report.write_bytes(b"retained prior receipt")
+    else:
+        report = tmp_path / "absent" / "result.json"
+    before = tree_inventory(instance.root)
+    assert (
+        main(
+            [
+                "--instance-result-file",
+                str(report),
+                "--instance-command",
+                "migrate",
+                str(instance.root),
+            ]
+        )
+        == 2
+    )
+    assert tree_inventory(instance.root) == before
+    if destination == "existing_file":
+        assert report.read_bytes() == b"retained prior receipt"
+
+
+@pytest.mark.parametrize("arguments", [["serve", "instance"], ["check-update"], []])
+def test_frozen_operator_cannot_dispatch_unrelated_commands(tmp_path, arguments):
+    from provelume.desktop import main
+
+    report = tmp_path / "result.json"
+    assert main(["--instance-result-file", str(report), "--instance-command", *arguments]) == 2
+    assert not report.exists()

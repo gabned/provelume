@@ -104,7 +104,13 @@ def test_windows_upgrade_proves_schema_compatibility_for_public_baselines() -> N
     assert "The installer mutated the Instance" in text
     assert 'Join-Path $InstanceRoot "instance-manifest.json"' in text
     assert "state\\migrations\\receipts\\instance-schema-1-to-2.json" in text
-    assert '$Instance.schema_version -ne 2' in text
+    assert '$Instance.schema_version -ne 3' in text
+    assert '"--instance-command", "migrate"' in text
+    assert '"--instance-result-file"' in text
+    assert "PostMigrationInstanceTreeSha256" in text
+    assert '"state\\migrations\\receipts\\instance-schema-2-to-3.json"' in text
+    assert "$ExpectedObjectReceiptSha256" in text
+    assert "$ExpectedObjectBackupSha256" in text
     assert '$Instance.manifest_schema_version -ne 1' in text
     assert '$Instance.migrations_applied -ne $ExpectedMigrationCount' in text
     assert '$Manifest.derived_state.indexes -ne "rebuild"' in text

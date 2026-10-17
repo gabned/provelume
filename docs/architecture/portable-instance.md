@@ -153,6 +153,21 @@ open until an explicit forward migration. It is a whole-snapshot restoration: la
 merged, and their verified pre-restore backup is returned as `rollback_backup`. Retain that archive
 before choosing which source version to reopen; there is no lossy in-place downgrade.
 
+The frozen Windows runtime exposes these same six operator commands without an installed Python
+or Git. Stop the runtime using the Instance, then use a **new** report file outside the Instance:
+
+```powershell
+Provelume.exe --instance-result-file "C:\Evidence\migration.json" --instance-command migrate "C:\My Instance"
+Provelume.exe --instance-result-file "C:\Evidence\rollback.json" --instance-command restore "C:\My Instance" "C:\Backups\before.zip" --preserve-source-schema
+```
+
+`validate`, `backup`, `export` and `import` use the same native argument grammar after
+`--instance-command`. The report path must precede that flag. It is created exclusively before
+any action; an existing report or a path inside the Instance is refused before mutation. The
+result contains the native JSON outcome; a nonzero process exit or incomplete report is not
+success. This explicit mode starts neither the GUI nor a server and dispatches no other commands.
+Installing, launching or selecting an Instance never grants implicit migration authority.
+
 The sibling control directory keeps the pending marker and lifecycle lock outside the directory
 being replaced. The persistent lock metadata file is guarded by an OS advisory lock, so process
 termination releases ownership in the kernel and contenders never delete/reclaim a pathname that a
