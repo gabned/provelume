@@ -74,11 +74,33 @@ class PreparedWrite:
             raise ReviewError("Immutable review writes must create a new record")
 
 
+@dataclass(frozen=True, slots=True)
+class PreparedClassificationRemoval:
+    """A conditional undo to unclassified; never a general file-removal capability."""
+
+    relative: str
+    expected_sha256: str
+    data: None = None
+    immutable: bool = False
+
+    def __post_init__(self) -> None:
+        relative_path(self.relative)
+        if (
+            re.fullmatch(
+                r"knowledge/classifications/classification_[0-9a-f]{32}\.json", self.relative,
+            ) is None
+            or not isinstance(self.expected_sha256, str)
+            or _HASH.fullmatch(self.expected_sha256) is None
+            or self.data is not None or self.immutable is not False
+        ):
+            raise ReviewError("Review removal requires an exact existing classification preimage")
+
+
 @dataclass(frozen=True, slots=True, init=False)
 class PreparedEffect:
     domain: str
     action: str
-    writes: tuple[PreparedWrite, ...]
+    writes: tuple[PreparedWrite | PreparedClassificationRemoval, ...]
     _result_json: bytes
     history_ref: str
     effect: str
@@ -88,7 +110,7 @@ class PreparedEffect:
         self,
         domain: str,
         action: str,
-        writes: tuple[PreparedWrite, ...],
+        writes: tuple[PreparedWrite | PreparedClassificationRemoval, ...],
         result: dict[str, Any],
         history_ref: str,
         effect: str,
@@ -100,9 +122,11 @@ class PreparedEffect:
         if (
             not selected
             or len(selected) > MAX_WRITES
-            or any(not isinstance(x, PreparedWrite) for x in selected)
+            or any(
+                not isinstance(x, (PreparedWrite, PreparedClassificationRemoval)) for x in selected
+            )
             or len({x.relative for x in selected}) != len(selected)
-            or sum(len(x.data) for x in selected) > MAX_EFFECT_BYTES
+            or sum(len(x.data) for x in selected if x.data is not None) > MAX_EFFECT_BYTES
         ):
             raise ReviewError("Invalid or unbounded review effect writes")
         relative_path(history_ref)

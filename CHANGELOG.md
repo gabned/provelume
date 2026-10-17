@@ -6,6 +6,8 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Changed
 
+- Reviewed classification policies enforce destination scope for primary and
+  secondary role changes, including swaps that keep the same destination IDs.
 - Windows local-file verification avoids repeated API setup while retaining fresh
   locality queries, file handles, metadata checks and content reads.
 - Failed Windows public-package admission retains bounded stage timing, remaining
@@ -28,6 +30,10 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ### Added
 
+- Scoped classification policies and explicit manual destination review reuse the
+  existing local permissions and atomic receipts. Conflict-safe undo restores the
+  previous classification, including an initially unclassified state. Automatic
+  classification remains blocked while real task quality is unevaluated.
 - Explicit document classification requests through the existing AI preview,
   consent and scheduler, with receipt-bound private assessment records, review
   and derived-output removal in the existing Action Center. Native and configured

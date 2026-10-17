@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provelume.local/schemas/classification-autonomy-v1",
+  "title": "Reviewed classification policy and attributable application history",
+  "oneOf": [{"$ref": "#/$defs/policy"}, {"$ref": "#/$defs/history"}],
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "preimage": {"oneOf": [{"$ref": "#/$defs/hash"}, {"const": "ABSENT"}]},
+    "receipt": {"type": "string", "pattern": "^review_[0-9a-f]{32}$"},
+    "time": {"type": "string", "minLength": 1, "maxLength": 80},
+    "policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "id", "revision", "source_id", "path_prefix", "target_hashes", "profile_fingerprint", "languages", "expires_at", "mode", "impact", "max_applications", "used", "quality_revision", "last_receipt", "principal", "created_at", "updated_at"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "id": {"type": "string", "pattern": "^autonomy_[0-9a-f]{32}$"},
+        "revision": {"type": "integer", "minimum": 1, "maximum": 2147483647},
+        "source_id": {"type": "string", "pattern": "^src_[0-9a-f]{32}$"},
+        "path_prefix": {"type": "string", "maxLength": 512},
+        "target_hashes": {
+          "type": "object", "minProperties": 1, "maxProperties": 64,
+          "propertyNames": {"pattern": "^(area|project|collection)_[0-9a-f]{32}$"},
+          "additionalProperties": {"$ref": "#/$defs/hash"}
+        },
+        "profile_fingerprint": {"$ref": "#/$defs/hash"},
+        "languages": {"type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": {"enum": ["en", "it"]}},
+        "expires_at": {"$ref": "#/$defs/time"},
+        "mode": {"enum": ["disabled", "proposal-only", "confirm-each", "controlled-automatic"]},
+        "impact": {"const": "classification-metadata-only"},
+        "max_applications": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "used": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "quality_revision": {"$ref": "#/$defs/hash"},
+        "last_receipt": {"$ref": "#/$defs/receipt"},
+        "principal": {"enum": ["local_browser", "local_cli"]},
+        "created_at": {"$ref": "#/$defs/time"}, "updated_at": {"$ref": "#/$defs/time"}
+      }
+    },
+    "history": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "domain", "subject", "action", "request_id", "principal", "recorded_at", "input_revision", "plan_revision", "policy_before", "policy_after", "classification_before", "classification_after", "classification_before_raw", "classification_before_sha256", "classification_after_sha256", "source_identity", "job_id", "assessment_sha256", "undo_of", "result"],
+      "properties": {
+        "schema_version": {"const": 1}, "domain": {"const": "iudicium"},
+        "subject": {"type": "string", "pattern": "^(doc|autonomy)_[0-9a-f]{32}$"},
+        "action": {"enum": ["save_policy", "revoke_policy", "apply", "undo"]},
+        "request_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,128}$"},
+        "principal": {"enum": ["local_browser", "local_cli"]},
+        "recorded_at": {"$ref": "#/$defs/time"},
+        "input_revision": {"$ref": "#/$defs/hash"}, "plan_revision": {"$ref": "#/$defs/hash"},
+        "policy_before": {"oneOf": [{"$ref": "#/$defs/policy"}, {"type": "null"}]},
+        "policy_after": {"oneOf": [{"$ref": "#/$defs/policy"}, {"type": "null"}]},
+        "classification_before": {"type": ["object", "null"]},
+        "classification_after": {"type": ["object", "null"]},
+        "classification_before_raw": {"type": ["string", "null"], "maxLength": 21848},
+        "classification_before_sha256": {"$ref": "#/$defs/preimage"},
+        "classification_after_sha256": {"$ref": "#/$defs/preimage"},
+        "source_identity": {"type": ["object", "null"]},
+        "job_id": {"oneOf": [{"type": "string", "pattern": "^job_[0-9a-f]{32}$"}, {"type": "null"}]},
+        "assessment_sha256": {"oneOf": [{"$ref": "#/$defs/hash"}, {"type": "null"}]},
+        "undo_of": {"oneOf": [{"$ref": "#/$defs/receipt"}, {"type": "null"}]},
+        "result": {"type": "object"}
+      }
+    }
+  }
+}

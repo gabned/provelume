@@ -2144,5 +2144,21 @@
   "classification.target_kind": "Groupe de destinations",
   "classification.full_context": "Le texte sélectionné complet doit respecter la limite existante. Jusqu’à 64 destinations actuelles d’un groupe sont autorisées ; l’aperçu montre toutes les destinations et le texte pouvant être envoyé.",
   "classification.consent": "J’approuve uniquement cette suggestion avec le texte, les destinations et le parcours IA affichés. Sa qualité n’est pas évaluée ; aucun classement n’est appliqué.",
-  "classification.generate": "Demander une suggestion"
+  "classification.generate": "Demander une suggestion",
+  "review.iudicium": "Révision et autonomie de classification",
+  "review.save_policy": "Créer ou réviser une règle",
+  "review.revoke_policy": "Désactiver la règle",
+  "review.apply": "Appliquer les destinations révisées",
+  "review.policy": "Règles de classification",
+  "review.assessment": "Évaluation enregistrée",
+  "review.assessment_help": "Évaluations récentes enregistrées. La confirmation revérifie la source et les règles actuelles.",
+  "review.task_languages": "Langues de la tâche",
+  "review.expires_at": "Expiration UTC (90 jours maximum)",
+  "review.max_applications": "Nombre maximal d’applications",
+  "review.application": "Reçu de l’application à annuler",
+  "review.classification_manual": "Examinez la source et choisissez vous-même les destinations. La qualité du classificateur n’a pas été évaluée ; la confiance du modèle n’accorde aucun droit.",
+  "review.classification_automatic_blocked": "L’application automatique reste bloquée jusqu’à la qualification réelle de la tâche et une nouvelle révision de la règle modifiée.",
+  "review.classification_reviewed": "J’ai examiné la source indépendamment et choisi ces destinations.",
+  "review.effect_classification": "Modifie uniquement les métadonnées de classification dans les limites de la source, des destinations, du délai et du budget révisés. Originaux et Versions sont conservés.",
+  "review.reverse_classification": "Annuler rétablit la classification précédente, y compris l’état initial non classé. Des modifications ultérieures bloquent l’annulation ; historique et usage restent conservés."
 }

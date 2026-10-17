@@ -2144,5 +2144,21 @@
   "classification.target_kind": "Grupo de destinos",
   "classification.full_context": "O texto selecionado completo deve respeitar o limite existente. São permitidos até 64 destinos atuais de um grupo; a pré-visualização mostra todos os destinos e o texto que pode ser enviado.",
   "classification.consent": "Aprovo apenas esta sugestão com o texto, destinos e percurso de IA apresentados. A qualidade não foi avaliada; nenhuma classificação é aplicada.",
-  "classification.generate": "Pedir sugestão"
+  "classification.generate": "Pedir sugestão",
+  "review.iudicium": "Revisão e autonomia da classificação",
+  "review.save_policy": "Criar ou rever uma regra",
+  "review.revoke_policy": "Desativar a regra",
+  "review.apply": "Aplicar destinos revistos",
+  "review.policy": "Regras de classificação",
+  "review.assessment": "Avaliação registada",
+  "review.assessment_help": "Avaliações recentes registadas. A confirmação volta a verificar a fonte e as regras atuais.",
+  "review.task_languages": "Idiomas da tarefa",
+  "review.expires_at": "Validade UTC (até 90 dias)",
+  "review.max_applications": "Máximo de aplicações",
+  "review.application": "Recibo da aplicação a anular",
+  "review.classification_manual": "Examine a fonte e escolha pessoalmente os destinos. A qualidade do classificador não foi avaliada; a confiança do modelo não concede permissões.",
+  "review.classification_automatic_blocked": "A aplicação automática permanece bloqueada até à qualificação real da tarefa e nova revisão da regra alterada.",
+  "review.classification_reviewed": "Examinei a fonte de forma independente e escolhi estes destinos.",
+  "review.effect_classification": "Altera apenas metadados de classificação dentro da fonte, destinos, prazo e orçamento revistos. Originais e Versões são preservados.",
+  "review.reverse_classification": "Anular repõe a classificação anterior, incluindo o estado inicial não classificado. Alterações posteriores impedem a anulação; histórico e utilização são preservados."
 }

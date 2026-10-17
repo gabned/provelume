@@ -50,6 +50,21 @@
 
   function parameters() {
     const action = actionControl.value;
+    if (domain === "iudicium") {
+      if (action === "save_policy") return {
+        job_id: value("job_id"), path_prefix: value("path_prefix"),
+        target_ids: selected("target_ids"), languages: selected("languages"),
+        expires_at: value("expires_at"), mode: value("mode"),
+        max_applications: Number(value("max_applications")),
+      };
+      if (action === "apply") return {
+        job_id: value("job_id"), policy_id: value("policy_id"),
+        primary_node_id: value("primary_node_id"), secondary_node_ids: selected("secondary_node_ids"),
+        reviewed: field("reviewed").checked,
+      };
+      if (action === "undo") return {application: value("application")};
+      return {};
+    }
     if (action === "classify" || action === "save_rule") {
       const result = {primary_node_id: value("primary_node_id"), secondary_node_ids: selected("secondary_node_ids")};
       if (action === "save_rule") Object.assign(result, {

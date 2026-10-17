@@ -2144,5 +2144,21 @@
   "classification.target_kind": "Grup de destinații",
   "classification.full_context": "Textul selectat complet trebuie să respecte limita existentă. Sunt permise cel mult 64 de destinații curente dintr-un grup; previzualizarea arată toate destinațiile și textul care poate fi trimis.",
   "classification.consent": "Aprob doar această sugestie cu textul, destinațiile și ruta AI afișate. Calitatea nu este evaluată; nu se aplică nicio clasificare.",
-  "classification.generate": "Solicită sugestia"
+  "classification.generate": "Solicită sugestia",
+  "review.iudicium": "Revizuirea și autonomia clasificării",
+  "review.save_policy": "Creează sau revizuiește o regulă",
+  "review.revoke_policy": "Dezactivează regula",
+  "review.apply": "Aplică destinațiile revizuite",
+  "review.policy": "Reguli de clasificare",
+  "review.assessment": "Evaluare înregistrată",
+  "review.assessment_help": "Evaluări recente înregistrate. Confirmarea verifică din nou sursa și regulile curente.",
+  "review.task_languages": "Limbile sarcinii",
+  "review.expires_at": "Expirare UTC (cel mult 90 de zile)",
+  "review.max_applications": "Număr maxim de aplicări",
+  "review.application": "Recipisa aplicării de anulat",
+  "review.classification_manual": "Examinează sursa și alege personal destinațiile. Calitatea clasificatorului nu a fost evaluată; încrederea modelului nu acordă permisiuni.",
+  "review.classification_automatic_blocked": "Aplicarea automată rămâne blocată până la calificarea reală a sarcinii și o nouă revizuire a regulii modificate.",
+  "review.classification_reviewed": "Am examinat independent sursa și am ales aceste destinații.",
+  "review.effect_classification": "Modifică doar metadatele de clasificare în limitele sursei, destinațiilor, termenului și bugetului revizuite. Originalele și Versiunile sunt păstrate.",
+  "review.reverse_classification": "Anularea restabilește clasificarea precedentă, inclusiv starea inițială neclasificată. Modificările ulterioare blochează anularea; istoricul și utilizarea sunt păstrate."
 }

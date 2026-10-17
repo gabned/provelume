@@ -13,6 +13,7 @@ CAPABILITIES = {
     "duplicates": ("link_exact", "relate", "keep_separate", "new_version"),
     "versions": ("select_current", "new_version"),
     "annotations": ("save", "undo"),
+    "iudicium": ("save_policy", "revoke_policy", "apply", "undo"),
 }
 
 
@@ -107,6 +108,7 @@ def validate_review_origin(store, origin, records):
 
 def review_state_findings(store, records):
     from .annotation_store import annotation_state_findings
+    from .classification_review import ClassificationReview
     from .review_authority import ReviewAuthority
     from .review_routing import RoutingProvider
 
@@ -123,6 +125,8 @@ def review_state_findings(store, records):
             raise ReviewUnavailable("Retained review state is not a directory")
         ReviewAuthority(store, CAPABILITIES).read()
         RoutingProvider(store).rules()
+        classification = ClassificationReview(store)
+        classification.policies()
         root = checked_path(store, "state/review/receipts")
         if root.exists():
             if not root.is_dir():
@@ -137,6 +141,10 @@ def review_state_findings(store, records):
                 raw = read_bytes(store, receipt["history_ref"])
                 if raw is None or sha256(raw) != receipt["history_sha256"]:
                     raise ReviewUnavailable("Review receipt refers to missing or changed history")
+                if receipt["domain"] == "iudicium":
+                    from .review_routing import _Inputs
+
+                    classification._history(receipt["id"], _Inputs(store))
                 if (
                     receipt["domain"] in {"duplicates", "versions"}
                     and receipt["action"] == "new_version"
