@@ -866,7 +866,7 @@ def test_ai_classification_is_closed_reviewable_and_reconcilable() -> None:
     roadmap = _read(ROADMAP_PATH)
 
     assert roadmap.count(
-        "| Prepared preview | `0.13.0` | Attributable classification proposals, "
+        "| Published preview | `0.13.0` | Attributable classification proposals, "
         "independent manual rules/undo and bounded derived-work autonomy; "
         "real quality NOT_EVALUATED, automatic classification DENIED |"
     ) == 1
