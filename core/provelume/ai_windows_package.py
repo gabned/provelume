@@ -12,10 +12,11 @@ import json
 import os
 import re
 import stat
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager, nullcontext, suppress
 from pathlib import Path, PurePosixPath
 from time import monotonic
 
+from .ai_authority_observation import observe_authority
 from .ai_runtime_limits import check
 
 RESOURCE_ID = 0xC012
@@ -113,7 +114,10 @@ class _PublicInventoryObservation:
         self.files_total = self.grants_total = None
         self.files_verified = self.bytes_hashed = self.grants_completed = 0
         self.checkpoint_calls = 0
-        self.timings = {"checkpoint": 0.0, "acl": 0.0}
+        self.timings = {"checkpoint": 0.0, "acl": 0.0,
+                        **dict.fromkeys(("authority_" + part for part in
+                                         ("configuration", "control", "models", "selection")), 0.0)}
+        self.authority_observed = False
         self.timings_complete = True
 
     def mark(self, stage):
@@ -133,7 +137,8 @@ class _PublicInventoryObservation:
             if native_code is not None:
                 c.set_last_error(native_code)
         try:
-            yield
+            with observe_authority(self) if kind == "checkpoint" else nullcontext():
+                yield
         finally:
             native_code = c.get_last_error() if os.name == "nt" else None
             try:
@@ -153,6 +158,8 @@ class _PublicInventoryObservation:
         self.timings[kind] += elapsed
         if kind == "checkpoint":
             self.checkpoint_calls += 1
+        elif kind.startswith("authority_"):
+            self.authority_observed = True
 
     def snapshot(self):
         now = monotonic()
@@ -169,6 +176,10 @@ class _PublicInventoryObservation:
             result.update(checkpoint_calls=self.checkpoint_calls,
                           checkpoint_elapsed_ms=int(self.timings["checkpoint"] * 1000),
                           acl_elapsed_ms=int(self.timings["acl"] * 1000))
+            if self.authority_observed:
+                result.update({f"checkpoint_{part}_elapsed_ms":
+                               int(self.timings["authority_" + part] * 1000)
+                               for part in ("configuration", "control", "models", "selection")})
         return result
 
 
