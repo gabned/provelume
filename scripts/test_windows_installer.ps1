@@ -112,6 +112,14 @@ $ApprovedPreviousBaselines = @(
         sha256 = "e82f90cbe6d8b49255d8e5b713f855afa74de9322eb1fafaf0204c473ae8a0f1"
         wheel_size = 8613651
         wheel_sha256 = "9c1b21ee58e495f88d16075c918b88fedf08ca63747cd39cb6864d15725688e5"
+    },
+    @{
+        version = "0.12.1"
+        commit = "cd7dc64f3ffb2a17689018b3350f0e1c073abdd4"
+        size = 24593385
+        sha256 = "fd613de0be45bbf3d2e74a8b341c4baf75626b32d40017f4ea258f219bf596ce"
+        wheel_size = 8628204
+        wheel_sha256 = "e0889d5c254b2ce9a245f49491b0461ce4aa9c07376d08542e6baa3c5bb25e96"
     }
 )
 $IdentifiedBaseline = $ApprovedPreviousBaselines |
