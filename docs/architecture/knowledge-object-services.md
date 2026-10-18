@@ -102,6 +102,9 @@ immutable chain; `list` returns bounded head summaries explicitly marked
 linked/junction components, including replacement links in an already-open
 Instance's ancestors. Errors use fixed codes, not private text/paths. Source growth
 or byte mismatch fails within the budget.
+Every loaded object, revision, Relation and Evidence must carry the exact requested
+canonical ID. An otherwise valid record under another identity is refused, including
+when reading evidence availability or explicitly withdrawing an assertion.
 
 ## Local operator example
 
