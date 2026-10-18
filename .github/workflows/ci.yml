@@ -166,7 +166,9 @@ jobs:
     name: Core tests (${{ matrix.os }})
     if: github.event_name != 'pull_request_target'
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    # Include dependency setup and the expanded complete native suite. Product
+    # responsiveness/resource gates retain their own independently checked limits.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
