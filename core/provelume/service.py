@@ -267,6 +267,12 @@ class ProvelumeInstance:
 
         return ModelStore.for_instance(self.root)
 
+    def object_services(self):
+        """Explicit manual local seam; construction grants no write or AI authority."""
+        from .knowledge_object_services import KnowledgeObjectServices
+
+        return KnowledgeObjectServices(self.store)
+
     def ai_local_runtime_status(self) -> dict[str, Any]:
         """Pure component contract. Availability does not authorize product dispatch."""
         from .ai_runtime_contract import CONFIGURATION, LOCK_SHA256, RUNTIME_VERSION

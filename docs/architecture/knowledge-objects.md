@@ -1,9 +1,11 @@
 # Knowledge Objects v1: closed records and migration design
 
 S01 #376 defines the pure contract; S02 #384 adds canonical storage and explicit portable migration.
+S03 #387 adds [explicit manual services](knowledge-object-services.md), fresh evidence resolution
+and optimistic concurrency on that storage boundary.
 The pure contract in `core/provelume/knowledge_object_contract.py` defines inert JSON. The storage
-backend has no application/review authority; manual services, API/UI and proposal workflows remain
-separate ordered slices. Valid syntax, an evidence
+backend has no application/review authority; manual services require explicit per-call confirmation,
+while API/UI and proposal workflows remain separate ordered slices. Valid syntax, an evidence
 digest and a `reviewed_proposal` origin never establish factual truth or permission.
 
 ## Identity, revisions and evidence
@@ -24,16 +26,16 @@ schemas and path/URL-shaped identities fail closed. Diagnostics contain no conte
 
 Revisions are immutable positive integers. Revision 1 has no predecessor; every
 successor retains ID, Instance, kind and creation time and binds the complete prior
-record digest. New timestamps cannot precede retained history. The later service
-must atomically compare the independently read current revision/preimage before
+record digest. New timestamps cannot precede retained history. The manual service
+atomically compares the independently read current revision/preimage before
 writing; `validate_successor` alone performs no concurrency control or mutation.
 
 Evidence uses a content-bound `evd_` identity and exact Instance, Document, Version,
 Original ID/SHA-256. Its selector is either the entire Original or exact
 representation/output/anchor IDs plus a quote hash. No live path, provider URL or
 GitHub ID supplies canonical identity. A Document's newer Version does not retarget
-old evidence. The later resolver must check actual retained source identities,
-representation bindings and bytes; the pure validator proves syntax and internal
+old evidence. The manual resolver checks actual retained source identities,
+representation bindings and bytes within its supported profile; the pure validator proves syntax and internal
 digest consistency only. Missing/unavailable evidence is reported, never replaced
 with a convenient current Version or claimed as verified. Claim records require
 evidence; an assertion remains an attributed assertion, not a certified fact.
@@ -53,15 +55,15 @@ evidence; an assertion remains an attributed assertion, not a certified fact.
 
 Calendar instants require explicit offsets and an increasing absolute interval,
 including repeated wall times at a DST transition. Time-zone names are inert syntax
-in S01; the later service must resolve a supported IANA zone against the bundled
-time-zone data and validate its relationship with the selected instants before
-canonical application. No all-day recurrence or provider synchronization is claimed.
+in S01; S03 resolves supported IANA zones against bundled data and checks both selected
+instants' offsets before canonical application. No all-day recurrence or provider
+synchronization is claimed.
 
 Relations have independent stable `rel_` IDs and the same revision chain. Their
 closed types are `relates_to`, `about`, `supports`, `contradicts`, `depends_on`,
 `part_of`, `fulfills`, `scheduled_for`; state is active or retracted. Both endpoints
 bind exact object ID, revision and SHA-256. No self edge or unversioned target is
-accepted. Later services must resolve both endpoints in the same Instance, enforce
+accepted. Manual services resolve both endpoints in the same Instance, enforce
 type compatibility (`fulfills` for Task/Outcome/Commitment and `scheduled_for` for
 CalendarEvent), and deny dangling/stale revisions and hierarchy dependency cycles.
 S01 does not claim graph integrity from isolated record validation.
@@ -129,5 +131,8 @@ No object/Claim/Relation proposal creates canonical facts automatically. Human
 Windows/UX/accessibility/catalog checks and independent labels remain factual
 NOT_RUN/UNVERIFIED/NOT_REVIEWED and explicitly nonblocking for this campaign.
 Classifier quality remains NOT_EVALUATED and automatic classification DENIED.
-All mandatory native, remote, review/thread, binding, fresh preflight, normal merge,
+S03's service and closed text-page evidence profile are documented separately; an available
+source never certifies an assertion's truth. Missing evidence and stale relation endpoints are
+reported rather than retargeted. All mandatory native, remote, review/thread, binding,
+fresh preflight, normal merge,
 actual-merge and final official publication/readback gates remain required.
