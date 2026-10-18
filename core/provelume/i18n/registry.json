@@ -152,7 +152,9 @@
         "action.link.source",
         "action.link.intake",
         "action.evidence_unavailable",
-        "action.reason.classification_assessment"
+        "action.reason.classification_assessment",
+        "action.knowledge_objects",
+        "action.reason.object_proposal"
       ],
       "namespace": ""
     },
@@ -1588,7 +1590,9 @@
         "review.reverse_processing",
         "review.run",
         "review.processing_enqueue_pending",
-        "review.processing_job"
+        "review.processing_job",
+        "review.knowledge_objects",
+        "review.reject"
       ],
       "namespace": ""
     },
@@ -15273,6 +15277,168 @@
     },
     "objects.alias_help": {
       "context": "objects: retaining canonical aliases and explicit line-based editing; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "action.knowledge_objects": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "action.reason.object_proposal": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "object_review.apply_confirm": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "object_review.apply_help": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "object_review.approve": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "object_review.authority_required": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "object_review.boundary": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "object_review.discard": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "object_review.discard_confirm": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "object_review.discard_help": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "object_review.discarded": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "object_review.drafts": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "object_review.edited": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "object_review.error_help": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "object_review.inspect": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "object_review.prepare": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "object_review.prepare_confirm": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "object_review.prepare_help": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "object_review.reject_confirm": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "object_review.reject_help": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "object_review.stale": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "object_review.title": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "object_review.typed_help": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "object_review.unedited": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "object_review.whole_original": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "review.knowledge_objects": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "review.reject": {
+      "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false

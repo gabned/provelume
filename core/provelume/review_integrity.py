@@ -15,6 +15,7 @@ CAPABILITIES = {
     "annotations": ("save", "undo"),
     "iudicium": ("save_policy", "revoke_policy", "apply", "undo"),
     "processing": ("save_policy", "revoke_policy", "run"),
+    "knowledge_objects": ("apply", "reject"),
 }
 
 
@@ -121,7 +122,11 @@ def review_state_findings(store, records):
 
     try:
         review_root = checked_path(store, "state/review")
-        if not review_root.exists() and not records.get("review-origins"):
+        reviewed_objects = [
+            row["record"] for row in records.get("object-revisions", {}).values()
+            if row.get("record", {}).get("origin", {}).get("kind") == "reviewed_proposal"
+        ]
+        if not review_root.exists() and not records.get("review-origins") and not reviewed_objects:
             return findings
         if review_root.exists() and not review_root.is_dir():
             raise ReviewUnavailable("Retained review state is not a directory")
@@ -153,6 +158,11 @@ def review_state_findings(store, records):
                     from .review_routing import _Inputs
 
                     processing.history_record(receipt["id"], _Inputs(store))
+                if receipt["domain"] == "knowledge_objects":
+                    from .knowledge_object_review import history_record
+
+                    if history_record(store, receipt["subject"]) is None:
+                        raise ReviewUnavailable("Object decision has lost its domain history")
                 if (
                     receipt["domain"] in {"duplicates", "versions"}
                     and receipt["action"] == "new_version"
@@ -162,6 +172,16 @@ def review_state_findings(store, records):
                         raise ReviewUnavailable("Committed reviewed Version has lost its origin")
         for origin in records.get("review-origins", {}).values():
             validate_review_origin(store, origin, records)
+        for record in reviewed_objects:
+            from .knowledge_object_contract import record_digest
+            from .knowledge_object_review import history_record
+
+            retained = history_record(store, record["origin"]["proposal_id"])
+            if (retained is None or retained["action"] != "apply"
+                    or retained["canonical"] != {
+                        "id": record["id"], "sha256": record_digest(record), "relation": False,
+                    }):
+                raise ReviewUnavailable("Reviewed object origin has no matching confirmation")
         for message in annotation_state_findings(store, deep=True):
             add(message, "state/review/annotations")
     except (ReviewUnavailable, OSError, ValueError, TypeError, KeyError) as exc:

@@ -192,8 +192,8 @@ def _validate_proposed(store, entries):
     _require(not errors)
 
 
-def persist_object_locked(store, value, *, expected_sha256, evidence=(), relation=False):
-    """Internal primitive; callers own consent, permissions, selector resolution and the lock."""
+def prepare_object_locked(store, value, *, expected_sha256, evidence=(), relation=False):
+    """Validate a complete proposed graph without writing; caller owns the lock/authority."""
     _require(store.read_config().get("schema_version") == 3, "schema")
     (validate_relation if relation else validate_object)(value)
     _require(value["instance_id"] == store.read_config()["instance"]["id"])
@@ -256,6 +256,14 @@ def persist_object_locked(store, value, *, expected_sha256, evidence=(), relatio
     )
     # Check closure against the complete proposed canonical view before journalling.
     _validate_proposed(store, entries)
+    return entries
+
+
+def persist_object_locked(store, value, *, expected_sha256, evidence=(), relation=False):
+    """Internal primitive; callers own consent, permissions, selector resolution and the lock."""
+    entries = prepare_object_locked(
+        store, value, expected_sha256=expected_sha256, evidence=evidence, relation=relation,
+    )
     _commit_locked(store, entries)
 
 

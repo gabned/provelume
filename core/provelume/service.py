@@ -154,6 +154,7 @@ class ProvelumeInstance:
         self.representations = RepresentationReadModel(self.store)
         from .annotation_store import AnnotationProvider
         from .classification_review import ClassificationReview
+        from .knowledge_object_review import KnowledgeObjectReview
         from .processing_autonomy import ProcessingReview
         from .review_authority import ReviewAuthority
         from .review_decisions import ReviewDecisions
@@ -166,6 +167,7 @@ class ProvelumeInstance:
         self.review_authority = ReviewAuthority(self.store, CAPABILITIES)
         self.review_routing = RoutingProvider(self.store)
         self.classification_review = ClassificationReview(self.store, instance=self)
+        self.object_review = KnowledgeObjectReview(self)
         self.processing_review = ProcessingReview(self.store)
         self.review_decisions = ReviewDecisions(
             self.store,
@@ -173,6 +175,7 @@ class ProvelumeInstance:
                 self.review_authority, PlacementProvider(self.store), self.review_routing,
                 DuplicateDecisionProvider(self.store), VersionDecisionProvider(self.store),
                 self.annotations, self.classification_review, self.processing_review,
+                self.object_review,
             ],
             authority_resolver=self.review_authority.resolve,
             transaction_factory=review_transaction_factory(self.store),

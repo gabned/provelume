@@ -72,7 +72,7 @@ nonblocking for Entitas in #375 without changing mandatory machine or recovery g
 | Published preview | `0.12.0` | Optional local AI, privacy gateway and accountable document assistance | #311 S01–S09 delivered; #337/#338; [public release](https://github.com/gabned/provelume/releases/tag/v0.12.0) | `Custodia` |
 | Published preview | `0.12.1` | Custodia corrections: Cura/AI access, model progress, Windows local panel and closed native diagnostics | #339/#340; #341/#342/#343/#344; [immutable public release](https://github.com/gabned/provelume/releases/tag/v0.12.1); #348 residual independent | Follow-up to `Custodia` |
 | Published preview | `0.13.0` | Attributable classification proposals, independent manual rules/undo and bounded derived-work autonomy; real quality NOT_EVALUATED, automatic classification DENIED | #349 S01–S05 and Cura #354 delivered; #373 completed; [public release](https://github.com/gabned/provelume/releases/tag/v0.13.0) | `Iudicium` |
-| Active development | `0.14.0` | Knowledge Objects v1 | #375; first slice #376; no slice accepted yet | `Entitas` |
+| Active development | `0.14.0` | Knowledge Objects v1 | #375; ordered slice owners and actual-main acceptance recorded in the campaign | `Entitas` |
 | Forecast | `0.15.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
 | Forecast | `0.16.0` | Knowledge navigation, statistics, relations and deterministic discovery | issue just in time | `Itinerarium` |
 | Forecast | `0.17.0` | Knowledge API v1, read-only MCP and client connections | issue just in time | `Interfacies` |

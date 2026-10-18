@@ -17,6 +17,7 @@ QUEUES = (
     "extraction_error",
     "source_change",
     "retention",
+    "knowledge_objects",
 )
 REVIEW_STATES = ("awaiting_review", "accepted", "rejected", "superseded")
 AUTHORITY_MODES = ("disabled", "proposal-only", "confirm-each", "controlled-automatic")
@@ -28,6 +29,7 @@ DOMAIN_REVIEW_ACTIONS = {
     "exact_duplicate": ("duplicates", ("link_exact",)),
     "probable_duplicate": ("duplicates", ("relate", "keep_separate", "new_version")),
     "version_conflict": ("versions", ("select_current", "new_version")),
+    "knowledge_objects": ("knowledge_objects", ("apply", "reject")),
 }
 MAX_PAGE_SIZE = 500
 MAX_ITEMS = 10_000

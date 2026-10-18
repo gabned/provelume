@@ -197,6 +197,12 @@ def review_options(instance, domain, subject, *, job_id=None):
         elif subject == "processing":
             result["subjects"] = [{"id": row["id"], "label": row["name"]}
                                   for row in result["sources"]]
+        elif subject == "knowledge_objects":
+            result["subjects"] = [
+                {"id": row["proposal"]["id"],
+                 "label": row["proposal"]["draft"].get("title", row["proposal"]["id"])}
+                for row in instance.object_review.listing() if row["history"] is None
+            ]
         elif subject == "duplicates":
             result["subjects"] = [
                 {"id": key, "label": key} for key in inputs.inventory("state/duplicates/cases", 500)

@@ -3,6 +3,8 @@
 S01 #376 defines the pure contract; S02 #384 adds canonical storage and explicit portable migration.
 S03 #387 adds [explicit manual services](knowledge-object-services.md), fresh evidence resolution
 and optimistic concurrency on that storage boundary.
+S04 #390 adds the guarded local API and shared Cura/Current forms. S05 #396 adds
+[receipt-bound drafts and explicit atomic review](knowledge-object-review.md).
 The pure contract in `core/provelume/knowledge_object_contract.py` defines inert JSON. The storage
 backend has no application/review authority; manual services require explicit per-call confirmation,
 while API/UI and proposal workflows remain separate ordered slices. Valid syntax, an evidence
