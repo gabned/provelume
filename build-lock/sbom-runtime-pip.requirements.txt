@@ -1,3 +1,3 @@
-# Exact security input for the release assembly's SBOM environment.
+# Exact security input for the release assembly and container environments.
 # This does not replace either reviewed platform dependency/build lock.
 pip==26.2 --hash=sha256:931c303696af6fa3417112103b1cad26890e5a07eccb5b99783700e33f2b8aad

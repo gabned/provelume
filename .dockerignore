@@ -6,6 +6,8 @@
 !README.md
 !LICENSE
 !COMMERCIAL-LICENSE.md
+!build-lock/
+!build-lock/sbom-runtime-pip.requirements.txt
 !core/
 !core/**
 !scripts/

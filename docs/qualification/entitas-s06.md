@@ -140,6 +140,18 @@ claim that Python, pip, native components and the runner image are all locked by
 one manifest. Other ecosystems are outside that PyPI-only advisory query, and an
 empty public filter is not a complete security verdict.
 
+The ordinary container's original package inventory on source `185f65f` also
+reported pip 25.0.1. Its eight initial/restart functional checks passed, while the
+same public affected-version finding required a separate image correction before
+S06 acceptance. The Dockerfile therefore installs the same exact hash-pinned pip
+input before the application. The build-context whitelist admits only that one
+additional requirements file; Instance data, models, credentials and agent
+evidence stay excluded. Qualify the fresh image's initial/restart reports and
+exact package inventory, including pip 26.2, without changing runtime network,
+capability, filesystem, model persistence or session-off boundaries. The earlier
+source's successful functional reports retain their original scope and do not
+establish completion of this subsequent security correction.
+
 Protected Dependabot alert **#1** still returns `403 Resource not accessible by
 integration` through normal authenticated access. Its GHSA/CVE, package, range and
 applicability remain **UNKNOWN**. Binding the public pytest advisory to that alert
