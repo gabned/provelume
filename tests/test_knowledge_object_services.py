@@ -361,6 +361,46 @@ def test_purged_source_stays_unavailable_and_explicit_withdrawal_retains_attribu
     assert inspect_instance(instance.root, deep=True)["status"] == "valid"
 
 
+@pytest.mark.parametrize("relation", [False, True], ids=["object", "relation"])
+def test_valid_evidence_under_another_identity_cannot_substitute_a_retained_source(
+    seeded, relation
+):
+    instance, source = seeded
+    services = instance.object_services()
+    evidence = services.evidence_for_version(_version(instance))
+    if relation:
+        first, second = _entity(services), _entity(services, "Other")
+        created = services.create_relation(
+            "relates_to", _ref(first), _ref(second), evidence=[evidence], consent=True
+        )
+    else:
+        created = services.create(
+            "claim", "Source one", {"statement": "Exact first source"},
+            evidence=[evidence], consent=True,
+        )
+    assert created["evidence"][0]["id"] == evidence["id"]
+    (source / "other.txt").write_text("A different retained original.\n", encoding="utf-8")
+    instance.ingest(source)
+    other_version = next(
+        row["id"] for row in instance.store.list_canonical("versions")
+        if row["id"] != evidence["version_id"]
+    )
+    replacement = services.evidence_for_version(other_version)
+    assert replacement["id"] != evidence["id"]
+    path = instance.store.paths.canonical_dir("object-evidence") / (evidence["id"] + ".json")
+    path.write_text(json.dumps(replacement), encoding="utf-8")
+    before = tree_inventory(instance.root)
+    with pytest.raises(KnowledgeObjectError, match="integrity"):
+        services.get(created["record"]["id"], relation=relation)
+    # A withdrawal must also retain the requested attribution, never another record.
+    with pytest.raises(KnowledgeObjectError, match="integrity"):
+        services.update(
+            created["record"]["id"], {"state": "retracted"},
+            expected_sha256=created["sha256"], consent=True, relation=relation,
+        )
+    assert tree_inventory(instance.root) == before
+
+
 def test_relation_staleness_is_visible_and_retraction_never_retargets(seeded):
     instance, _ = seeded
     services = instance.object_services()

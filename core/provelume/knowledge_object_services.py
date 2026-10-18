@@ -91,7 +91,12 @@ class KnowledgeObjectServices:
     def _read(self, kind, identity):
         try:
             object_path(self.store, f"knowledge/{kind}/{identity}.json")
-            return self.store.read_canonical(kind, identity)
+            value = self.store.read_canonical(kind, identity)
+            require(
+                value is None or (type(value) is dict and value.get("id") == identity),
+                "integrity",
+            )
+            return value
         except KnowledgeObjectError:
             raise
         except (OSError, ValueError):
