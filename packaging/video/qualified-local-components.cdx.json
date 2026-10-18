@@ -6,9 +6,9 @@
   "metadata": {
     "component": {
       "type": "application",
-      "bom-ref": "pkg:pypi/provelume@0.13.0",
+      "bom-ref": "pkg:pypi/provelume@0.14.0",
       "name": "Provelume Core",
-      "version": "0.13.0"
+      "version": "0.14.0"
     },
     "properties": [
       {"name": "provelume:slice", "value": "0.10/S05"},

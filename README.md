@@ -8,19 +8,19 @@ This repository is the public clean-room home of the reusable **Provelume Core**
 
 > The AI is not the memory. Your knowledge outlives your AI.
 
-## Current status: 0.13.0 Iudicium preview
+## Current status: 0.14.0 Entitas preview
 
-**0.13.0 — Iudicium** connects preserved documents to attributable classification
-proposals, separately reviewed organization and bounded derived work in the
-existing Cura Action Center. All five ordered slices of
-[campaign #349](https://github.com/gabned/provelume/issues/349) are accepted.
-[Final owner #373](https://github.com/gabned/provelume/issues/373) records the
-complete exact-source qualification and one official publication. Package identity
-is **0.13.0 / Iudicium**; actual public readiness is a separate observation.
+**0.14.0 — Entitas** adds local, evidence-linked objects, claims, decisions, tasks,
+calendar items and typed relations to preserved documents. All six ordered slices
+of [campaign #375](https://github.com/gabned/provelume/issues/375) are accepted.
+[Final owner #402](https://github.com/gabned/provelume/issues/402) records the new
+source's qualification, actual merge and one official publication. Package identity
+is **0.14.0 / Entitas**; this source prepares the preview and public readiness is
+a separate observation.
 
-Use the [0.13.0 release record and guide](docs/releases/0.13.0.md) and the matching
+Use the [0.14.0 release record and guide](docs/releases/0.14.0.md) and the matching
 complete installation kit only after its actual publication-readiness marker has
-been observed. See the [integrated qualification contract](docs/qualification/0.13.0.md).
+been observed. See the [integrated qualification contract](docs/qualification/0.14.0.md).
 The release channel remains **preview**; Windows remains explicitly unsigned.
 
 - Cura is primary for new and inherited settings. An explicit Current backup
@@ -29,6 +29,19 @@ The release channel remains **preview**; Windows remains explicitly unsigned.
 - Managed folders capture exact Originals and Versions with AI Off. Separately
   reviewed rules control bounded local extraction, text representations and scoped
   indexing through the existing scheduler, with pause/recovery and receipts.
+- Knowledge objects support explicit manual creation, conflict-checked edits,
+  immutable history and typed relations between exact object revisions. Claims
+  retain evidence from the selected Version and Original; available evidence does
+  not establish an assertion's truth. Existing Project/Collection IDs stay stable.
+- Schema-1/2 Instances require an explicit forward migration with a verified
+  backup. Backup/restore and portable transfer retain canonical knowledge,
+  Originals, preferences and supported permissions. Older binaries refuse schema3;
+  rollback uses the verified earlier backup. See the
+  [migration and recovery contract](docs/architecture/portable-instance.md).
+- Existing attributable summary/key-points results can become removable object,
+  Claim or Relation drafts. The user chooses typed fields, dates and endpoints,
+  then previews and explicitly confirms a separately authorized manual review.
+  Preparing a draft starts no inference and grants no canonical-write permission.
 - Classification uses one exact current Version, current destinations, preview,
   explicit model/session/task consent and removable receipt-bound proposals.
   The observed native execution scope is EN/IT on the existing local profile.
@@ -43,10 +56,12 @@ The release channel remains **preview**; Windows remains explicitly unsigned.
 
 Human Windows/UX/accessibility/catalog observations remain **NOT_RUN / UNVERIFIED**
 and independent classifier labels **NOT_REVIEWED**, nonblocking by the maintainer's
-[explicit decision](https://github.com/gabned/provelume/issues/349#issuecomment-6186153379).
+[Entitas decision](https://github.com/gabned/provelume/issues/375).
 No historical screen-reader or linguistic attestation is extended to these views.
 
-Published [0.12.1](https://github.com/gabned/provelume/releases/tag/v0.12.1) and
+Published [0.13.0 Iudicium](https://github.com/gabned/provelume/releases/tag/v0.13.0),
+its [release record](docs/releases/0.13.0.md),
+[0.12.1](https://github.com/gabned/provelume/releases/tag/v0.12.1) and
 [0.12.0](https://github.com/gabned/provelume/releases/tag/v0.12.0), including their
 tag/assets/receipts/kits/readiness, remain immutable. The independent
 [#348 residual](https://github.com/gabned/provelume/issues/348) stays OPEN/BLOCKED,
@@ -140,8 +155,8 @@ personal daily-use beta inside its original qualified perimeter. Custodia S01–
 are delivered under [#311](https://github.com/gabned/provelume/issues/311), with
 S08's [final integration ledger](https://github.com/gabned/provelume/pull/334#issuecomment-6097065742)
 and S09/release evidence linked in the [0.12 qualification record](docs/qualification/0.12.0.md).
-Package identity is **0.13.0**; actual public readiness is a separate observation.
-Later portfolio forecasts remain inactive from 0.13 onward; their release numbers
+Package identity is **0.14.0**; actual public readiness is a separate observation.
+Later portfolio forecasts remain inactive from 0.15 onward; their release numbers
 and activation gates are unchanged.
 It does not use `0.9.5` for feature work.
 
