@@ -387,11 +387,17 @@ def verify_backup(archive: Path | str) -> dict[str, Any]:
     }
 
 
-def extract_backup(archive: Path | str, destination: Path | str) -> dict[str, Any]:
+def extract_backup(
+    archive: Path | str, destination: Path | str, *, private: bool = False
+) -> dict[str, Any]:
     selected = Path(archive).expanduser().resolve()
     target = Path(destination).expanduser().resolve()
-    target.mkdir(parents=True, exist_ok=False)
+    target.mkdir(parents=True, exist_ok=False, mode=0o700 if private else 0o777)
     try:
+        if private:
+            from .migration_permissions import make_private
+
+            make_private(target)
         (target / "originals").mkdir()
         for kind in CANONICAL_KINDS:
             (target / "knowledge" / kind).mkdir(parents=True, exist_ok=True)
@@ -421,6 +427,11 @@ def extract_backup(archive: Path | str, destination: Path | str) -> dict[str, An
                     raise BackupError(
                         f"backup payload hash is invalid: {row['path']}"
                     )
+        if private:
+            from .migration_permissions import protect_private_tree
+
+            # Protect every child before a source root DACL could propagate.
+            protect_private_tree(target)
     except Exception:
         import shutil
 

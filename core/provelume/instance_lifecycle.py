@@ -340,18 +340,21 @@ class InstanceLifecycleManager:
         prepare_ai: bool = True,
         stage_transform=None,
         before_publish=None,
+        permission_profile=None,
     ) -> dict[str, Any]:
         verified = verify_backup(archive)
         if verified["instance_id"] != expected_instance_id:
             raise InstanceLifecycleError("backup belongs to a different Provelume Instance")
         root = self.store.paths.root
         root.parent.mkdir(parents=True, exist_ok=True)
-        stage = root.parent / f".{root.name}.restore-stage-{uuid4().hex}"
-        previous = root.parent / f".{root.name}.restore-previous-{uuid4().hex}"
+        stage_kind = "object-stage" if permission_profile is not None else "restore-stage"
+        previous_kind = "object-previous" if permission_profile is not None else "restore-previous"
+        stage = root.parent / f".{root.name}.{stage_kind}-{uuid4().hex}"
+        previous = root.parent / f".{root.name}.{previous_kind}-{uuid4().hex}"
         moved_previous = False
         installed_stage = False
         try:
-            extract_backup(archive, stage)
+            extract_backup(archive, stage, private=permission_profile is not None)
             staged = inspect_instance(stage, deep=True)
             if staged["status"] != "valid" or staged["instance_id"] != expected_instance_id:
                 raise InstanceLifecycleError("restored staging Instance failed validation")
@@ -364,6 +367,12 @@ class InstanceLifecycleManager:
 
             if prepare_ai:
                 prepare_restored_ai(InstanceStore(stage), self.store if root.exists() else None)
+            if permission_profile is not None:
+                from .migration_permissions import apply_permissions, permission_fingerprint
+
+                expected_permissions = permission_fingerprint(
+                    apply_permissions(stage, permission_profile)
+                )
             if before_publish is not None:
                 before_publish(stage, previous)
             if root.exists():
@@ -372,6 +381,10 @@ class InstanceLifecycleManager:
                 from .atomic_commit import _fsync_directory
 
                 _fsync_directory(root.parent)
+            if permission_profile is not None and (
+                root.exists() or root.is_symlink() or root.is_junction()
+            ):
+                raise InstanceLifecycleError("migration publication refuses an appeared target")
             os.replace(stage, root)
             installed_stage = True
             from .atomic_commit import _fsync_directory
@@ -380,8 +393,15 @@ class InstanceLifecycleManager:
             installed = inspect_instance(root, deep=True)
             if installed["status"] != "valid":
                 raise InstanceLifecycleError("restored Instance failed final validation")
+            if permission_profile is not None:
+                from .migration_permissions import capture_permissions
+
+                if permission_fingerprint(capture_permissions(root)) != expected_permissions:
+                    raise InstanceLifecycleError("installed access metadata changed; retained")
             if moved_previous:
-                shutil.rmtree(previous)
+                # Preserving read-only access metadata must not turn successful
+                # publication into destructive rollback merely to erase a residue.
+                shutil.rmtree(previous, ignore_errors=permission_profile is not None)
                 moved_previous = False
             return {
                 "schema_version": LIFECYCLE_STATE_SCHEMA_VERSION,
@@ -391,8 +411,19 @@ class InstanceLifecycleManager:
                 "content_fingerprint": installed["content_fingerprint"],
                 "files": verified["files"],
                 "derived_state": verified["derived_state"],
+                **({"retained_preimage": str(previous) if previous.exists() else None}
+                   if permission_profile is not None else {}),
             }
         except BaseException:
+            if permission_profile is not None:
+                # The bound object recovery owns post-publication settlement. A
+                # changed live image must never be erased by generic rollback.
+                if moved_previous and not installed_stage and not (
+                    root.exists() or root.is_symlink() or root.is_junction()
+                ):
+                    os.replace(previous, root)
+                    moved_previous = False
+                raise
             if installed_stage and root.exists():
                 shutil.rmtree(root, ignore_errors=True)
             if moved_previous and previous.exists():

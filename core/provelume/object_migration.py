@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shutil
 import tempfile
@@ -29,6 +30,16 @@ from .instance_schema import (
 )
 from .instance_validation import inspect_instance
 from .knowledge_object_store import hierarchy_object, promote_hierarchy
+from .migration_permissions import (
+    MAX_PROFILE_BYTES,
+    canonical,
+    capture_permissions,
+    permission_fingerprint,
+    planned_permissions,
+    prepare_private_directories,
+    private_directory,
+    validate_profile,
+)
 from .storage import InstanceStore, utc_now
 
 
@@ -97,11 +108,20 @@ def upgrade_objects_stage(store, *, backup, backup_directory):
         if node["kind"] in {"project", "collection"}:
             hierarchy_object(node, before["instance_id"])
     original_config = store.read_config()
-    preserved = {
-        row["path"]: row
-        for row in _entry_manifest(_payload_files(store))
-        if row["path"] not in {"provelume.yml", "instance-manifest.json"}
-    }
+    payload = _entry_manifest(_payload_files(store))
+    schema_files = (store.paths.config, store.paths.manifest)
+    schema_paths = set()
+    for row in payload:
+        path = store.paths.root / row["path"]
+        if (
+            path.parent == store.paths.root
+            and path.name.casefold() in {"provelume.yml", "instance-manifest.json"}
+            and any(selected.is_file() and path.samefile(selected) for selected in schema_files)
+        ):
+            schema_paths.add(row["path"])
+    # Those two schema-owned files are intentionally rewritten. Identify their
+    # native aliases before the rewrite; every other payload byte remains bound.
+    preserved = {row["path"]: row for row in payload if row["path"] not in schema_paths}
     receipts = []
     if schema == 1:
         receipts.append(InstanceLifecycleManager(store)._apply_migration_1_to_2(backup=backup))
@@ -176,6 +196,83 @@ def _clear_pending(manager):
     _fsync_directory(manager.control_root)
 
 
+def _permission_path(manager, token, role):
+    if re.fullmatch(r"[0-9a-f]{32}", token) is None or role not in {"source", "rollback", "post"}:
+        raise InstanceLifecycleError("object migration metadata identity is invalid")
+    directory = manager.control_root / "permission-profiles"
+    private_directory(directory)
+    return directory / f"{token}-{role}.json"
+
+
+def _write_permissions(manager, pending, role, profile):
+    validate_profile(profile)
+    path = _permission_path(manager, pending["operation_id"], role)
+    document = {
+        "schema_version": 1,
+        "operation_id": pending["operation_id"],
+        "instance_id": pending["instance_id"],
+        "role": role,
+        "profile": profile,
+    }
+    raw = canonical(document)
+    descriptor = os.open(
+        path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600
+    )
+    with os.fdopen(descriptor, "wb") as stream:
+        stream.write(raw)
+        stream.flush()
+        os.fsync(stream.fileno())
+    _fsync_directory(path.parent)
+    return {
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "fingerprint": permission_fingerprint(profile),
+    }
+
+
+def _read_permissions(manager, pending, role):
+    binding = pending.get("permission_profiles", {}).get(role)
+    if type(binding) is not dict or set(binding) != {"sha256", "fingerprint"} or any(
+        not isinstance(v, str) or re.fullmatch(r"[0-9a-f]{64}", v) is None
+        for v in binding.values()
+    ):
+        raise InstanceLifecycleError(
+            "object migration access metadata is unbound; inspection required"
+        )
+    path = _permission_path(manager, pending["operation_id"], role)
+    if path.is_symlink() or path.is_junction() or not path.is_file():
+        raise InstanceLifecycleError("object migration access metadata is unavailable")
+    with path.open("rb") as stream:
+        raw = stream.read(MAX_PROFILE_BYTES + 4097)
+    if len(raw) > MAX_PROFILE_BYTES + 4096 or hashlib.sha256(raw).hexdigest() != binding["sha256"]:
+        raise InstanceLifecycleError("object migration access metadata changed; retained")
+
+    def pairs(items):
+        result = {}
+        for key, value in items:
+            if key in result:
+                raise ValueError("duplicate metadata key")
+            result[key] = value
+        return result
+
+    try:
+        document = json.loads(raw, object_pairs_hook=pairs)
+        if document != {
+            "schema_version": 1,
+            "operation_id": pending["operation_id"],
+            "instance_id": pending["instance_id"],
+            "role": role,
+            "profile": document["profile"],
+        } or type(document["schema_version"]) is not int:
+            raise ValueError("metadata identity")
+        profile = document["profile"]
+        validate_profile(profile)
+        if permission_fingerprint(profile) != binding["fingerprint"]:
+            raise ValueError("metadata fingerprint")
+    except (KeyError, TypeError, ValueError, RecursionError) as exc:
+        raise InstanceLifecycleError("object migration access metadata is invalid") from exc
+    return profile
+
+
 def migrate_objects_instance(manager):
     prepared = manager.prepare(allow_legacy=True)
     with manager._hold(purpose="instance-schema-migration"):
@@ -191,14 +288,25 @@ def migrate_objects_instance(manager):
             }
         root = manager.store.paths.root
         inventory = tree_inventory(root)
+        source_permissions = capture_permissions(root)
+        source_fingerprint = permission_fingerprint(source_permissions)
         backup = create_backup(manager.store, reason="pre_object_migration")
-        if tree_inventory(root) != inventory:
+        if tree_inventory(root) != inventory or (
+            permission_fingerprint(capture_permissions(root)) != source_fingerprint
+        ):
             raise InstanceLifecycleError("Instance changed while migration backup was built")
+        token = uuid4().hex
+        source_binding = _write_permissions(
+            manager, {"operation_id": token, "instance_id": before["instance_id"]},
+            "source", source_permissions,
+        )
         manager._write_pending(
             operation="object-migration",
             rollback=backup,
             binding={
-                "operation_id": uuid4().hex,
+                "operation_id": token,
+                "permission_schema": 1,
+                "permission_profiles": {"source": source_binding, "rollback": None, "post": None},
                 "preimage_sha256": _digest(inventory),
                 "backup_image_sha256": _digest(_backup_entries(backup)),
                 "postimage_sha256": None,
@@ -213,11 +321,27 @@ def migrate_objects_instance(manager):
                 prefix="object-build-", dir=manager.control_root
             ) as tmp:
                 stage = Path(tmp) / "instance"
-                extract_backup(backup["archive"], stage)
+                extract_backup(backup["archive"], stage, private=True)
+                prepare_private_directories(stage, source_permissions)
+                rollback_permissions = planned_permissions(stage, source_permissions)
+                pending["permission_profiles"]["rollback"] = _write_permissions(
+                    manager, pending, "rollback", rollback_permissions,
+                )
+                _save_pending(manager, pending)
                 receipts = upgrade_objects_stage(
                     InstanceStore(stage),
                     backup=backup,
                     backup_directory=manager.control_root / "backups",
+                )
+                receipts[-1]["filesystem_access_permissions"] = {
+                    "scope": "SAME_HOST_MIGRATION",
+                    "provider": source_permissions["provider"],
+                    "source_sha256": source_fingerprint,
+                    "rollback_sha256": pending["permission_profiles"]["rollback"]["fingerprint"],
+                }
+                manager.store._atomic_json(
+                    stage / "state/migrations/receipts" / (MIGRATION_2_TO_3 + ".json"),
+                    receipts[-1],
                 )
                 publication = create_backup(
                     InstanceStore(stage),
@@ -226,10 +350,15 @@ def migrate_objects_instance(manager):
                 )
 
                 def bind(stage_path, previous_path):
-                    if tree_inventory(root) != inventory:
+                    if tree_inventory(root) != inventory or (
+                        permission_fingerprint(capture_permissions(root)) != source_fingerprint
+                    ):
                         raise InstanceLifecycleError(
                             "Instance changed before migration publication"
                         )
+                    pending["permission_profiles"]["post"] = _write_permissions(
+                        manager, pending, "post", capture_permissions(stage_path),
+                    )
                     pending.update(
                         postimage_sha256=_digest(tree_inventory(stage_path)),
                         stage_name=stage_path.name,
@@ -237,11 +366,12 @@ def migrate_objects_instance(manager):
                     )
                     _save_pending(manager, pending)
 
-                manager._replace_from_archive(
+                published = manager._replace_from_archive(
                     Path(publication["archive"]),
                     expected_instance_id=before["instance_id"],
                     prepare_ai=False,
                     before_publish=bind,
+                    permission_profile=source_permissions,
                 )
             _clear_pending(manager)
         except Exception as exc:
@@ -267,6 +397,11 @@ def migrate_objects_instance(manager):
             "recovery": prepared.get("recovery"),
             "publication_backup": publication,
             "content_fingerprint": publication["content_fingerprint"],
+            "filesystem_access_permissions": {
+                **receipts[-1]["filesystem_access_permissions"],
+                "post_sha256": pending["permission_profiles"]["post"]["fingerprint"],
+                "retained_preimage": published["retained_preimage"],
+            },
         }
 
 
@@ -275,6 +410,11 @@ def recover_object_migration(manager, pending):
     token = pending.get("operation_id")
     if not isinstance(token, str) or re.fullmatch(r"[0-9a-f]{32}", token) is None:
         raise InstanceLifecycleError("object migration recovery identity is incomplete")
+    if type(pending.get("permission_schema")) is not int or pending["permission_schema"] != 1:
+        raise InstanceLifecycleError(
+            "legacy object migration access metadata is UNKNOWN; inspection required"
+        )
+    source_permissions = _read_permissions(manager, pending, "source")
     for key in ("preimage_sha256", "backup_image_sha256"):
         if (
             not isinstance(pending.get(key), str)
@@ -286,6 +426,7 @@ def recover_object_migration(manager, pending):
         not isinstance(post, str) or re.fullmatch(r"[0-9a-f]{64}", post) is None
     ):
         raise InstanceLifecycleError("object migration postimage binding is invalid")
+    post_permissions = _read_permissions(manager, pending, "post") if post is not None else None
     backup = {
         "archive": pending.get("rollback_archive"),
         "archive_sha256": pending.get("rollback_archive_sha256"),
@@ -296,9 +437,12 @@ def recover_object_migration(manager, pending):
         raise InstanceLifecycleError("object migration backup image does not match")
     root = manager.store.paths.root
     owned = []
-    for field, prefix, expected in (
-        ("stage_name", f".{root.name}.restore-stage-", post),
-        ("previous_name", f".{root.name}.restore-previous-", pending["preimage_sha256"]),
+    for field, prefix, expected, metadata in (
+        ("stage_name", f".{root.name}.object-stage-", post, post_permissions),
+        (
+            "previous_name", f".{root.name}.object-previous-",
+            pending["preimage_sha256"], source_permissions,
+        ),
     ):
         name = pending.get(field)
         if name is None and post is None:
@@ -310,10 +454,15 @@ def recover_object_migration(manager, pending):
             raise InstanceLifecycleError("object migration staging ownership is invalid")
         path = root.parent / name
         if path.exists() or path.is_symlink():
-            if _digest(tree_inventory(path)) != expected:
+            if _digest(tree_inventory(path)) != expected or (
+                permission_fingerprint(capture_permissions(path))
+                != permission_fingerprint(metadata)
+            ):
                 raise InstanceLifecycleError("object migration staging image changed; retained")
             owned.append(path)
-    receipt_path = f"state/lifecycle/recovery-receipts/recovery_object_{token}.json"
+    receipt_directory = manager.control_root / "object-recovery-receipts"
+    private_directory(receipt_directory)
+    receipt_path = receipt_directory / f"recovery_object_{token}.json"
     if not root.exists() and not root.is_symlink():
 
         def require_absent(stage, previous):
@@ -325,19 +474,28 @@ def recover_object_migration(manager, pending):
             expected_instance_id=verified["instance_id"],
             prepare_ai=False,
             before_publish=require_absent,
+            permission_profile=_read_permissions(manager, pending, "rollback"),
         )
     inventory = tree_inventory(root)
-    existing_receipt = manager._read_json(root / receipt_path)
-    if existing_receipt is not None:
-        inventory = [r for r in inventory if r["path"] != receipt_path]
+    existing_receipt = manager._read_json(receipt_path)
     digest = _digest(inventory)
-    if digest in {pending["preimage_sha256"], pending["backup_image_sha256"]}:
+    metadata = permission_fingerprint(capture_permissions(root))
+    if (
+        digest == pending["preimage_sha256"]
+        and metadata == permission_fingerprint(source_permissions)
+    ) or (
+        digest == pending["backup_image_sha256"]
+        and metadata == permission_fingerprint(_read_permissions(manager, pending, "rollback"))
+    ):
         action = "settled_verified_pre_operation_image"
-    elif post is not None and digest == post:
+    elif (
+        post is not None and digest == post
+        and metadata == permission_fingerprint(post_permissions)
+    ):
         action = "settled_verified_post_operation_image"
     else:
         raise InstanceLifecycleError(
-            "object migration recovery refuses changed or foreign Instance bytes"
+            "object migration recovery refuses changed or foreign Instance bytes or access metadata"
         )
     report = manager.validate(deep=True)
     if report["status"] != "valid" or report["instance_id"] != verified["instance_id"]:
@@ -350,14 +508,17 @@ def recover_object_migration(manager, pending):
         "action": action,
         "recovered_at": pending["started_at"],
         "rollback_archive_sha256": verified["archive_sha256"],
+        "filesystem_access_permissions_sha256": metadata,
+        "receipt_location": "EXTERNAL_LIFECYCLE_CONTROL",
     }
     if existing_receipt is not None and existing_receipt != receipt:
         raise InstanceLifecycleError("object migration recovery receipt conflicts")
-    manager.store._atomic_json(root / receipt_path, receipt)
-    _fsync_directory((root / receipt_path).parent)
+    manager.store._atomic_json(receipt_path, receipt)
+    _fsync_directory(receipt_path.parent)
     _clear_pending(manager)
     for path in owned:
         # An interrupted best-effort cleanup can leave an inert residue, but
         # cannot put a settled live image back behind a recovery barrier.
         shutil.rmtree(path, ignore_errors=True)
-    return {**receipt, "status": "recovered", "receipt": receipt_path}
+    return {**receipt, "status": "recovered", "receipt": str(receipt_path),
+            "retained_workdirs": [str(path) for path in owned if path.exists()]}
