@@ -168,7 +168,8 @@ def test_two_forms_do_not_overwrite_current_or_auto_retry(browser):
 
 
 @pytest.mark.parametrize("payload", [b'{"nonce":"a","nonce":"b"}', b'{"x":NaN}',
-    b'{"x":Infinity}', b'\xff', b'[' * 1100, b' ' * (256 * 1024 + 1)])
+    b'{"x":Infinity}', b'\xff', b'[' * 1100, b' ' * (256 * 1024 + 1)],
+    ids=["duplicate", "nan", "infinity", "invalid-utf8", "deep", "oversize"])
 def test_hostile_json_is_bounded_and_inert(browser, payload):
     instance, client, _ = browser
     before = _snapshot(instance)
