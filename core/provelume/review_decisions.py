@@ -407,7 +407,13 @@ class ReviewDecisions:
                 or effect.action != action
             ):
                 raise ReviewUnavailable("Provider returned another domain effect")
-            allowed = provider.allowed_paths(plan, request_id)
+            # Content-addressed object revision paths include the trusted commit
+            # time. Older providers retain their exact existing path contract.
+            timed_paths = getattr(provider, "allowed_paths_at", None)
+            allowed = (
+                timed_paths(plan, request_id, recorded_at) if timed_paths is not None
+                else provider.allowed_paths(plan, request_id)
+            )
             if not isinstance(allowed, frozenset) or any(
                 relative_path(x) != x for x in allowed
             ):

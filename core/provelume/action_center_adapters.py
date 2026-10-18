@@ -63,6 +63,7 @@ _CANONICAL_IDS = {
     }.items()
 }
 _DOCUMENT_QUEUES = (
+    "knowledge_objects",
     "classification",
     "exact_duplicate",
     "probable_duplicate",
@@ -320,15 +321,64 @@ class _Projection:
             )
         self.config = (
             self.reader.record(
-                store.paths.config, ("source_change", "extraction_error", "classification"),
+                store.paths.config,
+                ("source_change", "extraction_error", "classification", "knowledge_objects"),
                 yaml_record=True,
             )
             or {}
         )
         self.scheduler_jobs = self.reader.rows(
             store.paths.state / "scheduler" / "jobs",
-            ("source_change", "extraction_error", "classification"),
+            ("source_change", "extraction_error", "classification", "knowledge_objects"),
         )
+
+    def object_proposals(self):
+        from .ai_job_contract import receipt_snapshot
+        from .knowledge_object_review import HISTORY, PROPOSALS, history_record, validate_proposal
+        from .scheduler import _receipt_matches_terminal_job
+
+        queues = ("knowledge_objects",)
+        instance_id = self.config["instance"]["id"]
+        proposals = self.reader.rows(self.store.paths.root / PROPOSALS, queues)
+        for identity, proposal in proposals.items():
+            validate_proposal(proposal, identity, instance_id)
+            retained = self.reader.record(
+                self.store.paths.root / HISTORY / (identity + ".json"), queues, optional=True,
+            )
+            if retained is not None:
+                receipt_id = retained.get("receipt_id")
+                if (not isinstance(receipt_id, str)
+                        or re.fullmatch(r"review_[0-9a-f]{32}", receipt_id) is None):
+                    raise ValueError("Invalid object decision identity")
+                self.reader.record(self.store.paths.root / "state/review/receipts" /
+                                   (receipt_id + ".json"), queues)
+                history_record(self.store, identity)
+                continue
+            job = self.scheduler_jobs.get(proposal["job_id"])
+            if job is None:
+                self.reader.problem(queues, "object_producer_job_missing")
+                continue
+            validate_job_record(job)
+            receipt = self.reader.record(
+                self.store.paths.state / "scheduler/receipts" /
+                (proposal["scheduler_receipt_id"] + ".json"), queues,
+            )
+            if (receipt is None or not _receipt_matches_terminal_job(receipt, job)
+                    or receipt.get("ai") != receipt_snapshot(job["ai"])
+                    or job["ai"]["result"] != {
+                        "kind": "derived_ref", "value": proposal["reference"],
+                    }):
+                self.reader.problem(queues, "object_producer_receipt_invalid")
+                continue
+            self.emit(
+                "knowledge_objects", identity, "review_object_proposal", "object_proposal",
+                {"proposal_id": identity,
+                 "document_id": proposal["source"]["version"]["document_id"],
+                 "version_id": proposal["source"]["version"]["version_id"],
+                 "source_id": proposal["source"]["source_id"], "job_id": proposal["job_id"],
+                 "requires_fresh_read": True, "automation_authorized": False},
+                links=[{"href": f"/objects/proposals/{identity}", "kind": "review"}],
+            )
 
     def classification_assessments(self):
         """Recorded evidence only; opening it performs a fresh bounded source read."""
@@ -1392,7 +1442,8 @@ def domain_review_target(item: dict[str, Any]) -> dict[str, Any] | None:
         return None
     domain, actions = selected
     evidence = item.get("evidence", {})
-    key = {"placement": "document_id", "duplicates": "case_id", "versions": "proposal_id"}[domain]
+    key = {"placement": "document_id", "duplicates": "case_id", "versions": "proposal_id",
+           "knowledge_objects": "proposal_id"}[domain]
     subject = evidence.get(key)
     if (
         not isinstance(subject, str)
@@ -1403,14 +1454,15 @@ def domain_review_target(item: dict[str, Any]) -> dict[str, Any] | None:
         "domain": domain,
         "subject": subject,
         "actions": list(actions),
-        "href": f"/review/decisions/{domain}/{subject}",
+        "href": (f"/objects/proposals/{subject}" if domain == "knowledge_objects"
+                 else f"/review/decisions/{domain}/{subject}"),
         "requires_fresh_preview": True,
         "grants_mutation_authority": False,
     }
 
 
 def collect_proposals(store: InstanceStore) -> dict[str, Any]:
-    """Return all eight bounded contributions without opening or mutating Instance state.
+    """Return bounded contributions without opening or mutating Instance state.
 
     The core adds its explicit version-conflict producer and durable decisions.
     Decisions must recollect under the owners' actual writer guards; bracketing
@@ -1418,6 +1470,7 @@ def collect_proposals(store: InstanceStore) -> dict[str, Any]:
     """
     projection = _Projection(store)
     for adapter, owners in (
+        (projection.object_proposals, ("knowledge_objects",)),
         (projection.classification_assessments, ("classification",)),
         (projection.classification_retention, ("classification", "retention")),
         (projection.duplicates, ("exact_duplicate", "probable_duplicate")),

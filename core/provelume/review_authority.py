@@ -186,6 +186,17 @@ class ReviewAuthority:
                 source = record.get("source_id") if record else None
             elif domain == "processing" and re.fullmatch(r"src_[0-9a-f]{32}", subject):
                 source = subject
+            elif domain == "knowledge_objects":
+                from .knowledge_object_review import PROPOSALS, validate_proposal
+
+                proposal = read_json(self.store, f"{PROPOSALS}/{subject}.json")
+                if proposal is not None:
+                    validate_proposal(proposal, subject, self.store.read_config()["instance"]["id"])
+                    document_id = proposal["source"]["version"]["document_id"]
+                    record = read_json(self.store, f"knowledge/documents/{document_id}.json")
+                    source = record.get("source_id") if record else None
+                    if source != proposal["source"]["source_id"]:
+                        source = None
             # A new rule has no retained source yet. Grant its exact subject
             # without source filtering, or create it before a source-scoped grant.
             allowed = allowed and source in scope["sources"]

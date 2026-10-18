@@ -548,7 +548,9 @@ def create_app(
     attach_activity_routes(app, instance, TEMPLATES, _context)
     attach_action_center_routes(app, instance, TEMPLATES, _context, action_center)
     from .knowledge_object_activity import attach_object_routes
+    from .knowledge_object_review_activity import attach_object_review_routes
 
+    attach_object_review_routes(app, instance, TEMPLATES, _context)
     attach_object_routes(app, instance, TEMPLATES, _context)
     attach_annotation_routes(app, instance, TEMPLATES, _context)
     attach_domain_review_routes(app, instance, TEMPLATES, _context)

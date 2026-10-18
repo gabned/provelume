@@ -370,7 +370,10 @@ class DocumentSynthesis:
 
     def reference(self, job_id):
         job = self.setup.jobs.journal.get_job(job_id)
-        check(job is not None and job["job_kind"] == "ai.execute"
+        return self._reference_record(job_id, job)
+
+    def _reference_record(self, job_id, job):
+        check(job is not None and job["id"] == job_id and job["job_kind"] == "ai.execute"
               and job["ai"]["terminal"] == "succeeded", "ai_result_unavailable")
         result = job["ai"]["result"]
         check(result is not None and result["kind"] == "derived_ref", "ai_result_unavailable")
@@ -384,8 +387,10 @@ class DocumentSynthesis:
         with self.setup.jobs._transaction(wait_seconds=2):
             return self._read_locked(job_id)
 
-    def _read_locked(self, job_id):
-        job, ref, selections = self.reference(job_id)
+    def _read_locked(self, job_id, *, recorded_job=None):
+        # Internal callers may supply one independently validated bounded snapshot.
+        job, ref, selections = (self.reference(job_id) if recorded_job is None
+                                else self._reference_record(job_id, recorded_job))
         first = selections[0]
         document, _, source = self.source(first.version.document_id, first.representation_id,
                                          first.output_id)

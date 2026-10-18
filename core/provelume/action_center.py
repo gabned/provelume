@@ -55,6 +55,7 @@ _SUPPORTED = {
     "extraction_error": ("acknowledge_evidence",),
     "source_change": ("acknowledge_evidence",),
     "retention": (),
+    "knowledge_objects": (),
 }
 _STATE_FIELDS = {"schema_version", "instance_id", "revision", "authority", "proposals", "receipts"}
 
