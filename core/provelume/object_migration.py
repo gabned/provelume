@@ -108,11 +108,20 @@ def upgrade_objects_stage(store, *, backup, backup_directory):
         if node["kind"] in {"project", "collection"}:
             hierarchy_object(node, before["instance_id"])
     original_config = store.read_config()
-    preserved = {
-        row["path"]: row
-        for row in _entry_manifest(_payload_files(store))
-        if row["path"] not in {"provelume.yml", "instance-manifest.json"}
-    }
+    payload = _entry_manifest(_payload_files(store))
+    schema_files = (store.paths.config, store.paths.manifest)
+    schema_paths = set()
+    for row in payload:
+        path = store.paths.root / row["path"]
+        if (
+            path.parent == store.paths.root
+            and path.name.casefold() in {"provelume.yml", "instance-manifest.json"}
+            and any(selected.is_file() and path.samefile(selected) for selected in schema_files)
+        ):
+            schema_paths.add(row["path"])
+    # Those two schema-owned files are intentionally rewritten. Identify their
+    # native aliases before the rewrite; every other payload byte remains bound.
+    preserved = {row["path"]: row for row in payload if row["path"] not in schema_paths}
     receipts = []
     if schema == 1:
         receipts.append(InstanceLifecycleManager(store)._apply_migration_1_to_2(backup=backup))
