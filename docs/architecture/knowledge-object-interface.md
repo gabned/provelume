@@ -119,11 +119,13 @@ Synthetic HTTP/browser journeys exercise confirmation, Host/Origin/loopback,
 nonce subject/expiry/replay, conflict handling, closed/hostile input, exact older
 Original delivery, evidence disappearance, withdrawal, endpoint staleness and
 explicit refresh, hierarchy authority and typed calendar instants.
-The Linux CI job has a bounded 15-minute execution budget including dependency setup
-and the complete expanded suite; the original ten-minute job cancellation at 98%
-is retained. This orchestration allowance preserves every test and the independent
-product responsiveness/resource limits. Windows group/report limits and native
-Protocol workspace qualification retain their existing settings.
+The Linux CI job inherits its bounded 15-minute execution budget from the accepted
+separate [Protocol owner #395](https://github.com/gabned/provelume/pull/395), main
+`2a299bbf2485198e00dc640fb31e42ed9332406d`. It includes dependency setup and the complete
+expanded suite; the original ten-minute cancellation at 98% is retained. The Product
+delta carries no CI workflow change. Every test and independent product
+responsiveness/resource limit remains intact, as do the Windows group/report and
+native Protocol workspace settings.
 The shared
 pages use escaped text, labeled controls, native links/buttons, semantic history,
 existing themes/reflow, skip links and both existing base layouts. All seven
