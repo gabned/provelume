@@ -1,8 +1,9 @@
 # Knowledge Object proposals and explicit review
 
 S05 #396 extends the existing synthesis receipt, Action Center and registered
-domain-review transaction. The application identity remains 0.13.0/Iudicium;
-campaign acceptance and publication remain separate GitHub gates.
+domain-review transaction. Its implementation-stage identity was0.13.0/Iudicium.
+The separate [0.14.0/Entitas final workstream](../releases/0.14.0.md) aligns current
+identity; qualification and actual publication remain separate GitHub gates.
 
 ## Preparing a draft
 

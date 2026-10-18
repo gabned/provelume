@@ -6,6 +6,49 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 No unreleased changes.
 
+## 0.14.0 - 2026-10-18
+
+Entitas combines the six accepted implementation slices of campaign #375 into
+Knowledge Objects v1. This source prepares one official Preview under final #402;
+actual publication requires the qualified official workflow, unchanged public
+payloads, receipt, exact-version installation kit and observed readiness.
+
+### Added
+
+- Closed Entity, Claim, Decision, Task, Outcome, CalendarEvent and Commitment
+  records, stable aliases, exact retained Evidence, immutable revisions and typed
+  Relations. Existing Project/Collection identities remain with their hierarchy
+  owner. Available evidence does not certify factual truth or merge identities.
+- Explicit schema-1/2 to schema 3 migration with deep preflight, independently
+  verified backups, preserved hierarchy IDs/Originals/preferences/consents/native
+  access controls, interruption recovery and rollback through the retained backup.
+  Backup/restore and both portable derived-state choices retain authoritative data;
+  older binaries refuse the newer schema.
+- Conflict-checked manual object/Relation services and a bounded local preview API,
+  shared Cura/Current forms, exact source-Version selection, inert Original
+  downloads, history and explicit stale-endpoint refresh. Dates require explicit
+  offsets and supported zones; calendar synchronization and recurrence are absent.
+- Receipt-bound removable object, Claim and Relation drafts from existing governed
+  summary/key-points results. Separately authorized preview/confirmation publishes
+  canonical data and immutable review provenance atomically; AI Off remains
+  supported and model output cannot create facts automatically.
+
+### Changed
+
+- Integrated synthetic journeys qualify migration, manual/reviewed objects,
+  old-Version evidence, retained receipts/accounting, recovery and portable round
+  trips. The existing full distribution pipeline includes immutable public 0.13.0
+  alongside its five earlier upgrade baselines.
+- Development pytest requires 9.0.3 or later within major9. Assembly and container
+  inputs use exact hash-pinned pip 26.2. Native Windows evidence retains genuine
+  pytest subtests and separately rejects malformed/failed normal-phase records;
+  every original failure and prerequisite receipt remains preserved.
+- Package, neutral embedded metadata, Windows resources and maintained first-party
+  component/model/inspector coordinates align to 0.14.0 / Entitas. Cura stays primary,
+  Current stays an explicit reversible backup, human/linguistic/label omissions
+  retain their actual states, classifier quality stays NOT_EVALUATED and automatic
+  classification stays DENIED.
+
 ## 0.13.0 - 2026-10-17
 
 Iudicium combines the accepted S01–S05 classification/review/derived-processing

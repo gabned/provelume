@@ -33,15 +33,19 @@ exact-version installation kit and observed readiness. Parent #349, Cura #354
 and final #373 are completed. The [final delivery receipt](https://github.com/gabned/provelume/pull/374#issuecomment-6237867129)
 retains source, actual-merge, official-pipeline and independent public-byte evidence.
 
-**Entitas 0.14.0 is in active development** under parent
-[#375](https://github.com/gabned/provelume/issues/375). First slice
-[#376](https://github.com/gabned/provelume/issues/376), intended owner
-`product/0.14-s01-object-contract`, defines closed object contracts and migration
-design. No implementation slice is accepted yet. Ordered work covers contracts,
-portable migration, manual services, interface/API, reviewed proposals and final
-integrated qualification. Only the separate final workstream changes application
-identity and publishes one official release; package identity remains 0.13.0 /
-Iudicium during implementation. No later forecast release is activated.
+**Entitas 0.14.0 is a prepared preview** under parent
+[#375](https://github.com/gabned/provelume/issues/375). All six ordered slices are
+accepted on their independently qualified actual-main merges: contracts #376,
+portable migration/recovery #384, manual services #387, interface/API #390,
+reviewed proposals #396 and integrated qualification #398. The final accepted
+input is `45fe7f026d816df56bf55d86b4bb505552ac7bfa`; the
+[S06 receipt](https://github.com/gabned/provelume/pull/399#issuecomment-6252632223)
+retains complete actual-source, native, CI and original-byte evidence.
+Separate final [#402](https://github.com/gabned/provelume/issues/402) aligns
+application identity to 0.14.0 / Entitas and records fresh source/actual-merge gates,
+one official publication and public-byte/receipt/kit/readiness observations.
+The [preparation record](releases/0.14.0.md) does not claim that a tag, public
+artifact or readiness event already exists. No later forecast release is activated.
 
 Custodia v0.12.1 is already
 [public](https://github.com/gabned/provelume/releases/tag/v0.12.1), with immutable
@@ -72,7 +76,7 @@ nonblocking for Entitas in #375 without changing mandatory machine or recovery g
 | Published preview | `0.12.0` | Optional local AI, privacy gateway and accountable document assistance | #311 S01–S09 delivered; #337/#338; [public release](https://github.com/gabned/provelume/releases/tag/v0.12.0) | `Custodia` |
 | Published preview | `0.12.1` | Custodia corrections: Cura/AI access, model progress, Windows local panel and closed native diagnostics | #339/#340; #341/#342/#343/#344; [immutable public release](https://github.com/gabned/provelume/releases/tag/v0.12.1); #348 residual independent | Follow-up to `Custodia` |
 | Published preview | `0.13.0` | Attributable classification proposals, independent manual rules/undo and bounded derived-work autonomy; real quality NOT_EVALUATED, automatic classification DENIED | #349 S01–S05 and Cura #354 delivered; #373 completed; [public release](https://github.com/gabned/provelume/releases/tag/v0.13.0) | `Iudicium` |
-| Active development | `0.14.0` | Knowledge Objects v1 | #375; ordered slice owners and actual-main acceptance recorded in the campaign | `Entitas` |
+| Prepared preview | `0.14.0` | Knowledge Objects v1 | #375 S01–S06 accepted; final #402; publication and readiness observed separately | `Entitas` |
 | Forecast | `0.15.0` | Productivity connectors and guarded sync preview | issue just in time | `Concordia` |
 | Forecast | `0.16.0` | Knowledge navigation, statistics, relations and deterministic discovery | issue just in time | `Itinerarium` |
 | Forecast | `0.17.0` | Knowledge API v1, read-only MCP and client connections | issue just in time | `Interfacies` |
@@ -1635,8 +1639,10 @@ complete folder-to-knowledge qualification.
 
 ### 0.14.0 — Knowledge Objects v1
 
-Activated by [#375](https://github.com/gabned/provelume/issues/375), with first
-contract/design slice [#376](https://github.com/gabned/provelume/issues/376).
+All six implementation slices are accepted under
+[#375](https://github.com/gabned/provelume/issues/375). Final
+[#402](https://github.com/gabned/provelume/issues/402) prepares 0.14.0 / Entitas and
+records the independent final qualification and actual publication gates.
 `BUSINESS_IMPACT: MATERIAL`: enable evidence-linked personal knowledge beyond
 documents. Review object round-trip success, evidence retention across document
 versions, recovery integrity and unauthorized-write counts after delivery; no
@@ -1663,9 +1669,12 @@ Ordered owners: S01 closed contracts and migration design; S02 canonical persist
 portable migration and recovery; S03 explicit manual object/Relation services;
 S04 local API and Cura/Current interface; S05 receipt-bound removable proposals
 and explicit review; S06 integrated compatibility/security/UX machine qualification.
-One distinct final owner aligns identity and performs the only publication.
-Create later slice issues just in time and accept every actual-main gate before
-the next slice. See the [object contract and migration design](architecture/knowledge-objects.md).
+All six slice issues are completed, with each actual-main acceptance and ordered
+closure retained in the campaign. One distinct final owner aligns identity and
+performs the only publication after its required gates. See the
+[object contract and migration design](architecture/knowledge-objects.md) and
+[release/qualification guide](releases/0.14.0.md). Later releases retain their
+independent activation gates and unchanged forecast scope.
 
 ### 0.15.0 — Productivity and Git Connectors with Guarded Sync Preview
 

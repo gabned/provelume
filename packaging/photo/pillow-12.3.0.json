@@ -5,7 +5,7 @@
   "status": "qualified-optional-local-component",
   "core_inspector": {
     "component": "provelume.core",
-    "version": "0.13.0",
+    "version": "0.14.0",
     "formats": ["JPEG", "PNG", "TIFF", "BMP"],
     "network_required": false,
     "runtime_download": false,

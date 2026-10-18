@@ -18,7 +18,7 @@ from provelume.service import ProvelumeInstance
 from provelume.web import create_app
 
 VERSIONS = {
-    "provelume": "0.13.0",
+    "provelume": "0.14.0",
     "fastapi": "0.141.1",
     "jinja2": "3.1.6",
     "pypdf": "6.16.2",
