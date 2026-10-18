@@ -702,7 +702,9 @@ jobs:
           runtime="$RUNNER_TEMP/provelume-release-runtime"
           rm -rf "$runtime"
           python -m venv "$runtime"
-          "$runtime/bin/python" -m pip install "$candidate"/dist/*.whl
+          "$runtime/bin/python" -m pip install --disable-pip-version-check --require-hashes \
+            -r build-lock/sbom-runtime-pip.requirements.txt
+          "$runtime/bin/python" -m pip install --disable-pip-version-check "$candidate"/dist/*.whl
           "$runtime/bin/provelume" --help >/dev/null
           "$runtime/bin/provelume" verify-installation \
             > "$assembly/installed-package-verification.json"

@@ -7,6 +7,27 @@ main `bd1ea8a49271908e75afa4c9256b17c852809295`, tree
 completed S05 closure/readback. The [S05 actual-main receipt](https://github.com/gabned/provelume/pull/397#issuecomment-6249601415)
 retains all source, failed-head, original-byte and actual-merge observations.
 
+After the first S06 source stopped, separate consumer Protocol prerequisite
+[#400](https://github.com/gabned/provelume/issues/400), owner
+[#401](https://github.com/gabned/provelume/pull/401), was accepted on actual main
+`bbd65a0a12ee703008a4d832fd3664f381505959`, tree
+`f3d2003b6a6670834750258059cc7df01f9f78e2`, and closed with verified readback.
+Its [actual-main receipt](https://github.com/gabned/provelume/pull/401#issuecomment-6250812909)
+retains full native, Windows, real pytest 8/9 interoperability, CPU, installed and
+original-byte qualification. The same S06 owner resumes through a normal
+dependency merge. New evidence v3 records native nested pytest reports separately
+while retaining normal phases, failed/unknown/duplicate rejection, source binding,
+full collection, four disjoint shards and existing resource/deadline bounds.
+
+Original source `cfc2535` remains failed: Windows v2 evidence has 327 duplicate
+recorder errors despite four successful pytest exits; the separate ordinary
+installed synthesis failed on `en-key-points-missing` with a settled
+`authority_changed` cancellation. Its cause remains unproven. Successful separate
+dry-run distribution reports do not repair either failed mandatory ordinary gate.
+Earlier `1ee012e` failed its obsolete five-baseline assertion. All sources, parent
+commits, original reports and outcomes remain retained; new qualification applies
+only to the unchanged new head and its eventual actual main.
+
 This document defines the new candidate's qualification. It does not attest pending
 CI, integration, a new human observation or publication. The PR-local owner records
 the exact source, every attempt/job/original report and actual-main acceptance.
@@ -95,6 +116,29 @@ source inspection alone is not a distribution verdict. Verify exact candidate
 SBOM/build/installed inventories and report the observed applicability separately.
 Do not claim exploitability or a generally clean dependency inventory from this
 single remediation.
+
+The exact stopped-source dry-run SBOM had 44 components, including 31 PyPI
+packages and assembly-environment pip 25.0.1. Complete public reviewed GitHub
+advisory queries for those exact PyPI versions found six range matches for pip:
+GHSA-qwm4-qh6w-59xr, GHSA-wf93-45jw-7689, GHSA-jp4c-xjxw-mgf9,
+GHSA-58qw-9mgm-455v, GHSA-6vgw-5pg2-w6jp and GHSA-4xh5-x5gv-qwph.
+This scoped observation does not establish exploitability or frozen Windows
+membership; conditions include malicious package/index installation, archive or
+entry-point handling and deferred self-update imports. CVE-2025-8869 concerns a
+fallback not used by supported Python 3.12 with PEP 706.
+
+The official assembler now installs exact pip 26.2 from
+`build-lock/sbom-runtime-pip.requirements.txt` with a required wheel hash before
+installing the candidate wheel, with pip version checks disabled. Original public
+wheel bytes were independently read: 1816475 bytes, SHA-256
+`931c303696af6fa3417112103b1cad26890e5a07eccb5b99783700e33f2b8aad`.
+PyPI's canonical 26.2 is PEP 440 equivalent to advisory first-fixed 26.2.0;
+every observed range is fixed by this version. The new source must qualify the
+actual assembly, installed package, SBOM and full official dry run. This small
+security input does not replace the existing platform dependency/build locks or
+claim that Python, pip, native components and the runner image are all locked by
+one manifest. Other ecosystems are outside that PyPI-only advisory query, and an
+empty public filter is not a complete security verdict.
 
 Protected Dependabot alert **#1** still returns `403 Resource not accessible by
 integration` through normal authenticated access. Its GHSA/CVE, package, range and
