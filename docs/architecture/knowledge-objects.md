@@ -5,6 +5,7 @@ S03 #387 adds [explicit manual services](knowledge-object-services.md), fresh ev
 and optimistic concurrency on that storage boundary.
 S04 #390 adds the guarded local API and shared Cura/Current forms. S05 #396 adds
 [receipt-bound drafts and explicit atomic review](knowledge-object-review.md).
+S06 #398 defines the [integrated preservation and distribution qualification](../qualification/entitas-s06.md).
 The pure contract in `core/provelume/knowledge_object_contract.py` defines inert JSON. The storage
 backend has no application/review authority; manual services require explicit per-call confirmation,
 while API/UI and proposal workflows remain separate ordered slices. Valid syntax, an evidence

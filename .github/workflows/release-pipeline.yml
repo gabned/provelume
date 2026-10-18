@@ -482,14 +482,14 @@ jobs:
             -ExpectedCommit "${{ needs.candidate.outputs.commit }}" `
             -ExpectedChannel "${{ needs.candidate.outputs.channel }}"
 
-      - name: Exercise immutable 0.10.1 through 0.12.1 upgrades with preserved public knowledge
+      - name: Exercise immutable 0.10.1 through 0.13.0 upgrades with preserved public knowledge
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $output = "$env:RUNNER_TEMP\provelume-windows-output"
           $evidence = Join-Path $output "windows-hardening-evidence"
           Copy-Item -Recurse -LiteralPath $evidence -Destination (Join-Path $output "upgrade-0.10.0")
-          foreach ($baselineVersion in @("0.10.1", "0.11.0", "0.12.0", "0.12.1")) {
+          foreach ($baselineVersion in @("0.10.1", "0.11.0", "0.12.0", "0.12.1", "0.13.0")) {
             $installer = "$env:RUNNER_TEMP\Provelume-Setup-$baselineVersion-public.exe"
             $wheel = "$env:RUNNER_TEMP\provelume-$baselineVersion-py3-none-any.whl"
             Invoke-WebRequest -Uri "https://github.com/gabned/provelume/releases/download/v$baselineVersion/Provelume-Setup-$baselineVersion-x64.exe" -OutFile $installer
