@@ -212,7 +212,10 @@ def persist_object_locked(store, value, *, expected_sha256, evidence=(), relatio
             and node["name"] == value["title"]
             and node["created_at"] == value["created_at"]
         )
-    if relation:
+    # A withdrawal keeps its exact historical endpoints. New and active links
+    # require current preimages; complete history/type/graph closure is still
+    # independently checked on the entire proposed state below.
+    if relation and (previous is None or value["state"] == "active"):
         for ref in (value["source"], value["target"]):
             head = store.read_canonical("objects", ref["id"])
             _require(
