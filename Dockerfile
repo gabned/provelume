@@ -13,6 +13,7 @@ LABEL org.opencontainers.image.source="https://github.com/gabned/provelume" \
 
 COPY pyproject.toml README.md LICENSE COMMERCIAL-LICENSE.md ./
 COPY core ./core
+COPY build-lock/sbom-runtime-pip.requirements.txt /tmp/provelume-runtime-pip.requirements.txt
 COPY scripts/stage_ai_runtime_inputs.py ./scripts/stage_ai_runtime_inputs.py
 COPY build/native/windows.zip build/native/linux.zip /native-inputs/
 RUN python scripts/stage_ai_runtime_inputs.py --source /app \
@@ -34,7 +35,10 @@ RUN --mount=type=secret,id=proxy_ca \
     apt-get update \
     && apt-get install -y --no-install-recommends libgomp1 libstdc++6 \
     && rm -rf /var/lib/apt/lists/* \
-    && python -m pip install --no-cache-dir . \
+    && python -m pip install --no-cache-dir --disable-pip-version-check --require-hashes \
+         -r /tmp/provelume-runtime-pip.requirements.txt \
+    && rm /tmp/provelume-runtime-pip.requirements.txt \
+    && python -m pip install --no-cache-dir --disable-pip-version-check . \
     && useradd --create-home --uid 10001 provelume \
     && mkdir -p /instance /.instance.provelume/ai-models \
     && chown -R provelume:provelume /instance /.instance.provelume \
