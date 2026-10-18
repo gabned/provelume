@@ -124,6 +124,12 @@ def _navigation(
             "group": "knowledge",
         },
         {
+            "href": f"/objects?lang={language}",
+            "label": t("objects.title"),
+            "current": current_path.startswith("/objects"),
+            "group": "knowledge",
+        },
+        {
             "href": f"/inbox?lang={language}",
             "label": t("nav.inbox"),
             "current": current_path.startswith("/inbox"),
@@ -541,6 +547,9 @@ def create_app(
     attach_ai_routes(app, instance, TEMPLATES, _context)
     attach_activity_routes(app, instance, TEMPLATES, _context)
     attach_action_center_routes(app, instance, TEMPLATES, _context, action_center)
+    from .knowledge_object_activity import attach_object_routes
+
+    attach_object_routes(app, instance, TEMPLATES, _context)
     attach_annotation_routes(app, instance, TEMPLATES, _context)
     attach_domain_review_routes(app, instance, TEMPLATES, _context)
     attach_folder_source_routes(app, instance, TEMPLATES, _context)

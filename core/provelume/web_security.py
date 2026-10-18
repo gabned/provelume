@@ -104,6 +104,15 @@ class LocalWebSecurityMiddleware(BaseHTTPMiddleware):
         for name, value in SECURITY_HEADERS.items():
             response.headers[name] = value
         if (
+            getattr(request.state, "object_browser_form", False) is True
+            and request.url.path.startswith("/objects/")
+            and response.status_code == 200
+            and response.headers.get("content-type", "").startswith("text/html")
+        ):
+            # Native form navigation must retain its same-Origin header. This
+            # policy still sends no referrer to any external origin.
+            response.headers["Referrer-Policy"] = "same-origin"
+        if (
             getattr(request.state, "capture_original_attachment", False) is True
             and request.url.path.startswith("/capture/knowledge/documents/")
             and response.headers.get("Content-Disposition", "").startswith("attachment;")

@@ -31,6 +31,7 @@ PRIMARY = (
 KNOWLEDGE_PATHS = frozenset(
     {
         "/browse",
+        "/objects",
         "/bundles",
         "/representations",
         "/perceptio",

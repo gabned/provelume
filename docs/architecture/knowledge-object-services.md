@@ -5,6 +5,8 @@ contracts and S02 schema-3 storage. `ProvelumeInstance.object_services()` return
 the local Python service seam. Construction performs no Instance I/O, recovery,
 inference, scheduling or canonical write. This is not a stabilized external API;
 the local HTTP/interface boundary belongs to S04 and reviewed proposals to S05.
+The S04 [local browser/API contract](knowledge-object-interface.md) describes
+shared manual Cura/Current forms and their per-operation authority boundary.
 
 ## Manual authority and concurrency
 

@@ -259,7 +259,10 @@ class KnowledgeObjectServices:
         for row in evidence:
             validate_evidence(row)
 
-    def create(self, kind, title, body, *, state=None, aliases=(), evidence=(), consent=False):
+    def create(
+        self, kind, title, body, *, state=None, aliases=(), evidence=(), consent=False,
+        expected_instance_id=None,
+    ):
         self._authority(consent)
         require(type(kind) is str and kind in OBJECT_KINDS, "invalid")
         require(kind not in {"project", "collection"}, "hierarchy_authority")
@@ -293,10 +296,11 @@ class KnowledgeObjectServices:
             "created_at": now,
             "updated_at": now,
         }
-        return self._write(value, None, evidence)
+        return self._write(value, None, evidence, expected_instance_id=expected_instance_id)
 
     def update(
-        self, identity, changes, *, expected_sha256, evidence=(), consent=False, relation=False
+        self, identity, changes, *, expected_sha256, evidence=(), consent=False, relation=False,
+        expected_instance_id=None,
     ):
         self._authority(consent)
         self._identity(identity, relation)
@@ -336,9 +340,13 @@ class KnowledgeObjectServices:
                 relation=relation,
                 withdrawn=withdrawn,
                 history_bytes=history_bytes,
+                expected_instance_id=expected_instance_id,
             )
 
-    def create_relation(self, relation_type, source, target, *, evidence=(), consent=False):
+    def create_relation(
+        self, relation_type, source, target, *, evidence=(), consent=False,
+        expected_instance_id=None,
+    ):
         self._authority(consent)
         validate_object_reference(source)
         validate_object_reference(target)
@@ -359,15 +367,25 @@ class KnowledgeObjectServices:
             "created_at": now,
             "updated_at": now,
         }
-        return self._write(value, None, evidence, relation=True)
+        return self._write(
+            value, None, evidence, relation=True, expected_instance_id=expected_instance_id,
+        )
 
-    def _write(self, value, expected, evidence, *, relation=False):
+    def _write(self, value, expected, evidence, *, relation=False, expected_instance_id=None):
         with InstanceLifecycleManager(self.store)._hold(purpose="manual-object-create"):
-            return self._write_locked(value, expected, evidence, relation=relation)
+            return self._write_locked(
+                value, expected, evidence, relation=relation,
+                expected_instance_id=expected_instance_id,
+            )
 
     def _write_locked(
-        self, value, expected, evidence, *, relation=False, withdrawn=False, history_bytes=0
+        self, value, expected, evidence, *, relation=False, withdrawn=False, history_bytes=0,
+        expected_instance_id=None,
     ):
+        require(
+            expected_instance_id is None or expected_instance_id == current_instance_id(self.store),
+            "conflict",
+        )
         (validate_relation if relation else validate_object)(value)
         require(value["revision"] <= MAX_HISTORY_REVISIONS, "limit")
         require(
