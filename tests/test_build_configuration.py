@@ -136,7 +136,7 @@ def test_release_workflows_use_the_shared_deterministic_builder() -> None:
     windows_exercise = (root / "scripts/test_windows_installer.ps1").read_text(
         encoding="utf-8"
     )
-    assert '@("0.10.1", "0.11.0", "0.12.0", "0.12.1")' in release
+    assert '@("0.10.1", "0.11.0", "0.12.0", "0.12.1", "0.13.0")' in release
     assert 'version = "0.12.1"' in windows_exercise
     assert 'commit = "cd7dc64f3ffb2a17689018b3350f0e1c073abdd4"' in windows_exercise
     assert "size = 24593385" in windows_exercise
