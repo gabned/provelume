@@ -471,7 +471,7 @@ class AtomicInstanceCommit:
             _fsync_directory(self.stage_parent)
 
     def _publish_entries(self, stage, manifest, flushers):
-        pending = []
+        directories = set()
         for entry in manifest["entries"]:
             target, _ = _instance_target(
                 self.store,
@@ -514,8 +514,8 @@ class AtomicInstanceCommit:
                 )
                 if moved_digest != entry["preimage_sha256"]:
                     raise self._error_type()
-                pending.append(flushers.submit(_fsync_directory, target.parent))
-                pending.append(flushers.submit(_fsync_directory, candidate.parent))
+                directories.add(target.parent)
+                directories.add(candidate.parent)
                 continue
             candidate_digest, _ = _bounded_file_digest(
                 candidate,
@@ -526,7 +526,14 @@ class AtomicInstanceCommit:
                 raise self._error_type()
             target.parent.mkdir(parents=True, exist_ok=True)
             self._replace(candidate, target)
-            pending.append(flushers.submit(_fsync_directory, target.parent))
+            directories.add(target.parent)
+        # Flush each affected directory after all its replacements/removals.
+        # One final fsync covers every preceding change in that directory;
+        # flushing it separately for each entry only repeats the same I/O.
+        # Every future still completes before the committed marker, and the
+        # enclosing pool joins on failure before rollback can restore preimages.
+        pending = [flushers.submit(_fsync_directory, directory)
+                   for directory in sorted(directories, key=str)]
         for flush in pending:
             flush.result()
 

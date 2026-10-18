@@ -126,6 +126,62 @@ def test_parallel_target_flush_barrier_precedes_commit_and_joins_before_rollback
     assert list((control / "transactions").iterdir()) == []
 
 
+@pytest.mark.parametrize("fail", [False, True])
+def test_shared_parent_flush_covers_all_replacements_before_acknowledgement(
+    tmp_path, monkeypatch, fail,
+):
+    store, control = _store(tmp_path)
+    parent = store.paths.root / "state/shared"
+    parent.mkdir()
+    targets = [parent / name for name in ("a.bin", "b.bin")]
+    before, after = [b"old-a", b"old-b"], [b"new-a", b"new-b"]
+    for target, payload in zip(targets, before, strict=True):
+        store._atomic_bytes(target, payload)
+    transaction = _transaction(store, control, profile=_profile())
+    for target, payload in zip(targets, after, strict=True):
+        transaction.add(target.relative_to(store.paths.root).as_posix(), payload,
+                        immutable=False)
+    entered, release = threading.Event(), threading.Event()
+    outcomes, snapshots = [], []
+    original = atomic_commit._fsync_directory
+
+    def flush(path):
+        if path == parent:
+            snapshots.append([target.read_bytes() for target in targets])
+            if len(snapshots) == 1:
+                entered.set()
+                assert release.wait(5)
+                if fail:
+                    raise OSError("synthetic shared-parent flush failure")
+        return original(path)
+
+    monkeypatch.setattr(atomic_commit, "_fsync_directory", flush)
+
+    def commit():
+        try:
+            transaction.commit()
+            outcomes.append("acknowledged")
+        except AtomicCommitError:
+            outcomes.append("failed")
+
+    worker = threading.Thread(target=commit)
+    worker.start()
+    try:
+        assert entered.wait(2)
+        assert snapshots == [after] and not outcomes
+        manifest = next((control / "transactions").glob("*/manifest.json"))
+        assert store._read_json(manifest)["status"] == "prepared"
+    finally:
+        release.set()
+        worker.join(5)
+    assert not worker.is_alive()
+    assert outcomes == ["failed" if fail else "acknowledged"]
+    assert [target.read_bytes() for target in targets] == (before if fail else after)
+    assert list((control / "transactions").iterdir()) == []
+    if not fail:
+        assert snapshots == [after]
+
+
 def test_parallel_payload_failure_joins_writers_before_removing_unpublished_stage(
     tmp_path, monkeypatch,
 ):
