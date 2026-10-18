@@ -2261,5 +2261,6 @@
   "objects.type.scheduled_for": "Prévu pour",
   "objects.type.supports": "Appuie",
   "objects.use_source": "Joindre cette version",
-  "objects.version": "Identité de la Version source"
+  "objects.version": "Identité de la Version source",
+  "objects.alias_help": "Les alias existants sont conservés tant que ce champ reste inchangé. La modification utilise un alias par ligne."
 }

@@ -2261,5 +2261,6 @@
   "objects.type.scheduled_for": "Programat pentru",
   "objects.type.supports": "Susține",
   "objects.use_source": "Atașează această versiune",
-  "objects.version": "Identitatea Versiunii sursă"
+  "objects.version": "Identitatea Versiunii sursă",
+  "objects.alias_help": "Aliasurile existente sunt păstrate cât timp acest câmp rămâne neschimbat. La editare, folosește un alias pe linie."
 }

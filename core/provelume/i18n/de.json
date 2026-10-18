@@ -2261,5 +2261,6 @@
   "objects.type.scheduled_for": "Geplant für",
   "objects.type.supports": "Unterstützt",
   "objects.use_source": "Diese Version zuordnen",
-  "objects.version": "Identität der Quellversion"
+  "objects.version": "Identität der Quellversion",
+  "objects.alias_help": "Vorhandene Aliasse bleiben erhalten, solange dieses Feld unverändert bleibt. Beim Bearbeiten gilt ein Alias pro Zeile."
 }

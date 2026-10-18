@@ -179,8 +179,14 @@ class ObjectInterface:
                     for key in BODY_FIELDS[plan["kind"]]}
             if "due_at" in body and body["due_at"] == "":
                 body["due_at"] = None
-            aliases = fields.get("aliases", "").splitlines()
-            data = {"title": fields.get("title", ""), "aliases": aliases, "body": body}
+            alias_text = fields.get("aliases", "").replace("\r\n", "\n")
+            # Existing canonical aliases may themselves contain newlines. An
+            # untouched display must not split their retained boundaries.
+            aliases = (deepcopy(before["aliases"])
+                       if before and alias_text == "\n".join(before["aliases"])
+                       else alias_text.splitlines())
+            data = {"title": fields.get("title", "").replace("\r\n", "\n"),
+                    "aliases": aliases, "body": body}
         if before:
             data.update(state=fields.get("state"), evidence_ids=evidence_ids)
             changes = {key: val for key, val in data.items() if val != before[key]}

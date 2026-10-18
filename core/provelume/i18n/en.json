@@ -2261,5 +2261,6 @@
   "objects.type.scheduled_for": "Scheduled for",
   "objects.type.supports": "Supports",
   "objects.use_source": "Attach this version",
-  "objects.version": "Source Version identity"
+  "objects.version": "Source Version identity",
+  "objects.alias_help": "Existing aliases are kept while this field is unchanged. Editing uses one alias per line."
 }

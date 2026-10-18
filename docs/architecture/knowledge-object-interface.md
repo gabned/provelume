@@ -100,6 +100,12 @@ same byte cap, bounded field count, exact scalar fields and per-operation nonce;
 they normalize browser CRLF text back to LF before comparing against the reviewed
 record. Only fields actually changed are submitted to the service, preserving the
 pure-withdrawal exception without rewriting unchanged text or evidence.
+Existing valid multiline titles, bodies and alias boundaries survive unchanged
+when another field is edited. Textareas preserve their first newline as well as
+trailing whitespace; browser CRLF is normalized back to the canonical LF form.
+An unchanged alias display retains its original entries, including embedded
+newlines; explicitly edited alias text uses the documented one-alias-per-line
+entry profile. No identity merging or automatic alias normalization is performed.
 
 Authority/Origin errors return 403, expired/replayed/stale plans and preimages
 409, missing records 404, unsupported media 415 and resource limits 413. Other

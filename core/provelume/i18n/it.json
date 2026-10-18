@@ -2261,5 +2261,6 @@
   "objects.type.scheduled_for": "Programmato per",
   "objects.type.supports": "Supporta",
   "objects.use_source": "Allega questa versione",
-  "objects.version": "Identità della Versione fonte"
+  "objects.version": "Identità della Versione fonte",
+  "objects.alias_help": "Gli alias esistenti vengono conservati finché questo campo non cambia. Le modifiche usano un alias per riga."
 }

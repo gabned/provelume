@@ -2261,5 +2261,6 @@
   "objects.type.scheduled_for": "Agendado para",
   "objects.type.supports": "Apoia",
   "objects.use_source": "Anexar esta versão",
-  "objects.version": "Identidade da Versão fonte"
+  "objects.version": "Identidade da Versão fonte",
+  "objects.alias_help": "Os nomes alternativos existentes são mantidos enquanto este campo não mudar. Ao editar, use um nome por linha."
 }

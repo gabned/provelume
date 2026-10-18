@@ -15270,6 +15270,12 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "objects.alias_help": {
+      "context": "objects: retaining canonical aliases and explicit line-based editing; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
     }
   },
   "schema_version": 1,

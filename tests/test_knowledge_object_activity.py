@@ -491,3 +491,28 @@ def test_non_object_canonical_source_fails_with_redacted_error(browser, family):
     assert response.status_code in {400, 503}
     assert "knowledge_object_" in response.text
     assert before == _snapshot(instance)
+
+
+@pytest.mark.parametrize("field", ["title", "aliases"])
+def test_withdrawal_keeps_multiline_canonical_metadata(browser, field):
+    instance, client, _ = browser
+    version = instance.store.list_canonical("versions")[0]
+    evidence = instance.object_services().evidence_for_version(version["id"])
+    title = "\nClaim\nTitle" if field == "title" else "Claim"
+    aliases = ["\nAlias\ninside"] if field == "aliases" else []
+    view = _create(client, title, kind="claim", body={"statement":"\nRetained statement\n"},
+                   state="asserted", aliases=aliases, evidence=[evidence]).json()
+    identity = view["record"]["id"]
+    original = instance.store.read_canonical("originals", evidence["original_id"])
+    (instance.root / original["storage_ref"]).unlink()
+    page = client.get(f"/objects/{identity}/edit")
+    result = _post_form(client, Form(page.text), {
+        "title":title.replace("\n", "\r\n"),
+        "aliases":"\n".join(aliases).replace("\n", "\r\n"),
+        "statement":"\r\nRetained statement\r\n", "state":"retracted", "confirmed":"yes",
+    })
+    assert result.status_code == 303, result.text
+    current = client.get(API + "/" + identity).json()["record"]
+    assert current["state"] == "retracted"
+    assert all(current[key] == view["record"][key] for key in
+               ("title", "aliases", "body", "evidence_ids"))
