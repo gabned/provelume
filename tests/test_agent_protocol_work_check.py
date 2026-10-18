@@ -63,10 +63,10 @@ class WindowsShardContractTests(unittest.TestCase):
             selected = nodes if mode == "inventory" else nodes[shard::4]
             outcomes = {node: {"setup": "passed", "call": "passed", "teardown": "passed"}
                         for node in selected} if mode == "shard" else {}
-            return {"schema": "agent-windows-ci-pytest/v2", "identity": deepcopy(identity),
+            return {"schema": "agent-windows-ci-pytest/v3", "identity": deepcopy(identity),
                     "mode": mode, "shard": shard, "inventory": list(nodes),
                     "selected": list(selected), "outcomes": outcomes,
-                    "cases": deepcopy(cases), "exit_code": 0, "errors": []}
+                    "cases": deepcopy(cases), "subtests": [], "exit_code": 0, "errors": []}
 
         groups = [{"schema": "agent-windows-ci-group/v1", "identity": deepcopy(identity),
                    "group": group, "inventory": record("inventory"),
@@ -286,6 +286,100 @@ class WindowsShardContractTests(unittest.TestCase):
                 groups[0]["shards"][0] = record
                 with self.assertRaises(source.EvidenceError):
                     runner.verify_windows_reports(groups, expected)
+
+    def test_native_subtests_preserve_parent_phases_and_truthful_skip(self):
+        groups, expected = self.fixture()
+        worker = groups[0]["shards"][0]
+        parent = worker["selected"][0]
+        phases = deepcopy(worker["outcomes"])
+        worker["subtests"] = [
+            {"id": runner._windows_subtest_id(parent, index), "parent": parent,
+             "ordinal": index, "outcome": outcome}
+            for index, outcome in enumerate(("passed", "skipped"))
+        ]
+        result = runner.verify_windows_reports(groups, expected)
+        self.assertEqual(result["subtest_count"], 2)
+        self.assertEqual(worker["outcomes"], phases)
+
+    def test_native_subtest_tampering_cannot_pass_with_successful_parent_and_exit(self):
+        def valid_worker(groups):
+            worker = groups[0]["shards"][0]
+            parent = worker["selected"][0]
+            worker["subtests"] = [{"id": runner._windows_subtest_id(parent, 0),
+                                   "parent": parent, "ordinal": 0, "outcome": "passed"}]
+            return worker
+
+        for field, value in (("parent", "unknown"), ("ordinal", True), ("ordinal", -1),
+                             ("ordinal", 1), ("id", "f" * 64), ("outcome", "failed"),
+                             ("outcome", "unknown"), ("outcome", None), ("outcome", []),
+                             ("outcome", {})):
+            with self.subTest(field=field, value=value):
+                groups, expected = self.fixture()
+                valid_worker(groups)["subtests"][0][field] = value
+                with self.assertRaises(source.EvidenceError):
+                    runner.verify_windows_reports(groups, expected)
+        for damage in ("missing", "not-list", "duplicate", "extra", "unbounded",
+                       "inventory-execution", "v2", "unselected", "setup-skipped"):
+            with self.subTest(damage=damage):
+                groups, expected = self.fixture()
+                worker = valid_worker(groups)
+                if damage == "missing":
+                    del worker["subtests"]
+                elif damage == "not-list":
+                    worker["subtests"] = {}
+                elif damage == "duplicate":
+                    worker["subtests"].append(deepcopy(worker["subtests"][0]))
+                elif damage == "extra":
+                    worker["subtests"][0]["private_context"] = "forbidden"
+                elif damage == "unbounded":
+                    worker["subtests"] *= runner.WINDOWS_SUBTEST_LIMIT + 1
+                elif damage == "inventory-execution":
+                    groups[0]["inventory"]["subtests"] = worker["subtests"]
+                elif damage == "v2":
+                    worker["schema"] = "agent-windows-ci-pytest/v2"
+                elif damage == "unselected":
+                    worker["subtests"][0]["parent"] = groups[0]["shards"][1]["selected"][0]
+                else:
+                    worker["outcomes"][worker["selected"][0]] = {
+                        "setup": "skipped", "teardown": "passed"}
+                with self.assertRaises(source.EvidenceError):
+                    runner.verify_windows_reports(groups, expected)
+
+    def test_native_subtest_recorder_requires_selected_setup_and_no_finished_parent(self):
+        report_type = type("SubtestReport", (), {"__module__": "_pytest.subtests"})
+        for damage in (None, "unknown", "unselected", "setup", "parent-finished", "phase",
+                       "outcome", "limit"):
+            with self.subTest(damage=damage):
+                groups, _ = self.fixture()
+                worker = groups[0]["shards"][0]
+                case = worker["cases"][0]
+                recorder = runner._WindowsRecorder(worker["identity"], "shard", 0)
+                recorder._ids[case["raw_nodeid"]] = case["id"]
+                recorder.selected = [case["id"]]
+                recorder.outcomes[case["id"]] = {"setup": "passed"}
+                report = report_type()
+                report.nodeid, report.when, report.outcome = case["raw_nodeid"], "call", "passed"
+                if damage == "unknown":
+                    report.nodeid = "unknown"
+                elif damage == "unselected":
+                    recorder.selected = []
+                elif damage == "setup":
+                    recorder.outcomes[case["id"]] = {}
+                elif damage == "parent-finished":
+                    recorder.outcomes[case["id"]]["call"] = "passed"
+                elif damage == "phase":
+                    report.when = "teardown"
+                elif damage == "outcome":
+                    report.outcome = []
+                elif damage == "limit":
+                    recorder.subtests = [{}] * runner.WINDOWS_SUBTEST_LIMIT
+                recorder.pytest_runtest_logreport(report)
+                if damage is None:
+                    self.assertEqual(recorder.errors, [])
+                    self.assertEqual(len(recorder.subtests), 1)
+                    self.assertEqual(recorder.outcomes[case["id"]], {"setup": "passed"})
+                else:
+                    self.assertTrue(recorder.errors)
 
     def test_recorder_retains_identity_and_raw_collisions_as_errors(self):
         for collision in ("coordinate", "raw"):
@@ -832,6 +926,86 @@ class CheckTests(unittest.TestCase):
         self.assertTrue(result["timed_out"])
         self.assertEqual(result["exit_code"], -15)
         self.assertEqual(code, 2)
+
+
+class WindowsNativeSubtestTests(unittest.TestCase):
+    """Exercise actual installed pytest hooks; synthetic inputs never qualify app CI."""
+
+    def test_real_pytest_native_reports_preserve_success_failure_and_skip(self):
+        script = """
+import json, pathlib, sys
+sys.path.insert(0, sys.argv[1])
+import pytest
+import agent_protocol_work_check as runner
+root, output = pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3])
+identity = {'commit':'a'*40,'tree':'b'*40,'run_id':'1234','run_attempt':'1',
+            'event':'pull_request','platform':sys.platform,'python':'3.12.10'}
+recorder = runner._WindowsRecorder(identity, 'shard', 0)
+observed = []
+class Probe:
+    def pytest_runtest_logreport(self, report):
+        if type(report).__module__ == '_pytest.subtests':
+            observed.append(report.outcome)
+code = int(pytest.main(['-q','-c',str(root/'pytest.ini'),str(root/'test_native.py')],
+                      plugins=[recorder, Probe()]))
+output.write_text(json.dumps({'pytest':pytest.__version__,
+                            'record':recorder.record(code),'observed':observed}))
+"""
+        observations = []
+        for outcome in ("passed", "failed", "skipped"):
+            with self.subTest(outcome=outcome), tempfile.TemporaryDirectory(
+                prefix="protocol-native-subtests-",
+            ) as temporary:
+                root = Path(temporary)
+                (root / "pytest.ini").write_text("[pytest]\naddopts =\n")
+                (root / "test_native.py").write_text(
+                    "import unittest\n\nclass NativeCase(unittest.TestCase):\n"
+                    "    def test_values(self):\n"
+                    "        for value in range(2):\n"
+                    "            with self.subTest(value=value):\n"
+                    + ("                if value == 1: self.fail('synthetic failure')\n"
+                       if outcome == "failed" else
+                       "                if value == 1: self.skipTest('synthetic skip')\n"
+                       if outcome == "skipped" else "")
+                    + "                self.assertGreaterEqual(value, 0)\n",
+                    encoding="utf-8",
+                )
+                output = root / "record.json"
+                result = subprocess.run(
+                    [sys.executable, "-c", script, str(Path(runner.__file__).parent),
+                     str(root), str(output)], capture_output=True, text=True, timeout=30,
+                    env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                value = json.loads(output.read_text())
+                record, observed = value["record"], value["observed"]
+                self.assertEqual(record["schema"], "agent-windows-ci-pytest/v3")
+                self.assertEqual(record["errors"], [])
+                self.assertEqual([s["outcome"] for s in record["subtests"]], observed)
+                if tuple(map(int, value["pytest"].split(".")[:2])) >= (9, 1):
+                    self.assertEqual(len(observed), 2)
+                def validate(current=record):
+                    return runner._validate_windows_record(
+                        current, current["identity"], set(current["inventory"]), "shard", 0,
+                    )
+                if outcome == "failed":
+                    self.assertEqual(record["exit_code"], 1)
+                    with self.assertRaises(source.EvidenceError):
+                        validate()
+                    record["exit_code"] = 0
+                    with self.assertRaises(source.EvidenceError):
+                        validate()
+                else:
+                    self.assertEqual(record["exit_code"], 0)
+                    self.assertEqual(validate(), set(record["selected"]))
+                observations.append({"pytest": value["pytest"], "scenario": outcome,
+                                     "actual_subtest_outcomes": observed,
+                                     "independent_gate": "BLOCKED" if outcome == "failed"
+                                     else "PASS", "forced_success_exit_rejected":
+                                     outcome == "failed"})
+        print("ENTITAS_PYTEST_INTEROP=" + json.dumps(
+            {"host": sys.platform, "observations": observations,
+             "synthetic_contract_only": True}, sort_keys=True))
 
 
 if __name__ == "__main__":

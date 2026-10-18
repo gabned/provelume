@@ -206,13 +206,26 @@ def windows_identity(root: Path, expected: dict) -> dict:
             "python": platform.python_version()}
 
 
+WINDOWS_SUBTEST_LIMIT = 10000
+
+
+def _windows_subtest_id(parent, ordinal):
+    return source.digest({"parent": parent, "ordinal": ordinal})
+
+
 class _WindowsRecorder:
-    """Observe pytest's full collection, selection and real phase reports."""
+    """Observe normal phases and native nested reports as separate evidence.
+
+    Consumer record v3 retains the existing source-bound case coordinates and
+    requires a bounded subtest inventory. Historical v2 records keep their
+    original validator/source and are never relabelled as new-source evidence.
+    """
 
     def __init__(self, identity, mode, shard):
         self.identity, self.mode, self.shard = identity, mode, shard
         self.inventory, self.selected, self.outcomes, self.errors = [], [], {}, []
         self.cases, self._ids = [], {}
+        self.subtests, self._subtest_ordinals = [], {}
 
     def pytest_collection_modifyitems(self, items):
         for item in items:
@@ -243,16 +256,35 @@ class _WindowsRecorder:
             self.errors.append("pytest phase missing from raw node map")
             return
         phases = self.outcomes.setdefault(identity, {})
+        if (type(report).__module__ == "_pytest.subtests"
+                and type(report).__name__ in {"SubtestReport", "SubTestReport"}):
+            if (identity not in self.selected or report.when != "call"
+                    or phases.get("setup") != "passed"
+                    or "call" in phases or "teardown" in phases
+                    or type(report.outcome) is not str
+                    or report.outcome not in {"passed", "failed", "skipped"}):
+                self.errors.append("unexpected native pytest subtest")
+                return
+            if len(self.subtests) >= WINDOWS_SUBTEST_LIMIT:
+                if "native pytest subtest limit exceeded" not in self.errors:
+                    self.errors.append("native pytest subtest limit exceeded")
+                return
+            ordinal = self._subtest_ordinals.get(identity, 0)
+            self.subtests.append({"id": _windows_subtest_id(identity, ordinal),
+                                  "parent": identity, "ordinal": ordinal,
+                                  "outcome": report.outcome})
+            self._subtest_ordinals[identity] = ordinal + 1
+            return
         if (identity not in self.selected or report.when in phases
                 or report.when not in {"setup", "call", "teardown"}):
             self.errors.append("unexpected or duplicate pytest phase")
         phases[report.when] = report.outcome
 
     def record(self, exit_code):
-        return {"schema": "agent-windows-ci-pytest/v2", "identity": self.identity,
+        return {"schema": "agent-windows-ci-pytest/v3", "identity": self.identity,
                 "mode": self.mode, "shard": self.shard, "inventory": self.inventory,
                 "cases": self.cases, "selected": self.selected, "outcomes": self.outcomes,
-                "exit_code": int(exit_code), "errors": self.errors}
+                "subtests": self.subtests, "exit_code": int(exit_code), "errors": self.errors}
 
 
 def _windows_case_id(descriptor):
@@ -297,7 +329,10 @@ def _windows_nodes(value):
 
 def _validate_windows_record(record, identity, inventory, mode, index):
     source.require(isinstance(record, dict)
-                   and record.get("schema") == "agent-windows-ci-pytest/v2"
+                   and set(record) == {"schema", "identity", "mode", "shard", "inventory",
+                                       "cases", "selected", "outcomes", "subtests",
+                                       "exit_code", "errors"}
+                   and record.get("schema") == "agent-windows-ci-pytest/v3"
                    and record.get("identity") == identity
                    and record.get("mode") == mode and record.get("shard") == index,
                    "CI record identity mismatch")
@@ -309,8 +344,12 @@ def _validate_windows_record(record, identity, inventory, mode, index):
     selected = _windows_nodes(record.get("selected"))
     outcomes = record.get("outcomes")
     source.require(isinstance(outcomes, dict), "CI execution outcomes missing")
+    subtests = record.get("subtests")
+    source.require(isinstance(subtests, list) and len(subtests) <= WINDOWS_SUBTEST_LIMIT,
+                   "CI native subtest inventory missing or unbounded")
     if mode == "inventory":
-        source.require(selected == inventory and outcomes == {}, "invalid independent inventory")
+        source.require(selected == inventory and outcomes == {} and subtests == [],
+                       "invalid independent inventory")
         return selected
     source.require(selected <= inventory and set(outcomes) == selected,
                    "CI selected node was not executed")
@@ -322,6 +361,24 @@ def _validate_windows_record(record, identity, inventory, mode, index):
                              and phases.get("call") in {"passed", "skipped"})
                             or (phases.get("setup") == "skipped" and "call" not in phases)),
                        "CI node has incomplete or unsuccessful phases")
+    ordinals, seen = {}, set()
+    for subtest in subtests:
+        source.require(isinstance(subtest, dict)
+                       and set(subtest) == {"id", "parent", "ordinal", "outcome"},
+                       "invalid CI native subtest")
+        parent, ordinal = subtest["parent"], subtest["ordinal"]
+        source.require(type(parent) is str and parent in selected
+                       and type(ordinal) is int and ordinal >= 0
+                       and ordinal == ordinals.get(parent, 0)
+                       and outcomes[parent].get("setup") == "passed",
+                       "CI native subtest parent or ordinal mismatch")
+        identifier = _windows_subtest_id(parent, ordinal)
+        source.require(subtest["id"] == identifier and identifier not in seen
+                       and type(subtest["outcome"]) is str
+                       and subtest["outcome"] in {"passed", "skipped"},
+                       "CI native subtest failed, duplicated or unknown")
+        seen.add(identifier)
+        ordinals[parent] = ordinal + 1
     return selected
 
 
@@ -330,6 +387,7 @@ def verify_windows_reports(groups: list, expected: dict) -> dict:
     source.require(isinstance(groups, list) and len(groups) == 2, "two CI groups required")
     seen_groups, seen_shards, executed = set(), set(), set()
     inventory, identity = None, None
+    subtest_count = 0
     for group in groups:
         source.require(isinstance(group, dict)
                        and group.get("schema") == "agent-windows-ci-group/v1",
@@ -369,10 +427,12 @@ def verify_windows_reports(groups: list, expected: dict) -> dict:
             source.require(not executed.intersection(selected), "overlapping CI execution")
             executed.update(selected)
             seen_shards.add(shard)
+            subtest_count += len(record["subtests"])
     source.require(seen_shards == set(range(WINDOWS_CI_SHARDS)) and executed == inventory,
                    "CI execution does not cover the full inventory")
     return {"result": "PASS", "identity": identity, "node_count": len(inventory),
-            "shard_count": WINDOWS_CI_SHARDS, "inventory_sha256": source.digest(sorted(inventory))}
+            "shard_count": WINDOWS_CI_SHARDS, "inventory_sha256": source.digest(sorted(inventory)),
+            "subtest_count": subtest_count}
 
 
 def windows_pytest(root, output, expected, *, mode, shard=None):
