@@ -14766,6 +14766,516 @@
       "rendering": "text",
       "sensitive_review_required": true,
       "linguistic_review": "UNVERIFIED"
+    },
+    "objects.AVAILABLE": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "objects.UNAVAILABLE": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "objects.aliases": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.attribution": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.boundary": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "objects.choose_source": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.claim_source": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "objects.confirm": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "objects.current": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.edit": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.edit_current": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.empty": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.error": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.error_help": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.evidence": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.field.description": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.field.due_at": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.field.ends_at": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.field.rationale": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.field.starts_at": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.field.statement": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.field.time_zone": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.hierarchy_help": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.historical": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.history": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.kind.calendar_event": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.kind.claim": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.kind.collection": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.kind.commitment": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.kind.decision": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.kind.entity": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.kind.outcome": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.kind.project": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.kind.task": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.name": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.new": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.new_from_version": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.next": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.original": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.refresh_endpoint": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "objects.relation": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.relations": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.reload": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.retain_source": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.retained_endpoint": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.revision": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.save": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.selector": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.source": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.source_help": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "objects.stale": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.abandoned": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.achieved": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.active": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.archived": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.asserted": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.cancelled": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.completed": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.confirmed": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.decided": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.disputed": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.fulfilled": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.in_progress": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.open": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.proposed": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.retired": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.retracted": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.superseded": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.state.tentative": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.target": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.time_help": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.title": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.type": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.type.about": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.type.contradicts": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.type.depends_on": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.type.fulfills": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.type.part_of": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.type.relates_to": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.type.scheduled_for": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.type.supports": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.use_source": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.version": {
+      "context": "objects: shared manual object/Relation API and Cura/Current forms; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.alias_help": {
+      "context": "objects: retaining canonical aliases and explicit line-based editing; templates/knowledge_objects.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
     }
   },
   "schema_version": 1,
