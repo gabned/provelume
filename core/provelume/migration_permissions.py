@@ -309,8 +309,22 @@ def planned_permissions(root, source):
     validate_profile(source)
     actual = capture_permissions(root)
     selected = {r["path"]: r for r in source["entries"]}
+    aliases = {}
+    if os.name == "nt":
+        for row in source["entries"]:
+            aliases.setdefault(row["path"].casefold(), []).append(row)
     for row in actual["entries"]:
         previous = selected.get(row["path"])
+        if previous is None and os.name == "nt":
+            # Established writers use canonical config/manifest spelling. Confirm
+            # an alias through this private stage's native file identity, without
+            # assuming every Unicode case fold is a Windows alias.
+            current = safe_instance_path(root, row["path"])
+            for candidate in aliases.get(row["path"].casefold(), []):
+                alias = safe_instance_path(root, candidate["path"])
+                if alias.exists() and os.path.samefile(alias, current):
+                    _require(previous is None)
+                    previous = candidate
         if previous is not None:
             _require(previous["kind"] == row["kind"])
             row["metadata"] = deepcopy(previous["metadata"])

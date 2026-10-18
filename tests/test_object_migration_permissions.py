@@ -10,6 +10,7 @@ import stat
 import struct
 import subprocess
 import sys
+from copy import deepcopy
 
 import pytest
 
@@ -46,6 +47,12 @@ def _legacy(tmp_path, schema=2):
 
 def _assert_retained_metadata(before, root):
     after = capture_permissions(root)
+    if os.name == "nt":
+        before = deepcopy(before)
+        for profile in (before, after):
+            for row in profile["entries"]:
+                row["path"] = row["path"].casefold()
+            profile["entries"].sort(key=lambda row: row["path"])
     names = {r["path"] for r in before["entries"]}
     after["entries"] = [r for r in after["entries"] if r["path"] in names]
     assert permission_fingerprint(before) == permission_fingerprint(after)
@@ -178,6 +185,23 @@ InstanceLifecycleManager(InstanceStore(root)).prepare(migrate_objects=True)
     manager.prepare(allow_legacy=True)
     assert object_migration.tree_inventory(instance.root) == stable
     assert permission_fingerprint(capture_permissions(instance.root)) == metadata
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows case-insensitive config alias")
+def test_windows_canonical_config_spelling_keeps_alias_access_metadata(tmp_path):
+    instance, _retained = _legacy(tmp_path)
+    config = instance.store.paths.config
+    alias = config.with_name("PrOvElUmE.YmL")
+    os.replace(config, alias)
+    alias.chmod(stat.S_IREAD)
+    before = capture_permissions(instance.root)
+    InstanceLifecycleManager(instance.store).prepare(migrate_objects=True)
+    _assert_retained_metadata(before, instance.root)
+    assert next(
+        row
+        for row in capture_permissions(instance.root)["entries"]
+        if row["path"].casefold() == "provelume.yml"
+    )["metadata"]["readonly"]
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX permission-only concurrent change")
