@@ -216,6 +216,168 @@ class MaintenanceTests(unittest.TestCase):
                 self.assertEqual(missing.stderr, "")
 
 
+class DependencyTransferTests(unittest.TestCase):
+    """Real synthetic Git objects exercise closed scope and accepted-byte trust."""
+
+    git = staticmethod(MaintenanceTests.git)
+    commit = MaintenanceTests.commit
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="protocol-dependency-")
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.predecessor, self.destination = self.root / "predecessor", self.root / "destination"
+        for root in (self.predecessor, self.destination):
+            root.mkdir()
+            self.git(root, "init", "-q")
+            self.git(root, "config", "user.name", "Synthetic")
+            self.git(root, "config", "user.email", "synthetic@example.invalid")
+            self.git(root, "config", "core.autocrlf", "false")
+        self.paths = sorted(transfer.DEPENDENCY_VERSION_FILES | {"requirements-test.txt"})
+        for path in self.paths:
+            target = self.destination / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(b"pytest==8.4.2\nruff==0.16.9\n" if path == "requirements-test.txt"
+                               else b"synthetic distribution 1.5.1\n")
+        (self.destination / "unchanged-guard.py").write_bytes(b"frozen guard\n")
+        self.base = self.commit(self.destination)
+        for path in self.paths:
+            target = self.destination / path
+            target.write_bytes(target.read_bytes().replace(b"8.4.2", b"9.0.3")
+                               if path == "requirements-test.txt"
+                               else target.read_bytes().replace(b"1.5.1", b"1.5.2"))
+        self.head = self.commit(self.destination)
+        self.record = {"schema": "agent-protocol-pytest-security/v1",
+                       "predecessor": "gabned/provelume", "repository": "gabned/agent-protocol",
+                       "repository_id": 1393711644, "pr": 6, "base": self.base}
+        self.refresh_record()
+
+    def save_record(self):
+        target = self.predecessor / transfer.MAINTENANCE_DOCUMENT
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((transfer.DEPENDENCY_MARKER + json.dumps(self.record)
+                            + "\n```\n").encode())
+        self.accepted = self.commit(self.predecessor)
+
+    def refresh_record(self):
+        self.record.update(head=self.head,
+                           tree=self.git(self.destination, "rev-parse", self.head + "^{tree}"),
+                           files=[{"path": path, "mode": "100644",
+                                   "before_blob": self.git(self.destination, "rev-parse",
+                                                           self.base + ":" + path),
+                                   "after_blob": self.git(self.destination, "rev-parse",
+                                                          self.head + ":" + path),
+                                   "sha256": hashlib.sha256(
+                                       (self.destination / path).read_bytes()).hexdigest()}
+                                  for path in self.paths])
+        self.save_record()
+
+    def verify(self, **overrides):
+        args = {"accepted_predecessor": self.accepted, "repository": "gabned/agent-protocol",
+                "repository_id": 1393711644, "pr": 6, "expected_base": self.base,
+                "expected_head": self.head}
+        args.update(overrides)
+        return transfer.verify_dependency_update(self.predecessor, self.destination, **args)
+
+    def amend_synthetic_candidate(self, path, content):
+        (self.destination / path).write_bytes(content)
+        self.git(self.destination, "add", ".")
+        self.git(self.destination, "commit", "--amend", "--no-edit", "-q")
+        self.head = self.git(self.destination, "rev-parse", "HEAD")
+        self.refresh_record()
+
+    def test_accepted_git_record_ignores_working_copy_and_grants_no_authority(self):
+        (self.predecessor / transfer.MAINTENANCE_DOCUMENT).write_text("unaccepted candidate")
+        result = self.verify()
+        self.assertEqual(result["result"], "BYTES_VERIFIED")
+        self.assertEqual(result["patched_pytest"], "9.0.3")
+        self.assertEqual(result["files"], 7)
+        self.assertFalse(result["merge_authorized"])
+        self.assertFalse(result["publication_authorized"])
+
+    def test_independent_coordinates_cannot_be_reassigned(self):
+        for field, value in (("repository", "other/repo"), ("repository_id", True),
+                             ("pr", 7), ("expected_base", "a" * 40),
+                             ("expected_head", "b" * 40), ("accepted_predecessor", "c" * 40)):
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                self.verify(**{field: value})
+
+    def test_record_cannot_omit_add_or_reinterpret_files_modes_and_blobs(self):
+        original = copy.deepcopy(self.record)
+        mutations = [lambda r: r.update(waiver=True),
+                     lambda r: r.update(schema="agent-protocol-maintenance/v1"),
+                     lambda r: r.update(tree="a" * 40),
+                     lambda r: r["files"].pop(),
+                     lambda r: r["files"][0].update(mode="100755"),
+                     lambda r: r["files"][0].update(after_blob="b" * 40),
+                     lambda r: r["files"][0].update(sha256="c" * 64),
+                     lambda r: r["files"][0].update(path="tools/guard.py"),
+                     lambda r: r["files"].__setitem__(0, copy.deepcopy(r["files"][1]))]
+        for mutate in mutations:
+            self.record = copy.deepcopy(original)
+            mutate(self.record)
+            self.save_record()
+            with self.subTest(mutation=mutate), self.assertRaises(ValueError):
+                self.verify()
+
+    def test_self_consistent_manifest_cannot_authorize_other_dependency_changes(self):
+        for content in (b"pytest==9.0.2\nruff==0.16.9\n",
+                        b"pytest==9.0.3\nruff==0.17.0\n",
+                        b"pytest==9.0.3\nruff==0.16.9\nextra-package==1\n"):
+            self.amend_synthetic_candidate("requirements-test.txt", content)
+            with self.subTest(content=content), self.assertRaisesRegex(ValueError,
+                                                                      "exact patched pytest"):
+                self.verify()
+
+    def test_self_consistent_manifest_cannot_hide_functional_identity_file_change(self):
+        self.amend_synthetic_candidate("tools/package.py", b"changed implementation 1.5.2\n")
+        with self.assertRaisesRegex(ValueError, "mechanical distribution identity"):
+            self.verify()
+
+    def test_unlisted_guard_change_is_refused_even_with_matching_final_tree(self):
+        self.amend_synthetic_candidate("unchanged-guard.py", b"unexpected weakening\n")
+        with self.assertRaisesRegex(ValueError, "incomplete or out of scope"):
+            self.verify()
+
+    def test_multiple_commits_replaced_and_shallow_history_are_refused(self):
+        (self.destination / "requirements-test.txt").write_bytes(b"another change\n")
+        newer = self.commit(self.destination)
+        self.record.update(head=newer)
+        self.save_record()
+        with self.assertRaisesRegex(ValueError, "one direct successor"):
+            self.verify(expected_head=newer)
+        self.git(self.destination, "replace", newer, self.head)
+        with self.assertRaisesRegex(ValueError, "Replaced history"):
+            self.verify(expected_head=newer)
+        self.git(self.destination, "replace", "-d", newer)
+        clone = self.root / "shallow"
+        self.git(self.root, "clone", "--depth=1", self.destination.as_uri(), str(clone))
+        self.destination = clone
+        with self.assertRaisesRegex(ValueError, "Complete history"):
+            self.verify(expected_head=newer)
+
+    def test_missing_duplicate_and_unterminated_records_are_refused(self):
+        for text in ("none", transfer.DEPENDENCY_MARKER + "{}",
+                     transfer.DEPENDENCY_MARKER * 2,
+                     transfer.DEPENDENCY_MARKER + '{"pr":6,"pr":7}\n```'):
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                transfer.read_dependency_record(text)
+
+    def test_public_cli_reads_only_accepted_git_record(self):
+        command = [sys.executable, str(Path(transfer.__file__)), "verify-dependency-update",
+                   "--source-root", str(self.predecessor), "--destination", str(self.destination),
+                   "--accepted-predecessor", self.accepted, "--repository", "gabned/agent-protocol",
+                   "--repository-id", "1393711644", "--pr", "6", "--expected-base", self.base,
+                   "--expected-head", self.head]
+        process = subprocess.run(command, capture_output=True, text=True, check=False)
+        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+        self.assertEqual(json.loads(process.stdout)["result"], "BYTES_VERIFIED")
+        refused = subprocess.run([*command, "--manifest", "candidate.json"],
+                                 capture_output=True, text=True, check=False)
+        self.assertEqual(refused.returncode, 2)
+        self.assertIn("accepted Git bytes only", refused.stdout)
+
+
 class TransferTests(unittest.TestCase):
     def test_missing_independent_history_blocks_destination_verification(self):
         manifest, observation = self.correction_fixture()

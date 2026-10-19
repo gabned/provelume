@@ -606,12 +606,117 @@ def verify_maintenance(predecessor_root, destination_root, *, accepted_predecess
             "merge_authorized": False, "publication_authorized": False}
 
 
+DEPENDENCY_MARKER = "```agent-protocol-pytest-security\n"
+DEPENDENCY_VERSION_FILES = frozenset({
+    "pyproject.toml", "tools/package.py", "src/agent_protocol/__init__.py",
+    "src/agent_protocol/source.py", "tests/test_source.py", "tests/test_packaging.py",
+})
+
+
+def read_dependency_record(document):
+    """A separate closed security route cannot widen historical maintenance-v1."""
+    def unique_fields(pairs):
+        result = {}
+        for key, value in pairs:
+            require(key not in result, "Duplicate dependency field")
+            result[key] = value
+        return result
+
+    require(document.count(DEPENDENCY_MARKER) == 1, "One dependency record required")
+    payload = document.split(DEPENDENCY_MARKER, 1)[1].split("\n```", 1)
+    require(len(payload) == 2, "Unterminated dependency record")
+    return json.loads(payload[0], object_pairs_hook=unique_fields)
+
+
+def verify_dependency_update(predecessor_root, destination_root, *, accepted_predecessor,
+                             repository, repository_id, pr, expected_base, expected_head):
+    """Verify only the CVE-2025-71176 fix and mechanical 1.5.2 identity.
+
+    This is predecessor evidence, never a guard override, general dependency
+    upgrade facility, merge permission or publication permission. The authorized
+    host independently authenticates the accepted predecessor and current owner.
+    """
+    for sha in (accepted_predecessor, expected_base, expected_head):
+        require(isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{40}", sha),
+                "Exact host-selected commits required")
+    for root in (predecessor_root, destination_root):
+        require(maintenance_git(root, "rev-parse", "--is-shallow-repository").strip()
+                == b"false", "Complete history required")
+        graft = maintenance_git(root, "rev-parse", "--git-path", "info/grafts").decode().strip()
+        graft = Path(graft) if Path(graft).is_absolute() else Path(root) / graft
+        require(not graft.exists()
+                and not maintenance_git(root, "for-each-ref", "refs/replace/").strip(),
+                "Replaced history refused")
+    record = read_dependency_record(maintenance_git(
+        predecessor_root, "show", accepted_predecessor + ":" + MAINTENANCE_DOCUMENT
+    ).decode("utf-8"))
+    require(set(record) == {"schema", "predecessor", "repository", "repository_id", "pr",
+                            "base", "head", "tree", "files"}, "Unknown dependency fields")
+    require(record["schema"] == "agent-protocol-pytest-security/v1"
+            and record["predecessor"] == "gabned/provelume", "Unknown dependency route")
+    require(type(record["repository_id"]) is int and type(record["pr"]) is int,
+            "Integer dependency identities required")
+    require((repository, repository_id) == ("gabned/agent-protocol", 1393711644)
+            and type(repository_id) is int and type(pr) is int and pr > 0,
+            "Independent destination identity required")
+    require((record["repository"], record["repository_id"], record["pr"],
+             record["base"], record["head"])
+            == (repository, repository_id, pr, expected_base, expected_head),
+            "Dependency record differs from host observations")
+    require(maintenance_git(destination_root, "rev-list", "--parents", "-n", "1",
+                            expected_head).decode().split() == [expected_head, expected_base],
+            "Dependency update requires one direct successor of the accepted destination base")
+    require(maintenance_git(destination_root, "rev-parse", expected_head + "^{tree}")
+            .decode().strip() == record["tree"], "Dependency tree mismatch")
+    rows = record["files"]
+    paths = DEPENDENCY_VERSION_FILES | {"requirements-test.txt"}
+    require(isinstance(rows, list) and len(rows) == len(paths),
+            "Exactly seven dependency and identity files required")
+    seen = set()
+    for row in rows:
+        require(set(row) == {"path", "mode", "before_blob", "after_blob", "sha256"},
+                "Unknown dependency file fields")
+        path = valid_path(row["path"])
+        require(path in paths and path not in seen, "Out-of-scope or duplicate dependency path")
+        seen.add(path)
+        require(row["mode"] == "100644", "Dependency file mode must remain 100644")
+        for revision, blob in ((expected_base, row["before_blob"]),
+                               (expected_head, row["after_blob"])):
+            observed = maintenance_git(destination_root, "ls-tree", revision, "--", path)
+            require(observed == f"100644 blob {blob}\t{path}\n".encode(),
+                    "Dependency blob/mode mismatch")
+        before = maintenance_git(destination_root, "show", expected_base + ":" + path)
+        after = maintenance_git(destination_root, "show", expected_head + ":" + path)
+        require(hashlib.sha256(after).hexdigest() == row["sha256"],
+                "Dependency content mismatch")
+        if path == "requirements-test.txt":
+            require(before == b"pytest==8.4.2\nruff==0.16.9\n"
+                    and after == b"pytest==9.0.3\nruff==0.16.9\n",
+                    "Only the exact patched pytest requirement is allowed")
+        else:
+            require(b"1.5.1" in before and after == before.replace(b"1.5.1", b"1.5.2"),
+                    "Only mechanical distribution identity changes are allowed")
+    require(seen == paths, "Incomplete dependency inventory")
+    delta = maintenance_git(destination_root, "diff", "--no-renames", "--name-status", "-z",
+                            expected_base, expected_head).decode().rstrip("\0").split("\0")
+    require(len(delta) == 2 * len(paths)
+            and all(delta[i] == "M" for i in range(0, len(delta), 2))
+            and set(delta[1::2]) == paths, "Dependency delta is incomplete or out of scope")
+    return {"schema": "agent-protocol-pytest-security-receipt/v1", "result": "BYTES_VERIFIED",
+            "accepted_predecessor": accepted_predecessor, "record_sha256": digest(record),
+            "repository": repository, "pr": pr, "base": expected_base, "head": expected_head,
+            "tree": record["tree"], "files": len(paths), "effects": "NO_PRODUCTION",
+            "advisory": "GHSA-6w46-j5rx-g56g", "patched_pytest": "9.0.3",
+            "authority": "HOST_AUTHENTICATED_ACCEPTANCE_AND_QUALIFICATION_REQUIRED",
+            "merge_authorized": False, "publication_authorized": False}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "operation",
         choices=["validate-manifest", "verify-source", "verify-destination", "materialize",
-                 "verify-maintenance"],
+                 "verify-maintenance", "verify-dependency-update"],
     )
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--trusted-manifest")
@@ -628,13 +733,15 @@ def main():
     parser.add_argument("--expected-head")
     args = parser.parse_args()
     try:
-        if args.operation == "verify-maintenance":
+        if args.operation in {"verify-maintenance", "verify-dependency-update"}:
             require(args.source_root is not None and args.destination is not None,
                     "Predecessor and destination Git checkouts required")
             require(args.manifest is None and args.trusted_manifest is None
                     and args.observations is None and args.accepted_history is None
                     and args.trusted_history is None, "Maintenance uses accepted Git bytes only")
-            result = verify_maintenance(
+            verifier = (verify_maintenance if args.operation == "verify-maintenance"
+                        else verify_dependency_update)
+            result = verifier(
                 args.source_root, args.destination, accepted_predecessor=args.accepted_predecessor,
                 repository=args.repository, repository_id=args.repository_id, pr=args.pr,
                 expected_base=args.expected_base, expected_head=args.expected_head,
