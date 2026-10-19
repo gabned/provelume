@@ -191,7 +191,7 @@ def test_parallel_payload_failure_joins_writers_before_removing_unpublished_stag
     transaction.add("state/b.bin", b"b", immutable=True)
     entered, release, failed = threading.Event(), threading.Event(), threading.Event()
     outcomes = []
-    original = store._atomic_bytes
+    original = atomic_commit._write_journal_payload
 
     def write(path, data):
         if path.name == "0000.bin":
@@ -203,7 +203,7 @@ def test_parallel_payload_failure_joins_writers_before_removing_unpublished_stag
             assert release.wait(5)
         return original(path, data)
 
-    monkeypatch.setattr(store, "_atomic_bytes", write)
+    monkeypatch.setattr(atomic_commit, "_write_journal_payload", write)
 
     def commit():
         try:
@@ -224,6 +224,28 @@ def test_parallel_payload_failure_joins_writers_before_removing_unpublished_stag
     assert not worker.is_alive() and outcomes == ["failed"]
     assert list((control / "transactions").iterdir()) == []
     assert not (store.paths.root / "state/b.bin").exists()
+
+
+def test_unpublished_payload_is_private_synced_and_cannot_overwrite(tmp_path, monkeypatch):
+    target = tmp_path / "0000.bin"
+    synced = []
+    original = os.fsync
+
+    def fsync(descriptor):
+        # The full payload is flushed to the descriptor before its durability
+        # barrier; this check also runs on actual Windows.
+        assert target.read_bytes() == b"private preimage"
+        synced.append(os.fstat(descriptor).st_size)
+        return original(descriptor)
+
+    monkeypatch.setattr(atomic_commit.os, "fsync", fsync)
+    atomic_commit._write_journal_payload(target, b"private preimage")
+    assert synced == [16]
+    if os.name != "nt":
+        assert target.stat().st_mode & 0o777 == 0o600
+    with pytest.raises(FileExistsError):
+        atomic_commit._write_journal_payload(target, b"replacement")
+    assert target.read_bytes() == b"private preimage" and synced == [16]
 
 
 @pytest.mark.parametrize("position", ["ancestor", "root", "middle", "leaf"])
