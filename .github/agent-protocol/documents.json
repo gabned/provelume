@@ -27,7 +27,7 @@
     },
     {
       "path": "docs/agent-protocol/adoption.md",
-      "sha256": "77b0ca6053bd672e76274f295a7341197538fa7921ca4b177456eab7d5319bc3",
+      "sha256": "75cbd23455ac33d1a182193740dfe799354805328618ef5a7db1b8a80a7e562c",
       "phases": [
         "ADOPT",
         "QUALIFY",
