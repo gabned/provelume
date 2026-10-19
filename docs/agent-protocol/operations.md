@@ -50,13 +50,28 @@ approved signer identity, accepted profile, exact scope and the workstream owner
 The adapter cannot generate approval, claim another owner or convert an editable
 PR description into authority. Preserve raw observations and the signed journal.
 
-Use `python tools/agent_protocol_v2.py acquire` to download the five public release
-artifacts selected by the accepted pin. It checks their complete bytes and sizes,
-the embedded source inventory, every source byte and archive mode against the
-vendored installation. `acquire --offline` repeats verification using only the
-ignored `.agent/protocol-artifacts/` cache. A corrupt or unmanaged cache is
-preserved and refused; acquisition does not change pins, source files or authority.
-Work uses the same command or adapter function, never a second source inventory.
+Use `python tools/agent_protocol_v2.py acquire` for the source selected explicitly
+by the independently accepted consumer pin. Published-release pins retain their
+original five-asset acquisition and historical receipt verification. A
+`CANONICAL_GIT` pin instead authenticates the canonical numeric repository,
+accepted normal merge, complete commit/tree identity, ancestry and independent
+OWNER receipt; the shared Core packager reconstructs five deterministic source
+artifacts with the full file/mode/blob inventory. CLI and Work use this same
+adapter and canonical verifier; a Work host may provide its authenticated
+`fetch_source` read capability.
+
+`acquire --offline` verifies the retained proof and every source/cache byte
+without Git or network, using the independently accepted consumer pin as the
+source authority. Corrupt, partial or unmanaged caches are preserved and refused.
+Acquisition never changes pins or grants authority. Keep source observations and
+artifacts under ignored `.agent/`; no Git or GitHub is needed by the application
+runtime. An SDK publication is not a prerequisite for this explicit Git route.
+
+Dependency qualification inventories operational test/build/vendor/platform and
+native-tool surfaces as well as runtime SBOM. Record official affected/fixed
+ranges and observed applicability; preserve intentional isolated compatibility
+inputs. PRODUCT and PROTOCOL corrections keep separate homogeneous owners.
+Partial scans do not establish general security or protected scanner closure.
 
 For one journal use START, REFRESH, INTERRUPT, RESUME, HANDOFF, QUALIFY,
 INTEGRATE, RECONCILE, RECONCILE_NOT_APPLIED, CLOSE and ABANDON through their typed

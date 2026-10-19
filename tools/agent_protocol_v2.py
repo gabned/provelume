@@ -41,7 +41,10 @@ def digest(value):
 def verify():
     """Byte proof only: an accepted host independently authenticates source/policy."""
     pin = json.loads(read(ROOT / PIN_PATH))
-    require(pin["schema"] == "agent-protocol-consumer-pin/v2", "Unknown consumer pin")
+    require(
+        pin["schema"] in {"agent-protocol-consumer-pin/v2", "agent-protocol-consumer-pin/v3"},
+        "Unknown consumer pin",
+    )
     require(
         (pin["consumer"], pin["consumer_id"]) == (REPOSITORY, REPOSITORY_ID),
         "Consumer identity changed",
@@ -96,6 +99,26 @@ def verify():
     from agent_protocol.source import validate_inventory
 
     validate_inventory(manifest, pin["manifest_digest"])
+    if pin["schema"] == "agent-protocol-consumer-pin/v3":
+        from agent_protocol.source import validate_git_origin
+
+        configuration = pin["acquisition"]
+        require(
+            set(configuration) == {"kind", "origin", "artifacts"}
+            and configuration["kind"] == "CANONICAL_GIT",
+            "Explicit canonical Git acquisition required",
+        )
+        require(
+            "release_url" not in pin and "release_artifacts" not in pin,
+            "Ambiguous Git/release selection refused",
+        )
+        validate_git_origin(configuration["origin"])
+        require(
+            configuration["origin"]["revision"] == pin["operational_revision"],
+            "Source origin/pin mismatch",
+        )
+    else:
+        require("acquisition" not in pin, "Ambiguous Git/release selection refused")
     return pin
 
 
@@ -131,9 +154,191 @@ def documents(pin, phase, host, workstream):
     }
 
 
-def acquire(pin, *, offline=False):
-    """Acquire only the accepted public release; a verified cache is not authority."""
+def acquire_git(pin, *, offline=False, fetch_source=None):
+    """Use the canonical Git verifier; the accepted consumer base remains authority."""
+    from agent_protocol.source import (
+        acquire_git_source,
+        authenticate_git_origin,
+        verify_installation,
+    )
+
+    configuration = pin["acquisition"]
+    require(
+        isinstance(configuration, dict)
+        and set(configuration) == {"kind", "origin", "artifacts"}
+        and configuration["kind"] == "CANONICAL_GIT",
+        "Unknown or incomplete source acquisition selection",
+    )
+    revision = pin["operational_revision"]
+    origin, artifacts = configuration["origin"], configuration["artifacts"]
+    require(origin["revision"] == revision, "Source origin/pin mismatch")
+    names = {
+        "source.tar.gz",
+        "source-manifest.json",
+        "git-provenance.json",
+        "SHA256SUMS",
+        f"agent_protocol_core-{pin['source_manifest']['version']}-py3-none-any.whl",
+    }
+    require(
+        isinstance(artifacts, dict) and set(artifacts) == names,
+        "Incomplete Git source artifact inventory",
+    )
+    for record in artifacts.values():
+        require(
+            isinstance(record, dict)
+            and set(record) == {"sha256", "size"}
+            and type(record["size"]) is int
+            and 0 < record["size"] < 64 * 1024 * 1024
+            and isinstance(record["sha256"], str)
+            and len(record["sha256"]) == 64
+            and all(c in "0123456789abcdef" for c in record["sha256"]),
+            "Invalid Git source artifact record",
+        )
+    directory = ROOT / ".agent/protocol-artifacts" / revision
+    require(
+        not any(p.is_symlink() for p in (directory, *directory.parents)), "Cache symlink refused"
+    )
+
+    def verify_cache():
+        require(directory.is_dir(), "Git source artifact absent from offline cache")
+        # Verify known files before inventory completeness so corrupt originals
+        # retain their specific diagnostic instead of being hidden by a gap.
+        for name, record in artifacts.items():
+            target = directory / name
+            if target.exists() or target.is_symlink():
+                data = read(target)
+                require(
+                    len(data) == record["size"]
+                    and hashlib.sha256(data).hexdigest() == record["sha256"],
+                    "Cached artifact differs; preserve it for diagnosis: " + name,
+                )
+        require(
+            {p.name for p in directory.iterdir()} == names,
+            "Incomplete or unmanaged Git source cache preserved",
+        )
+
+    if directory.exists():
+        verify_cache()
+    else:
+        require(not offline, "Git source artifact absent from offline cache")
+
+    authenticated = None
+    if not offline:
+
+        class CanonicalRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                parsed = urllib.parse.urlsplit(newurl)
+                require(
+                    parsed.scheme == "https"
+                    and parsed.hostname == "api.github.com"
+                    and not parsed.username
+                    and not parsed.password,
+                    "Unexpected source authentication redirect",
+                )
+                return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+        observations = []
+
+        def fetch_json(url):
+            require(
+                url == "https://api.github.com/repos/gabned/agent-protocol"
+                or url.startswith("https://api.github.com/repos/gabned/agent-protocol/"),
+                "Unexpected canonical source endpoint",
+            )
+            if fetch_source is not None:
+                require(callable(fetch_source), "Authenticated source read capability required")
+                value = fetch_source(url)
+            else:
+                opener = urllib.request.build_opener(CanonicalRedirect())
+                request = urllib.request.Request(
+                    url,
+                    headers={
+                        "Accept": "application/vnd.github+json",
+                        "User-Agent": "agent-protocol-source",
+                    },
+                )
+                with opener.open(request, timeout=30) as response:
+                    data = response.read(4 * 1024 * 1024 + 1)
+                require(len(data) <= 4 * 1024 * 1024, "Source observation too large")
+                value = json.loads(data)
+            observations.append({"url": url, "response": value})
+            return value
+
+        authenticated = authenticate_git_origin(origin, fetch_json=fetch_json)
+        evidence = ROOT / ".agent/protocol-source-observations" / revision
+        require(
+            not any(p.is_symlink() for p in (evidence, *evidence.parents)),
+            "Source observation symlink refused",
+        )
+        evidence.mkdir(parents=True, exist_ok=True)
+        data = (json.dumps(observations, sort_keys=True) + "\n").encode()
+        observation = evidence / (hashlib.sha256(data).hexdigest() + ".json")
+        if observation.exists():
+            require(read(observation) == data, "Existing source observation differs")
+        else:
+            with observation.open("xb") as stream:
+                stream.write(data)
+        if not directory.exists():
+            source = ROOT / ".agent/protocol-sources" / revision
+            require(
+                not any(p.is_symlink() for p in (source, *source.parents)),
+                "Canonical source cache symlink refused",
+            )
+            if not source.exists():
+                source.parent.mkdir(parents=True, exist_ok=True)
+                cloned = subprocess.run(
+                    [
+                        "git",
+                        "-c",
+                        "credential.interactive=false",
+                        "clone",
+                        "--no-checkout",
+                        "--no-tags",
+                        "https://github.com/gabned/agent-protocol.git",
+                        str(source),
+                    ],
+                    capture_output=True,
+                    check=False,
+                )
+                require(
+                    cloned.returncode == 0, "Canonical Git acquisition failed; preserve evidence"
+                )
+            acquire_git_source(source, directory, origin, authenticate_origin=lambda: authenticated)
+            verify_cache()
+    require(
+        json.loads(read(directory / "source-manifest.json")) == pin["source_manifest"],
+        "Canonical Git source inventory differs",
+    )
+    bundle = {
+        "schema": "agent-protocol-source-bundle/v2",
+        "kind": "CANONICAL_GIT",
+        "archive_path": str(directory / "source.tar.gz"),
+        "archive_sha256": pin["archive_sha256"],
+        "manifest": pin["source_manifest"],
+        "manifest_digest": pin["manifest_digest"],
+        "provenance": json.loads(read(directory / "git-provenance.json")),
+    }
+    proof = verify_installation(
+        bundle,
+        revision=revision,
+        distribution_root=VENDOR,
+        source_root=VENDOR / "src",
+        authenticate_origin=lambda: authenticated if authenticated is not None else origin,
+    )
+    return {
+        "result": "GIT_SOURCE_BYTES_VERIFIED",
+        "revision": revision,
+        "artifacts": len(artifacts),
+        "source": proof,
+        "authority": "ACCEPTED_CONSUMER_BASE_REQUIRED",
+    }
+
+
+def acquire(pin, *, offline=False, fetch_source=None):
+    """Acquire the explicitly selected accepted source; a cache is not authority."""
     require("candidate_preview" not in pin, "Preview is not an accepted release")
+    if pin["schema"] == "agent-protocol-consumer-pin/v3":
+        return acquire_git(pin, offline=offline, fetch_source=fetch_source)
     revision = pin["operational_revision"]
     artifacts = pin["release_artifacts"]
     require(
@@ -477,7 +682,7 @@ def main(argv=None):
                 "repository": REPOSITORY,
                 "revision": pin["operational_revision"],
                 "files": len(pin["source_manifest"]["files"]),
-                "authority": "REQUIRES_ACCEPTED_BASE_AND_AUTHENTICATED_RELEASE",
+                "authority": "REQUIRES_ACCEPTED_BASE_AND_AUTHENTICATED_SOURCE",
             }
         elif args.command == "documents":
             result = documents(pin, args.phase, args.host, args.workstream)

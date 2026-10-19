@@ -1,15 +1,15 @@
 {
-  "schema": "agent-protocol-consumer-pin/v2",
+  "schema": "agent-protocol-consumer-pin/v3",
   "consumer": "gabned/provelume",
   "consumer_id": 1343746770,
-  "operational_revision": "1a11fe76712ee65ca2160d2ae3789330946a57f2",
-  "work_revision": "1a11fe76712ee65ca2160d2ae3789330946a57f2",
+  "operational_revision": "02317e02767958faa3de5bb6d245ca3440360d9e",
+  "work_revision": "02317e02767958faa3de5bb6d245ca3440360d9e",
   "source_manifest": {
     "schema": "agent-protocol-source/v1",
     "repository": "gabned/agent-protocol",
     "repository_id": 1393711644,
-    "revision": "1a11fe76712ee65ca2160d2ae3789330946a57f2",
-    "version": "1.5.1",
+    "revision": "02317e02767958faa3de5bb6d245ca3440360d9e",
+    "version": "1.5.2",
     "files": [
       {
         "path": ".gitattributes",
@@ -32,14 +32,14 @@
       {
         "path": ".github/agent-protocol/documents.json",
         "mode": "100644",
-        "blob": "3d01d6d860ebe8e57eb6b3a0c92e78d7dae07882",
-        "sha256": "9e86304764f8e1e3139fe596c90874e107dc5898792b33f55239061e3f00468f"
+        "blob": "6a70934a6de5122d6a9704c750825cc042eef12a",
+        "sha256": "1a1c22dc6ae9a2ec17b18d1c88afa4bda906710294497db61dca88ac6f28726a"
       },
       {
         "path": ".github/agent-protocol/release.json",
         "mode": "100644",
-        "blob": "13b0fcd28cbad409971104e255979df0b32f4bc4",
-        "sha256": "eb449432caff91087c36fe2faa0502df915ffa06fc9d331afae9eeb235481a0f"
+        "blob": "7b45e157a8ff5740414a78bb66b944ef0c8bfc7b",
+        "sha256": "7c5e200e9b018b23f9eb63bfd85c9dd643ee9255f0cbddb218d56bb48bae3eab"
       },
       {
         "path": ".github/agent-protocol/source.json",
@@ -362,8 +362,8 @@
       {
         "path": "docs/agent-protocol/adoption.md",
         "mode": "100644",
-        "blob": "7124bfea29d52336fcadc3620bfb3179a368b77e",
-        "sha256": "817856962992c9048a048976b7ea797f55d64142ebf6c72ad029f6bcf12e0419"
+        "blob": "27b32ce5d25f609911c938adf3b70e2276833fac",
+        "sha256": "b010dfb03dfafc07bff15d717c9752593556ab392ee8dd89d1429389038b28db"
       },
       {
         "path": "docs/agent-protocol/bootstrap.md",
@@ -386,14 +386,14 @@
       {
         "path": "docs/agent-protocol/contract.md",
         "mode": "100644",
-        "blob": "57f97eeaa97a690a3a7b2729a44c6cdd12f5322a",
-        "sha256": "5b1f04c50aa471cb8c56a5b1b5ccd5d2002e6f15dedb070c56d084516f6260fb"
+        "blob": "cf28788456af76e239dc907ff7abd5442b3ea19d",
+        "sha256": "6ca1de057b43e9f801e8529986701b6e76377e83d653a37e67f9787dd8c616d4"
       },
       {
         "path": "docs/agent-protocol/hosts.md",
         "mode": "100644",
-        "blob": "88b1eba435969b09248ab7dcf16f50899382075c",
-        "sha256": "22247008f59e07b9db377dc98dc6032609d2a3604b63a63ffa5c0f02b991badf"
+        "blob": "97db375ce3aeab67c09cf00f63baa0f481835039",
+        "sha256": "362a16a7f1ebedd2a7a8678e505ce7374bc44de19e3022f56ca1a7e0d81dc75c"
       },
       {
         "path": "docs/agent-protocol/lifecycle.md",
@@ -410,26 +410,26 @@
       {
         "path": "docs/agent-protocol/qualification.md",
         "mode": "100644",
-        "blob": "b93ee30bf30b5fbea63e5279a9411bbc58c950e9",
-        "sha256": "fa53c505a995f0a1a2d612b701d103aef9dd621454c351640b5f948f4115ed59"
+        "blob": "e45a83ef376dcba98287302045560761f4cec0a1",
+        "sha256": "1dbde9c49795e20645a3d841f1888756f45d88532b73871d6a479e39448fb05a"
       },
       {
         "path": "pyproject.toml",
         "mode": "100644",
-        "blob": "7692cdddf12796b35dc3453a26514a0c3f2c643d",
-        "sha256": "f0514276d53d986a21455c0fb4e5d63727a13bdc17ee1b35e170a86292def33d"
+        "blob": "e022fa997daff815256e203f1c44aeeb42c5ef58",
+        "sha256": "1222fba6a890990a93505659df4975d8059a890953e20c1ca4b31060f365f861"
       },
       {
         "path": "requirements-test.txt",
         "mode": "100644",
-        "blob": "ee3cb431a52d036ab6c458f70b28e945b435e041",
-        "sha256": "49e9d8a868c39cc101f85b50396b6e7e32530f56447f6d60f2e210a6c1cc8302"
+        "blob": "e22ab8b46e5f22c757b9b67c22fb44c88a06aa27",
+        "sha256": "3e38bebc4236cff3a31cb709371d342f38d5aea67013d2f8ab37e6b319eb9333"
       },
       {
         "path": "src/agent_protocol/__init__.py",
         "mode": "100644",
-        "blob": "bf38edb3d885c0ff12e67204e9d19bf9b0f5b129",
-        "sha256": "46765cc566e9e980e3be2cfb143ede97e16707c693b73cc58093134086ef54fb"
+        "blob": "6ffa40e680efedaa0fbc9f52e720a3cd4b8281b0",
+        "sha256": "8da561e0a1381434e9b249da54a616d0bde8ea3239950e90d3051f7ead17b8a7"
       },
       {
         "path": "src/agent_protocol/__main__.py",
@@ -464,8 +464,8 @@
       {
         "path": "src/agent_protocol/host.py",
         "mode": "100644",
-        "blob": "74c8cfa84f2cfb152269e10ef0395d1f2a74ecca",
-        "sha256": "15dc125ba57f4e937b506b7c43300d724f3901ed502792488633cf1b6dc9ceb0"
+        "blob": "efc6e3395fae5c56e890b060105a3ff9800f9ca5",
+        "sha256": "31237e6073e0af5cbab10f4e6ba76d263d12ee88bd6a10091326f3ff0bd13e61"
       },
       {
         "path": "src/agent_protocol/ledger.py",
@@ -488,8 +488,8 @@
       {
         "path": "src/agent_protocol/source.py",
         "mode": "100644",
-        "blob": "81b754df2115201be2ce04233bc63150f94c35cd",
-        "sha256": "5dfad67030e072f6d958abaabd4c144d8a6d0be4e358146bb9b45b0510b80148"
+        "blob": "ea0dfb51c43fe935c34000b66b34a02638ea95d4",
+        "sha256": "7b41ecfa2eefd391ba6cb5495611fb13fff3243a4d5b33a54bac02901b8b61a9"
       },
       {
         "path": "tests/fixtures/lifecycle.json",
@@ -554,8 +554,8 @@
       {
         "path": "tests/test_packaging.py",
         "mode": "100644",
-        "blob": "f2ae98901def69ef6e2f8d53a92b3f67967ba7e0",
-        "sha256": "2b7928daf1fdcac762b0c94efdae248745a4b61201f1bddcfea4af0633e449bd"
+        "blob": "1cab3b8752b9c8ee46851a4e2013eed50c966fe8",
+        "sha256": "3b794eaee86d662a51b4f88d1bffc67211340759b2a008459cff914360915926"
       },
       {
         "path": "tests/test_qualification.py",
@@ -566,8 +566,8 @@
       {
         "path": "tests/test_source.py",
         "mode": "100644",
-        "blob": "10e032618108aff4931be93df5e6eda6fa7debbb",
-        "sha256": "53a01f540ea619ca2ddaa91bc52868f5e22ffdf15c4ec30a16e89f352c1d287d"
+        "blob": "956ce04ed6b5384dc36021abb55692d37b2f985c",
+        "sha256": "befa0c6d009f5f6449bdb259906abedb4853fa40e575e219885ffb493f02b99e"
       },
       {
         "path": "tools/check.py",
@@ -590,36 +590,52 @@
       {
         "path": "tools/package.py",
         "mode": "100644",
-        "blob": "3c24e1947d29704acd4095689dea521e4531a1e3",
-        "sha256": "8f052b5d4508296c24015bec24f4c83047a9b5883124481bb97683681a20726a"
+        "blob": "9d99bb6d985997db09f784c1e11bf4a837ca6dd2",
+        "sha256": "4dbbfeb7b17ed08c442aa0bc351d83578b1d3b52b76e48badbabb63cba304848"
       }
     ]
   },
-  "manifest_digest": "349e5eaf7cbfe5edeb0f61f08d8ae8ea3c14c844ba95c7f2f88b89916ff3b72b",
-  "documents_digest": "a5e8ea8a51ef964abca7092c7e6d18502fa0ca526aed49efa6b069485c895f06",
-  "archive_sha256": "094407538a3a99889d75f37162c6dd415b9c0a13cbcb5359784a11979473ccd2",
-  "release_url": "https://github.com/gabned/agent-protocol/releases/tag/v1.5.1",
+  "manifest_digest": "c00389c745c31445936606b5bfa195e29fd4084021cf5133ecdf43cdd5ae0955",
+  "documents_digest": "4de1a21b06b9a3b8d46c415fbf0da55e30a788ad9b049ee19aa0c01126878235",
+  "archive_sha256": "b3a7ceeaff591449187ef715b9e98aefea7924be37aa3b8131364d335bf35e1d",
   "vendor_prefix": "tools/agent_protocol_core",
-  "release_artifacts": {
-    "SHA256SUMS": {
-      "sha256": "a41b4d5404e6ccf665a742e296ebc7205f512141a4b7d05c2798bbb70e2de886",
-      "size": 359
+  "acquisition": {
+    "kind": "CANONICAL_GIT",
+    "origin": {
+      "repository": "gabned/agent-protocol",
+      "repository_id": 1393711644,
+      "revision": "02317e02767958faa3de5bb6d245ca3440360d9e",
+      "tree": "d8d69cd480c422577550280cd4595840f19ece73",
+      "base": "d2d235d86727d393e6e4f07bf5befefec754a9e0",
+      "head": "9fb0a92dcf8d7412781334c972a92da5dd0d0e0d",
+      "schema": "agent-protocol-git-origin/v1",
+      "acceptance": {
+        "pull_request": 9,
+        "receipt_url": "https://github.com/gabned/agent-protocol/pull/9#issuecomment-6274127410",
+        "receipt_sha256": "f6e410094131fbc70644e4a347bc57b13d76b5586531b65646d9b9291a83ea64"
+      }
     },
-    "agent_protocol_core-1.5.1-py3-none-any.whl": {
-      "sha256": "e5cdcf7fb736447b40d68ac5e2ba62d579d392edaef58b974bf4e262ba410271",
-      "size": 441314
-    },
-    "conformance.json": {
-      "sha256": "006b39465016b2cc68b47f455065ff6890a7200925d2643c7136f0209e243b08",
-      "size": 3979
-    },
-    "source-manifest.json": {
-      "sha256": "70c759a9f787bff2b38a83108da5497716a3d2cf32953cb0e7d1e519b396f2d4",
-      "size": 22639
-    },
-    "source.tar.gz": {
-      "sha256": "094407538a3a99889d75f37162c6dd415b9c0a13cbcb5359784a11979473ccd2",
-      "size": 372918
+    "artifacts": {
+      "agent_protocol_core-1.5.2-py3-none-any.whl": {
+        "sha256": "97aaf20ae2912a9c19ce3f7ab5be98e1990b554baf1611ce484c268feacb5b12",
+        "size": 450468
+      },
+      "git-provenance.json": {
+        "sha256": "f45ef6a6aa049c1b6ddf4e856a7cf7b5f0e497071f2db529ebc92383437d37ab",
+        "size": 4191
+      },
+      "SHA256SUMS": {
+        "sha256": "cf0156bce772b5a6367e9fef90d1f3713e65d834e9457db27657392c5f8dc18c",
+        "size": 362
+      },
+      "source-manifest.json": {
+        "sha256": "40e703cff4df6cd0196232cf5033673b3374f13129955afb6948b3d37261cd82",
+        "size": 22639
+      },
+      "source.tar.gz": {
+        "sha256": "b3a7ceeaff591449187ef715b9e98aefea7924be37aa3b8131364d335bf35e1d",
+        "size": 381404
+      }
     }
   }
 }
