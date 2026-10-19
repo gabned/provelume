@@ -24,6 +24,9 @@ jobs:
           python-version: '3.12'
       - name: Canonical dependency bootstrap
         run: python scripts/bootstrap.py
+      - name: Diagnostic-only Windows Capture profile (no qualification verdict)
+        if: runner.os == 'Windows'
+        run: .venv/Scripts/python.exe scripts/diagnose_capture.py --output .agent/capture-diagnostic.json
       - name: Explicit locked acquisition (no model in artifacts or Git)
         run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/s05-inputs" --accept-licenses --include-model
       - name: Build locked native input with notices and SBOM, offline
@@ -49,6 +52,7 @@ jobs:
             .agent/s05-real.json
             .agent/s05-network.*
             .agent/s05-wfp.json
+            .agent/capture-diagnostic.json
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
