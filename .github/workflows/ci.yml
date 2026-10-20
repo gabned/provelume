@@ -188,7 +188,10 @@ jobs:
           cache: pip
 
       - name: Install package and development checks
-        run: python -m pip install -e ".[dev]"
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r build-lock/sbom-runtime-pip.requirements.txt
+          python -m pip install -e ".[dev]"
 
       - name: Lint
         run: python -m ruff check core tests scripts tools packaging
@@ -217,7 +220,10 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install package and development checks
-        run: python -m pip install -e ".[dev]"
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r build-lock/sbom-runtime-pip.requirements.txt
+          python -m pip install -e ".[dev]"
       - name: Lint
         run: python -m ruff check core tests scripts tools packaging
       - name: Observe Windows JavaScript runtime before full shard execution
@@ -318,7 +324,10 @@ jobs:
             build-lock/windows-py312-x86_64.requirements.txt
 
       - name: Install source and deterministic build tooling
-        run: python -m pip install -e ".[dev]" -r requirements-release.txt
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r build-lock/sbom-runtime-pip.requirements.txt
+          python -m pip install -e ".[dev]" -r requirements-release.txt
 
       - name: Build development-identity candidate wheel
         shell: pwsh
@@ -394,7 +403,10 @@ jobs:
           echo "SOURCE_DATE_EPOCH=$epoch" >> "$GITHUB_ENV"
 
       - name: Install release tooling
-        run: python -m pip install -e ".[dev]" -r requirements-release.txt
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r build-lock/sbom-runtime-pip.requirements.txt
+          python -m pip install -e ".[dev]" -r requirements-release.txt
 
       - name: Build and compare independent source copies
         shell: bash
@@ -412,7 +424,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m venv .release-runtime
-          .release-runtime/bin/python -m pip install --upgrade pip
+          .release-runtime/bin/python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r build-lock/sbom-runtime-pip.requirements.txt
           .release-runtime/bin/python -m pip install dist/*.whl
           .release-runtime/bin/provelume --help >/dev/null
           .release-runtime/bin/provelume build-info > installed-build-info.json
@@ -553,7 +565,9 @@ jobs:
           print(json.dumps(result))
       - name: Install only standalone Protocol test dependencies
         shell: bash
-        run: python -m pip install -r "$RUNNER_TEMP/independent-protocol/requirements-test.txt"
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r build-lock/sbom-runtime-pip.requirements.txt
+          python -m pip install -r "$RUNNER_TEMP/independent-protocol/requirements-test.txt"
       - name: Run complete extracted checks without a product checkout
         shell: bash
         run: |
@@ -622,6 +636,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install only the explicit compatibility input
-        run: python -m pip install "pytest==${{ matrix.pytest }}"
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r build-lock/sbom-runtime-pip.requirements.txt
+          python -m pip install "pytest==${{ matrix.pytest }}"
       - name: Observe actual native parent and subtest reports without the product runtime
         run: python tests/test_agent_protocol_work_check.py WindowsNativeSubtestTests

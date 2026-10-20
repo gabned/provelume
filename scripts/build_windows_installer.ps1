@@ -48,6 +48,11 @@ try {
         throw "Creating the isolated Windows build environment failed with exit code $LASTEXITCODE."
     }
     $BuildPython = Join-Path $BuildEnvironment "Scripts\python.exe"
+    & $BuildPython -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes `
+        -r (Join-Path $SourceRoot "build-lock\sbom-runtime-pip.requirements.txt")
+    if ($LASTEXITCODE -ne 0) {
+        throw "Installing the reviewed pip wheel failed with exit code $LASTEXITCODE."
+    }
     & $BuildPython -m pip install --disable-pip-version-check --require-hashes `
         -r (Join-Path $SourceRoot "build-lock\windows-py312-x86_64.requirements.txt")
     if ($LASTEXITCODE -ne 0) {
