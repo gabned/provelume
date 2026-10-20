@@ -18,6 +18,14 @@ def main() -> int:
         else environment / "bin" / "python"
     )
     subprocess.check_call(
+        [
+            str(python), "-m", "pip", "install", "--disable-pip-version-check",
+            "--only-binary=:all:", "--require-hashes",
+            "-r", str(root / "build-lock" / "sbom-runtime-pip.requirements.txt"),
+        ],
+        cwd=root,
+    )
+    subprocess.check_call(
         [str(python), "-m", "pip", "install", "-e", ".[dev]"],
         cwd=root,
     )
