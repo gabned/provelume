@@ -65,6 +65,7 @@ def test_acquisition_refuses_preview_and_preserves_corrupt_offline_cache(tmp_pat
     accepted = {"sha256": hashlib.sha256(b"expected").hexdigest(), "size": 8}
     pin = {
         **pin,
+        "schema": "agent-protocol-consumer-pin/v2",
         "release_artifacts": {
             name: accepted
             for name in (
@@ -88,13 +89,62 @@ def test_acquisition_refuses_wheel_from_another_release(tmp_path, monkeypatch):
     adapter = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(adapter)
     pin = adapter.verify()
-    artifacts = dict(pin["release_artifacts"])
+    pin = {**pin, "schema": "agent-protocol-consumer-pin/v2"}
+    artifacts = {
+        name: {"size": 1, "sha256": "0" * 64}
+        for name in (
+            "source.tar.gz",
+            "source-manifest.json",
+            "conformance.json",
+            "SHA256SUMS",
+            f"agent_protocol_core-{pin['source_manifest']['version']}-py3-none-any.whl",
+        )
+    }
     wheel = next(name for name in artifacts if name.endswith(".whl"))
     artifacts["agent_protocol_core-0.0.0-py3-none-any.whl"] = artifacts.pop(wheel)
     monkeypatch.setattr(adapter, "ROOT", tmp_path)
     with pytest.raises(ValueError, match="Incomplete release artifact inventory"):
         adapter.acquire({**pin, "release_artifacts": artifacts}, offline=True)
     assert not (tmp_path / ".agent").exists()
+
+
+def test_git_source_authentication_and_offline_cache_preservation():
+    """Coherent local JSON must not enroll a source or repair corrupt originals."""
+    import tempfile
+    from unittest.mock import patch
+
+    spec = importlib.util.spec_from_file_location(
+        "consumer_git_acquire", ROOT / "tools/agent_protocol_v2.py"
+    )
+    adapter = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(adapter)
+    pin = adapter.verify()
+    assert pin["schema"] == "agent-protocol-consumer-pin/v3"
+    with tempfile.TemporaryDirectory(prefix="protocol-source-refusal-") as temporary:
+        isolated = Path(temporary)
+        with patch.object(adapter, "ROOT", isolated):
+            try:
+                adapter.acquire(pin, fetch_source=lambda _: {})
+            except (ValueError, KeyError):
+                pass
+            else:
+                raise AssertionError("Unauthenticated canonical source was accepted")
+            assert not (isolated / ".agent/protocol-sources").exists()
+            directory = isolated / ".agent/protocol-artifacts" / pin["operational_revision"]
+            directory.mkdir(parents=True)
+            damaged = directory / "source.tar.gz"
+            original = b"preserve corrupt acquisition original"
+            damaged.write_bytes(original)
+            with patch.object(
+                adapter.subprocess, "run", side_effect=AssertionError("Git during offline")
+            ):
+                try:
+                    adapter.acquire(pin, offline=True)
+                except ValueError as error:
+                    assert "Cached artifact differs" in str(error)
+                else:
+                    raise AssertionError("Corrupt Git source cache was accepted")
+            assert damaged.read_bytes() == original
 
 
 def test_native_engine_uses_canonical_preconditions_without_write_authority():
