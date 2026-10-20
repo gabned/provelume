@@ -71,3 +71,20 @@ The Windows package additionally records the actual frozen `python312.dll` bytes
 and version alongside the exact installer identity. On `c7868cb` it was 3.12.10,
 while the Linux release builder used 3.12.14. Dependency applicability is a
 separate bounded assessment; this divergence does not explain S06.
+
+Fresh browser qualification on
+`957833b9a76dfa6eec60aea0126b35021a9dbed3` found an independent PRODUCT
+defect in the shell settings form. Its hidden language field was empty because
+the public settings view omitted the saved language used by the template.
+Submitting a theme change returned HTTP 400 and retained the previous theme.
+The minimum correction exposes that existing preference to the view; the form
+keeps its language validation, CSRF token, nonce and expected revision.
+Four rendered-form regressions first failed on that source, then qualify the
+correction for Cura/Current and system/explicit language.
+
+The initial browser harness also used an incorrect object API route and recorded
+requested themes without checking their persistence. Its 1008 matrix rows do not
+establish three-theme coverage. Both that harness failure and the subsequent
+HTTP 400 observation remain retained. Fresh browser checks must assert saved,
+DOM and computed themes before claiming coverage; no previous browser result
+accepts the corrected source.
