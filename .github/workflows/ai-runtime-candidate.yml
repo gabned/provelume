@@ -7,32 +7,6 @@ on:
 permissions:
   contents: read
 jobs:
-  diagnose-prefill:
-    name: Bounded Windows S08 prefill diagnosis
-    runs-on: windows-2025
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: '3.12'
-      - name: Canonical dependency bootstrap
-        run: python scripts/bootstrap.py
-      - name: Acquire the unchanged locked diagnostic inputs
-        run: .venv/Scripts/python.exe scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/s08-diagnostic" --accept-licenses --include-model
-      - name: Observe the fixed six-case experimental order
-        run: .venv/Scripts/python.exe scripts/diagnose_s08_prefill.py --artifacts "${{ runner.temp }}/s08-diagnostic" --output .agent/s08-prefill.json
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
-        if: always()
-        with:
-          name: s08-prefill-diagnostic-windows
-          path: .agent/s08-prefill*
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 30
   measure:
     strategy:
       fail-fast: false
