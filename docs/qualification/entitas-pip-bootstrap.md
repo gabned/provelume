@@ -11,7 +11,8 @@ from that observation. `scripts/bootstrap.py` previously retained the version
 seeded by `venv`; direct workflow installs and the private Windows builder also
 did not establish a corrected installer before installing dependencies.
 
-All online installs used by this campaign now first install the already reviewed
+The PRODUCT bootstrap, dedicated smoke workflows and release pipeline now first
+install the already reviewed
 pip 26.2 wheel from `build-lock/sbom-runtime-pip.requirements.txt`, with SHA256
 `931c303696af6fa3417112103b1cad26890e5a07eccb5b99783700e33f2b8aad`.
 Only a wheel is accepted, its hash is required, and failure stops before the
@@ -33,7 +34,15 @@ historical pytest compatibility input or canonical Protocol vendor is updated.
 The one pinned bootstrap wheel is an independently reviewed byte input; the seed
 installer is not asked to resolve arbitrary packages during its own correction.
 The dedicated future lock-refresh workflow is outside this release's execution
-and is not run or broadened here.
+and is not run or broadened here. The accepted classifier assigns the shared
+`.github/workflows/ci.yml` to PROTOCOL. Its corresponding minimum installer
+correction is reserved for the separate adoption owner #404 / #406; final
+qualification must observe that correction too. The PRODUCT candidate
+`624b27f77bc7a1e1d86962303be979178038de1f` incorrectly included that file and
+was refused by the trusted guard with MIXED_SCOPE / PRODUCT_TOUCHES_PROTOCOL /
+PROTOCOL_ESCALATION_REQUIRED in runs 39388681480 and 39388801711. Both original
+refusals remain in history. Restoring the shared CI file removes that mixed
+surface from this PRODUCT delta; no classifier, policy or waiver is changed.
 
 Protected advisory API accessibility and scanner closure remain UNOBSERVED.
 This bounded assessment is not a general security verdict. Fresh native checks,
