@@ -323,6 +323,7 @@ class LauncherSettings:
                 "tray_enabled": value.tray_enabled,
                 "login_startup": value.login_startup,
                 "theme": value.theme,
+                "language": value.language,
                 "interface_mode": value.interface_mode,
                 "interface_mode_change": (
                     value.interface_mode_change.as_payload()

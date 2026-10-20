@@ -64,7 +64,10 @@ jobs:
             build-lock/windows-py312-x86_64.requirements.txt
 
       - name: Install reviewed development and packaging tools
-        run: python -m pip install -e ".[dev]" -r requirements-release.txt
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r build-lock/sbom-runtime-pip.requirements.txt
+          python -m pip install -e ".[dev]" -r requirements-release.txt
 
       - name: Verify source contracts and deterministic tray harness
         shell: pwsh

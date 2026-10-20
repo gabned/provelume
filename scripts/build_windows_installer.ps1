@@ -48,6 +48,11 @@ try {
         throw "Creating the isolated Windows build environment failed with exit code $LASTEXITCODE."
     }
     $BuildPython = Join-Path $BuildEnvironment "Scripts\python.exe"
+    & $BuildPython -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes `
+        -r (Join-Path $SourceRoot "build-lock\sbom-runtime-pip.requirements.txt")
+    if ($LASTEXITCODE -ne 0) {
+        throw "Installing the reviewed pip wheel failed with exit code $LASTEXITCODE."
+    }
     & $BuildPython -m pip install --disable-pip-version-check --require-hashes `
         -r (Join-Path $SourceRoot "build-lock\windows-py312-x86_64.requirements.txt")
     if ($LASTEXITCODE -ne 0) {
@@ -155,6 +160,33 @@ try {
     if (-not (Test-Path $Installer)) {
         throw "Inno Setup did not produce the expected installer."
     }
+    # The Linux wheel builder's Python is not the interpreter frozen into this
+    # installer. Retain the actual staged DLL identity next to the exact package.
+    $PythonDll = Join-Path $Stage "_internal\python312.dll"
+    $PythonDllInfo = Get-Item -LiteralPath $PythonDll
+    $BuilderPython = (& $BuildPython -I -c "import json,platform; print(json.dumps({'implementation':platform.python_implementation(),'version':platform.python_version()}))") | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0) {
+        throw "Observing the Windows build interpreter failed."
+    }
+    $PythonRuntimeEvidence = [ordered]@{
+        schema_version = 1
+        source_commit = $Commit
+        builder = $BuilderPython
+        frozen_library = [ordered]@{
+            path = "_internal/python312.dll"
+            file_version = $PythonDllInfo.VersionInfo.FileVersion
+            product_version = $PythonDllInfo.VersionInfo.ProductVersion
+            size_bytes = $PythonDllInfo.Length
+            sha256 = (Get-FileHash -LiteralPath $PythonDll -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+        installer = [ordered]@{
+            name = (Split-Path $Installer -Leaf)
+            size_bytes = (Get-Item -LiteralPath $Installer).Length
+            sha256 = (Get-FileHash -LiteralPath $Installer -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+    }
+    $PythonRuntimeEvidence | ConvertTo-Json -Depth 6 | Set-Content -Encoding utf8 `
+        -LiteralPath (Join-Path $Output "windows-python-runtime.json")
     & (Join-Path $SourceRoot "scripts\verify_windows_brand.ps1") `
         -Artifact $Installer -CanonicalIcon $Icon | Out-Null
     & (Join-Path $SourceRoot "scripts\verify_windows_signature.ps1") `

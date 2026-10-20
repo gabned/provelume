@@ -20,7 +20,10 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: '3.12'
-      - run: python -m pip install -e ".[dev]"
+      - shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r build-lock/sbom-runtime-pip.requirements.txt
+          python -m pip install -e ".[dev]"
       - name: Acquire reviewed public inputs outside image context and artifacts
         run: |
           python scripts/ai_runtime_acquire.py --directory "$RUNNER_TEMP/custodia-inputs" --platform all --accept-licenses --include-model
