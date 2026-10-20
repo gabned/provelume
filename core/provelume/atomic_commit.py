@@ -384,8 +384,10 @@ class AtomicInstanceCommit:
             # Unreferenced journal files are independent. Retain every file
             # fsync but overlap I/O with a bounded pool. Join all writers, even
             # on failure, before a prepared manifest can authorize publication.
+            for directory in sorted({path.parent for path, _data in payloads}, key=str):
+                directory.mkdir(mode=0o700, exist_ok=True)
             with ThreadPoolExecutor(max_workers=4) as writers:
-                pending = [writers.submit(self.store._atomic_bytes, path, data)
+                pending = [writers.submit(_write_journal_payload, path, data)
                            for path, data in payloads]
                 for write in pending:
                     write.result()
@@ -536,6 +538,24 @@ class AtomicInstanceCommit:
                    for directory in sorted(directories, key=str)]
         for flush in pending:
             flush.result()
+
+
+def _write_journal_payload(path: Path, data: bytes) -> None:
+    """Create an unreferenced private payload; only the later marker publishes it.
+
+    A second temporary file and rename cannot make this unpublished file more
+    atomic. Exclusive creation refuses an occupied path, including a symlink.
+    Keep the original private file mode and every flush/fsync. The caller joins
+    all writers and flushes their directories before writing the prepared marker;
+    interrupted unprepared stages remain recoverable under the existing format.
+    Live files and both manifest markers still use atomic replacement.
+    """
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+    descriptor = os.open(native_path(path), flags, 0o600)
+    with os.fdopen(descriptor, "wb") as handle:
+        handle.write(data)
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
 def _fsync_directory(path: Path) -> None:

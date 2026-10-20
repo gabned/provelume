@@ -391,6 +391,42 @@ def test_browser_shell_mutation_has_csrf_nonce_revision_and_read_only_api(tmp_pa
     assert duplicate.json()["detail"] == "invalid shell settings fields"
 
 
+@pytest.mark.parametrize("mode", ["preview", "current"])
+@pytest.mark.parametrize("language", ["system", "it"])
+def test_rendered_shell_theme_form_preserves_saved_language(tmp_path, mode, language):
+    instance_root = tmp_path / "instance"
+    ProvelumeInstance.initialise(instance_root)
+    manager = ShellSettingsManager(
+        tmp_path / "launcher.json",
+        LauncherSettings(instance_path=str(instance_root), language=language),
+    )
+    manager.save(manager.defaults)
+    manager.set_interface_mode(mode, expected_revision=0)
+    client = TestClient(create_app(instance_root, shell_settings_file=manager.path))
+    page = client.get("/settings/shell?lang=en")
+    forms = re.findall(r"<form\b.*?</form>", page.text, flags=re.DOTALL)
+    form = next(value for value in forms if 'id="shell-theme"' in value)
+    retained = re.search(r'type="hidden" name="language" value="([^"]*)"', form)
+    assert retained is not None
+    data = {
+        **_form_fields(form),
+        "port": str(manager.load().settings.endpoint_port),
+        "tray_enabled": "on",
+        "theme": "dark",
+        "language": retained.group(1),
+        "action": "save",
+    }
+    saved = client.post("/settings/shell?lang=en", data=data)
+    assert saved.status_code == 200
+    assert [response.status_code for response in saved.history] == [303]
+    settings = manager.load().settings
+    assert settings.theme == "dark"
+    assert settings.language == language
+    assert settings.interface_mode == mode
+    assert f'<option value="{language}" selected>' in saved.text
+    assert 'data-theme="dark"' in saved.text
+
+
 def test_ipv6_loopback_service_endpoint_uses_bracketed_url_authority(tmp_path: Path) -> None:
     instance_root = tmp_path / "instance"
     ProvelumeInstance.initialise(instance_root)
