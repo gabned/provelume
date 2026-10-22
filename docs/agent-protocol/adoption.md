@@ -209,3 +209,137 @@ or additional consumer rollout is started.
   ]
 }
 ```
+
+## Proposed predecessor transfer for the trusted PR metadata reader
+
+The original PR408 attempt1/run39505179474/job118912204986 failed with curl22 /
+HTTP403 before event-guard. Its log has neither response headers nor response body
+and does not establish rate limit, access restrictions or any other specific cause.
+Preserve that failure and every previous adoption attempt; do not rerun or relabel it.
+
+This separate predecessor proposal changes no workflow, host profile, canonical
+vendor or historical validator. It is usable only after its own complete native,
+exact-head CI, review, scope/effect, fresh preflight, normal merge and actual-main
+qualification under the independently accepted base. A candidate cannot select
+this proposal or its own verifier as authority. Lifecycle v2 stays deferred and
+existing owners and PR-local ledgers remain authoritative.
+
+The existing qualifier's frozen-path refusal remains unchanged. Once independently
+accepted, this narrowly qualified transfer supplies only the prerequisite for the
+exact workflow payload recorded below. It is not a general frozen-file exception,
+waiver, profile edit, missing-CI override or merge authority. Historical maintenance,
+pytest dependency transfers and all original refusals keep their own scope.
+
+An authorized host reads the record and invokes that accepted revision's verifier
+outside the workflow candidate checkout:
+
+```bash
+python tools/agent_protocol_transfer.py verify-trusted-pr-reader \
+  --source-root ACCEPTED_PREDECESSOR_CHECKOUT --destination WORKFLOW_CHECKOUT \
+  --accepted-predecessor ACCEPTED_MAIN --expected-base ACCEPTED_MAIN \
+  --expected-head WORKFLOW_HEAD --repository gabned/provelume \
+  --repository-id 1343746770 --pr WORKFLOW_PR
+```
+
+The host independently authenticates those live GitHub coordinates and the
+accepted predecessor. The operation verifies complete unreplaced Git history,
+one direct successor of that exact predecessor, only the existing ci.yml file,
+100644 mode and exact before/after blobs and SHA256. Any changed base or head
+requires fresh observation and verification. Any other payload, intermediate
+history, merge commit, rename or additional file is refused. This same-repository
+successor contract avoids a circular record containing its own future merge SHA;
+the independently accepted predecessor is the exact required candidate parent.
+
+The host retains the ordinary frozen-path refusal and must prove it is the sole
+scope refusal. All other required source, CI/run/attempt/job/original-byte,
+review/thread, native, effect/binding and fresh normal expected-head merge gates
+remain mandatory. No caller may remove frozen paths from the accepted profile,
+relabel the ordinary qualifier's result or ignore another failure. The transfer
+receipt is BYTES_VERIFIED only. Actual main ordered parents/tree and every required
+post-merge check must be observed before acceptance. Platform denial stops the
+operation without protection changes, force/admin bypass or alternative writes.
+
+The exact payload grants pull-requests:read only to the trusted-base job, keeps
+public Git acquisition credential-free, and confines github.token to a separate
+metadata-acquisition step. No candidate tree is checked out or executed there.
+The subsequent base guard receives data without the token in its environment;
+it still validates current PR/event/base/head and the complete Git delta, refusing
+missing or inconsistent input. The reader refuses redirects and logs only selected
+non-secret HTTP diagnostic headers, with no automatic retry. Its purpose is to
+make the required read authenticated and future failures diagnosable; it does not
+claim a proven historical cause or a future PASS.
+
+```agent-protocol-trusted-pr-reader
+{
+  "schema": "agent-protocol-trusted-pr-reader/v1",
+  "repository": "gabned/provelume",
+  "repository_id": 1343746770,
+  "path": ".github/workflows/ci.yml",
+  "mode": "100644",
+  "before_blob": "0431ad5b99ea95a743c4f179316e6eef711a567f",
+  "after_blob": "9d33d2b5b6df4eec045df1fb9f6e758a96e5c4b5",
+  "after_sha256": "e172ac571097ed871f96fc68d407fb5195319f2f97f679c69717b6671dd910f4"
+}
+```
+
+The exact reviewed workflow delta is retained here so the payload can be inspected
+before any frozen file is modified:
+
+```diff
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -120,7 +120,8 @@
+   agent-change-control:
+     name: Agent change control (trusted base)
+     if: github.event_name == 'pull_request_target'
+-    permissions: {}
++    permissions:
++      pull-requests: read
+     runs-on: ubuntu-latest
+     timeout-minutes: 5
+     env:
+@@ -134,6 +135,27 @@
+         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+         with:
+           python-version: "3.12"
++
++      - name: Acquire current PR metadata with read-only authentication
++        shell: bash
++        env:
++          GH_TOKEN: ${{ github.token }}
++        run: |
++          set -euo pipefail
++          test "$REPOSITORY" = 'gabned/provelume'
++          test "$GITHUB_API_URL" = 'https://api.github.com'
++          mkdir -p .agent
++          status=0
++          curl --fail-with-body --silent --show-error --max-redirs 0 \
++            --header "Authorization: Bearer $GH_TOKEN" \
++            --header 'Accept: application/vnd.github+json' \
++            --header 'X-GitHub-Api-Version: 2022-11-28' \
++            --dump-header .agent/current-pr.headers \
++            --output .agent/current-pr.json \
++            "${GITHUB_API_URL}/repos/${REPOSITORY}/pulls/${PR_NUMBER}" || status=$?
++          awk 'tolower($0) ~ /^(http\/|date:|x-github-request-id:|x-ratelimit-(limit|remaining|reset|used|resource):|retry-after:)/ {print}' \
++            .agent/current-pr.headers
++          test "$status" -eq 0
+
+       - name: Evaluate the untrusted head with the trusted base guard
+         shell: bash
+@@ -150,9 +172,6 @@
+           test "$observed_head" = "$HEAD_SHA"
+           mkdir -p .agent
+           git diff --name-status -M -z "$BASE_SHA" "$HEAD_SHA" > .agent/name-status.z
+-          curl --fail --silent --show-error --location \
+-            "${GITHUB_API_URL}/repos/${REPOSITORY}/pulls/${PR_NUMBER}" \
+-            > .agent/current-pr.json
+           python tools/agent_protocol_v2.py event-guard \
+             --event "$GITHUB_EVENT_PATH" \
+             --current-pr .agent/current-pr.json \
+```
+
+After actual acceptance of this correction, refresh adoption against the accepted
+base using a supported linear successor and preserve PR406/408 and their original
+owner and failures. Requalify source and actual-main adoption before resuming the
+existing PRODUCT final owner. This proposal authorizes no SDK draft mutation,
+application publication, new release, deployment or lifecycle activation.
