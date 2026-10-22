@@ -711,12 +711,91 @@ def verify_dependency_update(predecessor_root, destination_root, *, accepted_pre
             "merge_authorized": False, "publication_authorized": False}
 
 
+TRUSTED_READER_MARKER = "```agent-protocol-trusted-pr-reader\n"
+TRUSTED_READER_RECORD = {
+    "schema": "agent-protocol-trusted-pr-reader/v1",
+    "repository": "gabned/provelume",
+    "repository_id": 1343746770,
+    "path": ".github/workflows/ci.yml",
+    "mode": "100644",
+    "before_blob": "0431ad5b99ea95a743c4f179316e6eef711a567f",
+    "after_blob": "9d33d2b5b6df4eec045df1fb9f6e758a96e5c4b5",
+    "after_sha256": "e172ac571097ed871f96fc68d407fb5195319f2f97f679c69717b6671dd910f4",
+}
+
+
+def verify_trusted_pr_reader(predecessor_root, destination_root, *, accepted_predecessor,
+                             repository, repository_id, pr, expected_base, expected_head):
+    """Bind one exact same-repository workflow successor to its accepted predecessor.
+
+    This offline receipt grants no integration authority. It cannot qualify the
+    predecessor itself or change the canonical qualifier's frozen-path refusal.
+    The host separately authenticates current GitHub coordinates and acceptance.
+    """
+    for sha in (accepted_predecessor, expected_base, expected_head):
+        require(isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{40}", sha),
+                "Exact host-selected commits required")
+    require((repository, repository_id) == ("gabned/provelume", 1343746770)
+            and type(repository_id) is int and type(pr) is int and pr > 0,
+            "Independent consumer identity required")
+    require(expected_base == accepted_predecessor and expected_head != expected_base,
+            "Workflow successor must start at the accepted predecessor")
+    for root in (predecessor_root, destination_root):
+        require(maintenance_git(root, "rev-parse", "--is-shallow-repository").strip()
+                == b"false", "Complete history required")
+        graft = maintenance_git(root, "rev-parse", "--git-path", "info/grafts").decode().strip()
+        graft = Path(graft) if Path(graft).is_absolute() else Path(root) / graft
+        require(not graft.exists()
+                and not maintenance_git(root, "for-each-ref", "refs/replace/").strip(),
+                "Replaced history refused")
+    document = maintenance_git(
+        predecessor_root, "show", accepted_predecessor + ":" + MAINTENANCE_DOCUMENT
+    ).decode("utf-8")
+    require(document.count(TRUSTED_READER_MARKER) == 1, "One trusted-reader record required")
+    payload = document.split(TRUSTED_READER_MARKER, 1)[1].split("\n```", 1)
+    require(len(payload) == 2, "Unterminated trusted-reader record")
+
+    def unique_fields(pairs):
+        result = {}
+        for key, value in pairs:
+            require(key not in result, "Duplicate trusted-reader field")
+            result[key] = value
+        return result
+
+    record = json.loads(payload[0], object_pairs_hook=unique_fields)
+    require(record == TRUSTED_READER_RECORD, "Unregistered trusted-reader payload")
+    path = record["path"]
+    require(maintenance_git(destination_root, "rev-list", "--parents", "-n", "1",
+                            expected_head).decode().split() == [expected_head, expected_base],
+            "Workflow update requires one direct successor")
+    require(maintenance_git(destination_root, "diff", "--no-renames", "--name-status", "-z",
+                            expected_base, expected_head) == b"M\0" + path.encode() + b"\0",
+            "Only the exact existing workflow may change")
+    for revision, blob in ((expected_base, record["before_blob"]),
+                           (expected_head, record["after_blob"])):
+        require(maintenance_git(destination_root, "ls-tree", revision, "--", path)
+                == f"100644 blob {blob}\t{path}\n".encode(), "Workflow blob/mode mismatch")
+    content = maintenance_git(destination_root, "show", expected_head + ":" + path)
+    require(hashlib.sha256(content).hexdigest() == record["after_sha256"],
+            "Workflow bytes mismatch")
+    tree = maintenance_git(
+        destination_root, "rev-parse", expected_head + "^{tree}"
+    ).decode().strip()
+    return {"schema": "agent-protocol-trusted-pr-reader-receipt/v1",
+            "result": "BYTES_VERIFIED", "accepted_predecessor": accepted_predecessor,
+            "record_sha256": digest(record), "repository": repository,
+            "repository_id": repository_id, "pr": pr, "base": expected_base,
+            "head": expected_head, "tree": tree, "files": 1, "effects": "NO_PRODUCTION",
+            "authority": "HOST_AUTHENTICATED_ACCEPTANCE_AND_QUALIFICATION_REQUIRED",
+            "merge_authorized": False, "publication_authorized": False}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "operation",
         choices=["validate-manifest", "verify-source", "verify-destination", "materialize",
-                 "verify-maintenance", "verify-dependency-update"],
+                 "verify-maintenance", "verify-dependency-update", "verify-trusted-pr-reader"],
     )
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--trusted-manifest")
@@ -733,14 +812,16 @@ def main():
     parser.add_argument("--expected-head")
     args = parser.parse_args()
     try:
-        if args.operation in {"verify-maintenance", "verify-dependency-update"}:
+        if args.operation in {"verify-maintenance", "verify-dependency-update",
+                              "verify-trusted-pr-reader"}:
             require(args.source_root is not None and args.destination is not None,
                     "Predecessor and destination Git checkouts required")
             require(args.manifest is None and args.trusted_manifest is None
                     and args.observations is None and args.accepted_history is None
                     and args.trusted_history is None, "Maintenance uses accepted Git bytes only")
-            verifier = (verify_maintenance if args.operation == "verify-maintenance"
-                        else verify_dependency_update)
+            verifier = {"verify-maintenance": verify_maintenance,
+                        "verify-dependency-update": verify_dependency_update,
+                        "verify-trusted-pr-reader": verify_trusted_pr_reader}[args.operation]
             result = verifier(
                 args.source_root, args.destination, accepted_predecessor=args.accepted_predecessor,
                 repository=args.repository, repository_id=args.repository_id, pr=args.pr,
