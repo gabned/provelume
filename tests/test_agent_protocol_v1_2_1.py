@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import copy
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 
 from tools import agent_protocol as protocol
 
@@ -284,19 +287,227 @@ def test_name_status_rename_preserves_source_and_destination(tmp_path: Path) -> 
     ]
 
 
+_METADATA_READER = "Acquire current PR metadata with read-only authentication"
+_TRUSTED_GUARD = "Evaluate the untrusted head with the trusted base guard"
+_EVENT_GUARD = "python tools/agent_protocol_v2.py event-guard"
+_TOKEN_MARKERS = ("GH_TOKEN", "GITHUB_TOKEN", "github.token", "secrets.")
+
+# The registered reader is a bounded metadata command, never a place to execute
+# the head. Keep this small security-critical script explicit rather than pinning
+# the entire workflow: changes to unrelated jobs do not change this contract.
+_METADATA_SCRIPT = (
+    r'''set -euo pipefail
+test "$REPOSITORY" = 'gabned/provelume'
+test "$GITHUB_API_URL" = 'https://api.github.com'
+mkdir -p .agent
+status=0
+curl --fail-with-body --silent --show-error --max-redirs 0 \
+  --header "Authorization: Bearer $GH_TOKEN" \
+  --header 'Accept: application/vnd.github+json' \
+  --header 'X-GitHub-Api-Version: 2022-11-28' \
+  --dump-header .agent/current-pr.headers \
+  --output .agent/current-pr.json \
+  "${GITHUB_API_URL}/repos/${REPOSITORY}/pulls/${PR_NUMBER}" || status=$?
+'''
+    r"awk 'tolower($0) ~ /^(http\/|date:|x-github-request-id:|"
+    r"x-ratelimit-(limit|remaining|reset|used|resource):|retry-after:)/ {print}' "
+    "\\\n"
+    r'''  .agent/current-pr.headers
+test "$status" -eq 0
+'''
+)
+
+
+def assert_authoritative_guard(workflow: dict) -> None:
+    # PyYAML's YAML 1.1 loader represents the unquoted Actions "on" key as True.
+    triggers = workflow.get("on", workflow.get(True))
+    assert "pull_request_target" in triggers
+    assert not any(
+        marker in json.dumps(workflow.get("env", {})) for marker in _TOKEN_MARKERS
+    ), "workflow token outside metadata reader"
+    jobs = workflow["jobs"]
+    target = jobs["agent-change-control"]
+    assert set(target) == {
+        "name", "if", "permissions", "runs-on", "timeout-minutes", "env", "steps"
+    }, "trusted job fields"
+    assert target["if"] == "github.event_name == 'pull_request_target'"
+    assert target["runs-on"] == "ubuntu-latest"
+    assert target["timeout-minutes"] == 5
+    outside_steps = {key: value for key, value in target.items() if key != "steps"}
+    assert not any(marker in json.dumps(outside_steps) for marker in _TOKEN_MARKERS), (
+        "token outside metadata reader"
+    )
+    assert target["env"] == {
+        "BASE_SHA": "${{ github.event.pull_request.base.sha }}",
+        "HEAD_SHA": "${{ github.event.pull_request.head.sha }}",
+        "PR_NUMBER": "${{ github.event.pull_request.number }}",
+        "REPOSITORY": "${{ github.repository }}",
+    }, "trusted event environment"
+    steps = target["steps"]
+    readers = [step for step in steps if step.get("name") == _METADATA_READER]
+    assert len(readers) <= 1, "one metadata reader"
+    names = ["Set up Python", *([_METADATA_READER] if readers else []), _TRUSTED_GUARD]
+    assert [step.get("name") for step in steps] == names, "bounded trusted steps"
+    assert steps[0] == {
+        "name": "Set up Python",
+        "uses": "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405",
+        "with": {"python-version": "3.12"},
+    }, "pinned trusted setup"
+    guard = steps[-1]
+    assert set(guard) == {"name", "shell", "run"}, "trusted guard fields"
+    assert guard["shell"] == "bash"
+    for step in steps:
+        if step not in readers:
+            assert not any(marker in json.dumps(step) for marker in _TOKEN_MARKERS), (
+                "token outside metadata reader"
+            )
+    if readers:
+        assert target["permissions"] == {"pull-requests": "read"}, (
+            "authenticated reader permissions"
+        )
+        reader = readers[0]
+        assert set(reader) == {"name", "shell", "env", "run"}
+        assert reader["shell"] == "bash"
+        assert reader["env"] == {"GH_TOKEN": "${{ github.token }}"}, "metadata token scope"
+        assert reader["run"] == _METADATA_SCRIPT, "bounded metadata script"
+    else:
+        assert target["permissions"] == {}, "legacy reader permissions"
+    assert "actions/checkout@" not in json.dumps(target)
+    script = guard["run"]
+    assert 'git checkout --detach "$BASE_SHA"' in script, "trusted base checkout"
+    assert script.count("git checkout ") == 1, "only trusted base checkout"
+    assert "refs/pull/${PR_NUMBER}/head" in script, "observed head fetch"
+    assert 'test "$observed_head" = "$HEAD_SHA"' in script, "observed head binding"
+    assert _EVENT_GUARD in script, "trusted event guard"
+    assert sum(
+        step.get("run", "").count(_EVENT_GUARD)
+        for job in jobs.values() for step in job.get("steps", [])
+    ) == 1, "one event guard"
+    assert script.index('git checkout --detach "$BASE_SHA"') < script.index(
+        "refs/pull/${PR_NUMBER}/head"
+    ) < script.index('test "$observed_head" = "$HEAD_SHA"') < script.index(_EVENT_GUARD)
+    assert 'git remote add origin "https://github.com/${REPOSITORY}.git"' in script
+    assert script.count("git -c http.extraheader= fetch") == 2
+
+
 def test_authoritative_workflow_uses_the_trusted_base_guard() -> None:
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
     assert "pull_request_target:" in workflow
     target = workflow.split("  agent-change-control:", 1)[1].split(
         "  core-tests:", 1
     )[0]
-    assert "permissions: {}" in target
     assert "actions/checkout@" not in target
     assert 'git checkout --detach "$BASE_SHA"' in target
     assert "refs/pull/${PR_NUMBER}/head" in target
     assert 'test "$observed_head" = "$HEAD_SHA"' in target
     assert "python tools/agent_protocol_v2.py event-guard" in target
     assert workflow.count("python tools/agent_protocol_v2.py event-guard") == 1
+    assert_authoritative_guard(yaml.safe_load(workflow))
+
+
+@pytest.fixture(scope="module")
+def trusted_guard_forms(tmp_path_factory: pytest.TempPathFactory) -> dict:
+    """Exercise both forms using only the already registered local document delta."""
+    workflow = Path(".github/workflows/ci.yml").read_bytes()
+    document = Path("docs/agent-protocol/adoption.md").read_text(encoding="utf-8")
+    marker = "```agent-protocol-trusted-pr-reader\n"
+    assert document.count(marker) == 1
+    section = document.split(marker, 1)[1]
+    delta = section.split("```diff\n", 1)[1].split("\n```", 1)[0] + "\n"
+    assert delta.startswith("--- a/.github/workflows/ci.yml\n+++ b/.github/workflows/ci.yml\n")
+    current = yaml.safe_load(workflow)
+    authenticated = any(
+        step.get("name") == _METADATA_READER
+        for step in current["jobs"]["agent-change-control"]["steps"]
+    )
+    root = tmp_path_factory.mktemp("trusted-guard-forms")
+    path = root / ".github/workflows/ci.yml"
+    path.parent.mkdir(parents=True)
+    path.write_bytes(workflow)
+    subprocess.run(["git", "init", "--quiet", str(root)], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(root), "config", "core.autocrlf", "false"],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(root), "apply", *(["--reverse"] if authenticated else []), "-"],
+        input=delta.encode(), check=True, capture_output=True,
+    )
+    other = yaml.safe_load(path.read_bytes())
+    return {"legacy": other if authenticated else current,
+            "authenticated": current if authenticated else other}
+
+
+@pytest.mark.parametrize("form", ["legacy", "authenticated"])
+def test_both_registered_trusted_guard_forms(trusted_guard_forms: dict, form: str) -> None:
+    assert_authoritative_guard(trusted_guard_forms[form])
+
+
+@pytest.mark.parametrize("form", ["legacy", "authenticated"])
+def test_trusted_guard_allows_unrelated_workflow_environment(
+    trusted_guard_forms: dict, form: str
+) -> None:
+    workflow = copy.deepcopy(trusted_guard_forms[form])
+    workflow["env"] = {"SYNTHETIC_LABEL": "unrelated-public-value"}
+    assert_authoritative_guard(workflow)
+
+
+@pytest.mark.parametrize("form", ["legacy", "authenticated"])
+@pytest.mark.parametrize("attack", [
+    "write-permission", "extra-permission", "global-token", "job-token", "guard-token",
+    "head-checkout", "additional-checkout", "duplicate-guard",
+])
+def test_trusted_guard_rejects_privilege_or_execution_changes(
+    trusted_guard_forms: dict, form: str, attack: str
+) -> None:
+    workflow = copy.deepcopy(trusted_guard_forms[form])
+    target = workflow["jobs"]["agent-change-control"]
+    guard = target["steps"][-1]
+    if attack == "write-permission":
+        target["permissions"] = {"pull-requests": "write"}
+    elif attack == "extra-permission":
+        target["permissions"]["contents"] = "read"
+    elif attack == "global-token":
+        workflow["env"] = {"GH_TOKEN": "${{ github.token }}"}
+    elif attack == "job-token":
+        target["env"]["GH_TOKEN"] = "${{ github.token }}"
+    elif attack == "guard-token":
+        guard["env"] = {"GH_TOKEN": "${{ github.token }}"}
+    elif attack == "head-checkout":
+        guard["run"] = guard["run"].replace(
+            'git checkout --detach "$BASE_SHA"', 'git checkout --detach "$HEAD_SHA"'
+        )
+    elif attack == "additional-checkout":
+        guard["run"] += '\ngit checkout --detach "$HEAD_SHA"\n'
+    else:
+        guard["run"] += "\n" + _EVENT_GUARD + "\n"
+    with pytest.raises(AssertionError):
+        assert_authoritative_guard(workflow)
+
+
+@pytest.mark.parametrize("attack", [
+    "missing-token", "setup-token", "redirect", "retry", "candidate-code", "other-api",
+])
+def test_authenticated_reader_rejects_token_or_command_expansion(
+    trusted_guard_forms: dict, attack: str
+) -> None:
+    workflow = copy.deepcopy(trusted_guard_forms["authenticated"])
+    steps = workflow["jobs"]["agent-change-control"]["steps"]
+    reader = steps[1]
+    if attack == "missing-token":
+        reader["env"] = {}
+    elif attack == "setup-token":
+        steps[0]["env"] = {"GH_TOKEN": "${{ github.token }}"}
+    elif attack == "redirect":
+        reader["run"] = reader["run"].replace("--max-redirs 0", "--location")
+    elif attack == "retry":
+        reader["run"] = reader["run"].replace("curl ", "curl --retry 3 ")
+    elif attack == "candidate-code":
+        reader["run"] += "\npython untrusted-head.py\n"
+    else:
+        reader["run"] = reader["run"].replace("https://api.github.com", "https://other.invalid")
+    with pytest.raises(AssertionError):
+        assert_authoritative_guard(workflow)
 
 
 def test_global_checkpoint_path_is_never_waivable() -> None:
