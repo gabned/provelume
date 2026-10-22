@@ -334,6 +334,8 @@ class Llama:
                 matching += 1
             checkpoint = min(n - 1, max(CONFIGURATION["prefix_min_tokens"], matching))
         prefill_started, prefill_cpu = time.monotonic(), time.process_time()
+        from .ai_runtime_diagnostic_counters import difference, snapshot
+
         prefill_batches = []
         start = reused
         emit({"event": "prefill", "phase": "native_prefill"})
@@ -341,12 +343,17 @@ class Llama:
             while start < end:
                 count = min(512, end - start)
                 pointer = c.cast(c.byref(tokens, start * c.sizeof(INT)), P)
+                batch_before = snapshot()
                 batch_started, batch_cpu = time.monotonic(), time.process_time()
                 check(self.decode(self.context, self.batch(pointer, count)) == 0, "limit")
+                batch_seconds = time.monotonic() - batch_started
+                batch_cpu_seconds = time.process_time() - batch_cpu
+                batch_after = snapshot()
                 prefill_batches.append({
                     "start_token": start, "tokens": count,
-                    "seconds": time.monotonic() - batch_started,
-                    "cpu_seconds": time.process_time() - batch_cpu,
+                    "seconds": batch_seconds,
+                    "cpu_seconds": batch_cpu_seconds,
+                    "diagnostic_counters": difference(batch_before, batch_after),
                 })
                 start += count
             if end == checkpoint:
