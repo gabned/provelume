@@ -457,6 +457,12 @@ class LocalRuntime:
                 self._start(model, deadline=deadline, cancel=cancel)
             check(self._model == model.entry.model_sha256, "stale")
             message = {"prompt": prompt, "request": self._request_id}
+            diagnostic = getattr(self, "_diagnostic_control", None)
+            if diagnostic is not None:
+                # Temporary fixed-cohort observer only; ordinary calls carry no
+                # experiment selector and retain their original protocol.
+                check(diagnostic in ("default", "blocktime0"), "state")
+                message["diagnostic_blocktime"] = diagnostic
             if reuse_scope is not None:
                 message["scope"] = reuse_scope
             if response_format is not None:

@@ -1,4 +1,5 @@
-param([Parameter(Mandatory=$true)][string]$Artifacts, [switch]$Diagnostic)
+param([Parameter(Mandatory=$true)][string]$Artifacts, [switch]$Diagnostic,
+      [switch]$GovernedDiagnostic)
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows') {
     throw 'This network observation changes only disposable GitHub Windows runners.'
@@ -9,6 +10,12 @@ $ruleName = 'Provelume-S05-' + [guid]::NewGuid().ToString()
 $reportPrefix = if ($Diagnostic) { 's06-diagnostic' } else { 's05' }
 $reportPath = if ($Diagnostic) { '.agent/s06-diagnostic.json' } else { '.agent/s05-real.json' }
 $wfpPath = if ($Diagnostic) { '.agent/s06-diagnostic-wfp.json' } else { '.agent/s05-wfp.json' }
+if ($GovernedDiagnostic) {
+    if ($Diagnostic) { throw 'Select one diagnostic experiment.' }
+    $reportPrefix = 's06-governed-diagnostic'
+    $reportPath = '.agent/s06-governed-diagnostic.json'
+    $wfpPath = '.agent/s06-governed-diagnostic-wfp.json'
+}
 $auditFile = Join-Path (Resolve-Path .agent) ($reportPrefix + '-audit-before.csv')
 $started = Get-Date
 $subCategory = '{0CCE9226-69AE-11D9-BED3-505054503030}'
@@ -39,7 +46,10 @@ except OSError:
         throw 'S06 requires the independently observed exact-interpreter WFP control.'
     }
     $env:S06_WFP_VERIFIED = '1'
-    if ($Diagnostic) {
+    if ($GovernedDiagnostic) {
+        & .venv/Scripts/python.exe scripts/diagnose_ai_governed_control.py --artifacts $Artifacts `
+            --output $reportPath
+    } elseif ($Diagnostic) {
         & .venv/Scripts/python.exe scripts/diagnose_ai_governed.py --artifacts $Artifacts `
             --output $reportPath
     } else {
@@ -67,6 +77,12 @@ except OSError:
     if ($LASTEXITCODE -ne 0) { throw 'Audit policy restoration failed.' }
 }
 if (-not (Test-Path $reportPath)) { exit $measurementExit }
+if ($GovernedDiagnostic) {
+    & .venv/Scripts/python.exe scripts/diagnose_ai_governed_control.py --audit $wfpPath `
+        --output $reportPath
+    if ($measurementExit -ne 0) { exit $measurementExit }
+    exit $LASTEXITCODE
+}
 if ($Diagnostic) {
     & .venv/Scripts/python.exe scripts/diagnose_ai_governed.py --audit $wfpPath `
         --output $reportPath

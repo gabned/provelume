@@ -69,3 +69,55 @@ The separate DLL inventory checks precede and follow that hash. Removing either
 check or caching the model hash would require a new independently verified
 lifetime proof and would conflict with the complete verification retained in
 ADR 0052. No such correction is proposed here.
+
+## Prospective governed native-wait experiment
+
+The fixed replay on `50d93da70c1b9e98fcd8052ad292ae1f3fda6dce` did not
+establish a correction. The next experiment tests a new, specific mechanism:
+the exact pinned Windows LLVM OpenMP library exports `kmp_get_blocktime` and
+`kmp_set_blocktime`. Its workers can consume CPU while waiting after a completed
+parallel region. Such observed CPU would be avoidable cost independently of the
+historical first-output failure; this experiment does not claim its old cause.
+
+Before execution, fix four complete blocks in order A1/B1/B2/A2. Each block
+contains all three governed cold/warm pairs, for 24 measured calls and twelve
+real self-tests, with the existing cancellation/next-caller checks afterward.
+A uses the observed native default; B sets zero blocktime and verifies readback.
+Every request restores and verifies the prior value. An already-zero default is
+an ineffective intervention and cannot support a correction. Thread count, the
+same two physical cores, process affinity, below-normal priority, model, hash,
+memory budget, authority checkpoints and every ordinary gate stay unchanged.
+
+Run the complete ordinary S05 preceding workload once before the shared ABBA
+sequence: three cold/busy runs, all sixty corpus cases, cancellation, idle unload
+and worker-error observations. The blocks share that preceding load and then
+accumulate their own governed load; this is not four independent repetitions of
+the full preceding workload. Fix and save all six exact governed payload bytes
+and hashes before the first block, using the same actual synthetic Instance.
+Every cell checks those hashes; the four blocks must agree on each input,
+result fingerprint and input/reuse/output token counts. No payload override
+bypasses governed validation. Save every completed cell and keep the entire
+predetermined plan, including any NOT_RUN cells after an error. Do not retry or
+stop after a PASS. The existing twelve-minute job budget remains fixed.
+
+After each measured native request, observe one explicitly planned 300 ms sleep
+window before returning its result. Retain process CPU/cycles/user/kernel,
+memory/fault/I/O and own-thread identity/counters at both ends. There is no
+requested inference, hash or busy loop in that window. The callback after native
+nodes always returns false, preserves graph fusion, and records bounded top-16
+wall/thread-CPU intervals and callback overhead during prefill. These intervals
+include synchronization and cannot name an opcode or distinguish arithmetic
+from spin by themselves. Own-thread accounting does not establish scheduler
+ready/wait state; no such state is inferred. The unchanged ordinary observer
+runs separately without either intervention or extra idle windows.
+
+Predeclared support criteria, evaluated over the entire cohort: baseline idle
+CPU totals at least 0.6 seconds; B totals at most 25% of A; both B block totals
+are at most 25% of each A block; exact input/result/token parity; B warm-first
+median and prefill maximum each at most 110% of A; verified native settings and
+restoration; unchanged two-core/below-normal/3 GiB bounds. These are diagnostic
+comparison criteria only. Every individual result remains visible, including
+tails and failures. WFP calibration and every recorded worker PID through the
+complete preceding workload, cohort, cancellation and cleanup remain required.
+Any supported correction then requires a clean candidate with temporary
+instrumentation removed and complete ordinary exact-head qualification.

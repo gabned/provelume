@@ -344,6 +344,9 @@ class Llama:
                 count = min(512, end - start)
                 pointer = c.cast(c.byref(tokens, start * c.sizeof(INT)), P)
                 batch_before = snapshot()
+                intervals = getattr(self, "_native_intervals", None)
+                if intervals is not None:
+                    intervals.start()
                 batch_started, batch_cpu = time.monotonic(), time.process_time()
                 check(self.decode(self.context, self.batch(pointer, count)) == 0, "limit")
                 batch_seconds = time.monotonic() - batch_started
@@ -355,6 +358,8 @@ class Llama:
                     "cpu_seconds": batch_cpu_seconds,
                     "diagnostic_counters": difference(batch_before, batch_after),
                 })
+                if intervals is not None:
+                    prefill_batches[-1]["native_intervals"] = intervals.finish()
                 start += count
             if end == checkpoint:
                 self._save_prefix(current_tokens[:checkpoint], scope)
