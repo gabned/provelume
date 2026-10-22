@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 import time
@@ -14,7 +15,7 @@ from ai_context_fakes import context_plan  # noqa: E402
 from ai_jobs_fakes import REF, inputs_for  # noqa: E402
 from ai_runtime_report import deterministic_probe  # noqa: E402
 
-from provelume.ai_context import preview_context  # noqa: E402
+from provelume.ai_context import native_task_payload, preview_context  # noqa: E402
 from provelume.ai_contract import Limits, digest  # noqa: E402
 from provelume.ai_job_contract import Budget  # noqa: E402
 from provelume.ai_job_runtime import NativeConfig, NativeJobAdapter  # noqa: E402
@@ -140,6 +141,9 @@ def measure_jobs(instance, store, runtime):
             inputs = native_inputs(instance, proof, text=(
                 None if phase == "cold" else
                 f"Contact ada@example.test, code PRIVATE.\fSecond page. Public variant {index}."))
+            # This observer uses only the public synthetic fixture above. Retain
+            # its exact request for offline replay; production never logs prompts.
+            diagnostic_payload = native_task_payload(inputs.preview, inputs.current["template"])
             job, elapsed = execute(f"s06-{phase}-{index}")
             row = job["ai"]["attempts"][-1]
             result["samples"].append(
@@ -161,6 +165,10 @@ def measure_jobs(instance, store, runtime):
                     "worker": runtime.last_observation,
                     "adapter_phases": adapter.last_observation,
                     "authority_polling": dict(polling),
+                    "synthetic_diagnostic_input": {
+                        "sha256": hashlib.sha256(diagnostic_payload).hexdigest(),
+                        "utf8": diagnostic_payload.decode("utf-8"),
+                    },
                 }
             )
     adapter.exchange = original_exchange

@@ -334,13 +334,20 @@ class Llama:
                 matching += 1
             checkpoint = min(n - 1, max(CONFIGURATION["prefix_min_tokens"], matching))
         prefill_started, prefill_cpu = time.monotonic(), time.process_time()
+        prefill_batches = []
         start = reused
         emit({"event": "prefill", "phase": "native_prefill"})
         for end in ([checkpoint, n] if checkpoint else [n]):
             while start < end:
                 count = min(512, end - start)
                 pointer = c.cast(c.byref(tokens, start * c.sizeof(INT)), P)
+                batch_started, batch_cpu = time.monotonic(), time.process_time()
                 check(self.decode(self.context, self.batch(pointer, count)) == 0, "limit")
+                prefill_batches.append({
+                    "start_token": start, "tokens": count,
+                    "seconds": time.monotonic() - batch_started,
+                    "cpu_seconds": time.process_time() - batch_cpu,
+                })
                 start += count
             if end == checkpoint:
                 self._save_prefix(current_tokens[:checkpoint], scope)
@@ -376,6 +383,7 @@ class Llama:
                 "tokenize_and_reset_seconds": prefill_started - started,
                 "prefill_seconds": prefill_seconds,
                 "prefill_cpu_seconds": prefill_cpu_seconds,
+                "prefill_batches": prefill_batches,
                 "generation_seconds": time.monotonic() - generation_started,
             },
         }
