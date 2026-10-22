@@ -10,6 +10,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location(
     "transfer", Path(__file__).resolve().parents[1] / "tools/agent_protocol_transfer.py"
@@ -57,6 +58,102 @@ def fixture():
         "seed": None,
     }
     return manifest, observation
+
+
+class TrustedPrReaderTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="trusted-reader-")
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.git("init", "-q")
+        self.git("config", "user.name", "Synthetic")
+        self.git("config", "user.email", "synthetic@example.invalid")
+        self.git("config", "core.autocrlf", "false")
+        self.workflow = self.root / ".github/workflows/ci.yml"
+        self.workflow.parent.mkdir(parents=True)
+        self.workflow.write_bytes(b"synthetic before\n")
+        self.after = b"synthetic after\n"
+        before = self.git("hash-object", str(self.workflow))
+        after = subprocess.check_output(["git", "hash-object", "--stdin"], input=self.after)
+        self.record = {**transfer.TRUSTED_READER_RECORD, "before_blob": before,
+                       "after_blob": after.decode().strip(),
+                       "after_sha256": hashlib.sha256(self.after).hexdigest()}
+        self.document = self.root / transfer.MAINTENANCE_DOCUMENT
+        self.document.parent.mkdir(parents=True)
+        self.document.write_text(transfer.TRUSTED_READER_MARKER
+                                 + json.dumps(self.record) + "\n```\n", encoding="utf-8")
+        self.base = self.commit()
+        self.workflow.write_bytes(self.after)
+        self.head = self.commit()
+
+    def git(self, *args):
+        return subprocess.check_output(["git", "-C", str(self.root), *args],
+                                       stderr=subprocess.PIPE).decode().strip()
+
+    def commit(self, *, executable=False):
+        self.git("add", ".")
+        if executable:
+            self.git("update-index", "--chmod=+x", ".github/workflows/ci.yml")
+        self.git("commit", "-qm", "synthetic")
+        return self.git("rev-parse", "HEAD")
+
+    def verify(self, **overrides):
+        args = {"accepted_predecessor": self.base, "repository": "gabned/provelume",
+                "repository_id": 1343746770, "pr": 123, "expected_base": self.base,
+                "expected_head": self.head}
+        args.update(overrides)
+        with patch.object(transfer, "TRUSTED_READER_RECORD", self.record):
+            return transfer.verify_trusted_pr_reader(self.root, self.root, **args)
+
+    def test_git_record_overrides_working_copy_and_receipt_grants_no_authority(self):
+        self.document.write_text("unaccepted working copy")
+        result = self.verify()
+        self.assertEqual(result["result"], "BYTES_VERIFIED")
+        self.assertEqual(result["base"], self.base)
+        self.assertEqual(result["head"], self.head)
+        self.assertEqual(result["tree"], self.git("rev-parse", self.head + "^{tree}"))
+        self.assertFalse(result["merge_authorized"])
+        self.assertFalse(result["publication_authorized"])
+
+    def test_exact_host_coordinates_and_direct_successor_are_required(self):
+        for key, value in (("repository", "other/repo"), ("repository_id", True),
+                           ("pr", True), ("pr", 0), ("expected_base", "a" * 40),
+                           ("accepted_predecessor", "b" * 40), ("expected_head", self.base)):
+            with self.subTest(key=key, value=value), self.assertRaises(ValueError):
+                self.verify(**{key: value})
+        self.git("commit", "--allow-empty", "-qm", "intermediate history")
+        with self.assertRaisesRegex(ValueError, "direct successor"):
+            self.verify(expected_head=self.git("rev-parse", "HEAD"))
+
+    def test_extra_file_mode_and_recomputed_candidate_record_do_not_expand_scope(self):
+        for attack in ("extra", "mode", "record", "bytes", "rename"):
+            self.git("checkout", "--detach", self.base)
+            self.workflow.write_bytes(self.after)
+            if attack == "extra":
+                (self.root / "product.py").write_text("unapproved")
+            elif attack == "mode":
+                pass  # Exercise the Git mode independently of the host filesystem.
+            elif attack == "record":
+                self.document.write_text(transfer.TRUSTED_READER_MARKER
+                                         + json.dumps({**self.record, "waiver": True}) + "\n```\n")
+            elif attack == "bytes":
+                self.workflow.write_bytes(b"different workflow\n")
+            else:
+                self.workflow.rename(self.workflow.with_name("renamed.yml"))
+            head = self.commit(executable=attack == "mode")
+            with self.subTest(attack=attack), self.assertRaises(ValueError):
+                self.verify(expected_head=head)
+            self.git("checkout", "--detach", self.base)
+
+    def test_replacements_and_grafts_are_refused(self):
+        self.git("replace", self.head, self.base)
+        with self.assertRaisesRegex(ValueError, "Replaced history"):
+            self.verify()
+        self.git("replace", "-d", self.head)
+        graft = self.root / ".git/info/grafts"
+        graft.write_text(self.head + "\n")
+        with self.assertRaisesRegex(ValueError, "Replaced history"):
+            self.verify()
 
 
 class MaintenanceTests(unittest.TestCase):
