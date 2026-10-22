@@ -1,0 +1,162 @@
+{
+  "schema": "immutable-public-fixture-audit-input/v1",
+  "head": "a29ce258278bb76bb9f92c11131360a22cf18d5b",
+  "files": [
+    {
+      "path": "audit-public-fixture-proofs/tests/test_agent_protocol_v1_4_7.py",
+      "bytes": 52207,
+      "sha256": "39d9754319463f52f0d76f9bb151c80d52977823567cc1980092c4ae222d78ca",
+      "role": "IMMUTABLE_PUBLIC_SYNTHETIC_FIXTURE_PROOF_ONLY",
+      "provenance": {
+        "kind": "GIT_OBJECT",
+        "repository": "gabned/provelume",
+        "commit": "a29ce258278bb76bb9f92c11131360a22cf18d5b",
+        "path": "tests/test_agent_protocol_v1_4_7.py",
+        "blob": "1b74d4171c46a10f2e24a144300d5fbafbbdbd95"
+      }
+    },
+    {
+      "path": "audit-public-fixture-proofs/tests/test_ai_model_download.py",
+      "bytes": 7169,
+      "sha256": "e6c58a94548e4f38045f97dd63c0b5b688458f7f8292e6b73d4d22b46efacd2c",
+      "role": "IMMUTABLE_PUBLIC_SYNTHETIC_FIXTURE_PROOF_ONLY",
+      "provenance": {
+        "kind": "GIT_OBJECT",
+        "repository": "gabned/provelume",
+        "commit": "a29ce258278bb76bb9f92c11131360a22cf18d5b",
+        "path": "tests/test_ai_model_download.py",
+        "blob": "06b8ac3e46ad20d87ce2f72068f7ca679e51bfaf"
+      }
+    },
+    {
+      "path": "audit-public-fixture-proofs/tests/test_ai_models.py",
+      "bytes": 25806,
+      "sha256": "b765382833d93fe10d1a1ee0a4a1eb16fcbb756b4cc6645dfa1ac6b50317025a",
+      "role": "IMMUTABLE_PUBLIC_SYNTHETIC_FIXTURE_PROOF_ONLY",
+      "provenance": {
+        "kind": "GIT_OBJECT",
+        "repository": "gabned/provelume",
+        "commit": "a29ce258278bb76bb9f92c11131360a22cf18d5b",
+        "path": "tests/test_ai_models.py",
+        "blob": "4662d739bd764ca966de44393b5e33101ee03629"
+      }
+    },
+    {
+      "path": "audit-public-fixture-proofs/tests/test_ai_provider.py",
+      "bytes": 30834,
+      "sha256": "9087cf86b1edbcb48a00565dc174ab2378202f12e43fd9455d837476b86df5ad",
+      "role": "IMMUTABLE_PUBLIC_SYNTHETIC_FIXTURE_PROOF_ONLY",
+      "provenance": {
+        "kind": "GIT_OBJECT",
+        "repository": "gabned/provelume",
+        "commit": "a29ce258278bb76bb9f92c11131360a22cf18d5b",
+        "path": "tests/test_ai_provider.py",
+        "blob": "0533b5d423ae17396cc49288f23951f6c31909f9"
+      }
+    },
+    {
+      "path": "audit-public-fixture-proofs/tests/test_capture_adapter.py",
+      "bytes": 13540,
+      "sha256": "ee2cd6f6db36f7c19893bef5fcdf3cc1705a9ad79920837264f3e0a995c714f4",
+      "role": "IMMUTABLE_PUBLIC_SYNTHETIC_FIXTURE_PROOF_ONLY",
+      "provenance": {
+        "kind": "GIT_OBJECT",
+        "repository": "gabned/provelume",
+        "commit": "a29ce258278bb76bb9f92c11131360a22cf18d5b",
+        "path": "tests/test_capture_adapter.py",
+        "blob": "d255b4173d6ed28282075204961d9e0dc56c3d7d"
+      }
+    },
+    {
+      "path": "audit-public-fixture-proofs/tests/test_connector_foundation.py",
+      "bytes": 13961,
+      "sha256": "8f9e28c29e5b435d31fe82a53519462982977e493e0501441ffee59979fb74cc",
+      "role": "IMMUTABLE_PUBLIC_SYNTHETIC_FIXTURE_PROOF_ONLY",
+      "provenance": {
+        "kind": "GIT_OBJECT",
+        "repository": "gabned/provelume",
+        "commit": "a29ce258278bb76bb9f92c11131360a22cf18d5b",
+        "path": "tests/test_connector_foundation.py",
+        "blob": "80c799994ace65d428e0063c111eb16d776c61ab"
+      }
+    },
+    {
+      "path": "audit-public-fixture-proofs/tests/test_cura_s09_tray.py",
+      "bytes": 6215,
+      "sha256": "c4d7cdb7df24c191e72521f13e5eacfd6ee81f1e9349c415e329ffaf61933c6c",
+      "role": "IMMUTABLE_PUBLIC_SYNTHETIC_FIXTURE_PROOF_ONLY",
+      "provenance": {
+        "kind": "GIT_OBJECT",
+        "repository": "gabned/provelume",
+        "commit": "a29ce258278bb76bb9f92c11131360a22cf18d5b",
+        "path": "tests/test_cura_s09_tray.py",
+        "blob": "528c192b7ddbeec7b96b3c6fb67d037693581319"
+      }
+    },
+    {
+      "path": "audit-public-fixture-proofs/tests/test_guarded_web_transport.py",
+      "bytes": 40364,
+      "sha256": "43caaa2175807f11042a2ae93d200b8ce6cff8364286ef98918b3f352b578050",
+      "role": "IMMUTABLE_PUBLIC_SYNTHETIC_FIXTURE_PROOF_ONLY",
+      "provenance": {
+        "kind": "GIT_OBJECT",
+        "repository": "gabned/provelume",
+        "commit": "a29ce258278bb76bb9f92c11131360a22cf18d5b",
+        "path": "tests/test_guarded_web_transport.py",
+        "blob": "18156fe9c966e67028af8420309fb1ab7bf788a7"
+      }
+    },
+    {
+      "path": "audit-public-fixture-proofs/tests/test_network_status.py",
+      "bytes": 5378,
+      "sha256": "448f4bbae87e90b595f1e768ca3ebf9a319018603a143304a21716da1eb0ffa4",
+      "role": "IMMUTABLE_PUBLIC_SYNTHETIC_FIXTURE_PROOF_ONLY",
+      "provenance": {
+        "kind": "GIT_OBJECT",
+        "repository": "gabned/provelume",
+        "commit": "a29ce258278bb76bb9f92c11131360a22cf18d5b",
+        "path": "tests/test_network_status.py",
+        "blob": "f636a35f29d7878a16c4fa64b7e862cc1c328863"
+      }
+    },
+    {
+      "path": "audit-public-fixture-proofs/tests/test_updates.py",
+      "bytes": 17334,
+      "sha256": "6e550a0ebab3eb1d89347920b3bc3a5bd754973aa3f47aeff1dcb083a5c7054b",
+      "role": "IMMUTABLE_PUBLIC_SYNTHETIC_FIXTURE_PROOF_ONLY",
+      "provenance": {
+        "kind": "GIT_OBJECT",
+        "repository": "gabned/provelume",
+        "commit": "a29ce258278bb76bb9f92c11131360a22cf18d5b",
+        "path": "tests/test_updates.py",
+        "blob": "08ceda51ef84ac663c7cad7fc172bee3264609d3"
+      }
+    },
+    {
+      "path": "audit-public-fixture-proofs/tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_v1_4_7.py",
+      "bytes": 52207,
+      "sha256": "39d9754319463f52f0d76f9bb151c80d52977823567cc1980092c4ae222d78ca",
+      "role": "IMMUTABLE_PUBLIC_SYNTHETIC_FIXTURE_PROOF_ONLY",
+      "provenance": {
+        "kind": "GIT_OBJECT",
+        "repository": "gabned/provelume",
+        "commit": "a29ce258278bb76bb9f92c11131360a22cf18d5b",
+        "path": "tools/agent_protocol_core/compat/legacy/tests/test_agent_protocol_v1_4_7.py",
+        "blob": "1b74d4171c46a10f2e24a144300d5fbafbbdbd95"
+      }
+    },
+    {
+      "path": "audit-public-fixture-proofs/tools/agent_protocol_core/tests/test_host.py",
+      "bytes": 38899,
+      "sha256": "2511fd6873648b5857d39b128bc396a7d8fd03581104c44f39d8c773baecdc7d",
+      "role": "IMMUTABLE_PUBLIC_SYNTHETIC_FIXTURE_PROOF_ONLY",
+      "provenance": {
+        "kind": "GIT_OBJECT",
+        "repository": "gabned/provelume",
+        "commit": "a29ce258278bb76bb9f92c11131360a22cf18d5b",
+        "path": "tools/agent_protocol_core/tests/test_host.py",
+        "blob": "cb3be053ced67cdb8ec28386324bae75966b1db4"
+      }
+    }
+  ]
+}

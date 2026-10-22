@@ -1,0 +1,51 @@
+{
+  "schema": "product-premerge-evidence-volume-index/v1",
+  "state": "REVIEW_ONLY_NOT_PUBLISHED",
+  "candidate": "a29ce258278bb76bb9f92c11131360a22cf18d5b",
+  "payload_files": 2231,
+  "payload_bytes": 166787002,
+  "all_originals_intact": true,
+  "inner_original_zips_repacked": false,
+  "max_volume_bytes": 41943040,
+  "volumes": [
+    {
+      "file": "product-a29-premerge-00-metadata.zip",
+      "bytes": 124434,
+      "sha256": "57365b2f36037fcbdab21d05842e925fa466ad8c4bf409d4579e7fd6b06ab7a1",
+      "files": 5
+    },
+    {
+      "file": "product-a29-premerge-01-evidence.zip",
+      "bytes": 40393875,
+      "sha256": "d54f58fc635c76456ef20570f1a6b9288f0de2b65bf29379e9472c44db6dd256",
+      "files": 191
+    },
+    {
+      "file": "product-a29-premerge-02-evidence.zip",
+      "bytes": 40380850,
+      "sha256": "ee09be64478587eeee69b38605ca68b8aa135def5cf47137089a61f0e95a5eef",
+      "files": 4
+    },
+    {
+      "file": "product-a29-premerge-03-evidence.zip",
+      "bytes": 29546100,
+      "sha256": "b1c6ae48220649d447e02bfad60c3dae2869a417ab2abedbdba7598a14c873c9",
+      "files": 8
+    },
+    {
+      "file": "product-a29-premerge-04-evidence.zip",
+      "bytes": 15751244,
+      "sha256": "7f993145c65151b8380d34480835026786117df875229c0e4c5f83fb050eb3a2",
+      "files": 74
+    },
+    {
+      "file": "product-a29-premerge-05-evidence.zip",
+      "bytes": 1243093,
+      "sha256": "f9fc3c18ef67e34683dd9434772f10db05aebff90ead7148ac24d011a0a9c4cb",
+      "files": 1954
+    }
+  ],
+  "manifest_sha256": "cd3bf7bbdf4a7fb8818aecfe6db2a141dbd1ac1322801238b8533a87b4a6e709",
+  "review_report_sha256": "e8813eb863162408f57eeb560e4f63985037005760fddeceb3f12d4bf7b7e96a",
+  "completed_at": "2026-10-22T21:16:25.193869+00:00"
+}

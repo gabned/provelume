@@ -1,0 +1,32 @@
+{
+  "schema": "isolated-static-audit-probe/v1",
+  "result": "PASS",
+  "observed_at": "2026-10-22T21:15:50.504723+00:00",
+  "readonly_inputs": [
+    "/workspace/provelume/.agent/pr409-unblock/audit-package-isolated-v2.py",
+    "/workspace/provelume/.agent/pr409-unblock/product-evidence-package"
+  ],
+  "sys_cpu_readonly": true,
+  "readonly_root": true,
+  "no_source_checkout": true,
+  "no_operator_home": true,
+  "no_credential_environment": true,
+  "no_docker_socket": true,
+  "network": {
+    "external_connect": "REFUSED",
+    "errno": 101
+  },
+  "environment_keys": [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "TMPDIR"
+  ],
+  "mountinfo": {
+    "path": "mountinfo.txt",
+    "bytes": 9076,
+    "sha256": "b5f72df1dd01611e9314a15e9917f2ba56c1add65d84f7021133cc7fb0f6e697"
+  }
+}

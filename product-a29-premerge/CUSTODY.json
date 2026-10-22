@@ -1,0 +1,158 @@
+{
+  "schema": "operator-evidence-custody-review/v1",
+  "reviewed_at": "2026-10-22T21:28:44.546465+00:00",
+  "source_head": "a29ce258278bb76bb9f92c11131360a22cf18d5b",
+  "source_tree": "dd730e93c32ca9d82c17caaad0056ccf7ceea06c",
+  "accepted_base": "cba9ff6c653bb53327ba397edf980099af90472a",
+  "actual_normal_merge": "29aec77d3e4e74e33341ef687336d79c5401f10c",
+  "workstream": "entitas-final-release",
+  "owner": "gabned",
+  "result": "REVIEWED_PREMERGE_EVIDENCE_BYTES",
+  "scope": "Premerge evidence custody; actual-main qualification is separately reconciled.",
+  "independent_restoration": "EXACT_RESTORATION_VERIFIED",
+  "diagnostic_results_qualify_candidate": false,
+  "publication_authorized": false,
+  "release_signal": false,
+  "originals_mutated": false,
+  "missing_transient_v1_manifest_disclosed": "v1-manifest-limitation.json",
+  "operator_files": [
+    {
+      "path": "operator-receipts/audit-v2/inputs.json",
+      "bytes": 145,
+      "sha256": "8c0b8ba751ce560c355710554ee0690c27027a9546858cac5fcc0c62eef974e3",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-v2-8cdc690cc5a745e881b4731e4ee703ae/inputs.json"
+    },
+    {
+      "path": "operator-receipts/audit-v2/launch-start.json",
+      "bytes": 573370,
+      "sha256": "0077e3670d889d279f3b2a5b9dff0d48f783d9784c0ce7aa34d2bb8c74af55fd",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-v2-8cdc690cc5a745e881b4731e4ee703ae/launch-start.json"
+    },
+    {
+      "path": "operator-receipts/audit-v2/launch.json",
+      "bytes": 573714,
+      "sha256": "4b3c7d9d3afebf64f010214bb6aead4f6de13b9ccfb0636869f60e90b4e83fe2",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-v2-8cdc690cc5a745e881b4731e4ee703ae/launch.json"
+    },
+    {
+      "path": "operator-receipts/audit-v2/selected-inputs.json",
+      "bytes": 545339,
+      "sha256": "b3263171dd2e47deae0b0887e9888ea9b6f4f56c8a99a7e20597b3f6c4eb406b",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-v2-8cdc690cc5a745e881b4731e4ee703ae/selected-inputs.json"
+    },
+    {
+      "path": "operator-receipts/audit-v2/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-v2-8cdc690cc5a745e881b4731e4ee703ae/stderr"
+    },
+    {
+      "path": "operator-receipts/audit-v2/stdout",
+      "bytes": 862,
+      "sha256": "52018b775d68838386c8dba7dced1dfdf7deecbec791b6813fb2f99d3c14cdaa",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-v2-8cdc690cc5a745e881b4731e4ee703ae/stdout"
+    },
+    {
+      "path": "operator-receipts/audit-v2/out/audit.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-v2-8cdc690cc5a745e881b4731e4ee703ae/out/audit.stderr"
+    },
+    {
+      "path": "operator-receipts/audit-v2/out/audit.stdout",
+      "bytes": 181,
+      "sha256": "10f43cf0ce26d79fa6f5e34c90d2b83229cdbc04a31c84ddc0957b6fd7d8d307",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-v2-8cdc690cc5a745e881b4731e4ee703ae/out/audit.stdout"
+    },
+    {
+      "path": "operator-receipts/audit-v2/out/execution-receipt.json",
+      "bytes": 960,
+      "sha256": "fac7cf550096dd60091069b006d450af5dd2bdf6ae560489889a57375cb486b2",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-v2-8cdc690cc5a745e881b4731e4ee703ae/out/execution-receipt.json"
+    },
+    {
+      "path": "operator-receipts/audit-v2/out/mountinfo.txt",
+      "bytes": 9076,
+      "sha256": "b5f72df1dd01611e9314a15e9917f2ba56c1add65d84f7021133cc7fb0f6e697",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-v2-8cdc690cc5a745e881b4731e4ee703ae/out/mountinfo.txt"
+    },
+    {
+      "path": "operator-receipts/audit-v2/out/probe.json",
+      "bytes": 823,
+      "sha256": "ea399b12efd416017345adac81c81247bf5f3c4c51015b4727d3359a2d3b9779",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-v2-8cdc690cc5a745e881b4731e4ee703ae/out/probe.json"
+    },
+    {
+      "path": "operator-receipts/independent-restore/inputs.json",
+      "bytes": 284,
+      "sha256": "d7eaba569cd78ed2131e94104b7ddb4bdb97336c01e14c1c6104dcf787ec24f8",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-restore-0bed6466265a41f48f492c1a7ce71551/inputs.json"
+    },
+    {
+      "path": "operator-receipts/independent-restore/launch-start.json",
+      "bytes": 10608,
+      "sha256": "e02682a8f7e891b5468d69742b9e0f008e2d863b4511ddecdabc156f2458d18b",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-restore-0bed6466265a41f48f492c1a7ce71551/launch-start.json"
+    },
+    {
+      "path": "operator-receipts/independent-restore/launch.json",
+      "bytes": 10953,
+      "sha256": "f03d87012d12529c43d8af17772a16bb931494b111cd0333eb5114b048ba52ac",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-restore-0bed6466265a41f48f492c1a7ce71551/launch.json"
+    },
+    {
+      "path": "operator-receipts/independent-restore/selected-inputs.json",
+      "bytes": 3788,
+      "sha256": "c755d061f6c665e8b3946bc6cd1256dfc8242e1ff9f58ed57b1071e489e4358e",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-restore-0bed6466265a41f48f492c1a7ce71551/selected-inputs.json"
+    },
+    {
+      "path": "operator-receipts/independent-restore/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-restore-0bed6466265a41f48f492c1a7ce71551/stderr"
+    },
+    {
+      "path": "operator-receipts/independent-restore/stdout",
+      "bytes": 1021,
+      "sha256": "2c61203737cf7a1c80a84d1d3dfd0fe0c0607fe93cdeac160a218c46cbdceaef",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-restore-0bed6466265a41f48f492c1a7ce71551/stdout"
+    },
+    {
+      "path": "operator-receipts/independent-restore/out/audit.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-restore-0bed6466265a41f48f492c1a7ce71551/out/audit.stderr"
+    },
+    {
+      "path": "operator-receipts/independent-restore/out/audit.stdout",
+      "bytes": 169,
+      "sha256": "df43919f7daabaa38bb57c4b5766093d4098437770a807810a6409150bb085c1",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-restore-0bed6466265a41f48f492c1a7ce71551/out/audit.stdout"
+    },
+    {
+      "path": "operator-receipts/independent-restore/out/execution-receipt.json",
+      "bytes": 1127,
+      "sha256": "cb545f420f5b477d8ea43f974c520764838e83dbbd955e32e1a5aeb0809b33e8",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-restore-0bed6466265a41f48f492c1a7ce71551/out/execution-receipt.json"
+    },
+    {
+      "path": "operator-receipts/independent-restore/out/mountinfo.txt",
+      "bytes": 9687,
+      "sha256": "388767f3446a3d29ac0afb88e05c4500c3eb123bcdd46ca816163f47351d818f",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-restore-0bed6466265a41f48f492c1a7ce71551/out/mountinfo.txt"
+    },
+    {
+      "path": "operator-receipts/independent-restore/out/probe.json",
+      "bytes": 966,
+      "sha256": "6cbab825caa4da84619bda88e94f54bf9f0d9c45143d57a8ed098493592c3461",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-restore-0bed6466265a41f48f492c1a7ce71551/out/probe.json"
+    },
+    {
+      "path": "operator-receipts/independent-restore/out/restoration/restoration-receipt.json",
+      "bytes": 807497,
+      "sha256": "cbe5297de98ae5ea257252ae4b47646ecf466bc1d95ac7f3e2faaba7723c5382",
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-restore-0bed6466265a41f48f492c1a7ce71551/out/restoration/restoration-receipt.json"
+    }
+  ]
+}

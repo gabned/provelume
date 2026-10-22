@@ -1,0 +1,62 @@
+{
+  "schema": "product-package-v1-transient-manifest-limitation/v1",
+  "created_at": "2026-10-22T21:27:06.823432+00:00",
+  "authority": "NONE_DISCLOSURE_ONLY",
+  "missing_original": {
+    "path": "/workspace/provelume/.agent/pr409-unblock/product-evidence-package/manifest.json",
+    "bytes": 1083353,
+    "sha256": "a78877a0f4fffef853546564329e631580d127d6b58ae0af1d07b7d80c245f44"
+  },
+  "original_v1_audit": {
+    "result": "BLOCKED_UNRESOLVED_FINDINGS",
+    "unresolved_findings": 2,
+    "started_at": "2026-10-22T21:11:24.271987+00:00",
+    "completed_at": "2026-10-22T21:11:53.453232+00:00"
+  },
+  "reason": "The temporary V1 package manifest was replaced while adding audit history before a byte-for-byte copy of that manifest was retained.",
+  "scope": "Only the original 1083353-byte V1 manifest is unavailable. Do not label the current V2 manifest or a reconstruction as the original.",
+  "originals_still_verifiable": [
+    {
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-c1be21dd7663402595540ea1a1397651/launch-start.json",
+      "bytes": 569595,
+      "sha256": "1f14244f7c8591015942c710457d5bbb32c286188436615234f95461341eb84d",
+      "package_path": "evidence/audit-history/v1/launch-start.json"
+    },
+    {
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-c1be21dd7663402595540ea1a1397651/launch.json",
+      "bytes": 569939,
+      "sha256": "345c04e2d9208322d84eb5fccc487d3ca52ee6542ac9989b4e64c0d7da9476b2",
+      "package_path": "evidence/audit-history/v1/launch.json"
+    },
+    {
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-c1be21dd7663402595540ea1a1397651/selected-inputs.json",
+      "bytes": 541753,
+      "sha256": "97f0a0bec5363705d565f08184d0aeea0c6cffa426f61df91edfd3f31a5880dc",
+      "package_path": null
+    },
+    {
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-c1be21dd7663402595540ea1a1397651/out/execution-receipt.json",
+      "bytes": 956,
+      "sha256": "d322bcf1077b4c06444eefafb3bb7f241640189d3f3742ef2f5c7aa5f8af39f1",
+      "package_path": "evidence/audit-history/v1/out/execution-receipt.json"
+    },
+    {
+      "original_path": "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-c1be21dd7663402595540ea1a1397651/out/package-audit/review-report.json",
+      "bytes": 338075,
+      "sha256": "bbead5937fb19009310936e1175f8f9aae1478f79fb161f643153dd726c6c4d0",
+      "package_path": "evidence/audit-history/v1/out/package-audit/review-report.json"
+    }
+  ],
+  "inventory_cross_check": {
+    "observed_at": "2026-10-22T21:27:06.823440+00:00",
+    "selected_original_inputs": 2220,
+    "still_match_original_bytes_and_sha256": 2219,
+    "only_changed_input": "/workspace/provelume/.agent/pr409-unblock/product-evidence-package/manifest.json",
+    "launch_selected_inputs_equals_original_inventory": true,
+    "payload_files_preserved_in_v2": 2216
+  },
+  "v2_boundary": "The V2 complete isolated audit and final manifest cover the full final package independently. No V1 status, timestamp or missing bytes were patched into V2.",
+  "v1_raw_manifest_reconstructed": false,
+  "v1_failure_relabelled": false,
+  "publication_permission": false
+}

@@ -1,0 +1,33 @@
+{
+  "schema": "disposable-static-audit-execution/v1",
+  "authority": "NONE_EXECUTION_EVIDENCE_ONLY",
+  "started_at": "2026-10-22T21:26:49.983887+00:00",
+  "completed_at": "2026-10-22T21:26:52.002829+00:00",
+  "command": [
+    "/workspace/provelume/.agent/cpython312/bin/python3.12",
+    "-I",
+    "/workspace/provelume/.agent/native-lab/scripts/restore-product-package.py",
+    "--volumes",
+    "/workspace/provelume/.agent/native-lab/static-audits/product-package-audit-v2-8cdc690cc5a745e881b4731e4ee703ae/out/package-audit",
+    "--trusted-verifier",
+    "/workspace/provelume/.agent/pr409-unblock/audit-package-isolated-v2.py",
+    "--output",
+    "/out/restoration"
+  ],
+  "cwd": "/tmp",
+  "returncode": 0,
+  "probe": {
+    "path": "probe.json",
+    "sha256": "6cbab825caa4da84619bda88e94f54bf9f0d9c45143d57a8ed098493592c3461"
+  },
+  "stdout": {
+    "path": "audit.stdout",
+    "bytes": 169,
+    "sha256": "df43919f7daabaa38bb57c4b5766093d4098437770a807810a6409150bb085c1"
+  },
+  "stderr": {
+    "path": "audit.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}
