@@ -82,7 +82,8 @@ class TrustedPrReaderTests(unittest.TestCase):
         self.document = self.root / transfer.MAINTENANCE_DOCUMENT
         self.document.parent.mkdir(parents=True)
         self.document.write_text(transfer.TRUSTED_READER_MARKER
-                                 + json.dumps(self.record) + "\n```\n", encoding="utf-8")
+                                 + json.dumps(self.record) + "\n```\n", encoding="utf-8",
+                                 newline="\n")
         self.base = self.commit()
         self.workflow.write_bytes(self.after)
         self.head = self.commit()
@@ -136,7 +137,8 @@ class TrustedPrReaderTests(unittest.TestCase):
                 pass  # Exercise the Git mode independently of the host filesystem.
             elif attack == "record":
                 self.document.write_text(transfer.TRUSTED_READER_MARKER
-                                         + json.dumps({**self.record, "waiver": True}) + "\n```\n")
+                                         + json.dumps({**self.record, "waiver": True}) + "\n```\n",
+                                         encoding="utf-8", newline="\n")
             elif attack == "bytes":
                 self.workflow.write_bytes(b"different workflow\n")
             else:
@@ -155,6 +157,17 @@ class TrustedPrReaderTests(unittest.TestCase):
         graft.write_text(self.head + "\n")
         with self.assertRaisesRegex(ValueError, "Replaced history"):
             self.verify()
+
+
+    def test_git_record_line_endings_are_not_silently_reinterpreted(self):
+        self.git("checkout", "--detach", self.base)
+        self.document.write_bytes(self.document.read_bytes().replace(b"\n", b"\r\n"))
+        changed_predecessor = self.commit()
+        self.workflow.write_bytes(self.after)
+        head = self.commit()
+        with self.assertRaisesRegex(ValueError, "One trusted-reader record"):
+            self.verify(accepted_predecessor=changed_predecessor,
+                        expected_base=changed_predecessor, expected_head=head)
 
 
 class MaintenanceTests(unittest.TestCase):
