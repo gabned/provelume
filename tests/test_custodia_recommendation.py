@@ -19,7 +19,7 @@ def test_recommendation_is_bounded_and_keeps_local_installation_unverified():
     assert scope["hardware_scope"] == "observed-hosted-profiles"
     assert scope["inference_authorized"] is False
     assert scope["configuration_sha256"] == (
-        "51c7539e89a4a29c6bc3ad04fb7b1e2b1cf8afdf33ed2f23261a47c6ccc56640"
+        "6d26739dbb863788ae9de3ed3561b74995f03afde9bfe4cd8cef8c3dc25d0f99"
     )
     for row in inventory["entries"]:
         assert row["offline_qualified"] is False

@@ -146,6 +146,18 @@ def bind(lib, name, result, *args):
     return fn
 
 
+def _configure_windows_openmp_wait(library):
+    """The verified worker's OpenMP team sleeps after completed native work."""
+    from .ai_runtime_contract import CONFIGURATION
+
+    check(CONFIGURATION["windows_openmp_wait"] == "zero-blocktime-v1", "compatibility")
+    try:
+        bind(library, "kmp_set_blocktime", None, INT)(0)
+        check(bind(library, "kmp_get_blocktime", INT)() == 0, "compatibility")
+    except (AttributeError, OSError):
+        check(False, "compatibility")
+
+
 class Llama:
     def __init__(self, directory, model_path, library_paths, *, model_stream=None):
         windows = os.name == "nt"
@@ -159,6 +171,10 @@ class Llama:
             else ["libggml-base.so.0", "libggml.so.0"]
         )
         self._dependencies = [c.CDLL(str(library_paths[n]), mode=mode) for n in names]
+        if windows:
+            # This exact libomp was admitted with the closed native inventory.
+            # Set before any graph runs; no ambient environment or fallback.
+            _configure_windows_openmp_wait(self._dependencies[0])
         ggml = self._dependencies[-1]
         backend = library_paths["ggml-cpu-haswell.dll" if windows else "libggml-cpu-haswell.so"]
         check(
