@@ -78,6 +78,23 @@ def projection(samples):
                           ["selected_physical_cores"] == 2
                           and r["worker"]["load"]["limits"]["priority"]
                           == "JobObject:below-normal" for r in samples)
+    topology = {json.dumps(r["worker"]["load"]["limits"]["cpu_topology"], sort_keys=True)
+                for r in samples}
+    resource_bounds = resource_bounds and len(topology) == 1
+    originals = {r["worker"]["diagnostic_native"]["blocktime"]["original_ms"] for r in samples}
+    settings = settings and len(originals) == 1
+    telemetry = {
+        "own_thread_counters_complete": all(
+            r["worker"]["diagnostic_native"]["idle_thread_counters"]["status"] == "OBSERVED"
+            for r in samples),
+        "native_intervals_complete": all(
+            b.get("native_intervals", {}).get("status") == "OBSERVED"
+            for r in samples for b in r["worker"]["phases"]["prefill_batches"]),
+        "scheduler_state": "UNOBSERVED",
+        "opcode_attribution": "UNOBSERVED",
+        "support_scope": ("process idle cost only; missing telemetry grants "
+                          "no thread/op attribution"),
+    }
     per_block = {}
     for block, _mode in BLOCKS:
         rows = [r for r in samples if r["block"] == block]
@@ -97,6 +114,8 @@ def projection(samples):
             "predeclared_warm_latency_nonregression": latency,
             "predeclared_prefill_tail_nonregression": prefill_tail,
             "unchanged_resource_bounds": resource_bounds,
+            "observed_topology": json.loads(next(iter(topology))),
+            "telemetry_completeness": telemetry,
             "prospective_cost_correction_supported": (equal and cost and replicated and latency
                                                        and settings and prefill_tail
                                                        and resource_bounds)}
