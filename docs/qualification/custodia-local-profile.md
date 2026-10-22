@@ -20,13 +20,24 @@ checks must qualify the changed application identity before official publication
 | Model SHA-256 | `1885b3a9195f8cc09da9a7a7a75afdc1e8d5cbf9fc4a499c3961dddea37098ac` |
 | Runtime | llama.cpp b11379; Windows/Linux x86-64 AVX2 |
 | Runtime lock SHA-256 | `0e508965cddc60d6cfb57c42d2c4039c637e8812bb25cc21b525b6d6047a4404` |
-| Execution configuration SHA-256 | `51c7539e89a4a29c6bc3ad04fb7b1e2b1cf8afdf33ed2f23261a47c6ccc56640` |
+| Execution configuration SHA-256 | `6d26739dbb863788ae9de3ed3561b74995f03afde9bfe4cd8cef8c3dc25d0f99` |
 | Task | `extractive-source-reporting-v11`; exact source excerpts and references |
 | Language/task quality | EN/IT × summary/key points; 32 public cases, eight required abstentions |
 | Evaluated hardware | Recorded hosted Windows/Linux CPU profiles; 4 logical CPUs, approximately 16 GiB host RAM; non-root container with 12 GiB limit |
 | Native limits | 2 selected physical CPU cores; 2 GiB observed peak-RSS cap, 3 GiB hard limit; 5 s warm first response; 2 s cancellation |
 | Local admission | AVX2 x86-64, 4 logical CPUs, 8 GiB total and 4 GiB available RAM; compatibility admission is not a performance certification of an 8 GiB laptop |
 | Outside the recommendation | Other tasks/languages, autonomous filing, arbitrary BYOM, GPU, macOS/ARM and unmeasured hardware performance |
+
+The Windows OpenMP wait correction registers the configuration shown above
+before its final ordinary measurement. Its prospective controlled evidence,
+unchanged semantic/resource scope and required fresh native/installed/container
+qualification are recorded in [ADR 0052](../adr/0052-custodia-integrated-lifecycle.md#windows-openmp-post-inference-waiting).
+The prior configuration
+`51c7539e89a4a29c6bc3ad04fb7b1e2b1cf8afdf33ed2f23261a47c6ccc56640`
+retains its original evidence; its receipts do not qualify the changed wait
+policy. The explicit new coordinate invalidates old runtime-selection and
+self-test bindings. Registration is not acceptance or publication, and final
+candidate/actual-main qualification remains required.
 
 `qualified_local_profile()` matches the independently frozen model, runtime-lock
 and execution-configuration hashes. A changed coordinate removes the recommendation;

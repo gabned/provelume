@@ -126,6 +126,7 @@ CONFIGURATION = {
     "integrated_lifecycle": "custodia-s09-v1",
     "windows_worker": "frozen-appcontainer-creation-job-model-handle-v1",
     "windows_environment": "os-known-localappdata-minimal-v1",
+    "windows_openmp_wait": "zero-blocktime-v1",
     "model_verification_authority_poll_ms": 100,
     "linux_parent_lifetime": "pidfd-guard-after-seccomp-v1",
     "resource_admission": "host-and-visible-cgroup-v2-ancestors-v1",
@@ -146,7 +147,7 @@ def qualified_local_profile():
         "qwen3.5-2b-q5-k-m",
         "1885b3a9195f8cc09da9a7a7a75afdc1e8d5cbf9fc4a499c3961dddea37098ac",
         "0e508965cddc60d6cfb57c42d2c4039c637e8812bb25cc21b525b6d6047a4404",
-        "51c7539e89a4a29c6bc3ad04fb7b1e2b1cf8afdf33ed2f23261a47c6ccc56640",
+        "6d26739dbb863788ae9de3ed3561b74995f03afde9bfe4cd8cef8c3dc25d0f99",
     )
     configuration = hashlib.sha256(canonical_json_bytes(CONFIGURATION)).hexdigest()
     if (MODEL_ID, MODEL_SHA256, LOCK_SHA256, configuration) != expected:

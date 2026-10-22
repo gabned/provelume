@@ -225,3 +225,39 @@ prior S07 attestations are not extended. Full unchanged-source checks, complete
 exact-head CI/reviews, expected-head merge and actual-main acceptance precede S09
 closure or promotion of the exact observed model/task/language profile. Version
 alignment and official preview publication remain a separate release workstream.
+
+## Windows OpenMP post-inference waiting
+
+The complete prospective ABBA experiment on
+`5af1bf5039a41a1b8bfcbee32c31d30b2bcd88f4` demonstrates avoidable Windows
+native-worker CPU consumption after inference, independently of the original
+#409 latency failure. Its fixed plan, all results and original artifact hashes
+are retained in [the S06 investigation](../qualification/entitas-s06-warm-diagnosis.md).
+The shared ordinary S05 preceding workload, every governed call and self-test,
+exact payload/result/token parity, WFP audit and unchanged resource bounds pass
+the predetermined diagnostic comparison. This is evidence for a bounded
+correction, not a qualification or a historical-cause claim.
+
+Configure the already verified, pinned Windows `libomp.dll` with its public
+`kmp_set_blocktime(0)` before the first native graph, then require
+`kmp_get_blocktime() == 0`. A missing or ineffective API fails compatibility;
+there is no ambient environment setting, fallback, automatic retry or alternate
+native library. The worker has one engine for its process lifetime. Its OpenMP
+workers can sleep after completed parallel regions while retaining the same
+two threads, selected physical cores, process affinity, below-normal priority,
+memory limit and cleanup. Linux keeps its existing implementation. Complete
+model/runtime verification, every authority check and every ordinary acceptance
+predicate remain unchanged.
+
+Freeze the explicit configuration property
+`windows_openmp_wait: zero-blocktime-v1` before final measurement. The new
+configuration SHA-256 is
+`6d26739dbb863788ae9de3ed3561b74995f03afde9bfe4cd8cef8c3dc25d0f99`.
+The preceding `51c7539e89a4a29c6bc3ad04fb7b1e2b1cf8afdf33ed2f23261a47c6ccc56640`
+receipts retain their original results and cannot authorize this selection.
+Model bytes, native lock, task framing, corpus/gold, sampling, resource budgets,
+thresholds and security controls stay fixed. Temporary diagnostic instrumentation
+is removed before the corrective candidate. Fresh complete native, installed,
+container, exact-head CI and review qualification, normal merge and actual-main
+reconciliation are required before accepting the change. This correction does
+not authorize or signal application/SDK publication.
