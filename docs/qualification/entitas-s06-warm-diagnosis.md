@@ -121,3 +121,46 @@ tails and failures. WFP calibration and every recorded worker PID through the
 complete preceding workload, cohort, cancellation and cleanup remain required.
 Any supported correction then requires a clean candidate with temporary
 instrumentation removed and complete ordinary exact-head qualification.
+
+## Complete prospective result and diagnostic cleanup
+
+Source `5af1bf5039a41a1b8bfcbee32c31d30b2bcd88f4`,
+[run 39845510739, attempt 1, job 120057608187](https://github.com/gabned/provelume/actions/runs/39845510739/job/120057608187),
+completed the entire predetermined cohort once. The original artifact
+`12454944310` is 65,003 bytes, SHA-256
+`c1cd880c6d204b3354c58ae5e8faeee1f30f4e1a024edb87687a2ce12441f0eb`;
+both ZIP members were fully read and CRC-verified. Its final report SHA-256 is
+`79b5bba695510586fa49d41127537dc2508a5efbe2d618a76227c3f3cd0319ce`.
+Re-evaluation of all retained cells reproduces every predeclared comparison.
+
+All 24 calls and fifteen self-tests, including the existing final controls,
+completed after the full shared S05 preceding load. All four blocks have exact
+input/result/token parity and the same selected logical CPUs `[0, 2]`, two
+physical cores and unchanged resource limits. Native default/readback and
+restoration, own-thread counters and native interval telemetry are complete.
+WFP calibration and the complete 23-worker-PID audit pass with no worker events.
+There are no recorded failures, retries or omitted cells.
+
+Idle CPU seconds are A1 `1.0`, B1 `0`, B2 `0.03125`, A2 `0.921875`:
+`1.921875` under the observed default versus `0.03125` under zero blocktime,
+a 98.37% reduction. Both intervention blocks beat both baseline blocks under
+the predetermined comparison. Warm first-output medians are 3.6095 seconds
+under the default and 2.9845 under the intervention; the prefill-tail comparison
+also passes. The requested 300 ms sleep windows have observed Windows clock
+durations of approximately 297–313 ms; all individual measurements remain in
+the original report rather than being rounded into a different result.
+
+This demonstrates prospective avoidable post-inference CPU cost and supports
+the narrow Windows OpenMP wait correction. It does not establish the historical
+cause of the original 5.844-second failure, identify opcode or scheduler states,
+or qualify any candidate. The original #409 CPU FAIL, #408 HTTP 403 and earlier
+laboratory fullsuite FAIL remain unchanged. The diagnostic result is
+**NOT_QUALIFIED**.
+
+A separate normal cleanup commit restores the seven executable paths changed
+by this investigation to their accepted-main bytes and removes its five
+temporary modules/scripts/fixture. The complete diagnostic implementations and
+fixed-input fixture remain available at immutable source
+`5af1bf5039a41a1b8bfcbee32c31d30b2bcd88f4`; all preceding commits and attempts
+are preserved. This document retains the plan, provenance and outcome. The
+subsequent PRODUCT correction and its ordinary qualification remain separate.

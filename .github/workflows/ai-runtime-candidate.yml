@@ -52,33 +52,3 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
-  fixed-input-diagnostic:
-    name: Windows governed ABBA native wait diagnostic (not qualification)
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-    runs-on: windows-2025
-    timeout-minutes: 12
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: '3.12'
-      - name: Canonical dependency bootstrap
-        run: python scripts/bootstrap.py
-      - name: Acquire the unchanged locked Windows inputs
-        run: .venv/Scripts/python.exe scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/s06-fixed-inputs" --accept-licenses --include-model --platform windows
-      - name: Observe the fixed diagnostic cohort under the existing WFP controls
-        shell: pwsh
-        run: ./scripts/qualify_ai_runtime_windows.ps1 -Artifacts "${{ runner.temp }}/s06-fixed-inputs" -GovernedDiagnostic
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
-        if: always()
-        with:
-          name: s06-governed-abba-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            .agent/s06-governed-diagnostic.json
-            .agent/s06-governed-diagnostic-wfp.json
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 30

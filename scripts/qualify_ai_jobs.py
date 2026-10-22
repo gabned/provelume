@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 import sys
 import time
@@ -15,7 +14,7 @@ from ai_context_fakes import context_plan  # noqa: E402
 from ai_jobs_fakes import REF, inputs_for  # noqa: E402
 from ai_runtime_report import deterministic_probe  # noqa: E402
 
-from provelume.ai_context import native_task_payload, preview_context  # noqa: E402
+from provelume.ai_context import preview_context  # noqa: E402
 from provelume.ai_contract import Limits, digest  # noqa: E402
 from provelume.ai_job_contract import Budget  # noqa: E402
 from provelume.ai_job_runtime import NativeConfig, NativeJobAdapter  # noqa: E402
@@ -57,7 +56,7 @@ def native_inputs(instance, proof, *, text=None):
     return replace(base, current=current, preview=preview, plan=plan, config=config, **gateway)
 
 
-def measure_jobs(instance, store, runtime, *, diagnostic=None):
+def measure_jobs(instance, store, runtime):
     """Real bytes, worker, scheduler, gateway, reservation and durable completion.
 
     The locality grant comes from independently applied host controls. Linux's
@@ -123,10 +122,6 @@ def measure_jobs(instance, store, runtime, *, diagnostic=None):
 
     def refresh():
         evidence = store.self_test(MODEL_ID, selection, runtime, requested=True)
-        if diagnostic:
-            result.setdefault("diagnostic_self_tests", []).append({
-                "evidence": evidence.public_record(), "worker": runtime.last_observation})
-            diagnostic["checkpoint"](result)
         store.activate(MODEL_ID, selection, evidence, requested=True)
 
     def execute(key):
@@ -138,55 +133,36 @@ def measure_jobs(instance, store, runtime, *, diagnostic=None):
         completed = jobs.coordinator.run_one(job_id=job["id"])
         return completed, time.monotonic() - started
 
-    blocks = diagnostic["blocks"] if diagnostic else [("ordinary", None)]
-    for block, mode in blocks:
-        for index in range(3):
-            if diagnostic:
-                runtime._diagnostic_control = mode
-            refresh()
-            runtime.close()
-            for phase in ("cold", "warm"):
-                inputs = native_inputs(instance, proof, text=(
-                    None if phase == "cold" else
-                    "Contact ada@example.test, code PRIVATE.\fSecond page. "
-                    f"Public variant {index}."))
-                # This observer uses only the public synthetic fixture above. Retain
-                # its exact request for offline replay; production never logs prompts.
-                diagnostic_payload = native_task_payload(inputs.preview, inputs.current["template"])
-                key = (f"s06-{phase}-{index}" if not diagnostic else
-                       f"diagnostic-{block}-{phase}-{index}")
-                job, elapsed = execute(key)
-                row = job["ai"]["attempts"][-1]
-                result["samples"].append(
-                    {
-                        "phase": phase,
-                        "status": job["status"],
-                        "job_id": job["id"],
-                        "attempts": job["attempt"],
-                        "seconds": elapsed,
-                        # Include admission and persistence overhead conservatively.
-                        "first_seconds": (
-                            runtime.last_observation["first_wall_seconds"]
-                            + elapsed
-                            - runtime.last_observation["total_seconds"]
-                        ),
-                        "consumption": {k: row[k] for k in ("units", "micros", "usage_source")},
-                        "result_fingerprint": job["ai"]["result_fingerprint"],
-                        "binding": inputs.plan.binding,
-                        "worker": runtime.last_observation,
-                        "adapter_phases": adapter.last_observation,
-                        "authority_polling": dict(polling),
-                        "synthetic_diagnostic_input": {
-                            "sha256": hashlib.sha256(diagnostic_payload).hexdigest(),
-                            "utf8": diagnostic_payload.decode("utf-8"),
-                        },
-                    }
-                )
-                if diagnostic:
-                    result["samples"][-1].update(block=block, mode=mode, pair=index)
-                    diagnostic["checkpoint"](result)
-    if diagnostic:
-        del runtime._diagnostic_control
+    for index in range(3):
+        refresh()
+        runtime.close()
+        for phase in ("cold", "warm"):
+            inputs = native_inputs(instance, proof, text=(
+                None if phase == "cold" else
+                f"Contact ada@example.test, code PRIVATE.\fSecond page. Public variant {index}."))
+            job, elapsed = execute(f"s06-{phase}-{index}")
+            row = job["ai"]["attempts"][-1]
+            result["samples"].append(
+                {
+                    "phase": phase,
+                    "status": job["status"],
+                    "job_id": job["id"],
+                    "attempts": job["attempt"],
+                    "seconds": elapsed,
+                    # Include admission and persistence overhead conservatively.
+                    "first_seconds": (
+                        runtime.last_observation["first_wall_seconds"]
+                        + elapsed
+                        - runtime.last_observation["total_seconds"]
+                    ),
+                    "consumption": {k: row[k] for k in ("units", "micros", "usage_source")},
+                    "result_fingerprint": job["ai"]["result_fingerprint"],
+                    "binding": inputs.plan.binding,
+                    "worker": runtime.last_observation,
+                    "adapter_phases": adapter.last_observation,
+                    "authority_polling": dict(polling),
+                }
+            )
     adapter.exchange = original_exchange
     for phase in ("load", "generation"):
         refresh()

@@ -137,8 +137,7 @@ def main(*, containment=None, inherited_model=False):
                     emit({"event": "unloaded", "memory": memory_observation()})
                     return
                 check({"prompt", "request"} <= set(request)
-                      and set(request) <= {"prompt", "request", "scope", "response_format",
-                                           "diagnostic_blocktime"}
+                      and set(request) <= {"prompt", "request", "scope", "response_format"}
                       and type(request["prompt"]) is str, "state")
                 request_id = request["request"]
                 check(type(request_id) is str and len(request_id) == 32
@@ -151,13 +150,8 @@ def main(*, containment=None, inherited_model=False):
                         value = {**value, "request": request_id, "pid": os.getpid()}
                     emit(value)
 
-                if "diagnostic_blocktime" in request:
-                    from .ai_native_diagnostic import observe_request
-
-                    result = observe_request(engine, request, observe)
-                else:
-                    result = engine.generate(request["prompt"], observe, scope=request.get("scope"),
-                                             response_format=request.get("response_format"))
+                result = engine.generate(request["prompt"], observe, scope=request.get("scope"),
+                                         response_format=request.get("response_format"))
                 result["memory"] = memory_observation()
                 emit(result)
     except Exception as exc:

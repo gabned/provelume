@@ -93,7 +93,7 @@ def measure_busy_probe(instance, runtime, thread, number, *, started, previous_r
     return row
 
 
-def measure(root, output, *, governed_diagnostic=None):
+def measure(root, output):
     report = {
         "schema_version": 1,
         "status": "NOT_RUN",
@@ -238,11 +238,6 @@ def measure(root, output, *, governed_diagnostic=None):
         store.activate(MODEL_ID, selection, evidence, requested=True)
         report["phase"] = "s06_governed"
         save()
-        if governed_diagnostic is not None:
-            report["qualification"] = "NOT_QUALIFIED"
-            report["status"] = "DIAGNOSTIC"
-            report["s06"] = governed_diagnostic(instance, store, runtime, report)
-            return report
         report["s06"] = measure_jobs(instance, store, runtime)
         from qualify_ai_setup import measure_setup
 
@@ -329,8 +324,7 @@ def measure(root, output, *, governed_diagnostic=None):
         if runtime:
             runtime.close()
             report["worker_pids"] = runtime.worker_history
-        if governed_diagnostic is None:
-            evaluate(report)
+        evaluate(report)
         save()
     # The corpus and every output are synthetic and public. Preserve raw samples
     # in both the artifact and native job log for an independently readable ledger.
