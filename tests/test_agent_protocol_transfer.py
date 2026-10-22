@@ -69,6 +69,7 @@ class TrustedPrReaderTests(unittest.TestCase):
         self.git("config", "user.name", "Synthetic")
         self.git("config", "user.email", "synthetic@example.invalid")
         self.git("config", "core.autocrlf", "false")
+        self.git("config", "core.filemode", "false")
         self.workflow = self.root / ".github/workflows/ci.yml"
         self.workflow.parent.mkdir(parents=True)
         self.workflow.write_bytes(b"synthetic before\n")
