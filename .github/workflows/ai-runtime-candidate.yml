@@ -1,54 +1,151 @@
-name: Custodia S05-S06 real CPU candidate and governed jobs
+# C5 draft: unchanged full ordinary path with sparse whole-probe pool-reuse observations; no qualification.
+# Exact source and plan placeholders require reviewed construction and source closure before execution.
+name: Full ordinary Capture transaction pool C5 comparison (not qualification)
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   measure:
+    name: capture-cost-c5-${{ matrix.slot }}
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
-        os: [ubuntu-24.04, windows-2025]
+        include:
+          - slot: A1
+            ordinal: 0
+            variant: original
+            os: ubuntu-24.04
+            code_sha: ca22ac5fd9495ca02bb5a13542893ed7bacbf185
+          - slot: B1
+            ordinal: 1
+            variant: shared-pool
+            os: ubuntu-24.04
+            code_sha: 419d8be65ea16d769ffe3c1de9f29b2ef39551d3
+          - slot: B2
+            ordinal: 2
+            variant: shared-pool
+            os: ubuntu-24.04
+            code_sha: 419d8be65ea16d769ffe3c1de9f29b2ef39551d3
+          - slot: A2
+            ordinal: 3
+            variant: original
+            os: ubuntu-24.04
+            code_sha: ca22ac5fd9495ca02bb5a13542893ed7bacbf185
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
+      - name: Retain first shell boundary (not GitHub job start)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, time
+          from pathlib import Path
+          value = {"kind": "FIRST_STEP_START", "regime": "FULL_ORDINARY_ALL19_TRANSACTION_POOL_REUSE_NOT_QUALIFICATION", "epoch_seconds": time.time(), "monotonic_seconds": time.monotonic(), "actual_github_job_started_at": "UNKNOWN_PENDING_ORIGINAL_API_OBSERVATION"}
+          path = Path(os.environ["RUNNER_TEMP"]) / "capture-cost-c5-first-step.json"
+          with path.open("x") as stream:
+              json.dump(value, stream, sort_keys=True)
+              stream.write("\n")
+          PY
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          ref: ${{ matrix.code_sha }}
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: '3.12'
+      - name: Retain exact source and frozen C5 diagnostic plan
+        shell: bash
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = '${{ matrix.code_sha }}'
+          CAPTURE_C5_SOURCE_BEFORE=$(git status --porcelain --untracked-files=all)
+          test -z "$CAPTURE_C5_SOURCE_BEFORE"
+          test "$(git rev-parse --is-shallow-repository)" = false
+          CAPTURE_C5_REPLACE_REFS=$(git for-each-ref refs/replace/)
+          test -z "$CAPTURE_C5_REPLACE_REFS"
+          test ! -e "$(git rev-parse --git-path info/grafts)"
+          test "$(git show -s --format=%P ca22ac5fd9495ca02bb5a13542893ed7bacbf185)" = '7ec20fe0727a74a312235b53b52a5434707f4dc8'
+          test "$(git show -s --format=%P 419d8be65ea16d769ffe3c1de9f29b2ef39551d3)" = 'ca22ac5fd9495ca02bb5a13542893ed7bacbf185'
+          test "$(git show -s --format=%P '${{ github.sha }}')" = '419d8be65ea16d769ffe3c1de9f29b2ef39551d3'
+          mkdir -p .agent/capture-cost-v5
+          cp "${{ runner.temp }}/capture-cost-c5-first-step.json" .agent/capture-cost-v5/first-step-start.json
+          git show '${{ github.sha }}:scripts/capture_cost_v5_plan.json' > .agent/capture-cost-v5/frozen-plan.json
+          printf '%s  %s\n' 'f75fec1ff1e98911b24d47a3ed32d5d31c75fc5d06f3ae90661e3f077c57dbbf' '.agent/capture-cost-v5/frozen-plan.json' | sha256sum --check
+          git show -s --format='%H%n%P%n%T' HEAD > .agent/capture-cost-v5/checkout-git-proof.txt
+          git show -s --format='%H%n%P%n%T' '${{ github.sha }}' > .agent/capture-cost-v5/workflow-git-proof.txt
       - name: Canonical dependency bootstrap
         run: python scripts/bootstrap.py
       - name: Explicit locked acquisition (no model in artifacts or Git)
-        run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/s05-inputs" --accept-licenses --include-model
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/s05-inputs" --accept-licenses --include-model
       - name: Build locked native input with notices and SBOM, offline
-        run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/build_ai_runtime_input.py --directory "${{ runner.temp }}/s05-inputs/${{ runner.os == 'Windows' && 'windows' || 'linux' }}" --platform ${{ runner.os == 'Windows' && 'windows' || 'linux' }} --output .agent/s05-native-input.zip
-      - name: Real Linux execution with external syscall observation
-        if: runner.os == 'Linux'
+        run: .venv/bin/python scripts/build_ai_runtime_input.py --directory "${{ runner.temp }}/s05-inputs/linux" --platform linux --output .agent/s05-native-input.zip
+      - name: Complete full ordinary Linux path with sparse whole-probe observations
         shell: bash
         run: |
           set +e
-          strace -ff -tt -e trace=network -o .agent/s05-network .venv/bin/python scripts/qualify_ai_runtime.py --artifacts "${{ runner.temp }}/s05-inputs" --output .agent/s05-real.json
-          measurement=$?
-          if test ! -f .agent/s05-real.json; then exit "$measurement"; fi
-          .venv/bin/python scripts/ai_runtime_network.py --report .agent/s05-real.json --trace .agent/s05-network
-      - name: Real Windows execution with disposable WFP control and audit
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./scripts/qualify_ai_runtime_windows.ps1 -Artifacts "${{ runner.temp }}/s05-inputs"
+          strace -ff -tt -e trace=network -o .agent/s05-network .venv/bin/python scripts/diagnose_capture_pool_reuse_v5.py --artifacts "${{ runner.temp }}/s05-inputs" --output .agent/s05-real.json --telemetry .agent/capture-cost-v5/telemetry.json --plan .agent/capture-cost-v5/frozen-plan.json --plan-sha256 f75fec1ff1e98911b24d47a3ed32d5d31c75fc5d06f3ae90661e3f077c57dbbf --cell-ordinal '${{ matrix.ordinal }}'
+          producer=$?
+          printf '%s\n' "$producer" > .agent/capture-cost-v5/entry-exit-code.txt
+          if test -f .agent/s05-real.json; then
+            cp .agent/s05-real.json .agent/capture-cost-v5/ordinary-before-network.json
+            before_network_copy=$?
+            .venv/bin/python scripts/ai_runtime_network.py --report .agent/s05-real.json --trace .agent/s05-network
+            network=$?
+          else
+            before_network_copy=1
+            network=1
+          fi
+          printf '%s\n' "$before_network_copy" > .agent/capture-cost-v5/ordinary-before-network-copy-exit-code.txt
+          printf '%s\n' "$network" > .agent/capture-cost-v5/network-exit-code.txt
+          git status --porcelain --untracked-files=all > .agent/capture-cost-v5/source-status-after.txt
+          source_status_exit=$?
+          printf '%s\n' "$source_status_exit" > .agent/capture-cost-v5/source-status-exit-code.txt
+          git rev-parse HEAD > .agent/capture-cost-v5/source-head-after.txt
+          source_head_read=$?
+          if test "$source_head_read" -eq 0; then
+            test "$(cat .agent/capture-cost-v5/source-head-after.txt)" = '${{ matrix.code_sha }}'
+            source_head_integrity=$?
+          else
+            source_head_integrity=$source_head_read
+          fi
+          printf '%s\n' "$source_head_integrity" > .agent/capture-cost-v5/source-head-exit-code.txt
+          git rev-parse 'HEAD^{tree}' > .agent/capture-cost-v5/source-tree-after.txt
+          source_tree_read=$?
+          if test "$source_tree_read" -eq 0; then
+            test "$(cat .agent/capture-cost-v5/source-tree-after.txt)" = "$(git rev-parse '${{ matrix.code_sha }}^{tree}')"
+            source_tree_integrity=$?
+          else
+            source_tree_integrity=$source_tree_read
+          fi
+          if test -s .agent/capture-cost-v5/source-status-after.txt; then
+            source_tree_integrity=1
+          fi
+          printf '%s\n' "$source_tree_integrity" > .agent/capture-cost-v5/source-tree-exit-code.txt
+          if test "$producer" -ne 0; then exit "$producer"; fi
+          if test "$network" -ne 0; then exit "$network"; fi
+          if test "$before_network_copy" -ne 0; then exit "$before_network_copy"; fi
+          if test "$source_status_exit" -ne 0; then exit "$source_status_exit"; fi
+          if test "$source_head_integrity" -ne 0; then exit "$source_head_integrity"; fi
+          exit "$source_tree_integrity"
+      - name: Preserve first shell boundary after every outcome
+        if: always()
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          set -eu
+          mkdir -p "$GITHUB_WORKSPACE/.agent/capture-cost-v5"
+          cp "$RUNNER_TEMP/capture-cost-c5-first-step.json" "$GITHUB_WORKSPACE/.agent/capture-cost-v5/first-step-start.json"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         if: always()
         with:
-          name: s05-real-${{ matrix.os }}
+          name: capture-cost-c5-${{ matrix.slot }}-${{ matrix.variant }}
           path: |
             .agent/s05-real.json
             .agent/s05-network.*
-            .agent/s05-wfp.json
+            .agent/capture-cost-v5/**
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
