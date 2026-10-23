@@ -1,0 +1,189 @@
+{
+  "analysis": {
+    "accepted_evaluator_sha256": "754802fe6b2eb0b5bd67d6a962dcd9ed31179c9acd8e0526df6d176600410e22",
+    "accepted_observer_sha256": "9acb929c7f708a9590d9fe961744437882699daf38a9f46b2f6f14f428e624e9",
+    "accepted_source_commit": "210512725f1826861585278214d21fd31093e123",
+    "activity_rule": "all12 actual governed calls bound PID/start/request/hash/token/config and counter coverage; lower=max(0,(deltaTicks-2)*tick_ns-2*outsideCaptureBracketWall); zero VALID, never exclude/retime; no continuous/pre-fill claim",
+    "advance_rule": "ALL4 avoidable cost proofs AND ALL4 fresh M6 I_upper>=0 observed compatibility AND ALL4 actual listed/direct producer job conclusions success AND complete two-pass/26-callback/12-native-call/source/network/resource identities AND separately pinned independently replayed C1 CONTROL_ONLY dataset. This permits preparation of a clean candidate only.",
+    "analyzer_path": "scripts/analyze_capture_single_task_mechanism_v2.py",
+    "analyzer_sha256": "9f2e78f155b5f32975013cfe249669ab44e04ea78d08d0a85d2c7ae5e0bfb888",
+    "calibration_event_counts": {
+      "A": 16,
+      "B": 6
+    },
+    "calibration_pairs": 256,
+    "calibration_raw_patterns": 512,
+    "calibration_rule": "all512 e=outer_elapsed/event_count; l=max(0,min(e)-resolution),u=max(e)+resolution per wall/process clock",
+    "calibration_schema": "capture-cost-recorder-calibration/v1",
+    "callback_counts": {
+      "appended_governed_busy": 12,
+      "appended_idle": 12,
+      "unscored_seed": 2
+    },
+    "completion_is_not_correction_support": true,
+    "cost_proof_rule": "on ALL4 hosts BOTH idle/busy raw median parent-process CPU contrast>0 AND median effect lower>0; wall median effect upper>=0 observed compatibility; eligible A admin minus empirical recording cost median>0, no cross-pool overlap, B zero eligible pools; selected operation role/count/explicit byte totals equal",
+    "cycle_rule": "three fixed four-probe cycles per group; raw mean(A)-mean(B); differential bias [l*meanN_A-u*meanN_B,u*meanN_A-l*meanN_B]; retain raw and empirical interval",
+    "event_boundary": "recorded attempted span events entirely within actual Capture submit-entry through process-return boundary; attempts must equal retained events",
+    "headroom_claim_rule": "I_lower>0 ALL4, scoped only to fresh mechanism fixtures; no after-full-ordinary headroom claim.",
+    "margin_rule": "M=max6busy-min(1s,2median6idle+0.1s); propagate all row endpoints [max(0,t-uN),t-lN] by monotonic max/median/min; I=M_A-M_B",
+    "network_schema": "capture-cost-micro-network-observation/v1",
+    "original_auditor_dependency_sha256": "915e77e6f228c7d1a4b794688115328e316945c4f2c0db027059f02ea8609952",
+    "original_auditor_schema": "capture-cost-C2-original-audit/v1",
+    "original_auditor_scope": "METADATA_AND_BYTES_ONLY",
+    "original_auditor_sha256": "c3115d2b6ec818031fdbed9c400aa4ddfd2124f945b5c85bf28807cbb129fad5",
+    "pool_administration_rule": "per eligible single-task pool union(create,submit,future_result_wait,shutdown_join) minus THAT pool task overlap; union residuals; cross-pool overlap closes attribution",
+    "proof_adapter_required_booleans": [
+      "clean_candidate_preparation_supported",
+      "all_four_cost_proofs",
+      "all_four_fresh_margin_observed_compatibility",
+      "all_four_actual_jobs_success"
+    ],
+    "qualification": "NOT_QUALIFIED_REQUIRES_CLEAN_EXACT_HEAD_FULL_ORDINARY_ALL_GATES_AND_POSTMERGE",
+    "scientific_document_path": "docs/qualification/capture-single-task-mechanism-experiment-v2.md",
+    "scientific_document_sha256": "1b6e80b9e05ddc4fe0177ca8131e799a7a03451a1df9820bb41cff7a0c0e1b7b",
+    "selected_operation_coverage": "all patched Python os.fsync/replace/rename calls while callback active and explicit journal/store atomic byte arguments; kernel/buffered/native C I/O NOT_OBSERVED",
+    "telemetry_schema": "capture-cost-temporary-micro-telemetry/v1",
+    "trace_prefix": "c2-network"
+  },
+  "artifact_members": {
+    "network_observation": "capture-cost-v2/network-observation.json",
+    "telemetry": "capture-cost-v2/telemetry.json"
+  },
+  "atomic_source_sha256": {
+    "A": "28e9773770ce91ed2c7611b2df05a8feca47805543920f4159e3d4a068fde103",
+    "B": "7cea60d52bf85602bf61968a26fe6052ff7a3676cf45a2ec8afad45e532c92d2"
+  },
+  "authority": "NONE_DIAGNOSTIC_NOT_QUALIFICATION",
+  "automatic_retry": false,
+  "base_commit": "7ec20fe0727a74a312235b53b52a5434707f4dc8",
+  "c1_control_dataset": {
+    "actual_original_jobs": "ALL_FOUR_FAILURE_PRESERVED",
+    "bundle_sha256": "480a200fffd0fda050c24fa18756b0fc823b29867eb30f2752d179bfef420f5c",
+    "correction_support": "NOT_GRANTED",
+    "execution_receipt_sha256": "42fc7748587870cd8896db8893c70d2288816185da69f1ef76d6a340507284c9",
+    "formal_analysis_sha256": "3f90e970463df332df3730bd441ea207b8d46c491e7e4f7c6139d4243322d220",
+    "formal_replay_sha256": "83e2ae959cb13869acaeabee558d95e70ab7fc1f24496926d74e49dcde1bc177",
+    "host_launch_sha256": "7cbeb28220902fe7058a0ebefa084eefca960886ea1f1721656b5b74f77ad106",
+    "operator_helper_sha256": "797fd7281376469be8917e226baaaf3b20b77ca1496b55750ee8ab520eac5177",
+    "original_both_B_success_criterion": false,
+    "original_manifest_sha256": "6955c9e87ac05a281584a387314597f809c92063f4298a6c1236d4fad5a37419",
+    "original_plan_sha256": "17c27d65416645d1c8210fa0a1a13db47a3b4ea1ca1694a4387bbd6fdde98be6",
+    "qualification": "NOT_GRANTED",
+    "run_attempt": 1,
+    "run_id": 39884284376,
+    "schema": "capture-cost-C1-ordinary-control/v1",
+    "scope": "CONTROL_ONLY_NO_CORRECTION_SUPPORT",
+    "source_url": "https://github.com/gabned/provelume/actions/runs/39884284376",
+    "workflow_head": "b00525333940baae5bb1698d77f5d865e46c01b0"
+  },
+  "cells": [
+    {
+      "artifact_name": "capture-atomic-cost-c2-A1-original",
+      "job_name": "capture-atomic-cost-c2-A1",
+      "micro_order": "ABBA",
+      "ordinal": 0,
+      "ordinary_arm": "A",
+      "slot": "A1"
+    },
+    {
+      "artifact_name": "capture-atomic-cost-c2-B1-fastpath",
+      "job_name": "capture-atomic-cost-c2-B1",
+      "micro_order": "ABBA",
+      "ordinal": 1,
+      "ordinary_arm": "B",
+      "slot": "B1"
+    },
+    {
+      "artifact_name": "capture-atomic-cost-c2-B2-fastpath",
+      "job_name": "capture-atomic-cost-c2-B2",
+      "micro_order": "BAAB",
+      "ordinal": 2,
+      "ordinary_arm": "B",
+      "slot": "B2"
+    },
+    {
+      "artifact_name": "capture-atomic-cost-c2-A2-original",
+      "job_name": "capture-atomic-cost-c2-A2",
+      "micro_order": "BAAB",
+      "ordinal": 3,
+      "ordinary_arm": "A",
+      "slot": "A2"
+    }
+  ],
+  "construction": {
+    "actual_cases_passed_per_arm": 77,
+    "actual_interface_integration": {
+      "actual_execution_receipt_sha256": "de12b70c9328ffa98c4813bb42dc9c6ac88efbb3247638f07267defd5e331a7b",
+      "actual_host_launch_sha256": "e76ca6667429b5306dd058e124159ceb03a219555ec330beb4f8b58c19149885",
+      "actual_result_sha256": "e48ba288fd25a0173e2f482161ea5653dbf9199092f3255ba5748b0b9df4063a",
+      "analyzer_sha256": "9f2e78f155b5f32975013cfe249669ab44e04ea78d08d0a85d2c7ae5e0bfb888",
+      "scope": "PASS_INTERFACE_ONLY_NO_EVALUATOR_OR_MODEL"
+    },
+    "actual_receipt_sha256": "35bfa91a54a6bc69d83bafed256df4a0fd04478eac3551b402b630afbdeded19",
+    "actual_result": "CONSTRUCTION_MATRIX_PASS_NOT_QUALIFIED",
+    "actual_scope": "SYNTHETIC_CONSTRUCTION_ONLY_NO_MODEL_NO_EMPIRICAL_CALIBRATION",
+    "prespecified_cases_per_arm": 77,
+    "prespecified_plan_sha256": "6cc4d5b54376502412ae32402ea658201cf874b0130b673ad35bcecfacb68e84"
+  },
+  "fail_fast": false,
+  "fast_commit": "3fd42f9c8142daa87004b13a59f6f05dbc7ddd4b",
+  "helper_sha256": {
+    "scripts/capture_cost_v2_cohort.py": "1387f19af6db60b39ac1d780d1f4c30b267fbd2a90f85f60da10f830540160a9",
+    "scripts/capture_cost_v2_telemetry.py": "e01018da07f7fea692614d98339b65f4569abcb859dc67d748251a141284ac33",
+    "scripts/diagnose_capture_cost_v2.py": "fa80f2aad132bc62a4a3b9827558b6570af2230d311b530412eee5c2b3ba000d"
+  },
+  "job_count": 4,
+  "job_seconds": 1200,
+  "max_parallel": 2,
+  "method_ast_sha256": {
+    "A": {
+      "_prepare": "77f291ae56c08dfc91ce4ee1d92d61e5df0b74e7f5630d351ea7394db26522d4",
+      "_publish_entries": "5b99a1238bc4afccf7e9c8467a589cf5c89cb770cc001a5fc05d301f46a10341",
+      "commit": "bf4d825f45ca75850960362e649301b1eebf29ab5de6d4e7f4968fba6b0397be"
+    },
+    "B": {
+      "_prepare": "86ad0ed294a6931a5cba1fe3c273dc38df813e4461d0d0359f11a7e8a6053edb",
+      "_publish_entries": "fc9758ae86b376454fb8e1cae7215b75f6debed8cd626982832a35d30051824d",
+      "commit": "1d46ab9e30ba2bf0290a3982e38cdb78a9d9a432a7e60f0692911cb31cf83d66"
+    }
+  },
+  "micro_budget_seconds": 600,
+  "minimum_remaining_seconds": 690,
+  "mode": "MICRO_ONLY_V2",
+  "ordinary_report_created": false,
+  "original_commit": "a1f9637ed9394f2d3324d48eb8c57c058916a911",
+  "publication_authority": "NONE_NO_RELEASE_TAG_SDK_DRAFT",
+  "qualification": "NOT_GRANTED",
+  "regime": "MICRO_ONLY_WITH_SEPARATE_ORDINARY_CONTROL",
+  "repository": "gabned/provelume",
+  "run_attempt": 1,
+  "runtime_coordinates": {
+    "configuration_sha256": "6d26739dbb863788ae9de3ed3561b74995f03afde9bfe4cd8cef8c3dc25d0f99",
+    "model_sha256": "1885b3a9195f8cc09da9a7a7a75afdc1e8d5cbf9fc4a499c3961dddea37098ac",
+    "runtime_lock_sha256": "0e508965cddc60d6cfb57c42d2c4039c637e8812bb25cc21b525b6d6047a4404"
+  },
+  "schema": "capture-single-task-experiment/v2",
+  "source_parents": {
+    "A": "7ec20fe0727a74a312235b53b52a5434707f4dc8",
+    "B": "a1f9637ed9394f2d3324d48eb8c57c058916a911"
+  },
+  "source_proof_members": {
+    "checkout_git": "capture-cost-v2/checkout-git-proof.txt",
+    "entry_exit": "capture-cost-v2/entry-exit-code.txt",
+    "frozen_plan": "capture-cost-v2/frozen-plan.json",
+    "network_exit": "capture-cost-v2/network-exit-code.txt",
+    "source_head_exit": "capture-cost-v2/source-head-exit-code.txt",
+    "source_status_after": "capture-cost-v2/source-status-after.txt",
+    "source_status_exit": "capture-cost-v2/source-status-exit-code.txt",
+    "source_tree_exit": "capture-cost-v2/source-tree-exit-code.txt",
+    "workflow_git": "capture-cost-v2/workflow-git-proof.txt"
+  },
+  "source_trees": {
+    "A": "2130af809c4ff637d4748ce0cc651e6d2e00d794",
+    "B": "7b6568d30bf1dc8c370c72e2a59701eb73577798"
+  },
+  "status": "FROZEN",
+  "upload_reserve_seconds": 90,
+  "wave_barrier": false,
+  "workflow_runs": 1
+}

@@ -1,54 +1,199 @@
-name: Custodia S05-S06 real CPU candidate and governed jobs
+# Prospective C2 fresh-fixture cost diagnostic; no qualification authority.
+# C1's four failed jobs and full ordinary reports remain a separate dataset.
+name: Capture atomic cost C2 fresh-fixture diagnostic (not qualification)
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   measure:
+    name: capture-atomic-cost-c2-${{ matrix.slot }}
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
-        os: [ubuntu-24.04, windows-2025]
+        include:
+          - slot: A1
+            ordinal: 0
+            variant: original
+            os: ubuntu-24.04
+            code_sha: a1f9637ed9394f2d3324d48eb8c57c058916a911
+          - slot: B1
+            ordinal: 1
+            variant: fastpath
+            os: ubuntu-24.04
+            code_sha: 3fd42f9c8142daa87004b13a59f6f05dbc7ddd4b
+          - slot: B2
+            ordinal: 2
+            variant: fastpath
+            os: ubuntu-24.04
+            code_sha: 3fd42f9c8142daa87004b13a59f6f05dbc7ddd4b
+          - slot: A2
+            ordinal: 3
+            variant: original
+            os: ubuntu-24.04
+            code_sha: a1f9637ed9394f2d3324d48eb8c57c058916a911
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
+      - name: Retain first shell boundary (not GitHub job start)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, time
+          from pathlib import Path
+          value = {"kind": "FIRST_STEP_START", "regime": "MICRO_ONLY_WITH_SEPARATE_ORDINARY_CONTROL", "epoch_seconds": time.time(), "monotonic_seconds": time.monotonic(), "actual_github_job_started_at": "UNKNOWN_PENDING_ORIGINAL_API_OBSERVATION"}
+          path = Path(os.environ["RUNNER_TEMP"]) / "capture-cost-c2-first-step.json"
+          with path.open("x") as stream:
+              json.dump(value, stream, sort_keys=True)
+              stream.write("\n")
+          with Path(os.environ["GITHUB_ENV"]).open("a") as stream:
+              stream.write("CAPTURE_C2_FIRST_STEP_EPOCH=" + str(value["epoch_seconds"]) + "\n")
+          PY
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          ref: ${{ matrix.code_sha }}
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: '3.12'
+      - name: Retain exact source and frozen C2 diagnostic plan
+        shell: bash
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = '${{ matrix.code_sha }}'
+          CAPTURE_C2_SOURCE_BEFORE=$(git status --porcelain --untracked-files=all)
+          test -z "$CAPTURE_C2_SOURCE_BEFORE"
+          test "$(git rev-parse --is-shallow-repository)" = false
+          CAPTURE_C2_REPLACE_REFS=$(git for-each-ref refs/replace/)
+          test -z "$CAPTURE_C2_REPLACE_REFS"
+          test "$(git show -s --format=%P a1f9637ed9394f2d3324d48eb8c57c058916a911)" = '7ec20fe0727a74a312235b53b52a5434707f4dc8'
+          test "$(git show -s --format=%P 3fd42f9c8142daa87004b13a59f6f05dbc7ddd4b)" = 'a1f9637ed9394f2d3324d48eb8c57c058916a911'
+          test "$(git show -s --format=%P '${{ github.sha }}')" = '3fd42f9c8142daa87004b13a59f6f05dbc7ddd4b'
+          mkdir -p .agent/capture-cost-v2
+          cp "${{ runner.temp }}/capture-cost-c2-first-step.json" .agent/capture-cost-v2/first-step-start.json
+          git show '${{ github.sha }}:scripts/capture_cost_v2_plan.json' > .agent/capture-cost-v2/frozen-plan.json
+          printf '%s  %s\n' '781f2508ad9e0198d9e894837a99d4267993ebae09b722daca1f92ac25ce3d83' '.agent/capture-cost-v2/frozen-plan.json' | sha256sum --check
+          git show -s --format='%H%n%P%n%T' HEAD > .agent/capture-cost-v2/checkout-git-proof.txt
+          git show -s --format='%H%n%P%n%T' '${{ github.sha }}' > .agent/capture-cost-v2/workflow-git-proof.txt
       - name: Canonical dependency bootstrap
         run: python scripts/bootstrap.py
       - name: Explicit locked acquisition (no model in artifacts or Git)
-        run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/s05-inputs" --accept-licenses --include-model
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/s05-inputs" --accept-licenses --include-model
       - name: Build locked native input with notices and SBOM, offline
-        run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/build_ai_runtime_input.py --directory "${{ runner.temp }}/s05-inputs/${{ runner.os == 'Windows' && 'windows' || 'linux' }}" --platform ${{ runner.os == 'Windows' && 'windows' || 'linux' }} --output .agent/s05-native-input.zip
-      - name: Real Linux execution with external syscall observation
-        if: runner.os == 'Linux'
+        run: .venv/bin/python scripts/build_ai_runtime_input.py --directory "${{ runner.temp }}/s05-inputs/linux" --platform linux --output .agent/s05-native-input.zip
+      - name: Complete fixed micro-only governed Capture diagnostic cohort
         shell: bash
         run: |
           set +e
-          strace -ff -tt -e trace=network -o .agent/s05-network .venv/bin/python scripts/qualify_ai_runtime.py --artifacts "${{ runner.temp }}/s05-inputs" --output .agent/s05-real.json
+          strace -ff -tt -e trace=network -o .agent/c2-network .venv/bin/python scripts/diagnose_capture_cost_v2.py --artifacts "${{ runner.temp }}/s05-inputs" --telemetry .agent/capture-cost-v2/telemetry.json --plan .agent/capture-cost-v2/frozen-plan.json --plan-sha256 781f2508ad9e0198d9e894837a99d4267993ebae09b722daca1f92ac25ce3d83 --original-commit a1f9637ed9394f2d3324d48eb8c57c058916a911 --fast-commit 3fd42f9c8142daa87004b13a59f6f05dbc7ddd4b --cell-ordinal '${{ matrix.ordinal }}' --first-step-epoch "$CAPTURE_C2_FIRST_STEP_EPOCH"
           measurement=$?
-          if test ! -f .agent/s05-real.json; then exit "$measurement"; fi
-          .venv/bin/python scripts/ai_runtime_network.py --report .agent/s05-real.json --trace .agent/s05-network
-      - name: Real Windows execution with disposable WFP control and audit
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./scripts/qualify_ai_runtime_windows.ps1 -Artifacts "${{ runner.temp }}/s05-inputs"
+          printf '%s\n' "$measurement" > .agent/capture-cost-v2/entry-exit-code.txt
+          .venv/bin/python - <<'PY'
+          import hashlib, json, re
+          from datetime import UTC, datetime
+          from pathlib import Path
+          output = Path('.agent/capture-cost-v2/network-observation.json')
+          receipt = {'schema': 'capture-cost-micro-network-observation/v1', 'authority': 'NONE_DIAGNOSTIC_NOT_QUALIFICATION', 'regime': 'MICRO_ONLY_WITH_SEPARATE_ORDINARY_CONTROL', 'started_at': datetime.now(UTC).isoformat(), 'status': 'NOT_RUN', 'worker_pids': [], 'appended_worker_pids': [], 'complete_passes': 0, 'callback_counts': {}, 'traces': [], 'network_calls': [], 'network_calls_count': 0, 'unexpected_network_call_count': 0, 'errors': [], 'ordinary_report_created': False, 'control': 'unchanged worker seccomp blocks sockets, x32 and io_uring', 'method': 'strace-network-all-threads-from-exec-through-exit'}
+          try:
+              receipt['ordinary_report_created'] = Path('.agent/s05-real.json').exists()
+              if receipt['ordinary_report_created']:
+                  raise ValueError('unexpected_ordinary_report_in_micro_only_scope')
+              raw = Path('.agent/capture-cost-v2/telemetry.json').read_bytes()
+              receipt['telemetry_sha256'] = hashlib.sha256(raw).hexdigest()
+              value = json.loads(raw)
+              if (value.get('schema') != 'capture-cost-temporary-micro-telemetry/v1'
+                      or value.get('identity', {}).get('regime') != 'MICRO_ONLY_WITH_SEPARATE_ORDINARY_CONTROL'
+                      or value.get('status') != 'COMPLETE' or value.get('errors') != []):
+                  raise ValueError('micro_telemetry_not_complete')
+              appended = value.get('appended_report')
+              if not isinstance(appended, dict) or appended.get('status') != 'COMPLETE':
+                  raise ValueError('micro_cohort_not_complete')
+              passes = appended.get('passes')
+              if (not isinstance(passes, list) or len(passes) != 2
+                      or any(row.get('status') != 'COMPLETE' or len(row.get('idle', [])) != 6
+                             or row.get('governed', {}).get('status') != 'MEASURED'
+                             or len(row.get('governed', {}).get('deterministic_busy', [])) != 6 for row in passes)):
+                  raise ValueError('two_full_governed_passes_not_complete')
+              counts = {}
+              for row in value.get('callbacks', []):
+                  counts[row.get('group')] = counts.get(row.get('group'), 0) + 1
+              if counts != {'unscored_seed': 2, 'appended_idle': 12, 'appended_governed_busy': 12}:
+                  raise ValueError('fixed_micro_callback_counts')
+              pids = appended.get('worker_pids')
+              if not isinstance(pids, list) or not pids or any(type(pid) is not int or pid <= 0 for pid in pids):
+                  raise ValueError('missing_or_invalid_micro_worker_pids')
+              receipt['appended_worker_pids'] = pids
+              histories = value.get('registered_runtime_histories')
+              if not isinstance(histories, list) or not histories:
+                  raise ValueError('missing_registered_runtime_histories')
+              all_worker_pids = set(pids)
+              for history in histories:
+                  recorded = history.get('worker_history') if isinstance(history, dict) else None
+                  if not isinstance(recorded, list) or any(type(pid) is not int or pid <= 0 for pid in recorded):
+                      raise ValueError('invalid_registered_runtime_worker_history')
+                  all_worker_pids.update(recorded)
+              receipt['worker_pids'] = sorted(all_worker_pids)
+              receipt['complete_passes'] = len(passes)
+              receipt['callback_counts'] = counts
+              paths = sorted(Path('.agent').glob('c2-network.*'))
+              if not paths or any(path.is_symlink() or not path.is_file() for path in paths):
+                  raise ValueError('network_trace_missing_or_not_regular')
+              names = {path.name for path in paths}
+              if any('c2-network.' + str(pid) not in names for pid in all_worker_pids):
+                  raise ValueError('micro_worker_trace_missing')
+              for path in paths:
+                  suffix = path.name.removeprefix('c2-network.')
+                  if not suffix.isdecimal() or int(suffix) <= 0:
+                      raise ValueError('invalid_network_trace_pid_name')
+                  trace = path.read_bytes()
+                  receipt['traces'].append({'pid': int(suffix), 'path': str(path), 'bytes': len(trace), 'sha256': hashlib.sha256(trace).hexdigest()})
+                  receipt['network_calls'].extend(line for line in trace.decode('utf-8').splitlines()
+                      if re.search(r'\b(socket|connect|sendto|sendmsg|sendmmsg)\(', line))
+              receipt['trace_files'] = len(paths)
+              receipt['network_calls_count'] = len(receipt['network_calls'])
+              receipt['unexpected_network_call_count'] = sum('= -1 EPERM' not in line for line in receipt['network_calls'])
+              receipt['status'] = 'PASS' if receipt['unexpected_network_call_count'] == 0 else 'FAIL'
+          except Exception as exc:
+              receipt['errors'].append({'exception_type': type(exc).__name__, 'reason': str(exc) if type(exc) is ValueError else 'micro_network_observation_error'})
+          receipt['completed_at'] = datetime.now(UTC).isoformat()
+          with output.open('x') as stream:
+              json.dump(receipt, stream, indent=2, sort_keys=True)
+              stream.write('\n')
+          raise SystemExit(0 if receipt['status'] == 'PASS' else 1)
+          PY
+          network=$?
+          printf '%s\n' "$network" > .agent/capture-cost-v2/network-exit-code.txt
+          git status --porcelain --untracked-files=all > .agent/capture-cost-v2/source-status-after.txt
+          source_status_exit=$?
+          printf '%s\n' "$source_status_exit" > .agent/capture-cost-v2/source-status-exit-code.txt
+          test "$(git rev-parse HEAD)" = '${{ matrix.code_sha }}'
+          source_head_integrity=$?
+          printf '%s\n' "$source_head_integrity" > .agent/capture-cost-v2/source-head-exit-code.txt
+          test ! -s .agent/capture-cost-v2/source-status-after.txt
+          source_tree_integrity=$?
+          printf '%s\n' "$source_tree_integrity" > .agent/capture-cost-v2/source-tree-exit-code.txt
+          if test "$measurement" -ne 0; then exit "$measurement"; fi
+          if test "$network" -ne 0; then exit "$network"; fi
+          if test "$source_status_exit" -ne 0; then exit "$source_status_exit"; fi
+          if test "$source_head_integrity" -ne 0; then exit "$source_head_integrity"; fi
+          exit "$source_tree_integrity"
+      - name: Preserve first shell boundary after every outcome
+        if: always()
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          set -eu
+          mkdir -p "$GITHUB_WORKSPACE/.agent/capture-cost-v2"
+          cp "$RUNNER_TEMP/capture-cost-c2-first-step.json" "$GITHUB_WORKSPACE/.agent/capture-cost-v2/first-step-start.json"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         if: always()
         with:
-          name: s05-real-${{ matrix.os }}
+          name: capture-atomic-cost-c2-${{ matrix.slot }}-${{ matrix.variant }}
           path: |
-            .agent/s05-real.json
-            .agent/s05-network.*
-            .agent/s05-wfp.json
+            .agent/c2-network.*
+            .agent/capture-cost-v2/**
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
