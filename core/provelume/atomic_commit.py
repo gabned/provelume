@@ -291,6 +291,61 @@ class AtomicInstanceCommit:
         self._writes[selected] = (None, False)
         self._removal_preimages[selected] = expected_sha256
 
+    class _PoolDrainFailure(BaseException):
+        """Quiescence was not proven; preserve both actual errors and the pool."""
+        def __init__(self, primary, drain, pool):
+            super().__init__("transaction pool drain failed; journal preserved")
+            self.primary_exception = primary
+            self.drain_exception = drain
+            self.pool = pool
+
+    class _PreparePoolScope:
+        def __init__(self, transaction):
+            self.transaction = transaction
+            self.owned = not hasattr(transaction, "_transaction_pool")
+            self.pool = None
+
+        def __enter__(self):
+            if self.owned:
+                self.pool = ThreadPoolExecutor(max_workers=4)
+            else:
+                if self.transaction._transaction_pool is None:
+                    self.transaction._transaction_pool = ThreadPoolExecutor(max_workers=4)
+                self.pool = self.transaction._transaction_pool
+            return self.pool
+
+        def __exit__(self, kind, primary, traceback):
+            if self.owned:
+                self.transaction._shutdown_pool(self.pool, primary)
+            return False
+
+    def _prepare_pool_scope(self):
+        return self._PreparePoolScope(self)
+
+    def _shutdown_pool(self, pool, primary):
+        try:
+            pool.shutdown(wait=True)
+        except BaseException as drain:
+            failure = self._PoolDrainFailure(primary, drain, pool)
+            self._last_pool_drain_failure = failure
+            raise failure from drain
+
+    def _shutdown_transaction_pool(self, primary=None):
+        if not hasattr(self, "_transaction_pool"):
+            return
+        if self._transaction_pool_state == "drained":
+            return
+        if self._transaction_pool_state == "failed":
+            raise self._transaction_pool_failure
+        try:
+            if self._transaction_pool is not None:
+                self._shutdown_pool(self._transaction_pool, primary)
+        except BaseException as failure:
+            self._transaction_pool_state = "failed"
+            self._transaction_pool_failure = failure
+            raise
+        self._transaction_pool_state = "drained"
+
     def _prepare(self) -> tuple[Path, dict[str, Any]]:
         if not self._writes:
             raise self._integrity_error_type()
@@ -386,7 +441,7 @@ class AtomicInstanceCommit:
             # on failure, before a prepared manifest can authorize publication.
             for directory in sorted({path.parent for path, _data in payloads}, key=str):
                 directory.mkdir(mode=0o700, exist_ok=True)
-            with ThreadPoolExecutor(max_workers=4) as writers:
+            with self._prepare_pool_scope() as writers:
                 pending = [writers.submit(_write_journal_payload, path, data)
                            for path, data in payloads]
                 for write in pending:
@@ -416,61 +471,98 @@ class AtomicInstanceCommit:
             _fsync_directory(stage)
             _fsync_directory(self.stage_parent)
             return stage, manifest
-        except Exception:
-            shutil.rmtree(stage, ignore_errors=True)
+        except BaseException as exc:
+            self._shutdown_transaction_pool(exc)
+            if isinstance(exc, Exception):
+                shutil.rmtree(stage, ignore_errors=True)
             raise
 
     def commit(self) -> None:
         try:
-            stage, manifest = self._prepare()
-        except (self._integrity_error_type, self._limit_error_type, self._error_type):
-            raise
-        except Exception:
+            self._commit_with_pool()
+        except self._PoolDrainFailure as failure:
+            # All unsafe cleanup paths have already been bypassed. Retain the
+            # actual pool/errors privately while keeping the public error API.
+            self._last_pool_drain_failure = failure
+            primary = failure.primary_exception
+            if isinstance(primary, BaseException) and not isinstance(primary, Exception):
+                raise primary from None
+            drain = failure.drain_exception
+            if isinstance(drain, BaseException) and not isinstance(drain, Exception):
+                raise drain from None
             raise self._error_type() from None
+
+    def _commit_with_pool(self) -> None:
+        if hasattr(self, "_transaction_pool"):
+            raise self._error_type()
+        # The executor is allocated lazily at the original preparation boundary.
+        self._transaction_pool = None
+        self._transaction_pool_state = "active"
+        self._transaction_pool_failure = None
+        primary = None
         try:
-            # Every directory flush still runs. The prepared journal recovers
-            # an interrupted subset; no committed marker or acknowledgement may
-            # precede completion of all flushes. Failure also joins the pool
-            # before rollback so no late writer can race with restoration.
-            with ThreadPoolExecutor(max_workers=4) as flushers:
-                self._publish_entries(stage, manifest, flushers)
-            committed = {
-                **manifest,
-                "status": "committed",
-                "committed_at": utc_now(),
-            }
-            committed_bytes = (
-                json.dumps(committed, indent=2, sort_keys=True) + "\n"
-            ).encode("utf-8")
-            if len(committed_bytes) > _manifest_byte_limit(
-                self.profile.limits.max_entries
-            ):
-                raise self._error_type()
-            self.store._atomic_bytes(stage / "manifest.json", committed_bytes)
-            _fsync_directory(stage)
-        except Exception as exc:
             try:
-                _rollback_prepared_transaction(
-                    self.store,
-                    stage,
-                    manifest,
-                    profile=self.profile,
-                    error_type=self._error_type,
-                )
-                shutil.rmtree(stage)
-                _fsync_directory(self.stage_parent)
+                stage, manifest = self._prepare()
+            except (self._integrity_error_type, self._limit_error_type, self._error_type):
+                raise
             except Exception:
                 raise self._error_type() from None
-            if isinstance(
-                exc,
-                (self._integrity_error_type, self._limit_error_type, self._error_type),
-            ):
-                raise
-            raise self._error_type() from None
-        shutil.rmtree(stage, ignore_errors=True)
-        # A durable committed marker makes later journal cleanup recoverable on open.
-        with suppress(OSError):
-            _fsync_directory(self.stage_parent)
+            try:
+                # Every directory flush still runs. The prepared journal recovers
+                # an interrupted subset; no committed marker or acknowledgement may
+                # precede completion of all flushes. Failure also joins the pool
+                # before rollback so no late writer can race with restoration.
+                self._publish_entries(stage, manifest, self._transaction_pool)
+                self._shutdown_transaction_pool()
+                committed = {
+                    **manifest,
+                    "status": "committed",
+                    "committed_at": utc_now(),
+                }
+                committed_bytes = (
+                    json.dumps(committed, indent=2, sort_keys=True) + "\n"
+                ).encode("utf-8")
+                if len(committed_bytes) > _manifest_byte_limit(
+                    self.profile.limits.max_entries
+                ):
+                    raise self._error_type()
+                self.store._atomic_bytes(stage / "manifest.json", committed_bytes)
+                _fsync_directory(stage)
+            except Exception as exc:
+                self._shutdown_transaction_pool(exc)
+                try:
+                    _rollback_prepared_transaction(
+                        self.store,
+                        stage,
+                        manifest,
+                        profile=self.profile,
+                        error_type=self._error_type,
+                    )
+                    shutil.rmtree(stage)
+                    _fsync_directory(self.stage_parent)
+                except Exception:
+                    raise self._error_type() from None
+                if isinstance(
+                    exc,
+                    (self._integrity_error_type, self._limit_error_type, self._error_type),
+                ):
+                    raise
+                raise self._error_type() from None
+            shutil.rmtree(stage, ignore_errors=True)
+            # A durable committed marker makes later journal cleanup recoverable on open.
+            with suppress(OSError):
+                _fsync_directory(self.stage_parent)
+        except BaseException as exc:
+            primary = exc
+            raise
+        finally:
+            try:
+                if self._transaction_pool_state == "active":
+                    self._shutdown_transaction_pool(primary)
+            finally:
+                del self._transaction_pool
+                del self._transaction_pool_state
+                del self._transaction_pool_failure
 
     def _publish_entries(self, stage, manifest, flushers):
         directories = set()
