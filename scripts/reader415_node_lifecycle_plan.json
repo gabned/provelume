@@ -1,0 +1,192 @@
+{
+  "schema": "reader415-node-lifecycle-diagnostic-plan/v1",
+  "status": "STATIC_REVIEW_CANDIDATE_NOT_EXECUTED",
+  "authority": "DIAGNOSTIC_ONLY_NOT_QUALIFICATION",
+  "original_source_sha256": {
+    "tests/test_capture_shell_contract.py": "08b2d6a8478ab550dc9558b138b78b659fa2648b2a4f75430ae6164d77522811",
+    "tests/test_mobile_shell_contract.py": "d6a00d867e54527025867bda267a4881499e2b8ffb5bb6be73dfaaff4f679e66",
+    "core/provelume/static/capture-worker.js": "46971255263ad4f6ce2a7823325004fdb4318d53c47f385ccd438a900e0a46a2",
+    "core/provelume/capture_http.py": "c0bfcd0bff2168094e524c27ea8326c8208abbe49ab32bd249621e21301518be",
+    "tools/agent_protocol_work_check.py": "c59077f13fc39f7cbebc5ec2b0ec55cf198c2449b083a8b2b1df132773225598",
+    ".github/workflows/ci.yml": "e172ac571097ed871f96fc68d407fb5195319f2f97f679c69717b6671dd910f4",
+    "pyproject.toml": "b2f0050e47bf6ce42c4054a93d172c2ceff77a31914741562aebdac69f1c20db",
+    "tests/conftest.py": "f8ca89396e6e675eee5fa4cf8441c0bc970002aa6094b8fef64c17ad93cd69c8"
+  },
+  "plugin_sha256": "5f74ee4d3323564cc9cff7e153d5a3437a56c61c4c88b62c00fa63694392314c",
+  "target_script_sha256": "225bd9c4c75eaeea20e0221e6fd6823a2033b3637a69478577258531bf903671",
+  "binding": {
+    "repository": "gabned/provelume",
+    "baseline_parent": "3c29ab05acef576d7dcdb4c0301200ee0d4bd078",
+    "diagnostic_head": null,
+    "diagnostic_tree": null,
+    "run_id": null,
+    "run_attempt": null,
+    "run_url": null,
+    "intended_event": "push",
+    "intended_branch": "diagnostic/pr415-node-lifecycle-v1",
+    "plugin_pin_status": "CURRENT_STATIC_REVIEW_CANDIDATE_BYTES",
+    "plan_git_path": "scripts/reader415_node_lifecycle_plan.json",
+    "allowed_additions": [
+      ".github/workflows/reader415-node-lifecycle-diagnostic.yml",
+      "tools/reader415_node_diagnostic.py",
+      "scripts/reader415_node_lifecycle_plan.json"
+    ],
+    "existing_tracked_paths": "ALL_UNCHANGED_FROM_EXACT_BASELINE_PARENT",
+    "required_history": "ONE_NORMAL_DIRECT_CHILD_OF_BASELINE_PARENT_NO_REWRITE_OR_MERGE",
+    "actual_source_checks": "BEFORE_AND_ALWAYS_AFTER_FULL_TRACKED_GIT_MODE_BLOB_AND_WORKING_BYTE_INVENTORY_PLUS_PLUGIN_SOURCE_BINDING"
+  },
+  "source_acquisition": {
+    "method": "EXACT_READ_ONLY_GIT_SHOW_BASELINE_PATH_BYTES_NO_IMPORT_OR_TEST_EXECUTION",
+    "hash_encoding": "SHA256_OF_RAW_GIT_SHOW_BYTES",
+    "target_script": {
+      "path": "tests/test_mobile_shell_contract.py",
+      "function": "test_share_error_reads_only_existing_language_preference_and_falls_back_on_unavailable_store",
+      "assignment": "script",
+      "extraction": "EXACT_AST_CONSTANT_STR_VALUE_UTF8_WITH_ORIGINAL_NEWLINES_NO_IMPORT_NO_EXECUTION",
+      "bytes": 1885
+    },
+    "tests_conftest_exists_in_parent": true
+  },
+  "complete_cohort": {
+    "groups": [
+      0,
+      1
+    ],
+    "shard_count": 4,
+    "group_shards": {
+      "0": [
+        0,
+        1
+      ],
+      "1": [
+        2,
+        3
+      ]
+    },
+    "concurrent_shards_per_group": 2,
+    "independent_full_inventory_before_shards": true,
+    "collection_selection_order": "UNCHANGED_ORIGINAL_WINDOWS_GROUP_AND_PYTEST_SHARD_PATH",
+    "group_timeout_seconds": 540,
+    "job_timeout_minutes": 10,
+    "fail_fast": false,
+    "python": "3.12",
+    "runner": "windows-latest",
+    "dependency_install": "UNCHANGED_pip_install_editable_dev",
+    "lint": "UNCHANGED_FULL_DECLARED_LINT_STEP",
+    "javascript_warmup": "UNCHANGED_ORIGINAL_NODE_VERSION_AND_CURA_CONTRACT_COMMANDS_WITH_ORIGINAL_15_SECOND_LIMITS",
+    "target_nodeid": "tests/test_mobile_shell_contract.py::test_share_error_reads_only_existing_language_preference_and_falls_back_on_unavailable_store",
+    "target_call_invocations_in_complete_cohort": 1,
+    "instrument_target_only": true,
+    "other_tests": "EXECUTED_IN_COMPLETE_ORDINARY_COHORT_WITH_UNCHANGED_SELECTION_AND_ORDER",
+    "automatic_retry": false,
+    "stop_after_first_pass": false,
+    "candidate_rerun_for_favorable_result": false
+  },
+  "observations": {
+    "purpose": "DISTINGUISH_LAST_OBSERVED_JAVASCRIPT_PROGRESS_FROM_PRE_KILL_PROCESS_AND_ORIGINAL_PIPE_READER_STATUS_WITHOUT_ASSIGNING_HISTORICAL_CAUSE",
+    "original_helper": "tests/test_capture_shell_contract.py::node",
+    "original_run_behavior": "KEEP_ORIGINAL_HELPER_FILE_SUBSTITUTION_TEMP_MJS_ASSERTIONS_JSON_PARSING_AND_30_SECOND_TIMEOUT",
+    "stdlib_run": "SAME_ACTUAL_RUNTIME_CODE_OBJECT_WITH_PRIVATE_POPEN_BINDING_ONLY_NO_GLOBAL_SUBPROCESS_REPLACEMENT",
+    "pipe_readers": "ORIGINAL_STDLIB_WINDOWS_READERS_ONLY_NO_SECOND_DRAINER",
+    "marker_max_records": 48,
+    "marker_artifact_max_bytes": 131072,
+    "marker_byte_cap_interpretation": "POST_RUN_ARTIFACT_ACCEPTANCE_BOUND_NO_OUTPUT_PIPE_TRUNCATION",
+    "parent_event_max_records": 64,
+    "retained_observer_error_max_records": 64,
+    "periodic_max_samples": 121,
+    "periodic_interval_seconds": 0.25,
+    "additional_pre_kill_query_max": 1,
+    "pre_kill_query_position": "ACTUAL_TIMEOUTEXPIRED_BEFORE_ORIGINAL_RUN_KILL_PATH",
+    "monitor_cleanup_join_timeout_seconds": 0.5,
+    "progress_markers": [
+      "USER_MODULE_BODY_ENTERED",
+      "SCOPE_RESPONSE_LOOKUP_ENTER",
+      "SCOPE_READY_RESPONSE_EXPOSED",
+      "VM_ENTER",
+      "VM_READY",
+      "LANGUAGE_ENTER",
+      "LANGUAGE_RETURN",
+      "LANGUAGE_RAISED",
+      "RESPONSE_TEXT_ENTER",
+      "RESPONSE_TEXT_RETURN",
+      "ASSERTIONS_DONE",
+      "STDOUT_BEFORE",
+      "STDOUT_AFTER",
+      "BEFORE_EXIT",
+      "EXIT",
+      "UNCAUGHT_EXCEPTION_MONITOR"
+    ],
+    "native_queries": "EXISTING_PROCESS_HANDLE_TIMES_IO_AND_ORIGINAL_STDOUT_STDERR_READER_THREAD_HANDLES_TIMES",
+    "native_api_failure": "EXPLICIT_UNAVAILABLE_WITH_ACTUAL_WINERROR_NOT_SYNTHETIC_ZERO",
+    "missing_or_unavailable_values": "NULL_OR_EXPLICIT_AVAILABLE_FALSE_AS_RECORDED_NO_ZERO_IMPUTATION",
+    "cost_records": "ACTUAL_OBSERVER_WALL_AND_THREAD_CPU_TIME_AND_PREVIOUS_MARKER_WRITE_COST_WHERE_OBSERVED",
+    "observer_errors": "RETAIN_TYPED_ERRORS_AND_MARK_OBSERVABILITY_INCOMPLETE_WITHOUT_MASKING_OR_REPLACING_ORIGINAL_SUBPROCESS_RESULT_OR_EXCEPTION",
+    "binding_restoration": "RESTORE_TEST_MODULE_NODE_ALIAS_AND_HELPER_SUBPROCESS_BINDING_INDEPENDENTLY_RETAIN_ACTUAL_IDENTITY_CHECK",
+    "max_samples_including_pre_kill": 122,
+    "cadence": "FIXED_NOMINAL_MONOTONIC_250MS_RECORD_ACTUAL_LAG_AND_MISSED_TICKS_NO_CATCHUP_BURST_OR_GUARANTEE",
+    "sample_bracket": "POLL_BEFORE_THEN_TIMESTAMPED_READER_STATUS_NATIVE_QUERIES_THEN_POLL_AFTER_NO_SIMULTANEITY_ASSUMPTION",
+    "reader_cpu_identity": "QUERY_ONLY_WHEN_ALIVE_RECHECK_ALIVE_AFTER_QUERY_ENDED_OR_CHANGED_IDENTITY_IS_UNSUPPORTED_NO_TID_REUSE_ATTRIBUTION",
+    "pre_kill_required": "PROCESS_TIMES_IO_AND_STABLY_LIVE_READER_CPU_AVAILABILITY_FAILURE_MARKS_OBSERVABILITY_INCOMPLETE",
+    "timeout_checkpoint": "ONE_GUARDED_EXCLUSIVE_STATE_PREFIX_BEFORE_ORIGINAL_RUN_KILL_RETAINS_PREKILL_IF_ORIGINAL_POSTKILL_DRAIN_HANGS",
+    "clock_domains": "NODE_HRTIME_AND_PYTHON_MONOTONIC_HAVE_INDEPENDENT_EPOCHS_NO_CROSS_DOMAIN_SUBTRACTION_UTC_AND_WITHIN_DOMAIN_DELTAS_ONLY",
+    "cost_limits": "PREVIOUS_JS_MARKER_WRITE_COST_IS_ONE_RECORD_LATE_FINAL_EXIT_WRITE_COST_IS_NOT_REPORTED_NO_COMPLETE_OR_UNIVERSAL_OVERHEAD_BOUND_OR_SUBTRACTION"
+  },
+  "evaluation": {
+    "evaluate_only_after": "BOTH_GROUPS_AND_ALL_FOUR_SHARDS_HAVE_TERMINAL_ORIGINAL_OUTCOMES_AND_ALL_AVAILABLE_RAW_FILES_ARE_RETAINED",
+    "all_original_tests_pass": "NO_REPRODUCTION_IN_THIS_COMPLETE_DIAGNOSTIC_COHORT_NO_FIX_OR_QUALIFICATION_CLAIM",
+    "target_original_30_second_timeout": "PROSPECTIVE_REPRODUCTION_OF_TARGET_TIMEOUT_ONLY_CLASSIFY_LAST_OBSERVED_PHASE_AND_PRE_KILL_STATUS",
+    "last_marker_or_missing_marker": "PROGRESS_BOUND_ONLY_NOT_CAUSAL_PROOF_AND_NOT_SYNTHETIC_NODE_OR_JOB_CONCLUSION",
+    "pre_kill_process_and_reader_status": "POINT_IN_TIME_OBSERVATION_ONLY_NOT_A_SUBSTITUTE_FOR_ACTUAL_EXIT_RESULT_OR_CAUSAL_ATTRIBUTION",
+    "other_test_failure": "PRESERVE_ORDINARY_FAILURE_AND_COMPLETE_REMAINING_COHORT_NO_AUTOMATIC_RERUN",
+    "missing_raws_or_observer_failure_or_caps_exceeded": "OBSERVABILITY_INCOMPLETE_KEEP_ORIGINAL_TEST_OUTCOME_UNCHANGED",
+    "isolated_pass": "NO_REPRODUCTION_ONLY_NEVER_PRODUCT_CORRECTION_OR_QUALIFICATION"
+  },
+  "preservation": {
+    "ordinary_pytest_results_authoritative": true,
+    "original_exception_identity_preserved": true,
+    "original_stdout_stderr_objects": "RETAIN_ACTUAL_BYTES_OR_EXPLICIT_PYTHON_STR_UTF8_SURROGATEPASS_REPRESENTATION_NEVER_LABEL_TEXT_AS_RAW_OS_PIPE_BYTES",
+    "artifacts": [
+      "BOTH_ORIGINAL_WINDOWS_GROUP_RECORDS_INDEPENDENT_INVENTORIES_SHARD_JSON_AND_LOGS",
+      "BEFORE_AND_AFTER_FULL_TRACKED_SOURCE_PROOFS",
+      "PLUGIN_OBSERVATIONS_AND_TYPED_ERRORS",
+      "ORIGINAL_TARGET_SCRIPT_AND_INSTRUMENTED_TEMPLATE_AND_ACTUAL_MJS",
+      "NODE_MARKERS_AND_ACTUAL_RESULT_OR_TIMEOUT_OUTPUT_FILES",
+      "STDLIB_RUN_SOURCE_AND_RUNTIME_PROCESS_THREAD_METADATA"
+    ],
+    "raw_identity_bindings": "ACTUAL_EVENT_HEAD_TREE_PARENT_RUN_ID_ATTEMPT_GROUP_SHARD_PID_AND_COMMAND_ARGUMENTS_WHERE_AVAILABLE",
+    "historical_outcomes": "PRESERVE_ALL_EXISTING_FAILURES_AND_ATTEMPTS_NO_RETROSPECTIVE_TIMESTAMP_OR_CAUSALITY",
+    "artifact_upload": "ALWAYS_WITH_ORIGINAL_14_DAY_RETENTION_AND_ERROR_ON_MISSING_EVIDENCE",
+    "exclusive_writes": true,
+    "unexpected_target_invocation": "RECORD_INCOMPLETE_FALL_BACK_TO_ORIGINAL_ONCE_WITHOUT_OVERWRITING_FIRST_OBSERVATIONS"
+  },
+  "restrictions": {
+    "new_product_change": false,
+    "test_or_worker_or_existing_ci_change": false,
+    "short_replay_instead_of_full_cohort": false,
+    "performance_threshold_or_resource_budget_change": false,
+    "forced_node_exit_or_unref": false,
+    "new_pipe_reader": false,
+    "secret_or_operator_home_access": false,
+    "random_draw": false,
+    "release_tag_or_publication": false,
+    "qualification": false
+  },
+  "freeze_requirements": [
+    "ROOT_REVIEW_CURRENT_PLUGIN_WORKFLOW_AND_THIS_PLAN",
+    "RECOMPUTE_PLUGIN_SHA256_AFTER_FINAL_PLUGIN_BYTES_ARE_FROZEN",
+    "PRESERVE_EXACT_ORIGINAL_SOURCE_AND_TARGET_AST_CONSTANT_HASHES",
+    "ONLY_THEN_CREATE_ACTUAL_THREE_ADDITION_DIRECT_CHILD_D_AND_RECORD_REAL_HEAD_TREE_RUN_IDENTITIES_IN_EXTERNAL_EVIDENCE_NOT_INVENTED_IN_THIS_DRAFT"
+  ],
+  "workflow_sha256": "3fb76c9b72b7aa72c9ec72384c55b44b7577b9acb6013977a121bffa8e568ba8",
+  "root_source_facts": {
+    "path": "host/protocol-sequence/node-lifecycle-root-source-facts-v1.json",
+    "sha256": "cc5c59a37bffde184f9279bc8923a39f5513279ae913b20e98de254dc12a4c0d"
+  },
+  "historical_runtime": {
+    "python": "3.12.10",
+    "node": "v22.23.4",
+    "actual_new_runtime": "RECORD_ACTUAL_NO_ASSUMPTION_OR_VERSION_CHANGE",
+    "drift": "NONCOMPARABLE_RUNTIME_DRIFT",
+    "unobserved": "UNKNOWN_NOT_HISTORICAL_MATCH"
+  }
+}
