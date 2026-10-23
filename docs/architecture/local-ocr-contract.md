@@ -44,7 +44,8 @@ job. It never installs Tesseract or a pack.
 
 PDF rasterisation uses pypdfium2 5.13.0 with PDFium 153.0.7999.0. TIFF, PNG, JPEG and BMP decoding
 uses Pillow 13.0.0. These wheels and their native contents are external to every Provelume package.
-The only S02 real-component qualification is:
+The Entitas candidate matrix below requires fresh real-component CI on its exact
+commit. Historical S02 qualification used Pillow 12.3.0 and remains separate:
 
 | OS | Architecture | Python | Engine/packs | Renderer/decoder | Inputs |
 | --- | --- | --- | --- | --- | --- |
@@ -58,7 +59,7 @@ language support claim.
 ## Explicit local setup
 
 Create the normal Provelume environment first. Then install the external components through an
-operator-controlled system/environment procedure. For the qualified Ubuntu profile, the CI model
+operator-controlled system/environment procedure. For the candidate Ubuntu profile, the CI model
 is equivalent to:
 
 ```bash

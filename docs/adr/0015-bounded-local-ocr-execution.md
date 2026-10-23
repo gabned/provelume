@@ -98,7 +98,7 @@ state; rebuild uses the retained content-free request material and preserves can
 
 ## Qualification and distribution
 
-The real-component workflow qualifies only Ubuntu 24.04 x86-64 with Python 3.12, distribution
+The real-component workflow targets only Ubuntu 24.04 x86-64 with Python 3.12, distribution
 Tesseract 5.x and `eng`, pypdfium2 5.13.0/PDFium 153.0.7999.0 and Pillow 13.0.0 across PDF, TIFF,
 PNG, JPEG and BMP generated fixtures. It logs exact system package, executable, pack and Python
 component identity. All other platform/architecture combinations remain unqualified.
@@ -106,7 +106,7 @@ component identity. All other platform/architecture combinations remain unqualif
 Base wheel, sdist and Windows installer contain no engine, language data, renderer, decoder or
 optional wheel. There is no OCR Python extra. The two CI wheels are downloaded in an explicit
 provisioning step, checked against recorded SHA-256 values and installed offline before runtime
-smoke. The qualified-component CycloneDX file inventories this external path; it is not a release
+smoke. The candidate component CycloneDX file inventories this external path; it is not a release
 SBOM and does not claim those components are bundled.
 
 The pypdfium2 wheel's own `LICENSES`/`BUILD_LICENSES` inventory remains authoritative for its

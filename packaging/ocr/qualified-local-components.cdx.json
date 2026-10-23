@@ -18,7 +18,7 @@
           "value": "false"
         },
         {
-          "name": "provelume:qualified_matrix",
+          "name": "provelume:candidate_matrix",
           "value": "ubuntu-24.04/x86_64/python-3.12"
         }
       ]
