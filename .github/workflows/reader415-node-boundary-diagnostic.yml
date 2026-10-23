@@ -1,0 +1,491 @@
+name: Reader415 Windows Node boundary diagnostics
+
+on:
+  push:
+    branches:
+      - diagnostic/pr415-node-boundary-v2
+
+permissions:
+  contents: read
+
+env:
+  RUFF_CACHE_DIR: .agent/ruff-cache
+
+# One explicitly selected prospective diagnostic execution. No PR, dispatch,
+# automatic retry, cancellation, publication or qualification consumer is added.
+jobs:
+  windows-shards:
+    name: Windows Core execution (${{ matrix.group }})
+    if: github.event_name != 'pull_request_target'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        group: [0, 1]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package and development checks
+        run: python -m pip install -e ".[dev]"
+      - name: Lint
+        run: python -m ruff check core tests scripts tools packaging
+      - name: Observe Windows JavaScript runtime before full shard execution
+        shell: python
+        run: |
+          import json, shutil, subprocess, sys, time
+          from pathlib import Path
+          node = shutil.which("node")
+          if node is None:
+              raise SystemExit("Required browser-contract runtime is unavailable")
+          version = subprocess.run([node, "--version"], capture_output=True, text=True, timeout=15, check=True)
+          print(json.dumps({"node": node, "node_version": version.stdout.strip(), "python": sys.version}), flush=True)
+          started = time.monotonic()
+          result = subprocess.run([node, str(Path("tests/fixtures/cura_shell_contract.cjs").resolve()),
+                                   str(Path("core/provelume/static/cura-shell.js").resolve())],
+                                  stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=15, check=False)
+          print(json.dumps({"exit": result.returncode, "seconds": time.monotonic()-started,
+                            "stdout": result.stdout, "stderr": result.stderr}), flush=True)
+          if result.returncode != 0 or "publication expiry contracts passed" not in result.stdout:
+              raise SystemExit("Windows JavaScript contract failed before shard execution")
+
+      - name: Observe the complete tracked diagnostic source (before)
+        shell: python
+        env:
+          READER415_PROOF_PHASE: before
+          READER415_PROOF_OUTPUT: ${{ runner.temp }}/reader415-node-boundary-${{ matrix.group }}
+        run: |
+          import datetime, hashlib, json, os, stat, subprocess
+          from pathlib import Path
+
+          phase = os.environ["READER415_PROOF_PHASE"]
+          output = Path(os.environ["READER415_PROOF_OUTPUT"])
+          output.mkdir(parents=True, exist_ok=True)
+          root = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          base = "3c29ab05acef576d7dcdb4c0301200ee0d4bd078"
+          allowed = {
+              ".github/workflows/reader415-node-boundary-diagnostic.yml",
+              "tools/reader415_node_boundary_diagnostic.py",
+              "tools/reader415_node_boundary_controls.py",
+              "scripts/reader415_node_boundary_plan.json",
+          }
+          record = {"schema": "reader415-source-proof/v2", "phase": phase,
+                    "started_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "authority": "NONE_DIAGNOSTIC_ONLY_NOT_QUALIFICATION",
+                    "required_parent": base, "commands": [], "files": [], "errors": []}
+
+          def git(label, *args):
+              result = subprocess.run(["git", "-C", str(root), *args],
+                                      env={**os.environ, "GIT_NO_REPLACE_OBJECTS": "1"},
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+              for stream in ("stdout", "stderr"):
+                  data = getattr(result, stream)
+                  path = output / ("source-" + phase + "-" + label + "." + stream)
+                  path.write_bytes(data)
+              record["commands"].append({"label": label, "argv": list(args),
+                  "returncode": result.returncode,
+                  "stdout_sha256": hashlib.sha256(result.stdout).hexdigest(),
+                  "stderr_sha256": hashlib.sha256(result.stderr).hexdigest()})
+              if result.returncode:
+                  raise RuntimeError("source observation failed: " + label)
+              return result.stdout
+
+          try:
+              if os.environ["GITHUB_EVENT_NAME"] != "push":
+                  raise RuntimeError("actual push event required")
+              if os.environ["GITHUB_REF"] != "refs/heads/diagnostic/pr415-node-boundary-v2":
+                  raise RuntimeError("wrong diagnostic branch")
+              head = git("head", "rev-parse", "HEAD").decode().strip()
+              tree = git("tree", "rev-parse", "HEAD^{tree}").decode().strip()
+              parents = git("parents", "rev-list", "--parents", "-n", "1", "HEAD").decode().split()
+              record.update(head=head, tree=tree, parents=parents[1:])
+              if head != os.environ["GITHUB_SHA"] or parents != [head, base]:
+                  raise RuntimeError("one direct diagnostic child of the exact M_R required")
+              changes = git("delta", "diff", "--name-status", "-z", base, "HEAD", "--").split(b"\0")
+              changes = changes[:-1] if changes and changes[-1] == b"" else changes
+              delta = [[changes[i].decode(), changes[i + 1].decode()] for i in range(0, len(changes), 2)]
+              record["delta"] = delta
+              if len(delta) != len(allowed) or {path for status, path in delta} != allowed or any(status != "A" for status, path in delta):
+                  raise RuntimeError("only the four selected diagnostic additions are permitted")
+              if git("tracked-status", "status", "--porcelain", "--untracked-files=no"):
+                  raise RuntimeError("tracked diagnostic source changed")
+              git("all-status", "status", "--porcelain", "--untracked-files=all")
+              rows = git("tracked-tree", "ls-tree", "-r", "-z", "HEAD").split(b"\0")
+              for row in rows:
+                  if not row:
+                      continue
+                  metadata, relative = row.split(b"\t", 1)
+                  mode, kind, blob = metadata.decode().split()
+                  relative = relative.decode()
+                  path = root / relative
+                  if kind != "blob" or mode not in {"100644", "100755"} or not stat.S_ISREG(path.lstat().st_mode):
+                      raise RuntimeError("unsupported tracked entry: " + relative)
+                  data = path.read_bytes()
+                  record["files"].append({"path": relative, "mode": mode, "git_blob": blob,
+                                          "working_bytes": len(data), "working_sha256": hashlib.sha256(data).hexdigest()})
+              record["files"].sort(key=lambda item: item["path"])
+              selected = {item["path"]: item for item in record["files"] if item["path"] in allowed}
+              if set(selected) != allowed or any(item["mode"] != "100644" for item in selected.values()):
+                  raise RuntimeError("all four diagnostic additions must be regular mode100644 files")
+              record["diagnostic_sources"] = selected
+              if phase == "after":
+                  before = json.loads((output / "source-before.json").read_text(encoding="utf-8"))
+                  if before.get("result") != "SOURCE_PROOF_PASS" or any(before.get(key) != record.get(key) for key in ("head", "tree", "parents", "delta", "files", "diagnostic_sources")):
+                      raise RuntimeError("the complete tracked inventory changed or the before proof is unavailable")
+          except Exception as error:
+              record["errors"].append({"type": type(error).__name__, "message": str(error)})
+          record["completed_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          record["result"] = "SOURCE_PROOF_FAIL" if record["errors"] else "SOURCE_PROOF_PASS"
+          (output / ("source-" + phase + ".json")).write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          if record["errors"]:
+              raise SystemExit("Diagnostic source proof failed; original observations retained")
+
+      - name: Execute two of four Windows shards within the unchanged deadline
+        env:
+          PYTEST_PLUGINS: reader415_node_boundary_diagnostic
+          READER415_NODE_BOUNDARY_OUTPUT: ${{ runner.temp }}/reader415-node-boundary-${{ matrix.group }}
+        run: >-
+          python tools/agent_protocol_work_check.py windows-group
+          --root "${{ github.workspace }}"
+          --output "${{ runner.temp }}/windows-core-${{ matrix.group }}"
+          --group ${{ matrix.group }} --commit "${{ github.sha }}"
+          --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}"
+          --event "${{ github.event_name }}"
+      - name: Reobserve the complete tracked diagnostic source (after)
+        if: always()
+        shell: python
+        env:
+          READER415_PROOF_PHASE: after
+          READER415_PROOF_OUTPUT: ${{ runner.temp }}/reader415-node-boundary-${{ matrix.group }}
+        run: |
+          import datetime, hashlib, json, os, stat, subprocess
+          from pathlib import Path
+
+          phase = os.environ["READER415_PROOF_PHASE"]
+          output = Path(os.environ["READER415_PROOF_OUTPUT"])
+          output.mkdir(parents=True, exist_ok=True)
+          root = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          base = "3c29ab05acef576d7dcdb4c0301200ee0d4bd078"
+          allowed = {
+              ".github/workflows/reader415-node-boundary-diagnostic.yml",
+              "tools/reader415_node_boundary_diagnostic.py",
+              "tools/reader415_node_boundary_controls.py",
+              "scripts/reader415_node_boundary_plan.json",
+          }
+          record = {"schema": "reader415-source-proof/v2", "phase": phase,
+                    "started_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "authority": "NONE_DIAGNOSTIC_ONLY_NOT_QUALIFICATION",
+                    "required_parent": base, "commands": [], "files": [], "errors": []}
+
+          def git(label, *args):
+              result = subprocess.run(["git", "-C", str(root), *args],
+                                      env={**os.environ, "GIT_NO_REPLACE_OBJECTS": "1"},
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+              for stream in ("stdout", "stderr"):
+                  data = getattr(result, stream)
+                  path = output / ("source-" + phase + "-" + label + "." + stream)
+                  path.write_bytes(data)
+              record["commands"].append({"label": label, "argv": list(args),
+                  "returncode": result.returncode,
+                  "stdout_sha256": hashlib.sha256(result.stdout).hexdigest(),
+                  "stderr_sha256": hashlib.sha256(result.stderr).hexdigest()})
+              if result.returncode:
+                  raise RuntimeError("source observation failed: " + label)
+              return result.stdout
+
+          try:
+              if os.environ["GITHUB_EVENT_NAME"] != "push":
+                  raise RuntimeError("actual push event required")
+              if os.environ["GITHUB_REF"] != "refs/heads/diagnostic/pr415-node-boundary-v2":
+                  raise RuntimeError("wrong diagnostic branch")
+              head = git("head", "rev-parse", "HEAD").decode().strip()
+              tree = git("tree", "rev-parse", "HEAD^{tree}").decode().strip()
+              parents = git("parents", "rev-list", "--parents", "-n", "1", "HEAD").decode().split()
+              record.update(head=head, tree=tree, parents=parents[1:])
+              if head != os.environ["GITHUB_SHA"] or parents != [head, base]:
+                  raise RuntimeError("one direct diagnostic child of the exact M_R required")
+              changes = git("delta", "diff", "--name-status", "-z", base, "HEAD", "--").split(b"\0")
+              changes = changes[:-1] if changes and changes[-1] == b"" else changes
+              delta = [[changes[i].decode(), changes[i + 1].decode()] for i in range(0, len(changes), 2)]
+              record["delta"] = delta
+              if len(delta) != len(allowed) or {path for status, path in delta} != allowed or any(status != "A" for status, path in delta):
+                  raise RuntimeError("only the four selected diagnostic additions are permitted")
+              if git("tracked-status", "status", "--porcelain", "--untracked-files=no"):
+                  raise RuntimeError("tracked diagnostic source changed")
+              git("all-status", "status", "--porcelain", "--untracked-files=all")
+              rows = git("tracked-tree", "ls-tree", "-r", "-z", "HEAD").split(b"\0")
+              for row in rows:
+                  if not row:
+                      continue
+                  metadata, relative = row.split(b"\t", 1)
+                  mode, kind, blob = metadata.decode().split()
+                  relative = relative.decode()
+                  path = root / relative
+                  if kind != "blob" or mode not in {"100644", "100755"} or not stat.S_ISREG(path.lstat().st_mode):
+                      raise RuntimeError("unsupported tracked entry: " + relative)
+                  data = path.read_bytes()
+                  record["files"].append({"path": relative, "mode": mode, "git_blob": blob,
+                                          "working_bytes": len(data), "working_sha256": hashlib.sha256(data).hexdigest()})
+              record["files"].sort(key=lambda item: item["path"])
+              selected = {item["path"]: item for item in record["files"] if item["path"] in allowed}
+              if set(selected) != allowed or any(item["mode"] != "100644" for item in selected.values()):
+                  raise RuntimeError("all four diagnostic additions must be regular mode100644 files")
+              record["diagnostic_sources"] = selected
+              if phase == "after":
+                  before = json.loads((output / "source-before.json").read_text(encoding="utf-8"))
+                  if before.get("result") != "SOURCE_PROOF_PASS" or any(before.get(key) != record.get(key) for key in ("head", "tree", "parents", "delta", "files", "diagnostic_sources")):
+                      raise RuntimeError("the complete tracked inventory changed or the before proof is unavailable")
+          except Exception as error:
+              record["errors"].append({"type": type(error).__name__, "message": str(error)})
+          record["completed_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          record["result"] = "SOURCE_PROOF_FAIL" if record["errors"] else "SOURCE_PROOF_PASS"
+          (output / ("source-" + phase + ".json")).write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          if record["errors"]:
+              raise SystemExit("Diagnostic source proof failed; original observations retained")
+
+      - name: Retain exact-source Windows execution evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: windows-core-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.group }}
+          path: |
+            ${{ runner.temp }}/windows-core-${{ matrix.group }}/*.json
+            ${{ runner.temp }}/windows-core-${{ matrix.group }}/*.log
+            ${{ runner.temp }}/windows-core-${{ matrix.group }}/shard-*/*.json
+            ${{ runner.temp }}/windows-core-${{ matrix.group }}/shard-*/*.log
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Retain the complete Node boundary diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: reader415-node-boundary-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.group }}
+          path: ${{ runner.temp }}/reader415-node-boundary-${{ matrix.group }}/**
+          if-no-files-found: error
+          retention-days: 14
+
+  node-controls:
+    name: Node observer controls
+    needs: [windows-shards]
+    if: always()
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package and development checks
+        run: python -m pip install -e ".[dev]"
+
+      - name: Observe the complete tracked diagnostic source (before)
+        shell: python
+        env:
+          READER415_PROOF_PHASE: before
+          READER415_PROOF_OUTPUT: ${{ runner.temp }}/reader415-node-controls/source-proof
+        run: |
+          import datetime, hashlib, json, os, stat, subprocess
+          from pathlib import Path
+
+          phase = os.environ["READER415_PROOF_PHASE"]
+          output = Path(os.environ["READER415_PROOF_OUTPUT"])
+          output.mkdir(parents=True, exist_ok=True)
+          root = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          base = "3c29ab05acef576d7dcdb4c0301200ee0d4bd078"
+          allowed = {
+              ".github/workflows/reader415-node-boundary-diagnostic.yml",
+              "tools/reader415_node_boundary_diagnostic.py",
+              "tools/reader415_node_boundary_controls.py",
+              "scripts/reader415_node_boundary_plan.json",
+          }
+          record = {"schema": "reader415-source-proof/v2", "phase": phase,
+                    "started_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "authority": "NONE_DIAGNOSTIC_ONLY_NOT_QUALIFICATION",
+                    "required_parent": base, "commands": [], "files": [], "errors": []}
+
+          def git(label, *args):
+              result = subprocess.run(["git", "-C", str(root), *args],
+                                      env={**os.environ, "GIT_NO_REPLACE_OBJECTS": "1"},
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+              for stream in ("stdout", "stderr"):
+                  data = getattr(result, stream)
+                  path = output / ("source-" + phase + "-" + label + "." + stream)
+                  path.write_bytes(data)
+              record["commands"].append({"label": label, "argv": list(args),
+                  "returncode": result.returncode,
+                  "stdout_sha256": hashlib.sha256(result.stdout).hexdigest(),
+                  "stderr_sha256": hashlib.sha256(result.stderr).hexdigest()})
+              if result.returncode:
+                  raise RuntimeError("source observation failed: " + label)
+              return result.stdout
+
+          try:
+              if os.environ["GITHUB_EVENT_NAME"] != "push":
+                  raise RuntimeError("actual push event required")
+              if os.environ["GITHUB_REF"] != "refs/heads/diagnostic/pr415-node-boundary-v2":
+                  raise RuntimeError("wrong diagnostic branch")
+              head = git("head", "rev-parse", "HEAD").decode().strip()
+              tree = git("tree", "rev-parse", "HEAD^{tree}").decode().strip()
+              parents = git("parents", "rev-list", "--parents", "-n", "1", "HEAD").decode().split()
+              record.update(head=head, tree=tree, parents=parents[1:])
+              if head != os.environ["GITHUB_SHA"] or parents != [head, base]:
+                  raise RuntimeError("one direct diagnostic child of the exact M_R required")
+              changes = git("delta", "diff", "--name-status", "-z", base, "HEAD", "--").split(b"\0")
+              changes = changes[:-1] if changes and changes[-1] == b"" else changes
+              delta = [[changes[i].decode(), changes[i + 1].decode()] for i in range(0, len(changes), 2)]
+              record["delta"] = delta
+              if len(delta) != len(allowed) or {path for status, path in delta} != allowed or any(status != "A" for status, path in delta):
+                  raise RuntimeError("only the four selected diagnostic additions are permitted")
+              if git("tracked-status", "status", "--porcelain", "--untracked-files=no"):
+                  raise RuntimeError("tracked diagnostic source changed")
+              git("all-status", "status", "--porcelain", "--untracked-files=all")
+              rows = git("tracked-tree", "ls-tree", "-r", "-z", "HEAD").split(b"\0")
+              for row in rows:
+                  if not row:
+                      continue
+                  metadata, relative = row.split(b"\t", 1)
+                  mode, kind, blob = metadata.decode().split()
+                  relative = relative.decode()
+                  path = root / relative
+                  if kind != "blob" or mode not in {"100644", "100755"} or not stat.S_ISREG(path.lstat().st_mode):
+                      raise RuntimeError("unsupported tracked entry: " + relative)
+                  data = path.read_bytes()
+                  record["files"].append({"path": relative, "mode": mode, "git_blob": blob,
+                                          "working_bytes": len(data), "working_sha256": hashlib.sha256(data).hexdigest()})
+              record["files"].sort(key=lambda item: item["path"])
+              selected = {item["path"]: item for item in record["files"] if item["path"] in allowed}
+              if set(selected) != allowed or any(item["mode"] != "100644" for item in selected.values()):
+                  raise RuntimeError("all four diagnostic additions must be regular mode100644 files")
+              record["diagnostic_sources"] = selected
+              if phase == "after":
+                  before = json.loads((output / "source-before.json").read_text(encoding="utf-8"))
+                  if before.get("result") != "SOURCE_PROOF_PASS" or any(before.get(key) != record.get(key) for key in ("head", "tree", "parents", "delta", "files", "diagnostic_sources")):
+                      raise RuntimeError("the complete tracked inventory changed or the before proof is unavailable")
+          except Exception as error:
+              record["errors"].append({"type": type(error).__name__, "message": str(error)})
+          record["completed_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          record["result"] = "SOURCE_PROOF_FAIL" if record["errors"] else "SOURCE_PROOF_PASS"
+          (output / ("source-" + phase + ".json")).write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          if record["errors"]:
+              raise SystemExit("Diagnostic source proof failed; original observations retained")
+
+      - name: Observe the two fixed artificial timeout controls once
+        run: >-
+          python tools/reader415_node_boundary_controls.py
+          --output "${{ runner.temp }}/reader415-node-controls/controls"
+      - name: Reobserve the complete tracked diagnostic source (after)
+        if: always()
+        shell: python
+        env:
+          READER415_PROOF_PHASE: after
+          READER415_PROOF_OUTPUT: ${{ runner.temp }}/reader415-node-controls/source-proof
+        run: |
+          import datetime, hashlib, json, os, stat, subprocess
+          from pathlib import Path
+
+          phase = os.environ["READER415_PROOF_PHASE"]
+          output = Path(os.environ["READER415_PROOF_OUTPUT"])
+          output.mkdir(parents=True, exist_ok=True)
+          root = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          base = "3c29ab05acef576d7dcdb4c0301200ee0d4bd078"
+          allowed = {
+              ".github/workflows/reader415-node-boundary-diagnostic.yml",
+              "tools/reader415_node_boundary_diagnostic.py",
+              "tools/reader415_node_boundary_controls.py",
+              "scripts/reader415_node_boundary_plan.json",
+          }
+          record = {"schema": "reader415-source-proof/v2", "phase": phase,
+                    "started_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "authority": "NONE_DIAGNOSTIC_ONLY_NOT_QUALIFICATION",
+                    "required_parent": base, "commands": [], "files": [], "errors": []}
+
+          def git(label, *args):
+              result = subprocess.run(["git", "-C", str(root), *args],
+                                      env={**os.environ, "GIT_NO_REPLACE_OBJECTS": "1"},
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+              for stream in ("stdout", "stderr"):
+                  data = getattr(result, stream)
+                  path = output / ("source-" + phase + "-" + label + "." + stream)
+                  path.write_bytes(data)
+              record["commands"].append({"label": label, "argv": list(args),
+                  "returncode": result.returncode,
+                  "stdout_sha256": hashlib.sha256(result.stdout).hexdigest(),
+                  "stderr_sha256": hashlib.sha256(result.stderr).hexdigest()})
+              if result.returncode:
+                  raise RuntimeError("source observation failed: " + label)
+              return result.stdout
+
+          try:
+              if os.environ["GITHUB_EVENT_NAME"] != "push":
+                  raise RuntimeError("actual push event required")
+              if os.environ["GITHUB_REF"] != "refs/heads/diagnostic/pr415-node-boundary-v2":
+                  raise RuntimeError("wrong diagnostic branch")
+              head = git("head", "rev-parse", "HEAD").decode().strip()
+              tree = git("tree", "rev-parse", "HEAD^{tree}").decode().strip()
+              parents = git("parents", "rev-list", "--parents", "-n", "1", "HEAD").decode().split()
+              record.update(head=head, tree=tree, parents=parents[1:])
+              if head != os.environ["GITHUB_SHA"] or parents != [head, base]:
+                  raise RuntimeError("one direct diagnostic child of the exact M_R required")
+              changes = git("delta", "diff", "--name-status", "-z", base, "HEAD", "--").split(b"\0")
+              changes = changes[:-1] if changes and changes[-1] == b"" else changes
+              delta = [[changes[i].decode(), changes[i + 1].decode()] for i in range(0, len(changes), 2)]
+              record["delta"] = delta
+              if len(delta) != len(allowed) or {path for status, path in delta} != allowed or any(status != "A" for status, path in delta):
+                  raise RuntimeError("only the four selected diagnostic additions are permitted")
+              if git("tracked-status", "status", "--porcelain", "--untracked-files=no"):
+                  raise RuntimeError("tracked diagnostic source changed")
+              git("all-status", "status", "--porcelain", "--untracked-files=all")
+              rows = git("tracked-tree", "ls-tree", "-r", "-z", "HEAD").split(b"\0")
+              for row in rows:
+                  if not row:
+                      continue
+                  metadata, relative = row.split(b"\t", 1)
+                  mode, kind, blob = metadata.decode().split()
+                  relative = relative.decode()
+                  path = root / relative
+                  if kind != "blob" or mode not in {"100644", "100755"} or not stat.S_ISREG(path.lstat().st_mode):
+                      raise RuntimeError("unsupported tracked entry: " + relative)
+                  data = path.read_bytes()
+                  record["files"].append({"path": relative, "mode": mode, "git_blob": blob,
+                                          "working_bytes": len(data), "working_sha256": hashlib.sha256(data).hexdigest()})
+              record["files"].sort(key=lambda item: item["path"])
+              selected = {item["path"]: item for item in record["files"] if item["path"] in allowed}
+              if set(selected) != allowed or any(item["mode"] != "100644" for item in selected.values()):
+                  raise RuntimeError("all four diagnostic additions must be regular mode100644 files")
+              record["diagnostic_sources"] = selected
+              if phase == "after":
+                  before = json.loads((output / "source-before.json").read_text(encoding="utf-8"))
+                  if before.get("result") != "SOURCE_PROOF_PASS" or any(before.get(key) != record.get(key) for key in ("head", "tree", "parents", "delta", "files", "diagnostic_sources")):
+                      raise RuntimeError("the complete tracked inventory changed or the before proof is unavailable")
+          except Exception as error:
+              record["errors"].append({"type": type(error).__name__, "message": str(error)})
+          record["completed_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          record["result"] = "SOURCE_PROOF_FAIL" if record["errors"] else "SOURCE_PROOF_PASS"
+          (output / ("source-" + phase + ".json")).write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          if record["errors"]:
+              raise SystemExit("Diagnostic source proof failed; original observations retained")
+
+      - name: Retain the complete separate positive-control evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: reader415-node-controls-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/reader415-node-controls/**
+          if-no-files-found: error
+          retention-days: 14

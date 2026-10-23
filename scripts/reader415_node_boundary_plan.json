@@ -1,0 +1,370 @@
+{
+  "schema": "reader415-node-boundary-diagnostic-plan/v2",
+  "status": "FROZEN_PRE_EXECUTION_SOURCE_PLAN",
+  "authority": "DIAGNOSTIC_ONLY_NOT_QUALIFICATION",
+  "original_source_sha256": {
+    "tests/test_capture_shell_contract.py": "08b2d6a8478ab550dc9558b138b78b659fa2648b2a4f75430ae6164d77522811",
+    "tests/test_mobile_shell_contract.py": "d6a00d867e54527025867bda267a4881499e2b8ffb5bb6be73dfaaff4f679e66",
+    "core/provelume/static/capture-worker.js": "46971255263ad4f6ce2a7823325004fdb4318d53c47f385ccd438a900e0a46a2",
+    "core/provelume/capture_http.py": "c0bfcd0bff2168094e524c27ea8326c8208abbe49ab32bd249621e21301518be",
+    "tools/agent_protocol_work_check.py": "c59077f13fc39f7cbebc5ec2b0ec55cf198c2449b083a8b2b1df132773225598",
+    ".github/workflows/ci.yml": "e172ac571097ed871f96fc68d407fb5195319f2f97f679c69717b6671dd910f4",
+    "pyproject.toml": "b2f0050e47bf6ce42c4054a93d172c2ceff77a31914741562aebdac69f1c20db",
+    "tests/conftest.py": "f8ca89396e6e675eee5fa4cf8441c0bc970002aa6094b8fef64c17ad93cd69c8"
+  },
+  "plugin_sha256": "26e6295a2c4fb9a42e55c4d951af279b8450e6c505009380b12d73b3252fb62e",
+  "target_script_sha256": "225bd9c4c75eaeea20e0221e6fd6823a2033b3637a69478577258531bf903671",
+  "binding": {
+    "repository": "gabned/provelume",
+    "baseline_parent": "3c29ab05acef576d7dcdb4c0301200ee0d4bd078",
+    "diagnostic_head": null,
+    "diagnostic_tree": null,
+    "run_id": null,
+    "run_attempt": null,
+    "run_url": null,
+    "intended_event": "push",
+    "intended_branch": "diagnostic/pr415-node-boundary-v2",
+    "plugin_pin_status": "FROZEN_EXACT_PLUGIN_CONTROLS_WORKFLOW_BYTES_ACTUAL_HEAD_RUN_REQUIRE_FUTURE_EXTERNAL_ROOT_SELECTION",
+    "plan_git_path": "scripts/reader415_node_boundary_plan.json",
+    "allowed_additions": [
+      ".github/workflows/reader415-node-boundary-diagnostic.yml",
+      "tools/reader415_node_boundary_diagnostic.py",
+      "tools/reader415_node_boundary_controls.py",
+      "scripts/reader415_node_boundary_plan.json"
+    ],
+    "existing_tracked_paths": "ALL_UNCHANGED_FROM_EXACT_BASELINE_PARENT",
+    "required_history": "ONE_NORMAL_DIRECT_CHILD_OF_BASELINE_PARENT_NO_REWRITE_OR_MERGE",
+    "actual_source_checks": "BEFORE_AND_ALWAYS_AFTER_FULL_TRACKED_GIT_MODE_BLOB_AND_WORKING_BYTE_INVENTORY_PLUS_PLUGIN_SOURCE_BINDING",
+    "allowed_addition_modes": {
+      ".github/workflows/reader415-node-boundary-diagnostic.yml": "100644",
+      "tools/reader415_node_boundary_diagnostic.py": "100644",
+      "tools/reader415_node_boundary_controls.py": "100644",
+      "scripts/reader415_node_boundary_plan.json": "100644"
+    }
+  },
+  "source_acquisition": {
+    "method": "EXACT_READ_ONLY_GIT_SHOW_BASELINE_PATH_BYTES_NO_IMPORT_OR_TEST_EXECUTION",
+    "hash_encoding": "SHA256_OF_RAW_GIT_SHOW_BYTES",
+    "target_script": {
+      "path": "tests/test_mobile_shell_contract.py",
+      "function": "test_share_error_reads_only_existing_language_preference_and_falls_back_on_unavailable_store",
+      "assignment": "script",
+      "extraction": "EXACT_AST_CONSTANT_STR_VALUE_UTF8_WITH_ORIGINAL_NEWLINES_NO_IMPORT_NO_EXECUTION",
+      "bytes": 1885
+    },
+    "tests_conftest_exists_in_parent": true
+  },
+  "complete_cohort": {
+    "groups": [
+      0,
+      1
+    ],
+    "shard_count": 4,
+    "group_shards": {
+      "0": [
+        0,
+        1
+      ],
+      "1": [
+        2,
+        3
+      ]
+    },
+    "concurrent_shards_per_group": 2,
+    "independent_full_inventory_before_shards": true,
+    "collection_selection_order": "UNCHANGED_ORIGINAL_WINDOWS_GROUP_AND_PYTEST_SHARD_PATH",
+    "group_timeout_seconds": 540,
+    "job_timeout_minutes": 10,
+    "fail_fast": false,
+    "python": "3.12",
+    "runner": "windows-latest",
+    "dependency_install": "UNCHANGED_pip_install_editable_dev",
+    "lint": "UNCHANGED_FULL_DECLARED_LINT_STEP",
+    "javascript_warmup": "UNCHANGED_ORIGINAL_NODE_VERSION_AND_CURA_CONTRACT_COMMANDS_WITH_ORIGINAL_15_SECOND_LIMITS",
+    "target_nodeid": "tests/test_mobile_shell_contract.py::test_share_error_reads_only_existing_language_preference_and_falls_back_on_unavailable_store",
+    "target_call_invocations_in_complete_cohort": 1,
+    "instrument_target_only": true,
+    "other_tests": "EXECUTED_IN_COMPLETE_ORDINARY_COHORT_WITH_UNCHANGED_SELECTION_AND_ORDER",
+    "automatic_retry": false,
+    "stop_after_first_pass": false,
+    "candidate_rerun_for_favorable_result": false,
+    "max_parallel_groups": 2,
+    "ordinary_helper_treatment": "ORIGINAL_EAGER_HELPER_UNCHANGED_NO_TOKEN_GUARDS_NO_CODE_TREATMENT_NO_FIXTURE_OPTIMIZATION",
+    "full_ordinary_before_controls": true
+  },
+  "observations": {
+    "purpose": "ISOLATE_SINGLE_REAL_RESPONSE_LOOKUP_AND_VALIDATE_ORIGINAL_TIMEOUT_PIPE_READER_CATEGORIES_WITHOUT_HISTORICAL_CAUSALITY_OR_FIX_CLAIM",
+    "original_helper": "tests/test_capture_shell_contract.py::node",
+    "original_run_behavior": "KEEP_ORIGINAL_HELPER_FILE_SUBSTITUTION_TEMP_MJS_ASSERTIONS_JSON_PARSING_AND_30_SECOND_TIMEOUT",
+    "stdlib_run": "SAME_ACTUAL_RUNTIME_CODE_OBJECT_WITH_PRIVATE_POPEN_BINDING_ONLY_NO_GLOBAL_SUBPROCESS_REPLACEMENT",
+    "pipe_readers": "ORIGINAL_STDLIB_WINDOWS_READERS_ONLY_NO_SECOND_DRAINER",
+    "marker_max_records": 48,
+    "marker_artifact_max_bytes": 131072,
+    "marker_byte_cap_interpretation": "POST_RUN_ARTIFACT_ACCEPTANCE_BOUND_NO_OUTPUT_PIPE_TRUNCATION",
+    "parent_event_max_records": 64,
+    "retained_observer_error_max_records": 64,
+    "periodic_max_samples": 121,
+    "periodic_interval_seconds": 0.25,
+    "additional_pre_kill_query_max": 1,
+    "pre_kill_query_position": "ACTUAL_TIMEOUTEXPIRED_BEFORE_ORIGINAL_RUN_KILL_PATH",
+    "monitor_cleanup_join_timeout_seconds": 0.5,
+    "progress_markers": [
+      "USER_MODULE_BODY_ENTERED",
+      "SCOPE_CONSTRUCTION_ENTER",
+      "RESPONSE_DESCRIPTOR_BEFORE",
+      "RESPONSE_LOOKUP_ENTER",
+      "RESPONSE_LOOKUP_RETURN",
+      "RESPONSE_LOOKUP_RAISED",
+      "SCOPE_READY_RESPONSE_EXPOSED",
+      "VM_ENTER",
+      "VM_READY",
+      "LANGUAGE_ENTER",
+      "LANGUAGE_RETURN",
+      "LANGUAGE_RAISED",
+      "RESPONSE_TEXT_ENTER",
+      "RESPONSE_TEXT_RETURN",
+      "ASSERTIONS_DONE",
+      "STDOUT_BEFORE",
+      "STDOUT_AFTER",
+      "BEFORE_EXIT",
+      "EXIT",
+      "UNCAUGHT_EXCEPTION_MONITOR"
+    ],
+    "native_queries": "EXISTING_PROCESS_HANDLE_TIMES_IO_ORIGINAL_READER_THREADS_PLUS_SYSTEM_TIMES_GLOBAL_MEMORY_PROCESS_MEMORY_CHILD_THREAD_CENSUS",
+    "native_api_failure": "EXPLICIT_UNAVAILABLE_WITH_ACTUAL_WINERROR_NOT_SYNTHETIC_ZERO",
+    "missing_or_unavailable_values": "NULL_OR_EXPLICIT_AVAILABLE_FALSE_AS_RECORDED_NO_ZERO_IMPUTATION",
+    "cost_records": "ACTUAL_OBSERVER_WALL_AND_THREAD_CPU_TIME_AND_PREVIOUS_MARKER_WRITE_COST_WHERE_OBSERVED",
+    "observer_errors": "RETAIN_TYPED_ERRORS_AND_MARK_OBSERVABILITY_INCOMPLETE_WITHOUT_MASKING_OR_REPLACING_ORIGINAL_SUBPROCESS_RESULT_OR_EXCEPTION",
+    "binding_restoration": "RESTORE_TEST_MODULE_NODE_ALIAS_AND_HELPER_SUBPROCESS_BINDING_INDEPENDENTLY_RETAIN_ACTUAL_IDENTITY_CHECK",
+    "max_samples_including_pre_kill": 122,
+    "cadence": "FIXED_NOMINAL_MONOTONIC_250MS_RECORD_ACTUAL_LAG_AND_MISSED_TICKS_NO_CATCHUP_BURST_OR_GUARANTEE",
+    "sample_bracket": "POLL_BEFORE_THEN_TIMESTAMPED_READER_STATUS_NATIVE_QUERIES_THEN_POLL_AFTER_NO_SIMULTANEITY_ASSUMPTION",
+    "reader_cpu_identity": "QUERY_ONLY_WHEN_ALIVE_RECHECK_ALIVE_AFTER_QUERY_ENDED_OR_CHANGED_IDENTITY_IS_UNSUPPORTED_NO_TID_REUSE_ATTRIBUTION",
+    "pre_kill_required": "PROCESS_TIMES_IO_AND_STABLY_LIVE_READER_CPU_AVAILABILITY_FAILURE_MARKS_OBSERVABILITY_INCOMPLETE",
+    "timeout_checkpoint": "ONE_GUARDED_EXCLUSIVE_STATE_PREFIX_BEFORE_ORIGINAL_RUN_KILL_RETAINS_PREKILL_IF_ORIGINAL_POSTKILL_DRAIN_HANGS",
+    "clock_domains": "NODE_HRTIME_PYTHON_MONOTONIC_PYTHON_PERF_COUNTER_AND_FILETIME_INDEPENDENT_DOMAINS_NO_CROSS_EPOCH_SUBTRACTION_ACTUAL_CLOCKINFO_RETAINED",
+    "cost_limits": "PREVIOUS_JS_MARKER_WRITE_COST_IS_ONE_RECORD_LATE_FINAL_EXIT_WRITE_COST_IS_NOT_REPORTED_NO_COMPLETE_OR_UNIVERSAL_OVERHEAD_BOUND_OR_SUBTRACTION",
+    "single_response_lookup": {
+      "position": "PROPERTY_INITIALIZER_IIFE_AFTER_URL_AND_BEFORE_TEXTENCODER_AND_TIMERS",
+      "calls": 1,
+      "descriptor": "OWN_PROPERTY_DESCRIPTOR_METADATA_BEFORE_AND_AFTER_WITHOUT_INVOKING_GETTER",
+      "returned_value": "EXACT_CAPTURED_CONSTRUCTOR_REFERENCE_IN_SCOPE_RESPONSE",
+      "no_replacement_mock_prewarm_second_lookup": true,
+      "clock_bracket": "NODE_HRTIME_AND_PROCESS_CPU_USAGE_RAW_BEFORE_AND_AFTER_INCLUDES_CLOCK_OBSERVER_COST",
+      "descriptor_after": "FIELD_IN_RESPONSE_LOOKUP_RETURN_AFTER_AFTER_CLOCKS_NO_SECOND_RESPONSE_ACCESS"
+    },
+    "new_native_limits": {
+      "child_threads_per_snapshot": 64,
+      "toolhelp_system_wide_rows_per_snapshot": 4096,
+      "process_thread_identity": "PROCESS_CREATION_FILETIME_PLUS_TID_CREATION_FILETIME_AND_VALIDATED_OWNER",
+      "coverage": "POINT_IN_TIME_ONLY_TRANSIENT_INACCESSIBLE_OR_CAPPED_THREADS_EXPLICIT_PARTIAL",
+      "get_system_times": "RAW_IDLE_KERNEL_USER_100NS_KERNEL_INCLUDES_IDLE_ACTIVE_DELTA_KERNEL_PLUS_USER_MINUS_IDLE_SYSTEM_VM_SCOPE_NOT_SCHEDULER_CAUSE",
+      "global_memory": "GLOBALMEMORYSTATUSEX_RAW_NOT_CHILD_MEMORY",
+      "child_memory": "GETPROCESSMEMORYINFO_RAW_PAGEFAULTCOUNT_NOT_HARDFAULTS_WORKING_SET_PAGEFILE_COUNTERS",
+      "unsupported": "ACTUAL_WINERROR_AVAILABLE_FALSE_OR_NULL_NEVER_ZERO_IMPUTATION"
+    },
+    "high_resolution_parent_clock": "ADD_PERF_COUNTER_NS_TO_STAGE_SAMPLE_POLL_BRACKETS_AND_OBSERVER_COST_KEEP_ORIGINAL_MONOTONIC_AND_UTC",
+    "plugin_environment": {
+      "name": "PYTEST_PLUGINS",
+      "remove_only_exact_entry": "reader415_node_boundary_diagnostic",
+      "when": "ALREADY_LOADED_OFFICIAL_PYTEST_BEFORE_TEST_CHILDREN",
+      "preserve_unrelated_entries": true,
+      "record_exact_presence_and_value_before_after": true,
+      "restore": "PYTEST_UNCONFIGURE_AFTER_SESSION_AND_TEST_TEARDOWN",
+      "supervisor": "UNCHANGED_ENV_INJECTION_IN_SIX_OFFICIAL_INVENTORY_AND_SHARD_PROCESSES",
+      "nested_test_processes": "NO_TEMPORARY_PLUGIN_DEPENDENCY",
+      "final_restore_evidence": {
+        "required_for_each_official_pytest_process": [
+          "observations.json",
+          "environment-restoration.json",
+          "unconfigure-final.json"
+        ],
+        "late_errors": "FINAL_UNCONFIGURE_SIDECAR_AND_FALLBACK_STDERR_NEVER_OVERWRITE_OR_PROMOTE_PRIOR_OBSERVATIONS",
+        "fallback_prefix": "READER415_UNCONFIGURE_FINAL=",
+        "aggregate_rule": "ANY_MISSING_FINAL_SIDECAR_OR_REPORTED_LATE_ERROR_IS_OBSERVABILITY_INCOMPLETE_REGARDLESS_EARLIER_OBSERVATIONS_COMPLETE"
+      }
+    },
+    "sampling_cap_after_original_timeout": "RETAIN_RAW_CAP_ERROR_AND_OBSERVABILITY_INCOMPLETE_DURING_ORIGINAL_SECOND_COMMUNICATE_DRAIN_NO_HORIZON_EXTENSION_OR_STATUS_PROMOTION",
+    "status_semantics": "TOP_COMPLETE_IS_MECHANICAL_COLLECTION_ONLY_PER_FIELD_AVAILABILITY_AND_POINT_IN_TIME_COVERAGE_REMAIN_EXPLICIT_NOT_ALL_COUNTERS_SUPPORTED",
+    "api_attempt_count_scope": "extended_native.extended_api_attempts_COUNTS_EXTENDED_SNAPSHOT_ONLY_EXCLUDES_BASE_PROCESS_IO_AND_READER_APIS_NOT_TOTAL_ROUND_COUNT",
+    "sample_publication": "SAMPLE_ROW_FULLY_CONSTRUCTED_INCLUDING_MISSED_TICKS_BEFORE_APPEND_NO_MUTATION_AFTER_PUBLICATION_TO_PROTECTED_CHECKPOINT"
+  },
+  "evaluation": {
+    "evaluate_only_after": "ALL_THREE_JOBS_ALL_FOUR_ORDINARY_SHARDS_AND_BOTH_FIXED_CONTROLS_HAVE_FIRST_TERMINAL_OUTCOMES_AND_ALL_AVAILABLE_RAW_FILES_ARE_RETAINED",
+    "all_original_tests_pass": "NO_REPRODUCTION_IN_THIS_COMPLETE_DIAGNOSTIC_COHORT_NO_FIX_OR_QUALIFICATION_CLAIM",
+    "target_original_30_second_timeout": "PROSPECTIVE_REPRODUCTION_OF_TARGET_TIMEOUT_ONLY_CLASSIFY_LAST_OBSERVED_PHASE_AND_PRE_KILL_STATUS",
+    "last_marker_or_missing_marker": "PROGRESS_BOUND_ONLY_NOT_CAUSAL_PROOF_AND_NOT_SYNTHETIC_NODE_OR_JOB_CONCLUSION",
+    "pre_kill_process_and_reader_status": "POINT_IN_TIME_OBSERVATION_ONLY_NOT_A_SUBSTITUTE_FOR_ACTUAL_EXIT_RESULT_OR_CAUSAL_ATTRIBUTION",
+    "other_test_failure": "PRESERVE_ORDINARY_FAILURE_AND_COMPLETE_REMAINING_COHORT_NO_AUTOMATIC_RERUN",
+    "missing_raws_or_observer_failure_or_caps_exceeded": "OBSERVABILITY_INCOMPLETE_KEEP_ORIGINAL_TEST_OUTCOME_UNCHANGED",
+    "isolated_pass": "NO_REPRODUCTION_ONLY_NEVER_PRODUCT_CORRECTION_OR_QUALIFICATION",
+    "ordinary_pass": "NONREPRODUCTION_ONLY_HISTORICAL_CAUSE_UNKNOWN_NO_FINDING_RESOLUTION_ACCEPTANCE_OR_QUALIFICATION_INFERENCE",
+    "control_status": "SEPARATE_RAW_INCOMPLETE_AND_KNOWN_SOURCE_EXPECTATION_FROM_EVIDENCE_BASED_PREKILL_CATEGORY_CONTROL_CANNOT_CHANGE_ORDINARY_VERDICT",
+    "exited_reader_category": "PROCESS_EXIT_OBSERVED_BEFORE_LIVE_ORIGINAL_READER_STABLE_BIRTH_REPEATED_ORDERED_BRACKETS_NOT_POSTKILL_RETURN_CODE"
+  },
+  "preservation": {
+    "ordinary_pytest_results_authoritative": true,
+    "original_exception_identity_preserved": true,
+    "original_stdout_stderr_objects": "RETAIN_ACTUAL_BYTES_OR_EXPLICIT_PYTHON_STR_UTF8_SURROGATEPASS_REPRESENTATION_NEVER_LABEL_TEXT_AS_RAW_OS_PIPE_BYTES",
+    "artifacts": [
+      "BOTH_ORIGINAL_WINDOWS_GROUP_RECORDS_INDEPENDENT_INVENTORIES_SHARD_JSON_AND_LOGS",
+      "BEFORE_AND_AFTER_FULL_TRACKED_SOURCE_PROOFS",
+      "PLUGIN_OBSERVATIONS_AND_TYPED_ERRORS",
+      "ORIGINAL_TARGET_SCRIPT_AND_INSTRUMENTED_TEMPLATE_AND_ACTUAL_MJS",
+      "NODE_MARKERS_AND_ACTUAL_RESULT_OR_TIMEOUT_OUTPUT_FILES",
+      "STDLIB_RUN_SOURCE_AND_RUNTIME_PROCESS_THREAD_METADATA",
+      "BOTH_FIXED_CONTROLS_RAW_WORKER_STREAMS_JOB_MEMBERSHIP_AND_CLEANUP_RECORDS",
+      "HIGH_RES_PARENT_AND_NATIVE_SYSTEM_MEMORY_CHILD_THREAD_POINT_IN_TIME_COUNTERS"
+    ],
+    "raw_identity_bindings": "ACTUAL_EVENT_HEAD_TREE_PARENT_RUN_ID_ATTEMPT_GROUP_SHARD_PID_AND_COMMAND_ARGUMENTS_WHERE_AVAILABLE",
+    "historical_outcomes": "PRESERVE_ALL_EXISTING_FAILURES_AND_ATTEMPTS_NO_RETROSPECTIVE_TIMESTAMP_OR_CAUSALITY",
+    "artifact_upload": "ALWAYS_WITH_ORIGINAL_14_DAY_RETENTION_AND_ERROR_ON_MISSING_EVIDENCE",
+    "exclusive_writes": true,
+    "unexpected_target_invocation": "RECORD_INCOMPLETE_FALL_BACK_TO_ORIGINAL_ONCE_WITHOUT_OVERWRITING_FIRST_OBSERVATIONS"
+  },
+  "restrictions": {
+    "new_product_change": false,
+    "test_or_worker_or_existing_ci_change": false,
+    "short_replay_instead_of_full_cohort": false,
+    "performance_threshold_or_resource_budget_change": false,
+    "forced_node_exit_or_unref": "FORBIDDEN_ORDINARY_UNREF_ONLY_EXPLICIT_ARTIFICIAL_STDOUT_HELD_CONTROL",
+    "new_pipe_reader": false,
+    "secret_or_operator_home_access": false,
+    "random_draw": false,
+    "release_tag_or_publication": false,
+    "qualification": false
+  },
+  "freeze_requirements": [
+    "ROOT_AND_INDEPENDENT_CPU_REVIEW_LITERAL_PLUGIN_CONTROLS_WORKFLOW_AND_PLAN_BEFORE_FIRST_EXECUTION",
+    "FILL_ACTUAL_PLUGIN_AND_CONTROL_SHA256_AFTER_FINAL_BYTES_FROZEN_AND_RECOMPUTE_WORKFLOW_SHA256",
+    "PRESERVE_EXACT_ORIGINAL_SOURCE_AND_TARGET_AST_CONSTANT_HASHES",
+    "ONLY_THEN_ROOT_MAY_CREATE_ACTUAL_FOUR_ADDITION_DIRECT_CHILD_D_AND_RECORD_REAL_HEAD_TREE_RUN_IDENTITIES_EXTERNALLY",
+    "OLD_D1_SOURCE_AND_ALL_RAW_OUTCOMES_UNCHANGED_OLD_FIXTURE_COST_DESIGN_UNEXECUTED"
+  ],
+  "workflow_sha256": "f34725611481ba35c3e69282db08dc62038adb56507dbcea3203541930a10031",
+  "root_source_facts": {
+    "path": "host/protocol-sequence/node-lifecycle-root-source-facts-v1.json",
+    "sha256": "cc5c59a37bffde184f9279bc8923a39f5513279ae913b20e98de254dc12a4c0d"
+  },
+  "historical_runtime": {
+    "python": "3.12.10",
+    "node": "v22.23.4",
+    "actual_new_runtime": "RECORD_ACTUAL_NO_ASSUMPTION_OR_VERSION_CHANGE",
+    "drift": "NONCOMPARABLE_RUNTIME_DRIFT",
+    "unobserved": "UNKNOWN_NOT_HISTORICAL_MATCH"
+  },
+  "controls_sha256": "6e57c81d82af1d55c688266ec16c387566178e95a02668d5e5c7534d7729d57e",
+  "selected_design": {
+    "path": "host/protocol-sequence/node-lifecycle-D2-node-boundary-v2.selected.md",
+    "sha256": "8a2d46dfbdeae4e4be6042d08850e4bd78e6a26c98fc5712821a9a829af0a225",
+    "scope": "ROOT_SELECTED_STATIC_IMPLEMENTATION_ONLY_NO_EXECUTION"
+  },
+  "controls": {
+    "scope": "ARTIFICIAL_OBSERVER_CATEGORY_VALIDATION_ONLY_NOT_HISTORICAL_CAUSE",
+    "job_name": "Node observer controls",
+    "depends_on": "BOTH_ORDINARY_MATRIX_JOBS_TERMINAL",
+    "if": "always()",
+    "runner": "windows-latest",
+    "python": "3.12",
+    "job_timeout_minutes": 10,
+    "actual_imports": "CONTROLLER_STDLIB_WORKER_IMPORTS_SHARED_DIAGNOSTIC_PLUGIN_AND_PYTEST_HOOK_DEFINITIONS_NO_PYTEST_MAIN_APPLICATION_OR_TEST_IMPORT_OR_EXECUTION",
+    "fixed_order": [
+      "busy35",
+      "stdout-held35"
+    ],
+    "controls": [
+      {
+        "kind": "busy35",
+        "source_truth": "NODE_MODULE_BODY_CPU_LOOP_35_SECONDS",
+        "expected_pattern": "ORIGINAL_30_SECOND_TIMEOUT_WITH_SAME_PROCESS_RUNNING_AND_CREATION_BOUND_CPU_DELTA_WHEN_AVAILABLE",
+        "no_utilization_threshold": true
+      },
+      {
+        "kind": "stdout-held35",
+        "source_truth": "ORIGINAL_NODE_PARENT_NATURALLY_EXITS_AFTER_SPAWNING_DIRECT_STDOUT_INHERITING_35_SECOND_REFERENCED_TIMER_CHILD",
+        "control_only_unref": true,
+        "expected_pattern": "KNOWN_EXIT_BEFORE_STABLY_LIVE_ORIGINAL_READER_PREKILL_WITH_SAME_BIRTH_IDENTITY",
+        "original_post_timeout_drain": "PRESERVED_MAY_WAIT_TO_APPROX_35_SECONDS_THEN_RERAISE_ORIGINAL_TIMEOUTEXPIRED",
+        "sampler_cap": "RETAIN_RAW_OBSERVABILITY_INCOMPLETE_NO_PROMOTION_EXPECTED_CONTROL_IS_SEPARATE_EVALUATION"
+      }
+    ],
+    "containment": {
+      "mechanism": "WINDOWS_JOBOBJECT_KILL_ON_JOB_CLOSE_PER_CONTROL",
+      "handle": "OUTER_ONLY_NONINHERIT_SET_AND_GETHANDLEINFORMATION_READBACK",
+      "worker_protocol": "WORKER_BLOCKS_ON_STDIN_BEFORE_ANY_NODE_SPAWN_ASSIGN_EXACT_JOB_AND_ISPROCESSINJOB_READBACK_THEN_GO",
+      "worker_stdin_before_node": "CONTROL_ONLY_HANDSHAKE_CLOSED_AND_NUL_REBOUND_BEFORE_NODE_ORDINARY_STDIN_REMAINS_INHERITED_OS_HANDLE_KIND_NOT_PREVIOUSLY_MEASURED_NO_CLAIM_EFFECTIVE_INPUT_EQUALITY",
+      "unsupported_assignment": "RETAIN_ACTUAL_WINERROR_STOP_BEFORE_NODE_NO_WEAKER_RETRY",
+      "no_breakaway_priority_affinity_cpu_memory_limit_overrides": true,
+      "tree_cleanup": "OWNED_JOB_INCLUDING_DESCENDANTS_AFTER_PARENT_EXIT_NOT_GLOBAL_NODE_KILL",
+      "quiescence": "BOTH_LISTED_PROCESSES_ZERO_AND_ASSIGNED_PROCESSES_ZERO_WITHIN_CLEANUP_BUDGET_NOT_EMPTY_TRUNCATED_LIST",
+      "go_partial_write": "GO_ATTEMPT_RECORDED_BEFORE_WRITE_FLUSH_FAILURE_ADMISSION_UNKNOWN_NEVER_ASSERT_BEFORE_NODE_WORKLOAD_AFTER_GO_ATTEMPT",
+      "go_admission": "90_SECOND_DEADLINE_FROM_WORKER_POPEN_BEFORE_CHECKED_BEFORE_GO_ATTEMPT_NO_LATE_NODE_ADMISSION"
+    },
+    "per_control_work_seconds": 90,
+    "per_control_cleanup_seconds": 20,
+    "max_two_control_seconds": 220,
+    "all_attempted_once_no_retry": true,
+    "outcome_axes": [
+      "ORIGINAL_RESULT_OR_EXCEPTION",
+      "RAW_OBSERVER_STATUS",
+      "KNOWN_ARTIFICIAL_SOURCE_EXPECTATION",
+      "OBSERVED_CATEGORY_WITH_LIMITS"
+    ],
+    "output": "reader415-node-controls/controls",
+    "source_proof_output": "reader415-node-controls/source-proof",
+    "cleanup_census_cap": 512,
+    "cleanup_preservation": "ALL_ACQUIRED_CLEANUP_CENSUS_ROWS_APPENDED_UP_TO_CAP_EACH_RETAINED_HANDLE_QUERIED_INDEPENDENTLY_PREFIX_AND_ERRORS_RETAINED",
+    "report_preservation": "EACH_STREAM_HASH_FINAL_CLOCK_AND_EXCLUSIVE_CONTROL_RECORD_WRITE_GUARDED_FALLBACK_STDERR_RETAINS_RAM_RECORD_ON_PERSISTENCE_FAILURE",
+    "control_truth_validation": {
+      "busy35": "ACTUAL_CONTROL_BUSY_STARTED_MARKER_AND_ORIGINAL_TIMEOUT_AND_RUNNING_CREATION_BOUND_CPU_DELTA",
+      "stdout-held35": "ACTUAL_EXIT_MARKER_CODE_ZERO_NO_UNCAUGHT_MARKER_POSITIVE_HOLDER_PID_PREKILL_POLL_ZERO_POSITIVE_EXIT_FILETIME_AND_STABLE_BORN_LIVE_ORIGINAL_STDOUT_READER",
+      "both": "ORIGINAL_TIMEOUT_OBJECT_EXPECTATION_AND_NONEMPTY_REGULAR_DURABLE_PREKILL_CHECKPOINT_PLUS_FINAL_OBSERVATIONS_REFERENCES_BYTES_SHA_NO_ACTUAL_FINALIZATION_OR_PERSISTENCE_FAILURE"
+    },
+    "controller_completion_vs_raw_observer": "CATEGORY_PATTERN_OBSERVED_WITH_RAW_OBSERVER_STATUS_RETAINED_IS_SEPARATE_CONTROLLER_RESULT_RAW_OBSERVER_INCOMPLETE_ERRORS_CAPS_NEVER_CLEARED_OR_PROMOTED",
+    "output_schemas": {
+      "summary": "reader415-node-boundary-controls/v2",
+      "shared_observations": "reader415-node-boundary-observations/v2",
+      "source_proof": "reader415-source-proof/v2"
+    },
+    "fixed_control_progress_markers": {
+      "busy35": [
+        "CONTROL_BUSY_STARTED",
+        "CONTROL_BUSY_FINISHED"
+      ],
+      "stdout-held35": [
+        "CONTROL_HOLDER_SPAWNED",
+        "CONTROL_PARENT_BODY_FINISHED",
+        "EXIT"
+      ]
+    },
+    "raw_observer_incomplete_cannot_be_promoted": true,
+    "controller_result_semantics": {
+      "controls_summary_controller_completion": "COMPLETE_MEANS_BOTH_CONTROLLER_RUNS_REPORT_PRESERVATION_AND_OWNED_QUIESCENCE_FINISHED_NOT_A_CATEGORY_OR_RAW_OBSERVER_PASS",
+      "control_record_status": "COMPLETE_REQUIRES_EXPECTED_CATEGORY_PATTERN_WORKER_ZERO_NO_CONTROLLER_ERRORS_AND_QUIESCENCE",
+      "controls_summary_result": "ALL_CATEGORY_PATTERNS_OBSERVED_RAW_STATUS_RETAINED_ONLY_WHEN_BOTH_CONTROL_RECORD_STATUS_COMPLETE_ELSE_INCOMPLETE_OR_UNEXPECTED",
+      "raw_observer_status": "RETAINED_SEPARATELY_NO_INCOMPLETE_OR_CAP_PROMOTION"
+    }
+  },
+  "transport": {
+    "workflow_name": "Reader415 Windows Node boundary diagnostics",
+    "workflow_git_path": ".github/workflows/reader415-node-boundary-diagnostic.yml",
+    "trigger": "PUSH_EXACT_BRANCH_ONLY",
+    "expected_expanded_job_names": [
+      "Windows Core execution (0)",
+      "Windows Core execution (1)",
+      "Node observer controls"
+    ],
+    "expected_artifact_templates": [
+      "windows-core-${runid}-${attempt}-0",
+      "windows-core-${runid}-${attempt}-1",
+      "reader415-node-boundary-${runid}-${attempt}-0",
+      "reader415-node-boundary-${runid}-${attempt}-1",
+      "reader415-node-controls-${runid}-${attempt}"
+    ],
+    "expected_jobs": 3,
+    "expected_artifacts": 5,
+    "monitor": "WAIT_ALL_THREE_TERMINAL_STABLE_OBSERVATIONS_NOT_EARLY_AFTER_ORDINARY",
+    "actual_run_ids": "UNKNOWN_REQUIRE_EXTERNAL_ROOT_SELECTION_AFTER_REAL_PUSH_NO_DEFAULTS"
+  },
+  "execution_authority": "NONE_THIS_PLAN_IS_NOT_EXECUTION_PERMISSION_ROOT_LITERAL_CODE_REVIEW_AND_ACTUAL_SOURCE_SELECTION_REQUIRED"
+}
