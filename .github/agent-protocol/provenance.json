@@ -1,8 +1,8 @@
 {
   "schema": "agent-protocol-consumer-provenance/v2",
   "source_repository": "gabned/agent-protocol",
-  "source_revision": "1a11fe76712ee65ca2160d2ae3789330946a57f2",
-  "source_manifest_digest": "349e5eaf7cbfe5edeb0f61f08d8ae8ea3c14c844ba95c7f2f88b89916ff3b72b",
+  "source_revision": "02317e02767958faa3de5bb6d245ca3440360d9e",
+  "source_manifest_digest": "c00389c745c31445936606b5bfa195e29fd4084021cf5133ecdf43cdd5ae0955",
   "predecessor": {
     "repository": "gabned/provelume",
     "revision": "f4bc7af7088dbcded954a4e4e41153a0ac5a8446",
@@ -48,14 +48,14 @@
       "source": ".github/agent-protocol/documents.json",
       "destination": "tools/agent_protocol_core/.github/agent-protocol/documents.json",
       "mode": "100644",
-      "sha256": "9e86304764f8e1e3139fe596c90874e107dc5898792b33f55239061e3f00468f",
+      "sha256": "1a1c22dc6ae9a2ec17b18d1c88afa4bda906710294497db61dca88ac6f28726a",
       "treatment": "VENDOR_CANONICAL"
     },
     {
       "source": ".github/agent-protocol/release.json",
       "destination": "tools/agent_protocol_core/.github/agent-protocol/release.json",
       "mode": "100644",
-      "sha256": "eb449432caff91087c36fe2faa0502df915ffa06fc9d331afae9eeb235481a0f",
+      "sha256": "7c5e200e9b018b23f9eb63bfd85c9dd643ee9255f0cbddb218d56bb48bae3eab",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -433,7 +433,7 @@
       "source": "docs/agent-protocol/adoption.md",
       "destination": "tools/agent_protocol_core/docs/agent-protocol/adoption.md",
       "mode": "100644",
-      "sha256": "817856962992c9048a048976b7ea797f55d64142ebf6c72ad029f6bcf12e0419",
+      "sha256": "b010dfb03dfafc07bff15d717c9752593556ab392ee8dd89d1429389038b28db",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -461,14 +461,14 @@
       "source": "docs/agent-protocol/contract.md",
       "destination": "tools/agent_protocol_core/docs/agent-protocol/contract.md",
       "mode": "100644",
-      "sha256": "5b1f04c50aa471cb8c56a5b1b5ccd5d2002e6f15dedb070c56d084516f6260fb",
+      "sha256": "6ca1de057b43e9f801e8529986701b6e76377e83d653a37e67f9787dd8c616d4",
       "treatment": "VENDOR_CANONICAL"
     },
     {
       "source": "docs/agent-protocol/hosts.md",
       "destination": "tools/agent_protocol_core/docs/agent-protocol/hosts.md",
       "mode": "100644",
-      "sha256": "22247008f59e07b9db377dc98dc6032609d2a3604b63a63ffa5c0f02b991badf",
+      "sha256": "362a16a7f1ebedd2a7a8678e505ce7374bc44de19e3022f56ca1a7e0d81dc75c",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -489,28 +489,28 @@
       "source": "docs/agent-protocol/qualification.md",
       "destination": "tools/agent_protocol_core/docs/agent-protocol/qualification.md",
       "mode": "100644",
-      "sha256": "fa53c505a995f0a1a2d612b701d103aef9dd621454c351640b5f948f4115ed59",
+      "sha256": "1dbde9c49795e20645a3d841f1888756f45d88532b73871d6a479e39448fb05a",
       "treatment": "VENDOR_CANONICAL"
     },
     {
       "source": "pyproject.toml",
       "destination": "tools/agent_protocol_core/pyproject.toml",
       "mode": "100644",
-      "sha256": "f0514276d53d986a21455c0fb4e5d63727a13bdc17ee1b35e170a86292def33d",
+      "sha256": "1222fba6a890990a93505659df4975d8059a890953e20c1ca4b31060f365f861",
       "treatment": "VENDOR_CANONICAL"
     },
     {
       "source": "requirements-test.txt",
       "destination": "tools/agent_protocol_core/requirements-test.txt",
       "mode": "100644",
-      "sha256": "49e9d8a868c39cc101f85b50396b6e7e32530f56447f6d60f2e210a6c1cc8302",
+      "sha256": "3e38bebc4236cff3a31cb709371d342f38d5aea67013d2f8ab37e6b319eb9333",
       "treatment": "VENDOR_CANONICAL"
     },
     {
       "source": "src/agent_protocol/__init__.py",
       "destination": "tools/agent_protocol_core/src/agent_protocol/__init__.py",
       "mode": "100644",
-      "sha256": "46765cc566e9e980e3be2cfb143ede97e16707c693b73cc58093134086ef54fb",
+      "sha256": "8da561e0a1381434e9b249da54a616d0bde8ea3239950e90d3051f7ead17b8a7",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -552,7 +552,7 @@
       "source": "src/agent_protocol/host.py",
       "destination": "tools/agent_protocol_core/src/agent_protocol/host.py",
       "mode": "100644",
-      "sha256": "15dc125ba57f4e937b506b7c43300d724f3901ed502792488633cf1b6dc9ceb0",
+      "sha256": "31237e6073e0af5cbab10f4e6ba76d263d12ee88bd6a10091326f3ff0bd13e61",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -580,7 +580,7 @@
       "source": "src/agent_protocol/source.py",
       "destination": "tools/agent_protocol_core/src/agent_protocol/source.py",
       "mode": "100644",
-      "sha256": "5dfad67030e072f6d958abaabd4c144d8a6d0be4e358146bb9b45b0510b80148",
+      "sha256": "7b41ecfa2eefd391ba6cb5495611fb13fff3243a4d5b33a54bac02901b8b61a9",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -657,7 +657,7 @@
       "source": "tests/test_packaging.py",
       "destination": "tools/agent_protocol_core/tests/test_packaging.py",
       "mode": "100644",
-      "sha256": "2b7928daf1fdcac762b0c94efdae248745a4b61201f1bddcfea4af0633e449bd",
+      "sha256": "3b794eaee86d662a51b4f88d1bffc67211340759b2a008459cff914360915926",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -671,7 +671,7 @@
       "source": "tests/test_source.py",
       "destination": "tools/agent_protocol_core/tests/test_source.py",
       "mode": "100644",
-      "sha256": "53a01f540ea619ca2ddaa91bc52868f5e22ffdf15c4ec30a16e89f352c1d287d",
+      "sha256": "befa0c6d009f5f6449bdb259906abedb4853fa40e575e219885ffb493f02b99e",
       "treatment": "VENDOR_CANONICAL"
     },
     {
@@ -699,7 +699,7 @@
       "source": "tools/package.py",
       "destination": "tools/agent_protocol_core/tools/package.py",
       "mode": "100644",
-      "sha256": "8f052b5d4508296c24015bec24f4c83047a9b5883124481bb97683681a20726a",
+      "sha256": "4dbbfeb7b17ed08c442aa0bc351d83578b1d3b52b76e48badbabb63cba304848",
       "treatment": "VENDOR_CANONICAL"
     }
   ],
@@ -807,7 +807,7 @@
       "destination": ".github/workflows/ci.yml",
       "treatment": "KEEP",
       "baseline_sha256": "817d70d2b014fa57498355aec4d98b481ded64c17a2503410dbaaf5c36904c2d",
-      "current_sha256": "b5c98febc954272fb255aa4b01615b1ddf2935e33de3ca1cd2a8d97b69d88807"
+      "current_sha256": "353e28c178d2370a9cc8feb84ac7a5a8c4b2d94d642400e197b705ce116c95ce"
     },
     {
       "path": ".github/workflows/email-smoke.yml",
@@ -871,7 +871,7 @@
       "destination": ".github/workflows/release-dry-run.yml",
       "treatment": "KEEP",
       "baseline_sha256": "a915e56f063d9eb558b3337c2f65068b1d68c1a7304e7c3f4c938b83c26ac875",
-      "current_sha256": "a915e56f063d9eb558b3337c2f65068b1d68c1a7304e7c3f4c938b83c26ac875"
+      "current_sha256": "7822ddcfd9039beabf1b9a6009d47dd7c9c434b8166b6de7d398e16a8893c277"
     },
     {
       "path": ".github/workflows/release-pipeline.yml",
@@ -879,7 +879,7 @@
       "destination": ".github/workflows/release-pipeline.yml",
       "treatment": "KEEP",
       "baseline_sha256": "d9d47eedc43a3a8887133d04c8763b409293d3f47933622d2a16909baed3bd5c",
-      "current_sha256": "d9d47eedc43a3a8887133d04c8763b409293d3f47933622d2a16909baed3bd5c"
+      "current_sha256": "40f2a67cb1c1b21a06d0ad8b8a15a215e28613c1f81175604ae38d5d92e6df96"
     },
     {
       "path": ".github/workflows/release-publish.yml",
@@ -1178,7 +1178,7 @@
       "destination": "tests/test_agent_protocol_transfer.py",
       "treatment": "COMPATIBILITY",
       "baseline_sha256": "644bc6a7cf4407c9cf187bfb9e3ef48060daadcca254d8b676f1dd15062eb6c7",
-      "current_sha256": "6190a01fe35906d844ab19499b40a44d47f8a883c5251a210d63f7aea82ecfb5",
+      "current_sha256": "6efb7a2412850c31d07bc3c35e18c32141c708fa4181d7e56d10954fcf4c1233",
       "references": [
         "docs/agent-development-v1.4.2.md",
         "tools/agent_protocol.py"
@@ -1314,7 +1314,7 @@
       "destination": "tests/test_agent_protocol_work_check.py",
       "treatment": "COMPATIBILITY",
       "baseline_sha256": "b8ef7b39416b5bb0d327264b5679ae3dc2b294c0e5764969c32bf0f80701dc5c",
-      "current_sha256": "dfd433f8a2b3607a171a072a71dc307adabda2ca32357e58c283dedace0d6f20",
+      "current_sha256": "192f743a93e438576f8d630c5b6db9edc322c51ebb1e922e165ca1a7346b42f7",
       "references": [
         ".github/agent-protocol/transfer-v1.5.0.json",
         "tests/test_agent_protocol_v1_2.py",
@@ -1424,7 +1424,7 @@
       "destination": "tools/agent_protocol_transfer.py",
       "treatment": "COMPATIBILITY",
       "baseline_sha256": "1e409798eab13b0f5721bc739964bc6649091e501c34e8cb31f333a5b2f90f93",
-      "current_sha256": "1e409798eab13b0f5721bc739964bc6649091e501c34e8cb31f333a5b2f90f93",
+      "current_sha256": "417e0cdd584778d24eb3e242fe12652575270e1488b507a322b969fdd12a319a",
       "references": [
         ".github/workflows/ci.yml",
         "docs/agent-development-v1.4.2.md",
@@ -1575,7 +1575,7 @@
       "destination": "tools/agent_protocol_work_check.py",
       "treatment": "COMPATIBILITY",
       "baseline_sha256": "8d2630b52f80f6e217b39c0fb18d781c29cff6265d2b14a6d53a75c2f5c00c7e",
-      "current_sha256": "192dc9f81c2f567240146cd738227d455554f8fdbea5e5b7b4a46f28b0ee5a6e",
+      "current_sha256": "c59077f13fc39f7cbebc5ec2b0ec55cf198c2449b083a8b2b1df132773225598",
       "references": [
         ".github/agent-protocol/transfer-v1.5.0.json",
         ".github/workflows/ci.yml",
@@ -1651,5 +1651,23 @@
     "lifecycle_v2_activation": "OPTIONAL_DEFERRED_BY_MAINTAINER",
     "new_workstream": "SUPPORTED_NATIVE_ROUTE_OR_EXPLICIT_V2_ACTIVATION",
     "active_signed_journals": "PRESERVE_IDENTITY_AND_HISTORY_NO_FAILURE_DRIVEN_FALLBACK"
+  },
+  "acquisition": {
+    "kind": "CANONICAL_GIT",
+    "origin": {
+      "repository": "gabned/agent-protocol",
+      "repository_id": 1393711644,
+      "revision": "02317e02767958faa3de5bb6d245ca3440360d9e",
+      "tree": "d8d69cd480c422577550280cd4595840f19ece73",
+      "base": "d2d235d86727d393e6e4f07bf5befefec754a9e0",
+      "head": "9fb0a92dcf8d7412781334c972a92da5dd0d0e0d",
+      "schema": "agent-protocol-git-origin/v1",
+      "acceptance": {
+        "pull_request": 9,
+        "receipt_url": "https://github.com/gabned/agent-protocol/pull/9#issuecomment-6274127410",
+        "receipt_sha256": "f6e410094131fbc70644e4a347bc57b13d76b5586531b65646d9b9291a83ea64"
+      }
+    },
+    "historical_release_receipts": "PRESERVED_ORIGINAL_MEANING"
   }
 }
