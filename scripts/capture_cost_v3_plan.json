@@ -1,0 +1,268 @@
+{
+  "analysis": {
+    "absolute_latency_rule": "ALL4 B literal original-float fresh M6=max6busy-min(1,2*median6idle+.1)<=0. No nanosecond-rounding or calibration-envelope slack. This is diagnostic and does not replace ordinary qualification.",
+    "accepted_evaluator_sha256": "754802fe6b2eb0b5bd67d6a962dcd9ed31179c9acd8e0526df6d176600410e22",
+    "accepted_observer_sha256": "9acb929c7f708a9590d9fe961744437882699daf38a9f46b2f6f14f428e624e9",
+    "accepted_source_commit": "210512725f1826861585278214d21fd31093e123",
+    "activity_rule": "Every12 actual native PID/start/request/hash/token/config and process counter coverage required. Capture bracket ends at component_proc_before; component uses before->after. Zero/lower<=0 is valid and never excluded/retimed. Only positive bounded intervals support activity, never continuous CPU/native prefill.",
+    "advance_rule": "ALL8 component CPU cost proofs AND ALL4 strict B literal raw absolute M6<=0 AND actual original run/attempt/all4listed/direct jobs/allstepsSUCCESS AND every full two-pass/26callback/source/model/config/network/resource/control/budget/entry-cleanup condition AND separately pinned C1 CONTROL_ONLY dataset. Permits clean candidate preparation only; every final native/full ordinary/remote/preflight/postmerge gate remains.",
+    "analyzer_path": "scripts/analyze_capture_single_task_component_v3.py",
+    "analyzer_sha256": "6eeb0b300e700b0f70f1d93f43b99545c6f48ddc602fdc80e71f51e2171b2d32",
+    "boundary_recipe": "wall_process_body_process_wall/v1",
+    "budget_rule": "ALL calibration,prechecks,fixture setup/32tx batches/postchecks/control phases/recovery/cleanup within600, work540+cleanup60; raw measured/phase clocks bound to budget. No borrowing90upload reserve.",
+    "calibration_event_counts": {
+      "A": 1,
+      "B": 1
+    },
+    "calibration_pairs": 256,
+    "calibration_raw_patterns": 512,
+    "calibration_rule": "All512 identical sparse raw-boundary no-ops; l=max(0,min(e)-resolution),u=max(e)+resolution per clock. Empirical reference, not a statistical confidence interval or universal scheduling bound. No observations dropped or raw times corrected.",
+    "calibration_schema": "capture-cost-sparse-boundary-calibration/v1",
+    "callback_counts": {
+      "appended_governed_busy": 12,
+      "appended_idle": 12,
+      "unscored_seed": 2
+    },
+    "completion_is_not_correction_support": true,
+    "cost_proof_rule": "ALL4 hosts BOTH idle/busy net parent-process CPU across32 full Atomic commits: raw median A-B>0 AND empirical median effect lower>0; same selected durable work and exact full component/source/semantic coverage. CPU includes other parent-process threads; their roles are not inferred or subtracted.",
+    "cycle_rule": "three fixed four-probe cycles per group; raw mean(A)-mean(B); differential bias [l*meanN_A-u*meanN_B,u*meanN_A-l*meanN_B]; retain raw and empirical interval",
+    "descriptive_rule": "Every full Capture A/B CPU/wall/M6-I/spread result and boolean is computed and preserved, including false. No wholeflow nonregression, headroom, historical-cause or population inference. These A/B contrasts are not advancement gates.",
+    "durable_control_rule": "Only after all24 measured callbacks/twoS06 passes: two fresh unscored A32/B32 controls; selected Python role/count/explicit bytes equal; perarm288fsync/96replace/prepared32/committed32; A64 single-task joined pools/B0. Controls contain no fabricated primary timing.",
+    "metadata_identity": {
+      "actor_id": 25499689,
+      "all_four_listed_and_direct_jobs_required_conclusion": "success",
+      "all_steps_required_conclusion": "success",
+      "event": "workflow_dispatch",
+      "repository_id": 1343746770,
+      "run_and_attempt_required_conclusion": "success",
+      "run_and_attempt_required_status": "completed",
+      "run_attempt": 1,
+      "triggering_actor_id": 25499689,
+      "workflow_id": 374188063,
+      "workflow_path": ".github/workflows/ai-runtime-candidate.yml"
+    },
+    "ordinary_scope": "ZERO ordinary report or rows in C3; separate accepted full C1 control dataset only, preserving all4actualjobFAIL and original formal negatives.",
+    "original_auditor_sha256": "30bb579bd0027c7e782a8158afa818640cbecb3e871504d85418f272d48e9b96",
+    "telemetry_schema": "capture-cost-temporary-component-telemetry/v1",
+    "trace_prefix": "c3-network"
+  },
+  "artifact_members": {
+    "entry_execution": "capture-cost-v3/telemetry.execution.json",
+    "network_observation": "capture-cost-v3/network-observation.json",
+    "telemetry": "capture-cost-v3/telemetry.json"
+  },
+  "atomic_source_sha256": {
+    "A": "28e9773770ce91ed2c7611b2df05a8feca47805543920f4159e3d4a068fde103",
+    "B": "7cea60d52bf85602bf61968a26fe6052ff7a3676cf45a2ec8afad45e532c92d2"
+  },
+  "authority": "NONE_DIAGNOSTIC_NOT_QUALIFICATION",
+  "automatic_retry": false,
+  "base_commit": "7ec20fe0727a74a312235b53b52a5434707f4dc8",
+  "c1_control_dataset": {
+    "actual_original_jobs": "ALL_FOUR_FAILURE_PRESERVED",
+    "bundle_sha256": "480a200fffd0fda050c24fa18756b0fc823b29867eb30f2752d179bfef420f5c",
+    "correction_support": "NOT_GRANTED",
+    "execution_receipt_sha256": "42fc7748587870cd8896db8893c70d2288816185da69f1ef76d6a340507284c9",
+    "formal_analysis_sha256": "3f90e970463df332df3730bd441ea207b8d46c491e7e4f7c6139d4243322d220",
+    "formal_replay_sha256": "83e2ae959cb13869acaeabee558d95e70ab7fc1f24496926d74e49dcde1bc177",
+    "host_launch_sha256": "7cbeb28220902fe7058a0ebefa084eefca960886ea1f1721656b5b74f77ad106",
+    "operator_helper_sha256": "797fd7281376469be8917e226baaaf3b20b77ca1496b55750ee8ab520eac5177",
+    "original_both_B_success_criterion": false,
+    "original_manifest_sha256": "6955c9e87ac05a281584a387314597f809c92063f4298a6c1236d4fad5a37419",
+    "original_plan_sha256": "17c27d65416645d1c8210fa0a1a13db47a3b4ea1ca1694a4387bbd6fdde98be6",
+    "qualification": "NOT_GRANTED",
+    "run_attempt": 1,
+    "run_id": 39884284376,
+    "schema": "capture-cost-C1-ordinary-control/v1",
+    "scope": "CONTROL_ONLY_NO_CORRECTION_SUPPORT",
+    "source_url": "https://github.com/gabned/provelume/actions/runs/39884284376",
+    "workflow_head": "b00525333940baae5bb1698d77f5d865e46c01b0"
+  },
+  "cells": [
+    {
+      "artifact_name": "capture-atomic-cost-c3-A1-original",
+      "job_name": "capture-atomic-cost-c3-A1",
+      "micro_order": "ABBA",
+      "ordinal": 0,
+      "ordinary_arm": "A",
+      "slot": "A1"
+    },
+    {
+      "artifact_name": "capture-atomic-cost-c3-B1-fastpath",
+      "job_name": "capture-atomic-cost-c3-B1",
+      "micro_order": "ABBA",
+      "ordinal": 1,
+      "ordinary_arm": "B",
+      "slot": "B1"
+    },
+    {
+      "artifact_name": "capture-atomic-cost-c3-B2-fastpath",
+      "job_name": "capture-atomic-cost-c3-B2",
+      "micro_order": "BAAB",
+      "ordinal": 2,
+      "ordinary_arm": "B",
+      "slot": "B2"
+    },
+    {
+      "artifact_name": "capture-atomic-cost-c3-A2-original",
+      "job_name": "capture-atomic-cost-c3-A2",
+      "micro_order": "BAAB",
+      "ordinal": 3,
+      "ordinary_arm": "A",
+      "slot": "A2"
+    }
+  ],
+  "cleanup_budget_seconds": 60,
+  "component_fixture": {
+    "payload_bytes": 4096,
+    "payload_sha256": "99768df5a4eaa8eaaf48933998e9e9d50e9f2862fb4ae658296b86a9a237f2e2",
+    "profile": {
+      "key": "email-intake",
+      "kind": "email.intake",
+      "limits": {
+        "max_candidate_bytes": 268435456,
+        "max_entries": 4096,
+        "max_entry_bytes": 67108864,
+        "max_journal_payload_bytes": 402653184,
+        "max_preimage_bytes": 134217728
+      },
+      "owner_id_pattern": "job_[0-9a-f]{32}\\Z",
+      "schema_version": 1
+    },
+    "transactions_per_batch": 32
+  },
+  "component_fixture_lifecycle": {
+    "all_prior_targets_preserved_and_hashed": true,
+    "cleanup_after_each_pass": true,
+    "immutable": true,
+    "measured_batches_per_store": 12,
+    "precreated_control_containers": [
+      "control-root",
+      "transactions"
+    ],
+    "precreated_transaction_stages": false,
+    "primary_stores": 2,
+    "stores_per_pass": 1,
+    "targets_initially_absent": true,
+    "targets_per_store": 384,
+    "unscored_control_stores": 2,
+    "unscored_transactions_per_arm": 32
+  },
+  "construction": {
+    "actual_cases_passed_per_arm": {
+      "A": {
+        "analyzer": 59,
+        "helper": 68,
+        "total": 127
+      },
+      "B": {
+        "analyzer": 59,
+        "helper": 68,
+        "total": 127
+      }
+    },
+    "actual_receipt_sha256": "4fd16a765de11b87733257af533f73e599f5ae388efecf3b598c4061774642e9",
+    "actual_result": "CONSTRUCTION_MATRIX_PASS_NOT_QUALIFIED",
+    "analyzer_test_sha256": "261dcc770cfe4dca84dc9338980967f7cdbb3eb558d556a0cd5ae7afed7b303b",
+    "prespecified_analyzer_cases_per_arm": 59,
+    "prespecified_helper_cases_per_arm": 68,
+    "prespecified_plan_sha256": "92629b3a25ac0d6a8c8c9a380c400860f110f0a661021dd852062ee3582eba1b",
+    "scope": "SYNTHETIC_ONLY_NO_MODEL_NO_ARTIFACT_NO_EMPIRICAL_CALIBRATION",
+    "status": "COMPLETE_DISTINCT_CORRECTED_SYNTHETIC_CONSTRUCTION_V2"
+  },
+  "fail_fast": false,
+  "fast_commit": "692a5c7a72b8d265415e81d54f4d8426892be132",
+  "helper_sha256": {
+    "scripts/capture_cost_v3_cohort.py": "2a0cade63bd9d95a2ca7dc1aab29f93e006b324100f6b760b9b6366226735522",
+    "scripts/capture_cost_v3_telemetry.py": "a047174af86fa6a9b3c1306961c98eb006f69f5bf7714a263af96e95d59cc237",
+    "scripts/diagnose_capture_cost_v3.py": "09e5812784c62fb780848b7580f6827c762cc36d9ebf414f89c10fc5d0b80677"
+  },
+  "job_count": 4,
+  "job_seconds": 1200,
+  "max_parallel": 2,
+  "method_ast_sha256": {
+    "A": {
+      "_prepare": "77f291ae56c08dfc91ce4ee1d92d61e5df0b74e7f5630d351ea7394db26522d4",
+      "_publish_entries": "5b99a1238bc4afccf7e9c8467a589cf5c89cb770cc001a5fc05d301f46a10341",
+      "commit": "bf4d825f45ca75850960362e649301b1eebf29ab5de6d4e7f4968fba6b0397be"
+    },
+    "B": {
+      "_prepare": "86ad0ed294a6931a5cba1fe3c273dc38df813e4461d0d0359f11a7e8a6053edb",
+      "_publish_entries": "fc9758ae86b376454fb8e1cae7215b75f6debed8cd626982832a35d30051824d",
+      "commit": "1d46ab9e30ba2bf0290a3982e38cdb78a9d9a432a7e60f0692911cb31cf83d66"
+    }
+  },
+  "micro_budget_seconds": 600,
+  "minimum_remaining_seconds": 690,
+  "mode": "SPARSE_COMPONENT_V3",
+  "ordinary_report_created": false,
+  "original_commit": "1db68fe39f00cd783ff975892c28c7a3a788b501",
+  "original_failures_preserved": [
+    "https://github.com/gabned/provelume/pull/409#issuecomment-6349677582",
+    "https://github.com/gabned/provelume/pull/408"
+  ],
+  "pending_actual_fields": [],
+  "preserved_C2_negative": {
+    "all_four_cost_proofs": false,
+    "clean_candidate_preparation_supported": false,
+    "formal_analysis_sha256": "3a164ee3d96645af19e0773eb774c2417b0b397e3850a86b952f49e6a51b2877",
+    "original_manifest_sha256": "4279d53c468059bdbb15768ae7d0fdc499a77b9123817e79ffa16d12de6628a8",
+    "run_attempt": 1,
+    "run_id": 39892404564,
+    "scope": "COMPLETE_NEGATIVE_UNCHANGED_NO_RETRY_OR_CRITERION_REINTERPRETATION",
+    "source_url": "https://github.com/gabned/provelume/actions/runs/39892404564",
+    "workflow_head": "1ef71231e53e114e61856366ad9a468a79782df9"
+  },
+  "preserved_construction_v1": {
+    "actual_result": "PASS_238_DECLARED_CASES_PRESERVED",
+    "analyzer_cases_per_arm": 57,
+    "analyzer_sha256": "da435894712edbeb8981c6bce5f84aba41f6784830be9125862f37831cacef3e",
+    "analyzer_test_sha256": "3faf87e3ddd35f7bca8f8228a4242c5952f032ba61f0774b81d28bcc6c6351af",
+    "helper_cases_per_arm": 62,
+    "receipt_sha256": "dfca25067cd54ed5f8a34b2fa3c2d4dab2747b2e5382fa1b420c7aa12728ae8e",
+    "scope": "SYNTHETIC_ONLY_NOT_MODEL_OR_QUALIFICATION",
+    "subsequent_findings": [
+      "cross-pass phase overlap validator and invalid synthetic fixture",
+      "timer cleanup API failure path"
+    ]
+  },
+  "publication_authority": "NONE_NO_RELEASE_TAG_SDK_DRAFT",
+  "qualification": "NOT_GRANTED",
+  "regime": "SPARSE_CAPTURE_AND_ATOMIC_COMPONENT_WITH_SEPARATE_C1_CONTROL",
+  "repository": "gabned/provelume",
+  "run_attempt": 1,
+  "runtime_coordinates": {
+    "configuration_sha256": "6d26739dbb863788ae9de3ed3561b74995f03afde9bfe4cd8cef8c3dc25d0f99",
+    "model_sha256": "1885b3a9195f8cc09da9a7a7a75afdc1e8d5cbf9fc4a499c3961dddea37098ac",
+    "runtime_lock_sha256": "0e508965cddc60d6cfb57c42d2c4039c637e8812bb25cc21b525b6d6047a4404"
+  },
+  "schema": "capture-single-task-experiment/v3",
+  "scientific_document": {
+    "path": "docs/qualification/capture-single-task-component-experiment-v3.md",
+    "sha256": "32ef8853e67166eb269a8fa35b6c873e150040de82621ee03b9e2715fdba2a1e"
+  },
+  "source_parents": {
+    "A": "7ec20fe0727a74a312235b53b52a5434707f4dc8",
+    "B": "1db68fe39f00cd783ff975892c28c7a3a788b501"
+  },
+  "source_proof_members": {
+    "checkout_git": "capture-cost-v3/checkout-git-proof.txt",
+    "entry_exit": "capture-cost-v3/entry-exit-code.txt",
+    "frozen_plan": "capture-cost-v3/frozen-plan.json",
+    "network_exit": "capture-cost-v3/network-exit-code.txt",
+    "source_head_exit": "capture-cost-v3/source-head-exit-code.txt",
+    "source_status_after": "capture-cost-v3/source-status-after.txt",
+    "source_status_exit": "capture-cost-v3/source-status-exit-code.txt",
+    "source_tree_exit": "capture-cost-v3/source-tree-exit-code.txt",
+    "workflow_git": "capture-cost-v3/workflow-git-proof.txt"
+  },
+  "source_trees": {
+    "A": "fad3538c14c054cd2c46b7083895188411ab8862",
+    "B": "557ce4657930c7271f2b598e1ec09d4a01cb99d5"
+  },
+  "status": "FROZEN",
+  "upload_reserve_seconds": 90,
+  "wave_barrier": false,
+  "work_budget_seconds": 540,
+  "workflow_runs": 1
+}

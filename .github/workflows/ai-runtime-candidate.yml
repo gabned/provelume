@@ -1,54 +1,258 @@
-name: Custodia S05-S06 real CPU candidate and governed jobs
+# C3 prospective sparse Capture and full Atomic component diagnostic; no qualification authority.
+# C1 controls and C3's unsupported cost hypothesis remain separate, immutable datasets.
+name: Capture atomic cost C3 component diagnostic (not qualification)
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   measure:
+    name: capture-atomic-cost-c3-${{ matrix.slot }}
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
-        os: [ubuntu-24.04, windows-2025]
+        include:
+          - slot: A1
+            ordinal: 0
+            variant: original
+            os: ubuntu-24.04
+            code_sha: 1db68fe39f00cd783ff975892c28c7a3a788b501
+          - slot: B1
+            ordinal: 1
+            variant: fastpath
+            os: ubuntu-24.04
+            code_sha: 692a5c7a72b8d265415e81d54f4d8426892be132
+          - slot: B2
+            ordinal: 2
+            variant: fastpath
+            os: ubuntu-24.04
+            code_sha: 692a5c7a72b8d265415e81d54f4d8426892be132
+          - slot: A2
+            ordinal: 3
+            variant: original
+            os: ubuntu-24.04
+            code_sha: 1db68fe39f00cd783ff975892c28c7a3a788b501
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
+      - name: Retain first shell boundary (not GitHub job start)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, time
+          from pathlib import Path
+          value = {"kind": "FIRST_STEP_START", "regime": "SPARSE_CAPTURE_AND_ATOMIC_COMPONENT_WITH_SEPARATE_C1_CONTROL", "epoch_seconds": time.time(), "monotonic_seconds": time.monotonic(), "actual_github_job_started_at": "UNKNOWN_PENDING_ORIGINAL_API_OBSERVATION"}
+          path = Path(os.environ["RUNNER_TEMP"]) / "capture-cost-c3-first-step.json"
+          with path.open("x") as stream:
+              json.dump(value, stream, sort_keys=True)
+              stream.write("\n")
+          with Path(os.environ["GITHUB_ENV"]).open("a") as stream:
+              stream.write("CAPTURE_C3_FIRST_STEP_EPOCH=" + str(value["epoch_seconds"]) + "\n")
+          PY
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          ref: ${{ matrix.code_sha }}
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: '3.12'
+      - name: Retain exact source and frozen C3 diagnostic plan
+        shell: bash
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = '${{ matrix.code_sha }}'
+          CAPTURE_C3_SOURCE_BEFORE=$(git status --porcelain --untracked-files=all)
+          test -z "$CAPTURE_C3_SOURCE_BEFORE"
+          test "$(git rev-parse --is-shallow-repository)" = false
+          CAPTURE_C3_REPLACE_REFS=$(git for-each-ref refs/replace/)
+          test -z "$CAPTURE_C3_REPLACE_REFS"
+          test "$(git show -s --format=%P 1db68fe39f00cd783ff975892c28c7a3a788b501)" = '7ec20fe0727a74a312235b53b52a5434707f4dc8'
+          test "$(git show -s --format=%P 692a5c7a72b8d265415e81d54f4d8426892be132)" = '1db68fe39f00cd783ff975892c28c7a3a788b501'
+          test "$(git show -s --format=%P '${{ github.sha }}')" = '692a5c7a72b8d265415e81d54f4d8426892be132'
+          mkdir -p .agent/capture-cost-v3
+          cp "${{ runner.temp }}/capture-cost-c3-first-step.json" .agent/capture-cost-v3/first-step-start.json
+          git show '${{ github.sha }}:scripts/capture_cost_v3_plan.json' > .agent/capture-cost-v3/frozen-plan.json
+          printf '%s  %s\n' 'd50f6c6742e59fa3552061b5756bc6aebb5835290ee2f28c8e72be0485fe8daf' '.agent/capture-cost-v3/frozen-plan.json' | sha256sum --check
+          git show -s --format='%H%n%P%n%T' HEAD > .agent/capture-cost-v3/checkout-git-proof.txt
+          git show -s --format='%H%n%P%n%T' '${{ github.sha }}' > .agent/capture-cost-v3/workflow-git-proof.txt
       - name: Canonical dependency bootstrap
         run: python scripts/bootstrap.py
       - name: Explicit locked acquisition (no model in artifacts or Git)
-        run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/s05-inputs" --accept-licenses --include-model
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/s05-inputs" --accept-licenses --include-model
       - name: Build locked native input with notices and SBOM, offline
-        run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/build_ai_runtime_input.py --directory "${{ runner.temp }}/s05-inputs/${{ runner.os == 'Windows' && 'windows' || 'linux' }}" --platform ${{ runner.os == 'Windows' && 'windows' || 'linux' }} --output .agent/s05-native-input.zip
-      - name: Real Linux execution with external syscall observation
-        if: runner.os == 'Linux'
+        run: .venv/bin/python scripts/build_ai_runtime_input.py --directory "${{ runner.temp }}/s05-inputs/linux" --platform linux --output .agent/s05-native-input.zip
+      - name: Complete fixed sparse Capture and Atomic component diagnostic cohort
         shell: bash
         run: |
           set +e
-          strace -ff -tt -e trace=network -o .agent/s05-network .venv/bin/python scripts/qualify_ai_runtime.py --artifacts "${{ runner.temp }}/s05-inputs" --output .agent/s05-real.json
+          strace -ff -tt -e trace=network -o .agent/c3-network .venv/bin/python scripts/diagnose_capture_cost_v3.py --artifacts "${{ runner.temp }}/s05-inputs" --telemetry .agent/capture-cost-v3/telemetry.json --plan .agent/capture-cost-v3/frozen-plan.json --plan-sha256 d50f6c6742e59fa3552061b5756bc6aebb5835290ee2f28c8e72be0485fe8daf --original-commit 1db68fe39f00cd783ff975892c28c7a3a788b501 --fast-commit 692a5c7a72b8d265415e81d54f4d8426892be132 --cell-ordinal '${{ matrix.ordinal }}' --first-step-epoch "$CAPTURE_C3_FIRST_STEP_EPOCH"
           measurement=$?
-          if test ! -f .agent/s05-real.json; then exit "$measurement"; fi
-          .venv/bin/python scripts/ai_runtime_network.py --report .agent/s05-real.json --trace .agent/s05-network
-      - name: Real Windows execution with disposable WFP control and audit
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./scripts/qualify_ai_runtime_windows.ps1 -Artifacts "${{ runner.temp }}/s05-inputs"
+          printf '%s\n' "$measurement" > .agent/capture-cost-v3/entry-exit-code.txt
+          .venv/bin/python - <<'PY'
+          import hashlib, json, re
+          from datetime import UTC, datetime
+          from pathlib import Path
+          output = Path('.agent/capture-cost-v3/network-observation.json')
+          receipt = {'schema': 'capture-cost-component-network-observation/v1', 'authority': 'NONE_DIAGNOSTIC_NOT_QUALIFICATION', 'regime': 'SPARSE_CAPTURE_AND_ATOMIC_COMPONENT_WITH_SEPARATE_C1_CONTROL', 'started_at': datetime.now(UTC).isoformat(), 'status': 'NOT_RUN', 'worker_pids': [], 'appended_worker_pids': [], 'complete_passes': 0, 'callback_counts': {}, 'traces': [], 'network_calls': [], 'network_calls_count': 0, 'unexpected_network_call_count': 0, 'errors': [], 'ordinary_report_created': False, 'control': 'unchanged worker seccomp blocks sockets, x32 and io_uring', 'method': 'strace-network-all-threads-from-exec-through-exit'}
+          try:
+              receipt['ordinary_report_created'] = Path('.agent/s05-real.json').exists()
+              if receipt['ordinary_report_created']:
+                  raise ValueError('unexpected_ordinary_report_in_micro_only_scope')
+              raw = Path('.agent/capture-cost-v3/telemetry.json').read_bytes()
+              receipt['telemetry_sha256'] = hashlib.sha256(raw).hexdigest()
+              value = json.loads(raw)
+              if (value.get('schema') != 'capture-cost-temporary-component-telemetry/v1'
+                      or value.get('mode') != 'SPARSE_COMPONENT_V3'
+                      or value.get('identity', {}).get('regime') != 'SPARSE_CAPTURE_AND_ATOMIC_COMPONENT_WITH_SEPARATE_C1_CONTROL'
+                      or value.get('status') != 'COMPLETE' or value.get('errors') != []
+                      or value.get('ordinary_report') is not None):
+                  raise ValueError('micro_telemetry_not_complete')
+              appended = value.get('appended_report')
+              if not isinstance(appended, dict) or appended.get('status') != 'COMPLETE':
+                  raise ValueError('micro_cohort_not_complete')
+              passes = appended.get('passes')
+              if (not isinstance(passes, list) or len(passes) != 2
+                      or any(row.get('status') != 'COMPLETE' or len(row.get('idle', [])) != 6
+                             or row.get('governed', {}).get('status') != 'MEASURED'
+                             or len(row.get('governed', {}).get('deterministic_busy', [])) != 6 for row in passes)):
+                  raise ValueError('two_full_governed_passes_not_complete')
+              counts = {}
+              for row in value.get('callbacks', []):
+                  counts[row.get('group')] = counts.get(row.get('group'), 0) + 1
+              if counts != {'unscored_seed': 2, 'appended_idle': 12, 'appended_governed_busy': 12}:
+                  raise ValueError('fixed_micro_callback_counts')
+              batches = [row.get('component_batch') for row in value['callbacks'] if row.get('group') != 'unscored_seed']
+              def complete_batch(batch):
+                  return (isinstance(batch, dict) and batch.get('status') == 'COMPLETE'
+                          and batch.get('expected_transactions') == batch.get('completed_transactions') == 32
+                          and batch.get('started_transaction_ordinals') == list(range(32))
+                          and batch.get('completed_transaction_ordinals') == list(range(32))
+                          and batch.get('postchecks', {}).get('prior_targets_unchanged') is True
+                          and batch.get('postchecks', {}).get('unexpected_paths') == []
+                          and batch.get('postchecks', {}).get('journal_entries') == []
+                          and batch.get('cleanup', {}).get('status') == 'COMPLETE'
+                          and batch.get('cleanup', {}).get('journal_empty') is True)
+              if len(batches) != 24 or not all(complete_batch(batch) for batch in batches):
+                  raise ValueError('fixed_24_component_batches_not_complete')
+              controls = value.get('component_controls')
+              control_batches = controls.get('batches') if isinstance(controls, dict) else None
+              if (not isinstance(controls, dict) or controls.get('status') != 'COMPLETE'
+                      or controls.get('scope') != 'UNSCORED_SELECTED_PYTHON_DURABLE_OPERATIONS'
+                      or not isinstance(control_batches, list) or len(control_batches) != 2
+                      or {row.get('arm') for row in control_batches} != {'A', 'B'}
+                      or not all(complete_batch(row) and row.get('boundary') is None
+                                 and row.get('inner_operation_clocks_installed') is False
+                                 for row in control_batches)):
+                  raise ValueError('two_unscored_component_controls_not_complete')
+              calibration = value.get('calibration')
+              samples = calibration.get('samples') if isinstance(calibration, dict) else None
+              if (not isinstance(calibration, dict) or calibration.get('schema') != 'capture-cost-sparse-boundary-calibration/v1'
+                      or calibration.get('kind') != 'SPARSE_BOUNDARY_NOOP_NOT_PRODUCT_WORK'
+                      or calibration.get('recipe') != 'wall_process_body_process_wall/v1'
+                      or calibration.get('complete') is not True or calibration.get('pairs') != 256
+                      or not isinstance(samples, list) or len(samples) != 256):
+                  raise ValueError('fixed_sparse_calibration_512_not_complete')
+              for index, sample in enumerate(samples):
+                  patterns = sample.get('patterns')
+                  if (sample.get('pair') != index or sample.get('order') != list('AB' if index % 2 == 0 else 'BA')
+                          or not isinstance(patterns, dict) or set(patterns) != {'A', 'B'}
+                          or any(pattern.get('outcome') != 'NOOP_COMPLETE' or pattern.get('observation_recipes') != 1
+                                 or pattern.get('boundary', {}).get('recipe') != 'wall_process_body_process_wall/v1'
+                                 for pattern in patterns.values())):
+                      raise ValueError('fixed_sparse_calibration_pattern_incomplete')
+              budget = value.get('micro_budget')
+              if (not isinstance(budget, dict)
+                      or (budget.get('total_seconds'), budget.get('work_seconds'), budget.get('cleanup_seconds'),
+                          budget.get('upload_reserve_seconds')) != (600, 540, 60, 90)):
+                  raise ValueError('fixed_sparse_work_cleanup_budget')
+              clock_names = ('started_monotonic_ns', 'work_deadline_monotonic_ns', 'total_deadline_monotonic_ns',
+                             'work_completed_monotonic_ns', 'cleanup_completed_monotonic_ns')
+              if (any(type(budget.get(key)) is not int or budget[key] <= 0 for key in clock_names)
+                      or budget['work_deadline_monotonic_ns'] != budget['started_monotonic_ns'] + 540 * 10**9
+                      or budget['total_deadline_monotonic_ns'] != budget['started_monotonic_ns'] + 600 * 10**9
+                      or not budget['started_monotonic_ns'] <= budget['work_completed_monotonic_ns'] <= budget['work_deadline_monotonic_ns']
+                      or not budget['work_completed_monotonic_ns'] <= budget['cleanup_completed_monotonic_ns'] <= budget['total_deadline_monotonic_ns']):
+                  raise ValueError('actual_sparse_work_cleanup_deadline_incomplete')
+              receipt['component_batches'] = len(batches)
+              receipt['component_transactions'] = sum(row['completed_transactions'] for row in batches)
+              receipt['component_control_batches'] = len(control_batches)
+              receipt['calibration_patterns'] = sum(len(row['patterns']) for row in samples)
+              receipt['micro_budget'] = budget
+              pids = appended.get('worker_pids')
+              if not isinstance(pids, list) or not pids or any(type(pid) is not int or pid <= 0 for pid in pids):
+                  raise ValueError('missing_or_invalid_micro_worker_pids')
+              receipt['appended_worker_pids'] = pids
+              histories = value.get('registered_runtime_histories')
+              if not isinstance(histories, list) or not histories:
+                  raise ValueError('missing_registered_runtime_histories')
+              all_worker_pids = set(pids)
+              for history in histories:
+                  recorded = history.get('worker_history') if isinstance(history, dict) else None
+                  if not isinstance(recorded, list) or any(type(pid) is not int or pid <= 0 for pid in recorded):
+                      raise ValueError('invalid_registered_runtime_worker_history')
+                  all_worker_pids.update(recorded)
+              receipt['worker_pids'] = sorted(all_worker_pids)
+              receipt['complete_passes'] = len(passes)
+              receipt['callback_counts'] = counts
+              paths = sorted(Path('.agent').glob('c3-network.*'))
+              if not paths or any(path.is_symlink() or not path.is_file() for path in paths):
+                  raise ValueError('network_trace_missing_or_not_regular')
+              names = {path.name for path in paths}
+              if any('c3-network.' + str(pid) not in names for pid in all_worker_pids):
+                  raise ValueError('micro_worker_trace_missing')
+              for path in paths:
+                  suffix = path.name.removeprefix('c3-network.')
+                  if not suffix.isdecimal() or int(suffix) <= 0:
+                      raise ValueError('invalid_network_trace_pid_name')
+                  trace = path.read_bytes()
+                  receipt['traces'].append({'pid': int(suffix), 'path': str(path), 'bytes': len(trace), 'sha256': hashlib.sha256(trace).hexdigest()})
+                  receipt['network_calls'].extend(line for line in trace.decode('utf-8').splitlines()
+                      if re.search(r'\b(socket|connect|sendto|sendmsg|sendmmsg)\(', line))
+              receipt['trace_files'] = len(paths)
+              receipt['network_calls_count'] = len(receipt['network_calls'])
+              receipt['unexpected_network_call_count'] = sum('= -1 EPERM' not in line for line in receipt['network_calls'])
+              receipt['status'] = 'PASS' if receipt['unexpected_network_call_count'] == 0 else 'FAIL'
+          except Exception as exc:
+              receipt['errors'].append({'exception_type': type(exc).__name__, 'reason': str(exc) if type(exc) is ValueError else 'micro_network_observation_error'})
+          receipt['completed_at'] = datetime.now(UTC).isoformat()
+          with output.open('x') as stream:
+              json.dump(receipt, stream, indent=2, sort_keys=True)
+              stream.write('\n')
+          raise SystemExit(0 if receipt['status'] == 'PASS' else 1)
+          PY
+          network=$?
+          printf '%s\n' "$network" > .agent/capture-cost-v3/network-exit-code.txt
+          git status --porcelain --untracked-files=all > .agent/capture-cost-v3/source-status-after.txt
+          source_status_exit=$?
+          printf '%s\n' "$source_status_exit" > .agent/capture-cost-v3/source-status-exit-code.txt
+          test "$(git rev-parse HEAD)" = '${{ matrix.code_sha }}'
+          source_head_integrity=$?
+          printf '%s\n' "$source_head_integrity" > .agent/capture-cost-v3/source-head-exit-code.txt
+          test ! -s .agent/capture-cost-v3/source-status-after.txt
+          source_tree_integrity=$?
+          printf '%s\n' "$source_tree_integrity" > .agent/capture-cost-v3/source-tree-exit-code.txt
+          if test "$measurement" -ne 0; then exit "$measurement"; fi
+          if test "$network" -ne 0; then exit "$network"; fi
+          if test "$source_status_exit" -ne 0; then exit "$source_status_exit"; fi
+          if test "$source_head_integrity" -ne 0; then exit "$source_head_integrity"; fi
+          exit "$source_tree_integrity"
+      - name: Preserve first shell boundary after every outcome
+        if: always()
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          set -eu
+          mkdir -p "$GITHUB_WORKSPACE/.agent/capture-cost-v3"
+          cp "$RUNNER_TEMP/capture-cost-c3-first-step.json" "$GITHUB_WORKSPACE/.agent/capture-cost-v3/first-step-start.json"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         if: always()
         with:
-          name: s05-real-${{ matrix.os }}
+          name: capture-atomic-cost-c3-${{ matrix.slot }}-${{ matrix.variant }}
           path: |
-            .agent/s05-real.json
-            .agent/s05-network.*
-            .agent/s05-wfp.json
+            .agent/c3-network.*
+            .agent/capture-cost-v3/**
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
