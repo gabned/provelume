@@ -1,0 +1,525 @@
+{
+  "schema": "reader415-node-boundary-diagnostic-plan/v3",
+  "status": "FROZEN_PRE_EXECUTION_SOURCE_PLAN",
+  "authority": "DIAGNOSTIC_ONLY_NOT_QUALIFICATION",
+  "original_source_sha256": {
+    "tests/test_capture_shell_contract.py": "08b2d6a8478ab550dc9558b138b78b659fa2648b2a4f75430ae6164d77522811",
+    "tests/test_mobile_shell_contract.py": "d6a00d867e54527025867bda267a4881499e2b8ffb5bb6be73dfaaff4f679e66",
+    "core/provelume/static/capture-worker.js": "46971255263ad4f6ce2a7823325004fdb4318d53c47f385ccd438a900e0a46a2",
+    "core/provelume/capture_http.py": "c0bfcd0bff2168094e524c27ea8326c8208abbe49ab32bd249621e21301518be",
+    "tools/agent_protocol_work_check.py": "c59077f13fc39f7cbebc5ec2b0ec55cf198c2449b083a8b2b1df132773225598",
+    ".github/workflows/ci.yml": "e172ac571097ed871f96fc68d407fb5195319f2f97f679c69717b6671dd910f4",
+    "pyproject.toml": "b2f0050e47bf6ce42c4054a93d172c2ceff77a31914741562aebdac69f1c20db",
+    "tests/conftest.py": "f8ca89396e6e675eee5fa4cf8441c0bc970002aa6094b8fef64c17ad93cd69c8"
+  },
+  "plugin_sha256": "072fa71797a83d5caf05c1b7c994f5939fbaa8cc2ed1b83c45d00774acb1625c",
+  "target_script_sha256": "225bd9c4c75eaeea20e0221e6fd6823a2033b3637a69478577258531bf903671",
+  "binding": {
+    "repository": "gabned/provelume",
+    "baseline_parent": "3c29ab05acef576d7dcdb4c0301200ee0d4bd078",
+    "diagnostic_head": null,
+    "diagnostic_tree": null,
+    "run_id": null,
+    "run_attempt": null,
+    "run_url": null,
+    "intended_event": "push",
+    "intended_branch": "diagnostic/pr415-node-boundary-v3",
+    "plugin_pin_status": "FROZEN_EXACT_PLUGIN_CONTROLS_WORKFLOW_BYTES_ACTUAL_HEAD_RUN_REQUIRE_FUTURE_EXTERNAL_ROOT_SELECTION",
+    "plan_git_path": "scripts/reader415_node_boundary_plan.json",
+    "allowed_additions": [
+      ".github/workflows/reader415-node-boundary-diagnostic.yml",
+      "tools/reader415_node_boundary_diagnostic.py",
+      "tools/reader415_node_boundary_controls.py",
+      "scripts/reader415_node_boundary_plan.json"
+    ],
+    "existing_tracked_paths": "ALL_UNCHANGED_FROM_EXACT_BASELINE_PARENT",
+    "required_history": "ONE_NORMAL_DIRECT_CHILD_OF_BASELINE_PARENT_NO_REWRITE_OR_MERGE",
+    "actual_source_checks": "BEFORE_AND_ALWAYS_AFTER_FULL_TRACKED_GIT_MODE_BLOB_AND_WORKING_BYTE_INVENTORY_PLUS_PLUGIN_SOURCE_BINDING",
+    "allowed_addition_modes": {
+      ".github/workflows/reader415-node-boundary-diagnostic.yml": "100644",
+      "tools/reader415_node_boundary_diagnostic.py": "100644",
+      "tools/reader415_node_boundary_controls.py": "100644",
+      "scripts/reader415_node_boundary_plan.json": "100644"
+    }
+  },
+  "source_acquisition": {
+    "method": "EXACT_READ_ONLY_GIT_SHOW_BASELINE_PATH_BYTES_NO_IMPORT_OR_TEST_EXECUTION",
+    "hash_encoding": "SHA256_OF_RAW_GIT_SHOW_BYTES",
+    "target_script": {
+      "path": "tests/test_mobile_shell_contract.py",
+      "function": "test_share_error_reads_only_existing_language_preference_and_falls_back_on_unavailable_store",
+      "assignment": "script",
+      "extraction": "EXACT_AST_CONSTANT_STR_VALUE_UTF8_WITH_ORIGINAL_NEWLINES_NO_IMPORT_NO_EXECUTION",
+      "bytes": 1885
+    },
+    "tests_conftest_exists_in_parent": true
+  },
+  "complete_cohort": {
+    "groups": [
+      0,
+      1
+    ],
+    "shard_count": 4,
+    "group_shards": {
+      "0": [
+        0,
+        1
+      ],
+      "1": [
+        2,
+        3
+      ]
+    },
+    "concurrent_shards_per_group": 2,
+    "independent_full_inventory_before_shards": true,
+    "collection_selection_order": "UNCHANGED_ORIGINAL_WINDOWS_GROUP_AND_PYTEST_SHARD_PATH",
+    "group_timeout_seconds": 540,
+    "job_timeout_minutes": 10,
+    "fail_fast": false,
+    "python": "3.12",
+    "runner": "windows-latest",
+    "dependency_install": "UNCHANGED_pip_install_editable_dev",
+    "lint": "UNCHANGED_FULL_DECLARED_LINT_STEP",
+    "javascript_warmup": "UNCHANGED_ORIGINAL_NODE_VERSION_AND_CURA_CONTRACT_COMMANDS_WITH_ORIGINAL_15_SECOND_LIMITS",
+    "target_nodeid": "tests/test_mobile_shell_contract.py::test_share_error_reads_only_existing_language_preference_and_falls_back_on_unavailable_store",
+    "target_call_invocations_in_complete_cohort": 1,
+    "instrument_target_only": true,
+    "other_tests": "EXECUTED_IN_COMPLETE_ORDINARY_COHORT_WITH_UNCHANGED_SELECTION_AND_ORDER",
+    "automatic_retry": false,
+    "stop_after_first_pass": false,
+    "candidate_rerun_for_favorable_result": false,
+    "max_parallel_groups": 2,
+    "ordinary_helper_treatment": "ORIGINAL_EAGER_HELPER_UNCHANGED_NO_TOKEN_GUARDS_NO_CODE_TREATMENT_NO_FIXTURE_OPTIMIZATION",
+    "full_ordinary_before_controls": true
+  },
+  "observations": {
+    "purpose": "REPAIR_RESPONSE_LAZY_DESCRIPTOR_OBSERVER_HOLE_AND_VALIDATE_ADMITTED_DETACHMENT_EOF_CONTRAST_WITHOUT_HISTORICAL_CAUSALITY_OR_FIX_CLAIM",
+    "original_helper": "tests/test_capture_shell_contract.py::node",
+    "original_run_behavior": "KEEP_ORIGINAL_HELPER_FILE_SUBSTITUTION_TEMP_MJS_ASSERTIONS_JSON_PARSING_AND_30_SECOND_TIMEOUT",
+    "stdlib_run": "SAME_ACTUAL_RUNTIME_CODE_OBJECT_WITH_PRIVATE_POPEN_BINDING_ONLY_NO_GLOBAL_SUBPROCESS_REPLACEMENT",
+    "pipe_readers": "ORIGINAL_STDLIB_WINDOWS_READERS_ONLY_NO_SECOND_DRAINER",
+    "marker_max_records": 48,
+    "marker_artifact_max_bytes": 131072,
+    "marker_byte_cap_interpretation": "POST_RUN_ARTIFACT_ACCEPTANCE_BOUND_NO_OUTPUT_PIPE_TRUNCATION",
+    "parent_event_max_records": 64,
+    "retained_observer_error_max_records": 64,
+    "periodic_max_samples": 121,
+    "periodic_interval_seconds": 0.25,
+    "additional_pre_kill_query_max": 1,
+    "pre_kill_query_position": "ACTUAL_TIMEOUTEXPIRED_BEFORE_ORIGINAL_RUN_KILL_PATH",
+    "monitor_cleanup_join_timeout_seconds": 0.5,
+    "progress_markers": [
+      "USER_MODULE_BODY_ENTERED",
+      "SCOPE_CONSTRUCTION_ENTER",
+      "URL_LOOKUP_ENTER",
+      "URL_LOOKUP_RETURN",
+      "URL_LOOKUP_RAISED",
+      "RESPONSE_LOOKUP_ENTER",
+      "RESPONSE_LOOKUP_RETURN",
+      "RESPONSE_LOOKUP_RAISED",
+      "SCOPE_READY_RESPONSE_EXPOSED",
+      "VM_ENTER",
+      "VM_READY",
+      "LANGUAGE_ENTER",
+      "LANGUAGE_RETURN",
+      "LANGUAGE_RAISED",
+      "RESPONSE_TEXT_ENTER",
+      "RESPONSE_TEXT_RETURN",
+      "ASSERTIONS_DONE",
+      "STDOUT_BEFORE",
+      "STDOUT_AFTER",
+      "BEFORE_EXIT",
+      "EXIT",
+      "UNCAUGHT_EXCEPTION_MONITOR"
+    ],
+    "native_queries": "EXISTING_PROCESS_HANDLE_TIMES_IO_ORIGINAL_READER_THREADS_PLUS_SYSTEM_TIMES_GLOBAL_MEMORY_PROCESS_MEMORY_CHILD_THREAD_CENSUS",
+    "native_api_failure": "EXPLICIT_UNAVAILABLE_WITH_ACTUAL_WINERROR_NOT_SYNTHETIC_ZERO",
+    "missing_or_unavailable_values": "NULL_OR_EXPLICIT_AVAILABLE_FALSE_AS_RECORDED_NO_ZERO_IMPUTATION",
+    "cost_records": "ACTUAL_OBSERVER_WALL_AND_THREAD_CPU_TIME_AND_PREVIOUS_MARKER_WRITE_COST_WHERE_OBSERVED",
+    "observer_errors": "RETAIN_TYPED_ERRORS_AND_MARK_OBSERVABILITY_INCOMPLETE_WITHOUT_MASKING_OR_REPLACING_ORIGINAL_SUBPROCESS_RESULT_OR_EXCEPTION",
+    "binding_restoration": "RESTORE_TEST_MODULE_NODE_ALIAS_AND_HELPER_SUBPROCESS_BINDING_INDEPENDENTLY_RETAIN_ACTUAL_IDENTITY_CHECK",
+    "max_samples_including_pre_kill": 122,
+    "cadence": "FIXED_NOMINAL_MONOTONIC_250MS_RECORD_ACTUAL_LAG_AND_MISSED_TICKS_NO_CATCHUP_BURST_OR_GUARANTEE",
+    "sample_bracket": "POLL_BEFORE_THEN_TIMESTAMPED_READER_STATUS_NATIVE_QUERIES_THEN_POLL_AFTER_NO_SIMULTANEITY_ASSUMPTION",
+    "reader_cpu_identity": "QUERY_ONLY_WHEN_ALIVE_RECHECK_ALIVE_AFTER_QUERY_ENDED_OR_CHANGED_IDENTITY_IS_UNSUPPORTED_NO_TID_REUSE_ATTRIBUTION",
+    "pre_kill_required": "PROCESS_TIMES_IO_AND_STABLY_LIVE_READER_CPU_AVAILABILITY_FAILURE_MARKS_OBSERVABILITY_INCOMPLETE",
+    "timeout_checkpoint": "ONE_GUARDED_EXCLUSIVE_STATE_PREFIX_BEFORE_ORIGINAL_RUN_KILL_RETAINS_PREKILL_IF_ORIGINAL_POSTKILL_DRAIN_HANGS",
+    "clock_domains": "NODE_HRTIME_PYTHON_MONOTONIC_PYTHON_PERF_COUNTER_AND_FILETIME_INDEPENDENT_DOMAINS_NO_CROSS_EPOCH_SUBTRACTION_ACTUAL_CLOCKINFO_RETAINED",
+    "cost_limits": "PREVIOUS_JS_MARKER_WRITE_COST_IS_ONE_RECORD_LATE_FINAL_EXIT_WRITE_COST_IS_NOT_REPORTED_NO_COMPLETE_OR_UNIVERSAL_OVERHEAD_BOUND_OR_SUBTRACTION",
+    "single_response_lookup": {
+      "position": "PROPERTY_INITIALIZER_IIFE_AFTER_URL_AND_BEFORE_TEXTENCODER_AND_TIMERS",
+      "calls": 1,
+      "descriptor": "NO_BEFORE_DESCRIPTOR_OR_RESPONSE_ACCESS_OR_ENUMERATION_OR_MODULE_LOAD_PROBE_OR_EXPLICIT_UNDICI_REQUIRE",
+      "returned_value": "EXACT_CAPTURED_CONSTRUCTOR_REFERENCE_IN_SCOPE_RESPONSE",
+      "no_replacement_mock_prewarm_second_lookup": true,
+      "clock_bracket": "NODE_HRTIME_AND_PROCESS_CPU_USAGE_RAW_BEFORE_AND_AFTER_INCLUDES_CLOCK_OBSERVER_COST",
+      "descriptor_after": "ONLY_INSIDE_RESPONSE_LOOKUP_RETURN_AFTER_RAW_AFTER_CLOCKS_NO_SECOND_GLOBAL_RESPONSE_READ",
+      "scope_identity": "COMPARE_SCOPE_OWN_RESPONSE_WITH_RETAINED_LOCAL_ONLY"
+    },
+    "new_native_limits": {
+      "child_threads_per_snapshot": 64,
+      "toolhelp_system_wide_rows_per_snapshot": 4096,
+      "process_thread_identity": "PROCESS_CREATION_FILETIME_PLUS_TID_CREATION_FILETIME_AND_VALIDATED_OWNER",
+      "coverage": "POINT_IN_TIME_ONLY_TRANSIENT_INACCESSIBLE_OR_CAPPED_THREADS_EXPLICIT_PARTIAL",
+      "get_system_times": "RAW_IDLE_KERNEL_USER_100NS_KERNEL_INCLUDES_IDLE_ACTIVE_DELTA_KERNEL_PLUS_USER_MINUS_IDLE_SYSTEM_VM_SCOPE_NOT_SCHEDULER_CAUSE",
+      "global_memory": "GLOBALMEMORYSTATUSEX_RAW_NOT_CHILD_MEMORY",
+      "child_memory": "GETPROCESSMEMORYINFO_RAW_PAGEFAULTCOUNT_NOT_HARDFAULTS_WORKING_SET_PAGEFILE_COUNTERS",
+      "unsupported": "ACTUAL_WINERROR_AVAILABLE_FALSE_OR_NULL_NEVER_ZERO_IMPUTATION"
+    },
+    "high_resolution_parent_clock": "ADD_PERF_COUNTER_NS_TO_STAGE_SAMPLE_POLL_BRACKETS_AND_OBSERVER_COST_KEEP_ORIGINAL_MONOTONIC_AND_UTC",
+    "plugin_environment": {
+      "name": "PYTEST_PLUGINS",
+      "remove_only_exact_entry": "reader415_node_boundary_diagnostic",
+      "when": "ALREADY_LOADED_OFFICIAL_PYTEST_BEFORE_TEST_CHILDREN",
+      "preserve_unrelated_entries": true,
+      "record_exact_presence_and_value_before_after": true,
+      "restore": "PYTEST_UNCONFIGURE_AFTER_SESSION_AND_TEST_TEARDOWN",
+      "supervisor": "UNCHANGED_ENV_INJECTION_IN_SIX_OFFICIAL_INVENTORY_AND_SHARD_PROCESSES",
+      "nested_test_processes": "NO_TEMPORARY_PLUGIN_DEPENDENCY",
+      "final_restore_evidence": {
+        "required_for_each_official_pytest_process": [
+          "observations.json",
+          "environment-restoration.json",
+          "unconfigure-final.json"
+        ],
+        "late_errors": "FINAL_UNCONFIGURE_SIDECAR_AND_FALLBACK_STDERR_NEVER_OVERWRITE_OR_PROMOTE_PRIOR_OBSERVATIONS",
+        "fallback_prefix": "READER415_UNCONFIGURE_FINAL=",
+        "aggregate_rule": "ANY_MISSING_FINAL_SIDECAR_OR_REPORTED_LATE_ERROR_IS_OBSERVABILITY_INCOMPLETE_REGARDLESS_EARLIER_OBSERVATIONS_COMPLETE"
+      }
+    },
+    "sampling_cap_after_original_timeout": "RETAIN_RAW_CAP_ERROR_AND_OBSERVABILITY_INCOMPLETE_DURING_ORIGINAL_SECOND_COMMUNICATE_DRAIN_NO_HORIZON_EXTENSION_OR_STATUS_PROMOTION",
+    "status_semantics": "TOP_COMPLETE_IS_MECHANICAL_COLLECTION_ONLY_PER_FIELD_AVAILABILITY_AND_POINT_IN_TIME_COVERAGE_REMAIN_EXPLICIT_NOT_ALL_COUNTERS_SUPPORTED",
+    "api_attempt_count_scope": "extended_native.extended_api_attempts_COUNTS_EXTENDED_SNAPSHOT_ONLY_EXCLUDES_BASE_PROCESS_IO_AND_READER_APIS_NOT_TOTAL_ROUND_COUNT",
+    "sample_publication": "SAMPLE_ROW_FULLY_CONSTRUCTED_INCLUDING_MISSED_TICKS_BEFORE_APPEND_NO_MUTATION_AFTER_PUBLICATION_TO_PROTECTED_CHECKPOINT",
+    "single_url_lookup": {
+      "position": "ONE_ORIGINAL_PROPERTY_INITIALIZER_IIFE_BEFORE_RESPONSE_AND_TEXTENCODER_AND_TIMERS",
+      "calls": 1,
+      "returned_value": "EXACT_CAPTURED_ORIGINAL_URL_REFERENCE_IN_SCOPE_URL",
+      "clock_bracket": "NODE_HRTIME_AND_PROCESS_CPU_USAGE_RAW_BEFORE_AND_AFTER_INCLUDES_OBSERVER_COST",
+      "original_exception": "PROPAGATE_THE_SAME_ORIGINAL_LOOKUP_EXCEPTION",
+      "scope_identity": "COMPARE_SCOPE_OWN_URL_WITH_RETAINED_LOCAL_ONLY_NO_SECOND_GLOBAL_URL_READ"
+    },
+    "original_initializer_order": "URL_THEN_RESPONSE_THEN_TEXTENCODER_THEN_TIMERS_EXACT_ORIGINAL_ORDER_ONE_LOOKUP_EACH",
+    "scope_ready_identity_fields": [
+      "captured_url_identity",
+      "captured_constructor_identity"
+    ]
+  },
+  "evaluation": {
+    "evaluate_only_after": "ALL_THREE_JOBS_ALL_FOUR_ORDINARY_SHARDS_AND_BOTH_FIXED_CONTROLS_HAVE_FIRST_TERMINAL_OUTCOMES_AND_ALL_AVAILABLE_RAW_FILES_ARE_RETAINED",
+    "all_original_tests_pass": "NO_REPRODUCTION_IN_THIS_COMPLETE_DIAGNOSTIC_COHORT_NO_FIX_OR_QUALIFICATION_CLAIM",
+    "target_original_30_second_timeout": "PROSPECTIVE_REPRODUCTION_OF_TARGET_TIMEOUT_ONLY_CLASSIFY_LAST_OBSERVED_PHASE_AND_PRE_KILL_STATUS",
+    "last_marker_or_missing_marker": "PROGRESS_BOUND_ONLY_NOT_CAUSAL_PROOF_AND_NOT_SYNTHETIC_NODE_OR_JOB_CONCLUSION",
+    "pre_kill_process_and_reader_status": "POINT_IN_TIME_OBSERVATION_ONLY_NOT_A_SUBSTITUTE_FOR_ACTUAL_EXIT_RESULT_OR_CAUSAL_ATTRIBUTION",
+    "other_test_failure": "PRESERVE_ORDINARY_FAILURE_AND_COMPLETE_REMAINING_COHORT_NO_AUTOMATIC_RERUN",
+    "missing_raws_or_observer_failure_or_caps_exceeded": "OBSERVABILITY_INCOMPLETE_KEEP_ORIGINAL_TEST_OUTCOME_UNCHANGED",
+    "isolated_pass": "NO_REPRODUCTION_ONLY_NEVER_PRODUCT_CORRECTION_OR_QUALIFICATION",
+    "ordinary_pass": "NONREPRODUCTION_ONLY_HISTORICAL_CAUSE_UNKNOWN_NO_FINDING_RESOLUTION_ACCEPTANCE_OR_QUALIFICATION_INFERENCE",
+    "control_status": "SEPARATE_CONTROLLER_COMPLETION_FIXTURE_TRUTH_RAW_OBSERVER_COMPLETENESS_AND_CATEGORY_WITH_NO_PROMOTION_OF_UNKNOWN_OR_INCOMPLETE",
+    "exited_reader_category": "PROCESS_EXIT_OBSERVED_BEFORE_LIVE_ORIGINAL_READER_STABLE_BIRTH_REPEATED_ORDERED_BRACKETS_NOT_POSTKILL_RETURN_CODE",
+    "control_A": "NONDETACHED_READY_BIRTH_MEMBERSHIP_RELEASE_TRUE_PARENT_NATURAL_EXIT0_ORIGINAL_RETURNED_HOLDER_OPEN_RETAINED_AND_ACTUAL_HOLDER_EXIT_JOB_STATE",
+    "control_B": "DETACHED_SAME_ADMISSION_PARENT_NATURAL_EXIT0_BEFORE_ORIGINAL_KILL_BORN_STDOUT_READER_STABLY_ALIVE_HOLDER_LIVE_OUTER_JOB_ORIGINAL_TIMEOUT30_PREKILL_AND_DRAIN_RETAINED",
+    "control_admission_failure": "MISSING_LATE_FAILED_WRONG_IDENTITY_OR_MEMBERSHIP_IS_UNKNOWN_OR_UNEXPECTED_NOT_EXPECTED_EOF_FIXTURE_NO_REPLACEMENT"
+  },
+  "preservation": {
+    "ordinary_pytest_results_authoritative": true,
+    "original_exception_identity_preserved": true,
+    "original_stdout_stderr_objects": "RETAIN_ACTUAL_BYTES_OR_EXPLICIT_PYTHON_STR_UTF8_SURROGATEPASS_REPRESENTATION_NEVER_LABEL_TEXT_AS_RAW_OS_PIPE_BYTES",
+    "artifacts": [
+      "BOTH_ORIGINAL_WINDOWS_GROUP_RECORDS_INDEPENDENT_INVENTORIES_SHARD_JSON_AND_LOGS",
+      "BEFORE_AND_AFTER_FULL_TRACKED_SOURCE_PROOFS",
+      "PLUGIN_OBSERVATIONS_AND_TYPED_ERRORS",
+      "ORIGINAL_TARGET_SCRIPT_AND_INSTRUMENTED_TEMPLATE_AND_ACTUAL_MJS",
+      "NODE_MARKERS_AND_ACTUAL_RESULT_OR_TIMEOUT_OUTPUT_FILES",
+      "STDLIB_RUN_SOURCE_AND_RUNTIME_PROCESS_THREAD_METADATA",
+      "BOTH_FIXED_CONTROLS_RAW_WORKER_STREAMS_JOB_MEMBERSHIP_AND_CLEANUP_RECORDS",
+      "HIGH_RES_PARENT_AND_NATIVE_SYSTEM_MEMORY_CHILD_THREAD_POINT_IN_TIME_COUNTERS",
+      "THREE_TYPED_DURABLE_HOLDER_ENTRY_READY_CONTROLLER_RELEASE_RECORDS_AND_HOLDER_LIFECYCLE_STDERR_RAW_API_ERRORS"
+    ],
+    "raw_identity_bindings": "ACTUAL_EVENT_HEAD_TREE_PARENT_RUN_ID_ATTEMPT_GROUP_SHARD_PID_AND_COMMAND_ARGUMENTS_WHERE_AVAILABLE",
+    "historical_outcomes": "PRESERVE_ALL_EXISTING_FAILURES_AND_ATTEMPTS_NO_RETROSPECTIVE_TIMESTAMP_OR_CAUSALITY",
+    "artifact_upload": "ALWAYS_WITH_ORIGINAL_14_DAY_RETENTION_AND_ERROR_ON_MISSING_EVIDENCE",
+    "exclusive_writes": true,
+    "unexpected_target_invocation": "RECORD_INCOMPLETE_FALL_BACK_TO_ORIGINAL_ONCE_WITHOUT_OVERWRITING_FIRST_OBSERVATIONS"
+  },
+  "restrictions": {
+    "new_product_change": false,
+    "test_or_worker_or_existing_ci_change": false,
+    "short_replay_instead_of_full_cohort": false,
+    "performance_threshold_or_resource_budget_change": false,
+    "forced_node_exit_or_unref": "FORBIDDEN_ORDINARY_CONTROL_ONLY_UNREF_AFTER_TYPED_READY_AND_DURABLE_CONTROLLER_RELEASE_NO_FORCED_PARENT_EXIT",
+    "new_pipe_reader": false,
+    "secret_or_operator_home_access": false,
+    "random_draw": false,
+    "release_tag_or_publication": false,
+    "qualification": false
+  },
+  "freeze_requirements": [
+    "ROOT_AND_INDEPENDENT_CPU_REVIEW_LITERAL_PLUGIN_CONTROLS_WORKFLOW_AND_PLAN_BEFORE_FIRST_EXECUTION",
+    "FILL_ACTUAL_PLUGIN_AND_CONTROL_SHA256_AFTER_FINAL_BYTES_FROZEN_AND_RECOMPUTE_WORKFLOW_SHA256",
+    "PRESERVE_EXACT_ORIGINAL_SOURCE_AND_TARGET_AST_CONSTANT_HASHES",
+    "ONLY_THEN_ROOT_MAY_CREATE_ACTUAL_FOUR_ADDITION_DIRECT_CHILD_D_AND_RECORD_REAL_HEAD_TREE_RUN_IDENTITIES_EXTERNALLY",
+    "OLD_D1_D2_SOURCE_RAW_OUTCOMES_AND_FAILURES_UNCHANGED_NO_EXTRA_LINUX_RUNTIME_EXPERIMENT_CONTROL_REPEAT_OR_ARCHIVE_REAUDIT"
+  ],
+  "workflow_sha256": "739dad8e766a2020f1cdcc4815e06459aba17f8209eddc719a2d42c1a3847b0a",
+  "root_source_facts": {
+    "path": "host/protocol-sequence/node-lifecycle-root-source-facts-v1.json",
+    "sha256": "cc5c59a37bffde184f9279bc8923a39f5513279ae913b20e98de254dc12a4c0d"
+  },
+  "historical_runtime": {
+    "python": "3.12.10",
+    "node": "v22.23.4",
+    "actual_new_runtime": "RECORD_ACTUAL_NO_ASSUMPTION_OR_VERSION_CHANGE",
+    "drift": "NONCOMPARABLE_RUNTIME_DRIFT",
+    "unobserved": "UNKNOWN_NOT_HISTORICAL_MATCH"
+  },
+  "controls_sha256": "4b0bace490569c30c2e0c5bed308894055046ec3f78271070f20b1a7fa37a558",
+  "selected_design": {
+    "path": "host/protocol-sequence/node-boundary-D3-discriminating-design-v2.draft.md",
+    "sha256": "11d4b5c5ebd6cd52045c8832985096b4955bff1f606dc74029b96a8a7cb57aa6",
+    "scope": "ROOT_SELECTED_STATIC_IMPLEMENTATION_ONLY_NO_EXECUTION"
+  },
+  "controls": {
+    "scope": "ARTIFICIAL_OBSERVER_CATEGORY_VALIDATION_ONLY_NOT_HISTORICAL_CAUSE",
+    "job_name": "Node observer controls",
+    "depends_on": "BOTH_ORDINARY_MATRIX_JOBS_TERMINAL",
+    "if": "always()",
+    "runner": "windows-latest",
+    "python": "3.12",
+    "job_timeout_minutes": 10,
+    "actual_imports": "CONTROLLER_STDLIB_WORKER_IMPORTS_SHARED_DIAGNOSTIC_PLUGIN_AND_PYTEST_HOOK_DEFINITIONS_NO_PYTEST_MAIN_APPLICATION_OR_TEST_IMPORT_OR_EXECUTION",
+    "fixed_order": [
+      "nondetached35",
+      "detached35"
+    ],
+    "controls": [
+      {
+        "kind": "nondetached35",
+        "detached": false,
+        "source_truth": "ADMITTED_HOLDER_WITH_35_SECOND_REFERENCED_TIMER_STDOUT_PROCESS_STDOUT_IPC_AND_STDERR_IN_NATIVE_NONDETACHED_CHILD_JOB",
+        "expected_pattern": "READY+birth+membership+release true; parent natural exit0; original run RETURNED, admitted stdout open retained; actual holder/Job exit evidence.",
+        "control_only_unref": "ONLY_AFTER_DURABLE_READY_AND_CONTROLLER_RELEASE",
+        "original_subprocess_timeout_seconds": 30,
+        "raw_observer_status": "RETAINED_NO_PROMOTION"
+      },
+      {
+        "kind": "detached35",
+        "detached": true,
+        "source_truth": "SAME_ADMITTED_HOLDER_TIMER_STDOUT_IPC_STDERR_ONLY_DETACHED_BOOLEAN_DIFFERS_NO_BREAKAWAY",
+        "expected_pattern": "Same admission true; parent natural exit0 before kill; same-born stdout reader alive; original TimeoutExpired30 with unchanged kill/second communicate; holder survives until timer/end or explicit deadline cleanup.",
+        "control_only_unref": "ONLY_AFTER_DURABLE_READY_AND_CONTROLLER_RELEASE",
+        "original_subprocess_timeout_seconds": 30,
+        "original_post_timeout_drain": "PRESERVED_MAY_WAIT_APPROX35_SECONDS_THEN_RERAISE_SAME_ORIGINAL_TIMEOUTEXPIRED",
+        "sampler_cap": "RETAIN_RAW_OBSERVABILITY_INCOMPLETE_AND_ERRORS_NO_HORIZON_EXTENSION_OR_STATUS_PROMOTION"
+      }
+    ],
+    "containment": {
+      "mechanism": "WINDOWS_JOBOBJECT_KILL_ON_JOB_CLOSE_PER_CONTROL",
+      "handle": "OUTER_ONLY_NONINHERIT_SET_AND_GETHANDLEINFORMATION_READBACK",
+      "worker_protocol": "WORKER_BLOCKS_ON_STDIN_BEFORE_ANY_NODE_SPAWN_ASSIGN_EXACT_JOB_AND_ISPROCESSINJOB_READBACK_THEN_GO",
+      "worker_stdin_before_node": "CONTROL_ONLY_HANDSHAKE_CLOSED_AND_NUL_REBOUND_BEFORE_NODE_ORDINARY_STDIN_REMAINS_INHERITED_OS_HANDLE_KIND_NOT_PREVIOUSLY_MEASURED_NO_CLAIM_EFFECTIVE_INPUT_EQUALITY",
+      "unsupported_assignment": "RETAIN_ACTUAL_WINERROR_STOP_BEFORE_NODE_NO_WEAKER_RETRY",
+      "no_breakaway_priority_affinity_cpu_memory_limit_overrides": true,
+      "tree_cleanup": "OWNED_JOB_INCLUDING_DESCENDANTS_AFTER_PARENT_EXIT_NOT_GLOBAL_NODE_KILL",
+      "quiescence": "BOTH_LISTED_PROCESSES_ZERO_AND_ASSIGNED_PROCESSES_ZERO_WITHIN_CLEANUP_BUDGET_NOT_EMPTY_TRUNCATED_LIST",
+      "go_partial_write": "GO_ATTEMPT_RECORDED_BEFORE_WRITE_FLUSH_FAILURE_ADMISSION_UNKNOWN_NEVER_ASSERT_BEFORE_NODE_WORKLOAD_AFTER_GO_ATTEMPT",
+      "go_admission": "90_SECOND_DEADLINE_FROM_WORKER_POPEN_BEFORE_CHECKED_BEFORE_GO_ATTEMPT_NO_LATE_NODE_ADMISSION",
+      "parent_exit": "DO_NOT_TERMINATE_OUTER_JOB_ON_PARENT_EXIT_WAIT_ORIGINAL_WORKER_OUTCOME_OR_WORK_DEADLINE",
+      "holder_release_admission": "POSITIVE_RETAINED_HANDLE_BIRTH_PID_FROM_HANDLE_AND_EXACT_OUTER_JOB_MEMBERSHIP_TRUE_FOR_PARENT_AND_HOLDER_BEFORE_RELEASE_PLUS_CONTEMPORANEOUS_CENSUS"
+    },
+    "per_control_work_seconds": 90,
+    "per_control_cleanup_seconds": 20,
+    "max_two_control_seconds": 220,
+    "all_attempted_once_no_retry": true,
+    "outcome_axes": [
+      "ORIGINAL_RESULT_OR_EXCEPTION",
+      "RAW_OBSERVER_STATUS",
+      "KNOWN_ARTIFICIAL_SOURCE_EXPECTATION",
+      "OBSERVED_CATEGORY_WITH_LIMITS"
+    ],
+    "output": "reader415-node-controls/controls",
+    "source_proof_output": "reader415-node-controls/source-proof",
+    "cleanup_census_cap": 512,
+    "cleanup_preservation": "ALL_ACQUIRED_CLEANUP_CENSUS_ROWS_APPENDED_UP_TO_CAP_EACH_RETAINED_HANDLE_QUERIED_INDEPENDENTLY_PREFIX_AND_ERRORS_RETAINED",
+    "report_preservation": "EACH_STREAM_HASH_FINAL_CLOCK_AND_EXCLUSIVE_CONTROL_RECORD_WRITE_GUARDED_FALLBACK_STDERR_RETAINS_RAM_RECORD_ON_PERSISTENCE_FAILURE",
+    "control_truth_validation": {
+      "nondetached35": "ACTUAL_THREE_RECORD_ADMISSION_NATURAL_PARENT_EXIT0_ORIGINAL_RETURNED_ADMITTED_HOLDER_OPEN_STDOUT_AND_RETAINED_HOLDER_EXIT_JOB_STATE",
+      "detached35": "SAME_ADMISSION_NATURAL_PARENT_EXIT0_POSITIVE_NATIVE_EXIT_IDENTITY_BEFORE_KILL_SAME_BORN_STDOUT_READER_ALIVE_IN_REPEATED_BRACKETS_HOLDER_LIVE_IN_OUTER_JOB_ORIGINAL_TIMEOUT30_DURABLE_PREKILL",
+      "both": "MATCHING_TYPED_IDENTITIES_AND_RUN_COORDINATES_EXCLUSIVE_DURABLE_ENTRY_READY_RELEASE_ACTUAL_OBSERVATIONS_REFERENCED_RAW_ERRORS_PRESERVED_NO_UNKNOWN_PROMOTION",
+      "pre_kill_required": "DETACHED_TIMEOUT_ARM_ONLY_NOT_FABRICATED_FOR_RETURNED_NONDETACHED_ARM"
+    },
+    "controller_completion_vs_raw_observer": "CATEGORY_PATTERN_OBSERVED_WITH_RAW_OBSERVER_STATUS_RETAINED_IS_SEPARATE_CONTROLLER_RESULT_RAW_OBSERVER_INCOMPLETE_ERRORS_CAPS_NEVER_CLEARED_OR_PROMOTED",
+    "output_schemas": {
+      "summary": "reader415-node-boundary-controls/v3",
+      "shared_observations": "reader415-node-boundary-observations/v3",
+      "source_proof": "reader415-source-proof/v3"
+    },
+    "fixed_control_progress_markers": {
+      "nondetached35": [
+        "CONTROL_HOLDER_SPAWNED",
+        "CONTROL_HOLDER_READY_RECEIVED",
+        "CONTROL_CONTROLLER_RELEASE_ACCEPTED",
+        "CONTROL_PARENT_BODY_FINISHED",
+        "CONTROL_FIXTURE_ERROR",
+        "BEFORE_EXIT",
+        "EXIT"
+      ],
+      "detached35": [
+        "CONTROL_HOLDER_SPAWNED",
+        "CONTROL_HOLDER_READY_RECEIVED",
+        "CONTROL_CONTROLLER_RELEASE_ACCEPTED",
+        "CONTROL_PARENT_BODY_FINISHED",
+        "CONTROL_FIXTURE_ERROR",
+        "BEFORE_EXIT",
+        "EXIT"
+      ]
+    },
+    "raw_observer_incomplete_cannot_be_promoted": true,
+    "controller_result_semantics": {
+      "controls_summary_controller_completion": "COMPLETE_MEANS_BOTH_CONTROLLER_RUNS_REPORT_PRESERVATION_AND_OWNED_QUIESCENCE_FINISHED_NOT_A_CATEGORY_OR_RAW_OBSERVER_PASS",
+      "control_record_status": "COMPLETE_REQUIRES_ACTUAL_ARM_SPECIFIC_EXPECTED_OUTCOME_AND_CATEGORY_WORKER_ZERO_NO_CONTROLLER_ERRORS_AND_OWNED_QUIESCENCE_NOT_RAW_OBSERVER_PASS",
+      "controls_summary_result": "ALL_CATEGORY_PATTERNS_OBSERVED_RAW_STATUS_RETAINED_ONLY_WHEN_BOTH_ADMITTED_CONTROL_RECORDS_COMPLETE_ELSE_INCOMPLETE_OR_UNEXPECTED",
+      "raw_observer_status": "RETAINED_SEPARATELY_NO_INCOMPLETE_OR_CAP_PROMOTION"
+    },
+    "selected_ready_release_contract": {
+      "order": [
+        "nondetached35",
+        "detached35"
+      ],
+      "per_arm_invocations": 1,
+      "only_contrast": "detached:false versus detached:true",
+      "stdio": "SAME process.stdout stream plus separately retained holder stderr and IPC",
+      "native_private_job_mechanism": "Node exact v22.23.4 libuv nondetached child KILL_ON_JOB_CLOSE; detached omits CREATE_BREAKAWAY_FROM_JOB",
+      "identity": {
+        "required": [
+          "control_kind",
+          "run_id",
+          "run_attempt",
+          "parent_pid",
+          "holder_pid"
+        ],
+        "runtime_values": "ACTUAL_ONLY_POSITIVE_DISTINCT_PIDS_EXACT_RUN_STRINGS",
+        "fresh_directory": "REQUIRED_ABSENT_BEFORE_EACH_ARM"
+      },
+      "admission_records": [
+        {
+          "path": "observer/holder-entry.json",
+          "schema": "reader415-holder-entry/v3",
+          "required": [
+            "control_kind",
+            "run_id",
+            "run_attempt",
+            "parent_pid",
+            "holder_pid",
+            "utc",
+            "hrtime_ns"
+          ]
+        },
+        {
+          "path": "observer/holder-ready.json",
+          "schema": "reader415-holder-ready/v3",
+          "required": [
+            "control_kind",
+            "run_id",
+            "run_attempt",
+            "parent_pid",
+            "holder_pid",
+            "timer_installed",
+            "timer_duration_ms",
+            "stdout_open_write_returned",
+            "utc",
+            "hrtime_ns"
+          ],
+          "truth": {
+            "timer_installed": true,
+            "timer_duration_ms": 35000,
+            "stdout_open_write_returned": true
+          }
+        },
+        {
+          "path": "controller-release.json",
+          "schema": "reader415-controller-release/v3",
+          "required": [
+            "control_kind",
+            "run_id",
+            "run_attempt",
+            "parent_pid",
+            "holder_pid",
+            "parent_identity",
+            "holder_identity",
+            "census_before_release",
+            "perf_counter_ns",
+            "utc"
+          ],
+          "identity_proof": "BOTH retained handles actual positive creation + PID-from-handle + exact outer Job membership true + no known exit BEFORE RELEASE; preserve all raw API errors",
+          "census": "Contemporaneous original census contains BOTH identities; no empty-census inference"
+        }
+      ],
+      "persistence": "Exclusive files, fsync/close before readiness or RELEASE; use exclusive temporary plus no-overwrite atomic rename where a reader could otherwise see partial JSON; retain partial failures. No replacement of original evidence.",
+      "file_size_cap_bytes": 65536,
+      "ready_message": "Typed matching v3 READY with exact same identity AFTER durable READY, timer install and successful HOLDER_OPEN stdout write. Preserve errors.",
+      "release_checks": "Node parent validates exact matching kind/run/attempt/PIDs and proof booleans before clearing own watchdog/disconnecting IPC/unref/natural exit.",
+      "deadline_seconds_from_before_holder_spawn": 5,
+      "parent_release_poll_ms": 50,
+      "outer_census_ms": 250,
+      "budgets": {
+        "work_seconds": 90,
+        "cleanup_seconds": 20,
+        "job_minutes": 10
+      },
+      "ownership": "Owned noninherited KILL_ON_JOB_CLOSE outer Job assigned to Python worker before GO. Both parent and holder membership/birth proven before release; no BREAKAWAY/fallback/global kill.",
+      "additional_records": "Retain parent admission/release, holder timer/end/disconnect/exit/errors, stderr, raw source and all native/reader checkpoints with original statuses.",
+      "expected_A": "READY+birth+membership+release true; parent natural exit0; original run RETURNED, admitted stdout open retained; actual holder/Job exit evidence.",
+      "expected_B": "Same admission true; parent natural exit0 before kill; same-born stdout reader alive; original TimeoutExpired30 with unchanged kill/second communicate; holder survives until timer/end or explicit deadline cleanup.",
+      "unknown": "All missing/late/failed proof UNKNOWN or UNEXPECTED, never promoted; preserve complete two-arm cohort without replacement."
+    },
+    "holder_lifecycle": {
+      "path": "observer/holder-events.jsonl",
+      "maximum_rows": 64,
+      "maximum_bytes": 65536,
+      "stages": [
+        "MODULE_ENTER",
+        "TIMER_INSTALLED",
+        "OPEN_WRITTEN",
+        "READY_PERSISTED",
+        "READY_IPC_SENT",
+        "IPC_DISCONNECT",
+        "TIMER_EXPIRED",
+        "END_WRITTEN",
+        "BEFORE_EXIT",
+        "EXIT",
+        "ERROR"
+      ],
+      "stderr": "observer/holder.stderr",
+      "raw_errors": "PRESERVE_ORIGINAL_ERRORS_AND_PARTIAL_RECORDS"
+    },
+    "only_contrast": "DETACHED_FALSE_VERSUS_TRUE_IDENTICAL_STDOUT_STREAM_IPC_STDERR_TIMERS_READY_RELEASE_OWNERSHIP_NO_OTHER_FACTOR"
+  },
+  "transport": {
+    "workflow_name": "Reader415 Windows Node boundary diagnostics",
+    "workflow_git_path": ".github/workflows/reader415-node-boundary-diagnostic.yml",
+    "trigger": "PUSH_EXACT_BRANCH_ONLY",
+    "expected_expanded_job_names": [
+      "Windows Core execution (0)",
+      "Windows Core execution (1)",
+      "Node observer controls"
+    ],
+    "expected_artifact_templates": [
+      "windows-core-${runid}-${attempt}-0",
+      "windows-core-${runid}-${attempt}-1",
+      "reader415-node-boundary-${runid}-${attempt}-0",
+      "reader415-node-boundary-${runid}-${attempt}-1",
+      "reader415-node-controls-${runid}-${attempt}"
+    ],
+    "expected_jobs": 3,
+    "expected_artifacts": 5,
+    "monitor": "WAIT_ALL_THREE_TERMINAL_STABLE_OBSERVATIONS_NOT_EARLY_AFTER_ORDINARY",
+    "actual_run_ids": "UNKNOWN_REQUIRE_EXTERNAL_ROOT_SELECTION_AFTER_REAL_PUSH_NO_DEFAULTS"
+  },
+  "execution_authority": "NONE_STATIC_IMPLEMENTATION_DRAFT_ONLY_ROOT_FINAL_LITERAL_SOURCE_REVIEW_ACTUAL_SELECTION_AND_SEPARATE_EXECUTION_AUTHORIZATION_REQUIRED",
+  "root_design_selection": {
+    "path": "host/protocol-sequence/node-boundary-D3-root-design-selection-v1.json",
+    "sha256": "834ece98501bd98de95b4e27c8b0e6985119fc9adeb01c09c738884b7ac7f206",
+    "status": "SELECTED_FOR_STATIC_IMPLEMENTATION_ONLY_NOT_RUNTIME"
+  }
+}
