@@ -342,7 +342,7 @@ def test_interrupted_atomic_object_write_is_recovered_before_next_hierarchy_writ
     instance = ProvelumeInstance.initialise(tmp_path / "instance")
     original = atomic_commit.AtomicInstanceCommit._publish_entries
 
-    def interrupted(self, stage, manifest, flushers):
+    def interrupted(self, stage, manifest):
         replace = self._replace
 
         def stop(source, target):
@@ -350,7 +350,7 @@ def test_interrupted_atomic_object_write_is_recovered_before_next_hierarchy_writ
             raise KeyboardInterrupt("synthetic process death after one canonical replacement")
 
         self._replace = stop
-        original(self, stage, manifest, flushers)
+        original(self, stage, manifest)
 
     monkeypatch.setattr(atomic_commit.AtomicInstanceCommit, "_publish_entries", interrupted)
     with pytest.raises(KeyboardInterrupt):
