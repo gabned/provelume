@@ -14,7 +14,7 @@ Le coordinate GPS e i campi del dispositivo sono esclusi dal record e dagli expo
 L'Originale non viene mai modificato. I digest delle famiglie di metadati provano i byte osservati
 senza esporne i valori grezzi.
 
-Pillow 12.3.0 è opzionale ed esterno. Se installato esplicitamente, genera un'anteprima PNG del
+Pillow 13.0.0 è opzionale ed esterno. Se installato esplicitamente, genera un'anteprima PNG del
 primo frame, orientata e senza metadati sorgente, più un dHash usato solo per proporre possibili
 somiglianze visive. Se manca, i metadati core restano disponibili e anteprima/evidenza percettiva
 risultano visibilmente non disponibili. Nessun componente viene scaricato.
