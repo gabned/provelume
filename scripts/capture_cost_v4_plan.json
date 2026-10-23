@@ -1,0 +1,447 @@
+{
+  "schema": "capture-process-mechanism-experiment/v4",
+  "status": "FROZEN",
+  "mode": "FULL_ORDINARY_PROCESS_MECHANISM_V4",
+  "regime": "FULL_ORDINARY_ALL19_PROCESS_OBSERVATION_NOT_QUALIFICATION",
+  "qualification": "NOT_GRANTED",
+  "correction_support": "NOT_GRANTED",
+  "base_commit": "7ec20fe0727a74a312235b53b52a5434707f4dc8",
+  "original_commit": "68dad8de79774f9ddfab94778d5bcf4782cd2848",
+  "fast_commit": "7a68858b30d97299f7ae14c4587ecee52a97fe14",
+  "source_parents": {
+    "A": "7ec20fe0727a74a312235b53b52a5434707f4dc8",
+    "B": "68dad8de79774f9ddfab94778d5bcf4782cd2848"
+  },
+  "source_trees": {
+    "A": "0e15f91798c8206007d3d359af505b4088caa458",
+    "B": "77cb5e16b30bc4fef7ef12fc46ca9c6d26cb9edf"
+  },
+  "atomic_source_sha256": {
+    "A": "28e9773770ce91ed2c7611b2df05a8feca47805543920f4159e3d4a068fde103",
+    "B": "7cea60d52bf85602bf61968a26fe6052ff7a3676cf45a2ec8afad45e532c92d2"
+  },
+  "runtime_coordinates": {
+    "configuration_sha256": "6d26739dbb863788ae9de3ed3561b74995f03afde9bfe4cd8cef8c3dc25d0f99",
+    "model_sha256": "1885b3a9195f8cc09da9a7a7a75afdc1e8d5cbf9fc4a499c3961dddea37098ac",
+    "runtime_lock_sha256": "0e508965cddc60d6cfb57c42d2c4039c637e8812bb25cc21b525b6d6047a4404"
+  },
+  "workflow_runs": 1,
+  "run_attempt": 1,
+  "job_count": 4,
+  "job_seconds": 1200,
+  "max_parallel": 2,
+  "fail_fast": false,
+  "callbacks_per_job": 19,
+  "callback_count_total": 76,
+  "slot_order": [
+    "A1",
+    "B1",
+    "B2",
+    "A2"
+  ],
+  "cells": [
+    {
+      "ordinal": 0,
+      "slot": "A1",
+      "ordinary_arm": "A",
+      "job_name": "capture-cost-c4-A1",
+      "artifact_name": "capture-cost-c4-A1-original"
+    },
+    {
+      "ordinal": 1,
+      "slot": "B1",
+      "ordinary_arm": "B",
+      "job_name": "capture-cost-c4-B1",
+      "artifact_name": "capture-cost-c4-B1-fastpath"
+    },
+    {
+      "ordinal": 2,
+      "slot": "B2",
+      "ordinary_arm": "B",
+      "job_name": "capture-cost-c4-B2",
+      "artifact_name": "capture-cost-c4-B2-fastpath"
+    },
+    {
+      "ordinal": 3,
+      "slot": "A2",
+      "ordinary_arm": "A",
+      "job_name": "capture-cost-c4-A2",
+      "artifact_name": "capture-cost-c4-A2-original"
+    }
+  ],
+  "selected_callbacks": [
+    {
+      "id": 0,
+      "group": "s05_idle",
+      "original_row_index": 0,
+      "number": 0,
+      "report_path": "deterministic_idle.0"
+    },
+    {
+      "id": 1,
+      "group": "s05_idle",
+      "original_row_index": 1,
+      "number": 1,
+      "report_path": "deterministic_idle.1"
+    },
+    {
+      "id": 2,
+      "group": "s05_idle",
+      "original_row_index": 2,
+      "number": 2,
+      "report_path": "deterministic_idle.2"
+    },
+    {
+      "id": 3,
+      "group": "s05_busy",
+      "original_row_index": 0,
+      "number": 0,
+      "report_path": "deterministic_busy.0"
+    },
+    {
+      "id": 4,
+      "group": "s05_busy",
+      "original_row_index": 1,
+      "number": 1,
+      "report_path": "deterministic_busy.1"
+    },
+    {
+      "id": 5,
+      "group": "s05_busy",
+      "original_row_index": 2,
+      "number": 2,
+      "report_path": "deterministic_busy.2"
+    },
+    {
+      "id": 6,
+      "group": "s06_busy",
+      "original_row_index": 0,
+      "number": 0,
+      "report_path": "s06.deterministic_busy.0"
+    },
+    {
+      "id": 7,
+      "group": "s06_busy",
+      "original_row_index": 1,
+      "number": 1,
+      "report_path": "s06.deterministic_busy.1"
+    },
+    {
+      "id": 8,
+      "group": "s06_busy",
+      "original_row_index": 2,
+      "number": 2,
+      "report_path": "s06.deterministic_busy.2"
+    },
+    {
+      "id": 9,
+      "group": "s06_busy",
+      "original_row_index": 3,
+      "number": 3,
+      "report_path": "s06.deterministic_busy.3"
+    },
+    {
+      "id": 10,
+      "group": "s06_busy",
+      "original_row_index": 4,
+      "number": 4,
+      "report_path": "s06.deterministic_busy.4"
+    },
+    {
+      "id": 11,
+      "group": "s06_busy",
+      "original_row_index": 5,
+      "number": 5,
+      "report_path": "s06.deterministic_busy.5"
+    },
+    {
+      "id": 12,
+      "group": "s07_busy",
+      "original_row_index": 0,
+      "number": 700,
+      "report_path": "s07.samples.0.probe"
+    },
+    {
+      "id": 13,
+      "group": "s07_busy",
+      "original_row_index": 1,
+      "number": 701,
+      "report_path": "s07.samples.1.probe"
+    },
+    {
+      "id": 14,
+      "group": "s08_idle",
+      "original_row_index": 0,
+      "number": 800,
+      "report_path": "s08.idle.0"
+    },
+    {
+      "id": 15,
+      "group": "s08_idle",
+      "original_row_index": 1,
+      "number": 801,
+      "report_path": "s08.idle.1"
+    },
+    {
+      "id": 16,
+      "group": "s08_idle",
+      "original_row_index": 2,
+      "number": 802,
+      "report_path": "s08.idle.2"
+    },
+    {
+      "id": 17,
+      "group": "s08_busy",
+      "original_row_index": 0,
+      "number": 810,
+      "report_path": "s08.performance.0.probe"
+    },
+    {
+      "id": 18,
+      "group": "s08_busy",
+      "original_row_index": 1,
+      "number": 811,
+      "report_path": "s08.performance.1.probe"
+    }
+  ],
+  "legacy_profile_stratum": {
+    "scope": "DIAGNOSTIC_ONLY_UNCHANGED_NOT_C4_OBSERVED",
+    "probes_per_job": 6,
+    "groups": {
+      "idle": 3,
+      "busy": 3
+    },
+    "samples_each": [
+      900,
+      901,
+      902
+    ],
+    "helper_path": "scripts/diagnose_ai_capture.py",
+    "helper_sha256": "e54407f993e2d4b39185a2b12726a23f70b79080839ebfffb4b6460adb1f7939",
+    "core_hooks_restored_before_diagnose": true
+  },
+  "ordinary_script_sha256": {
+    "scripts/qualify_ai_runtime.py": "3c335f1c585292531d0cbc509a55560f25fe8e6c86a8669825deeee5fc0303d5",
+    "scripts/qualify_ai_jobs.py": "3392d397509039ac63463b553131d56299fa0523e9651c1b10ffcdee2c2e547c",
+    "scripts/qualify_ai_setup.py": "61d997909852a8dcd361ed82a6db5f848190bf63dad71bfa115ca147ae2a3b76",
+    "scripts/qualify_ai_synthesis.py": "fe762c1a42567069f081edc70c6cf1d3a5f985a82610307fec064ee91d804946",
+    "scripts/qualify_ai_classification.py": "b0a01b7d78c2511ec4f388572cf23a6332da15142642d959e706b37fc8e7ac80",
+    "scripts/ai_runtime_report.py": "754802fe6b2eb0b5bd67d6a962dcd9ed31179c9acd8e0526df6d176600410e22",
+    "scripts/ai_runtime_network.py": "9acb929c7f708a9590d9fe961744437882699daf38a9f46b2f6f14f428e624e9"
+  },
+  "helper_sha256": {
+    "scripts/capture_cost_v4_telemetry.py": "307af8bfd46ddae91fc4b58d5729339969c3d6eac677b0d966580568815df3ee",
+    "scripts/capture_cost_v4_observer.py": "3373549213612fcd4d9264d8f69ce8f69a2afbd9ce505282020ab3b490fe2de7",
+    "scripts/diagnose_capture_cost_v4.py": "733421291036e9b97c9936cea34b1fe4f3bd651d6c6c287b5704998d32ff0f7d"
+  },
+  "phase_sources": {
+    "A": {
+      "process": {
+        "module": "provelume.capture_adapter",
+        "qualname": "CaptureAdapter.process",
+        "source_sha256": "c38db50e8c8a4b65fefa847ac92e1d72e751d23c65cb017a7de360f5c321ef4a",
+        "method_ast_sha256": "6dff120a6023025754e2ae2ca15172d576fda6a2708170e10964d439093cecfd"
+      },
+      "submission_inventory": {
+        "module": "provelume.capture_adapter",
+        "qualname": "CaptureAdapter._submission_locked",
+        "source_sha256": "0cc0af0dc7bebde2138612465a2cd8ccd5b131b460b71db8130232ff57e4ad81",
+        "method_ast_sha256": "90a3ec5d224ae05f8bdfdcbaa8d66983d7bb59744b1f8a9c7d95a70a832b618c"
+      },
+      "acquisition": {
+        "module": "provelume.capture_adapter",
+        "qualname": "CaptureAdapter._acquire_locked",
+        "source_sha256": "4a686b1855f9bc411f8f63672333af9099fd45e2f36098335ac5db2173a57f7e",
+        "method_ast_sha256": "9e86acc8bbc30891083ce23ee58cfc86907a077f072e2e97f125406463903505"
+      },
+      "assurance": {
+        "module": "provelume.capture_adapter",
+        "qualname": "CaptureAdapter._assure",
+        "source_sha256": "99e36f003d8f3bbbfa48230bd432014e0780987345435cec3c472134f27e05ed",
+        "method_ast_sha256": "1234477bd9dd248bdfa0c511426772ffeebef74b529e0fb83970f66f5fa1cfc1"
+      },
+      "atomic_prepare": {
+        "module": "provelume.atomic_commit",
+        "qualname": "AtomicInstanceCommit._prepare",
+        "source_sha256": "b1f0ab57c24846a63df7110063e808351ddad879d2af2b47e15c7d1bb21d15e3",
+        "method_ast_sha256": "e79866ee8cb9724c1c22270823d639fb876061898787ce29c070333b29124c57"
+      },
+      "atomic_publish": {
+        "module": "provelume.atomic_commit",
+        "qualname": "AtomicInstanceCommit._publish_entries",
+        "source_sha256": "45606654e2119046d521bab939ec5d3833ba5052f9767dcbb73d8a72c856f0e8",
+        "method_ast_sha256": "d2d678711ae472e210b68a77af59fb4168240f36113988eab5e087a0de26c9d4"
+      },
+      "lifecycle_entry_recovery": {
+        "module": "provelume.instance_lifecycle",
+        "qualname": "InstanceLifecycleManager._hold",
+        "source_sha256": "402881cba97acc78ffcd2d7119d50f0c161d62ab7ad24f80fcd6d2025092184f",
+        "method_ast_sha256": "22054a28ef5e66ed9aed00645ffd1e77fde28c823cb9aac02f01b56fe23f6040"
+      },
+      "review_routing": {
+        "module": "provelume.review_intake",
+        "qualname": "route_committed_acquisitions_locked",
+        "source_sha256": "f55602d71c4a2a869e9869f8dd0572226b5eb691d82d35cb4f95e4675cd31e29",
+        "method_ast_sha256": "fde0522d63b491fd371beb797e3ddf04592ee82199fe55e1d0f0658e66827367"
+      },
+      "index_refresh": {
+        "module": "provelume.index",
+        "qualname": "refresh_search_index",
+        "source_sha256": "f54f22cac22d920c9da0b9a74f894070e05bee9f9edf199a81d593ed009b15b7",
+        "method_ast_sha256": "f7c4fa50cacd644d182d010138f0383886387fcc732d7bd6f148c8101d6ee312"
+      }
+    },
+    "B": {
+      "process": {
+        "module": "provelume.capture_adapter",
+        "qualname": "CaptureAdapter.process",
+        "source_sha256": "c38db50e8c8a4b65fefa847ac92e1d72e751d23c65cb017a7de360f5c321ef4a",
+        "method_ast_sha256": "6dff120a6023025754e2ae2ca15172d576fda6a2708170e10964d439093cecfd"
+      },
+      "submission_inventory": {
+        "module": "provelume.capture_adapter",
+        "qualname": "CaptureAdapter._submission_locked",
+        "source_sha256": "0cc0af0dc7bebde2138612465a2cd8ccd5b131b460b71db8130232ff57e4ad81",
+        "method_ast_sha256": "90a3ec5d224ae05f8bdfdcbaa8d66983d7bb59744b1f8a9c7d95a70a832b618c"
+      },
+      "acquisition": {
+        "module": "provelume.capture_adapter",
+        "qualname": "CaptureAdapter._acquire_locked",
+        "source_sha256": "4a686b1855f9bc411f8f63672333af9099fd45e2f36098335ac5db2173a57f7e",
+        "method_ast_sha256": "9e86acc8bbc30891083ce23ee58cfc86907a077f072e2e97f125406463903505"
+      },
+      "assurance": {
+        "module": "provelume.capture_adapter",
+        "qualname": "CaptureAdapter._assure",
+        "source_sha256": "99e36f003d8f3bbbfa48230bd432014e0780987345435cec3c472134f27e05ed",
+        "method_ast_sha256": "1234477bd9dd248bdfa0c511426772ffeebef74b529e0fb83970f66f5fa1cfc1"
+      },
+      "atomic_prepare": {
+        "module": "provelume.atomic_commit",
+        "qualname": "AtomicInstanceCommit._prepare",
+        "source_sha256": "55af47addf7d5a9aa911531c859b8efbf42ac24ed70e1dbc3475c5d098a2ec48",
+        "method_ast_sha256": "ed42896df6cdcedecf1bdbd6d070eb1ea9377ec45f8935f75d3e23a0c66d58fd"
+      },
+      "atomic_publish": {
+        "module": "provelume.atomic_commit",
+        "qualname": "AtomicInstanceCommit._publish_entries",
+        "source_sha256": "24e680954e5e054e5da99d3a7fd1a8de87bc2aa6a121d68d882aca7600e1820e",
+        "method_ast_sha256": "aac9a5877799d60e091cb7c0020b187566b6fe31969cb9869e01571467013a1f"
+      },
+      "lifecycle_entry_recovery": {
+        "module": "provelume.instance_lifecycle",
+        "qualname": "InstanceLifecycleManager._hold",
+        "source_sha256": "402881cba97acc78ffcd2d7119d50f0c161d62ab7ad24f80fcd6d2025092184f",
+        "method_ast_sha256": "22054a28ef5e66ed9aed00645ffd1e77fde28c823cb9aac02f01b56fe23f6040"
+      },
+      "review_routing": {
+        "module": "provelume.review_intake",
+        "qualname": "route_committed_acquisitions_locked",
+        "source_sha256": "f55602d71c4a2a869e9869f8dd0572226b5eb691d82d35cb4f95e4675cd31e29",
+        "method_ast_sha256": "fde0522d63b491fd371beb797e3ddf04592ee82199fe55e1d0f0658e66827367"
+      },
+      "index_refresh": {
+        "module": "provelume.index",
+        "qualname": "refresh_search_index",
+        "source_sha256": "f54f22cac22d920c9da0b9a74f894070e05bee9f9edf199a81d593ed009b15b7",
+        "method_ast_sha256": "f7c4fa50cacd644d182d010138f0383886387fcc732d7bd6f148c8101d6ee312"
+      }
+    }
+  },
+  "observer": {
+    "interval_ns": 50000000,
+    "per_callback_round_cap": 128,
+    "total_round_cap": 2432,
+    "tid_cap": 16,
+    "target_cap": 3,
+    "encoded_bytes_cap": 16777216,
+    "rss_limit_bytes": 67108864,
+    "control_bytes": 4096,
+    "slot_bytes": 128,
+    "slots": 19,
+    "calibration_recipes": 512,
+    "max_read_attempts": 192,
+    "max_read_bytes": 262144
+  },
+  "member_names": {
+    "ordinary": "s05-real.json",
+    "telemetry": "capture-cost-v4/telemetry.json",
+    "sampler": "capture-cost-v4/sampler.json",
+    "entry_execution": "capture-cost-v4/telemetry.execution.json",
+    "observer_execution": "capture-cost-v4/observer.execution.json",
+    "ordinary_before_network": "capture-cost-v4/ordinary-before-network.json"
+  },
+  "source_proof_members": {
+    "frozen_plan": "capture-cost-v4/frozen-plan.json",
+    "checkout_git": "capture-cost-v4/checkout-git-proof.txt",
+    "workflow_git": "capture-cost-v4/workflow-git-proof.txt",
+    "observer_parent_exit": "capture-cost-v4/observer-parent-exit-code.txt",
+    "network_exit": "capture-cost-v4/network-exit-code.txt",
+    "ordinary_copy_exit": "capture-cost-v4/ordinary-before-network-copy-exit-code.txt",
+    "source_status_after": "capture-cost-v4/source-status-after.txt",
+    "source_status_exit": "capture-cost-v4/source-status-exit-code.txt",
+    "source_head_after": "capture-cost-v4/source-head-after.txt",
+    "source_head_exit": "capture-cost-v4/source-head-exit-code.txt",
+    "source_tree_after": "capture-cost-v4/source-tree-after.txt",
+    "source_tree_exit": "capture-cost-v4/source-tree-exit-code.txt"
+  },
+  "trace_prefix": "s05-network",
+  "analysis": {
+    "analyzer_path": "scripts/analyze_capture_process_mechanism_v4.py",
+    "analyzer_sha256": "f71979983573b061dc383cd4d2ccecd6b5bb1ca7ac61cf9e0fc160ce74965453",
+    "scientific_document_path": "docs/qualification/capture-process-mechanism-experiment-v4.md",
+    "scientific_document_sha256": "e3fb7ee9c85c504cd18bc1c6be371b730bb0233f57e7b3bd22f9dae4b266801d",
+    "original_auditor_sha256": "bdb810b8f70dcc191568363c204006b010d86a15cbeb73cfd96e66338237513a",
+    "accepted_source": "210512725f1826861585278214d21fd31093e123",
+    "accepted_evaluator_sha256": "754802fe6b2eb0b5bd67d6a962dcd9ed31179c9acd8e0526df6d176600410e22",
+    "accepted_observer_sha256": "9acb929c7f708a9590d9fe961744437882699daf38a9f46b2f6f14f428e624e9",
+    "ordinary_replayer_sha256": "9ad096bdc451339bfe5835e13f9ebda52dca572fd69f10ef4b4c2b6debf63083",
+    "result_scope": "MECHANISM_DATA_ONLY_NO_QUALIFICATION_NO_CORRECTION_SUPPORT"
+  },
+  "preserved_prior_results": {
+    "C1_actual_jobs": "ALL_FOUR_FAILURE",
+    "C1_control_bundle_sha256": "480a200fffd0fda050c24fa18756b0fc823b29867eb30f2752d179bfef420f5c",
+    "C2_analysis_sha256": "3a164ee3d96645af19e0773eb774c2417b0b397e3850a86b952f49e6a51b2877",
+    "C2_clean_preparation": false,
+    "C3_analysis_sha256": "56bb138542e61b37cbdb75c3d020dad29895366e1769d85a515b8bd0534b1796",
+    "C3_clean_preparation": false
+  },
+  "construction": {
+    "scope": "SYNTHETIC_CONSTRUCTION_ONLY_NO_MODEL_NO_QUALIFICATION",
+    "root_closure_sha256": "97bc94f7b36f4ea9bb75c2f23b9681bececf24ca306b7053aecbe6506051209d",
+    "baseline": {
+      "execution_plan_sha256": "5ab8416e000df77985e542a5dc29127c2ab6ae542bad4cc681d223cf14eb45a7",
+      "actual_matrix_receipt_sha256": "184a9aa95f0463b4902308a24a16dbc7972f1342f4277b749643b7a787dcf926",
+      "actual_helper_cases_per_arm": 70,
+      "actual_analyzer_cases_per_arm": 39,
+      "actual_total_passed": 218,
+      "observer_sha256": "7a6cdf189f87b70fc3e674b209a35e3c12a1a1c0bdb609c887b708f9bc90e3e9",
+      "contract_sha256": "ca6e607eda421f7c36d7867dc0750de465c4b182d6599b0eb4a9cac164cf3e4b"
+    },
+    "targeted_rss_supplement": {
+      "execution_plan_sha256": "7c927077418aebb0495ac89b7851261ba63d80ae202841f0f1579c1e16b63d8b",
+      "actual_matrix_receipt_sha256": "845ef4d6558f7deb50a8197e87dc360bfd22bd39b0ae195c90086f1fe55c2828",
+      "scope": "ONLY_FOUR_EXISTING_C21_AND_ONE_NEW_C33_PER_ARM_NO_BASELINE_REPEAT",
+      "actual_cases_per_arm": 5,
+      "actual_total_passed": 10,
+      "observer_sha256": "3373549213612fcd4d9264d8f69ce8f69a2afbd9ce505282020ab3b490fe2de7",
+      "contract_sha256": "7c1616d70fec3af39d28a3cf33c631fa78f3c7791a61c3f8e0232e30a8529b49"
+    },
+    "actual_failed": 0,
+    "actual_skipped": 0,
+    "actual_errors": 0,
+    "source_unchanged": true,
+    "isolation_probe_pass": true
+  },
+  "repository": "gabned/provelume",
+  "repository_id": 1343746770,
+  "publication_contract": "IMMUTABLE19_ACTIVE_BYTE_NO_REUSE_NO_RETRY_NO_ACK",
+  "active_only_proc_reads": true,
+  "clock_accounting": {
+    "phase_clock_reads_per_callback": 38,
+    "outer_original_probe_envelope_monotonic_reads_per_callback": 2,
+    "total_diagnostic_clock_reads_per_callback": 40,
+    "empty_recipe_phase_clock_reads": 38,
+    "scope": "Outer two reads include Original verification/search; original probe bytes/returned timers unchanged"
+  }
+}
