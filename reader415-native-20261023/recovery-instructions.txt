@@ -1,0 +1,20 @@
+Evidence only; no owner, binding, qualification, or publication authority.
+
+Source prerequisite: gabned/provelume main3c29ab05acef576d7dcdb4c0301200ee0d4bd078.
+Exact recovery-phase1.zip SHA2564920384c3801cba0f5028b189cb1138e7c076a3a5dfa7aaac255e3f1d473cad2.
+Use that accepted main tools/agent_protocol_work_recovery.py:
+python tools/agent_protocol_work_recovery.py verify --archive recovery-phase1.zip --sha256 4920384c3801cba0f5028b189cb1138e7c076a3a5dfa7aaac255e3f1d473cad2
+python tools/agent_protocol_work_recovery.py restore --archive recovery-phase1.zip --sha256 4920384c3801cba0f5028b189cb1138e7c076a3a5dfa7aaac255e3f1d473cad2 --destination NEW_DIRECTORY
+
+The manifest retains all32files/modes/exact bytes. The included adoption-prepared.bundle
+requires3c29ab05acef576d7dcdb4c0301200ee0d4bd078 and exposes only prepared successor
+refs/heads/protocol/entitas-152-successor-prepared atfbf8f29fac0c8cb390b0354085737f34b69318a2.
+Verify/fetch this bundle into an independently fetched full main repository; checkout
+that exact head and use native97-byte/source acquisition verification. Do not push,
+rebind, merge or treat preparation as acceptance. Reader actual-main acceptance,
+all fresh candidate gates, real PR HTTP200/sealed guard/job+runSUCCESS, normal
+integration/postmerge, final owner and actual publication remain unresolved.
+
+Read-only pipeline39988486806 was still IN_PROGRESS at this phase1 snapshot;
+reconcile the existing run rather than dispatching another. A later phase2 receipt
+will preserve its observed terminal outcome. No release request/tag was made.

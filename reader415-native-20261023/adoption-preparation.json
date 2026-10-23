@@ -1,0 +1,19 @@
+{
+  "status": "PREPARED_LOCAL_ONLY_NOT_ACCEPTED_NOT_BOUND",
+  "base": "3c29ab05acef576d7dcdb4c0301200ee0d4bd078",
+  "source_original_pr": 408,
+  "original_head": "999508800113f710c7150bcfab738ee98678faa4",
+  "canonical_source": "02317e02767958faa3de5bb6d245ca3440360d9e",
+  "original_403": "run39505179474/job118912204986 retained unchanged",
+  "reconciliation": "Original 21-path patch applied except documents.json; that manifest regenerated against actual local operations and adoption doc bytes, preserving accepted trusted-reader predecessor records. No vendor fork.",
+  "source_verify": "BYTES_VERIFIED97",
+  "ruff": "PASS",
+  "remote_pr": "NOT_CREATED reader actual-main acceptance prerequisite unresolved",
+  "binding": "NONE_NEW; no original owner/binding rewritten",
+  "sdk_draft": "UNTOUCHED",
+  "v2_activation": "DEFERRED_BY_MAINTAINER",
+  "head": "fbf8f29fac0c8cb390b0354085737f34b69318a2",
+  "tree": "02166323e71c78990610ec794e9ed5785a4958e4",
+  "consumer_native": "7PASS",
+  "git_source_acquisition": "5ARTIFACTS_ONLINE_AND_OFFLINE_VERIFIED97FILES"
+}

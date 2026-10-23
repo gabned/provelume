@@ -1,0 +1,44 @@
+{
+  "schema": "entitas-native-observation/v1",
+  "head": "3c29ab05acef576d7dcdb4c0301200ee0d4bd078",
+  "tree": "dd5f9f5eb2776d6f47052e83ac6ac27153072b35",
+  "tracked_clean": true,
+  "python": "3.12.14",
+  "supplied_node": "24.19.0",
+  "pytest": "9.1.1",
+  "pytest_exit": 0,
+  "counts": {
+    "passed": 4853,
+    "skipped": 53,
+    "subtests_passed": 419,
+    "warnings": 10
+  },
+  "seconds": 572.34,
+  "ruff": "PASS",
+  "diff_check": "PASS",
+  "canonical97_integrity": "BYTES_VERIFIED1a11fe76712ee65ca2160d2ae3789330946a57f2",
+  "posix_acl_and_xattr": "NOT_SUPPORTED_BY_HOST_FILESYSTEM; retained declared SKIP",
+  "windows_or_release_acceptance": "NOT_GRANTED",
+  "originals": [
+    {
+      "path": "raw/main-network-native-pytest.log",
+      "bytes": 7550,
+      "sha256": "4cf7a1a43e076cd55b3e7efecdb662bb0474b11ba10dd10f913a395768e25e90"
+    },
+    {
+      "path": "raw/main-network-native-ruff.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "raw/main-network-native-diff.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/main-network-native-pin.log",
+      "bytes": 197,
+      "sha256": "f50327804ef336f828a912597a7df88938b6238f0cc2ff692576844fb401a9d3"
+    }
+  ]
+}

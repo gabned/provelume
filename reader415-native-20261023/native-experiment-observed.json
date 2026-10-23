@@ -1,0 +1,155 @@
+{
+  "schema": "reader415-native-experiment-observed/v1",
+  "scope": "DIAGNOSTIC_ONLY_NOT_QUALIFICATION",
+  "head": "25c75c3cdca0c2c35f9205bf7a13f76a3a8f83ce",
+  "tree": "26ebc8184f98a3b2e05801ac15c1c4408a0fac70",
+  "base": "3c29ab05acef576d7dcdb4c0301200ee0d4bd078",
+  "plan_sha256": "306e06217f36595f5a946fa8ddf592c6ccd781fe8ea0a92d148bbb93cfe5e693",
+  "run": 39986875380,
+  "attempt": 1,
+  "job": 120528224369,
+  "github_run_conclusion": "success",
+  "github_job_conclusion": "success",
+  "availability_decision": "NOT_USABLE_WITHIN_PREREGISTERED_BUDGET",
+  "ordinary_cohort": "NOT_STARTED_CONDITIONAL_JOB_SKIPPED",
+  "artifact": {
+    "id": 12516595072,
+    "bytes": 3147,
+    "sha256": "a5c50f1a655e051355d16f2e32de1d4eed82057b0dd0d4e0eeb7d69fe0acebc2",
+    "members": [
+      {
+        "path": "busy/capture/supervisor.json",
+        "bytes": 199,
+        "sha256": "50a7eba04991885efd4830851d6bf1653991ee693eb2d9d5c888215ec9742c7a",
+        "crc32": 3328656028
+      },
+      {
+        "path": "busy/capture.request.json",
+        "bytes": 450,
+        "sha256": "8a970acc28ab96b3030ac6f2becd03775ae3c1b4bd04fc5060cb4f1664b99075",
+        "crc32": 1637629198
+      },
+      {
+        "path": "busy/capture/worker.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "crc32": 0
+      },
+      {
+        "path": "busy/ready.json",
+        "bytes": 33,
+        "sha256": "7d7cab454ae956d0cb636fe7a2d916d0117412312f73acf9d41c6564cb5c3b18",
+        "crc32": 4259596635
+      },
+      {
+        "path": "busy/result.json",
+        "bytes": 421,
+        "sha256": "e73da805b6d2a8cc3748b1f7e002b78c23bc0ced6a9d6b044497c5bb441309af",
+        "crc32": 1724699678
+      },
+      {
+        "path": "feasibility.json",
+        "bytes": 1171,
+        "sha256": "69cc6b9e6fbbd77685947a430bf95692ed2d36aa18c163f60f7de974e8c1fb0b",
+        "crc32": 1454071508
+      },
+      {
+        "path": "waiting/capture/supervisor.json",
+        "bytes": 199,
+        "sha256": "fca58a830d96bf651ecdf177527b559dab726629833929d66dc7f101eda4e530",
+        "crc32": 3676931240
+      },
+      {
+        "path": "waiting/capture/worker.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "crc32": 0
+      },
+      {
+        "path": "waiting/capture.request.json",
+        "bytes": 452,
+        "sha256": "ee8521d14d0179a21943c3574676216c8116c4c245c8a25299946c3a489ec1d0",
+        "crc32": 2430900930
+      },
+      {
+        "path": "waiting/ready.json",
+        "bytes": 32,
+        "sha256": "64940cbb3064f56bdc4a509835d83c208cc64acb4f213a8ec2f487082118444c",
+        "crc32": 40461182
+      },
+      {
+        "path": "waiting/result.json",
+        "bytes": 423,
+        "sha256": "d0aba73417cebc1e4adc4677280c44e183497d8cac1f3f23f34f5029579e6862",
+        "crc32": 1039968783
+      }
+    ],
+    "crc_check": "PASS_ALL_MEMBERS"
+  },
+  "results": {
+    "schema": "reader415-native-feasibility/v1",
+    "usable": false,
+    "rows": [
+      {
+        "kind": "busy",
+        "admitted_live_ready": true,
+        "supervisor": {
+          "started_perf_ns": 134759895700,
+          "wall_ns": 2021528100,
+          "worker_pid": 9136,
+          "returncode": 1,
+          "timeout": true,
+          "size_exceeded": false,
+          "errors": [],
+          "limit_seconds": 2.0
+        },
+        "ready": {
+          "pid": 8676,
+          "version": "v22.23.4"
+        },
+        "usable": false,
+        "child_exit": 1,
+        "readers_ended": true
+      },
+      {
+        "kind": "waiting",
+        "admitted_live_ready": true,
+        "supervisor": {
+          "started_perf_ns": 136841482300,
+          "wall_ns": 2017038700,
+          "worker_pid": 8092,
+          "returncode": 1,
+          "timeout": true,
+          "size_exceeded": false,
+          "errors": [],
+          "limit_seconds": 2.0
+        },
+        "ready": {
+          "pid": 828,
+          "version": "v22.23.4"
+        },
+        "usable": false,
+        "child_exit": 1,
+        "readers_ended": true
+      }
+    ],
+    "monetary_cost": "UNKNOWN",
+    "qualification": "NOT_GRANTED"
+  },
+  "unknowns": [
+    "Native blocked API/stage: UNKNOWN; both workers killed at deadline before capture.json existed",
+    "Native stacks, WCT, pipe identity, PSS availability, peak memory, worker CPU: UNKNOWN",
+    "Historical Node timeout cause: UNKNOWN; not required for a demonstrated prospective fix",
+    "Currency cost and actual model/effort: UNKNOWN"
+  ],
+  "finding_state": "UNRESOLVED_NO_RELEVANT_PROSPECTIVE_CORRECTION_DEMONSTRATED",
+  "no_retry_or_rerun": true,
+  "unchanged_history": [
+    "original#409 CPU FAIL",
+    "original#408 HTTP403",
+    "owner/workstream/binding/commits/attempts",
+    "SDK draft untouched",
+    "Lifecycle v2 deferred"
+  ],
+  "release": "NOT_PUBLISHED_MANDATORY_GATES_UNRESOLVED; intended preview channel retained"
+}
