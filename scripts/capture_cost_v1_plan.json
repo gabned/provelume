@@ -1,0 +1,153 @@
+{
+  "analysis": {
+    "accepted_evaluator_sha256": "754802fe6b2eb0b5bd67d6a962dcd9ed31179c9acd8e0526df6d176600410e22",
+    "accepted_observer_sha256": "9acb929c7f708a9590d9fe961744437882699daf38a9f46b2f6f14f428e624e9",
+    "accepted_source_commit": "210512725f1826861585278214d21fd31093e123",
+    "activity_rule": "all12 actual governed calls bound PID/start/request/hash/token/config and counter coverage; lower=max(0,(deltaTicks-2)*tick_ns-2*outsideCaptureBracketWall); zero VALID, never exclude/retime; no continuous/pre-fill claim",
+    "advance_rule": "ALL4 cost proofs AND ALL4 I_upper>=0 observed compatibility AND both B ordinary accepted independent28/28PASS AND all identities/cohort/nonperformance/network/telemetry complete",
+    "analyzer_path": "scripts/analyze_capture_single_task_v1.py",
+    "analyzer_sha256": "436408b63644be41e843665ca7c30f89a390310ef5800bb7e693ae1abacc4ccd",
+    "calibration_event_counts": {
+      "A": 16,
+      "B": 6
+    },
+    "calibration_pairs": 256,
+    "calibration_raw_patterns": 512,
+    "calibration_rule": "all512 e=outer_elapsed/event_count; l=max(0,min(e)-resolution),u=max(e)+resolution per wall/process clock",
+    "calibration_schema": "capture-cost-recorder-calibration/v1",
+    "cost_proof_rule": "on ALL4 hosts BOTH idle/busy raw median parent-process CPU contrast>0 AND median effect lower>0; wall median effect upper>=0 observed compatibility; eligible A admin minus empirical recording cost median>0, no cross-pool overlap, B zero eligible pools; selected operation role/count/explicit byte totals equal",
+    "cycle_rule": "three fixed four-probe cycles per group; raw mean(A)-mean(B); differential bias [l*meanN_A-u*meanN_B,u*meanN_A-l*meanN_B]; retain raw and empirical interval",
+    "event_boundary": "recorded attempted span events entirely within actual Capture submit-entry through process-return boundary; attempts must equal retained events",
+    "headroom_claim_rule": "I_lower>0 on ALL4; otherwise no demonstrated headroom benefit",
+    "margin_rule": "M=max6busy-min(1s,2median6idle+0.1s); propagate all row endpoints [max(0,t-uN),t-lN] by monotonic max/median/min; I=M_A-M_B",
+    "ordinary_qualification_sha256": "3c335f1c585292531d0cbc509a55560f25fe8e6c86a8669825deeee5fc0303d5",
+    "ordinary_replay_schema": "capture-cost-independent-ordinary-replay/v1",
+    "pool_administration_rule": "per eligible single-task pool union(create,submit,future_result_wait,shutdown_join) minus THAT pool task overlap; union residuals; cross-pool overlap closes attribution",
+    "qualification": "NOT_QUALIFIED_REQUIRES_CLEAN_EXACT_HEAD_ALL_GATES",
+    "scientific_document_path": "docs/qualification/capture-single-task-experiment-v3.md",
+    "scientific_document_sha256": "fc50f28186ac3f023b4336fc20a98b8221598ab9432850d3ac5984a241e1c880",
+    "selected_operation_coverage": "all patched Python os.fsync/replace/rename calls while callback active and explicit journal/store atomic byte arguments; kernel/buffered/native C I/O NOT_OBSERVED",
+    "source_integrity_rule": "Read exact original ZIP Git proofs, frozen plan hash, empty after-status, entry0/append0/observer0 iff PASS; actual listed/direct conclusions and all other original job steps success. The exact pinned setup-python post-hook alone may be completed/skipped only for A observer1/reportFAIL/actual job failure; executable setup and all required cleanup remain success. Both B actual jobs success; A failure permitted only measurement-step observer1 with genuine complete performance FAIL and nonperformance controls intact.",
+    "telemetry_schema": "capture-cost-temporary-telemetry/v1",
+    "trace_prefix": "s05-network"
+  },
+  "artifact_members": {
+    "append_worker_trace_integrity": "capture-cost-v1/append-worker-trace-integrity.json",
+    "ordinary": "s05-real.json",
+    "ordinary_before_network": "capture-cost-v1/ordinary-before-network.json",
+    "telemetry": "capture-cost-v1/telemetry.json"
+  },
+  "atomic_source_sha256": {
+    "A": "28e9773770ce91ed2c7611b2df05a8feca47805543920f4159e3d4a068fde103",
+    "B": "7cea60d52bf85602bf61968a26fe6052ff7a3676cf45a2ec8afad45e532c92d2"
+  },
+  "authority": "NONE_DIAGNOSTIC_NOT_QUALIFICATION",
+  "automatic_retry": false,
+  "base_commit": "7ec20fe0727a74a312235b53b52a5434707f4dc8",
+  "cells": [
+    {
+      "artifact_name": "capture-atomic-cost-A1-original",
+      "job_name": "capture-atomic-cost-A1",
+      "micro_order": "ABBA",
+      "ordinal": 0,
+      "ordinary_arm": "A",
+      "slot": "A1"
+    },
+    {
+      "artifact_name": "capture-atomic-cost-B1-fastpath",
+      "job_name": "capture-atomic-cost-B1",
+      "micro_order": "ABBA",
+      "ordinal": 1,
+      "ordinary_arm": "B",
+      "slot": "B1"
+    },
+    {
+      "artifact_name": "capture-atomic-cost-B2-fastpath",
+      "job_name": "capture-atomic-cost-B2",
+      "micro_order": "BAAB",
+      "ordinal": 2,
+      "ordinary_arm": "B",
+      "slot": "B2"
+    },
+    {
+      "artifact_name": "capture-atomic-cost-A2-original",
+      "job_name": "capture-atomic-cost-A2",
+      "micro_order": "BAAB",
+      "ordinal": 3,
+      "ordinary_arm": "A",
+      "slot": "A2"
+    }
+  ],
+  "construction_matrix": {
+    "authority": "NONE_CONSTRUCTION_NOT_QUALIFICATION",
+    "contract_cases_all_pass": 26,
+    "per_arm_existing_skip": 12,
+    "per_arm_pass": 106,
+    "receipt_sha256": "aa3773676fa5d7963a91dca92500916b7b6d6f4cf525718e2ca7de453d772609",
+    "revision": 3
+  },
+  "fail_fast": false,
+  "fast_commit": "162c225b96fd88237c58c93327a231db26b14766",
+  "helper_sha256": {
+    "scripts/capture_cost_v1_cohort.py": "53e26587eaad9c9ea9083c463fd4d9b7975e5dfdd1e26a4dc931b40b65f9f135",
+    "scripts/capture_cost_v1_telemetry.py": "66299516b6cc5e1dbbab1a8da2be7851818d13fa0015a890ac1e71fba3157805",
+    "scripts/diagnose_capture_cost_v1.py": "ad6e4b7d50dc93dabc0d94c490f25b21cade28ff26e707fcd34ce6e2d81a553a"
+  },
+  "job_count": 4,
+  "job_seconds": 1200,
+  "max_parallel": 2,
+  "method_ast_sha256": {
+    "A": {
+      "_prepare": "77f291ae56c08dfc91ce4ee1d92d61e5df0b74e7f5630d351ea7394db26522d4",
+      "_publish_entries": "5b99a1238bc4afccf7e9c8467a589cf5c89cb770cc001a5fc05d301f46a10341",
+      "commit": "bf4d825f45ca75850960362e649301b1eebf29ab5de6d4e7f4968fba6b0397be"
+    },
+    "B": {
+      "_prepare": "86ad0ed294a6931a5cba1fe3c273dc38df813e4461d0d0359f11a7e8a6053edb",
+      "_publish_entries": "fc9758ae86b376454fb8e1cae7215b75f6debed8cd626982832a35d30051824d",
+      "commit": "1d46ab9e30ba2bf0290a3982e38cdb78a9d9a432a7e60f0692911cb31cf83d66"
+    }
+  },
+  "micro_budget_seconds": 240,
+  "minimum_remaining_seconds": 330,
+  "original_commit": "4b1046428c31b1470fbb8a67a2673cb650d05679",
+  "original_failure_context": {
+    "attempt": 1,
+    "capture_seconds": 0.4781501319999961,
+    "context_only_not_new_threshold": true,
+    "excess_seconds": 0.02200762799997733,
+    "limit_seconds": 0.45614250400001877,
+    "linux_job_id": 120154475734,
+    "run_id": 39873837184,
+    "s06_capture_index": 4,
+    "source_commit": "7ec20fe0727a74a312235b53b52a5434707f4dc8"
+  },
+  "publication_authority": "NONE_NO_RELEASE_TAG_SDK_DRAFT",
+  "repository": "gabned/provelume",
+  "run_attempt": 1,
+  "runtime_coordinates": {
+    "configuration_sha256": "6d26739dbb863788ae9de3ed3561b74995f03afde9bfe4cd8cef8c3dc25d0f99",
+    "corpus_sha256": "e08d708b69b50cb23952045eb3f8dedffbe6cbca3dae858680c0b100cb3e3837",
+    "model_sha256": "1885b3a9195f8cc09da9a7a7a75afdc1e8d5cbf9fc4a499c3961dddea37098ac",
+    "runtime_lock_sha256": "0e508965cddc60d6cfb57c42d2c4039c637e8812bb25cc21b525b6d6047a4404"
+  },
+  "schema": "capture-single-task-experiment/v1",
+  "scientific_revision": 3,
+  "source_proof_members": {
+    "append_trace_exit": "capture-cost-v1/append-trace-integrity-exit-code.txt",
+    "checkout_git": "capture-cost-v1/checkout-git-proof.txt",
+    "entry_exit": "capture-cost-v1/entry-exit-code.txt",
+    "frozen_plan": "capture-cost-v1/frozen-plan.json",
+    "observer_exit": "capture-cost-v1/observer-exit-code.txt",
+    "source_status_after": "capture-cost-v1/source-status-after.txt",
+    "workflow_git": "capture-cost-v1/workflow-git-proof.txt"
+  },
+  "source_trees": {
+    "A": "2b6aea88e33c8aadc3f35033420378127e3a4c6e",
+    "B": "cd49479f83a08ba147e6982d02ce3ed49feddcf3"
+  },
+  "status": "FROZEN",
+  "upload_reserve_seconds": 90,
+  "wave_barrier": false,
+  "workflow_runs": 1
+}
