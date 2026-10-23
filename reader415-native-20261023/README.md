@@ -54,3 +54,27 @@ and correction are preserved; fresh final clean-head native verification was
 still running at this frozen snapshot and requires its later terminal receipt.
 This security correction does not address the Windows Node/stdio/lifecycle
 finding. No original owner/binding/attempt/failure or SDK draft was changed.
+
+## Terminal local and public-readback observations
+
+The exact phase2 archive export was expressly authorized by the user after an
+initial automatic-review refusal. The same normal push succeeded atb9999bc.
+All five public raw parts returnedHTTP200; their individual hashes/sizes and the
+complete175509576-byte archive hash match. Accepted recovery verify/restore
+passed for144files. The recovered Pillow source bundle cleanly checks out
+73f64ca/tree8fbf7c2 and its accepted97-file pin verifier passes. Initial wrong-ref
+fetch errors are retained separately; the bundle advertisesHEAD, not a branch.
+
+[Final native receipt](final-observations/pillow13-final-native-observation.json):
+on clean exact head73f64cabaaba6479b7374343a49216284a5540ee, full native4853PASS,
+53SKIP,419subtestsPASS,10warnings in605.39s. Ruff/diff/pinPASS and exact-head real
+component2PASS. The ACL/xattr host limitation remains explicitNOT_SUPPORTED,
+and the first full-suite creditsFAIL and earlier venv smokeFAIL stay in phase2.
+Public advisory lookup of Pillow13.0.0 matches0, versus28for12.3.0; this does not
+read or close protected repository alerts. See the compact
+[exact-byte inventory](final-observations/inventory.json).
+
+All preparation remains NOT_BOUND/NOT_ACCEPTED. Reader415Windows finding,
+separate real canonical1.5.2adoption PR and current final-source security scope
+remain prerequisites. No final402/375closure, release signal/tag/publication,
+official provenance/receipt/kit/readiness, SDK draft mutation orv2activation.

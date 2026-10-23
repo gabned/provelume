@@ -1,0 +1,111 @@
+{
+  "files": [
+    {
+      "path": "pillow13-final-native-observation.json",
+      "bytes": 2999,
+      "sha256": "5e1db3319f16b190ad24dfa54ef9f06add10f97bd45f0a93aeac73a5d6e3915c",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "phase2-public-readback.json",
+      "bytes": 1025,
+      "sha256": "33c1074dc7f0ade2331262ca89193d06cc1071f8baa25e17d2443bfded0d6ca3",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "phase2-public-verify.json",
+      "bytes": 103,
+      "sha256": "8d38db54f782544c5f77a5bf3d7a72a52eb0693cda7b6dee7e18866f5d06ba60",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "phase2-public-restore.json",
+      "bytes": 124,
+      "sha256": "1dd12746b2b85bae7df0babcb5b54fb7e68bca166c8383298001ef4cd8812473",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "phase2-public-export-block.json",
+      "bytes": 1204,
+      "sha256": "a8dc309c80fb2f9c06565653bbb9f1a4eb93dfeda5fe0f8f90cbcc79ceead60e",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "pillow130-public-advisories.json",
+      "bytes": 2,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "raw/pillow13-final-full-native.log",
+      "bytes": 7586,
+      "sha256": "a063d34dcf9753fda712073b3b9d7374ee63c970d05245d891ff04d38eb3bbca",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "raw/pillow13-final-real-components.log",
+      "bytes": 928,
+      "sha256": "a0aaacff16c8016dec85c9033c8731895580cb4523b91534e81fae50691bd83b",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "raw/pillow13-final-pin.log",
+      "bytes": 197,
+      "sha256": "f50327804ef336f828a912597a7df88938b6238f0cc2ff692576844fb401a9d3",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "raw/pillow13-final-ruff.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "raw/pillow13-final-diff.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "raw/pillow13-public-restored-head-pin.log",
+      "bytes": 197,
+      "sha256": "f50327804ef336f828a912597a7df88938b6238f0cc2ff692576844fb401a9d3",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "raw/pillow13-public-source-fetch-head.log",
+      "bytes": 114,
+      "sha256": "0bc4b56f2cbab3e2d7ca2bba7f07e1e7dc310ad3f050e945a4b66a6244d512ea",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "raw/pillow13-public-source-checkout-head.log",
+      "bytes": 387,
+      "sha256": "26a61749a4d7db6dfc19ae8fa122502dc4d0c85159a3d86acffca00856015396",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "raw/pillow13-public-bundle-verify.log",
+      "bytes": 261,
+      "sha256": "3fb0507eb26f3021d30f5ca84249b7efb40056bb0a3938a116557749dfc440fa",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "raw/pillow13-public-source-fetch.log",
+      "bytes": 77,
+      "sha256": "cce5311dd8b970e54ab55aa316295d7fcfe5a15c67e174a226ab853bbc010bda",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    },
+    {
+      "path": "raw/pillow13-public-source-checkout.log",
+      "bytes": 70,
+      "sha256": "4d4bc7a0f4a62a97458a62534f53d519a532011330d47ad39e09ac0900c16495",
+      "origin": "Exact synthetic local test output, public source recovery result, explicit archive consent receipt or public advisory response; no private user data/credentials"
+    }
+  ],
+  "credential_pattern_matches": 0,
+  "protected_security_headers_included": false,
+  "SDK_artifacts_included": false,
+  "raw_memory_dumps_included": false,
+  "full_original_native_and_errors_unchanged": true
+}

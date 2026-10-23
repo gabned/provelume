@@ -1,0 +1,38 @@
+{
+  "public_commit": "b9999bc70da39dabc1112f3a5a2a41a6ac15323e",
+  "parts": [
+    {
+      "part": 1,
+      "bytes": 41943040,
+      "sha256": "a022f59454328078469045d19b7b9bb311429038ba3c429a54fabbd53a670c9c",
+      "HTTP": 200
+    },
+    {
+      "part": 2,
+      "bytes": 41943040,
+      "sha256": "5d3697718836566962e91dc3faf1b4834443a2bb8f53f405a5e94e2e9ca3b25b",
+      "HTTP": 200
+    },
+    {
+      "part": 3,
+      "bytes": 41943040,
+      "sha256": "d40e64138575d648cfb3a1b79463242c2c7b8f470ff70281932080a3c11b22e7",
+      "HTTP": 200
+    },
+    {
+      "part": 4,
+      "bytes": 41943040,
+      "sha256": "5de9f89c56dea0304b3e50fb6124a0d266485094cd90ae789ce56505a8ad69d8",
+      "HTTP": 200
+    },
+    {
+      "part": 5,
+      "bytes": 7737416,
+      "sha256": "9186d68ac979963e5702d35b35afe4705c89370f436ac0979be32af0d2d15db1",
+      "HTTP": 200
+    }
+  ],
+  "archive_bytes": 175509576,
+  "sha256": "9d11fc1ac93bc7a5f36c98329d1bd60a29d8bb5f9b44e132f692e211f5aa4320",
+  "all_parts_and_complete_archive_match": true
+}

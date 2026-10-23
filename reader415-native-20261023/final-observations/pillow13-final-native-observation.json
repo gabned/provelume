@@ -1,0 +1,81 @@
+{
+  "schema": "entitas-pillow13-final-local-native/v1",
+  "observed_utc": "2026-10-23T17:56:14.928728+00:00",
+  "head": "73f64cabaaba6479b7374343a49216284a5540ee",
+  "tree": "8fbf7c295938927614842197e1500cea2fc46f56",
+  "clean_before_and_after": true,
+  "versions": {
+    "python": "3.12.14",
+    "Pillow": "13.0.0",
+    "pytest": "9.1.1",
+    "ruff": "0.17.2"
+  },
+  "full_native": {
+    "pass": 4853,
+    "skip": 53,
+    "subtests_pass": 419,
+    "warnings": 10,
+    "seconds": 605.39,
+    "result": "PASS"
+  },
+  "filesystem": {
+    "dirty_checkout": false,
+    "execution_commit": "73f64cabaaba6479b7374343a49216284a5540ee",
+    "gate": "posix_acl_and_xattr",
+    "status": "NOT_SUPPORTED_BY_HOST_FILESYSTEM",
+    "synthetic_data_only": true
+  },
+  "real_components": {
+    "pass": 2,
+    "seconds": 9.49,
+    "Pillow": "13.0.0",
+    "pypdfium2": "5.13.0",
+    "PDFium": "153.0.7999.0",
+    "Tesseract": "5.5.0",
+    "scope": "local synthetic inputs, network forbidden, supported formats and original preservation; remote declared matrix remains due"
+  },
+  "ruff": "PASS",
+  "diff": "PASS",
+  "pin97": "PASS accepted1.5.1 unchanged",
+  "receipts": [
+    {
+      "path": "raw/pillow13-final-full-native.log",
+      "bytes": 7586,
+      "sha256": "a063d34dcf9753fda712073b3b9d7374ee63c970d05245d891ff04d38eb3bbca"
+    },
+    {
+      "path": "raw/pillow13-final-real-components.log",
+      "bytes": 928,
+      "sha256": "a0aaacff16c8016dec85c9033c8731895580cb4523b91534e81fae50691bd83b"
+    },
+    {
+      "path": "raw/pillow13-final-pin.log",
+      "bytes": 197,
+      "sha256": "f50327804ef336f828a912597a7df88938b6238f0cc2ff692576844fb401a9d3"
+    },
+    {
+      "path": "raw/pillow13-final-ruff.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "raw/pillow13-final-diff.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "original_failures": "First full native1FAIL credits mismatch/4852PASS retained unchanged; first symlink-venv smoke1FAIL retained; no retrospective pass.",
+  "state": "PREPARED_LOCAL_ONLY_NOT_BOUND_NOT_ACCEPTED",
+  "source_public_restore": {
+    "source_commit": "b9999bc70da39dabc1112f3a5a2a41a6ac15323e",
+    "archive_sha256": "9d11fc1ac93bc7a5f36c98329d1bd60a29d8bb5f9b44e132f692e211f5aa4320",
+    "HTTP200_parts": 5,
+    "restored_files": 144,
+    "clean_restored_head": "73f64cabaaba6479b7374343a49216284a5540ee",
+    "clean_restored_tree": "8fbf7c295938927614842197e1500cea2fc46f56",
+    "restored_pin97": "PASS"
+  },
+  "reader_windows_finding": "UNRESOLVED; dependency update cannot establish a relevant Node/stdio/lifecycle correction",
+  "remote_acceptance": "Real PR, proper owner/scope binding, exact-head full permanent CI/real matrix/reviews/preflight/normal merge/postmerge all pending",
+  "official_publication": "NOT_STARTED; mandatory source gates unsatisfied; no tag/release/receipt/kit/readiness"
+}

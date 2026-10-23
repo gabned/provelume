@@ -1,0 +1,11 @@
+..                                                                       [100%]
+=============================== warnings summary ===============================
+tests/test_photo_real_smoke.py::test_real_pillow_baseline_sanitized_preview_and_unsupported_boundaries
+tests/test_photo_real_smoke.py::test_real_pillow_baseline_sanitized_preview_and_unsupported_boundaries
+tests/test_photo_real_smoke.py::test_real_pillow_baseline_sanitized_preview_and_unsupported_boundaries
+tests/test_photo_real_smoke.py::test_real_pillow_baseline_sanitized_preview_and_unsupported_boundaries
+  /workspace/provelume-pillow13-prepared/core/provelume/photo_profiles.py:495: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    samples = list(grayscale.getdata())
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+2 passed, 4 warnings in 9.49s

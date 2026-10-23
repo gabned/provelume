@@ -1,0 +1,14 @@
+{
+  "action": "normal push b9999bc70da39dabc1112f3a5a2a41a6ac15323e to existing public evidence/pr409-unblock-20261022",
+  "result": "AUTO_REVIEW_REJECTED",
+  "archive_bytes": 175509576,
+  "archive_sha256": "9d11fc1ac93bc7a5f36c98329d1bd60a29d8bb5f9b44e132f692e211f5aa4320",
+  "reason": "Broad task authorization does not specifically authorize exporting exact175MB CI logs/artifacts/local preparation payload to public destination; could contain sensitive environment metadata.",
+  "attempts": 2,
+  "workaround": "NONE; no equivalent retry, indirect export or history rewrite",
+  "specific_user_approval": "RECEIVED explicit authorization for exact175509576-byte archive, hash9d11fc1ac93bc7a5f36c98329d1bd60a29d8bb5f9b44e132f692e211f5aa4320, public existing evidence branch",
+  "local_accepted_recovery_verify_restore": "PASS144files",
+  "phase1_public_export": "Earlier32-file archive2fca301 was separately approved and publicly verified; its approval does not certify this larger new payload.",
+  "second_attempt": "SUCCEEDED normal push2fca301..b9999bc after exact explicit user authorization; five public raw partsHTTP200 with complete hash/size verified",
+  "unresolved_export_permission": false
+}
