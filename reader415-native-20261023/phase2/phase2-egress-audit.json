@@ -1,0 +1,1136 @@
+{
+  "rows": [
+    {
+      "path": "PHASE2-README.txt",
+      "bytes": 4049,
+      "sha256": "497c2a43a1fdba67fd15efb68b858c4daf657ba7e7d524d99ae25bf00601f599",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "administrative-observations.json",
+      "bytes": 5167,
+      "sha256": "da5830973ee6b92aa068a3795e20d29854d251ca9c9d974f6e96910cb7a74700",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "adoption-full-native-observation.json",
+      "bytes": 1306,
+      "sha256": "e3a9df82f8e81ededc5559fba49b93fa3f152c992a466e371ec691675c86d4cc",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "dryrun-all-originals-verified.json",
+      "bytes": 128112,
+      "sha256": "e0268906d01b31b1171cf0ed762c3a6109f88f4c9a10c7a6ed586cbfa4227a32",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "dryrun-final-observation.json",
+      "bytes": 4532,
+      "sha256": "88c8d939651abc6784b5f18216ab3c5d8502cf80500f41928917ea4fecc36a36",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "main-artifact-metadata.json",
+      "bytes": 6219,
+      "sha256": "0ec2a75bd68043e387a9a271bd139dfaac6fc539f46f182702705064f35cf5b5",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "main-log-inventory.json",
+      "bytes": 2878,
+      "sha256": "9728459c5a8227524fb1ef56f391bca214e9fbae86104f34f6b3e36f9ff5c5fc",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "main-original-archives-verified.json",
+      "bytes": 152229,
+      "sha256": "d5c3bb921986499943656a9ad242248cef65431dbfc6a00af24312f42d5c5224",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "main-original-report-evaluation.json",
+      "bytes": 5824,
+      "sha256": "2f413f730d53658e7d623a2636e04b5ad7d0ea57dd5981935643e73225c8ed59",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "main-postmerge-original-inventory-summary.json",
+      "bytes": 663,
+      "sha256": "ec33f4e562414c9cffe4b2ce01c7e1d1653415a5f3e57a4644bb92e03c8c3922",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "phase1-egress-audit.json",
+      "bytes": 11538,
+      "sha256": "292711c1f45319c7d1fb6bec89d28e2e767d14c5e88a061cdd76de9aeddaf491",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "phase1-public-readback-restore.json",
+      "bytes": 123,
+      "sha256": "eb8067666501f67a067b79aa788e1ba58231363b121bcfc636a50d85eeb133a7",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "phase1-public-readback-verify.json",
+      "bytes": 102,
+      "sha256": "f2c6292e68c0b89dae603a48bbbc2cbc0648a34f1413b3bf6c1a2405f7314f8d",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "pillow-security-followup.json",
+      "bytes": 3513,
+      "sha256": "6a87f01a84359de8a0dc912394fd664c78596355e2aba407ac76c8f4b51f226e",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "pillow123-public-advisories.json",
+      "bytes": 540474,
+      "sha256": "53f49285d0e36d12c420aac9e946aeb863c87b42e2d4efb28994a9ec558b1fa3",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "pillow13-path-effect-observation.json",
+      "bytes": 3112,
+      "sha256": "091897e13f8b0846751aa778d94df48dd807493a7e401844dd388cb117863663",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "pillow13-preparation.json",
+      "bytes": 2680,
+      "sha256": "b1de003b25885a348c45a1f5d7fb5a15b50b3d600df62a7364378a3a945cdbe3",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "pillow13-prepared.bundle",
+      "bytes": 13338,
+      "sha256": "f8f790f3202f85e71c61acb908ec81971cb30347532694d0370d2a83f8609fcc",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "public-restored-source-verification.json",
+      "bytes": 196,
+      "sha256": "9aa765186ecfccdc7bf9156869959e4c241bf28f05eac2d4a6d4a01798c3f15d",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/adoption-full-native-diff.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/adoption-full-native-pin.log",
+      "bytes": 196,
+      "sha256": "9aa765186ecfccdc7bf9156869959e4c241bf28f05eac2d4a6d4a01798c3f15d",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/adoption-full-native-pytest.log",
+      "bytes": 7575,
+      "sha256": "003d222a5ce056d1116700f9d8d28787c1b2949256cbfe65698456221cc09007",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/adoption-full-native-ruff.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/campaign375-current.json",
+      "bytes": 129357,
+      "sha256": "368cc70c0ca46d604c587cd9d39de93df1c3a2bdac1a33dd22b68c169e3d8f79",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/dryrun-120533802900.connector.json",
+      "bytes": 129388,
+      "sha256": "6f049e542bf66236c8f4dbcdfae7005347d59df8ca7dea8abaa4f9b6908c8941",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/dryrun-120537522410.connector.json",
+      "bytes": 724456,
+      "sha256": "10bc450d0b4fc23e56218ed89bdfa64b04e43f11517411894550755a608b8661",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/dryrun-120537522415.connector.json",
+      "bytes": 74593,
+      "sha256": "5c8b0e601f9468ba74586111b3aad6df9747951ea1a85d3a5ce39e3f84757c19",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/dryrun-120544754272.connector.json",
+      "bytes": 43343,
+      "sha256": "1c34ae153c6d5fcf9282278228a3fb472563bd81ac8789eac9c91c56926be61e",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/dryrun-120554007519.connector.json",
+      "bytes": 116955,
+      "sha256": "207a05cc155acf14941f32ff9557f4aa843da554e813441c416065c8a75578b9",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/dryrun-bundle-native-verification.log",
+      "bytes": 99,
+      "sha256": "40af66c334e31e01bcbc5d2725ac19327aae195e08de192d122c254e6803755d",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/dryrun-bundle-standalone-verification.json",
+      "bytes": 1257,
+      "sha256": "9d2a511c3f217e65d030ceb84ae327e19630562193e62412c7271245689ca94a",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/dryrun-final-artifacts.json",
+      "bytes": 8180,
+      "sha256": "36ab325f7fd7da169c20bdd244cbfc5f84ebdc2dfb5ce37aa5667d89a08a05e0",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/dryrun-final-jobs.json",
+      "bytes": 7276,
+      "sha256": "4885df32b429c8ae36e5db603f568f7acbf27dce941bba1c90038d22a8af921d",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/dryrun-final-run.json",
+      "bytes": 26271,
+      "sha256": "6e700bbc4067aecb53f9077024d8a8efeb54dd9060f0e63c488ec15f8ae4e01f",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/final-main-ref.json",
+      "bytes": 1164,
+      "sha256": "fcc83a4ad388e901cb1203edf9139d5d05f889331cf4603775707d85d40d39d1",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/final-owner402-comments.json",
+      "bytes": 133310,
+      "sha256": "519e0ced86b987d6d44ff920a4372a9dcdab8845d770edcdac56ef0de72e831e",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/final-owner402.json",
+      "bytes": 34761,
+      "sha256": "d123f537c421ca16b077fcbe69f3360469cdd8718d0295493771fde1659324ee",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/final-public-entitas-tag.json",
+      "bytes": 501,
+      "sha256": "f868c7096f30a373d2809926a45ccf352bd9c2858130d89a5a8456b8fcb7c86b",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/final-public-releases.json",
+      "bytes": 1748475,
+      "sha256": "ddd02ea92ea6e5f429915a24aae3c0f513a0ebb62754a5659705a49a06de4e7f",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-12499043505.zip",
+      "bytes": 1020,
+      "sha256": "6788c419833e5a405c5c9e9153dff25b2c65489604e41f6e5dac8b2808e408e0",
+      "origin": "Public Actions original artifact ZIP verified exact size/hash/CRC/member identity and source"
+    },
+    {
+      "path": "raw/main-12499273720.zip",
+      "bytes": 40285192,
+      "sha256": "5928540815da6a7403f9d8be0e8b79f216b7da680782570daa2c9db7475c5134",
+      "origin": "Public Actions original artifact ZIP verified exact size/hash/CRC/member identity and source"
+    },
+    {
+      "path": "raw/main-12499558639.zip",
+      "bytes": 21701,
+      "sha256": "26e17f9ea60e48eb7600a5f2696ff6d9c41e3d6b638df8982b03fe0b8e712b95",
+      "origin": "Public Actions original artifact ZIP verified exact size/hash/CRC/member identity and source"
+    },
+    {
+      "path": "raw/main-12499573513.zip",
+      "bytes": 3998714,
+      "sha256": "1fee6a285d93d7add5efe18e563ea540fc2c6a171295fabb6943bb1bc986c6af",
+      "origin": "Public Actions original artifact ZIP verified exact size/hash/CRC/member identity and source"
+    },
+    {
+      "path": "raw/main-12499918851.zip",
+      "bytes": 23983844,
+      "sha256": "ad68080e2496dd982cf24f104ec0405a003bb1c40764691d3d7794bdb7acc796",
+      "origin": "Public Actions original artifact ZIP verified exact size/hash/CRC/member identity and source"
+    },
+    {
+      "path": "raw/main-12500028765.zip",
+      "bytes": 20940,
+      "sha256": "03206c2e9077a8312dcc4bdac901e575ed9ed2af8cd1770d4329d0999017b74a",
+      "origin": "Public Actions original artifact ZIP verified exact size/hash/CRC/member identity and source"
+    },
+    {
+      "path": "raw/main-12500112300.zip",
+      "bytes": 3958854,
+      "sha256": "aa6bd8dd11bf04bc54d194ebb8ab64580ef18271295a2eaffa400c491c4d1a69",
+      "origin": "Public Actions original artifact ZIP verified exact size/hash/CRC/member identity and source"
+    },
+    {
+      "path": "raw/main-12500141495.zip",
+      "bytes": 3446,
+      "sha256": "19d6f13df3ba9b65634ac1f489a238a38c8766da8175fa717cc5d0469a3f7384",
+      "origin": "Public Actions original artifact ZIP verified exact size/hash/CRC/member identity and source"
+    },
+    {
+      "path": "raw/main-12500386807.zip",
+      "bytes": 128507,
+      "sha256": "4ddaf4981728afc2b29f52ac8943dc65cb686df930b764903c6d727d2607afdf",
+      "origin": "Public Actions original artifact ZIP verified exact size/hash/CRC/member identity and source"
+    },
+    {
+      "path": "raw/main-artifacts-39949112755.connector.json",
+      "bytes": 626,
+      "sha256": "cae8c6e824bc7ff5fa57d4f742ffe1819497b400384c594241cf7d75da399117",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-artifacts-39949112774.connector.json",
+      "bytes": 626,
+      "sha256": "ee0aa7c9b3d75d8c3141e07b1b3733674a3be94a15b443df67fad2d6eb2649c2",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-artifacts-39949112783.connector.json",
+      "bytes": 626,
+      "sha256": "61d7175b81dc7733a4f106e5bd3f66ac6dd5430746c1fb1138cf5fdad48aa214",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-artifacts-39949112824.connector.json",
+      "bytes": 3624,
+      "sha256": "654e6e1dbdde07d2aa57cd487768190a47c197cdacadb64d97bafe35a1f3646d",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-artifacts-39949112846.connector.json",
+      "bytes": 3566,
+      "sha256": "91d6c37f0e498a7a96935a01ac6db1ea75679528a83eade1e989e49447706648",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-artifacts-39949112848.connector.json",
+      "bytes": 626,
+      "sha256": "09823f0b247d2dc8b3fbe7eed3550a0e052294d4206f401c72f5ed413c02e1a0",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-artifacts-39949112881.connector.json",
+      "bytes": 626,
+      "sha256": "9957f866846bae3e1b12426eef6d31e59eb4d7d9d562c68207db746e87b24be9",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-artifacts-39949112920.connector.json",
+      "bytes": 626,
+      "sha256": "b5e3f29d80f7a4417407d497df434083ebf1caa6455832bfb28e0c0c18960696",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-artifacts-39949112944.connector.json",
+      "bytes": 5108,
+      "sha256": "27e46150be001d868111937c894931a18e9ec419c820bc84b183c668b1cef107",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-artifacts-39949112952.connector.json",
+      "bytes": 626,
+      "sha256": "b485cd418a4e591afa6956713bf0ea4088fffeeeaa4b9136b23fc4e8c562ccda",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-artifacts-39949112953.connector.json",
+      "bytes": 626,
+      "sha256": "48fc322e538ef7c845a29f0c4a44928b9fc658f87f08d1a08471c3eb4e0b7af9",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-artifacts-39949112972.connector.json",
+      "bytes": 626,
+      "sha256": "3e1238c2bfe9e5679266ce8ab99625c085fff668e25a106882d72d220219c9f8",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-artifacts-39949113073.connector.json",
+      "bytes": 2110,
+      "sha256": "56fd31a599267823196f4d70799df9ac706d4ec39452fef88ebe1d7b56e326ef",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-artifacts-39949113097.connector.json",
+      "bytes": 2118,
+      "sha256": "79a50601c2c253f691341d66f85ba3f5690cda94b01bd92697f6bd90506c7c89",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-failed-windows.connector.json",
+      "bytes": 1663167,
+      "sha256": "4d7c9bbee985e15ec5d48bf07726e4ddda308205eee576e6397e17e4566bfeb8",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398940603.connector.json",
+      "bytes": 53194,
+      "sha256": "e2e09f58663ac4343aecfe3f970b9ef846e4059cc9fb4ff7b285ac5cf8d11570",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398940691.connector.json",
+      "bytes": 494086,
+      "sha256": "01c831be932450e5e1a34714dadfde7058a44c9f6961f5a2ea51d33b9f89bb25",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398940751.connector.json",
+      "bytes": 34578,
+      "sha256": "c8b33d00e07a0306b1a2224debddc4d7a918ee0c74202f6b1a4cb19b44839f43",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398940807.connector.json",
+      "bytes": 33629,
+      "sha256": "f5f6ede5a64d3588f3684db07d1e40034a6bc090bc65ba4e8582f607f8206c4a",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398940880.connector.json",
+      "bytes": 33570,
+      "sha256": "4d9e2d2b82d6c6a0dfbdc1cc8a5b56f79355d0508dba8bdbe668c2b32fa147ea",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398940937.connector.json",
+      "bytes": 445472,
+      "sha256": "c5b767d5518621ada0ae766f9c00ee6dfdd5ab490bc127dc9562b4a4914ebfb4",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941021.connector.json",
+      "bytes": 37153,
+      "sha256": "e03b1270cd7b11ba0bce0b462a4a812a8a6cef4d6e8b18c1f30c370bff02f75c",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941034.connector.json",
+      "bytes": 356834,
+      "sha256": "d42c691a6923328a4fc47561340aab4c3a648f5a5af42ea738b9ce8f3dbca362",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941070.connector.json",
+      "bytes": 36421,
+      "sha256": "59b8d181218fa099d5123ea079f6dda794e290a1f40ca74bb0038f229d3c4775",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941200.connector.json",
+      "bytes": 440375,
+      "sha256": "db2802093a2956c4cbe19accb05c635484013a1d41ca8c890879c0e215950682",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941210.connector.json",
+      "bytes": 37349,
+      "sha256": "85b92a3e486535eb43e1a3b53e4b2f3a7b52ad91cf0d9395ac40110c715945a3",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941266.connector.json",
+      "bytes": 48651,
+      "sha256": "419675f4bcb41f8dc1d83e0e8b8824c45ee6477244466f24ce0dadc83c2ee769",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941274.connector.json",
+      "bytes": 35706,
+      "sha256": "d96cd073314672e7d9a17c857d2a7e56016273690874595328e4f07de72df401",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941321.connector.json",
+      "bytes": 34326,
+      "sha256": "6e34b14dd0a32711299a758b2bdec7f62dc07bbdb1904152428bf58aa1cd5603",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941390.connector.json",
+      "bytes": 34791,
+      "sha256": "a4c53560f9af55d25450d327711d87585c12f85138d9c16acb89d45b5f913294",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941465.connector.json",
+      "bytes": 32940,
+      "sha256": "f37bbd467c94efbebef09791e252b512b3157cb436d16061926e84e21a79152c",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941514.connector.json",
+      "bytes": 81492,
+      "sha256": "ed0da137e8d3ce042e472e369aaa4b38326861f003c22a4e23fd456160fd17f8",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941606.connector.json",
+      "bytes": 33604,
+      "sha256": "83df44148362fa57705b700c51774a24a5b2ec7e3879f24ab89dcaad2322df3c",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941666.connector.json",
+      "bytes": 530105,
+      "sha256": "39b8ad41572048989865a641303822585e8de65f719d9682b3e6ca645979b7dd",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941699.connector.json",
+      "bytes": 84453,
+      "sha256": "f43e380add0ba5905fd5aa97dfd2ca90aad9beb4d01f7a34717fedf653a16b13",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941710.connector.json",
+      "bytes": 35040,
+      "sha256": "3dfecfde247aca53e28ec1569866ea0ccc01271c4d67c9d54a3820d603f70f44",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941797.connector.json",
+      "bytes": 531175,
+      "sha256": "6daaa0dfde151aa035c3c9aa805e29be3d16f631a4fae60fadb25b14a3cb060f",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941802.connector.json",
+      "bytes": 22624,
+      "sha256": "48dba6204b727d05b55595ba4fc1990f139841967d1035403c35ac2573d01dc0",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941803.connector.json",
+      "bytes": 20911,
+      "sha256": "90bd94c49624bc75038eef89fbf0f4b94a7d85780eb2b0f6cd85cbeedf4d3eba",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941820.connector.json",
+      "bytes": 22623,
+      "sha256": "c706482ac68f75fc0a4c8b2b117e076448d081b8ec527a4395b710cb8685d574",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941823.connector.json",
+      "bytes": 81790,
+      "sha256": "ad1d342dcc1d3fbb69cf5846fadce4995ddc4fb7a29568055d639ce460298654",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941839.connector.json",
+      "bytes": 147558,
+      "sha256": "13b49de89f94a9c29b599c032e62006b5882dc40d0a659b0240fceafe53262b7",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941907.connector.json",
+      "bytes": 1662538,
+      "sha256": "80f6ef59201cb45517b9a259822907c5a509b0b250bd62c806634b970ee2eaf8",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941950.connector.json",
+      "bytes": 22552,
+      "sha256": "610defa189beabac066e833d562eff87f2891ce7dcd7f9d8a596f472b2004837",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941954.connector.json",
+      "bytes": 20919,
+      "sha256": "a18167f1d7ed2d9b10e69a9fb5aee89c12a7319906c5a354da9fef2d6fde24a3",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941974.connector.json",
+      "bytes": 76069,
+      "sha256": "f0049aec38564edf374ab5e4bb66704fb11e9937013641b9abeac15a5dd36409",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941986.connector.json",
+      "bytes": 59317,
+      "sha256": "eabc02119e1993a8479618bd972cbf85a083809a31e226ddff5ec9d1f7444c02",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398941992.connector.json",
+      "bytes": 37766,
+      "sha256": "0aa3fc18a4916b3f4460dfe7dcac210683c4ba25605bf94d3ee49e71a19a306f",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398942019.connector.json",
+      "bytes": 20840,
+      "sha256": "66b7000df70cb3e654c5fb87df4601a555eba8c13654ea63daf05f2df19e5614",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398942404.connector.json",
+      "bytes": 35167,
+      "sha256": "9f5d8a626a73d00a88d0e25e8d3c2b886e07c6174bb2e356fab7425249914537",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120398943428.connector.json",
+      "bytes": 120701,
+      "sha256": "fdcbfdaea1a82103747448db6681846907563057965d01028f659930b5e154f0",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-job-120402871969.connector.json",
+      "bytes": 21862,
+      "sha256": "0a52065f32bd924b30e01fe2328f0ef055fe8034f146508f0b1b99af32378a3a",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-jobs-39949112755.connector.json",
+      "bytes": 5981,
+      "sha256": "81462517cd366f33e67500ddfbb026e692019e0baf1b75925a874fac98df906f",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-jobs-39949112774.connector.json",
+      "bytes": 12509,
+      "sha256": "252ce2a10fb90705ac8aa67de67be73425c2e2eb01c7fb27c5f4d84a3a603f91",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-jobs-39949112783.connector.json",
+      "bytes": 11435,
+      "sha256": "d59707d095e27544ced0c6c7348cf4744e3eb547871bca957b08ee73717bf199",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-jobs-39949112824.connector.json",
+      "bytes": 8245,
+      "sha256": "3587d65d22e257c2129e6b09e0ca630eb984b9e3650ce7feee478787d38a59d5",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-jobs-39949112846.connector.json",
+      "bytes": 14925,
+      "sha256": "020b83cd85d0928a6e3ac31a338bc73b3f47abde858f6a25c8ca0b5706529abe",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-jobs-39949112848.connector.json",
+      "bytes": 11399,
+      "sha256": "8ac4da4163d1b5fa6594d1d2b008ff803f5e9ff160d942d54c6e2ef8af99555c",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-jobs-39949112881.connector.json",
+      "bytes": 11749,
+      "sha256": "454682cfec634559f986763c5c5626ff50a43da96a76d96e3111feb515811f76",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-jobs-39949112920.connector.json",
+      "bytes": 11849,
+      "sha256": "a5d2103d87642376ebc03ba6482b461e8bc8056a041330605b67c364c01082d5",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-jobs-39949112944.connector.json",
+      "bytes": 91265,
+      "sha256": "c1a0c324e5ab5c8c00b4620b83c127fc4f176f4d3be0067497435ecedce9a467",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-jobs-39949112952.connector.json",
+      "bytes": 11343,
+      "sha256": "caa22bee425d3c5b1dcc550185cad1ebc9bcc82a8abb5d2f8d3d849d77548e8d",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-jobs-39949112953.connector.json",
+      "bytes": 11375,
+      "sha256": "3bebc4ce99b88b4d37a96975f32999c215f7a5659a5038020ec65c813ebb930e",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-jobs-39949112972.connector.json",
+      "bytes": 11869,
+      "sha256": "d76a5613b2756d82765b70703dc29eaff9d76ce20476509fe2eb8dd71171d2e8",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-jobs-39949113073.connector.json",
+      "bytes": 8039,
+      "sha256": "db20a3809ce72d5cfa74ba83c2a7d49250e2edfd5b22b22da35ebc59001dd484",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-jobs-39949113097.connector.json",
+      "bytes": 8235,
+      "sha256": "30ee84ca32b07d810a951eac335d3a72b50ad23b8131bea9bf65d77f15826cf0",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-jobs-39988983999.connector.json",
+      "bytes": 4367,
+      "sha256": "0eb3f2206894f418863c2af38debf9bbd6cf1c853f826aa9a8c035172488d1ef",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/main-runs-fresh.connector.json",
+      "bytes": 408829,
+      "sha256": "4e0dc25fbaf7bb6b804702ebfb906e58f26c2d8b85ef19ba163f18fdc8e0e04c",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow-pr416-files.json",
+      "bytes": 2140,
+      "sha256": "c51a286543f3ad9464ca77705309228181135a0b1dd8b8c0b73e7cb4da385b0f",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow-pr416-metadata.json",
+      "bytes": 61766,
+      "sha256": "9babf3a95829526fdf24ab90ce989251d15e28a851397dd7511060633ab3546c",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow123-baseline-photo-smoke.log",
+      "bytes": 910,
+      "sha256": "e8af2cbf0d27061525870a6e8085aa77005e17c1b11b1561addc8fa2d870fa93",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow13-bundle-verify.log",
+      "bytes": 264,
+      "sha256": "db020c98c3a393ee0135a1cab535ee587cb67f3a18f4a05d474d0add6741f23b",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow13-final-contract-targeted.log",
+      "bytes": 99,
+      "sha256": "7a2e365317ed679047319a018ac14ede603549e893a79b684e8950fb683168be",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow13-final-pin.log",
+      "bytes": 197,
+      "sha256": "f50327804ef336f828a912597a7df88938b6238f0cc2ff692576844fb401a9d3",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow13-final-real-components.log",
+      "bytes": 928,
+      "sha256": "a0aaacff16c8016dec85c9033c8731895580cb4523b91534e81fae50691bd83b",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow13-final-ruff.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow13-full-native.log",
+      "bytes": 8676,
+      "sha256": "b2c2716abee34c1ecadfdb36a3c64fb9589d680273dd2d3a44fce4e74083d92b",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow13-local-real-components.log",
+      "bytes": 2752,
+      "sha256": "7ace896412add2ef8588326686a876bd7c0911df8fe1144f9ae353e1f1bdefc7",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow13-offline-credits-correction.log",
+      "bytes": 98,
+      "sha256": "3605abb09038ce24e90d81df8f7c0d87bb6f647a5e016bf461d8a8fcb408f6e9",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow13-original-adapter-observation.json",
+      "bytes": 298,
+      "sha256": "6fe4675f610df0b48c37258ac7872bf286356c7a0d0628a583d7e2faa234c99c",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow13-original-real-ocr-probe.json",
+      "bytes": 831,
+      "sha256": "59beb598af422efa9bb9f71bf70f47c9bc2f697c1716db51d02e4f0d14b1d1c6",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow13-prepared-real-ocr-probe.json",
+      "bytes": 830,
+      "sha256": "9582db196d153eac32b57966dc068a478ca08f5aceca8ebade31cd6ca130f664",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow13-prepared-targeted.log",
+      "bytes": 1353,
+      "sha256": "07da3b4d7226a49f20742a2b687fb912eb6cb87b0aadbcc07bf531593ba36302",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow13-pypi-public.json",
+      "bytes": 80892,
+      "sha256": "183d4151cbc909acf39d4d5d48469d6bc66d5516e7f506854241839d0611b69e",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/pillow13-real-components-copied-venv.log",
+      "bytes": 928,
+      "sha256": "0119fbca93e8e64a09a0a2d52cead9bdb0fd779689105660da3c03c400270880",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/public-restore-bundle.log",
+      "bytes": 314,
+      "sha256": "77e6ca614d2fd07fcd708aa287968a64b17faa44f36198f5b5ed24fe662b62ca",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/public-restore-checkout.log",
+      "bytes": 98,
+      "sha256": "c55d409ede74b5ea6de67fa00df70b471643eeb3a14f4bbf5a680f3104233e69",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/public-restore-clone.log",
+      "bytes": 53,
+      "sha256": "cefadc68f6c2e2a3bd42e0aa0be2a36301d13240e3906bc55ce5a7dcf729ff48",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/public-restore-fetch.log",
+      "bytes": 150,
+      "sha256": "3065eba465bc7a7f9e3feb94ad76cf6c102cd597318d903c1fa5201e4e3d9752",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    },
+    {
+      "path": "raw/release-dryrun-12516398217.zip",
+      "bytes": 3658,
+      "sha256": "2d72cb6268980359671ca2c80a3d581802da3ac24adda626b62233366a49fd89",
+      "origin": "Public Actions original artifact ZIP verified exact size/hash/CRC/member identity and source"
+    },
+    {
+      "path": "raw/release-dryrun-12517476479.zip",
+      "bytes": 30110731,
+      "sha256": "c44ba3e0c24a79f0e813110fcbb61a26ab87872911ccdbb7cd0a8e4e5ba81d42",
+      "origin": "Public Actions original artifact ZIP verified exact size/hash/CRC/member identity and source"
+    },
+    {
+      "path": "raw/release-dryrun-12518168986.zip",
+      "bytes": 46661670,
+      "sha256": "614f65b31b473f63a4bb471732cb91cd0c6bf44a4c028e6a00f89b156b63a177",
+      "origin": "Public Actions original artifact ZIP verified exact size/hash/CRC/member identity and source"
+    },
+    {
+      "path": "raw/release-dryrun-12518220774.zip",
+      "bytes": 24680734,
+      "sha256": "ad0576886b4370fdd543f12ed28701ec22d44f124b9cd32aabf0f128e7740b55",
+      "origin": "Public Actions original artifact ZIP verified exact size/hash/CRC/member identity and source"
+    },
+    {
+      "path": "raw/release-dryrun-12518623363.zip",
+      "bytes": 11839,
+      "sha256": "71dd7c91a77b4e6c14220e7f85d33880e16edacbfb47f7bfe0b06892da74be17",
+      "origin": "Public Actions original artifact ZIP verified exact size/hash/CRC/member identity and source"
+    },
+    {
+      "path": "release-gate-observation-public.json",
+      "bytes": 4951,
+      "sha256": "a4b3ec1b2a48af8071a2b3ca2a0429a55436dc16b2ddc48abf23c355c8127e17",
+      "origin": "Public repository data, synthetic local test output or source-derived preparation; no private user fixture/data"
+    }
+  ],
+  "count": 143,
+  "bytes": 186299550,
+  "structured_text_zip_members_scanned": 793,
+  "binary_zip_members_origin_verified": 641,
+  "credential_pattern_hits": [
+    {
+      "archive": "raw/main-12499573513.zip",
+      "member": "group-1.json",
+      "count": 21
+    },
+    {
+      "archive": "raw/main-12499573513.zip",
+      "member": "inventory-1.json",
+      "count": 7
+    },
+    {
+      "archive": "raw/main-12499573513.zip",
+      "member": "inventory-1.log",
+      "count": 7
+    },
+    {
+      "archive": "raw/main-12499573513.zip",
+      "member": "shard-2/shard-2.json",
+      "count": 7
+    },
+    {
+      "archive": "raw/main-12499573513.zip",
+      "member": "shard-2/shard-2.log",
+      "count": 1
+    },
+    {
+      "archive": "raw/main-12499573513.zip",
+      "member": "shard-3/shard-3.json",
+      "count": 7
+    },
+    {
+      "archive": "raw/main-12499573513.zip",
+      "member": "shard-3/shard-3.log",
+      "count": 5
+    },
+    {
+      "archive": "raw/main-12500112300.zip",
+      "member": "group-0.json",
+      "count": 21
+    },
+    {
+      "archive": "raw/main-12500112300.zip",
+      "member": "inventory-0.log",
+      "count": 7
+    },
+    {
+      "archive": "raw/main-12500112300.zip",
+      "member": "inventory-0.json",
+      "count": 7
+    },
+    {
+      "archive": "raw/main-12500112300.zip",
+      "member": "shard-0/shard-0.json",
+      "count": 7
+    },
+    {
+      "archive": "raw/main-12500112300.zip",
+      "member": "shard-0/shard-0.log",
+      "count": 1
+    },
+    {
+      "archive": "raw/main-12500112300.zip",
+      "member": "shard-1/shard-1.json",
+      "count": 7
+    }
+  ],
+  "private_protected_security_response_included": false,
+  "canonical_SDK_artifacts_included": false,
+  "native_memory_dumps_included": false,
+  "raw_preservation": "No original bytes scrubbed or replaced. Public source identities and artifact source-bound provenance reviewed; credential pattern scan is supporting evidence, not a data-origin substitute.",
+  "credential_pattern_match_review": {
+    "distinct_values": [
+      {
+        "match_sha256": "7ddcba9e3e77c3b73ed526aa78b7b1219560d13715c1c1bfa6e4556b15e7096b",
+        "bytes": 12,
+        "classification": "Known synthetic userinfo URL rejection test parameter, copied in pytest node IDs, not a credential",
+        "exact_literal_found_in_public_main_tests": [
+          "tests/test_ai_model_download.py"
+        ]
+      },
+      {
+        "match_sha256": "ec25b8fa54a9d7a878a86e6f38233af24d5d27d184b396136d6d7f0251d33c19",
+        "bytes": 20,
+        "classification": "Known synthetic userinfo URL rejection test parameter, copied in pytest node IDs, not a credential",
+        "exact_literal_found_in_public_main_tests": [
+          "tests/test_agent_protocol_v1_4_7.py",
+          "tests/test_ai_models.py",
+          "tests/test_capture_adapter.py",
+          "tests/test_connector_foundation.py",
+          "tests/test_cura_s09_tray.py",
+          "tests/test_network_status.py",
+          "tests/test_updates.py"
+        ]
+      },
+      {
+        "match_sha256": "093866188144b0216fb125431572e8ac2df8980dfeeb6ebeb3d9f3987d1e4c1d",
+        "bytes": 22,
+        "classification": "Known synthetic userinfo URL rejection test parameter, copied in pytest node IDs, not a credential",
+        "exact_literal_found_in_public_main_tests": [
+          "tests/test_ai_provider.py"
+        ]
+      },
+      {
+        "match_sha256": "ff8d6dd16e91d1ba7ce5b86324a16c33aeec8da6d88e39b0600122b04692dc18",
+        "bytes": 29,
+        "classification": "Known synthetic userinfo URL rejection test parameter, copied in pytest node IDs, not a credential",
+        "exact_literal_found_in_public_main_tests": [
+          "tests/test_guarded_web_transport.py"
+        ]
+      },
+      {
+        "match_sha256": "27b1f1415482004fafa005369ef6f6834a0e8f69dbc8d529e663898f8bc34d7e",
+        "bytes": 19,
+        "classification": "Known synthetic userinfo URL rejection test parameter, copied in pytest node IDs, not a credential",
+        "exact_literal_found_in_public_main_tests": [
+          "tests/test_guarded_web_transport.py"
+        ]
+      }
+    ],
+    "all_archive_hits_are_these_known_synthetic_values": true,
+    "actual_credentials_found": 0,
+    "original_bytes_preserved": true,
+    "actual_occurrences_individually_verified": 105
+  },
+  "first_full_native_failure": "Retained, not overwritten; final fresh clean-head execution is a separate later receipt",
+  "source_bundle_review": {
+    "base": "public main3c29ab05acef576d7dcdb4c0301200ee0d4bd078",
+    "head": "73f64cabaaba6479b7374343a49216284a5540ee",
+    "content": "Four ordinary commits: exact2pins from public Dependabot416, two image adapter guards, exact public PyPI wheel hash/size and aligned public component metadata/current docs/notices/tests. No SDK, instrumentation, private code, journal or credentials.",
+    "readiness": "prepared/unbound/unaccepted; full fresh head verification pending",
+    "final_source_blobs": [
+      {
+        "path": ".github/workflows/ocr-smoke.yml",
+        "bytes": 2564,
+        "sha256": "fb39f8494a4d8371d93bd1c0ecea34244d0dfda72f16233897f53f326b2a5baa"
+      },
+      {
+        "path": "CHANGELOG.md",
+        "bytes": 73604,
+        "sha256": "5d047f520725d60165fa2bfb411386661bba2b7ce9f43420f7da04a89e6d1f7a"
+      },
+      {
+        "path": "README.md",
+        "bytes": 41713,
+        "sha256": "5a33885e8f9e8b7252b68dfd6bcfd5d86a866d6d5ebd91d6a03a1560b056bd33"
+      },
+      {
+        "path": "THIRD_PARTY_NOTICES.md",
+        "bytes": 14077,
+        "sha256": "c08801cc3ffde8bd5542bf0f316386acb4d11b6a7b4c2d85a15b22d360301b46"
+      },
+      {
+        "path": "core/provelume/component_catalogue.json",
+        "bytes": 14611,
+        "sha256": "32f76bc865f9fc549acb52646ac727516517d7177871be32200ce090e7e5414b"
+      },
+      {
+        "path": "core/provelume/notices/THIRD_PARTY_NOTICES.md",
+        "bytes": 14077,
+        "sha256": "c08801cc3ffde8bd5542bf0f316386acb4d11b6a7b4c2d85a15b22d360301b46"
+      },
+      {
+        "path": "core/provelume/ocr_renderer.py",
+        "bytes": 13222,
+        "sha256": "57cc4123beccaa2123f96fa346216dc54bba44a732f6fa140114a0fef407d5c4"
+      },
+      {
+        "path": "core/provelume/photo_profiles.py",
+        "bytes": 53113,
+        "sha256": "e3a22a410827b37f8ca165502a4c06de39d347c73633392671ebaf14890bb704"
+      },
+      {
+        "path": "core/provelume/qualification_contract.py",
+        "bytes": 15832,
+        "sha256": "d8dcd481378dc274bbe48c1d86bcc8197a3d499c4a66917bff9f3d149e387a75"
+      },
+      {
+        "path": "core/provelume/representation-support-registry.json",
+        "bytes": 21975,
+        "sha256": "fe3321cb84efc06196e9ccb7fb49f6e7680791b4ebaf92d9f5dcec5086cf0e2c"
+      },
+      {
+        "path": "docs/adr/0015-bounded-local-ocr-execution.md",
+        "bytes": 8773,
+        "sha256": "248f6bb162b63c1109e0e3dcbb1dffad93eb76bd5b15daa969215703e081ca6e"
+      },
+      {
+        "path": "docs/adr/0023-bounded-photo-profiles.md",
+        "bytes": 2413,
+        "sha256": "56c1bf5b2a1e5c2693b39a4cb15e06938076173dbfef09275ea32ae112f96e9c"
+      },
+      {
+        "path": "docs/architecture/capture-request-foundation.md",
+        "bytes": 10722,
+        "sha256": "29904ffa8422f3f77084b5ccc6b1eda404afb764b37cd34557a2656fcce7e9c9"
+      },
+      {
+        "path": "docs/architecture/local-ocr-contract.it.md",
+        "bytes": 11974,
+        "sha256": "86445f81878c7da31e06282ac4ff7dd9f17433c88fe07392e623fcd34601931c"
+      },
+      {
+        "path": "docs/architecture/local-ocr-contract.md",
+        "bytes": 11742,
+        "sha256": "96846984cabf1b4dfb92110198bbe5b3236420133a9b73354c85c6328be64bbe"
+      },
+      {
+        "path": "docs/photos.it.md",
+        "bytes": 1825,
+        "sha256": "838e69c32ab05b4311c99b88d02351f251d00ea72f5304ebb497867dcabd8e68"
+      },
+      {
+        "path": "docs/photos.md",
+        "bytes": 1698,
+        "sha256": "2d58c51fe7c117d96b256b4906c4d7fe68338dd69d5f5c364017b62df9d3058e"
+      },
+      {
+        "path": "packaging/ocr/qualified-local-components.cdx.json",
+        "bytes": 5319,
+        "sha256": "2b62c8eab83a65b3f988961b8f2a8254e25b58265a1bbc244bdec8b86d288a2f"
+      },
+      {
+        "path": "packaging/ocr/tesseract-5.5.3.json",
+        "bytes": 10186,
+        "sha256": "b4052c78c4bccd9e1611fd606ab4bd1b369d8d6077abf88cbc73862b342f6bec"
+      },
+      {
+        "path": "packaging/photo/pillow-13.0.0.json",
+        "bytes": 3576,
+        "sha256": "ce042275734c6bd6f61532a009ec90fde590b7d10430a80fdac894ae9b236a3d"
+      },
+      {
+        "path": "pyproject.toml",
+        "bytes": 1248,
+        "sha256": "03ff5f2fb4c7bebcf825bd88012791a126fc84a881c89968bafea628d6480afe"
+      },
+      {
+        "path": "tests/test_build_configuration.py",
+        "bytes": 12955,
+        "sha256": "0439f2398c751b22083007bf7aa98743dabb12b55ce45ea25963f7e422779fe2"
+      },
+      {
+        "path": "tests/test_ocr_contract.py",
+        "bytes": 25800,
+        "sha256": "6443ab6a628f4c285cc9aa80dfcfbc23dd98edfc4759c6b8682eb5306c3d1287"
+      },
+      {
+        "path": "tests/test_ocr_execution.py",
+        "bytes": 41307,
+        "sha256": "29a6d065dbddba9ed0f703b17a815ed4498bb555730562a18f42dadd11ee4000"
+      },
+      {
+        "path": "tests/test_ocr_real_smoke.py",
+        "bytes": 5067,
+        "sha256": "c4464b5a7ae6ac621b801972dde8b911ffcde76b7d40341384ac32ac4bcddd96"
+      },
+      {
+        "path": "tests/test_photo_profiles.py",
+        "bytes": 21593,
+        "sha256": "418af6593d91485a447a771910f199d8f1fb22c58e6d2b2a4387db084acaa9a8"
+      },
+      {
+        "path": "tests/test_photo_real_smoke.py",
+        "bytes": 3571,
+        "sha256": "a032746fcce03e7971d535086a250a0a4f569e4c45b4fa01c6b5cad562c64b3c"
+      }
+    ]
+  },
+  "publication_scope": "Copies of public source-bound development/CI payloads for evidence retention, with development/nonofficial manifest identity. No release API, release tag, SDK or alternate product publication."
+}

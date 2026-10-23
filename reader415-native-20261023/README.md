@@ -25,3 +25,32 @@ preview, and official publication remains blocked by mandatory source gates.
 Use the existing accepted-main recovery tool to verify and restore the ZIP using
 its independently retained SHA256. Its manifest verifies every exact byte/mode.
 Fresh live GitHub evidence and all unresolved gates remain required afterward.
+
+## Phase2 original-byte retention
+
+The phase1 push at2fca301 succeeded after its complete source/credential-origin
+audit. Public raw readback, accepted recovery verify/restore, a fresh public main
+clone and the prepared97-file source verification all passed. The old local-only
+status in the frozen phase1 payload is historical.
+
+[Phase2 snapshot](phase2/PHASE2-README.txt) retains all38non-skip original-main
+decoded job logs,9original mainZIPs and all5original release-dry-runZIPs. The
+read-only pipeline39988486806 and its5jobs independently reportSUCCESS; both
+unchanged-main offline verifiers pass. Its identity is development/officialfalse,
+not an official release or publication receipt/kit/readiness observation.
+
+The archive is175509576bytes, SHA256
+`9d11fc1ac93bc7a5f36c98329d1bd60a29d8bb5f9b44e132f692e211f5aa4320`.
+Concatenate the five parts in [parts.json](phase2/parts.json) order, compare all
+part hashes and the archive hash, then use the unchanged accepted-main recovery
+tool to verify/restore. Local full verification/restoration already passed.
+The [egress audit](phase2/phase2-egress-audit.json) retains exact source origins,
+synthetic URL-test match review and exclusion of protected security headers,
+SDK artifacts, private data and memory dumps. Raw originals are unchanged.
+
+Pillow13 integration is separately prepared/unbound at73f64ca with its source
+bundle, controlled probes and real-component smoke. The first full native FAIL
+and correction are preserved; fresh final clean-head native verification was
+still running at this frozen snapshot and requires its later terminal receipt.
+This security correction does not address the Windows Node/stdio/lifecycle
+finding. No original owner/binding/attempt/failure or SDK draft was changed.

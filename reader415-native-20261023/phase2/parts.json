@@ -1,0 +1,34 @@
+{
+  "archive": "reader415-phase2-originals.zip",
+  "bytes": 175509576,
+  "sha256": "9d11fc1ac93bc7a5f36c98329d1bd60a29d8bb5f9b44e132f692e211f5aa4320",
+  "parts": [
+    {
+      "name": "recovery-phase2.zip.part01",
+      "bytes": 41943040,
+      "sha256": "a022f59454328078469045d19b7b9bb311429038ba3c429a54fabbd53a670c9c"
+    },
+    {
+      "name": "recovery-phase2.zip.part02",
+      "bytes": 41943040,
+      "sha256": "5d3697718836566962e91dc3faf1b4834443a2bb8f53f405a5e94e2e9ca3b25b"
+    },
+    {
+      "name": "recovery-phase2.zip.part03",
+      "bytes": 41943040,
+      "sha256": "d40e64138575d648cfb3a1b79463242c2c7b8f470ff70281932080a3c11b22e7"
+    },
+    {
+      "name": "recovery-phase2.zip.part04",
+      "bytes": 41943040,
+      "sha256": "5de9f89c56dea0304b3e50fb6124a0d266485094cd90ae789ce56505a8ad69d8"
+    },
+    {
+      "name": "recovery-phase2.zip.part05",
+      "bytes": 7737416,
+      "sha256": "9186d68ac979963e5702d35b35afe4705c89370f436ac0979be32af0d2d15db1"
+    }
+  ],
+  "source": "main original Actions artifacts, read-only release dry-run, local synthetic results and source preparation; not an official release",
+  "reassemble": "Concatenate parts in listed order, then run accepted main recovery verify and restore using archive SHA256."
+}
