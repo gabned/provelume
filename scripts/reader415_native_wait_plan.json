@@ -1,0 +1,116 @@
+{
+  "schema": "reader415-native-wait-plan/v1",
+  "status": "FROZEN_BEFORE_FIRST_EXECUTION",
+  "scope": "DIAGNOSTIC_ONLY_NOT_QUALIFICATION",
+  "baseline": "3c29ab05acef576d7dcdb4c0301200ee0d4bd078",
+  "prior_diagnostic": {
+    "head": "59669f3ca205a0342c5a3c8430efe0bc5e56f440",
+    "run": 39978773328,
+    "meaning": "NONREPRODUCTION_ORDINARY_NO_FIX; inherited-pipe control incomplete errors retained"
+  },
+  "missing_requested_local_material": [
+    "/workspace/provelume/.agent/pr409-unblock/CONTINUE.md",
+    "/workspace/provelume/.agent/pr409-unblock/host/protocol-sequence/STATUS-20261023-reader415-node-observation-block.md"
+  ],
+  "continuity": "New reconstruction from public GitHub objects, original job logs, actual main and supplied user coordinates. Not recovery of unavailable October23 originals. October22 archive retained separately.",
+  "hypotheses": {
+    "H1": "Node remains live doing active native work before response/VM completion; native contexts/stack and CPU distinguish observed active work only at capture.",
+    "H2": "Node remains live blocked in a native wait in same Response/stdio/lifecycle path; WCT plus native context/stack may identify wait, raw/noaccess/unsupported remain UNKNOWN.",
+    "H3": "Node exited but stdio EOF withheld; original process and stable reader birth/poll and matching native pipe names constrain EOF hypothesis. Dump unavailable on exited process is expected UNKNOWN; no foreign-holder search or inference.",
+    "H4": "Parent/runner scheduling delay or unavailable APIs prevents discrimination; measured observer/scheduler costs retained, no inferred OS cause."
+  },
+  "feasibility": {
+    "cohort": [
+      "busy",
+      "waiting"
+    ],
+    "invocations_each": 1,
+    "source": "Exact same installed Node; busy Date.now loop vs Atomics.wait; each fs-persisted PID/version before control. Original stdout/stderr pipes held by original readers.",
+    "no_new_privileges": true,
+    "mechanism": "PSS VA clone+threads/contexts+handles/names; DbgHelp snapshots only with verified IsProcessSnapshot callback. WCT out-of-proc flag1. Query/VM_READ/DUP_HANDLE/CREATE_PROCESS on exact owned birth. No live-process dump fallback or new privilege enabling.",
+    "native_stack": "Raw native contexts and stack bytes, not symbolized or JS stacks; no heap or token information requested.",
+    "bounds": {
+      "worker_seconds": 2.0,
+      "dump_bytes": 16777216,
+      "threads": 64,
+      "wait_nodes": 16,
+      "handles": 2048,
+      "toolhelp_rows": 4096,
+      "per_control_ready_seconds": 3,
+      "control_body_ms": 8000,
+      "probe_job_minutes": 5
+    },
+    "admission": "Both controls once must have live-ready identity; complete owned census; nonzero native stack+context per thread; both parent-pipe names matched to child dump names; at least one available WCT chain. Each full worker including startup <=2s, <=16MiB, no worker error/timeout, owned cleanup complete. Per-node noaccess/unknown retained even on admitted capture. Otherwise no ordinary cohort and report capacity gap; never retry identical control. PSS snapshot callback must be seen; PssFreeSnapshot must succeed; no live-dump fallback. Snapshot worker/clone resource cost included in bounded feasibility wall/CPU; no larger runner or resource grant."
+  },
+  "ordinary_cohort": {
+    "groups": [
+      0,
+      1
+    ],
+    "shards": 4,
+    "per_group_concurrent_shards": 2,
+    "group_deadline_seconds": 540,
+    "job_timeout_minutes": 10,
+    "runner": "windows-latest",
+    "python": "3.12",
+    "selection_load_assertions_model_resources_security": "UNCHANGED",
+    "plugin": "Same D3 target markers and original stdlib run code; only target local helper binding; no extra pipe drainer",
+    "target": "tests/test_mobile_shell_contract.py::test_share_error_reads_only_existing_language_preference_and_falls_back_on_unavailable_store",
+    "invocations": 1,
+    "trigger": "Parent perf_counter_ns observes no growth of bounded marker file >=5_000_000_000ns, sampled nominal250ms. Initial no marker also qualifies from Popen monitor start. Never compare Node hrtime to parent clock.",
+    "capture_episodes_max": 1,
+    "capture_scope": "Only target Node native dump/waits and stable original parent reader wait chains+pipe read-handle names; no parent memory dump",
+    "deadline": "Original timeout30 starts/kill/drain unchanged; trigger before timeout not in its exception handler. Native worker bounded separately2s and original test still proceeds independently.",
+    "observations": "Retain original stdlib outputs/exceptions, full cohort log/json, full source before/after proof and D3 counters+markers+all failures/UNKNOWN. Complete all shards regardless individual failures."
+  },
+  "evaluation": {
+    "order": "All defined controls first; if admitted complete ordinary cohort both groups/all four shards terminal, all available originals verified before evaluation. No early stop or identical retry.",
+    "all_green": "Nonreproduction only. Does not resolve finding, accept reader or qualify a release.",
+    "native_failure": "Retain all original errors, incomplete/raw data and costs. Does not change ordinary assertion/outcome.",
+    "correction": "Only demonstrated relevant prospective Node/stdio/lifecycle correction. Controlled comparison required, separate clean source from instrumentation; historical cause reconstruction not mandatory.",
+    "no_reproduction_or_mechanism": "Unresolved finding and precise missing representative observation, no generic optimization or green rerun closure."
+  },
+  "preservation": {
+    "retention_days": 14,
+    "source": "One direct diagnostic child of exact actual main; only these four additions, all existing tracked bytes unchanged; no PR/merge/publication from diagnostic branch. Native original files always uploaded, full minidump retained even failure/partial.",
+    "history": "Preserve #409 original CPU FAIL and #408 original403; original owner/workstream/binding/commits/attempts unchanged. SDK draft immutable; lifecyclev2 deferred."
+  },
+  "cost": {
+    "currency": "UNKNOWN",
+    "AI_model_effort": "UNCHANGED; runtime exact model/effort not exposed UNKNOWN",
+    "capture_cpu": "worker process_time_ns",
+    "capture_wall": "parent perf_counter_ns and worker wall_ns measured separately; no subtraction or universal overhead claim",
+    "snapshot_memory": "No full heap dump; transient PSS copy-on-write snapshot, measured wall/worker CPU/dump bytes. Peak memory not measured UNKNOWN; no claim of universal low overhead."
+  },
+  "original_source_sha256": {
+    "tests/test_capture_shell_contract.py": "08b2d6a8478ab550dc9558b138b78b659fa2648b2a4f75430ae6164d77522811",
+    "tests/test_mobile_shell_contract.py": "d6a00d867e54527025867bda267a4881499e2b8ffb5bb6be73dfaaff4f679e66",
+    "core/provelume/static/capture-worker.js": "46971255263ad4f6ce2a7823325004fdb4318d53c47f385ccd438a900e0a46a2",
+    "core/provelume/capture_http.py": "c0bfcd0bff2168094e524c27ea8326c8208abbe49ab32bd249621e21301518be",
+    "tools/agent_protocol_work_check.py": "c59077f13fc39f7cbebc5ec2b0ec55cf198c2449b083a8b2b1df132773225598",
+    ".github/workflows/ci.yml": "e172ac571097ed871f96fc68d407fb5195319f2f97f679c69717b6671dd910f4",
+    "pyproject.toml": "b2f0050e47bf6ce42c4054a93d172c2ceff77a31914741562aebdac69f1c20db",
+    "tests/conftest.py": "f8ca89396e6e675eee5fa4cf8441c0bc970002aa6094b8fef64c17ad93cd69c8"
+  },
+  "target_script_sha256": "225bd9c4c75eaeea20e0221e6fd6823a2033b3637a69478577258531bf903671",
+  "plugin_sha256": "90ef26bb0506a5b7b1dc9ae6b43312e3e2ddcc40a1713c89129f14c1039f048b",
+  "diagnostic_source_sha256": {
+    "tools/reader415_native_capture.py": "dfd8e2e1cc8dda32169a40bcb357d4957effb24a0adb43908ebbbaa54b802317",
+    "tools/reader415_native_wait_diagnostic.py": "90ef26bb0506a5b7b1dc9ae6b43312e3e2ddcc40a1713c89129f14c1039f048b",
+    ".github/workflows/reader415-native-wait-diagnostic.yml": "72e4376a66a5aeb2bb327ee31205593ad0b0b65f0bf6e57b9da4af0cd923bd1a"
+  },
+  "documentation": {
+    "Firecrawl": "developer_search unavailable HTTP402; Microsoft official SDK headers and API markdown acquired read-only through GitHub connector",
+    "sources": [
+      "https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/um/wct.h",
+      "https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/um/ProcessSnapshot.h",
+      "https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/um/minidumpapiset.h"
+    ]
+  },
+  "branch": "diagnostic/pr415-native-wait-v1",
+  "retained_static_preparation": {
+    "commit": "b4455a052a553c255ca401eda7def38a167b0d45",
+    "status": "NEVER_PUSHED_OR_EXECUTED",
+    "reason": "Trailing blank line failed diff-check; original local branch retained. This source is the sole selected runtime campaign."
+  }
+}
