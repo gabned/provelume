@@ -120,7 +120,8 @@ jobs:
   agent-change-control:
     name: Agent change control (trusted base)
     if: github.event_name == 'pull_request_target'
-    permissions: {}
+    permissions:
+      pull-requests: read
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -134,6 +135,27 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.12"
+
+      - name: Acquire current PR metadata with read-only authentication
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$REPOSITORY" = 'gabned/provelume'
+          test "$GITHUB_API_URL" = 'https://api.github.com'
+          mkdir -p .agent
+          status=0
+          curl --fail-with-body --silent --show-error --max-redirs 0 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'Accept: application/vnd.github+json' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            --dump-header .agent/current-pr.headers \
+            --output .agent/current-pr.json \
+            "${GITHUB_API_URL}/repos/${REPOSITORY}/pulls/${PR_NUMBER}" || status=$?
+          awk 'tolower($0) ~ /^(http\/|date:|x-github-request-id:|x-ratelimit-(limit|remaining|reset|used|resource):|retry-after:)/ {print}' \
+            .agent/current-pr.headers
+          test "$status" -eq 0
 
       - name: Evaluate the untrusted head with the trusted base guard
         shell: bash
@@ -150,9 +172,6 @@ jobs:
           test "$observed_head" = "$HEAD_SHA"
           mkdir -p .agent
           git diff --name-status -M -z "$BASE_SHA" "$HEAD_SHA" > .agent/name-status.z
-          curl --fail --silent --show-error --location \
-            "${GITHUB_API_URL}/repos/${REPOSITORY}/pulls/${PR_NUMBER}" \
-            > .agent/current-pr.json
           python tools/agent_protocol_v2.py event-guard \
             --event "$GITHUB_EVENT_PATH" \
             --current-pr .agent/current-pr.json \
