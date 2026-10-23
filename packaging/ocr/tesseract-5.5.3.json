@@ -17,7 +17,7 @@
         "python": "3.12",
         "engine": "distribution-provided Tesseract 5.x (5.3.4 observed locally; exact CI version recorded by the workflow)",
         "renderer": "pypdfium2 5.13.0 / PDFium 153.0.7999.0",
-        "decoder": "Pillow 12.3.0",
+        "decoder": "Pillow 13.0.0",
         "language_packs": [
           "eng"
         ],
@@ -72,13 +72,13 @@
       },
       {
         "id": "pillow",
-        "version": "12.3.0",
-        "source": "https://github.com/python-pillow/Pillow/tree/12.3.0",
+        "version": "13.0.0",
+        "source": "https://github.com/python-pillow/Pillow/tree/13.0.0",
         "license": "MIT-CMU",
         "bundled_by_provelume": false,
-        "ci_wheel": "pillow-12.3.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
-        "ci_wheel_size_bytes": 6940830,
-        "ci_wheel_sha256": "78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91"
+        "ci_wheel": "pillow-13.0.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+        "ci_wheel_size_bytes": 7144542,
+        "ci_wheel_sha256": "42d63be3af4f9b951b199b0a9d23365d37ab14687e6d77b74940432c8515c4ca"
       }
     ],
     "native_dependency_notices": "The external wheels retain their own license directories; no wheel or native library is copied into Provelume distributions"

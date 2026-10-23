@@ -177,7 +177,7 @@ class PdfiumPillowRenderer:
                         for name, version in codecs.items()
                     }
                 )
-            compatible = _major(renderer_version) == 5 and _major(decoder_version) == 12
+            compatible = _major(renderer_version) == 5 and _major(decoder_version) == 13
             self._capability = OcrRendererCapability(
                 adapter_id=RENDERER_ADAPTER_ID,
                 adapter_version=RENDERER_ADAPTER_VERSION,

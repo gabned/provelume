@@ -128,7 +128,7 @@ installed and configured separately by the operator and are **not bundled by Pro
 | `tessdata_fast` language packs | explicit local OCR language data | Apache-2.0 | not bundled |
 | pypdfium2 5.13.0 | Python binding and external-wheel delivery of PDFium | Apache-2.0 OR BSD-3-Clause, plus dependency licenses | not bundled |
 | PDFium 153.0.7999.0 | PDF rasterization in the qualified Linux wheel | BSD-3-Clause and dependency licenses | not bundled |
-| Pillow 12.3.0 | TIFF, PNG, JPEG and BMP decode/render boundary | MIT-CMU and applicable wheel dependency terms | not bundled |
+| Pillow 13.0.0 | TIFF, PNG, JPEG and BMP decode/render boundary | MIT-CMU and applicable wheel dependency terms | not bundled |
 
 The qualified Ubuntu x86_64 CI job provisions the two Python wheels by exact version and SHA-256,
 records the distribution-provided Tesseract, Leptonica and `eng` pack identities, then runs with no

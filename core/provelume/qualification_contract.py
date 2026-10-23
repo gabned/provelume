@@ -349,7 +349,7 @@ def qualification_matrix() -> dict[str, Any]:
                 "conditions": [
                     "external Tesseract 5.x and eng",
                     "pypdfium2 5.13.0/PDFium 153.0.7999.0",
-                    "Pillow 12.3.0",
+                    "Pillow 13.0.0",
                 ],
             },
             {

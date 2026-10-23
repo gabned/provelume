@@ -30,7 +30,7 @@ The first executable path is entirely local:
 | --- | --- | --- | --- |
 | OCR engine | Tesseract CLI; reference release 5.5.3 | `>=5.3,<6` with exact runtime version recorded | external |
 | PDF renderer | pypdfium2 5.13.0 / PDFium 153.0.7999.0 | pypdfium2 major 5, exact component versions recorded | external |
-| image/TIFF decoder | Pillow 12.3.0 | Pillow major 12, exact codec versions where exposed | external |
+| image/TIFF decoder | Pillow 13.0.0 | Pillow major 13, exact codec versions where exposed | external |
 | language data | explicit installed Tesseract packs; S02 smoke uses `eng` | exact installed IDs; reference digest retained | external |
 
 The primary upstream records are the
@@ -41,7 +41,7 @@ The primary upstream records are the
 [`tessdata_fast` source](https://github.com/tesseract-ocr/tessdata_fast),
 [pypdfium2 5.13.0 source](https://github.com/pypdfium2-team/pypdfium2/tree/5.13.0),
 [PDFium source and licensing tree](https://pdfium.googlesource.com/pdfium/), and
-[Pillow 12.3.0 source](https://github.com/python-pillow/Pillow/tree/12.3.0).
+[Pillow 13.0.0 source](https://github.com/python-pillow/Pillow/tree/13.0.0).
 
 ### Discovery and explicit control
 
@@ -99,7 +99,7 @@ state; rebuild uses the retained content-free request material and preserves can
 ## Qualification and distribution
 
 The real-component workflow qualifies only Ubuntu 24.04 x86-64 with Python 3.12, distribution
-Tesseract 5.x and `eng`, pypdfium2 5.13.0/PDFium 153.0.7999.0 and Pillow 12.3.0 across PDF, TIFF,
+Tesseract 5.x and `eng`, pypdfium2 5.13.0/PDFium 153.0.7999.0 and Pillow 13.0.0 across PDF, TIFF,
 PNG, JPEG and BMP generated fixtures. It logs exact system package, executable, pack and Python
 component identity. All other platform/architecture combinations remain unqualified.
 
@@ -135,3 +135,7 @@ component identities remain available. Printed text is the only qualified conten
 handwriting, semantic correction, automatic verification, advanced preprocessing, layout/table/
 barcode/QR claim or remote fallback. The separately implemented `0.9/S03` email slice does not
 change this OCR decision; `0.9/S04` remains forecast-only.
+
+The Entitas security candidate updates the selected Pillow baseline to 13.0.0.
+Historical published qualification remains unchanged; this candidate requires fresh
+real-component CI on its exact head before acceptance. No native codec is bundled.

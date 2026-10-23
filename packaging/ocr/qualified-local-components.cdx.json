@@ -162,16 +162,16 @@
       ]
     },
     {
-      "bom-ref": "pkg:pypi/pillow@12.3.0",
+      "bom-ref": "pkg:pypi/pillow@13.0.0",
       "type": "library",
       "name": "Pillow",
-      "version": "12.3.0",
+      "version": "13.0.0",
       "scope": "optional",
-      "purl": "pkg:pypi/pillow@12.3.0",
+      "purl": "pkg:pypi/pillow@13.0.0",
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91"
+          "content": "42d63be3af4f9b951b199b0a9d23365d37ab14687e6d77b74940432c8515c4ca"
         }
       ],
       "licenses": [
@@ -184,7 +184,7 @@
       "externalReferences": [
         {
           "type": "vcs",
-          "url": "https://github.com/python-pillow/Pillow/tree/12.3.0"
+          "url": "https://github.com/python-pillow/Pillow/tree/13.0.0"
         }
       ],
       "properties": [
@@ -207,7 +207,7 @@
         "pkg:github/tesseract-ocr/tessdata_fast@87416418657359cb625c412a48b6e1d6d41c29bd?download_url=eng.traineddata",
         "pkg:pypi/pypdfium2@5.13.0",
         "pdfium-153.0.7999.0-linux-x64",
-        "pkg:pypi/pillow@12.3.0"
+        "pkg:pypi/pillow@13.0.0"
       ]
     }
   ]

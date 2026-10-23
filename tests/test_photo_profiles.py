@@ -166,7 +166,7 @@ class FakeDecoder:
         return {
             "state": "ready",
             "component": "codec.pillow",
-            "version": "12.3.0",
+            "version": "13.0.0",
             "qualified": True,
         }
 
@@ -176,7 +176,7 @@ class FakeDecoder:
         return PhotoDecodeResult(
             preview_png=_PREVIEW,
             perceptual_hash=self.hashes.get(digest, digest[:16]),
-            decoder_version="12.3.0",
+            decoder_version="13.0.0",
             source_frames=1,
         )
 
@@ -291,9 +291,9 @@ def test_only_exact_qualified_pillow_version_is_ready(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     decoder = PillowPhotoDecoder()
-    monkeypatch.setattr(importlib.metadata, "version", lambda _name: "12.4.0")
-    assert decoder.capability()["state"] == "incompatible"
     monkeypatch.setattr(importlib.metadata, "version", lambda _name: "12.3.0")
+    assert decoder.capability()["state"] == "incompatible"
+    monkeypatch.setattr(importlib.metadata, "version", lambda _name: "13.0.0")
     assert decoder.capability()["state"] == "ready"
 
 

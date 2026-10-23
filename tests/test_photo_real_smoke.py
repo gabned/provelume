@@ -57,7 +57,7 @@ def test_real_pillow_baseline_sanitized_preview_and_unsupported_boundaries(
     assert manager.capability()["decoder"] == {
         "state": "ready",
         "component": "codec.pillow",
-        "version": "12.3.0",
+        "version": "13.0.0",
         "qualified": True,
     }
 

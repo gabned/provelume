@@ -107,7 +107,7 @@ class FakeRenderer:
             version_compatible=self.available and self.compatible,
             resolved_path="/fixtures/libpdfium.so" if self.available else None,
             decoder_id="pillow",
-            decoder_version="12.3.0" if self.available else None,
+            decoder_version="13.0.0" if self.available else None,
             component_versions=(
                 (("pdfium", "145.0.7616.0"),) if self.available else ()
             ),
@@ -642,7 +642,7 @@ def test_packaging_manifest_is_optional_offline_and_license_complete() -> None:
                 "exact CI version recorded by the workflow)"
             ),
             "renderer": "pypdfium2 5.13.0 / PDFium 153.0.7999.0",
-            "decoder": "Pillow 12.3.0",
+            "decoder": "Pillow 13.0.0",
             "language_packs": ["eng"],
             "formats": ["PDF", "TIFF", "PNG", "JPEG", "BMP"],
             "workflow": ".github/workflows/ocr-smoke.yml",

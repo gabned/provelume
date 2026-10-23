@@ -63,10 +63,10 @@ def _renderer_capability() -> OcrRendererCapability:
         version_compatible=True,
         resolved_path="/fixture/libpdfium.so",
         decoder_id="pillow",
-        decoder_version="12.3.0",
+        decoder_version="13.0.0",
         component_versions=(
             ("pdfium", "145.0.7616.0"),
-            ("pillow", "12.3.0"),
+            ("pillow", "13.0.0"),
             ("pypdfium2", "5.13.0"),
         ),
         input_media_types=tuple(sorted(OCR_SUPPORTED_INPUTS)),

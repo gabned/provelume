@@ -22,9 +22,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-capture = ["Pillow==12.3.0"]
+capture = ["Pillow==13.0.0"]
 dev = [
-  "Pillow==12.3.0",
+  "Pillow==13.0.0",
   "httpx>=0.28,<1",
   "pytest>=9.0.3,<10",
   "ruff>=0.11,<1",
