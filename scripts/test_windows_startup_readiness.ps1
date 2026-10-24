@@ -22,6 +22,7 @@ $Report = [ordered]@{
     opened_root_binding_verified = $false
     cleanup_confirmed = $false
     cooperative_stop_confirmed = $false
+    owned_exit_code = $null
     managed_panel_ui_qualified = $false
     windows11_qualified = $false
     private_content_logged = $false
@@ -165,7 +166,10 @@ public static class ConcordiaReadinessNative {
     $Clock = [Diagnostics.Stopwatch]::StartNew()
     $Report.failure_code = "readiness_timeout"
     while ($Clock.ElapsedMilliseconds -lt 30000 -and -not $Report.proof_verified) {
-        if ($Child.HasExited) { throw "Owned child exited before readiness." }
+        if ($Child.HasExited) {
+            $Report.failure_code = "process_exited"
+            throw "Owned child exited before readiness."
+        }
         $Remaining = 30000 - $Clock.ElapsedMilliseconds
         $Cts = [Threading.CancellationTokenSource]::new([int][Math]::Min(1000, $Remaining))
         $Request = [Net.Http.HttpRequestMessage]::new(
@@ -275,6 +279,7 @@ finally {
             }
             if (-not $Child.HasExited) { $Child.Kill($true) }
             $Report.cleanup_confirmed = $Child.WaitForExit(2000)
+            if ($Report.cleanup_confirmed) { $Report.owned_exit_code = $Child.ExitCode }
         }
         catch { $Report.cleanup_confirmed = $Child.HasExited }
         finally { $Child.Dispose() }

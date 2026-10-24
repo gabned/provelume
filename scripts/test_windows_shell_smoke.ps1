@@ -645,7 +645,7 @@ finally {
 }
 
 if ($Failed) {
-    $Summary = $Evidence | Select-Object `
+    $Summary = [pscustomobject]$Evidence | Select-Object `
         schema_version, status, failure_code, expected_commit, exact_head, `
         default_port, configured_port, collision_installer_exit_code, `
         default_install_exit_code, final_uninstall_exit_code, service_exit_code, `

@@ -387,7 +387,7 @@ def _display_date(value, language, *, time=False):
     return presented if time else presented[:10]
 
 
-def _context(request: Request, instance: ProvelumeInstance, *, summary: bool = True,
+def _context(request: Request, instance: ProvelumeInstance, *, include_summary: bool = True,
              **values: Any) -> dict[str, Any]:
     language = _language(request, instance)
     base = _base_context(request, language)
@@ -407,7 +407,7 @@ def _context(request: Request, instance: ProvelumeInstance, *, summary: bool = T
             item["value"] = base["t"]("browse.root")
     return {
         **base,
-        "instance": (instance.instance_summary() if summary
+        "instance": (instance.instance_summary() if include_summary
                      else dict(instance.store.read_config()["instance"])),
         **values,
     }
@@ -702,7 +702,7 @@ def create_app(
             context=_context(
                 request,
                 instance,
-                summary=bool(q.strip()),
+                include_summary=bool(q.strip()),
                 q=q,
                 results=results,
                 sources=instance.list_sources(),
@@ -805,7 +805,7 @@ def create_app(
         return TEMPLATES.TemplateResponse(
             request=request,
             name="about.html",
-            context=_context(request, instance, summary=False, about=current_about()),
+            context=_context(request, instance, include_summary=False, about=current_about()),
         )
 
     @app.get("/security/installation")
