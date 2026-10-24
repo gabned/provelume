@@ -4,6 +4,7 @@ These checks do not stand in for real browser/PWA observations.
 """
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -29,8 +30,33 @@ def node(script, *args):
         fixture.write("process.argv.splice(1, 1);\n" + script)
         path = Path(fixture.name)
     try:
-        result = subprocess.run([executable, str(path), *args], cwd=ROOT,
-                                capture_output=True, text=True, timeout=30)
+        command = [executable, str(path), *args]
+        # Completion belongs to the Node process, not to the last holder of a
+        # pipe writer. Keep the actual process deadline and all JS assertions.
+        with (
+            tempfile.TemporaryFile(mode="w+") as stdout,
+            tempfile.TemporaryFile(mode="w+") as stderr,
+        ):
+            with subprocess.Popen(command, cwd=ROOT, stdout=stdout, stderr=stderr,
+                                  text=True) as process:
+                try:
+                    process.wait(timeout=30)
+                except subprocess.TimeoutExpired as error:
+                    process.kill()
+                    process.wait()
+                    stdout.seek(0)
+                    stderr.seek(0)
+                    # Match subprocess.run's platform-specific timeout output.
+                    if os.name == "nt":
+                        error.output, error.stderr = stdout.read(), stderr.read()
+                    else:
+                        error.output = stdout.buffer.read() or None
+                        error.stderr = stderr.buffer.read() or None
+                    raise
+            stdout.seek(0)
+            stderr.seek(0)
+            result = subprocess.CompletedProcess(command, process.returncode,
+                                                 stdout.read(), stderr.read())
     finally:
         path.unlink()
     assert result.returncode == 0, result.stderr
