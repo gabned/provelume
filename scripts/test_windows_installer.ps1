@@ -729,6 +729,9 @@ try {
         }
         $DiagnosticBackend = $null
         try {
+            if (-not $StartupReadiness.cleanup_confirmed) {
+                throw "Diagnostic startup withheld while private cleanup is unconfirmed."
+            }
             $DiagnosticPort = Get-FreeLoopbackPort
             $DiagnosticBackend = Start-Process -FilePath $Executable -ArgumentList @(
                 "--serve", "`"$InstanceRoot`"", "--port", "$DiagnosticPort"

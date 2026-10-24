@@ -72,7 +72,11 @@ del pacchetto verificata: conserva i sorgenti Python della wheel accanto al PYZ 
 controllo RECORD esistente possa verificare ogni byte richiesto. Evidenze mancanti, modificate
 o non disponibili impediscono READY. RECORD verifica il contenuto locale del pacchetto, non
 la provenienza dell'eseguibile o l'autenticazione dell'editore. `/health` conserva schema e
-controlli profondi. Readiness è osservazione dell'avvio, non salute permanente o prova per-Version.
+controlli profondi. Nel frozen i metadati sono quelli canonici della versione in esecuzione
+nel root del loader; restano i controlli di tree importato, versione e RECORD. I metadati
+storici dell'aggiornamento sono conservati, senza selezione per ordine di discovery o fallback
+da un RECORD corrente fallito. Evidenze correnti mancanti o incoerenti falliscono chiuse.
+Readiness è osservazione dell'avvio, non salute permanente o prova per-Version.
 
 ## Lavoro finito e arresto
 

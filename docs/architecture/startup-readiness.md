@@ -73,6 +73,10 @@ The frozen private startup requires verified package integrity. Packaging retain
 Python source payload alongside PYZ so the existing RECORD predicate can inspect every required
 byte; unavailable, missing or modified package evidence never becomes READY. RECORD verifies
 local package payload, not executable provenance or publisher authentication.
+Frozen verification selects the running version's canonical dist-info in the loader's
+runtime root, then retains the existing imported-tree, version and RECORD checks. Older
+upgrade metadata stays in place and cannot be selected by discovery order or as a fallback
+for a failing current RECORD. Missing or mismatched current evidence fails closed.
 `/health` keeps its schema and deep checks. Readiness is a startup observation, not permanent
 archive/index health or a per-document completion proof.
 
