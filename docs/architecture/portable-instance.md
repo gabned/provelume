@@ -197,6 +197,10 @@ The sibling control directory keeps the pending marker and lifecycle lock outsid
 being replaced. The persistent lock metadata file is guarded by an OS advisory lock, so process
 termination releases ownership in the kernel and contenders never delete/reclaim a pathname that a
 new owner may already hold. Pending recovery acquires that same lock before changing the Instance.
+Owner JSON is diagnostic metadata, flushed for current readers; it never grants or restores
+ownership and needs no forced disk synchronization. A stale or missing owner record after a
+crash does not bypass the kernel lock. Pending markers, transaction journals, canonical data
+and recovery receipts retain their required file and directory durability barriers.
 After an interrupted migration or restore, the next open verifies and restores the recorded
 pre-operation backup before retrying normal preparation. Recovery is persisted under
 `state/lifecycle/recovery-receipts/`; it is not silently treated as an ordinary successful open.

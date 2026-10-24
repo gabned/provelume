@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import socket
 import threading
 import zipfile
@@ -485,6 +486,45 @@ def test_lifecycle_os_lock_serializes_stale_metadata_contenders(
     ):
         pass
     assert first.lock_path.is_file()
+
+
+def test_advisory_owner_flush_does_not_control_kernel_lock_or_data_durability(
+    tmp_path, monkeypatch,
+):
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    manager = InstanceLifecycleManager(instance.store)
+    original = os.fsync
+    data_barriers = []
+
+    def fail_owner_sync(descriptor):
+        observed = os.fstat(descriptor)
+        owner = manager.lock_path.stat()
+        if (observed.st_dev, observed.st_ino) == (owner.st_dev, owner.st_ino):
+            raise OSError("synthetic advisory owner persistence failure")
+        data_barriers.append((observed.st_dev, observed.st_ino))
+        return original(descriptor)
+
+    monkeypatch.setattr(os, "fsync", fail_owner_sync)
+    with manager._hold(purpose="synthetic owner") as owner:
+        assert json.loads(manager.lock_path.read_text())["token"] == owner["token"]
+        with (
+            pytest.raises(InstanceLifecycleBusy),
+            InstanceLifecycleManager(instance.store)._hold(purpose="contender"),
+        ):
+            pytest.fail("kernel ownership was lost")
+        target = instance.root / "state/synthetic-durable-value.bin"
+        instance.store._atomic_bytes(target, b"durable synthetic value")
+        target_identity = target.stat()
+        assert (target_identity.st_dev, target_identity.st_ino) in data_barriers
+        # Corrupt diagnostic contents cannot grant ownership of the live inode.
+        manager.lock_path.write_text("stale advisory metadata")
+        with (
+            pytest.raises(InstanceLifecycleBusy),
+            InstanceLifecycleManager(instance.store)._hold(purpose="contender"),
+        ):
+            pytest.fail("advisory metadata supplied ownership")
+    with InstanceLifecycleManager(instance.store)._hold(purpose="next owner"):
+        assert target.read_bytes() == b"durable synthetic value"
 
 
 def test_lifecycle_cli_validate_migrate_backup_and_restore(

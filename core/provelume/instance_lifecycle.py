@@ -163,7 +163,11 @@ class InstanceLifecycleManager:
                 handle.write("\n")
                 handle.truncate()
                 handle.flush()
-                os.fsync(handle.fileno())
+                # The kernel lock owns this operation; the JSON is diagnostic.
+                # Make it visible to current readers without a disk barrier for
+                # an owner that cannot survive process or system termination.
+                # Pending markers, journals and canonical data retain their own
+                # durability barriers before acknowledgement and recovery.
             if (
                 selected_purpose == "instance-lifecycle-recovery"
                 and (self._read_json(self.pending_path) or {}).get("operation")
