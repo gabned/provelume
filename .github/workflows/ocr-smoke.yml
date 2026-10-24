@@ -32,11 +32,11 @@ jobs:
           python scripts/bootstrap.py
           mkdir .ocr-wheelhouse
           .venv/bin/python -m pip download --only-binary=:all: --no-deps \
-            --dest .ocr-wheelhouse 'pypdfium2==5.13.0' 'Pillow==12.3.0'
+            --dest .ocr-wheelhouse 'pypdfium2==5.13.0' 'Pillow==13.0.0'
           echo '81df25c1ab4c13ff773102d3cbea1967511d079123b067fc077bd0c4d57d91d8  .ocr-wheelhouse/pypdfium2-5.13.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl' | sha256sum --check --strict
-          echo '78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91  .ocr-wheelhouse/pillow-12.3.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl' | sha256sum --check --strict
+          echo '42d63be3af4f9b951b199b0a9d23365d37ab14687e6d77b74940432c8515c4ca  .ocr-wheelhouse/pillow-13.0.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl' | sha256sum --check --strict
           .venv/bin/python -m pip install --no-index --no-deps \
-            --find-links .ocr-wheelhouse 'pypdfium2==5.13.0' 'Pillow==12.3.0'
+            --find-links .ocr-wheelhouse 'pypdfium2==5.13.0' 'Pillow==13.0.0'
 
       - name: Record qualified component identity
         run: |

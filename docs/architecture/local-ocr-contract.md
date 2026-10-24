@@ -43,12 +43,13 @@ and records that version and path. It checks the installed language-pack list be
 job. It never installs Tesseract or a pack.
 
 PDF rasterisation uses pypdfium2 5.13.0 with PDFium 153.0.7999.0. TIFF, PNG, JPEG and BMP decoding
-uses Pillow 12.3.0. These wheels and their native contents are external to every Provelume package.
-The only S02 real-component qualification is:
+uses Pillow 13.0.0. These wheels and their native contents are external to every Provelume package.
+The Entitas candidate matrix below requires fresh real-component CI on its exact
+commit. Historical S02 qualification used Pillow 12.3.0 and remains separate:
 
 | OS | Architecture | Python | Engine/packs | Renderer/decoder | Inputs |
 | --- | --- | --- | --- | --- | --- |
-| Ubuntu 24.04 | x86-64 | 3.12 | distribution Tesseract 5.x plus local `eng`; exact CI identity is logged | pypdfium2 5.13.0 / PDFium 153.0.7999.0 / Pillow 12.3.0 | scanned PDF, TIFF, PNG, JPEG, BMP |
+| Ubuntu 24.04 | x86-64 | 3.12 | distribution Tesseract 5.x plus local `eng`; exact CI identity is logged | pypdfium2 5.13.0 / PDFium 153.0.7999.0 / Pillow 13.0.0 | scanned PDF, TIFF, PNG, JPEG, BMP |
 
 Windows process cleanup is covered by the normal cross-platform test suite, but no Windows OCR
 engine/renderer combination is S02-qualified. Windows x86-64 and ARM64, Linux ARM64 and macOS
@@ -58,12 +59,12 @@ language support claim.
 ## Explicit local setup
 
 Create the normal Provelume environment first. Then install the external components through an
-operator-controlled system/environment procedure. For the qualified Ubuntu profile, the CI model
+operator-controlled system/environment procedure. For the candidate Ubuntu profile, the CI model
 is equivalent to:
 
 ```bash
 sudo apt-get install tesseract-ocr tesseract-ocr-eng
-.venv/bin/python -m pip install 'pypdfium2==5.13.0' 'Pillow==12.3.0'
+.venv/bin/python -m pip install 'pypdfium2==5.13.0' 'Pillow==13.0.0'
 ```
 
 Those commands are setup examples, not runtime behavior. The CI workflow downloads the two exact

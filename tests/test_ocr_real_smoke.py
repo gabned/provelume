@@ -82,7 +82,7 @@ def test_real_local_ocr_engine_renderer_and_declared_formats(
     assert capability["adapter"]["engine_executable"]
     assert capability["renderer"]["renderer_id"] == "pdfium-pillow"
     assert capability["renderer"]["renderer_version"] == "5.13.0"
-    assert capability["renderer"]["decoder_version"] == "12.3.0"
+    assert capability["renderer"]["decoder_version"] == "13.0.0"
     assert Path(capability["renderer"]["resolved_path"]).is_file()
     assert capability["network_required"] is False
     assert capability["runtime_downloads"] is False

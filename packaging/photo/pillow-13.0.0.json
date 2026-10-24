@@ -2,7 +2,7 @@
   "schema_version": 1,
   "slice": "0.10/S03",
   "profile_id": "perceptio-photo-v1",
-  "status": "qualified-optional-local-component",
+  "status": "candidate-awaiting-real-component-qualification",
   "core_inspector": {
     "component": "provelume.core",
     "version": "0.14.0",
@@ -14,17 +14,17 @@
   "selected_decoder": {
     "id": "codec.pillow",
     "name": "Pillow",
-    "version": "12.3.0",
-    "version_constraint": "==12.3.0",
-    "source": "https://github.com/python-pillow/Pillow/tree/12.3.0",
+    "version": "13.0.0",
+    "version_constraint": "==13.0.0",
+    "source": "https://github.com/python-pillow/Pillow/tree/13.0.0",
     "license": "MIT-CMU",
     "bundled_by_provelume": false,
     "runtime_download": false,
     "remote_fallback": false,
     "qualified_linux_wheel": {
-      "filename": "pillow-12.3.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
-      "size_bytes": 6940830,
-      "sha256": "78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91"
+      "filename": "pillow-13.0.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "size_bytes": 7144542,
+      "sha256": "42d63be3af4f9b951b199b0a9d23365d37ab14687e6d77b74940432c8515c4ca"
     }
   },
   "derived_outputs": {
@@ -72,7 +72,7 @@
   ],
   "fixture_provenance": {
     "kind": "deterministic-synthetic-camera-export",
-    "generator": "Pillow 12.3.0",
+    "generator": "Pillow 13.0.0",
     "seed": 20260903,
     "contains_personal_content": false,
     "contains_real_coordinates": false,
