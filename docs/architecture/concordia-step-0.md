@@ -1,9 +1,12 @@
 # Concordia — step 0 contract and acceptance plan
 
-Status: **PROPOSED / NOT_ACCEPTED**. Campaign [#383](https://github.com/gabned/provelume/issues/383).
+Status: **CONTRACT CANDIDATE / STEP 0 NOT_ACCEPTED**. Campaign [#383](https://github.com/gabned/provelume/issues/383).
 This is the reviewable result of the authorized 24 October 2026 reconnaissance.
-It specifies the release contract; it does not qualify an implementation, approve
-the remaining product choices or authorize operations on personal data/accounts.
+It specifies the release contract; it does not qualify an implementation or
+authorize operations on personal data/accounts. The maintainer explicitly adopted
+the concrete I/K/L behaviors below on 24 October 2026; the
+[decision receipt](https://github.com/gabned/provelume/issues/383#issuecomment-6388593328)
+preserves that approval separately from technical review and step 0 acceptance.
 
 ## Baseline, authority and sources
 
@@ -103,8 +106,9 @@ environment, files, logs or child-worker inheritance. Normal unbootstrapped serv
 keeps this route unavailable.
 
 Root binding will use the guarded, actually opened local directory identity,
-not a normalized path string: on qualified Windows, volume serial plus file ID,
-encoded as fixed-width unsigned big-endian values, combined with canonical
+not a normalized path string: on qualified Windows, the FileIdInfo volume serial
+(8-byte unsigned big-endian) followed by the 16 raw FileId bytes, domain-separated
+as `win32.file-id.v1` and combined with canonical
 Instance ID and the exact endpoint in the existing framed HMAC contract. Parent
 and child use one helper; retain parent/root guards while binding, reject reparse
 chains and compare the child-opened identity. `maintenance_local_files.py` already
@@ -183,11 +187,13 @@ configured Inbox, requires the same boundary/identity guards and removes only
 actually empty containers. Input disappearance never archives/trashes/purges knowledge.
 Later index failure repairs the index without recreating an Inbox input.
 
-## Product choices I/K/L — concrete proposal awaiting decision
+## Product choices I/K/L — adopted behavior
 
-These are **PROPOSTA AI**, not approved by the old planning documents or by this
-document's creation. They are the remaining product decision requested from the
-maintainer; internal algorithms above do not require separate product votes.
+These were **PROPOSTA AI** in the first draft. The maintainer explicitly answered
+“Adotta I/K/L proposti”; their approval comes from the linked decision receipt,
+not the old planning documents or this document's creation. Internal algorithms
+above do not require separate product votes. Implementation and qualification
+remain separate gates.
 
 **I — existing Sources.** Convert in place, preserving Source/Document/Version,
 history and provenance. Preview the role/policy change and the current backlog;
@@ -323,7 +329,7 @@ Accept step 0 only when all of these are observed in its owner ledger:
 5. Qualified exact-source documentation candidate, complete applicable CI/reviews/
    originals, fresh normal integration preflight and actual-main acceptance.
 
-This draft meets no acceptance by being written. Product decisions, source PR
+This candidate meets no acceptance by being written. I/K/L are now adopted; source PR
 qualification/integration and all new runtime/browser/installer/live-provider
 qualifications remain pending. Native fixture tests can validate existing seams;
 they cannot prove the proposed exit handle, binding, worker or producer evidence.
@@ -335,3 +341,13 @@ is a retained transport failure, not a GitHub repository denial. The connected
 GitHub tool can read repository objects. Its availability does not prove arbitrary
 shell-network, CI-original-download or installed/internal-browser capability.
 Missing required access remains a named dependency while independent work continues.
+
+Subsequent controlled observation: the same supported shell Git read succeeds
+when the execution tool is given its network capability. The initial full native
+suite without that capability stalled at its first TestClient route and was
+interrupted, not passed. The exact route test with that capability passed. Retain
+the original interruption and diagnostic separately; run final qualification on
+the unchanged candidate with the required host capability. No proxy setting,
+application gate, timeout or test assertion is changed by this host correction.
+The optional OCR kit is an asset of the same final authorized application release;
+its preparation does not introduce a second official product/release publication.
