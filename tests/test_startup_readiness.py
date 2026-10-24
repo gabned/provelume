@@ -177,7 +177,7 @@ def responder(handler):
                             return
                         request.extend(block)
                     handler(conn, bytes(request), port)
-            except (BrokenPipeError, ConnectionResetError, TimeoutError):
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, TimeoutError):
                 pass
             except Exception as exc:
                 errors.append(exc)
@@ -356,6 +356,21 @@ def test_invalid_installation_cannot_become_private_ready(tmp_path, monkeypatch)
     )
     monkeypatch.setattr(
         web, "ProvelumeInstance", lambda *_: pytest.fail("opened after integrity fail")
+    )
+    with pytest.raises(protocol.StartupReadinessError, match="startup_integrity_failed"):
+        create_app(tmp_path / "must-not-open", effective_port=44851, _startup=context())
+
+
+@pytest.mark.parametrize("status", ["verification_unavailable", "not_run", None])
+def test_frozen_private_startup_requires_verified_package_before_instance_open(
+    tmp_path, monkeypatch, status
+):
+    import provelume.web as web
+
+    monkeypatch.setattr(web.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(web, "verify_current_installation", lambda: {"status": status})
+    monkeypatch.setattr(
+        web, "ProvelumeInstance", lambda *_: pytest.fail("opened without package integrity")
     )
     with pytest.raises(protocol.StartupReadinessError, match="startup_integrity_failed"):
         create_app(tmp_path / "must-not-open", effective_port=44851, _startup=context())

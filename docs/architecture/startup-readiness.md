@@ -69,6 +69,10 @@ READY follows installation checks, Instance/schema/recovery, service/middleware 
 and application lifespan initialization. Modified installation evidence is terminal; missing
 explicitly required release evidence cannot be promoted to success. Ordinary editable-source
 inspection retains its existing unavailable status, without claiming installed integrity.
+The frozen private startup requires verified package integrity. Packaging retains the wheel's
+Python source payload alongside PYZ so the existing RECORD predicate can inspect every required
+byte; unavailable, missing or modified package evidence never becomes READY. RECORD verifies
+local package payload, not executable provenance or publisher authentication.
 `/health` keeps its schema and deep checks. Readiness is a startup observation, not permanent
 archive/index health or a per-document completion proof.
 

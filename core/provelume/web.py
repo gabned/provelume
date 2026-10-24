@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from collections.abc import Callable
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
@@ -488,7 +489,8 @@ def create_app(
     if _startup is not None:
         if installation_verification.get("status") == "modified_installation":
             raise StartupReadinessError("startup_integrity_failed")
-        if release_evidence_configured and installation_verification.get("status") \
+        if (release_evidence_configured or getattr(sys, "frozen", False)) \
+                and installation_verification.get("status") \
                 != "package_integrity_verified":
             raise StartupReadinessError("startup_integrity_failed")
     instance = ProvelumeInstance(instance_root)

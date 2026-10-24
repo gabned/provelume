@@ -67,7 +67,11 @@ alla memoria o agli handle dello stesso utente.
 READY segue controlli installazione, Instance/schema/recupero, servizi/middleware e lifespan
 applicativo. Installazione modificata è terminale; evidenza di release esplicitamente richiesta
 ma mancante non diventa successo. L'ispezione del sorgente editable mantiene il proprio stato
-non disponibile, senza attestazione d'integrità installata. `/health` conserva schema e
+non disponibile, senza attestazione d'integrità installata. Il frozen privato richiede integrità
+del pacchetto verificata: conserva i sorgenti Python della wheel accanto al PYZ perché il
+controllo RECORD esistente possa verificare ogni byte richiesto. Evidenze mancanti, modificate
+o non disponibili impediscono READY. RECORD verifica il contenuto locale del pacchetto, non
+la provenienza dell'eseguibile o l'autenticazione dell'editore. `/health` conserva schema e
 controlli profondi. Readiness è osservazione dell'avvio, non salute permanente o prova per-Version.
 
 ## Lavoro finito e arresto
