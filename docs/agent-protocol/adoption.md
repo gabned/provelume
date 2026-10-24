@@ -6,8 +6,11 @@ product source is a distinct boundary. The dependency under
 notices, original licenses and historical validators. Change native adapters
 outside that directory; never patch the vendor into a local fork.
 
-The accepted consumer pin binds operational and Work revisions, authenticated
-release location, archive digest, complete source inventory and document manifest.
+The accepted consumer pin binds operational and Work revisions, an explicitly
+selected authenticated release or canonical Git origin, archive digest, complete
+source inventory and document manifest. Git origin acceptance is independent of
+the candidate and verified by the shared Core; a self-consistent digest is not
+source authentication. Existing release pins and historical proofs stay valid.
 The provenance record retains predecessor registration and the original-to-vendor
 mapping. Verify every byte and mode before importing. Candidate-supplied manifests,
 recalculated digests or PR bodies cannot authenticate adoption.
