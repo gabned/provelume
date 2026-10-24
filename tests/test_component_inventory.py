@@ -85,6 +85,27 @@ def test_inventory_covers_component_classes_and_keeps_states_distinct() -> None:
     assert all(row["security_status"] == "unverified" for row in rows.values())
 
 
+@pytest.mark.parametrize("version,status", [
+    ("6.20.0", "incompatible"),
+    ("6.21.1", "incompatible"),
+    ("6.21.2", "installed"),
+])
+def test_pdf_inventory_enforces_the_corrected_runtime_floor_without_security_claims(
+    version, status,
+):
+    inventory = ComponentInventory(
+        distribution_versions={**VERSIONS, "pypdf": version},
+        executable_present=lambda _name: False,
+        python_version="3.12.15",
+        platform_name="windows",
+    ).read()
+    row = next(row for row in inventory["components"] if row["id"] == "python.pypdf")
+    assert row["status"] == status
+    assert row["security_status"] == "unverified"
+    assert inventory["network"]["used"] is False
+    assert inventory["mutated"] is False
+
+
 def test_ahead_eol_and_present_without_version_do_not_become_approved() -> None:
     catalogue = copy.deepcopy(_catalogue())
     by_id = {row["id"]: row for row in catalogue["components"]}
