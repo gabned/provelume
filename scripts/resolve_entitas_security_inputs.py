@@ -57,7 +57,7 @@ def resolve(root, output):
             check=True,
             timeout=180,
         )
-        resolved = json.loads(report.read_text())
+        resolved = json.loads(report.read_text(encoding="utf-8"))
         observed = {
             re.sub(r"[-_.]+", "-", row["metadata"]["name"]).lower(): row["metadata"]["version"]
             for row in resolved["install"]
@@ -140,7 +140,9 @@ def resolve(root, output):
                 ["git", "rev-parse", "HEAD"], text=True
             ).strip(),
         }
-        (output / "evidence.json").write_text(json.dumps(result, indent=2) + "\n")
+        (output / "evidence.json").write_text(
+            json.dumps(result, indent=2) + "\n", encoding="utf-8"
+        )
         print(json.dumps(result))
 
 
