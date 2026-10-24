@@ -1,0 +1,60 @@
+{
+  "schema": "entitas-prospective-node-stdio-comparison-plan/v1",
+  "base": "3c29ab05acef576d7dcdb4c0301200ee0d4bd078",
+  "fixed": "b030fa7e2c5fff8f0762733611e26f9ff24ded08",
+  "instrument_sha256": "8609d1201f3330335ad2dd9f55e26d74fdfe3513116bd78e0b68c317910c0aba",
+  "hypothesis": "Waiting for pipe EOF can exceed the actual completed Node child lifecycle when another parent-owned writer remains open. File-backed capture waits for the actual child and preserves JS assertions, return status, text decoding and30s deadline. Historical cause need not be reconstructed.",
+  "cohort": [
+    {
+      "case": "ordinary_actual_case",
+      "arms": [
+        "baseline",
+        "fixed"
+      ]
+    },
+    {
+      "case": "held_writer_actual_case",
+      "arms": [
+        "baseline",
+        "fixed"
+      ]
+    },
+    {
+      "case": "nonzero_assertion",
+      "arms": [
+        "baseline",
+        "fixed"
+      ]
+    },
+    {
+      "case": "live_child_timeout",
+      "arms": [
+        "baseline",
+        "fixed"
+      ]
+    }
+  ],
+  "fixed_invariants": [
+    "one actual supplied Node process per case, same source JS bytes",
+    "same runner/hardware/runtime per paired comparison",
+    "timeout30, model, existing assertions, safety unchanged",
+    "no forced successful Node exit; live child still must time out",
+    "all expected failures and UNKNOWN retained; no identical repeat"
+  ],
+  "control": "additional noninheritable stdout writer held by owning synthetic parent until35s fallback; identical injection into pipe/file transports; no external process or privilege change",
+  "acceptance": [
+    "actual source case PASS both arms without fault",
+    "held-writer actual case baseline TIMEOUT30 with Node already exit0 while writer held; fixed PASS with writer still held and Node exit0",
+    "same actual JS fixture hash across paired arms",
+    "nonzero assertion REJECTED both; live child TIMEOUT30 both",
+    "all ownership cleanup, script/state/source checks required; UNKNOWN never satisfies"
+  ],
+  "source_qualification": "NOT_GRANTED; uninstrumented complete exact-head permanent CI, reviews, binding, preflight/normal merge/postmerge remain mandatory",
+  "old_diagnostic": "25c75c3/run39986875380 remains native-feasibilityFALSE/ordinaryNOT_STARTED; not rerun and no retrospective criterion change",
+  "rollout": "Linux native mechanism check then one exact-source Windows comparative execution. No second native wait/stack campaign; this is controlled prospective correction evidence allowed by campaign.",
+  "instrument_path": "tools/entitas_node_stdio_compare.py",
+  "workflow": ".github/workflows/entitas-node-stdio-comparison.yml",
+  "preliminary_linux_instrument_sha256": "5a8a062fa0693ce8c3c1594945f75fdd6168d497be11631106dd2460c169306a",
+  "verifier_sha256": "b2a8ae5f403358718a8fd7ce6d53b0008a7c293a4e40783b9f00dbe2e4e406a4",
+  "format_note": "Ruff-only formatting before the first Windows comparison; preliminary Linux receipts retain their original instrument digest and remain preliminary."
+}

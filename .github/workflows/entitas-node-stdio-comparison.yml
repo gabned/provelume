@@ -1,0 +1,63 @@
+name: Entitas controlled Node stdio correction comparison
+
+on:
+  push:
+    branches: [diagnostic/node-stdio-controlled-comparison]
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: observer
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: 3c29ab05acef576d7dcdb4c0301200ee0d4bd078
+          path: baseline
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: b030fa7e2c5fff8f0762733611e26f9ff24ded08
+          path: candidate
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Bootstrap the unchanged declared runtime
+        run: python candidate/scripts/bootstrap.py
+      - name: Execute each frozen case and arm once on the same runner
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $python = Join-Path $env:GITHUB_WORKSPACE 'candidate/.venv/Scripts/python.exe'
+          $out = Join-Path $env:RUNNER_TEMP 'entitas-node-stdio-comparison'
+          $tool = Join-Path $env:GITHUB_WORKSPACE 'observer/tools/entitas_node_stdio_compare.py'
+          foreach ($case in @('ordinary_actual_case','held_writer_actual_case','nonzero_assertion','live_child_timeout')) {
+            foreach ($arm in @('baseline','fixed')) {
+              $folder = if ($arm -eq 'baseline') { 'baseline' } else { 'candidate' }
+              $head = if ($arm -eq 'baseline') { '3c29ab05acef576d7dcdb4c0301200ee0d4bd078' } else { 'b030fa7e2c5fff8f0762733611e26f9ff24ded08' }
+              $source = Join-Path $env:GITHUB_WORKSPACE $folder
+              & $python $tool --source $source --output (Join-Path $out "$case-$arm") --case $case --arm $arm --expected-head $head
+              if ($LASTEXITCODE -ne 0) { throw "Controlled observation failed: $case / $arm" }
+            }
+          }
+      - name: Evaluate all outcomes without replacing their original FAILs
+        if: always()
+        shell: pwsh
+        run: |
+          & candidate/.venv/Scripts/python.exe observer/tools/entitas_node_stdio_compare_verify.py --root "$env:RUNNER_TEMP/entitas-node-stdio-comparison" --plan observer/scripts/entitas_node_stdio_comparison_plan.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Retain every original observation and error
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: entitas-node-stdio-comparison-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/entitas-node-stdio-comparison/**
+          retention-days: 30
+          if-no-files-found: error
