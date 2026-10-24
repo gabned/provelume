@@ -614,7 +614,7 @@ def test_packaging_manifest_is_optional_offline_and_license_complete() -> None:
         )
     )
     assert manifest["slice"] == "0.9/S02"
-    assert manifest["status"] == "candidate-awaiting-real-component-qualification"
+    assert manifest["status"] == "qualified-external-linux-components"
     assert manifest["selected_engine"] == {
         "id": "tesseract-cli",
         "qualified_baseline_version": "5.5.3",

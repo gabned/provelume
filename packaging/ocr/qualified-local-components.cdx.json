@@ -20,6 +20,18 @@
         {
           "name": "provelume:candidate_matrix",
           "value": "ubuntu-24.04/x86_64/python-3.12"
+        },
+        {
+          "name": "provelume:current_external_qualification_source",
+          "value": "3f2281631feede69ebcbeac80737d3fd609e13b6"
+        },
+        {
+          "name": "provelume:current_external_qualification_run",
+          "value": "40090081040"
+        },
+        {
+          "name": "provelume:current_external_qualification_scope",
+          "value": "Ubuntu24.04 x86_64/Python3.12 external Tesseract5.3.4/Leptonica1.82.0/PDFium153/pypdfium2 5.13.0/Pillow13.0.0; historical selected upstream5.5.3baseline is not the observed engine; no native components bundled"
         }
       ]
     }

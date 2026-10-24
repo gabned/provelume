@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "slice": "0.9/S02",
-  "status": "candidate-awaiting-real-component-qualification",
+  "status": "qualified-external-linux-components",
   "execution_baseline": {
     "default_enabled": false,
     "network_required": false,
@@ -255,5 +255,27 @@
     "version_incompatible": "Report ocr_version_incompatible and require an explicit local replacement",
     "language_pack_missing": "Report ocr_language_pack_missing with the missing explicit pack IDs; do not download them",
     "all_failures": "Preserve the Original and canonical knowledge; derived OCR state may be removed or rebuilt"
+  },
+  "qualification_evidence": {
+    "schema": "provelume-external-component-qualification/v1",
+    "source_commit": "3f2281631feede69ebcbeac80737d3fd609e13b6",
+    "workflow": ".github/workflows/ocr-smoke.yml",
+    "run_id": 40090081040,
+    "job_id": 120860802165,
+    "run_url": "https://github.com/gabned/provelume/actions/runs/40090081040",
+    "job_url": "https://github.com/gabned/provelume/actions/runs/40090081040/job/120860802165",
+    "platform": "ubuntu-24.04",
+    "architecture": "x86_64",
+    "python": "3.12",
+    "observed_components": {
+      "tesseract": "5.3.4",
+      "leptonica": "1.82.0",
+      "pypdfium2": "5.13.0",
+      "pdfium": "153.0.7999.0",
+      "pillow": "13.0.0"
+    },
+    "original_job_log_utf8_sha256": "a3bf056dc023fe4ee1a687c46c1e82960adff20cb41610884ddd89590ec816d8",
+    "real_smoke": "2 passed in 7.34 s; wheel sizes/SHA256 checked by producer",
+    "scope": "Explicit external Linux components only; no bundled decoder/OCR payload, no Windows or other-platform decoder qualification, no human or classifier-truth claim"
   }
 }
