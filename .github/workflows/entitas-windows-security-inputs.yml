@@ -1,0 +1,30 @@
+name: Entitas native Windows security input resolution
+
+on:
+  push:
+    branches: [diagnostic/entitas-windows-security-inputs]
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Resolve the two exact patched pins with all other inputs fixed
+        run: python scripts/resolve_entitas_security_inputs.py --output "${{ runner.temp }}/entitas-security-inputs"
+      - name: Retain native resolution and candidate bytes without publishing packages
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: entitas-security-inputs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/entitas-security-inputs/**
+          retention-days: 30
+          if-no-files-found: error
