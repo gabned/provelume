@@ -1,0 +1,72 @@
+name: Entitas controlled advisory owner sync comparison
+on:
+  push:
+    branches: [diagnostic/entitas-capture-owner-sync-comparison]
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: observer
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: b030fa7e2c5fff8f0762733611e26f9ff24ded08
+          path: baseline
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: 9ef7aac2f4b9afd689a10ed8740a2538f7974e78
+          path: candidate
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Bootstrap the identical declared dependencies
+        run: python candidate/scripts/bootstrap.py
+      - name: Execute the frozen complete comparison once
+        shell: bash
+        run: |
+          set -euo pipefail
+          python="$GITHUB_WORKSPACE/candidate/.venv/bin/python"
+          tool="$GITHUB_WORKSPACE/observer/tools/entitas_capture_owner_compare.py"
+          fixture="$RUNNER_TEMP/entitas-owner-fixture"
+          out="$RUNNER_TEMP/entitas-owner-comparison"
+          mkdir -p "$out"
+          cp observer/scripts/entitas_capture_owner_comparison_plan.json "$out/plan.json"
+          "$python" "$tool" --source "$GITHUB_WORKSPACE/baseline" --fixture "$fixture" --initialise
+          for case in ordinary owner_delay canonical_delay canonical_error; do
+            for arm in A1 B1 B2 A2; do
+              source=baseline
+              head=b030fa7e2c5fff8f0762733611e26f9ff24ded08
+              if [[ "$arm" == B* ]]; then
+                source=candidate
+                head=9ef7aac2f4b9afd689a10ed8740a2538f7974e78
+              fi
+              set +e
+              timeout 30 "$python" "$tool" --source "$GITHUB_WORKSPACE/$source" --fixture "$fixture" --output "$out/$case-$arm" --case "$case" --arm "$arm" --expected-head "$head"
+              result=$?
+              set -e
+              mkdir -p "$out/$case-$arm"
+              printf '{"collection_exit":%s}\n' "$result" > "$out/$case-$arm/execution.json"
+            done
+          done
+      - name: Evaluate all observations without granting qualification
+        if: always()
+        run: candidate/.venv/bin/python observer/tools/entitas_capture_owner_compare_verify.py --root "$RUNNER_TEMP/entitas-owner-comparison" --plan observer/scripts/entitas_capture_owner_comparison_plan.json
+      - name: Retain every outcome and error
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: entitas-capture-owner-comparison-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/entitas-owner-comparison/**/observation.json
+            ${{ runner.temp }}/entitas-owner-comparison/**/execution.json
+            ${{ runner.temp }}/entitas-owner-comparison/evaluation.json
+            ${{ runner.temp }}/entitas-owner-comparison/plan.json
+          retention-days: 30
+          if-no-files-found: error

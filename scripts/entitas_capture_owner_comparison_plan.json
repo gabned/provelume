@@ -1,0 +1,25 @@
+{
+  "schema": "entitas-capture-owner-sync-comparison/v1",
+  "classification": "CONTROLLED_PROSPECTIVE_MECHANISM_NOT_QUALIFICATION",
+  "baseline": "b030fa7e2c5fff8f0762733611e26f9ff24ded08",
+  "fixed": "9ef7aac2f4b9afd689a10ed8740a2538f7974e78",
+  "hypothesis": "Forcing diagnostic owner JSON to stable storage adds avoidable blocking to real Capture, independently of kernel lock ownership. Removing that advisory barrier must preserve all canonical data barriers, exact outputs, rejection on canonical sync error and kernel mutual exclusion.",
+  "order": ["A1", "B1", "B2", "A2"],
+  "cases": ["ordinary", "owner_delay", "canonical_delay", "canonical_error"],
+  "captures_per_cell": 3,
+  "total_operations": 48,
+  "owner_delay_seconds": 0.18,
+  "canonical_delay_seconds": 0.06,
+  "controls": "Same runner, interpreter, source fixtures, initial Instance bytes/ID, fixed valid client UUIDs and civil timestamps, actual Original bytes, Capture/process/search functions, canonical validation, real native file/directory fsync, kernel locks and recovery. Monotonic clocks remain real. This differential mechanism test does not run or qualify the model/ordinary S06 cohort.",
+  "criteria": [
+    "Every one of48operations and every error is retained; no unknown/error/truncation can become PASS.",
+    "All36positive operations preserve Originals/search and keep AI product dispatch blocked;12canonical-error operations refuse without committing canonical Capture data.",
+    "Canonical snapshot hashes and non-owner Python fsync category counts agree across all arms for each case. Fresh path/authority checks and all transaction barriers remain unchanged.",
+    "A owner fsync count is6per positive cell, B count0; actual forced owner delay is>=1.0s in each A owner_delay cell and absent in B.",
+    "Both A owner_delay cells take at least0.8s more than each B owner_delay cell, and B owner_delay total is no more than max(B ordinary totals)+0.25s.",
+    "Both B canonical_delay cells retain every injected canonical delay and take at least0.60s; canonical error remains rejected in both arms. No blanket fsync bypass.",
+    "Original historical CPU cause stays UNKNOWN. Only this prospective advisory-barrier mechanism may be supported; clean permanent exact-head source/postmerge gates remain mandatory."
+  ],
+  "limits": {"workflow_minutes":10,"cell_seconds":30,"events_per_cell":1024,"result_bytes":2097152},
+  "privacy": "Synthetic instance only; record operation classes, counts, timings and hashes. No full descriptor paths, metadata owner hostname, model or credentials are exported."
+}
