@@ -699,6 +699,27 @@ try {
 
     # Start the bundled backend and verify identity plus the preserved Instance through loopback.
     $Port = Get-FreeLoopbackPort
+    # Qualify the private transport on these exact installed bytes too, including
+    # native-library distribution wheels and each preserved public upgrade fixture.
+    $StartupReadiness = & (Join-Path $PSScriptRoot "test_windows_startup_readiness.ps1") `
+        -Executable $Executable -InstanceDirectory $InstanceRoot -Port $Port `
+        -ExpectedCommit $ExpectedCommit
+    [System.IO.File]::WriteAllText(
+        (Join-Path $EvidenceRoot "startup-readiness-$PreviousVersion.json"),
+        (($StartupReadiness | ConvertTo-Json -Depth 5) + "`n"),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+    if ($StartupReadiness.status -ne "PASS" -or
+        -not $StartupReadiness.proof_verified -or
+        -not $StartupReadiness.opened_root_binding_verified -or
+        -not $StartupReadiness.cooperative_stop_confirmed -or
+        -not $StartupReadiness.cleanup_confirmed -or
+        $StartupReadiness.owned_exit_code -ne 0) {
+        Write-Output ("FROZEN_STARTUP_READINESS_REPORT=" + (
+            $StartupReadiness | ConvertTo-Json -Depth 5 -Compress
+        ))
+        throw "Exact installed private startup/readiness proof failed."
+    }
     $Backend = Start-Process -FilePath $Executable -ArgumentList @(
         "--serve", "`"$InstanceRoot`"", "--port", "$Port"
     ) -PassThru
@@ -1043,6 +1064,7 @@ try {
             commit = $ExpectedCommit
             channel = $ExpectedChannel
         }
+        startup_readiness = $StartupReadiness
         instance_tree_fingerprints = @{
             baseline = $BaselineInstanceTreeSha256
             post_explicit_migration = $PostMigrationInstanceTreeSha256
@@ -1063,6 +1085,7 @@ try {
             explicit_frozen_instance_migration = "PASS"
             scheduler_refresh_network_delete_and_repair_default_disabled = "PASS"
             bundled_runtime_without_python_or_git = "PASS"
+            private_stdin_opened_root_proof_and_cooperative_stop = "PASS"
             loopback_backend_identity_and_readiness = "PASS"
             reinstall_and_uninstall = "PASS"
             unsigned_preview_boundary = "PASS"

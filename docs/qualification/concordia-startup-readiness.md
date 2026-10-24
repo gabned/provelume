@@ -45,7 +45,11 @@ or human qualification is inherited from Entitas. [EN](../architecture/startup-r
 after executable identity validation. It independently computes FileIdInfo/framed HMAC using
 .NET/Win32, checks the bounded frozen response, requests cooperative stop and records owned
 test-child cleanup. Its report explicitly does **not** qualify the managed Panel UI or Windows
-11. The original report is embedded in `windows-shell-evidence.json`; source subprocess,
+11. The same control also runs in the common Windows installer/upgrade driver, including
+native-library distribution wheels, after independent installed identity checks. It retains
+`startup-readiness-<previous-version>.json` for each synthetic public baseline so a different
+installer composition never inherits the base installer's result. The original report is
+embedded in `windows-shell-evidence.json` and the installer summary; source subprocess,
 TestClient, screenshots, generic HTTP success and Server 2025 are not substituted for the
 internal-browser/Windows 11 rows.
 
