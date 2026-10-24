@@ -20,6 +20,17 @@ class MaintenanceTargetError(ValueError):
         super().__init__(code)
 
 
+class DirectoryCloseUnconfirmed(MaintenanceTargetError):
+    """An owned directory descriptor's OS close outcome could not be confirmed."""
+
+
+def _close_directory(descriptor):
+    try:
+        os.close(descriptor)
+    except OSError as exc:
+        raise DirectoryCloseUnconfirmed("target_close_unconfirmed") from exc
+
+
 @lru_cache(maxsize=1)
 def _windows_drive_type_api():
     """Retain only the typed function; every caller still queries its current drive."""
@@ -185,16 +196,16 @@ def pinned_parent(value: Path | str):
             if os.name == "nt":
                 for parent in reversed((path.parent, *path.parent.parents)):
                     descriptor = _windows_open(parent, directory=True)
-                    stack.callback(os.close, descriptor)
+                    stack.callback(_close_directory, descriptor)
                 yield path, None
             else:
                 descriptor = os.open(path.anchor, os.O_RDONLY | os.O_DIRECTORY)
-                stack.callback(os.close, descriptor)
+                stack.callback(_close_directory, descriptor)
                 for name in path.parent.parts[1:]:
                     descriptor = os.open(
                         name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor
                     )
-                    stack.callback(os.close, descriptor)
+                    stack.callback(_close_directory, descriptor)
                 yield path, descriptor
     except MaintenanceTargetError:
         raise
@@ -202,6 +213,61 @@ def pinned_parent(value: Path | str):
         raise MaintenanceTargetError("target_missing") from exc
     except OSError as exc:
         raise MaintenanceTargetError("target_unsafe") from exc
+
+
+def directory_binding(descriptor: int) -> str:
+    """Physical directory identity; paths and display names never enter this binding."""
+    if not stat.S_ISDIR(os.fstat(descriptor).st_mode):
+        raise MaintenanceTargetError("target_unsafe")
+    if os.name == "nt":
+        import msvcrt
+        from ctypes import wintypes
+
+        class FileIdInfo(ctypes.Structure):
+            _fields_ = [("volume", ctypes.c_ulonglong), ("file_id", ctypes.c_ubyte * 16)]
+
+        kernel = _windows_file_api()
+        get_id = kernel.GetFileInformationByHandleEx
+        get_id.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+        get_id.restype = wintypes.BOOL
+        info = FileIdInfo()
+        if not get_id(msvcrt.get_osfhandle(descriptor), 18, ctypes.byref(info),
+                      ctypes.sizeof(info)):
+            raise MaintenanceTargetError("target_identity_unavailable")
+        data = int(info.volume).to_bytes(8, "big") + bytes(info.file_id)
+        return "win32.file-id.v1:" + data.hex()
+    info = os.fstat(descriptor)
+    data = info.st_dev.to_bytes(8, "big") + info.st_ino.to_bytes(8, "big")
+    return "posix.file-id.v1:" + data.hex()
+
+
+@contextmanager
+def open_local_directory(value: Path | str):
+    """Keep the existing parent guards and the actual selected directory open."""
+    with pinned_parent(value) as (path, parent):
+        try:
+            descriptor = (
+                _windows_open(path, directory=True)
+                if os.name == "nt"
+                else os.open(path.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                             dir_fd=parent)
+            )
+            try:
+                binding = directory_binding(descriptor)
+                yield path, binding
+                current = os.stat(path, follow_symlinks=False)
+                opened = os.fstat(descriptor)
+                if (not stat.S_ISDIR(current.st_mode)
+                        or (current.st_dev, current.st_ino) != (opened.st_dev, opened.st_ino)):
+                    raise MaintenanceTargetError("target_changed")
+            finally:
+                _close_directory(descriptor)
+        except MaintenanceTargetError:
+            raise
+        except FileNotFoundError as exc:
+            raise MaintenanceTargetError("target_missing") from exc
+        except OSError as exc:
+            raise MaintenanceTargetError("target_unavailable") from exc
 
 
 @contextmanager

@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import queue
 import subprocess
 import sys
 import tempfile
@@ -40,6 +41,13 @@ from .shell_settings import (
     settings_path,
     state_directory,
     validate_port,
+)
+from .startup_process import ManagedStartup
+from .startup_readiness import (
+    ReadinessContext,
+    StartupReadinessError,
+    bootstrap_stdin,
+    read_bootstrap,
 )
 from .updates import SOURCE_REPOSITORY as SOURCE_REPOSITORY
 from .updates import (
@@ -557,6 +565,12 @@ class DesktopShell:
         self.candidate: UpdateCandidate | None = None
         self.update_generation = 0
         self.closed = False
+        self._startup: ManagedStartup | None = None
+        self._startup_poll_scheduled = False
+        self._startup_status_on_finish = "stopped"
+        self._restart_after_stop = False
+        self._close_requested = False
+        self._pending_instance: Path | None = None
         self.tray: WindowsTray | None = None
         self._tray_close_explained = False
         self._tray_observation_running = False
@@ -689,7 +703,11 @@ class DesktopShell:
             command=self.stop_server,
             state="disabled",
         )
-        self._responsive_actions(row, [self.open_button, self.stop_button])
+        self.startup_details_button = ttk.Button(
+            row, text=self.text["startup_details"], command=self.show_startup_diagnostics,
+        )
+        self._responsive_actions(row, [self.open_button, self.stop_button,
+                                       self.startup_details_button])
         locations = ttk.Frame(instance)
         locations.pack(fill="x", pady=(8, 0))
         self.choose_button = ttk.Button(
@@ -846,6 +864,14 @@ class DesktopShell:
             self._invalidate_update_result()
 
     def _select_instance(self, path: Path) -> None:
+        startup = getattr(self, "_startup", None)
+        if startup is not None and not startup.done.is_set():
+            if startup.cleanup_unconfirmed:
+                self._show_startup_unconfirmed()
+                return
+            self._pending_instance = path
+            self.stop_server()
+            return
         ProvelumeInstance(path)
         self.stop_server()
         self.instance = path.expanduser().resolve()
@@ -898,60 +924,174 @@ class DesktopShell:
             messagebox.showerror("Provelume", self.text["invalid_instance"])
 
     def open_product(self) -> None:
-        if self.server is not None and self.server.poll() is None and self.server_port is not None:
-            if self.server_ready:
-                webbrowser.open(f"http://127.0.0.1:{self.server_port}/")
-            else:
-                self.open_target = "/"
-            return
         self.start_server(open_target="/")
 
     def start_server(self, *, open_target: str | None = None) -> None:
-        try:
-            ProvelumeInstance(self.instance)
-        except (OSError, ValueError):
-            from tkinter import messagebox
-
-            self._show_instance_error(self.text["invalid_instance"])
-            messagebox.showerror("Provelume", self.text["invalid_instance"])
+        startup = getattr(self, "_startup", None)
+        if startup is not None and not startup.done.is_set():
+            if startup.cancelled.is_set() or startup.phase in {"STOPPING", "STOP_UNCONFIRMED"}:
+                return
+            if self.server_ready and open_target is not None:
+                webbrowser.open(f"http://127.0.0.1:{self.server_port}{open_target}")
+            elif open_target is not None:
+                self.open_target = open_target
             return
-        loaded = self.settings_manager.load()
-        self.settings = loaded.settings
-        port = self.settings.endpoint_port
-        if not probe_port(port)["available"]:
-            self.status.set(self.text["port_unavailable"])
-            self.open_button.configure(state="normal")
-            self.stop_button.configure(state="disabled")
-            self._update_tray("occupied")
+        if self.server is not None and self.server.poll() is None:
+            if self.server_ready and open_target is not None:
+                webbrowser.open(f"http://127.0.0.1:{self.server_port}{open_target}")
+            elif not self.server_ready:
+                self.open_target = open_target
             return
-        command = _command_for_backend(self.instance, port)
-        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
-        process = subprocess.Popen(
-            command,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            creationflags=creationflags,
-        )
-        self.server = process
-        self.server_port = port
+        if self.closed or getattr(self, "_close_requested", False):
+            return
+        self.server = None
+        self.server_port = None
         self.server_ready = False
         self.open_target = open_target
-        self.status.set(self.text["starting"])
+        self._startup_status_on_finish = "stopped"
+        self._startup = ManagedStartup(self.instance, self.settings_manager, _command_for_backend)
+        self.status.set(self.text["startup_preparing"])
         self._update_tray("starting")
         self.open_button.configure(state="disabled")
         self.stop_button.configure(state="normal")
-        threading.Thread(
-            target=self._wait_for_server,
-            args=(process, port),
-            daemon=True,
-        ).start()
+        self._startup_selection_controls(False)
+        self._startup.start()
+        self._schedule_startup_poll()
+
+    def _startup_selection_controls(self, enabled):
+        for name in ("choose_button", "create_button"):
+            button = getattr(self, name, None)
+            if button is not None:
+                button.configure(state="normal" if enabled else "disabled")
+
+    def _schedule_startup_poll(self):
+        if not self.closed and not getattr(self, "_startup_poll_scheduled", False):
+            self._startup_poll_scheduled = True
+            self.root.after(25, self._poll_startup)
+
+    def _show_startup_unconfirmed(self):
+        self.server_ready = False
+        self._restart_after_stop = False
+        self._pending_instance = None
+        self.status.set(self.text["startup_stop_unconfirmed"])
+        self._update_tray("stop_unconfirmed")
+        self.open_button.configure(state="disabled")
+        self.stop_button.configure(state="disabled")
+        self._startup_selection_controls(False)
+
+    def _startup_error_text(self, code):
+        key = {
+            "preparation_timeout": "startup_error_preparation",
+            "spawn_failed": "startup_error_spawn", "bootstrap_failed": "startup_error_bootstrap",
+            "process_exited": "startup_error_exit", "endpoint_occupied": "port_unavailable",
+            "readiness_timeout": "startup_error_timeout",
+            "readiness_contract_unsupported": "startup_error_protocol",
+            "readiness_response_invalid": "startup_error_protocol",
+            "readiness_binding_failed": "startup_error_protocol",
+            "startup_configuration_invalid": "startup_error_configuration",
+            "startup_integrity_failed": "startup_error_integrity",
+            "startup_initialization_failed": "startup_error_initialization",
+        }.get(code, "server_failed")
+        return self.text[key]
+
+    def _poll_startup(self):
+        self._startup_poll_scheduled = False
+        startup = self._startup
+        if self.closed or startup is None:
+            return
+        if (not startup.done.is_set() and not startup.cancelled.is_set()
+                and startup.phase in {"PREPARING", "SPAWNING", "WAITING_READY"}
+                and time.monotonic() >= min(startup.total_deadline, startup.phase_deadline)):
+            code = {"PREPARING": "preparation_timeout", "SPAWNING": "bootstrap_failed"}.get(
+                startup.phase, "readiness_timeout"
+            )
+            startup.request_stop(code)
+            self.server_ready = False
+            self.status.set(self.text["stopping"])
+        if startup.cleanup_unconfirmed:
+            self._show_startup_unconfirmed()
+        while self._startup is startup:
+            try:
+                kind, details = startup.events.get_nowait()
+            except queue.Empty:
+                break
+            if kind == "prepared":
+                self.settings = details["settings"]
+                self.server_port = details["port"]
+                if not startup.cancelled.is_set():
+                    self.status.set(self.text["startup_waiting"])
+            elif kind == "spawned":
+                self.server = details["process"]
+                self.server_port = details["port"]
+            elif kind == "ready" and not startup.cancelled.is_set():
+                if startup.instance != self.instance:
+                    startup.request_stop()
+                    continue
+                self.settings = details["settings"]
+                self._server_ready(details["process"], details["port"], True)
+                self._startup_selection_controls(True)
+            elif kind == "stopping":
+                self.server_ready = False
+                self.status.set(self.text["stopping"])
+                self._update_tray("stopping")
+            elif kind == "unconfirmed":
+                self._show_startup_unconfirmed()
+            elif kind == "finished":
+                self.server = None
+                self.server_port = None
+                self.server_ready = False
+                self.open_target = None
+                if details["settings"] is not None:
+                    self.settings = details["settings"]
+                code = details["code"]
+                if code not in {None, "cancelled"}:
+                    text = self._startup_error_text(code)
+                    if details["rolled_back"]:
+                        text = self.text["endpoint_rolled_back"] + " " + text
+                    self.status.set(text)
+                    self._update_tray("occupied" if code == "endpoint_occupied"
+                                      else "server_failed")
+                else:
+                    status = self._startup_status_on_finish
+                    self.status.set(self.text[status])
+                    self._update_tray(status)
+                self.open_button.configure(
+                    state="normal" if self.instance_available else "disabled"
+                )
+                self.stop_button.configure(state="disabled")
+                self._startup_selection_controls(True)
+        if startup.done.is_set():
+            if self._close_requested:
+                self._finish_close()
+            elif self._pending_instance is not None:
+                selected = self._pending_instance
+                self._pending_instance = None
+                try:
+                    self._select_instance(selected)
+                except (OSError, ValueError):
+                    self.status.set(self.text["invalid_instance"])
+            elif self._restart_after_stop:
+                self._restart_after_stop = False
+                self.start_server()
+        else:
+            self._schedule_startup_poll()
+
+    def show_startup_diagnostics(self):
+        startup = self._startup
+        events = startup.diagnostic_snapshot() if startup is not None else []
+        body = self.text["startup_details_help"] + "\n\n"
+        if not events:
+            body += self.text["startup_details_empty"]
+        for event in events:
+            body += f"{event['phase']}: {event['code']} · {event['elapsed_ms']} ms"
+            if "exit_code" in event:
+                body += f" · exit={event['exit_code']}"
+            body += "\n"
+        self._show_local_modal(title=self.text["startup_details"], body=body,
+                               links=[], confirm=False)
 
     def open_shell_settings(self) -> None:
         target = f"/settings/shell?lang={self.settings.language}"
-        if self.server is not None and self.server.poll() is None and self.server_ready:
-            webbrowser.open(f"http://127.0.0.1:{self.server_port}{target}")
-            return
         self.start_server(open_target=target)
 
     def show_window(self) -> None:
@@ -1050,30 +1190,6 @@ class DesktopShell:
                 endpoint=f"http://127.0.0.1:{port}",
             )
 
-    def _wait_for_server(self, process: subprocess.Popen[bytes], port: int) -> None:
-        url = f"http://127.0.0.1:{port}/health"
-        ready = False
-        for _attempt in range(60):
-            if process.poll() is not None:
-                break
-            try:
-                with urllib.request.urlopen(url, timeout=0.5) as response:
-                    ready = response.status == 200
-                if ready:
-                    break
-            except OSError:
-                time.sleep(0.15)
-        if self.closed:
-            return
-        self.root.after(0, lambda: self._server_ready(process, port, ready))
-        if ready:
-            exit_code = process.wait()
-            if not self.closed:
-                self.root.after(
-                    0,
-                    lambda: self._server_exited(process, port, exit_code),
-                )
-
     def _server_ready(
         self,
         process: subprocess.Popen[bytes],
@@ -1088,37 +1204,12 @@ class DesktopShell:
             self._update_tray("running")
             self.open_button.configure(state="normal")
             self.stop_button.configure(state="normal")
-            manager = getattr(self, "settings_manager", None)
-            if manager is not None and self.settings.restart_required:
-                with suppress(ShellSettingsError):
-                    self.settings = manager.mark_endpoint_started(
-                        port,
-                        expected_revision=self.settings.revision,
-                    )
             target = getattr(self, "open_target", "/")
             self.open_target = None
             if target is not None:
                 webbrowser.open(f"http://127.0.0.1:{port}{target}")
         else:
-            rolled_back = False
-            manager = getattr(self, "settings_manager", None)
-            settings = getattr(self, "settings", None)
-            if (
-                manager is not None
-                and settings is not None
-                and settings.restart_required
-                and settings.last_good_port != settings.endpoint_port
-            ):
-                try:
-                    self.settings = manager.rollback_endpoint(
-                        expected_revision=settings.revision,
-                    )
-                    rolled_back = True
-                except ShellSettingsError:
-                    pass
-            self.stop_server(
-                final_status="endpoint_rolled_back" if rolled_back else "server_failed"
-            )
+            self.stop_server(final_status="server_failed")
 
     def _server_exited(
         self,
@@ -1137,23 +1228,31 @@ class DesktopShell:
         self.stop_button.configure(state="disabled")
 
     def stop_server(self, *, final_status: str = "stopped") -> None:
+        startup = getattr(self, "_startup", None)
+        if startup is not None and not startup.done.is_set():
+            if startup.cleanup_unconfirmed:
+                self._show_startup_unconfirmed()
+                self._schedule_startup_poll()
+                return
+            self._startup_status_on_finish = final_status
+            self.open_target = None
+            self.server_ready = False
+            startup.request_stop()
+            self.status.set(self.text["stopping"])
+            self._update_tray("stopping")
+            self.open_button.configure(state="disabled")
+            self.stop_button.configure(state="disabled")
+            self._startup_selection_controls(False)
+            self._schedule_startup_poll()
+            return
         process = self.server
+        if process is not None and process.poll() is None:
+            # No live child can be discarded without its owning startup worker.
+            self._show_startup_unconfirmed()
+            return
         self.server = None
         self.server_port = None
         self.server_ready = False
-        if process is not None and process.poll() is None:
-            if not self.closed:
-                self.status.set(self.text["stopping"])
-            process.terminate()
-            try:
-                process.wait(timeout=4)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                try:
-                    process.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    if not self.closed:
-                        self.status.set(self.text["server_failed"])
         if not self.closed:
             self.status.set(self.text[final_status])
             self._update_tray(final_status)
@@ -1161,8 +1260,17 @@ class DesktopShell:
             self.stop_button.configure(state="disabled")
 
     def restart_server(self) -> None:
+        startup = getattr(self, "_startup", None)
+        if startup is not None and not startup.done.is_set():
+            if startup.cleanup_unconfirmed:
+                self._show_startup_unconfirmed()
+                return
+            self._restart_after_stop = True
+            self.stop_server()
+            return
         self.stop_server()
-        self.root.after(100, self.start_server)
+        if self.server is None:
+            self.root.after(0, self.start_server)
 
     def window_close(self) -> None:
         manager = getattr(self, "settings_manager", None)
@@ -1178,7 +1286,12 @@ class DesktopShell:
                     return
                 self._tray_close_explained = True
             self.root.withdraw()
-            self._update_tray("running" if self.server_ready else "stopped")
+            startup = getattr(self, "_startup", None)
+            state = "running" if self.server_ready else "stopped"
+            if startup is not None and not startup.done.is_set():
+                state = ("stop_unconfirmed" if startup.cleanup_unconfirmed
+                         else "stopping" if startup.cancelled.is_set() else "starting")
+            self._update_tray(state)
             return
         self.close()
 
@@ -1442,8 +1555,19 @@ class DesktopShell:
     def close(self) -> None:
         if self.closed:
             return
-        self.closed = True
+        self._close_requested = True
+        self._restart_after_stop = False
+        self._pending_instance = None
         self.stop_server()
+        startup = getattr(self, "_startup", None)
+        if startup is not None and not startup.done.is_set():
+            return
+        if getattr(self, "server", None) is not None:
+            return
+        self._finish_close()
+
+    def _finish_close(self):
+        self.closed = True
         if self.tray is not None:
             self.tray.stop()
             self.tray = None
@@ -1495,6 +1619,7 @@ def run_ui(*, start_hidden: bool = False) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="Provelume", add_help=True)
     parser.add_argument("--serve", type=Path)
+    parser.add_argument("--startup-bootstrap-stdin", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--port", type=int)
     parser.add_argument("--import-publication", type=Path)
     parser.add_argument("--publication-manifest", type=Path)
@@ -1550,6 +1675,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(arguments: list[str] | None = None) -> int:
     options = build_parser().parse_args(arguments)
+    if options.startup_bootstrap_stdin and options.serve is None:
+        return 73
     selected_modes = sum(
         value is not None
         for value in (
@@ -1675,6 +1802,7 @@ def main(arguments: list[str] | None = None) -> int:
             return 2
         return 0
     if options.serve is not None:
+        private_stop = None
         try:
             selected_port = effective_port(
                 explicit_port=options.port,
@@ -1682,16 +1810,46 @@ def main(arguments: list[str] | None = None) -> int:
             )["port"]
             validate_port(selected_port)
         except ShellSettingsError as exc:
+            if options.startup_bootstrap_stdin:
+                return 74
             raise SystemExit(str(exc)) from exc
-        app = create_app(options.serve, effective_port=selected_port)
-        uvicorn.run(
-            app,
-            host="127.0.0.1",
-            port=selected_port,
-            log_level="warning",
-            log_config=None,
-            access_log=False,
-        )
+        if options.startup_bootstrap_stdin:
+            from .maintenance_local_files import open_local_directory
+
+            try:
+                with bootstrap_stdin() as stream:
+                    material = read_bootstrap(stream)
+                if os.name == "nt":
+                    from .startup_windows import ChildStopSignal
+
+                    private_stop = ChildStopSignal(material.stop_event_name())
+                with open_local_directory(options.serve) as (_, identity):
+                    context = ReadinessContext(material, identity, selected_port)
+                    app = create_app(options.serve, effective_port=selected_port, _startup=context)
+                material = None
+            except StartupReadinessError as exc:
+                if private_stop is not None:
+                    private_stop.close()
+                return {"bootstrap_failed": 73, "startup_configuration_invalid": 74,
+                        "startup_integrity_failed": 75}.get(exc.code, 76)
+            except (OSError, ValueError, ShellSettingsError):
+                if private_stop is not None:
+                    private_stop.close()
+                return 74
+            except Exception:
+                if private_stop is not None:
+                    private_stop.close()
+                return 76
+        else:
+            app = create_app(options.serve, effective_port=selected_port)
+        serve_options = {"host": "127.0.0.1", "port": selected_port, "log_level": "warning",
+                         "log_config": None, "access_log": False}
+        if private_stop is not None:
+            server = uvicorn.Server(uvicorn.Config(app, **serve_options))
+            if not private_stop.run(server):
+                return 76
+        else:
+            uvicorn.run(app, **serve_options)
         return 0
     return run_ui(start_hidden=options.tray)
 

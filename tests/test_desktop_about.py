@@ -599,6 +599,8 @@ def test_failed_or_terminated_backend_keeps_an_actionable_state(monkeypatch) -> 
 
 
 def test_backend_teardown_kills_and_reaps_a_child_that_ignores_terminate() -> None:
+    from provelume.startup_process import ManagedStartup
+
     class HangingProcess(_Process):
         def __init__(self):
             super().__init__()
@@ -615,25 +617,16 @@ def test_backend_teardown_kills_and_reaps_a_child_that_ignores_terminate() -> No
             return -9
 
     process = HangingProcess()
-    shell = DesktopShell.__new__(DesktopShell)
-    shell.closed = False
-    shell.server = process
-    shell.server_port = 44851
-    shell.server_ready = True
-    shell.instance_available = True
-    shell.status = _Value("running")
-    shell.text = {"stopping": "stopping", "stopped": "stopped", "server_failed": "failed"}
-    shell.open_button = _Button()
-    shell.stop_button = _Button()
-
-    shell.stop_server()
+    startup = ManagedStartup(Path("synthetic-unused"), SimpleNamespace(), lambda *_: [])
+    startup.process = process
+    # The same terminate/kill/reap guarantee now belongs to the owned worker,
+    # rather than blocking the Tk callback for up to six seconds.
+    startup._cleanup()
 
     assert process.terminated is True
     assert process.killed is True
     assert process.waits == 2
-    assert shell.server is None
-    assert shell.server_port is None
-    assert shell.stop_button.state == "disabled"
+    assert process.poll() == -9
 
 
 @pytest.mark.parametrize(

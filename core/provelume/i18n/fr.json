@@ -2289,5 +2289,21 @@
   "action.knowledge_objects": "Propositions d’objets",
   "action.reason.object_proposal": "Un brouillon d’objet exige des preuves actuelles et une révision explicite.",
   "review.knowledge_objects": "Révision des objets",
-  "review.reject": "Refuser"
+  "review.reject": "Refuser",
+  "desktop.startup_preparing": "Préparation de l’Instance sélectionnée. Vous pouvez arrêter le démarrage.",
+  "desktop.startup_waiting": "En attente de la disponibilité du service local sélectionné.",
+  "desktop.startup_stop_unconfirmed": "Certaines ressources de démarrage sont encore actives ou non confirmées. Patientez avant de réessayer ou de quitter.",
+  "desktop.startup_details": "Détails du démarrage",
+  "desktop.startup_details_help": "Uniquement les phases, codes d’erreur et durées du démarrage local. Aucun contenu ou chemin de document, identifiant secret ou preuve de connexion.",
+  "desktop.startup_details_empty": "Aucune tentative de démarrage enregistrée dans cette session.",
+  "desktop.startup_error_preparation": "La préparation a dépassé le délai. Vérifiez que l’Instance est disponible, puis réessayez.",
+  "desktop.startup_error_spawn": "Le service local n’a pas pu démarrer. Vérifiez l’installation, puis réessayez.",
+  "desktop.startup_error_bootstrap": "La connexion privée de démarrage n’a pas pu être établie. Vérifiez l’installation, puis réessayez.",
+  "desktop.startup_error_exit": "Le service local s’est arrêté. Consultez les détails du démarrage, puis réessayez.",
+  "desktop.startup_error_timeout": "Le service n’a pas été prêt dans le délai prévu. Consultez les détails du démarrage, puis réessayez.",
+  "desktop.startup_error_protocol": "Le service local sélectionné n’a pas pu être vérifié. Vérifiez l’installation et l’Instance sélectionnée.",
+  "desktop.startup_error_configuration": "L’Instance sélectionnée ou les paramètres locaux n’ont pas pu être ouverts. Vérifiez-les, puis réessayez.",
+  "desktop.startup_error_integrity": "La vérification de l’intégrité de l’installation a échoué. Restaurez une installation vérifiée avant de réessayer.",
+  "desktop.startup_error_initialization": "Le service n’a pas pu terminer l’initialisation. Consultez les détails du démarrage, puis réessayez.",
+  "tray_status.stop_unconfirmed": "Arrêt non confirmé"
 }

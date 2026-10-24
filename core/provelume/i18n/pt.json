@@ -2289,5 +2289,21 @@
   "action.knowledge_objects": "Propostas de objetos",
   "action.reason.object_proposal": "Um rascunho de objeto exige provas atuais e uma revisão explícita.",
   "review.knowledge_objects": "Revisão de objetos",
-  "review.reject": "Rejeitar"
+  "review.reject": "Rejeitar",
+  "desktop.startup_preparing": "A preparar a Instance selecionada. Pode interromper o arranque.",
+  "desktop.startup_waiting": "A aguardar que o serviço local selecionado esteja pronto.",
+  "desktop.startup_stop_unconfirmed": "Alguns recursos de arranque continuam ativos ou por confirmar. Aguarde antes de tentar novamente ou sair.",
+  "desktop.startup_details": "Detalhes do arranque",
+  "desktop.startup_details_help": "Apenas fases, códigos de erro e tempos do arranque local. Sem conteúdo ou caminhos de documentos, credenciais ou provas de ligação.",
+  "desktop.startup_details_empty": "Não foi registada nenhuma tentativa de arranque nesta sessão.",
+  "desktop.startup_error_preparation": "A preparação excedeu o tempo disponível. Verifique se a Instance está disponível e tente novamente.",
+  "desktop.startup_error_spawn": "Não foi possível iniciar o serviço local. Verifique a instalação e tente novamente.",
+  "desktop.startup_error_bootstrap": "Não foi possível estabelecer a ligação privada de arranque. Verifique a instalação e tente novamente.",
+  "desktop.startup_error_exit": "O serviço local terminou. Consulte os detalhes do arranque e tente novamente.",
+  "desktop.startup_error_timeout": "O serviço não ficou pronto a tempo. Consulte os detalhes do arranque e tente novamente.",
+  "desktop.startup_error_protocol": "Não foi possível verificar o serviço local selecionado. Verifique a instalação e a Instance selecionada.",
+  "desktop.startup_error_configuration": "Não foi possível abrir a Instance selecionada ou as definições locais. Verifique-as e tente novamente.",
+  "desktop.startup_error_integrity": "A verificação da integridade da instalação falhou. Restaure uma instalação verificada antes de tentar novamente.",
+  "desktop.startup_error_initialization": "O serviço não conseguiu concluir a inicialização. Consulte os detalhes do arranque e tente novamente.",
+  "tray_status.stop_unconfirmed": "Paragem por confirmar"
 }

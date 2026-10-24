@@ -26,6 +26,7 @@ SERVICE_STATUSES = frozenset(
         "crashed",
         "server_failed",
         "endpoint_rolled_back",
+        "stop_unconfirmed",
     }
 )
 
