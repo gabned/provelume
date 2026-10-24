@@ -17,7 +17,7 @@ def test_windows_job_owns_descendants_and_escalation_leaves_no_process(tmp_path)
     from provelume.startup_windows import OwnedWindowsControl
 
     material = StartupSecrets("ab" * 16, os.urandom(32))
-    control = OwnedWindowsControl(material.stop_event_name())
+    control = OwnedWindowsControl()
     marker = tmp_path / "synthetic-ready.txt"
     script = (
         "import pathlib,subprocess,sys,time;sys.stdin.buffer.read(1);"
@@ -25,15 +25,17 @@ def test_windows_job_owns_descendants_and_escalation_leaves_no_process(tmp_path)
         "stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,"
         "close_fds=True);pathlib.Path(sys.argv[1]).write_text('ready');time.sleep(60)"
     )
-    process = subprocess.Popen(
-        [sys.executable, "-c", script, str(marker)],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        close_fds=True,
-        creationflags=subprocess.CREATE_NO_WINDOW,
-    )
+    process = None
     try:
+        control.prepare(material.stop_event_name())
+        process = subprocess.Popen(
+            [sys.executable, "-c", script, str(marker)],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
         control.assign(process)
         process.stdin.write(b"x")
         process.stdin.close()
@@ -51,9 +53,10 @@ def test_windows_job_owns_descendants_and_escalation_leaves_no_process(tmp_path)
     finally:
         with suppress(OSError):
             control.terminate()
-        with suppress(OSError, subprocess.TimeoutExpired):
-            process.wait(timeout=2)
-        process.stdin.close()
+        if process is not None:
+            with suppress(OSError, subprocess.TimeoutExpired):
+                process.wait(timeout=2)
+            process.stdin.close()
         control.close()
 
 
@@ -62,8 +65,8 @@ def test_windows_private_stop_signal_requests_cooperative_server_exit():
 
     material = StartupSecrets("cd" * 16, os.urandom(32))
     name = material.stop_event_name()
-    control = OwnedWindowsControl(name)
-    signal = ChildStopSignal(name)
+    control = OwnedWindowsControl()
+    signal = None
 
     class Server:
         should_exit = False
@@ -75,9 +78,12 @@ def test_windows_private_stop_signal_requests_cooperative_server_exit():
             assert self.should_exit
 
     try:
+        control.prepare(name)
+        signal = ChildStopSignal(name)
         control.request_stop()
         assert signal.run(Server())
         assert control.empty()
     finally:
-        signal.close()
+        if signal is not None:
+            signal.close()
         control.close()

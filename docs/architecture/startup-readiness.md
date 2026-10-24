@@ -99,6 +99,8 @@ is `Local\Provelume.Startup.Stop.` plus HMAC-SHA-256 over framed
 event (existing-object collision is rejected); the child opens it for synchronization only.
 Neither event name nor raw handles are diagnostics. This adds no HTTP write/control endpoint.
 
+The worker retains the Windows control owner before its first native handle acquisition.
+Failed preparation with unconfirmed handle closure remains owned even before a child exists.
 Before delivering bootstrap the parent assigns the child to an anonymous Windows Job with
 KILL_ON_JOB_CLOSE and no new CPU, memory or process-count limit. The supported `onedir`
 packaging has no separate bootloader process. Application workers therefore inherit the Job;

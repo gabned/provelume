@@ -64,20 +64,22 @@ def _check(result):
 
 
 class OwnedWindowsControl:
-    def __init__(self, name):
-        kernel = _api()
+    def __init__(self):
+        # Construction has no native effects. The worker must retain this owner
+        # before preparation can acquire even the first handle.
         self._event = self._job = None
-        try:
-            self._event = _check(kernel.CreateEventW(None, True, False, name))
-            if c.get_last_error() == 183:
-                raise OSError("startup event already exists")
-            self._job = _check(kernel.CreateJobObjectW(None, None))
-            limits = _ExtendedLimits()
-            limits.basic.flags = 0x2000  # KILL_ON_JOB_CLOSE; no CPU/memory/process-count limits.
-            _check(kernel.SetInformationJobObject(self._job, 9, c.byref(limits), c.sizeof(limits)))
-        except Exception:
-            self.close()
-            raise
+
+    def prepare(self, name):
+        if self._event is not None or self._job is not None:
+            raise OSError("startup control already prepared")
+        kernel = _api()
+        self._event = _check(kernel.CreateEventW(None, True, False, name))
+        if c.get_last_error() == 183:
+            raise OSError("startup event already exists")
+        self._job = _check(kernel.CreateJobObjectW(None, None))
+        limits = _ExtendedLimits()
+        limits.basic.flags = 0x2000  # KILL_ON_JOB_CLOSE; no CPU/memory/process-count limits.
+        _check(kernel.SetInformationJobObject(self._job, 9, c.byref(limits), c.sizeof(limits)))
 
     def assign(self, process):
         # Assignment precedes bootstrap delivery, hence every application worker.

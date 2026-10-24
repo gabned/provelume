@@ -97,6 +97,8 @@ Nome: `Local\Provelume.Startup.Stop.` più HMAC-SHA-256 sui campi framed
 nuovo, rifiutando collisioni; il figlio lo apre solo per sincronizzazione. Nome e handle non
 entrano nella diagnostica. Nessun nuovo endpoint HTTP mutativo o di controllo.
 
+Il worker conserva l'owner del controllo prima di acquisire il primo handle nativo. Una
+preparazione fallita con chiusura non confermata resta posseduta anche senza figlio avviato.
 Prima del bootstrap il parent assegna il figlio a un Job Windows anonimo con KILL_ON_JOB_CLOSE,
 senza nuovi limiti CPU/memoria/numero processi. Il packaging `onedir` supportato non ha un
 bootloader separato; i worker applicativi ereditano il Job e mantengono i propri limiti.

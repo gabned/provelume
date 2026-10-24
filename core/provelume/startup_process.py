@@ -36,11 +36,11 @@ _DIAGNOSTIC_CODES = ERROR_CODES | {
 }
 
 
-def _new_windows_control(material):
+def _new_windows_control():
     if os.name == "nt":
         from .startup_windows import OwnedWindowsControl
 
-        return OwnedWindowsControl(material.stop_event_name())
+        return OwnedWindowsControl()
     return None
 
 
@@ -153,7 +153,12 @@ class ManagedStartup:
             self.phase = "SPAWNING"
             self.phase_deadline = min(self.total_deadline, time.monotonic() + SPAWN_SECONDS)
             self._record(self.phase, "spawn")
-            self._windows_control = _new_windows_control(material)
+            self._windows_control = _new_windows_control()
+            if self._windows_control is not None:
+                try:
+                    self._windows_control.prepare(material.stop_event_name())
+                except OSError as exc:
+                    raise StartupReadinessError("spawn_failed") from exc
             self._checkpoint()
             command = [*self.command_factory(self.instance, self.port), "--startup-bootstrap-stdin"]
             try:

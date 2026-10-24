@@ -127,7 +127,7 @@ def harness(tmp_path, monkeypatch):
     monkeypatch.setattr(module, "probe_port", lambda _port: {"available": True})
     # These are deterministic lifecycle tests. Real Windows Job/event behavior
     # has separate native tests and the installed transport smoke.
-    monkeypatch.setattr(module, "_new_windows_control", lambda _material: None)
+    monkeypatch.setattr(module, "_new_windows_control", lambda: None)
     h.startup = module.ManagedStartup(tmp_path, manager, lambda *_: ["synthetic-child"])
     h.startup.cancelled = Cancel(h.clock)
     h.process = Process(h)
@@ -355,6 +355,44 @@ def test_unconfirmed_cleanup_keeps_owner_resources_and_blocks_restart_and_quit(h
     shell._poll_startup()
     assert shell.closed and shell.root.destroyed
     assert h.guards == 0 and h.process.stdin.closed
+
+
+def test_failed_native_control_preparation_retains_unconfirmed_handles_before_spawn(
+    harness, monkeypatch
+):
+    from provelume import startup_windows as windows
+
+    h = harness
+    # Controlled API model only; native Windows behavior has separate tests.
+    kernel = SimpleNamespace(
+        CreateEventW=lambda *_: 11,
+        CreateJobObjectW=lambda *_: 12,
+        SetInformationJobObject=lambda *_: 0,
+        CloseHandle=lambda *_: int(h.release.is_set()),
+    )
+    control = windows.OwnedWindowsControl()
+    monkeypatch.setattr(windows, "_api", lambda: kernel)
+    monkeypatch.setattr(windows.c, "get_last_error", lambda: 5, raising=False)
+    monkeypatch.setattr(module, "_new_windows_control", lambda: control)
+    h.startup.start()
+    try:
+        assert h.unconfirmed.wait(2)
+        assert not h.startup.done.is_set() and not h.popen_calls
+        assert h.startup._windows_control is control
+        assert control._event == 11 and control._job == 12
+        shell = shell_for(h.startup)
+        shell._poll_startup()
+        shell.restart_server()
+        shell.start_server(open_target="/")
+        shell.close()
+        assert not shell.closed and not shell.root.destroyed and not h.popen_calls
+    finally:
+        h.release.set()
+        assert h.startup.done.wait(2)
+    assert control._event is None and control._job is None
+    assert h.startup.failure == "spawn_failed"
+    shell._poll_startup()
+    assert shell.closed and shell.root.destroyed
 
 
 def test_blocked_preparation_remains_owned_after_deadline_and_cannot_spawn_a_late_child(harness):
