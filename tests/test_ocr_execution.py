@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import textwrap
+import venv
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -39,6 +40,7 @@ from provelume.ocr_process import minimal_child_environment, run_bounded_process
 from provelume.ocr_renderer import (
     OcrDocumentPlan,
     OcrPlannedPage,
+    PdfiumPillowRenderer,
     RenderedOcrPage,
 )
 from provelume.ocr_tesseract import TesseractCliAdapter
@@ -51,6 +53,36 @@ _PNG = base64.b64decode(
     "AScY42YAAAAASUVORK5CYII="
 )
 ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX virtualenv interpreter symlink regression")
+def test_renderer_keeps_the_selected_virtualenv_in_isolated_worker(tmp_path):
+    environment = tmp_path / "decoder-environment"
+    venv.EnvBuilder(with_pip=False, symlinks=True).create(environment)
+    interpreter = environment / "bin/python"
+    assert interpreter.is_symlink()
+    site = environment / "lib" / (
+        f"python{sys.version_info.major}.{sys.version_info.minor}"
+    ) / "site-packages"
+    site.mkdir(parents=True, exist_ok=True)
+    (site / "provelume_decoder_environment_fixture.py").write_text(
+        'VERSION = "selected-decoder-environment"\n', encoding="utf-8",
+    )
+    worker = tmp_path / "decoder-worker.py"
+    worker.write_text(
+        "import json, sys\n"
+        "from provelume_decoder_environment_fixture import VERSION\n"
+        "print(json.dumps({'prefix': sys.prefix, 'version': VERSION, "
+        "'isolated': sys.flags.isolated}))\n", encoding="utf-8",
+    )
+    renderer = PdfiumPillowRenderer(
+        OcrSettings(), tmp_path, worker_path=worker,
+        python_executable=str(interpreter),
+    )
+    result = renderer._run([], work_directory=tmp_path, timeout=10)
+    assert Path(result["prefix"]) == environment
+    assert result["version"] == "selected-decoder-environment"
+    assert result["isolated"] == 1
 
 
 def _renderer_capability() -> OcrRendererCapability:
