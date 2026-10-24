@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import socket
+import stat
 import threading
 import zipfile
 from pathlib import Path
@@ -10,7 +11,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from provelume import instance_backup
+from provelume import instance_backup, instance_lifecycle
 from provelume.cli import main
 from provelume.instance_backup import BackupError, create_backup, verify_backup
 from provelume.instance_lifecycle import (
@@ -494,30 +495,47 @@ def test_advisory_owner_flush_does_not_control_kernel_lock_or_data_durability(
     instance = ProvelumeInstance.initialise(tmp_path / "instance")
     manager = InstanceLifecycleManager(instance.store)
     original = os.fsync
+    acquire = instance_lifecycle._acquire_os_lock
+    descriptor_state = {}
     data_barriers = []
 
+    def observe_acquisition(descriptor):
+        acquire(descriptor)
+        descriptor_state["owner"] = descriptor
+
     def fail_owner_sync(descriptor):
-        observed = os.fstat(descriptor)
-        owner = manager.lock_path.stat()
-        if (observed.st_dev, observed.st_ino) == (owner.st_dev, owner.st_ino):
+        if descriptor == descriptor_state.get("owner"):
             raise OSError("synthetic advisory owner persistence failure")
-        data_barriers.append((observed.st_dev, observed.st_ino))
+        if stat.S_ISREG(os.fstat(descriptor).st_mode):
+            data_barriers.append(descriptor)
         return original(descriptor)
 
+    monkeypatch.setattr(instance_lifecycle, "_acquire_os_lock", observe_acquisition)
     monkeypatch.setattr(os, "fsync", fail_owner_sync)
     with manager._hold(purpose="synthetic owner") as owner:
-        assert json.loads(manager.lock_path.read_text())["token"] == owner["token"]
+        descriptor = descriptor_state["owner"]
+        # Use the owning descriptor: Windows locks also exclude reads/writes
+        # through a second handle. Do not bypass that native protection.
+        position = os.lseek(descriptor, 0, os.SEEK_CUR)
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        assert json.loads(os.read(descriptor, 65536))["token"] == owner["token"]
+        os.lseek(descriptor, position, os.SEEK_SET)
         with (
             pytest.raises(InstanceLifecycleBusy),
             InstanceLifecycleManager(instance.store)._hold(purpose="contender"),
         ):
             pytest.fail("kernel ownership was lost")
         target = instance.root / "state/synthetic-durable-value.bin"
+        data_barriers.clear()
         instance.store._atomic_bytes(target, b"durable synthetic value")
-        target_identity = target.stat()
-        assert (target_identity.st_dev, target_identity.st_ino) in data_barriers
-        # Corrupt diagnostic contents cannot grant ownership of the live inode.
-        manager.lock_path.write_text("stale advisory metadata")
+        # This isolated write must sync a regular data file, not only its directory.
+        assert data_barriers
+        # Corrupt diagnostic contents through the owning handle; contenders
+        # must still be rejected by the kernel regardless of advisory text.
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        changed = b"stale advisory metadata"
+        assert os.write(descriptor, changed) == len(changed)
+        os.ftruncate(descriptor, len(changed))
         with (
             pytest.raises(InstanceLifecycleBusy),
             InstanceLifecycleManager(instance.store)._hold(purpose="contender"),
