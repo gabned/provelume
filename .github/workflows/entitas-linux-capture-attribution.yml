@@ -1,0 +1,51 @@
+name: Entitas Linux capture phase attribution diagnostic only
+on:
+  push:
+    branches: [diagnostic/entitas-linux-capture-attribution]
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Bootstrap the unchanged declared dependencies
+        run: python scripts/bootstrap.py
+      - name: Acquire the unchanged locked public native inputs outside artifacts
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/s05-inputs" --accept-licenses --include-model
+      - name: Observe sysfs without writes and retain frozen plan
+        run: |
+          mkdir -p .agent
+          findmnt -T /sys/devices/system/cpu -o TARGET,FSTYPE,OPTIONS > .agent/capture-sysfs.txt
+          cat /sys/devices/system/cpu/online >> .agent/capture-sysfs.txt
+          cp scripts/entitas_capture_attribution_plan.json .agent/capture-plan.json
+      - name: Run the one complete diagnostic cohort with unchanged network observer
+        shell: bash
+        run: |
+          set +e
+          strace -ff -tt -e trace=network -o .agent/s05-network .venv/bin/python scripts/entitas_capture_attribution.py --artifacts "${{ runner.temp }}/s05-inputs" --output .agent/s05-real.json --attribution .agent/capture-attribution.json
+          collection=$?
+          if test ! -f .agent/s05-real.json; then exit "$collection"; fi
+          .venv/bin/python scripts/ai_runtime_network.py --report .agent/s05-real.json --trace .agent/s05-network
+          gate_status=$?
+          printf '{"collection_exit":%s,"original_gate_exit":%s,"classification":"DIAGNOSTIC_ONLY_NOT_QUALIFICATION"}\n' "$collection" "$gate_status" > .agent/capture-execution.json
+          exit "$collection"
+      - name: Retain every diagnostic observation and original failure
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: entitas-linux-capture-attribution-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .agent/s05-real.json
+            .agent/s05-network.*
+            .agent/capture-*.json
+            .agent/capture-sysfs.txt
+          include-hidden-files: true
+          retention-days: 30
+          if-no-files-found: error

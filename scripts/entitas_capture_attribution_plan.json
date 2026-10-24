@@ -1,0 +1,13 @@
+{
+  "schema": "entitas-linux-capture-attribution/v1",
+  "source": "b030fa7e2c5fff8f0762733611e26f9ff24ded08",
+  "finding": {"run": 40067064461, "job": 120792442170, "gate": "s06_governed", "sample": 1, "capture_seconds": 0.5463775709999936, "limit_seconds": 0.4402295060000142},
+  "classification": "DIAGNOSTIC_ONLY_NOT_QUALIFICATION",
+  "hypotheses": ["transaction_prepare_or_publish_delay", "pool_quiescence_delay", "filesystem_flush_or_fresh_path_validation_delay", "other_parent_work_or_external_scheduling"],
+  "cohort": "One complete unchanged scripts.qualify_ai_runtime.measure cohort, including every idle, busy, S06, S07, S08 and final diagnostic observation. No discarded sample or identical retry.",
+  "controls": "Same ubuntu-24.04 runner class, declared Python3.12, exact locked model/runtime, worker CPU/memory/priority/network limits, inputs, assertions and thresholds. Retain the existing independent strace network observation. sysfs read only.",
+  "measurements": "Every deterministic probe: original outcome plus bounded nested monotonic/thread CPU spans for prepare, publish, pool drain, file and directory fsync, fresh path validation, capture inventory and search refresh; parent rusage and elapsed time; actual phase and worker state from unchanged cohort.",
+  "limits": {"workflow_minutes": 20, "events_per_probe": 4096, "attribution_artifact_bytes": 16777216},
+  "evaluation": "Report each original predicate unchanged. Attribute a reproduced slow sample only when its measured nested spans support that attribution; report overlap, instrumentation overhead, errors, truncation and UNKNOWN. If no violation recurs, historical cause remains UNKNOWN. A later green cannot close the finding. Any prospective fix requires its own controlled comparison and clean permanent gates.",
+  "privacy": "Synthetic fixtures only; retain operation names, timing, counts and thread identifiers, never path values, arguments, model bytes or credentials."
+}
