@@ -1,15 +1,18 @@
 """Fixed ADR 0031 evaluators and synthetic deterministic-flow measurement."""
 from __future__ import annotations
 
+import cProfile
+import pstats
 import statistics
 import time
+from pathlib import Path
 from uuid import uuid4
 
 from provelume.capture_adapter import CaptureAdapter
 from provelume.service import ProvelumeInstance
 
 
-def deterministic_probe(instance, number):
+def _profiled_probe_payload(instance, number):
     """Exercise real capture, exact Original preservation, extraction and search."""
     device, client = "dev_" + "a" * 32, str(uuid4())
     payload = b"S05 synthetic orchid deterministic capture and search."
@@ -32,6 +35,23 @@ def deterministic_probe(instance, number):
             "capture_process_seconds": capture - submit_seconds,
             "preserved": preserved, "search_found": bool(results),
             "product_dispatch_blocked": not ProvelumeInstance.ai_execution_status()["enabled"]}
+
+
+def deterministic_probe(instance, number):
+    """Diagnostic branch only: profiling perturbs timing and cannot qualify a release."""
+    profile = cProfile.Profile()
+    row = profile.runcall(_profiled_probe_payload, instance, number)
+    functions = []
+    for (path, line, name), (primitive, calls, own, cumulative, _) in (
+            pstats.Stats(profile).stats.items()):
+        if Path(path).suffix == ".py" or path == "~":
+            functions.append({"module": Path(path).name, "line": line, "function": name,
+                "calls": calls, "primitive_calls": primitive,
+                "own_seconds": own, "cumulative_seconds": cumulative})
+    functions.sort(key=lambda value: value["cumulative_seconds"], reverse=True)
+    row["diagnostic_profile"] = {"kind": "INSTRUMENTED_NOT_QUALIFICATION",
+                                 "functions": functions[:40]}
+    return row
 
 
 def warm_preparation_gate(report):
@@ -286,4 +306,10 @@ def evaluate(report):
     report["gates"] = gates
     report["status"] = ("FAIL" if report.get("failures") or "FAIL" in gates.values() else
                          "BLOCKED" if any(v != "PASS" for v in gates.values()) else "PASS")
+    # Never turn instrumented timings into acceptance. Preserve the evaluator's
+    # actual outcome and every gate; this branch must remain nonqualifying even
+    # if the network observer evaluates the report again.
+    report["instrumented_evaluated_status"] = report["status"]
+    report["status"] = "DIAGNOSTIC_ONLY"
+    report["qualification_eligible"] = False
     return report
