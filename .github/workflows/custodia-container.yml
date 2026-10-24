@@ -61,7 +61,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/custodia-evidence"
           docker run --rm --network=none provelume:custodia python -m pip list --format=json > "$RUNNER_TEMP/custodia-evidence/packages.json"
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: custodia-container-${{ github.run_id }}
