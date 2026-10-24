@@ -718,6 +718,58 @@ try {
         Write-Output ("FROZEN_STARTUP_READINESS_REPORT=" + (
             $StartupReadiness | ConvertTo-Json -Depth 5 -Compress
         ))
+        # Diagnostic only, on this disposable synthetic fixture. The failed
+        # private gate remains terminal regardless of this legacy read result.
+        $RecordObservation = [ordered]@{
+            kind = "DIAGNOSTIC_ONLY_FAILURE_RETAINED"
+            record_status = "NOT_OBSERVED"
+            record_package_version = $null
+            issue_counts = @{}
+            cleanup_confirmed = $false
+        }
+        $DiagnosticBackend = $null
+        try {
+            $DiagnosticPort = Get-FreeLoopbackPort
+            $DiagnosticBackend = Start-Process -FilePath $Executable -ArgumentList @(
+                "--serve", "`"$InstanceRoot`"", "--port", "$DiagnosticPort"
+            ) -PassThru
+            $DiagnosticClock = [Diagnostics.Stopwatch]::StartNew()
+            while ($DiagnosticClock.ElapsedMilliseconds -lt 10000 -and -not $DiagnosticBackend.HasExited) {
+                try {
+                    $Record = Invoke-RestMethod `
+                        "http://127.0.0.1:$DiagnosticPort/api/v1/security/installation" -TimeoutSec 1
+                    if ($Record.status -cin @("package_integrity_verified", "modified_installation", "verification_unavailable")) {
+                        $RecordObservation.record_status = $Record.status
+                        if ($Record.package.version -cmatch '^[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}$') {
+                            $RecordObservation.record_package_version = $Record.package.version
+                        }
+                        foreach ($Finding in @($Record.findings | Select-Object -First 200)) {
+                            $Code = [string]$Finding.issue
+                            if ($Code -cnotin @("missing_file", "modified_file", "unreadable_file", "unexpected_file", "unsafe_path", "unreadable_path", "scan_limit", "unhashed_record", "unsupported_hash", "invalid_record")) { $Code = "other" }
+                            if (-not $RecordObservation.issue_counts.ContainsKey($Code)) { $RecordObservation.issue_counts[$Code] = 0 }
+                            $RecordObservation.issue_counts[$Code]++
+                        }
+                        break
+                    }
+                }
+                catch { }
+                Start-Sleep -Milliseconds 200
+            }
+        }
+        catch { }
+        finally {
+            if ($null -ne $DiagnosticBackend) {
+                try {
+                    if (-not $DiagnosticBackend.HasExited) { $DiagnosticBackend.Kill($true) }
+                    $RecordObservation.cleanup_confirmed = $DiagnosticBackend.WaitForExit(2000)
+                }
+                catch { }
+                finally { $DiagnosticBackend.Dispose() }
+            }
+        }
+        Write-Output ("FROZEN_RECORD_DIAGNOSTIC=" + (
+            $RecordObservation | ConvertTo-Json -Depth 5 -Compress
+        ))
         throw "Exact installed private startup/readiness proof failed."
     }
     $Backend = Start-Process -FilePath $Executable -ArgumentList @(
