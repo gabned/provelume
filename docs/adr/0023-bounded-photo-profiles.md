@@ -17,8 +17,8 @@ ratio, metadata records and metadata bytes. It emits only family presence/digest
 orientation, color and unverified capture-time evidence. EXIF/IPTC/XMP device values are not
 exported; coordinates are always absent and GPS defaults to excluded.
 
-Pillow 12.3.0 is the only selected optional decoder. The exact Ubuntu wheel hash is retained in
-packaging/photo/pillow-12.3.0.json; it is never bundled or downloaded at runtime. When present,
+Pillow 13.0.0 is the only selected optional decoder. The exact Ubuntu wheel hash is retained in
+packaging/photo/pillow-13.0.0.json; it is never bundled or downloaded at runtime. When present,
 it produces an orientation-normalized first-frame RGB PNG with source metadata stripped and a
 review-only dHash. When absent or incompatible, core inspection remains available while preview
 and perceptual evidence are visibly unavailable. Windows proves that degraded base-install path.
@@ -37,3 +37,7 @@ sensitive-trait, source edit, metadata write-back, ambient scan, provider, AI or
 - The Browser can request only a generated PNG, with no Original-photo endpoint added.
 - Reprocessing under another recipe creates another representation and keeps prior evidence.
 - Supporting another decoder, format or barcode adapter requires a later explicit decision.
+
+The Entitas security candidate updates the selected Pillow baseline to 13.0.0.
+Historical published qualification remains unchanged; this candidate requires fresh
+real-component CI on its exact head before acceptance. No native codec is bundled.

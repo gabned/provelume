@@ -14,7 +14,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-PDF_VERSION = "6.20.0"
+PDF_VERSION = "6.21.2"
 
 
 def pins(raw):

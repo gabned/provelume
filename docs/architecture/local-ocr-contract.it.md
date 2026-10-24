@@ -44,12 +44,13 @@ registra entrambi. Prima del job controlla l'elenco dei language pack installati
 Tesseract o i pack.
 
 La rasterizzazione PDF usa pypdfium2 5.13.0 con PDFium 153.0.7999.0. La decodifica di TIFF, PNG,
-JPEG e BMP usa Pillow 12.3.0. Queste wheel e i relativi componenti nativi restano esterni a ogni
-package Provelume. L'unica qualifica S02 con componenti reali è:
+JPEG e BMP usa Pillow 13.0.0. Queste wheel e i relativi componenti nativi restano esterni a ogni
+package Provelume. La matrice candidata Entitas richiede una nuova qualifica CI sul commit esatto.
+La qualifica S02 storica riguardava Pillow 12.3.0 e resta distinta:
 
 | OS | Architettura | Python | Motore/pack | Renderer/decoder | Input |
 | --- | --- | --- | --- | --- | --- |
-| Ubuntu 24.04 | x86-64 | 3.12 | Tesseract 5.x della distribuzione e `eng` locale; CI registra l'identità esatta | pypdfium2 5.13.0 / PDFium 153.0.7999.0 / Pillow 12.3.0 | PDF scansionato, TIFF, PNG, JPEG, BMP |
+| Ubuntu 24.04 | x86-64 | 3.12 | Tesseract 5.x della distribuzione e `eng` locale; CI registra l'identità esatta | pypdfium2 5.13.0 / PDFium 153.0.7999.0 / Pillow 13.0.0 | PDF scansionato, TIFF, PNG, JPEG, BMP |
 
 La suite multipiattaforma verifica anche la pulizia dei processi su Windows, ma S02 non qualifica
 alcuna combinazione reale motore/renderer per Windows. Restano quindi non qualificati Windows
@@ -59,12 +60,12 @@ lingue ulteriori.
 ## Preparazione locale esplicita
 
 Dopo aver creato il normale ambiente Provelume, l'operatore installa i componenti esterni tramite
-una propria procedura di sistema/ambiente. Per il profilo Ubuntu qualificato, il modello CI
+una propria procedura di sistema/ambiente. Per il profilo Ubuntu candidato, il modello CI
 equivale a:
 
 ```bash
 sudo apt-get install tesseract-ocr tesseract-ocr-eng
-.venv/bin/python -m pip install 'pypdfium2==5.13.0' 'Pillow==12.3.0'
+.venv/bin/python -m pip install 'pypdfium2==5.13.0' 'Pillow==13.0.0'
 ```
 
 Sono esempi di setup, non comportamento del prodotto a runtime. Il workflow CI scarica le due
