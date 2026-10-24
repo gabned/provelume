@@ -260,7 +260,7 @@ def test_emendatio_release_metadata_is_aligned_without_rewriting_published_histo
         assert payload["release_identity"] == "0.9.0"
 
     perceptio_manifests = (
-        "packaging/photo/pillow-12.3.0.json",
+        "packaging/photo/pillow-13.0.0.json",
         "packaging/audio/whisper-cpp-1.9.2.json",
     )
     for relative in perceptio_manifests:

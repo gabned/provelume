@@ -39,6 +39,10 @@ payloads, receipt, exact-version installation kit and observed readiness.
   old-Version evidence, retained receipts/accounting, recovery and portable round
   trips. The existing full distribution pipeline includes immutable public 0.13.0
   alongside its five earlier upgrade baselines.
+- Select external Pillow 13.0.0 for photo capture and OCR to address the public
+  native decoder advisories affecting 12.3.0. Adapter compatibility, optional
+  dependency pins, CI wheel hashes, component inventories and offline notices
+  move together; the new component matrix requires fresh qualification.
 - Development pytest requires 9.0.3 or later within major9. Assembly and container
   inputs use exact hash-pinned pip 26.2. Native Windows evidence retains genuine
   pytest subtests and separately rejects malformed/failed normal-phase records;

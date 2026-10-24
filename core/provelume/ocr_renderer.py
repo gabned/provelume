@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -80,7 +81,9 @@ class PdfiumPillowRenderer:
         self.settings = settings
         self.temporary_root = Path(temporary_root)
         self.worker_path = Path(worker_path).resolve()
-        self.python_executable = str(Path(python_executable).resolve())
+        # The launch path selects a virtualenv through its adjacent pyvenv.cfg.
+        # Resolving its interpreter symlink silently selects the base packages.
+        self.python_executable = os.path.abspath(python_executable)
         self._capability: OcrRendererCapability | None = None
 
     def _run(
@@ -177,7 +180,7 @@ class PdfiumPillowRenderer:
                         for name, version in codecs.items()
                     }
                 )
-            compatible = _major(renderer_version) == 5 and _major(decoder_version) == 12
+            compatible = _major(renderer_version) == 5 and _major(decoder_version) == 13
             self._capability = OcrRendererCapability(
                 adapter_id=RENDERER_ADAPTER_ID,
                 adapter_version=RENDERER_ADAPTER_VERSION,

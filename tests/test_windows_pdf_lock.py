@@ -1,11 +1,24 @@
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 
 import pytest
 
 from scripts.resolve_windows_pdf_lock import PDF_VERSION, pins, replace_pdf
+
+
+def test_pdf_resolver_proposal_remains_in_the_supported_runtime_range():
+    root = Path(__file__).parents[1]
+    project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    requirement, = (r for r in project["project"]["dependencies"] if r.startswith("pypdf"))
+    bounds = re.fullmatch(r"pypdf>=(\d+\.\d+\.\d+),<(\d+)", requirement)
+    assert bounds is not None, "Review the resolver guard when the supported range changes"
+    lower = tuple(map(int, bounds[1].split(".")))
+    upper = (int(bounds[2]), 0, 0)
+    proposed = tuple(map(int, PDF_VERSION.split(".")))
+    assert lower <= proposed < upper, "The maintained resolver must not propose a downgrade"
 
 
 def test_pdf_proposal_preserves_every_other_current_pin_and_hash():

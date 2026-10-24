@@ -130,7 +130,7 @@ See the [component guide](docs/components.md).
 
 The local **Photos** profile identifies bounded JPEG/PNG/TIFF/BMP Originals, redacts GPS
 coordinates and device values, keeps exact/perceptual duplicate evidence separate, reuses OCR page
-anchors and exposes a sanitized PNG only when external Pillow 12.3.0 is present. It performs no
+anchors and exposes a sanitized PNG only when external Pillow 13.0.0 is present. It performs no
 ambient scan, source write, duplicate action, runtime download or network request; see the
 [photo guide](docs/photos.md).
 
@@ -292,7 +292,7 @@ The bootstrap command creates `.venv` and installs Provelume plus developer chec
 On Windows, use `.venv\\Scripts\\provelume.exe` for the same commands. Open `http://127.0.0.1:8000/` after starting the server.
 
 For the published Lectio S02 path, first install Tesseract, the selected local language packs,
-pypdfium2 5.13.0 and Pillow 12.3.0 explicitly. Then enable and probe OCR; Provelume never installs
+pypdfium2 5.13.0 and Pillow 13.0.0 explicitly. Then enable and probe OCR; Provelume never installs
 or downloads them at runtime:
 
 ```bash

@@ -456,7 +456,7 @@ class PillowPhotoDecoder:
                 "version": None,
                 "qualified": False,
             }
-        state = "ready" if version == "12.3.0" else "incompatible"
+        state = "ready" if version == "13.0.0" else "incompatible"
         return {
             "state": state,
             "component": "codec.pillow",
