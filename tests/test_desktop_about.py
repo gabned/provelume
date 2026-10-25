@@ -976,6 +976,7 @@ def prepare(*_args, **_kwargs):
     raise RuntimeError("synthetic interrupted archive preparation")
 
 if mode == "blocked":
+    Path(settings.instance_path).mkdir()
     DesktopShell._ensure_instance = prepare
 root = tk.Tk()
 shell = None
