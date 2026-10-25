@@ -271,6 +271,48 @@ def open_local_directory(value: Path | str):
 
 
 @contextmanager
+def prepare_local_directory(value: Path | str, *, create: bool = False, checkpoint=None):
+    """Retain physical parents while making a first-run local directory chain.
+
+    Existing entries are opened without following aliases before descending.
+    Empty directories left by an interrupted creation are not silently removed.
+    """
+    if not create:
+        with open_local_directory(value) as opened:
+            yield opened
+        return
+    path = absolute_local_path(value)
+    current = Path(path.anchor)
+    with ExitStack() as stack:
+        opened = None
+        for name in path.parts[1:]:
+            if checkpoint is not None:
+                checkpoint()
+            current = current / name
+            with pinned_parent(current) as (child, parent):
+                try:
+                    opened = stack.enter_context(open_local_directory(child))
+                except MaintenanceTargetError as exc:
+                    if exc.code != "target_missing":
+                        raise
+                    if checkpoint is not None:
+                        checkpoint()
+                    try:
+                        if os.name == "nt":
+                            child.mkdir(mode=0o700)
+                        else:
+                            os.mkdir(child.name, mode=0o700, dir_fd=parent)
+                    except FileExistsError:
+                        pass
+                    opened = stack.enter_context(open_local_directory(child))
+        if opened is None:
+            raise MaintenanceTargetError("target_unsafe")
+        if checkpoint is not None:
+            checkpoint()
+        yield opened
+
+
+@contextmanager
 def open_local_file(value: Path | str):
     with pinned_parent(value) as (path, parent):
         try:

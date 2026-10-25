@@ -183,12 +183,32 @@ def test_healthy_worker_owns_pipe_child_and_only_one_serial_probe(harness):
     assert options["close_fds"] is True and "env" not in options
     assert options["stdin"] == subprocess.PIPE and options["stderr"] == subprocess.DEVNULL
     assert [e[0] for e in events(h.startup)] == [
-        "prepared",
-        "spawned",
-        "ready",
-        "stopping",
-        "finished",
+        "prepared", "spawned", "ready", "stopping", "finished",
     ]
+
+
+def test_initial_preparation_shares_the_existing_deadline(harness):
+    h = harness
+    h.startup.prepare_instance = lambda _settings: h.clock.advance(10.01)
+    h.startup._run()
+    assert h.startup.done.is_set()
+    assert h.startup.failure == "preparation_timeout"
+    assert h.popen_calls == [] and h.guards == 0
+
+
+def test_initial_recovery_error_is_private_ui_data(harness):
+    h = harness
+    private = "synthetic localized missing Instance at a private path"
+
+    def missing(_settings):
+        raise RuntimeError(private)
+
+    h.startup.prepare_instance = missing
+    h.startup._run()
+    assert h.startup.failure == "startup_configuration_invalid"
+    assert h.startup.done.is_set() and h.popen_calls == []
+    assert events(h.startup)[-1][1]["preparation_error"] == private
+    assert private not in str(h.startup.diagnostic_snapshot())
 
 
 @pytest.mark.parametrize(
@@ -323,6 +343,7 @@ def shell_for(startup):
     shell.settings = startup.manager.load().settings
     shell.instance = startup.instance
     shell.instance_available = True
+    shell.check_button = Button()
     shell.server = startup.process
     shell.server_port = startup.port
     shell.server_ready = False

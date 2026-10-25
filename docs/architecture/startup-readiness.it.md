@@ -13,6 +13,27 @@ sono eseguiti dal worker. Apri ripetuto non crea figli o nuove deadline. Ogni ca
 tentativo corrente, process object posseduto, Instance e porta; un tentativo annullato non apre
 pagine. Cambio Instance e riavvio attendono il cleanup confermato.
 
+Il Pannello normale viene renderizzato prima dell'apertura obbligatoria iniziale dell'Instance,
+dell'inizializzazione al primo avvio e della dichiarazione della preferenza per gli aggiornamenti.
+Queste operazioni sono nello stesso worker posseduto e nel budget di preparazione esistente
+di 10 secondi. L'autorizzazione alla creazione è consumata una sola volta: i tentativi successivi
+non ricreano implicitamente un'Instance mancante. Le nuove directory locali mantengono guard
+fisici sui parent e non seguono alias; directory vuote parziali restano visibili dopo un'interruzione.
+Dopo un annullamento con cleanup confermato è possibile riprovare; un'Instance osservata come
+mancante o non valida mantiene messaggi e controlli di recupero. La diagnostica statica del layout
+prepara il proprio fixture temporaneo esplicito e non avvia backend.
+
+Anche l'ispezione della policy degli aggiornamenti automatici avviene fuori da Tk, conservando
+i controlli indipendenti di consenso globale e del componente. Canale, generazione e Instance
+restano quelli della richiesta: un nuovo tentativo, un cambio Instance o Esci impediscono che
+quel risultato avvii una nuova verifica.
+
+Dopo la conferma esplicita esistente per l'installer, l'intento pendente resta legato alla richiesta
+di aggiornamento e all'owner del cleanup. L'installer parte soltanto dopo la conclusione di
+quell'owner e senza backend ancora vivo. Cleanup non confermato, Esci, owner sostituito o
+richiesta superata non avviano l'installer. Download, firma e gate di pubblicazione restano quelli
+esistenti.
+
 Restano obbligatori ispezione dell'installazione e apertura/recupero dell'Instance. La
 preparazione parent verifica i guard della directory locale, esegue la preparazione esistente
 dell'Instance e mantiene aperta la directory fisica durante binding e avvio. Il figlio apre la

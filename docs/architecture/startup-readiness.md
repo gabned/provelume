@@ -13,6 +13,24 @@ writes run in that worker. Repeated Open does not spawn another child or extend 
 Callbacks require the current attempt object, owned process object, selected Instance and
 port; a cancelled attempt cannot open a page. Selection/restart waits for confirmed cleanup.
 
+Normal Panel construction renders before the initial mandatory Instance opening, first-run
+initialization and startup update-policy declaration. These operations belong to the same
+owned preparation worker and its existing 10-second budget. Creation permission is consumed
+once; later attempts cannot recreate a missing Instance implicitly. New local parent directories
+are created through retained, non-following physical guards; partial empty directories remain
+visible after interruption. A cancelled clean attempt can be retried, while an observed missing
+or invalid Instance retains the existing recovery controls and message. Static offline layout
+diagnostics keep their explicit disposable-fixture preparation and start no backend.
+
+Automatic update-policy inspection runs off Tk too, with the existing independent global and
+component consent checks. Its result retains the captured channel/generation/Instance; a later
+request, Instance change or Quit prevents that result from starting a new check.
+
+After the existing explicit installer confirmation, the pending installation is bound to its
+current update request and cleanup owner. It can launch only after that owner is done and no
+live backend remains. Unconfirmed cleanup, Quit, replacement of the owner or a stale request
+cannot launch the installer. This changes no update download, signature or publication gate.
+
 The existing installation inspection and Instance opening/recovery remain required. Parent
 preparation checks local-directory guards, performs the existing Instance preparation, then
 pins the selected physical directory while binding and starting the child. The child opens

@@ -45,10 +45,13 @@ def _new_windows_control():
 
 
 class ManagedStartup:
-    def __init__(self, instance: Path, manager: ShellSettingsManager, command_factory):
+    def __init__(self, instance: Path, manager: ShellSettingsManager, command_factory,
+                 *, prepare_instance=None):
         self.instance = instance
         self.manager = manager
         self.command_factory = command_factory
+        self.prepare_instance = prepare_instance
+        self.preparation_error: str | None = None
         self.started_at = time.monotonic()
         self.total_deadline = self.started_at + TOTAL_SECONDS
         self.phase_deadline = min(self.total_deadline, self.started_at + PREPARATION_SECONDS)
@@ -133,6 +136,18 @@ class ManagedStartup:
             self._checkpoint()
             self.settings = self.manager.load().settings
             self.port = self.settings.endpoint_port
+            self._checkpoint()
+            if self.prepare_instance is not None:
+                try:
+                    self.prepare_instance(self.settings)
+                except RuntimeError as exc:
+                    # Existing localized recovery text is private UI data. It
+                    # never enters the closed, shareable diagnostic ring.
+                    self.preparation_error = str(exc)
+                    self._record(self.phase, "startup_configuration_invalid")
+                    self._checkpoint()
+                    raise StartupReadinessError("startup_configuration_invalid") from None
+                self._checkpoint()
             # Refuse unsupported aliases before opening anything through them.
             with open_local_directory(self.instance):
                 pass
@@ -301,7 +316,8 @@ class ManagedStartup:
                     self._record("STOPPING", "endpoint_rollback_unconfirmed")
             self.phase = "FAILED" if self.failure not in {None, "cancelled"} else "STOPPED"
             self._event("finished", code=self.failure, process=self.process, port=self.port,
-                        settings=self.settings, rolled_back=self.rolled_back)
+                        settings=self.settings, rolled_back=self.rolled_back,
+                        preparation_error=self.preparation_error)
             self.done.set()
 
     def _close_windows_control(self):

@@ -562,6 +562,7 @@ class DesktopShell:
         self.server_ready = False
         self.open_target: str | None = None
         self.instance_available = False
+        self._instance_error_observed = False
         self.candidate: UpdateCandidate | None = None
         self.update_generation = 0
         self.closed = False
@@ -571,31 +572,37 @@ class DesktopShell:
         self._restart_after_stop = False
         self._close_requested = False
         self._pending_instance: Path | None = None
+        self._pending_installer = None
+        self._initial_instance_preparation = auto_start_service
+        self._startup_update_check_pending = auto_start_service
+        self._initial_creation_allowed = create_instance_if_missing
+        self._initial_creation_consumed = threading.Event()
         self.tray: WindowsTray | None = None
         self._tray_close_explained = False
         self._tray_observation_running = False
 
-        self.status = tk.StringVar(value=self.text["instance_ready"])
+        self.status = tk.StringVar(value=self.text[
+            "startup_preparing" if auto_start_service else "instance_ready"
+        ])
         self.update_status = tk.StringVar(value=self.text["not_checked"])
         self.instance_text = tk.StringVar(value=str(self.instance))
         self.check_on_start = tk.BooleanVar(value=self.settings.check_on_start)
         self.channel = tk.StringVar(value=self.settings.update_channel)
 
         instance_error: str | None = None
-        try:
-            self._ensure_instance(
-                self.instance,
-                create_if_missing=create_instance_if_missing,
-            )
-        except RuntimeError as exc:
-            instance_error = str(exc)
-        else:
-            self.instance_available = True
-            declare_startup_update_policy(
-                self.instance,
-                enabled=self.settings.check_on_start,
-            )
+        if not auto_start_service:
+            # Offline layout diagnostics use their own disposable fixture and
+            # request no service or interactive startup lifecycle.
+            try:
+                self._ensure_instance(self.instance, create_if_missing=create_instance_if_missing)
+            except RuntimeError as exc:
+                instance_error = str(exc)
+            else:
+                self.instance_available = True
+                declare_startup_update_policy(self.instance, enabled=self.settings.check_on_start)
         self._build()
+        if auto_start_service:
+            self.check_button.configure(state="disabled")
         if instance_error is not None:
             self._show_instance_error(instance_error)
         self.root.protocol("WM_DELETE_WINDOW", self.window_close)
@@ -623,7 +630,7 @@ class DesktopShell:
                 self.root.after(1000, self._refresh_tray_queue)
         if enable_first_run_dialog and self.settings.revision == 0:
             self.root.after(0, self.show_first_run)
-        if auto_start_service and self.instance_available:
+        if auto_start_service:
             self.root.after(250, self.start_server)
         if self.settings.check_on_start and self.instance_available:
             self.root.after(400, lambda: self.check_updates(interactive=False))
@@ -817,13 +824,15 @@ class DesktopShell:
 
     def _show_instance_error(self, message: str) -> None:
         self.instance_available = False
+        self._instance_error_observed = True
         self.status.set(message)
         self.open_button.configure(state="disabled")
         self.stop_button.configure(state="disabled")
         self.choose_button.configure(state="normal")
         self.create_button.configure(state="normal")
 
-    def _ensure_instance(self, path: Path, *, create_if_missing: bool) -> None:
+    def _ensure_instance(self, path: Path, *, create_if_missing: bool,
+                         language: str | None = None) -> None:
         try:
             created = not (path / "provelume.yml").is_file()
             if (path / "provelume.yml").is_file():
@@ -834,7 +843,9 @@ class DesktopShell:
                 instance = ProvelumeInstance.initialise(path, name="My Provelume")
             if created:
                 config = instance.store.read_config()
-                config.setdefault("ui", {})["language"] = self.settings.language
+                config.setdefault("ui", {})["language"] = (
+                    self.settings.language if language is None else language
+                )
                 instance.store.write_config(config)
         except RuntimeError:
             raise
@@ -864,6 +875,7 @@ class DesktopShell:
             self._invalidate_update_result()
 
     def _select_instance(self, path: Path) -> None:
+        self._pending_installer = None
         startup = getattr(self, "_startup", None)
         if startup is not None and not startup.done.is_set():
             if startup.cleanup_unconfirmed:
@@ -876,16 +888,19 @@ class DesktopShell:
         self.stop_server()
         self.instance = path.expanduser().resolve()
         self.instance_available = True
+        self._instance_error_observed = False
         self.instance_text.set(str(self.instance))
         self.status.set(self.text["instance_ready"])
         self.open_button.configure(state="normal")
         self.choose_button.configure(state="normal")
         self.create_button.configure(state="normal")
+        self.check_button.configure(state="normal")
         self._replace_settings(instance_path=str(self.instance))
         declare_startup_update_policy(
             self.instance,
             enabled=self.settings.check_on_start,
         )
+        self._initial_instance_preparation = False
 
     def choose_instance(self) -> None:
         from tkinter import filedialog, messagebox
@@ -949,7 +964,42 @@ class DesktopShell:
         self.server_ready = False
         self.open_target = open_target
         self._startup_status_on_finish = "stopped"
-        self._startup = ManagedStartup(self.instance, self.settings_manager, _command_for_backend)
+        self._pending_installer = None
+        prepare_instance = None
+        if getattr(self, "_initial_instance_preparation", False):
+            selected_instance = self.instance
+
+            def prepare_instance(settings):
+                from .maintenance_local_files import (
+                    DirectoryCloseUnconfirmed,
+                    MaintenanceTargetError,
+                    prepare_local_directory,
+                )
+
+                create = (self._initial_creation_allowed
+                          and not self._initial_creation_consumed.is_set())
+                # A first-run creation grant is consumed before its possible
+                # effects, including a cancelled or failed preparation.
+                self._initial_creation_consumed.set()
+                try:
+                    with prepare_local_directory(selected_instance, create=create,
+                                                  checkpoint=attempt._checkpoint):
+                        attempt._checkpoint()
+                        self._ensure_instance(selected_instance, create_if_missing=create,
+                                              language=settings.language)
+                        attempt._checkpoint()
+                        declare_startup_update_policy(selected_instance,
+                                                      enabled=settings.check_on_start)
+                except DirectoryCloseUnconfirmed:
+                    raise
+                except MaintenanceTargetError as exc:
+                    message = (self.text["missing_instance"] if exc.code == "target_missing"
+                               else self.text["instance_open_failed"].format(error=exc.code))
+                    raise RuntimeError(message) from None
+
+        attempt = ManagedStartup(self.instance, self.settings_manager, _command_for_backend,
+                                 prepare_instance=prepare_instance)
+        self._startup = attempt
         self.status.set(self.text["startup_preparing"])
         self._update_tray("starting")
         self.open_button.configure(state="disabled")
@@ -970,6 +1020,9 @@ class DesktopShell:
             self.root.after(25, self._poll_startup)
 
     def _show_startup_unconfirmed(self):
+        if getattr(self, "_pending_installer", None) is not None:
+            self._pending_installer = None
+            self.update_status.set(self.text["startup_stop_unconfirmed"])
         self.server_ready = False
         self._restart_after_stop = False
         self._pending_instance = None
@@ -1016,10 +1069,18 @@ class DesktopShell:
             except queue.Empty:
                 break
             if kind == "prepared":
+                self.instance_available = True
+                self._instance_error_observed = False
+                self._initial_instance_preparation = False
                 self.settings = details["settings"]
                 self.server_port = details["port"]
+                self.check_button.configure(state="normal")
                 if not startup.cancelled.is_set():
                     self.status.set(self.text["startup_waiting"])
+                    if getattr(self, "_startup_update_check_pending", False):
+                        self._startup_update_check_pending = False
+                        if self.settings.check_on_start:
+                            self.check_updates(interactive=False)
             elif kind == "spawned":
                 self.server = details["process"]
                 self.server_port = details["port"]
@@ -1045,7 +1106,11 @@ class DesktopShell:
                     self.settings = details["settings"]
                 code = details["code"]
                 if code not in {None, "cancelled"}:
-                    text = self._startup_error_text(code)
+                    preparation_error = details.get("preparation_error")
+                    if preparation_error is not None:
+                        self.instance_available = False
+                        self._instance_error_observed = True
+                    text = preparation_error or self._startup_error_text(code)
                     if details["rolled_back"]:
                         text = self.text["endpoint_rolled_back"] + " " + text
                     self.status.set(text)
@@ -1056,13 +1121,16 @@ class DesktopShell:
                     self.status.set(self.text[status])
                     self._update_tray(status)
                 self.open_button.configure(
-                    state="normal" if self.instance_available else "disabled"
+                    state="normal" if (self.instance_available or not getattr(
+                        self, "_instance_error_observed", False)) else "disabled"
                 )
                 self.stop_button.configure(state="disabled")
                 self._startup_selection_controls(True)
         if startup.done.is_set():
             if self._close_requested:
                 self._finish_close()
+            elif getattr(self, "_pending_installer", None) is not None:
+                self._launch_pending_installer()
             elif self._pending_instance is not None:
                 selected = self._pending_instance
                 self._pending_instance = None
@@ -1260,6 +1328,7 @@ class DesktopShell:
             self.stop_button.configure(state="disabled")
 
     def restart_server(self) -> None:
+        self._pending_installer = None
         startup = getattr(self, "_startup", None)
         if startup is not None and not startup.done.is_set():
             if startup.cleanup_unconfirmed:
@@ -1296,7 +1365,13 @@ class DesktopShell:
         self.close()
 
     def check_updates(self, interactive: bool = True) -> None:
-        if not interactive and not startup_update_policy_enabled(self.instance):
+        if not interactive:
+            # The permission check opens the Instance too. Keep that read off
+            # Tk, preserve the current UI when denied, and bind late results to
+            # the existing generation/channel rather than a new user request.
+            threading.Thread(target=self._startup_update_check_worker,
+                             args=(self.instance, self.update_generation, self.channel.get()),
+                             name="ProvelumeStartupUpdateCheck", daemon=True).start()
             return
         channel = self.channel.get()
         if interactive and not self._confirm_update_check(channel):
@@ -1312,6 +1387,16 @@ class DesktopShell:
             args=(channel, generation),
             daemon=True,
         ).start()
+
+    def _startup_update_check_worker(self, instance, generation, channel):
+        if self.closed or getattr(self, "_close_requested", False):
+            return
+        if not startup_update_policy_enabled(instance):
+            return
+        if (self.closed or getattr(self, "_close_requested", False)
+                or self.instance != instance or self.update_generation != generation):
+            return
+        self._check_updates_worker(channel, generation)
 
     def _check_updates_worker(self, channel: str, generation: int) -> None:
         try:
@@ -1438,11 +1523,36 @@ class DesktopShell:
         if not messagebox.askyesno("Provelume", self.text["install_notice"]):
             self.download_button.configure(state="normal")
             return
+        self._pending_installer = (path, candidate, generation, channel,
+                                   getattr(self, "_startup", None))
         self.stop_server()
+        self._launch_pending_installer()
+
+    def _launch_pending_installer(self):
+        pending = getattr(self, "_pending_installer", None)
+        if pending is None:
+            return
+        path, candidate, generation, channel, owner = pending
+        if owner is not getattr(self, "_startup", None):
+            self._pending_installer = None
+            return
+        if owner is not None and not owner.done.is_set():
+            return
+        self._pending_installer = None
+        if (not self._is_current_update_request(generation, channel)
+                or self.candidate != candidate or self._close_requested):
+            return
+        if self.server is not None and self.server.poll() is None:
+            self._show_startup_unconfirmed()
+            return
         command = [str(path)]
         if candidate.publication_required:
             command.append(f"/PUBLICATIONRECEIPT={path.parent / RECEIPT_NAME}")
-        subprocess.Popen(command, cwd=str(path.parent))
+        try:
+            subprocess.Popen(command, cwd=str(path.parent))
+        except OSError as exc:
+            self._update_failed(exc, generation, channel)
+            return
         self.close()
 
     def _show_local_modal(
@@ -1558,6 +1668,7 @@ class DesktopShell:
         self._close_requested = True
         self._restart_after_stop = False
         self._pending_instance = None
+        self._pending_installer = None
         self.stop_server()
         startup = getattr(self, "_startup", None)
         if startup is not None and not startup.done.is_set():
