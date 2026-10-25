@@ -2,14 +2,19 @@
 from __future__ import annotations
 
 import statistics
+import sys
+import threading
 import time
+from contextlib import ExitStack
+from pathlib import Path
+from unittest.mock import patch
 from uuid import uuid4
 
 from provelume.capture_adapter import CaptureAdapter
 from provelume.service import ProvelumeInstance
 
 
-def deterministic_probe(instance, number):
+def _accounted_probe_payload(instance, number):
     """Exercise real capture, exact Original preservation, extraction and search."""
     device, client = "dev_" + "a" * 32, str(uuid4())
     payload = b"S05 synthetic orchid deterministic capture and search."
@@ -32,6 +37,71 @@ def deterministic_probe(instance, number):
             "capture_process_seconds": capture - submit_seconds,
             "preserved": preserved, "search_found": bool(results),
             "product_dispatch_blocked": not ProvelumeInstance.ai_execution_status()["enabled"]}
+
+
+def _accounting_snapshot():
+    """Read parent/probe-thread counters; missing host counters stay UNKNOWN."""
+    snapshot = {"wall_seconds": time.monotonic(), "process_cpu_seconds": time.process_time(),
+                "probe_thread_cpu_seconds": time.thread_time()}
+    if sys.platform != "linux":
+        snapshot["linux_accounting"] = "NOT_APPLICABLE"
+        return snapshot
+    import resource
+
+    for who, name in ((resource.RUSAGE_SELF, "parent"), (resource.RUSAGE_THREAD, "probe_thread")):
+        usage = resource.getrusage(who)
+        snapshot[name] = {key: getattr(usage, key) for key in
+                          ("ru_utime", "ru_stime", "ru_minflt", "ru_majflt",
+                           "ru_inblock", "ru_oublock", "ru_nvcsw", "ru_nivcsw")}
+    for name, path in (("parent_io", Path("/proc/self/io")),
+                       ("probe_thread_schedstat", Path("/proc/self/task") /
+                        str(threading.get_native_id()) / "schedstat")):
+        try:
+            value = path.read_text(encoding="ascii")
+            if name == "parent_io":
+                snapshot[name] = {key: int(count) for key, count in
+                                  (line.split(":", 1) for line in value.splitlines())}
+            else:
+                runtime, waiting, timeslices = map(int, value.split())
+                snapshot[name] = {"runtime_ns": runtime, "runqueue_wait_ns": waiting,
+                                  "timeslices": timeslices}
+        except (OSError, ValueError) as exc:
+            snapshot[name] = {"status": "UNKNOWN", "error_type": type(exc).__name__}
+    return snapshot
+
+
+def deterministic_probe(instance, number):
+    """Nonqualifying accounting around the unchanged real synthetic payload."""
+    owner = threading.get_ident()
+    intervals = []
+
+    def observed(original, name):
+        def call(*args, **kwargs):
+            if threading.get_ident() != owner:
+                return original(*args, **kwargs)
+            before = _accounting_snapshot()
+            try:
+                return original(*args, **kwargs)
+            finally:
+                intervals.append({"operation": name, "before": before,
+                                  "after": _accounting_snapshot()})
+        return call
+
+    before = _accounting_snapshot()
+    with ExitStack() as controls:
+        for target, attribute, name in (
+            (CaptureAdapter, "submit", "capture_submit"),
+            (CaptureAdapter, "process", "capture_process"),
+        ):
+            original = getattr(target, attribute)
+            controls.enter_context(patch.object(target, attribute, observed(original, name)))
+        row = _accounted_probe_payload(instance, number)
+    row["diagnostic_accounting"] = {
+        "kind": "INSTRUMENTED_NOT_QUALIFICATION", "probe_thread_only": True,
+        "intervals": "whole_probe_contains_operations_not_additive",
+        "before": before, "after": _accounting_snapshot(), "operations": intervals,
+    }
+    return row
 
 
 def warm_preparation_gate(report):
@@ -286,4 +356,7 @@ def evaluate(report):
     report["gates"] = gates
     report["status"] = ("FAIL" if report.get("failures") or "FAIL" in gates.values() else
                          "BLOCKED" if any(v != "PASS" for v in gates.values()) else "PASS")
+    report["instrumented_evaluated_status"] = report["status"]
+    report["status"] = "DIAGNOSTIC_ONLY"
+    report["qualification_eligible"] = False
     return report
