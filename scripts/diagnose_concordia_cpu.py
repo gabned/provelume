@@ -166,7 +166,6 @@ def worker(source, artifacts, output):
 
     from provelume.ai_runtime import LocalRuntime
     from provelume.capture_adapter import CaptureAdapter
-    from scripts import ai_runtime_network
 
     instances = []
     original_init = LocalRuntime.__init__
@@ -216,22 +215,30 @@ def worker(source, artifacts, output):
             stack.enter_context(patch.object(LocalRuntime, "__init__", runtime_init))
             stack.enter_context(patch.object(ai_runtime_report, "deterministic_probe", probe))
             stack.enter_context(patch.object(qualify_ai_runtime, "deterministic_probe", probe))
-            for target in (ai_runtime_report, qualify_ai_runtime,
-                           sys.modules["scripts.ai_runtime_report"], ai_runtime_network):
+            for target in (ai_runtime_report, qualify_ai_runtime):
                 stack.enter_context(patch.object(target, "evaluate",
                                                   nonqualifying(target.evaluate)))
             for name in ("submit", "process"):
                 stack.enter_context(patch.object(CaptureAdapter, name,
                     observe_operation(getattr(CaptureAdapter, name), name)))
             report = qualify_ai_runtime.measure(artifacts, output / "report-before-observer.json")
-            # The original observer is mandatory and runs against all trace files.
-            ai_runtime_network.observe(report, trace=output / "network")
             report["diagnostic_driver_sha256"] = hashlib.sha256(SCRIPT.read_bytes()).hexdigest()
-            write_json(output / "report.json", report)
+            write_json(output / "report-before-observer.json", report)
     finally:
         os.close(write_pipe)
         if sampler.wait(timeout=30) != 0:
             raise RuntimeError("sampler_failed")
+
+
+def observe(source, output):
+    """Original observer, in a fresh process AFTER strace and all tracees exit."""
+    sys.path[:0] = [str(source / "scripts"), str(source / "core"), str(source)]
+    from scripts import ai_runtime_network
+
+    report = json.loads((output / "report-before-observer.json").read_text())
+    with patch.object(ai_runtime_network, "evaluate", nonqualifying(ai_runtime_network.evaluate)):
+        ai_runtime_network.observe(report, trace=output / "network")
+    write_json(output / "report.json", report)
 
 
 def run(repository, inputs, output, reverse=False):
@@ -301,6 +308,12 @@ def run(repository, inputs, output, reverse=False):
                         write_json(output / "manifest.json", manifest)
                         # Never start another arm after a timeout; retain partial evidence.
                         raise
+                if arm["exit_code"] == 0:
+                    with (arm_output / "observer.log").open("w") as stream:
+                        observed = subprocess.run([sys.executable, str(SCRIPT), "observe",
+                            "--source", str(source), "--output", str(arm_output)],
+                            cwd=source, stdout=stream, stderr=subprocess.STDOUT, timeout=60)
+                    arm["observer_exit_code"] = observed.returncode
                 arm["finished_ns"] = time.time_ns()
                 write_json(output / "manifest.json", manifest)
             finally:
@@ -319,6 +332,9 @@ def main():
     measurement.add_argument("--source", type=Path, required=True)
     measurement.add_argument("--artifacts", type=Path, required=True)
     measurement.add_argument("--output", type=Path, required=True)
+    observation = commands.add_parser("observe")
+    observation.add_argument("--source", type=Path, required=True)
+    observation.add_argument("--output", type=Path, required=True)
     controlled = commands.add_parser("run")
     controlled.add_argument("--repository", type=Path, required=True)
     controlled.add_argument("--inputs", type=Path, required=True)
@@ -329,6 +345,8 @@ def main():
         sample(args.pipe, args.output)
     elif args.command == "worker":
         worker(args.source.resolve(), args.artifacts.resolve(), args.output.resolve())
+    elif args.command == "observe":
+        observe(args.source.resolve(), args.output.resolve())
     else:
         run(args.repository.resolve(), args.inputs.resolve(), args.output.resolve(), args.reverse)
 

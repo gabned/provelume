@@ -84,6 +84,18 @@ def test_final_network_observer_cannot_requalify_instrumented_capture(tmp_path, 
     import qualify_ai_runtime
 
     from provelume.service import ProvelumeInstance
+    from scripts import ai_runtime_network
+
+    original_observer = ai_runtime_network.observe
+    worker_finished = False
+    observations = []
+
+    def after_worker_only(*args, **kwargs):
+        assert worker_finished, "network observation must follow worker/trace completion"
+        observations.append(True)
+        return original_observer(*args, **kwargs)
+
+    monkeypatch.setattr(ai_runtime_network, "observe", after_worker_only)
 
     def synthetic_measure(artifacts, _output):
         instance = ProvelumeInstance.initialise(artifacts / "instance")
@@ -95,6 +107,11 @@ def test_final_network_observer_cannot_requalify_instrumented_capture(tmp_path, 
     output = tmp_path / "output"
     output.mkdir()
     diagnostic.worker(root, tmp_path / "artifacts", output)
+    assert observations == []
+    assert not (output / "report.json").exists()
+    worker_finished = True
+    diagnostic.observe(root, output)
+    assert observations == [True]
     report = json.loads((output / "report.json").read_text())
     assert report["status"] == "DIAGNOSTIC_ONLY"
     assert report["qualification_eligible"] is False

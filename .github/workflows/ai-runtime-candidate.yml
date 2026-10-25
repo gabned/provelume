@@ -61,7 +61,7 @@ jobs:
   concordia-diagnostic:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_diagnostic == true }}
     runs-on: ubuntu-24.04
-    # Four distinct, sequential source arms; each retains the original 20-minute bound.
+    # Four diagnostic arms, capped at 20 minutes each; qualification job stays unchanged.
     timeout-minutes: 85
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
