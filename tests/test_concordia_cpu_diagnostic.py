@@ -72,3 +72,36 @@ def test_sampler_binds_actual_process_and_retains_unclosed_probe(tmp_path):
     assert samples
     assert all(str(os.getpid()) in row["tasks"] for row in samples)
     assert rows[-1] == {"sampler_end": True, "unclosed": [7], "partial_bytes": 0}
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux diagnostic worker")
+def test_final_network_observer_cannot_requalify_instrumented_capture(tmp_path, monkeypatch):
+    # Exercise the real worker and observer import boundaries. No native model is
+    # involved; a retained synthetic failure must survive the final evaluator.
+    root = Path(diagnostic.__file__).resolve().parents[1]
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.syspath_prepend(str(root / "scripts"))
+    import qualify_ai_runtime
+
+    from provelume.service import ProvelumeInstance
+
+    def synthetic_measure(artifacts, _output):
+        instance = ProvelumeInstance.initialise(artifacts / "instance")
+        probe = qualify_ai_runtime.deterministic_probe(instance, 0)
+        return qualify_ai_runtime.evaluate({"samples": [], "deterministic_idle": [probe],
+                                            "failures": ["synthetic_retained_failure"]})
+
+    monkeypatch.setattr(qualify_ai_runtime, "measure", synthetic_measure)
+    output = tmp_path / "output"
+    output.mkdir()
+    diagnostic.worker(root, tmp_path / "artifacts", output)
+    report = json.loads((output / "report.json").read_text())
+    assert report["status"] == "DIAGNOSTIC_ONLY"
+    assert report["qualification_eligible"] is False
+    assert report["instrumented_evaluated_status"] == "FAIL"
+    assert report["failures"] == ["synthetic_retained_failure"]
+    assert report["network"] == "NOT_RUN"
+    probe, = report["deterministic_idle"]
+    assert probe["preserved"] and probe["search_found"]
+    operations = [r["operation"] for r in probe["diagnostic_timeline"]["operations"]]
+    assert operations == ["submit", "process"]

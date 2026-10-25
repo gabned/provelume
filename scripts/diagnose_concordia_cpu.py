@@ -217,7 +217,7 @@ def worker(source, artifacts, output):
             stack.enter_context(patch.object(ai_runtime_report, "deterministic_probe", probe))
             stack.enter_context(patch.object(qualify_ai_runtime, "deterministic_probe", probe))
             for target in (ai_runtime_report, qualify_ai_runtime,
-                           sys.modules["scripts.ai_runtime_report"]):
+                           sys.modules["scripts.ai_runtime_report"], ai_runtime_network):
                 stack.enter_context(patch.object(target, "evaluate",
                                                   nonqualifying(target.evaluate)))
             for name in ("submit", "process"):
