@@ -135,6 +135,136 @@ def accounting():
     return result
 
 
+class BoundaryCounters:
+    """Preopen numeric counters outside capture; bracket even very short calls.
+
+    Tasks born after this inventory remain outside these per-task counters. Parent
+    process CPU/rusage and the durability wrapper still include their work.
+    """
+
+    def __init__(self, roles):
+        self.entries = []
+        self.inventory = []
+        for role, pids in roles.items():
+            for pid in pids:
+                tids = list(Path(f"/proc/{pid}/task").glob("[0-9]*"))
+                self.inventory.append({"role": role, "pid": pid, "tasks": len(tids),
+                                       "status": "OBSERVED" if tids else "UNKNOWN"})
+                for task in tids:
+                    entry = {"role": role, "pid": pid, "tid": int(task.name), "fds": {}}
+                    for name in ("schedstat", "io"):
+                        try:
+                            entry["fds"][name] = os.open(task / name, os.O_RDONLY | os.O_CLOEXEC)
+                        except OSError as exc:
+                            entry["fds"][name] = {"status": "UNKNOWN",
+                                                  "error": type(exc).__name__}
+                    self.entries.append(entry)
+
+    def snapshot(self):
+        started, cpu = time.monotonic_ns(), time.thread_time_ns()
+        rows = []
+        for entry in self.entries:
+            row = {key: entry[key] for key in ("role", "pid", "tid")}
+            for name, fd in entry["fds"].items():
+                if isinstance(fd, int):
+                    try:
+                        raw = os.pread(fd, 4096, 0).decode("ascii")
+                        row[name] = raw if raw else {"status": "UNKNOWN", "error": "empty_counter"}
+                    except OSError as exc:
+                        row[name] = {"status": "UNKNOWN", "error": type(exc).__name__}
+                else:
+                    row[name] = fd
+            rows.append(row)
+        return {"started_ns": started, "finished_ns": time.monotonic_ns(),
+                "collection_thread_cpu_ns": time.thread_time_ns() - cpu, "tasks": rows}
+
+    def close(self):
+        for entry in self.entries:
+            for fd in entry["fds"].values():
+                if isinstance(fd, int):
+                    os.close(fd)
+
+
+def durability_observer(original, name, active):
+    def wrapped(fd):
+        context = active()
+        if context is None:
+            return original(fd)
+        row = {"call": name, "operation": context.get("active_operation"),
+               "tid": threading.get_native_id(), "wrapper_started_ns": time.monotonic_ns()}
+        row["started_cpu_ns"] = time.thread_time_ns()
+        row["started_ns"] = time.monotonic_ns()
+        try:
+            return original(fd)
+        finally:
+            row["finished_ns"] = time.monotonic_ns()
+            row["finished_cpu_ns"] = time.thread_time_ns()
+            row["wrapper_finished_ns"] = time.monotonic_ns()
+            # Shared only by this serial probe, including its commit-pool threads.
+            context["durability"].append(row)
+    return wrapped
+
+
+def calibrate_scheduler():
+    """Require a positive runqueue counter under known synthetic contention.
+
+    A readable zero, missing sysctl or virtual /proc is not evidence of no wait.
+    This does not qualify the host or reproduce an application failure.
+    """
+    code = """
+import json, os, sys, time
+os.sched_setaffinity(0, {int(sys.argv[1])})
+print('READY', flush=True)
+sys.stdin.buffer.read(1)
+def counters():
+    with open('/proc/thread-self/schedstat') as stream:
+        return list(map(int, stream.read().split()))
+before = counters()
+start = time.monotonic_ns()
+cpu = time.thread_time_ns()
+while time.monotonic_ns() - start < 300_000_000:
+    pass
+after = counters()
+print(json.dumps({'before': before, 'after': after,
+                  'wall_ns': time.monotonic_ns()-start,
+                  'thread_cpu_ns': time.thread_time_ns()-cpu}), flush=True)
+"""
+    children = []
+    result = {"status": "UNKNOWN", "sched_schedstats":
+              read_text(Path("/proc/sys/kernel/sched_schedstats")), "children": []}
+    try:
+        cpu = min(os.sched_getaffinity(0))
+        for _ in range(2):
+            child = subprocess.Popen([sys.executable, "-c", code, str(cpu)],
+                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE, text=True)
+            children.append(child)
+            with selectors.DefaultSelector() as ready:
+                ready.register(child.stdout, selectors.EVENT_READ)
+                if not ready.select(10) or child.stdout.readline().strip() != "READY":
+                    raise RuntimeError("scheduler_calibration_child_not_ready")
+        for child in children:
+            child.stdin.write("x")
+            child.stdin.flush()
+        for child in children:
+            stdout, stderr = child.communicate(timeout=10)
+            result["children"].append({"exit_code": child.returncode,
+                                       "counters": json.loads(stdout), "stderr": stderr})
+        if all(row["exit_code"] == 0 and row["counters"]["thread_cpu_ns"] > 0
+               and row["counters"]["after"][0] > row["counters"]["before"][0]
+               and row["counters"]["after"][1] > row["counters"]["before"][1]
+               for row in result["children"]):
+            result["status"] = "POSITIVE_RUNQUEUE_CONTROL"
+    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as exc:
+        result["error"] = type(exc).__name__
+    finally:
+        for child in children:
+            if child.poll() is None:
+                child.kill()
+            child.wait(timeout=10)
+    return result
+
+
 def nonqualifying(evaluate):
     def wrapped(report):
         evaluate(report)
@@ -150,16 +280,24 @@ def observe_operation(original, name):
         context = CURRENT.get()
         if context is None:
             return original(*args, **kwargs)
-        row = {"operation": name, "before": accounting()}
+        row = {"operation": name}
+        boundary = context.get("_boundary")
+        if boundary is not None:
+            row["boundary_before"] = boundary.snapshot()
+            context["active_operation"] = name
+        row["before"] = accounting()
         try:
             return original(*args, **kwargs)
         finally:
             row["after"] = accounting()
+            if boundary is not None:
+                row["boundary_after"] = boundary.snapshot()
+                context.pop("active_operation", None)
             context["operations"].append(row)
     return wrapped
 
 
-def worker(source, artifacts, output):
+def worker(source, artifacts, output, mode="legacy"):
     sys.path[:0] = [str(source / "scripts"), str(source / "core"), str(source)]
     import ai_runtime_report
     import qualify_ai_runtime
@@ -174,28 +312,40 @@ def worker(source, artifacts, output):
         original_init(self, *args, **kwargs)
         instances.append(self)
 
-    read_pipe, write_pipe = os.pipe()
-    sampler = subprocess.Popen([sys.executable, str(SCRIPT), "sample", "--pipe", str(read_pipe),
-                                "--output", str(output / "timeline.jsonl")],
-                               pass_fds=(read_pipe,))
-    os.close(read_pipe)
+    sampler, write_pipe = None, None
+    if mode != "boundary":
+        read_pipe, write_pipe = os.pipe()
+        sampler = subprocess.Popen([sys.executable, str(SCRIPT), "sample", "--pipe", str(read_pipe),
+                                    "--output", str(output / "timeline.jsonl")],
+                                   pass_fds=(read_pipe,))
+        os.close(read_pipe)
     raw_probe = ai_runtime_report.deterministic_probe
     sequence = 0
+    active = None
 
     def probe(instance, number):
-        nonlocal sequence
+        nonlocal sequence, active
         sequence += 1
         context = {"probe_id": sequence, "sample": number, "operations": [],
                    "caller": Path(sys._getframe(1).f_code.co_filename).name,
                    "before": accounting()}
-        pids = [os.getpid(), os.getppid(), sampler.pid]
-        pids += [r._process.pid for r in instances if r._process is not None]
+        roles = {"parent": [os.getpid()], "tracer": [os.getppid()],
+                 "sampler": [sampler.pid] if sampler else [],
+                 "workers": [r._process.pid for r in instances if r._process is not None]}
+        pids = [pid for values in roles.values() for pid in values]
         event = {"kind": "begin", "probe_id": sequence, "sample": number,
                  "caller": context["caller"], "pids": list(dict.fromkeys(pids)),
                  "roles": {"parent": os.getpid(), "tracer": os.getppid(),
-                           "sampler": sampler.pid, "workers": pids[3:]},
+                           "sampler": sampler.pid if sampler else None,
+                           "workers": roles["workers"]},
                  "monotonic_ns": time.monotonic_ns(), "realtime_ns": time.time_ns()}
-        os.write(write_pipe, (json.dumps(event) + "\n").encode())
+        if write_pipe is not None:
+            os.write(write_pipe, (json.dumps(event) + "\n").encode())
+        boundary = BoundaryCounters(roles) if mode != "legacy" else None
+        if boundary is not None:
+            context.update(_boundary=boundary, boundary_inventory=boundary.inventory,
+                           roles=roles, durability=[], observation_mode=mode)
+        active = context
         token = CURRENT.set(context)
         try:
             row = raw_probe(instance, number)
@@ -204,17 +354,26 @@ def worker(source, artifacts, output):
         finally:
             context["after"] = accounting()
             CURRENT.reset(token)
+            active = None
+            if boundary is not None:
+                boundary.close()
+                context.pop("_boundary")
             # Save even an exceptional probe, outside its original measured interval.
             with (output / "probe-accounting.jsonl").open("a", encoding="utf-8") as stream:
                 stream.write(json.dumps(context) + "\n")
-            os.write(write_pipe, (json.dumps({"kind": "end", "probe_id": sequence,
-                     "monotonic_ns": time.monotonic_ns()}) + "\n").encode())
+            if write_pipe is not None:
+                os.write(write_pipe, (json.dumps({"kind": "end", "probe_id": sequence,
+                         "monotonic_ns": time.monotonic_ns()}) + "\n").encode())
 
     try:
         with ExitStack() as stack:
             stack.enter_context(patch.object(LocalRuntime, "__init__", runtime_init))
             stack.enter_context(patch.object(ai_runtime_report, "deterministic_probe", probe))
             stack.enter_context(patch.object(qualify_ai_runtime, "deterministic_probe", probe))
+            if mode != "legacy":
+                for name in ("fsync", "fdatasync"):
+                    stack.enter_context(patch.object(os, name, durability_observer(
+                        getattr(os, name), name, lambda: active)))
             for target in (ai_runtime_report, qualify_ai_runtime):
                 stack.enter_context(patch.object(target, "evaluate",
                                                   nonqualifying(target.evaluate)))
@@ -223,10 +382,12 @@ def worker(source, artifacts, output):
                     observe_operation(getattr(CaptureAdapter, name), name)))
             report = qualify_ai_runtime.measure(artifacts, output / "report-before-observer.json")
             report["diagnostic_driver_sha256"] = hashlib.sha256(SCRIPT.read_bytes()).hexdigest()
+            report["diagnostic_observation_mode"] = mode
             write_json(output / "report-before-observer.json", report)
     finally:
-        os.close(write_pipe)
-        if sampler.wait(timeout=30) != 0:
+        if write_pipe is not None:
+            os.close(write_pipe)
+        if sampler is not None and sampler.wait(timeout=30) != 0:
             raise RuntimeError("sampler_failed")
 
 
@@ -241,15 +402,18 @@ def observe(source, output):
     write_json(output / "report.json", report)
 
 
-def run(repository, inputs, output, reverse=False):
+def run(repository, inputs, output, reverse=False, observer_study=False):
     """Four fixed arms, once each, same runner/interpreter/path; no retry-to-green."""
     output.mkdir(parents=True, exist_ok=False)
     candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repository,
                                         text=True).strip()
     if subprocess.check_output(["git", "status", "--porcelain"], cwd=repository):
         raise ValueError("controlled replay requires unchanged committed source")
-    arms = [("main", MAIN), ("s06-original", S06), ("s08-original", S08),
-            ("candidate", candidate)]
+    arms = ([("s06-boundary", S06, "boundary"), ("s06-extended", S06, "extended"),
+             ("s08-extended", S08, "extended"), ("s08-boundary", S08, "boundary")]
+            if observer_study else
+            [("main", MAIN, "legacy"), ("s06-original", S06, "legacy"),
+             ("s08-original", S08, "legacy"), ("candidate", candidate, "legacy")])
     if reverse:
         arms.reverse()
     manifest = {"status": "DIAGNOSTIC_ONLY", "qualification_eligible": False,
@@ -257,13 +421,19 @@ def run(repository, inputs, output, reverse=False):
                 "driver_sha256": hashlib.sha256(SCRIPT.read_bytes()).hexdigest(),
                 "arms": [], "python": sys.version, "clock_ticks": os.sysconf("SC_CLK_TCK"),
                 "sched_schedstats": read_text(Path("/proc/sys/kernel/sched_schedstats")),
-                "observer": "strace -ff -ttt -T -e trace=network,fsync,fdatasync",
-                "sampling_seconds": 0.01, "order": [name for name, _ in arms],
+                "observer": "strace -ff -ttt -T; syscall set recorded per arm",
+                "sampling_seconds": 0.01, "order": [name for name, _, _ in arms],
+                "experiment": "observer-study" if observer_study else "source-comparison",
                 "limitations": ["instrumentation perturbs timing", "one runner is not a fleet",
                                 "OS cache not flushed", "task exits can truncate task accounting",
                                 "proc sampling does not prove individual syscall causality"]}
     write_json(output / "manifest.json", manifest)
     shutil.copyfile(SCRIPT, output / "driver.py")
+    if observer_study:
+        manifest["scheduler_calibration"] = calibrate_scheduler()
+        write_json(output / "manifest.json", manifest)
+        if manifest["scheduler_calibration"]["status"] != "POSITIVE_RUNQUEUE_CONTROL":
+            raise RuntimeError("scheduler_counter_not_demonstrated; no replay started")
     with (output / "dependencies.txt").open("w") as stream:
         subprocess.run([sys.executable, "-m", "pip", "freeze"], stdout=stream, check=True)
     with (
@@ -278,10 +448,12 @@ def run(repository, inputs, output, reverse=False):
             raise ValueError("measurement path depth differs from acquired input root")
         manifest["measurement_path_depth"] = len(data.parts)
         manifest["acquired_input_path_depth"] = len(inputs.parts)
-        for name, revision in arms:
+        for name, revision, mode in arms:
             arm_output = output / name
             arm_output.mkdir()
-            arm = {"name": name, "source": revision, "started_ns": time.time_ns()}
+            arm = {"name": name, "source": revision, "observation_mode": mode,
+                   "started_ns": time.time_ns(),
+                   "trace": "network" if mode == "boundary" else "network,fsync,fdatasync"}
             manifest["arms"].append(arm)
             write_json(output / "manifest.json", manifest)
             subprocess.run(["git", "worktree", "add", "--detach", str(source), revision],
@@ -303,9 +475,9 @@ def run(repository, inputs, output, reverse=False):
                                  "core/provelume/capture_adapter.py")}
                 with (arm_output / "execution.log").open("w") as stream:
                     process = subprocess.Popen(["strace", "-ff", "-ttt", "-T", "-e",
-                        "trace=network,fsync,fdatasync", "-o", str(arm_output / "network"),
+                        "trace=" + arm["trace"], "-o", str(arm_output / "network"),
                         sys.executable, str(SCRIPT), "worker", "--source", str(source),
-                        "--artifacts", str(data), "--output", str(arm_output)],
+                        "--artifacts", str(data), "--output", str(arm_output), "--mode", mode],
                         cwd=source, stdout=stream, stderr=subprocess.STDOUT,
                         start_new_session=True)
                     try:
@@ -341,6 +513,7 @@ def main():
     measurement.add_argument("--source", type=Path, required=True)
     measurement.add_argument("--artifacts", type=Path, required=True)
     measurement.add_argument("--output", type=Path, required=True)
+    measurement.add_argument("--mode", choices=("legacy", "boundary", "extended"), default="legacy")
     observation = commands.add_parser("observe")
     observation.add_argument("--source", type=Path, required=True)
     observation.add_argument("--output", type=Path, required=True)
@@ -349,15 +522,17 @@ def main():
     controlled.add_argument("--inputs", type=Path, required=True)
     controlled.add_argument("--output", type=Path, required=True)
     controlled.add_argument("--reverse", action="store_true")
+    controlled.add_argument("--observer-study", action="store_true")
     args = parser.parse_args()
     if args.command == "sample":
         sample(args.pipe, args.output)
     elif args.command == "worker":
-        worker(args.source.resolve(), args.artifacts.resolve(), args.output.resolve())
+        worker(args.source.resolve(), args.artifacts.resolve(), args.output.resolve(), args.mode)
     elif args.command == "observe":
         observe(args.source.resolve(), args.output.resolve())
     else:
-        run(args.repository.resolve(), args.inputs.resolve(), args.output.resolve(), args.reverse)
+        run(args.repository.resolve(), args.inputs.resolve(), args.output.resolve(), args.reverse,
+            args.observer_study)
 
 
 if __name__ == "__main__":

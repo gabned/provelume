@@ -75,7 +75,8 @@ def test_sampler_binds_actual_process_and_retains_unclosed_probe(tmp_path):
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux diagnostic worker")
-def test_final_network_observer_cannot_requalify_instrumented_capture(tmp_path, monkeypatch):
+@pytest.mark.parametrize("mode", ["legacy", "boundary", "extended"])
+def test_final_network_observer_cannot_requalify_instrumented_capture(tmp_path, monkeypatch, mode):
     # Exercise the real worker and observer import boundaries. No native model is
     # involved; a retained synthetic failure must survive the final evaluator.
     root = Path(diagnostic.__file__).resolve().parents[1]
@@ -106,7 +107,7 @@ def test_final_network_observer_cannot_requalify_instrumented_capture(tmp_path, 
     monkeypatch.setattr(qualify_ai_runtime, "measure", synthetic_measure)
     output = tmp_path / "output"
     output.mkdir()
-    diagnostic.worker(root, tmp_path / "artifacts", output)
+    diagnostic.worker(root, tmp_path / "artifacts", output, mode)
     assert observations == []
     assert not (output / "report.json").exists()
     worker_finished = True
@@ -122,3 +123,47 @@ def test_final_network_observer_cannot_requalify_instrumented_capture(tmp_path, 
     assert probe["preserved"] and probe["search_found"]
     operations = [r["operation"] for r in probe["diagnostic_timeline"]["operations"]]
     assert operations == ["submit", "process"]
+    assert (output / "timeline.jsonl").exists() is (mode != "boundary")
+    if mode != "legacy":
+        context = probe["diagnostic_timeline"]
+        assert context["observation_mode"] == mode
+        assert context["durability"]
+        for row in context["operations"]:
+            before, after = row["boundary_before"], row["boundary_after"]
+            assert before["finished_ns"] <= row["before"]["monotonic_ns"]
+            assert row["after"]["monotonic_ns"] <= after["started_ns"]
+            expected = [r for r in before["tasks"] if r["tid"] == row["before"]["tid"]]
+            assert len(expected) == 1
+            assert isinstance(expected[0]["schedstat"], (str, dict))
+        assert all(row["started_ns"] <= row["finished_ns"] for row in context["durability"])
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux /proc counters")
+def test_missing_boundary_role_stays_unknown():
+    counters = diagnostic.BoundaryCounters({"exited": [999_999_999]})
+    try:
+        assert counters.inventory == [{"role": "exited", "pid": 999_999_999,
+                                        "tasks": 0, "status": "UNKNOWN"}]
+        assert counters.snapshot()["tasks"] == []
+    finally:
+        counters.close()
+
+
+def test_durability_wrapper_retains_exception_and_commit_thread():
+    from concurrent.futures import ThreadPoolExecutor
+
+    context = {"durability": [], "active_operation": "process"}
+    marker = OSError("retained fsync failure")
+
+    def fail(_fd):
+        raise marker
+
+    wrapped = diagnostic.durability_observer(fail, "fsync", lambda: context)
+    with ThreadPoolExecutor(max_workers=1) as pool, pytest.raises(OSError) as observed:
+        pool.submit(wrapped, 123).result()
+    assert observed.value is marker
+    row, = context["durability"]
+    assert row["operation"] == "process" and row["call"] == "fsync"
+    assert row["tid"] != diagnostic.threading.get_native_id()
+    assert (row["wrapper_started_ns"] <= row["started_ns"]
+            <= row["finished_ns"] <= row["wrapper_finished_ns"])

@@ -9,11 +9,15 @@ on:
         description: 'Nonqualifying S01 controlled main/original/candidate CPU replay'
         type: boolean
         default: false
+      concordia_observer_study:
+        description: 'Nonqualifying S01 operation-boundary and observer-cost study'
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   measure:
-    if: ${{ inputs.concordia_diagnostic != true }}
+    if: ${{ inputs.concordia_diagnostic != true && inputs.concordia_observer_study != true }}
     strategy:
       fail-fast: false
       matrix:
@@ -59,7 +63,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   concordia-diagnostic:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_diagnostic == true }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_diagnostic == true && inputs.concordia_observer_study != true }}
     runs-on: ubuntu-24.04
     # Four diagnostic arms, capped at 20 minutes each; qualification job stays unchanged.
     timeout-minutes: 85
@@ -84,6 +88,34 @@ jobs:
         with:
           name: concordia-cpu-comparison
           path: .agent/concordia-cpu-comparison
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  concordia-observer-study:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_observer_study == true }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Canonical dependency bootstrap
+        run: python scripts/bootstrap.py
+      - name: Explicit locked acquisition (no model in artifacts or Git)
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/concordia-inputs" --accept-licenses --include-model
+      - name: Enable diagnostic scheduler counters
+        run: sudo sysctl kernel.sched_schedstats=1
+      - name: Boundary counters and observer contrast (DIAGNOSTIC_ONLY)
+        run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-observer-study" --observer-study
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: concordia-observer-study
+          path: .agent/concordia-observer-study
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30

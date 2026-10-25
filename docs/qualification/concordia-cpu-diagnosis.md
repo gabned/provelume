@@ -82,3 +82,77 @@ artifacts, complete review and fresh preflight. Previous Windows artifacts remai
 historical for any newer source; Windows 11/browser/human rows remain unqualified.
 No merge, acceptance, lifecycle activation, SDK change, #377 work or release follows
 from this experiment.
+
+## Boundary and observer study (second bounded experiment)
+
+The first experiment's [original ledger](https://github.com/gabned/provelume/pull/424#issuecomment-6398357124)
+retains zero S06/S08 threshold exceedances on EPYC 9V45. Its 10 ms nominal sampler
+took approximately 20 ms per collection; 31/32 submits lacked two interior
+snapshots. Those scheduler deltas are UNKNOWN. Repeating that source comparison
+would not address this observation gap.
+
+The resumed cloud workspace reports EPYC 9V74, five logical CPUs and kernel
+6.18.55. A positive synthetic contention control confirms advancing runqueue
+counters despite its missing scheduler-enable sysctl. Different isolation/kernel
+and restricted model origin prevent treating it as the original hosted environment. The model HEAD
+request through the required session proxy was denied (403); no alternate origin
+or proxy bypass is used. Repository self-hosted runner inventory remains 403;
+that establishes an API permission gap, not absence of executable hosts. The
+existing GitHub workflow is available and its successful prior runs establish
+actual hosted execution. No paid host or dedicated hardware is provisioned.
+
+Explicit dispatch with `concordia_observer_study=true` runs one job, four complete
+native sequences, once each, on one generic `ubuntu-24.04` host:
+
+| Order | Immutable source | Observation mode |
+| --- | --- | --- |
+| 1 | original S06 `8b3f467` | boundary |
+| 2 | original S06 `8b3f467` | extended |
+| 3 | original S08 `e2c9244` | extended |
+| 4 | original S08 `e2c9244` | boundary |
+
+Both modes retain the original payload, all native cases, idle measurements,
+evaluators, thresholds, worker containment and mandatory post-exit all-thread
+network observer. There is no CPU correction or candidate-effect arm. The
+boundary mode keeps `strace -ff -ttt -T -e trace=network`, without the polling
+sampler. The extended mode adds the previous sampler and fsync/fdatasync trace.
+This AB/BA ordering gives an observer contrast on each original source; one
+block cannot exclude time drift or prove a causal effect statistically.
+
+Both modes preopen numeric per-task scheduler and I/O counters outside each
+original probe, then read them immediately before/after each submit/process.
+The current thread, existing parent tasks, native worker tasks, tracer and (when
+present) sampler have PID/TID and role bindings. Each collection has start/end
+timestamps and thread CPU cost. Exact process/thread CPU and rusage bracket the
+method itself. A Python fsync/fdatasync wrapper records per-call wall/thread CPU,
+TID and operation, including commit-pool threads; it records no fd/path/content.
+The syscall wall interval excludes the wrapper's thread-CPU clock reads, and
+separate wrapper timestamps retain their cost as a measured envelope.
+All wrappers preserve return values and exceptions. They perturb measurements;
+their boundaries and collection time remain explicit rather than subtracted
+from the original evaluator's result.
+
+Before any full sequence, two synthetic CPU loops share one logical CPU. Advancing
+runtime and a positive runqueue delta in each child are required;
+readable zero counters alone do not pass this control. Failed calibration stops
+the experiment with the partial manifest retained. Missing/exited task counters
+remain UNKNOWN. Tasks created after a probe's inventory are absent from its
+stable-task scheduler deltas; process CPU and durability events still cover
+their work. The study neither fabricates counters for the historical FAILs nor
+guarantees a new FAIL. There is no automatic retry or reverse-order rerun.
+
+Analyze any new exceedance against its own unchanged idle-derived threshold,
+then correlate its operation CPU, current-thread runqueue delta, I/O counters,
+durability intervals, tracer/sampler CPU and collection costs. Durability wall
+time includes scheduling/tracing; parallel calls overlap. These values cannot be
+summed into a causal decomposition. Short-lived task work, other blocking and
+unmatched time remain explicit. Report a non-reproduction if no sample exceeds
+its own threshold. Observer-related differences remain hypotheses until an
+isolated controlled comparison demonstrates their mechanism and effect.
+
+Every final report remains `DIAGNOSTIC_ONLY`, `qualification_eligible:false`,
+with original evaluator FAIL/NOT_RUN/PASS preserved. Successful collection cannot
+close either finding. Any subsequent product correction still needs an isolated
+mechanism and controlled effect, followed by full unchanged-candidate native,
+original CI/artifact, review and preflight checks. Windows evidence from earlier
+bytes remains historical; mandatory Windows11/browser/human rows remain open.
