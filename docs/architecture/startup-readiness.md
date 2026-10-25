@@ -26,6 +26,8 @@ Update-channel/startup-check controls stay disabled until initial preparation se
 widget events cannot write preferences during that phase. Later startup events never replace a
 newer settings revision. Disabling startup checks fences in-flight update results before any
 fallible Instance policy write, as a channel change already does.
+Confirmed initial failure/cancellation restores the explicit manual update check with its
+existing confirmation; it does not start an automatic check or relax its consent gates.
 
 Automatic update-policy inspection runs off Tk too, with the existing independent global and
 component consent checks. Its result retains the captured channel/generation/Instance; a later

@@ -133,6 +133,7 @@ def test_initial_archive_preparation_is_owned_off_the_ui_thread(tmp_path, monkey
             assert shell._startup.process is None
     shell._poll_startup()
     assert shell.open_button.state == "normal"
+    assert shell.check_button.state == "normal"
     assert shell.startup_check.state == "normal" and shell.channel_box.state == "readonly"
     shell.start_server()
     assert shell._startup.done.wait(2)
@@ -1073,6 +1074,7 @@ try:
         assert str(shell.stop_button.cget("state")) == "disabled"
         assert str(shell.choose_button.cget("state")) == "normal"
         assert str(shell.create_button.cget("state")) == "normal"
+        assert str(shell.check_button.cget("state")) == "normal"
         assert "could not be found" in shell.status.get()
     else:
         deadline = time.monotonic() + 3

@@ -977,6 +977,7 @@ class DesktopShell:
         self._pending_installer = None
         prepare_instance = None
         if getattr(self, "_initial_instance_preparation", False):
+            self.check_button.configure(state="disabled")
             self._startup_policy_controls(False)
             selected_instance = self.instance
 
@@ -1151,6 +1152,8 @@ class DesktopShell:
                 )
                 self.stop_button.configure(state="disabled")
                 self._startup_selection_controls(True)
+                if getattr(self, "_startup_policy_locked", False):
+                    self.check_button.configure(state="normal")
                 self._startup_policy_controls(True)
         if startup.done.is_set():
             if self._close_requested:

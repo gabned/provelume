@@ -28,6 +28,8 @@ non è risolta; eventi dei widget già accodati non possono salvare preferenze d
 Gli eventi successivi dell'avvio non sostituiscono revisioni più recenti delle impostazioni.
 Disattivare il controllo all'avvio invalida i risultati pendenti prima della scrittura fallibile
 della policy nell'Instance, come già avviene per il cambio di canale.
+Dopo un errore/annullamento iniziale confermato torna disponibile la verifica manuale degli
+aggiornamenti con la conferma esistente; nessuna verifica automatica o deroga ai consensi.
 
 Anche l'ispezione della policy degli aggiornamenti automatici avviene fuori da Tk, conservando
 i controlli indipendenti di consenso globale e del componente. Canale, generazione e Instance
