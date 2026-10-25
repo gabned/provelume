@@ -4,10 +4,16 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      concordia_diagnostic:
+        description: 'Nonqualifying S01 controlled main/original/candidate CPU replay'
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   measure:
+    if: ${{ inputs.concordia_diagnostic != true }}
     strategy:
       fail-fast: false
       matrix:
@@ -49,6 +55,35 @@ jobs:
             .agent/s05-real.json
             .agent/s05-network.*
             .agent/s05-wfp.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  concordia-diagnostic:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_diagnostic == true }}
+    runs-on: ubuntu-24.04
+    # Four distinct, sequential source arms; each retains the original 20-minute bound.
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Canonical dependency bootstrap
+        run: python scripts/bootstrap.py
+      - name: Explicit locked acquisition (no model in artifacts or Git)
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/concordia-inputs" --accept-licenses --include-model
+      - name: Enable diagnostic scheduler counters
+        run: sudo sysctl kernel.sched_schedstats=1
+      - name: Controlled replay (DIAGNOSTIC_ONLY, never qualification)
+        run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-cpu-comparison"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: concordia-cpu-comparison
+          path: .agent/concordia-cpu-comparison
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
