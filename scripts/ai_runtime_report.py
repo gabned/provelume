@@ -1,18 +1,18 @@
 """Fixed ADR 0031 evaluators and synthetic deterministic-flow measurement."""
 from __future__ import annotations
 
-import cProfile
-import pstats
 import statistics
+import threading
 import time
-from pathlib import Path
+from contextlib import ExitStack
+from unittest.mock import patch
 from uuid import uuid4
 
 from provelume.capture_adapter import CaptureAdapter
 from provelume.service import ProvelumeInstance
 
 
-def _profiled_probe_payload(instance, number):
+def _timed_probe_payload(instance, number):
     """Exercise real capture, exact Original preservation, extraction and search."""
     device, client = "dev_" + "a" * 32, str(uuid4())
     payload = b"S05 synthetic orchid deterministic capture and search."
@@ -38,19 +38,38 @@ def _profiled_probe_payload(instance, number):
 
 
 def deterministic_probe(instance, number):
-    """Diagnostic branch only: profiling perturbs timing and cannot qualify a release."""
-    profile = cProfile.Profile()
-    row = profile.runcall(_profiled_probe_payload, instance, number)
-    functions = []
-    for (path, line, name), (primitive, calls, own, cumulative, _) in (
-            pstats.Stats(profile).stats.items()):
-        if Path(path).suffix == ".py" or path == "~":
-            functions.append({"module": Path(path).name, "line": line, "function": name,
-                "calls": calls, "primitive_calls": primitive,
-                "own_seconds": own, "cumulative_seconds": cumulative})
-    functions.sort(key=lambda value: value["cumulative_seconds"], reverse=True)
-    row["diagnostic_profile"] = {"kind": "INSTRUMENTED_NOT_QUALIFICATION",
-                                 "functions": functions[:40]}
+    """Diagnostic only: three narrow timers, original payload and fixed gates."""
+    from provelume import atomic_commit
+    from provelume.capture_journal import CaptureJournal
+
+    owner = threading.get_ident()
+    timings = {}
+
+    def observed(original, name):
+        def call(*args, **kwargs):
+            if threading.get_ident() != owner:
+                return original(*args, **kwargs)
+            started = time.monotonic()
+            try:
+                return original(*args, **kwargs)
+            finally:
+                timing = timings.setdefault(name, {"calls": 0, "seconds": 0.0})
+                timing["calls"] += 1
+                timing["seconds"] += time.monotonic() - started
+        return call
+
+    with ExitStack() as controls:
+        for target, attribute, name in (
+            (atomic_commit, "_instance_target", "physical_path_checks"),
+            (atomic_commit.AtomicInstanceCommit, "_shutdown_pool", "pool_drain"),
+            (CaptureJournal, "_inventory", "capture_inventory"),
+        ):
+            original = getattr(target, attribute)
+            controls.enter_context(patch.object(target, attribute, observed(original, name)))
+        row = _timed_probe_payload(instance, number)
+    row["diagnostic_timing"] = {"kind": "INSTRUMENTED_NOT_QUALIFICATION",
+        "intervals": "inclusive_not_additive", "probe_thread_only": True,
+        "operations": timings}
     return row
 
 
