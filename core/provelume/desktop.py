@@ -603,6 +603,7 @@ class DesktopShell:
         self._build()
         if auto_start_service:
             self.check_button.configure(state="disabled")
+            self._startup_policy_controls(False)
         if instance_error is not None:
             self._show_instance_error(instance_error)
         self.root.protocol("WM_DELETE_WINDOW", self.window_close)
@@ -861,18 +862,26 @@ class DesktopShell:
         self.settings = self.settings_manager.mutate(change)
 
     def _save_policy(self) -> None:
+        if getattr(self, "_startup_policy_locked", False):
+            # A queued widget event has no authority while initial Instance
+            # preparation owns the first component-policy declaration.
+            self.channel.set(self.settings.update_channel)
+            self.check_on_start.set(self.settings.check_on_start)
+            return
         previous_channel = self.settings.update_channel
+        previous_enabled = self.settings.check_on_start
         self._replace_settings(
             update_channel=self.channel.get(),
             check_on_start=self.check_on_start.get(),
         )
+        if (self.settings.update_channel != previous_channel
+                or self.settings.check_on_start != previous_enabled):
+            self._invalidate_update_result()
         if self.instance_available:
             declare_startup_update_policy(
                 self.instance,
                 enabled=self.settings.check_on_start,
             )
-        if self.settings.update_channel != previous_channel:
-            self._invalidate_update_result()
 
     def _select_instance(self, path: Path) -> None:
         self._pending_installer = None
@@ -901,6 +910,7 @@ class DesktopShell:
             enabled=self.settings.check_on_start,
         )
         self._initial_instance_preparation = False
+        self._startup_policy_controls(True)
 
     def choose_instance(self) -> None:
         from tkinter import filedialog, messagebox
@@ -967,6 +977,7 @@ class DesktopShell:
         self._pending_installer = None
         prepare_instance = None
         if getattr(self, "_initial_instance_preparation", False):
+            self._startup_policy_controls(False)
             selected_instance = self.instance
 
             def prepare_instance(settings):
@@ -1013,6 +1024,19 @@ class DesktopShell:
             button = getattr(self, name, None)
             if button is not None:
                 button.configure(state="normal" if enabled else "disabled")
+
+    def _startup_policy_controls(self, enabled):
+        self._startup_policy_locked = not enabled
+        for name, ready_state in (("startup_check", "normal"), ("channel_box", "readonly")):
+            widget = getattr(self, name, None)
+            if widget is not None:
+                widget.configure(state=ready_state if enabled else "disabled")
+
+    def _adopt_startup_settings(self, settings):
+        # Endpoint acknowledgements and late finish events can carry an older
+        # snapshot than an explicit preference change already handled by Tk.
+        if getattr(settings, "revision", 0) >= getattr(self.settings, "revision", 0):
+            self.settings = settings
 
     def _schedule_startup_poll(self):
         if not self.closed and not getattr(self, "_startup_poll_scheduled", False):
@@ -1072,9 +1096,10 @@ class DesktopShell:
                 self.instance_available = True
                 self._instance_error_observed = False
                 self._initial_instance_preparation = False
-                self.settings = details["settings"]
+                self._adopt_startup_settings(details["settings"])
                 self.server_port = details["port"]
                 self.check_button.configure(state="normal")
+                self._startup_policy_controls(True)
                 if not startup.cancelled.is_set():
                     self.status.set(self.text["startup_waiting"])
                     if getattr(self, "_startup_update_check_pending", False):
@@ -1088,7 +1113,7 @@ class DesktopShell:
                 if startup.instance != self.instance:
                     startup.request_stop()
                     continue
-                self.settings = details["settings"]
+                self._adopt_startup_settings(details["settings"])
                 self._server_ready(details["process"], details["port"], True)
                 self._startup_selection_controls(True)
             elif kind == "stopping":
@@ -1103,7 +1128,7 @@ class DesktopShell:
                 self.server_ready = False
                 self.open_target = None
                 if details["settings"] is not None:
-                    self.settings = details["settings"]
+                    self._adopt_startup_settings(details["settings"])
                 code = details["code"]
                 if code not in {None, "cancelled"}:
                     preparation_error = details.get("preparation_error")
@@ -1126,6 +1151,7 @@ class DesktopShell:
                 )
                 self.stop_button.configure(state="disabled")
                 self._startup_selection_controls(True)
+                self._startup_policy_controls(True)
         if startup.done.is_set():
             if self._close_requested:
                 self._finish_close()

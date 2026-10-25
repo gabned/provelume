@@ -99,7 +99,7 @@ def test_initial_archive_preparation_is_owned_off_the_ui_thread(tmp_path, monkey
 
     def build(shell):
         for name in ("open_button", "stop_button", "choose_button", "create_button",
-                     "check_button"):
+                     "check_button", "startup_check", "channel_box"):
             setattr(shell, name, _Button())
 
     creation_grants = []
@@ -122,6 +122,7 @@ def test_initial_archive_preparation_is_owned_off_the_ui_thread(tmp_path, monkey
         owner = shell._startup
         assert owner is not None and owner.thread.is_alive() and not owner.done.is_set()
         assert shell.open_button.state == "disabled"
+        assert shell.startup_check.state == shell.channel_box.state == "disabled"
         shell.stop_server()
         assert owner.cancelled.is_set() and not owner.done.is_set()
         assert any(delay == 25 for delay, _ in callbacks)
@@ -132,10 +133,85 @@ def test_initial_archive_preparation_is_owned_off_the_ui_thread(tmp_path, monkey
             assert shell._startup.process is None
     shell._poll_startup()
     assert shell.open_button.state == "normal"
+    assert shell.startup_check.state == "normal" and shell.channel_box.state == "readonly"
     shell.start_server()
     assert shell._startup.done.wait(2)
     assert creation_grants == [True, False]
     assert shell._startup.process is None
+
+
+def test_initial_policy_controls_reject_a_queued_edit_without_writing(tmp_path, monkeypatch):
+    shell = DesktopShell.__new__(DesktopShell)
+    shell._startup_policy_locked = True
+    shell.settings = LauncherSettings(instance_path=str(tmp_path), check_on_start=True,
+                                      update_channel="preview")
+    shell.channel, shell.check_on_start = _Value("stable"), _Value(False)
+
+    def unexpected_write(**_changes):
+        raise AssertionError("queued edit wrote preferences during initial preparation")
+
+    monkeypatch.setattr(shell, "_replace_settings", unexpected_write)
+    shell._save_policy()
+    assert shell.channel.get() == "preview" and shell.check_on_start.get() is True
+
+
+@pytest.mark.parametrize("policy_write_fails", [False, True])
+def test_disabling_startup_checks_invalidates_an_inflight_update_result(
+    tmp_path, monkeypatch, policy_write_fails,
+):
+    shell = DesktopShell.__new__(DesktopShell)
+    shell.settings = LauncherSettings(instance_path=str(tmp_path), check_on_start=True,
+                                      update_channel="preview")
+    shell.channel, shell.check_on_start = _Value("preview"), _Value(False)
+    shell.instance_available = policy_write_fails
+    shell.instance = tmp_path
+    invalidations = []
+
+    def change(**changes):
+        shell.settings = replace(shell.settings, **changes)
+
+    monkeypatch.setattr(shell, "_replace_settings", change)
+    monkeypatch.setattr(shell, "_invalidate_update_result", lambda: invalidations.append(True))
+    if policy_write_fails:
+        def refused_write(*_args, **_kwargs):
+            assert invalidations == [True], "opt-out was not fenced before fallible archive I/O"
+            raise OSError("synthetic component-policy write failure")
+
+        monkeypatch.setattr(desktop, "declare_startup_update_policy", refused_write)
+        with pytest.raises(OSError, match="synthetic component-policy write failure"):
+            shell._save_policy()
+    else:
+        shell._save_policy()
+    assert shell.settings.check_on_start is False and invalidations == [True]
+
+
+@pytest.mark.parametrize("event", ["prepared", "ready", "finished"])
+def test_startup_events_preserve_a_newer_update_opt_out(tmp_path, monkeypatch, event):
+    shell = DesktopShell.__new__(DesktopShell)
+    older = LauncherSettings(instance_path=str(tmp_path), check_on_start=True, revision=1)
+    current = replace(older, check_on_start=False, update_channel="stable", revision=2)
+    done = threading.Event()
+    done.set()
+    owner = SimpleNamespace(events=queue.Queue(), done=done, cancelled=threading.Event(),
+                            cleanup_unconfirmed=False, phase="STOPPED", instance=tmp_path)
+    owner.events.put((event, {"settings": older, "port": 8040, "process": None,
+                             "code": "cancelled", "rolled_back": False}))
+    shell._startup, shell.settings, shell.instance = owner, current, tmp_path
+    shell.instance_available = True
+    shell.closed = shell._close_requested = shell._restart_after_stop = False
+    shell._pending_instance = None
+    shell._startup_status_on_finish = "stopped"
+    shell._startup_update_check_pending = True
+    shell.tray = None
+    shell.status = _Value("preparing")
+    shell.text = STRINGS["en"]
+    shell.check_button, shell.open_button, shell.stop_button = _Button(), _Button(), _Button()
+    checked = []
+    monkeypatch.setattr(shell, "check_updates", lambda **kw: checked.append(kw))
+    monkeypatch.setattr(shell, "_server_ready", lambda *_: None)
+    shell._poll_startup()
+    assert shell.settings == current
+    assert checked == [], "old prepared snapshot reauthorized an automatic update check"
 
 
 def _candidate(*, channel: str) -> UpdateCandidate:
@@ -1004,6 +1080,8 @@ try:
             root.update()
             time.sleep(0.01)
         assert entered.is_set()
+        assert str(shell.startup_check.cget("state")) == "disabled"
+        assert str(shell.channel_box.cget("state")) == "disabled"
         ticks = []
         root.after(0, lambda: ticks.append("preparing"))
         root.update()

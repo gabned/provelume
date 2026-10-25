@@ -23,6 +23,12 @@ Dopo un annullamento con cleanup confermato è possibile riprovare; un'Instance 
 mancante o non valida mantiene messaggi e controlli di recupero. La diagnostica statica del layout
 prepara il proprio fixture temporaneo esplicito e non avvia backend.
 
+Canale e controllo aggiornamenti all'avvio restano disabilitati finché la preparazione iniziale
+non è risolta; eventi dei widget già accodati non possono salvare preferenze durante questa fase.
+Gli eventi successivi dell'avvio non sostituiscono revisioni più recenti delle impostazioni.
+Disattivare il controllo all'avvio invalida i risultati pendenti prima della scrittura fallibile
+della policy nell'Instance, come già avviene per il cambio di canale.
+
 Anche l'ispezione della policy degli aggiornamenti automatici avviene fuori da Tk, conservando
 i controlli indipendenti di consenso globale e del componente. Canale, generazione e Instance
 restano quelli della richiesta: un nuovo tentativo, un cambio Instance o Esci impediscono che

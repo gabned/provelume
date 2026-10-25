@@ -22,6 +22,11 @@ visible after interruption. A cancelled clean attempt can be retried, while an o
 or invalid Instance retains the existing recovery controls and message. Static offline layout
 diagnostics keep their explicit disposable-fixture preparation and start no backend.
 
+Update-channel/startup-check controls stay disabled until initial preparation settles; queued
+widget events cannot write preferences during that phase. Later startup events never replace a
+newer settings revision. Disabling startup checks fences in-flight update results before any
+fallible Instance policy write, as a channel change already does.
+
 Automatic update-policy inspection runs off Tk too, with the existing independent global and
 component consent checks. Its result retains the captured channel/generation/Instance; a later
 request, Instance change or Quit prevents that result from starting a new check.
