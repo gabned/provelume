@@ -66,6 +66,26 @@ def tasks(pid):
     return result
 
 
+def cgroups(pid):
+    """Retain all visible v2 ancestor counters, distinguishing missing hierarchy."""
+    try:
+        membership = Path(f"/proc/{pid}/cgroup").read_text()
+        relative = next(line[3:] for line in membership.splitlines() if line.startswith("0::"))
+        root = Path("/sys/fs/cgroup")
+        current = root / relative.lstrip("/")
+        if ".." in current.parts or not current.is_dir():
+            return {"status": "UNKNOWN", "reason": "unmounted_cgroup"}
+        rows = []
+        while True:
+            rows.append({name: read_text(current / name) for name in
+                         ("cpu.stat", "cpu.max", "cpu.pressure", "io.stat", "io.pressure")})
+            if current == root:
+                return rows
+            current = current.parent
+    except (OSError, StopIteration):
+        return {"status": "UNKNOWN", "reason": "cgroup_unavailable"}
+
+
 def sample(pipe, output):
     """Separate sampler: retain every observation, including exited/missing tasks."""
     selector = selectors.DefaultSelector()
@@ -94,8 +114,7 @@ def sample(pipe, output):
                        "tasks": {str(pid): tasks(pid) for pid in event["pids"]},
                        "cpu_pressure": read_text(Path("/proc/pressure/cpu")),
                        "io_pressure": read_text(Path("/proc/pressure/io")),
-                       "cgroup_cpu": read_text(Path("/sys/fs/cgroup/cpu.stat")),
-                       "cgroup_io": read_text(Path("/sys/fs/cgroup/io.stat"))}
+                       "cgroups": cgroups(event["pids"][0])}
                 row["collection_ns"] = time.monotonic_ns() - started
                 row["sampler_cpu_ns"] = time.process_time_ns()
                 stream.write(json.dumps(row) + "\n")
@@ -170,9 +189,12 @@ def worker(source, artifacts, output):
         context = {"probe_id": sequence, "sample": number, "operations": [],
                    "caller": Path(sys._getframe(1).f_code.co_filename).name,
                    "before": accounting()}
-        pids = [os.getpid()] + [r._process.pid for r in instances if r._process is not None]
+        pids = [os.getpid(), os.getppid(), sampler.pid]
+        pids += [r._process.pid for r in instances if r._process is not None]
         event = {"kind": "begin", "probe_id": sequence, "sample": number,
-                 "caller": context["caller"], "pids": sorted(set(pids)),
+                 "caller": context["caller"], "pids": list(dict.fromkeys(pids)),
+                 "roles": {"parent": os.getpid(), "tracer": os.getppid(),
+                           "sampler": sampler.pid, "workers": pids[3:]},
                  "monotonic_ns": time.monotonic_ns(), "realtime_ns": time.time_ns()}
         os.write(write_pipe, (json.dumps(event) + "\n").encode())
         token = CURRENT.set(context)
@@ -183,6 +205,9 @@ def worker(source, artifacts, output):
         finally:
             context["after"] = accounting()
             CURRENT.reset(token)
+            # Save even an exceptional probe, outside its original measured interval.
+            with (output / "probe-accounting.jsonl").open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(context) + "\n")
             os.write(write_pipe, (json.dumps({"kind": "end", "probe_id": sequence,
                      "monotonic_ns": time.monotonic_ns()}) + "\n").encode())
 
