@@ -7,7 +7,6 @@ import socket
 import subprocess
 import sys
 import threading
-import time
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -947,30 +946,43 @@ write_ui_diagnostics(Path(sys.argv[1]), language="it", theme=sys.argv[2],
     }
 
 
-@pytest.mark.skipif(os.name != "nt", reason="real Tk recovery probe")
-def test_windows_missing_persisted_instance_renders_recovery_shell(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    import tkinter as tk
+def _windows_panel_probe(tmp_path: Path, mode: str) -> dict:
+    # Match the launcher's process lifetime, as the layout probes above do.
+    # Tcl initialization errors fail the probe rather than skipping its assertions.
+    probe = """
+import json
+import sys
+import threading
+import time
+import tkinter as tk
+from pathlib import Path
+from provelume import desktop
+from provelume.desktop import DesktopShell, LauncherSettings, save_settings
 
-    try:
-        root = tk.Tk()
-    except tk.TclError as exc:
-        pytest.skip(f"hosted Python Tk runtime is unavailable: {exc}")
-    shell = None
-    settings = LauncherSettings(instance_path=str(tmp_path / "Moved Instance – 日本"),
-                                language="en", schema_version=3)
-    path = tmp_path / "launcher.json"
-    save_settings(settings, path)
-    monkeypatch.setattr(desktop, "settings_path", lambda: path)
-    try:
-        shell = DesktopShell(
-            root,
-            initial_settings=settings,
-            create_instance_if_missing=False,
-            enable_first_run_dialog=False,
-        )
+directory, mode = Path(sys.argv[1]), sys.argv[2]
+assert mode in {"missing", "blocked"}
+settings = LauncherSettings(instance_path=str(directory / "Moved Instance – 日本"),
+                            language="en", schema_version=3)
+path = directory / "launcher.json"
+save_settings(settings, path)
+desktop.settings_path = lambda: path
+entered, release = threading.Event(), threading.Event()
+ui_thread = threading.get_ident()
+
+def prepare(*_args, **_kwargs):
+    assert threading.get_ident() != ui_thread
+    entered.set()
+    assert release.wait(4)
+    raise RuntimeError("synthetic interrupted archive preparation")
+
+if mode == "blocked":
+    DesktopShell._ensure_instance = prepare
+root = tk.Tk()
+shell = None
+try:
+    shell = DesktopShell(root, initial_settings=settings, enable_native_tray=False,
+                         enable_first_run_dialog=False, create_instance_if_missing=False)
+    if mode == "missing":
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline:
             root.update()
@@ -985,37 +997,7 @@ def test_windows_missing_persisted_instance_renders_recovery_shell(
         assert str(shell.choose_button.cget("state")) == "normal"
         assert str(shell.create_button.cget("state")) == "normal"
         assert "could not be found" in shell.status.get()
-    finally:
-        if shell is not None:
-            shell.close()
-        else:
-            root.destroy()
-
-
-@pytest.mark.skipif(os.name != "nt", reason="real Tk initial preparation lifecycle")
-def test_windows_panel_renders_and_quit_waits_for_initial_archive_io(tmp_path, monkeypatch):
-    import tkinter as tk
-
-    root = tk.Tk()
-    settings = LauncherSettings(instance_path=str(tmp_path / "synthetic"), language="en",
-                                schema_version=3)
-    path = tmp_path / "launcher.json"
-    save_settings(settings, path)
-    monkeypatch.setattr(desktop, "settings_path", lambda: path)
-    entered, release = threading.Event(), threading.Event()
-    ui_thread = threading.get_ident()
-    shell = None
-
-    def prepare(*_args, **_kwargs):
-        assert threading.get_ident() != ui_thread
-        entered.set()
-        assert release.wait(4)
-        raise RuntimeError("synthetic interrupted archive preparation")
-
-    monkeypatch.setattr(DesktopShell, "_ensure_instance", prepare)
-    try:
-        shell = DesktopShell(root, initial_settings=settings, enable_native_tray=False,
-                             enable_first_run_dialog=False)
+    else:
         deadline = time.monotonic() + 3
         while not entered.is_set() and time.monotonic() < deadline:
             root.update()
@@ -1030,12 +1012,39 @@ def test_windows_panel_renders_and_quit_waits_for_initial_archive_io(tmp_path, m
         root.after(0, lambda: ticks.append("waiting_for_cleanup"))
         root.update()
         assert ticks == ["preparing", "waiting_for_cleanup"]
-    finally:
-        release.set()
-        if shell is not None and shell._startup is not None:
-            assert shell._startup.done.wait(2)
-            assert shell._startup.process is None
-        if shell is not None:
-            shell.close()
-        else:
-            root.destroy()
+finally:
+    release.set()
+    if shell is not None and shell._startup is not None:
+        assert shell._startup.done.wait(2)
+        shell._startup.thread.join(2)
+        assert not shell._startup.thread.is_alive()
+        assert shell._startup.process is None
+    if shell is not None:
+        shell.close()
+        assert shell.closed
+    else:
+        root.destroy()
+print(json.dumps({"mode": mode, "assertions": "PASS", "cleanup": "CONFIRMED"}))
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", probe, str(tmp_path), mode],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    return json.loads(completed.stdout)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="real Tk recovery probe")
+def test_windows_missing_persisted_instance_renders_recovery_shell(tmp_path: Path) -> None:
+    assert _windows_panel_probe(tmp_path, "missing") == {
+        "mode": "missing", "assertions": "PASS", "cleanup": "CONFIRMED",
+    }
+
+
+@pytest.mark.skipif(os.name != "nt", reason="real Tk initial preparation lifecycle")
+def test_windows_panel_renders_and_quit_waits_for_initial_archive_io(tmp_path: Path) -> None:
+    assert _windows_panel_probe(tmp_path, "blocked") == {
+        "mode": "blocked", "assertions": "PASS", "cleanup": "CONFIRMED",
+    }
