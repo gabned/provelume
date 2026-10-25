@@ -266,9 +266,18 @@ def run(repository, inputs, output, reverse=False):
     shutil.copyfile(SCRIPT, output / "driver.py")
     with (output / "dependencies.txt").open("w") as stream:
         subprocess.run([sys.executable, "-m", "pip", "freeze"], stdout=stream, check=True)
-    with tempfile.TemporaryDirectory(prefix="concordia-cpu-") as scratch:
+    with (
+        tempfile.TemporaryDirectory(prefix="concordia-cpu-") as scratch,
+        tempfile.TemporaryDirectory(prefix="s05-replay-", dir=inputs.parent) as replay,
+    ):
         source = Path(scratch) / "source"
-        data = Path(scratch) / "data"
+        data = Path(replay)
+        # The original workflow measures RUNNER_TEMP/s05-inputs. Preserve its
+        # component count: physical path guards are part of the capture cost.
+        if len(data.parts) != len(inputs.parts):
+            raise ValueError("measurement path depth differs from acquired input root")
+        manifest["measurement_path_depth"] = len(data.parts)
+        manifest["acquired_input_path_depth"] = len(inputs.parts)
         for name, revision in arms:
             arm_output = output / name
             arm_output.mkdir()
@@ -279,7 +288,7 @@ def run(repository, inputs, output, reverse=False):
                            cwd=repository, check=True)
             try:
                 # Identical locked acquisition, separate installed store and synthetic Instance.
-                data.mkdir()
+                data.mkdir(exist_ok=True)
                 shutil.copytree(inputs / "linux", data / "linux")
                 shutil.copyfile(inputs / "model.gguf", data / "model.gguf")
                 arm["tree"] = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"],
