@@ -255,3 +255,64 @@ def test_pool_observer_retains_new_task_counters_result_and_error(monkeypatch):
         assert row["queued_ns"] <= row["wrapper_started_ns"]
         assert row["before"]["monotonic_ns"] <= row["after"]["monotonic_ns"]
         assert row["after"]["monotonic_ns"] <= row["wrapper_finished_ns"]
+
+
+def test_original_cpu_requirement_refuses_a_different_reported_model(tmp_path):
+    path = tmp_path / "cpuinfo"
+    path.write_text("model name\t: AMD EPYC 9V74 80-Core Processor\n" * 4)
+    assert diagnostic.require_original_cpu(path) == ["AMD EPYC 9V74 80-Core Processor"]
+    path.write_text("model name\t: AMD EPYC 9V45 96-Core Processor\n" * 4)
+    with pytest.raises(ValueError, match="original EPYC"):
+        diagnostic.require_original_cpu(path)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux tracer affinity diagnostic")
+def test_real_tracer_stays_pinned_while_child_and_capture_get_their_own_masks(tmp_path):
+    import shutil
+
+    if shutil.which("strace") is None or shutil.which("taskset") is None:
+        pytest.skip("strace/taskset is unavailable")
+    allowed = sorted(os.sched_getaffinity(0))
+    if len(allowed) < 2:
+        pytest.skip("two allowed CPUs required for the observer control")
+    tracer, foreground = allowed[:2]
+    root = Path(diagnostic.__file__).resolve().parents[1]
+    output = tmp_path / "output"
+    output.mkdir()
+    script = tmp_path / "synthetic.py"
+    script.write_text(f'''
+import json, os, sys
+from pathlib import Path
+sys.path[:0] = [{str(root)!r}, {str(root / "scripts")!r}, {str(root / "core")!r}]
+from scripts import diagnose_concordia_cpu as diagnostic
+import qualify_ai_runtime
+from provelume.service import ProvelumeInstance
+def measure(artifacts, output):
+    instance = ProvelumeInstance.initialise(artifacts / "instance")
+    probe = qualify_ai_runtime.deterministic_probe(instance, 0)
+    return qualify_ai_runtime.evaluate({{"samples": [], "deterministic_idle": [probe],
+                                        "failures": ["synthetic_retained_failure"]}})
+qualify_ai_runtime.measure = measure
+# Synthetic wiring control only; this does not qualify this host as SMT.
+diagnostic.smt_plan = lambda: {{"allowed": {allowed!r}, "smt_sibling": {foreground},
+                               "worker_cpus": []}}
+diagnostic.worker(Path({str(root)!r}), Path({str(tmp_path / "artifacts")!r}),
+                  Path({str(output)!r}), "boundary", "smt_sibling", {set(allowed)!r}, {tracer})
+assert os.sched_getaffinity(0) == {set(allowed)!r}
+''')
+    observed = subprocess.run(
+        ["taskset", "--cpu-list", str(tracer), "strace", "-ff", "-e", "trace=network",
+         "-o", str(tmp_path / "network"),
+         sys.executable, str(script)],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=20,
+    )
+    assert observed.returncode == 0, observed.stdout
+    report = json.loads((output / "report-before-observer.json").read_text())
+    context = report["deterministic_idle"][0]["diagnostic_timeline"]
+    assert context["tracer_affinity"] == [tracer]
+    assert context["placement"]["cpu"] == foreground
+    assert context["placement"]["inherited"] == allowed
+    assert context["placement"]["restored"] == allowed
+    assert context["pool_tasks"]
+    assert all(task["affinity"] == [foreground] for task in context["pool_tasks"])
+    assert report["qualification_eligible"] is False

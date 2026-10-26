@@ -49,6 +49,14 @@ def smt_plan(allowed=None, topology=Path("/sys/devices/system/cpu")):
             "same_logical": pairs[0][0], "smt_sibling": pairs[0][1]}
 
 
+def require_original_cpu(cpuinfo=Path("/proc/cpuinfo")):
+    models = {line.split(":", 1)[1].strip() for line in cpuinfo.read_text().splitlines()
+              if line.startswith("model name")}
+    if models != {"AMD EPYC 9V74 80-Core Processor"}:
+        raise ValueError("original EPYC 9V74 CPU model unavailable")
+    return sorted(models)
+
+
 @contextmanager
 def place_probe(context, placement, plan, workers):
     """Change only this probe thread; restore even when the original call fails."""
@@ -398,7 +406,14 @@ def observe_operation(original, name):
     return wrapped
 
 
-def worker(source, artifacts, output, mode="legacy", placement=None):
+def worker(source, artifacts, output, mode="legacy", placement=None,
+           inherited_affinity=None, tracer_cpu=None):
+    # The tracer alone receives its one-CPU condition. Restore the child before
+    # application imports, hardware checks or any native worker can be created.
+    if inherited_affinity is not None:
+        os.sched_setaffinity(0, inherited_affinity)
+        if os.sched_getaffinity(0) != set(inherited_affinity):
+            raise RuntimeError("tracee_inherited_affinity_not_restored")
     sys.path[:0] = [str(source / "scripts"), str(source / "core"), str(source)]
     import ai_runtime_report
     import qualify_ai_runtime
@@ -434,6 +449,11 @@ def worker(source, artifacts, output, mode="legacy", placement=None):
         roles = {"parent": [os.getpid()], "tracer": [os.getppid()],
                  "sampler": [sampler.pid] if sampler else [],
                  "workers": [r._process.pid for r in instances if r._process is not None]}
+        if tracer_cpu is not None:
+            observed = sorted(os.sched_getaffinity(os.getppid()))
+            context["tracer_affinity"] = observed
+            if observed != [tracer_cpu]:
+                raise RuntimeError("tracer_affinity_differs_from_declared_condition")
         pids = [pid for values in roles.values() for pid in values]
         event = {"kind": "begin", "probe_id": sequence, "sample": number,
                  "caller": context["caller"], "pids": list(dict.fromkeys(pids)),
@@ -514,7 +534,8 @@ def observe(source, output):
     write_json(output / "report.json", report)
 
 
-def run(repository, inputs, output, reverse=False, observer_study=False, placement_study=False):
+def run(repository, inputs, output, reverse=False, observer_study=False, placement_study=False,
+        tracer_study=False):
     """Four fixed arms, once each, same runner/interpreter/path; no retry-to-green."""
     output.mkdir(parents=True, exist_ok=False)
     candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repository,
@@ -529,11 +550,22 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
     if reverse:
         arms.reverse()
     placements = {}
+    tracer_cpus = {}
     if placement_study:
         arms = [("s06-same", S06, "boundary"), ("s06-sibling", S06, "boundary"),
                 ("s08-sibling", S08, "boundary"), ("s08-same", S08, "boundary")]
         placements = {name: "same_logical" if name.endswith("same") else "smt_sibling"
                       for name, _, _ in arms}
+    if tracer_study:
+        plan = smt_plan()
+        require_original_cpu()
+        arms = [("s06-tracer-shared", S06, "boundary"),
+                ("s06-tracer-other", S06, "boundary"),
+                ("s08-tracer-other", S08, "boundary"),
+                ("s08-tracer-shared", S08, "boundary")]
+        placements = dict.fromkeys((name for name, _, _ in arms), "smt_sibling")
+        tracer_cpus = {name: plan["smt_sibling"] if name.endswith("shared") else plan["cores"][1][1]
+                       for name, _, _ in arms}
     manifest = {"status": "DIAGNOSTIC_ONLY", "qualification_eligible": False,
                 "candidate": candidate,
                 "driver_sha256": hashlib.sha256(SCRIPT.read_bytes()).hexdigest(),
@@ -541,17 +573,20 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                 "sched_schedstats": read_text(Path("/proc/sys/kernel/sched_schedstats")),
                 "observer": "strace -ff -ttt -T; syscall set recorded per arm",
                 "sampling_seconds": 0.01, "order": [name for name, _, _ in arms],
-                "experiment": "SMT-placement" if placement_study else
+                "experiment": "tracer-placement" if tracer_study else
+                    "SMT-placement" if placement_study else
                     "observer-study" if observer_study else "source-comparison",
                 "limitations": ["instrumentation perturbs timing", "one runner is not a fleet",
                                 "OS cache not flushed", "task exits can truncate task accounting",
                                 "proc sampling does not prove individual syscall causality"]}
     write_json(output / "manifest.json", manifest)
     shutil.copyfile(SCRIPT, output / "driver.py")
-    if placement_study:
+    if placement_study or tracer_study:
         manifest["placement_plan"] = smt_plan()
+        if tracer_study:
+            manifest["required_cpu_models"] = require_original_cpu()
         write_json(output / "manifest.json", manifest)
-    if observer_study or placement_study:
+    if observer_study or placement_study or tracer_study:
         manifest["scheduler_calibration"] = calibrate_scheduler()
         write_json(output / "manifest.json", manifest)
         if manifest["scheduler_calibration"]["status"] != "POSITIVE_RUNQUEUE_CONTROL":
@@ -575,6 +610,7 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
             arm_output.mkdir()
             arm = {"name": name, "source": revision, "observation_mode": mode,
                    "placement": placements.get(name),
+                   "tracer_cpu": tracer_cpus.get(name),
                    "started_ns": time.time_ns(),
                    "trace": "network" if mode == "boundary" else "network,fsync,fdatasync"}
             manifest["arms"].append(arm)
@@ -597,12 +633,20 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                                  "core/provelume/atomic_commit.py",
                                  "core/provelume/capture_adapter.py")}
                 with (arm_output / "execution.log").open("w") as stream:
-                    placement_args = ["--placement", placements[name]] if placement_study else []
-                    process = subprocess.Popen(["strace", "-ff", "-ttt", "-T", "-e",
+                    placement_args = ["--placement", placements[name]] \
+                        if placement_study or tracer_study else []
+                    if tracer_study:
+                        placement_args += ["--inherited-affinity",
+                            ",".join(map(str, manifest["placement_plan"]["allowed"])),
+                            "--tracer-cpu", str(tracer_cpus[name])]
+                    command = ["strace", "-ff", "-ttt", "-T", "-e",
                         "trace=" + arm["trace"], "-o", str(arm_output / "network"),
                         sys.executable, str(SCRIPT), "worker", "--source", str(source),
                         "--artifacts", str(data), "--output", str(arm_output), "--mode", mode,
-                        *placement_args],
+                        *placement_args]
+                    if tracer_study:
+                        command = ["taskset", "--cpu-list", str(tracer_cpus[name]), *command]
+                    process = subprocess.Popen(command,
                         cwd=source, stdout=stream, stderr=subprocess.STDOUT,
                         start_new_session=True)
                     try:
@@ -622,7 +666,7 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                     arm["observer_exit_code"] = observed.returncode
                 arm["finished_ns"] = time.time_ns()
                 write_json(output / "manifest.json", manifest)
-                if placement_study:
+                if placement_study or tracer_study:
                     if arm["exit_code"] != 0 or arm.get("observer_exit_code") != 0:
                         raise RuntimeError("SMT_arm_or_observer_failed; no next arm")
                     report = json.loads((arm_output / "report.json").read_text())
@@ -651,8 +695,11 @@ def main():
     measurement.add_argument("--output", type=Path, required=True)
     measurement.add_argument("--mode", choices=("legacy", "boundary", "extended"), default="legacy")
     measurement.add_argument("--placement", choices=("same_logical", "smt_sibling"))
+    measurement.add_argument("--inherited-affinity", type=lambda raw: set(map(int, raw.split(","))))
+    measurement.add_argument("--tracer-cpu", type=int)
     topology = commands.add_parser("smt-topology")
     topology.add_argument("--output", type=Path, required=True)
+    topology.add_argument("--require-original-cpu", action="store_true")
     observation = commands.add_parser("observe")
     observation.add_argument("--source", type=Path, required=True)
     observation.add_argument("--output", type=Path, required=True)
@@ -664,16 +711,22 @@ def main():
     study = controlled.add_mutually_exclusive_group()
     study.add_argument("--observer-study", action="store_true")
     study.add_argument("--placement-study", action="store_true")
+    study.add_argument("--tracer-study", action="store_true")
     args = parser.parse_args()
     if args.command == "sample":
         sample(args.pipe, args.output)
     elif args.command == "worker":
         worker(args.source.resolve(), args.artifacts.resolve(), args.output.resolve(), args.mode,
-               args.placement)
+               args.placement, args.inherited_affinity, args.tracer_cpu)
     elif args.command == "smt-topology":
         args.output.parent.mkdir(parents=True, exist_ok=True)
         try:
-            write_json(args.output, {"status": "SMT_TOPOLOGY_CONFIRMED", "plan": smt_plan()})
+            result = {"status": "SMT_TOPOLOGY_CONFIRMED", "plan": smt_plan()}
+            if args.require_original_cpu:
+                result["cpu_models"] = require_original_cpu()
+                if shutil.which("taskset") is None:
+                    raise ValueError("tracer affinity transport unavailable")
+            write_json(args.output, result)
         except (OSError, ValueError) as exc:
             write_json(args.output, {"status": "CAPABILITY_MISSING", "reason": str(exc)})
             raise
@@ -681,7 +734,7 @@ def main():
         observe(args.source.resolve(), args.output.resolve())
     else:
         run(args.repository.resolve(), args.inputs.resolve(), args.output.resolve(), args.reverse,
-            args.observer_study, args.placement_study)
+            args.observer_study, args.placement_study, args.tracer_study)
 
 
 if __name__ == "__main__":

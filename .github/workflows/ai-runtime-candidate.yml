@@ -13,6 +13,10 @@ on:
         description: 'Nonqualifying S01 operation-boundary and observer-cost study'
         type: boolean
         default: false
+      concordia_tracer_study:
+        description: 'Nonqualifying S01 tracer CPU placement on the original EPYC 9V74 profile'
+        type: boolean
+        default: false
       concordia_smt_study:
         description: 'Nonqualifying S01 capture placement on worker CPU versus SMT sibling'
         type: boolean
@@ -21,7 +25,7 @@ permissions:
   contents: read
 jobs:
   measure:
-    if: ${{ inputs.concordia_diagnostic != true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true }}
+    if: ${{ inputs.concordia_diagnostic != true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
     strategy:
       fail-fast: false
       matrix:
@@ -67,7 +71,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   concordia-diagnostic:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_diagnostic == true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_diagnostic == true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
     runs-on: ubuntu-24.04
     # Four diagnostic arms, capped at 20 minutes each; qualification job stays unchanged.
     timeout-minutes: 85
@@ -96,7 +100,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   concordia-observer-study:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_observer_study == true && inputs.concordia_smt_study != true }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_observer_study == true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 85
     steps:
@@ -124,7 +128,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   concordia-smt-study:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_smt_study == true }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_smt_study == true && inputs.concordia_tracer_study != true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 85
     steps:
@@ -152,6 +156,38 @@ jobs:
           path: |
             .agent/concordia-smt-topology.json
             .agent/concordia-smt-study
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  concordia-tracer-study:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_tracer_study == true }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Require original CPU and actual SMT before model acquisition
+        run: python scripts/diagnose_concordia_cpu.py smt-topology --require-original-cpu --output .agent/concordia-tracer-topology.json
+      - name: Canonical dependency bootstrap
+        run: python scripts/bootstrap.py
+      - name: Explicit locked acquisition (no model in artifacts or Git)
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/concordia-inputs" --accept-licenses --include-model
+      - name: Enable diagnostic scheduler counters
+        run: sudo sysctl kernel.sched_schedstats=1
+      - name: Controlled tracer placement (DIAGNOSTIC_ONLY)
+        run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-tracer-study" --tracer-study
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: concordia-tracer-study
+          path: |
+            .agent/concordia-tracer-topology.json
+            .agent/concordia-tracer-study
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30

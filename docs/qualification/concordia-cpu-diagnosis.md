@@ -231,3 +231,62 @@ An isolated correction and controlled effect, then all unchanged-candidate nativ
 original CI/artifact, review and preflight gates, remain necessary. Older Windows
 bytes stay historical; Windows11/browser/human gates remain unqualified. The
 PR-local legacy owner/binding and deferred lifecycle v2 remain unchanged.
+
+## Tracer-placement control after observed exceedances
+
+The SMT block completed on EPYC 9V74 / Linux 6.17.0-1022-azure / Python 3.12.15:
+[run 40279997821](https://github.com/gabned/provelume/actions/runs/40279997821),
+original artifact `12633263958`, 4,662,779 bytes, SHA-256
+`924f95de3add69e6c5087c5ff1bd4a52b386ffda2fe009eb0d91b0f2b1c19d96`.
+All 2,500 ZIP members were read/CRC/hash checked. Four network observers PASS.
+There are new S08 capture exceedances with contemporaneous counters: on original
+S06 source, samples 810/811 are 0.524169647/0.640234783 against 0.493994258; on
+original S08 source, sibling sample 811 is 0.929333192 against 0.537449150.
+No targeted S06 capture exceeds its own limit. These are new executions, not
+reconstructed historical intervals or a demonstrated product correction.
+
+The simple hypothesis that the SMT sibling is consistently worse is unsupported.
+Observer costs also depend on the condition: boundary snapshot medians are
+6.1–6.7 ms; task-wrapper medians approximately 4 ms, with much larger tails in
+the same-logical arms. The original-S08 failed sample's submit/process boundary
+windows contain approximately 0.319 seconds of tracer runtime. Its Python
+durability intervals contain long overlapping waits and little calling-thread
+CPU; these include ptrace stops and scheduling. No additive attribution to
+storage, CPU execution or observer interference is justified by these counters.
+
+The next hypothesis is narrower: competition between the tracer and capture on
+the same logical CPU can delay an observed capture while the worker's existing
+nice value does not constrain the tracer. Test that mechanism by varying only
+the **tracer** CPU. Keep capture and its new pool tasks on logical CPU 1 (the
+worker's SMT sibling), with the unchanged native pair `[0, 2]`. A pins the tracer
+to CPU 1; B pins it to CPU 3, the sibling of the other selected native core.
+The four original-source sequences run once in S06 A/B, then S08 B/A order.
+The tracer's child explicitly restores the original four-CPU mask before any
+application import, hardware check or worker creation. Each probe verifies the
+actual tracer mask, worker pair, capture mask and pool-task masks. No native
+priority, configuration, product code or process-wide foreground mask changes.
+
+An explicit `concordia_tracer_study=true` dispatch first requires actual two-core,
+four-thread SMT and the exact reported original EPYC 9V74 CPU model. A mismatch
+is CAPABILITY_MISSING, before model acquisition, with the original preflight
+retained; do not automatically request another generic runner. The available
+generic label cannot promise that CPU model. If admitted, use the same canonical
+inputs, interpreter/dependencies, path depth, fresh stores/Instances, complete
+native payloads and unchanged original evaluators. Each arm keeps its own idle
+denominator and the original relative limit, including the fixed capture mask.
+
+Both modes retain exactly the same mandatory all-thread network-only strace,
+boundary/cgroup accounting, pool-task observations and durability wrappers.
+Measure their cost again in each arm, including tracer runtime/wait and all
+observer envelopes. Pinning and restoring masks occur outside the capture clock;
+that timing is not subtracted from any result. No arbitrary instrumentation
+deduction or historical absolute threshold is used. One AB/BA block cannot rule
+out drift or intermittent storage stalls; a later green alone is not a correction.
+
+The positive scheduler calibration, 20-minute arm bounds, full-sequence checks,
+affinity checks, non-capture gates and final network PASS stop conditions remain.
+Retain every failed evaluator result. No extra arm, reverse block or retry-to-green
+follows automatically. A demonstrated tracer effect would identify an observer
+mechanism under these conditions, not by itself qualify a product or close either
+CURRENT finding. Product changes still require an isolated mechanism and controlled
+effect, then all unchanged-candidate gates and fresh Windows byte identities.
