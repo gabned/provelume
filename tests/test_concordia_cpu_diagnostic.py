@@ -76,7 +76,8 @@ def test_sampler_binds_actual_process_and_retains_unclosed_probe(tmp_path):
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux diagnostic worker")
 @pytest.mark.parametrize("mode,placement", [("legacy", None), ("boundary", None),
-                                         ("extended", None), ("boundary", "same_logical")])
+                                         ("extended", None), ("boundary", "same_logical"),
+                                         ("boundary", "portable_foreground")])
 def test_final_network_observer_cannot_requalify_instrumented_capture(
     tmp_path, monkeypatch, mode, placement
 ):
@@ -112,8 +113,10 @@ def test_final_network_observer_cannot_requalify_instrumented_capture(
         # Exercise real affinity/task wiring on this host, without claiming that
         # a synthetic plan qualifies its hardware as SMT.
         allowed = sorted(os.sched_getaffinity(0))
-        monkeypatch.setattr(diagnostic, "smt_plan", lambda: {
-            "allowed": allowed, "same_logical": allowed[0], "worker_cpus": [],
+        function = "portable_tracer_plan" if placement == "portable_foreground" else "smt_plan"
+        monkeypatch.setattr(diagnostic, function, lambda: {
+            "allowed": allowed, "same_logical": allowed[0],
+            "portable_foreground": allowed[0], "worker_cpus": [],
         })
     output = tmp_path / "output"
     output.mkdir()
@@ -267,7 +270,8 @@ def test_original_cpu_requirement_refuses_a_different_reported_model(tmp_path):
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux tracer affinity diagnostic")
-def test_real_tracer_stays_pinned_while_child_and_capture_get_their_own_masks(tmp_path):
+@pytest.mark.parametrize("placement", ["smt_sibling", "portable_foreground"])
+def test_real_tracer_stays_pinned_while_child_and_capture_get_their_own_masks(tmp_path, placement):
     import shutil
 
     if shutil.which("strace") is None or shutil.which("taskset") is None:
@@ -280,6 +284,7 @@ def test_real_tracer_stays_pinned_while_child_and_capture_get_their_own_masks(tm
     output = tmp_path / "output"
     output.mkdir()
     script = tmp_path / "synthetic.py"
+    plan_function = "portable_tracer_plan" if placement == "portable_foreground" else "smt_plan"
     script.write_text(f'''
 import json, os, sys
 from pathlib import Path
@@ -294,10 +299,10 @@ def measure(artifacts, output):
                                         "failures": ["synthetic_retained_failure"]}})
 qualify_ai_runtime.measure = measure
 # Synthetic wiring control only; this does not qualify this host as SMT.
-diagnostic.smt_plan = lambda: {{"allowed": {allowed!r}, "smt_sibling": {foreground},
+diagnostic.{plan_function} = lambda: {{"allowed": {allowed!r}, {placement!r}: {foreground},
                                "worker_cpus": []}}
 diagnostic.worker(Path({str(root)!r}), Path({str(tmp_path / "artifacts")!r}),
-                  Path({str(output)!r}), "boundary", "smt_sibling", {set(allowed)!r}, {tracer})
+                  Path({str(output)!r}), "boundary", {placement!r}, {set(allowed)!r}, {tracer})
 assert os.sched_getaffinity(0) == {set(allowed)!r}
 ''')
     observed = subprocess.run(
@@ -316,3 +321,56 @@ assert os.sched_getaffinity(0) == {set(allowed)!r}
     assert context["pool_tasks"]
     assert all(task["affinity"] == [foreground] for task in context["pool_tasks"])
     assert report["qualification_eligible"] is False
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux tracee import-affinity control")
+def test_tracee_restores_full_mask_before_first_application_import(tmp_path, monkeypatch):
+    import builtins
+
+    original = os.sched_getaffinity(0)
+    entered = []
+    marker = RuntimeError("stop before any application import")
+    real_import = builtins.__import__
+
+    def first_application_import(name, *args, **kwargs):
+        if name == "ai_runtime_report":
+            entered.append(sorted(os.sched_getaffinity(0)))
+            raise marker
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.setattr(builtins, "__import__", first_application_import)
+    try:
+        os.sched_setaffinity(0, {min(original)})
+        with pytest.raises(RuntimeError) as observed:
+            diagnostic.worker(tmp_path, tmp_path, tmp_path, "boundary",
+                              "portable_foreground", original, min(original))
+        assert observed.value is marker
+        assert entered == [sorted(original)]
+        assert os.sched_getaffinity(0) == original
+    finally:
+        os.sched_setaffinity(0, original)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux portable admission")
+def test_portable_admission_keeps_actual_model_and_refuses_missing_scheduler(tmp_path, monkeypatch):
+    monkeypatch.setattr(diagnostic, "portable_environment", lambda: {
+        "cpu_models": ["AMD EPYC 9V45 96-Core Processor"], "avx2": True,
+        "machine": "x86_64", "original_profile_required": False,
+    })
+    monkeypatch.setattr(diagnostic, "portable_tracer_plan", lambda: {
+        "allowed": [0, 1, 2, 3], "layout": "separate-physical-cores",
+    })
+    monkeypatch.setattr(diagnostic.shutil, "which", lambda _tool: "/synthetic/control")
+    monkeypatch.setattr(diagnostic, "calibrate_scheduler", lambda: {"status": "UNKNOWN"})
+    output = tmp_path / "admission.json"
+    with pytest.raises(ValueError, match="positive scheduler"):
+        diagnostic.admit_portable(output)
+    report = json.loads(output.read_text())
+    assert report["status"] == "CAPABILITY_MISSING"
+    assert report["environment"]["cpu_models"] == ["AMD EPYC 9V45 96-Core Processor"]
+    assert report["model_acquisition"] == "NOT_RUN"
+    assert report["qualification_eligible"] is False
+    retained = output.read_bytes()
+    with pytest.raises(ValueError, match="preserve existing"):
+        diagnostic.admit_portable(output)
+    assert output.read_bytes() == retained

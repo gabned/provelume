@@ -290,3 +290,79 @@ follows automatically. A demonstrated tracer effect would identify an observer
 mechanism under these conditions, not by itself qualify a product or close either
 CURRENT finding. Product changes still require an isolated mechanism and controlled
 effect, then all unchanged-candidate gates and fresh Windows byte identities.
+
+## Portable tracer-placement control (26 October 2026)
+
+The maintainer authorized continuing on the existing hosted Linux capacity,
+without requiring them to supply EPYC hardware. This is a **new experiment** on
+its observed host. The original EPYC 9V74 admission and control above remain
+unchanged and unexecuted after CAPABILITY_MISSING; their requirement is not
+silently weakened. Historical failed intervals still cannot be reconstructed.
+
+Hypothesis: a tracer sharing the capture's exact logical CPU can delay capture.
+The single varied factor within the block is tracer placement: A shares the
+capture CPU, B uses the declared other CPU. Capture and all new commit-pool
+tasks stay on one fixed CPU throughout every idle and busy probe. The native
+pair is still selected by each original source's unchanged distinct-core rule
+and checked against the observed pair at every probe. No native priority,
+configuration, product implementation or payload is changed.
+
+The deterministic plan reads the actual inherited mask and package/core IDs:
+
+- If both selected native cores expose another allowed logical CPU, capture uses
+  the first worker's sibling and tracer B uses the second worker's sibling.
+  With the earlier 0/1, 2/3 topology this is worker 0/2, capture 1, tracer A/B 1/3.
+- Otherwise, at least four distinct physical cores are required. Capture uses
+  the third core and tracer B the fourth, keeping both off the two worker cores.
+  On four distinct CPUs 0/1/2/3 this is worker 0/1, capture 2, tracer A/B 2/3.
+- Missing/invalid topology or an unsupported asymmetric layout stops admission.
+  A larger inherited mask is retained and reported, never cropped to manufacture
+  the reference topology. Neither branch establishes equivalence to EPYC 9V74.
+
+The host report retains actual CPU model(s), kernel, machine, Python, allowed
+CPUs and core groups. Linux/x86_64/AVX2, CPython 3.12, strace/taskset and advancing
+scheduler counters are required before bootstrap/model acquisition. Focused
+native tests, including actual strace separation and restoration before the
+first application import, then run before any model is acquired. Original
+native hardware/resource admission remains mandatory. A missing capability
+stops this host; no automatic dispatch on another host or retry follows.
+
+The four complete native sequences run once: original S06 A/B, original S08 B/A.
+Each retains the original full payload, evaluator, idle groups, per-arm relative
+limits, all observers, fresh stores/Instances, path depth and locked inputs.
+The same interpreter/dependencies and observed host are used for all four.
+An original capture FAIL remains a result; a later green or a different idle
+denominator does not erase it. No historical absolute threshold is substituted.
+
+Boundary/cgroup accounting, pool-task observations, durability wrappers and the
+mandatory post-exit all-thread network observer remain unchanged. Record their
+cost distributions again: the earlier 6–7 ms snapshot medians are context, not
+a subtraction. Keep overlapping durability/tracer/scheduling intervals distinct;
+no additive causal decomposition or arbitrary observer deduction is allowed.
+One AB/BA block cannot exclude drift, intermittency or hidden host contention.
+
+The existing affinity checks, positive scheduler control, 20-minute arm bounds,
+complete collection, non-capture gates and final network PASS stop conditions
+remain. Preserve every partial report and failed evaluator result. No extra arm,
+reverse order or automatic repetition follows. A non-reproduction is reported
+as such. A demonstrated tracer effect explains an observer mechanism on this
+host; it is not a product correction or automatic disposition of either finding.
+
+The connected host currently lacks a manual workflow-dispatch tool. Therefore
+the permanent workflow binds this execution to the **single direct descendant**
+of owner head `2a1eff02e55af7e5fa17302ab8f8ca8e0620f336` on PR #424, the
+same-repository owner branch, a synchronize event and run attempt 1. It checks
+the exact event head, clean checkout and sole parent before admission. Later
+descendants record NOT_RUN; reruns do not execute the study. This is an ordinary
+authorized PR update with read-only job permissions, not a new owner or trigger
+for publication.
+
+The new command is `run --portable-tracer-study`; the separate
+`portable-topology --output PATH` admission preserves an existing receipt.
+Every final report remains DIAGNOSTIC_ONLY / qualification_eligible:false.
+Both historical findings remain CURRENT until an isolated product mechanism and
+controlled correction are demonstrated, followed by all unchanged-candidate
+native/CI/original-artifact/review/preflight gates. New source makes earlier
+Windows byte-bound evidence historical; Windows11 Home/Pro, browser and human
+rows remain open. The original binding, PR-local legacy route and deferred v2
+activation remain unchanged; no merge, acceptance, #377 or release follows.

@@ -11,7 +11,6 @@ import contextvars
 import hashlib
 import json
 import os
-import resource
 import selectors
 import shutil
 import signal
@@ -25,11 +24,94 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
+try:
+    import resource
+except ImportError:
+    resource = None
+
 MAIN = "096782e32a3d019c3e160c2569507d55cadfd274"
 S06 = "8b3f467aa9e7c059e23f22644786ef0f87582cc3"
 S08 = "e2c9244df692cdd9dbd636a0109a7d920a21ac1b"
 SCRIPT = Path(__file__).resolve()
 CURRENT = contextvars.ContextVar("concordia_probe", default=None)
+
+
+def portable_tracer_plan(allowed=None, topology=Path("/sys/devices/system/cpu")):
+    """Observe a usable layout without requiring or emulating the original CPU.
+
+    Native selection still uses the first logical CPU of the first two physical
+    cores. Prefer their two siblings; otherwise use two additional physical cores.
+    No affinity, native configuration or hardware identity is changed here.
+    """
+    allowed = set(os.sched_getaffinity(0) if allowed is None else allowed)
+    if len(allowed) < 4 or any(type(cpu) is not int or cpu < 0 for cpu in allowed):
+        raise ValueError("portable tracer control requires four allowed logical CPUs")
+    groups = {}
+    for cpu in sorted(allowed):
+        root = topology / f"cpu{cpu}" / "topology"
+        identity = []
+        for key in ("physical_package_id", "core_id"):
+            raw = (root / key).read_text().strip()
+            if not raw.isascii() or not raw.isdecimal() or len(raw) > 10:
+                raise ValueError("portable CPU topology unavailable")
+            identity.append(int(raw))
+        groups.setdefault(tuple(identity), []).append(cpu)
+    cores = sorted(groups.values())
+    if len(cores) >= 2 and all(len(core) >= 2 for core in cores[:2]):
+        foreground, other = cores[0][1], cores[1][1]
+        layout = "worker-smt-siblings"
+    elif len(cores) >= 4:
+        foreground, other = cores[2][0], cores[3][0]
+        layout = "separate-physical-cores"
+    else:
+        raise ValueError("portable control requires two worker siblings or four physical cores")
+    return {"allowed": sorted(allowed), "cores": cores,
+            "worker_cpus": [core[0] for core in cores[:2]],
+            "portable_foreground": foreground, "tracer_other": other, "layout": layout}
+
+
+def portable_environment(cpuinfo=Path("/proc/cpuinfo")):
+    """Record actual public hardware metadata, not a substituted reference profile."""
+    import platform
+
+    raw = cpuinfo.read_text()
+    models = sorted({line.split(":", 1)[1].strip() for line in raw.splitlines()
+                     if line.startswith("model name")})
+    flags = [set(line.split(":", 1)[1].split()) for line in raw.splitlines()
+             if line.startswith("flags")]
+    return {"cpu_models": models, "avx2": bool(flags) and all("avx2" in row for row in flags),
+            "kernel": platform.release(), "machine": platform.machine(),
+            "python": platform.python_version(), "original_profile_required": False}
+
+
+def admit_portable(output):
+    """Stop before acquisition unless topology, tracing and scheduler controls work."""
+    if output.exists():
+        raise ValueError("preserve existing portable admission evidence")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    result = {"status": "CAPABILITY_MISSING", "qualification_eligible": False,
+              "experiment": "portable-tracer-placement", "model_acquisition": "NOT_RUN"}
+    try:
+        if sys.platform != "linux" or resource is None:
+            raise ValueError("portable tracer control requires Linux resource/scheduler support")
+        result["environment"] = portable_environment()
+        if (not result["environment"]["cpu_models"] or not result["environment"]["avx2"]
+                or result["environment"]["machine"] != "x86_64"
+                or sys.version_info[:2] != (3, 12)):
+            raise ValueError("observed host does not support the existing native runtime")
+        result["plan"] = portable_tracer_plan()
+        if any(shutil.which(tool) is None for tool in ("strace", "taskset")):
+            raise ValueError("portable tracer transport unavailable")
+        result["scheduler_calibration"] = calibrate_scheduler()
+        if result["scheduler_calibration"]["status"] != "POSITIVE_RUNQUEUE_CONTROL":
+            raise ValueError("positive scheduler counters unavailable; no acquisition")
+        result["status"] = "PORTABLE_PROFILE_ADMITTED"
+    except (OSError, ValueError, RuntimeError) as exc:
+        result["reason"] = str(exc)
+        write_json(output, result)
+        raise
+    write_json(output, result)
+    return result
 
 
 def smt_plan(allowed=None, topology=Path("/sys/devices/system/cpu")):
@@ -230,6 +312,8 @@ def sample(pipe, output):
 
 
 def accounting():
+    if resource is None:
+        raise RuntimeError("native CPU accounting unavailable on this platform")
     result = {"monotonic_ns": time.monotonic_ns(), "realtime_ns": time.time_ns(),
               "process_cpu_ns": time.process_time_ns(), "thread_cpu_ns": time.thread_time_ns(),
               "tid": threading.get_native_id()}
@@ -421,7 +505,8 @@ def worker(source, artifacts, output, mode="legacy", placement=None,
     from provelume.ai_runtime import LocalRuntime
     from provelume.capture_adapter import CaptureAdapter
 
-    plan = smt_plan() if placement is not None else None
+    plan = (portable_tracer_plan() if placement == "portable_foreground" else smt_plan()) \
+        if placement is not None else None
     instances = []
     original_init = LocalRuntime.__init__
 
@@ -535,7 +620,7 @@ def observe(source, output):
 
 
 def run(repository, inputs, output, reverse=False, observer_study=False, placement_study=False,
-        tracer_study=False):
+        tracer_study=False, portable_tracer_study=False):
     """Four fixed arms, once each, same runner/interpreter/path; no retry-to-green."""
     output.mkdir(parents=True, exist_ok=False)
     candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repository,
@@ -556,15 +641,18 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                 ("s08-sibling", S08, "boundary"), ("s08-same", S08, "boundary")]
         placements = {name: "same_logical" if name.endswith("same") else "smt_sibling"
                       for name, _, _ in arms}
-    if tracer_study:
-        plan = smt_plan()
-        require_original_cpu()
+    if tracer_study or portable_tracer_study:
+        plan = portable_tracer_plan() if portable_tracer_study else smt_plan()
+        if tracer_study:
+            require_original_cpu()
         arms = [("s06-tracer-shared", S06, "boundary"),
                 ("s06-tracer-other", S06, "boundary"),
                 ("s08-tracer-other", S08, "boundary"),
                 ("s08-tracer-shared", S08, "boundary")]
-        placements = dict.fromkeys((name for name, _, _ in arms), "smt_sibling")
-        tracer_cpus = {name: plan["smt_sibling"] if name.endswith("shared") else plan["cores"][1][1]
+        placement = "portable_foreground" if portable_tracer_study else "smt_sibling"
+        placements = dict.fromkeys((name for name, _, _ in arms), placement)
+        other = plan["tracer_other"] if portable_tracer_study else plan["cores"][1][1]
+        tracer_cpus = {name: plan[placement] if name.endswith("shared") else other
                        for name, _, _ in arms}
     manifest = {"status": "DIAGNOSTIC_ONLY", "qualification_eligible": False,
                 "candidate": candidate,
@@ -573,7 +661,8 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                 "sched_schedstats": read_text(Path("/proc/sys/kernel/sched_schedstats")),
                 "observer": "strace -ff -ttt -T; syscall set recorded per arm",
                 "sampling_seconds": 0.01, "order": [name for name, _, _ in arms],
-                "experiment": "tracer-placement" if tracer_study else
+                "experiment": "portable-tracer-placement" if portable_tracer_study else
+                    "tracer-placement" if tracer_study else
                     "SMT-placement" if placement_study else
                     "observer-study" if observer_study else "source-comparison",
                 "limitations": ["instrumentation perturbs timing", "one runner is not a fleet",
@@ -581,12 +670,15 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                                 "proc sampling does not prove individual syscall causality"]}
     write_json(output / "manifest.json", manifest)
     shutil.copyfile(SCRIPT, output / "driver.py")
-    if placement_study or tracer_study:
-        manifest["placement_plan"] = smt_plan()
+    if portable_tracer_study:
+        manifest["observed_environment"] = portable_environment()
+        manifest["limitations"].append("not a reproduction of the original EPYC9V74 host")
+    if placement_study or tracer_study or portable_tracer_study:
+        manifest["placement_plan"] = portable_tracer_plan() if portable_tracer_study else smt_plan()
         if tracer_study:
             manifest["required_cpu_models"] = require_original_cpu()
         write_json(output / "manifest.json", manifest)
-    if observer_study or placement_study or tracer_study:
+    if observer_study or placement_study or tracer_study or portable_tracer_study:
         manifest["scheduler_calibration"] = calibrate_scheduler()
         write_json(output / "manifest.json", manifest)
         if manifest["scheduler_calibration"]["status"] != "POSITIVE_RUNQUEUE_CONTROL":
@@ -634,8 +726,8 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                                  "core/provelume/capture_adapter.py")}
                 with (arm_output / "execution.log").open("w") as stream:
                     placement_args = ["--placement", placements[name]] \
-                        if placement_study or tracer_study else []
-                    if tracer_study:
+                        if placement_study or tracer_study or portable_tracer_study else []
+                    if tracer_study or portable_tracer_study:
                         placement_args += ["--inherited-affinity",
                             ",".join(map(str, manifest["placement_plan"]["allowed"])),
                             "--tracer-cpu", str(tracer_cpus[name])]
@@ -644,7 +736,7 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                         sys.executable, str(SCRIPT), "worker", "--source", str(source),
                         "--artifacts", str(data), "--output", str(arm_output), "--mode", mode,
                         *placement_args]
-                    if tracer_study:
+                    if tracer_study or portable_tracer_study:
                         command = ["taskset", "--cpu-list", str(tracer_cpus[name]), *command]
                     process = subprocess.Popen(command,
                         cwd=source, stdout=stream, stderr=subprocess.STDOUT,
@@ -666,7 +758,7 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                     arm["observer_exit_code"] = observed.returncode
                 arm["finished_ns"] = time.time_ns()
                 write_json(output / "manifest.json", manifest)
-                if placement_study or tracer_study:
+                if placement_study or tracer_study or portable_tracer_study:
                     if arm["exit_code"] != 0 or arm.get("observer_exit_code") != 0:
                         raise RuntimeError("SMT_arm_or_observer_failed; no next arm")
                     report = json.loads((arm_output / "report.json").read_text())
@@ -694,12 +786,15 @@ def main():
     measurement.add_argument("--artifacts", type=Path, required=True)
     measurement.add_argument("--output", type=Path, required=True)
     measurement.add_argument("--mode", choices=("legacy", "boundary", "extended"), default="legacy")
-    measurement.add_argument("--placement", choices=("same_logical", "smt_sibling"))
+    measurement.add_argument("--placement",
+                             choices=("same_logical", "smt_sibling", "portable_foreground"))
     measurement.add_argument("--inherited-affinity", type=lambda raw: set(map(int, raw.split(","))))
     measurement.add_argument("--tracer-cpu", type=int)
     topology = commands.add_parser("smt-topology")
     topology.add_argument("--output", type=Path, required=True)
     topology.add_argument("--require-original-cpu", action="store_true")
+    portable = commands.add_parser("portable-topology")
+    portable.add_argument("--output", type=Path, required=True)
     observation = commands.add_parser("observe")
     observation.add_argument("--source", type=Path, required=True)
     observation.add_argument("--output", type=Path, required=True)
@@ -712,12 +807,15 @@ def main():
     study.add_argument("--observer-study", action="store_true")
     study.add_argument("--placement-study", action="store_true")
     study.add_argument("--tracer-study", action="store_true")
+    study.add_argument("--portable-tracer-study", action="store_true")
     args = parser.parse_args()
     if args.command == "sample":
         sample(args.pipe, args.output)
     elif args.command == "worker":
         worker(args.source.resolve(), args.artifacts.resolve(), args.output.resolve(), args.mode,
                args.placement, args.inherited_affinity, args.tracer_cpu)
+    elif args.command == "portable-topology":
+        admit_portable(args.output)
     elif args.command == "smt-topology":
         args.output.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -734,7 +832,8 @@ def main():
         observe(args.source.resolve(), args.output.resolve())
     else:
         run(args.repository.resolve(), args.inputs.resolve(), args.output.resolve(), args.reverse,
-            args.observer_study, args.placement_study, args.tracer_study)
+            args.observer_study, args.placement_study, args.tracer_study,
+            args.portable_tracer_study)
 
 
 if __name__ == "__main__":

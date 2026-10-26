@@ -191,3 +191,88 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
+
+  concordia-portable-tracer-study:
+    # One authorized source advancement, not a search for a particular hosted CPU.
+    if: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.action == 'synchronize' &&
+          github.event.pull_request.number == 424 &&
+          github.event.pull_request.head.repo.full_name == 'gabned/provelume' &&
+          github.event.pull_request.head.ref == 'product/0.15-s01-windows-readiness' &&
+          github.run_attempt == '1' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Bind the one predeclared source advancement
+        id: contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+          parents = subprocess.check_output(
+              ["git", "rev-list", "--parents", "-n", "1", "HEAD"], text=True
+          ).split()
+          if parents[0] != event["pull_request"]["head"]["sha"]:
+              raise RuntimeError("checked-out source differs from the event")
+          if subprocess.check_output(["git", "status", "--porcelain"]):
+              raise RuntimeError("diagnostic source is not clean")
+          eligible = (len(parents) == 2 and
+                      parents[1] == "2a1eff02e55af7e5fa17302ab8f8ca8e0620f336")
+          output = Path(".agent/concordia-portable-trigger.json")
+          output.parent.mkdir(exist_ok=True)
+          output.write_text(json.dumps({
+              "status": "ELIGIBLE" if eligible else "NOT_RUN",
+              "source": parents[0], "parents": parents[1:],
+              "event": event["action"], "attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "qualification_eligible": False,
+              "reason": "single direct descendant of the predeclared owner head"
+          }, indent=2) + "\n")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as stream:
+              stream.write("eligible=" + str(eligible).lower() + "\n")
+          PY
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        if: steps.contract.outputs.eligible == 'true'
+        with:
+          python-version: '3.12'
+      - name: Enable the existing diagnostic scheduler counters
+        if: steps.contract.outputs.eligible == 'true'
+        run: sudo sysctl kernel.sched_schedstats=1
+      - name: Admit the observed host before bootstrap or model acquisition
+        if: steps.contract.outputs.eligible == 'true'
+        run: python scripts/diagnose_concordia_cpu.py portable-topology --output .agent/concordia-portable-topology.json
+      - name: Canonical dependency bootstrap
+        if: steps.contract.outputs.eligible == 'true'
+        run: python scripts/bootstrap.py
+      - name: Native diagnostic integrity and actual tracer-affinity controls
+        if: steps.contract.outputs.eligible == 'true'
+        run: |
+          .venv/bin/python -m ruff check --cache-dir .agent/ruff-cache core tests scripts tools
+          .venv/bin/python -m pytest -q tests/test_concordia_cpu_topology.py tests/test_concordia_cpu_diagnostic.py
+      - name: Explicit canonical acquisition with complete locked input verification
+        if: steps.contract.outputs.eligible == 'true'
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/concordia-inputs" --accept-licenses --include-model
+      - name: Four original-source arms once on this observed host (DIAGNOSTIC_ONLY)
+        if: steps.contract.outputs.eligible == 'true'
+        run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-portable-tracer-study" --portable-tracer-study
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: concordia-portable-tracer-study
+          path: |
+            .agent/concordia-portable-trigger.json
+            .agent/concordia-portable-topology.json
+            .agent/concordia-portable-tracer-study
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
