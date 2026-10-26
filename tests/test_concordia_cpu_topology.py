@@ -104,9 +104,11 @@ class PortableTopologyTests(unittest.TestCase):
         self.assertFalse(diagnostic.portable_environment(cpuinfo)["avx2"])
 
     def test_unavailable_native_accounting_cannot_be_faked(self):
-        with patch.object(diagnostic, "resource", None):
-            with self.assertRaisesRegex(RuntimeError, "accounting unavailable"):
-                diagnostic.accounting()
+        with (
+            patch.object(diagnostic, "resource", None),
+            self.assertRaisesRegex(RuntimeError, "accounting unavailable"),
+        ):
+            diagnostic.accounting()
 
     @unittest.skipUnless(sys.platform == "win32", "actual Windows refusal control")
     def test_windows_admission_stops_before_model_acquisition(self):

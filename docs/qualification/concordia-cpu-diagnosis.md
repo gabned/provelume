@@ -350,7 +350,7 @@ host; it is not a product correction or automatic disposition of either finding.
 
 The connected host currently lacks a manual workflow-dispatch tool. Therefore
 the permanent workflow binds this execution to the **single direct descendant**
-of owner head `2a1eff02e55af7e5fa17302ab8f8ca8e0620f336` on PR #424, the
+of owner head `8433e64883c55b7cb5fff20ed8bf8b7795af93b5` on PR #424, the
 same-repository owner branch, a synchronize event and run attempt 1. It checks
 the exact event head, clean checkout and sole parent before admission. Later
 descendants record NOT_RUN; reruns do not execute the study. This is an ordinary
@@ -366,3 +366,21 @@ native/CI/original-artifact/review/preflight gates. New source makes earlier
 Windows byte-bound evidence historical; Windows11 Home/Pro, browser and human
 rows remain open. The original binding, PR-local legacy route and deferred v2
 activation remain unchanged; no merge, acceptance, #377 or release follows.
+
+### Pre-execution correction after the first portable admission
+
+The first portable job on source `8433e64`, run `40378966947`, job
+`121769679800`, passed actual host admission and positive scheduler calibration.
+Ruff then rejected two nested context managers in the new accounting-refusal
+test (SIM117). Model acquisition and all four native arms were skipped; no
+portable capture experiment ran. Original artifact `12677342032` retains the
+two trigger/admission reports, 1,179 bytes, GitHub-recorded SHA-256
+`5770480b165fe1d925d4b81d336ce0b4115f6b5770a418f54815e530ed00ad60`.
+
+The correction combines the test's context managers without changing the driver,
+native product, payload, observation or stop conditions. The one-execution
+parent guard above advances to that failed source's normal direct descendant,
+still on attempt 1. This is a corrected pre-execution control, not another
+equivalent four-arm study or a retry seeking a different CPU model. Retain the
+original failed Ruff/jobs/Windows-coverage results. Existing authority continues;
+no rebinding of the original workstream, waiver or CPU correction is claimed.

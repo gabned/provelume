@@ -228,7 +228,7 @@ jobs:
           if subprocess.check_output(["git", "status", "--porcelain"]):
               raise RuntimeError("diagnostic source is not clean")
           eligible = (len(parents) == 2 and
-                      parents[1] == "2a1eff02e55af7e5fa17302ab8f8ca8e0620f336")
+                      parents[1] == "8433e64883c55b7cb5fff20ed8bf8b7795af93b5")
           output = Path(".agent/concordia-portable-trigger.json")
           output.parent.mkdir(exist_ok=True)
           output.write_text(json.dumps({
