@@ -75,8 +75,11 @@ def test_sampler_binds_actual_process_and_retains_unclosed_probe(tmp_path):
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux diagnostic worker")
-@pytest.mark.parametrize("mode", ["legacy", "boundary", "extended"])
-def test_final_network_observer_cannot_requalify_instrumented_capture(tmp_path, monkeypatch, mode):
+@pytest.mark.parametrize("mode,placement", [("legacy", None), ("boundary", None),
+                                         ("extended", None), ("boundary", "same_logical")])
+def test_final_network_observer_cannot_requalify_instrumented_capture(
+    tmp_path, monkeypatch, mode, placement
+):
     # Exercise the real worker and observer import boundaries. No native model is
     # involved; a retained synthetic failure must survive the final evaluator.
     root = Path(diagnostic.__file__).resolve().parents[1]
@@ -105,9 +108,16 @@ def test_final_network_observer_cannot_requalify_instrumented_capture(tmp_path, 
                                             "failures": ["synthetic_retained_failure"]})
 
     monkeypatch.setattr(qualify_ai_runtime, "measure", synthetic_measure)
+    if placement is not None:
+        # Exercise real affinity/task wiring on this host, without claiming that
+        # a synthetic plan qualifies its hardware as SMT.
+        allowed = sorted(os.sched_getaffinity(0))
+        monkeypatch.setattr(diagnostic, "smt_plan", lambda: {
+            "allowed": allowed, "same_logical": allowed[0], "worker_cpus": [],
+        })
     output = tmp_path / "output"
     output.mkdir()
-    diagnostic.worker(root, tmp_path / "artifacts", output, mode)
+    diagnostic.worker(root, tmp_path / "artifacts", output, mode, placement)
     assert observations == []
     assert not (output / "report.json").exists()
     worker_finished = True
@@ -136,6 +146,12 @@ def test_final_network_observer_cannot_requalify_instrumented_capture(tmp_path, 
             assert len(expected) == 1
             assert isinstance(expected[0]["schedstat"], (str, dict))
         assert all(row["started_ns"] <= row["finished_ns"] for row in context["durability"])
+        if placement is not None:
+            assert context["pool_tasks"]
+            assert all(t["affinity"] == [allowed[0]] for t in context["pool_tasks"])
+            assert context["placement"]["restored"] == allowed
+            assert all(row["boundary_before"]["cgroups"] is not None
+                       for row in context["operations"])
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux /proc counters")
@@ -167,3 +183,75 @@ def test_durability_wrapper_retains_exception_and_commit_thread():
     assert row["tid"] != diagnostic.threading.get_native_id()
     assert (row["wrapper_started_ns"] <= row["started_ns"]
             <= row["finished_ns"] <= row["wrapper_finished_ns"])
+
+
+def test_smt_plan_requires_real_siblings_in_the_inherited_mask(tmp_path):
+    for cpu, core in enumerate([0, 0, 1, 1, 2]):
+        root = tmp_path / f"cpu{cpu}" / "topology"
+        root.mkdir(parents=True)
+        (root / "physical_package_id").write_text("0\n")
+        (root / "core_id").write_text(str(core))
+    assert diagnostic.smt_plan({0, 1, 2, 3}, tmp_path) == {
+        "allowed": [0, 1, 2, 3], "cores": [[0, 1], [2, 3]], "worker_cpus": [0, 2],
+        "same_logical": 0, "smt_sibling": 1,
+    }
+    with pytest.raises(ValueError, match="two physical cores"):
+        diagnostic.smt_plan({0, 1, 2, 4}, tmp_path)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux affinity diagnostic")
+def test_probe_placement_restores_actual_mask_and_exception():
+    original = os.sched_getaffinity(0)
+    cpu = min(original)
+    marker = ValueError("original probe error")
+    context = {}
+    with pytest.raises(ValueError) as observed, diagnostic.place_probe(
+        context, "same_logical", {"allowed": sorted(original), "same_logical": cpu}, []
+    ):
+        assert os.sched_getaffinity(0) == {cpu}
+        raise marker
+    assert observed.value is marker
+    assert os.sched_getaffinity(0) == original
+    assert context["placement"]["restored"] == sorted(original)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux affinity diagnostic")
+def test_probe_placement_refuses_a_different_worker_pair():
+    original = sorted(os.sched_getaffinity(0))
+    with pytest.raises(RuntimeError, match="worker_affinity"), diagnostic.place_probe(
+        {}, "same_logical", {"allowed": original, "worker_cpus": []}, [os.getpid()]
+    ):
+        pytest.fail("mismatched worker must not execute a probe")
+    assert sorted(os.sched_getaffinity(0)) == original
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux per-task counters")
+def test_pool_observer_retains_new_task_counters_result_and_error(monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    context = {"pool_tasks": [], "active_operation": "process"}
+    token = diagnostic.CURRENT.set(context)
+    monkeypatch.setattr(ThreadPoolExecutor, "submit",
+                        diagnostic.pool_observer(ThreadPoolExecutor.submit))
+    marker = OSError("original task error")
+
+    def fail():
+        raise marker
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            assert pool.submit(lambda value: value + 1, 6).result() == 7
+            with pytest.raises(OSError) as observed:
+                pool.submit(fail).result()
+            assert observed.value is marker
+    finally:
+        diagnostic.CURRENT.reset(token)
+    assert len(context["pool_tasks"]) == 2
+    for row in context["pool_tasks"]:
+        assert row["operation"] == "process"
+        assert row["before"]["tid"] != diagnostic.threading.get_native_id()
+        assert row["before"]["tid"] == row["after"]["tid"]
+        assert len(row["counters_after"]["schedstat"].split()) == 3
+        assert row["queued_ns"] <= row["wrapper_started_ns"]
+        assert row["before"]["monotonic_ns"] <= row["after"]["monotonic_ns"]
+        assert row["after"]["monotonic_ns"] <= row["wrapper_finished_ns"]

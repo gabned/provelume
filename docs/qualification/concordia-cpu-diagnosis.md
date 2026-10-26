@@ -156,3 +156,78 @@ close either finding. Any subsequent product correction still needs an isolated
 mechanism and controlled effect, followed by full unchanged-candidate native,
 original CI/artifact, review and preflight checks. Windows evidence from earlier
 bytes remains historical; mandatory Windows11/browser/human rows remain open.
+
+## SMT capture-placement experiment (26 October 2026)
+
+This is a new scheduling condition, not another observer comparison. Both original
+failed reports and all four reports in original artifact `12603958772` expose four
+logical CPUs on **two physical cores**; the native worker selects logical CPUs
+`[0, 2]`, one from each core. The resumed cloud executor instead exposes five
+distinct cores, with no exposed SMT siblings. Restricting that executor to four
+cores does not recreate the originals' sharing of physical execution resources.
+The previous non-reproductions do not establish a hardware cause.
+
+Hypothesis: capture on the SMT sibling of a continuously active native worker can
+lose execution throughput without correspondingly large scheduler runqueue wait.
+Capture on the worker's exact logical CPU can instead preempt the worker, whose
+existing nice value is at least 10. These are distinguishable scheduling
+conditions. Neither is declared to explain the historical failed intervals.
+
+The only varied factor is the capture thread's placement. On a verified two-core,
+four-thread host, A uses the worker's first logical CPU and B its SMT sibling.
+Every idle and busy probe, including newly submitted capture commit tasks,
+inherits the same one-CPU condition within an arm. The original four-CPU mask is
+restored on every exit, including exceptions. No process-wide affinity, worker
+pair, priority, native configuration, product source or capture payload changes.
+Every live worker's actual mask must match the declared pair before a probe;
+capture pool tasks must retain the declared one-CPU mask. No extra contention
+load, sleeps, cache flushes or threshold adjustments are introduced.
+
+One explicit `concordia_smt_study=true` dispatch runs this fixed block once:
+
+| Order | Immutable source | Capture placement | Observation |
+| --- | --- | --- | --- |
+| 1 | original S06 `8b3f467` | A: same logical CPU | boundary |
+| 2 | original S06 `8b3f467` | B: SMT sibling | boundary |
+| 3 | original S08 `e2c9244` | B: SMT sibling | boundary |
+| 4 | original S08 `e2c9244` | A: same logical CPU | boundary |
+
+Each arm retains its complete original native sequence, fresh store/Instance,
+unchanged path depth, interpreter, dependencies, locked model/libraries, corpus,
+evaluator and all post-exit network observations. Both sources retain S06 and S08
+probes. The limit remains `min(1, 2 * median(same-arm idle capture) + 0.1)` for the
+appropriate original idle group. Historical absolute latency is only a reference.
+Fixed AB/BA ordering is one bounded block, not a statistical exclusion of drift.
+
+Both conditions retain the same boundary counters, Python durability wrappers and
+mandatory network-only `strace`. There is no polling sampler. Newly created commit
+tasks additionally record submit/start timestamps, thread CPU/rusage, scheduler
+and I/O counters, TID, inherited affinity and complete wrapper envelopes. Method
+boundaries include visible cgroup CPU/I/O/pressure counters. Missing counters stay
+UNKNOWN; hidden ancestors and host steal time remain limitations. No arguments,
+content, environment or descriptor paths are recorded by the new observers.
+
+Observer cost remains inside the original timing where incurred. Retain each
+snapshot's wall/thread-CPU duration, task wrapper pre/post envelopes, queue delay,
+affinity application/restoration duration and durability wrapper cost. The earlier
+hosted study's boundary snapshot medians were 0.76–0.91 ms; this is historical
+context, not a cost assumption or subtraction. The new task observer has no
+preclaimed cost. Report its measured distribution and any outlier association.
+Overlapping wall intervals and process/thread CPU cannot be added as a causal
+decomposition. An observed difference needs its actual task/worker overlap and
+counter evidence; no FAIL means no attribution.
+
+Stop before acquiring a model or starting a sequence if the actual inherited
+topology lacks exactly two physical cores with two allowed logical CPUs each.
+Require the existing positive scheduler-counter calibration. Stop on an affinity
+mismatch, operation error, per-arm 20-minute timeout, incomplete collection,
+non-capture gate failure or final network observer not PASS. Preserve partial
+reports and do not automatically retry on another host or reverse the order.
+An evaluator's capture FAIL remains a result to retain, not a collection error.
+
+All reports remain DIAGNOSTIC_ONLY / qualification_eligible:false. This experiment
+changes no product behavior and cannot itself close either CURRENT finding.
+An isolated correction and controlled effect, then all unchanged-candidate native,
+original CI/artifact, review and preflight gates, remain necessary. Older Windows
+bytes stay historical; Windows11/browser/human gates remain unqualified. The
+PR-local legacy owner/binding and deferred lifecycle v2 remain unchanged.

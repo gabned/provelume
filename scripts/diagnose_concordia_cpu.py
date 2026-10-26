@@ -20,7 +20,8 @@ import sys
 import tempfile
 import threading
 import time
-from contextlib import ExitStack
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
@@ -29,6 +30,103 @@ S06 = "8b3f467aa9e7c059e23f22644786ef0f87582cc3"
 S08 = "e2c9244df692cdd9dbd636a0109a7d920a21ac1b"
 SCRIPT = Path(__file__).resolve()
 CURRENT = contextvars.ContextVar("concordia_probe", default=None)
+
+
+def smt_plan(allowed=None, topology=Path("/sys/devices/system/cpu")):
+    """Require the originals' two-core/four-thread topology; never emulate SMT."""
+    allowed = set(os.sched_getaffinity(0) if allowed is None else allowed)
+    cores = {}
+    for cpu in sorted(allowed):
+        root = topology / f"cpu{cpu}" / "topology"
+        identity = tuple(int((root / key).read_text())
+                         for key in ("physical_package_id", "core_id"))
+        cores.setdefault(identity, []).append(cpu)
+    pairs = sorted(cores.values())
+    if len(allowed) != 4 or len(pairs) != 2 or any(len(pair) != 2 for pair in pairs):
+        raise ValueError("SMT study requires four logical CPUs on two physical cores")
+    return {"allowed": sorted(allowed), "cores": pairs,
+            "worker_cpus": [pair[0] for pair in pairs],
+            "same_logical": pairs[0][0], "smt_sibling": pairs[0][1]}
+
+
+@contextmanager
+def place_probe(context, placement, plan, workers):
+    """Change only this probe thread; restore even when the original call fails."""
+    if placement is None:
+        yield
+        return
+    before = os.sched_getaffinity(0)
+    if before != set(plan["allowed"]):
+        raise RuntimeError("probe_inherited_affinity_changed")
+    observed = {str(pid): sorted(os.sched_getaffinity(pid)) for pid in workers}
+    if any(mask != plan["worker_cpus"] for mask in observed.values()):
+        raise RuntimeError("native_worker_affinity_differs_from_predeclared_pair")
+    cpu = plan[placement]
+    context["placement"] = {"condition": placement, "cpu": cpu,
+                            "inherited": sorted(before), "workers": observed,
+                            "started_ns": time.monotonic_ns()}
+    try:
+        os.sched_setaffinity(0, {cpu})
+        if os.sched_getaffinity(0) != {cpu}:
+            raise RuntimeError("probe_affinity_not_applied")
+        context["placement"]["applied_ns"] = time.monotonic_ns()
+        yield
+    finally:
+        context["placement"]["restore_started_ns"] = time.monotonic_ns()
+        os.sched_setaffinity(0, before)
+        context["placement"]["restored_ns"] = time.monotonic_ns()
+        context["placement"]["restored"] = sorted(os.sched_getaffinity(0))
+        if os.sched_getaffinity(0) != before:
+            raise RuntimeError("probe_affinity_not_restored")
+
+
+def pool_observer(original):
+    """Keep new commit-task counters, queue time and observer envelopes explicit."""
+    def submit(executor, function, /, *args, **kwargs):
+        context = CURRENT.get()
+        if context is None:
+            return original(executor, function, *args, **kwargs)
+        operation = context.get("active_operation")
+        queued = time.monotonic_ns()
+
+        def measured():
+            row = {"operation": operation, "queued_ns": queued,
+                   "wrapper_started_ns": time.monotonic_ns(),
+                   "affinity": sorted(os.sched_getaffinity(0))}
+            try:
+                with ExitStack() as stack:
+                    counters = {}
+                    for name in ("schedstat", "io"):
+                        try:
+                            fd = os.open("/proc/thread-self/" + name,
+                                         os.O_RDONLY | os.O_CLOEXEC)
+                            stack.callback(os.close, fd)
+                            counters[name] = fd
+                        except OSError as exc:
+                            counters[name] = {"status": "UNKNOWN", "error": type(exc).__name__}
+
+                    def snapshot():
+                        values = {}
+                        for name, fd in counters.items():
+                            try:
+                                values[name] = os.pread(fd, 4096, 0).decode("ascii") \
+                                    if isinstance(fd, int) else fd
+                            except OSError as exc:
+                                values[name] = {"status": "UNKNOWN", "error": type(exc).__name__}
+                        return values
+
+                    row["counters_before"] = snapshot()
+                    row["before"] = accounting()
+                    try:
+                        return function(*args, **kwargs)
+                    finally:
+                        row["after"] = accounting()
+                        row["counters_after"] = snapshot()
+            finally:
+                row["wrapper_finished_ns"] = time.monotonic_ns()
+                context["pool_tasks"].append(row)
+        return original(executor, measured)
+    return submit
 
 
 def write_json(path, value):
@@ -142,9 +240,10 @@ class BoundaryCounters:
     process CPU/rusage and the durability wrapper still include their work.
     """
 
-    def __init__(self, roles):
+    def __init__(self, roles, *, cgroup_boundaries=False):
         self.entries = []
         self.inventory = []
+        self.cgroup_boundaries = cgroup_boundaries
         for role, pids in roles.items():
             for pid in pids:
                 tids = list(Path(f"/proc/{pid}/task").glob("[0-9]*"))
@@ -175,7 +274,9 @@ class BoundaryCounters:
                 else:
                     row[name] = fd
             rows.append(row)
+        cgroup = cgroups(os.getpid()) if self.cgroup_boundaries else None
         return {"started_ns": started, "finished_ns": time.monotonic_ns(),
+                "cgroups": cgroup,
                 "collection_thread_cpu_ns": time.thread_time_ns() - cpu, "tasks": rows}
 
     def close(self):
@@ -297,7 +398,7 @@ def observe_operation(original, name):
     return wrapped
 
 
-def worker(source, artifacts, output, mode="legacy"):
+def worker(source, artifacts, output, mode="legacy", placement=None):
     sys.path[:0] = [str(source / "scripts"), str(source / "core"), str(source)]
     import ai_runtime_report
     import qualify_ai_runtime
@@ -305,6 +406,7 @@ def worker(source, artifacts, output, mode="legacy"):
     from provelume.ai_runtime import LocalRuntime
     from provelume.capture_adapter import CaptureAdapter
 
+    plan = smt_plan() if placement is not None else None
     instances = []
     original_init = LocalRuntime.__init__
 
@@ -341,14 +443,20 @@ def worker(source, artifacts, output, mode="legacy"):
                  "monotonic_ns": time.monotonic_ns(), "realtime_ns": time.time_ns()}
         if write_pipe is not None:
             os.write(write_pipe, (json.dumps(event) + "\n").encode())
-        boundary = BoundaryCounters(roles) if mode != "legacy" else None
+        boundary = BoundaryCounters(roles, cgroup_boundaries=placement is not None) \
+            if mode != "legacy" else None
         if boundary is not None:
             context.update(_boundary=boundary, boundary_inventory=boundary.inventory,
-                           roles=roles, durability=[], observation_mode=mode)
+                           roles=roles, durability=[], observation_mode=mode, pool_tasks=[])
         active = context
         token = CURRENT.set(context)
         try:
-            row = raw_probe(instance, number)
+            with place_probe(context, placement, plan, roles["workers"]):
+                row = raw_probe(instance, number)
+                if placement is not None and any(
+                    task["affinity"] != [plan[placement]] for task in context["pool_tasks"]
+                ):
+                    raise RuntimeError("capture_pool_task_affinity_differs_from_condition")
             row["diagnostic_timeline"] = context
             return row
         finally:
@@ -367,6 +475,9 @@ def worker(source, artifacts, output, mode="legacy"):
 
     try:
         with ExitStack() as stack:
+            if placement is not None:
+                stack.enter_context(patch.object(ThreadPoolExecutor, "submit",
+                    pool_observer(ThreadPoolExecutor.submit)))
             stack.enter_context(patch.object(LocalRuntime, "__init__", runtime_init))
             stack.enter_context(patch.object(ai_runtime_report, "deterministic_probe", probe))
             stack.enter_context(patch.object(qualify_ai_runtime, "deterministic_probe", probe))
@@ -383,6 +494,7 @@ def worker(source, artifacts, output, mode="legacy"):
             report = qualify_ai_runtime.measure(artifacts, output / "report-before-observer.json")
             report["diagnostic_driver_sha256"] = hashlib.sha256(SCRIPT.read_bytes()).hexdigest()
             report["diagnostic_observation_mode"] = mode
+            report["diagnostic_placement"] = placement
             write_json(output / "report-before-observer.json", report)
     finally:
         if write_pipe is not None:
@@ -402,7 +514,7 @@ def observe(source, output):
     write_json(output / "report.json", report)
 
 
-def run(repository, inputs, output, reverse=False, observer_study=False):
+def run(repository, inputs, output, reverse=False, observer_study=False, placement_study=False):
     """Four fixed arms, once each, same runner/interpreter/path; no retry-to-green."""
     output.mkdir(parents=True, exist_ok=False)
     candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repository,
@@ -416,6 +528,12 @@ def run(repository, inputs, output, reverse=False, observer_study=False):
              ("s08-original", S08, "legacy"), ("candidate", candidate, "legacy")])
     if reverse:
         arms.reverse()
+    placements = {}
+    if placement_study:
+        arms = [("s06-same", S06, "boundary"), ("s06-sibling", S06, "boundary"),
+                ("s08-sibling", S08, "boundary"), ("s08-same", S08, "boundary")]
+        placements = {name: "same_logical" if name.endswith("same") else "smt_sibling"
+                      for name, _, _ in arms}
     manifest = {"status": "DIAGNOSTIC_ONLY", "qualification_eligible": False,
                 "candidate": candidate,
                 "driver_sha256": hashlib.sha256(SCRIPT.read_bytes()).hexdigest(),
@@ -423,13 +541,17 @@ def run(repository, inputs, output, reverse=False, observer_study=False):
                 "sched_schedstats": read_text(Path("/proc/sys/kernel/sched_schedstats")),
                 "observer": "strace -ff -ttt -T; syscall set recorded per arm",
                 "sampling_seconds": 0.01, "order": [name for name, _, _ in arms],
-                "experiment": "observer-study" if observer_study else "source-comparison",
+                "experiment": "SMT-placement" if placement_study else
+                    "observer-study" if observer_study else "source-comparison",
                 "limitations": ["instrumentation perturbs timing", "one runner is not a fleet",
                                 "OS cache not flushed", "task exits can truncate task accounting",
                                 "proc sampling does not prove individual syscall causality"]}
     write_json(output / "manifest.json", manifest)
     shutil.copyfile(SCRIPT, output / "driver.py")
-    if observer_study:
+    if placement_study:
+        manifest["placement_plan"] = smt_plan()
+        write_json(output / "manifest.json", manifest)
+    if observer_study or placement_study:
         manifest["scheduler_calibration"] = calibrate_scheduler()
         write_json(output / "manifest.json", manifest)
         if manifest["scheduler_calibration"]["status"] != "POSITIVE_RUNQUEUE_CONTROL":
@@ -452,6 +574,7 @@ def run(repository, inputs, output, reverse=False, observer_study=False):
             arm_output = output / name
             arm_output.mkdir()
             arm = {"name": name, "source": revision, "observation_mode": mode,
+                   "placement": placements.get(name),
                    "started_ns": time.time_ns(),
                    "trace": "network" if mode == "boundary" else "network,fsync,fdatasync"}
             manifest["arms"].append(arm)
@@ -474,10 +597,12 @@ def run(repository, inputs, output, reverse=False, observer_study=False):
                                  "core/provelume/atomic_commit.py",
                                  "core/provelume/capture_adapter.py")}
                 with (arm_output / "execution.log").open("w") as stream:
+                    placement_args = ["--placement", placements[name]] if placement_study else []
                     process = subprocess.Popen(["strace", "-ff", "-ttt", "-T", "-e",
                         "trace=" + arm["trace"], "-o", str(arm_output / "network"),
                         sys.executable, str(SCRIPT), "worker", "--source", str(source),
-                        "--artifacts", str(data), "--output", str(arm_output), "--mode", mode],
+                        "--artifacts", str(data), "--output", str(arm_output), "--mode", mode,
+                        *placement_args],
                         cwd=source, stdout=stream, stderr=subprocess.STDOUT,
                         start_new_session=True)
                     try:
@@ -497,6 +622,17 @@ def run(repository, inputs, output, reverse=False, observer_study=False):
                     arm["observer_exit_code"] = observed.returncode
                 arm["finished_ns"] = time.time_ns()
                 write_json(output / "manifest.json", manifest)
+                if placement_study:
+                    if arm["exit_code"] != 0 or arm.get("observer_exit_code") != 0:
+                        raise RuntimeError("SMT_arm_or_observer_failed; no next arm")
+                    report = json.loads((arm_output / "report.json").read_text())
+                    if report.get("network") != "PASS" or report.get("failures"):
+                        raise RuntimeError("SMT_collection_incomplete; no next arm")
+                    capture_gates = {"deterministic", "s06_governed", "s07_setup",
+                                     "s08_performance"}
+                    if any(value != "PASS" for key, value in report["gates"].items()
+                           if key not in capture_gates):
+                        raise RuntimeError("SMT_non_capture_gate_failed; no next arm")
             finally:
                 subprocess.run(["git", "worktree", "remove", str(source)], cwd=repository,
                                check=True)
@@ -514,6 +650,9 @@ def main():
     measurement.add_argument("--artifacts", type=Path, required=True)
     measurement.add_argument("--output", type=Path, required=True)
     measurement.add_argument("--mode", choices=("legacy", "boundary", "extended"), default="legacy")
+    measurement.add_argument("--placement", choices=("same_logical", "smt_sibling"))
+    topology = commands.add_parser("smt-topology")
+    topology.add_argument("--output", type=Path, required=True)
     observation = commands.add_parser("observe")
     observation.add_argument("--source", type=Path, required=True)
     observation.add_argument("--output", type=Path, required=True)
@@ -522,17 +661,27 @@ def main():
     controlled.add_argument("--inputs", type=Path, required=True)
     controlled.add_argument("--output", type=Path, required=True)
     controlled.add_argument("--reverse", action="store_true")
-    controlled.add_argument("--observer-study", action="store_true")
+    study = controlled.add_mutually_exclusive_group()
+    study.add_argument("--observer-study", action="store_true")
+    study.add_argument("--placement-study", action="store_true")
     args = parser.parse_args()
     if args.command == "sample":
         sample(args.pipe, args.output)
     elif args.command == "worker":
-        worker(args.source.resolve(), args.artifacts.resolve(), args.output.resolve(), args.mode)
+        worker(args.source.resolve(), args.artifacts.resolve(), args.output.resolve(), args.mode,
+               args.placement)
+    elif args.command == "smt-topology":
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            write_json(args.output, {"status": "SMT_TOPOLOGY_CONFIRMED", "plan": smt_plan()})
+        except (OSError, ValueError) as exc:
+            write_json(args.output, {"status": "CAPABILITY_MISSING", "reason": str(exc)})
+            raise
     elif args.command == "observe":
         observe(args.source.resolve(), args.output.resolve())
     else:
         run(args.repository.resolve(), args.inputs.resolve(), args.output.resolve(), args.reverse,
-            args.observer_study)
+            args.observer_study, args.placement_study)
 
 
 if __name__ == "__main__":
