@@ -114,6 +114,81 @@ def admit_portable(output):
     return result
 
 
+DIGEST_BASE = "967222f71d43de7e518d9c55c80167bf1d886c83"
+DIGEST_OLD = (
+    b"            while block := handle.read(1024 * 1024):\n"
+    b"                size += len(block)\n"
+    b"                if size > limit:\n"
+    b"                    raise error_type()\n"
+    b"                digest.update(block)"
+)
+DIGEST_NEW = (
+    b"            # The fresh size also bounds the read buffer. Requesting a full\n"
+    b"            # MiB for a tiny journal allocates that buffer on every digest.\n"
+    b"            # One extra byte detects growth; the identity checks still follow.\n"
+    b"            while block := handle.read(min(1024 * 1024, before.st_size - size + 1)):\n"
+    b"                size += len(block)\n"
+    b"                if size > before.st_size:\n"
+    b"                    raise error_type()\n"
+    b"                digest.update(block)"
+)
+DIGEST_PATH = "core/provelume/atomic_commit.py"
+DIGEST_CONTROL_PATHS = {
+    DIGEST_PATH, "tests/test_atomic_digest_bounds.py",
+    "tests/test_concordia_cpu_diagnostic.py", "scripts/diagnose_concordia_cpu.py",
+    ".github/workflows/ai-runtime-candidate.yml",
+    "docs/qualification/concordia-cpu-diagnosis.md",
+}
+
+
+def digest_factor(before, after, paths):
+    """Admit only the declared read-size change, with no other PRODUCT delta."""
+    if (set(paths) - DIGEST_CONTROL_PATHS or DIGEST_PATH not in paths
+            or before.count(DIGEST_OLD) != 1
+            or after != before.replace(DIGEST_OLD, DIGEST_NEW)):
+        raise ValueError("bounded_digest_factor_not_isolated")
+
+
+def digest_comparison(repository, candidate):
+    def git(*args):
+        return subprocess.check_output(["git", *args], cwd=repository)
+    parents = git("rev-list", "--parents", "-n", "1", candidate).decode().split()
+    if parents != [candidate, DIGEST_BASE]:
+        raise ValueError("bounded_digest_source_is_not_the_predeclared_child")
+    original_blob = git("rev-parse", DIGEST_BASE + ":" + DIGEST_PATH).decode().strip()
+    if original_blob != "1f019e176780c3ae85743b6222ca3941d3fa05d0":
+        raise ValueError("bounded_digest_baseline_blob_changed")
+    before = git("show", DIGEST_BASE + ":" + DIGEST_PATH)
+    after = git("show", candidate + ":" + DIGEST_PATH)
+    paths = git("diff", "--name-only", DIGEST_BASE, candidate).decode().splitlines()
+    digest_factor(before, after, paths)
+    return {"baseline": DIGEST_BASE, "candidate": candidate, "changed_paths": paths,
+            "product_path": DIGEST_PATH, "baseline_blob": original_blob,
+            "candidate_blob": git("rev-parse", candidate + ":" + DIGEST_PATH).decode().strip(),
+            "factor": "digest read bound by the freshly observed file size",
+            "qualification_eligible": False}
+
+
+def admit_digest_comparison(repository, output):
+    if output.exists():
+        raise ValueError("preserve existing digest factor admission")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    result = {"status": "INPUT_MISMATCH", "qualification_eligible": False}
+    try:
+        if subprocess.check_output(["git", "status", "--porcelain"], cwd=repository):
+            raise ValueError("controlled source is not clean")
+        candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repository,
+                                            text=True).strip()
+        result["comparison"] = digest_comparison(repository, candidate)
+        result["status"] = "ISOLATED_DIGEST_FACTOR_CONFIRMED"
+    except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+        result["reason"] = str(exc)
+        write_json(output, result)
+        raise
+    write_json(output, result)
+    return result
+
+
 def smt_plan(allowed=None, topology=Path("/sys/devices/system/cpu")):
     """Require the originals' two-core/four-thread topology; never emulate SMT."""
     allowed = set(os.sched_getaffinity(0) if allowed is None else allowed)
@@ -619,9 +694,50 @@ def observe(source, output):
     write_json(output / "report.json", report)
 
 
+
+def _observed_task_counters(value):
+    raw = value.get("schedstat")
+    if not isinstance(raw, str) or not isinstance(value.get("io"), str):
+        return False
+    try:
+        numbers = [int(item) for item in raw.split()]
+    except ValueError:
+        return False
+    return len(numbers) == 3 and min(numbers) >= 0 and bool(value["io"])
+
+
+def verify_digest_accounting(output):
+    """Refuse another arm when the required contemporaneous counters are absent."""
+    rows = [json.loads(line) for line in
+            (output / "probe-accounting.jsonl").read_text().splitlines()]
+    if [row["probe_id"] for row in rows] != list(range(1, 26)):
+        raise ValueError("digest_probe_collection_incomplete")
+    pool_count = 0
+    for row in rows:
+        if sorted(op["operation"] for op in row["operations"]) != ["process", "submit"]:
+            raise ValueError("digest_operation_collection_incomplete")
+        for op in row["operations"]:
+            for label in ("boundary_before", "boundary_after"):
+                callers = [task for task in op[label]["tasks"]
+                           if task["role"] == "parent" and task["tid"] == op["before"]["tid"]]
+                if len(callers) != 1 or not _observed_task_counters(callers[0]):
+                    raise ValueError("digest_caller_counter_gap")
+        for task in row["pool_tasks"]:
+            pool_count += 1
+            if any(not _observed_task_counters(task[label])
+                   for label in ("counters_before", "counters_after")):
+                raise ValueError("digest_pool_counter_gap")
+    if not pool_count:
+        raise ValueError("digest_pool_collection_incomplete")
+    return {"status": "REQUIRED_COUNTERS_COMPLETE", "probes": 25, "operations": 50,
+            "snapshots": 100, "pool_tasks": pool_count}
+
+
 def run(repository, inputs, output, reverse=False, observer_study=False, placement_study=False,
-        tracer_study=False, portable_tracer_study=False):
+        tracer_study=False, portable_tracer_study=False, digest_study=False):
     """Four fixed arms, once each, same runner/interpreter/path; no retry-to-green."""
+    if digest_study and reverse:
+        raise ValueError("bounded digest comparison has one fixed AB/BA order")
     output.mkdir(parents=True, exist_ok=False)
     candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repository,
                                         text=True).strip()
@@ -641,18 +757,26 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                 ("s08-sibling", S08, "boundary"), ("s08-same", S08, "boundary")]
         placements = {name: "same_logical" if name.endswith("same") else "smt_sibling"
                       for name, _, _ in arms}
-    if tracer_study or portable_tracer_study:
-        plan = portable_tracer_plan() if portable_tracer_study else smt_plan()
+    if tracer_study or portable_tracer_study or digest_study:
+        plan = portable_tracer_plan() if portable_tracer_study or digest_study else smt_plan()
         if tracer_study:
             require_original_cpu()
         arms = [("s06-tracer-shared", S06, "boundary"),
                 ("s06-tracer-other", S06, "boundary"),
                 ("s08-tracer-other", S08, "boundary"),
                 ("s08-tracer-shared", S08, "boundary")]
-        placement = "portable_foreground" if portable_tracer_study else "smt_sibling"
+        if digest_study:
+            digest_comparison(repository, candidate)
+            arms = [("s06-baseline", DIGEST_BASE, "boundary"),
+                    ("s06-candidate", candidate, "boundary"),
+                    ("s08-candidate", candidate, "boundary"),
+                    ("s08-baseline", DIGEST_BASE, "boundary")]
+        placement = ("portable_foreground"
+                     if portable_tracer_study or digest_study else "smt_sibling")
         placements = dict.fromkeys((name for name, _, _ in arms), placement)
-        other = plan["tracer_other"] if portable_tracer_study else plan["cores"][1][1]
-        tracer_cpus = {name: plan[placement] if name.endswith("shared") else other
+        other = (plan["tracer_other"]
+                 if portable_tracer_study or digest_study else plan["cores"][1][1])
+        tracer_cpus = {name: plan[placement] if digest_study or name.endswith("shared") else other
                        for name, _, _ in arms}
     manifest = {"status": "DIAGNOSTIC_ONLY", "qualification_eligible": False,
                 "candidate": candidate,
@@ -661,7 +785,8 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                 "sched_schedstats": read_text(Path("/proc/sys/kernel/sched_schedstats")),
                 "observer": "strace -ff -ttt -T; syscall set recorded per arm",
                 "sampling_seconds": 0.01, "order": [name for name, _, _ in arms],
-                "experiment": "portable-tracer-placement" if portable_tracer_study else
+                "experiment": "bounded-digest-product-comparison" if digest_study else
+                    "portable-tracer-placement" if portable_tracer_study else
                     "tracer-placement" if tracer_study else
                     "SMT-placement" if placement_study else
                     "observer-study" if observer_study else "source-comparison",
@@ -670,15 +795,19 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                                 "proc sampling does not prove individual syscall causality"]}
     write_json(output / "manifest.json", manifest)
     shutil.copyfile(SCRIPT, output / "driver.py")
-    if portable_tracer_study:
+    if digest_study:
+        manifest["product_comparison"] = digest_comparison(repository, candidate)
+    if portable_tracer_study or digest_study:
         manifest["observed_environment"] = portable_environment()
         manifest["limitations"].append("not a reproduction of the original EPYC9V74 host")
-    if placement_study or tracer_study or portable_tracer_study:
-        manifest["placement_plan"] = portable_tracer_plan() if portable_tracer_study else smt_plan()
+    if placement_study or tracer_study or portable_tracer_study or digest_study:
+        manifest["placement_plan"] = (portable_tracer_plan()
+                                      if portable_tracer_study or digest_study else smt_plan())
         if tracer_study:
             manifest["required_cpu_models"] = require_original_cpu()
         write_json(output / "manifest.json", manifest)
-    if observer_study or placement_study or tracer_study or portable_tracer_study:
+    if (observer_study or placement_study or tracer_study
+            or portable_tracer_study or digest_study):
         manifest["scheduler_calibration"] = calibrate_scheduler()
         write_json(output / "manifest.json", manifest)
         if manifest["scheduler_calibration"]["status"] != "POSITIVE_RUNQUEUE_CONTROL":
@@ -726,8 +855,9 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                                  "core/provelume/capture_adapter.py")}
                 with (arm_output / "execution.log").open("w") as stream:
                     placement_args = ["--placement", placements[name]] \
-                        if placement_study or tracer_study or portable_tracer_study else []
-                    if tracer_study or portable_tracer_study:
+                        if (placement_study or tracer_study or portable_tracer_study
+                            or digest_study) else []
+                    if tracer_study or portable_tracer_study or digest_study:
                         placement_args += ["--inherited-affinity",
                             ",".join(map(str, manifest["placement_plan"]["allowed"])),
                             "--tracer-cpu", str(tracer_cpus[name])]
@@ -736,7 +866,7 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                         sys.executable, str(SCRIPT), "worker", "--source", str(source),
                         "--artifacts", str(data), "--output", str(arm_output), "--mode", mode,
                         *placement_args]
-                    if tracer_study or portable_tracer_study:
+                    if tracer_study or portable_tracer_study or digest_study:
                         command = ["taskset", "--cpu-list", str(tracer_cpus[name]), *command]
                     process = subprocess.Popen(command,
                         cwd=source, stdout=stream, stderr=subprocess.STDOUT,
@@ -758,12 +888,15 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                     arm["observer_exit_code"] = observed.returncode
                 arm["finished_ns"] = time.time_ns()
                 write_json(output / "manifest.json", manifest)
-                if placement_study or tracer_study or portable_tracer_study:
+                if placement_study or tracer_study or portable_tracer_study or digest_study:
                     if arm["exit_code"] != 0 or arm.get("observer_exit_code") != 0:
                         raise RuntimeError("SMT_arm_or_observer_failed; no next arm")
                     report = json.loads((arm_output / "report.json").read_text())
                     if report.get("network") != "PASS" or report.get("failures"):
                         raise RuntimeError("SMT_collection_incomplete; no next arm")
+                    if digest_study:
+                        arm["accounting_integrity"] = verify_digest_accounting(arm_output)
+                        write_json(output / "manifest.json", manifest)
                     capture_gates = {"deterministic", "s06_governed", "s07_setup",
                                      "s08_performance"}
                     if any(value != "PASS" for key, value in report["gates"].items()
@@ -795,6 +928,9 @@ def main():
     topology.add_argument("--require-original-cpu", action="store_true")
     portable = commands.add_parser("portable-topology")
     portable.add_argument("--output", type=Path, required=True)
+    digest = commands.add_parser("digest-admission")
+    digest.add_argument("--repository", type=Path, required=True)
+    digest.add_argument("--output", type=Path, required=True)
     observation = commands.add_parser("observe")
     observation.add_argument("--source", type=Path, required=True)
     observation.add_argument("--output", type=Path, required=True)
@@ -808,6 +944,7 @@ def main():
     study.add_argument("--placement-study", action="store_true")
     study.add_argument("--tracer-study", action="store_true")
     study.add_argument("--portable-tracer-study", action="store_true")
+    study.add_argument("--bounded-digest-study", action="store_true")
     args = parser.parse_args()
     if args.command == "sample":
         sample(args.pipe, args.output)
@@ -816,6 +953,8 @@ def main():
                args.placement, args.inherited_affinity, args.tracer_cpu)
     elif args.command == "portable-topology":
         admit_portable(args.output)
+    elif args.command == "digest-admission":
+        admit_digest_comparison(args.repository.resolve(), args.output)
     elif args.command == "smt-topology":
         args.output.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -833,7 +972,7 @@ def main():
     else:
         run(args.repository.resolve(), args.inputs.resolve(), args.output.resolve(), args.reverse,
             args.observer_study, args.placement_study, args.tracer_study,
-            args.portable_tracer_study)
+            args.portable_tracer_study, args.bounded_digest_study)
 
 
 if __name__ == "__main__":

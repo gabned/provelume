@@ -777,9 +777,12 @@ def _bounded_file_digest(
         digest = hashlib.sha256()
         size = 0
         with path.open("rb") as handle:
-            while block := handle.read(1024 * 1024):
+            # The fresh size also bounds the read buffer. Requesting a full
+            # MiB for a tiny journal allocates that buffer on every digest.
+            # One extra byte detects growth; the identity checks still follow.
+            while block := handle.read(min(1024 * 1024, before.st_size - size + 1)):
                 size += len(block)
-                if size > limit:
+                if size > before.st_size:
                     raise error_type()
                 digest.update(block)
         after = path.stat()

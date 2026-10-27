@@ -384,3 +384,76 @@ still on attempt 1. This is a corrected pre-execution control, not another
 equivalent four-arm study or a retry seeking a different CPU model. Retain the
 original failed Ruff/jobs/Windows-coverage results. Existing authority continues;
 no rebinding of the original workstream, waiver or CPU correction is claimed.
+
+
+## Predeclared bounded-digest PRODUCT comparison
+
+This is a new condition following the completed portable tracer control, not a
+retry of that control or a search for an EPYC model. PR #424 remains the sole
+owner and the original binding/legacy route is unchanged. Both historical CPU
+findings remain CURRENT.
+
+The isolated function comparison in this session found that
+`_bounded_file_digest` requests a full MiB even when a fresh stat has already
+observed a tiny journal file. On local Windows/CPython 3.12.14, the fixed AB/BA
+component comparison used sizes 0/51/1024/16384/1048579 bytes, 2000 calls per block
+for small files and30 for the large case. Timed blocks had no tracemalloc or
+profiling observer; separate one-call memory probes used tracemalloc. For51 bytes,
+baseline CPU was0.90625/1.015625 seconds per2000 calls versus0.125/0.125 after the
+read bound. Peak traced allocations were1058753 versus10178 bytes. These are
+component observations, not application timings, RSS or historical attribution.
+
+Hypothesis: unnecessary large temporary read buffers increase Capture's digest
+CPU cost, including under concurrent native prefill. The proposed PRODUCT delta
+changes only the digest read bound to
+`min(1 MiB, fresh_size - bytes_processed + 1)` and rejects observed growth.
+The extra byte still detects growth. Fresh path/type/size/identity observations,
+limits, hashes, journal formats, fsyncs, pools, barriers and rollback are retained.
+Regressions exercise exact sizes, zero/multi-block files, growth, truncation and
+same-size mutation. No metadata observation is cached between operations.
+
+Baseline A is immutable owner source
+`967222f71d43de7e518d9c55c80167bf1d886c83`; its atomic module is blob
+`1f019e176780c3ae85743b6222ca3941d3fa05d0`. B must be its sole direct child.
+Admission checks the exact byte replacement and refuses any other PRODUCT,
+dependency, SDK or evaluator change. Only the declared diagnostic/test/workflow
+paths may accompany that one PRODUCT change. This comparison uses the current
+owner baseline, not the historical S06/S08 commit identities.
+
+One full native block, exactly once: S06 A/B followed by S08 B/A. Each arm runs the
+entire unchanged qualification sequence, including both S06 and S08 payloads.
+Same host/interpreter/dependencies, canonical whole-hash model and seven libraries,
+fresh installed store and synthetic Instance, original evaluator and each arm's
+own idle-derived thresholds. No cache flush, threshold adjustment or discarded
+warm/cold sample. Both relative gate margins and absolute times are retained.
+
+Use the observed portable topology without emulating or seeking a CPU model.
+Native workers stay on the original first two physical-core representatives;
+Capture and pool tasks stay on the predeclared portable foreground CPU. The tracer
+is fixed on that same logical CPU in all four arms. Thus code is the only varied
+factor. Record actual hardware, full allowed mask, effective masks, tracee-mask
+restoration before application imports and positive scheduler controls.
+An admitted Intel/other host does not qualify the historical EPYC9V74 environment.
+
+The workflow admits source factor/topology/scheduler capabilities before bootstrap
+or acquisition, then runs full Ruff and the focused native regressions before the
+model. Only a same-repository PR424 synchronize/attempt1 whose source is the single
+child of A starts this block. Other descendants/reruns record NOT_RUN. The prior
+portable source-parent guard is unchanged and does not replay its completed block.
+Use `digest-admission` and `run --bounded-digest-study` for this experiment.
+
+Observers and their limitations remain unchanged: accounting/boundary/pool and
+durability wrappers plus mandatory post-exit all-thread network observations.
+Observer cost is retained, never subtracted; overlapping intervals are not an
+additive causal partition. Native-library fsync beyond the Python wrappers stays
+outside boundary-mode durability. Report snapshot/wrapper costs and missing data.
+
+Stop before another arm on timeout (20 minutes/arm,85-minute job), application or
+network-observer failure, incomplete collection or a non-capture gate failure.
+Retain CPU/capture FAILs and all raw results; no retry-to-green or generic-host
+search. Every experimental report remains DIAGNOSTIC_ONLY/qualification_eligible:false.
+An improvement or later ordinary green alone does not close the old findings.
+A complete correction still requires demonstrated mechanism/effect and unchanged-
+candidate native/CI/original-artifact/review/preflight qualification. All prior-head
+Windows evidence is historical for B; Home/Pro/browser/human gates remain open.
+No merge, acceptance, #377, SDK change, lifecycle v2 activation or release follows.

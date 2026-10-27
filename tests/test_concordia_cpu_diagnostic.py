@@ -374,3 +374,31 @@ def test_portable_admission_keeps_actual_model_and_refuses_missing_scheduler(tmp
     with pytest.raises(ValueError, match="preserve existing"):
         diagnostic.admit_portable(output)
     assert output.read_bytes() == retained
+
+
+def test_bounded_digest_factor_accepts_only_the_declared_allocation_change():
+    before = b"synthetic prefix\n" + diagnostic.DIGEST_OLD + b"\nsynthetic suffix"
+    after = before.replace(diagnostic.DIGEST_OLD, diagnostic.DIGEST_NEW)
+    diagnostic.digest_factor(before, after, [diagnostic.DIGEST_PATH])
+
+
+@pytest.mark.parametrize("mismatch", [
+    "unchanged", "extra_product", "extra_edit", "missing", "duplicate",
+])
+def test_bounded_digest_factor_refuses_uncontrolled_changes(mismatch):
+    before = b"synthetic prefix\n" + diagnostic.DIGEST_OLD + b"\nsynthetic suffix"
+    after = before.replace(diagnostic.DIGEST_OLD, diagnostic.DIGEST_NEW)
+    paths = [diagnostic.DIGEST_PATH]
+    if mismatch == "unchanged":
+        after = before
+    elif mismatch == "extra_product":
+        paths.append("core/provelume/capture_adapter.py")
+    elif mismatch == "extra_edit":
+        after += b"\nunrelated product change"
+    elif mismatch == "missing":
+        paths = []
+    elif mismatch == "duplicate":
+        before += diagnostic.DIGEST_OLD
+        after = before.replace(diagnostic.DIGEST_OLD, diagnostic.DIGEST_NEW)
+    with pytest.raises(ValueError, match="factor_not_isolated"):
+        diagnostic.digest_factor(before, after, paths)
