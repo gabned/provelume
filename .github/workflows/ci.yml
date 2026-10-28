@@ -624,7 +624,7 @@ jobs:
           git diff --check
 
   native-subtest-compatibility:
-    name: Native subtest evidence (${{ matrix.os }}, pytest ${{ matrix.pytest }})
+    name: Native subtest and recorder evidence (${{ matrix.os }}, pytest ${{ matrix.pytest }})
     if: github.event_name != 'pull_request_target'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
@@ -632,7 +632,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, windows-2025]
-        pytest: ['8.4.2', '9.0.3', '9.1.1']
+        pytest: ['8.4.2', '9.0.3', '9.1.1', '9.2.0']
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -642,5 +642,5 @@ jobs:
           python-version: '3.12'
       - name: Install only the explicit compatibility input
         run: python -m pip install "pytest==${{ matrix.pytest }}"
-      - name: Observe actual native parent and subtest reports without the product runtime
-        run: python tests/test_agent_protocol_work_check.py WindowsNativeSubtestTests
+      - name: Observe native reports and volatile recorder IDs without the product runtime
+        run: python tests/test_agent_protocol_work_check.py WindowsNativeSubtestTests WindowsShardRecorderTests

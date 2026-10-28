@@ -547,7 +547,10 @@ class WindowsShardRecorderTests(unittest.TestCase):
                 "    with ZipFile(stream, 'w') as archive:\n"
                 "        archive.writestr(ZipInfo(name, (year, 1, 1, 0, 0, 0)), b'synthetic')\n"
                 "    return stream.getvalue()\n"
-                "@pytest.mark.parametrize('payload', [_payload('one'), _payload('two')])\n"
+                # Explicit IDs preserve the changing ZIP bytes in every pytest version;
+                # automatic bytes IDs may abbreviate the payload to a stable argument name.
+                "@pytest.mark.parametrize('payload', [_payload('one'), _payload('two')],\n"
+                "                         ids=lambda payload: payload.hex())\n"
                 "def test_one(payload):\n    assert payload.startswith(b'PK')\n    pass\n")
             script = fixture / "record_fixture.py"
             script.write_text(
