@@ -710,7 +710,12 @@ def _journal_path(stage: Path, relative: str, *, error_type: _ErrorType) -> Path
     if _JOURNAL_FILE.fullmatch(relative) is None:
         raise error_type()
     try:
-        path = safe_instance_path(stage, relative)
+        lexical = stage.joinpath(*PurePosixPath(relative).parts)
+        # The kernel validates the complete chain without following links.
+        # Keep the original resolver on unsupported hosts and the fresh
+        # per-component checks below on every host; no observation is cached.
+        path = (lexical if stage.is_absolute() and kernel_no_links(lexical)
+                else safe_instance_path(stage, relative))
     except (OSError, RuntimeError, ValueError):
         raise error_type() from None
     current = stage

@@ -457,3 +457,83 @@ A complete correction still requires demonstrated mechanism/effect and unchanged
 candidate native/CI/original-artifact/review/preflight qualification. All prior-head
 Windows evidence is historical for B; Home/Pro/browser/human gates remain open.
 No merge, acceptance, #377, SDK change, lifecycle v2 activation or release follows.
+
+
+## Predeclared journal-path PRODUCT comparison (28 October 2026)
+
+Both historical CPU findings remain CURRENT. The bounded-digest study did not
+establish an application effect. A subsequent fixed Windows pool comparison also
+did not establish a consistent benefit; the four-worker pool is unchanged.
+
+The isolated mechanism here is repeated prefix traversal in _journal_path.
+Its existing safe_instance_path resolver resolves both the stage and target,
+then _journal_path separately checks each journal component again. A Linux
+stdlib component comparison on the existing local WSL host measured sixteen
+lstat calls per baseline lookup against two with the existing openat2 no-links
+helper. In fixed A/B/B/A blocks of 1000 lookups, process CPU seconds were
+0.554/0.737 for A and 0.197/0.215 for B. Counts were collected separately from
+timing. These are component observations, not historical CPU attribution.
+
+The proposed PRODUCT delta changes only that journal lookup. For an absolute
+stage and a supported Linux kernel, kernel_no_links checks the full lexical
+chain with RESOLVE_NO_SYMLINKS/NO_MAGICLINKS. The closed journal reference grammar
+and both subsequent per-component link checks are retained. Unsupported hosts,
+unsupported kernels and relative stages retain the original resolver. An unsafe
+kernel result fails closed and never selects fallback. Every lookup observes
+current paths afresh; no metadata, identity or digest result is cached. Hashes,
+size/type/identity checks, schemas, durability calls, barriers and pool settings
+are unchanged. Regressions cover real leaf/middle/ancestor aliases, replacement
+between calls, descriptor cleanup, malformed references and fallback behavior.
+
+A first full Capture/preserve/extract/search component block without AI used
+Python 3.12.16, fresh Instances and six probes per arm, A/B/B/A exactly once.
+All 24 integrity observations passed, but Capture medians were 78.919/101.497 ms
+for A and 110.432/81.508 ms for B: APPLICATION_EFFECT_NOT_DEMONSTRATED. Preserve
+these results; no equivalent block is repeated to seek a green.
+
+Hypothesis for the next, distinct condition: the redundant path traversal can
+become material during native inference with the mandatory all-thread network
+tracer. Baseline A is immutable owner 1ad882478636dbd4e5c7fc676fb0d861224e067e;
+B is its sole direct child, with only this PRODUCT replacement, these regressions
+and this contract. Before execution verify both trees and unchanged qualifier,
+evaluator, dependencies and locked inputs. The source factor is the only varied
+factor within one complete A/B/B/A block. Each arm runs the entire unchanged
+qualify_ai_runtime.py sequence, including both S06 and S08 payloads, and the
+original post-exit ai_runtime_network.py observer/evaluator. Each arm uses its
+own original idle-derived limits; retain absolute times and margins as well.
+
+Use the already accessible local WSL host, not a dispatch to search for hardware:
+Intel i7-1365U, Linux 6.18.33.2-microsoft-standard-WSL2, CPython 3.12.16, twelve
+allowed logical CPUs exposing six core groups. Retain the full inherited mask;
+no affinity, scheduling priority, quota or host configuration is changed. Native
+worker selection retains the original rule. This does not reproduce or qualify
+the historical EPYC environment or the still unexecuted strict 9V74 control.
+Hardware/resource admission, positive scheduler and actual strace smoke controls,
+focused Linux/Windows tests, full Ruff and pin97 precede model acquisition.
+The seven native libraries are fully reverified against the current lock. Acquire
+the model only from the canonical pinned origin with inherited proxy/CA and full
+size/SHA256 verification. No paid capacity or system package installation.
+
+Use one interpreter/dependency environment and equal-length arm paths, fresh
+stores and Instances, identical canonical inputs and no cache flushing. Retain
+all cold/warm samples. Only the mandatory network-only strace runs during timings;
+there is no boundary sampler, pool wrapper, durability wrapper or profiler in
+this block. This newly separated observation condition differs from the earlier
+instrumented controls. Strace still intercepts syscalls beyond the selected
+printed events and can perturb filesystem scheduling; its cost is not subtracted.
+No component timing is added to overlapping application intervals. Count probes
+are separate from timing. A single reverse block cannot exclude host drift,
+thermal effects, intermittent contention or storage stalls.
+
+Stop subsequent arms on a 20-minute arm timeout (85-minute overall bound),
+application error, incomplete collection, network observer other than PASS or
+any non-capture gate failure. Preserve capture/performance FAILs and every raw
+partial report. No automatic retry, extra arm or equivalent replay follows.
+If the complete block does not establish a consistent controlled application
+effect and relevant failing reproducer, report CAUSE_NOT_DEMONSTRATED; later
+greens and this optimization alone do not close either historical finding.
+A demonstrated correction still requires all unchanged-candidate native/CI,
+original-artifact, review and legacy-preflight checks. Earlier-head Windows byte
+proofs are historical; Windows11 Home/Pro, browser and human gates remain open.
+The original binding, sole draft owner and PR-local legacy route remain fixed.
+No waiver, SDK change, lifecycle v2 activation, merge, acceptance, #377 or release.
