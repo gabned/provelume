@@ -436,6 +436,281 @@ def acquire(pin, *, offline=False, fetch_source=None):
     }
 
 
+def legacy_base_preflight(
+    snapshot,
+    binding,
+    effects,
+    observations,
+    *,
+    repository_path,
+    expected_head,
+    trusted_binding,
+    trusted_observations,
+):
+    """Provelume PR-local extension; never projects or edits a historical receipt."""
+    spec = importlib.util.spec_from_file_location(
+        "legacy_base_native", Path(__file__).with_name("agent_protocol.py")
+    )
+    native = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(native)
+    require(binding.get("report_sha256") == trusted_binding, "Original BIND identity changed")
+    native.validate_binding(binding, snapshot.get("policy_context"))
+    original_authority = binding.get("policy_resolution", {}).get("production_authority")
+    current_authority = snapshot["policy_context"]["production_authority"]
+    require(
+        isinstance(original_authority, dict)
+        and set(original_authority) == set(current_authority) == {"production", "deploy", "migrate"}
+        and all(type(v) is bool for v in original_authority.values())
+        and all(not current_authority[k] or original_authority[k] for k in original_authority),
+        "Original authority unavailable or current capabilities increased",
+    )
+    require(digest(observations) == trusted_observations, "Observed source bytes changed")
+    require(
+        set(observations)
+        == {
+            "schema",
+            "observed_at",
+            "repository",
+            "pr",
+            "default",
+            "candidate",
+            "test_merge",
+            "files",
+            "files_complete",
+        }
+        and observations["schema"] == "provelume-base-observations/v1",
+        "Unknown base-advance observations",
+    )
+    native.require_fresh(observations["observed_at"])
+    errors = native.validate_snapshot_identity(snapshot)
+    require(not errors, "Invalid current snapshot: " + "; ".join(errors))
+    native.require_sha(expected_head, "expected_head")
+    pr, repository = observations["pr"], observations["repository"]
+    base, head = pr["base"]["sha"], pr["head"]["sha"]
+    original_base, basis = binding["base_sha"], binding["binding_basis_sha"]
+    for sha in (base, head, original_base, basis):
+        native.require_sha(sha, "base-advance coordinate")
+    require(
+        (repository["full_name"], repository["id"], repository["default_branch"])
+        == (REPOSITORY, REPOSITORY_ID, "main"),
+        "Observed repository identity changed",
+    )
+    require(
+        pr["base"]["repo"]["id"] == pr["head"]["repo"]["id"] == REPOSITORY_ID
+        and pr["base"]["repo"]["full_name"] == pr["head"]["repo"]["full_name"] == REPOSITORY,
+        "Observed PR repository changed",
+    )
+    require(
+        pr["base"]["ref"] == "main"
+        and observations["default"]["ref"] == "refs/heads/main"
+        and observations["default"]["object"]["sha"] == base,
+        "PR base is not the actual current default",
+    )
+    require(original_base != base, "No base advancement; use the original preflight")
+    comparisons = {
+        "owner_pr": f"#{pr['number']}",
+        "head_sha": expected_head,
+        "base_sha": base,
+        "default_sha": base,
+        "binding_basis_sha": basis,
+        "effect_report_sha256": binding["effect_report_sha256"],
+        "pr_state": pr["state"].upper(),
+        "draft": str(pr["draft"]).upper(),
+        "mergeability": (
+            "MERGEABLE"
+            if pr["mergeable"] is True
+            else "CONFLICTING"
+            if pr["mergeable"] is False
+            else "UNKNOWN"
+        ),
+    }
+    require(head == expected_head, "Observed PR head moved")
+    require(binding["active_pr"] == comparisons["owner_pr"], "Original owner PR changed")
+    for key, value in comparisons.items():
+        require(snapshot.get(key) == value, "Current snapshot/observation mismatch: " + key)
+
+    # These are fixed, offline Git reads. Ignore ambient Git redirections and
+    # credential/config helpers; refuse lazy fetching, replacements and fsmonitor.
+    environment = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    environment.update(
+        GIT_CONFIG_NOSYSTEM="1",
+        GIT_CONFIG_GLOBAL=os.devnull,
+        GIT_NO_LAZY_FETCH="1",
+        GIT_ALLOW_PROTOCOL="",
+        GIT_TERMINAL_PROMPT="0",
+    )
+    proofs = []
+
+    def git(*arguments):
+        result = subprocess.run(
+            [
+                "git",
+                "--no-replace-objects",
+                "-c",
+                "core.fsmonitor=false",
+                "-C",
+                str(repository_path),
+                *arguments,
+            ],
+            env=environment,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+        require(result.returncode == 0, "Local Git proof failed: " + arguments[0])
+        require(len(result.stdout) <= 4 * 1024 * 1024, "Unbounded local Git proof")
+        value = result.stdout.decode("utf-8", errors="strict")
+        proofs.append({"arguments": list(arguments), "stdout": value})
+        return value.rstrip("\r\n")
+
+    require(git("rev-parse", "--is-shallow-repository") == "false", "Complete history required")
+    require(not git("for-each-ref", "refs/replace/"), "Replaced history refused")
+    grafts = Path(git("rev-parse", "--path-format=absolute", "--git-path", "info/grafts"))
+    require(not grafts.exists(), "Grafted history refused")
+    require(
+        git("config", "--get", "remote.origin.url") == "https://github.com/gabned/provelume.git",
+        "Local repository origin changed",
+    )
+    require(git("rev-parse", "HEAD") == head, "Local candidate head moved")
+    require(git("symbolic-ref", "--short", "HEAD") == pr["head"]["ref"], "PR branch changed")
+    require(not git("status", "--porcelain", "--untracked-files=all"), "Dirty candidate refused")
+    for ancestor, descendant in (
+        (original_base, base),
+        (base, head),
+        (basis, head),
+    ):
+        git("merge-base", "--is-ancestor", ancestor, descendant)
+    history = git("rev-list", "--topo-order", "--parents", head, "^" + original_base)
+    require(bool(history), "Missing candidate ancestry")
+    candidate, test_merge = observations["candidate"], observations["test_merge"]
+    require(candidate["sha"] == head, "Candidate object identity changed")
+    tree = git("rev-parse", head + "^{tree}")
+    require(candidate["tree"]["sha"] == tree, "Candidate tree changed")
+    require(
+        [p["sha"] for p in candidate["parents"]] == git("show", "-s", "--format=%P", head).split(),
+        "Candidate parent list changed",
+    )
+    require(
+        test_merge["sha"] == pr["merge_commit_sha"]
+        and [p["sha"] for p in test_merge["parents"]] == [base, head]
+        and test_merge["tree"]["sha"] == tree,
+        "Test merge does not prove the exact current base/head/tree",
+    )
+    require(
+        git("show", "-s", "--format=%P", test_merge["sha"]).split() == [base, head]
+        and git("rev-parse", test_merge["sha"] + "^{tree}") == tree,
+        "Local test merge differs from the observed object",
+    )
+    require(observations["files_complete"] is True, "Incomplete observed delta")
+    files = observations["files"]
+    require(
+        isinstance(files, list)
+        and len(files) == pr["changed_files"]
+        and len({f["filename"] for f in files}) == len(files),
+        "Incomplete or duplicate PR file inventory",
+    )
+    observed_paths = sorted(
+        set(
+            native.connector_paths(
+                [
+                    {"filename": row["filename"], "previous_path": row.get("previous_filename")}
+                    for row in files
+                ]
+            )
+        )
+    )
+    local_paths = sorted(
+        git(
+            "diff",
+            "--name-only",
+            "-z",
+            "--no-renames",
+            "--no-ext-diff",
+            "--no-textconv",
+            base,
+            head,
+        )
+        .rstrip("\0")
+        .split("\0")
+    )
+    require(observed_paths == local_paths, "Observed delta differs from the complete Git delta")
+    native.verify_effect_report(
+        effects,
+        base_sha=base,
+        head_sha=head,
+        policy=binding["effect_policy"],
+    )
+    require(effects["changed_paths"] == local_paths, "Current effects cover a different delta")
+    require(
+        effects["effect"] == binding["effect_prediction"],
+        "Changed effect prediction requires separate Protocol triage",
+    )
+
+    # A distinct current receipt evaluates the gates on the untouched real
+    # snapshot. The historical refusal is retained below, never filtered/resealed.
+    for key, accepted in {
+        "pr_state": "OPEN",
+        "draft": "FALSE",
+        "checks": "SUCCESS",
+        "mergeability": "MERGEABLE",
+        "base_ancestry": "TRUE",
+        "binding_basis_ancestor": "TRUE",
+        "credentials_accessed": False,
+        "production_environment_accessed": False,
+    }.items():
+        if snapshot.get(key) != accepted or type(snapshot.get(key)) is not type(accepted):
+            errors.append("Current gate blocks: " + key)
+    if type(snapshot.get("unresolved_threads")) is not int or snapshot["unresolved_threads"] != 0:
+        errors.append("Current unresolved thread count blocks")
+    review = native.normalize_review_snapshot(snapshot)
+    review_result = native.evaluate_review_gate(
+        source=review["source"],
+        codex_state=review["codex_state"],
+        repository=REPOSITORY,
+        owner_pr=binding["active_pr"],
+        current_head=head,
+        reviewed_head=review["reviewed_head"],
+        repository_review=review["repository_review"],
+        technical_finding=review["technical_finding"],
+        withdrawal=review["withdrawal"],
+    )
+    errors.extend(review_result["errors"])
+    historical = native.preflight(snapshot, binding)
+    # Recheck mutable local identity at the observation boundary. The host must
+    # independently refresh GitHub at the actual authorized action boundary.
+    require(git("rev-parse", "HEAD") == head, "Local candidate moved during proof")
+    require(not git("status", "--porcelain", "--untracked-files=all"), "Candidate became dirty")
+    return native.seal(
+        {
+            "schema": "provelume-legacy-base-preflight/v1",
+            "mode": "PREFLIGHT_BASE_ADVANCE",
+            "repository": REPOSITORY,
+            "observed_at": native.now_utc(),
+            "owner_pr": binding["active_pr"],
+            "workstream": binding["workstream"],
+            "binding_sha256": trusted_binding,
+            "original_base_sha": original_base,
+            "binding_basis_sha": basis,
+            "current_base_sha": base,
+            "head_sha": head,
+            "tree_sha": tree,
+            "snapshot_sha256": snapshot["report_sha256"],
+            "observations_sha256": trusted_observations,
+            "current_effect_report_sha256": effects["report_sha256"],
+            "protocol_identity": "BASE_ADVANCE_PROVEN",
+            "historical_preflight": historical,
+            "review_governance": review_result,
+            "git_proofs": proofs,
+            "result": "BLOCKED" if errors else "READY",
+            "merge_ready": not errors,
+            "errors": errors,
+            "new_capabilities": [],
+            "binding_mutated": False,
+            "lifecycle_v2_activated": False,
+        }
+    )
+
+
 def bind_product_host(
     journal, *, collect_native, native_authority, merge_native, collect_recovery_native
 ):
@@ -671,6 +946,12 @@ def main(argv=None):
     guard.add_argument("--expected-head-sha", required=True)
     guard.add_argument("--complete", action="store_true")
     guard.add_argument("--output", type=Path)
+    legacy = sub.add_parser("legacy-base-preflight")
+    for name in ("snapshot", "binding", "effects", "observations", "repository-path"):
+        legacy.add_argument("--" + name, type=Path, required=True)
+    for name in ("expected-head", "binding-sha256", "observations-sha256"):
+        legacy.add_argument("--" + name, required=True)
+    legacy.add_argument("--output", type=Path)
     native_workspace = sub.add_parser("workspace")
     native_workspace.add_argument("action", choices=["prepare", "check", "start"])
     args = parser.parse_args(argv)
@@ -690,6 +971,22 @@ def main(argv=None):
             result = acquire(pin, offline=args.offline)
         elif args.command == "workspace":
             result = workspace(args.action)
+        elif args.command == "legacy-base-preflight":
+            result = legacy_base_preflight(
+                json.loads(read(args.snapshot)),
+                json.loads(read(args.binding)),
+                json.loads(read(args.effects)),
+                json.loads(read(args.observations)),
+                repository_path=args.repository_path,
+                expected_head=args.expected_head,
+                trusted_binding=args.binding_sha256,
+                trusted_observations=args.observations_sha256,
+            )
+            if args.output:
+                with args.output.open("x", encoding="utf-8") as stream:
+                    json.dump(result, stream, sort_keys=True)
+            print(json.dumps(result, sort_keys=True))
+            return 0 if result["merge_ready"] else 1
         elif args.command == "event-guard":
             require(REPOSITORY == "gabned/provelume", "Accepted local event adapter required")
             event = json.loads(read(args.event))
@@ -729,7 +1026,7 @@ def main(argv=None):
             ).returncode
         print(json.dumps(result, sort_keys=True))
         return 0
-    except (ValueError, KeyError, OSError, TypeError) as error:
+    except (ValueError, KeyError, OSError, TypeError, subprocess.SubprocessError) as error:
         print(json.dumps({"result": "REFUSED", "reason": str(error)}), file=sys.stderr)
         return 2
 
