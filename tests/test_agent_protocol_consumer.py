@@ -778,3 +778,155 @@ def test_base_advance_refuses_new_capabilities(legacy_base_case):
     case["snapshot"] = case["native"].seal(case["snapshot"])
     with pytest.raises(ValueError, match="capabilities increased"):
         base_preflight(case)
+
+
+@pytest.mark.parametrize("driver", ["clean", "smudge", "process", "include"])
+def test_base_advance_refuses_executable_filters_before_worktree_reads(
+    legacy_base_case, tmp_path, monkeypatch, driver
+):
+    case = legacy_base_case
+    repo = case["repository_path"]
+    marker = tmp_path / "candidate-helper-ran"
+    helper = repo / ".git/filter-probe.py"
+    helper.write_text(
+        "import os, pathlib, sys\n"
+        f"pathlib.Path({str(marker)!r}).write_text(\n"
+        "    os.getenv('SYNTHETIC_HOST_SENTINEL', 'absent'))\n"
+        "sys.stdout.write(sys.stdin.read())\n",
+        encoding="utf-8",
+    )
+    configured = f'"{sys.executable}" "{helper}"'
+    if driver == "include":
+        included = repo / ".git/filter-config"
+        case["git"]("config", "--file", str(included), "filter.probe.clean", configured)
+        case["git"]("config", "include.path", str(included))
+    else:
+        case["git"]("config", f"filter.probe.{driver}", configured)
+    (repo / ".git/info/attributes").write_text("marker filter=probe\n", encoding="utf-8")
+    # Force stat inspection of a tracked file without changing its accepted bytes.
+    tracked = repo / "marker"
+    tracked.write_bytes(tracked.read_bytes())
+    monkeypatch.setenv("SYNTHETIC_HOST_SENTINEL", "synthetic non-secret value")
+    original_binding = json.dumps(case["binding"], sort_keys=True)
+    with pytest.raises(ValueError, match="Executable or included Git configuration refused"):
+        base_preflight(case)
+    assert not marker.exists(), "A candidate helper executed before refusal"
+    assert json.dumps(case["binding"], sort_keys=True) == original_binding
+
+
+@pytest.mark.parametrize("flag", ["--assume-unchanged", "--skip-worktree"])
+def test_base_advance_refuses_index_flags_hiding_physical_changes(legacy_base_case, flag):
+    case = legacy_base_case
+    case["git"]("update-index", flag, "marker")
+    (case["repository_path"] / "marker").write_text("uncommitted physical bytes\n")
+    assert case["git"]("status", "--porcelain", "--untracked-files=all") == ""
+    with pytest.raises(ValueError, match="Masked, sparse or non-file index entry refused"):
+        base_preflight(case)
+
+
+def test_base_advance_does_not_pass_unrelated_host_environment(legacy_base_case, monkeypatch):
+    case = legacy_base_case
+    monkeypatch.setenv("SYNTHETIC_HOST_SENTINEL", "synthetic non-secret value")
+    original = subprocess.run
+    git_environments = []
+
+    def observed_run(arguments, **kwargs):
+        if Path(arguments[0]).stem == "git":
+            git_environments.append(kwargs["env"])
+        return original(arguments, **kwargs)
+
+    monkeypatch.setattr(case["adapter"].subprocess, "run", observed_run)
+    assert base_preflight(case)["merge_ready"] is True
+    assert git_environments
+    assert all("SYNTHETIC_HOST_SENTINEL" not in env for env in git_environments)
+
+
+def public_base_arguments(case, directory, output):
+    args = ["legacy-base-preflight"]
+    for name in ("snapshot", "binding", "effects", "observations"):
+        file = directory / (name + ".json")
+        file.write_text(json.dumps(case[name]), encoding="utf-8")
+        args.extend(["--" + name, str(file)])
+    for name in (
+        "repository-path", "expected-head", "binding-sha256", "observations-sha256", "output"
+    ):
+        value = {
+            "repository-path": case["repository_path"],
+            "expected-head": case["expected_head"],
+            "binding-sha256": case["trusted_binding"],
+            "observations-sha256": case["trusted_observations"],
+            "output": output,
+        }[name]
+        args.extend(["--" + name, str(value)])
+    return args
+
+
+@pytest.mark.parametrize(
+    "destination", ["receipt.json", ".git/receipt.json", ".agent/receipt.json"]
+)
+def test_public_base_preflight_refuses_output_that_changes_checked_source(
+    legacy_base_case, tmp_path, destination
+):
+    case = legacy_base_case
+    output = case["repository_path"] / destination
+    output.parent.mkdir(exist_ok=True)
+    result = command(*public_base_arguments(case, tmp_path, output))
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "Receipt destination" in result.stderr
+    assert not output.exists()
+    assert case["git"]("status", "--porcelain", "--untracked-files=all") == ""
+
+
+def test_public_base_preflight_allows_only_ignored_agent_evidence(legacy_base_case, tmp_path):
+    case = legacy_base_case
+    repo = case["repository_path"]
+    (repo / ".git/info/exclude").write_text(".agent/\n", encoding="utf-8")
+    output = repo / ".agent/receipt.json"
+    output.parent.mkdir()
+    result = command(*public_base_arguments(case, tmp_path, output))
+    assert result.returncode == 0, result.stderr
+    assert json.loads(output.read_bytes()) == json.loads(result.stdout)
+    assert json.loads(result.stdout)["merge_ready"] is True
+    assert case["git"]("status", "--porcelain", "--untracked-files=all") == ""
+    receipt = output.read_bytes()
+    repeated = command(*public_base_arguments(case, tmp_path, output))
+    assert repeated.returncode == 2 and output.read_bytes() == receipt
+
+
+def test_base_preflight_blocks_source_change_during_receipt_write(
+    legacy_base_case, tmp_path, monkeypatch
+):
+    case = legacy_base_case
+    output = tmp_path / "receipt.json"
+    original = subprocess.run
+
+    def concurrent_change(arguments, **kwargs):
+        if "status" in arguments and output.exists():
+            assert json.loads(output.read_bytes())["merge_ready"] is True
+            (case["repository_path"] / "concurrent-untracked").write_text("synthetic race\n")
+        return original(arguments, **kwargs)
+
+    monkeypatch.setattr(case["adapter"].subprocess, "run", concurrent_change)
+    result = case["adapter"].legacy_base_preflight(
+        **{k: v for k, v in case.items() if k not in {"adapter", "native", "git"}},
+        output_path=output,
+    )
+    assert result["result"] == "BLOCKED" and result["merge_ready"] is False
+    assert "Candidate became dirty while publishing receipt" in result["errors"]
+    assert json.loads(output.read_bytes()) == result
+    case["native"].verify_seal(result)
+
+
+def test_public_base_preflight_refuses_receipt_parent_symlink(legacy_base_case, tmp_path):
+    case = legacy_base_case
+    link = tmp_path / "source-alias"
+    try:
+        link.symlink_to(case["repository_path"], target_is_directory=True)
+    except OSError as error:
+        pytest.skip(f"Native symlink capability unavailable: {error}")
+    output = link / "receipt.json"
+    result = command(*public_base_arguments(case, tmp_path, output))
+    assert result.returncode == 2
+    assert "Receipt destination must not traverse links" in result.stderr
+    assert not output.exists()
+    assert case["git"]("status", "--porcelain", "--untracked-files=all") == ""

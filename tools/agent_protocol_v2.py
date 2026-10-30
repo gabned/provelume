@@ -446,6 +446,7 @@ def legacy_base_preflight(
     expected_head,
     trusted_binding,
     trusted_observations,
+    output_path=None,
 ):
     """Provelume PR-local extension; never projects or edits a historical receipt."""
     spec = importlib.util.spec_from_file_location(
@@ -531,21 +532,27 @@ def legacy_base_preflight(
 
     # These are fixed, offline Git reads. Ignore ambient Git redirections and
     # credential/config helpers; refuse lazy fetching, replacements and fsmonitor.
-    environment = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    allowed_environment = {
+        "PATH", "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "TEMP", "TMP", "TMPDIR",
+        "LANG", "LC_ALL", "LC_CTYPE",
+    }
+    environment = {k: v for k, v in os.environ.items() if k.upper() in allowed_environment}
     environment.update(
         GIT_CONFIG_NOSYSTEM="1",
         GIT_CONFIG_GLOBAL=os.devnull,
         GIT_NO_LAZY_FETCH="1",
         GIT_ALLOW_PROTOCOL="",
         GIT_TERMINAL_PROMPT="0",
+        GIT_OPTIONAL_LOCKS="0",
     )
     proofs = []
 
-    def git(*arguments):
+    def git(*arguments, record=True, failure=None):
         result = subprocess.run(
             [
                 "git",
                 "--no-replace-objects",
+                "--no-pager",
                 "-c",
                 "core.fsmonitor=false",
                 "-C",
@@ -557,11 +564,63 @@ def legacy_base_preflight(
             check=False,
             timeout=30,
         )
-        require(result.returncode == 0, "Local Git proof failed: " + arguments[0])
+        require(result.returncode == 0, failure or "Local Git proof failed: " + arguments[0])
         require(len(result.stdout) <= 4 * 1024 * 1024, "Unbounded local Git proof")
         value = result.stdout.decode("utf-8", errors="strict")
-        proofs.append({"arguments": list(arguments), "stdout": value})
+        if record:
+            proofs.append({"arguments": list(arguments), "stdout": value})
         return value.rstrip("\r\n")
+
+    # Config names can be inspected without loading includes or invoking drivers.
+    # Refuse worktree-specific config too: --local alone cannot inventory it.
+    names = git("config", "--local", "--no-includes", "--name-only", "--list").splitlines()
+    require(
+        not any(
+            name.casefold().startswith(("filter.", "include.", "includeif."))
+            or name.casefold() == "extensions.worktreeconfig"
+            for name in names
+        ),
+        "Executable or included Git configuration refused",
+    )
+    entries = git("ls-files", "-v", "--stage", "-z").rstrip("\0").split("\0")
+    for entry in entries:
+        header = entry.split("\t", 1)[0].split()
+        require(
+            len(header) == 4
+            and header[0] == "H"
+            and header[1] in {"100644", "100755", "120000"}
+            and header[3] == "0",
+            "Masked, sparse or non-file index entry refused",
+        )
+    root = Path(git("rev-parse", "--show-toplevel")).resolve(strict=True)
+    require(root == repository_path.resolve(strict=True), "Exact checkout root required")
+    if output_path is not None:
+        output_path = Path(output_path).absolute()
+        require(
+            not any(p.is_symlink() or p.is_junction() for p in (output_path, *output_path.parents)),
+            "Receipt destination must not traverse links",
+        )
+        require(not output_path.exists(), "Receipt destination already exists; preserve evidence")
+        require(output_path.parent.is_dir(), "Receipt destination parent must exist")
+        output_path = output_path.resolve()
+        for metadata in (
+            git("rev-parse", "--absolute-git-dir"),
+            git("rev-parse", "--path-format=absolute", "--git-common-dir"),
+        ):
+            require(
+                not output_path.is_relative_to(Path(metadata).resolve()),
+                "Receipt destination must be outside Git metadata",
+            )
+        if output_path.is_relative_to(root):
+            relative = output_path.relative_to(root)
+            require(
+                len(relative.parts) > 1 and relative.parts[0] == ".agent",
+                "Receipt destination must be outside source or in ignored .agent evidence",
+            )
+            git(
+                "check-ignore", "--quiet", "--no-index", "--", relative.as_posix(),
+                failure="Receipt destination must be ignored .agent evidence",
+            )
 
     require(git("rev-parse", "--is-shallow-repository") == "false", "Complete history required")
     require(not git("for-each-ref", "refs/replace/"), "Replaced history refused")
@@ -680,7 +739,7 @@ def legacy_base_preflight(
     # independently refresh GitHub at the actual authorized action boundary.
     require(git("rev-parse", "HEAD") == head, "Local candidate moved during proof")
     require(not git("status", "--porcelain", "--untracked-files=all"), "Candidate became dirty")
-    return native.seal(
+    result = native.seal(
         {
             "schema": "provelume-legacy-base-preflight/v1",
             "mode": "PREFLIGHT_BASE_ADVANCE",
@@ -709,6 +768,34 @@ def legacy_base_preflight(
             "lifecycle_v2_activated": False,
         }
     )
+    if output_path is not None:
+        # Exclusive creation preserves earlier receipts. Recheck after the actual
+        # write; a concurrent source change leaves a BLOCKED receipt, never READY.
+        with output_path.open("x+", encoding="utf-8") as stream:
+            json.dump(result, stream, sort_keys=True)
+            stream.flush()
+            try:
+                require(
+                    git("rev-parse", "HEAD", record=False) == head,
+                    "Candidate moved while publishing receipt",
+                )
+                require(
+                    not git("status", "--porcelain", "--untracked-files=all", record=False),
+                    "Candidate became dirty while publishing receipt",
+                )
+            except (ValueError, OSError, subprocess.SubprocessError) as error:
+                result = native.seal(
+                    {
+                        **{k: v for k, v in result.items() if k != "report_sha256"},
+                        "result": "BLOCKED",
+                        "merge_ready": False,
+                        "errors": [*result["errors"], str(error)],
+                    }
+                )
+                stream.seek(0)
+                json.dump(result, stream, sort_keys=True)
+                stream.truncate()
+    return result
 
 
 def bind_product_host(
@@ -981,10 +1068,8 @@ def main(argv=None):
                 expected_head=args.expected_head,
                 trusted_binding=args.binding_sha256,
                 trusted_observations=args.observations_sha256,
+                output_path=args.output,
             )
-            if args.output:
-                with args.output.open("x", encoding="utf-8") as stream:
-                    json.dump(result, stream, sort_keys=True)
             print(json.dumps(result, sort_keys=True))
             return 0 if result["merge_ready"] else 1
         elif args.command == "event-guard":

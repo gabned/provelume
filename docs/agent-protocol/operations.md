@@ -150,6 +150,11 @@ original-base â†’ current-main â†’ candidate and binding-basis â†�
 checks all candidate/test-merge trees and ordered parents, and retains native Git
 proofs. Shallow, grafted, replaced, dirty, foreign or mismatching checkouts refuse.
 No Git transport, credential helper, candidate hook or fsmonitor is invoked.
+Before reading worktree contents, refuse repository-local filters, configuration
+includes and worktree-specific configuration, plus masking index flags, sparse
+entries and gitlinks. Git subprocesses receive only the platform path, locale and
+temporary-directory environment needed for these offline reads, excluding unrelated
+host variables. Optional index writes and pagers are disabled.
 
 ```bash
 python tools/agent_protocol_v2.py legacy-base-preflight \
@@ -167,7 +172,12 @@ unresolved threads, findings, review requirements and all other ordinary gates
 still block. Invalid source/identity/proof returns REFUSED (exit 2); valid identity
 with blocked gates returns BLOCKED (exit 1). READY (exit 0) has no new capabilities
 and does not dispatch a merge. Output uses exclusive creation and cannot overwrite
-earlier evidence. Keep this receipt and its raw sources in the existing PR-local
+earlier evidence. Resolve and validate the destination before qualification: it
+must be outside the checked source or inside its ignored `.agent/` evidence
+directory, with an existing parent and no symlink/junction traversal. Git metadata,
+tracked/unignored source paths and existing destinations are refused. Recheck HEAD
+and cleanliness after the actual write; an observed concurrent change leaves a
+BLOCKED receipt in the newly created file. Keep this receipt and its raw sources in the existing PR-local
 ledger; no new checkpoint or second owner is created.
 
 Only a fresh independently authorized action can consume a READY observation.
