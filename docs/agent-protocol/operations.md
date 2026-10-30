@@ -103,6 +103,90 @@ expected head, accepted pin/profile, unresolved gates and the one next action.
 Record actual available model/effort only in that handoff. Unknown measurements
 remain UNKNOWN. A proposed new objective does not authorize starting it.
 
+## PR-local legacy base advancement
+
+The historical `tools/agent_protocol.py preflight` requires the live snapshot
+base to equal the original BIND base. Its refusal after main advances is expected
+under that receipt's original contract. Ancestry alone does not satisfy that
+identity comparison. Policy recovery 1.4.9 cannot repair this case.
+
+The current native Provelume adapter supplies the explicit
+`legacy-base-preflight` operation for this missing local continuation path.
+This is consumer-specific: the historical BIND fixes `gabned/provelume` and its
+PR-local coordinates. Extend the registered native adapter and its conformance,
+rather than changing the frozen validator, canonical package or compatibility
+corpus. This operation does not activate Lifecycle v2 or migrate authoritative state.
+A candidate implementation is not authority for an active PRODUCT workstream:
+qualify and integrate its separate PROTOCOL PR before ordinary use.
+
+The original BIND, its basis, policy, effects, owner and receipts remain immutable.
+The new receipt separately binds the original base and actual advanced base; it
+never projects a current snapshot onto the old base or filters the historical
+preflight's errors. The unchanged historical preflight is embedded with its
+original refusal. This is fresh qualification, never retroactive repair or rebind.
+
+An authenticated host first retains all raw sources and independently selects the
+original BIND digest, expected head and observation digest from the same PR-local
+ledger. Hashes authenticate no source themselves. Collect within 15 minutes:
+
+- The raw repository, PR, actual main Git ref, candidate Git commit and GitHub test
+  merge Git commit; the latter must have ordered parents [current base, head] and
+  exactly the candidate tree.
+- Every PR files page, including original rename names; retain pagination receipts
+  and compare the aggregate with the PR count and complete native Git delta.
+- A fresh ordinary snapshot with current policy/authority, complete exact-head CI
+  and attempts/jobs, reviews/threads, native qualification and every current finding.
+  Existing product and release gates remain independently mandatory.
+- A freshly recomputed effect report over the entire actual base-to-head delta,
+  under the original policy. Effects must equal the original prediction, and
+  current capabilities must not exceed independently retained original capabilities.
+
+The observation object has exactly `schema: provelume-base-observations/v1`,
+`observed_at`, `repository`, `pr`, `default`, `candidate`, `test_merge`,
+`files` (the raw aggregate) and `files_complete`. The latter summarizes retained
+complete page proofs; it cannot replace authentication or missing pages.
+Use a complete clean checkout of that exact PR branch. The offline adapter proves
+original-base â†’ current-main â†’ candidate and binding-basis â†’ candidate ancestry,
+checks all candidate/test-merge trees and ordered parents, and retains native Git
+proofs. Shallow, grafted, replaced, dirty, foreign or mismatching checkouts refuse.
+No Git transport, credential helper, candidate hook or fsmonitor is invoked.
+Before reading worktree contents, refuse repository-local filters, configuration
+includes and worktree-specific configuration, plus masking index flags, sparse
+entries and gitlinks. Git subprocesses receive only the platform path, locale and
+temporary-directory environment needed for these offline reads, excluding unrelated
+host variables. Optional index writes and pagers are disabled.
+
+```bash
+python tools/agent_protocol_v2.py legacy-base-preflight \
+  --snapshot .agent/current-snapshot.json --binding .agent/original-binding.json \
+  --effects .agent/current-effects.json --observations .agent/base-observations.json \
+  --repository-path /path/to/exact-clean-pr-checkout \
+  --expected-head "$EXPECTED_HEAD" --binding-sha256 "$ORIGINAL_BIND_SHA256" \
+  --observations-sha256 "$INDEPENDENT_OBSERVATIONS_SHA256" \
+  --output .agent/new-base-preflight.json
+```
+
+The distinct `provelume-legacy-base-preflight/v1` receipt reports
+`BASE_ADVANCE_PROVEN` separately from readiness. Draft, failing/unknown CI,
+unresolved threads, findings, review requirements and all other ordinary gates
+still block. Invalid source/identity/proof returns REFUSED (exit 2); valid identity
+with blocked gates returns BLOCKED (exit 1). READY (exit 0) has no new capabilities
+and does not dispatch a merge. Output uses exclusive creation and cannot overwrite
+earlier evidence. Resolve and validate the destination before qualification: it
+must be outside the checked source or inside its ignored `.agent/` evidence
+directory, with an existing parent and no symlink/junction traversal. Git metadata,
+tracked/unignored source paths and existing destinations are refused. Recheck HEAD
+and cleanliness after the actual write; an observed concurrent change leaves a
+BLOCKED receipt in the newly created file. Keep this receipt and its raw sources in the existing PR-local
+ledger; no new checkpoint or second owner is created.
+
+Only a fresh independently authorized action can consume a READY observation.
+Refresh GitHub again at that boundary; re-run all stale dependent evidence after
+head, base, runtime, workflow or policy changes. Equal trees do not transfer CI
+between heads. A later main advancement needs a new observation and receipt,
+retaining every earlier FAIL and receipt. Actual integration, release and
+post-merge reconciliation keep their existing independent requirements.
+
 ## Review authority
 
 The accepted local instructions and actual maintainer requests determine review
