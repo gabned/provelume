@@ -68,4 +68,3 @@ def test_digest_rejects_mutation_and_bounds_growth_read(tmp_path, monkeypatch, m
     with pytest.raises(AtomicCommitError):
         _bounded_file_digest(target, limit=1024 * 1024, error_type=AtomicCommitError)
     assert consumed <= len(payload) + 1
-
