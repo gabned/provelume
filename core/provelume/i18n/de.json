@@ -2289,5 +2289,21 @@
   "action.knowledge_objects": "Objektvorschläge",
   "action.reason.object_proposal": "Ein Objektentwurf erfordert aktuelle Nachweise und eine ausdrückliche Prüfung.",
   "review.knowledge_objects": "Objektprüfung",
-  "review.reject": "Ablehnen"
+  "review.reject": "Ablehnen",
+  "desktop.startup_preparing": "Die ausgewählte Instanz wird vorbereitet. Sie können den Start abbrechen.",
+  "desktop.startup_waiting": "Warten, bis der ausgewählte lokale Dienst bereit ist.",
+  "desktop.startup_stop_unconfirmed": "Einige Startressourcen sind noch aktiv oder nicht bestätigt. Warten Sie vor einem erneuten Versuch oder dem Beenden.",
+  "desktop.startup_details": "Startdetails",
+  "desktop.startup_details_help": "Nur lokale Startphasen, Fehlercodes und Zeiten. Keine Dokumentinhalte oder Pfade, Zugangsdaten oder Verbindungsnachweise.",
+  "desktop.startup_details_empty": "In dieser Sitzung wurde noch kein Startversuch aufgezeichnet.",
+  "desktop.startup_error_preparation": "Die Vorbereitung hat zu lange gedauert. Prüfen Sie die Verfügbarkeit der Instanz und versuchen Sie es erneut.",
+  "desktop.startup_error_spawn": "Der lokale Dienst konnte nicht gestartet werden. Prüfen Sie die Installation und versuchen Sie es erneut.",
+  "desktop.startup_error_bootstrap": "Die private Startverbindung konnte nicht hergestellt werden. Prüfen Sie die Installation und versuchen Sie es erneut.",
+  "desktop.startup_error_exit": "Der lokale Dienst wurde beendet. Prüfen Sie die Startdetails und versuchen Sie es erneut.",
+  "desktop.startup_error_timeout": "Der Dienst wurde nicht rechtzeitig bereit. Prüfen Sie die Startdetails und versuchen Sie es erneut.",
+  "desktop.startup_error_protocol": "Der ausgewählte lokale Dienst konnte nicht verifiziert werden. Prüfen Sie die Installation und die ausgewählte Instanz.",
+  "desktop.startup_error_configuration": "Die ausgewählte Instanz oder die lokalen Einstellungen konnten nicht geöffnet werden. Prüfen Sie diese und versuchen Sie es erneut.",
+  "desktop.startup_error_integrity": "Die Integritätsprüfung der Installation ist fehlgeschlagen. Stellen Sie vor einem erneuten Versuch eine verifizierte Installation wieder her.",
+  "desktop.startup_error_initialization": "Der Dienst konnte die Initialisierung nicht abschließen. Prüfen Sie die Startdetails und versuchen Sie es erneut.",
+  "tray_status.stop_unconfirmed": "Beenden nicht bestätigt"
 }

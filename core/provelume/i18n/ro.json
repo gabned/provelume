@@ -2289,5 +2289,21 @@
   "action.knowledge_objects": "Propuneri de obiecte",
   "action.reason.object_proposal": "O schiță de obiect necesită dovezi actuale și o revizuire explicită.",
   "review.knowledge_objects": "Revizuirea obiectelor",
-  "review.reject": "Respinge"
+  "review.reject": "Respinge",
+  "desktop.startup_preparing": "Se pregătește instanța selectată. Poți opri pornirea.",
+  "desktop.startup_waiting": "Se așteaptă ca serviciul local selectat să fie pregătit.",
+  "desktop.startup_stop_unconfirmed": "Unele resurse de pornire sunt încă active sau neconfirmate. Așteaptă înainte de a reîncerca sau de a închide.",
+  "desktop.startup_details": "Detalii de pornire",
+  "desktop.startup_details_help": "Doar fazele, codurile de eroare și timpii pornirii locale. Fără conținut sau căi de documente, credențiale ori dovezi de conexiune.",
+  "desktop.startup_details_empty": "Nu s-a înregistrat nicio încercare de pornire în această sesiune.",
+  "desktop.startup_error_preparation": "Pregătirea a depășit timpul disponibil. Verifică dacă instanța este disponibilă și încearcă din nou.",
+  "desktop.startup_error_spawn": "Serviciul local nu a putut fi pornit. Verifică instalarea și încearcă din nou.",
+  "desktop.startup_error_bootstrap": "Conexiunea privată de pornire nu a putut fi stabilită. Verifică instalarea și încearcă din nou.",
+  "desktop.startup_error_exit": "Serviciul local s-a închis. Consultă detaliile de pornire și încearcă din nou.",
+  "desktop.startup_error_timeout": "Serviciul nu a fost pregătit la timp. Consultă detaliile de pornire și încearcă din nou.",
+  "desktop.startup_error_protocol": "Serviciul local selectat nu a putut fi verificat. Verifică instalarea și instanța selectată.",
+  "desktop.startup_error_configuration": "Instanța selectată sau setările locale nu au putut fi deschise. Verifică-le și încearcă din nou.",
+  "desktop.startup_error_integrity": "Verificarea integrității instalării a eșuat. Restabilește o instalare verificată înainte de a reîncerca.",
+  "desktop.startup_error_initialization": "Serviciul nu a putut finaliza inițializarea. Consultă detaliile de pornire și încearcă din nou.",
+  "tray_status.stop_unconfirmed": "Oprire neconfirmată"
 }

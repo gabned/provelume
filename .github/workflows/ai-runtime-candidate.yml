@@ -4,10 +4,28 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      concordia_diagnostic:
+        description: 'Nonqualifying S01 controlled main/original/candidate CPU replay'
+        type: boolean
+        default: false
+      concordia_observer_study:
+        description: 'Nonqualifying S01 operation-boundary and observer-cost study'
+        type: boolean
+        default: false
+      concordia_tracer_study:
+        description: 'Nonqualifying S01 tracer CPU placement on the original EPYC 9V74 profile'
+        type: boolean
+        default: false
+      concordia_smt_study:
+        description: 'Nonqualifying S01 capture placement on worker CPU versus SMT sibling'
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   measure:
+    if: ${{ inputs.concordia_diagnostic != true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
     strategy:
       fail-fast: false
       matrix:
@@ -49,6 +67,301 @@ jobs:
             .agent/s05-real.json
             .agent/s05-network.*
             .agent/s05-wfp.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  concordia-diagnostic:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_diagnostic == true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
+    runs-on: ubuntu-24.04
+    # Four diagnostic arms, capped at 20 minutes each; qualification job stays unchanged.
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Canonical dependency bootstrap
+        run: python scripts/bootstrap.py
+      - name: Explicit locked acquisition (no model in artifacts or Git)
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/concordia-inputs" --accept-licenses --include-model
+      - name: Enable diagnostic scheduler counters
+        run: sudo sysctl kernel.sched_schedstats=1
+      - name: Controlled replay (DIAGNOSTIC_ONLY, never qualification)
+        run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-cpu-comparison"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: concordia-cpu-comparison
+          path: .agent/concordia-cpu-comparison
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  concordia-observer-study:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_observer_study == true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Canonical dependency bootstrap
+        run: python scripts/bootstrap.py
+      - name: Explicit locked acquisition (no model in artifacts or Git)
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/concordia-inputs" --accept-licenses --include-model
+      - name: Enable diagnostic scheduler counters
+        run: sudo sysctl kernel.sched_schedstats=1
+      - name: Boundary counters and observer contrast (DIAGNOSTIC_ONLY)
+        run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-observer-study" --observer-study
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: concordia-observer-study
+          path: .agent/concordia-observer-study
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  concordia-smt-study:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_smt_study == true && inputs.concordia_tracer_study != true }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Require real two-core four-thread SMT before model acquisition
+        run: python scripts/diagnose_concordia_cpu.py smt-topology --output .agent/concordia-smt-topology.json
+      - name: Canonical dependency bootstrap
+        run: python scripts/bootstrap.py
+      - name: Explicit locked acquisition (no model in artifacts or Git)
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/concordia-inputs" --accept-licenses --include-model
+      - name: Enable diagnostic scheduler counters
+        run: sudo sysctl kernel.sched_schedstats=1
+      - name: Controlled capture placement (DIAGNOSTIC_ONLY)
+        run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-smt-study" --placement-study
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: concordia-smt-study
+          path: |
+            .agent/concordia-smt-topology.json
+            .agent/concordia-smt-study
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  concordia-tracer-study:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_tracer_study == true }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Require original CPU and actual SMT before model acquisition
+        run: python scripts/diagnose_concordia_cpu.py smt-topology --require-original-cpu --output .agent/concordia-tracer-topology.json
+      - name: Canonical dependency bootstrap
+        run: python scripts/bootstrap.py
+      - name: Explicit locked acquisition (no model in artifacts or Git)
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/concordia-inputs" --accept-licenses --include-model
+      - name: Enable diagnostic scheduler counters
+        run: sudo sysctl kernel.sched_schedstats=1
+      - name: Controlled tracer placement (DIAGNOSTIC_ONLY)
+        run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-tracer-study" --tracer-study
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: concordia-tracer-study
+          path: |
+            .agent/concordia-tracer-topology.json
+            .agent/concordia-tracer-study
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+
+  concordia-portable-tracer-study:
+    # One authorized source advancement, not a search for a particular hosted CPU.
+    if: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.action == 'synchronize' &&
+          github.event.pull_request.number == 424 &&
+          github.event.pull_request.head.repo.full_name == 'gabned/provelume' &&
+          github.event.pull_request.head.ref == 'product/0.15-s01-windows-readiness' &&
+          github.run_attempt == '1' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Bind the one predeclared source advancement
+        id: contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+          parents = subprocess.check_output(
+              ["git", "rev-list", "--parents", "-n", "1", "HEAD"], text=True
+          ).split()
+          if parents[0] != event["pull_request"]["head"]["sha"]:
+              raise RuntimeError("checked-out source differs from the event")
+          if subprocess.check_output(["git", "status", "--porcelain"]):
+              raise RuntimeError("diagnostic source is not clean")
+          eligible = (len(parents) == 2 and
+                      parents[1] == "8433e64883c55b7cb5fff20ed8bf8b7795af93b5")
+          output = Path(".agent/concordia-portable-trigger.json")
+          output.parent.mkdir(exist_ok=True)
+          output.write_text(json.dumps({
+              "status": "ELIGIBLE" if eligible else "NOT_RUN",
+              "source": parents[0], "parents": parents[1:],
+              "event": event["action"], "attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "qualification_eligible": False,
+              "reason": "single direct descendant of the predeclared owner head"
+          }, indent=2) + "\n")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as stream:
+              stream.write("eligible=" + str(eligible).lower() + "\n")
+          PY
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        if: steps.contract.outputs.eligible == 'true'
+        with:
+          python-version: '3.12'
+      - name: Enable the existing diagnostic scheduler counters
+        if: steps.contract.outputs.eligible == 'true'
+        run: sudo sysctl kernel.sched_schedstats=1
+      - name: Admit the observed host before bootstrap or model acquisition
+        if: steps.contract.outputs.eligible == 'true'
+        run: python scripts/diagnose_concordia_cpu.py portable-topology --output .agent/concordia-portable-topology.json
+      - name: Canonical dependency bootstrap
+        if: steps.contract.outputs.eligible == 'true'
+        run: python scripts/bootstrap.py
+      - name: Native diagnostic integrity and actual tracer-affinity controls
+        if: steps.contract.outputs.eligible == 'true'
+        run: |
+          .venv/bin/python -m ruff check --cache-dir .agent/ruff-cache core tests scripts tools
+          .venv/bin/python -m pytest -q tests/test_concordia_cpu_topology.py tests/test_concordia_cpu_diagnostic.py
+      - name: Explicit canonical acquisition with complete locked input verification
+        if: steps.contract.outputs.eligible == 'true'
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/concordia-inputs" --accept-licenses --include-model
+      - name: Four original-source arms once on this observed host (DIAGNOSTIC_ONLY)
+        if: steps.contract.outputs.eligible == 'true'
+        run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-portable-tracer-study" --portable-tracer-study
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: concordia-portable-tracer-study
+          path: |
+            .agent/concordia-portable-trigger.json
+            .agent/concordia-portable-topology.json
+            .agent/concordia-portable-tracer-study
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+
+  concordia-bounded-digest-study:
+    # One authorized source advancement, not a search for a particular hosted CPU.
+    if: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.action == 'synchronize' &&
+          github.event.pull_request.number == 424 &&
+          github.event.pull_request.head.repo.full_name == 'gabned/provelume' &&
+          github.event.pull_request.head.ref == 'product/0.15-s01-windows-readiness' &&
+          github.run_attempt == '1' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Bind the one predeclared source advancement
+        id: contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+          parents = subprocess.check_output(
+              ["git", "rev-list", "--parents", "-n", "1", "HEAD"], text=True
+          ).split()
+          if parents[0] != event["pull_request"]["head"]["sha"]:
+              raise RuntimeError("checked-out source differs from the event")
+          if subprocess.check_output(["git", "status", "--porcelain"]):
+              raise RuntimeError("diagnostic source is not clean")
+          eligible = (len(parents) == 2 and
+                      parents[1] == "967222f71d43de7e518d9c55c80167bf1d886c83")
+          output = Path(".agent/concordia-digest-trigger.json")
+          output.parent.mkdir(exist_ok=True)
+          output.write_text(json.dumps({
+              "status": "ELIGIBLE" if eligible else "NOT_RUN",
+              "source": parents[0], "parents": parents[1:],
+              "event": event["action"], "attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "qualification_eligible": False,
+              "reason": "single direct descendant of the predeclared owner head"
+          }, indent=2) + "\n")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as stream:
+              stream.write("eligible=" + str(eligible).lower() + "\n")
+          PY
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        if: steps.contract.outputs.eligible == 'true'
+        with:
+          python-version: '3.12'
+      - name: Enable the existing diagnostic scheduler counters
+        if: steps.contract.outputs.eligible == 'true'
+        run: sudo sysctl kernel.sched_schedstats=1
+      - name: Admit the observed host before bootstrap or model acquisition
+        if: steps.contract.outputs.eligible == 'true'
+        run: python scripts/diagnose_concordia_cpu.py portable-topology --output .agent/concordia-digest-topology.json
+      - name: Confirm the isolated PRODUCT factor before acquisition
+        if: steps.contract.outputs.eligible == 'true'
+        run: python scripts/diagnose_concordia_cpu.py digest-admission --repository "$GITHUB_WORKSPACE" --output .agent/concordia-digest-factor.json
+      - name: Canonical dependency bootstrap
+        if: steps.contract.outputs.eligible == 'true'
+        run: python scripts/bootstrap.py
+      - name: Native diagnostic integrity and actual tracer-affinity controls
+        if: steps.contract.outputs.eligible == 'true'
+        run: |
+          .venv/bin/python -m ruff check --cache-dir .agent/ruff-cache core tests scripts tools
+          .venv/bin/python -m pytest -q tests/test_atomic_digest_bounds.py tests/test_atomic_commit.py tests/test_concordia_cpu_topology.py tests/test_concordia_cpu_diagnostic.py
+      - name: Explicit canonical acquisition with complete locked input verification
+        if: steps.contract.outputs.eligible == 'true'
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/concordia-inputs" --accept-licenses --include-model
+      - name: Four full baseline/candidate arms once (DIAGNOSTIC_ONLY)
+        if: steps.contract.outputs.eligible == 'true'
+        run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-bounded-digest-study" --bounded-digest-study
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: concordia-bounded-digest-study
+          path: |
+            .agent/concordia-digest-trigger.json
+            .agent/concordia-digest-topology.json
+            .agent/concordia-digest-factor.json
+            .agent/concordia-bounded-digest-study
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30

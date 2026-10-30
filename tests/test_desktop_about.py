@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import socket
 import subprocess
 import sys
+import threading
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -72,6 +74,145 @@ class _Process:
     def kill(self) -> None:
         self.killed = True
         self.exit_code = -9
+
+
+def test_initial_archive_preparation_is_owned_off_the_ui_thread(tmp_path, monkeypatch):
+    """A blocked initial archive open must leave the Panel and cancellation available."""
+    calling_thread = threading.get_ident()
+    entered, release = threading.Event(), threading.Event()
+    callbacks = []
+    root = SimpleNamespace(
+        protocol=lambda *_: None, after=lambda delay, action: callbacks.append((delay, action)),
+    )
+    tkinter = SimpleNamespace(
+        ttk=SimpleNamespace(), StringVar=lambda value: _Value(value),
+        BooleanVar=lambda value: _Value(value),
+    )
+    monkeypatch.setitem(sys.modules, "tkinter", tkinter)
+    monkeypatch.setattr("provelume.shell_appearance.apply_native_appearance", lambda *_: None)
+    path = tmp_path / "launcher.json"
+    settings = LauncherSettings(instance_path=str(tmp_path / "synthetic"), language="en",
+                                schema_version=3)
+    save_settings(settings, path)
+    monkeypatch.setattr(desktop, "settings_path", lambda: path)
+    monkeypatch.setattr(desktop, "declare_startup_update_policy", lambda *_args, **_kw: None)
+
+    def build(shell):
+        for name in ("open_button", "stop_button", "choose_button", "create_button",
+                     "check_button", "startup_check", "channel_box"):
+            setattr(shell, name, _Button())
+
+    creation_grants = []
+
+    def prepare(_shell, _path, *, create_if_missing, language=None):
+        assert threading.get_ident() != calling_thread, "archive preparation ran on the UI thread"
+        creation_grants.append(create_if_missing)
+        entered.set()
+        assert release.wait(2), "test preparation was not released"
+
+    monkeypatch.setattr(DesktopShell, "_build", build)
+    monkeypatch.setattr(DesktopShell, "_ensure_instance", prepare)
+    shell = None
+    try:
+        shell = DesktopShell(root, initial_settings=settings, enable_native_tray=False,
+                             enable_first_run_dialog=False)
+        assert not entered.is_set()
+        next(action for delay, action in callbacks if delay == 250)()
+        assert entered.wait(1)
+        owner = shell._startup
+        assert owner is not None and owner.thread.is_alive() and not owner.done.is_set()
+        assert shell.open_button.state == "disabled"
+        assert shell.startup_check.state == shell.channel_box.state == "disabled"
+        shell.stop_server()
+        assert owner.cancelled.is_set() and not owner.done.is_set()
+        assert any(delay == 25 for delay, _ in callbacks)
+    finally:
+        release.set()
+        if shell is not None and shell._startup is not None:
+            assert shell._startup.done.wait(2)
+            assert shell._startup.process is None
+    shell._poll_startup()
+    assert shell.open_button.state == "normal"
+    assert shell.check_button.state == "normal"
+    assert shell.startup_check.state == "normal" and shell.channel_box.state == "readonly"
+    shell.start_server()
+    assert shell._startup.done.wait(2)
+    assert creation_grants == [True, False]
+    assert shell._startup.process is None
+
+
+def test_initial_policy_controls_reject_a_queued_edit_without_writing(tmp_path, monkeypatch):
+    shell = DesktopShell.__new__(DesktopShell)
+    shell._startup_policy_locked = True
+    shell.settings = LauncherSettings(instance_path=str(tmp_path), check_on_start=True,
+                                      update_channel="preview")
+    shell.channel, shell.check_on_start = _Value("stable"), _Value(False)
+
+    def unexpected_write(**_changes):
+        raise AssertionError("queued edit wrote preferences during initial preparation")
+
+    monkeypatch.setattr(shell, "_replace_settings", unexpected_write)
+    shell._save_policy()
+    assert shell.channel.get() == "preview" and shell.check_on_start.get() is True
+
+
+@pytest.mark.parametrize("policy_write_fails", [False, True])
+def test_disabling_startup_checks_invalidates_an_inflight_update_result(
+    tmp_path, monkeypatch, policy_write_fails,
+):
+    shell = DesktopShell.__new__(DesktopShell)
+    shell.settings = LauncherSettings(instance_path=str(tmp_path), check_on_start=True,
+                                      update_channel="preview")
+    shell.channel, shell.check_on_start = _Value("preview"), _Value(False)
+    shell.instance_available = policy_write_fails
+    shell.instance = tmp_path
+    invalidations = []
+
+    def change(**changes):
+        shell.settings = replace(shell.settings, **changes)
+
+    monkeypatch.setattr(shell, "_replace_settings", change)
+    monkeypatch.setattr(shell, "_invalidate_update_result", lambda: invalidations.append(True))
+    if policy_write_fails:
+        def refused_write(*_args, **_kwargs):
+            assert invalidations == [True], "opt-out was not fenced before fallible archive I/O"
+            raise OSError("synthetic component-policy write failure")
+
+        monkeypatch.setattr(desktop, "declare_startup_update_policy", refused_write)
+        with pytest.raises(OSError, match="synthetic component-policy write failure"):
+            shell._save_policy()
+    else:
+        shell._save_policy()
+    assert shell.settings.check_on_start is False and invalidations == [True]
+
+
+@pytest.mark.parametrize("event", ["prepared", "ready", "finished"])
+def test_startup_events_preserve_a_newer_update_opt_out(tmp_path, monkeypatch, event):
+    shell = DesktopShell.__new__(DesktopShell)
+    older = LauncherSettings(instance_path=str(tmp_path), check_on_start=True, revision=1)
+    current = replace(older, check_on_start=False, update_channel="stable", revision=2)
+    done = threading.Event()
+    done.set()
+    owner = SimpleNamespace(events=queue.Queue(), done=done, cancelled=threading.Event(),
+                            cleanup_unconfirmed=False, phase="STOPPED", instance=tmp_path)
+    owner.events.put((event, {"settings": older, "port": 8040, "process": None,
+                             "code": "cancelled", "rolled_back": False}))
+    shell._startup, shell.settings, shell.instance = owner, current, tmp_path
+    shell.instance_available = True
+    shell.closed = shell._close_requested = shell._restart_after_stop = False
+    shell._pending_instance = None
+    shell._startup_status_on_finish = "stopped"
+    shell._startup_update_check_pending = True
+    shell.tray = None
+    shell.status = _Value("preparing")
+    shell.text = STRINGS["en"]
+    shell.check_button, shell.open_button, shell.stop_button = _Button(), _Button(), _Button()
+    checked = []
+    monkeypatch.setattr(shell, "check_updates", lambda **kw: checked.append(kw))
+    monkeypatch.setattr(shell, "_server_ready", lambda *_: None)
+    shell._poll_startup()
+    assert shell.settings == current
+    assert checked == [], "old prepared snapshot reauthorized an automatic update check"
 
 
 def _candidate(*, channel: str) -> UpdateCandidate:
@@ -416,17 +557,20 @@ def test_startup_policy_open_retries_only_bounded_lifecycle_contention(
             assert elapsed == 0
 
 
+@pytest.mark.parametrize("external,component", [(False, True), (True, False), (False, False)])
 def test_background_update_check_fails_closed_without_both_policy_flags(
     tmp_path: Path,
     monkeypatch,
+    external,
+    component,
 ) -> None:
     root = tmp_path / "instance"
     instance = ProvelumeInstance.initialise(root)
     config = instance.store.read_config()
     config["network"].update(
         {
-            "external_access": False,
-            "update_checks": True,
+            "external_access": external,
+            "update_checks": component,
             "update_endpoint": "https://api.github.com",
             "update_data_categories": [],
         }
@@ -434,6 +578,7 @@ def test_background_update_check_fails_closed_without_both_policy_flags(
     instance.store.write_config(config)
 
     shell = DesktopShell.__new__(DesktopShell)
+    shell.closed = False
     shell.instance = root
     shell.update_generation = 0
     shell.candidate = None
@@ -443,15 +588,29 @@ def test_background_update_check_fails_closed_without_both_policy_flags(
     shell.channel = _Value("preview")
     shell.text = {"network_notice": "network", "checking": "checking"}
 
-    def reject_thread(*_args, **_kwargs):
-        raise AssertionError("background network worker must not start")
+    network_calls, workers = [], []
+    thread_type = threading.Thread
+    policy_reader = desktop.startup_update_policy_enabled
+    ui_thread = threading.get_ident()
 
-    monkeypatch.setattr(
-        "provelume.desktop.threading.Thread",
-        reject_thread,
-    )
+    def policy(path):
+        assert threading.get_ident() != ui_thread
+        return policy_reader(path)
+
+    def worker(*args, **kwargs):
+        result = thread_type(*args, **kwargs)
+        workers.append(result)
+        return result
+
+    monkeypatch.setattr(desktop, "startup_update_policy_enabled", policy)
+    monkeypatch.setattr(desktop.threading, "Thread", worker)
+    monkeypatch.setattr(shell, "_check_updates_worker", lambda *_: network_calls.append(True))
 
     shell.check_updates(interactive=False)
+    for thread in workers:
+        thread.join(timeout=2)
+        assert not thread.is_alive()
+    assert network_calls == []
     assert shell.update_generation == 0
     assert shell.update_status.get() == "current"
 
@@ -482,6 +641,132 @@ def test_stale_update_results_cannot_replace_the_current_channel() -> None:
     assert shell.candidate == stable
     assert shell.update_status.get() == "available: 0.4.0"
     assert shell.download_button.state == "normal"
+
+
+def test_automatic_update_preserves_request_identity_and_rejects_a_late_grant(
+    tmp_path, monkeypatch,
+):
+    shell = DesktopShell.__new__(DesktopShell)
+    shell.instance = tmp_path / "synthetic"
+    shell.closed = False
+    shell.update_generation = 7
+    calls = []
+    monkeypatch.setattr(desktop, "startup_update_policy_enabled", lambda _: True)
+    monkeypatch.setattr(shell, "_check_updates_worker", lambda *args: calls.append(args))
+    shell._startup_update_check_worker(shell.instance, 7, "preview")
+    assert calls == [("preview", 7)]
+    calls.clear()
+
+    entered, release = threading.Event(), threading.Event()
+
+    def policy(_instance):
+        entered.set()
+        assert release.wait(2)
+        return True
+
+    monkeypatch.setattr(desktop, "startup_update_policy_enabled", policy)
+    worker = threading.Thread(target=shell._startup_update_check_worker,
+                              args=(shell.instance, 7, "preview"))
+    try:
+        worker.start()
+        assert entered.wait(1)
+        shell.update_generation = 8
+    finally:
+        release.set()
+        worker.join(timeout=2)
+    assert not worker.is_alive() and calls == []
+
+
+def test_first_run_directory_creation_refuses_an_alias_before_descending(tmp_path):
+    from provelume.maintenance_local_files import MaintenanceTargetError, prepare_local_directory
+
+    target = tmp_path / "synthetic target"
+    target.mkdir()
+    alias = tmp_path / "alias"
+    if os.name == "nt":
+        import _winapi
+
+        _winapi.CreateJunction(str(target), str(alias))
+    else:
+        alias.symlink_to(target, target_is_directory=True)
+    with pytest.raises(MaintenanceTargetError), prepare_local_directory(
+        alias / "must not appear", create=True,
+    ):
+        pytest.fail("unsafe alias was accepted")
+    assert not (target / "must not appear").exists()
+
+
+def test_first_run_directory_creation_and_existing_only_recovery(tmp_path):
+    from provelume.maintenance_local_files import MaintenanceTargetError, prepare_local_directory
+
+    root = tmp_path / "new parent" / "new synthetic instance"
+    with pytest.raises(MaintenanceTargetError), prepare_local_directory(root):
+        pytest.fail("missing directory was silently created")
+    assert not root.parent.exists()
+    with prepare_local_directory(root, create=True) as (path, binding):
+        assert path == root and root.is_dir() and binding
+    marker = root / "synthetic preserved.txt"
+    marker.write_text("synthetic original")
+    with prepare_local_directory(root) as (_, binding):
+        assert binding and marker.read_text() == "synthetic original"
+
+
+@pytest.mark.parametrize("after_stop", ["install", "unconfirmed", "stale", "quit"])
+def test_installer_waits_for_confirmed_cleanup_and_current_intent(
+    tmp_path, monkeypatch, after_stop,
+):
+    shell = DesktopShell.__new__(DesktopShell)
+    done, cancelled = threading.Event(), threading.Event()
+    owner = SimpleNamespace(
+        done=done, cancelled=cancelled, phase="PREPARING", events=queue.SimpleQueue(),
+        cleanup_unconfirmed=False, request_stop=lambda: cancelled.set(),
+    )
+    shell._startup = owner
+    shell._startup_poll_scheduled = False
+    shell._startup_status_on_finish = "stopped"
+    shell._restart_after_stop = False
+    shell._pending_instance = None
+    shell._close_requested = False
+    shell.closed = False
+    shell.root = SimpleNamespace(after=lambda *_: None, destroy=lambda: None)
+    shell.tray = None
+    shell.server = None
+    shell.server_port = None
+    shell.server_ready = False
+    shell.open_target = None
+    shell.instance_available = True
+    shell.status = _Value("starting")
+    shell.text = STRINGS["en"]
+    shell.open_button, shell.stop_button = _Button(), _Button()
+    shell.channel = _Value("preview")
+    shell.update_generation = 2
+    shell.candidate = _candidate(channel="preview")
+    shell.update_status = _Value("downloaded")
+    calls = []
+    monkeypatch.setitem(sys.modules, "tkinter", SimpleNamespace(
+        messagebox=SimpleNamespace(askyesno=lambda *_: True),
+    ))
+    monkeypatch.setattr(desktop.subprocess, "Popen", lambda *args, **kw: calls.append((args, kw)))
+    path = tmp_path / "synthetic-installer.exe"
+    shell._installer_ready(path, shell.candidate, 2, "preview")
+    assert cancelled.is_set() and not done.is_set()
+    assert calls == [], "installer ran before owned cleanup completed"
+    if after_stop == "unconfirmed":
+        shell._show_startup_unconfirmed()
+    elif after_stop == "stale":
+        shell.update_generation += 1
+    elif after_stop == "quit":
+        shell.close()
+    owner.events.put(("finished", {
+        "code": "cancelled", "settings": None, "rolled_back": False,
+    }))
+    done.set()
+    shell._poll_startup()
+    if after_stop == "install":
+        assert len(calls) == 1 and calls[0][0][0][0] == str(path)
+        assert shell.closed
+    else:
+        assert calls == []
 
 
 @pytest.mark.parametrize("language", sorted(STRINGS))
@@ -599,6 +884,8 @@ def test_failed_or_terminated_backend_keeps_an_actionable_state(monkeypatch) -> 
 
 
 def test_backend_teardown_kills_and_reaps_a_child_that_ignores_terminate() -> None:
+    from provelume.startup_process import ManagedStartup
+
     class HangingProcess(_Process):
         def __init__(self):
             super().__init__()
@@ -615,25 +902,16 @@ def test_backend_teardown_kills_and_reaps_a_child_that_ignores_terminate() -> No
             return -9
 
     process = HangingProcess()
-    shell = DesktopShell.__new__(DesktopShell)
-    shell.closed = False
-    shell.server = process
-    shell.server_port = 44851
-    shell.server_ready = True
-    shell.instance_available = True
-    shell.status = _Value("running")
-    shell.text = {"stopping": "stopping", "stopped": "stopped", "server_failed": "failed"}
-    shell.open_button = _Button()
-    shell.stop_button = _Button()
-
-    shell.stop_server()
+    startup = ManagedStartup(Path("synthetic-unused"), SimpleNamespace(), lambda *_: [])
+    startup.process = process
+    # The same terminate/kill/reap guarantee now belongs to the owned worker,
+    # rather than blocking the Tk callback for up to six seconds.
+    startup._cleanup()
 
     assert process.terminated is True
     assert process.killed is True
     assert process.waits == 2
-    assert shell.server is None
-    assert shell.server_port is None
-    assert shell.stop_button.state == "disabled"
+    assert process.poll() == -9
 
 
 @pytest.mark.parametrize(
@@ -745,36 +1023,109 @@ write_ui_diagnostics(Path(sys.argv[1]), language="it", theme=sys.argv[2],
     }
 
 
-@pytest.mark.skipif(os.name != "nt", reason="real Tk recovery probe")
-def test_windows_missing_persisted_instance_renders_recovery_shell(
-    tmp_path: Path,
-) -> None:
-    import tkinter as tk
+def _windows_panel_probe(tmp_path: Path, mode: str) -> dict:
+    # Match the launcher's process lifetime, as the layout probes above do.
+    # Tcl initialization errors fail the probe rather than skipping its assertions.
+    probe = """
+import json
+import sys
+import threading
+import time
+import tkinter as tk
+from pathlib import Path
+from provelume import desktop
+from provelume.desktop import DesktopShell, LauncherSettings, save_settings
 
-    try:
-        root = tk.Tk()
-    except tk.TclError as exc:
-        pytest.skip(f"hosted Python Tk runtime is unavailable: {exc}")
-    shell = None
-    try:
-        shell = DesktopShell(
-            root,
-            initial_settings=LauncherSettings(
-                instance_path=str(tmp_path / "Moved Instance – 日本"),
-                language="en",
-            ),
-            create_instance_if_missing=False,
-            enable_first_run_dialog=False,
-        )
-        root.update()
+directory, mode = Path(sys.argv[1]), sys.argv[2]
+assert mode in {"missing", "blocked"}
+settings = LauncherSettings(instance_path=str(directory / "Moved Instance – 日本"),
+                            language="en", schema_version=3)
+path = directory / "launcher.json"
+save_settings(settings, path)
+desktop.settings_path = lambda: path
+entered, release = threading.Event(), threading.Event()
+ui_thread = threading.get_ident()
+
+def prepare(*_args, **_kwargs):
+    assert threading.get_ident() != ui_thread
+    entered.set()
+    assert release.wait(4)
+    raise RuntimeError("synthetic interrupted archive preparation")
+
+if mode == "blocked":
+    Path(settings.instance_path).mkdir()
+    DesktopShell._ensure_instance = prepare
+root = tk.Tk()
+shell = None
+try:
+    shell = DesktopShell(root, initial_settings=settings, enable_native_tray=False,
+                         enable_first_run_dialog=False, create_instance_if_missing=False)
+    if mode == "missing":
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            root.update()
+            if shell._startup is not None and shell._startup.done.is_set():
+                shell._poll_startup()
+                break
+            time.sleep(0.01)
+        assert shell._startup is not None and shell._startup.done.is_set()
         assert shell.instance_available is False
         assert str(shell.open_button.cget("state")) == "disabled"
         assert str(shell.stop_button.cget("state")) == "disabled"
         assert str(shell.choose_button.cget("state")) == "normal"
         assert str(shell.create_button.cget("state")) == "normal"
+        assert str(shell.check_button.cget("state")) == "normal"
         assert "could not be found" in shell.status.get()
-    finally:
-        if shell is not None:
-            shell.close()
-        else:
-            root.destroy()
+    else:
+        deadline = time.monotonic() + 3
+        while not entered.is_set() and time.monotonic() < deadline:
+            root.update()
+            time.sleep(0.01)
+        assert entered.is_set()
+        assert str(shell.startup_check.cget("state")) == "disabled"
+        assert str(shell.channel_box.cget("state")) == "disabled"
+        ticks = []
+        root.after(0, lambda: ticks.append("preparing"))
+        root.update()
+        assert ticks == ["preparing"] and not shell._startup.done.is_set()
+        shell.close()
+        assert not shell.closed and shell._startup.cancelled.is_set()
+        root.after(0, lambda: ticks.append("waiting_for_cleanup"))
+        root.update()
+        assert ticks == ["preparing", "waiting_for_cleanup"]
+finally:
+    release.set()
+    if shell is not None and shell._startup is not None:
+        assert shell._startup.done.wait(2)
+        shell._startup.thread.join(2)
+        assert not shell._startup.thread.is_alive()
+        assert shell._startup.process is None
+    if shell is not None:
+        shell.close()
+        assert shell.closed
+    else:
+        root.destroy()
+print(json.dumps({"mode": mode, "assertions": "PASS", "cleanup": "CONFIRMED"}))
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", probe, str(tmp_path), mode],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    return json.loads(completed.stdout)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="real Tk recovery probe")
+def test_windows_missing_persisted_instance_renders_recovery_shell(tmp_path: Path) -> None:
+    assert _windows_panel_probe(tmp_path, "missing") == {
+        "mode": "missing", "assertions": "PASS", "cleanup": "CONFIRMED",
+    }
+
+
+@pytest.mark.skipif(os.name != "nt", reason="real Tk initial preparation lifecycle")
+def test_windows_panel_renders_and_quit_waits_for_initial_archive_io(tmp_path: Path) -> None:
+    assert _windows_panel_probe(tmp_path, "blocked") == {
+        "mode": "blocked", "assertions": "PASS", "cleanup": "CONFIRMED",
+    }

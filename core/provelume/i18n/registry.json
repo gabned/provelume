@@ -581,7 +581,22 @@
         "not_checked",
         "preview_other_channel",
         "update_error_unsupported_manifest",
-        "launcher_hint"
+        "launcher_hint",
+        "startup_preparing",
+        "startup_waiting",
+        "startup_stop_unconfirmed",
+        "startup_details",
+        "startup_details_help",
+        "startup_details_empty",
+        "startup_error_preparation",
+        "startup_error_spawn",
+        "startup_error_bootstrap",
+        "startup_error_exit",
+        "startup_error_timeout",
+        "startup_error_protocol",
+        "startup_error_configuration",
+        "startup_error_integrity",
+        "startup_error_initialization"
       ],
       "namespace": "desktop"
     },
@@ -15442,6 +15457,86 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "desktop.startup_preparing": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_waiting": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_stop_unconfirmed": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_details": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_details_help": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_details_empty": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_preparation": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_spawn": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_bootstrap": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_exit": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_timeout": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_protocol": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_configuration": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_integrity": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_initialization": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_status.stop_unconfirmed": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
     }
   },
   "schema_version": 1,

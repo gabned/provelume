@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from collections.abc import Callable
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
@@ -8,7 +9,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -63,6 +64,14 @@ from .shell_settings import (
     default_settings,
     settings_path,
     validate_port,
+)
+from .startup_readiness import (
+    CHALLENGE_HEADER,
+    ReadinessContext,
+    StartupReadinessError,
+)
+from .startup_readiness import (
+    ROUTE as STARTUP_READINESS_ROUTE,
 )
 from .transcript_activity import attach_transcript_routes
 from .video_activity import attach_video_routes
@@ -379,7 +388,8 @@ def _display_date(value, language, *, time=False):
     return presented if time else presented[:10]
 
 
-def _context(request: Request, instance: ProvelumeInstance, **values: Any) -> dict[str, Any]:
+def _context(request: Request, instance: ProvelumeInstance, *, include_summary: bool = True,
+             **values: Any) -> dict[str, Any]:
     language = _language(request, instance)
     base = _base_context(request, language)
     sources = {item["id"]: item["name"] for item in values.get("sources", ())
@@ -398,7 +408,8 @@ def _context(request: Request, instance: ProvelumeInstance, **values: Any) -> di
             item["value"] = base["t"]("browse.root")
     return {
         **base,
-        "instance": instance.instance_summary(),
+        "instance": (instance.instance_summary() if include_summary
+                     else dict(instance.store.read_config()["instance"])),
         **values,
     }
 
@@ -460,6 +471,7 @@ def create_app(
     shell_settings_file: Path | str | None = None,
     effective_host: str = LOCAL_HOST,
     effective_port: int | None = None,
+    _startup: ReadinessContext | None = None,
 ) -> FastAPI:
     if isinstance(release_bundle, str) and not release_bundle.strip():
         release_bundle = None
@@ -474,7 +486,16 @@ def create_app(
     else:
         installation_verification = verify_current_installation()
 
+    if _startup is not None:
+        if installation_verification.get("status") == "modified_installation":
+            raise StartupReadinessError("startup_integrity_failed")
+        if (release_evidence_configured or getattr(sys, "frozen", False)) \
+                and installation_verification.get("status") \
+                != "package_integrity_verified":
+            raise StartupReadinessError("startup_integrity_failed")
     instance = ProvelumeInstance(instance_root)
+    if _startup is not None:
+        _startup.bind_opened_instance(instance.store.read_config()["instance"]["id"])
     selected_settings_path = Path(shell_settings_file) if shell_settings_file else settings_path()
     shell_manager = ShellSettingsManager(selected_settings_path, default_settings())
     selected_port = validate_port(
@@ -505,6 +526,8 @@ def create_app(
 
         worker = asyncio.create_task(scheduler_worker())
         try:
+            if _startup is not None:
+                _startup.mark_ready()
             yield
         finally:
             stop.set()
@@ -533,6 +556,20 @@ def create_app(
     app.state.installation_verification = installation_verification
     app.state.release_evidence_configured = release_evidence_configured
     app.state.shell_settings_manager = shell_manager
+    if _startup is not None:
+        if _startup.port != selected_port or selected_host != "127.0.0.1":
+            raise StartupReadinessError("startup_configuration_invalid")
+
+        @app.get(STARTUP_READINESS_ROUTE)
+        def startup_readiness(request: Request):
+            challenges = request.headers.getlist(CHALLENGE_HEADER)
+            if request.scope.get("query_string") or len(challenges) != 1:
+                raise HTTPException(status_code=400, detail="Invalid readiness request")
+            try:
+                status, value = _startup.response(challenges[0])
+            except StartupReadinessError:
+                raise HTTPException(status_code=400, detail="Invalid readiness request") from None
+            return JSONResponse(value, status_code=status, headers={"Cache-Control": "no-store"})
     action_center = ActionCenter(instance.store)
     app.state.action_center = action_center
     attach_capture_routes(app, instance.store)
@@ -667,6 +704,7 @@ def create_app(
             context=_context(
                 request,
                 instance,
+                include_summary=bool(q.strip()),
                 q=q,
                 results=results,
                 sources=instance.list_sources(),
@@ -769,7 +807,7 @@ def create_app(
         return TEMPLATES.TemplateResponse(
             request=request,
             name="about.html",
-            context=_context(request, instance, about=current_about()),
+            context=_context(request, instance, include_summary=False, about=current_about()),
         )
 
     @app.get("/security/installation")

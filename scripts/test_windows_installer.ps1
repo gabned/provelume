@@ -699,6 +699,82 @@ try {
 
     # Start the bundled backend and verify identity plus the preserved Instance through loopback.
     $Port = Get-FreeLoopbackPort
+    # Qualify the private transport on these exact installed bytes too, including
+    # native-library distribution wheels and each preserved public upgrade fixture.
+    $StartupReadiness = & (Join-Path $PSScriptRoot "test_windows_startup_readiness.ps1") `
+        -Executable $Executable -InstanceDirectory $InstanceRoot -Port $Port `
+        -ExpectedCommit $ExpectedCommit
+    [System.IO.File]::WriteAllText(
+        (Join-Path $EvidenceRoot "startup-readiness-$PreviousVersion.json"),
+        (($StartupReadiness | ConvertTo-Json -Depth 5) + "`n"),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+    if ($StartupReadiness.status -ne "PASS" -or
+        -not $StartupReadiness.proof_verified -or
+        -not $StartupReadiness.opened_root_binding_verified -or
+        -not $StartupReadiness.cooperative_stop_confirmed -or
+        -not $StartupReadiness.cleanup_confirmed -or
+        $StartupReadiness.owned_exit_code -ne 0) {
+        Write-Output ("FROZEN_STARTUP_READINESS_REPORT=" + (
+            $StartupReadiness | ConvertTo-Json -Depth 5 -Compress
+        ))
+        # Diagnostic only, on this disposable synthetic fixture. The failed
+        # private gate remains terminal regardless of this legacy read result.
+        $RecordObservation = [ordered]@{
+            kind = "DIAGNOSTIC_ONLY_FAILURE_RETAINED"
+            record_status = "NOT_OBSERVED"
+            record_package_version = $null
+            issue_counts = @{}
+            cleanup_confirmed = $false
+        }
+        $DiagnosticBackend = $null
+        try {
+            if (-not $StartupReadiness.cleanup_confirmed) {
+                throw "Diagnostic startup withheld while private cleanup is unconfirmed."
+            }
+            $DiagnosticPort = Get-FreeLoopbackPort
+            $DiagnosticBackend = Start-Process -FilePath $Executable -ArgumentList @(
+                "--serve", "`"$InstanceRoot`"", "--port", "$DiagnosticPort"
+            ) -PassThru
+            $DiagnosticClock = [Diagnostics.Stopwatch]::StartNew()
+            while ($DiagnosticClock.ElapsedMilliseconds -lt 10000 -and -not $DiagnosticBackend.HasExited) {
+                try {
+                    $Record = Invoke-RestMethod `
+                        "http://127.0.0.1:$DiagnosticPort/api/v1/security/installation" -TimeoutSec 1
+                    if ($Record.status -cin @("package_integrity_verified", "modified_installation", "verification_unavailable")) {
+                        $RecordObservation.record_status = $Record.status
+                        if ($Record.package.version -cmatch '^[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}$') {
+                            $RecordObservation.record_package_version = $Record.package.version
+                        }
+                        foreach ($Finding in @($Record.findings | Select-Object -First 200)) {
+                            $Code = [string]$Finding.issue
+                            if ($Code -cnotin @("missing_file", "modified_file", "unreadable_file", "unexpected_file", "unsafe_path", "unreadable_path", "scan_limit", "unhashed_record", "unsupported_hash", "invalid_record")) { $Code = "other" }
+                            if (-not $RecordObservation.issue_counts.ContainsKey($Code)) { $RecordObservation.issue_counts[$Code] = 0 }
+                            $RecordObservation.issue_counts[$Code]++
+                        }
+                        break
+                    }
+                }
+                catch { }
+                Start-Sleep -Milliseconds 200
+            }
+        }
+        catch { }
+        finally {
+            if ($null -ne $DiagnosticBackend) {
+                try {
+                    if (-not $DiagnosticBackend.HasExited) { $DiagnosticBackend.Kill($true) }
+                    $RecordObservation.cleanup_confirmed = $DiagnosticBackend.WaitForExit(2000)
+                }
+                catch { }
+                finally { $DiagnosticBackend.Dispose() }
+            }
+        }
+        Write-Output ("FROZEN_RECORD_DIAGNOSTIC=" + (
+            $RecordObservation | ConvertTo-Json -Depth 5 -Compress
+        ))
+        throw "Exact installed private startup/readiness proof failed."
+    }
     $Backend = Start-Process -FilePath $Executable -ArgumentList @(
         "--serve", "`"$InstanceRoot`"", "--port", "$Port"
     ) -PassThru
@@ -1043,6 +1119,7 @@ try {
             commit = $ExpectedCommit
             channel = $ExpectedChannel
         }
+        startup_readiness = $StartupReadiness
         instance_tree_fingerprints = @{
             baseline = $BaselineInstanceTreeSha256
             post_explicit_migration = $PostMigrationInstanceTreeSha256
@@ -1063,6 +1140,7 @@ try {
             explicit_frozen_instance_migration = "PASS"
             scheduler_refresh_network_delete_and_repair_default_disabled = "PASS"
             bundled_runtime_without_python_or_git = "PASS"
+            private_stdin_opened_root_proof_and_cooperative_stop = "PASS"
             loopback_backend_identity_and_readiness = "PASS"
             reinstall_and_uninstall = "PASS"
             unsigned_preview_boundary = "PASS"

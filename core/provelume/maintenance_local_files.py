@@ -20,6 +20,17 @@ class MaintenanceTargetError(ValueError):
         super().__init__(code)
 
 
+class DirectoryCloseUnconfirmed(MaintenanceTargetError):
+    """An owned directory descriptor's OS close outcome could not be confirmed."""
+
+
+def _close_directory(descriptor):
+    try:
+        os.close(descriptor)
+    except OSError as exc:
+        raise DirectoryCloseUnconfirmed("target_close_unconfirmed") from exc
+
+
 @lru_cache(maxsize=1)
 def _windows_drive_type_api():
     """Retain only the typed function; every caller still queries its current drive."""
@@ -185,16 +196,16 @@ def pinned_parent(value: Path | str):
             if os.name == "nt":
                 for parent in reversed((path.parent, *path.parent.parents)):
                     descriptor = _windows_open(parent, directory=True)
-                    stack.callback(os.close, descriptor)
+                    stack.callback(_close_directory, descriptor)
                 yield path, None
             else:
                 descriptor = os.open(path.anchor, os.O_RDONLY | os.O_DIRECTORY)
-                stack.callback(os.close, descriptor)
+                stack.callback(_close_directory, descriptor)
                 for name in path.parent.parts[1:]:
                     descriptor = os.open(
                         name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor
                     )
-                    stack.callback(os.close, descriptor)
+                    stack.callback(_close_directory, descriptor)
                 yield path, descriptor
     except MaintenanceTargetError:
         raise
@@ -202,6 +213,103 @@ def pinned_parent(value: Path | str):
         raise MaintenanceTargetError("target_missing") from exc
     except OSError as exc:
         raise MaintenanceTargetError("target_unsafe") from exc
+
+
+def directory_binding(descriptor: int) -> str:
+    """Physical directory identity; paths and display names never enter this binding."""
+    if not stat.S_ISDIR(os.fstat(descriptor).st_mode):
+        raise MaintenanceTargetError("target_unsafe")
+    if os.name == "nt":
+        import msvcrt
+        from ctypes import wintypes
+
+        class FileIdInfo(ctypes.Structure):
+            _fields_ = [("volume", ctypes.c_ulonglong), ("file_id", ctypes.c_ubyte * 16)]
+
+        kernel = _windows_file_api()
+        get_id = kernel.GetFileInformationByHandleEx
+        get_id.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+        get_id.restype = wintypes.BOOL
+        info = FileIdInfo()
+        if not get_id(msvcrt.get_osfhandle(descriptor), 18, ctypes.byref(info),
+                      ctypes.sizeof(info)):
+            raise MaintenanceTargetError("target_identity_unavailable")
+        data = int(info.volume).to_bytes(8, "big") + bytes(info.file_id)
+        return "win32.file-id.v1:" + data.hex()
+    info = os.fstat(descriptor)
+    data = info.st_dev.to_bytes(8, "big") + info.st_ino.to_bytes(8, "big")
+    return "posix.file-id.v1:" + data.hex()
+
+
+@contextmanager
+def open_local_directory(value: Path | str):
+    """Keep the existing parent guards and the actual selected directory open."""
+    with pinned_parent(value) as (path, parent):
+        try:
+            descriptor = (
+                _windows_open(path, directory=True)
+                if os.name == "nt"
+                else os.open(path.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                             dir_fd=parent)
+            )
+            try:
+                binding = directory_binding(descriptor)
+                yield path, binding
+                current = os.stat(path, follow_symlinks=False)
+                opened = os.fstat(descriptor)
+                if (not stat.S_ISDIR(current.st_mode)
+                        or (current.st_dev, current.st_ino) != (opened.st_dev, opened.st_ino)):
+                    raise MaintenanceTargetError("target_changed")
+            finally:
+                _close_directory(descriptor)
+        except MaintenanceTargetError:
+            raise
+        except FileNotFoundError as exc:
+            raise MaintenanceTargetError("target_missing") from exc
+        except OSError as exc:
+            raise MaintenanceTargetError("target_unavailable") from exc
+
+
+@contextmanager
+def prepare_local_directory(value: Path | str, *, create: bool = False, checkpoint=None):
+    """Retain physical parents while making a first-run local directory chain.
+
+    Existing entries are opened without following aliases before descending.
+    Empty directories left by an interrupted creation are not silently removed.
+    """
+    if not create:
+        with open_local_directory(value) as opened:
+            yield opened
+        return
+    path = absolute_local_path(value)
+    current = Path(path.anchor)
+    with ExitStack() as stack:
+        opened = None
+        for name in path.parts[1:]:
+            if checkpoint is not None:
+                checkpoint()
+            current = current / name
+            with pinned_parent(current) as (child, parent):
+                try:
+                    opened = stack.enter_context(open_local_directory(child))
+                except MaintenanceTargetError as exc:
+                    if exc.code != "target_missing":
+                        raise
+                    if checkpoint is not None:
+                        checkpoint()
+                    try:
+                        if os.name == "nt":
+                            child.mkdir(mode=0o700)
+                        else:
+                            os.mkdir(child.name, mode=0o700, dir_fd=parent)
+                    except FileExistsError:
+                        pass
+                    opened = stack.enter_context(open_local_directory(child))
+        if opened is None:
+            raise MaintenanceTargetError("target_unsafe")
+        if checkpoint is not None:
+            checkpoint()
+        yield opened
 
 
 @contextmanager

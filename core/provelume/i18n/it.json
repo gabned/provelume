@@ -2289,5 +2289,21 @@
   "action.knowledge_objects": "Proposte di oggetti",
   "action.reason.object_proposal": "Una bozza di oggetto richiede evidenze aggiornate e una revisione esplicita.",
   "review.knowledge_objects": "Revisione degli oggetti",
-  "review.reject": "Rifiuta"
+  "review.reject": "Rifiuta",
+  "desktop.startup_preparing": "Preparazione dell’Instance selezionata. Puoi interrompere l’avvio.",
+  "desktop.startup_waiting": "In attesa che il servizio locale selezionato sia pronto.",
+  "desktop.startup_stop_unconfirmed": "Alcune risorse di avvio sono ancora attive o non confermate. Attendi prima di riprovare o uscire.",
+  "desktop.startup_details": "Dettagli di avvio",
+  "desktop.startup_details_help": "Solo fasi, codici di errore e tempi dell’avvio locale. Nessun contenuto o percorso dei documenti, credenziale o prova della connessione.",
+  "desktop.startup_details_empty": "Nessun tentativo di avvio registrato in questa sessione.",
+  "desktop.startup_error_preparation": "Preparazione scaduta. Verifica che l’Instance sia disponibile e riprova.",
+  "desktop.startup_error_spawn": "Non è stato possibile avviare il servizio locale. Verifica l’installazione e riprova.",
+  "desktop.startup_error_bootstrap": "Non è stato possibile stabilire la connessione privata di avvio. Verifica l’installazione e riprova.",
+  "desktop.startup_error_exit": "Il servizio locale è terminato. Consulta i dettagli di avvio e riprova.",
+  "desktop.startup_error_timeout": "Il servizio non è diventato pronto in tempo. Consulta i dettagli di avvio e riprova.",
+  "desktop.startup_error_protocol": "Non è stato possibile verificare il servizio locale selezionato. Controlla l’installazione e l’Instance selezionata.",
+  "desktop.startup_error_configuration": "Non è stato possibile aprire l’Instance selezionata o le impostazioni locali. Controllale e riprova.",
+  "desktop.startup_error_integrity": "Verifica dell’integrità dell’installazione non riuscita. Ripristina un’installazione verificata prima di riprovare.",
+  "desktop.startup_error_initialization": "Il servizio non ha completato l’inizializzazione. Consulta i dettagli di avvio e riprova.",
+  "tray_status.stop_unconfirmed": "Arresto non confermato"
 }
