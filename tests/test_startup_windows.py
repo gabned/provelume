@@ -21,7 +21,9 @@ def test_windows_job_owns_descendants_and_escalation_leaves_no_process(tmp_path)
     control = OwnedWindowsControl()
     marker = tmp_path / "synthetic-ready.txt"
     grandchild = (
-        "import os,pathlib,sys,time;pathlib.Path(sys.argv[1]).write_text(str(os.getpid()));"
+        "import os,pathlib,sys,time;marker=pathlib.Path(sys.argv[1]);"
+        "pending=marker.with_suffix('.pending');pending.write_text(str(os.getpid()));"
+        "pending.replace(marker);"
         "time.sleep(60)"
     )
     script = (

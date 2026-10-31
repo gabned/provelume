@@ -591,3 +591,47 @@ from an ordinary green. Both historical findings remain CURRENT pending actual
 controlled evidence and the independent unchanged-candidate acceptance gates.
 Windows11 Home/Pro environments are still to be prepared; browser/human rows
 remain NOT_RUN. PR #424, original BIND and campaign order remain unchanged.
+
+### Completed cloud journal block (31 October 2026)
+
+The one declared block completed under driver owner
+`bf8d94a7649bf7bea5b74aadacf257da90d568a9`, in A/B/B/A order, with no retry or
+additional arm. All four original final reports and network observers are PASS.
+Independent rereading with the unchanged original evaluator/observer confirms
+all 240 warm cases, 24 governed cases and 128 synthesis cases. The evaluator,
+qualifier, runtime contract and lock blobs are identical in A, B and the owner.
+All retained files were hashed; raw results survive separately from derived analysis.
+
+Capture maximum / that arm's own original idle-derived limit, milliseconds:
+
+| Arm | S06 maximum / limit | S08 maximum / limit | Targeted exceedances |
+| --- | --- | --- | --- |
+| A1 |187.943 /494.462 |173.205 /207.041 |0 |
+| B1 |147.737 /196.890 |202.712 /367.885 |0 |
+| B2 |91.402 /371.620 |173.387 /206.747 |0 |
+| A2 |148.632 /332.935 |208.226 /325.160 |0 |
+
+This block establishes neither a failing reproducer nor a consistent application
+benefit from the journal replacement. Result: **CAUSE_NOT_DEMONSTRATED**;
+both historical findings remain **CURRENT**. Different idle denominators are
+retained, never replaced by a historical absolute limit or averaged across arms.
+
+The original authenticated S06/S08 job logs were reread: both workers selected
+logical CPUs 0/2 from two physical cores/four SMT threads. This cloud block exposed
+five distinct cores with a four-core quota and used the unchanged native selection.
+The same EPYC 9V74 model does not make these profiles equivalent. The prior strict
+reference admission in run 40288865404 remains CAPABILITY_MISSING, before model
+acquisition; no new generic-host search follows. Its control needs an actually
+selectable reference-profile host. Windows 11 Home/Pro native/browser/human rows
+also remain NOT_RUN. No acceptance, merge, #377 work or publication follows.
+
+Separately, the new candidate's Windows Core job 124600672284/run 41222799268
+exposed a producer/readiness race in the existing Job-ownership test: the PID
+marker can exist before write_text has published any bytes. A deterministic
+paused-write control reproduces the empty-PID ValueError and confirms that a
+closed sibling file followed by atomic replacement keeps incomplete data hidden.
+The test producer now uses that publication sequence; its 5-second readiness and
+2-second cleanup limits, actual Job-membership assertion and zero-active-process
+assertion are unchanged. This is a test-control correction, not a PRODUCT change
+or Windows qualification; the original failed job and aggregate refusal remain
+evidence, and the corrected head requires new complete native/remote checks.
