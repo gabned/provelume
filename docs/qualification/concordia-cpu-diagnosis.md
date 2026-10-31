@@ -537,3 +537,57 @@ original-artifact, review and legacy-preflight checks. Earlier-head Windows byte
 proofs are historical; Windows11 Home/Pro, browser and human gates remain open.
 The original binding, sole draft owner and PR-local legacy route remain fixed.
 No waiver, SDK change, lifecycle v2 activation, merge, acceptance, #377 or release.
+
+### Cloud-host execution declaration (31 October 2026)
+
+The WSL application block above remains NOT_RUN. After the separate Protocol
+prerequisite was accepted, the maintainer asked to continue development. The
+already attached cloud host now admits the unchanged native hardware contract
+and reaches the canonical pinned model through the required session proxy.
+This selects that existing host before any application timing; no hardware search,
+extra dispatch, paid provisioning or repetition of a completed block follows.
+
+Run the same still-unexecuted journal factor exactly once here: immutable
+A `1ad882478636dbd4e5c7fc676fb0d861224e067e`, tree
+`6d7094fc3bb7a008a5d336e1853a05bf6b74bb31`, and its sole child
+B `fc06497b21ecaa370b87927351b87d310572ac47`, tree
+`c56fae1ef68e2cdfa1836631bb568c15aa43ffcc`. The checked-in
+`scripts/compare_concordia_journal.py` refuses any other PRODUCT factor or
+qualifier/evaluator/dependency change between these complete trees. No further
+product correction is introduced by the driver.
+
+Observed host: Linux 6.18.57, CPython 3.12.14, AMD EPYC 9V74, inherited logical
+mask 0–4, visible CPU quota four cores and memory limit16 GiB. Record the actual
+native effective resources, kernel, topology/mask, interpreter and cgroup limits.
+Same CPU model does not reproduce the original hosted kernel, isolation or
+scheduler. Host/source changes after admission stop the block. The native worker
+selection and full inherited tracer/parent masks stay unchanged in every arm.
+
+Before acquisition, run full Ruff, focused journal/control tests, pin97, native
+resource admission, a positive runqueue control and actual all-thread strace
+smoke. The explicit build acquisition adapter must retain this environment's
+proxy/CA, canonical origin/redirect restrictions, exact full model size/hash and
+all seven native library locks. The ordinary build script disables ambient
+proxies and is therefore not invoked unchanged on this managed cloud host.
+
+Use `admit` followed by one `run` with immutable admission/source/driver identity,
+fresh equal-depth stores and one fixed A/B/B/A sequence. Only original network-only
+strace runs during application timings; the original complete qualifier and
+post-exit network evaluator are unmodified. Every original report, gate, failed
+sample, idle limit and trace is retained. A consumed admission cannot start again.
+
+For the stop control only, the original evaluator also reads a disposable copy
+whose concurrent Capture/search times are zero. Original idle observations and
+all other fields are unchanged. This separates the other conjuncts of mixed
+performance/correctness gates: any non-timing failure or incomplete collection
+stops subsequent arms. It creates no qualification evidence or replacement PASS;
+original FAILs remain FAILs. The projection and raw results are recorded separately.
+No observed counter, threshold, original result or measured interval is adjusted.
+
+The existing20-minute arm/85-minute total bounds and all other stop conditions
+remain. A stopped/failed block is preserved without another arm or retry. This
+single diagnostic can establish neither fleet equivalence nor historical cause
+from an ordinary green. Both historical findings remain CURRENT pending actual
+controlled evidence and the independent unchanged-candidate acceptance gates.
+Windows11 Home/Pro environments are still to be prepared; browser/human rows
+remain NOT_RUN. PR #424, original BIND and campaign order remain unchanged.
