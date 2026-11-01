@@ -57,7 +57,7 @@ def guarded_input_exit(path, expected_identity):
             raise
         with os.fdopen(descriptor, "rb") as handle:
             observed = os.fstat(handle.fileno())
-            if (not stat.S_ISREG(observed.st_mode) or observed.st_nlink != 1
+            if (not stat.S_ISREG(observed.st_mode) or not observed.st_ino or observed.st_nlink != 1
                     or file_identity(handle) != expected_identity):
                 raise MaintenanceTargetError("inbox_input_changed")
 

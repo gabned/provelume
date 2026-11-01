@@ -103,6 +103,8 @@ def _input(root, locator):
     path = root / Path(*locator.split("/"))
     with open_local_file(path) as handle:
         identity = file_identity(handle)
+        if not identity["inode"]:
+            raise ReviewDenied("Inbox input has no usable physical file identity")
         if os.fstat(handle.fileno()).st_nlink != 1:
             raise ReviewDenied("Inbox input cannot alias another file through a hard link")
         checksum, size = stream_digest(handle, MAX_BYTES)
@@ -119,6 +121,7 @@ def validate_input(value):
             or not isinstance(value["identity"], dict) or set(value["identity"]) != {
                 "device", "inode", "size_bytes", "mtime_ns", "ctime_ns"}
             or any(type(v) is not int or v < 0 for v in value["identity"].values())
+            or not value["identity"]["inode"]
             or value["identity"]["size_bytes"] != value["size_bytes"]):
         raise ReviewUnavailable("Inbox input binding is invalid")
     relative_path(value["locator"])
@@ -679,6 +682,9 @@ def _validate_exit_result(value, key):
 def inbox_transit_findings(store):
     findings = []
     try:
+        if (not checked_path(store, ROOT).exists()
+                and not checked_path(store, "state/inbox-transit").exists()):
+            return findings
         review = InboxTransitReview(store)
         for source_id in _Inputs(store).inventory(f"{ROOT}/policies", 128):
             review.policy(source_id)

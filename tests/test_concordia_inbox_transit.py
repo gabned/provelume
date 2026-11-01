@@ -508,3 +508,16 @@ def test_admission_cannot_fabricate_future_authority_for_an_old_acquisition(inbo
         instance.inbox_transit.admit(fabricated)
     assert _bytes(instance.root) == before
     assert instance.inbox_transit_review.policy(source_id)["mode"] == "transit"
+
+
+def test_unusable_input_file_identity_blocks_consent_and_retains_input(inbox, monkeypatch):
+    from provelume.maintenance_local_files import file_identity
+
+    instance, root, source_id = inbox
+    (root / "note.txt").write_bytes(b"Retain unknown physical identity")
+    monkeypatch.setattr("provelume.inbox_transit.file_identity",
+                        lambda handle: {**file_identity(handle), "inode": 0})
+    with pytest.raises(ReviewDenied, match="physical file identity"):
+        policy(instance, source_id)
+    assert (root / "note.txt").read_bytes() == b"Retain unknown physical identity"
+    assert instance.inbox_transit_review.policy(source_id) is None
