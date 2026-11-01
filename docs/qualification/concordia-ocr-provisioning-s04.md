@@ -102,7 +102,9 @@ candidate CI remain mandatory; results belong in the owner PR, not this procedur
 The permanent Windows workflow installs an actual unsigned development package,
 imports the exact producer-identified kit, leaves OCR disabled until the synthetic
 fixture explicitly enables it, and executes eng/ita PNG/JPEG/BMP/TIFF/scanned-PDF
-jobs through the installed executable with an empty PATH. It checks reliable-native
+jobs through the installed executable with an empty PATH. Deterministic paper
+grain keeps ordinary scan fixtures within the unchanged decompression budget,
+with headroom checked before expensive Windows builds. It checks reliable-native
 PDF skip, corrupt input, missing engine/pack/worker/Python/PDFium, untouched Originals
 and canonical knowledge, temporary cleanup and explicit kit removal. Outbound
 Windows Firewall rules apply to the three exact executables during qualification.

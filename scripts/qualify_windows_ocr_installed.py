@@ -66,14 +66,20 @@ def _corpus(root):
         ("eng", "PROVELUME ENGLISH DOCUMENT 123"),
         ("ita", "PROVELUME DOCUMENTO ITALIANO 123"),
     ):
-        image = Image.new("RGB", (1800, 500), "white")
+        # Deterministic paper grain keeps this ordinary scanned-page corpus
+        # below the existing decompression-ratio ceiling. A flat white canvas
+        # compresses like a hostile expansion fixture, especially in PNG/PDF.
+        size = (1800, 500)
+        grain = hashlib.shake_256(b"Concordia S04 synthetic paper v1").digest(size[0] * size[1])
+        shades = bytes(242 + value % 14 for value in range(256))
+        image = Image.frombytes("L", size, grain.translate(shades)).convert("RGB")
         ImageDraw.Draw(image).text((80, 180), line, fill="black", font=ImageFont.load_default(64))
         for extension, options in (
             ("png", {}),
             ("jpg", {"quality": 95}),
             ("bmp", {}),
             ("tiff", {"compression": "raw"}),
-            ("pdf", {"resolution": 300}),
+            ("pdf", {"resolution": 300, "quality": 95}),
         ):
             image.save(root / f"{language}.{extension}", **options)
         image.close()
@@ -257,6 +263,7 @@ def qualify(executable, kit, root, output, build_report, installer):
                 assert result["scheduled"] is False
             else:
                 language = name.split(".")[0]
+                print(json.dumps({"ocr_fixture": name, "language": language}), flush=True)
                 queued = command("ocr-queue", instance.root, version, "--language", language)
                 completed = command("ocr-run", instance.root, queued["job"]["id"])
                 assert completed["status"] == "succeeded"

@@ -173,3 +173,20 @@ def test_native_license_evidence_cannot_transfer_to_another_version(tmp_path):
     }
     with pytest.raises(ValueError, match="different version"):
         native_license("example", "2", {}, lock, tmp_path)
+
+
+def test_installed_scan_corpus_respects_default_expansion_budget_with_headroom(tmp_path):
+    pytest.importorskip("PIL")
+    from provelume.ocr_contract import OcrLimits
+    from scripts.qualify_windows_ocr_installed import _corpus
+
+    corpus = tmp_path / "corpus"
+    _corpus(corpus)
+    # Conservative bound above the 1800x500 raster and its PDF render guard.
+    # Ordinary corpus inputs must have at least 2x headroom; malicious expansion
+    # remains tested separately and the product's limit is never raised here.
+    decoded_bound = 1804 * 504 * 4
+    ordinary = sorted(p for p in corpus.iterdir() if p.stem in {"eng", "ita"})
+    assert len(ordinary) == 10
+    for path in ordinary:
+        assert 2 * decoded_bound / path.stat().st_size <= OcrLimits().max_decompression_ratio, path
