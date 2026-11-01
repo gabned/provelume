@@ -39,6 +39,16 @@ LIFECYCLE_STATE_SCHEMA_VERSION = 1
 _LOCAL_OWNERS = ContextVar("provelume_lifecycle_owners", default=())
 
 
+class _LocalLifecycleOwner:
+    """Context copies share liveness; an expired scope never retains authority."""
+
+    __slots__ = ("identity", "active")
+
+    def __init__(self, identity):
+        self.identity = identity
+        self.active = True
+
+
 def lifecycle_writer(purpose):
     """Join only this thread's actual kernel ownership, otherwise acquire it.
 
@@ -49,7 +59,7 @@ def lifecycle_writer(purpose):
         @wraps(function)
         def guarded(store, *args, **kwargs):
             key = (os.getpid(), get_ident(), str(store.paths.root.absolute()))
-            if key in _LOCAL_OWNERS.get():
+            if any(owner.active and owner.identity == key for owner in _LOCAL_OWNERS.get()):
                 return function(store, *args, **kwargs)
             with InstanceLifecycleManager(store)._hold(purpose=purpose):
                 return function(store, *args, **kwargs)
@@ -235,10 +245,14 @@ class InstanceLifecycleManager:
                 recover_review_transactions_locked(self.store)
                 recover_objects_locked(self.store)
             key = (os.getpid(), get_ident(), str(self.store.paths.root.absolute()))
-            context = _LOCAL_OWNERS.set((*_LOCAL_OWNERS.get(), key))
+            scope = _LocalLifecycleOwner(key)
+            context = _LOCAL_OWNERS.set((*_LOCAL_OWNERS.get(), scope))
             try:
                 yield owner
             finally:
+                # Invalidate before resetting this context: queued asyncio tasks
+                # and copy_context() retain the same scope object after reset.
+                scope.active = False
                 _LOCAL_OWNERS.reset(context)
         finally:
             try:

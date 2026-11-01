@@ -546,3 +546,29 @@ def test_replaced_input_cannot_reconcile_an_earlier_exit_intent_as_retained(inbo
     assert outcome == "outcome_unknown"
     assert _bytes(instance.root) == before
     assert (root / "note.txt").read_bytes() == b"New input at the same locator"
+
+
+def test_copied_context_cannot_reuse_expired_lifecycle_ownership(inbox):
+    from concurrent.futures import ThreadPoolExecutor
+    from contextvars import copy_context
+    from threading import Event
+
+    instance, _root, _source_id = inbox
+    with InstanceLifecycleManager(instance.store)._hold(purpose="original-owner"):
+        copied = copy_context()
+    held, release = Event(), Event()
+
+    def other_owner():
+        with InstanceLifecycleManager(instance.store)._hold(purpose="current-exit-owner"):
+            held.set()
+            assert release.wait(5)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        owner = executor.submit(other_owner)
+        try:
+            assert held.wait(5)
+            with pytest.raises(InstanceLifecycleBusy):
+                copied.run(instance.rebuild_index)
+        finally:
+            release.set()
+            owner.result()

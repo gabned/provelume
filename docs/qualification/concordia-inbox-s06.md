@@ -51,7 +51,9 @@ OCR, reviewed processing and maintenance keep their own existing producer adapte
 Application index writers now participate in the **existing Instance lifecycle
 lock**, joining only the current process/thread's actual held ownership. Another
 thread/process cannot use the diagnostic lock JSON as authority. No new global
-lock is introduced. Policy/configuration mutations retain their existing local
+lock is introduced. Copied contexts share the scope's liveness, which is invalidated
+on exit before resetting the owner context; a queued task cannot retain expired
+ownership. Policy/configuration mutations retain their existing local
 ownership boundaries. Final Windows disposition also pins the selected config,
 canonical identity, Original, index and selected proof/text files against external
 write/replacement, and rechecks the resolver and consent before the effect.
