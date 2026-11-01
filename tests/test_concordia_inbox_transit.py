@@ -45,13 +45,13 @@ def policy(instance, source_id, mode="transit", request="inbox-policy"):
     return _confirm(instance.review_decisions, plan, request)
 
 
-def acquire(inbox, *, before_policy=False):
+def acquire(inbox, *, before_policy=False, newline=b"\n"):
     instance, root, source_id = inbox
     # Acquire before conversion for the separate backlog permit journey. Future
     # admissions exercise the same exact bytes but only the confirmed policy.
     if not before_policy:
         policy(instance, source_id)
-    (root / "note.txt").write_text("Preserved synthetic searchable input.\n", encoding="utf-8")
+    (root / "note.txt").write_bytes(b"Preserved synthetic searchable input." + newline)
     job = instance.refresh_folder_source(source_id, request_key="ingest")["job"]
     assert job["status"] == "succeeded", job
     if before_policy:
@@ -124,16 +124,17 @@ def test_policy_history_rejects_unconfirmed_effective_mode(inbox):
     assert instance.validate_instance()["status"] == "invalid"
 
 
-def test_future_text_has_exact_source_refresh_proof_and_preserves_original(inbox):
+@pytest.mark.parametrize("newline", [b"\n", b"\r\n", b"\r"])
+def test_future_text_has_exact_source_refresh_proof_and_preserves_original(inbox, newline):
     instance, root, source_id = inbox
-    job, acquisition = acquire(inbox)
+    job, acquisition = acquire(inbox, newline=newline)
     proof = resolve_index_contribution(instance.store, "processing", job["id"],
                                         acquisition["document_id"])
     assert proof["profile"] == "native"
     assert proof["receipt_id"] == "receipt_" + job["id"].removeprefix("job_")
     assert instance.store.original_bytes(
         instance.store.read_canonical("versions", acquisition["version_id"])["original_id"]
-    ) == b"Preserved synthetic searchable input.\n"
+    ) == b"Preserved synthetic searchable input." + newline
     assert instance.search("synthetic")[0]["version_id"] == acquisition["version_id"]
     assert (root / "note.txt").exists() == (os.name != "nt")
     assert instance.inbox_transit.status(source_id)["mode"] == "transit"
