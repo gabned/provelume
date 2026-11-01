@@ -239,7 +239,10 @@ def test_pause_at_page_boundary_resumes_same_request_and_preserves_partial_work(
     assert resolve_ocr_contribution(instance.store, job["id"])["publication"]["attempt"] == 2
 
 
-def test_cancel_is_terminal_and_replaying_same_permit_cannot_restart_it(source_ocr):
+@pytest.mark.parametrize("change_scheduler_policy", [False, True])
+def test_cancel_is_terminal_and_replaying_same_permit_cannot_restart_it(
+    source_ocr, change_scheduler_policy,
+):
     instance, _source, source_id, _manager, renderer, _adapter = source_ocr
     version = instance.list_documents()[0]["current_version_id"]
     job = historical_job(instance, source_id, version)
@@ -248,6 +251,8 @@ def test_cancel_is_terminal_and_replaying_same_permit_cannot_restart_it(source_o
                                                 expected_revision=preview["revision"],
                                                 request_id="cancel-source-ocr")
     assert cancelled["job"]["status"] == "cancelled"
+    if change_scheduler_policy:
+        instance.scheduler.journal.update_policy(job["policy_id"], state="disabled")
     assert historical_job(instance, source_id, version)["id"] == job["id"]
     assert instance.scheduler.run_one(job_id=job["id"]) is None
     assert renderer.rendered == []
@@ -457,6 +462,10 @@ def test_other_index_producers_preserve_complete_ocr_and_publish_their_own_exact
     from provelume.index_evidence import index_evidence_state_findings
 
     assert index_evidence_state_findings(instance.store) == []
+    from provelume.instance_validation import inspect_instance
+
+    report = inspect_instance(instance.root, deep=True)
+    assert report["status"] == "valid", report["errors"]
     directory = instance.root / f"state/{producer}/index-evidence" / job["id"]
     (directory / "publication_a1.json").unlink()
     with pytest.raises(ReviewUnavailable):

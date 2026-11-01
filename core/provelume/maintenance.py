@@ -995,7 +995,9 @@ def maintenance_state_findings(store: InstanceStore) -> list[dict[str, str]]:
     if not manager.root.exists() and not manager.root.is_symlink():
         return []
     findings: list[dict[str, str]] = []
-    allowed = {manager.runs.name}
+    # Attempt proof packets have their own closed validator, invoked by deep
+    # Instance validation alongside this unchanged legacy run-record validator.
+    allowed = {manager.runs.name, "index-evidence"}
     if manager.root.is_symlink() or not manager.root.is_dir():
         return [
             {

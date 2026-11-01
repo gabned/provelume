@@ -371,8 +371,17 @@ class SourceOcrFlow:
                                                    permit=permit, acquisition=acquisition)
         manager = OcrJobManager(self.store)
         manager._ensure_directories()
-        policy = manager._policy()
         request_key = "source-ocr:" + digest(authorization)
+        # Scheduler policy revisions must not turn one cancelled Source permit
+        # into a new reservation. The existing scheduler remains the sole ledger.
+        for existing in manager.scheduler.journal._all_jobs():
+            if (existing["job_kind"] == "ocr.execute" and existing["idempotency_key"]
+                    == idempotency_digest("manual", existing["policy_id"],
+                                          str(existing["policy_revision"]), request_key)):
+                if manager._request_for_job(existing).get("source_authorization") != authorization:
+                    raise ReviewUnavailable("Existing Source OCR request identity conflicts")
+                return {"scheduled": True, "created": False, "job": existing}
+        policy = manager._policy()
         key = idempotency_digest("manual", policy["id"], str(policy["revision"]), request_key)
         request = {"schema_version": 1, "scheduler_key": key, "operation": "source",
                    "version_id": version_id, "source_authorization": authorization,
