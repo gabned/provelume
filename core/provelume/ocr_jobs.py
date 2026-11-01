@@ -738,7 +738,8 @@ class OcrJobManager:
                 "schema_version": OCR_BUNDLE_SCHEMA_VERSION,
                 "contract_schema_version": OCR_CONTRACT_SCHEMA_VERSION,
                 "kind": OCR_ARTIFACT_KIND,
-                "job": {"id": job["id"], "state": "succeeded"},
+                "job": {"id": job["id"], "state": (
+                    "derived-complete" if "source_authorization" in request else "succeeded")},
                 "derivation_key": derivation,
                 "document_id": request["document_id"],
                 "version_id": request["version_id"],

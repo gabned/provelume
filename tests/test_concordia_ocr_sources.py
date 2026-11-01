@@ -487,6 +487,7 @@ def test_uncertain_complete_ocr_blocks_until_that_bundle_is_explicitly_accepted(
     with pytest.raises(ReviewUnavailable):
         resolve_ocr_contribution(instance.store, job["id"])
     artifact = manager.list_bundles(version)[0]["artifact"]
+    assert manager.list_bundles(version)[0]["manifest"]["job"]["state"] == "derived-complete"
     plan = instance.review_decisions.preview("ocr_sources", source_id, "limited_result", {
         "version_id": version, "profile": "ocr-accepted", "artifact_id": artifact["id"],
     })

@@ -56,6 +56,9 @@ The confirmation records the selection and permits its exact index request.
 Unsupported annotation indexing blocks the dependent contribution; human
 corrections keep their separate authority and are never silently merged or
 overruled by engine text. Passive email validation retains its dedicated path.
+Source bundle metadata records `derived-complete`, independently of the scheduler
+outcome: retaining uncertain text for review cannot label its failed index job a
+success. Final search applicability still requires the exact terminal proof.
 
 ## Producer evidence and recovery
 
