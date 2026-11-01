@@ -833,9 +833,10 @@ jobs:
           cp "$assembly/release-assurance.json" "$release"/
           cp "$RUNNER_TEMP/provelume-release-installed-ai/windows-installed-ai.json" "$release"/
           cp "$assembly/provelume-${VERSION}.cdx.json" "$release"/
-          cp "$RUNNER_TEMP/provelume-release-ocr/provelume-${VERSION}-ocr-windows-x64.zip" "$release"/
-          cp "$RUNNER_TEMP/provelume-release-ocr/ocr-kit-build.json" "$release"/
-          cp "$RUNNER_TEMP/provelume-release-ocr/windows-installed-ocr.json" "$release"/
+          ocr="$RUNNER_TEMP/provelume-release-ocr/ocr-output"
+          cp "$ocr/provelume-${VERSION}-ocr-windows-x64.zip" "$release"/
+          cp "$ocr/ocr-kit-build.json" "$release"/
+          cp "$ocr/windows-installed-ocr.json" "$release"/
           python scripts/augment_ocr_sbom.py --sbom "$release/provelume-${VERSION}.cdx.json" \
             --kit "$release/provelume-${VERSION}-ocr-windows-x64.zip" \
             --build-report "$release/ocr-kit-build.json" \
