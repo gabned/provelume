@@ -105,5 +105,13 @@
       "version": "3.8.9",
       "expression": "BSD-2-Clause AND BSD-3-Clause AND CC0-1.0 AND LicenseRef-Public-Domain"
     }
-  }
+  },
+  "engine_configs": [
+    {
+      "path": "tessdata/configs/tsv",
+      "url": "https://raw.githubusercontent.com/tesseract-ocr/tesseract/db0ec62f81b0737fbbe184d8fea40af5738f8eef/tessdata/configs/tsv",
+      "size_bytes": 22,
+      "sha256": "59d079bb75d8b3d7c839a3564580cb559e362c93a9d70f234e421c0c3e767e04"
+    }
+  ]
 }

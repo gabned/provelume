@@ -15,6 +15,7 @@ from provelume.ocr_kit import (
     PDFIUM_DLL,
     PILLOW_CORE,
     PYTHON_DLL,
+    TSV_CONFIG,
     WORKER,
     build_identity,
 )
@@ -29,6 +30,7 @@ def release(tmp_path):
         name: b"synthetic-never-executed"
         for name in [
             ENGINE,
+            TSV_CONFIG,
             WORKER,
             PYTHON_DLL,
             PDFIUM_DLL,

@@ -384,6 +384,22 @@ def compose(worker, vcpkg, identity, output):
                 }
             )
         _acquire(url + "/LICENSE", root / "licenses/tessdata/LICENSE")
+        for config in lock["engine_configs"]:
+            _acquire(
+                config["url"],
+                root / config["path"],
+                size=config["size_bytes"],
+                sha=config["sha256"],
+            )
+            components.append(
+                {
+                    "name": "tesseract-tsv-config",
+                    "version": "5.5.3",
+                    "license": "Apache-2.0",
+                    "source": config["url"],
+                    "notices": ["licenses/native/tesseract/copyright"],
+                }
+            )
         for filename in ("LICENSE", "COMMERCIAL-LICENSE.md", "THIRD_PARTY_NOTICES.md"):
             shutil.copyfile(SOURCE / filename, root / ("Provelume-" + filename))
         (root / "components.json").write_bytes(

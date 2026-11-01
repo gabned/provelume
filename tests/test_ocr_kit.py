@@ -17,6 +17,7 @@ from provelume.ocr_kit import (
     PDFIUM_DLL,
     PILLOW_CORE,
     PYTHON_DLL,
+    TSV_CONFIG,
     WORKER,
     OcrKitError,
     active_kit,
@@ -40,6 +41,7 @@ def kit(tmp_path):
     }
     files = {
         ENGINE: b"synthetic-never-executed-engine",
+        TSV_CONFIG: b"tessedit_create_tsv 1\n",
         WORKER: b"synthetic-worker",
         **{p: b"synthetic-pack" for p in PACKS.values()},
         "components.json": b"{}",
@@ -147,7 +149,7 @@ def test_explicit_import_disabled_state_originals_and_preferences_are_preserved(
 
 
 @pytest.mark.parametrize(
-    "name", [ENGINE, WORKER, *PACKS.values(), "worker/_internal/python312.dll"]
+    "name", [ENGINE, TSV_CONFIG, WORKER, *PACKS.values(), "worker/_internal/python312.dll"]
 )
 @pytest.mark.parametrize("mutation", ["missing", "changed"])
 def test_missing_or_changed_component_blocks_and_explicit_reimport_recovers(kit, name, mutation):
@@ -163,7 +165,7 @@ def test_missing_or_changed_component_blocks_and_explicit_reimport_recovers(kit,
         active_kit(root=root, build=build)
     expected = (
         "ocr_engine_unavailable"
-        if name == ENGINE
+        if name in {ENGINE, TSV_CONFIG}
         else "ocr_language_pack_missing"
         if name.startswith("tessdata/")
         else "ocr_renderer_unavailable"

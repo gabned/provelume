@@ -49,6 +49,11 @@ by PR/main CI; the application version remains0.14.0 during this campaign.
 
 ## Explicit offline lifecycle
 
+The engine payload includes the exact upstream `tessdata/configs/tsv` bytes.
+The existing adapter selects that named output configuration. A zero exit code
+without this file can leave only plain text and no TSV; the kit requires the
+configuration before activation and treats its loss as an unavailable engine.
+
 The frozen operator interface writes a new JSON result outside the Instance/kit:
 
 ```text

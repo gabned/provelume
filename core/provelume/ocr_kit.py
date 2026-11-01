@@ -25,6 +25,7 @@ MAX_FILES = 2048
 SHA = re.compile(r"[0-9a-f]{64}\Z")
 MANIFEST = "ocr-kit.json"
 ENGINE = "engine/tesseract.exe"
+TSV_CONFIG = "tessdata/configs/tsv"
 WORKER = "worker/ProvelumeOcrWorker.exe"
 PYTHON_DLL = "worker/_internal/python312.dll"
 PDFIUM_DLL = "worker/_internal/pypdfium2_raw/pdfium.dll"
@@ -174,6 +175,7 @@ def validate_manifest(value, build, *, python_version=None):
             name.casefold()
             for name in (
                 ENGINE,
+                TSV_CONFIG,
                 WORKER,
                 PYTHON_DLL,
                 PDFIUM_DLL,
@@ -216,6 +218,7 @@ def validate_manifest(value, build, *, python_version=None):
     )
     _check(all(indexed[row["path"]]["size_bytes"] > 0 for row in native))
     _check(all(indexed[name]["size_bytes"] > 0 for name in PACKS.values()))
+    _check(indexed[TSV_CONFIG]["size_bytes"] > 0)
     _check(len({row["path"] for row in native}) == len(native))
     _check(
         {row["path"] for row in native}
@@ -258,7 +261,7 @@ class InstalledOcrKit:
             path = self.root / row["path"]
             code = (
                 "ocr_engine_unavailable"
-                if row["path"].startswith("engine/")
+                if row["path"].startswith("engine/") or row["path"] == TSV_CONFIG
                 else "ocr_language_pack_missing"
                 if row["path"].startswith("tessdata/")
                 else "ocr_renderer_unavailable"

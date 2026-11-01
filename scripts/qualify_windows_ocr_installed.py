@@ -17,7 +17,7 @@ SOURCE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SOURCE / "core"))
 
 from provelume.ocr_contract import OcrContractError, OcrSettings  # noqa: E402
-from provelume.ocr_kit import ENGINE, WORKER  # noqa: E402
+from provelume.ocr_kit import ENGINE, TSV_CONFIG, WORKER  # noqa: E402
 from provelume.ocr_process import minimal_child_environment, run_bounded_process  # noqa: E402
 from provelume.publication import canonical_bytes, file_identity  # noqa: E402
 from provelume.service import ProvelumeInstance  # noqa: E402
@@ -156,8 +156,23 @@ def qualify(executable, kit, root, output, build_report, installer):
             timeout=180,
             check=False,
         )
-        assert process.returncode == expected, (arguments[0], process.returncode)
-        return json.loads(result.read_text(encoding="utf-8"))
+        payload = json.loads(result.read_text(encoding="utf-8"))
+        evidence = output.parent / result.name
+        evidence.write_bytes(result.read_bytes())
+        if process.returncode != expected:
+            print(
+                json.dumps(
+                    {
+                        "failed_command": arguments[0],
+                        "returncode": process.returncode,
+                        "result": payload,
+                    },
+                    ensure_ascii=True,
+                )[:4000],
+                flush=True,
+            )
+            raise AssertionError((arguments[0], process.returncode))
+        return payload
 
     source = root / "Corpus"
     _corpus(source)
@@ -255,9 +270,15 @@ def qualify(executable, kit, root, output, build_report, installer):
             cases.append(
                 {"input": name, "sha256": file_identity(source / name)["sha256"], "result": "PASS"}
             )
-        paths = [ENGINE, WORKER, "tessdata/ita.traineddata", "worker/_internal/python312.dll"]
+        paths = [
+            ENGINE,
+            TSV_CONFIG,
+            WORKER,
+            "tessdata/ita.traineddata",
+            "worker/_internal/python312.dll",
+        ]
         paths += [r["path"] for r in manifest["files"] if r["path"].endswith("/pdfium.dll")]
-        assert len(paths) == 5
+        assert len(paths) == 6
         negatives = []
         for name in paths:
             path = current / name
@@ -268,7 +289,7 @@ def qualify(executable, kit, root, output, build_report, installer):
                 assert report["available"] is False
                 expected = (
                     "ocr_engine_unavailable"
-                    if name == ENGINE
+                    if name in {ENGINE, TSV_CONFIG}
                     else "ocr_language_pack_missing"
                     if name.startswith("tessdata/")
                     else "ocr_renderer_unavailable"
