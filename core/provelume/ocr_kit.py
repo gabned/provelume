@@ -9,6 +9,7 @@ import platform
 import re
 import shutil
 import stat
+import sys
 import tempfile
 import zipfile
 from dataclasses import dataclass
@@ -25,6 +26,10 @@ SHA = re.compile(r"[0-9a-f]{64}\Z")
 MANIFEST = "ocr-kit.json"
 ENGINE = "engine/tesseract.exe"
 WORKER = "worker/ProvelumeOcrWorker.exe"
+PYTHON_DLL = "worker/_internal/python312.dll"
+PDFIUM_DLL = "worker/_internal/pypdfium2_raw/pdfium.dll"
+PILLOW_CORE = "worker/_internal/PIL/_imaging.cp312-win_amd64.pyd"
+BUILD_KEYS = ("source_repository", "version", "commit", "channel", "tag", "official")
 PACKS = {"eng": "tessdata/eng.traineddata", "ita": "tessdata/ita.traineddata"}
 
 
@@ -40,6 +45,16 @@ def _check(condition, message="Offline OCR kit is unavailable or invalid", *, co
 
 def host_root() -> Path:
     return Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local")) / "Provelume/ocr"
+
+
+def build_identity(build):
+    return {key: build.get(key) for key in BUILD_KEYS}
+
+
+def _runtime_identity():
+    if sys.platform == "win32" and bool(getattr(sys, "frozen", False)):
+        return file_identity(_safe(Path(sys._MEIPASS) / "python312.dll"))
+    return None
 
 
 def _safe(path: Path) -> Path:
@@ -73,6 +88,20 @@ def _relative(value: str) -> str:
         )
     )
     return value
+
+
+def payload_identity(path: Path):
+    """Inventory a native/resource member; release-asset naming rules stay separate."""
+    path = _safe(path)
+    _relative(path.name)
+    _check(path.is_file())
+    digest, size = hashlib.sha256(), 0
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            size += len(chunk)
+            _check(size <= MAX_BYTES)
+            digest.update(chunk)
+    return {"name": path.name, "size_bytes": size, "sha256": digest.hexdigest()}
 
 
 def _json(raw: bytes):
@@ -109,14 +138,24 @@ def validate_manifest(value, build, *, python_version=None):
             "components",
             "native_dependencies",
             "trust",
+            "build_identity",
         }
     )
     _check(type(value["schema_version"]) is int and value["schema_version"] == 1)
     _check(value["source_repository"] == "gabned/provelume")
+    _check(
+        isinstance(value["build_identity"], dict)
+        and set(value["build_identity"]) == set(BUILD_KEYS)
+        and type(value["build_identity"]["official"]) is bool
+    )
+    _check(value["build_identity"] == build_identity(build), code="ocr_version_incompatible")
     _check(value["version"] == build.get("version") and value["commit"] == build.get("commit"))
     _check(re.fullmatch(r"[0-9a-f]{40}", str(value["commit"])) is not None)
     _check(value["platform"] == "windows" and value["architecture"] == "x86_64")
-    _check(value["python"] == (python_version or platform.python_version()))
+    _check(
+        value["python"] == (python_version or platform.python_version()),
+        code="ocr_version_incompatible",
+    )
     _check(value["entrypoints"] == {"engine": ENGINE, "worker": WORKER, "packs": PACKS})
     rows = value["files"]
     _check(isinstance(rows, list) and 1 <= len(rows) <= MAX_FILES)
@@ -136,14 +175,58 @@ def validate_manifest(value, build, *, python_version=None):
             for name in (
                 ENGINE,
                 WORKER,
+                PYTHON_DLL,
+                PDFIUM_DLL,
                 *PACKS.values(),
                 "components.json",
                 "native-dependencies.json",
+                "ocr-components.cdx.json",
             )
         }.issubset(seen)
     )
     _check(isinstance(value["components"], list) and value["components"])
+    _check(
+        any(name.casefold() in seen for name in (PILLOW_CORE, "worker/_internal/PIL/_imaging.pyd"))
+    )
     _check(isinstance(value["native_dependencies"], list) and value["native_dependencies"])
+    indexed = {row["path"]: row for row in rows}
+    for component in value["components"]:
+        _check(isinstance(component, dict))
+        _check(
+            all(
+                isinstance(component.get(k), str) and 0 < len(component[k]) <= 4096
+                for k in ("name", "version", "license", "source")
+            )
+        )
+        notices = component.get("notices")
+        _check(isinstance(notices, list) and 1 <= len(notices) <= 128)
+        _check(
+            all(_relative(name) in indexed and indexed[name]["size_bytes"] > 0 for name in notices)
+        )
+    native = value["native_dependencies"]
+    _check(
+        all(
+            isinstance(row, dict)
+            and row.get("path") in indexed
+            and row.get("architecture") == "AMD64"
+            and row.get("sha256") == indexed[row["path"]]["sha256"]
+            and isinstance(row.get("imports"), list)
+            for row in native
+        )
+    )
+    _check(all(indexed[row["path"]]["size_bytes"] > 0 for row in native))
+    _check(all(indexed[name]["size_bytes"] > 0 for name in PACKS.values()))
+    _check(len({row["path"] for row in native}) == len(native))
+    _check(
+        {row["path"] for row in native}
+        == {name for name in indexed if Path(name).suffix.lower() in {".exe", ".dll", ".pyd"}}
+    )
+    runtime = _runtime_identity()
+    if runtime is not None:
+        _check(
+            all(runtime[k] == indexed[PYTHON_DLL][k] for k in ("sha256", "size_bytes")),
+            code="ocr_version_incompatible",
+        )
     return value
 
 
@@ -182,7 +265,7 @@ class InstalledOcrKit:
             )
             _check(path.is_file(), code=code)
             _check(
-                file_identity(path)
+                payload_identity(path)
                 == {"name": path.name, "sha256": row["sha256"], "size_bytes": row["size_bytes"]},
                 code=code,
             )
@@ -338,6 +421,7 @@ def import_kit(
             shutil.rmtree(staging, ignore_errors=True)
     return {
         "status": "imported",
+        "build_identity": build_identity(build),
         "kit": identity,
         "network_used": False,
         "ocr_enablement_changed": False,

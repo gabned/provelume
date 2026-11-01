@@ -5,6 +5,7 @@ import platform
 import stat
 import zipfile
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
@@ -13,9 +14,13 @@ from provelume.ocr_kit import (
     ENGINE,
     MANIFEST,
     PACKS,
+    PDFIUM_DLL,
+    PILLOW_CORE,
+    PYTHON_DLL,
     WORKER,
     OcrKitError,
     active_kit,
+    build_identity,
     import_kit,
     remove_kit,
 )
@@ -40,6 +45,10 @@ def kit(tmp_path):
         "components.json": b"{}",
         "native-dependencies.json": b"{}",
         "worker/_internal/python312.dll": b"synthetic-runtime",
+        PDFIUM_DLL: b"synthetic-pdfium",
+        PILLOW_CORE: b"synthetic-decoder",
+        "ocr-components.cdx.json": b"{}",
+        "licenses/synthetic.txt": b"Synthetic unit-fixture license",
     }
     manifest = {
         "schema_version": 1,
@@ -54,18 +63,40 @@ def kit(tmp_path):
             {"path": k, "size_bytes": len(v), "sha256": hashlib.sha256(v).hexdigest()}
             for k, v in files.items()
         ],
-        "components": [{"synthetic": True}],
-        "native_dependencies": [{"synthetic": True}],
+        "components": [
+            {
+                "name": "synthetic",
+                "version": "1",
+                "license": "MIT",
+                "source": "synthetic-unit-fixture",
+                "notices": ["licenses/synthetic.txt"],
+            }
+        ],
+        "native_dependencies": [
+            {
+                "path": name,
+                "architecture": "AMD64",
+                "sha256": hashlib.sha256(raw).hexdigest(),
+                "imports": [],
+            }
+            for name, raw in files.items()
+            if Path(name).suffix in {".exe", ".dll", ".pyd"}
+        ],
         "trust": {"synthetic": True},
+        "build_identity": build_identity(build),
     }
 
-    def write(*, changes=None, extras=None, raw=None):
+    def write(*, changes=None, extras=None, raw=None, omit=()):
         value = dict(manifest)
         value.update(changes or {})
+        value["files"] = [r for r in value["files"] if r["path"] not in omit]
+        value["native_dependencies"] = [
+            r for r in value["native_dependencies"] if r["path"] not in omit
+        ]
         target = tmp_path / "provelume-0.14.0-ocr-windows-x64.zip"
         with zipfile.ZipFile(target, "w") as archive:
             for name, payload in {
-                **files,
+                **{name: data for name, data in files.items() if name not in omit},
                 MANIFEST: raw or canonical_bytes(value),
                 **(extras or {}),
             }.items():
@@ -240,7 +271,7 @@ def test_symlink_and_ambiguous_json_are_rejected(kit, tmp_path):
 
 
 def test_official_build_requires_matching_publication_receipt_and_forbids_dev_digest(kit, tmp_path):
-    build, _, _, _, archive, root = kit
+    build, _, _, write, archive, root = kit
     official = {**build, "official": True, "channel": "stable", "tag": "v0.14.0"}
     with pytest.raises(OcrKitError):
         import_kit(
@@ -252,6 +283,11 @@ def test_official_build_requires_matching_publication_receipt_and_forbids_dev_di
         )
     # An independently selected operator digest qualifies a candidate offline;
     # this does not create publication evidence or permit the development flag.
+    with pytest.raises(OcrKitError):
+        import_kit(
+            archive, root=root, build=official, expected_sha256=file_identity(archive)["sha256"]
+        )
+    archive = write(changes={"build_identity": build_identity(official)})
     assert (
         import_kit(
             archive, root=root, build=official, expected_sha256=file_identity(archive)["sha256"]
@@ -315,3 +351,51 @@ def test_frozen_renderer_dispatch_uses_dedicated_executable_and_material_identit
     assert renderer._run(["probe"], work_directory=tmp_path, timeout=1) == {}
     assert commands == [[str(executable), "probe"]] and checks == [True]
     assert renderer.adapter_version == "1+" + "a" * 64
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [PYTHON_DLL, PDFIUM_DLL, PILLOW_CORE, "ocr-components.cdx.json", "licenses/synthetic.txt"],
+)
+def test_self_consistent_but_incomplete_kit_never_activates(kit, missing):
+    _, _, _, write, _, root = kit
+    write(omit=(missing,))
+    with pytest.raises(OcrKitError):
+        install(kit)
+    assert not (root / "active.json").exists()
+
+
+@pytest.mark.parametrize("matching", [False, True])
+def test_runtime_dll_bytes_must_match_the_installed_program(kit, monkeypatch, matching):
+    _, files, _, _, _, root = kit
+    raw = files[PYTHON_DLL]
+    runtime = {
+        "name": "python312.dll",
+        "size_bytes": len(raw),
+        "sha256": hashlib.sha256(raw).hexdigest() if matching else "0" * 64,
+    }
+    monkeypatch.setattr("provelume.ocr_kit._runtime_identity", lambda: runtime)
+    if matching:
+        assert install(kit)["status"] == "imported"
+    else:
+        with pytest.raises(OcrKitError) as error:
+            install(kit)
+        assert error.value.code == "ocr_version_incompatible"
+        assert not (root / "active.json").exists()
+
+
+def test_frozen_operator_reports_concurrent_provisioning_as_unavailable(tmp_path, monkeypatch):
+    import json
+
+    from provelume.ocr_desktop import run_ocr_command
+    from provelume.shell_settings import ShellSettingsBusy
+
+    def busy(*args, **kwargs):
+        raise ShellSettingsBusy("another provisioning operation owns the lock")
+
+    monkeypatch.setattr("provelume.ocr_desktop.import_kit", busy)
+    output = tmp_path / "result.json"
+    assert (
+        run_ocr_command(["kit-import", "synthetic.zip", "--expected-sha256", "0" * 64], output) == 2
+    )
+    assert json.loads(output.read_text())["code"] == "provisioning_busy"

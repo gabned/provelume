@@ -11,6 +11,7 @@ from pathlib import Path
 from .ocr_cli import add_ocr_commands, handle_ocr_command
 from .ocr_kit import OcrKitError, _safe, active_kit, host_root, import_kit, remove_kit
 from .publication import PublicationError
+from .shell_settings import ShellSettingsBusy
 
 
 def run_ocr_command(arguments: list[str], result_file: Path) -> int:
@@ -62,11 +63,23 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
                 json.dump(result, stream, sort_keys=True)
                 stream.write("\n")
                 return 0
-            except (OSError, ValueError, KeyError, TypeError, OcrKitError, PublicationError) as exc:
+            except (
+                OSError,
+                ValueError,
+                KeyError,
+                TypeError,
+                OcrKitError,
+                PublicationError,
+                ShellSettingsBusy,
+            ) as exc:
                 json.dump(
                     {
                         "status": "unavailable",
-                        "code": getattr(exc, "code", "invalid_kit"),
+                        "code": (
+                            "provisioning_busy"
+                            if isinstance(exc, ShellSettingsBusy)
+                            else getattr(exc, "code", "invalid_kit")
+                        ),
                         "network_used": False,
                     },
                     stream,

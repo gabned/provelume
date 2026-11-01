@@ -45,9 +45,15 @@ def augment(sbom, kit, build_report, installed_report, commit, installer):
         application = result["metadata"]["component"]
         validate_manifest(
             manifest,
-            {"version": application["version"], "commit": commit},
+            build_report["build_identity"],
             python_version=lock["python"],
         )
+        if (
+            manifest["version"] != application["version"]
+            or manifest["commit"] != commit
+            or installed_report["build_identity"] != build_report["build_identity"]
+        ):
+            raise ValueError("OCR build/installed identity differs from the release")
         expected = {row["path"]: row for row in manifest["files"]}
         if len(infos) != len(expected) + 1 or set(archive.namelist()) != set(expected) | {MANIFEST}:
             raise ValueError("OCR asset inventory differs")

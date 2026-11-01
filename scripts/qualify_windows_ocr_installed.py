@@ -171,6 +171,8 @@ def qualify(executable, kit, root, output, build_report, installer):
     assert imported["ocr_enablement_changed"] is False
     assert command("ocr-capability", instance.root)["state"] == "disabled"
     current = root / "Host/Provelume/ocr/kits" / identity["sha256"]
+    base_runtime = file_identity(executable.parent / "_internal/python312.dll")
+    assert base_runtime == file_identity(current / "worker/_internal/python312.dll")
     manifest = json.loads((current / "ocr-kit.json").read_text())
     rules = []
     powershell = Path(os.environ["SYSTEMROOT"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
@@ -257,6 +259,8 @@ def qualify(executable, kit, root, output, build_report, installer):
             "kit": identity,
             "installer_executable": file_identity(executable),
             "installer": file_identity(installer),
+            "build_identity": imported["build_identity"],
+            "matching_python_runtime": base_runtime,
             "source_commit": manifest["commit"],
             "os": sys.getwindowsversion()._asdict()
             if hasattr(sys.getwindowsversion(), "_asdict")

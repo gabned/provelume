@@ -28,7 +28,10 @@ does not acquire Pillow, PDFium, Tesseract or traineddata through this build.
 
 The composer verifies actual frozen worker/build identity, exact component probes,
 all AMD64 native files and imported/delay-imported DLL resolution. System API
-imports are classified separately; an unresolved application DLL fails the build.
+imports are classified separately and resolved only through Windows' system
+directories, with the actual system-file identity and OS build recorded; an
+unresolved application DLL fails the build. [Microsoft documents XmlLite as part
+of Windows and forbids redistributing its DLL](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ee388577(v=vs.85)).
 Every distributed file has a package-relative path, length and SHA256. Native
 source package versions, patches/source archives, notices and vcpkg SPDX records
 remain attached; Python/wheel/license files and a kit CycloneDX inventory are retained.
@@ -63,6 +66,10 @@ outside program files, preferences and Instances. Safe relative ZIP names, dupli
 keys/names, Windows device/ADS names, symlinks/reparse ancestors, file counts and
 byte limits are checked before activation. Extraction goes to private staging;
 the full exact inventory is verified before replacing the active pointer atomically.
+Required Python/PDFium/Pillow native payloads, SBOM and component notices must be
+present even when an incoming manifest is self-consistently incomplete. Embedded
+app source/version/channel/tag/official identity must match, as must the actual
+Python DLL bytes in the frozen program and kit, not just the Python version string.
 Updates retain prior kit directories. Explicit reimport of independently selected
 bytes quarantines a damaged owned tree and restores it; the damaged bytes are kept
 for diagnosis. Removal verifies ownership/integrity and deletes only the active

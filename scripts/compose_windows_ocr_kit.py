@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import hashlib
 import importlib.metadata
 import json
@@ -13,6 +14,7 @@ import sys
 import tempfile
 import urllib.request
 import zipfile
+from functools import lru_cache
 from pathlib import Path
 
 SOURCE = Path(__file__).resolve().parents[1]
@@ -24,9 +26,15 @@ from provelume.ocr_kit import (  # noqa: E402
     PACKS,
     WORKER,
     InstalledOcrKit,
+    build_identity,  # noqa: E402
+    payload_identity,  # noqa: E402
     validate_manifest,
 )
 from provelume.publication import canonical_bytes, file_identity  # noqa: E402
+
+XMLLITE_REFERENCE = (
+    "https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ee388577(v=vs.85)"
+)
 
 SYSTEM_DLLS = set(
     [
@@ -90,15 +98,52 @@ SYSTEM_DLLS = set(
         "nsi.dll",
         "authz.dll",
         "win32u.dll",
+        "xmllite.dll",
     ]
 )
+
+
+@lru_cache(maxsize=256)
+def _system_module(name):
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.LoadLibraryExW.argtypes = [ctypes.c_wchar_p, ctypes.c_void_p, ctypes.c_uint32]
+    kernel.LoadLibraryExW.restype = ctypes.c_void_p
+    kernel.GetModuleFileNameW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_uint32]
+    kernel.GetSystemDirectoryW.argtypes = [ctypes.c_wchar_p, ctypes.c_uint32]
+    kernel.FreeLibrary.argtypes = [ctypes.c_void_p]
+    handle = kernel.LoadLibraryExW(name, None, 0x800)  # LOAD_LIBRARY_SEARCH_SYSTEM32 only
+    if not handle:
+        raise ValueError("Required Windows system API is unavailable: " + name)
+    try:
+        buffer = ctypes.create_unicode_buffer(32768)
+        system = ctypes.create_unicode_buffer(32768)
+        if not kernel.GetModuleFileNameW(handle, buffer, len(buffer)) or not (
+            kernel.GetSystemDirectoryW(system, len(system))
+        ):
+            raise ValueError("Windows system API ownership cannot be observed")
+        path = Path(buffer.value).resolve()
+        system_directory = Path(system.value).resolve()
+        if not any(
+            path.is_relative_to(directory)
+            for directory in (system_directory, system_directory.parent / "WinSxS")
+        ):
+            raise ValueError("Required Windows API resolved outside the operating system")
+        return {
+            "resolution": "Windows-system-API",
+            "resolved_module": path.name,
+            "system_file": file_identity(path),
+            "windows_build": sys.getwindowsversion().build,
+            **({"reference": XMLLITE_REFERENCE} if name == "xmllite.dll" else {}),
+        }
+    finally:
+        kernel.FreeLibrary(handle)
 
 
 def native_inventory(root):
     import pefile
 
     paths = {p.relative_to(root).as_posix().casefold(): p for p in root.rglob("*") if p.is_file()}
-    result = []
+    result, unresolved = [], []
     for key, path in sorted(paths.items()):
         if path.suffix.lower() not in {".exe", ".dll", ".pyd"}:
             continue
@@ -131,16 +176,23 @@ def native_inventory(root):
             if found is not None:
                 imports.append({"name": name, "resolution": found.relative_to(root).as_posix()})
             elif name in SYSTEM_DLLS or name.startswith(("api-ms-win-", "ext-ms-win-")):
-                imports.append({"name": name, "resolution": "Windows10/11-system-API"})
+                try:
+                    imports.append({"name": name, **_system_module(name)})
+                except (OSError, ValueError):
+                    unresolved.append(name)
             else:
-                raise ValueError("OCR DLL dependency is not closed: " + name)
+                unresolved.append(name)
         result.append(
             {
                 "path": path.relative_to(root).as_posix(),
                 "architecture": "AMD64",
-                "sha256": file_identity(path)["sha256"],
+                "sha256": payload_identity(path)["sha256"],
                 "imports": imports,
             }
+        )
+    if unresolved:
+        raise ValueError(
+            "OCR DLL dependencies are not closed: " + ", ".join(sorted(set(unresolved)))
         )
     if not result:
         raise ValueError("Native OCR inventory is empty")
@@ -313,7 +365,7 @@ def compose(worker, vcpkg, identity, output):
                 }
             )
         _acquire(url + "/LICENSE", root / "licenses/tessdata/LICENSE")
-        for filename in ("LICENSE", "COMMERCIAL-LICENSE.md"):
+        for filename in ("LICENSE", "COMMERCIAL-LICENSE.md", "THIRD_PARTY_NOTICES.md"):
             shutil.copyfile(SOURCE / filename, root / ("Provelume-" + filename))
         (root / "components.json").write_bytes(
             canonical_bytes(
@@ -361,7 +413,7 @@ def compose(worker, vcpkg, identity, output):
         files = [
             {
                 "path": p.relative_to(root).as_posix(),
-                **{k: v for k, v in file_identity(p).items() if k != "name"},
+                **{k: v for k, v in payload_identity(p).items() if k != "name"},
             }
             for p in sorted(root.rglob("*"))
             if p.is_file()
@@ -382,6 +434,7 @@ def compose(worker, vcpkg, identity, output):
                 "publisher_authentication": "not_established",
                 "platform_signature": "unsigned-development",
             },
+            "build_identity": build_identity(build),
         }
         validate_manifest(manifest, build)
         raw = canonical_bytes(manifest)
@@ -396,6 +449,7 @@ def compose(worker, vcpkg, identity, output):
                     info.external_attr = 0o100644 << 16
                     archive.writestr(info, path.read_bytes())
         report = {
+            "build_identity": build_identity(build),
             "kit": file_identity(target),
             "source_commit": build["commit"],
             "manifest_sha256": hashlib.sha256(raw).hexdigest(),

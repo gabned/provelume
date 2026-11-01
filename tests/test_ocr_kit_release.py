@@ -8,7 +8,16 @@ from pathlib import Path
 
 import pytest
 
-from provelume.ocr_kit import ENGINE, MANIFEST, PACKS, WORKER
+from provelume.ocr_kit import (
+    ENGINE,
+    MANIFEST,
+    PACKS,
+    PDFIUM_DLL,
+    PILLOW_CORE,
+    PYTHON_DLL,
+    WORKER,
+    build_identity,
+)
 from provelume.publication import canonical_bytes, file_identity
 from scripts.augment_ocr_sbom import PREFIX, augment
 
@@ -21,10 +30,14 @@ def release(tmp_path):
         for name in [
             ENGINE,
             WORKER,
+            PYTHON_DLL,
+            PDFIUM_DLL,
+            PILLOW_CORE,
             *PACKS.values(),
             "components.json",
             "native-dependencies.json",
             "licenses/component.txt",
+            "ocr-components.cdx.json",
         ]
     }
     files = [
@@ -54,8 +67,20 @@ def release(tmp_path):
         "files": files,
         "trust": {"synthetic": True},
         "native_dependencies": [
-            {"path": ENGINE, "architecture": "AMD64", "sha256": files[0]["sha256"], "imports": []}
+            {"path": row["path"], "architecture": "AMD64", "sha256": row["sha256"], "imports": []}
+            for row in files
+            if Path(row["path"]).suffix in {".exe", ".dll", ".pyd"}
         ],
+        "build_identity": build_identity(
+            {
+                "source_repository": "gabned/provelume",
+                "version": "0.14.0",
+                "commit": commit,
+                "channel": "development",
+                "official": False,
+                "tag": None,
+            }
+        ),
     }
     raw = canonical_bytes(manifest)
     kit = tmp_path / "provelume-0.14.0-ocr-windows-x64.zip"
@@ -65,12 +90,14 @@ def release(tmp_path):
     installer = tmp_path / "Provelume-Setup-0.14.0-x64.exe"
     installer.write_bytes(b"synthetic-never-executed-setup")
     producer = {
+        "build_identity": manifest["build_identity"],
         "kit": file_identity(kit),
         "source_commit": commit,
         "components": [component],
         "manifest_sha256": hashlib.sha256(raw).hexdigest(),
     }
     installed = {
+        "build_identity": manifest["build_identity"],
         "result": "PASS",
         "kit": file_identity(kit),
         "source_commit": commit,
@@ -86,7 +113,7 @@ def release(tmp_path):
 
 def test_optional_kit_sbom_binds_exact_qualified_asset_setup_native_files_and_licenses(release):
     sbom = augment(*release)
-    assert len(sbom["components"]) == 3
+    assert len(sbom["components"]) == 7
     assert all(row["bom-ref"].startswith(PREFIX) for row in sbom["components"])
     (component,) = [row for row in sbom["components"] if row["type"] == "library"]
     assert component["licenses"] == [{"license": {"name": "MIT"}}]

@@ -193,7 +193,7 @@ class OcrJobManager:
     ) -> tuple[Any, OcrRendererCapability, Any, OcrAdapterCapability]:
         self._ensure_directories()
         if self._packaged_components:
-            from .ocr_kit import ENGINE, WORKER, active_kit
+            from .ocr_kit import ENGINE, PDFIUM_DLL, WORKER, OcrKitError, active_kit
 
             kit = active_kit()
             renderer = PdfiumPillowRenderer(
@@ -201,6 +201,11 @@ class OcrJobManager:
                 material_fingerprint=kit.sha256, before_execute=kit.verify,
             )
             renderer_capability = renderer.capability()
+            if renderer_capability.renderer_available and (
+                Path(renderer_capability.resolved_path).resolve() !=
+                (kit.root / PDFIUM_DLL).resolve()
+            ):
+                raise OcrKitError(code="ocr_version_incompatible")
             adapter = TesseractCliAdapter(
                 replace(settings, engine_executable=str(kit.root / ENGINE),
                         tessdata_path=str(kit.root / "tessdata")),
@@ -226,7 +231,8 @@ class OcrJobManager:
         except OcrKitError as exc:
             report = ocr_capability_report(selected)
             state = {"ocr_engine_unavailable": "engine-unavailable",
-                     "ocr_language_pack_missing": "language-pack-missing"}.get(
+                     "ocr_language_pack_missing": "language-pack-missing",
+                     "ocr_version_incompatible": "version-incompatible"}.get(
                          exc.code, "renderer-unavailable")
             report.update(state=state, available=False,
                           error={"code": exc.code, "messages": dict(OCR_ERROR_MESSAGES[exc.code])})
