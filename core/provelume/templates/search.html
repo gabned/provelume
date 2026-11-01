@@ -3,14 +3,14 @@
 {% block content %}
 <nav class="breadcrumb"><a href="/?lang={{ lang }}">{{ t('nav.home') }}</a><span>/</span><span>{{ t('nav.search') }}</span></nav>
 <h1>{{ t('search.title') }}</h1>
+{% include 'search_errors.html' %}
 <form class="search-form" method="get">
   <input type="hidden" name="lang" value="{{ lang }}">
-  <label class="wide">{{ t('search.query') }}<input name="q" value="{{ q }}" maxlength="500" autofocus></label>
+  <label class="wide">{{ t('search.query') }}<input name="q" value="{{ q }}" maxlength="500"{% if not search_errors %} autofocus{% endif %}></label>
   <label>{{ t('browse.source') }}<select name="source_id"><option value="">{{ t('browse.all') }}</option>{% for source in sources %}<option value="{{ source.id }}" {% if source.id == selected_source %}selected{% endif %}>{{ source.name }}</option>{% endfor %}</select></label>
   <label>{{ t('browse.type') }}<select name="media_type"><option value="">{{ t('browse.all') }}</option>{% for value in media_types %}<option value="{{ value }}" {% if value == selected_media_type %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
-  <label>{{ t('search.date_from') }}<input type="date" name="date_from" value="{{ date_from or '' }}"></label>
-  <label>{{ t('search.date_to') }}<input type="date" name="date_to" value="{{ date_to or '' }}"></label>
+  {% include 'search_dates.html' %}
   <button type="submit">{{ t('search.button') }}</button>
 </form>
-{% if q %}<section class="panel"><ul class="document-list">{% for result in results %}<li><a href="/documents/{{ result.document_id }}?lang={{ lang }}"><strong>{{ result.title }}</strong><span>{{ result.snippet }}</span></a></li>{% else %}<li class="empty">{{ t('search.empty') }}</li>{% endfor %}</ul></section>{% endif %}
+{% if q and not search_errors and not search_pending %}<section class="panel"><ul class="document-list">{% for result in results %}<li id="result-{{ result.document_id }}"><a href="{{ document_link(result.document_id) }}"><strong>{{ result.title }}</strong><span>{{ result.snippet }}</span></a></li>{% else %}<li class="empty">{{ t('search.empty') }}</li>{% endfor %}</ul></section>{% endif %}
 {% endblock %}

@@ -7,7 +7,10 @@ import shutil
 import socket
 from collections.abc import Iterator
 from contextlib import contextmanager
+from contextvars import ContextVar
+from functools import wraps
 from pathlib import Path
+from threading import get_ident
 from time import monotonic, sleep
 from typing import Any
 from uuid import uuid4
@@ -33,6 +36,35 @@ from .instance_validation import inspect_instance
 from .storage import InstanceStore, utc_now
 
 LIFECYCLE_STATE_SCHEMA_VERSION = 1
+_LOCAL_OWNERS = ContextVar("provelume_lifecycle_owners", default=())
+
+
+class _LocalLifecycleOwner:
+    """Context copies share liveness; an expired scope never retains authority."""
+
+    __slots__ = ("identity", "active")
+
+    def __init__(self, identity):
+        self.identity = identity
+        self.active = True
+
+
+def lifecycle_writer(purpose):
+    """Join only this thread's actual kernel ownership, otherwise acquire it.
+
+    Index writers also run inside ingestion/scheduler transactions. A diagnostic
+    lock file, another thread or an inherited process context grants no ownership.
+    """
+    def decorate(function):
+        @wraps(function)
+        def guarded(store, *args, **kwargs):
+            key = (os.getpid(), get_ident(), str(store.paths.root.absolute()))
+            if any(owner.active and owner.identity == key for owner in _LOCAL_OWNERS.get()):
+                return function(store, *args, **kwargs)
+            with InstanceLifecycleManager(store)._hold(purpose=purpose):
+                return function(store, *args, **kwargs)
+        return guarded
+    return decorate
 
 
 class InstanceLifecycleError(RuntimeError):
@@ -212,7 +244,16 @@ class InstanceLifecycleManager:
             if selected_purpose != "instance-transaction-recovery":
                 recover_review_transactions_locked(self.store)
                 recover_objects_locked(self.store)
-            yield owner
+            key = (os.getpid(), get_ident(), str(self.store.paths.root.absolute()))
+            scope = _LocalLifecycleOwner(key)
+            context = _LOCAL_OWNERS.set((*_LOCAL_OWNERS.get(), scope))
+            try:
+                yield owner
+            finally:
+                # Invalidate before resetting this context: queued asyncio tasks
+                # and copy_context() retain the same scope object after reset.
+                scope.active = False
+                _LOCAL_OWNERS.reset(context)
         finally:
             try:
                 if locked:

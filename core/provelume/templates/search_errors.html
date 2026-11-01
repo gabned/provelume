@@ -1,0 +1,9 @@
+{% if search_pending %}<p class="panel" role="status">{{ t('search.index_pending') }}</p>{% endif %}
+{% if search_errors %}
+<section class="panel" role="alert" aria-labelledby="search-error-title">
+  <h2 id="search-error-title">{{ t('search.input_error_title') }}</h2>
+  <ul>{% for field, error in search_errors.items() %}
+    <li><a href="#search-{{ field|replace('_', '-') }}">{{ t('search.' ~ field) }}: {{ t(error) }}</a></li>
+  {% endfor %}</ul>
+</section>
+{% endif %}

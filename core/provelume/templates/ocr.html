@@ -5,6 +5,7 @@
   <p class="eyebrow">{{ t('ocr.eyebrow') }}</p>
   <h1>{{ t('ocr.title') }}</h1>
   <p class="lead">{{ t('ocr.lead') }}</p>
+  <p><a href="/review/ocr-sources?lang={{ lang }}">{{ t('review.ocr_sources') }}</a></p>
 </section>
 {% if saved %}<section class="panel"><p class="status ok">{{ t('ocr.saved') }}</p><p class="technical-note">{{ saved }}</p></section>{% endif %}
 {% if error %}<section class="panel"><p class="status warn">{{ t('ocr.error') }}</p><p>{{ error }}</p></section>{% endif %}

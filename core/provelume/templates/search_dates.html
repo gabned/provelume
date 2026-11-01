@@ -1,0 +1,9 @@
+<p id="search-date-help" class="muted search-date-help">{{ t('search.date_help') }}</p>
+{% for field in ['date_from', 'date_to'] %}
+<label for="search-{{ field|replace('_', '-') }}">{{ t('search.' ~ field) }}
+  <input id="search-{{ field|replace('_', '-') }}" type="date" name="{{ field }}" value="{{ date_inputs[field] }}" aria-describedby="search-date-help{% if field in search_errors %} search-{{ field|replace('_', '-') }}-error{% endif %}"{% if field in search_errors %} aria-invalid="true"{% endif %}{% if field == first_search_error %} autofocus{% endif %}>
+</label>
+{% if field in search_errors %}
+<p id="search-{{ field|replace('_', '-') }}-error" class="status warn search-date-error">{{ t(search_errors[field]) }}{% if search_errors[field] == 'search.invalid_date' %} {{ t('search.rejected_value') }}: <code>{{ date_from if field == 'date_from' else date_to }}</code>{% endif %}</p>
+{% endif %}
+{% endfor %}

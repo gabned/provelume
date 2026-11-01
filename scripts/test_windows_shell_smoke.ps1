@@ -36,6 +36,7 @@ $Evidence = [ordered]@{
     service_ready_attempts = 0
     checks = [ordered]@{}
     native_tray = $null
+    startup_readiness = $null
     network_used_by_harness = $false
     private_content_logged = $false
 }
@@ -428,6 +429,18 @@ sys.exit(0 if not probe_port(sys.argv[1])["available"] else 2)
     if ($BootstrapProcess.ExitCode -ne 0) {
         throw "Synthetic Instance bootstrap failed."
     }
+    Set-FailureCode "frozen_private_readiness_failed"
+    $Evidence.startup_readiness = & (Join-Path $SourceRoot "scripts\test_windows_startup_readiness.ps1") `
+        -Executable $Executable -InstanceDirectory $InstanceRoot -Port $ConfiguredPort `
+        -ExpectedCommit $ExpectedCommit
+    if ($Evidence.startup_readiness.status -ne "PASS" -or
+        -not $Evidence.startup_readiness.proof_verified -or
+        -not $Evidence.startup_readiness.opened_root_binding_verified -or
+        -not $Evidence.startup_readiness.cooperative_stop_confirmed -or
+        -not $Evidence.startup_readiness.cleanup_confirmed) {
+        throw "Installed frozen stdin/readiness proof did not pass."
+    }
+    $Evidence.checks.installed_private_stdin_and_root_bound_readiness = "PASS"
     Set-FailureCode "loopback_service_startup_failed"
     $Service = Start-Process -FilePath $Executable -ArgumentList @(
         "--serve",
@@ -632,11 +645,11 @@ finally {
 }
 
 if ($Failed) {
-    $Summary = $Evidence | Select-Object `
+    $Summary = [pscustomobject]$Evidence | Select-Object `
         schema_version, status, failure_code, expected_commit, exact_head, `
         default_port, configured_port, collision_installer_exit_code, `
         default_install_exit_code, final_uninstall_exit_code, service_exit_code, `
-        service_ready_attempts, checks, network_used_by_harness, private_content_logged
+        service_ready_attempts, checks, startup_readiness, network_used_by_harness, private_content_logged
     Write-Output ("WINDOWS_SHELL_REPORT=" + ($Summary | ConvertTo-Json -Depth 4 -Compress))
     throw "Windows shell smoke failed; the sanitized evidence records completed checks."
 }

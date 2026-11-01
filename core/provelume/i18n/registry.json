@@ -581,7 +581,22 @@
         "not_checked",
         "preview_other_channel",
         "update_error_unsupported_manifest",
-        "launcher_hint"
+        "launcher_hint",
+        "startup_preparing",
+        "startup_waiting",
+        "startup_stop_unconfirmed",
+        "startup_details",
+        "startup_details_help",
+        "startup_details_empty",
+        "startup_error_preparation",
+        "startup_error_spawn",
+        "startup_error_bootstrap",
+        "startup_error_exit",
+        "startup_error_timeout",
+        "startup_error_protocol",
+        "startup_error_configuration",
+        "startup_error_integrity",
+        "startup_error_initialization"
       ],
       "namespace": "desktop"
     },
@@ -1592,7 +1607,23 @@
         "review.processing_enqueue_pending",
         "review.processing_job",
         "review.knowledge_objects",
-        "review.reject"
+        "review.reject",
+        "review.ocr_sources",
+        "review.ocr_sources_help",
+        "review.ocr_future",
+        "review.backlog",
+        "review.limited_result",
+        "review.ocr_profile",
+        "review.limited-metadata",
+        "review.ocr-accepted",
+        "review.ocr_artifact",
+        "review.ocr_limited_help",
+        "review.effect_ocr_sources",
+        "review.reverse_ocr_sources",
+        "review.ocr_enqueue_pending",
+        "review.ocr_jobs_link",
+        "review.inbox_transit",
+        "review.release"
       ],
       "namespace": ""
     },
@@ -15439,6 +15470,204 @@
     },
     "review.reject": {
       "context": "Receipt-bound removable object proposals and explicit local review; templates/knowledge_object_review.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "desktop.startup_preparing": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_waiting": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_stop_unconfirmed": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_details": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_details_help": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_details_empty": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_preparation": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_spawn": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_bootstrap": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_exit": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_timeout": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_protocol": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_configuration": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_integrity": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "desktop.startup_error_initialization": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tray_status.stop_unconfirmed": {
+      "context": "Private local startup: bounded preparation/readiness/cleanup and redacted diagnostic details. Candidate EN/IT reference semantics; human linguistic review is separate.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "search.date_help": {
+      "context": "search: calendar-day validation and recovery; templates/search_errors.html; templates/search_dates.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.input_error_title": {
+      "context": "search: calendar-day validation and recovery; templates/search_errors.html; templates/search_dates.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.invalid_date": {
+      "context": "search: calendar-day validation and recovery; templates/search_errors.html; templates/search_dates.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.invalid_range": {
+      "context": "search: calendar-day validation and recovery; templates/search_errors.html; templates/search_dates.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.rejected_value": {
+      "context": "search: calendar-day validation and recovery; templates/search_errors.html; templates/search_dates.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "review.ocr_sources": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr_sources_help": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr_future": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.backlog": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.limited_result": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr_profile": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.limited-metadata": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr-accepted": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr_artifact": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr_limited_help": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.effect_ocr_sources": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.reverse_ocr_sources": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr_enqueue_pending": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr_jobs_link": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.inbox_transit": {
+      "context": "Scoped Inbox capability and exact input release; Originals remain preserved.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.release": {
+      "context": "Scoped Inbox capability and exact input release; Originals remain preserved.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "search.index_pending": {
+      "context": "Search while a cold or stale index cannot acquire the existing lifecycle writer. Suppress result counts and empty-result claims.",
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false

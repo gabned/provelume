@@ -122,11 +122,14 @@ class ProcessingJobs:
         inputs.hashes["authority"] = authority["revision"]
         versions = {document["id"]: version_id}
         if operation in {"representation", "index"}:
+            from .ocr_selection import selected_text
+
             artifacts = _text_inventory(self.store)
             artifact = _text_artifact(artifacts, version_id)
-            if artifact is None:
+            selected = selected_text(self.store, version_id) if operation == "index" else None
+            if artifact is None and selected is None:
                 raise ReviewUnavailable("Extract text before representation or indexing")
-            inputs.hashes["derived-artifact"] = digest(artifact)
+            inputs.hashes["derived-artifact"] = digest(selected[0] if selected else artifact)
         if operation == "index":
             # FTS is one cache. Review every current Version of this Source and
             # update that exact set together, never silently widen to the Instance.
@@ -151,12 +154,14 @@ class ProcessingJobs:
                 if type(original["size_bytes"]) is not int or original["size_bytes"] < 0:
                     raise ReviewUnavailable("A scoped Original has an invalid resource size")
                 artifact = _text_artifact(artifacts, current["id"])
-                if artifact is None:
+                selected = selected_text(self.store, current["id"])
+                if artifact is None and selected is None:
                     raise ReviewUnavailable("Extract all reviewed Source Versions before indexing")
                 total += original["size_bytes"]
                 if total > policy["max_input_bytes"]:
                     raise ReviewDenied("Source index input exceeds its reviewed resource limit")
-                inputs.hashes["derived:" + current["id"]] = digest(artifact)
+                inputs.hashes["derived:" + current["id"]] = digest(
+                    selected[0] if selected else artifact)
                 versions[scoped["id"]] = current["id"]
         result = {
             "schema_version": 1, "kind": JOB_KIND, "instance_id": self.journal.instance_id,
@@ -291,6 +296,7 @@ class ProcessingJobs:
         from .derived import materialize_extracted_text
         from .extractors import ExtractionError, extractor_for
         from .index import refresh_search_index
+        from .producer_index_evidence import prepare_index_inputs, publish_index_inputs
         from .representations import RepresentationBundleManager
 
         plan = job.get("execution_plan")
@@ -319,33 +325,50 @@ class ProcessingJobs:
             if len(extraction.text.encode("utf-8")) > policy["max_input_bytes"]:
                 raise ReviewDenied("Extracted text exceeds the reviewed processing resource limit")
         else:
+            from .ocr_selection import selected_text
+
             artifacts = _text_inventory(self.store)
             artifact = _text_artifact(artifacts, version["id"])
-            if artifact is None:
+            selected = (selected_text(self.store, version["id"])
+                        if p["operation"] == "index" else None)
+            if artifact is None and selected is None:
                 raise ReviewUnavailable("Current extracted text is missing")
-            with open_local_file(safe_instance_path(self.store.paths.root,
-                                                    artifact["storage_ref"])) as stream:
-                text = stream.read(policy["max_input_bytes"] + 1)
-            if len(text) > policy["max_input_bytes"] or sha256(text) != artifact["checksum"]:
+            if selected is not None:
+                text, checksum = selected[1].encode("utf-8"), selected[0]["text_sha256"]
+            else:
+                with open_local_file(safe_instance_path(self.store.paths.root,
+                                                        artifact["storage_ref"])) as stream:
+                    text = stream.read(policy["max_input_bytes"] + 1)
+                checksum = artifact["checksum"]
+            if len(text) > policy["max_input_bytes"] or sha256(text) != checksum:
                 raise ReviewUnavailable("Processing text checksum or resource limit differs")
             text.decode("utf-8", errors="strict")
             if p["operation"] == "index":
                 total = 0
                 for version_id in p["versions"].values():
                     current = _text_artifact(artifacts, version_id)
-                    if current is None:
+                    selected = selected_text(self.store, version_id)
+                    if current is None and selected is None:
                         raise ReviewUnavailable("A reviewed Source text is missing")
-                    with open_local_file(safe_instance_path(
-                        self.store.paths.root, current["storage_ref"],
-                    )) as stream:
-                        body = stream.read(policy["max_input_bytes"] + 1)
+                    if selected is not None:
+                        body, checksum = selected[1].encode("utf-8"), selected[0]["text_sha256"]
+                    else:
+                        with open_local_file(safe_instance_path(
+                            self.store.paths.root, current["storage_ref"],
+                        )) as stream:
+                            body = stream.read(policy["max_input_bytes"] + 1)
+                        checksum = current["checksum"]
                     total += len(body)
-                    if total > policy["max_input_bytes"] or sha256(body) != current["checksum"]:
+                    if total > policy["max_input_bytes"] or sha256(body) != checksum:
                         raise ReviewUnavailable("Source text checksum or resource limit differs")
                     body.decode("utf-8", errors="strict")
         # Recheck host-owned inputs after potentially expensive reads/extraction.
         # Pending pause/cancel wins before the first derived write.
         self._current(plan)
+        prepared_index = None
+        if p["operation"] == "index":
+            prepared_index = prepare_index_inputs(
+                self.store, job, "processing", p["versions"], plan["plan_revision"])
         self.coordinator._cooperative_boundary(job, commit=True)
         if p["operation"] == "extract":
             materialize_extracted_text(self.store, version["id"], extraction)
@@ -362,4 +385,5 @@ class ProcessingJobs:
         else:
             refresh_search_index(self.store, p["versions"], recover_missing_derived=False,
                                  allow_full_rebuild=False)
+            publish_index_inputs(self.store, job, "processing", prepared_index)
         return {"processed": 1, "skipped": 0, "errors": 0}

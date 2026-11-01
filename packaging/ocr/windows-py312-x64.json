@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "platform": "windows",
+  "architecture": "x86_64",
+  "python": "3.12.10",
+  "vcpkg": {
+    "repository": "https://github.com/microsoft/vcpkg",
+    "commit": "9a5dfef5d1a0438a7d24856a85bd60f309d355e9",
+    "triplet": "x64-windows-static-release",
+    "port": "tesseract",
+    "version": "5.5.3",
+    "source_commit": "db0ec62f81b0737fbbe184d8fea40af5738f8eef",
+    "source_archive_sha512": "c55ad36af09f4ba48df2f32a3e2413764aeee330f5f5468e92be59572fd90b388f0ea3cb7dc0cc89c21ff68f76cd0baaee1ca0a45e648dc8f4819aefdc2749c2",
+    "binary_cache": "disabled; pinned source build"
+  },
+  "wheels": [
+    {
+      "name": "pillow-13.0.0-cp312-cp312-win_amd64.whl",
+      "distribution": "Pillow",
+      "version": "13.0.0",
+      "size_bytes": 7272166,
+      "sha256": "ff3fe9eb621fbb9db4c4be33ab946f6bac5f98ab50ca8d3260503653656c961b"
+    },
+    {
+      "name": "pypdfium2-5.13.0-py3-none-win_amd64.whl",
+      "distribution": "pypdfium2",
+      "version": "5.13.0",
+      "size_bytes": 3885553,
+      "sha256": "47dcca2a8d507b5fd24f94c3c9d48fb379430f097bc20f01beff6c963ffbcedb"
+    }
+  ],
+  "pdfium": "153.0.7999.0",
+  "tessdata": {
+    "repository": "https://github.com/tesseract-ocr/tessdata_fast",
+    "commit": "87416418657359cb625c412a48b6e1d6d41c29bd",
+    "license": "Apache-2.0",
+    "packs": [
+      {
+        "id": "eng",
+        "size_bytes": 4113088,
+        "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+      },
+      {
+        "id": "ita",
+        "size_bytes": 2701314,
+        "sha256": "b8f89e1e785118dac4d51ae042c029a64edb5c3ee42ef73027a6d412748d8827"
+      }
+    ]
+  },
+  "excluded": [
+    "osd",
+    "training tools",
+    "detection",
+    "AI/ASR models",
+    "runtime downloads"
+  ],
+  "native_license_evidence": {
+    "leptonica": {
+      "commit": "13275a278eb55b5746e33f95fbf5a2c8f604b3ab",
+      "files": [
+        {
+          "path": "leptonica-license.txt",
+          "url": "https://raw.githubusercontent.com/DanBloomberg/leptonica/13275a278eb55b5746e33f95fbf5a2c8f604b3ab/leptonica-license.txt",
+          "size_bytes": 1521,
+          "sha256": "87829abb5bbb00b55a107365da89e9a33f86c4250169e5a1e5588505be7d5806"
+        }
+      ],
+      "version": "1.87.0",
+      "expression": "BSD-2-Clause"
+    },
+    "libarchive": {
+      "commit": "27cbc7827172698143e440801fc0ba39ccb4f1f5",
+      "files": [
+        {
+          "path": "COPYING",
+          "url": "https://raw.githubusercontent.com/libarchive/libarchive/27cbc7827172698143e440801fc0ba39ccb4f1f5/COPYING",
+          "size_bytes": 3089,
+          "sha256": "30e556b3959e3985d66efefec5eaac51d4995053caa1d3cffe6eb916f146f229"
+        },
+        {
+          "path": "libarchive/archive_read_support_filter_compress.c",
+          "url": "https://raw.githubusercontent.com/libarchive/libarchive/27cbc7827172698143e440801fc0ba39ccb4f1f5/libarchive/archive_read_support_filter_compress.c",
+          "size_bytes": 13469,
+          "sha256": "9cd45ac0ec6f498db1c6d5c9af28ac4788322526c451c33856e8f72e49d4cd9c"
+        },
+        {
+          "path": "libarchive/archive_write_add_filter_compress.c",
+          "url": "https://raw.githubusercontent.com/libarchive/libarchive/27cbc7827172698143e440801fc0ba39ccb4f1f5/libarchive/archive_write_add_filter_compress.c",
+          "size_bytes": 13122,
+          "sha256": "f0df99ae10b089dfe052fe40d75937d8ad6c442becb024542cefd55686be5f38"
+        },
+        {
+          "path": "libarchive/mtree.5",
+          "url": "https://raw.githubusercontent.com/libarchive/libarchive/27cbc7827172698143e440801fc0ba39ccb4f1f5/libarchive/mtree.5",
+          "size_bytes": 8071,
+          "sha256": "59fb7a07c9734e514699f2a98c0feee2702d2a3dbba5756ef1ac06092fe71983"
+        },
+        {
+          "path": "libarchive/archive_blake2.h",
+          "url": "https://raw.githubusercontent.com/libarchive/libarchive/27cbc7827172698143e440801fc0ba39ccb4f1f5/libarchive/archive_blake2.h",
+          "size_bytes": 6558,
+          "sha256": "23f9d734a79558f0bd8bba5d0b742e65865b6deb003be39cea8ba8806de321bb"
+        }
+      ],
+      "version": "3.8.9",
+      "expression": "BSD-2-Clause AND BSD-3-Clause AND CC0-1.0 AND LicenseRef-Public-Domain"
+    }
+  },
+  "engine_configs": [
+    {
+      "path": "tessdata/configs/tsv",
+      "url": "https://raw.githubusercontent.com/tesseract-ocr/tesseract/db0ec62f81b0737fbbe184d8fea40af5738f8eef/tessdata/configs/tsv",
+      "size_bytes": 22,
+      "sha256": "59d079bb75d8b3d7c839a3564580cb559e362c93a9d70f234e421c0c3e767e04"
+    }
+  ]
+}

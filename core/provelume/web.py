@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from collections.abc import Callable
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
@@ -8,7 +9,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -64,6 +65,14 @@ from .shell_settings import (
     settings_path,
     validate_port,
 )
+from .startup_readiness import (
+    CHALLENGE_HEADER,
+    ReadinessContext,
+    StartupReadinessError,
+)
+from .startup_readiness import (
+    ROUTE as STARTUP_READINESS_ROUTE,
+)
 from .transcript_activity import attach_transcript_routes
 from .video_activity import attach_video_routes
 from .web_security import LocalWebSecurityMiddleware, loopback_host
@@ -88,8 +97,9 @@ def _language(request: Request, instance: ProvelumeInstance | None = None) -> st
     return resolve_language(configured)
 
 
-def _language_url(request: Request, language: str) -> str:
-    query = [(key, value) for key, value in request.query_params.multi_items()
+def _language_url(request: Request, language: str, *, retrieval_values=None) -> str:
+    pairs = request.query_params.multi_items() if retrieval_values is None else retrieval_values
+    query = [(key, value) for key, value in pairs
              if key not in {"lang", "return_to"}]
     return_to = validated_return(request.query_params.get("return_to"))
     if return_to:
@@ -326,7 +336,7 @@ def _navigation(
     return groups
 
 
-def _base_context(request: Request, language: str) -> dict[str, Any]:
+def _base_context(request: Request, language: str, *, retrieval_values=None) -> dict[str, Any]:
     t = translator(language)
     security_t = installation_translator(language)
     loaded = shell_snapshot(request)
@@ -355,9 +365,10 @@ def _base_context(request: Request, language: str) -> dict[str, Any]:
         "navigation_script_integrity": navigation_script,
         "icon": icon_renderer(),
         "shell_about": current_about() if preview else None,
-        **navigation_context(request, language, t, navigation),
+        **navigation_context(request, language, t, navigation, retrieval_values=retrieval_values),
         "language_urls": {
-            selected: _language_url(request, selected) for selected in sorted(LANGUAGE_CHOICES)
+            selected: _language_url(request, selected, retrieval_values=retrieval_values)
+            for selected in sorted(LANGUAGE_CHOICES)
         },
         "language_options": registry()["languages"],
         "language_choice": (request.query_params.get("lang")
@@ -379,9 +390,12 @@ def _display_date(value, language, *, time=False):
     return presented if time else presented[:10]
 
 
-def _context(request: Request, instance: ProvelumeInstance, **values: Any) -> dict[str, Any]:
+def _context(
+    request: Request, instance: ProvelumeInstance, *, include_summary: bool = True,
+    retrieval_values=None, **values: Any,
+) -> dict[str, Any]:
     language = _language(request, instance)
-    base = _base_context(request, language)
+    base = _base_context(request, language, retrieval_values=retrieval_values)
     sources = {item["id"]: item["name"] for item in values.get("sources", ())
                if "name" in item}
     nodes = {item["id"]: " / ".join(part["name"] for part in item["breadcrumbs"])
@@ -398,7 +412,8 @@ def _context(request: Request, instance: ProvelumeInstance, **values: Any) -> di
             item["value"] = base["t"]("browse.root")
     return {
         **base,
-        "instance": instance.instance_summary(),
+        "instance": (instance.instance_summary() if include_summary
+                     else dict(instance.store.read_config()["instance"])),
         **values,
     }
 
@@ -408,12 +423,14 @@ def _installation_context(request: Request, **values: Any) -> dict[str, Any]:
     return {**_base_context(request, language), **values}
 
 
-def _page(*, request: Request, name: str, context: dict[str, Any]):
+def _page(*, request: Request, name: str, context: dict[str, Any], status_code: int = 200):
     if context["interface_mode"] == "preview" and name in {
         "home.html", "browse.html", "search.html",
     }:
         name = "cura/" + name
-    return TEMPLATES.TemplateResponse(request=request, name=name, context=context)
+    return TEMPLATES.TemplateResponse(
+        request=request, name=name, context=context, status_code=status_code,
+    )
 
 
 def create_recovery_app(
@@ -460,6 +477,7 @@ def create_app(
     shell_settings_file: Path | str | None = None,
     effective_host: str = LOCAL_HOST,
     effective_port: int | None = None,
+    _startup: ReadinessContext | None = None,
 ) -> FastAPI:
     if isinstance(release_bundle, str) and not release_bundle.strip():
         release_bundle = None
@@ -474,7 +492,16 @@ def create_app(
     else:
         installation_verification = verify_current_installation()
 
+    if _startup is not None:
+        if installation_verification.get("status") == "modified_installation":
+            raise StartupReadinessError("startup_integrity_failed")
+        if (release_evidence_configured or getattr(sys, "frozen", False)) \
+                and installation_verification.get("status") \
+                != "package_integrity_verified":
+            raise StartupReadinessError("startup_integrity_failed")
     instance = ProvelumeInstance(instance_root)
+    if _startup is not None:
+        _startup.bind_opened_instance(instance.store.read_config()["instance"]["id"])
     selected_settings_path = Path(shell_settings_file) if shell_settings_file else settings_path()
     shell_manager = ShellSettingsManager(selected_settings_path, default_settings())
     selected_port = validate_port(
@@ -505,6 +532,8 @@ def create_app(
 
         worker = asyncio.create_task(scheduler_worker())
         try:
+            if _startup is not None:
+                _startup.mark_ready()
             yield
         finally:
             stop.set()
@@ -533,6 +562,20 @@ def create_app(
     app.state.installation_verification = installation_verification
     app.state.release_evidence_configured = release_evidence_configured
     app.state.shell_settings_manager = shell_manager
+    if _startup is not None:
+        if _startup.port != selected_port or selected_host != "127.0.0.1":
+            raise StartupReadinessError("startup_configuration_invalid")
+
+        @app.get(STARTUP_READINESS_ROUTE)
+        def startup_readiness(request: Request):
+            challenges = request.headers.getlist(CHALLENGE_HEADER)
+            if request.scope.get("query_string") or len(challenges) != 1:
+                raise HTTPException(status_code=400, detail="Invalid readiness request")
+            try:
+                status, value = _startup.response(challenges[0])
+            except StartupReadinessError:
+                raise HTTPException(status_code=400, detail="Invalid readiness request") from None
+            return JSONResponse(value, status_code=status, headers={"Cache-Control": "no-store"})
     action_center = ActionCenter(instance.store)
     app.state.action_center = action_center
     attach_capture_routes(app, instance.store)
@@ -652,29 +695,46 @@ def create_app(
         date_from: str | None = None,
         date_to: str | None = None,
     ):
+        from .instance_lifecycle import InstanceLifecycleBusy
+        from .search_input import search_page_inputs
+
+        inputs = search_page_inputs(q, date_from, date_to)
+        effective_query = inputs["q"]
+        retrieval_values = [
+            (key, value) for key, value in request.query_params.multi_items() if key != "q"
+        ] + [("q", effective_query)]
         results = []
-        if q.strip():
-            results = instance.search(
-                q.strip(),
-                source_id=source_id,
-                media_type=media_type,
-                date_from=date_from,
-                date_to=date_to,
-            )
+        search_pending = False
+        if effective_query and not inputs["search_errors"]:
+            try:
+                results = instance.search(
+                    effective_query,
+                    source_id=source_id,
+                    media_type=media_type,
+                    date_from=date_from,
+                    date_to=date_to,
+                )
+            except InstanceLifecycleBusy:
+                # A cold/stale index needs a writer. Keep read-only navigation
+                # available while another owner finishes; never imply zero hits.
+                search_pending = True
         return _page(
             request=request,
             name="search.html",
+            status_code=400 if inputs["search_errors"] else 200,
             context=_context(
                 request,
                 instance,
-                q=q,
+                include_summary=(bool(effective_query) and not inputs["search_errors"]
+                                 and not search_pending),
+                retrieval_values=retrieval_values,
+                **inputs,
                 results=results,
+                search_pending=search_pending,
                 sources=instance.list_sources(),
                 media_types=instance.media_types(),
                 selected_source=source_id,
                 selected_media_type=media_type,
-                date_from=date_from,
-                date_to=date_to,
             ),
         )
 
@@ -769,7 +829,7 @@ def create_app(
         return TEMPLATES.TemplateResponse(
             request=request,
             name="about.html",
-            context=_context(request, instance, about=current_about()),
+            context=_context(request, instance, include_summary=False, about=current_about()),
         )
 
     @app.get("/security/installation")

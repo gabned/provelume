@@ -1,0 +1,9 @@
+{% extends base_layout %}
+{% block title %}{{ rl.ocr_sources }} · {{ t('brand') }}{% endblock %}
+{% block content %}
+<h1>{{ rl.ocr_sources }}</h1><p class="lead">{{ rl.ocr_sources_help }}</p>
+<p><a href="/review/decisions/capabilities/ocr_sources?lang={{ lang }}">{{ rl.capabilities }}</a> · <a href="/ocr?lang={{ lang }}">{{ t('ocr.title') }}</a></p>
+{% if unavailable %}<p role="alert">{{ rl.unavailable }}</p>{% else %}
+<section class="panel"><ul class="document-list">{% for source in sources %}<li><a href="/review/decisions/ocr_sources/{{ source.id }}?lang={{ lang }}">{{ source.name }}</a>{% for row in rows %}{% if row and row.id == source.id %} · {{ rl.yes if row.enabled else rl.no }}{% endif %}{% endfor %}</li>{% endfor %}</ul></section>
+{% endif %}
+{% endblock %}

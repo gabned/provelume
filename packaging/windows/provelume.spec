@@ -9,7 +9,13 @@ VERSION_INFO = SOURCE_ROOT / "packaging" / "windows" / "version_info.txt"
 if not ICON.is_file() or not VERSION_INFO.is_file():
     raise RuntimeError("Versioned Windows icon or executable metadata is missing.")
 
-datas = collect_data_files("provelume") + [(str(ICON), "assets")]
+# Preserve every wheel source byte required by the installed RECORD verifier.
+# The executable still loads its reviewed PYZ; RECORD verifies package payload
+# integrity and does not establish executable provenance or publisher identity.
+datas = collect_data_files(
+    "provelume", include_py_files=True,
+    excludes=["**/__pycache__", "**/*.pyc", "**/*.pyo"],
+) + [(str(ICON), "assets")]
 # collect_data_files intentionally omits native extensions. These governed
 # optional resources must retain their exact package-relative paths and bytes.
 package_root = Path(find_spec("provelume").origin).parent

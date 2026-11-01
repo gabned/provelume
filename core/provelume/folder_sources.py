@@ -667,7 +667,15 @@ class FolderSourceManager:
                 )
         except IngestionRetryError as exc:
             raise FolderSourceError("durable folder Source retry is inconsistent") from exc
-        _refresh_after_ingestion(self.store, result)
+        from .review_effects import ReviewError
+        from .scheduler import SchedulerStore
+
+        producer_job = (None if scheduler_job_id is None
+                        else SchedulerStore(self.store).get_job(scheduler_job_id))
+        try:
+            _refresh_after_ingestion(self.store, result, producer_job=producer_job)
+        except ReviewError as exc:
+            raise FolderSourceError("Inbox index contribution needs explicit recovery") from exc
         # refresh already owns the scheduler's lifecycle lock. Route only durable
         # acquisitions, retaining successful intake if its separate review fails.
         from .review_intake import route_committed_acquisitions_locked

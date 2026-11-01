@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -49,6 +50,96 @@ def _fixture(tmp_path: Path) -> tuple[Path, list[RecordEntry]]:
         ),
     ]
     return root, entries
+
+
+def _frozen_upgrade_fixture(tmp_path, monkeypatch):
+    from importlib import metadata
+
+    from provelume import __version__
+
+    root = tmp_path / "frozen-internal"
+    package = root / "provelume"
+    package.mkdir(parents=True)
+    current = b"synthetic current public module\n"
+    old = b"synthetic old public module\n"
+    (package / "module.py").write_bytes(current)
+    for version, payload in [("0.10.0", old), (__version__, current)]:
+        name = f"provelume-{version}.dist-info"
+        info = root / name
+        info.mkdir()
+        text = f"Name: provelume\nVersion: {version}\n".encode()
+        (info / "METADATA").write_bytes(text)
+        rows = [_record("provelume/module.py", payload), _record(name + "/METADATA", text)]
+        (info / "RECORD").write_text(
+            "".join(f"{r.path},sha256={r.hash_value},{r.size_bytes}\n" for r in rows)
+            + f"{name}/RECORD,,\n", encoding="utf-8",
+        )
+    old_info = root / "provelume-0.10.0.dist-info"
+    monkeypatch.setattr(installation_module, "__file__", str(package / "installation.py"))
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(root), raising=False)
+    monkeypatch.setattr(
+        installation_module.metadata, "distribution", lambda _: metadata.PathDistribution(old_info)
+    )
+    return root, old_info, root / f"provelume-{__version__}.dist-info", old
+
+
+def test_frozen_upgrade_verifies_running_version_not_first_older_metadata(tmp_path, monkeypatch):
+    from provelume import __version__
+
+    root, old_info, _current_info, _old = _frozen_upgrade_fixture(tmp_path, monkeypatch)
+    original = (old_info / "RECORD").read_bytes()
+    result = verify_current_installation()
+    assert result["status"] == "package_integrity_verified"
+    assert result["package"]["version"] == __version__
+    assert (old_info / "RECORD").read_bytes() == original
+    assert (root / "provelume/module.py").read_bytes() == b"synthetic current public module\n"
+
+
+def test_frozen_upgrade_never_tries_an_older_passing_record_to_hide_tamper(tmp_path, monkeypatch):
+    root, old_info, _current_info, old = _frozen_upgrade_fixture(tmp_path, monkeypatch)
+    (root / "provelume/module.py").write_bytes(old)
+    older = verify_recorded_installation(
+        root, installation_module._raw_record_entries(old_info / "RECORD"), version="0.10.0"
+    )
+    assert older["status"] == "package_integrity_verified"  # Prove the dangerous fallback vector.
+    current = verify_current_installation()
+    assert current["status"] == "modified_installation"
+    assert any(f["issue"] == "modified_file" for f in current["findings"])
+
+
+def test_frozen_metadata_does_not_authorize_an_imported_tree_outside_runtime(tmp_path, monkeypatch):
+    _frozen_upgrade_fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        installation_module, "__file__", str(tmp_path / "other/provelume/installation.py")
+    )
+    result = verify_current_installation()
+    assert result["status"] == "verification_unavailable"
+    assert "does not match" in result["reason"]
+
+
+def test_frozen_metadata_without_qualified_runtime_root_fails_closed(tmp_path, monkeypatch):
+    _frozen_upgrade_fixture(tmp_path, monkeypatch)
+    monkeypatch.delattr(sys, "_MEIPASS")
+    result = verify_current_installation()
+    assert result["status"] == "verification_unavailable"
+    assert not result["integrity"]["verified"]
+
+
+@pytest.mark.parametrize("fault", ["metadata_missing", "record_missing", "wrong_version"])
+def test_frozen_upgrade_missing_or_wrong_current_evidence_never_uses_old_record(
+    tmp_path, monkeypatch, fault
+):
+    _root, _old_info, current, _old = _frozen_upgrade_fixture(tmp_path, monkeypatch)
+    if fault == "metadata_missing":
+        (current / "METADATA").unlink()
+    elif fault == "record_missing":
+        (current / "RECORD").unlink()
+    else:
+        (current / "METADATA").write_text("Name: provelume\nVersion: 0.10.0\n", encoding="utf-8")
+    result = verify_current_installation()
+    assert result["status"] == "verification_unavailable"
+    assert not result["integrity"]["verified"]
 
 
 def test_record_verification_accepts_matching_package_files(tmp_path: Path) -> None:

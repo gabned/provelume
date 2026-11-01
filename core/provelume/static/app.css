@@ -85,6 +85,8 @@ h3 { font-size: .95rem; margin: 26px 0 8px; }
 .filters { grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); }
 .search-form { grid-template-columns: repeat(4,minmax(0,1fr)); }
 .search-form .wide { grid-column: span 2; }
+.search-date-help { grid-column: 1 / -1; }
+.search-date-error { overflow-wrap: anywhere; }
 label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: .78rem; font-weight: 650; }
 input, select, button, .button { min-height: 42px; border-radius: 10px; border: 1px solid var(--line); font: inherit; }
 input, select { width: 100%; padding: 9px 11px; background: var(--surface); color: var(--text); }

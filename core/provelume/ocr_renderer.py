@@ -77,10 +77,18 @@ class PdfiumPillowRenderer:
         *,
         worker_path: Path = _WORKER,
         python_executable: str = sys.executable,
+        worker_executable: Path | None = None,
+        material_fingerprint: str | None = None,
+        before_execute: Callable[[], object] | None = None,
     ):
         self.settings = settings
         self.temporary_root = Path(temporary_root)
         self.worker_path = Path(worker_path).resolve()
+        self.worker_executable = worker_executable
+        self.before_execute = before_execute
+        self.adapter_version = RENDERER_ADAPTER_VERSION + (
+            "+" + material_fingerprint if material_fingerprint else ""
+        )
         # The launch path selects a virtualenv through its adjacent pyvenv.cfg.
         # Resolving its interpreter symlink silently selects the base packages.
         self.python_executable = os.path.abspath(python_executable)
@@ -97,9 +105,13 @@ class PdfiumPillowRenderer:
         produced_file: Path | None = None,
         produced_file_limit: int | None = None,
     ) -> dict[str, Any]:
+        if self.before_execute is not None:
+            self.before_execute()
+        command = ([str(self.worker_executable)] if self.worker_executable is not None else
+                   [self.python_executable, "-I", str(self.worker_path)])
         try:
             result = run_bounded_process(
-                [self.python_executable, "-I", str(self.worker_path), *arguments],
+                [*command, *arguments],
                 temporary_directory=work_directory,
                 timeout_seconds=timeout,
                 stdout_limit=stdout_limit,
@@ -140,7 +152,7 @@ class PdfiumPillowRenderer:
             return self._capability
         unavailable = OcrRendererCapability(
             adapter_id=RENDERER_ADAPTER_ID,
-            adapter_version=RENDERER_ADAPTER_VERSION,
+            adapter_version=self.adapter_version,
             renderer_id=RENDERER_ID,
             renderer_version=None,
             renderer_available=False,
@@ -183,7 +195,7 @@ class PdfiumPillowRenderer:
             compatible = _major(renderer_version) == 5 and _major(decoder_version) == 13
             self._capability = OcrRendererCapability(
                 adapter_id=RENDERER_ADAPTER_ID,
-                adapter_version=RENDERER_ADAPTER_VERSION,
+                adapter_version=self.adapter_version,
                 renderer_id=RENDERER_ID,
                 renderer_version=renderer_version,
                 renderer_available=True,

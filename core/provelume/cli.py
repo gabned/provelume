@@ -16,6 +16,7 @@ from .email_cli import add_email_commands, handle_email_command
 from .folder_source_cli import add_folder_source_commands, handle_folder_source_command
 from .google_cli import add_google_commands, handle_google_command
 from .hierarchy_cli import add_hierarchy_commands, handle_hierarchy_command
+from .inbox_transit_cli import add_inbox_transit_commands, handle_inbox_transit_command
 from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES, IngestionRetryError
 from .installation import verify_current_installation
 from .instance_cli import (
@@ -227,6 +228,7 @@ def _build_parser(command: str | None = None) -> argparse.ArgumentParser:
     add_hierarchy_commands(subparsers)
     add_connector_commands(subparsers)
     add_folder_source_commands(subparsers)
+    add_inbox_transit_commands(subparsers)
     add_scheduler_commands(subparsers)
     add_maintenance_commands(subparsers)
     add_ocr_commands(subparsers)
@@ -272,6 +274,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     folder_source_result = handle_folder_source_command(args)
     if folder_source_result is not None:
         return folder_source_result
+    inbox_transit_result = handle_inbox_transit_command(args)
+    if inbox_transit_result is not None:
+        return inbox_transit_result
     scheduler_result = handle_scheduler_command(args)
     if scheduler_result is not None:
         return scheduler_result

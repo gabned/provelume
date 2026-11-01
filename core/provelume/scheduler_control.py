@@ -28,6 +28,7 @@ COOPERATIVE_KINDS = frozenset(
         "search.reindex.incremental",
         "maintenance.source_reconcile",
         "processing.execute",
+        "ocr.execute",
     }
 )
 ACTIVE_STATUSES = frozenset({"running", "pausing", "cancelling"})

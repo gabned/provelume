@@ -1,5 +1,10 @@
 # Architettura della shell Windows e dell'endpoint locale
 
+Lo sviluppo Concordia S01 aggiunge [avvio/readiness del figlio posseduto](startup-readiness.it.md),
+con prova privata limitata, arresto veritiero e dettagli locali. La
+[matrice di qualifica](../qualification/concordia-startup-readiness.md) distingue sorgente,
+frozen, Windows 11 ed evidenze umane. Non è una capacità pubblicata della 0.15.0.
+
 Questo documento definisce in italiano il contratto architetturale di `0.9/S07`, pubblicato con
 Lectio. L'identità pubblica del prodotto è `0.9.0`.
 

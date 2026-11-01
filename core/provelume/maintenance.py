@@ -154,7 +154,10 @@ class MaintenanceManager:
             if version is None or version.get("document_id") != document_id:
                 raise MaintenanceStateError("reindex Version is missing")
             artifact = self.store.derived_artifact_for_version(version_id)
-            if artifact is None:
+            from .ocr_selection import selected_text
+
+            selected = selected_text(self.store, version_id)
+            if artifact is None and selected is None:
                 continue
             rows.append(
                 (
@@ -164,7 +167,7 @@ class MaintenanceManager:
                     document["media_type"],
                     version["acquired_at"],
                     document["title"],
-                    self.store.read_derived_text(artifact),
+                    selected[1] if selected is not None else self.store.read_derived_text(artifact),
                 )
             )
         return rows
@@ -864,6 +867,9 @@ class MaintenanceManager:
             }
         )
         initial_progress = {key: int(job["progress"][key]) for key in job["progress"]}
+        from .producer_index_evidence import prepare_index_inputs, publish_index_inputs
+
+        prepared_evidence = None
         if record["status"] != "completed":
             database, metadata_candidate = self._candidate_paths(record)
             documents = record["plan"]["documents"]
@@ -945,6 +951,8 @@ class MaintenanceManager:
                     "plan_digest": record["plan_digest"],
                 }
             )
+            prepared_evidence = prepare_index_inputs(
+                self.store, job, "maintenance", documents, record["plan_digest"])
             boundary(commit=True)
             self.store._atomic_json(metadata_candidate, metadata)
             record = self._write_run(
@@ -959,6 +967,7 @@ class MaintenanceManager:
             if not self._active_generation_matches(record):
                 raise MaintenanceStateError("activated reindex generation failed validation")
             self._reconcile_active_metadata(record)
+            publish_index_inputs(self.store, job, "maintenance", prepared_evidence)
             record = self._write_run(
                 {
                     **record,
@@ -967,6 +976,10 @@ class MaintenanceManager:
                     "completed_at": instant_text(),
                 }
             )
+        if prepared_evidence is None:
+            prepared_evidence = prepare_index_inputs(
+                self.store, job, "maintenance", record["plan"]["documents"], record["plan_digest"])
+            publish_index_inputs(self.store, job, "maintenance", prepared_evidence, reconciled=True)
         if self.store.knowledge_fingerprint() != canonical_before:
             raise MaintenanceStateError("reindex changed canonical knowledge")
         final_progress = {
@@ -982,7 +995,9 @@ def maintenance_state_findings(store: InstanceStore) -> list[dict[str, str]]:
     if not manager.root.exists() and not manager.root.is_symlink():
         return []
     findings: list[dict[str, str]] = []
-    allowed = {manager.runs.name}
+    # Attempt proof packets have their own closed validator, invoked by deep
+    # Instance validation alongside this unchanged legacy run-record validator.
+    allowed = {manager.runs.name, "index-evidence"}
     if manager.root.is_symlink() or not manager.root.is_dir():
         return [
             {

@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 from .derived import materialize_extracted_text
 from .domain import as_record
 from .extractors import ExtractionError, extract_web_readable_text, extractor_for
+from .instance_lifecycle import lifecycle_writer
 from .paths import safe_instance_path
 from .retention_model import documents_with_dispositions
 from .storage import InstanceStore, utc_now
@@ -414,15 +415,20 @@ def _insert_document(
             return False
         _artifact, text = email_text
     else:
-        artifact = _ensure_extracted(
-            store,
-            version,
-            document["locator"],
-            recover_missing_derived=recover_missing_derived,
-        )
-        if artifact is None:
-            return False
-        text = store.read_derived_text(artifact)
+        from .ocr_selection import selected_text
+
+        selected = selected_text(store, str(version["id"]))
+        text = selected[1] if selected is not None else None
+        if text is None:
+            artifact = _ensure_extracted(
+                store,
+                version,
+                document["locator"],
+                recover_missing_derived=recover_missing_derived,
+            )
+            if artifact is None:
+                return False
+            text = store.read_derived_text(artifact)
     connection.execute(
         "INSERT INTO search("
         "document_id, version_id, source_id, media_type, acquired_at, title, content"
@@ -448,6 +454,7 @@ def _database_count(path: Path) -> int:
         connection.close()
 
 
+@lifecycle_writer("search-index-rebuild")
 def rebuild_search_index(
     store: InstanceStore,
     *,
@@ -496,6 +503,7 @@ def rebuild_search_index(
         temporary_metadata_path.unlink(missing_ok=True)
 
 
+@lifecycle_writer("search-index-refresh")
 def refresh_search_index(
     store: InstanceStore,
     document_ids: Iterable[str],
@@ -611,10 +619,13 @@ def search_index_content_matches(store: InstanceStore) -> bool:
                     continue
                 _artifact, text = email_text
             else:
+                from .ocr_selection import selected_text
+
+                selected = selected_text(store, str(version["id"]))
                 artifact = store.derived_artifact_for_version(str(version["id"]))
-                if artifact is None:
+                if artifact is None and selected is None:
                     continue
-                text = store.read_derived_text(artifact)
+                text = selected[1] if selected is not None else store.read_derived_text(artifact)
             expected.append(
                 (
                     document["id"],

@@ -9,6 +9,7 @@ import os
 import posixpath
 import re
 import stat
+import sys
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from email.parser import Parser
@@ -16,6 +17,7 @@ from importlib import metadata
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from . import __version__
 from .release_bundle import VerificationError, verify_bundle
 from .release_wheel import (
     WINDOWS_RESERVED_NAMES,
@@ -1317,7 +1319,17 @@ def verify_current_installation(
         )
 
     try:
-        distribution = metadata.distribution(DISTRIBUTION_NAME)
+        if getattr(sys, "frozen", False):
+            # An in-place upgrade preserves older dist-info directories. Never
+            # let enumeration order select an older version's RECORD, or try
+            # records until one passes. The qualified PyInstaller layout pins
+            # current metadata independently of the imported package tree.
+            runtime_root = Path(sys._MEIPASS).resolve()
+            distribution = metadata.PathDistribution(
+                runtime_root / f"{DISTRIBUTION_NAME}-{__version__}.dist-info"
+            )
+        else:
+            distribution = metadata.distribution(DISTRIBUTION_NAME)
     except metadata.PackageNotFoundError:
         return unavailable(
             _unavailable_result(
@@ -1364,6 +1376,8 @@ def verify_current_installation(
             required=False,
         )
         version = _distribution_version(metadata_path, site_root)
+        if getattr(sys, "frozen", False) and version != __version__:
+            raise ValueError("frozen distribution version does not match the running package")
         editable = _editable_installation(direct_url_path, site_root)
         if editable:
             return unavailable(

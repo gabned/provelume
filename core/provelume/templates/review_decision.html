@@ -7,6 +7,7 @@
 <p class="lead">{{ rl.lead }}</p>
 {% if domain == 'iudicium' %}<p>{{ rl.classification_manual }}</p><p><a href="/review/iudicium?lang={{ lang }}">{{ rl.iudicium }}</a></p>{% endif %}
 {% if domain == 'processing' %}<p>{{ rl.processing_help }}</p><p><a href="/review/processing?lang={{ lang }}">{{ rl.processing }}</a></p>{% endif %}
+{% if domain == 'ocr_sources' %}<p>{{ rl.ocr_sources_help }}</p><p><a href="/review/ocr-sources?lang={{ lang }}">{{ rl.ocr_sources }}</a></p>{% endif %}
 <p><a href="/review/capabilities?lang={{ lang }}">{{ rl.capabilities }}</a> · <a href="/review/routing?lang={{ lang }}">{{ rl.routing }}</a> · <a href="/review/decisions/{{ domain }}/{{ subject }}?lang={{ lang }}">{{ rl.fresh }}</a></p>
 {% if domain == 'placement' %}<p><a href="/review/decisions/routing/{{ subject }}?lang={{ lang }}">{{ rl.apply_rule }}</a></p>{% endif %}
 {% if unavailable %}<p class="panel" role="alert">{{ rl.unavailable }}</p>{% else %}
@@ -18,6 +19,23 @@
 <section class="panel">
 <form id="review-selection" class="settings-form">
 <label for="review-action">{{ rl.action }}</label><select id="review-action" name="action" required>{% for action in options.actions %}<option value="{{ action }}">{{ rl[action] }}</option>{% endfor %}</select>
+{% if domain == 'ocr_sources' %}
+<p>{% for source in options.sources %}{{ source.name }}{% endfor %}</p>
+<div data-actions="save_policy">
+  <label><input name="enabled" type="checkbox"{% if options.defaults.enabled %} checked{% endif %}> {{ rl.ocr_future }}</label>
+  <label for="source-ocr-languages">{{ rl.task_languages }}</label>
+  <select id="source-ocr-languages" name="languages" multiple size="2">{% for language in ['eng','ita'] %}<option value="{{ language }}"{% if language in options.defaults.languages %} selected{% endif %}>{{ language }}</option>{% endfor %}</select>
+</div>
+<div data-actions="backlog">
+  <label for="source-ocr-backlog">{{ rl.backlog }}</label>
+  <select id="source-ocr-backlog" name="versions" multiple size="8">{% for version in options.versions %}<option value="{{ version.id }}">{{ version.title }}</option>{% endfor %}</select><p>{{ rl.multi_help }}</p>
+</div>
+<div data-actions="limited_result">
+  <label for="source-ocr-version">{{ rl.version }}</label><select id="source-ocr-version" name="version_id">{% for version in options.versions %}<option value="{{ version.id }}">{{ version.title }}</option>{% endfor %}</select>
+  <label for="source-ocr-profile">{{ rl.ocr_profile }}</label><select id="source-ocr-profile" name="profile"><option value="limited-metadata">{{ rl['limited-metadata'] }}</option><option value="ocr-accepted">{{ rl['ocr-accepted'] }}</option></select>
+  <label for="source-ocr-artifact">{{ rl.ocr_artifact }}</label><select id="source-ocr-artifact" name="artifact_id"><option value="">{{ rl.none }}</option>{% for bundle in options.ocr_bundles %}<option value="{{ bundle.id }}">{{ bundle.label }}</option>{% endfor %}</select><p>{{ rl.ocr_limited_help }}</p>
+</div>
+{% endif %}
 {% if domain == 'processing' %}
 <p>{% for source in options.sources %}{{ source.name }}{% endfor %}</p>
 <div data-actions="save_policy">

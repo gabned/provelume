@@ -145,6 +145,39 @@ networking denied. The S02 Windows model therefore remains explicit external loc
 there is no offline installer component yet. Provelume's public or commercial license does not
 replace any third-party term.
 
+## Concordia S04 candidate — optional offline Windows OCR kit
+
+The S02 external baseline above remains historical. The Concordia provisioning
+candidate adds a separate optional Windows x64 asset; its qualification and
+publication are governed by the owner PR and the ordinary release gates.
+The base wheel, source archive and installer do not acquire the OCR payload.
+
+The candidate kit builds Tesseract5.5.3 and its static Leptonica/codec dependencies
+from the exact vcpkg revision and source archives selected in
+`packaging/ocr/windows-py312-x64.json`. It carries the accepted eng/ita packs,
+Windows Pillow13.0.0, pypdfium2 5.13.0/PDFium153.0.7999.0 and a dedicated frozen
+worker/CPython3.12.10 runtime. The kit retains full file hashes, native import
+resolution, source package versions, vcpkg SPDX records, component notices,
+Python and wheel licenses, and its own CycloneDX inventory. The release pipeline
+binds the qualified optional ZIP and component inventory into the same release
+manifest/checksums and SBOM. The exact generated inventory is authoritative for
+the included native/transitive components; this candidate description does not
+establish qualification or publisher authentication.
+
+Tesseract and traineddata retain Apache-2.0; Leptonica retains BSD-2-Clause.
+Pillow, pypdfium2 and PDFium retain the terms and third-party attributions shipped
+with the selected Windows wheels. PyInstaller's bootloader exception and Python's
+license remain attached. Optional font/GUI/AVIF/WebP extension modules, training
+tools and osd/detection are excluded. Windows system API DLLs, including XmlLite,
+are recorded as OS-provided and are not copied into the kit. Microsoft documents
+XmlLite as part of Windows and prohibits its redistribution:
+<https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ee388577(v=vs.85)>.
+
+Provelume's public/commercial terms do not replace those component terms. No
+runtime installer/download, remote OCR fallback or additional publication channel
+is introduced. See `docs/qualification/concordia-ocr-provisioning-s04.md` for the
+exact qualification boundaries; manual Windows11 observations remain NOT_RUN.
+
 ## Qualified local email baseline — runtime standard library in 0.9/S03
 
 The `0.9/S03` EML and Maildir baseline adds no Python dependency, native parser, provider SDK,
