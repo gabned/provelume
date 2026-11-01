@@ -2305,5 +2305,10 @@
   "desktop.startup_error_configuration": "Die ausgewählte Instanz oder die lokalen Einstellungen konnten nicht geöffnet werden. Prüfen Sie diese und versuchen Sie es erneut.",
   "desktop.startup_error_integrity": "Die Integritätsprüfung der Installation ist fehlgeschlagen. Stellen Sie vor einem erneuten Versuch eine verifizierte Installation wieder her.",
   "desktop.startup_error_initialization": "Der Dienst konnte die Initialisierung nicht abschließen. Prüfen Sie die Startdetails und versuchen Sie es erneut.",
-  "tray_status.stop_unconfirmed": "Beenden nicht bestätigt"
+  "tray_status.stop_unconfirmed": "Beenden nicht bestätigt",
+  "search.date_help": "Die Datumsfilter beziehen sich auf den Erfassungstag in UTC.",
+  "search.input_error_title": "Korrigieren Sie die Suchfilter.",
+  "search.invalid_date": "Geben Sie ein gültiges Datum im Format JJJJ-MM-TT ein.",
+  "search.invalid_range": "Das Anfangsdatum muss vor oder am Enddatum liegen.",
+  "search.rejected_value": "Abgelehnter Wert"
 }

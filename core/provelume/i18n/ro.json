@@ -2305,5 +2305,10 @@
   "desktop.startup_error_configuration": "Instanța selectată sau setările locale nu au putut fi deschise. Verifică-le și încearcă din nou.",
   "desktop.startup_error_integrity": "Verificarea integrității instalării a eșuat. Restabilește o instalare verificată înainte de a reîncerca.",
   "desktop.startup_error_initialization": "Serviciul nu a putut finaliza inițializarea. Consultă detaliile de pornire și încearcă din nou.",
-  "tray_status.stop_unconfirmed": "Oprire neconfirmată"
+  "tray_status.stop_unconfirmed": "Oprire neconfirmată",
+  "search.date_help": "Datele filtrează zilele de achiziție în UTC.",
+  "search.input_error_title": "Corectați filtrele de căutare.",
+  "search.invalid_date": "Introduceți o dată validă în format AAAA-LL-ZZ.",
+  "search.invalid_range": "Data de început trebuie să fie anterioară sau egală cu data de sfârșit.",
+  "search.rejected_value": "Valoare respinsă"
 }

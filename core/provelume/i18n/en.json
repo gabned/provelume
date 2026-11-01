@@ -2305,5 +2305,10 @@
   "desktop.startup_error_configuration": "The selected Instance or local settings could not be opened. Check them and retry.",
   "desktop.startup_error_integrity": "Installation integrity verification failed. Restore a verified installation before retrying.",
   "desktop.startup_error_initialization": "The service could not complete initialization. Review the startup details and retry.",
-  "tray_status.stop_unconfirmed": "Stop unconfirmed"
+  "tray_status.stop_unconfirmed": "Stop unconfirmed",
+  "search.date_help": "Dates filter acquisition days in UTC.",
+  "search.input_error_title": "Correct the search filters.",
+  "search.invalid_date": "Enter a valid date in YYYY-MM-DD format.",
+  "search.invalid_range": "The start date must be on or before the end date.",
+  "search.rejected_value": "Rejected value"
 }

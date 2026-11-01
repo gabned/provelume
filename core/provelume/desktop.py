@@ -1760,6 +1760,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="Provelume", add_help=True)
     parser.add_argument("--serve", type=Path)
     parser.add_argument("--startup-bootstrap-stdin", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--ocr-result-file", type=Path)
+    parser.add_argument("--ocr-command", nargs=argparse.REMAINDER)
     parser.add_argument("--port", type=int)
     parser.add_argument("--import-publication", type=Path)
     parser.add_argument("--publication-manifest", type=Path)
@@ -1821,6 +1823,7 @@ def main(arguments: list[str] | None = None) -> int:
         value is not None
         for value in (
             options.import_publication,
+            options.ocr_command,
             options.serve,
             options.diagnostics_file,
             options.native_tray_smoke_file,
@@ -1835,6 +1838,14 @@ def main(arguments: list[str] | None = None) -> int:
     )
     if selected_modes > 1:
         raise SystemExit("select only one desktop execution mode")
+    if options.ocr_command is not None:
+        if options.ocr_result_file is None:
+            return 2
+        from .ocr_desktop import run_ocr_command
+
+        return run_ocr_command(options.ocr_command, options.ocr_result_file)
+    if options.ocr_result_file is not None:
+        raise SystemExit("OCR result file requires the explicit operator mode")
     if options.instance_command is not None:
         if options.instance_result_file is None:
             return 2

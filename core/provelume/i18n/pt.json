@@ -2305,5 +2305,10 @@
   "desktop.startup_error_configuration": "Não foi possível abrir a Instance selecionada ou as definições locais. Verifique-as e tente novamente.",
   "desktop.startup_error_integrity": "A verificação da integridade da instalação falhou. Restaure uma instalação verificada antes de tentar novamente.",
   "desktop.startup_error_initialization": "O serviço não conseguiu concluir a inicialização. Consulte os detalhes do arranque e tente novamente.",
-  "tray_status.stop_unconfirmed": "Paragem por confirmar"
+  "tray_status.stop_unconfirmed": "Paragem por confirmar",
+  "search.date_help": "As datas filtram os dias de aquisição em UTC.",
+  "search.input_error_title": "Corrija os filtros de pesquisa.",
+  "search.invalid_date": "Introduza uma data válida no formato AAAA-MM-DD.",
+  "search.invalid_range": "A data inicial deve ser anterior ou igual à data final.",
+  "search.rejected_value": "Valor rejeitado"
 }

@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import shutil
+import sys
 import tempfile
 import time
 from collections.abc import Callable, Mapping, Sequence
@@ -154,6 +155,9 @@ class OcrJobManager:
             )
         )
         self.clock = clock
+        self._packaged_components = (renderer_factory is None and adapter_factory is None
+                                     and sys.platform == "win32"
+                                     and bool(getattr(sys, "frozen", False)))
 
     def _ensure_directories(self) -> None:
         for path in (
@@ -188,6 +192,26 @@ class OcrJobManager:
         self, settings: OcrSettings
     ) -> tuple[Any, OcrRendererCapability, Any, OcrAdapterCapability]:
         self._ensure_directories()
+        if self._packaged_components:
+            from .ocr_kit import ENGINE, PDFIUM_DLL, WORKER, OcrKitError, active_kit
+
+            kit = active_kit()
+            renderer = PdfiumPillowRenderer(
+                settings, self.temporary_root, worker_executable=kit.root / WORKER,
+                material_fingerprint=kit.sha256, before_execute=kit.verify,
+            )
+            renderer_capability = renderer.capability()
+            if renderer_capability.renderer_available and (
+                Path(renderer_capability.resolved_path).resolve() !=
+                (kit.root / PDFIUM_DLL).resolve()
+            ):
+                raise OcrKitError(code="ocr_version_incompatible")
+            adapter = TesseractCliAdapter(
+                replace(settings, engine_executable=str(kit.root / ENGINE),
+                        tessdata_path=str(kit.root / "tessdata")),
+                renderer_capability, self.temporary_root,
+            )
+            return renderer, renderer_capability, adapter, adapter.capability()
         renderer = self.renderer_factory(settings, self.temporary_root)
         renderer_capability = renderer.capability()
         adapter = self.adapter_factory(settings, renderer_capability, self.temporary_root)
@@ -198,9 +222,21 @@ class OcrJobManager:
         selected = settings or self.configured_settings()
         if selected.mode == "disabled":
             return ocr_capability_report(selected)
-        renderer, _renderer_capability, adapter, _adapter_capability = self._components(
-            selected
-        )
+        from .ocr_kit import OcrKitError
+
+        try:
+            renderer, _renderer_capability, adapter, _adapter_capability = self._components(
+                selected
+            )
+        except OcrKitError as exc:
+            report = ocr_capability_report(selected)
+            state = {"ocr_engine_unavailable": "engine-unavailable",
+                     "ocr_language_pack_missing": "language-pack-missing",
+                     "ocr_version_incompatible": "version-incompatible"}.get(
+                         exc.code, "renderer-unavailable")
+            report.update(state=state, available=False,
+                          error={"code": exc.code, "messages": dict(OCR_ERROR_MESSAGES[exc.code])})
+            return report
         return ocr_capability_report(selected, adapter, renderer)
 
     def _version_source(

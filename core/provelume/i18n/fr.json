@@ -2305,5 +2305,10 @@
   "desktop.startup_error_configuration": "L’Instance sélectionnée ou les paramètres locaux n’ont pas pu être ouverts. Vérifiez-les, puis réessayez.",
   "desktop.startup_error_integrity": "La vérification de l’intégrité de l’installation a échoué. Restaurez une installation vérifiée avant de réessayer.",
   "desktop.startup_error_initialization": "Le service n’a pas pu terminer l’initialisation. Consultez les détails du démarrage, puis réessayez.",
-  "tray_status.stop_unconfirmed": "Arrêt non confirmé"
+  "tray_status.stop_unconfirmed": "Arrêt non confirmé",
+  "search.date_help": "Les dates filtrent les jours d’acquisition en UTC.",
+  "search.input_error_title": "Corrigez les filtres de recherche.",
+  "search.invalid_date": "Saisissez une date valide au format AAAA-MM-JJ.",
+  "search.invalid_range": "La date de début doit précéder ou être identique à la date de fin.",
+  "search.rejected_value": "Valeur refusée"
 }

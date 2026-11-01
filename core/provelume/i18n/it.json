@@ -2305,5 +2305,10 @@
   "desktop.startup_error_configuration": "Non è stato possibile aprire l’Instance selezionata o le impostazioni locali. Controllale e riprova.",
   "desktop.startup_error_integrity": "Verifica dell’integrità dell’installazione non riuscita. Ripristina un’installazione verificata prima di riprovare.",
   "desktop.startup_error_initialization": "Il servizio non ha completato l’inizializzazione. Consulta i dettagli di avvio e riprova.",
-  "tray_status.stop_unconfirmed": "Arresto non confermato"
+  "tray_status.stop_unconfirmed": "Arresto non confermato",
+  "search.date_help": "Le date filtrano i giorni di acquisizione in UTC.",
+  "search.input_error_title": "Correggi i filtri di ricerca.",
+  "search.invalid_date": "Inserisci una data valida nel formato AAAA-MM-GG.",
+  "search.invalid_range": "La data iniziale deve precedere o coincidere con quella finale.",
+  "search.rejected_value": "Valore rifiutato"
 }

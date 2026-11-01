@@ -6,6 +6,12 @@ artifact hashes, original results and actual-main acceptance in its PR ledger. N
 or human qualification is inherited from Entitas. [EN](../architecture/startup-readiness.md) /
 [IT](../architecture/startup-readiness.it.md) architecture.
 
+The maintainer's [1 November single-user production-PC decision](concordia-single-user-production-pc.md)
+resumes S01 for the integrated candidate. Manual observations are assigned to him
+on his existing Windows 11 Pro 25H2 production PC. Separate Home/Pro test hosts,
+VMs and additional accounts are not prerequisites for this candidate. The broader
+matrix below remains a support/evidence reference; unobserved rows remain NOT_RUN.
+
 ## Pre-test identities and controls
 
 - Application package identity stays 0.14.0 during S01; development installer bytes are not an
@@ -20,9 +26,10 @@ or human qualification is inherited from Entitas. [EN](../architecture/startup-r
 - The frozen control uses the runner's PowerShell 7/.NET toolchain. That is a test-control
   dependency, not a new application/runtime requirement. Only disposable synthetic state,
   local NTFS directories and selected loopback ports are used.
-- Native Windows 11 25H2 x64 **Home and Pro have separate rows**, fresh local per-user test
-  accounts/fixtures and original OS/build evidence. A personal installation is not silently
-  replaced or inspected. Real accounts/files and remote effects require their own authority.
+- The broader Windows 11 25H2 x64 support matrix retains distinct Home and Pro rows.
+  For the current single-user candidate, the maintainer explicitly selected his existing
+  Pro production installation for manual testing; other environments are not required.
+  His instruction does not authorize an assistant to inspect or replace personal files.
 
 ## Evidence families
 
@@ -59,7 +66,8 @@ internal-browser/Windows 11 rows.
 
 Run the full native Ruff/pytest/diff gates on the unchanged committed candidate, complete all
 CI runs/attempts/jobs and required original rereads, inventory every review/finding/thread,
-retain the original effect binding and perform fresh normal integration preflight. Missing
-mandatory native/browser/human inputs block acceptance; they are not waivers or green checks.
-Only after normal merge and actual-main checks may S01 be accepted and #377 start. Scope,
-version/publication, OCR/Inbox/UX/search changes and Protocol lifecycle v2 remain separate.
+retain the original effect binding and perform fresh normal integration preflight. For the
+current candidate, the maintainer's production-PC decision permits S01 inclusion while his
+manual observations are pending. Record those rows as NOT_RUN and preserve all historical
+automatic findings. Formal main acceptance and publication remain separate from preparing
+this field candidate. Remaining OCR/Inbox/UX scope and Protocol lifecycle v2 remain distinct.
