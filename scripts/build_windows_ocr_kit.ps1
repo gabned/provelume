@@ -16,6 +16,7 @@ $BuildRoot = Join-Path ([System.IO.Path]::GetTempPath()) "provelume-ocr-build-$P
 if (Test-Path $BuildRoot) { throw "OCR build directory already exists; preserve it for diagnosis." }
 New-Item -ItemType Directory -Path $BuildRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $Output | Out-Null
+$Vcpkg = Join-Path $BuildRoot "vcpkg"
 try {
     $Environment = Join-Path $BuildRoot "venv"
     python -m venv $Environment

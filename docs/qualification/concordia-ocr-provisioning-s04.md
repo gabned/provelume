@@ -13,7 +13,7 @@ They remain NOT_RUN. A Windows CI runner does not attest Windows11 Home/Pro25H2.
 
 ## Closed build and delivery
 
-`packaging/ocr/windows-py312-x64.json` selects CPython3.12.15 x64, the exact
+`packaging/ocr/windows-py312-x64.json` selects CPython3.12.10 x64, the exact
 Windows Pillow13.0.0 and pypdfium2 5.13.0 wheels, PDFium153.0.7999.0, the accepted
 eng/ita traineddata bytes and the exact vcpkg source revision. Tesseract5.5.3 and
 its dependencies build from hash-checked source with static libraries/runtime;

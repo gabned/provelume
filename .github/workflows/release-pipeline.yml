@@ -414,7 +414,7 @@ jobs:
       - name: Set up Windows target Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.12.15"
+          python-version: "3.12.10"
           cache: pip
           cache-dependency-path: build-lock/windows-py312-x86_64.requirements.txt
 
@@ -597,6 +597,9 @@ jobs:
 
   installed-ocr:
     needs: [candidate, windows-package]
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/ocr-windows.yml
     with:
       source_commit: ${{ inputs.source_commit || github.sha }}
