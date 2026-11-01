@@ -1,0 +1,305 @@
+"""Synthetic installed OCR qualification; no personal documents or live Sources."""
+
+from __future__ import annotations
+
+import argparse
+import ctypes
+import hashlib
+import json
+import os
+import subprocess
+import sys
+from dataclasses import replace
+from pathlib import Path
+from unittest.mock import patch
+
+SOURCE = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(SOURCE / "core"))
+
+from provelume.ocr_contract import OcrContractError, OcrSettings  # noqa: E402
+from provelume.ocr_kit import ENGINE, WORKER  # noqa: E402
+from provelume.ocr_process import minimal_child_environment, run_bounded_process  # noqa: E402
+from provelume.publication import canonical_bytes, file_identity  # noqa: E402
+from provelume.service import ProvelumeInstance  # noqa: E402
+
+
+def _snapshot(instance):
+    return {
+        p.relative_to(instance.root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+        for directory in ("knowledge", "originals")
+        for p in (instance.root / directory).rglob("*")
+        if p.is_file()
+    }
+
+
+def _native_pdf(path):
+    from pypdf import PdfWriter
+    from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
+
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=612, height=792)
+    font = DictionaryObject(
+        {
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Helvetica"),
+        }
+    )
+    page[NameObject("/Resources")] = DictionaryObject(
+        {NameObject("/Font"): DictionaryObject({NameObject("/F1"): writer._add_object(font)})}
+    )
+    text = (
+        "Reliable native printed text with sufficient printable characters for the existing "
+        "automatic OCR skip policy. " * 5
+    )
+    stream = DecodedStreamObject()
+    stream.set_data(("BT /F1 12 Tf 30 700 Td (" + text + ") Tj ET").encode("ascii"))
+    page[NameObject("/Contents")] = writer._add_object(stream)
+    writer.write(path)
+
+
+def _corpus(root):
+    from PIL import Image, ImageDraw, ImageFont
+
+    root.mkdir()
+    for language, line in (
+        ("eng", "PROVELUME ENGLISH DOCUMENT 123"),
+        ("ita", "PROVELUME DOCUMENTO ITALIANO 123"),
+    ):
+        image = Image.new("RGB", (1800, 500), "white")
+        ImageDraw.Draw(image).text((80, 180), line, fill="black", font=ImageFont.load_default(64))
+        for extension, options in (
+            ("png", {}),
+            ("jpg", {"quality": 95}),
+            ("bmp", {}),
+            ("tiff", {"compression": "raw"}),
+            ("pdf", {"resolution": 300}),
+        ):
+            image.save(root / f"{language}.{extension}", **options)
+        image.close()
+    _native_pdf(root / "native.pdf")
+    (root / "corrupt.pdf").write_bytes(b"%PDF-1.7\ninvalid synthetic PDF")
+
+
+def _fault(worker, temporary, kind):
+    """Suspend only our newly created frozen worker, then exercise real kill/cleanup."""
+    original_popen = subprocess.Popen
+    processes = []
+    ntdll = ctypes.WinDLL("ntdll")
+    ntdll.NtSuspendProcess.argtypes = [ctypes.c_void_p]
+    ntdll.NtSuspendProcess.restype = ctypes.c_long
+
+    def launch(*args, **kwargs):
+        command = args[0] if args else kwargs["args"]
+        process = original_popen(*args, **kwargs)
+        if Path(command[0]) == worker:
+            processes.append(process)
+            if ntdll.NtSuspendProcess(ctypes.c_void_p(int(process._handle))) != 0:
+                process.kill()
+                process.wait(5)
+                raise ValueError("Owned-worker fault injection failed")
+        return process
+
+    try:
+        with patch("subprocess.Popen", launch):
+            try:
+                run_bounded_process(
+                    [str(worker), "probe"],
+                    temporary_directory=temporary,
+                    timeout_seconds=1,
+                    stdout_limit=262144,
+                    stderr_limit=16384,
+                    cancelled=(lambda: True) if kind == "cancel" else None,
+                    environment=minimal_child_environment(temporary),
+                )
+                raise AssertionError("Fault did not stop the frozen worker")
+            except OcrContractError as exc:
+                assert exc.code == (
+                    "ocr_cancelled" if kind == "cancel" else "ocr_deadline_exceeded"
+                )
+        assert len(processes) == 1 and all(p.poll() is not None for p in processes)
+        assert not list(temporary.iterdir())
+        return {
+            "case": kind,
+            "result": "PASS",
+            "owned_pids": [p.pid for p in processes],
+            "owned_processes_remaining": 0,
+            "method": "NtSuspendProcess fault injection",
+        }
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.kill()
+                process.wait(5)
+
+
+def qualify(executable, kit, root, output, build_report, installer):
+    if sys.platform != "win32":
+        raise ValueError("Native disposable Windows runner required")
+    root.mkdir()
+    environment = dict(os.environ, LOCALAPPDATA=str(root / "Host"), PATH="")
+    counter = 0
+
+    def command(*arguments, expected=0):
+        nonlocal counter
+        counter += 1
+        result = root / f"command-{counter:03}.json"
+        process = subprocess.run(
+            [
+                str(executable),
+                "--ocr-result-file",
+                str(result),
+                "--ocr-command",
+                *map(str, arguments),
+            ],
+            env=environment,
+            timeout=180,
+            check=False,
+        )
+        assert process.returncode == expected, (arguments[0], process.returncode)
+        return json.loads(result.read_text(encoding="utf-8"))
+
+    source = root / "Corpus"
+    _corpus(source)
+    instance = ProvelumeInstance.initialise(root / "Synthetic Instance")
+    instance.ingest(source)
+    before = _snapshot(instance)
+    assert command("ocr-capability", instance.root)["state"] == "disabled"
+    identity = json.loads(build_report.read_text())["kit"]
+    assert file_identity(kit) == identity
+    imported = command("kit-import", kit, "--expected-sha256", identity["sha256"])
+    assert imported["ocr_enablement_changed"] is False
+    assert command("ocr-capability", instance.root)["state"] == "disabled"
+    current = root / "Host/Provelume/ocr/kits" / identity["sha256"]
+    manifest = json.loads((current / "ocr-kit.json").read_text())
+    rules = []
+    powershell = Path(os.environ["SYSTEMROOT"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
+    try:
+        for index, path in enumerate((executable, current / WORKER, current / ENGINE)):
+            name = f"Provelume-OCR-S04-{os.getpid()}-{index}"
+            # Paths enter the command as argv through environment; no shell interpolation.
+            script = (
+                "New-NetFirewallRule -Name $env:OCR_RULE -DisplayName $env:OCR_RULE "
+                "-Direction Outbound -Program $env:OCR_PROGRAM -Action Block -Enabled True "
+                "-Profile Any | Out-Null; "
+                "if ((Get-NetFirewallRule -Name $env:OCR_RULE).Enabled -ne 'True') { exit 2 }"
+            )
+            subprocess.run(
+                [str(powershell), "-NoProfile", "-Command", script],
+                check=True,
+                env=dict(os.environ, OCR_RULE=name, OCR_PROGRAM=str(path)),
+                timeout=30,
+            )
+            rules.append(name)
+        instance.configure_ocr(OcrSettings(mode="forced", languages=("eng", "ita")))
+        capability = command("ocr-capability", instance.root)
+        assert capability["available"] is True
+        assert capability["adapter"]["engine_version"] == "5.5.3"
+        assert capability["renderer"]["adapter_version"] == "1+" + identity["sha256"]
+        cases = []
+        documents = {Path(d["locator"]).name: d for d in instance.store.list_canonical("documents")}
+        for name, document in sorted(documents.items()):
+            version = document["current_version_id"]
+            if name == "corrupt.pdf":
+                result = command("ocr-queue", instance.root, version, expected=2)
+                assert result["code"] == "ocr_corrupt_input"
+            elif name == "native.pdf":
+                result = command("ocr-queue", instance.root, version, "--mode", "automatic")
+                assert result["scheduled"] is False
+            else:
+                language = name.split(".")[0]
+                queued = command("ocr-queue", instance.root, version, "--language", language)
+                completed = command("ocr-run", instance.root, queued["job"]["id"])
+                assert completed["status"] == "succeeded"
+                (bundle,) = instance.list_ocr_bundles(version)
+                texts = [
+                    (instance.root / p["text_ref"]).read_text(encoding="utf-8")
+                    for p in bundle["manifest"]["pages"]
+                ]
+                assert any("PROVELUME" in text.upper() for text in texts), name
+                assert bundle["manifest"]["authoritative"] is False
+            cases.append(
+                {"input": name, "sha256": file_identity(source / name)["sha256"], "result": "PASS"}
+            )
+        paths = [ENGINE, WORKER, "tessdata/ita.traineddata", "worker/_internal/python312.dll"]
+        paths += [r["path"] for r in manifest["files"] if r["path"].endswith("/pdfium.dll")]
+        assert len(paths) == 5
+        negatives = []
+        for name in paths:
+            path = current / name
+            backup = root / "missing-component"
+            path.rename(backup)
+            try:
+                report = command("ocr-capability", instance.root)
+                assert report["available"] is False
+                expected = (
+                    "ocr_engine_unavailable"
+                    if name == ENGINE
+                    else "ocr_language_pack_missing"
+                    if name.startswith("tessdata/")
+                    else "ocr_renderer_unavailable"
+                )
+                assert report["error"]["code"] == expected
+                negatives.append({"component": name, "code": expected, "result": "PASS"})
+            finally:
+                backup.rename(path)
+        temporary = root / "fault-temporary"
+        temporary.mkdir()
+        faults = [_fault(current / WORKER, temporary, kind) for kind in ("cancel", "timeout")]
+        assert _snapshot(instance) == before
+        assert not list(instance.ocr.temporary_root.iterdir())
+        instance.configure_ocr(replace(instance.ocr.configured_settings(), mode="disabled"))
+        assert command("kit-remove")["status"] == "removed"
+        assert command("ocr-capability", instance.root)["state"] == "disabled"
+        report = {
+            "schema_version": 1,
+            "result": "PASS",
+            "kit": identity,
+            "installer_executable": file_identity(executable),
+            "installer": file_identity(installer),
+            "source_commit": manifest["commit"],
+            "os": sys.getwindowsversion()._asdict()
+            if hasattr(sys.getwindowsversion(), "_asdict")
+            else str(sys.getwindowsversion()),
+            "cases": cases,
+            "missing_components": negatives,
+            "faults": faults,
+            "originals_and_canonical": "UNCHANGED",
+            "path": "EMPTY_FOR_INSTALLED_COMMANDS",
+            "external_python_required": False,
+            "network": "Outbound Windows Firewall block rules for exact three executables",
+            "manual_windows_11_home_pro_25h2": "NOT_RUN",
+            "publication": "NOT_TRIGGERED",
+        }
+        output.write_bytes(canonical_bytes(report))
+        print(
+            json.dumps(
+                {
+                    "result": report["result"],
+                    "cases": len(cases),
+                    "negative_cases": len(negatives),
+                    "fault_cases": len(faults),
+                }
+            )
+        )
+    finally:
+        for name in rules:
+            subprocess.run(
+                [
+                    str(powershell),
+                    "-NoProfile",
+                    "-Command",
+                    "Remove-NetFirewallRule -Name $env:OCR_RULE",
+                ],
+                env=dict(os.environ, OCR_RULE=name),
+                check=True,
+                timeout=30,
+            )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    for name in ("executable", "kit", "root", "output", "build-report", "installer"):
+        parser.add_argument("--" + name, required=True, type=Path)
+    args = parser.parse_args()
+    qualify(args.executable, args.kit, args.root, args.output, args.build_report, args.installer)

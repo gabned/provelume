@@ -414,7 +414,7 @@ jobs:
       - name: Set up Windows target Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.12"
+          python-version: "3.12.15"
           cache: pip
           cache-dependency-path: build-lock/windows-py312-x86_64.requirements.txt
 
@@ -595,9 +595,17 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+  installed-ocr:
+    needs: [candidate, windows-package]
+    uses: ./.github/workflows/ocr-windows.yml
+    with:
+      source_commit: ${{ inputs.source_commit || github.sha }}
+      candidate_artifact: provelume-release-candidate-${{ github.run_id }}
+      package_artifact: provelume-windows-package-${{ github.run_id }}
+
   assemble:
     name: Assemble and verify release bundle
-    needs: [candidate, offline-rebuild, windows-package, installed-ai]
+    needs: [candidate, offline-rebuild, windows-package, installed-ai, installed-ocr]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -660,6 +668,10 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --name "provelume-release-installed-ai-${GITHUB_RUN_ID}" \
             --dir "$RUNNER_TEMP/provelume-release-installed-ai"
+          gh run download "$GITHUB_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "provelume-ocr-windows-${GITHUB_RUN_ID}" \
+            --dir "$RUNNER_TEMP/provelume-release-ocr"
 
       - name: Verify complete assurance chain
         shell: bash
@@ -818,6 +830,15 @@ jobs:
           cp "$assembly/release-assurance.json" "$release"/
           cp "$RUNNER_TEMP/provelume-release-installed-ai/windows-installed-ai.json" "$release"/
           cp "$assembly/provelume-${VERSION}.cdx.json" "$release"/
+          cp "$RUNNER_TEMP/provelume-release-ocr/provelume-${VERSION}-ocr-windows-x64.zip" "$release"/
+          cp "$RUNNER_TEMP/provelume-release-ocr/ocr-kit-build.json" "$release"/
+          cp "$RUNNER_TEMP/provelume-release-ocr/windows-installed-ocr.json" "$release"/
+          python scripts/augment_ocr_sbom.py --sbom "$release/provelume-${VERSION}.cdx.json" \
+            --kit "$release/provelume-${VERSION}-ocr-windows-x64.zip" \
+            --build-report "$release/ocr-kit-build.json" \
+            --installed-report "$release/windows-installed-ocr.json" \
+            --installer "$windows/Provelume-Setup-${VERSION}-x64.exe" \
+            --commit "$SOURCE_COMMIT"
           cp "$windows"/Provelume-Setup-"${VERSION}"-x64.exe "$release"/
           cp "$windows"/provelume-windows-update.json "$release"/
           cp build-lock/windows-py312-x86_64.in "$release"/
@@ -848,6 +869,9 @@ jobs:
             --artifact "$release/offline-rebuild-evidence.json" \
             --artifact "$release/release-assurance.json" \
             --artifact "$release/windows-installed-ai.json" \
+            --artifact "$release/provelume-${VERSION}-ocr-windows-x64.zip" \
+            --artifact "$release/ocr-kit-build.json" \
+            --artifact "$release/windows-installed-ocr.json" \
             --artifact "$release/Provelume-Setup-${VERSION}-x64.exe" \
             --artifact "$release/provelume-windows-update.json" \
             --artifact "$release/windows-py312-x86_64.in" \

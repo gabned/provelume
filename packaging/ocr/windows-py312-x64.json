@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "platform": "windows",
+  "architecture": "x86_64",
+  "python": "3.12.15",
+  "vcpkg": {
+    "repository": "https://github.com/microsoft/vcpkg",
+    "commit": "9a5dfef5d1a0438a7d24856a85bd60f309d355e9",
+    "triplet": "x64-windows-static-release",
+    "port": "tesseract",
+    "version": "5.5.3",
+    "source_commit": "db0ec62f81b0737fbbe184d8fea40af5738f8eef",
+    "source_archive_sha512": "c55ad36af09f4ba48df2f32a3e2413764aeee330f5f5468e92be59572fd90b388f0ea3cb7dc0cc89c21ff68f76cd0baaee1ca0a45e648dc8f4819aefdc2749c2",
+    "binary_cache": "disabled; pinned source build"
+  },
+  "wheels": [
+    {
+      "name": "pillow-13.0.0-cp312-cp312-win_amd64.whl",
+      "distribution": "Pillow",
+      "version": "13.0.0",
+      "size_bytes": 7272166,
+      "sha256": "ff3fe9eb621fbb9db4c4be33ab946f6bac5f98ab50ca8d3260503653656c961b"
+    },
+    {
+      "name": "pypdfium2-5.13.0-py3-none-win_amd64.whl",
+      "distribution": "pypdfium2",
+      "version": "5.13.0",
+      "size_bytes": 3885553,
+      "sha256": "47dcca2a8d507b5fd24f94c3c9d48fb379430f097bc20f01beff6c963ffbcedb"
+    }
+  ],
+  "pdfium": "153.0.7999.0",
+  "tessdata": {
+    "repository": "https://github.com/tesseract-ocr/tessdata_fast",
+    "commit": "87416418657359cb625c412a48b6e1d6d41c29bd",
+    "license": "Apache-2.0",
+    "packs": [
+      {
+        "id": "eng",
+        "size_bytes": 4113088,
+        "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+      },
+      {
+        "id": "ita",
+        "size_bytes": 2701314,
+        "sha256": "b8f89e1e785118dac4d51ae042c029a64edb5c3ee42ef73027a6d412748d8827"
+      }
+    ]
+  },
+  "excluded": [
+    "osd",
+    "training tools",
+    "detection",
+    "AI/ASR models",
+    "runtime downloads"
+  ]
+}
