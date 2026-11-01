@@ -64,7 +64,14 @@ def _refresh_after_ingestion(
     result: IngestionRunResult,
 ) -> None:
     from .index import IndexScopeError
+    from .ocr_sources import SourceOcrFlow
     from .processing_autonomy import defers_inline_processing, has_processing_policies
+
+    ocr_policies = store.paths.state / "review" / "ocr_sources" / "policies"
+    if ocr_policies.exists() or ocr_policies.is_symlink():
+        flow = SourceOcrFlow(store)
+        for acquisition in result.acquisitions:
+            flow.admit(asdict(acquisition))
 
     selected = [acquisition.document_id for acquisition in result.acquisitions
                 if acquisition.outcome != "unchanged"

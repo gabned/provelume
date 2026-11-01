@@ -24,7 +24,7 @@ from .scheduler_model import SchedulerBusyError, SchedulerError
 
 _ID = re.compile(r"[a-z][a-z0-9_]*_[0-9a-f]{32,64}\Z")
 _DOMAINS = {"placement", "routing", "duplicates", "versions", "capabilities", "iudicium",
-            "processing"}
+            "processing", "ocr_sources"}
 _ERRORS = (
     ReviewError,
     InstanceLifecycleError,
@@ -66,7 +66,30 @@ def review_options(instance, domain, subject, *, job_id=None):
     inputs = _Inputs(instance.store)
     if domain in {"placement", "routing", "iudicium"}:
         result["nodes"] = list(_nodes(inputs).values())
-    if domain == "processing":
+    if domain == "ocr_sources":
+        from .ocr_sources import source_pdf_choices
+        from .review_routing_model import identifier
+
+        identifier(subject, "source")
+        current = instance.ocr_source_review.policy(subject)
+        result["sources"] = [inputs.record(f"knowledge/sources/{subject}.json")]
+        result["actions"] = ["save_policy", "backlog", "limited_result"]
+        if current is not None:
+            result["actions"].append("revoke_policy")
+        result["defaults"] = current or {
+            "enabled": False, "languages": list(instance.ocr.configured_settings().languages),
+        }
+        result["versions"] = source_pdf_choices(instance.store, subject)
+        titles = {row["id"]: row["title"] for row in result["versions"]}
+        result["ocr_bundles"] = [
+            {"id": item["artifact"]["id"],
+             "label": titles[item["manifest"]["version_id"]] + " · "
+             + ", ".join(item["manifest"]["settings"]["languages"]) + " · "
+             + item["artifact"]["created_at"]}
+            for item in instance.ocr.list_bundles()
+            if item["manifest"]["version_id"] in titles
+        ]
+    elif domain == "processing":
         from .processing_autonomy import MAX_INPUT_BYTES, OPERATIONS
         from .review_routing_model import identifier
 
@@ -194,7 +217,7 @@ def review_options(instance, domain, subject, *, job_id=None):
                     {"id": row["id"], "label": row["path_prefix"] or row["source_id"]}
                     for row in instance.classification_review.policies()
                 )
-        elif subject == "processing":
+        elif subject in {"processing", "ocr_sources"}:
             result["subjects"] = [{"id": row["id"], "label": row["name"]}
                                   for row in result["sources"]]
         elif subject == "knowledge_objects":
@@ -244,7 +267,20 @@ def review_summary(plan, labels):
     def change(label, before, after):
         changes.append({"label": label, "before": display(before), "after": display(after)})
 
-    if domain == "processing":
+    if domain == "ocr_sources":
+        if action in {"save_policy", "revoke_policy"}:
+            before, after = data["before"] or {}, data["after"]
+            change(labels["ocr_future"], before.get("enabled"), after["enabled"])
+            change(labels["task_languages"], before.get("languages"), after["languages"])
+        elif action == "backlog":
+            change(labels["version"], None,
+                   [row["version_id"] for row in data["execution"]["versions"]])
+        else:
+            chosen = data["execution"]["selection"]
+            change(labels["version"], None, chosen["version_id"])
+            change(labels["ocr_profile"], None, labels[chosen["profile"]])
+        effect, reverse = "effect_ocr_sources", "reverse_ocr_sources"
+    elif domain == "processing":
         if action == "run":
             for field, label in (("version_id", "version"), ("operation", "processing_operation")):
                 value = data["execution"]["parameters"][field]
@@ -458,6 +494,19 @@ def attach_domain_review_routes(
             return page(request, "review_processing_policies.html", status=503, rows=[],
                         sources=[], unavailable=True)
 
+    @app.get("/review/ocr-sources")
+    def ocr_source_policies(request: Request):
+        require_local_browser(request)
+        try:
+            sources = list(_Inputs(instance.store).inventory("knowledge/sources", 128).values())
+            sources = [row for row in sources if row["kind"] == "filesystem"]
+            rows = [instance.ocr_source_review.policy(row["id"]) for row in sources]
+            return page(request, "review_ocr_sources.html", rows=rows,
+                        sources=sources, unavailable=False)
+        except _ERRORS:
+            return page(request, "review_ocr_sources.html", status=503, rows=[],
+                        sources=[], unavailable=True)
+
     @app.get("/review/decisions/{domain}/{subject}")
     def decision(request: Request, domain: str, subject: str):
         require_local_browser(request)
@@ -544,6 +593,12 @@ def attach_domain_review_routes(
                 request_id=fields["request_id"],
                 principal="local_browser",
             )
+            if domain == "ocr_sources" and plan["action"] in {"backlog", "limited_result"}:
+                try:
+                    jobs = instance.ocr_sources.backlog(result["receipt"]["id"])
+                    result["ocr_jobs"] = [row["job"]["id"] for row in jobs]
+                except (ReviewError, SchedulerError, SchedulerBusyError, OSError, ValueError):
+                    result["ocr_jobs"] = None
             if domain == "processing" and plan["action"] == "run":
                 parameters = plan["parameters"]
                 try:

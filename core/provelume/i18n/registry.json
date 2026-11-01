@@ -1607,7 +1607,21 @@
         "review.processing_enqueue_pending",
         "review.processing_job",
         "review.knowledge_objects",
-        "review.reject"
+        "review.reject",
+        "review.ocr_sources",
+        "review.ocr_sources_help",
+        "review.ocr_future",
+        "review.backlog",
+        "review.limited_result",
+        "review.ocr_profile",
+        "review.limited-metadata",
+        "review.ocr-accepted",
+        "review.ocr_artifact",
+        "review.ocr_limited_help",
+        "review.effect_ocr_sources",
+        "review.reverse_ocr_sources",
+        "review.ocr_enqueue_pending",
+        "review.ocr_jobs_link"
       ],
       "namespace": ""
     },
@@ -15567,6 +15581,76 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "review.ocr_sources": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr_sources_help": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr_future": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.backlog": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.limited_result": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr_profile": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.limited-metadata": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr-accepted": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr_artifact": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr_limited_help": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.effect_ocr_sources": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.reverse_ocr_sources": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr_enqueue_pending": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.ocr_jobs_link": {
+      "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
     }
   },
   "schema_version": 1,

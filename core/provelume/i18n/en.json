@@ -2310,5 +2310,19 @@
   "search.input_error_title": "Correct the search filters.",
   "search.invalid_date": "Enter a valid date in YYYY-MM-DD format.",
   "search.invalid_range": "The start date must be on or before the end date.",
-  "search.rejected_value": "Rejected value"
+  "search.rejected_value": "Rejected value",
+  "review.ocr_sources": "OCR by Source",
+  "review.ocr_sources_help": "Allow OCR for future PDF acquisitions of this Source. Previously acquired documents require a separate selection and preview. Originals stay unchanged.",
+  "review.ocr_future": "Allow local OCR for new PDFs without reliable text",
+  "review.backlog": "Recover selected Originals",
+  "review.limited_result": "Accept limited search",
+  "review.ocr_profile": "Search profile",
+  "review.limited-metadata": "Title and metadata only",
+  "review.ocr-accepted": "Complete OCR accepted with uncertainty",
+  "review.ocr_artifact": "Complete OCR bundle (optional)",
+  "review.ocr_limited_help": "Metadata-only search has an empty text body. Accepting uncertain OCR applies only to this exact Version and complete bundle. Neither choice declares that no text exists.",
+  "review.effect_ocr_sources": "Create local OCR requests or change the explicitly selected search contribution. No Inbox deletion, AI, cloud or other Source consent.",
+  "review.reverse_ocr_sources": "Disable future OCR admission. Preserved Originals and completed derived text remain available.",
+  "review.ocr_enqueue_pending": "The selection is saved; queue admission needs recovery. Open a fresh review to inspect the retained request.",
+  "review.ocr_jobs_link": "View OCR requests"
 }

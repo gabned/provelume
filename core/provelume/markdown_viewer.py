@@ -197,6 +197,16 @@ class DocumentContentReader:
             _artifact, text = verified
             title = str(document.get("title") or "Local email message").replace("\n", " ")
             return f"# {title}\n\n{text.rstrip()}\n"
+        from .ocr_selection import selected_text
+
+        try:
+            selection = selected_text(self.store, str(version["id"]))
+        except ValueError as exc:
+            raise DocumentContentError(
+                "The selected text is unavailable or requires review") from exc
+        if selection is not None:
+            title = str(document.get("title") or "Untitled document").replace("\n", " ")
+            return f"# {title}\n\n{selection[1].rstrip()}\n"
         artifact = self.store.derived_artifact_for_version(
             str(version["id"]),
             "extracted_text",

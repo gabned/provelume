@@ -15,6 +15,7 @@ CAPABILITIES = {
     "annotations": ("save", "undo"),
     "iudicium": ("save_policy", "revoke_policy", "apply", "undo"),
     "processing": ("save_policy", "revoke_policy", "run"),
+    "ocr_sources": ("save_policy", "revoke_policy", "backlog", "limited_result"),
     "knowledge_objects": ("apply", "reject"),
 }
 
@@ -111,6 +112,7 @@ def validate_review_origin(store, origin, records):
 def review_state_findings(store, records):
     from .annotation_store import annotation_state_findings
     from .classification_review import ClassificationReview
+    from .ocr_sources import SourceOcrReview
     from .processing_autonomy import ProcessingReview
     from .review_authority import ReviewAuthority
     from .review_routing import RoutingProvider
@@ -136,6 +138,11 @@ def review_state_findings(store, records):
         classification.policies()
         processing = ProcessingReview(store)
         processing.policies()
+        ocr_sources = SourceOcrReview(store)
+        from .review_routing import _Inputs
+
+        for source_id in _Inputs(store).inventory("state/review/ocr_sources/policies", 128):
+            ocr_sources.policy(source_id)
         root = checked_path(store, "state/review/receipts")
         if root.exists():
             if not root.is_dir():
@@ -158,6 +165,8 @@ def review_state_findings(store, records):
                     from .review_routing import _Inputs
 
                     processing.history_record(receipt["id"], _Inputs(store))
+                if receipt["domain"] == "ocr_sources":
+                    ocr_sources.history_record(receipt["id"], _Inputs(store))
                 if receipt["domain"] == "knowledge_objects":
                     from .knowledge_object_review import history_record
 

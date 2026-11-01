@@ -2310,5 +2310,19 @@
   "search.input_error_title": "Corectați filtrele de căutare.",
   "search.invalid_date": "Introduceți o dată validă în format AAAA-LL-ZZ.",
   "search.invalid_range": "Data de început trebuie să fie anterioară sau egală cu data de sfârșit.",
-  "search.rejected_value": "Valoare respinsă"
+  "search.rejected_value": "Valoare respinsă",
+  "review.ocr_sources": "OCR pentru fiecare Source",
+  "review.ocr_sources_help": "Permite OCR pentru viitoarele achiziții PDF ale acestei Source. Documentele deja achiziționate necesită o selecție și o previzualizare separată. Originals rămân neschimbate.",
+  "review.ocr_future": "Permite OCR local pentru PDF-uri noi fără text fiabil",
+  "review.backlog": "Recuperează Originals selectate",
+  "review.limited_result": "Acceptă căutarea limitată",
+  "review.ocr_profile": "Profil de căutare",
+  "review.limited-metadata": "Doar titlu și metadate",
+  "review.ocr-accepted": "OCR complet acceptat cu incertitudine",
+  "review.ocr_artifact": "Bundle OCR complet (opțional)",
+  "review.ocr_limited_help": "Căutarea în metadate are corpul textului gol. Acceptarea OCR incert se aplică doar acestei Version exacte și acestui bundle complet. Nicio alegere nu declară că textul nu există.",
+  "review.effect_ocr_sources": "Creează cereri OCR locale sau modifică contribuția de căutare selectată explicit. Fără ștergere Inbox, AI, cloud sau consimțământ pentru alte Sources.",
+  "review.reverse_ocr_sources": "Dezactivează viitoarele cereri OCR automate. Originals păstrate și textul derivat finalizat rămân disponibile.",
+  "review.ocr_enqueue_pending": "Selecția este salvată; admiterea în coadă necesită recuperare. Deschide o nouă verificare a cererii păstrate.",
+  "review.ocr_jobs_link": "Vezi cererile OCR"
 }

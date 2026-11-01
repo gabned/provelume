@@ -1386,6 +1386,20 @@ class SchedulerCoordinator:
 
     def _control_producer(self, job: Mapping[str, Any]) -> Any:
         execution = job.get("execution_plan")
+        if job["job_kind"] == "ocr.execute":
+            from .ocr_jobs import OcrJobManager
+            from .ocr_sources import SourceOcrReview
+
+            try:
+                manager = OcrJobManager(self.store)
+                request = manager._request_for_job(job)
+                manager._version_source(request["version_id"])
+                if "source_authorization" in request:
+                    SourceOcrReview(self.store).revalidate(request["source_authorization"])
+                return {"resumable": True, "restartable": False,
+                        "request": control_digest(request)}
+            except (ValueError, OSError, KeyError):
+                return {"resumable": False, "restartable": False}
         if job["job_kind"] == "processing.execute":
             from .processing_jobs import ProcessingJobs
 
@@ -1924,7 +1938,7 @@ class SchedulerCoordinator:
                 current = self.journal.get_job(str(job["id"]))
                 if current is None:
                     raise OcrContractError("ocr_internal_error", "OCR scheduler job disappeared")
-                return self.journal.checkpoint(
+                result = self.journal.checkpoint(
                     str(job["id"]),
                     lease_token,
                     sequence=int(current["checkpoint"]["sequence"]) + 1,
@@ -1932,10 +1946,15 @@ class SchedulerCoordinator:
                     progress=progress,
                     now=checkpoint_now,
                 )
+                self._cooperative_boundary(job)
+                return result
 
             manager_factory = getattr(self, "_ocr_manager_factory", OcrJobManager)
             try:
-                progress = manager_factory(self.store).execute(
+                manager = manager_factory(self.store)
+                manager._source_before_publication = lambda: self._cooperative_boundary(
+                    job, commit=True)
+                progress = manager.execute(
                     job,
                     checkpoint=checkpoint,
                 )

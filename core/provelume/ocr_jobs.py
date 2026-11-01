@@ -40,6 +40,7 @@ from .ocr_renderer import PdfiumPillowRenderer
 from .ocr_tesseract import TesseractCliAdapter
 from .paths import safe_instance_path
 from .scheduler import SchedulerCoordinator, schedule_payload
+from .scheduler_control import CooperativeStop
 from .scheduler_model import idempotency_digest
 from .storage import InstanceStore, utc_now
 
@@ -336,6 +337,7 @@ class OcrJobManager:
         languages: Sequence[str] | None = None,
         pages: Sequence[int] = (),
         rebuild_nonce: str | None = None,
+        _prepare_only: bool = False,
     ) -> dict[str, Any]:
         configured = self.configured_settings()
         selected = replace(
@@ -453,6 +455,8 @@ class OcrJobManager:
             "runtime_downloads": False,
             "remote_fallback": False,
         }
+        if _prepare_only:
+            return {"scheduled": True, "request": request, "capability": report}
         self.store._atomic_json(self.requests / f"{scheduler_key}.json", request)
         queued = self.scheduler.journal.run_now(
             str(policy["id"]), request_key=request_identity
@@ -779,6 +783,68 @@ class OcrJobManager:
         *,
         checkpoint: Callable[[dict[str, int]], Mapping[str, Any]],
     ) -> dict[str, int]:
+        from .index_evidence import finalize_ocr_index
+        from .ocr_selection import embedded_selection
+        from .ocr_sources import SourceOcrReview
+        from .review_effects import ReviewError
+
+        self._ensure_directories()
+        request = self._request_for_job(job)
+        try:
+            if "source_authorization" in request:
+                authorization = SourceOcrReview(self.store).revalidate(
+                    request["source_authorization"])
+                if (authorization["version"]["size_bytes"]
+                        > self.configured_settings().limits.max_input_bytes):
+                    raise OcrContractError("ocr_input_too_large",
+                                           "Source Original exceeds the reviewed OCR byte limit")
+                if self._cancelled(str(job["id"])):
+                    raise OcrContractError("ocr_cancelled", "Source OCR was cancelled")
+                if request.get("operation") == "source":
+                    from .ocr_selection import selected_text
+
+                    existing_selection = selected_text(self.store, request["version_id"])
+                    if existing_selection is None:
+                        existing_selection = embedded_selection(
+                            self.store, request["version_id"], optional=True)
+                    if (existing_selection is None
+                            and self.configured_settings().mode == "disabled"):
+                        require_ocr_available(ocr_capability_report(self.configured_settings()))
+                    prepared = (None if existing_selection is not None else self.queue(
+                        request["version_id"], mode="automatic",
+                        languages=authorization["languages"], _prepare_only=True))
+                    if prepared is None or not prepared["scheduled"]:
+                        request = {**request, "operation": "index-only"}
+                    else:
+                        request = {**prepared["request"], "operation": "ocr",
+                                   "scheduler_key": job["idempotency_key"],
+                                   "source_authorization": authorization}
+                    from .maintenance_local_files import write_local_bytes
+
+                    write_local_bytes(self.requests / f"{job['idempotency_key']}.json",
+                                      _json_bytes(request), replace=True)
+                if request.get("operation") == "index-only":
+                    from .ocr_selection import selected_text
+
+                    chosen = selected_text(self.store, request["version_id"])
+                    selection, text = (chosen if chosen is not None else
+                                       embedded_selection(self.store, request["version_id"]))
+                    checkpoint(dict(job["progress"]))
+                    self._source_before_publication()
+                    finalize_ocr_index(self.store, job, request, selection, text)
+                    return {"processed": 1, "skipped": 0, "errors": 0}
+            return self._execute_pages(job, checkpoint=checkpoint)
+        except ReviewError as exc:
+            raise OcrContractError("ocr_contract_violation", str(exc)) from exc
+
+    def _execute_pages(
+        self,
+        job: Mapping[str, Any],
+        *,
+        checkpoint: Callable[[dict[str, int]], Mapping[str, Any]],
+    ) -> dict[str, int]:
+        from .review_effects import ReviewError
+
         self._ensure_directories()
         request = self._request_for_job(job)
         settings = ocr_settings_from_config({"ocr": request["settings"]})
@@ -792,6 +858,7 @@ class OcrJobManager:
         bundle_created = False
         artifact_id: str | None = None
         provenance_id: str | None = None
+        paused = False
         work_directory = self.work / str(request["derivation_key"])
         work_directory.mkdir(parents=True, exist_ok=True)
         if work_directory.is_symlink():
@@ -1021,7 +1088,32 @@ class OcrJobManager:
                     "OCR changed the Original or canonical knowledge",
                 )
             remaining_seconds()
+            if "source_authorization" in request:
+                from .index_evidence import finalize_ocr_index
+                from .ocr_selection import bundle_selection
+
+                selection, text = bundle_selection(self.store, str(request["version_id"]),
+                                                    asdict(artifact))
+                if self._cancelled(str(job["id"])):
+                    raise OcrContractError("ocr_cancelled", "Source OCR was cancelled")
+                self._source_before_publication()
+                finalize_ocr_index(self.store, job, request, selection, text)
             return {"processed": newly_processed, "skipped": 0, "errors": 0}
+        except CooperativeStop as exc:
+            paused = exc.job["status"] == "paused"
+            if not paused:
+                error_code = "ocr_cancelled"
+                if provenance_id is not None:
+                    (self.store.paths.derived_provenance / f"{provenance_id}.json").unlink(
+                        missing_ok=True)
+                if artifact_id is not None:
+                    (self.store.paths.derived_artifacts / f"{artifact_id}.json").unlink(
+                        missing_ok=True)
+                if bundle_created and bundle_ref is not None:
+                    promoted = safe_instance_path(self.store.paths.root, bundle_ref)
+                    shutil.rmtree(promoted.parent, ignore_errors=True)
+                bundle_ref = None
+            raise
         except (OcrContractError, OcrUnavailableError) as exc:
             error_code = exc.code
             if provenance_id is not None:
@@ -1037,6 +1129,11 @@ class OcrJobManager:
                 shutil.rmtree(promoted.parent, ignore_errors=True)
             bundle_ref = None
             raise
+        except ReviewError as exc:
+            # A complete immutable derivation remains inspectable for explicit
+            # limited-result review, even when its dependent indexing is denied.
+            error_code = "ocr_contract_violation"
+            raise OcrContractError(error_code, str(exc)) from exc
         except (OSError, TypeError, ValueError, KeyError, json.JSONDecodeError) as exc:
             error_code = "ocr_internal_error"
             if provenance_id is not None:
@@ -1063,7 +1160,7 @@ class OcrJobManager:
                 job,
                 request,
                 state=(
-                    "succeeded"
+                    "paused" if paused else "succeeded"
                     if error_code is None and bundle_ref is not None
                     else "cancelled"
                     if error_code == "ocr_cancelled"
@@ -1077,7 +1174,7 @@ class OcrJobManager:
                 original_before=original_before,
                 original_after=original_after,
             )
-            if error_code is None and bundle_ref is not None:
+            if not paused and error_code is None and bundle_ref is not None:
                 shutil.rmtree(work_directory, ignore_errors=True)
 
     def cancel(self, job_id: str) -> dict[str, Any]:
@@ -1086,6 +1183,9 @@ class OcrJobManager:
         if job is None or job["job_kind"] != OCR_JOB_KIND:
             raise OcrContractError("ocr_contract_violation", "OCR job was not found")
         if job["status"] == "running":
+            if job.get("control", {}).get("commit_started"):
+                raise OcrContractError("ocr_contract_violation",
+                                       "OCR publication has already entered its commit boundary")
             self.store._atomic_text(
                 self.cancellations / f"{job_id}.request", "cancel\n"
             )

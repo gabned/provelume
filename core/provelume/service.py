@@ -155,6 +155,7 @@ class ProvelumeInstance:
         from .annotation_store import AnnotationProvider
         from .classification_review import ClassificationReview
         from .knowledge_object_review import KnowledgeObjectReview
+        from .ocr_sources import SourceOcrFlow, SourceOcrReview
         from .processing_autonomy import ProcessingReview
         from .review_authority import ReviewAuthority
         from .review_decisions import ReviewDecisions
@@ -169,13 +170,14 @@ class ProvelumeInstance:
         self.classification_review = ClassificationReview(self.store, instance=self)
         self.object_review = KnowledgeObjectReview(self)
         self.processing_review = ProcessingReview(self.store)
+        self.ocr_source_review = SourceOcrReview(self.store)
         self.review_decisions = ReviewDecisions(
             self.store,
             [
                 self.review_authority, PlacementProvider(self.store), self.review_routing,
                 DuplicateDecisionProvider(self.store), VersionDecisionProvider(self.store),
                 self.annotations, self.classification_review, self.processing_review,
-                self.object_review,
+                self.object_review, self.ocr_source_review,
             ],
             authority_resolver=self.review_authority.resolve,
             transaction_factory=review_transaction_factory(self.store),
@@ -204,6 +206,7 @@ class ProvelumeInstance:
         self.ai_jobs = AiJobs(self.scheduler)
         self.scheduler.ai_jobs = self.ai_jobs
         self.ocr = OcrJobManager(self.store)
+        self.ocr_sources = SourceOcrFlow(self.store)
         self.email_sources = EmailSourceManager(self.store)
         self.email = EmailJobManager(self.store)
         self.google_sources = GoogleSourceManager(self.store)

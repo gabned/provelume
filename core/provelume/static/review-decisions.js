@@ -51,6 +51,17 @@
 
   function parameters() {
     const action = actionControl.value;
+    if (domain === "ocr_sources") {
+      if (action === "save_policy") return {
+        enabled: field("enabled").checked, languages: selected("languages"),
+      };
+      if (action === "backlog") return {versions: selected("versions")};
+      if (action === "limited_result") return {
+        version_id: value("version_id"), profile: value("profile"),
+        artifact_id: value("artifact_id").trim() || null,
+      };
+      return {};
+    }
     if (domain === "processing") {
       if (action === "save_policy") return {
         mode: value("mode"), path_prefix: value("path_prefix"), operations: selected("operations"),
@@ -169,6 +180,15 @@
         request_id: plan.request_id,
       });
       status.textContent = `${labels.saved} ${result.receipt.id}`;
+      if (domain === "ocr_sources" && "ocr_jobs" in result) {
+        const ocrLink = document.createElement("a");
+        ocrLink.href = "/ocr" + window.location.search;
+        ocrLink.textContent = labels.ocr_jobs_link;
+        status.append(document.createTextNode(" "), ocrLink);
+        if (result.ocr_jobs === null) {
+          status.append(document.createTextNode(" " + labels.ocr_enqueue_pending));
+        }
+      }
       if (domain === "processing" && "processing_job" in result) {
         if (result.processing_job) {
           const jobLink = document.createElement("a");

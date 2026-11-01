@@ -2310,5 +2310,19 @@
   "search.input_error_title": "Korrigieren Sie die Suchfilter.",
   "search.invalid_date": "Geben Sie ein gültiges Datum im Format JJJJ-MM-TT ein.",
   "search.invalid_range": "Das Anfangsdatum muss vor oder am Enddatum liegen.",
-  "search.rejected_value": "Abgelehnter Wert"
+  "search.rejected_value": "Abgelehnter Wert",
+  "review.ocr_sources": "OCR pro Source",
+  "review.ocr_sources_help": "OCR für zukünftige PDF-Erfassungen dieser Source erlauben. Bereits erfasste Dokumente benötigen eine separate Auswahl und Vorschau. Originals bleiben unverändert.",
+  "review.ocr_future": "Lokale OCR für neue PDFs ohne zuverlässigen Text erlauben",
+  "review.backlog": "Ausgewählte Originals nachbearbeiten",
+  "review.limited_result": "Eingeschränkte Suche akzeptieren",
+  "review.ocr_profile": "Suchprofil",
+  "review.limited-metadata": "Nur Titel und Metadaten",
+  "review.ocr-accepted": "Vollständige OCR mit Unsicherheit akzeptiert",
+  "review.ocr_artifact": "Vollständiges OCR-Bundle (optional)",
+  "review.ocr_limited_help": "Die Metadatensuche hat einen leeren Textkörper. Die Annahme unsicherer OCR gilt nur für diese genaue Version und das vollständige Bundle. Keine Auswahl erklärt, dass kein Text existiert.",
+  "review.effect_ocr_sources": "Lokale OCR-Anfragen erstellen oder den ausdrücklich gewählten Suchbeitrag ändern. Keine Inbox-Löschung, KI, Cloud oder Zustimmung für andere Sources.",
+  "review.reverse_ocr_sources": "Zukünftige automatische OCR-Anfragen deaktivieren. Gesicherte Originals und fertiger abgeleiteter Text bleiben verfügbar.",
+  "review.ocr_enqueue_pending": "Die Auswahl wurde gespeichert; die Aufnahme in die Warteschlange muss wiederhergestellt werden. Die gespeicherte Anfrage erneut prüfen.",
+  "review.ocr_jobs_link": "OCR-Anfragen anzeigen"
 }

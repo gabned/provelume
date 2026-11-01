@@ -2310,5 +2310,19 @@
   "search.input_error_title": "Correggi i filtri di ricerca.",
   "search.invalid_date": "Inserisci una data valida nel formato AAAA-MM-GG.",
   "search.invalid_range": "La data iniziale deve precedere o coincidere con quella finale.",
-  "search.rejected_value": "Valore rifiutato"
+  "search.rejected_value": "Valore rifiutato",
+  "review.ocr_sources": "OCR per Source",
+  "review.ocr_sources_help": "Consenti OCR per le future acquisizioni PDF di questa Source. I documenti già acquisiti richiedono una selezione e un’anteprima separate. Gli Originals restano invariati.",
+  "review.ocr_future": "Consenti OCR locale per i nuovi PDF senza testo affidabile",
+  "review.backlog": "Recupera gli Originals selezionati",
+  "review.limited_result": "Accetta la ricerca limitata",
+  "review.ocr_profile": "Profilo di ricerca",
+  "review.limited-metadata": "Solo titolo e metadati",
+  "review.ocr-accepted": "OCR completo accettato con incertezza",
+  "review.ocr_artifact": "Bundle OCR completo (facoltativo)",
+  "review.ocr_limited_help": "La ricerca nei soli metadati ha il testo vuoto. L’accettazione di OCR incerto vale solo per questa Version e questo bundle completo. Nessuna scelta dichiara che il testo non esista.",
+  "review.effect_ocr_sources": "Crea richieste OCR locali o modifica il contributo di ricerca selezionato esplicitamente. Nessuna eliminazione Inbox, AI, cloud o consenso per altre Source.",
+  "review.reverse_ocr_sources": "Disabilita le future richieste OCR automatiche. Gli Originals conservati e il testo derivato completato restano disponibili.",
+  "review.ocr_enqueue_pending": "La selezione è salvata; l’accodamento richiede recupero. Apri una nuova revisione per verificare la richiesta conservata.",
+  "review.ocr_jobs_link": "Mostra le richieste OCR"
 }

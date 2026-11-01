@@ -414,15 +414,20 @@ def _insert_document(
             return False
         _artifact, text = email_text
     else:
-        artifact = _ensure_extracted(
-            store,
-            version,
-            document["locator"],
-            recover_missing_derived=recover_missing_derived,
-        )
-        if artifact is None:
-            return False
-        text = store.read_derived_text(artifact)
+        from .ocr_selection import selected_text
+
+        selected = selected_text(store, str(version["id"]))
+        text = selected[1] if selected is not None else None
+        if text is None:
+            artifact = _ensure_extracted(
+                store,
+                version,
+                document["locator"],
+                recover_missing_derived=recover_missing_derived,
+            )
+            if artifact is None:
+                return False
+            text = store.read_derived_text(artifact)
     connection.execute(
         "INSERT INTO search("
         "document_id, version_id, source_id, media_type, acquired_at, title, content"
@@ -611,10 +616,13 @@ def search_index_content_matches(store: InstanceStore) -> bool:
                     continue
                 _artifact, text = email_text
             else:
+                from .ocr_selection import selected_text
+
+                selected = selected_text(store, str(version["id"]))
                 artifact = store.derived_artifact_for_version(str(version["id"]))
-                if artifact is None:
+                if artifact is None and selected is None:
                     continue
-                text = store.read_derived_text(artifact)
+                text = selected[1] if selected is not None else store.read_derived_text(artifact)
             expected.append(
                 (
                     document["id"],

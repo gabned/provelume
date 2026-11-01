@@ -1864,6 +1864,7 @@ def inspect_instance(
         _validate_references(store, records, errors)
         from .capture_integrity import capture_state_findings
         from .folder_sources import folder_source_state_findings
+        from .index_evidence import index_evidence_state_findings
         from .maintenance import maintenance_state_findings
         from .qualification import qualification_state_findings
         from .representations import representation_state_findings
@@ -1875,6 +1876,7 @@ def inspect_instance(
 
         errors.extend(folder_source_state_findings(store))
         errors.extend(capture_state_findings(store))
+        errors.extend(index_evidence_state_findings(store))
         errors.extend(maintenance_state_findings(store))
         errors.extend(qualification_state_findings(store, records))
         errors.extend(representation_state_findings(store))

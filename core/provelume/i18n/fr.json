@@ -2310,5 +2310,19 @@
   "search.input_error_title": "Corrigez les filtres de recherche.",
   "search.invalid_date": "Saisissez une date valide au format AAAA-MM-JJ.",
   "search.invalid_range": "La date de début doit précéder ou être identique à la date de fin.",
-  "search.rejected_value": "Valeur refusée"
+  "search.rejected_value": "Valeur refusée",
+  "review.ocr_sources": "OCR par Source",
+  "review.ocr_sources_help": "Autoriser l’OCR pour les futures acquisitions PDF de cette Source. Les documents déjà acquis nécessitent une sélection et un aperçu distincts. Les Originals restent inchangés.",
+  "review.ocr_future": "Autoriser l’OCR local pour les nouveaux PDF sans texte fiable",
+  "review.backlog": "Reprendre les Originals sélectionnés",
+  "review.limited_result": "Accepter la recherche limitée",
+  "review.ocr_profile": "Profil de recherche",
+  "review.limited-metadata": "Titre et métadonnées uniquement",
+  "review.ocr-accepted": "OCR complet accepté avec incertitude",
+  "review.ocr_artifact": "Bundle OCR complet (facultatif)",
+  "review.ocr_limited_help": "La recherche dans les métadonnées a un corps de texte vide. L’acceptation d’un OCR incertain concerne uniquement cette Version exacte et ce bundle complet. Aucun choix ne déclare l’absence de texte.",
+  "review.effect_ocr_sources": "Créer des demandes OCR locales ou modifier la contribution de recherche explicitement sélectionnée. Aucune suppression Inbox, IA, cloud ou autorisation pour d’autres Sources.",
+  "review.reverse_ocr_sources": "Désactiver les futures demandes OCR automatiques. Les Originals conservés et le texte dérivé terminé restent disponibles.",
+  "review.ocr_enqueue_pending": "La sélection est enregistrée ; la mise en file doit être reprise. Ouvrir une nouvelle vérification de la demande conservée.",
+  "review.ocr_jobs_link": "Voir les demandes OCR"
 }
