@@ -464,3 +464,47 @@ def test_missing_active_index_retains_input_without_scope_escalation(inbox):
         resolve_index_contribution(instance.store, "processing", job["id"],
                                      acquisition["document_id"])
     assert (root / "note.txt").exists()
+
+
+@pytest.mark.parametrize("layout", ["preview", "current"])
+@pytest.mark.parametrize("language", ["en", "it"])
+def test_busy_cold_search_stays_navigable_without_a_false_zero_count(
+    inbox, tmp_path, layout, language, monkeypatch,
+):
+    from fastapi.testclient import TestClient
+
+    from provelume.i18n import translator
+    from provelume.shell_settings import ShellSettingsManager, default_settings
+    from provelume.web import create_app
+
+    instance, _root, _source_id = inbox
+    (instance.root / "indexes/search.sqlite3").unlink()
+    shell = ShellSettingsManager(tmp_path / "shell.json", default_settings())
+    shell.save(default_settings())
+    shell.set_interface_mode(layout, expected_revision=0)
+    app = create_app(instance.root, shell_settings_file=shell.path)
+    # Exercise only the deliberately held exit owner, without a startup cycle
+    # competing for the same barrier before this controlled assertion begins.
+    monkeypatch.setattr(app.state.provelume, "run_scheduler_cycle", lambda **kwargs: None)
+    with TestClient(app) as client:
+        with InstanceLifecycleManager(instance.store)._hold(purpose="synthetic-input-exit"):
+            response = client.get(f"/search?q=synthetic&lang={language}")
+            assert response.status_code == 200
+            assert translator(language)("search.index_pending") in response.text
+            assert translator(language)("search.empty") not in response.text
+            assert 'class="cura-result-count"' not in response.text
+            assert not (instance.root / "indexes/search.sqlite3").exists()
+        response = client.get(f"/search?q=synthetic&lang={language}")
+        assert response.status_code == 200
+        assert translator(language)("search.index_pending") not in response.text
+
+
+def test_admission_cannot_fabricate_future_authority_for_an_old_acquisition(inbox):
+    instance, _root, source_id = inbox
+    _job, acquisition = acquire(inbox, before_policy=True)
+    before = _bytes(instance.root)
+    fabricated = {**acquisition, "observed_at": "2099-01-01T00:00:00+00:00"}
+    with pytest.raises(ReviewDenied):
+        instance.inbox_transit.admit(fabricated)
+    assert _bytes(instance.root) == before
+    assert instance.inbox_transit_review.policy(source_id)["mode"] == "transit"

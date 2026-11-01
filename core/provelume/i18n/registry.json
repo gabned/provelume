@@ -15665,6 +15665,12 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": true
+    },
+    "search.index_pending": {
+      "context": "Search while a cold or stale index cannot acquire the existing lifecycle writer. Suppress result counts and empty-result claims.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
     }
   },
   "schema_version": 1,

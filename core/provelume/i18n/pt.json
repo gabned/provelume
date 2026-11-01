@@ -2326,5 +2326,6 @@
   "review.ocr_enqueue_pending": "A seleção foi guardada; a admissão na fila precisa de recuperação. Abra uma nova revisão do pedido preservado.",
   "review.ocr_jobs_link": "Ver pedidos OCR",
   "review.inbox_transit": "Caixa de entrada transitória",
-  "review.release": "Retirar entradas concluídas"
+  "review.release": "Retirar entradas concluídas",
+  "search.index_pending": "A pesquisa aguarda a conclusão do trabalho em curso. Tente novamente em breve."
 }

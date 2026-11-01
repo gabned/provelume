@@ -2326,5 +2326,6 @@
   "review.ocr_enqueue_pending": "Selecția este salvată; admiterea în coadă necesită recuperare. Deschide o nouă verificare a cererii păstrate.",
   "review.ocr_jobs_link": "Vezi cererile OCR",
   "review.inbox_transit": "Inbox de tranzit",
-  "review.release": "Elimină intrările finalizate"
+  "review.release": "Elimină intrările finalizate",
+  "search.index_pending": "Căutarea așteaptă finalizarea operației în curs. Încearcă din nou în scurt timp."
 }

@@ -354,6 +354,9 @@ class InboxTransit:
         from .ocr_sources import SourceOcrReview, settings
 
         source_id = acquisition["source_id"]
+        if re.fullmatch(r"acq_[0-9a-f]{32}", str(acquisition.get("id"))) is None or read_json(
+                self.store, f"knowledge/acquisitions/{acquisition['id']}.json") != acquisition:
+            raise ReviewDenied("Inbox admission requires the exact committed acquisition")
         policy = self.review.policy(source_id)
         if (policy is None or policy["mode"] != "transit"
                 or acquisition["outcome"] == "unchanged"
@@ -408,6 +411,9 @@ class InboxTransit:
             if job["scope"]["kind"] == "source" and job["scope"]["id"] != source_id:
                 continue
             try:
+                if read_json(self.store, f"knowledge/acquisitions/{acquisition['id']}.json") != (
+                        acquisition):
+                    continue
                 self._authority(source_id, "save_policy")
                 policy, _root, _folder = self.review.current(source_id)
                 if (policy != admission["policy"] or policy["mode"] != "transit"
@@ -617,7 +623,10 @@ def _evidence_paths(store, item):
     producer, job_id = item["selection"]["producer"], item["selection"]["job_id"]
     paths.add(f"{ROOTS[producer]}/{job_id}/publication_a"
               f"{item['proof']['publication']['attempt']}.json")
-    pending = [item["proof"], item["contribution"]]
+    # The immutable packet itself is pinned by publication.input_ref. Pin only
+    # the selected contribution's artifact graph, never every other Document's
+    # text in a potentially 1000-Version producer snapshot.
+    pending = [item["proof"]["publication"], item["contribution"]]
     count = 0
     while pending:
         value = pending.pop()

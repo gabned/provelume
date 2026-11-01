@@ -2326,5 +2326,6 @@
   "review.ocr_enqueue_pending": "La sélection est enregistrée ; la mise en file doit être reprise. Ouvrir une nouvelle vérification de la demande conservée.",
   "review.ocr_jobs_link": "Voir les demandes OCR",
   "review.inbox_transit": "Boîte de transit",
-  "review.release": "Retirer les entrées terminées"
+  "review.release": "Retirer les entrées terminées",
+  "search.index_pending": "La recherche attend la fin du travail en cours. Réessayez dans un instant."
 }

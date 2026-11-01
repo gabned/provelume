@@ -2326,5 +2326,6 @@
   "review.ocr_enqueue_pending": "La selección está guardada; hay que recuperar la entrada en la cola. Abre una nueva revisión de la solicitud conservada.",
   "review.ocr_jobs_link": "Ver solicitudes OCR",
   "review.inbox_transit": "Bandeja de tránsito",
-  "review.release": "Retirar entradas completadas"
+  "review.release": "Retirar entradas completadas",
+  "search.index_pending": "La búsqueda espera a que termine el trabajo en curso. Inténtalo de nuevo en breve."
 }

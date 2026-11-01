@@ -2326,5 +2326,6 @@
   "review.ocr_enqueue_pending": "Die Auswahl wurde gespeichert; die Aufnahme in die Warteschlange muss wiederhergestellt werden. Die gespeicherte Anfrage erneut prüfen.",
   "review.ocr_jobs_link": "OCR-Anfragen anzeigen",
   "review.inbox_transit": "Durchgangseingang",
-  "review.release": "Abgeschlossene Eingaben freigeben"
+  "review.release": "Abgeschlossene Eingaben freigeben",
+  "search.index_pending": "Die Suche wartet, bis die laufende Arbeit abgeschlossen ist. Versuchen Sie es gleich erneut."
 }

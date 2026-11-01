@@ -2326,5 +2326,6 @@
   "review.ocr_enqueue_pending": "The selection is saved; queue admission needs recovery. Open a fresh review to inspect the retained request.",
   "review.ocr_jobs_link": "View OCR requests",
   "review.inbox_transit": "Inbox transit",
-  "review.release": "Release completed inputs"
+  "review.release": "Release completed inputs",
+  "search.index_pending": "Search is waiting for current work to finish. Try again shortly."
 }

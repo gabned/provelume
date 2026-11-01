@@ -695,6 +695,7 @@ def create_app(
         date_from: str | None = None,
         date_to: str | None = None,
     ):
+        from .instance_lifecycle import InstanceLifecycleBusy
         from .search_input import search_page_inputs
 
         inputs = search_page_inputs(q, date_from, date_to)
@@ -703,14 +704,20 @@ def create_app(
             (key, value) for key, value in request.query_params.multi_items() if key != "q"
         ] + [("q", effective_query)]
         results = []
+        search_pending = False
         if effective_query and not inputs["search_errors"]:
-            results = instance.search(
-                effective_query,
-                source_id=source_id,
-                media_type=media_type,
-                date_from=date_from,
-                date_to=date_to,
-            )
+            try:
+                results = instance.search(
+                    effective_query,
+                    source_id=source_id,
+                    media_type=media_type,
+                    date_from=date_from,
+                    date_to=date_to,
+                )
+            except InstanceLifecycleBusy:
+                # A cold/stale index needs a writer. Keep read-only navigation
+                # available while another owner finishes; never imply zero hits.
+                search_pending = True
         return _page(
             request=request,
             name="search.html",
@@ -718,10 +725,12 @@ def create_app(
             context=_context(
                 request,
                 instance,
-                include_summary=bool(effective_query) and not inputs["search_errors"],
+                include_summary=(bool(effective_query) and not inputs["search_errors"]
+                                 and not search_pending),
                 retrieval_values=retrieval_values,
                 **inputs,
                 results=results,
+                search_pending=search_pending,
                 sources=instance.list_sources(),
                 media_types=instance.media_types(),
                 selected_source=source_id,

@@ -12,5 +12,5 @@
   {% include 'search_dates.html' %}
   <button type="submit">{{ t('search.button') }}</button>
 </form>
-{% if q and not search_errors %}<section class="panel"><ul class="document-list">{% for result in results %}<li id="result-{{ result.document_id }}"><a href="{{ document_link(result.document_id) }}"><strong>{{ result.title }}</strong><span>{{ result.snippet }}</span></a></li>{% else %}<li class="empty">{{ t('search.empty') }}</li>{% endfor %}</ul></section>{% endif %}
+{% if q and not search_errors and not search_pending %}<section class="panel"><ul class="document-list">{% for result in results %}<li id="result-{{ result.document_id }}"><a href="{{ document_link(result.document_id) }}"><strong>{{ result.title }}</strong><span>{{ result.snippet }}</span></a></li>{% else %}<li class="empty">{{ t('search.empty') }}</li>{% endfor %}</ul></section>{% endif %}
 {% endblock %}

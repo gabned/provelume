@@ -2326,5 +2326,6 @@
   "review.ocr_enqueue_pending": "La selezione è salvata; l’accodamento richiede recupero. Apri una nuova revisione per verificare la richiesta conservata.",
   "review.ocr_jobs_link": "Mostra le richieste OCR",
   "review.inbox_transit": "Inbox di transito",
-  "review.release": "Fai uscire gli ingressi completati"
+  "review.release": "Fai uscire gli ingressi completati",
+  "search.index_pending": "La ricerca attende il completamento del lavoro in corso. Riprova tra poco."
 }
