@@ -35,6 +35,10 @@ of Windows and forbids redistributing its DLL](https://learn.microsoft.com/en-us
 Every distributed file has a package-relative path, length and SHA256. Native
 source package versions, patches/source archives, notices and vcpkg SPDX records
 remain attached; Python/wheel/license files and a kit CycloneDX inventory are retained.
+The pinned vcpkg manifests omit a license expression for Leptonica/libarchive;
+version-bound upstream evidence supplies those fields. Its exact copyright files
+and libarchive's file-specific BSD notices are fetched by immutable commit and
+byte digest, retained beside the original vcpkg copyright, and listed in the kit.
 
 The release pipeline builds the optional asset from its own exact candidate wheel,
 tests it against its own unchanged Setup, then includes the ZIP, producer/installed
@@ -97,6 +101,9 @@ jobs through the installed executable with an empty PATH. It checks reliable-nat
 PDF skip, corrupt input, missing engine/pack/worker/Python/PDFium, untouched Originals
 and canonical knowledge, temporary cleanup and explicit kit removal. Outbound
 Windows Firewall rules apply to the three exact executables during qualification.
+The disposable runner's profile states are recorded, temporarily enabled and
+restored afterward; active rule direction/action/program bindings are checked
+before disabled/import/OCR commands. The report records the actual admin context.
 It does not claim packet-observation evidence or a general-purpose security sandbox.
 
 Cancellation/deadline cases suspend only a newly owned frozen worker through

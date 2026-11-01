@@ -229,6 +229,23 @@ def _acquire(url, output, *, size=None, sha=None):
     output.write_bytes(payload)
 
 
+def native_license(name, version, port, lock, root):
+    selected = lock.get("native_license_evidence", {}).get(name)
+    if selected is None:
+        value = port.get("license")
+        if not isinstance(value, str) or not value:
+            raise ValueError("Native component license is unspecified: " + name)
+        return value, []
+    if selected["version"] != version:
+        raise ValueError("Native license evidence belongs to a different version: " + name)
+    notices = []
+    for row in selected["files"]:
+        target = root / "licenses/native" / name / "upstream" / row["path"]
+        _acquire(row["url"], target, size=row["size_bytes"], sha=row["sha256"])
+        notices.append(target.relative_to(root).as_posix())
+    return selected["expression"], notices
+
+
 def compose(worker, vcpkg, identity, output):
     lock = json.loads((SOURCE / "packaging/ocr/windows-py312-x64.json").read_text())
     if sys.platform != "win32" or platform.python_version() != lock["python"]:
@@ -288,11 +305,13 @@ def compose(worker, vcpkg, identity, output):
                     target.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(path, target)
                     notices.append(target.relative_to(root).as_posix())
+            license_name, extra_notices = native_license(name, version_number, port, lock, root)
+            notices.extend(extra_notices)
             components.append(
                 {
                     "name": name,
                     "version": version_number,
-                    "license": port.get("license"),
+                    "license": license_name,
                     "notices": notices,
                     "source": "vcpkg:" + lock["vcpkg"]["commit"] + "/ports/" + name,
                     "port_sha256": file_identity(port_path)["sha256"],
@@ -436,6 +455,7 @@ def compose(worker, vcpkg, identity, output):
             },
             "build_identity": build_identity(build),
         }
+        (output / "ocr-kit-unqualified-inventory.json").write_bytes(canonical_bytes(manifest))
         validate_manifest(manifest, build)
         raw = canonical_bytes(manifest)
         (root / MANIFEST).write_bytes(raw)

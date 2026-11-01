@@ -154,3 +154,20 @@ def test_altered_nested_native_bytes_are_rejected_before_release_sbom_write(rele
     release[2]["kit"] = release[3]["kit"] = file_identity(archive)
     with pytest.raises(ValueError, match="size differs"):
         augment(*release)
+
+
+def test_missing_native_license_is_not_inferred(tmp_path):
+    from scripts.compose_windows_ocr_kit import native_license
+
+    with pytest.raises(ValueError, match="unspecified"):
+        native_license("unknown", "1", {}, {}, tmp_path)
+
+
+def test_native_license_evidence_cannot_transfer_to_another_version(tmp_path):
+    from scripts.compose_windows_ocr_kit import native_license
+
+    lock = {
+        "native_license_evidence": {"example": {"version": "1", "expression": "MIT", "files": []}}
+    }
+    with pytest.raises(ValueError, match="different version"):
+        native_license("example", "2", {}, lock, tmp_path)

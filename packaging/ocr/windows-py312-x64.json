@@ -53,5 +53,57 @@
     "detection",
     "AI/ASR models",
     "runtime downloads"
-  ]
+  ],
+  "native_license_evidence": {
+    "leptonica": {
+      "commit": "13275a278eb55b5746e33f95fbf5a2c8f604b3ab",
+      "files": [
+        {
+          "path": "leptonica-license.txt",
+          "url": "https://raw.githubusercontent.com/DanBloomberg/leptonica/13275a278eb55b5746e33f95fbf5a2c8f604b3ab/leptonica-license.txt",
+          "size_bytes": 1521,
+          "sha256": "87829abb5bbb00b55a107365da89e9a33f86c4250169e5a1e5588505be7d5806"
+        }
+      ],
+      "version": "1.87.0",
+      "expression": "BSD-2-Clause"
+    },
+    "libarchive": {
+      "commit": "27cbc7827172698143e440801fc0ba39ccb4f1f5",
+      "files": [
+        {
+          "path": "COPYING",
+          "url": "https://raw.githubusercontent.com/libarchive/libarchive/27cbc7827172698143e440801fc0ba39ccb4f1f5/COPYING",
+          "size_bytes": 3089,
+          "sha256": "30e556b3959e3985d66efefec5eaac51d4995053caa1d3cffe6eb916f146f229"
+        },
+        {
+          "path": "libarchive/archive_read_support_filter_compress.c",
+          "url": "https://raw.githubusercontent.com/libarchive/libarchive/27cbc7827172698143e440801fc0ba39ccb4f1f5/libarchive/archive_read_support_filter_compress.c",
+          "size_bytes": 13469,
+          "sha256": "9cd45ac0ec6f498db1c6d5c9af28ac4788322526c451c33856e8f72e49d4cd9c"
+        },
+        {
+          "path": "libarchive/archive_write_add_filter_compress.c",
+          "url": "https://raw.githubusercontent.com/libarchive/libarchive/27cbc7827172698143e440801fc0ba39ccb4f1f5/libarchive/archive_write_add_filter_compress.c",
+          "size_bytes": 13122,
+          "sha256": "f0df99ae10b089dfe052fe40d75937d8ad6c442becb024542cefd55686be5f38"
+        },
+        {
+          "path": "libarchive/mtree.5",
+          "url": "https://raw.githubusercontent.com/libarchive/libarchive/27cbc7827172698143e440801fc0ba39ccb4f1f5/libarchive/mtree.5",
+          "size_bytes": 8071,
+          "sha256": "59fb7a07c9734e514699f2a98c0feee2702d2a3dbba5756ef1ac06092fe71983"
+        },
+        {
+          "path": "libarchive/archive_blake2.h",
+          "url": "https://raw.githubusercontent.com/libarchive/libarchive/27cbc7827172698143e440801fc0ba39ccb4f1f5/libarchive/archive_blake2.h",
+          "size_bytes": 6558,
+          "sha256": "23f9d734a79558f0bd8bba5d0b742e65865b6deb003be39cea8ba8806de321bb"
+        }
+      ],
+      "version": "3.8.9",
+      "expression": "BSD-2-Clause AND BSD-3-Clause AND CC0-1.0 AND LicenseRef-Public-Domain"
+    }
+  }
 }

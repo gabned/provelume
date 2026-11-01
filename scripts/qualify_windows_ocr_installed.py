@@ -164,27 +164,53 @@ def qualify(executable, kit, root, output, build_report, installer):
     instance = ProvelumeInstance.initialise(root / "Synthetic Instance")
     instance.ingest(source)
     before = _snapshot(instance)
-    assert command("ocr-capability", instance.root)["state"] == "disabled"
     identity = json.loads(build_report.read_text())["kit"]
     assert file_identity(kit) == identity
-    imported = command("kit-import", kit, "--expected-sha256", identity["sha256"])
-    assert imported["ocr_enablement_changed"] is False
-    assert command("ocr-capability", instance.root)["state"] == "disabled"
     current = root / "Host/Provelume/ocr/kits" / identity["sha256"]
-    base_runtime = file_identity(executable.parent / "_internal/python312.dll")
-    assert base_runtime == file_identity(current / "worker/_internal/python312.dll")
-    manifest = json.loads((current / "ocr-kit.json").read_text())
     rules = []
     powershell = Path(os.environ["SYSTEMROOT"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
+    profiles = json.loads(
+        subprocess.check_output(
+            [
+                str(powershell),
+                "-NoProfile",
+                "-Command",
+                "Get-NetFirewallProfile | Select-Object Name,"
+                "@{Name='Enabled';Expression={$_.Enabled.ToString()}} | ConvertTo-Json -Compress",
+            ],
+            text=True,
+            timeout=30,
+        )
+    )
+    assert len(profiles) == 3 and all(
+        p["Name"] in {"Domain", "Public", "Private"} for p in profiles
+    )
     try:
+        subprocess.run(
+            [
+                str(powershell),
+                "-NoProfile",
+                "-Command",
+                "Set-NetFirewallProfile -All -Enabled True -ErrorAction Stop",
+            ],
+            check=True,
+            timeout=30,
+        )
         for index, path in enumerate((executable, current / WORKER, current / ENGINE)):
             name = f"Provelume-OCR-S04-{os.getpid()}-{index}"
+            rules.append(name)
             # Paths enter the command as argv through environment; no shell interpolation.
             script = (
                 "New-NetFirewallRule -Name $env:OCR_RULE -DisplayName $env:OCR_RULE "
                 "-Direction Outbound -Program $env:OCR_PROGRAM -Action Block -Enabled True "
                 "-Profile Any | Out-Null; "
-                "if ((Get-NetFirewallRule -Name $env:OCR_RULE).Enabled -ne 'True') { exit 2 }"
+                "$rule = Get-NetFirewallRule -Name $env:OCR_RULE -PolicyStore ActiveStore; "
+                "if ($rule.Enabled -ne 'True' -or $rule.Action -ne 'Block' -or "
+                "$rule.Direction -ne 'Outbound') { exit 2 }; "
+                "$application = $rule | Get-NetFirewallApplicationFilter; "
+                "if ($application.Program -ne $env:OCR_PROGRAM) { exit 2 }; "
+                "if (@(Get-NetFirewallProfile | Where-Object Enabled -ne 'True').Count "
+                "-ne 0) { exit 2 }"
             )
             subprocess.run(
                 [str(powershell), "-NoProfile", "-Command", script],
@@ -192,7 +218,13 @@ def qualify(executable, kit, root, output, build_report, installer):
                 env=dict(os.environ, OCR_RULE=name, OCR_PROGRAM=str(path)),
                 timeout=30,
             )
-            rules.append(name)
+        assert command("ocr-capability", instance.root)["state"] == "disabled"
+        imported = command("kit-import", kit, "--expected-sha256", identity["sha256"])
+        assert imported["ocr_enablement_changed"] is False
+        assert command("ocr-capability", instance.root)["state"] == "disabled"
+        base_runtime = file_identity(executable.parent / "_internal/python312.dll")
+        assert base_runtime == file_identity(current / "worker/_internal/python312.dll")
+        manifest = json.loads((current / "ocr-kit.json").read_text())
         instance.configure_ocr(OcrSettings(mode="forced", languages=("eng", "ita")))
         capability = command("ocr-capability", instance.root)
         assert capability["available"] is True
@@ -272,6 +304,9 @@ def qualify(executable, kit, root, output, build_report, installer):
             "path": "EMPTY_FOR_INSTALLED_COMMANDS",
             "external_python_required": False,
             "network": "Outbound Windows Firewall block rules for exact three executables",
+            "firewall_profiles_before": profiles,
+            "firewall_profiles_during_test": "ENABLED_AND_ACTIVE_RULE_PROGRAM_BINDING_VERIFIED",
+            "qualification_host_is_admin": bool(ctypes.windll.shell32.IsUserAnAdmin()),
             "manual_windows_11_home_pro_25h2": "NOT_RUN",
             "publication": "NOT_TRIGGERED",
         }
@@ -293,9 +328,28 @@ def qualify(executable, kit, root, output, build_report, installer):
                     str(powershell),
                     "-NoProfile",
                     "-Command",
-                    "Remove-NetFirewallRule -Name $env:OCR_RULE",
+                    "$rule = Get-NetFirewallRule -Name $env:OCR_RULE "
+                    "-ErrorAction SilentlyContinue; "
+                    "if ($rule) { $rule | Remove-NetFirewallRule -ErrorAction Stop }",
                 ],
                 env=dict(os.environ, OCR_RULE=name),
+                check=True,
+                timeout=30,
+            )
+        for profile in profiles:
+            subprocess.run(
+                [
+                    str(powershell),
+                    "-NoProfile",
+                    "-Command",
+                    "Set-NetFirewallProfile -Name $env:OCR_PROFILE_NAME "
+                    "-Enabled $env:OCR_PROFILE_ENABLED -ErrorAction Stop",
+                ],
+                env=dict(
+                    os.environ,
+                    OCR_PROFILE_NAME=profile["Name"],
+                    OCR_PROFILE_ENABLED=profile["Enabled"],
+                ),
                 check=True,
                 timeout=30,
             )
