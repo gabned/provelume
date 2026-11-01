@@ -522,3 +522,27 @@ def test_unusable_input_file_identity_blocks_consent_and_retains_input(inbox, mo
         policy(instance, source_id)
     assert (root / "note.txt").read_bytes() == b"Retain unknown physical identity"
     assert instance.inbox_transit_review.policy(source_id) is None
+
+
+def test_replaced_input_cannot_reconcile_an_earlier_exit_intent_as_retained(inbox, monkeypatch):
+    instance, root, source_id = inbox
+    _job, _acquisition, receipt = permit_exit(inbox)
+
+    @contextmanager
+    def interrupted_before_disposition(path, expected):
+        raise ReviewUnavailable("simulated interruption after durable intent")
+        yield
+
+    monkeypatch.setattr("provelume.inbox_exit_files.guarded_input_exit",
+                        interrupted_before_disposition)
+    with pytest.raises(ReviewUnavailable):
+        instance.inbox_transit.release(receipt)
+    outcome = instance.inbox_transit.status(source_id)["exit_actions"][0]["outcome"]
+    assert outcome == "input_retained"
+    (root / "note.txt").unlink()
+    (root / "note.txt").write_bytes(b"New input at the same locator")
+    before = _bytes(instance.root)
+    outcome = instance.inbox_transit.status(source_id)["exit_actions"][0]["outcome"]
+    assert outcome == "outcome_unknown"
+    assert _bytes(instance.root) == before
+    assert (root / "note.txt").read_bytes() == b"New input at the same locator"

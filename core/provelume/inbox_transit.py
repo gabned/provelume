@@ -576,11 +576,13 @@ class InboxTransit:
                 result = read_json(self.store, f"{EXITS}/{directory.name}/result.json")
                 if result is not None:
                     _validate_exit_result(result, directory.name)
-                present = any(r["locator"] == intent["item"]["input"]["locator"] for r in files)
+                # A new entry at the same path does not establish that the
+                # intent's exact input survived an interrupted disposition.
+                retained = intent["item"]["input"] in files
                 actions.append({"id": intent["id"], "operation_id": intent["operation_id"],
                                 "acquisition_id": intent["item"]["acquisition"]["id"],
                                 "outcome": ("input_exited" if result is not None else
-                                            "input_retained" if present else "outcome_unknown")})
+                                            "input_retained" if retained else "outcome_unknown")})
         return {"source_id": source_id, "role": "folder" if policy is None else "inbox",
                 "mode": "keep" if policy is None else policy["mode"],
                 "files_present": len(files), "files": files,
