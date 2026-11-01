@@ -42,8 +42,8 @@ def canonical(instance):
 def search_fixture(tmp_path, request):
     source = tmp_path / "source"
     source.mkdir()
-    (source / "alpha.txt").write_text("Synthetic orchid zephyronly content.\n")
-    (source / "orchid-title.txt").write_text("A separate synthetic document.\n")
+    (source / "alpha.txt").write_bytes(b"Synthetic orchid zephyronly content.\n")
+    (source / "orchid-title.txt").write_bytes(b"A separate synthetic document.\n")
     instance = ProvelumeInstance.initialise(tmp_path / "instance")
     assert len(instance.ingest(source, source_name="Synthetic source")) == 2
     manager = ShellSettingsManager(tmp_path / "shell.json", LauncherSettings(

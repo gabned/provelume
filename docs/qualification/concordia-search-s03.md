@@ -56,5 +56,7 @@ requires a real internal-browser run. That capability is not exposed in this
 execution environment; its interactive rows remain **NOT_RUN**. An external
 Chrome/HTTP run does not replace it. Record any maintainer decision about
 deferring that gate explicitly in the owner/campaign ledger before acceptance.
+The maintainer explicitly [deferred the S03/S04 manual rows to integrated qualification](https://github.com/gabned/provelume/pull/429#issuecomment-6556457115).
+They remain NOT_RUN; the normal automatic/review/integration gates still apply.
 No missing human or Windows11 observation is converted to PASS, and no S01
 finding is cleared by this source work.
