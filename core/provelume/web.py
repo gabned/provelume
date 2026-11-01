@@ -88,8 +88,9 @@ def _language(request: Request, instance: ProvelumeInstance | None = None) -> st
     return resolve_language(configured)
 
 
-def _language_url(request: Request, language: str) -> str:
-    query = [(key, value) for key, value in request.query_params.multi_items()
+def _language_url(request: Request, language: str, *, retrieval_values=None) -> str:
+    pairs = request.query_params.multi_items() if retrieval_values is None else retrieval_values
+    query = [(key, value) for key, value in pairs
              if key not in {"lang", "return_to"}]
     return_to = validated_return(request.query_params.get("return_to"))
     if return_to:
@@ -326,7 +327,7 @@ def _navigation(
     return groups
 
 
-def _base_context(request: Request, language: str) -> dict[str, Any]:
+def _base_context(request: Request, language: str, *, retrieval_values=None) -> dict[str, Any]:
     t = translator(language)
     security_t = installation_translator(language)
     loaded = shell_snapshot(request)
@@ -355,9 +356,10 @@ def _base_context(request: Request, language: str) -> dict[str, Any]:
         "navigation_script_integrity": navigation_script,
         "icon": icon_renderer(),
         "shell_about": current_about() if preview else None,
-        **navigation_context(request, language, t, navigation),
+        **navigation_context(request, language, t, navigation, retrieval_values=retrieval_values),
         "language_urls": {
-            selected: _language_url(request, selected) for selected in sorted(LANGUAGE_CHOICES)
+            selected: _language_url(request, selected, retrieval_values=retrieval_values)
+            for selected in sorted(LANGUAGE_CHOICES)
         },
         "language_options": registry()["languages"],
         "language_choice": (request.query_params.get("lang")
@@ -379,9 +381,11 @@ def _display_date(value, language, *, time=False):
     return presented if time else presented[:10]
 
 
-def _context(request: Request, instance: ProvelumeInstance, **values: Any) -> dict[str, Any]:
+def _context(
+    request: Request, instance: ProvelumeInstance, *, retrieval_values=None, **values: Any,
+) -> dict[str, Any]:
     language = _language(request, instance)
-    base = _base_context(request, language)
+    base = _base_context(request, language, retrieval_values=retrieval_values)
     sources = {item["id"]: item["name"] for item in values.get("sources", ())
                if "name" in item}
     nodes = {item["id"]: " / ".join(part["name"] for part in item["breadcrumbs"])
@@ -408,12 +412,14 @@ def _installation_context(request: Request, **values: Any) -> dict[str, Any]:
     return {**_base_context(request, language), **values}
 
 
-def _page(*, request: Request, name: str, context: dict[str, Any]):
+def _page(*, request: Request, name: str, context: dict[str, Any], status_code: int = 200):
     if context["interface_mode"] == "preview" and name in {
         "home.html", "browse.html", "search.html",
     }:
         name = "cura/" + name
-    return TEMPLATES.TemplateResponse(request=request, name=name, context=context)
+    return TEMPLATES.TemplateResponse(
+        request=request, name=name, context=context, status_code=status_code,
+    )
 
 
 def create_recovery_app(
@@ -652,10 +658,17 @@ def create_app(
         date_from: str | None = None,
         date_to: str | None = None,
     ):
+        from .search_input import search_page_inputs
+
+        inputs = search_page_inputs(q, date_from, date_to)
+        effective_query = inputs["q"]
+        retrieval_values = [
+            (key, value) for key, value in request.query_params.multi_items() if key != "q"
+        ] + [("q", effective_query)]
         results = []
-        if q.strip():
+        if effective_query and not inputs["search_errors"]:
             results = instance.search(
-                q.strip(),
+                effective_query,
                 source_id=source_id,
                 media_type=media_type,
                 date_from=date_from,
@@ -664,17 +677,17 @@ def create_app(
         return _page(
             request=request,
             name="search.html",
+            status_code=400 if inputs["search_errors"] else 200,
             context=_context(
                 request,
                 instance,
-                q=q,
+                retrieval_values=retrieval_values,
+                **inputs,
                 results=results,
                 sources=instance.list_sources(),
                 media_types=instance.media_types(),
                 selected_source=source_id,
                 selected_media_type=media_type,
-                date_from=date_from,
-                date_to=date_to,
             ),
         )
 

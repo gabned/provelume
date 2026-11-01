@@ -108,9 +108,12 @@ def validated_return(value: str | None) -> str:
 
 
 def navigation_context(
-    request: Request, language: str, t: Callable[[str], str], navigation: list[dict[str, Any]]
+    request: Request, language: str, t: Callable[[str], str], navigation: list[dict[str, Any]],
+    *, retrieval_values: list[tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
     path = request.url.path
+    pairs = (list(request.query_params.multi_items())
+             if retrieval_values is None else retrieval_values)
     return_to = validated_return(request.query_params.get("return_to"))
     owner = "management"
     if path == "/":
@@ -187,7 +190,7 @@ def navigation_context(
         })
 
     def filter_link(**changes: str | None) -> str:
-        values = dict(request.query_params.multi_items())
+        values = dict(pairs)
         values["lang"] = language
         for key, value in changes.items():
             if value is None:
@@ -207,15 +210,14 @@ def navigation_context(
             query["mode"] = mode
         back = return_to
         if path in RETRIEVAL_KEYS:
-            pairs = list(request.query_params.multi_items())
-            pairs = [(k, v) for k, v in pairs if k != "lang"] + [("lang", language)]
-            back = retrieval_url(path, pairs, fragment=document_id)
+            back_pairs = [(k, v) for k, v in pairs if k != "lang"] + [("lang", language)]
+            back = retrieval_url(path, back_pairs, fragment=document_id)
         if back:
             query["return_to"] = back
         return destination + "?" + urlencode(query)
 
     active = []
-    for key, value in request.query_params.multi_items():
+    for key, value in pairs:
         if key in RETRIEVAL_KEYS.get(path, ()) and key != "lang" and value:
             if key == "disposition" and value == "active":
                 continue

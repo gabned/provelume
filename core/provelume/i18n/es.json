@@ -2289,5 +2289,10 @@
   "action.knowledge_objects": "Propuestas de objetos",
   "action.reason.object_proposal": "Un borrador de objeto requiere pruebas actuales y una revisión explícita.",
   "review.knowledge_objects": "Revisión de objetos",
-  "review.reject": "Rechazar"
+  "review.reject": "Rechazar",
+  "search.date_help": "Las fechas filtran los días de adquisición en UTC.",
+  "search.input_error_title": "Corrige los filtros de búsqueda.",
+  "search.invalid_date": "Introduce una fecha válida en formato AAAA-MM-DD.",
+  "search.invalid_range": "La fecha inicial debe ser anterior o igual a la fecha final.",
+  "search.rejected_value": "Valor rechazado"
 }

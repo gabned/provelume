@@ -2289,5 +2289,10 @@
   "action.knowledge_objects": "Object proposals",
   "action.reason.object_proposal": "An object draft requires fresh evidence and an explicit domain review.",
   "review.knowledge_objects": "Object review",
-  "review.reject": "Reject"
+  "review.reject": "Reject",
+  "search.date_help": "Dates filter acquisition days in UTC.",
+  "search.input_error_title": "Correct the search filters.",
+  "search.invalid_date": "Enter a valid date in YYYY-MM-DD format.",
+  "search.invalid_range": "The start date must be on or before the end date.",
+  "search.rejected_value": "Rejected value"
 }

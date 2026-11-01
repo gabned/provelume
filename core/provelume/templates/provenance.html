@@ -1,7 +1,7 @@
 {% extends base_layout %}
 {% block title %}{{ t('provenance.title') }} · {{ provenance.document.title }}{% endblock %}
 {% block content %}
-{% if interface_mode == "preview" and return_to %}<a class="cura-back" href="{{ return_to }}">{{ icon("arrow-left") }}{{ return_label }}</a>{% endif %}
+{% if return_to and (interface_mode == "preview" or return_to.startswith('/search')) %}<a class="cura-back" href="{{ return_to }}">{{ icon("arrow-left") }}{{ return_label }}</a>{% endif %}
 <nav class="breadcrumb"><a href="{{ document_link(provenance.document.id) }}">{{ provenance.document.title }}</a><span>/</span><span>{{ t('provenance.title') }}</span></nav>
 <h1>{{ t('provenance.title') }}</h1><p class="lead">{{ t('provenance.explainer') }}</p>
 <section class="panel"><div class="trace-chain"><span>{{ t("cura.trace.source") }}</span><b>→</b><span>{{ t("cura.trace.acquisition") }}</span><b>→</b><span>{{ t("cura.trace.original") }}</span><b>→</b><span>{{ t("cura.trace.version") }}</span><b>→</b><span>{{ t("cura.trace.derived") }}</span></div></section>

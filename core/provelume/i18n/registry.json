@@ -15442,6 +15442,36 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "search.date_help": {
+      "context": "search: calendar-day validation and recovery; templates/search_errors.html; templates/search_dates.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.input_error_title": {
+      "context": "search: calendar-day validation and recovery; templates/search_errors.html; templates/search_dates.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.invalid_date": {
+      "context": "search: calendar-day validation and recovery; templates/search_errors.html; templates/search_dates.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.invalid_range": {
+      "context": "search: calendar-day validation and recovery; templates/search_errors.html; templates/search_dates.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.rejected_value": {
+      "context": "search: calendar-day validation and recovery; templates/search_errors.html; templates/search_dates.html",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
     }
   },
   "schema_version": 1,

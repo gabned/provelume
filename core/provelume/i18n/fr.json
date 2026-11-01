@@ -2289,5 +2289,10 @@
   "action.knowledge_objects": "Propositions d’objets",
   "action.reason.object_proposal": "Un brouillon d’objet exige des preuves actuelles et une révision explicite.",
   "review.knowledge_objects": "Révision des objets",
-  "review.reject": "Refuser"
+  "review.reject": "Refuser",
+  "search.date_help": "Les dates filtrent les jours d’acquisition en UTC.",
+  "search.input_error_title": "Corrigez les filtres de recherche.",
+  "search.invalid_date": "Saisissez une date valide au format AAAA-MM-JJ.",
+  "search.invalid_range": "La date de début doit précéder ou être identique à la date de fin.",
+  "search.rejected_value": "Valeur refusée"
 }

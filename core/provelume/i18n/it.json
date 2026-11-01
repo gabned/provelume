@@ -2289,5 +2289,10 @@
   "action.knowledge_objects": "Proposte di oggetti",
   "action.reason.object_proposal": "Una bozza di oggetto richiede evidenze aggiornate e una revisione esplicita.",
   "review.knowledge_objects": "Revisione degli oggetti",
-  "review.reject": "Rifiuta"
+  "review.reject": "Rifiuta",
+  "search.date_help": "Le date filtrano i giorni di acquisizione in UTC.",
+  "search.input_error_title": "Correggi i filtri di ricerca.",
+  "search.invalid_date": "Inserisci una data valida nel formato AAAA-MM-GG.",
+  "search.invalid_range": "La data iniziale deve precedere o coincidere con quella finale.",
+  "search.rejected_value": "Valore rifiutato"
 }
