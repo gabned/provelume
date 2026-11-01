@@ -531,3 +531,40 @@ def test_empty_ocr_never_becomes_complete_or_accepted_search_text(source_ocr):
         instance.review_decisions.preview("ocr_sources", source_id, "limited_result", {
             "version_id": version, "profile": "ocr-accepted", "artifact_id": artifact["id"],
         })
+
+
+@pytest.mark.parametrize("newlines", [b"\r\n", b"\r", b"\n"])
+@pytest.mark.parametrize("producer", ["maintenance", "processing"])
+def test_native_text_proof_keeps_raw_checksum_and_matches_existing_fts_newline_semantics(
+    tmp_path, newlines, producer,
+):
+    from test_processing_autonomy import grant, permit, policy, queue
+
+    from provelume.producer_index_evidence import resolve_index_contribution
+
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "native.txt").write_bytes(b"Synthetic orchid" + newlines + b"second line" + newlines)
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    instance.ingest(source)
+    document = instance.list_documents()[0]
+    artifact = instance.store.derived_artifact_for_version(document["current_version_id"])
+    raw = (instance.root / artifact["storage_ref"]).read_bytes()
+    if producer == "processing":
+        grant(instance, document["source_id"])
+        policy(instance, document["source_id"])
+        receipt = permit(instance, document, "index")
+        job = queue(instance, document, "index", permit_receipt=receipt)["job"]
+    else:
+        from provelume.scheduler_model import schedule_payload
+
+        scheduled = instance.scheduler.create_policy(
+            job_kind="search.reindex", state="disabled",
+            scope={"kind": "instance", "id": instance.instance_summary()["id"]},
+            schedule=schedule_payload(mode="manual", timezone="UTC"))
+        job = instance.scheduler.run_now(scheduled["id"], request_key="native-newlines")["job"]
+    result = instance.scheduler.run_one(job_id=job["id"])
+    assert result["status"] == "succeeded", result
+    proof = resolve_index_contribution(instance.store, producer, job["id"], document["id"])
+    assert proof["profile"] == "native"
+    assert (instance.root / artifact["storage_ref"]).read_bytes() == raw

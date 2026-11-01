@@ -50,6 +50,10 @@ def describe_contribution(store, document_id, version_id):
         selection = artifacts[0] if artifacts else None
         text = (None if selection is None else _verified_bytes(
             store, selection["storage_ref"], selection["checksum"]).decode("utf-8"))
+        if text is not None:
+            # Verify the stored bytes first, then mirror read_derived_text's
+            # universal-newline projection used by the existing FTS writer.
+            text = text.replace("\r\n", "\n").replace("\r", "\n")
         profile = "unavailable" if selection is None else "native"
         if version["media_type"] == "application/pdf" and selection is not None:
             characters, ratio = reliable_text_metrics(text, generator=selection["generator"])
