@@ -2324,5 +2324,7 @@
   "review.effect_ocr_sources": "Créer des demandes OCR locales ou modifier la contribution de recherche explicitement sélectionnée. Aucune suppression Inbox, IA, cloud ou autorisation pour d’autres Sources.",
   "review.reverse_ocr_sources": "Désactiver les futures demandes OCR automatiques. Les Originals conservés et le texte dérivé terminé restent disponibles.",
   "review.ocr_enqueue_pending": "La sélection est enregistrée ; la mise en file doit être reprise. Ouvrir une nouvelle vérification de la demande conservée.",
-  "review.ocr_jobs_link": "Voir les demandes OCR"
+  "review.ocr_jobs_link": "Voir les demandes OCR",
+  "review.inbox_transit": "Boîte de transit",
+  "review.release": "Retirer les entrées terminées"
 }

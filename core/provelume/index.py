@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 from .derived import materialize_extracted_text
 from .domain import as_record
 from .extractors import ExtractionError, extract_web_readable_text, extractor_for
+from .instance_lifecycle import lifecycle_writer
 from .paths import safe_instance_path
 from .retention_model import documents_with_dispositions
 from .storage import InstanceStore, utc_now
@@ -453,6 +454,7 @@ def _database_count(path: Path) -> int:
         connection.close()
 
 
+@lifecycle_writer("search-index-rebuild")
 def rebuild_search_index(
     store: InstanceStore,
     *,
@@ -501,6 +503,7 @@ def rebuild_search_index(
         temporary_metadata_path.unlink(missing_ok=True)
 
 
+@lifecycle_writer("search-index-refresh")
 def refresh_search_index(
     store: InstanceStore,
     document_ids: Iterable[str],

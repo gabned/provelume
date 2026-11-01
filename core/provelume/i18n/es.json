@@ -2324,5 +2324,7 @@
   "review.effect_ocr_sources": "Crear solicitudes OCR locales o modificar la contribución de búsqueda seleccionada expresamente. Sin eliminación de Inbox, IA, nube ni consentimiento para otras Sources.",
   "review.reverse_ocr_sources": "Desactivar futuras solicitudes OCR automáticas. Los Originals conservados y el texto derivado completado siguen disponibles.",
   "review.ocr_enqueue_pending": "La selección está guardada; hay que recuperar la entrada en la cola. Abre una nueva revisión de la solicitud conservada.",
-  "review.ocr_jobs_link": "Ver solicitudes OCR"
+  "review.ocr_jobs_link": "Ver solicitudes OCR",
+  "review.inbox_transit": "Bandeja de tránsito",
+  "review.release": "Retirar entradas completadas"
 }

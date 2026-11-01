@@ -2324,5 +2324,7 @@
   "review.effect_ocr_sources": "Lokale OCR-Anfragen erstellen oder den ausdrücklich gewählten Suchbeitrag ändern. Keine Inbox-Löschung, KI, Cloud oder Zustimmung für andere Sources.",
   "review.reverse_ocr_sources": "Zukünftige automatische OCR-Anfragen deaktivieren. Gesicherte Originals und fertiger abgeleiteter Text bleiben verfügbar.",
   "review.ocr_enqueue_pending": "Die Auswahl wurde gespeichert; die Aufnahme in die Warteschlange muss wiederhergestellt werden. Die gespeicherte Anfrage erneut prüfen.",
-  "review.ocr_jobs_link": "OCR-Anfragen anzeigen"
+  "review.ocr_jobs_link": "OCR-Anfragen anzeigen",
+  "review.inbox_transit": "Durchgangseingang",
+  "review.release": "Abgeschlossene Eingaben freigeben"
 }

@@ -203,7 +203,8 @@ def resolve_index_contribution(store, producer, job_id, document_id):
         return result
     if ((producer == "maintenance" and job["job_kind"] not in {
             "search.reindex", "search.reindex.incremental"})
-            or (producer == "processing" and job["job_kind"] != "processing.execute")
+            or (producer == "processing" and job["job_kind"] not in {
+                "processing.execute", "source.refresh"})
             or producer not in ROOTS):
         raise ReviewUnavailable("Another producer owns this job")
     receipt = scheduler.journal.get_receipt("receipt_" + job_id.removeprefix("job_"))
@@ -214,7 +215,24 @@ def resolve_index_contribution(store, producer, job_id, document_id):
     packet = read_json(store, publication["input_ref"])
     if packet["instance_id"] != store.read_config()["instance"]["id"]:
         raise ReviewUnavailable("Index evidence belongs to another Instance")
-    if producer == "processing":
+    if job["job_kind"] == "source.refresh":
+        from .folder_sources import FolderSourceManager
+        from .ingestion_runs import IngestionLedger
+
+        observer = FolderSourceManager(store).observer(job["scope"]["id"])
+        if observer["last_scheduler_job_id"] != job_id:
+            raise ReviewUnavailable("Another folder refresh owns the current observation")
+        run_id = observer["last_ingestion_run_id"]
+        detail = IngestionLedger(store).run_detail(run_id) if run_id is not None else None
+        if detail is None or detail["run"]["status"] != "completed":
+            raise ReviewUnavailable("Folder contribution has no completed ingestion run")
+        acquisitions = [read_json(store, f"knowledge/acquisitions/{i['acquisition_id']}.json")
+                        for i in detail["items"] if i["acquisition_id"] is not None]
+        if any(a is None or a["source_id"] != job["scope"]["id"] for a in acquisitions):
+            raise ReviewUnavailable("Folder proof has an unavailable acquisition")
+        versions = {a["document_id"]: a["version_id"] for a in acquisitions}
+        plan_revision = digest({"run_id": run_id, "acquisitions": acquisitions})
+    elif producer == "processing":
         from .processing_jobs import ProcessingJobs
 
         plan = job.get("execution_plan")

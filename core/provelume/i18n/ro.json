@@ -2324,5 +2324,7 @@
   "review.effect_ocr_sources": "Creează cereri OCR locale sau modifică contribuția de căutare selectată explicit. Fără ștergere Inbox, AI, cloud sau consimțământ pentru alte Sources.",
   "review.reverse_ocr_sources": "Dezactivează viitoarele cereri OCR automate. Originals păstrate și textul derivat finalizat rămân disponibile.",
   "review.ocr_enqueue_pending": "Selecția este salvată; admiterea în coadă necesită recuperare. Deschide o nouă verificare a cererii păstrate.",
-  "review.ocr_jobs_link": "Vezi cererile OCR"
+  "review.ocr_jobs_link": "Vezi cererile OCR",
+  "review.inbox_transit": "Inbox de tranzit",
+  "review.release": "Elimină intrările finalizate"
 }

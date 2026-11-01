@@ -217,7 +217,7 @@ def review_options(instance, domain, subject, *, job_id=None):
                     {"id": row["id"], "label": row["path_prefix"] or row["source_id"]}
                     for row in instance.classification_review.policies()
                 )
-        elif subject in {"processing", "ocr_sources"}:
+        elif subject in {"processing", "ocr_sources", "inbox_transit"}:
             result["subjects"] = [{"id": row["id"], "label": row["name"]}
                                   for row in result["sources"]]
         elif subject == "knowledge_objects":

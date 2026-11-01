@@ -184,7 +184,7 @@ class ReviewAuthority:
             if re.fullmatch(r"doc_[0-9a-f]{32}", subject):
                 record = read_json(self.store, f"knowledge/documents/{subject}.json")
                 source = record.get("source_id") if record else None
-            elif domain in {"processing", "ocr_sources"} and re.fullmatch(
+            elif domain in {"processing", "ocr_sources", "inbox_transit"} and re.fullmatch(
                 r"src_[0-9a-f]{32}", subject
             ):
                 source = subject

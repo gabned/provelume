@@ -319,7 +319,8 @@ def open_local_file(value: Path | str):
             descriptor = (
                 _windows_open(path, directory=False)
                 if os.name == "nt"
-                else os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=parent)
+                else os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                             dir_fd=parent)
             )
             with os.fdopen(descriptor, "rb") as handle:
                 if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):

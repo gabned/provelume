@@ -154,6 +154,7 @@ class ProvelumeInstance:
         self.representations = RepresentationReadModel(self.store)
         from .annotation_store import AnnotationProvider
         from .classification_review import ClassificationReview
+        from .inbox_transit import InboxTransit, InboxTransitReview
         from .knowledge_object_review import KnowledgeObjectReview
         from .ocr_sources import SourceOcrFlow, SourceOcrReview
         from .processing_autonomy import ProcessingReview
@@ -171,13 +172,15 @@ class ProvelumeInstance:
         self.object_review = KnowledgeObjectReview(self)
         self.processing_review = ProcessingReview(self.store)
         self.ocr_source_review = SourceOcrReview(self.store)
+        self.inbox_transit_review = InboxTransitReview(self.store)
+        self.inbox_transit = InboxTransit(self.store)
         self.review_decisions = ReviewDecisions(
             self.store,
             [
                 self.review_authority, PlacementProvider(self.store), self.review_routing,
                 DuplicateDecisionProvider(self.store), VersionDecisionProvider(self.store),
                 self.annotations, self.classification_review, self.processing_review,
-                self.object_review, self.ocr_source_review,
+                self.object_review, self.ocr_source_review, self.inbox_transit_review,
             ],
             authority_resolver=self.review_authority.resolve,
             transaction_factory=review_transaction_factory(self.store),

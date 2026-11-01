@@ -4,7 +4,13 @@ All notable public product changes are recorded here. Provelume is pre-1.0 and c
 
 ## Unreleased
 
-No unreleased changes.
+### Added
+
+- Concordia S06 preparation: explicit per-Inbox transit/keep policy, separate
+  reviewed backlog exit, current per-Version search evidence and guarded Windows
+  input disposition. Existing Folder Sources keep their behavior. Source/OCR
+  completion and input exit have separate retained outcomes; UI/setup integration
+  and production-PC observations remain pending.
 
 ## 0.14.0 - 2026-10-18
 

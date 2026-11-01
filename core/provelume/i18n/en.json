@@ -2324,5 +2324,7 @@
   "review.effect_ocr_sources": "Create local OCR requests or change the explicitly selected search contribution. No Inbox deletion, AI, cloud or other Source consent.",
   "review.reverse_ocr_sources": "Disable future OCR admission. Preserved Originals and completed derived text remain available.",
   "review.ocr_enqueue_pending": "The selection is saved; queue admission needs recovery. Open a fresh review to inspect the retained request.",
-  "review.ocr_jobs_link": "View OCR requests"
+  "review.ocr_jobs_link": "View OCR requests",
+  "review.inbox_transit": "Inbox transit",
+  "review.release": "Release completed inputs"
 }

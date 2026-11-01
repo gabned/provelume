@@ -62,10 +62,36 @@ class IngestionRunResult:
 def _refresh_after_ingestion(
     store: InstanceStore,
     result: IngestionRunResult,
+    *,
+    producer_job=None,
 ) -> None:
     from .index import IndexScopeError
     from .ocr_sources import SourceOcrFlow
     from .processing_autonomy import defers_inline_processing, has_processing_policies
+
+    transit_prepared = None
+    transit_policies = store.paths.state / "review" / "inbox_transit" / "policies"
+    if transit_policies.exists() or transit_policies.is_symlink():
+        from .inbox_transit import InboxTransit
+        from .producer_index_evidence import prepare_index_inputs
+        from .review_effects import ReviewError
+
+        flow = InboxTransit(store)
+        for acquisition in result.acquisitions:
+            # A pending/stale input action cannot roll back committed intake.
+            try:
+                flow.admit(asdict(acquisition))
+            except (ReviewError, OSError):
+                continue
+        if producer_job is not None and result.run.status == "completed":
+            from .action_center_model import digest
+
+            acquisitions = [asdict(a) for a in result.acquisitions]
+            if flow.review.policy(result.run.source_id) is not None:
+                versions = {a["document_id"]: a["version_id"] for a in acquisitions}
+                transit_prepared = prepare_index_inputs(
+                    store, producer_job, "processing", versions,
+                    digest({"run_id": result.run.id, "acquisitions": acquisitions}))
 
     ocr_policies = store.paths.state / "review" / "ocr_sources" / "policies"
     if ocr_policies.exists() or ocr_policies.is_symlink():
@@ -80,7 +106,7 @@ def _refresh_after_ingestion(
                             for acquisition in result.acquisitions):
         return
     try:
-        if has_processing_policies(store):
+        if has_processing_policies(store) or transit_prepared is not None:
             refresh_search_index(store, selected, recover_missing_derived=False,
                                  allow_full_rebuild=False)
         else:
@@ -89,6 +115,10 @@ def _refresh_after_ingestion(
         # Original acquisition committed. A scoped/background refresh cannot
         # rebuild another Source; the existing index status exposes this need.
         return
+    if transit_prepared is not None:
+        from .producer_index_evidence import publish_index_inputs
+
+        publish_index_inputs(store, producer_job, "processing", transit_prepared)
 
 
 def _stable_document_id(source_id: str, locator: str) -> str:

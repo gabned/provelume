@@ -1621,7 +1621,9 @@
         "review.effect_ocr_sources",
         "review.reverse_ocr_sources",
         "review.ocr_enqueue_pending",
-        "review.ocr_jobs_link"
+        "review.ocr_jobs_link",
+        "review.inbox_transit",
+        "review.release"
       ],
       "namespace": ""
     },
@@ -15649,6 +15651,18 @@
     },
     "review.ocr_jobs_link": {
       "context": "Source-scoped OCR consent, selective Original recovery and explicit limited text selection. Keep Source, Version and Originals identities distinct.",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.inbox_transit": {
+      "context": "Scoped Inbox capability and exact input release; Originals remain preserved.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "review.release": {
+      "context": "Scoped Inbox capability and exact input release; Originals remain preserved.",
+      "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": true
     }

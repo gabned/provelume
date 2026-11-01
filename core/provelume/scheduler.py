@@ -5,7 +5,7 @@ import os
 import sqlite3
 from collections import Counter
 from collections.abc import Iterator, Mapping, Sequence
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from threading import Event, RLock, Thread
@@ -2528,7 +2528,7 @@ class SchedulerCoordinator:
             )
         completed_at = max(selected_now, datetime.now(UTC)) if live_clock else selected_now
         if ok:
-            return self.journal.succeed(
+            completed = self.journal.succeed(
                 str(job["id"]),
                 lease_token,
                 progress=progress,
@@ -2536,6 +2536,15 @@ class SchedulerCoordinator:
                 canonical_mutation=canonical_mutation,
                 now=completed_at,
             )
+            if (self.store.paths.state / "inbox-transit" / "admissions").exists():
+                from .inbox_transit import InboxTransit
+                from .review_effects import ReviewError
+
+                # Terminal producer success cannot imply input-exit success.
+                # Retained evidence keeps the separate action pending.
+                with suppress(ReviewError, OSError):
+                    InboxTransit(self.store).after_job_locked(completed)
+            return completed
         return self.journal.fail(
             str(job["id"]),
             lease_token,
