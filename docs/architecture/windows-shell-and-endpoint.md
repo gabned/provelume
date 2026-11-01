@@ -1,5 +1,10 @@
 # Windows shell and local endpoint architecture
 
+Concordia S01 development adds [owned startup/readiness](startup-readiness.md), including
+bounded private proof, truthful cleanup state and local details. Its
+[qualification matrix](../qualification/concordia-startup-readiness.md) separates source,
+frozen, Windows 11 and human evidence. It is not a published 0.15.0 capability.
+
 This document defines the English architecture contract implemented by `0.9/S07` and published
 with Lectio. The public product identity is `0.9.0`.
 

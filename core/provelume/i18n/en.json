@@ -2289,5 +2289,21 @@
   "action.knowledge_objects": "Object proposals",
   "action.reason.object_proposal": "An object draft requires fresh evidence and an explicit domain review.",
   "review.knowledge_objects": "Object review",
-  "review.reject": "Reject"
+  "review.reject": "Reject",
+  "desktop.startup_preparing": "Preparing the selected Instance. You can stop startup.",
+  "desktop.startup_waiting": "Waiting for the selected local service to become ready.",
+  "desktop.startup_stop_unconfirmed": "Some startup resources are still active or unconfirmed. Wait before retrying or closing.",
+  "desktop.startup_details": "Startup details",
+  "desktop.startup_details_help": "Local startup phases, error codes and timing only. No document content or paths, credentials or connection proofs.",
+  "desktop.startup_details_empty": "No startup attempt has been recorded in this session.",
+  "desktop.startup_error_preparation": "Preparation timed out. Check that the Instance is available and retry.",
+  "desktop.startup_error_spawn": "The local service could not be started. Check the installation and retry.",
+  "desktop.startup_error_bootstrap": "Startup could not establish its private connection. Check the installation and retry.",
+  "desktop.startup_error_exit": "The local service exited. Review the startup details and retry.",
+  "desktop.startup_error_timeout": "The service did not become ready in time. Review the startup details and retry.",
+  "desktop.startup_error_protocol": "Startup could not verify the selected local service. Check the installation and selected Instance.",
+  "desktop.startup_error_configuration": "The selected Instance or local settings could not be opened. Check them and retry.",
+  "desktop.startup_error_integrity": "Installation integrity verification failed. Restore a verified installation before retrying.",
+  "desktop.startup_error_initialization": "The service could not complete initialization. Review the startup details and retry.",
+  "tray_status.stop_unconfirmed": "Stop unconfirmed"
 }

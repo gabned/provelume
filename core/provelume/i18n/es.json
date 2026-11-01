@@ -2289,5 +2289,21 @@
   "action.knowledge_objects": "Propuestas de objetos",
   "action.reason.object_proposal": "Un borrador de objeto requiere pruebas actuales y una revisión explícita.",
   "review.knowledge_objects": "Revisión de objetos",
-  "review.reject": "Rechazar"
+  "review.reject": "Rechazar",
+  "desktop.startup_preparing": "Preparando la instancia seleccionada. Puedes detener el inicio.",
+  "desktop.startup_waiting": "Esperando a que el servicio local seleccionado esté listo.",
+  "desktop.startup_stop_unconfirmed": "Algunos recursos de inicio siguen activos o sin confirmar. Espera antes de reintentar o salir.",
+  "desktop.startup_details": "Detalles del inicio",
+  "desktop.startup_details_help": "Solo fases, códigos de error y tiempos del inicio local. Sin contenido ni rutas de documentos, credenciales o pruebas de conexión.",
+  "desktop.startup_details_empty": "No se ha registrado ningún intento de inicio en esta sesión.",
+  "desktop.startup_error_preparation": "La preparación agotó el tiempo disponible. Comprueba que la instancia esté disponible y vuelve a intentarlo.",
+  "desktop.startup_error_spawn": "No se pudo iniciar el servicio local. Comprueba la instalación y vuelve a intentarlo.",
+  "desktop.startup_error_bootstrap": "No se pudo establecer la conexión privada de inicio. Comprueba la instalación y vuelve a intentarlo.",
+  "desktop.startup_error_exit": "El servicio local terminó. Consulta los detalles del inicio y vuelve a intentarlo.",
+  "desktop.startup_error_timeout": "El servicio no estuvo listo a tiempo. Consulta los detalles del inicio y vuelve a intentarlo.",
+  "desktop.startup_error_protocol": "No se pudo verificar el servicio local seleccionado. Comprueba la instalación y la instancia seleccionada.",
+  "desktop.startup_error_configuration": "No se pudo abrir la instancia seleccionada o la configuración local. Compruébalas y vuelve a intentarlo.",
+  "desktop.startup_error_integrity": "Falló la verificación de integridad de la instalación. Restaura una instalación verificada antes de reintentar.",
+  "desktop.startup_error_initialization": "El servicio no pudo completar la inicialización. Consulta los detalles del inicio y vuelve a intentarlo.",
+  "tray_status.stop_unconfirmed": "Parada sin confirmar"
 }

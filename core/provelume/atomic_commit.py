@@ -710,7 +710,12 @@ def _journal_path(stage: Path, relative: str, *, error_type: _ErrorType) -> Path
     if _JOURNAL_FILE.fullmatch(relative) is None:
         raise error_type()
     try:
-        path = safe_instance_path(stage, relative)
+        lexical = stage.joinpath(*PurePosixPath(relative).parts)
+        # The kernel validates the complete chain without following links.
+        # Keep the original resolver on unsupported hosts and the fresh
+        # per-component checks below on every host; no observation is cached.
+        path = (lexical if stage.is_absolute() and kernel_no_links(lexical)
+                else safe_instance_path(stage, relative))
     except (OSError, RuntimeError, ValueError):
         raise error_type() from None
     current = stage
@@ -777,9 +782,12 @@ def _bounded_file_digest(
         digest = hashlib.sha256()
         size = 0
         with path.open("rb") as handle:
-            while block := handle.read(1024 * 1024):
+            # The fresh size also bounds the read buffer. Requesting a full
+            # MiB for a tiny journal allocates that buffer on every digest.
+            # One extra byte detects growth; the identity checks still follow.
+            while block := handle.read(min(1024 * 1024, before.st_size - size + 1)):
                 size += len(block)
-                if size > limit:
+                if size > before.st_size:
                     raise error_type()
                 digest.update(block)
         after = path.stat()
