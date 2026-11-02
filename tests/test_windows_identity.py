@@ -215,7 +215,7 @@ def test_windows_shell_smoke_is_bounded_sanitized_and_exact_head_aware() -> None
     assert workflow.count("$env:PROVELUME_QUALIFIED_SHA") >= 6
     assert "-ExpectedCommit $env:GITHUB_SHA" not in workflow
     assert (
-        "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f" in workflow
+        "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9" in workflow
     )
     assert "actions/upload-artifact@b7c566a772e6b6fb58ed0dc250532a479d7789f" not in workflow
 

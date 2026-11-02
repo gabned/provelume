@@ -22,12 +22,18 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.12'
       - name: Resolve the PDF correction while preserving all other pins
         run: python scripts/resolve_windows_pdf_lock.py --output .agent/windows-pdf-lock
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      - name: Verify the committed lock matches native Windows resolution
+        run: >-
+          python -c "from pathlib import Path;
+          expected = Path('build-lock/windows-py312-x86_64.requirements.txt').read_text();
+          actual = Path('.agent/windows-pdf-lock/windows-py312-x86_64.requirements.txt').read_text();
+          assert expected == actual, 'Committed PDF lock differs from native Windows resolution'"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: windows-pdf-lock-${{ github.run_id }}
