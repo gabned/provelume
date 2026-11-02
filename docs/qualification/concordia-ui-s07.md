@@ -154,3 +154,12 @@ product checks. The combined targeted run is **59 PASS**. The initial full run w
 explicitly interrupted after a source change at 3,188 PASS / 20 SKIP / 419 subtests;
 it is **INTERRUPTED**, not a full-suite PASS. Final native and exact-head remote
 qualification belong to the unchanged committed candidate and its PR ledger.
+
+A subsequent source review found two edge states: an unobserved non-local Source
+must display an unknown input count rather than its initialized zero, and Capture
+must require an acquired receipt before offering a Document link. Both are fixed
+with negative/state regression coverage (32 targeted PASS). The superseded
+`d8cfe62` full local run was interrupted after the source correction; any teardown
+KeyboardInterrupt/pytest stash diagnostic belongs to that interruption. Its
+partial results are not reused as final qualification. Fresh final native/CI
+results bind the corrected head recorded in the owner PR.

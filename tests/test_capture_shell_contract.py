@@ -78,10 +78,12 @@ const source=readFileSync('core/provelume/static/capture-shell.js','utf8')
  .replace(/\}\)\(\);\s*$/,`globalThis.test={render,seed(rows){
    entries=async()=>rows;identity={instance_id:'inst_a'};lang='it';}};})();`);
 vm.createContext(scope);vm.runInContext(source,scope);
-const base={state:'acquired',createdAt:1,channel:'local_browser',instance_id:'inst_a',
+const base={state:'acquired',acquisitionId:'acq_'+'c'.repeat(32),createdAt:1,
+ channel:'local_browser',instance_id:'inst_a',
  documentId:'doc_'+'a'.repeat(32)};
 for(const [row,allowed] of [[base,true],[{...base,channel:'paired_pwa'},false],
- [{...base,instance_id:'inst_b'},false],[{...base,documentId:'../../foreign'},false]]){
+ [{...base,instance_id:'inst_b'},false],[{...base,documentId:'../../foreign'},false],
+ [{...base,state:'queued'},false],[{...base,acquisitionId:null},false]]){
  scope.test.seed([row]);await scope.test.render();
  const links=elements.outbox.children[0].children.filter(x=>x.tag==='a');
  assert.equal(links.length,allowed?1:0);

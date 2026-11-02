@@ -39,8 +39,9 @@ def source_journey(instance, source, *, runtime="stopped"):
                 "manual" if policy["schedule"]["mode"] == "manual" else "automatic")
             result["next_due_at"] = policy["next_due_at"]
         observer = source["observer"]
-        result["files_present"] = observer.get("file_count")
         result["files_observed_at"] = observer.get("last_observed_at")
+        result["files_present"] = (observer.get("file_count")
+                                   if result["files_observed_at"] else None)
         result["counts_state"] = "observed" if result["files_observed_at"] else "unknown"
         if observer.get("last_scheduler_job_id"):
             result["last_job"] = instance.scheduler.journal.get_job(

@@ -52,6 +52,18 @@ def test_unreadable_or_changed_input_cannot_become_false_zero(archive, monkeypat
     assert view["to_complete"] is None and view["counts_state"] == "attention"
 
 
+def test_unobserved_nonlocal_source_has_unknown_count_and_retains_observation_time(archive):
+    instance, _source, source_id = archive
+    source = {**instance.folder_sources.public_view(source_id), "source_class": "network"}
+    unobserved = source_journey(instance, source)
+    assert unobserved["files_present"] is None and unobserved["counts_state"] == "unknown"
+    stamp = "2026-11-02T00:00:00+00:00"
+    source["observer"] = {**source["observer"], "file_count": 0, "last_observed_at": stamp}
+    observed = source_journey(instance, source)
+    assert observed["files_present"] == 0 and observed["files_observed_at"] == stamp
+    assert observed["counts_state"] == "observed"
+
+
 def test_document_reads_actual_text_index_and_materialized_library_separately(archive):
     instance, source, _source_id = archive
     (source / "note.txt").write_text("Synthetic searchable text.")

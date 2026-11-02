@@ -147,7 +147,7 @@
       if(row.state!=="acquired")li.append(button("retry",()=>sendRow(row.id)));
       li.append(button("remove",async()=>{if(!confirm(WORDS[lang].localOnly))return;await change(row.id,()=>null);await render();}));
       if(row.acquisitionId)li.append(button("download",()=>download(row.id)));
-      if(row.channel==="local_browser"&&row.instance_id===identity?.instance_id&&/^doc_[0-9a-f]{32}$/.test(row.documentId||""))li.append(documentLink(row.documentId));
+      if(row.state==="acquired"&&row.acquisitionId&&row.channel==="local_browser"&&row.instance_id===identity?.instance_id&&/^doc_[0-9a-f]{32}$/.test(row.documentId||""))li.append(documentLink(row.documentId));
       $("outbox").append(li);
     }
   }
