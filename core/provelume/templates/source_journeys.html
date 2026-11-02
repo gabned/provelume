@@ -1,0 +1,34 @@
+{% for journey in journeys %}
+{% set source = journey.source %}
+<article class="panel journey-source" id="source-{{ source.id }}">
+  <h3>{{ icon('inbox') }} {{ source.name }}</h3>
+  <p>{{ t('journey.role.' ~ journey.role) }} · {{ t('journey.mode.' ~ journey.mode) }}</p>
+  <dl class="journey-facts">
+    <dt>{{ t('journey.automation') }}</dt><dd>{{ t('journey.' ~ journey.automation) }} · {{ t('sources.' ~ source.lifecycle_state) }}</dd>
+    <dt>{{ t('journey.runtime') }}</dt><dd role="status">{{ t('journey.runtime.' ~ journey.runtime) }}</dd>
+    <dt>{{ t('journey.files') }}</dt><dd>{{ ui_number(journey.files_present) if journey.files_present is not none else t('journey.unknown') }} · {{ t('journey.counts.' ~ journey.counts_state) }}</dd>
+    <dt>{{ t('journey.text_pending') }}</dt><dd>{{ ui_number(journey.to_complete) if journey.to_complete is not none else t('journey.unknown') }}</dd>
+    <dt>{{ t('journey.ocr_consent') }}</dt><dd>{{ t('journey.consent_stale') if journey.ocr_consent_needs_review else t('common.yes') if journey.ocr_enabled == true else t('common.no') if journey.ocr_enabled == false else t('journey.unknown') }}</dd>
+    <dt><a href="/ocr?lang={{ lang }}">{{ t('journey.ocr_runtime') }}</a></dt><dd>{{ t('journey.ocr.' ~ journey.ocr_state) }}{% if journey.ocr_error %} · {{ journey.ocr_error.messages[lang] }}{% endif %}</dd>
+    <dt>{{ t('journey.last_result') }}</dt><dd>{% if journey.last_job %}<a href="/scheduler?lang={{ lang }}">{{ t('journey.job.' ~ journey.last_job.status) }}</a>{% else %}{{ t('journey.unknown') }}{% endif %}</dd>
+  </dl>
+  <p>{{ t('journey.keep_help') if journey.mode == 'keep' else t('journey.transit_help') }}</p>
+  {% if journey.inbox_policy_needs_review %}<p class="notice" role="status">{{ t('journey.inbox_policy_stale') }}</p>{% endif %}
+  {% if journey.mode == 'transit' and not journey.exit_supported %}<p class="notice" role="status">{{ t('journey.exit_unsupported') }}</p>{% endif %}
+  <details><summary>{{ t('journey.details') }}</summary>
+    <p>{{ t('sources.quiescence') }}: {{ ui_number(source.quiescence_seconds) }} · {{ t('sources.stable') }}: {{ ui_number(source.stable_observations_required) }}</p>
+    {% if journey.next_due_at %}<p>{{ t('journey.next_due') }}: <time datetime="{{ journey.next_due_at }}">{{ ui_date(journey.next_due_at, time=true) }}</time></p>{% endif %}
+    {% if journey.files_observed_at %}<p>{{ t('journey.observed_at') }}: {{ ui_date(journey.files_observed_at, time=true) }}</p>{% endif %}
+    {% if editable and source.path is defined %}<p class="hash">{{ source.path }}</p>{% endif %}
+    {% if source.diagnostic_message %}<p role="status">{{ source.diagnostic_message }}</p>{% endif %}
+  </details>
+  <p><a href="/sources?lang={{ lang }}#source-{{ source.id }}">{{ t('journey.manage_source') }}</a> · <a href="/review/decisions/ocr_sources/{{ source.id }}?lang={{ lang }}">{{ t('journey.ocr_consent') }}</a></p>
+  {% if editable and csrf_token %}<div class="journey-actions">
+    <form method="post" action="/sources?lang={{ lang }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="source_id" value="{{ source.id }}">
+      <button name="action" value="refresh">{{ t('sources.refresh') }}</button>
+      <button class="secondary" name="action" value="{{ 'enabled' if source.lifecycle_state == 'paused' else 'paused' }}">{{ t('sources.enable') if source.lifecycle_state == 'paused' else t('sources.pause') }}</button>
+    </form>
+  </div>{% endif %}
+</article>
+{% endfor %}

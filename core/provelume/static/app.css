@@ -132,3 +132,13 @@ dd { margin: 0; min-width: 0; overflow-wrap: anywhere; font-size: .84rem; }
 @media (max-width: 860px) { .site-header{position:static;grid-template-columns:minmax(0,1fr);gap:14px}.site-header nav{grid-column:1/-1;order:3;overflow-x:visible}.nav-group{position:static}.nav-menu{position:static;min-width:min(100%,260px);box-shadow:none}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.two-column,.document-layout,.security-layout{grid-template-columns:1fr}.filters,.search-form{grid-template-columns:repeat(2,minmax(0,1fr))}.edge-list li{grid-template-columns:90px 1fr} }
 @media (max-width: 560px) { .page-shell{width:min(100% - 24px,1180px);padding-top:26px}.site-header{padding:13px 12px}.metric-grid,.filters,.search-form{grid-template-columns:1fr}.search-form .wide{grid-column:auto}.document-header{align-items:start;flex-direction:column}dl{grid-template-columns:1fr} }
 @media (max-width: 560px) { .site-header{position:static;grid-template-columns:minmax(0,1fr)}.nav-group{max-width:100%;min-width:0}.nav-menu{min-width:0;max-width:100%}.nav-menu a,.nav-group summary{overflow-wrap:anywhere} }
+/* Shared task-oriented projections in Cura and Current. */
+.journey-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-block: 1rem; }
+.journey-actions .button, .journey-actions button, .journey-document .button { min-height: 44px; }
+.journey-actions button.secondary { background: transparent; color: var(--accent); }
+.journey-facts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: .5rem 1rem; }
+.journey-facts dt { font-weight: 600; }
+.journey-facts dd { margin: 0; }
+.journey-source, .journey-document, .journey-source details { overflow-wrap: anywhere; min-width: 0; }
+.journey-source h3 { display: flex; align-items: center; gap: .5rem; }
+@media (max-width: 40rem) { .journey-facts { grid-template-columns: minmax(0, 1fr); } }

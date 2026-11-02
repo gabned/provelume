@@ -5,17 +5,31 @@
   <p class="eyebrow">{{ t('inbox.eyebrow') }}</p>
   <h1>{{ inbox.name }}</h1>
   <p class="lead">{{ t('inbox.lead') }}</p>
-  <p><a class="button" href="/capture/">{% if lang == 'it' %}Acquisisci / coda offline e dispositivi{% else %}Capture / offline outbox and devices{% endif %}</a></p>
+  <div class="journey-actions">
+    <a class="button" href="/capture/?mode=file#capture-form">{{ icon('inbox') }}{{ t('journey.add_file') }}</a>
+    <a class="button secondary" href="/capture/?mode=text#capture-form">{{ icon('library') }}{{ t('journey.write_note') }}</a>
+    <a class="button secondary" href="/sources?lang={{ lang }}">{{ icon('inbox') }}{{ t('journey.watch_folder') }}</a>
+  </div>
+  <p>{{ t('journey.manual_help') }}</p>
+  <details><summary>{{ t('journey.capture_advanced') }}</summary><a href="/capture/">{{ t('journey.capture_advanced') }}</a></details>
   <p class="technical-note">
     {{ t('inbox.drop_help') }} <strong>{{ inbox.drop_locator }}</strong>
     · <a href="/settings?lang={{ lang }}">{{ t('nav.settings') }}</a>
   </p>
 </section>
 <section class="metric-grid">
-  <article><strong>{{ inbox.drop_files }}</strong><span>{{ t('inbox.waiting') }}</span></article>
+  <article><strong>{{ inbox.drop_files }}</strong><span>{{ t('journey.drop_files') }}</span></article>
   <article><strong>{{ inbox.submissions }}</strong><span>{{ t('inbox.submissions') }}</span></article>
   <article><strong>{{ inbox.completed }}</strong><span>{{ t('inbox.completed') }}</span></article>
   <article><strong>{{ inbox.attention }}</strong><span>{{ t('inbox.attention') }}</span></article>
+</section>
+<section class="panel"><h2>{{ icon('inbox') }}{{ t('journey.watched_folders') }}</h2>
+<p>{{ t('journey.count_boundary') }}</p>
+{% include 'source_journeys.html' %}
+{% if not journeys %}<p>{{ t('sources.empty') }}</p>{% endif %}
+</section>
+<section class="panel"><h2>{{ icon('library') }}{{ t('journey.open_result') }}</h2>
+<ul class="document-list">{% for document in captures %}<li><a href="{{ document_link(document.id) }}">{{ document.title }}</a> <a href="{{ document_link(document.id) }}">{{ t('journey.open_document') }}</a></li>{% else %}<li>{{ t('inbox.empty') }}</li>{% endfor %}</ul>
 </section>
 <section class="panel">
   <div class="panel-heading">
