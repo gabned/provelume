@@ -350,7 +350,7 @@ def assert_authoritative_guard(workflow: dict) -> None:
     assert [step.get("name") for step in steps] == names, "bounded trusted steps"
     assert steps[0] == {
         "name": "Set up Python",
-        "uses": "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405",
+        "uses": "actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0",
         "with": {"python-version": "3.12"},
     }, "pinned trusted setup"
     guard = steps[-1]
@@ -415,6 +415,18 @@ def trusted_guard_forms(tmp_path_factory: pytest.TempPathFactory) -> dict:
     section = document.split(marker, 1)[1]
     delta = section.split("```diff\n", 1)[1].split("\n```", 1)[0] + "\n"
     assert delta.startswith("--- a/.github/workflows/ci.yml\n+++ b/.github/workflows/ci.yml\n")
+    # Only adapt the historical patch's unchanged prerequisite context in memory;
+    # its registered reader/permission/guard changes and on-disk record stay intact.
+    old_setup = (
+        "         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405"
+        " # v6.2.0\n"
+    )
+    new_setup = (
+        "         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0"
+        " # v7.1.0\n"
+    )
+    assert delta.count(old_setup) == 1, "unique historical setup context"
+    delta = delta.replace(old_setup, new_setup)
     current = yaml.safe_load(workflow)
     authenticated = any(
         step.get("name") == _METADATA_READER
