@@ -37,7 +37,7 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.12'
       - name: Canonical dependency bootstrap
@@ -59,7 +59,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/qualify_ai_runtime_windows.ps1 -Artifacts "${{ runner.temp }}/s05-inputs"
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: s05-real-${{ matrix.os }}
@@ -80,7 +80,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.12'
       - name: Canonical dependency bootstrap
@@ -91,7 +91,7 @@ jobs:
         run: sudo sysctl kernel.sched_schedstats=1
       - name: Controlled replay (DIAGNOSTIC_ONLY, never qualification)
         run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-cpu-comparison"
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: concordia-cpu-comparison
@@ -108,7 +108,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.12'
       - name: Canonical dependency bootstrap
@@ -119,7 +119,7 @@ jobs:
         run: sudo sysctl kernel.sched_schedstats=1
       - name: Boundary counters and observer contrast (DIAGNOSTIC_ONLY)
         run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-observer-study" --observer-study
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: concordia-observer-study
@@ -136,7 +136,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.12'
       - name: Require real two-core four-thread SMT before model acquisition
@@ -149,7 +149,7 @@ jobs:
         run: sudo sysctl kernel.sched_schedstats=1
       - name: Controlled capture placement (DIAGNOSTIC_ONLY)
         run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-smt-study" --placement-study
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: concordia-smt-study
@@ -168,7 +168,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.12'
       - name: Require original CPU and actual SMT before model acquisition
@@ -181,7 +181,7 @@ jobs:
         run: sudo sysctl kernel.sched_schedstats=1
       - name: Controlled tracer placement (DIAGNOSTIC_ONLY)
         run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-tracer-study" --tracer-study
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: concordia-tracer-study
@@ -241,7 +241,7 @@ jobs:
           with Path(os.environ["GITHUB_OUTPUT"]).open("a") as stream:
               stream.write("eligible=" + str(eligible).lower() + "\n")
           PY
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         if: steps.contract.outputs.eligible == 'true'
         with:
           python-version: '3.12'
@@ -265,7 +265,7 @@ jobs:
       - name: Four original-source arms once on this observed host (DIAGNOSTIC_ONLY)
         if: steps.contract.outputs.eligible == 'true'
         run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-portable-tracer-study" --portable-tracer-study
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: concordia-portable-tracer-study
@@ -326,7 +326,7 @@ jobs:
           with Path(os.environ["GITHUB_OUTPUT"]).open("a") as stream:
               stream.write("eligible=" + str(eligible).lower() + "\n")
           PY
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         if: steps.contract.outputs.eligible == 'true'
         with:
           python-version: '3.12'
@@ -353,7 +353,7 @@ jobs:
       - name: Four full baseline/candidate arms once (DIAGNOSTIC_ONLY)
         if: steps.contract.outputs.eligible == 'true'
         run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-bounded-digest-study" --bounded-digest-study
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: concordia-bounded-digest-study

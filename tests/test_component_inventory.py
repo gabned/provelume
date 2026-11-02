@@ -88,7 +88,9 @@ def test_inventory_covers_component_classes_and_keeps_states_distinct() -> None:
 @pytest.mark.parametrize("version,status", [
     ("6.20.0", "incompatible"),
     ("6.21.1", "incompatible"),
-    ("6.21.2", "installed"),
+    ("6.21.2", "incompatible"),
+    ("6.21.3", "incompatible"),
+    ("6.21.4", "installed"),
 ])
 def test_pdf_inventory_enforces_the_corrected_runtime_floor_without_security_claims(
     version, status,
