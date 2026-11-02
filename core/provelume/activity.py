@@ -9,6 +9,7 @@ from .bundle_activity import attach_bundle_routes
 from .component_inventory_activity import attach_component_inventory_routes
 from .configured_inbox import InboxManager
 from .connector_activity import attach_connector_routes
+from .daily_journeys import runtime_state, source_journey
 from .folder_settings_activity import attach_folder_settings_routes
 from .operations import OperationLedger
 from .rebuild_activity import attach_rebuild_routes
@@ -98,6 +99,9 @@ def attach_activity_routes(
                 instance,
                 inbox=inbox.summary(),
                 submissions=inbox.list_submissions(limit=100),
+                journeys=[source_journey(instance, source, runtime=runtime_state(app))
+                          for source in instance.folder_sources.list_public()],
+                captures=instance.recent_documents(limit=8),
             ),
         )
 

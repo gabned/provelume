@@ -63,6 +63,36 @@ def node(script, *args):
     return json.loads(result.stdout)
 
 
+def test_acquired_local_capture_offers_document_link_without_remote_or_stale_links():
+    script = r"""
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+const elements={outbox:{children:[],replaceChildren(){this.children=[]},
+ append(x){this.children.push(x)}}};
+const make=tag=>({tag,dataset:{},children:[],append(x){this.children.push(x)}});
+const scope={navigator:{language:'en'},document:{addEventListener(){},
+  getElementById:id=>elements[id],createElement:make},encodeURIComponent};
+const source=readFileSync('core/provelume/static/capture-shell.js','utf8')
+ .replace('const entries = async () => {','let entries = async () => {')
+ .replace(/\}\)\(\);\s*$/,`globalThis.test={render,seed(rows){
+   entries=async()=>rows;identity={instance_id:'inst_a'};lang='it';}};})();`);
+vm.createContext(scope);vm.runInContext(source,scope);
+const base={state:'acquired',createdAt:1,channel:'local_browser',instance_id:'inst_a',
+ documentId:'doc_'+'a'.repeat(32)};
+for(const [row,allowed] of [[base,true],[{...base,channel:'paired_pwa'},false],
+ [{...base,instance_id:'inst_b'},false],[{...base,documentId:'../../foreign'},false]]){
+ scope.test.seed([row]);await scope.test.render();
+ const links=elements.outbox.children[0].children.filter(x=>x.tag==='a');
+ assert.equal(links.length,allowed?1:0);
+ if(allowed){assert.equal(links[0].href,'/documents/'+base.documentId+'?lang=it');
+   assert.equal(links[0].textContent,'Apri documento');}
+}
+console.log(JSON.stringify({passed:true}));
+"""
+    assert node(script) == {"passed": True}
+
+
 def test_browser_fingerprint_matches_unicode_metadata_and_exact_bytes():
     metadata = {
         "schema_version": 1,

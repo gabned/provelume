@@ -435,7 +435,8 @@
         "noScript",
         "qrAlt",
         "qrContents",
-        "issuedGrant"
+        "issuedGrant",
+        "openDocument"
       ],
       "namespace": "capture"
     },
@@ -15671,6 +15672,426 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "journey.add_file": {
+      "context": "Daily acquisition, Source and Document projection: journey.add_file",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.automatic": {
+      "context": "Daily acquisition, Source and Document projection: journey.automatic",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.automation": {
+      "context": "Daily acquisition, Source and Document projection: journey.automation",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.capture_advanced": {
+      "context": "Daily acquisition, Source and Document projection: journey.capture_advanced",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.count_boundary": {
+      "context": "Daily acquisition, Source and Document projection: journey.count_boundary",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.counts.attention": {
+      "context": "Daily acquisition, Source and Document projection: journey.counts.attention",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.counts.current": {
+      "context": "Daily acquisition, Source and Document projection: journey.counts.current",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.counts.observed": {
+      "context": "Daily acquisition, Source and Document projection: journey.counts.observed",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.counts.unknown": {
+      "context": "Daily acquisition, Source and Document projection: journey.counts.unknown",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.details": {
+      "context": "Daily acquisition, Source and Document projection: journey.details",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.document_help": {
+      "context": "Daily acquisition, Source and Document projection: journey.document_help",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.document_path": {
+      "context": "Daily acquisition, Source and Document projection: journey.document_path",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.drop_files": {
+      "context": "Daily acquisition, Source and Document projection: journey.drop_files",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.exit_unsupported": {
+      "context": "Daily acquisition, Source and Document projection: journey.exit_unsupported",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.files": {
+      "context": "Daily acquisition, Source and Document projection: journey.files",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.index": {
+      "context": "Daily acquisition, Source and Document projection: journey.index",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.job.cancelled": {
+      "context": "Daily acquisition, Source and Document projection: journey.job.cancelled",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.job.failed": {
+      "context": "Daily acquisition, Source and Document projection: journey.job.failed",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.job.queued": {
+      "context": "Daily acquisition, Source and Document projection: journey.job.queued",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.job.running": {
+      "context": "Daily acquisition, Source and Document projection: journey.job.running",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.job.succeeded": {
+      "context": "Daily acquisition, Source and Document projection: journey.job.succeeded",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.keep_help": {
+      "context": "Daily acquisition, Source and Document projection: journey.keep_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.last_result": {
+      "context": "Daily acquisition, Source and Document projection: journey.last_result",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.library.invalid": {
+      "context": "Daily acquisition, Source and Document projection: journey.library.invalid",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.library.missing": {
+      "context": "Daily acquisition, Source and Document projection: journey.library.missing",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.library.modified": {
+      "context": "Daily acquisition, Source and Document projection: journey.library.modified",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.library.not_generated": {
+      "context": "Daily acquisition, Source and Document projection: journey.library.not_generated",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.library.ready": {
+      "context": "Daily acquisition, Source and Document projection: journey.library.ready",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.library.stale": {
+      "context": "Daily acquisition, Source and Document projection: journey.library.stale",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.library.unavailable": {
+      "context": "Daily acquisition, Source and Document projection: journey.library.unavailable",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.manage_source": {
+      "context": "Daily acquisition, Source and Document projection: journey.manage_source",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.manual": {
+      "context": "Daily acquisition, Source and Document projection: journey.manual",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.manual_help": {
+      "context": "Daily acquisition, Source and Document projection: journey.manual_help",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.mode.keep": {
+      "context": "Daily acquisition, Source and Document projection: journey.mode.keep",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.mode.transit": {
+      "context": "Daily acquisition, Source and Document projection: journey.mode.transit",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.next_due": {
+      "context": "Daily acquisition, Source and Document projection: journey.next_due",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.observed_at": {
+      "context": "Daily acquisition, Source and Document projection: journey.observed_at",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.ocr.disabled": {
+      "context": "Daily acquisition, Source and Document projection: journey.ocr.disabled",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.ocr.ready": {
+      "context": "Daily acquisition, Source and Document projection: journey.ocr.ready",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.ocr.unavailable": {
+      "context": "Daily acquisition, Source and Document projection: journey.ocr.unavailable",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.ocr.unknown": {
+      "context": "Daily acquisition, Source and Document projection: journey.ocr.unknown",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.ocr_consent": {
+      "context": "Daily acquisition, Source and Document projection: journey.ocr_consent",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.ocr_runtime": {
+      "context": "Daily acquisition, Source and Document projection: journey.ocr_runtime",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.open_document": {
+      "context": "Daily acquisition, Source and Document projection: journey.open_document",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.open_result": {
+      "context": "Daily acquisition, Source and Document projection: journey.open_result",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.role.folder": {
+      "context": "Daily acquisition, Source and Document projection: journey.role.folder",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.role.inbox": {
+      "context": "Daily acquisition, Source and Document projection: journey.role.inbox",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.runtime": {
+      "context": "Daily acquisition, Source and Document projection: journey.runtime",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.runtime.active": {
+      "context": "Daily acquisition, Source and Document projection: journey.runtime.active",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.runtime.attention": {
+      "context": "Daily acquisition, Source and Document projection: journey.runtime.attention",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.runtime.stopped": {
+      "context": "Daily acquisition, Source and Document projection: journey.runtime.stopped",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.text": {
+      "context": "Daily acquisition, Source and Document projection: journey.text",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.text.available": {
+      "context": "Daily acquisition, Source and Document projection: journey.text.available",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.text.limited": {
+      "context": "Daily acquisition, Source and Document projection: journey.text.limited",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.text.native": {
+      "context": "Daily acquisition, Source and Document projection: journey.text.native",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.text.ocr": {
+      "context": "Daily acquisition, Source and Document projection: journey.text.ocr",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.text.unavailable": {
+      "context": "Daily acquisition, Source and Document projection: journey.text.unavailable",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.text_pending": {
+      "context": "Daily acquisition, Source and Document projection: journey.text_pending",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.transit_help": {
+      "context": "Daily acquisition, Source and Document projection: journey.transit_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.unknown": {
+      "context": "Daily acquisition, Source and Document projection: journey.unknown",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.watch_folder": {
+      "context": "Daily acquisition, Source and Document projection: journey.watch_folder",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.watched_folders": {
+      "context": "Daily acquisition, Source and Document projection: journey.watched_folders",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.write_note": {
+      "context": "Daily acquisition, Source and Document projection: journey.write_note",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.job.retry_wait": {
+      "context": "Daily acquisition, Source and Document projection: journey.job.waiting_retry",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.job.pausing": {
+      "context": "Daily acquisition, Source and Document projection: journey.job.running",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.job.cancelling": {
+      "context": "Daily acquisition, Source and Document projection: journey.job.running",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.job.manual_intervention": {
+      "context": "Daily acquisition, Source and Document projection: journey.job.failed",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.job.paused": {
+      "context": "Daily acquisition, Source and Document projection: journey.job.queued",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "capture.openDocument": {
+      "context": "Successful local capture: open the actual acquired Document; never a completion proof",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.runtime.stopping": {
+      "context": "Scheduler draining current work during application shutdown; not accepting a new cycle",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
     }
   },
   "schema_version": 1,

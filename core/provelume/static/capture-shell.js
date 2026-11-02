@@ -147,6 +147,7 @@
       if(row.state!=="acquired")li.append(button("retry",()=>sendRow(row.id)));
       li.append(button("remove",async()=>{if(!confirm(WORDS[lang].localOnly))return;await change(row.id,()=>null);await render();}));
       if(row.acquisitionId)li.append(button("download",()=>download(row.id)));
+      if(row.channel==="local_browser"&&row.instance_id===identity?.instance_id&&/^doc_[0-9a-f]{32}$/.test(row.documentId||""))li.append(documentLink(row.documentId));
       $("outbox").append(li);
     }
   }
@@ -236,7 +237,7 @@
         const value=await api("/submissions",{metadata:row.metadata,payload_base64:row.payload_base64});await acknowledged(row,value.submission);
       }
       const result=found?.acquisition?{receipt:found.acquisition}:await api("/submissions/"+id+"/process",{});
-      await change(id,r=>({...r,lease:0,acquisitionId:result.receipt.acquisition_id,
+      await change(id,r=>({...r,lease:0,acquisitionId:result.receipt.acquisition_id,documentId:result.receipt.document_id,
         state:"acquired",processingState:result.receipt.processing.status,error:result.receipt.processing.reason||null}));
       say("acquired",result.receipt.processing.status==="attention"?" · "+WORDS[lang].attention:"");
     } catch(error) {await change(id,r=>r.state==="acquired"||r.leaseToken!==leaseToken?r:({...r,lease:0,state:"attention",error:error.message||WORDS[lang].uncertain}));}
@@ -255,6 +256,9 @@
     const result=await api("/submissions");$("server-receipts").replaceChildren();
     for(const row of result.submissions){const li=document.createElement("li");li.textContent=row.metadata.client_submission_id+" · "+row.status;$("server-receipts").append(li);}
   }
+  function documentLink(id) {
+    const link=document.createElement("a");link.href="/documents/"+encodeURIComponent(id)+"?lang="+encodeURIComponent(lang);link.textContent=WORDS[lang].openDocument;return link;
+  }
   async function ownerRefresh() {
     if(auth?.channel!=="local_browser")return;
     const value=await api("/admin/devices");$("origin").value=value.origin||"";$("devices").replaceChildren();
@@ -263,7 +267,7 @@
     const captures=await api("/admin/submissions");$("owner-captures").replaceChildren();
     for(const row of captures.items){const li=document.createElement("li"), p=document.createElement("p"), acquired=row.acquisition;
       p.textContent=row.submission.metadata.mode+" · "+row.submission.id+" · "+(acquired?acquired.processing.status:WORDS[lang].notAcquired)+" · "+WORDS[lang].retained;li.append(p);
-      if(acquired){const link=document.createElement("a");link.href="/documents/"+acquired.document_id;link.textContent="Knowledge / "+acquired.document_id;li.append(link);
+      if(acquired){li.append(documentLink(acquired.document_id));
         const label=document.createElement("label"), span=document.createElement("span"), days=document.createElement("input");span.textContent=WORDS[lang].days;days.type="number";days.min="1";days.max="365";days.value="30";label.append(span,days);li.append(label);
         const quarantined=row.quarantine?.action==="quarantine";
         li.append(button(quarantined?"undo":"quarantine",async()=>{await api("/admin/submissions/"+row.submission.id+"/quarantine",{action:quarantined?"undo":"quarantine",days:Number(days.value),request_id:uuid()});say("ownerDone");await ownerRefresh();}));
@@ -346,6 +350,8 @@
     else if(saved||identity?.channel==="paired_pwa"){await forgetPairing();}
   }
   async function boot() {
+    const requestedMode = new URLSearchParams(location.search).get("mode");
+    if (requestedMode === "file" || requestedMode === "text") $("mode").value = requestedMode;
     db=await openDB();const savedLanguage=await setting("language");
     const choice=savedLanguage==="system"||Object.hasOwn(WORDS,savedLanguage)?savedLanguage:"system";
     lang=resolveLanguage(choice);$("language").value=choice;

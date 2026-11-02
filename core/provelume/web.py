@@ -513,6 +513,8 @@ def create_app(
     async def lifespan(app: FastAPI):
         stop = asyncio.Event()
         app.state.scheduler_runtime_error = None
+        app.state.scheduler_runtime_active = True
+        app.state.scheduler_runtime_stopping = False
 
         async def scheduler_worker() -> None:
             while not stop.is_set():
@@ -536,6 +538,7 @@ def create_app(
                 _startup.mark_ready()
             yield
         finally:
+            app.state.scheduler_runtime_stopping = True
             stop.set()
             try:
                 # Drain the scheduler's lifecycle barrier before cancellation
@@ -547,7 +550,11 @@ def create_app(
                 if app.state.ai_tasks:
                     await asyncio.gather(*tuple(app.state.ai_tasks), return_exceptions=True)
             finally:
-                await asyncio.to_thread(app.state.ai_setup.close)
+                try:
+                    await asyncio.to_thread(app.state.ai_setup.close)
+                finally:
+                    app.state.scheduler_runtime_active = False
+                    app.state.scheduler_runtime_stopping = False
 
     app = FastAPI(
         title="Provelume Knowledge API",
@@ -559,6 +566,8 @@ def create_app(
     app.add_middleware(LocalWebSecurityMiddleware)
     app.state.provelume = instance
     app.state.scheduler_runtime_error = None
+    app.state.scheduler_runtime_active = False
+    app.state.scheduler_runtime_stopping = False
     app.state.installation_verification = installation_verification
     app.state.release_evidence_configured = release_evidence_configured
     app.state.shell_settings_manager = shell_manager
@@ -765,6 +774,8 @@ def create_app(
             viewer_text = content["original_text"] if mode == "original" else content["markdown"]
             if mode == "rendered" and content["markdown"] is not None:
                 rendered = safe_markdown_html(content["markdown"])
+        from .daily_journeys import document_journey
+
         return TEMPLATES.TemplateResponse(
             request=request,
             name="document.html",
@@ -777,6 +788,7 @@ def create_app(
                 viewer_mode=mode,
                 viewer_text=viewer_text,
                 rendered=rendered,
+                journey=document_journey(instance, document, content),
             ),
         )
 

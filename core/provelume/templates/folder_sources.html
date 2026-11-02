@@ -6,6 +6,7 @@
   <h1>{{ t('sources.title') }}</h1>
   <p class="lead">{{ t('sources.lead') }}</p>
 </section>
+{% include 'source_journeys.html' %}
 {% if saved %}<section class="panel"><p class="status ok">{{ t('sources.saved') }}</p><p class="technical-note">{{ saved }}</p></section>{% endif %}
 {% if error %}<section class="panel" role="alert"><p class="status warn">{{ t('sources.error') }}</p><p>{{ error }}</p></section>{% endif %}
 {% if validation %}<section class="panel" role="status" aria-live="polite"><p class="status {{ 'ok' if validation.can_enroll else 'warn' }}">{{ validation.message }}</p></section>{% endif %}
@@ -30,8 +31,7 @@
 {% else %}
 <section class="panel"><p class="technical-note">{{ t('sources.remote_readonly') }}</p></section>
 {% endif %}
-<section class="panel">
-  <h2>{{ t('sources.inventory') }}</h2>
+<details class="panel"><summary>{{ t('journey.details') }} · {{ t('sources.inventory') }}</summary>
   <ul class="document-list">
   {% for source in sources %}
     <li>
@@ -61,7 +61,7 @@
     <li class="empty">{{ t('sources.empty') }}</li>
   {% endfor %}
   </ul>
-</section>
+</details>
 <section class="notice info">
   <strong>{{ t('sources.boundary_title') }}</strong>
   <p>{{ t('sources.boundary') }}</p>

@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
+from .daily_journeys import runtime_state, source_journey
 from .folder_source_enrollment import DIAGNOSTICS, FolderSourceEnrollmentError, diagnostic_message
 from .folder_source_model import FolderSourceError
 from .scheduler import schedule_payload
@@ -62,6 +63,8 @@ def attach_folder_source_routes(
             error=error,
             form=form or {},
             validation=validation,
+            journeys=[source_journey(instance, source, runtime=runtime_state(app))
+                      for source in sources],
         )
         for source in sources:
             if source.get("diagnostic_code") in DIAGNOSTICS:
