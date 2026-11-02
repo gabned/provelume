@@ -163,3 +163,17 @@ with negative/state regression coverage (32 targeted PASS). The superseded
 KeyboardInterrupt/pytest stash diagnostic belongs to that interruption. Its
 partial results are not reused as final qualification. Fresh final native/CI
 results bind the corrected head recorded in the owner PR.
+
+The final state review also checks stale Source consent and Inbox policy against
+their actual current revisions. A missing/disconnected Inbox retains its configured
+role and retention choice while showing an unavailable observation and blocked
+policy; settings changes do not leave a misleading active-consent label. A real
+approved metadata-only result is shown as title/metadata search without body text,
+with unchanged Originals. Accepted limited OCR has its own visible label. The
+progress reader reuses the launcher's symlink/reparse guard and refuses oversized,
+duplicate-key or excessively nested records without overwriting them.
+
+The complete targeted set for this increment is **66 PASS**. The superseded
+`5476b1c` full run was interrupted at 2,961 PASS / 20 SKIP / 419 subtests because
+these state corrections changed its source. Source checks have not been weakened;
+only the final unchanged-head full run and remote histories can qualify integration.

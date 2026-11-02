@@ -6,7 +6,7 @@ import re
 from copy import deepcopy
 from pathlib import Path
 
-from .shell_settings import ShellSettingsManager, default_settings
+from .shell_settings import ShellSettingsError, ShellSettingsManager, _guard_path, default_settings
 from .storage import InstanceStore
 
 STEPS = ("space", "folders", "ocr", "automation", "test", "summary")
@@ -49,9 +49,10 @@ class SetupProgress:
         self.path = self.root / (instance_id + ".json")
 
     def _guard(self):
-        for path in (self.root, *self.root.parents, self.path):
-            if path.is_symlink() or (hasattr(path, "is_junction") and path.is_junction()):
-                raise SetupProgressError("setup_progress_invalid")
+        try:
+            _guard_path(self.path, allow_missing=True)
+        except ShellSettingsError as exc:
+            raise SetupProgressError("setup_progress_invalid") from exc
 
     def read(self):
         self._guard()
@@ -72,7 +73,7 @@ class SetupProgress:
                     result[key] = item
                 return result
             return _validate(json.loads(raw, object_pairs_hook=unique), self.instance_id)
-        except (ValueError, TypeError, KeyError) as exc:
+        except (ValueError, TypeError, KeyError, RecursionError) as exc:
             raise SetupProgressError("setup_progress_invalid") from exc
 
     def update(self, *, expected_revision, step, completed=None, bindings=None, operations=None):

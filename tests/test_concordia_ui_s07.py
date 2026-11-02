@@ -44,7 +44,7 @@ def test_keep_counts_distinguish_present_files_from_text_pending_and_do_not_muta
 
 
 def test_unreadable_or_changed_input_cannot_become_false_zero(archive, monkeypatch):
-    instance, _source, source_id = archive
+    instance, source, source_id = archive
     def unavailable(*args):
         raise OSError("synthetic read failure")
     monkeypatch.setattr(instance.inbox_transit, "status", unavailable)
@@ -62,6 +62,77 @@ def test_unobserved_nonlocal_source_has_unknown_count_and_retains_observation_ti
     observed = source_journey(instance, source)
     assert observed["files_present"] == 0 and observed["files_observed_at"] == stamp
     assert observed["counts_state"] == "observed"
+
+
+def test_changed_source_configuration_discloses_stale_inbox_policy(archive):
+    from test_concordia_inbox_transit import policy
+    from test_review_placement_routing import _confirm
+
+    instance, source, source_id = archive
+    grant = instance.review_decisions.preview("capabilities", "inbox_transit", "configure", {
+        "mode": "confirm-each", "scope": {"subjects": [source_id], "sources": [source_id],
+                                          "actions": ["release", "save_policy"]}})
+    _confirm(instance.review_decisions, grant, "s07-inbox-grant")
+    policy(instance, source_id)
+    assert not source_journey(instance, instance.folder_sources.public_view(source_id))[
+        "inbox_policy_needs_review"]
+    instance.set_folder_source_state(source_id, "paused")
+    view = source_journey(instance, instance.folder_sources.public_view(source_id))
+    assert view["role"] == "inbox" and view["mode"] == "transit"
+    assert view["inbox_policy_needs_review"] is True
+    assert view["files_present"] == 0 and view["to_complete"] == 0
+    source.rename(source.with_name("disconnected"))
+    unavailable = source_journey(instance, instance.folder_sources.public_view(source_id))
+    assert unavailable["role"] == "inbox" and unavailable["mode"] == "transit"
+    assert unavailable["inbox_policy_needs_review"] is True
+    assert unavailable["to_complete"] is None and unavailable["counts_state"] == "attention"
+
+
+def test_approved_metadata_only_result_is_not_presented_as_body_text(archive):
+    from test_concordia_ocr_sources import pdf
+    from test_review_placement_routing import _confirm
+
+    instance, source, source_id = archive
+    (source / "scan.pdf").write_bytes(pdf("synthetic blank scan"))
+    acquisition = instance.ingest(source)[0]
+    original_before = _bytes(instance.root / "originals")
+    grant = instance.review_decisions.preview("capabilities", "ocr_sources", "configure", {
+        "mode": "confirm-each", "scope": {"subjects": [source_id], "sources": [source_id],
+                                          "actions": ["limited_result"]}})
+    _confirm(instance.review_decisions, grant, "s07-limited-grant")
+    limited = instance.review_decisions.preview("ocr_sources", source_id, "limited_result", {
+        "version_id": acquisition["version_id"], "profile": "limited-metadata",
+        "artifact_id": None})
+    receipt = _confirm(instance.review_decisions, limited, "s07-limited-result")
+    queued = instance.ocr_sources.backlog(receipt["receipt"]["id"])[0]
+    job = instance.scheduler.run_one(job_id=queued["job"]["id"])
+    assert job["status"] == "succeeded", job
+    document = instance.get_document(acquisition["document_id"])
+    view = document_journey(instance, document, instance.document_content(document["id"]))
+    assert view["text"] == "metadata" and view["indexed"] is True
+    source_view = source_journey(instance, instance.folder_sources.public_view(source_id))
+    assert source_view["files_present"] == 1 and source_view["to_complete"] == 1
+    assert _bytes(instance.root / "originals") == original_before
+
+
+def test_changed_ocr_settings_disclose_stale_source_consent(archive):
+    from dataclasses import replace
+
+    from test_review_placement_routing import _confirm
+
+    instance, _source, source_id = archive
+    grant = instance.review_decisions.preview("capabilities", "ocr_sources", "configure", {
+        "mode": "confirm-each", "scope": {"subjects": [source_id], "sources": [source_id],
+                                          "actions": ["save_policy"]}})
+    _confirm(instance.review_decisions, grant, "s07-ocr-grant")
+    selected = instance.review_decisions.preview("ocr_sources", source_id, "save_policy", {
+        "enabled": True, "languages": list(instance.ocr.configured_settings().languages)})
+    _confirm(instance.review_decisions, selected, "s07-ocr-consent")
+    assert not source_journey(instance, instance.folder_sources.public_view(source_id))[
+        "ocr_consent_needs_review"]
+    instance.configure_ocr(replace(instance.ocr.configured_settings(), render_dpi=200))
+    view = source_journey(instance, instance.folder_sources.public_view(source_id))
+    assert view["ocr_enabled"] is True and view["ocr_consent_needs_review"] is True
 
 
 def test_document_reads_actual_text_index_and_materialized_library_separately(archive):
@@ -153,3 +224,14 @@ def test_progress_refuses_symlink_storage(tmp_path):
     with pytest.raises(SetupProgressError):
         progress.read()
     assert list(Path(foreign).iterdir()) == []
+
+
+@pytest.mark.parametrize("payload", [b"x" * 8193, b"[" * 2000 + b"]" * 2000,
+                                     b'{"revision":0,"revision":1}'])
+def test_corrupt_progress_has_a_closed_recoverable_error_without_overwriting_it(tmp_path, payload):
+    progress = SetupProgress(tmp_path / "launcher.json", "inst_" + "a" * 32)
+    progress.root.mkdir()
+    progress.path.write_bytes(payload)
+    with pytest.raises(SetupProgressError, match="setup_progress_invalid"):
+        progress.read()
+    assert progress.path.read_bytes() == payload

@@ -15764,9 +15764,9 @@
       "linguistic_review": "UNVERIFIED"
     },
     "journey.index": {
-      "context": "Daily acquisition, Source and Document projection: journey.index",
+      "context": "Independent runtime/consent/selected-text state; daily journeys; index",
       "rendering": "text",
-      "sensitive_review_required": false,
+      "sensitive_review_required": true,
       "linguistic_review": "UNVERIFIED"
     },
     "journey.job.cancelled": {
@@ -16010,9 +16010,9 @@
       "linguistic_review": "UNVERIFIED"
     },
     "journey.text.unavailable": {
-      "context": "Daily acquisition, Source and Document projection: journey.text.unavailable",
+      "context": "Independent runtime/consent/selected-text state; daily journeys; text.unavailable",
       "rendering": "text",
-      "sensitive_review_required": false,
+      "sensitive_review_required": true,
       "linguistic_review": "UNVERIFIED"
     },
     "journey.text_pending": {
@@ -16091,6 +16091,42 @@
       "context": "Scheduler draining current work during application shutdown; not accepting a new cycle",
       "rendering": "text",
       "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.consent_stale": {
+      "context": "Independent runtime/consent/selected-text state; daily journeys; consent_stale",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.inbox_policy_stale": {
+      "context": "Independent runtime/consent/selected-text state; daily journeys; inbox_policy_stale",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.role.unknown": {
+      "context": "Independent runtime/consent/selected-text state; daily journeys; role.unknown",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.mode.unknown": {
+      "context": "Independent runtime/consent/selected-text state; daily journeys; mode.unknown",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.text.metadata": {
+      "context": "Independent runtime/consent/selected-text state; daily journeys; text.metadata",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "journey.text.ocr_accepted": {
+      "context": "Independent runtime/consent/selected-text state; daily journeys; text.ocr_accepted",
+      "rendering": "text",
+      "sensitive_review_required": true,
       "linguistic_review": "UNVERIFIED"
     }
   },

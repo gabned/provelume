@@ -2343,7 +2343,7 @@
   "journey.drop_files": "Fichiers présents dans le dossier de dépôt manuel",
   "journey.exit_unsupported": "Le retrait protégé des entrées est indisponible sur cet hôte. Les fichiers sont conservés.",
   "journey.files": "Fichiers présents",
-  "journey.index": "Texte actuel dans l'index de recherche",
+  "journey.index": "Contribution actuelle dans l’index de recherche",
   "journey.job.cancelled": "Annulé",
   "journey.job.failed": "Échec",
   "journey.job.queued": "En file",
@@ -2384,7 +2384,7 @@
   "journey.text.limited": "Recherche limitée dans le contenu",
   "journey.text.native": "Texte extrait",
   "journey.text.ocr": "Texte OCR : attribué, non vérifié et reconstructible",
-  "journey.text.unavailable": "Aucun texte vérifié disponible",
+  "journey.text.unavailable": "Texte indisponible",
   "journey.text_pending": "Entrées présentes sans texte actuellement recherchable",
   "journey.transit_help": "Seule l'entrée inchangée peut sortir après vérification de la conservation et du travail requis. L'Original reste. Les entrées existantes nécessitent une révision distincte.",
   "journey.unknown": "À vérifier",
@@ -2397,5 +2397,11 @@
   "journey.job.manual_intervention": "Action manuelle requise",
   "journey.job.paused": "En pause",
   "capture.openDocument": "Ouvrir le document",
-  "journey.runtime.stopping": "Arrêt après le travail en cours"
+  "journey.runtime.stopping": "Arrêt après le travail en cours",
+  "journey.consent_stale": "Consentement enregistré à revoir après modification des réglages",
+  "journey.inbox_policy_stale": "La source ou le dossier ne correspond plus à la règle d’entrée confirmée. Révisez-la avant de reprendre le retrait des entrées. Les Originaux restent conservés.",
+  "journey.role.unknown": "Rôle à vérifier",
+  "journey.mode.unknown": "Conservation à vérifier",
+  "journey.text.metadata": "Recherche dans le titre et les métadonnées uniquement ; aucun texte du contenu",
+  "journey.text.ocr_accepted": "Résultat OCR limité accepté ; attribué et non vérifié"
 }

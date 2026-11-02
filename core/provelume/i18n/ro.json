@@ -2343,7 +2343,7 @@
   "journey.drop_files": "Fișiere prezente în dosarul de intrare manuală",
   "journey.exit_unsupported": "Eliminarea protejată a intrărilor nu este disponibilă pe această gazdă. Fișierele sunt păstrate.",
   "journey.files": "Fișiere prezente",
-  "journey.index": "Text actual în indexul de căutare",
+  "journey.index": "Contribuția actuală în indexul de căutare",
   "journey.job.cancelled": "Anulat",
   "journey.job.failed": "Eșuat",
   "journey.job.queued": "În coadă",
@@ -2384,7 +2384,7 @@
   "journey.text.limited": "Căutare limitată în conținut",
   "journey.text.native": "Text extras",
   "journey.text.ocr": "Text OCR: atribuit, neverificat și reconstruibil",
-  "journey.text.unavailable": "Nu există text verificat disponibil",
+  "journey.text.unavailable": "Text indisponibil",
   "journey.text_pending": "Intrări prezente fără text căutabil actual",
   "journey.transit_help": "Doar intrarea neschimbată poate fi eliminată după verificarea păstrării și a procesării obligatorii. Originalul rămâne. Intrările existente necesită o revizuire separată.",
   "journey.unknown": "De verificat",
@@ -2397,5 +2397,11 @@
   "journey.job.manual_intervention": "Necesită acțiune manuală",
   "journey.job.paused": "În pauză",
   "capture.openDocument": "Deschide documentul",
-  "journey.runtime.stopping": "Se oprește după lucrul curent"
+  "journey.runtime.stopping": "Se oprește după lucrul curent",
+  "journey.consent_stale": "Consimțământul înregistrat trebuie revizuit după schimbarea setărilor",
+  "journey.inbox_policy_stale": "Sursa sau dosarul nu mai corespunde regulii Inbox confirmate. Revizuiește-o înainte de reluarea eliminării intrărilor. Originalele rămân păstrate.",
+  "journey.role.unknown": "Rol de verificat",
+  "journey.mode.unknown": "Păstrare de verificat",
+  "journey.text.metadata": "Căutare doar în titlu și metadate; fără textul conținutului",
+  "journey.text.ocr_accepted": "Rezultat OCR limitat acceptat; atribuit și neverificat"
 }

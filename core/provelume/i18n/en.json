@@ -2343,7 +2343,7 @@
   "journey.drop_files": "Files present in the manual drop folder",
   "journey.exit_unsupported": "Guarded input removal is unavailable on this host. Inputs are retained.",
   "journey.files": "Files present",
-  "journey.index": "Current text in search index",
+  "journey.index": "Current contribution in search index",
   "journey.job.cancelled": "Cancelled",
   "journey.job.failed": "Failed",
   "journey.job.queued": "Queued",
@@ -2384,7 +2384,7 @@
   "journey.text.limited": "Limited content search",
   "journey.text.native": "Extracted text",
   "journey.text.ocr": "OCR text: attributed, unverified and rebuildable",
-  "journey.text.unavailable": "No verified text available",
+  "journey.text.unavailable": "Text unavailable",
   "journey.text_pending": "Present inputs without current searchable text",
   "journey.transit_help": "Only the unchanged input may exit after preservation and required work are verified. The Original remains. Existing inputs require a separate review.",
   "journey.unknown": "To verify",
@@ -2397,5 +2397,11 @@
   "journey.job.manual_intervention": "Needs manual action",
   "journey.job.paused": "Paused",
   "capture.openDocument": "Open document",
-  "journey.runtime.stopping": "Stopping after current work"
+  "journey.runtime.stopping": "Stopping after current work",
+  "journey.consent_stale": "Recorded consent needs review after a settings change",
+  "journey.inbox_policy_stale": "The Source or folder no longer matches the confirmed Inbox policy. Review it before input removal can resume. Originals remain preserved.",
+  "journey.role.unknown": "Role to verify",
+  "journey.mode.unknown": "Retention to verify",
+  "journey.text.metadata": "Searchable title and metadata only; no content text",
+  "journey.text.ocr_accepted": "Accepted limited OCR result; attributed and unverified"
 }

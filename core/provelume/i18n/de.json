@@ -2343,7 +2343,7 @@
   "journey.drop_files": "Dateien im manuellen Eingangsordner",
   "journey.exit_unsupported": "Geschütztes Entfernen von Eingängen ist auf diesem Host nicht verfügbar. Dateien bleiben erhalten.",
   "journey.files": "Vorhandene Dateien",
-  "journey.index": "Aktueller Text im Suchindex",
+  "journey.index": "Aktueller Beitrag im Suchindex",
   "journey.job.cancelled": "Abgebrochen",
   "journey.job.failed": "Fehlgeschlagen",
   "journey.job.queued": "In Warteschlange",
@@ -2384,7 +2384,7 @@
   "journey.text.limited": "Eingeschränkte Inhaltssuche",
   "journey.text.native": "Extrahierter Text",
   "journey.text.ocr": "OCR-Text: zugeordnet, ungeprüft und rekonstruierbar",
-  "journey.text.unavailable": "Kein geprüfter Text verfügbar",
+  "journey.text.unavailable": "Text nicht verfügbar",
   "journey.text_pending": "Vorhandene Eingänge ohne aktuell durchsuchbaren Text",
   "journey.transit_help": "Nur der unveränderte Eingang darf nach geprüfter Aufbewahrung und Pflichtverarbeitung entfernt werden. Das Original bleibt. Bestehende Eingänge benötigen eine separate Prüfung.",
   "journey.unknown": "Zu prüfen",
@@ -2397,5 +2397,11 @@
   "journey.job.manual_intervention": "Manuelle Aktion erforderlich",
   "journey.job.paused": "Pausiert",
   "capture.openDocument": "Dokument öffnen",
-  "journey.runtime.stopping": "Wird nach aktueller Arbeit gestoppt"
+  "journey.runtime.stopping": "Wird nach aktueller Arbeit gestoppt",
+  "journey.consent_stale": "Gespeicherte Zustimmung nach Einstellungsänderung prüfen",
+  "journey.inbox_policy_stale": "Die Quelle oder der Ordner entspricht nicht mehr der bestätigten Eingangsregel. Vor erneutem Entfernen prüfen. Originale bleiben erhalten.",
+  "journey.role.unknown": "Rolle prüfen",
+  "journey.mode.unknown": "Aufbewahrung prüfen",
+  "journey.text.metadata": "Nur Titel und Metadaten durchsuchbar; kein Inhaltstext",
+  "journey.text.ocr_accepted": "Akzeptiertes eingeschränktes OCR-Ergebnis; zugeordnet und ungeprüft"
 }

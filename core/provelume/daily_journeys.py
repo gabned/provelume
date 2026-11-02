@@ -4,11 +4,15 @@ Unknown counts are None. A saved schedule is never evidence of a running worker,
 and an input count is never a count of unfinished Documents.
 """
 
+import hashlib
+import os
+
 from .index_evidence import row_matches
 from .library_projection_model import LibraryProjectionError
-from .ocr_contract import OcrUnavailableError
-from .ocr_sources import SourceOcrReview
+from .ocr_contract import OcrUnavailableError, settings_fingerprint
+from .ocr_sources import SourceOcrReview, settings
 from .producer_index_evidence import describe_contribution
+from .review_decisions import read_bytes
 from .review_effects import ReviewError
 
 
@@ -25,10 +29,13 @@ def runtime_state(app):
 def source_journey(instance, source, *, runtime="stopped"):
     """Return independent configuration, observation and completion dimensions."""
     result = {
-        "source": source, "runtime": runtime, "role": "folder", "mode": "keep",
+        "source": source, "runtime": runtime,
+        "role": "unknown" if source["source_class"] == "local" else "folder",
+        "mode": "unknown" if source["source_class"] == "local" else "keep",
         "files_present": None, "files_observed_at": None, "to_complete": None,
         "counts_state": "unknown", "ocr_enabled": None, "ocr_state": "unknown",
         "ocr_error": None,
+        "ocr_consent_needs_review": False, "inbox_policy_needs_review": False,
         "automation": "unknown", "next_due_at": None, "last_job": None,
         "exit_supported": False,
     }
@@ -46,8 +53,25 @@ def source_journey(instance, source, *, runtime="stopped"):
         if observer.get("last_scheduler_job_id"):
             result["last_job"] = instance.scheduler.journal.get_job(
                 observer["last_scheduler_job_id"])
+        if source["source_class"] == "local":
+            saved_inbox = instance.inbox_transit.review.policy(source["id"])
+            result["role"] = "inbox" if saved_inbox is not None else "folder"
+            result["mode"] = saved_inbox["mode"] if saved_inbox is not None else "keep"
+            result["exit_supported"] = os.name == "nt"
+            if saved_inbox is not None:
+                result["inbox_policy_needs_review"] = True
+                try:
+                    instance.inbox_transit.review.current(source["id"])
+                    result["inbox_policy_needs_review"] = False
+                except (ReviewError, OSError, ValueError, KeyError):
+                    pass
         consent = SourceOcrReview(instance.store).policy(source["id"])
         result["ocr_enabled"] = bool(consent and consent["enabled"])
+        if result["ocr_enabled"]:
+            raw = read_bytes(instance.store, f"knowledge/sources/{source['id']}.json")
+            result["ocr_consent_needs_review"] = (
+                raw is None or consent["source_sha256"] != hashlib.sha256(raw).hexdigest()
+                or consent["settings_sha256"] != settings_fingerprint(settings(instance.store)))
         capability = instance.ocr_capability()
         result["ocr_state"] = ("ready" if capability["available"] else "disabled"
                                if capability["state"] == "disabled" else "unavailable")
@@ -71,7 +95,8 @@ def source_journey(instance, source, *, runtime="stopped"):
                 entry, row = describe_contribution(
                     instance.store, document["id"], document["current_version_id"])
                 if (entry["original_sha256"] != item["sha256"] or row is None
-                        or entry["profile"] in {"unavailable", "limited-unapproved"}
+                        or entry["profile"] in {
+                            "unavailable", "limited-unapproved", "limited-metadata"}
                         or not row_matches(instance.store, row)):
                     pending += 1
             result["to_complete"] = pending
@@ -92,7 +117,9 @@ def document_journey(instance, document, content):
         entry, row = describe_contribution(
             instance.store, document["id"], document["current_version"]["id"])
         profile = entry["profile"]
-        result["text"] = ("unavailable" if profile == "unavailable" else "limited"
+        result["text"] = ("unavailable" if profile == "unavailable" else "metadata"
+                          if profile == "limited-metadata" else "ocr_accepted"
+                          if profile == "ocr-accepted" else "limited"
                           if profile.startswith("limited") else "ocr"
                           if profile.startswith("ocr") else "native")
         result["indexed"] = row is not None and row_matches(instance.store, row)

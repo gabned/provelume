@@ -2343,7 +2343,7 @@
   "journey.drop_files": "Ficheiros presentes na pasta de entrada manual",
   "journey.exit_unsupported": "A remoção protegida de entradas não está disponível neste sistema. Os ficheiros são mantidos.",
   "journey.files": "Ficheiros presentes",
-  "journey.index": "Texto atual no índice de pesquisa",
+  "journey.index": "Contribuição atual no índice de pesquisa",
   "journey.job.cancelled": "Cancelado",
   "journey.job.failed": "Falhou",
   "journey.job.queued": "Em fila",
@@ -2384,7 +2384,7 @@
   "journey.text.limited": "Pesquisa limitada no conteúdo",
   "journey.text.native": "Texto extraído",
   "journey.text.ocr": "Texto OCR: atribuído, não verificado e reconstruível",
-  "journey.text.unavailable": "Sem texto verificado disponível",
+  "journey.text.unavailable": "Texto indisponível",
   "journey.text_pending": "Entradas presentes sem texto pesquisável atual",
   "journey.transit_help": "Só a entrada inalterada pode sair após verificar a conservação e o trabalho obrigatório. O Original permanece. As entradas existentes exigem revisão separada.",
   "journey.unknown": "Por verificar",
@@ -2397,5 +2397,11 @@
   "journey.job.manual_intervention": "Requer ação manual",
   "journey.job.paused": "Em pausa",
   "capture.openDocument": "Abrir documento",
-  "journey.runtime.stopping": "A parar após o trabalho atual"
+  "journey.runtime.stopping": "A parar após o trabalho atual",
+  "journey.consent_stale": "Consentimento registado a rever após alterar as definições",
+  "journey.inbox_policy_stale": "A origem ou a pasta já não corresponde à regra de entrada confirmada. Reveja-a antes de retomar a remoção das entradas. Os Originais continuam preservados.",
+  "journey.role.unknown": "Papel por verificar",
+  "journey.mode.unknown": "Conservação por verificar",
+  "journey.text.metadata": "Pesquisa apenas no título e metadados; sem texto do conteúdo",
+  "journey.text.ocr_accepted": "Resultado OCR limitado aceite; atribuído e não verificado"
 }

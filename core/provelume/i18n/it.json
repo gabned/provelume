@@ -2343,7 +2343,7 @@
   "journey.drop_files": "File presenti nella cartella d'ingresso manuale",
   "journey.exit_unsupported": "L'uscita protetta degli ingressi non è disponibile su questo host. I file sono conservati.",
   "journey.files": "File presenti",
-  "journey.index": "Testo attuale nell'indice di ricerca",
+  "journey.index": "Contributo attuale nell’indice di ricerca",
   "journey.job.cancelled": "Annullato",
   "journey.job.failed": "Fallito",
   "journey.job.queued": "In coda",
@@ -2384,7 +2384,7 @@
   "journey.text.limited": "Ricerca nel contenuto limitata",
   "journey.text.native": "Testo estratto",
   "journey.text.ocr": "Testo OCR: attribuito, non verificato e ricostruibile",
-  "journey.text.unavailable": "Nessun testo verificato disponibile",
+  "journey.text.unavailable": "Testo non disponibile",
   "journey.text_pending": "Ingressi presenti senza testo ricercabile attuale",
   "journey.transit_help": "Solo l'ingresso invariato può uscire dopo la verifica di conservazione e passaggi obbligatori. L'Originale resta. Gli ingressi esistenti richiedono una revisione separata.",
   "journey.unknown": "Da verificare",
@@ -2397,5 +2397,11 @@
   "journey.job.manual_intervention": "Richiede intervento manuale",
   "journey.job.paused": "In pausa",
   "capture.openDocument": "Apri documento",
-  "journey.runtime.stopping": "Arresto dopo il lavoro in corso"
+  "journey.runtime.stopping": "Arresto dopo il lavoro in corso",
+  "journey.consent_stale": "Consenso registrato da rivedere dopo la modifica delle impostazioni",
+  "journey.inbox_policy_stale": "La sorgente o la cartella non corrisponde più alla scelta Inbox confermata. Rivedila prima di riprendere l’uscita degli ingressi. Gli Originali restano conservati.",
+  "journey.role.unknown": "Ruolo da verificare",
+  "journey.mode.unknown": "Conservazione da verificare",
+  "journey.text.metadata": "Ricerca solo per titolo e metadati; testo del contenuto non disponibile",
+  "journey.text.ocr_accepted": "Risultato OCR limitato accettato; attribuito e non verificato"
 }
