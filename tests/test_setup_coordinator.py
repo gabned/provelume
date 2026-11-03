@@ -259,3 +259,15 @@ def test_changed_original_after_apply_never_leaves_a_false_complete_flag(tmp_pat
     original = instance.store.list_canonical("originals")[0]
     (instance.root / original["storage_ref"]).write_bytes(b"Changed synthetic Original")
     assert not setup.application()["complete"]
+
+
+def test_later_unselected_preferences_do_not_invalidate_completed_trial(tmp_path):
+    instance, shell, setup, choices = prepared_trial(tmp_path)
+    preview = setup.preview(choices)
+    setup.apply(setup.progress.read()["revision"], choices=choices,
+                preview_revision=preview["revision"])
+    acquired = instance.store.list_canonical("acquisitions")
+    shell.set_preferences(theme="dark", expected_revision=shell.load().settings.revision)
+    shell.set_interface_mode("current", expected_revision=shell.load().settings.revision)
+    assert setup.application()["complete"]
+    assert instance.store.list_canonical("acquisitions") == acquired

@@ -522,11 +522,43 @@ class SetupCoordinator:
         except (ValueError, OSError):
             current = None
         complete = (op["status"] == "completed" and len(stages) == len(APPLY_STAGES)
-                    and current == stages[-1]["after"]
+                    and self._completed_settings_current(plan, current, stages[-1]["after"])
                     and self._trial_material_current(plan["preview"])
                     and startup_observed(plan["preview"]["choices"]["login_startup"]))
         return {"id": op_id, "complete": complete, "pending": op["status"] == "running",
                 "stages": stages, "plan": plan}
+
+    def _completed_settings_current(self, plan, current, expected):
+        """Unselected later preferences are not stale setup effects.
+
+        In-flight application still compares the entire revision-bound snapshot.
+        After its receipt, theme/interface/other Source changes must not demand
+        a new trial for an unchanged selected Source and saved setup choices.
+        """
+        if current is None:
+            return False
+        choices = plan["preview"]["choices"]
+        required = {"source", "source_ocr", "inbox", "baseline"}
+        if choices["automation"] != "preserve":
+            required.add("schedule")
+        if choices["ocr"]:
+            required.add("ocr")
+        if any(current[key] != expected[key] for key in required):
+            return False
+        settings = self.shell.load().settings
+        if (settings.language != choices["language"]
+                or settings.login_startup != choices["login_startup"]):
+            return False
+        try:
+            self.check_prepared(choices)
+            for domain in (["inbox_transit", "ocr_sources"] if choices["ocr"]
+                           else ["inbox_transit"]):
+                if self.instance.review_authority.resolve(
+                        domain, choices["source_id"], "save_policy")["mode"] != "confirm-each":
+                    return False
+        except (ValueError, OSError):
+            return False
+        return True
 
     def pause_and_review(self, expected):
         """Explicit supported reverse action: pause admission, retain all other effects."""
