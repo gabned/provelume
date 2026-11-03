@@ -154,3 +154,8 @@ dd { margin: 0; min-width: 0; overflow-wrap: anywhere; font-size: .84rem; }
 .document-header > div { min-width: 0; max-width: 100%; }
 .document-header h1, .breadcrumb { overflow-wrap: anywhere; }
 .breadcrumb { flex-wrap: wrap; min-width: 0; }
+.document-layout > * { min-width: 0; }
+@media (max-width: 560px) {
+  .document-layout .versions li { grid-template-columns: 2rem minmax(0, 1fr); }
+  .document-layout .versions li > :not(strong) { grid-column: 2; overflow-wrap: anywhere; }
+}
