@@ -12,7 +12,6 @@ import re
 from .action_center_model import digest
 from .inbox_transit import _source, validate_input
 from .maintenance_local_files import (
-    directory_binding,
     file_identity,
     open_local_directory,
     open_local_file,
@@ -25,8 +24,8 @@ from .review_effects import ReviewDenied, ReviewStale, ReviewUnavailable, relati
 FIXTURES = {
     "native": {"name": "native-text.pdf", "size_bytes": 880,
                "sha256": "3c04a38cad5c5ddcf98f1b8686bd8a2139f0a38b0682f048236a8cdf4a72414b"},
-    "scan": {"name": "scan-it-en.pdf", "size_bytes": 38576,
-             "sha256": "ed049286e2f8d89aa60f6dca1f86c0343dc8fb251bfd9cfa551bebe76982cf6d"},
+    "scan": {"name": "scan-it-en.pdf", "size_bytes": 3869707,
+             "sha256": "cf6f97c71c1f2b3752d37a335e0985edf2104c6b9b0b3fbf9543a3813ae21b97"},
 }
 SCHEMA = "setup-trial-inputs/v1"
 FIELDS = {"schema", "instance_id", "source_id", "source_revision", "root_binding", "inputs"}
@@ -65,8 +64,7 @@ def observe_selection(store, source_id, named_inputs):
         raise ReviewDenied("Select the displayed native resource and optional scan")
     root, revision, _folder = _source(store, source_id)
     rows = []
-    with open_local_directory(root) as descriptor:
-        binding = directory_binding(descriptor)
+    with open_local_directory(root) as (_path, binding):
         for kind, locator in sorted(named_inputs.items()):
             relative_path(locator)
             expected = FIXTURES[kind]
@@ -80,8 +78,6 @@ def observe_selection(store, source_id, named_inputs):
                     raise ReviewStale("The synthetic input changed during observation")
             rows.append({"fixture": kind, "input": {"locator": locator, "identity": before,
                          "sha256": checksum, "size_bytes": size}})
-        if directory_binding(descriptor) != binding:
-            raise ReviewStale("The selected Inbox root changed")
     return validate_selection({"schema": SCHEMA,
                                "instance_id": store.read_config()["instance"]["id"],
                                "source_id": source_id, "source_revision": revision,

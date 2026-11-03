@@ -64,10 +64,19 @@ def _refresh_after_ingestion(
     result: IngestionRunResult,
     *,
     producer_job=None,
+    trial_id=None,
 ) -> None:
     from .index import IndexScopeError
     from .ocr_sources import SourceOcrFlow
     from .processing_autonomy import defers_inline_processing, has_processing_policies
+
+    if trial_id is not None:
+        from .setup_trials import SetupTrials
+
+        # The same producers consume the one-shot permit. Do not consult or
+        # broaden general Source/AI policies for these explicitly named inputs.
+        SetupTrials(store).admit_acquisitions(trial_id, result, producer_job)
+        return
 
     transit_prepared = None
     transit_policies = store.paths.state / "review" / "inbox_transit" / "policies"
@@ -330,6 +339,7 @@ def _process_item(
     max_file_bytes: int,
     retry_extraction: bool,
     acquisition_id: str | None = None,
+    input_binding=None,
 ) -> tuple[IngestionItemRecord, Acquisition | None]:
     running = replace(item, status="running", started_at=utc_now())
     ledger.write_item(running)
@@ -343,6 +353,7 @@ def _process_item(
             max_file_bytes,
             retry_extraction=retry_extraction,
             acquisition_id=acquisition_id,
+            input_binding=input_binding,
         )
     except (IngestionInputError, IngestionLimitError, OSError, UnsafePathError) as exc:
         failed = replace(
@@ -483,8 +494,20 @@ def _run_ingestion_filesystem_locked(
     max_files: int = DEFAULT_MAX_FILES,
     run_id: str | None = None,
     reconcile_only: bool = False,
+    trial_id: str | None = None,
 ) -> IngestionRunResult:
+    trial = None
+    if trial_id is not None:
+        from .setup_trial_authority import SetupTrialAuthority, ingestion_run_id
+
+        trial = SetupTrialAuthority(store).read(trial_id)
+        selected_root = store.source_path(trial["selection"]["source_id"])
+        if (selected_root is None or Path(source_path).expanduser().absolute()
+                != selected_root.expanduser().absolute() or run_id != ingestion_run_id(trial_id)):
+            raise IngestionInputError("trial ingestion needs its exact Source and durable run")
     source_id, configured_source_path = _source_for_run(store, source_path, source_name)
+    if trial is not None and source_id != trial["selection"]["source_id"]:
+        raise IngestionInputError("trial ingestion belongs to another Source")
     ledger = IngestionLedger(store)
     existing_run = ledger.get_run(run_id) if run_id is not None else None
     if existing_run is not None and existing_run.get("source_id") != source_id:
@@ -539,7 +562,14 @@ def _run_ingestion_filesystem_locked(
             canonical_source_path = FolderSourceManager(store).selected_for_read(
                 canonical_source_path,
             )
-        files = _iter_files(canonical_source_path, max_files, policy)
+        if trial is not None:
+            from .setup_trial_inputs import revalidate_selection
+
+            selected = revalidate_selection(store, trial["selection"])
+            files = [(row["input"]["locator"], canonical_source_path.joinpath(
+                *row["input"]["locator"].split("/"))) for row in selected["inputs"]]
+        else:
+            files = _iter_files(canonical_source_path, max_files, policy)
     except (ExclusionError, IngestionLimitError, OSError, UnsafePathError) as exc:
         closed = _close_run(
             ledger,
@@ -614,6 +644,9 @@ def _run_ingestion_filesystem_locked(
             max_file_bytes=max_file_bytes,
             retry_extraction=False,
             acquisition_id=deterministic_acquisition_id,
+            input_binding=(None if trial is None else next(
+                row["input"] for row in trial["selection"]["inputs"]
+                if row["input"]["locator"] == item.locator)),
         )
         if finished_items and finished_items[-1].id == item.id:
             finished_items[-1] = finished
@@ -1007,13 +1040,29 @@ def _ingest_one(
     *,
     retry_extraction: bool = False,
     acquisition_id: str | None = None,
+    input_binding=None,
 ) -> Acquisition:
     observed_at = utc_now()
-    size = path.stat().st_size
-    if size > max_file_bytes:
-        raise IngestionLimitError(f"{locator} exceeds the {max_file_bytes}-byte safety limit")
+    if input_binding is None:
+        size = path.stat().st_size
+        if size > max_file_bytes:
+            raise IngestionLimitError(f"{locator} exceeds the {max_file_bytes}-byte safety limit")
+        data = path.read_bytes()
+    else:
+        from .inbox_transit import validate_input
+        from .maintenance_local_files import file_identity, open_local_file
 
-    data = path.read_bytes()
+        validate_input(input_binding)
+        with open_local_file(path) as stream:
+            if (input_binding["locator"] != locator
+                    or file_identity(stream) != input_binding["identity"]
+                    or input_binding["size_bytes"] > max_file_bytes):
+                raise IngestionInputError("the exact trial input changed before acquisition")
+            data = stream.read(input_binding["size_bytes"] + 1)
+            if (file_identity(stream) != input_binding["identity"]
+                    or len(data) != input_binding["size_bytes"]
+                    or hashlib.sha256(data).hexdigest() != input_binding["sha256"]):
+                raise IngestionInputError("the exact trial bytes changed during acquisition")
     digest = hashlib.sha256(data).hexdigest()
     original = store.store_original_bytes(data)
     existing = store.find_document(source_id, locator)

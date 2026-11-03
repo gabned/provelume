@@ -6,6 +6,13 @@ integration #433. Protocol source remains
 `02317e02767958faa3de5bb6d245ca3440360d9e`; Lifecycle v2 remains deferred.
 Application identity stays 0.14.0 / Entitas / development.
 
+The first increment's post-merge acceptance is retained at #435 comment 6596643672.
+Actual main subsequently advanced through #436/#437; acceptance of
+`a5786ec2a59cbb3e69ffe9f575504eb0157e5623` is retained at #437 comment 6596813619.
+Only then was the remaining S07 owner `product/0.15-s07-setup-coordinator` allocated
+in draft #438, with original BIND at comment 6596856526. This document is a
+qualification projection; the PR-local ledgers remain the authoritative history.
+
 Scope is #379: Acquisizione, Sorgenti, Documento and the six personal setup
 screens, consuming the existing preservation, OCR, review and scheduler services.
 Decision K in `docs/architecture/concordia-step-0.md` governs progress, effects,
@@ -177,3 +184,52 @@ The complete targeted set for this increment is **66 PASS**. The superseded
 `5476b1c` full run was interrupted at 2,961 PASS / 20 SKIP / 419 subtests because
 these state corrections changed its source. Source checks have not been weakened;
 only the final unchanged-head full run and remote histories can qualify integration.
+
+## Remaining S07 owner — bounded trial integration in progress
+
+The current draft adds exact named synthetic input bindings and a durable one-shot
+permit, consumed by the existing ingestion, OCR, Inbox and scheduler owners. It
+does not enable a whole-folder watcher, alter Source/global consent, issue manual
+OCR commands or copy data directly into canonical storage. Acquisition uses the
+original deterministic ingestion run/item/acquisition identities and guarded reads
+of the exact permitted bytes. The existing `ocr.execute` owner emits the index
+proof and terminal receipt; reliable native text uses its actual index-only skip.
+Trial input disposition shares S06's final guarded proof/disposition implementation.
+
+Explicit consultation verification requests actual Document/Original routes through
+the application's HTTP stack, checks the response statuses/body identities and
+Original bytes, and retains each success/failure in ordered operation receipts.
+Readback checks the exact Version's content-column FTS match; a title match cannot
+qualify search. A failed new consultation blocks current completion without
+rewriting earlier successful acquisition, Original preservation or legitimate exit.
+Read/reopen does not replay operations. The six-screen coordinator, scoped Source
+activation/handoff and complete rendered/frozen/manual qualification are still in
+progress; this backend increment does not accept S07 or close #379/#383.
+
+The first real two-document run retained two failures: the missing initial scoped
+index update, and `ocr_decompression_limit_exceeded` for the public recipe's
+38,576-byte scan. The index now updates only the two selected contributions, with
+`recover_missing_derived=False` and `allow_full_rebuild=False`; an existing index
+needing global repair keeps its separate maintenance gate. A new empty space may
+prepare its empty index through the explicit trial action before acquisition.
+
+The old compressed scan and its original public recipe remain unchanged evidence.
+The new recipe `scripts/generate_setup_trial_fixtures.py` stores the identical
+raster pixels with zlib level 0. New scan: 3,869,707 bytes, SHA-256
+`cf6f97c71c1f2b3752d37a335e0985edf2104c6b9b0b3fbf9543a3813ae21b97`.
+Native PDF: unchanged 880 bytes, SHA-256
+`3c04a38cad5c5ddcf98f1b8686bd8a2139f0a38b0682f048236a8cdf4a72414b`.
+No OCR limit, DPI, dependency pin, snapshot, workflow, gate or threshold was
+relaxed. The sentinel is generated for test preparation and is never packaged or
+permitted as an input. Resource reproducibility is separate from service results.
+
+Current Linux service evidence includes real Tesseract 5.5.0, English data,
+Pillow 13.0.0 and the already accepted OCR-profile PDFium wheel 5.13.0 (its exact
+checked-in workflow hash was verified before provisioning the missing component).
+The synthetic scan automatically produces an OCR job/derived contribution, native
+PDF skips OCR, Original bytes and unrelated sentinel remain unchanged, and keep
+disposition is physically observed without modifying existing Source settings.
+This is Linux automatic service evidence, not Italian-pack, installed Windows-kit,
+human, linguistic, screen-reader or real-zoom qualification. All required methods
+and unexecuted variants retain their own outcomes. The known Spanish `/sources`
+320px reflow finding remains open; no CSS correction is qualified here.

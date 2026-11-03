@@ -187,6 +187,10 @@ class OcrJobManager:
         return settings.as_record()
 
     def configured_settings(self) -> OcrSettings:
+        if getattr(self, "_trial_permit_id", None) is not None:
+            from .setup_trial_authority import SetupTrialAuthority
+
+            return SetupTrialAuthority(self.store).settings(self._trial_permit_id)
         return ocr_settings_from_config(self.store.read_config())
 
     def _components(
@@ -784,6 +788,7 @@ class OcrJobManager:
         *,
         checkpoint: Callable[[dict[str, int]], Mapping[str, Any]],
     ) -> dict[str, int]:
+        from .index import IndexScopeError
         from .index_evidence import finalize_ocr_index
         from .ocr_selection import embedded_selection
         from .ocr_sources import SourceOcrReview
@@ -791,10 +796,13 @@ class OcrJobManager:
 
         self._ensure_directories()
         request = self._request_for_job(job)
+        self._trial_permit_id = None
         try:
             if "source_authorization" in request:
                 authorization = SourceOcrReview(self.store).revalidate(
                     request["source_authorization"])
+                if isinstance(authorization["permit"], dict):
+                    self._trial_permit_id = authorization["permit"]["id"]
                 if (authorization["version"]["size_bytes"]
                         > self.configured_settings().limits.max_input_bytes):
                     raise OcrContractError("ocr_input_too_large",
@@ -835,8 +843,10 @@ class OcrJobManager:
                     finalize_ocr_index(self.store, job, request, selection, text)
                     return {"processed": 1, "skipped": 0, "errors": 0}
             return self._execute_pages(job, checkpoint=checkpoint)
-        except ReviewError as exc:
+        except (ReviewError, IndexScopeError) as exc:
             raise OcrContractError("ocr_contract_violation", str(exc)) from exc
+        finally:
+            self._trial_permit_id = None
 
     def _execute_pages(
         self,

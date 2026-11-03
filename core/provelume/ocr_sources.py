@@ -299,6 +299,12 @@ class SourceOcrReview:
         from .review_authority import ReviewAuthority
         from .review_integrity import CAPABILITIES
 
+        if isinstance(permit, dict):
+            from .setup_trial_authority import SetupTrialAuthority
+
+            return SetupTrialAuthority(self.store).ocr_authorization(
+                source_id, version_id, permit, acquisition)
+
         inputs = _Inputs(self.store)
         binding = version_input(inputs, source_id, version_id)
         inputs.record(f"knowledge/sources/{source_id}.json")
@@ -383,9 +389,14 @@ class SourceOcrFlow:
                 return {"scheduled": True, "created": False, "job": existing}
         policy = manager._policy()
         key = idempotency_digest("manual", policy["id"], str(policy["revision"]), request_key)
+        selected_settings = settings(self.store)
+        if isinstance(permit, dict):
+            from .setup_trial_authority import SetupTrialAuthority
+
+            selected_settings = SetupTrialAuthority(self.store).settings(permit["id"])
         request = {"schema_version": 1, "scheduler_key": key, "operation": "source",
                    "version_id": version_id, "source_authorization": authorization,
-                   "settings": settings(self.store).as_record()}
+                   "settings": selected_settings.as_record()}
         from .index_evidence import publish_once
         from .review_decisions import read_json
 
@@ -408,7 +419,14 @@ class SourceOcrFlow:
         result = manager.scheduler.journal.run_now(policy["id"], request_key=request_key)
         return {"scheduled": True, **result}
 
-    def admit(self, acquisition):
+    def admit(self, acquisition, *, trial_id=None):
+        if trial_id is not None:
+            from .setup_trial_authority import SetupTrialAuthority
+
+            permit = SetupTrialAuthority(self.store).read(trial_id)
+            return self.queue(acquisition["source_id"], acquisition["version_id"],
+                              permit={"kind": "setup-trial", "id": trial_id,
+                                      "sha256": digest(permit)}, acquisition=acquisition)
         policy = self.review.policy(acquisition["source_id"])
         if (policy is None or not policy["enabled"] or acquisition["outcome"] == "unchanged"
                 or datetime.fromisoformat(acquisition["observed_at"])
