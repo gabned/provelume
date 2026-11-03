@@ -37,8 +37,8 @@ def permit_path(value):
     return f"{PERMITS}/{operation_id(value)}.json"
 
 
-def read_record(store, relative):
-    raw = read_bytes(store, relative, maximum=16384)
+def read_record(store, relative, *, maximum=16384):
+    raw = read_bytes(store, relative, maximum=maximum)
     try:
         return None if raw is None else decode_json(raw)
     except RecursionError as exc:

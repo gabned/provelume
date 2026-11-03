@@ -5,6 +5,7 @@
   <p class="eyebrow">{{ t('sources.eyebrow') }}</p>
   <h1>{{ t('sources.title') }}</h1>
   <p class="lead">{{ t('sources.lead') }}</p>
+  <a href="/setup?step=folders&amp;lang={{ lang }}">{{ t('setup.title') }}</a>
 </section>
 {% include 'source_journeys.html' %}
 {% if saved %}<section class="panel"><p class="status ok">{{ t('sources.saved') }}</p><p class="technical-note">{{ saved }}</p></section>{% endif %}

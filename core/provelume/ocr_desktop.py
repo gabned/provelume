@@ -24,6 +24,11 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
     install.add_argument("--expected-sha256")
     commands.add_parser("kit-status")
     commands.add_parser("kit-remove")
+    setup = commands.add_parser("setup-qualify")
+    setup.add_argument("instance", type=Path)
+    setup.add_argument("--retention", choices=("keep", "transit"), required=True)
+    setup.add_argument("--kit", type=Path)
+    setup.add_argument("--expected-sha256")
     add_ocr_commands(commands)
     try:
         options = parser.parse_args(arguments)
@@ -35,7 +40,12 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
         # The output must be available before any operation changes state.
         with destination.open("x", encoding="utf-8", newline="\n") as stream:
             try:
-                if options.command == "kit-import":
+                if options.command == "setup-qualify":
+                    from .setup_qualification import qualify_setup
+
+                    result = qualify_setup(options.instance, retention=options.retention,
+                                           kit=options.kit, kit_sha256=options.expected_sha256)
+                elif options.command == "kit-import":
                     result = import_kit(
                         options.archive,
                         receipt_path=options.receipt,

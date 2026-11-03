@@ -5,6 +5,7 @@
   <p class="eyebrow">{{ t('inbox.eyebrow') }}</p>
   <h1>{{ inbox.name }}</h1>
   <p class="lead">{{ t('inbox.lead') }}</p>
+  <a href="/setup?lang={{ lang }}">{{ t('setup.title') }}</a>
   <div class="journey-actions">
     <a class="button" href="/capture/?mode=file#capture-form">{{ icon('inbox') }}{{ t('journey.add_file') }}</a>
     <a class="button secondary" href="/capture/?mode=text#capture-form">{{ icon('library') }}{{ t('journey.write_note') }}</a>

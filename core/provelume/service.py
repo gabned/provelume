@@ -1625,76 +1625,104 @@ class ProvelumeInstance:
         max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
         max_files: int = DEFAULT_MAX_FILES,
         schedule: Mapping[str, Any] | None = None,
+        _registration_id: str | None = None,
+    ) -> dict[str, Any]:
+        with InstanceLifecycleManager(self.store)._hold(purpose="register-folder-source"):
+            return self._register_folder_source_locked(
+                path, name=name, source_class=source_class, lifecycle_state=lifecycle_state,
+                quiescence_seconds=quiescence_seconds, stable_observations=stable_observations,
+                max_file_bytes=max_file_bytes, max_files=max_files, schedule=schedule,
+                _registration_id=_registration_id)
+
+    def _register_folder_source_locked(
+        self,
+        path: Path | str,
+        *,
+        name: str,
+        source_class: str = "local",
+        lifecycle_state: str = "enabled",
+        quiescence_seconds: int = 5,
+        stable_observations: int = 2,
+        max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
+        max_files: int = DEFAULT_MAX_FILES,
+        schedule: Mapping[str, Any] | None = None,
+        _registration_id: str | None = None,
     ) -> dict[str, Any]:
         selected_schedule = normalise_schedule(
             schedule if schedule is not None else schedule_payload(mode="manual", timezone="UTC")
         )
-        with InstanceLifecycleManager(self.store)._hold(purpose="folder-source-register"):
-            source = self.folder_sources.register(
-                path,
-                name=name,
-                source_class=source_class,
-                lifecycle_state=lifecycle_state,
-                quiescence_seconds=quiescence_seconds,
-                stable_observations=stable_observations,
-                max_file_bytes=max_file_bytes,
-                max_files=max_files,
-            )
-            policy_id = source.get("policy_id")
-            policy = (
-                self.scheduler.journal.get_policy(str(policy_id))
-                if isinstance(policy_id, str)
-                else None
-            )
-            if policy is not None:
-                if (
-                    policy["job_kind"] != "source.refresh"
-                    or policy["scope"] != {"kind": "source", "id": str(source["id"])}
-                    or policy["state"] != lifecycle_state
-                ):
-                    raise FolderSourceError(
-                        "folder Source scheduler policy binding is inconsistent"
-                    )
-                if policy["schedule"] != selected_schedule:
-                    raise FolderSourceError(
-                        "folder Source schedule already exists; update its policy explicitly"
-                    )
-            if policy is None:
-                matches = [
-                    item
-                    for item in self.scheduler.journal.list_policies()
-                    if item.get("job_kind") == "source.refresh"
-                    and item.get("scope") == {"kind": "source", "id": source["id"]}
-                ]
-                if len(matches) > 1:
-                    raise FolderSourceError("folder Source has more than one refresh policy")
-                policy = matches[0] if matches else None
-            if policy is None:
-                policy = self.scheduler.journal.create_policy(
-                    job_kind="source.refresh",
-                    scope={"kind": "source", "id": str(source["id"])},
-                    state=lifecycle_state,
-                    schedule=selected_schedule,
+        source = self.folder_sources.register(
+            path,
+            name=name,
+            source_class=source_class,
+            lifecycle_state=lifecycle_state,
+            quiescence_seconds=quiescence_seconds,
+            stable_observations=stable_observations,
+            max_file_bytes=max_file_bytes,
+            max_files=max_files,
+            _registration_id=_registration_id,
+        )
+        policy_id = source.get("policy_id")
+        policy = (
+            self.scheduler.journal.get_policy(str(policy_id))
+            if isinstance(policy_id, str)
+            else None
+        )
+        if policy is not None:
+            if (
+                policy["job_kind"] != "source.refresh"
+                or policy["scope"] != {"kind": "source", "id": str(source["id"])}
+                or policy["state"] != lifecycle_state
+            ):
+                raise FolderSourceError(
+                    "folder Source scheduler policy binding is inconsistent"
                 )
-            source = self.folder_sources.link_policy(str(source["id"]), str(policy["id"]))
-            return {**source, "policy": policy}
+            if policy["schedule"] != selected_schedule:
+                raise FolderSourceError(
+                    "folder Source schedule already exists; update its policy explicitly"
+                )
+        if policy is None:
+            matches = [
+                item
+                for item in self.scheduler.journal.list_policies()
+                if item.get("job_kind") == "source.refresh"
+                and item.get("scope") == {"kind": "source", "id": source["id"]}
+            ]
+            if len(matches) > 1:
+                raise FolderSourceError("folder Source has more than one refresh policy")
+            policy = matches[0] if matches else None
+        if policy is None:
+            policy = self.scheduler.journal.create_policy(
+                job_kind="source.refresh",
+                scope={"kind": "source", "id": str(source["id"])},
+                state=lifecycle_state,
+                schedule=selected_schedule,
+            )
+        source = self.folder_sources.link_policy(str(source["id"]), str(policy["id"]))
+        return {**source, "policy": policy}
+
 
     def set_folder_source_state(self, source_id: str, state: str) -> dict[str, Any]:
+        with InstanceLifecycleManager(self.store)._hold(purpose="set-folder-source-state"):
+            return self._set_folder_source_state_locked(
+                source_id, state)
+
+    def _set_folder_source_state_locked(self, source_id: str, state: str) -> dict[str, Any]:
         if state not in SOURCE_LIFECYCLE_STATES:
             raise FolderSourceError("unsupported folder Source state")
-        with InstanceLifecycleManager(self.store)._hold(purpose="folder-source-state"):
-            source = self.folder_sources.public_view(source_id)
-            policy_id = source.get("policy_id")
-            if not isinstance(policy_id, str):
-                raise FolderSourceError("folder Source has no linked scheduler policy")
-            current_policy = self.scheduler.journal.get_policy(policy_id)
-            if current_policy is None:
-                raise FolderSourceError("folder Source scheduler policy is missing")
-            if source["lifecycle_state"] == state and current_policy["state"] == state:
-                return {**source, "policy": current_policy}
-            policy = self.scheduler.journal.update_policy(policy_id, state=state)
-            selected = self.folder_sources.set_state(source_id, state)
-            return {**selected, "policy": policy}
+        source = self.folder_sources.public_view(source_id)
+        policy_id = source.get("policy_id")
+        if not isinstance(policy_id, str):
+            raise FolderSourceError("folder Source has no linked scheduler policy")
+        current_policy = self.scheduler.journal.get_policy(policy_id)
+        if current_policy is None:
+            raise FolderSourceError("folder Source scheduler policy is missing")
+        if source["lifecycle_state"] == state and current_policy["state"] == state:
+            return {**source, "policy": current_policy}
+        policy = self.scheduler.journal.update_policy(policy_id, state=state)
+        selected = self.folder_sources.set_state(source_id, state)
+        return {**selected, "policy": policy}
+
 
     def observe_folder_source(
         self,

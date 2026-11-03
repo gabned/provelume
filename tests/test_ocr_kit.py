@@ -23,6 +23,7 @@ from provelume.ocr_kit import (
     active_kit,
     build_identity,
     import_kit,
+    inspect_kit,
     remove_kit,
 )
 from provelume.publication import canonical_bytes, file_identity
@@ -401,3 +402,17 @@ def test_frozen_operator_reports_concurrent_provisioning_as_unavailable(tmp_path
         run_ocr_command(["kit-import", "synthetic.zip", "--expected-sha256", "0" * 64], output) == 2
     )
     assert json.loads(output.read_text())["code"] == "provisioning_busy"
+
+
+def test_explicit_kit_preview_installs_nothing_and_rejects_changed_archive(kit):
+    build, _files, _manifest, _write, archive, root = kit
+    before = archive.read_bytes()
+    preview = inspect_kit(archive, expected_sha256=hashlib.sha256(before).hexdigest(), build=build)
+    assert preview["status"] == "previewed" and not preview["installed"]
+    assert not root.exists()
+    assert len(preview["components"]) == 6
+    assert preview["authority"] == "explicit-sha256"
+    archive.write_bytes(before + b"changed-after-preview")
+    with pytest.raises(OcrKitError):
+        inspect_kit(archive, expected_sha256=preview["kit"]["sha256"], build=build)
+    assert not root.exists()

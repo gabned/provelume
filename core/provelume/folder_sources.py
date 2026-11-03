@@ -183,7 +183,12 @@ class FolderSourceManager:
         stable_observations: int = 2,
         max_file_bytes: int = 25 * 1024 * 1024,
         max_files: int = 1000,
+        _registration_id: str | None = None,
     ) -> dict[str, Any]:
+        if _registration_id is not None:
+            from .setup_source_scope import _source_id
+
+            _source_id(_registration_id)
         selected_name = self._name(name)
         folder = folder_config_payload(
             source_class=source_class,
@@ -199,15 +204,21 @@ class FolderSourceManager:
         if checked.code != "ok":
             raise FolderSourceEnrollmentError(checked.code)
         source_id = checked.existing_source_id
+        if source_id is not None and _registration_id not in {None, source_id}:
+            raise FolderSourceError("another Source already owns this prepared path")
         if source_id is None:
-            source_id = f"src_{uuid4().hex}"
-            source = Source(
-                id=source_id,
-                kind="filesystem",
-                name=selected_name,
-                created_at=utc_now(),
-            )
-            self.store.write_source(source)
+            source_id = _registration_id or f"src_{uuid4().hex}"
+            existing = self.store.read_canonical("sources", source_id)
+            if existing is not None:
+                configured = self.store.read_config().get("sources", {}).get(source_id)
+                if configured is not None:
+                    raise FolderSourceError("the planned Source already has a configured path")
+                if (existing.get("kind") != "filesystem"
+                        or existing.get("name") != selected_name):
+                    raise FolderSourceError("the planned Source identity has another owner")
+            else:
+                self.store.write_source(Source(
+                    id=source_id, kind="filesystem", name=selected_name, created_at=utc_now()))
         else:
             existing = self.store.read_canonical("sources", source_id)
             if existing is None or existing.get("kind") != "filesystem":
@@ -332,6 +343,9 @@ class FolderSourceManager:
         selected = self.selected_for_read(path).resolve(strict=True)
         policy = policy_for_source(self.store, source_id)
         files = _iter_files(selected, max_files, policy)
+        from .setup_source_scope import eligible_inputs
+
+        files = eligible_inputs(self.store, source_id, selected, files)
         rows: list[str] = []
         total_bytes = 0
         for locator, file_path in files:

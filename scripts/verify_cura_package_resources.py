@@ -31,6 +31,7 @@ STATIC_FILES = (
     "static/navigation.js",
     "static/cura.css",
     "static/cura-shell.js",
+    "static/setup.css",
     "static/capture.css",
     "static/capture-shell.js",
     "static/capture-worker.js",

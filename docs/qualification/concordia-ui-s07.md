@@ -233,3 +233,127 @@ This is Linux automatic service evidence, not Italian-pack, installed Windows-ki
 human, linguistic, screen-reader or real-zoom qualification. All required methods
 and unexecuted variants retain their own outcomes. The known Spanish `/sources`
 320px reflow finding remains open; no CSS correction is qualified here.
+
+## Remaining owner #438 — coordinator candidate
+
+The preceding matrix and browser failures belong to the first increment. They
+remain historical observations. The owner [#438](https://github.com/gabned/provelume/pull/438)
+now implements all six screens at `/setup`, in both delivered shells, and links
+Acquisition, Sources and Document to that same coordinator. **S07 is not accepted.**
+Exact-source native/browser/installed results and their original failures belong
+in #438's public ledger. No row below promotes an unexecuted variant or human test.
+
+K uses the existing private device progress record: Instance, navigation/completed
+steps, revision digests and operation references. Unsubmitted selectors remain in
+a bounded session; missing or stale selections need review. GET only reads current
+services and receipts. Prepare can create only the chosen separate local folder
+and its own temporary permission probe; a new Source remains paused. Existing
+Sources keep their identity and activity. New Space creation/selection uses the
+existing native launcher, preserving its startup binding; names are validated
+before creating files. The wizard does not relocate or replace the active Space.
+
+The official offline-kit service now offers a read-only, build-bound inventory
+preview. Install rechecks that preview and invokes the same importer. A matching
+release receipt or an independently checked explicit SHA-256 uses the existing
+provisioning authority routes; neither establishes independent publisher identity.
+Development kit material remains a candidate. Preview/preparation grants no Source,
+backlog or AI consent and does not enable global OCR. Actual engine/pack/renderer
+readiness remains distinct from selected settings and kit bytes.
+
+Trial-owned filenames are reserved before copying. The existing observer and
+normal ingestion exclude only those names, including after an interrupted copy.
+One-shot authority is consumed by the existing ingestion, automatic OCR, scheduler
+and S06 Inbox owners; no second watcher, queue, temporary Source grant or manual
+OCR is introduced. Cancellation and repeated browser submissions do not resurrect
+a job. A new trial is a separate explicit action and creates new Documents.
+
+Apply binds the current preferences, Source, schedule, consents, root and displayed
+Inbox inventory. It changes selected remaining settings and reads them back,
+retaining each stage's intent/result. New-Source activation excludes its initial
+backlog using bounded metadata. Existing consent scopes cannot be widened for
+unrelated Sources. Not now preserves an absent OCR policy. A durable admission
+barrier prevents incomplete application from starting general Source/AI intake.
+Interrupted policy/observer activation finishes the same observer. If unrelated
+preferences changed during a partial application, the explicit Pause and review
+operation pauses admission and preserves applied effects, components, Documents
+and external preferences; remaining choices require a fresh review/trial.
+
+A completed trial receipt is consumed before Apply. The old permit then stays
+stale for future producer/exit work when its settings change. A separate read-only
+post-Apply check still verifies its Original bytes, selected contribution and exact
+content search; it grants no new producer authority. A later failed probe,
+changed Original or missing index prevents a false completed summary.
+
+The existing installed OCR workflow additionally runs the frozen setup entry for
+keep and transit, exact IT/EN resources, automatic scan/native producers, six
+actual HTTP template responses, kit preview/import, targeted Apply and a future
+native acquisition through the configured Source with real quiescence. Its
+Windows runner result does not attest the maintainer's Windows 11 Pro 25H2 PC.
+No workflow, dependency, snapshot, OCR limit or gate was relaxed.
+
+Current source exercises are listed below. `PARTIAL` covers only the named cases;
+all other variants retain NOT_RUN. Browser observations are separate from HTTP
+form/service tests. The exact browser combination inventory and candidate identity
+must be read from the owner ledger, not inferred from this table.
+
+| Family | Automatic source exercises | Browser | Installed runtime | Manual |
+| --- | --- | --- | --- | --- |
+| T01 | PARTIAL: six read-only screens, defaults, no intake | separate ledger | pending exact CI | NOT_RUN |
+| T02 | PARTIAL: existing identity preserved; native selector retained | NOT_RUN selector | pending exact CI | NOT_RUN |
+| T03 | PARTIAL: saved language/readback, seven catalogs, both shells | separate ledger | pending exact CI | NOT_RUN |
+| T04 | PARTIAL: invalid new name creates no files; native retry | NOT_RUN native entry | pending exact CI | NOT_RUN |
+| T05 | PARTIAL: internal/Input/Original roles and paths | separate ledger | pending exact CI | NOT_RUN |
+| T06 | PARTIAL: local create, overlap/root/identity negatives | separate ledger | pending exact CI | NOT_RUN |
+| T07 | PARTIAL: own probe, sentinel/config unchanged | separate ledger | pending exact CI | NOT_RUN |
+| T08 | PARTIAL: live root and permission guards | NOT_RUN permission matrix | pending exact CI | NOT_RUN |
+| T09 | PARTIAL: transit default, explicit keep, runtime capability | separate ledger | pending exact CI | NOT_RUN |
+| T10 | PARTIAL: existing activity/identity and scope preservation | NOT_RUN full variants | pending exact CI | NOT_RUN |
+| T11 | PARTIAL: existing S06 conversion owner; revision/inventory gate | NOT_RUN full conversion | pending exact CI | NOT_RUN |
+| T12 | PARTIAL: selected versus actual OCR capability | separate ledger | pending exact CI | NOT_RUN |
+| T13 | PARTIAL: read-only kit inventory; import separate, no consent | NOT_RUN real kit browser | pending exact CI | NOT_RUN |
+| T14 | PARTIAL: importer reuse/fault contracts; no GET replay | NOT_RUN all kit faults | pending exact CI | NOT_RUN |
+| T15 | PARTIAL: explicit Not now; no new OCR grant or fake text | separate ledger | pending exact CI | NOT_RUN |
+| T16 | PARTIAL: independent UI and OCR languages | separate ledger | pending exact CI | NOT_RUN |
+| T17 | PARTIAL: desired mode and real runtime separate | separate ledger | pending exact CI | NOT_RUN |
+| T18 | PARTIAL: existing Source/scheduler; future-only baseline | NOT_RUN slow copy matrix | pending exact CI | NOT_RUN |
+| T19 | PARTIAL: preserve startup; installed-only action/readback | NOT_RUN OS sign-in | pending exact CI | NOT_RUN |
+| T20 | PARTIAL: unsupported startup/transit disclosed on Linux | separate ledger | pending exact CI | NOT_RUN |
+| T21 | PARTIAL: exact resources; active Source, sentinel, no AI grant | separate ledger | pending exact CI | NOT_RUN |
+| T22 | PARTIAL: native acquisition/Original/body search | separate ledger | pending exact CI | NOT_RUN |
+| T23 | PARTIAL: real automatic English scan, exact search | separate ledger | pending IT/EN CI | NOT_RUN |
+| T24 | PARTIAL: real native index-only skip | separate ledger | pending exact CI | NOT_RUN |
+| T25 | PARTIAL: exact Version content-column match | separate ledger | pending exact CI | NOT_RUN |
+| T26 | PARTIAL: real Document/Original responses, hashes, failed probe | separate ledger | pending exact CI | NOT_RUN |
+| T27 | PARTIAL: failed consultation blocks; same Documents retry | NOT_RUN all browser faults | pending exact CI | NOT_RUN |
+| T28 | PARTIAL: same S06 guarded exit; Linux unavailable disclosed | NOT_RUN Linux transit | pending exact CI | NOT_RUN |
+| T29 | PARTIAL: actual keep outcome and unchanged inputs | separate ledger | pending exact CI | NOT_RUN |
+| T30 | PARTIAL: changed/corrupt/foreign inputs and permits refused | NOT_RUN every fault | pending exact CI | NOT_RUN |
+| T31 | PARTIAL: OCR failure/cancel cannot establish completion | NOT_RUN all failures | pending exact CI | NOT_RUN |
+| T32 | PARTIAL: existing shared counts; no absent-to-zero inference | separate ledger | pending exact CI | NOT_RUN |
+| T33 | PARTIAL: selected preparation/trial/Apply crash boundaries | NOT_RUN full crash matrix | pending exact CI | NOT_RUN |
+| T34 | PARTIAL: nonce/CAS/replay/cancel/session restart | separate ledger | pending exact CI | NOT_RUN |
+| T35 | PARTIAL: selection/dependency digests, stale trial gate | NOT_RUN every change | pending exact CI | NOT_RUN |
+| T36 | PARTIAL: read-only resume from real operation references | separate ledger | pending exact CI | NOT_RUN |
+| T37 | PARTIAL: discard preserves effects/references/Documents | NOT_RUN human exit variants | pending exact CI | NOT_RUN |
+| T38 | PARTIAL: stale prefs/Source/root/settings reject old Apply | NOT_RUN all concurrent changes | pending exact CI | NOT_RUN |
+| T39 | PARTIAL: per-stage recovery and explicit pause/re-review | NOT_RUN complete UI faults | pending exact CI | NOT_RUN |
+| T40 | PARTIAL: targeted readback, missing proof prevents completion | separate ledger | pending exact CI | NOT_RUN |
+| T41 | PARTIAL: shared services and setup links on three daily pages | separate ledger | pending exact CI | NOT_RUN |
+| T42 | PARTIAL: labels, order, current step, error focus markup | pending exact observations | pending exact CI | NOT_RUN |
+| T43 | No screen-reader PASS inferred | NOT_RUN screen reader | NOT_RUN | NOT_RUN |
+| T44 | PARTIAL: text/icons, scoped targets/focus/styles | separate ledger | pending exact CI | NOT_RUN |
+| T45 | PARTIAL: scoped responsive setup CSS | separate ledger; real zoom NOT_RUN | pending exact CI | NOT_RUN |
+| T46 | PARTIAL: complete catalogs, linguistic UNVERIFIED | separate ledger | pending exact CI | NOT_RUN |
+| T47 | No upgrade/platform acceptance inherited | NOT_RUN | NOT_RUN exact release matrix | NOT_RUN |
+| T48 | PARTIAL: synthetic local pipeline, consent/data invariants | separate ledger | pending exact CI | NOT_RUN |
+
+AC01–AC15 retain the exact family mapping above and remain PARTIAL/NOT_ACCEPTED
+until their required variants and methods have actual evidence. In particular,
+AC13 has no human linguistic/screen-reader/real-zoom PASS, and AC14 has no exact
+Concordia upgrade/platform PASS. The Spanish `/sources` 320px finding is still
+open; scoped setup CSS is not a qualified correction to that page.
+
+The [maintainer check sheet](concordia-ui-s07-pc.md) uses only his Windows 11 Pro
+25H2 production PC/account with synthetic test inputs. It requests no VM, extra
+account or other tester. This candidate keeps version 0.14.0/development; later
+owners and release identity/publication stay gated by the accepted plan.

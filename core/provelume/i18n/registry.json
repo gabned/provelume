@@ -1651,7 +1651,8 @@
         "scheduler.no_receipts",
         "scheduler.no_network_delete",
         "scheduler.boundary_title",
-        "scheduler.boundary"
+        "scheduler.boundary",
+        "scheduler.kind.setup.trial"
       ],
       "namespace": ""
     },
@@ -16125,6 +16126,756 @@
     },
     "journey.text.ocr_accepted": {
       "context": "Independent runtime/consent/selected-text state; daily journeys; text.ocr_accepted",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.title": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.title",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.lead": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.lead",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.step": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.step",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.steps": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.steps",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.space": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.space",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.folders": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.folders",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.ocr": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.ocr",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.automation": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.automation",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.test": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.test",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.summary": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.summary",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.problem": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.problem",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.review": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.review",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.saved": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.saved",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.space_help": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.space_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.location": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.location",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.language_preview": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.language_preview",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.ai_help": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.ai_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.folders_help": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.folders_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.source": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.source",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.new_folder": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.new_folder",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.prepare_help": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.prepare_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.prepare": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.prepare",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.folder_verified": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.folder_verified",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.after_processing": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.after_processing",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.transit": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.transit",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.keep": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.keep",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.retention_help": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.retention_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.ocr_help": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.ocr_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.ocr_question": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.ocr_question",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.ocr_yes": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.ocr_yes",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.not_now": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.not_now",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.it_en": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.it_en",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.italian": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.italian",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.english": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.english",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.ocr_capability": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.ocr_capability",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.ocr_deferred": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.ocr_deferred",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.ocr_scope": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.ocr_scope",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.install_ocr": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.install_ocr",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.kit_help": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.kit_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.kit_archive": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.kit_archive",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.kit_receipt": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.kit_receipt",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.automation_help": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.automation_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.when": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.when",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.preserve": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.preserve",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.automatic": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.automatic",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.manual": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.manual",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.login_startup": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.login_startup",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.runtime_help": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.runtime_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.trial_help": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.trial_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.trial_scope": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.trial_scope",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.start_trial": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.start_trial",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.refresh": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.refresh",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.native": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.native",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.scan": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.scan",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.acquired": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.acquired",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.original": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.original",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.text": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.text",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.search": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.search",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.consulted": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.consulted",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.inbox_result": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.inbox_result",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.verified": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.verified",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.pending": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.pending",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.try_search": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.try_search",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.stale_trial": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.stale_trial",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.verify_open": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.verify_open",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.verify_help": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.verify_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.details": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.details",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.summary_help": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.summary_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.apply_help": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.apply_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.confirm_scope": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.confirm_scope",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.excluded_backlog": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.excluded_backlog",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.apply": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.apply",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.applied": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.applied",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.partial": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.partial",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.backup_help": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.backup_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.go_acquisition": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.go_acquisition",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.manage_sources": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.manage_sources",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.backup": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.backup",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.effects": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.effects",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.continue": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.continue",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.save_later": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.save_later",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.exit": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.exit",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.discard_help": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.discard_help",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.discard": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.discard",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.keep_draft": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.keep_draft",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_progress_stale": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_progress_stale",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_choices_invalid": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_choices_invalid",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_source_changed": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_source_changed",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_preview_stale": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_preview_stale",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_settings_invalid": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_settings_invalid",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_folder_overlap": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_folder_overlap",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_name_invalid": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_name_invalid",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_permission_failed": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_permission_failed",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_prepare_required": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_prepare_required",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_transit_unavailable": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_transit_unavailable",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_trial_required": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_trial_required",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_source_busy": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_source_busy",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_global_ocr_needs_review": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_global_ocr_needs_review",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_authority_needs_review": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_authority_needs_review",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_startup_unavailable": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_startup_unavailable",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_startup_readback_failed": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_startup_readback_failed",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_apply_needs_review": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_apply_needs_review",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_apply_readback_failed": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_apply_readback_failed",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_apply_pending": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_apply_pending",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_operation_failed": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.error.setup_operation_failed",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.stage.baseline": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.stage.baseline",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.stage.ocr": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.stage.ocr",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.stage.schedule": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.stage.schedule",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.stage.activation": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.stage.activation",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.stage.grant_ocr_sources": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.stage.grant_ocr_sources",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.stage.grant_inbox_transit": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.stage.grant_inbox_transit",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.stage.source_ocr": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.stage.source_ocr",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.stage.inbox": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.stage.inbox",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.stage.shell": {
+      "context": "S07 six-screen setup: explicit effects, authority, recovery and independent observation; setup.stage.shell",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.new_trial": {
+      "context": "Explicit new synthetic trial creates new Documents, distinct from resume",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.bytes": {
+      "context": "S07 resource unit and actual input exit result; bytes",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.input_exited": {
+      "context": "S07 resource unit and actual input exit result; input_exited",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "scheduler.kind.setup.trial": {
+      "context": "Internal existing scheduler producer for one explicitly scoped synthetic setup trial",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.invalid_space_name": {
+      "context": "Native launcher new Space name retry; preserves selected path and focus on entry",
+      "rendering": "text",
+      "sensitive_review_required": false,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.kit_sha": {
+      "context": "S07 explicit bounded offline kit preview and authority, no installation on preview",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.preview_ocr": {
+      "context": "S07 explicit bounded offline kit preview and authority, no installation on preview",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.kit_integrity": {
+      "context": "S07 explicit bounded offline kit preview and authority, no installation on preview",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.error.setup_kit_authority_required": {
+      "context": "S07 explicit bounded offline kit preview and authority, no installation on preview",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.pause_review": {
+      "context": "S07 explicit reverse action for interrupted Apply; pause acquisition and preserve applied effects",
+      "rendering": "text",
+      "sensitive_review_required": true,
+      "linguistic_review": "UNVERIFIED"
+    },
+    "setup.pause_review_help": {
+      "context": "S07 explicit reverse action for interrupted Apply; pause acquisition and preserve applied effects",
       "rendering": "text",
       "sensitive_review_required": true,
       "linguistic_review": "UNVERIFIED"

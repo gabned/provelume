@@ -50,6 +50,13 @@ class SetupTrials:
 
     def start(self, source_id, *, retention, ocr_required, languages, request_key,
               principal="local_browser"):
+        with InstanceLifecycleManager(self.store)._hold(purpose="setup-trial-submit"):
+            return self.start_locked(source_id, retention=retention, ocr_required=ocr_required,
+                                     languages=languages, request_key=request_key,
+                                     principal=principal)
+
+    def start_locked(self, source_id, *, retention, ocr_required, languages, request_key,
+              principal="local_browser", _on_operation=None):
         """Explicit named action. GET/reopen never calls this method."""
         from .ocr_jobs import OcrJobManager
 
@@ -63,72 +70,90 @@ class SetupTrials:
                       "ocr_required": ocr_required, "languages": languages,
                       "principal": principal}
         submission = f"{ROOT}/submissions/{digest(request_key)}.json"
-        with InstanceLifecycleManager(self.store)._hold(purpose="setup-trial-submit"):
-            previous = read_record(self.store, submission)
-            if previous is not None:
-                if (set(previous) != {"schema", "id", "parameters", "root_binding",
-                                     "source_revision"}
-                        or previous["schema"] != "setup-trial-submission/v1"
-                        or previous["parameters"] != parameters):
-                    raise ReviewConflict("This submission belongs to different trial settings")
-                op_id = operation_id(previous["id"])
-                # A replay never recreates a consumed input or duplicates a
-                # terminal child. An unconfirmed crash needs this explicit action.
-                if (read_record(self.store, permit_path(op_id)) is not None
-                        and self.authority.retained(op_id)[1]):
-                    return self.queue_locked(op_id)
-            else:
-                if ocr_required:
-                    selected = replace(ocr_settings_from_config(self.store.read_config()),
-                                       mode="automatic", languages=tuple(languages))
-                    require_ocr_available(OcrJobManager(self.store).capability(selected))
-                op_id = OperationLedger(self.store).start(
-                    "setup.trial", "Acquire only the displayed synthetic setup resources",
-                    related={"source_id": source_id}).id
-            root, revision, _folder = _source(self.store, source_id)
-            with open_local_directory(root) as (_path, binding):
-                expected = {"schema": "setup-trial-submission/v1", "id": op_id,
-                            "parameters": parameters, "root_binding": binding,
-                            "source_revision": revision}
-                if previous is not None and previous != expected:
-                    raise ReviewConflict("The selected trial Source or root changed")
-                publish_once(self.store, submission, expected)
-                index_path = self.store.paths.root / "indexes" / "search.sqlite3"
-                if not index_path.exists():
-                    if self.store.list_canonical("documents"):
-                        raise ReviewUnavailable(
-                            "The existing search index needs its separate maintenance review")
-                    from .index import rebuild_search_index
+        from .setup_coordinator import assert_admission_ready
 
-                    # The explicit trial action may prepare a new empty index. This
-                    # cannot rebuild or read another Document's contribution.
-                    rebuild_search_index(self.store)
-                    OperationLedger(self.store).append(
-                        op_id, "setup.trial.empty-index-initialized",
-                        "Prepared the search index of the empty space before trial acquisition")
-                named = {}
-                for kind in (["native", "scan"] if ocr_required else ["native"]):
-                    resource = FIXTURES[kind]
-                    name = f"setup-{op_id.removeprefix('op_')}-{resource['name']}"
-                    named[kind] = name
-                    data = files("provelume").joinpath(
-                        "resources", "setup-trial", resource["name"]).read_bytes()
-                    if (len(data) != resource["size_bytes"]
-                            or hashlib.sha256(data).hexdigest() != resource["sha256"]):
-                        raise ReviewUnavailable("The packaged synthetic resource failed integrity")
-                    target = root / name
-                    if target.exists():
-                        with open_local_file(target) as stream:
-                            current = stream.read(len(data) + 1)
-                        if current != data:
-                            raise ReviewConflict("A different input owns the trial resource name")
-                    else:
-                        write_local_bytes(target, data)
-                selected = observe_selection(self.store, source_id, named)
-                self.authority.issue(op_id, selected, retention=retention,
-                                     ocr_required=ocr_required, languages=languages,
-                                     principal=principal)
-            return self.queue_locked(op_id)
+        assert_admission_ready(self.store, source_id)
+        previous = read_record(self.store, submission)
+        if previous is not None:
+            if (set(previous) != {"schema", "id", "parameters", "root_binding",
+                                 "source_revision"}
+                    or previous["schema"] != "setup-trial-submission/v1"
+                    or previous["parameters"] != parameters):
+                raise ReviewConflict("This submission belongs to different trial settings")
+            op_id = operation_id(previous["id"])
+            # A replay never recreates a consumed input or duplicates a
+            # terminal child. An unconfirmed crash needs this explicit action.
+            if (read_record(self.store, permit_path(op_id)) is not None
+                    and self.authority.retained(op_id)[1]):
+                if _on_operation is not None:
+                    _on_operation(op_id)
+                return self.queue_locked(op_id)
+        else:
+            if ocr_required:
+                selected = replace(ocr_settings_from_config(self.store.read_config()),
+                                   mode="automatic", languages=tuple(languages))
+                require_ocr_available(OcrJobManager(self.store).capability(selected))
+            op_id = OperationLedger(self.store).start(
+                "setup.trial", "Acquire only the displayed synthetic setup resources",
+                related={"source_id": source_id}).id
+        if _on_operation is not None:
+            _on_operation(op_id)
+        root, revision, _folder = _source(self.store, source_id)
+        with open_local_directory(root) as (_path, binding):
+            expected = {"schema": "setup-trial-submission/v1", "id": op_id,
+                        "parameters": parameters, "root_binding": binding,
+                        "source_revision": revision}
+            if previous is not None and previous != expected:
+                raise ReviewConflict("The selected trial Source or root changed")
+            publish_once(self.store, submission, expected)
+            index_path = self.store.paths.root / "indexes" / "search.sqlite3"
+            if not index_path.exists():
+                if self.store.list_canonical("documents"):
+                    raise ReviewUnavailable(
+                        "The existing search index needs its separate maintenance review")
+                from .index import rebuild_search_index
+
+                # The explicit trial action may prepare a new empty index. This
+                # cannot rebuild or read another Document's contribution.
+                rebuild_search_index(self.store)
+                OperationLedger(self.store).append(
+                    op_id, "setup.trial.empty-index-initialized",
+                    "Prepared the search index of the empty space before trial acquisition")
+            from .setup_source_scope import CLAIMS, claim_trial_names, validate_claim
+
+            named = {kind: f"setup-{op_id.removeprefix('op_')}-{FIXTURES[kind]['name']}"
+                     for kind in (["native", "scan"] if ocr_required else ["native"])}
+            claim = read_record(self.store, f"{CLAIMS}/{source_id}/{op_id}.json")
+            if claim is None:
+                if any((root / name).exists() or (root / name).is_symlink()
+                       for name in named.values()):
+                    raise ReviewConflict("A preexisting input owns a trial resource name")
+            else:
+                validate_claim(self.store, claim)
+            # Reserve only our exact names before writing even the first byte.
+            # The ordinary Source/AI owner must never observe partial trial inputs.
+            claim_trial_names(self.store, op_id, source_id, binding, named)
+            for kind, name in named.items():
+                resource = FIXTURES[kind]
+                data = files("provelume").joinpath(
+                    "resources", "setup-trial", resource["name"]).read_bytes()
+                if (len(data) != resource["size_bytes"]
+                        or hashlib.sha256(data).hexdigest() != resource["sha256"]):
+                    raise ReviewUnavailable("The packaged synthetic resource failed integrity")
+                target = root / name
+                if target.exists():
+                    with open_local_file(target) as stream:
+                        current = stream.read(len(data) + 1)
+                    if current != data:
+                        raise ReviewConflict("A different input owns the trial resource name")
+                else:
+                    write_local_bytes(target, data)
+            selected = observe_selection(self.store, source_id, named)
+            self.authority.issue(op_id, selected, retention=retention,
+                                 ocr_required=ocr_required, languages=languages,
+                                 principal=principal)
+        return self.queue_locked(op_id)
+
 
     def queue_locked(self, op_id):
         from .scheduler import SchedulerStore
@@ -544,7 +569,8 @@ def setup_trial_findings(store):
         root = checked_path(store, ROOT)
         if not root.exists():
             return findings
-        allowed = {"permits", "submissions", "requests", "children", "inbox", "probes"}
+        allowed = {"permits", "submissions", "requests", "children", "inbox", "probes",
+                   "source-claims"}
         count, total_bytes = 0, 0
         for directory in root.iterdir():
             if directory.name not in allowed or not directory.is_dir() or directory.is_symlink():
@@ -556,9 +582,15 @@ def setup_trial_findings(store):
                 parts = path.relative_to(root).parts
                 if path.is_dir():
                     if (len(parts) != 2
-                            or directory.name not in {"children", "inbox", "probes"}):
+                            or directory.name not in {
+                                "children", "inbox", "probes", "source-claims"}):
                         raise ReviewUnavailable("Trial history has an unknown directory")
-                    operation_id(path.name)
+                    if directory.name == "source-claims":
+                        from .setup_source_scope import _source_id
+
+                        _source_id(path.name)
+                    else:
+                        operation_id(path.name)
                     continue
                 if path.suffix != ".json":
                     raise ReviewUnavailable("Unknown trial history entry")
@@ -569,7 +601,14 @@ def setup_trial_findings(store):
                 if total_bytes > 32 * 1024 * 1024:
                     raise ReviewUnavailable("Trial history exceeds its byte bound")
                 record = read_record(store, relative)
-                if directory.name == "permits":
+                if directory.name == "source-claims":
+                    from .setup_source_scope import validate_claim
+
+                    validate_claim(store, record)
+                    if (len(parts) != 3 or record["source_id"] != parts[1]
+                            or record["id"] != path.stem):
+                        raise ReviewUnavailable("The trial name claim has another owner")
+                elif directory.name == "permits":
                     if len(parts) != 2:
                         raise ReviewUnavailable("The trial permit path is invalid")
                     SetupTrialAuthority(store).retained(path.stem)

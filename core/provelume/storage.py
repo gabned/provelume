@@ -204,6 +204,13 @@ class _ConfigBuffer(io.BytesIO):
         self.name = name
 
 
+def validate_instance_name(value: str) -> str:
+    if (not isinstance(value, str) or not value.strip() or len(value) > 120
+            or any(ord(character) < 32 or ord(character) == 127 for character in value)):
+        raise ValueError("Instance name must contain 1 to 120 characters without controls")
+    return value.strip()
+
+
 class InstanceStore:
     def __init__(self, root: Path | str):
         self.paths = InstancePaths(Path(root).expanduser().resolve())
@@ -221,6 +228,7 @@ class InstanceStore:
         existing = store.paths.config.exists()
         if existing:
             return cls.open(root)
+        name = validate_instance_name(name)
         store.paths.root.mkdir(parents=True, exist_ok=True)
         for path in (
             store.paths.originals,

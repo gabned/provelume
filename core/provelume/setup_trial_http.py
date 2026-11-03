@@ -10,7 +10,7 @@ from .review_effects import ReviewUnavailable
 from .setup_trials import SetupTrials
 
 
-async def _get(app, path, *, host, port, maximum):
+async def _get(app, path, *, host, port, maximum, query_string=b""):
     completed = asyncio.Event()
     requested = False
     status, body = None, bytearray()
@@ -40,7 +40,7 @@ async def _get(app, path, *, host, port, maximum):
     authority = f"[{host}]:{port}" if ":" in host else f"{host}:{port}"
     scope = {"type": "http", "asgi": {"version": "3.0", "spec_version": "2.4"},
              "http_version": "1.1", "scheme": "http", "method": "GET", "path": path,
-             "raw_path": path.encode("ascii"), "query_string": b"", "root_path": "",
+             "raw_path": path.encode("ascii"), "query_string": query_string, "root_path": "",
              "headers": [(b"host", authority.encode("ascii"))],
              "client": ("127.0.0.1", 0), "server": (host, port)}
     async with asyncio.timeout(10):

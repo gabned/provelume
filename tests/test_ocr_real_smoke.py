@@ -17,6 +17,17 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def test_real_setup_coordinator_apply_and_future_source_native_acquisition(tmp_path):
+    from provelume.setup_qualification import qualify_setup
+
+    report = qualify_setup(tmp_path / "synthetic-profile", retention="keep",
+                           ocr_required=True, languages=["eng"])
+    assert report["result"] == "PASS"
+    assert [row["text_kind"] for row in report["documents"]] == ["embedded", "ocr-complete"]
+    assert report["future_native"]["acquired"] and report["future_native"]["original_verified"]
+    assert not report["future_native"]["backlog_acquired"]
+
+
 def test_setup_trial_automatically_admits_real_scan_and_skips_native_pdf(tmp_path, monkeypatch):
     from provelume.setup_trial_authority import ROOT, read_record
     from provelume.setup_trials import SetupTrials

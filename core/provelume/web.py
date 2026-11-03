@@ -633,6 +633,10 @@ def create_app(
         effective_host=selected_host,
         effective_port=selected_port,
     )
+    from .setup_activity import attach_setup_routes
+
+    attach_setup_routes(app, instance, TEMPLATES, _context, shell_manager,
+                        host=selected_host, port=selected_port)
 
     @app.get("/")
     def home(request: Request):

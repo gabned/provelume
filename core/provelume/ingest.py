@@ -570,6 +570,9 @@ def _run_ingestion_filesystem_locked(
                 *row["input"]["locator"].split("/"))) for row in selected["inputs"]]
         else:
             files = _iter_files(canonical_source_path, max_files, policy)
+            from .setup_source_scope import eligible_inputs
+
+            files = eligible_inputs(store, source_id, canonical_source_path, files)
     except (ExclusionError, IngestionLimitError, OSError, UnsafePathError) as exc:
         closed = _close_run(
             ledger,
