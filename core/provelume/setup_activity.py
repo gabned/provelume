@@ -69,6 +69,11 @@ def attach_setup_routes(app, instance, templates, context_factory, shell_manager
                 trial = SetupTrials(instance.store).observations(trial_id)
             except (ValueError, OSError):
                 trial_problem = "setup_trial_required"
+        trial_matches = bool(trial and
+            trial["permit"]["selection"]["source_id"] == choices["source_id"] and
+            trial["permit"]["retention"] == choices["retention"] and
+            trial["permit"]["ocr_required"] == choices["ocr"] and
+            trial["permit"]["languages"] == choices["languages"])
         capability = None
         with suppress(OcrContractError, OSError, ValueError):
             capability = instance.ocr.capability(replace(instance.ocr.configured_settings(),
@@ -94,7 +99,7 @@ def attach_setup_routes(app, instance, templates, context_factory, shell_manager
                 can_continue, blocked = False, problem(exc)
         if step == "ocr" and choices["ocr"] and not (capability and capability["available"]):
             can_continue, blocked = False, "setup_operation_failed"
-        if step == "test" and not (trial and trial["complete"]):
+        if step == "test" and not (trial_matches and trial["complete"]):
             can_continue, blocked = False, "setup_trial_required"
         context = context_factory(
             request, instance, setup_step=step, setup_steps=STEPS, setup_progress=progress,
@@ -103,6 +108,7 @@ def attach_setup_routes(app, instance, templates, context_factory, shell_manager
             setup_runtime=runtime_state(app),
             setup_can_continue=can_continue,
             setup_trial=trial, setup_application=application, setup_preview=preview,
+            setup_trial_matches=trial_matches,
             setup_capability=capability, setup_startup_available=startup_available(),
             setup_kit_preview=draft.get("kit_preview"),
             setup_languages=sorted(LANGUAGES), setup_root=str(instance.root),
@@ -224,6 +230,12 @@ def attach_setup_routes(app, instance, templates, context_factory, shell_manager
                     validate_choices(choices)
                     trial_id = coordinator.progress.read()["operations"].get("test")
                     if trial_id is None:
+                        raise ValueError("setup_trial_required")
+                    permit = SetupTrials(instance.store).authority.read(trial_id, current=False)
+                    if (permit["selection"]["source_id"] != choices["source_id"]
+                            or permit["retention"] != choices["retention"]
+                            or permit["ocr_required"] != choices["ocr"]
+                            or permit["languages"] != choices["languages"]):
                         raise ValueError("setup_trial_required")
                     await verify_trial_http(app, instance.store, trial_id, host=host, port=port)
                     await run_in_threadpool(coordinator.finish_trial, expected, choices)

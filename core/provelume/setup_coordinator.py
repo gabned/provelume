@@ -212,7 +212,14 @@ class SetupCoordinator:
         with InstanceLifecycleManager(self.store)._hold(purpose="setup-test-readback"):
             current = self._current(expected)
             trial_id = current["operations"].get("test")
-            if trial_id is None or not SetupTrials(self.store).observations(trial_id)["complete"]:
+            if trial_id is None:
+                raise ReviewUnavailable("setup_trial_required")
+            trial = SetupTrials(self.store).observations(trial_id)
+            permit = trial["permit"]
+            if (not trial["complete"] or permit["selection"]["source_id"] != choices["source_id"]
+                    or permit["retention"] != choices["retention"]
+                    or permit["ocr_required"] != choices["ocr"]
+                    or permit["languages"] != choices["languages"]):
                 raise ReviewUnavailable("setup_trial_required")
             return self._advance(current, "test", binding=self.draft_bindings(choices)["test"],
                                  complete=True)

@@ -49,6 +49,11 @@
 <label for="setup-ocr-languages">{{ t('ocr.languages') }}<select id="setup-ocr-languages" name="languages">
 {% for value, label in [('eng,ita', 'setup.it_en'), ('ita', 'setup.italian'), ('eng', 'setup.english')] %}<option value="{{ value }}"{% if setup_choices.languages | join(',') == value %} selected{% endif %}>{{ t(label) }}</option>{% endfor %}</select></label>
 <p>{{ t('setup.ocr_capability') }}: {{ t('common.yes') if setup_capability and setup_capability.available else t('common.no') }}</p>
+{% if setup_capability %}<dl>
+<dt>{{ t('ocr.engine') }}</dt><dd>{{ t('setup.verified') if setup_capability.adapter and setup_capability.adapter.engine_available and setup_capability.adapter.version_compatible else t('setup.pending') }}</dd>
+<dt>{{ t('ocr.renderer') }}</dt><dd>{{ t('setup.verified') if setup_capability.renderer and setup_capability.renderer.renderer_available and setup_capability.renderer.version_compatible else t('setup.pending') }}</dd>
+{% for language in setup_choices.languages %}<dt>{{ t('setup.english') if language == 'eng' else t('setup.italian') }}</dt><dd>{{ t('setup.verified') if setup_capability.adapter and language in setup_capability.adapter.installed_languages else t('setup.pending') }}</dd>{% endfor %}
+</dl>{% if setup_capability.error %}<p role="status">{{ setup_capability.error.messages[lang] }}</p>{% endif %}{% endif %}
 <p class="notice">{{ t('setup.ocr_deferred') if not setup_choices.ocr else t('setup.ocr_scope') }}</p>
 <details><summary>{{ t('setup.install_ocr') }}</summary><p>{{ t('setup.kit_help') }}</p>
 <label for="setup-archive">{{ t('setup.kit_archive') }}<input id="setup-archive" name="archive" maxlength="4096" value="{{ setup_selectors.get('archive', '') }}"></label>
@@ -74,9 +79,9 @@
 <a class="button secondary" href="/setup?step=test&amp;lang={{ lang }}">{{ t('setup.refresh') }}</a>
 {% if setup_trial %}<ul class="setup-results">{% for row in setup_trial.documents %}<li><h3>{{ t('setup.native') if row.fixture == 'native' else t('setup.scan') }}</h3>
 <dl>{% for key, label in [('acquisition','setup.acquired'),('original_verified','setup.original'),('index_verified','setup.text'),('search_verified','setup.search'),('consultation_verified','setup.consulted'),('inbox_outcome','setup.inbox_result')] %}<dt>{{ t(label) }}</dt><dd>{% if key == 'inbox_outcome' and row[key] %}{{ t('journey.keep_help') if row[key] == 'input_kept' else t('setup.input_exited') }}{% else %}{{ t('setup.verified') if row[key] else t('setup.pending') }}{% endif %}</dd>{% endfor %}</dl>
-{% if row.acquisition %}<a href="{{ document_link(row.acquisition.document_id) }}">{{ t('journey.open_document') }}</a> · <a href="/api/v1/documents/{{ row.acquisition.document_id }}/original">{{ t('document.mode_download') }}</a> · <a href="/search?q=content%3A{{ 'LUMENATIVE731' if row.fixture == 'native' else 'LUMESCANENGLISH953' }}&amp;lang={{ lang }}">{{ t('setup.try_search') }}</a>{% endif %}</li>{% endfor %}</ul>
-{% if setup_trial.stale %}<p role="status">{{ t('setup.stale_trial') }}</p>{% endif %}
-<button name="action" value="verify" type="submit"{% if not setup_trial.processing_ready %} disabled{% endif %}>{{ icon('search') }}{{ t('setup.verify_open') }}</button>
+{% if row.acquisition %}<a href="{{ document_link(row.acquisition.document_id) }}">{{ t('journey.open_document') }}</a> · <a href="/api/v1/documents/{{ row.acquisition.document_id }}/original">{{ t('document.mode_download') }}</a> · <a href="/search?q=content%3A{{ 'LUMENATIVE731' if row.fixture == 'native' else ('LUMESCANENGLISH953' if 'eng' in setup_trial.permit.languages else 'LUMESCANITALIA842') }}&amp;lang={{ lang }}">{{ t('setup.try_search') }}</a>{% endif %}</li>{% endfor %}</ul>
+{% if setup_trial.stale or not setup_trial_matches %}<p role="status">{{ t('setup.stale_trial') }}</p>{% endif %}
+<button name="action" value="verify" type="submit"{% if not setup_trial.processing_ready or not setup_trial_matches %} disabled{% endif %}>{{ icon('search') }}{{ t('setup.verify_open') }}</button>
 <p>{{ t('setup.verify_help') }}</p>
 <a href="/operations/{{ setup_trial.operation_id }}?lang={{ lang }}">{{ t('setup.details') }}</a>{% endif %}
 {% elif setup_step == 'summary' %}
@@ -86,7 +91,9 @@
 <dt>{{ t('setup.folders') }}</dt><dd>{{ setup_source.name if setup_source else t('setup.pending') }}</dd>
 <dt>{{ t('setup.after_processing') }}</dt><dd>{{ t('setup.' + setup_choices.retention) }}</dd>
 <dt>{{ t('setup.ocr') }}</dt><dd>{{ t('setup.ocr_yes') if setup_choices.ocr else t('setup.not_now') }}</dd>
-<dt>{{ t('setup.automation') }}</dt><dd>{{ t('setup.' + setup_choices.automation) }}</dd></dl>
+<dt>{{ t('setup.automation') }}</dt><dd>{{ t('setup.' + setup_choices.automation) }}</dd>
+<dt>{{ t('setup.test') }}</dt><dd>{{ t('setup.verified') if setup_trial_matches and (setup_trial.complete or (setup_application and setup_application.complete and setup_application.plan.preview.trial_id == setup_progress.operations.get('test'))) else t('setup.pending') }}</dd></dl>
+<p>{{ t('journey.runtime') }}: {{ t('journey.runtime.' + setup_runtime) }}{% if setup_source %} · {{ setup_source.name }}: {{ t('sources.' + setup_source.lifecycle_state) }}{% endif %}</p>
 <p>{{ t('setup.apply_help') }}</p>
 {% if setup_preview %}<p>{{ t('setup.excluded_backlog') }}: {{ ui_number(setup_preview.inbox_inventory | length) }}</p><p>{{ t('setup.confirm_scope') }}</p>{% if setup_preview.baseline %}<p>{{ t('setup.excluded_backlog') }}: {{ setup_preview.baseline.inputs | length }}</p>{% endif %}
 <input type="hidden" name="preview_revision" value="{{ setup_preview.revision }}">

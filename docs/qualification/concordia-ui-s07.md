@@ -357,3 +357,14 @@ The [maintainer check sheet](concordia-ui-s07-pc.md) uses only his Windows 11 Pr
 25H2 production PC/account with synthetic test inputs. It requests no VM, extra
 account or other tester. This candidate keeps version 0.14.0/development; later
 owners and release identity/publication stay gated by the accepted plan.
+
+The follow-up review reproduced the original Spanish Source registration overflow
+and a long synthetic filename expanding the Current Document header at 320px.
+The candidate now constrains only Source registration controls and permits the
+Document header/breadcrumb to wrap; this is not a prior-head correction or a
+human reflow PASS. Exact-head automated browser qualification must establish the
+result before that finding can change state. Selected OCR components and their
+localized errors are shown separately, and a trial using different draft settings
+cannot enable Continue or mark the new choice complete. Scan search links use the
+language actually proved by that trial. The summary separates saved settings,
+current runtime/Source activity and the actual trial result.

@@ -27,6 +27,7 @@ MAX_RESOURCE_TOTAL_BYTES = 16 * 1024 * 1024
 MAX_RESOURCE_FILES = 4096
 SUBTREES = ("templates", "static/icons/lucide", "i18n", "notices")
 STATIC_FILES = (
+    "static/app.css",
     "static/navigation.css",
     "static/navigation.js",
     "static/cura.css",

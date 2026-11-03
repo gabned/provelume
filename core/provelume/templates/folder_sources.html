@@ -14,7 +14,7 @@
 {% if editable %}
 <section class="panel">
   <h2>{{ t('sources.register') }}</h2>
-  <form method="post" action="/sources?lang={{ lang }}" class="settings-form">
+  <form method="post" action="/sources?lang={{ lang }}" class="settings-form folder-source-registration">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <label><span>{{ t('sources.name') }}</span><input name="name" maxlength="120" value="{{ form.get('name', '') }}" required></label>
     <label><span>{{ t('sources.path') }}</span><input name="path" maxlength="4096" value="{{ form.get('path', '') }}" aria-describedby="source-path-help" required></label>

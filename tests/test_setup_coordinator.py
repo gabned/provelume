@@ -271,3 +271,12 @@ def test_later_unselected_preferences_do_not_invalidate_completed_trial(tmp_path
     shell.set_interface_mode("current", expected_revision=shell.load().settings.revision)
     assert setup.application()["complete"]
     assert instance.store.list_canonical("acquisitions") == acquired
+
+
+def test_verified_trial_cannot_complete_a_different_selected_plan(tmp_path):
+    instance, _shell, setup, choices = prepared_trial(tmp_path)
+    acquired = instance.store.list_canonical("acquisitions")
+    changed = {**choices, "retention": "transit"}
+    with pytest.raises(ReviewError):
+        setup.finish_trial(setup.progress.read()["revision"], changed)
+    assert instance.store.list_canonical("acquisitions") == acquired
